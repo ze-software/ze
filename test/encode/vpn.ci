@@ -10,7 +10,7 @@ cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin se
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C40010100400200400304C80A006540050400000064800E210001800C0000000000000000C80A00650071003E810000FDE80000000114000080C010100002FDE8000000010002271000000001
 EOF_PEER
 
-# ze bgp configuration
+# ze bgp configuration using native update syntax
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
@@ -23,10 +23,20 @@ bgp {
 		capability {
 			asn4 true;
 		}
-		announce {
-			ipv4 {
-				mpls-vpn 10.0.0.0/24 next-hop 200.10.0.101 extended-community "0x0002fde800000001 0x0002271000000001" label 1000 rd 65000:1 split /25;
-				mpls-vpn 20.0.0.0/24 next-hop 200.10.0.101 extended-community "0x0002fde800000001 0x0002271000000001" label 1000 rd 65000:1 split /25;
+		family {
+			ipv4/mpls-vpn;
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 200.10.0.101;
+				rd 65000:1;
+				label 1000;
+				extended-community "0x0002fde800000001 0x0002271000000001";
+			}
+			nlri {
+				ipv4/mpls-vpn 10.0.0.0/25 10.0.0.128/25 20.0.0.0/25 20.0.0.128/25;
 			}
 		}
 	}

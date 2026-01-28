@@ -120,3 +120,57 @@ func TestYANGSchemaCanParse(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "65001", peerAS)
 }
+
+// TestYANGSchema_NoAnnounce verifies announce block is rejected.
+//
+// VALIDATES: ExaBGP announce syntax is not accepted by YANGSchema.
+// PREVENTS: Regression allowing legacy ExaBGP syntax in engine.
+func TestYANGSchema_NoAnnounce(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	// ExaBGP-style announce block should be rejected
+	config := `bgp {
+    local-as 65000;
+    router-id 1.2.3.4;
+    peer 192.168.1.1 {
+        peer-as 65001;
+        announce {
+            ipv4 {
+                unicast 10.0.0.0/24 next-hop 10.0.0.1;
+            }
+        }
+    }
+}`
+
+	parser := NewParser(schema)
+	_, err := parser.Parse(config)
+	require.Error(t, err, "announce block should be rejected")
+	assert.Contains(t, err.Error(), "announce", "error should mention announce")
+}
+
+// TestYANGSchema_NoStatic verifies static block is rejected.
+//
+// VALIDATES: ExaBGP static syntax is not accepted by YANGSchema.
+// PREVENTS: Regression allowing legacy ExaBGP syntax in engine.
+func TestYANGSchema_NoStatic(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	// ExaBGP-style static block should be rejected
+	config := `bgp {
+    local-as 65000;
+    router-id 1.2.3.4;
+    peer 192.168.1.1 {
+        peer-as 65001;
+        static {
+            route 10.0.0.0/24 next-hop 10.0.0.1;
+        }
+    }
+}`
+
+	parser := NewParser(schema)
+	_, err := parser.Parse(config)
+	require.Error(t, err, "static block should be rejected")
+	assert.Contains(t, err.Error(), "static", "error should mention static")
+}

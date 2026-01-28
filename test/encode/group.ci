@@ -33,12 +33,40 @@ template {
 			capability {
 				graceful-restart 1200;
 			}
-			announce {
-				ipv4 {
-					unicast 1.0.0.0/8 next-hop 1.1.1.1;
-					unicast 2.0.0.0/8 next-hop 1.1.1.1;
-					unicast 3.0.0.0/8 next-hop 1.1.1.1;
-					unicast 4.0.0.0/8 next-hop 1.1.1.1;
+			update {
+				attribute {
+					origin igp;
+					next-hop 1.1.1.1;
+				}
+				nlri {
+					ipv4/unicast 1.0.0.0/8;
+				}
+			}
+			update {
+				attribute {
+					origin igp;
+					next-hop 1.1.1.1;
+				}
+				nlri {
+					ipv4/unicast 2.0.0.0/8;
+				}
+			}
+			update {
+				attribute {
+					origin igp;
+					next-hop 1.1.1.1;
+				}
+				nlri {
+					ipv4/unicast 3.0.0.0/8;
+				}
+			}
+			update {
+				attribute {
+					origin igp;
+					next-hop 1.1.1.1;
+				}
+				nlri {
+					ipv4/unicast 4.0.0.0/8;
 				}
 			}
 		}

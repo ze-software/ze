@@ -39,12 +39,22 @@ bgp {
 				ipv6/unicast ipv4;
 			}
 		}
-		announce {
-			ipv4 {
-				unicast 153.153.153.153 next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
+		update {
+			attribute {
+				origin igp;
+				next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
 			}
-			ipv6 {
-				unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF next-hop 170.170.170.170;
+			nlri {
+				ipv4/unicast 153.153.153.153/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 170.170.170.170;
+			}
+			nlri {
+				ipv6/unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF/128;
 			}
 		}
 	}

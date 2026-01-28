@@ -19,9 +19,13 @@ bgp {
 		family {
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 10.0.0.0/32 next-hop self;
+		update {
+			attribute {
+				origin igp;
+				next-hop self;
+			}
+			nlri {
+				ipv4/unicast 10.0.0.0/32;
 			}
 		}
 	}

@@ -20,9 +20,13 @@ bgp {
 		family {
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 1.0.0.0/24 next-hop 1.2.3.4 name this-is-a-test-route;
+		update {
+			attribute {
+				origin igp;
+				next-hop 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast 1.0.0.0/24;
 			}
 		}
 	}

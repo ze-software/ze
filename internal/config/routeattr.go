@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/hex"
 	"fmt"
+	"math"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -176,7 +177,38 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 	parts := strings.Fields(s)
 	var allBytes []byte
 
-	for _, p := range parts {
+	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop-ietf).
+	for i := 0; i < len(parts); i++ {
+		p := parts[i]
+
+		// Check for two-word formats that need the next part
+		if i+1 < len(parts) {
+			switch p {
+			case "action":
+				// "action sample-terminal" or "action sample" or "action terminal"
+				b := parseFlowSpecAction(parts[i+1])
+				allBytes = append(allBytes, b...)
+				i++ // skip next part
+				continue
+			case "mark":
+				// "mark N" - DSCP marking
+				b := parseFlowSpecMark(parts[i+1])
+				allBytes = append(allBytes, b...)
+				i++ // skip next part
+				continue
+			case "redirect-to-nexthop-ietf":
+				// "redirect-to-nexthop-ietf IP" - RFC 7674
+				b := parseFlowSpecRedirectNextHopIETF(parts[i+1])
+				if b != nil {
+					allBytes = append(allBytes, b...)
+					i++ // skip next part
+					continue
+				}
+				// If parsing failed, fall through to single-word handling
+			}
+		}
+
+		// Single-word extended community
 		b, err := parseOneExtCommunity(p)
 		if err != nil {
 			return ExtendedCommunity{}, err
@@ -191,6 +223,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 // Supports formats:
 //   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
 //   - Named format: target:ASN:NN, origin:ASN:NN
+//   - FlowSpec actions: rate-limit:N, redirect-to-nexthop, copy-to-nexthop, mark N
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
 	// Check for hex format (0x prefix, no colons) - ExaBGP compatible
@@ -198,8 +231,26 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 		return parseExtCommunityHex(s)
 	}
 
+	// FlowSpec single-word actions (no colons).
+	switch s {
+	case "redirect-to-nexthop":
+		// RFC 5575bis: Redirect to next-hop (type 0x08, subtype 0x00).
+		return []byte{0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, nil
+	case "copy-to-nexthop":
+		// RFC 5575bis: Copy and redirect to next-hop (type 0x08, subtype 0x00, value 1).
+		return []byte{0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}, nil
+	case "discard":
+		// RFC 8955 Section 7.3: Traffic-rate 0 = discard (type 0x8006).
+		return []byte{0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, nil
+	}
+
 	// Format: [type:]value1:value2
 	parts := strings.Split(s, ":")
+
+	// FlowSpec rate-limit:N format.
+	if len(parts) == 2 && parts[0] == "rate-limit" {
+		return parseFlowSpecRateLimit(parts[1])
+	}
 
 	if len(parts) == 2 {
 		// Generic format: ASN:NN or ASN:IP
@@ -462,6 +513,57 @@ func parseRouteTargetOrOrigin4(subtype byte, asnStr, numStr string) ([]byte, err
 		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
 		byte(num >> 8), byte(num),
 	}, nil
+}
+
+// parseFlowSpecRateLimit parses rate-limit:N format for FlowSpec (RFC 5575).
+// Traffic Rate extended community: type 0x80, subtype 0x06.
+// Value is a 4-byte IEEE float for rate in bytes/second.
+func parseFlowSpecRateLimit(rateStr string) ([]byte, error) {
+	rate, err := strconv.ParseFloat(rateStr, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid rate-limit value %q: %w", rateStr, err)
+	}
+	// Convert to IEEE 754 single-precision float (4 bytes)
+	bits := math.Float32bits(float32(rate))
+	return []byte{
+		0x80, 0x06, // Type: Traffic Rate
+		0x00, 0x00, // AS number (informational, usually 0)
+		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits),
+	}, nil
+}
+
+// parseFlowSpecAction parses FlowSpec action flags (RFC 8955 Section 7.4).
+// Traffic Action extended community: type 0x80, subtype 0x07.
+// Format: "sample", "terminal", "sample-terminal" (hyphen or space separated).
+func parseFlowSpecAction(flagsStr string) []byte {
+	var flags uint8
+	// Parse flags: sample (bit 1), terminal (bit 0)
+	lower := strings.ToLower(flagsStr)
+	if strings.Contains(lower, "sample") {
+		flags |= 0x02 // Sample bit
+	}
+	if strings.Contains(lower, "terminal") {
+		flags |= 0x01 // Terminal bit
+	}
+	return []byte{0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, flags}
+}
+
+// parseFlowSpecMark parses DSCP marking value (RFC 8955 Section 7.6).
+// Traffic Marking extended community: type 0x80, subtype 0x09.
+func parseFlowSpecMark(dscpStr string) []byte {
+	dscp, _ := strconv.ParseUint(dscpStr, 10, 8)
+	return []byte{0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, byte(dscp)}
+}
+
+// parseFlowSpecRedirectNextHopIETF parses redirect-to-nexthop-ietf with IPv4 (RFC 7674 Section 3.1).
+// Returns nil if the IP is invalid or IPv6 (IPv6 handled separately via attribute 25).
+func parseFlowSpecRedirectNextHopIETF(ipStr string) []byte {
+	ip, err := netip.ParseAddr(ipStr)
+	if err != nil || !ip.Is4() {
+		return nil // Invalid or IPv6 - handled elsewhere
+	}
+	ipBytes := ip.As4()
+	return []byte{0x01, 0x0c, ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3], 0x00, 0x00}
 }
 
 // parseFlowSpecRedirect parses redirect:ASN:NN format for FlowSpec (RFC 5575).

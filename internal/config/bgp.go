@@ -28,7 +28,12 @@ const (
 
 	// MUP route types for SRv6 Mobile User Plane.
 	routeTypeMUPISD  = "mup-isd"
+	routeTypeMUPDSD  = "mup-dsd"
 	routeTypeMUPT1ST = "mup-t1st"
+	routeTypeMUPT2ST = "mup-t2st"
+
+	// Common field names.
+	fieldSource = "source"
 
 	// Encoder types.
 	encoderText = "text"
@@ -88,360 +93,6 @@ type FamilyConfig struct {
 	AFI  string     // "ipv4", "ipv6", "l2vpn", "bgp-ls"
 	SAFI string     // "unicast", "multicast", "mpls-vpn", etc.
 	Mode FamilyMode // enable, disable, require
-}
-
-// flowRouteAttributes returns field definitions for FlowSpec routes.
-// Format: route NAME { rd VALUE; match { ... } then { ... } }.
-func flowRouteAttributes() []FieldDef {
-	return []FieldDef{
-		Field("rd", Leaf(TypeString)),
-		Field("next-hop", Leaf(TypeString)),
-		Field("extended-community", ValueOrArray(TypeString)),
-		Field("match", Freeform()), // Match criteria
-		Field("scope", Freeform()), // Scope criteria (interface-set, etc.)
-		Field("then", Freeform()),  // Actions
-	}
-}
-
-// mcastVpnAttributes returns field definitions for MCAST-VPN routes.
-// Format: mcast-vpn <type> rp <ip> group <ip> rd <rd> source-as <asn> next-hop <ip> ...
-func mcastVpnAttributes() []FieldDef {
-	return []FieldDef{
-		Field("rp", Leaf(TypeString)),
-		Field("group", Leaf(TypeString)),
-		Field("source", Leaf(TypeString)),
-		Field("rd", Leaf(TypeString)),
-		Field("source-as", Leaf(TypeUint32)),
-		Field("next-hop", Leaf(TypeString)),
-		Field("extended-community", ValueOrArray(TypeString)),
-		Field("community", ValueOrArray(TypeString)),
-		Field("origin", Leaf(TypeString)),
-		Field("local-preference", Leaf(TypeUint32)),
-		Field("med", Leaf(TypeUint32)),
-		Field("originator-id", Leaf(TypeIPv4)),          // RFC 4456
-		Field("cluster-list", ValueOrArray(TypeString)), // RFC 4456
-	}
-}
-
-// vplsAttributes returns field definitions for VPLS routes.
-func vplsAttributes() []FieldDef {
-	return []FieldDef{
-		Field("rd", Leaf(TypeString)),
-		Field("endpoint", Leaf(TypeUint16)),
-		Field("base", Leaf(TypeUint32)),
-		Field("offset", Leaf(TypeUint16)),
-		Field("size", Leaf(TypeUint16)),
-		Field("next-hop", Leaf(TypeString)),
-		Field("origin", Leaf(TypeString)),
-		Field("local-preference", Leaf(TypeUint32)),
-		Field("med", Leaf(TypeUint32)),
-		Field("as-path", ValueOrArray(TypeString)),
-		Field("community", ValueOrArray(TypeString)),
-		Field("extended-community", ValueOrArray(TypeString)),
-		Field("originator-id", Leaf(TypeIPv4)),
-		Field("cluster-list", ValueOrArray(TypeString)),
-	}
-}
-
-// routeAttributes returns the common route attribute field definitions.
-// Used by static route config schema.
-func routeAttributes() []FieldDef {
-	return []FieldDef{
-		Field("next-hop", Leaf(TypeString)),
-		Field("origin", Leaf(TypeString)),
-		Field("local-preference", Leaf(TypeUint32)),
-		Field("med", Leaf(TypeUint32)),
-		Field("community", ValueOrArray(TypeString)),
-		Field("extended-community", ValueOrArray(TypeString)),
-		Field("large-community", ValueOrArray(TypeString)),
-		Field("as-path", ValueOrArray(TypeString)),
-		Field("path-information", Leaf(TypeString)),
-		Field("label", Leaf(TypeString)),
-		Field("labels", ValueOrArray(TypeString)), // RFC 8277: Multi-label support
-		Field("rd", Leaf(TypeString)),
-		Field("aggregator", Leaf(TypeString)),
-		Field("atomic-aggregate", Flex()), // Can be standalone or followed by aggregator
-		Field("originator-id", Leaf(TypeIPv4)),
-		Field("cluster-list", Leaf(TypeString)),
-		Field("name", Leaf(TypeString)),
-		Field("split", Leaf(TypeString)),
-		Field("watchdog", Leaf(TypeString)),
-		Field("withdraw", Flex()),                    // Withdraw route (flag)
-		Field("attribute", ValueOrArray(TypeString)), // Generic attributes
-		Field("bgp-prefix-sid", Flex()),              // Prefix SID - can use ( ... ) syntax
-		Field("bgp-prefix-sid-srv6", Flex()),         // SRv6 Prefix SID - can use ( ... ) syntax
-	}
-}
-
-// peerFields returns the common field definitions for neighbor and template schemas.
-// Field order determines serialization order in generated configs.
-func peerFields() []FieldDef {
-	return []FieldDef{
-		// Template inheritance (first, so it's clear what template is used)
-		Field("inherit", Leaf(TypeString)),
-
-		// Basic peer identification
-		Field("description", Leaf(TypeString)),
-		Field("router-id", Leaf(TypeIPv4)),
-		Field("local-address", Leaf(TypeString)), // IP address or "auto"
-		Field("local-as", Leaf(TypeUint32)),
-		Field("peer-as", Leaf(TypeUint32)),
-		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
-		Field("passive", LeafWithDefault(TypeBool, "false")),
-		Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
-
-		// Address families (before capability)
-		Field("family", FamilyBlock()), // { ipv4/unicast; ipv4 { unicast require; } }
-
-		// Capabilities
-		Field("capability", Container(
-			Field("asn4", LeafWithDefault(TypeBool, configTrue)),
-			Field("route-refresh", Flex()), // flag, value, or block
-			Field("graceful-restart", Flex( // flag, value, or block
-				Field("restart-time", LeafWithDefault(TypeUint16, "120")),
-			)),
-			Field("add-path", Flex( // flag, value (send/receive), or block
-				Field("send", LeafWithDefault(TypeBool, "false")),
-				Field("receive", LeafWithDefault(TypeBool, "false")),
-			)),
-			Field("extended-message", Flex()), // RFC 8654 Extended Message
-			Field("nexthop", Freeform()),      // RFC 8950 Extended Next Hop
-			Field("multi-session", Flex()),
-			Field("operational", Flex()),
-			Field("aigp", Flex()),
-			Field("software-version", Flex()),
-		)),
-
-		// Additional peer settings
-		Field("host-name", Leaf(TypeString)),
-		Field("domain-name", Leaf(TypeString)),
-		Field("md5-password", Leaf(TypeString)),
-		Field("md5-ip", Leaf(TypeIP)),
-		Field("ttl-security", Leaf(TypeUint16)),
-		Field("outgoing-ttl", Leaf(TypeUint16)),
-		Field("incoming-ttl", Leaf(TypeUint16)),
-		Field("multi-session", LeafWithDefault(TypeBool, "false")),
-		Field("manual-eor", Leaf(TypeBool)), // manual end-of-RIB
-		Field("auto-flush", Leaf(TypeBool)), // auto-flush routes
-		Field("adj-rib-out", Leaf(TypeBool)),
-		Field("adj-rib-in", Leaf(TypeBool)),
-
-		// Announce routes - structured by AFI/SAFI
-		// announce { ipv4 { unicast <prefix> <attrs>; } ipv6 { unicast <prefix> <attrs>; } }
-		Field("announce", Container(
-			Field("ipv4", Container(
-				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
-				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
-				Field("nlri-mpls", InlineList(TypePrefix, routeAttributes()...)), // labeled-unicast (SAFI 4)
-				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
-				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
-				Field("mup", Flex()),      // MUP - complex inline format with nested parens
-				Field("flow", Freeform()), // FlowSpec - complex format
-			)),
-			Field("ipv6", Container(
-				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
-				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
-				Field("nlri-mpls", InlineList(TypePrefix, routeAttributes()...)), // labeled-unicast (SAFI 4)
-				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
-				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
-				Field("mup", Flex()),      // MUP - complex inline format with nested parens
-				Field("flow", Freeform()), // FlowSpec - complex format
-			)),
-			Field("l2vpn", Container(
-				Field("vpls", Flex(vplsAttributes()...)),
-				Field("evpn", Freeform()), // EVPN - complex format
-			)),
-		)),
-
-		// Static routes - InlineList supports "route PREFIX attr val attr val;"
-		Field("static", Container(
-			Field("route", InlineList(TypePrefix, routeAttributes()...)),
-		)),
-
-		// Flow routes - named list with match/then sub-blocks
-		Field("flow", Container(
-			Field("route", List(TypeString, flowRouteAttributes()...)),
-		)),
-
-		// L2VPN (VPLS, EVPN)
-		Field("l2vpn", Container(
-			Field("vpls", Flex(vplsAttributes()...)),
-			Field("evpn", Freeform()), // EVPN - complex format
-		)),
-
-		// Add-path per-family configuration
-		Field("add-path", Freeform()),
-
-		// Process bindings - connects peer to plugin processes:
-		// Old: process { processes [ foo ]; } (ExaBGP compat, via migration)
-		// New: process <plugin-name> { content { encoding json; }; receive { update; }; }
-		Field("process", List(TypeString,
-			// Old syntax fields (ExaBGP compatibility, migrated from "api")
-			Field("processes", ArrayLeaf(TypeString)),       // processes [ foo bar ]
-			Field("processes-match", ArrayLeaf(TypeString)), // processes-match [ "^pattern" ]
-			Field("neighbor-changes", Flex()),               // neighbor-changes; (flag)
-
-			// New syntax fields
-			Field("content", Container(
-				Field("encoding", Leaf(TypeString)),  // json | text
-				Field("format", Leaf(TypeString)),    // parsed | raw | full
-				Field("attribute", Leaf(TypeString)), // all | none | "origin as-path ..."
-				Field("nlri", Flex()),                // ipv4/unicast; ipv6/unicast; (repeated)
-			)),
-			Field("receive", Freeform()), // { update; open; notification; all; }
-			Field("send", Freeform()),    // { update; refresh; all; }
-		)),
-
-		// Operational messages (ExaBGP-specific, not supported in ze)
-		// We parse it to detect and warn, but don't process it
-		Field("operational", Freeform()),
-
-		// RIB configuration (per-neighbor)
-		Field("rib", Container(
-			Field("out", Container(
-				Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
-				Field("auto-commit-delay", LeafWithDefault(TypeDuration, "0")),
-				Field("max-batch-size", LeafWithDefault(TypeInt, "0")),
-			)),
-		)),
-	}
-}
-
-// templatePeerFields returns fields for template peer patterns.
-// Includes inherit-name for named templates, plus all regular peer fields.
-// Used by LegacyBGPSchema for migration tool.
-func templatePeerFields() []FieldDef {
-	fields := []FieldDef{
-		Field("inherit-name", Leaf(TypeString)), // Named template identifier
-	}
-	return append(fields, peerFields()...)
-}
-
-// environmentBlock returns the schema for the environment configuration block.
-// Maps to Environment struct sections (daemon, log, tcp, bgp, cache, api, reactor, debug).
-func environmentBlock() *ContainerNode {
-	return Container(
-		Field("daemon", Container(
-			Field("pid", Leaf(TypeString)),
-			Field("user", Leaf(TypeString)),
-			Field("daemonize", Leaf(TypeBool)),
-			Field("drop", Leaf(TypeBool)),
-			Field("umask", Leaf(TypeString)), // Octal string
-		)),
-		Field("log", Container(
-			Field("level", Leaf(TypeString)),
-			Field("enable", Leaf(TypeBool)),
-			Field("destination", Leaf(TypeString)),
-			Field("all", Leaf(TypeBool)),
-			Field("configuration", Leaf(TypeBool)),
-			Field("reactor", Leaf(TypeBool)),
-			Field("daemon", Leaf(TypeBool)),
-			Field("processes", Leaf(TypeBool)),
-			Field("network", Leaf(TypeBool)),
-			Field("statistics", Leaf(TypeBool)),
-			Field("packets", Leaf(TypeBool)),
-			Field("rib", Leaf(TypeBool)),
-			Field("message", Leaf(TypeBool)),
-			Field("timers", Leaf(TypeBool)),
-			Field("routes", Leaf(TypeBool)),
-			Field("parser", Leaf(TypeBool)),
-			Field("short", Leaf(TypeBool)),
-		)),
-		Field("tcp", Container(
-			Field("port", Leaf(TypeUint16)),
-			Field("attempts", Leaf(TypeInt)),
-			Field("delay", Leaf(TypeInt)),
-			Field("acl", Leaf(TypeBool)),
-		)),
-		Field("bgp", Container(
-			Field("passive", Leaf(TypeBool)),
-			Field("openwait", Leaf(TypeInt)),
-		)),
-		Field("cache", Container(
-			Field("attributes", Leaf(TypeBool)),
-		)),
-		Field("api", Container(
-			Field("ack", Leaf(TypeBool)),
-			Field("chunk", Leaf(TypeInt)),
-			Field("encoder", Leaf(TypeString)),
-			Field("compact", Leaf(TypeBool)),
-			Field("respawn", Leaf(TypeBool)),
-			Field("terminate", Leaf(TypeBool)),
-			Field("cli", Leaf(TypeBool)),
-			Field("pipename", Leaf(TypeString)),
-			Field("socketname", Leaf(TypeString)),
-		)),
-		Field("reactor", Container(
-			Field("speed", Leaf(TypeString)), // Float as string
-		)),
-		Field("debug", Container(
-			Field("pdb", Leaf(TypeBool)),
-			Field("memory", Leaf(TypeBool)),
-			Field("configuration", Leaf(TypeBool)),
-			Field("selfcheck", Leaf(TypeBool)),
-			Field("route", Leaf(TypeString)),
-			Field("defensive", Leaf(TypeBool)),
-			Field("rotate", Leaf(TypeBool)),
-			Field("timing", Leaf(TypeBool)),
-		)),
-	)
-}
-
-// LegacyBGPSchema returns a schema that accepts both old and current syntax.
-// Used by the migration tool to parse old configs before transformation.
-func LegacyBGPSchema() *Schema {
-	schema := NewSchema()
-
-	// Environment settings (ze-specific)
-	schema.Define("environment", environmentBlock())
-
-	// Plugin definitions (new syntax)
-	schema.Define("plugin", Container(
-		Field("external", List(TypeString,
-			Field("run", MultiLeaf(TypeString)),
-			Field("encoder", Leaf(TypeString)),
-			Field("respawn", Leaf(TypeBool)),
-			Field("timeout", Leaf(TypeString)),
-		)),
-	))
-
-	// Global settings (old syntax - at root)
-	schema.Define("router-id", Leaf(TypeIPv4))
-	schema.Define("local-as", Leaf(TypeUint32))
-	schema.Define("listen", MultiLeaf(TypeString))
-
-	// Process definitions (old API syntax)
-	schema.Define("process", List(TypeString,
-		Field("run", MultiLeaf(TypeString)),
-		Field("encoder", Leaf(TypeString)),
-		Field("respawn", Leaf(TypeBool)),
-	))
-
-	// neighbor <IP> { ... } - deprecated ExaBGP syntax
-	schema.Define("neighbor", List(TypeIP, peerFields()...))
-
-	// peer - accepts both IP (current) and glob patterns (old)
-	schema.Define("peer", List(TypeString, peerFields()...))
-
-	// Template definitions - accepts both old and current syntax
-	schema.Define("template", Container(
-		Field("neighbor", List(TypeString, peerFields()...)), // old: named templates
-		Field("group", List(TypeString, peerFields()...)),    // intermediate: named templates
-		Field("match", List(TypeString, peerFields()...)),    // intermediate: glob patterns
-		Field("bgp", Container( // new: template.bgp.peer
-			Field("peer", List(TypeString, templatePeerFields()...)),
-		)),
-	))
-
-	// BGP block (new syntax) - contains all BGP-related config
-	schema.Define("bgp", Container(
-		Field("router-id", Leaf(TypeIPv4)),
-		Field("local-as", Leaf(TypeUint32)),
-		Field("listen", MultiLeaf(TypeString)),
-		Field("peer", List(TypeIP, peerFields()...)),
-	))
-
-	return schema
 }
 
 // RIBOutConfig holds outgoing RIB configuration for route batching.
@@ -504,7 +155,8 @@ type PeerConfig struct {
 // PeerProcessBinding binds a peer to a plugin process with specific content and message config.
 // This separates WHAT messages to send/receive from HOW they are formatted.
 type PeerProcessBinding struct {
-	PluginName string            // Reference to plugin name (must exist)
+	PluginName string            // Reference to plugin name (or inline name if Run is set)
+	Run        string            // Inline run command (if set, plugin is defined inline)
 	Content    PeerContentConfig // HOW: encoding and format
 	Receive    PeerReceiveConfig // WHAT: which message types to receive
 	Send       PeerSendConfig    // WHAT: which message types to send
@@ -633,14 +285,17 @@ type VPLSRouteConfig struct {
 }
 
 // FlowSpecRouteConfig holds a FlowSpec route configuration.
+// RFC 8955 Section 4: NLRI contains match criteria (destination, source, protocol, ports, etc.)
+// RFC 8955 Section 7: Actions are encoded as Extended Communities (rate-limit, redirect, etc.)
 type FlowSpecRouteConfig struct {
 	Name              string
 	IsIPv6            bool
-	RD                string // for flow-vpn
-	Match             map[string]string
-	Then              map[string]string
+	RD                string              // for flow-vpn (SAFI 134)
+	NLRI              map[string][]string // Match criteria (RFC 8955 Section 4)
 	NextHop           string
-	ExtendedCommunity string
+	Community         string
+	ExtendedCommunity string // Actions as extended communities (RFC 8955 Section 7)
+	Attribute         string // Raw attribute hex: [ code flags value ]
 }
 
 // MUPRouteConfig holds a MUP route configuration.
@@ -801,13 +456,30 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 
 		// Validate process binding plugin references
+		// Skip validation if binding has inline Run (defines plugin inline)
 		for _, binding := range nc.ProcessBindings {
-			if !pluginNames[binding.PluginName] {
+			if binding.Run == "" && !pluginNames[binding.PluginName] {
 				return nil, fmt.Errorf("bgp.peer %s: undefined plugin %q in process binding", addr, binding.PluginName)
 			}
 		}
 
 		cfg.Peers = append(cfg.Peers, nc)
+	}
+
+	// Register inline plugins (process bindings with Run defined inline)
+	inlinePlugins := make(map[string]bool)
+	for _, peer := range cfg.Peers {
+		for _, binding := range peer.ProcessBindings {
+			if binding.Run != "" && !inlinePlugins[binding.PluginName] {
+				inlinePlugins[binding.PluginName] = true
+				cfg.Plugins = append(cfg.Plugins, PluginConfig{
+					Name:          binding.PluginName,
+					Run:           binding.Run,
+					Encoder:       encoderText, // Default to text encoder
+					ReceiveUpdate: true,        // Default: receive updates
+				})
+			}
+		}
 	}
 
 	// Validate process-dependent capabilities
@@ -1040,7 +712,11 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 			if err != nil {
 				return nc, fmt.Errorf("match %s routes: %w", glob.Pattern, err)
 			}
-			nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+			nc.StaticRoutes = append(nc.StaticRoutes, routes.StaticRoutes...)
+			nc.FlowSpecRoutes = append(nc.FlowSpecRoutes, routes.FlowSpecRoutes...)
+			nc.VPLSRoutes = append(nc.VPLSRoutes, routes.VPLSRoutes...)
+			nc.MVPNRoutes = append(nc.MVPNRoutes, routes.MVPNRoutes...)
+			nc.MUPRoutes = append(nc.MUPRoutes, routes.MUPRoutes...)
 		}
 	}
 
@@ -1088,7 +764,11 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 		if err != nil {
 			return nc, fmt.Errorf("template routes: %w", err)
 		}
-		nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+		nc.StaticRoutes = append(nc.StaticRoutes, routes.StaticRoutes...)
+		nc.FlowSpecRoutes = append(nc.FlowSpecRoutes, routes.FlowSpecRoutes...)
+		nc.VPLSRoutes = append(nc.VPLSRoutes, routes.VPLSRoutes...)
+		nc.MVPNRoutes = append(nc.MVPNRoutes, routes.MVPNRoutes...)
+		nc.MUPRoutes = append(nc.MUPRoutes, routes.MUPRoutes...)
 	}
 
 	// Get last inherited template for getValue fallback (backward compat)
@@ -1301,18 +981,22 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 		}
 	}
 
-	// Extract routes from this neighbor's static and announce blocks
+	// Extract routes from this neighbor's static and announce blocks (including update blocks)
 	routes, err := extractRoutesFromTree(tree)
 	if err != nil {
 		return nc, err
 	}
-	nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+	nc.StaticRoutes = append(nc.StaticRoutes, routes.StaticRoutes...)
+	nc.FlowSpecRoutes = append(nc.FlowSpecRoutes, routes.FlowSpecRoutes...)
+	nc.VPLSRoutes = append(nc.VPLSRoutes, routes.VPLSRoutes...)
+	nc.MVPNRoutes = append(nc.MVPNRoutes, routes.MVPNRoutes...)
+	nc.MUPRoutes = append(nc.MUPRoutes, routes.MUPRoutes...)
 
-	// Extract exotic routes
-	nc.MVPNRoutes = extractMVPNRoutes(tree)
-	nc.VPLSRoutes = extractVPLSRoutes(tree)
-	nc.FlowSpecRoutes = extractFlowSpecRoutes(tree)
-	nc.MUPRoutes = extractMUPRoutes(tree)
+	// Extract exotic routes from old ExaBGP syntax (flow, l2vpn, announce blocks)
+	nc.MVPNRoutes = append(nc.MVPNRoutes, extractMVPNRoutes(tree)...)
+	nc.VPLSRoutes = append(nc.VPLSRoutes, extractVPLSRoutes(tree)...)
+	nc.FlowSpecRoutes = append(nc.FlowSpecRoutes, extractFlowSpecRoutes(tree)...)
+	nc.MUPRoutes = append(nc.MUPRoutes, extractMUPRoutes(tree)...)
 
 	// Apply template rib.out if present (peer globs already applied above)
 	if tmpl != nil {
@@ -1508,6 +1192,11 @@ func parseOldProcessBindings(processTree *Tree) []PeerProcessBinding {
 // parseNewProcessBinding parses a single process <plugin-name> { ... } binding.
 func parseNewProcessBinding(pluginName string, processTree *Tree) (PeerProcessBinding, error) {
 	binding := PeerProcessBinding{PluginName: pluginName}
+
+	// Parse inline run command (defines plugin inline instead of referencing external)
+	if v, ok := processTree.Get("run"); ok {
+		binding.Run = v
+	}
 
 	// Parse content block: content { encoding json; format full; attribute ...; nlri ...; }
 	if content := processTree.GetContainer("content"); content != nil {
@@ -1713,11 +1402,29 @@ func parseNexthopFamilies(tree *Tree) []NexthopFamilyConfig {
 	return families
 }
 
+// parseAnnounceAFIRoutes parses routes from an AFI container (ipv4 or ipv6).
+// Handles unicast, multicast, nlri-mpls, and mpls-vpn SAFIs.
+func parseAnnounceAFIRoutes(afiTree *Tree) ([]StaticRouteConfig, error) {
+	var routes []StaticRouteConfig
+	safis := []string{"unicast", "multicast", "nlri-mpls", "mpls-vpn"}
+	for _, safi := range safis {
+		for _, entry := range afiTree.GetListOrdered(safi) {
+			sr, err := parseRouteConfig(entry.Key, entry.Value)
+			if err != nil {
+				return nil, err
+			}
+			routes = append(routes, sr)
+		}
+	}
+	return routes, nil
+}
+
 // extractRoutesFromTree extracts all routes from a neighbor or template tree.
 // Handles both static { route ... } and announce { ipv4/ipv6 { unicast/multicast ... } } blocks.
 // Uses GetListOrdered to preserve config order.
-func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
-	var routes []StaticRouteConfig
+// Returns UpdateBlockRoutes containing all route types (static, flowspec, vpls, mvpn, mup).
+func extractRoutesFromTree(tree *Tree) (*UpdateBlockRoutes, error) {
+	result := &UpdateBlockRoutes{}
 
 	// Static routes - use ordered iteration to preserve config order
 	if static := tree.GetContainer("static"); static != nil {
@@ -1726,72 +1433,20 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 			if err != nil {
 				return nil, err
 			}
-			routes = append(routes, sr)
+			result.StaticRoutes = append(result.StaticRoutes, sr)
 		}
 	}
 
 	// Announce routes - parse from announce { ipv4 { unicast ... } } structure
 	if announce := tree.GetContainer("announce"); announce != nil {
-		// Parse IPv4 routes
-		if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
-			for _, entry := range ipv4.GetListOrdered("unicast") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
+		// Parse routes from IPv4 and IPv6 containers using shared helper
+		for _, afiName := range []string{"ipv4", "ipv6"} {
+			if afiTree := announce.GetContainer(afiName); afiTree != nil {
+				routes, err := parseAnnounceAFIRoutes(afiTree)
 				if err != nil {
 					return nil, err
 				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv4.GetListOrdered("multicast") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv4.GetListOrdered("nlri-mpls") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv4.GetListOrdered("mpls-vpn") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-		}
-		// Parse IPv6 routes
-		if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
-			for _, entry := range ipv6.GetListOrdered("unicast") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv6.GetListOrdered("multicast") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv6.GetListOrdered("nlri-mpls") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
-			}
-			for _, entry := range ipv6.GetListOrdered("mpls-vpn") {
-				sr, err := parseRouteConfig(entry.Key, entry.Value)
-				if err != nil {
-					return nil, err
-				}
-				routes = append(routes, sr)
+				result.StaticRoutes = append(result.StaticRoutes, routes...)
 			}
 		}
 	}
@@ -1802,21 +1457,44 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 		if err != nil {
 			return nil, fmt.Errorf("update block: %w", err)
 		}
-		routes = append(routes, updateRoutes...)
+		// Aggregate all route types
+		result.StaticRoutes = append(result.StaticRoutes, updateRoutes.StaticRoutes...)
+		result.FlowSpecRoutes = append(result.FlowSpecRoutes, updateRoutes.FlowSpecRoutes...)
+		result.VPLSRoutes = append(result.VPLSRoutes, updateRoutes.VPLSRoutes...)
+		result.MVPNRoutes = append(result.MVPNRoutes, updateRoutes.MVPNRoutes...)
+		result.MUPRoutes = append(result.MUPRoutes, updateRoutes.MUPRoutes...)
 	}
 
-	return routes, nil
+	return result, nil
+}
+
+// UpdateBlockRoutes holds all route types extracted from an update { } block.
+type UpdateBlockRoutes struct {
+	StaticRoutes   []StaticRouteConfig
+	FlowSpecRoutes []FlowSpecRouteConfig
+	VPLSRoutes     []VPLSRouteConfig
+	MVPNRoutes     []MVPNRouteConfig
+	MUPRoutes      []MUPRouteConfig
 }
 
 // extractRoutesFromUpdateBlock parses a single update { attribute { } nlri { } } block.
-// Returns StaticRouteConfig entries for each NLRI in the block.
-func extractRoutesFromUpdateBlock(update *Tree) ([]StaticRouteConfig, error) {
-	var routes []StaticRouteConfig
+// Returns all route types (static, flowspec, vpls, mvpn, mup) for each NLRI in the block.
+func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
+	result := &UpdateBlockRoutes{}
 
 	// Parse attributes from attribute { } container
 	attr := update.GetContainer("attribute")
 	if attr == nil {
 		attr = NewTree() // Empty attributes if not specified
+	}
+
+	// Parse watchdog container from update block level
+	// Routes with watchdog { name ...; withdraw true; } are held until "bgp watchdog announce <name>"
+	var watchdog string
+	var watchdogWithdraw bool
+	if wdContainer := update.GetContainer("watchdog"); wdContainer != nil {
+		watchdog, _ = wdContainer.Get("name")
+		_, watchdogWithdraw = wdContainer.Get("withdraw")
 	}
 
 	// Parse nlri { } container - freeform content like "ipv4/unicast 1.0.0.0/24 2.0.0.0/24;"
@@ -1826,15 +1504,69 @@ func extractRoutesFromUpdateBlock(update *Tree) ([]StaticRouteConfig, error) {
 	}
 
 	// Parse each family line from the freeform nlri block
-	// Freeform stores "ipv4/unicast 1.0.0.0/24 2.0.0.0/24" as key -> "true"
-	for _, line := range nlriContainer.Values() {
-		// Parse the line: first word is family, rest are prefixes
+	// Freeform stores content in two ways:
+	// 1. Without brackets: "ipv4/unicast 1.0.0.0/24" as key -> "true"
+	// 2. With brackets: "ipv4/flow" as key -> "packet-length >200&<300 >400&<500" (brackets stripped)
+	// We need to combine key+value to get the full line.
+	for _, key := range nlriContainer.Values() {
+		value, _ := nlriContainer.Get(key)
+		var line string
+		if value == configTrue || value == "" {
+			line = key // Simple case: entire line is the key
+		} else {
+			line = key + " " + value // Bracketed case: combine key and value
+		}
+		// Parse the line: first word is family, rest depends on family type
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue
 		}
 		family := parts[0]
-		prefixes := parts[1:]
+
+		// Handle complex NLRI families specially
+		switch family {
+		case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn", "ipv4/flowspec", "ipv6/flowspec":
+			fr, err := parseFlowSpecNLRILine(line, attr)
+			if err != nil {
+				return nil, fmt.Errorf("flowspec nlri: %w", err)
+			}
+			result.FlowSpecRoutes = append(result.FlowSpecRoutes, fr)
+			continue
+
+		case "l2vpn/vpls":
+			vr, err := parseVPLSNLRILine(line, attr)
+			if err != nil {
+				return nil, fmt.Errorf("vpls nlri: %w", err)
+			}
+			result.VPLSRoutes = append(result.VPLSRoutes, vr)
+			continue
+
+		case "ipv4/mcast-vpn", "ipv6/mcast-vpn":
+			mr, err := parseMVPNNLRILine(line, attr)
+			if err != nil {
+				return nil, fmt.Errorf("mvpn nlri: %w", err)
+			}
+			result.MVPNRoutes = append(result.MVPNRoutes, mr)
+			continue
+
+		case "ipv4/mup", "ipv6/mup":
+			mr, err := parseMUPNLRILine(line, attr)
+			if err != nil {
+				return nil, fmt.Errorf("mup nlri: %w", err)
+			}
+			result.MUPRoutes = append(result.MUPRoutes, mr)
+			continue
+		}
+
+		// Standard families with simple prefixes
+		// Filter out action keywords (add/del) - config routes are always announcements
+		var prefixes []string
+		for _, p := range parts[1:] {
+			if p == "add" || p == "del" || p == "eor" {
+				continue // Skip action keywords
+			}
+			prefixes = append(prefixes, p)
+		}
 
 		// Validate family
 		if _, ok := message.FamilyConfigNames[family]; !ok {
@@ -1868,11 +1600,301 @@ func extractRoutesFromUpdateBlock(update *Tree) ([]StaticRouteConfig, error) {
 				return nil, err
 			}
 
-			routes = append(routes, sr)
+			// Apply watchdog from update block level
+			if watchdog != "" {
+				sr.Watchdog = watchdog
+				sr.WatchdogWithdraw = watchdogWithdraw
+			}
+
+			result.StaticRoutes = append(result.StaticRoutes, sr)
 		}
 	}
 
-	return routes, nil
+	return result, nil
+}
+
+// parseFlowSpecNLRILine parses a FlowSpec NLRI line like:
+// "ipv4/flow source-ipv4 10.0.0.1/32 destination-port =80 protocol =tcp".
+// RFC 8955 Section 4 defines the FlowSpec NLRI format.
+func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error) {
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return FlowSpecRouteConfig{}, fmt.Errorf("flowspec nlri requires match criteria")
+	}
+
+	family := parts[0]
+	fr := FlowSpecRouteConfig{
+		IsIPv6: strings.HasPrefix(family, "ipv6/"),
+		NLRI:   make(map[string][]string),
+	}
+
+	// Check for VPN variant
+	if strings.HasSuffix(family, "-vpn") {
+		if v, ok := attr.Get("rd"); ok {
+			fr.RD = v
+		}
+	}
+
+	// Get next-hop from attributes
+	if v, ok := attr.Get("next-hop"); ok {
+		fr.NextHop = v
+	}
+
+	// Get community from attributes
+	if v, ok := attr.Get("community"); ok {
+		fr.Community = v
+	}
+
+	// Get extended-community from attributes (actions per RFC 8955 Section 7)
+	if v, ok := attr.Get("extended-community"); ok {
+		fr.ExtendedCommunity = v
+	}
+
+	// Get raw attribute (e.g., for IPv6 Extended Community attr 25)
+	if v, ok := attr.Get("attribute"); ok {
+		fr.Attribute = v
+	}
+
+	// Parse NLRI match criteria from remaining parts
+	// Format: <criterion> <value> [<criterion> <value>]...
+	// Values are stored as slices to support multi-value criteria like "protocol [ =tcp =udp ]"
+	criteria := parts[1:]
+	for i := 0; i < len(criteria); i++ {
+		criterion := normalizeFlowSpecCriterion(criteria[i])
+		// Handle bracketed lists like [ >200&<300 >400&<500 ]
+		if i+1 < len(criteria) && criteria[i+1] == "[" {
+			// Find closing bracket and collect all values
+			j := i + 2
+			for ; j < len(criteria) && criteria[j] != "]"; j++ {
+				fr.NLRI[criterion] = append(fr.NLRI[criterion], criteria[j])
+			}
+			i = j
+			continue
+		}
+		// Regular key-value pair (single value)
+		if i+1 < len(criteria) {
+			fr.NLRI[criterion] = append(fr.NLRI[criterion], criteria[i+1])
+			i++
+		}
+	}
+
+	return fr, nil
+}
+
+// normalizeFlowSpecCriterion normalizes FlowSpec criterion names to canonical form.
+// Maps "source-ipv4", "source-ipv6" -> "source"; "destination-ipv4", "destination-ipv6" -> "destination".
+// This ensures the NLRI map uses keys that buildFlowSpecNLRI expects.
+func normalizeFlowSpecCriterion(criterion string) string {
+	switch criterion {
+	case "source-ipv4", "source-ipv6":
+		return "source"
+	case "destination-ipv4", "destination-ipv6":
+		return "destination"
+	default:
+		return criterion
+	}
+}
+
+// parseVPLSNLRILine parses a VPLS NLRI line like:
+// "l2vpn/vpls rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702".
+func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return VPLSRouteConfig{}, fmt.Errorf("vpls nlri requires fields")
+	}
+
+	vr := VPLSRouteConfig{}
+
+	// Parse key-value pairs
+	for i := 1; i < len(parts); i += 2 {
+		if i+1 >= len(parts) {
+			break
+		}
+		key, val := parts[i], parts[i+1]
+		switch key {
+		case "rd":
+			vr.RD = val
+		case "ve-id", "endpoint":
+			v, _ := strconv.ParseUint(val, 10, 16)
+			vr.Endpoint = uint16(v)
+		case "ve-block-offset", "offset":
+			v, _ := strconv.ParseUint(val, 10, 16)
+			vr.Offset = uint16(v)
+		case "ve-block-size", "size":
+			v, _ := strconv.ParseUint(val, 10, 16)
+			vr.Size = uint16(v)
+		case "label-base", "base":
+			v, _ := strconv.ParseUint(val, 10, 32)
+			vr.Base = uint32(v)
+		}
+	}
+
+	// Apply attributes
+	if v, ok := attr.Get("next-hop"); ok {
+		vr.NextHop = v
+	}
+	if v, ok := attr.Get("origin"); ok {
+		vr.Origin = v
+	}
+	if v, ok := attr.Get("as-path"); ok {
+		vr.ASPath = v
+	}
+	if v, ok := attr.Get("local-preference"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		vr.LocalPreference = uint32(n)
+	}
+	if v, ok := attr.Get("med"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		vr.MED = uint32(n)
+	}
+	if v, ok := attr.Get("community"); ok {
+		vr.Community = v
+	}
+	if v, ok := attr.Get("extended-community"); ok {
+		vr.ExtendedCommunity = v
+	}
+	if v, ok := attr.Get("originator-id"); ok {
+		vr.OriginatorID = v
+	}
+	if v, ok := attr.Get("cluster-list"); ok {
+		vr.ClusterList = v
+	}
+
+	return vr, nil
+}
+
+// parseMVPNNLRILine parses an MVPN NLRI line like:
+// "ipv4/mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000".
+func parseMVPNNLRILine(line string, attr *Tree) (MVPNRouteConfig, error) {
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return MVPNRouteConfig{}, fmt.Errorf("mvpn nlri requires route type and fields")
+	}
+
+	family := parts[0]
+	mr := MVPNRouteConfig{
+		IsIPv6: strings.HasPrefix(family, "ipv6/"),
+	}
+
+	// Route type is second field
+	if len(parts) > 1 {
+		mr.RouteType = parts[1]
+	}
+
+	// Parse key-value pairs
+	for i := 2; i < len(parts); i += 2 {
+		if i+1 >= len(parts) {
+			break
+		}
+		key, val := parts[i], parts[i+1]
+		switch key {
+		case "rp":
+			mr.Source = val
+		case fieldSource:
+			mr.Source = val
+		case "group":
+			mr.Group = val
+		case "rd":
+			mr.RD = val
+		case "source-as":
+			n, _ := strconv.ParseUint(val, 10, 32)
+			mr.SourceAS = uint32(n)
+		}
+	}
+
+	// Apply attributes
+	if v, ok := attr.Get("next-hop"); ok {
+		mr.NextHop = v
+	}
+	if v, ok := attr.Get("origin"); ok {
+		mr.Origin = v
+	}
+	if v, ok := attr.Get("local-preference"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		mr.LocalPreference = uint32(n)
+	}
+	if v, ok := attr.Get("med"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		mr.MED = uint32(n)
+	}
+	if v, ok := attr.Get("extended-community"); ok {
+		mr.ExtendedCommunity = v
+	}
+	if v, ok := attr.Get("originator-id"); ok {
+		mr.OriginatorID = v
+	}
+	if v, ok := attr.Get("cluster-list"); ok {
+		mr.ClusterList = v
+	}
+
+	return mr, nil
+}
+
+// parseMUPNLRILine parses a MUP NLRI line like:
+// "ipv4/mup mup-isd 10.0.1.0/24 rd 100:100".
+func parseMUPNLRILine(line string, attr *Tree) (MUPRouteConfig, error) {
+	parts := strings.Fields(line)
+	if len(parts) < 2 {
+		return MUPRouteConfig{}, fmt.Errorf("mup nlri requires route type and fields")
+	}
+
+	family := parts[0]
+	mr := MUPRouteConfig{
+		IsIPv6: strings.HasPrefix(family, "ipv6/"),
+	}
+
+	// Route type is second field (mup-isd, mup-dsd, mup-t1st, mup-t2st)
+	if len(parts) > 1 {
+		mr.RouteType = parts[1]
+	}
+
+	// Third field is typically the prefix/address
+	if len(parts) > 2 {
+		switch mr.RouteType {
+		case routeTypeMUPISD:
+			mr.Prefix = parts[2]
+		case routeTypeMUPDSD:
+			mr.Address = parts[2]
+		case routeTypeMUPT1ST:
+			mr.Prefix = parts[2]
+		case routeTypeMUPT2ST:
+			mr.Address = parts[2]
+		}
+	}
+
+	// Parse remaining key-value pairs
+	for i := 3; i < len(parts); i += 2 {
+		if i+1 >= len(parts) {
+			break
+		}
+		key, val := parts[i], parts[i+1]
+		switch key {
+		case "rd":
+			mr.RD = val
+		case "teid":
+			mr.TEID = val
+		case "qfi":
+			n, _ := strconv.ParseUint(val, 10, 8)
+			mr.QFI = uint8(n)
+		case "endpoint":
+			mr.Endpoint = val
+		case fieldSource:
+			mr.Source = val
+		}
+	}
+
+	// Apply attributes
+	if v, ok := attr.Get("next-hop"); ok {
+		mr.NextHop = v
+	}
+	if v, ok := attr.Get("extended-community"); ok {
+		mr.ExtendedCommunity = v
+	}
+	if v, ok := attr.GetFlex("bgp-prefix-sid-srv6"); ok {
+		mr.PrefixSID = v
+	}
+
+	return mr, nil
 }
 
 // applyAttributesFromTree applies path attributes from a Tree to a StaticRouteConfig.
@@ -1943,11 +1965,12 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 	if v, ok := tree.Get("cluster-list"); ok {
 		sr.ClusterList = v
 	}
-	if v, ok := tree.Get("bgp-prefix-sid"); ok {
+	// Flex syntax stores in multiValues, so use GetFlex
+	if v, ok := tree.GetFlex("bgp-prefix-sid"); ok {
 		sr.PrefixSID = v
 	}
 	// SRv6 Prefix-SID overrides label-index Prefix-SID if both are specified
-	if v, ok := tree.Get("bgp-prefix-sid-srv6"); ok {
+	if v, ok := tree.GetFlex("bgp-prefix-sid-srv6"); ok {
 		sr.PrefixSID = v
 	}
 	if v, ok := tree.Get("split"); ok {
@@ -2397,9 +2420,8 @@ func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
 
 func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 	r := FlowSpecRouteConfig{
-		Name:  name,
-		Match: make(map[string]string),
-		Then:  make(map[string]string),
+		Name: name,
+		NLRI: make(map[string][]string),
 	}
 
 	if v, ok := route.Get("rd"); ok {
@@ -2409,7 +2431,8 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 		r.NextHop = v
 	}
 
-	// Parse match block - Freeform stores:
+	// Parse match block into NLRI criteria (RFC 8955 Section 4)
+	// Freeform stores:
 	// - "keyword value" -> "true" for simple values like "source 10.0.0.1/32"
 	// - "keyword" -> "value" for arrays like "fragment [ last-fragment ]"
 	if match := route.GetContainer("match"); match != nil {
@@ -2419,60 +2442,77 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 				// Legacy format: key might be "keyword value"
 				parts := strings.SplitN(key, " ", 2)
 				if len(parts) == 2 {
-					r.Match[parts[0]] = parts[1]
-				} else {
-					r.Match[key] = ""
+					r.NLRI[parts[0]] = []string{parts[1]}
 				}
+				// Skip empty keys
 			} else {
 				// Array format: key is keyword, val has the values
-				r.Match[key] = val
+				r.NLRI[key] = strings.Fields(strings.Trim(val, "[]"))
 			}
 		}
 	}
 
-	// Parse then block - Freeform stores:
-	// - "keyword" -> "true" for flags like "discard"
-	// - "keyword" -> "value" for arrays like "community [30740:0 30740:30740]"
-	// - "keyword value" -> "true" for simple key-value (older format)
+	// Parse then block into ExtendedCommunity (RFC 8955 Section 7)
+	// Actions are encoded as Traffic Filtering Action Extended Communities
+	var extComms []string
 	if then := route.GetContainer("then"); then != nil {
 		for _, key := range then.Values() {
 			val, _ := then.Get(key)
-			if val == "true" || val == "" {
-				// Flag or legacy format: key might be "keyword value"
+			action, value := key, val
+
+			// Handle legacy "keyword value" format stored as key
+			if val == configTrue || val == "" {
 				parts := strings.SplitN(key, " ", 2)
 				if len(parts) == 2 {
-					r.Then[parts[0]] = parts[1]
+					action, value = parts[0], parts[1]
 				} else {
-					r.Then[key] = ""
+					action, value = key, ""
 				}
-			} else {
-				// Array format: key is keyword, val has the values
-				r.Then[key] = val
+			}
+
+			// Convert actions to extended community format
+			switch action {
+			case "discard":
+				extComms = append(extComms, "discard")
+			case "rate-limit":
+				extComms = append(extComms, "rate-limit:"+value)
+			case "redirect":
+				extComms = append(extComms, "redirect:"+value)
+			case "redirect-to-nexthop":
+				extComms = append(extComms, "redirect-to-nexthop")
+			case "copy-to-nexthop":
+				extComms = append(extComms, "copy-to-nexthop")
+			case "mark":
+				extComms = append(extComms, "mark "+value)
+			case "action":
+				extComms = append(extComms, "action "+value)
+			case "community":
+				r.Community = strings.Trim(value, "[]")
+			case "extended-community":
+				extComms = append(extComms, strings.Trim(value, "[]"))
 			}
 		}
 	}
 
-	// Determine if IPv6 based on match criteria
-	for key, val := range r.Match {
-		if key == "source" || key == "destination" {
-			if strings.Contains(val, ":") {
-				r.IsIPv6 = true
-				break
-			}
-		}
-	}
-
-	// Extract extended-community from "then" block into dedicated field
-	// This is needed because extended-community can appear either in "then" block
-	// or at route level, but processing always uses the ExtendedCommunity field.
-	if ec, ok := r.Then["extended-community"]; ok && ec != "" {
-		// Append to any existing extended-community
+	// Combine explicit extended-community with action-based ones
+	if len(extComms) > 0 {
 		if r.ExtendedCommunity != "" {
-			r.ExtendedCommunity += " " + ec
+			r.ExtendedCommunity += " " + strings.Join(extComms, " ")
 		} else {
-			r.ExtendedCommunity = ec
+			r.ExtendedCommunity = strings.Join(extComms, " ")
 		}
-		delete(r.Then, "extended-community") // Avoid double processing
+	}
+
+	// Determine if IPv6 based on NLRI criteria
+	for key, vals := range r.NLRI {
+		if key == "source" || key == "destination" {
+			for _, val := range vals {
+				if strings.Contains(val, ":") {
+					r.IsIPv6 = true
+					break
+				}
+			}
+		}
 	}
 
 	return r

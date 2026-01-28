@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
-	"codeberg.org/thomas-mangin/ze/internal/config/migration"
 )
 
 // ErrOldConfig is returned when fmt is called on an old ExaBGP config.
@@ -85,22 +84,7 @@ Examples:
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		// Try legacy schema to detect old ExaBGP syntax
-		pLegacy := config.NewParser(config.LegacyBGPSchema())
-		treeLegacy, errLegacy := pLegacy.Parse(string(input))
-		if errLegacy == nil {
-			if migration.NeedsMigration(treeLegacy) {
-				fmt.Fprintf(os.Stderr, "error: config needs migration, run 'ze bgp config migrate' first\n")
-				return exitError
-			}
-		}
 		fmt.Fprintf(os.Stderr, "error: parse error: %v\n", err)
-		return exitError
-	}
-
-	// Reject configs that need migration
-	if migration.NeedsMigration(tree) {
-		fmt.Fprintf(os.Stderr, "error: config needs migration, run 'ze bgp config migrate' first\n")
 		return exitError
 	}
 
@@ -160,20 +144,7 @@ func configFmtBytes(input []byte) (string, bool, error) {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		// Try legacy schema to detect old ExaBGP syntax
-		pLegacy := config.NewParser(config.LegacyBGPSchema())
-		treeLegacy, errLegacy := pLegacy.Parse(string(input))
-		if errLegacy == nil {
-			if migration.NeedsMigration(treeLegacy) {
-				return "", false, ErrOldConfig
-			}
-		}
 		return "", false, fmt.Errorf("parse error: %w", err)
-	}
-
-	// Reject configs that need migration
-	if migration.NeedsMigration(tree) {
-		return "", false, ErrOldConfig
 	}
 
 	// Serialize (formats the output)

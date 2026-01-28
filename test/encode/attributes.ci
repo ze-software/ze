@@ -23,9 +23,14 @@ bgp {
 			ipv4/unicast;
 			ipv6/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 10.0.0.7/32 next-hop 255.255.255.255 attribute "0x20 0xc0 0x0000000100000002000000030000000A0000000B0000000C";
+		update {
+			attribute {
+				origin igp;
+				next-hop 255.255.255.255;
+				large-community [ 1:2:3 10:11:12 ];
+			}
+			nlri {
+				ipv4/unicast 10.0.0.7/32;
 			}
 		}
 	}

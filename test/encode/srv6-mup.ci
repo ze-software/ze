@@ -1,29 +1,29 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )
+cmd=api:conn=1:seq=1:text=bgp peer * update text extended-community set [target:10:10] bgp-prefix-sid-srv6 set ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) nhop set 2001::1 nlri ipv4/mup add mup-isd 10.0.1.0/24 rd 100:100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008002000000694001010040020040050400000064800E250001551020010000000000000000000000000001000100010C0000006400000064180A0001C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004800010006401810000000
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-dsd 10.0.0.1 rd 100:100 next-hop 2001::2 extended-community [target:10:10 mup:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x13 [64,24,16,0,0,0] )
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008802000000714001010040020040050400000064800E250001551020010000000000000000000000000002000100020C00000064000000640A000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800010001000000000000000000001300010006401810000000
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 10.0.0.2 extended-community [target:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E0200000047400101004002004003040A00000240050400000064800E24000155040A0000020001000317000000640000006420C0A800010000303909200A000001C010080002000A0000000A
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/32 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00600200000049400101004002004003040A00000240050400000064800E1E000155040A00000200010004110000006400000064200A00000100003039C010100002000A0000000A0C00000A0000000A
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/23 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005F0200000048400101004002004003040A00000240050400000064800E1D000155040A00000200010004100000006400000064200A000001003039C010100002000A0000000A0C00000A0000000A
-cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 0/0 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005C0200000045400101004002004003040A00000240050400000064800E1A000155040A000002000100040D0000006400000064200A000001C010100002000A0000000A0C00000A0000000A
-cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0085020000006E4001010040020040050400000064800E2A000255102001000000000000000000000000000200010001110000006400000064402001000000000000C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004700010006401810000000
-cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-dsd 2001::1 rd 100:100 next-hop 2001::2 extended-community [target:10:10 mup:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:2:2:: 0x18 [64,24,16,0,0,0] )
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0094020000007D4001010040020040050400000064800E3100025510200100000000000000000000000000020001000218000000640000006420010000000000000000000000000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800020002000000000000000000001800010006401810000000
-cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 next-hop ::ffff:10.0.0.2 extended-community [target:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007B02000000644001010040020040050400000064800E480002551000000000000000000000FFFF0A000002000100032F00000064000000648020010DB800010001000000000000000100003039098020010000000000000000000000000001C010080002000A0000000A
-cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-t2st 2001::1 rd 100:100 teid 12345/32 next-hop ::ffff:10.0.0.2 extended-community [target:10:10 mup:10:10]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0071020000005A4001010040020040050400000064800E360002551000000000000000000000FFFF0A000002000100041D0000006400000064802001000000000000000000000000000100003039C010100002000A0000000A0C00000A0000000A
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/mup eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000155
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/mup eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000255
+cmd=api:conn=1:seq=2:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] bgp-prefix-sid-srv6 set ( l3-service 2001:db8:1:1:: 0x13 [64,24,16,0,0,0] ) nhop set 2001::2 nlri ipv4/mup add mup-dsd 10.0.0.1 rd 100:100
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008802000000714001010040020040050400000064800E250001551020010000000000000000000000000002000100020C00000064000000640A000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800010001000000000000000000001300010006401810000000
+cmd=api:conn=1:seq=3:text=bgp peer * update text extended-community set [target:10:10] nhop set 10.0.0.2 nlri ipv4/mup add mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E0200000047400101004002004003040A00000240050400000064800E24000155040A0000020001000317000000640000006420C0A800010000303909200A000001C010080002000A0000000A
+cmd=api:conn=1:seq=4:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] nhop set 10.0.0.2 nlri ipv4/mup add mup-t2st 10.0.0.1 rd 100:100 teid 12345/32
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00600200000049400101004002004003040A00000240050400000064800E1E000155040A00000200010004110000006400000064200A00000100003039C010100002000A0000000A0C00000A0000000A
+cmd=api:conn=1:seq=5:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] nhop set 10.0.0.2 nlri ipv4/mup add mup-t2st 10.0.0.1 rd 100:100 teid 12345/23
+expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005F0200000048400101004002004003040A00000240050400000064800E1D000155040A00000200010004100000006400000064200A000001003039C010100002000A0000000A0C00000A0000000A
+cmd=api:conn=1:seq=6:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] nhop set 10.0.0.2 nlri ipv4/mup add mup-t2st 10.0.0.1 rd 100:100 teid 0/0
+expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005C0200000045400101004002004003040A00000240050400000064800E1A000155040A000002000100040D0000006400000064200A000001C010100002000A0000000A0C00000A0000000A
+cmd=api:conn=1:seq=7:text=bgp peer * update text extended-community set [target:10:10] bgp-prefix-sid-srv6 set ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] ) nhop set 2001::2 nlri ipv6/mup add mup-isd 2001::/64 rd 100:100
+expect=bgp:conn=1:seq=7:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0085020000006E4001010040020040050400000064800E2A000255102001000000000000000000000000000200010001110000006400000064402001000000000000C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004700010006401810000000
+cmd=api:conn=1:seq=8:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] bgp-prefix-sid-srv6 set ( l3-service 2001:db8:2:2:: 0x18 [64,24,16,0,0,0] ) nhop set 2001::2 nlri ipv6/mup add mup-dsd 2001::1 rd 100:100
+expect=bgp:conn=1:seq=8:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0094020000007D4001010040020040050400000064800E3100025510200100000000000000000000000000020001000218000000640000006420010000000000000000000000000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800020002000000000000000000001800010006401810000000
+cmd=api:conn=1:seq=9:text=bgp peer * update text extended-community set [target:10:10] nhop set ::ffff:10.0.0.2 nlri ipv6/mup add mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1
+expect=bgp:conn=1:seq=9:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007B02000000644001010040020040050400000064800E480002551000000000000000000000FFFF0A000002000100032F00000064000000648020010DB800010001000000000000000100003039098020010000000000000000000000000001C010080002000A0000000A
+cmd=api:conn=1:seq=10:text=bgp peer * update text extended-community set [target:10:10 mup:10:10] nhop set ::ffff:10.0.0.2 nlri ipv6/mup add mup-t2st 2001::1 rd 100:100 teid 12345/32
+expect=bgp:conn=1:seq=10:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0071020000005A4001010040020040050400000064800E360002551000000000000000000000FFFF0A000002000100041D0000006400000064802001000000000000000000000000000100003039C010100002000A0000000A0C00000A0000000A
+cmd=api:conn=1:seq=11:text=bgp peer * update text nlri ipv4/mup eor
+expect=bgp:conn=1:seq=11:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000155
+cmd=api:conn=1:seq=12:text=bgp peer * update text nlri ipv6/mup eor
+expect=bgp:conn=1:seq=12:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000255
 EOF_PEER
 
 # ze bgp configuration
@@ -39,20 +39,118 @@ bgp {
 			ipv4/mup;
 			ipv6/mup;
 		}
-		announce {
-			ipv4 {
-				mup \ mup-isd 10.0.1.0/24 rd 100:100 \ next-hop 2001::1 \ extended-community [target:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48[64,24,16,0,0,0]);
-				mup \ mup-dsd 10.0.0.1 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10 mup:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x13[64,24,16,0,0,0]);
-				mup \ mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
-				mup \ mup-t2st 10.0.0.1 rd 100:100 teid 12345/32 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
-				mup \ mup-t2st 10.0.0.1 rd 100:100 teid 12345/23 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
-				mup \ mup-t2st 10.0.0.1 rd 100:100 teid 0/0 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+
+		# Route 1: mup-isd IPv4
+		update {
+			attribute {
+				next-hop 2001::1;
+				extended-community [target:10:10];
+				bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] );
 			}
-			ipv6 {
-				mup \ mup-isd 2001::/64 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x47[64,24,16,0,0,0]);
-				mup \ mup-dsd 2001::1 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10 mup:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:2:2:: 0x18[64,24,16,0,0,0]);
-				mup \ mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
-				mup \ mup-t2st 2001::1 rd 100:100 teid 12345/32 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+			nlri {
+				ipv4/mup mup-isd 10.0.1.0/24 rd 100:100;
+			}
+		}
+
+		# Route 2: mup-dsd IPv4
+		update {
+			attribute {
+				next-hop 2001::2;
+				extended-community [target:10:10 mup:10:10];
+				bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x13 [64,24,16,0,0,0] );
+			}
+			nlri {
+				ipv4/mup mup-dsd 10.0.0.1 rd 100:100;
+			}
+		}
+
+		# Route 3: mup-t1st IPv4
+		update {
+			attribute {
+				next-hop 10.0.0.2;
+				extended-community [target:10:10];
+			}
+			nlri {
+				ipv4/mup mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1;
+			}
+		}
+
+		# Route 4: mup-t2st IPv4 teid/32
+		update {
+			attribute {
+				next-hop 10.0.0.2;
+				extended-community [target:10:10 mup:10:10];
+			}
+			nlri {
+				ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/32;
+			}
+		}
+
+		# Route 5: mup-t2st IPv4 teid/23
+		update {
+			attribute {
+				next-hop 10.0.0.2;
+				extended-community [target:10:10 mup:10:10];
+			}
+			nlri {
+				ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/23;
+			}
+		}
+
+		# Route 6: mup-t2st IPv4 teid 0/0
+		update {
+			attribute {
+				next-hop 10.0.0.2;
+				extended-community [target:10:10 mup:10:10];
+			}
+			nlri {
+				ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 0/0;
+			}
+		}
+
+		# Route 7: mup-isd IPv6
+		update {
+			attribute {
+				next-hop 2001::2;
+				extended-community [target:10:10];
+				bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] );
+			}
+			nlri {
+				ipv6/mup mup-isd 2001::/64 rd 100:100;
+			}
+		}
+
+		# Route 8: mup-dsd IPv6
+		update {
+			attribute {
+				next-hop 2001::2;
+				extended-community [target:10:10 mup:10:10];
+				bgp-prefix-sid-srv6 ( l3-service 2001:db8:2:2:: 0x18 [64,24,16,0,0,0] );
+			}
+			nlri {
+				ipv6/mup mup-dsd 2001::1 rd 100:100;
+			}
+		}
+
+		# Route 9: mup-t1st IPv6
+		update {
+			attribute {
+				next-hop ::ffff:10.0.0.2;
+				extended-community [target:10:10];
+			}
+			nlri {
+				ipv6/mup mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1;
+			}
+		}
+
+		# Route 10: mup-t2st IPv6
+		update {
+			attribute {
+				next-hop ::ffff:10.0.0.2;
+				extended-community [target:10:10 mup:10:10];
+			}
+			nlri {
+				ipv6/mup mup-t2st 2001::1 rd 100:100 teid 12345/32;
 			}
 		}
 	}

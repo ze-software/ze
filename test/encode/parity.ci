@@ -8,7 +8,7 @@ cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/mpls-vpn eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000280
 EOF_PEER
 
-# ze bgp configuration
+# ze bgp configuration using native update syntax
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
@@ -20,10 +20,20 @@ bgp {
 		family {
 			ipv6/mpls-vpn;
 		}
-		announce {
-			ipv6 {
-				mpls-vpn 2001:4B50:20C0::/48 next-hop ::FFFF:81.52.17.146 local-preference 100 community 65000:33 extended-community target:10283:4.249.92.120 as-path "25186 65000 64512" label 926 rd 3215:583457597 originator-id 57.35.2.240;
-				mpls-vpn 2001:4B50:20D0::/48 next-hop ::FFFF:81.52.17.146 local-preference 100 community 65000:33 extended-community target:10283:4.249.92.120 as-path "25186 65000 64512" label 926 rd 3215:583457597 originator-id 57.35.2.240;
+		update {
+			attribute {
+				origin igp;
+				as-path "25186 65000 64512";
+				local-preference 100;
+				next-hop "::ffff:81.52.17.146";
+				rd 3215:583457597;
+				label 926;
+				community 65000:33;
+				extended-community "target:10283:4.249.92.120";
+				originator-id 57.35.2.240;
+			}
+			nlri {
+				ipv6/mpls-vpn 2001:4b50:20c0::/48 2001:4b50:20d0::/48;
 			}
 		}
 	}

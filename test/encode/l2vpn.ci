@@ -1,13 +1,13 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=announce vpls rd 192.168.201.1:123 endpoint 5 base 10702 offset 1 size 8 next-hop 192.168.201.1 origin igp as-path [30740 30740 30740 30740 30740 30740 30740] local-preference 1 med 2000 community [54591:123] extended-community [target:54591:6 l2info:19:0:1500:111] originator-id 192.168.22.1 cluster-list [3.3.3.3 192.168.201.1]
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp as-path set [30740 30740 30740 30740 30740 30740 30740] local-preference set 1 med set 2000 community set [54591:123] extended-community set [target:54591:6 l2info:19:0:1500:111] originator-id set 192.168.22.1 cluster-list set [3.3.3.3 192.168.201.1] nhop set 192.168.201.1 nlri l2vpn/vpls add rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0095020000007E4001010040021E020700007814000078140000781400007814000078140000781400007814800404000007D040050400000001C00804D53F007B800904C0A81601800A0803030303C0A8C901800E1C00194104C0A8C9010000110001C0A8C901007B000500010008029CE1C010100002D53F00000006800A130005DC006F
-cmd=api:conn=1:seq=1:text=announce vpls rd 192.168.201.1:124 endpoint 5 base 10732 offset 1 size 8 next-hop 192.168.201.1 origin igp as-path [30740 30740 30740 30740 30740 30740 30740] local-preference 1 med 2000 community [54591:123] extended-community [target:54591:6 l2info:19:0:1500:111] originator-id 192.168.22.1 cluster-list [3.3.3.3 192.168.201.1]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0095020000007E4001010040021E020700007814000078140000781400007814000078140000781400007814800404000007D040050400000001C00804D53F007B800904C0A81601800A0803030303C0A8C901800E1C00194104C0A8C9010000110001C0A8C901007C000500010008029EC1C010100002D53F00000006800A130005DC006F
-cmd=api:conn=1:seq=1:text=announce vpls rd 192.168.201.1:123 endpoint 5 base 10702 offset 1 size 8 next-hop 192.168.201.1 origin igp as-path [30740 30740 30740 30740 30740 30740 30740] local-preference 100 med 2000 community [54591:123] extended-community [target:54591:6 l2info:19:0:1500:111] originator-id 192.168.22.1 cluster-list [3.3.3.3 192.168.201.1]
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0095020000007E4001010040021E020700007814000078140000781400007814000078140000781400007814800404000007D040050400000064C00804D53F007B800904C0A81601800A0803030303C0A8C901800E1C00194104C0A8C9010000110001C0A8C901007B000500010008029CE1C010100002D53F00000006800A130005DC006F
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri l2vpn/vpls eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003001941
+cmd=api:conn=1:seq=2:text=bgp peer * update text origin set igp as-path set [30740 30740 30740 30740 30740 30740 30740] local-preference set 1 med set 2000 community set [54591:123] extended-community set [target:54591:6 l2info:19:0:1500:111] originator-id set 192.168.22.1 cluster-list set [3.3.3.3 192.168.201.1] nhop set 192.168.201.1 nlri l2vpn/vpls add rd 192.168.201.1:124 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10732
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0095020000007E4001010040021E020700007814000078140000781400007814000078140000781400007814800404000007D040050400000001C00804D53F007B800904C0A81601800A0803030303C0A8C901800E1C00194104C0A8C9010000110001C0A8C901007C000500010008029EC1C010100002D53F00000006800A130005DC006F
+cmd=api:conn=1:seq=3:text=bgp peer * update text origin set igp as-path set [30740 30740 30740 30740 30740 30740 30740] local-preference set 100 med set 2000 community set [54591:123] extended-community set [target:54591:6 l2info:19:0:1500:111] originator-id set 192.168.22.1 cluster-list set [3.3.3.3 192.168.201.1] nhop set 192.168.201.1 nlri l2vpn/vpls add rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0095020000007E4001010040021E020700007814000078140000781400007814000078140000781400007814800404000007D040050400000064C00804D53F007B800904C0A81601800A0803030303C0A8C901800E1C00194104C0A8C9010000110001C0A8C901007B000500010008029CE1C010100002D53F00000006800A130005DC006F
+cmd=api:conn=1:seq=4:text=bgp peer * update text nlri l2vpn/vpls eor
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003001941
 EOF_PEER
 
 # ze bgp configuration
@@ -25,20 +25,10 @@ bgp {
 		family {
 			l2vpn/vpls;
 		}
-		announce {
-			l2vpn {
-				vpls \ endpoint 5 \ base 10702 \ offset 1 \ size 8 \ next-hop 192.168.201.1 \ origin igp \ as-path [30740 30740 30740 30740 30740 30740 30740] \ local-preference 1 \ med 2000 \ rd 192.168.201.1:123 \ community [54591:123] \ extended-community [target:54591:6 l2info:19:0:1500:111] \ originator-id 192.168.22.1 \ cluster-list [3.3.3.3 192.168.201.1];
-			}
-		}
-		l2vpn {
-			vpls \ rd 192.168.201.1:123 \ endpoint 5 \ base 10702 \ offset 1 \ size 8 \ next-hop 192.168.201.1 \ origin igp \ as-path [30740 30740 30740 30740 30740 30740 30740] \ local-preference 100 \ med 2000 \ community [54591:123] \ extended-community [target:54591:6 l2info:19:0:1500:111] \ originator-id 192.168.22.1 \ cluster-list [3.3.3.3 192.168.201.1];
-			vpls site5 {
-				rd 192.168.201.1:124;
-				endpoint 5;
-				base 10732;
-				offset 1;
-				size 8;
-				next-hop 192.168.201.1;
+
+		# Route 1: VPLS with local-preference 1
+		update {
+			attribute {
 				origin igp;
 				as-path [30740 30740 30740 30740 30740 30740 30740];
 				local-preference 1;
@@ -47,6 +37,46 @@ bgp {
 				extended-community [target:54591:6 l2info:19:0:1500:111];
 				originator-id 192.168.22.1;
 				cluster-list [3.3.3.3 192.168.201.1];
+				next-hop 192.168.201.1;
+			}
+			nlri {
+				l2vpn/vpls rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702;
+			}
+		}
+
+		# Route 2: VPLS with RD :124 and label-base 10732
+		update {
+			attribute {
+				origin igp;
+				as-path [30740 30740 30740 30740 30740 30740 30740];
+				local-preference 1;
+				med 2000;
+				community [54591:123];
+				extended-community [target:54591:6 l2info:19:0:1500:111];
+				originator-id 192.168.22.1;
+				cluster-list [3.3.3.3 192.168.201.1];
+				next-hop 192.168.201.1;
+			}
+			nlri {
+				l2vpn/vpls rd 192.168.201.1:124 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10732;
+			}
+		}
+
+		# Route 3: VPLS with local-preference 100
+		update {
+			attribute {
+				origin igp;
+				as-path [30740 30740 30740 30740 30740 30740 30740];
+				local-preference 100;
+				med 2000;
+				community [54591:123];
+				extended-community [target:54591:6 l2info:19:0:1500:111];
+				originator-id 192.168.22.1;
+				cluster-list [3.3.3.3 192.168.201.1];
+				next-hop 192.168.201.1;
+			}
+			nlri {
+				l2vpn/vpls rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702;
 			}
 		}
 	}

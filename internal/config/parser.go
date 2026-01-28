@@ -11,6 +11,7 @@ const KeyDefault = "default"
 // Tree represents parsed configuration data.
 type Tree struct {
 	values      map[string]string
+	valuesOrder []string            // Preserves insertion order for value keys
 	multiValues map[string][]string // For multiple inline values (e.g., multiple mup entries)
 	containers  map[string]*Tree
 	lists       map[string]map[string]*Tree
@@ -36,6 +37,10 @@ func (t *Tree) Get(name string) (string, bool) {
 
 // Set sets a leaf value.
 func (t *Tree) Set(name, value string) {
+	// Track insertion order for new keys
+	if _, exists := t.values[name]; !exists {
+		t.valuesOrder = append(t.valuesOrder, name)
+	}
 	t.values[name] = value
 }
 
@@ -227,8 +232,12 @@ func (t *Tree) ListKeys(name string) []string {
 	return keys
 }
 
-// Values returns all value keys (for iterating Freeform entries).
+// Values returns all value keys in insertion order (for iterating Freeform entries).
 func (t *Tree) Values() []string {
+	// Return in insertion order if available, otherwise fallback to map order
+	if len(t.valuesOrder) > 0 {
+		return t.valuesOrder
+	}
 	keys := make([]string, 0, len(t.values))
 	for k := range t.values {
 		keys = append(keys, k)
@@ -706,12 +715,14 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				break
 			}
 			if tok.Type == TokenLBracket {
-				// Capture array [ ... ] values
+				// Capture array [ ... ] values, preserving brackets
 				arrayVals, err := p.collectArray()
 				if err != nil {
 					return err
 				}
-				words = append(words, arrayVals...)
+				// Preserve bracket syntax for freeform: "[ val1 val2 ]"
+				bracketedVal := "[ " + strings.Join(arrayVals, " ") + " ]"
+				words = append(words, bracketedVal)
 				hadArray = true
 				continue
 			}

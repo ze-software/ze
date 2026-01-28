@@ -23,10 +23,24 @@ bgp {
 		family {
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 8.8.8.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123";
-				unicast 9.9.9.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123 2914:3320:123";
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				large-community [ 2914:0:666 2914:3320:123 ];
+			}
+			nlri {
+				ipv4/unicast 8.8.8.10/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				large-community [ 2914:0:666 2914:3320:123 ];
+			}
+			nlri {
+				ipv4/unicast 9.9.9.10/32;
 			}
 		}
 	}

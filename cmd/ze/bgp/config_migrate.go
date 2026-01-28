@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/config/migration"
@@ -64,27 +62,20 @@ Examples:
 		fmt.Fprintf(os.Stderr, "error: --in-place and -o are mutually exclusive\n")
 		return exitError
 	}
-	if *dryRun && (*inPlace || *outputPath != "") {
-		fmt.Fprintf(os.Stderr, "error: --dry-run cannot be combined with --in-place or -o\n")
+	if *dryRun && *outputPath != "" {
+		fmt.Fprintf(os.Stderr, "error: --dry-run cannot be combined with -o\n")
+		return exitError
+	}
+
+	if *inPlace {
+		fmt.Fprintf(os.Stderr, "error: --in-place is no longer supported\n")
+		fmt.Fprintf(os.Stderr, "Use: ze bgp config migrate input.conf -o output.conf\n")
 		return exitError
 	}
 
 	// Handle --dry-run
 	if *dryRun {
 		return cmdConfigMigrateDryRun(configPath)
-	}
-
-	if *inPlace {
-		result, backupPath, warnings, err := configMigrateInPlaceWithWarnings(configPath)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return exitError
-		}
-		fmt.Fprintf(os.Stderr, "✅ Backup created: %s\n", backupPath)
-		fmt.Fprintf(os.Stderr, "✅ Config migrated: %s\n", configPath)
-		printMigrateResult(result)
-		printMigrateWarnings(warnings)
-		return exitOK
 	}
 
 	output, result, warnings, err := configMigrateWithWarnings(configPath, *outputPath)
@@ -146,11 +137,14 @@ func cmdConfigMigrateDryRun(configPath string) int {
 		return exitError
 	}
 
-	// Parse with schema
-	p := config.NewParser(config.LegacyBGPSchema())
+	// Parse with current schema
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: parse error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "error: config uses unsupported ExaBGP syntax\n")
+		fmt.Fprintf(os.Stderr, "  parse error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nExaBGP syntax (announce/static blocks) is no longer supported.\n")
+		fmt.Fprintf(os.Stderr, "Use native Ze syntax: update { attribute { } nlri { } }\n")
 		return exitError
 	}
 
@@ -228,11 +222,11 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 		return "", nil, nil, err
 	}
 
-	// Parse with schema
-	p := config.NewParser(config.LegacyBGPSchema())
+	// Parse with current schema
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		return "", nil, nil, fmt.Errorf("parse error: %w", err)
+		return "", nil, nil, fmt.Errorf("config uses unsupported ExaBGP syntax: %w\n\nExaBGP syntax (announce/static blocks) is no longer supported.\nUse native Ze syntax: update { attribute { } nlri { } }", err)
 	}
 
 	// Migrate using new API
@@ -259,52 +253,4 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 	}
 
 	return output, result, warnings, nil
-}
-
-// configMigrateInPlace migrates a config file in place, creating a backup first.
-// Returns the backup path.
-func configMigrateInPlace(path string) (string, error) {
-	_, backupPath, _, err := configMigrateInPlaceWithWarnings(path)
-	return backupPath, err
-}
-
-// configMigrateInPlaceWithWarnings is like configMigrateInPlace but also returns migration result and warnings.
-func configMigrateInPlaceWithWarnings(path string) (*migration.MigrateResult, string, []string, error) {
-	// Create backup
-	backupPath, err := createBackup(path)
-	if err != nil {
-		return nil, "", nil, fmt.Errorf("backup failed: %w", err)
-	}
-
-	// Migrate to same path
-	_, result, warnings, err := configMigrateWithWarnings(path, path)
-	if err != nil {
-		return nil, backupPath, warnings, err
-	}
-
-	return result, backupPath, warnings, nil
-}
-
-// createBackup creates a timestamped backup of the file.
-// Returns the backup path.
-func createBackup(path string) (string, error) {
-	// Read original
-	data, err := os.ReadFile(path) //nolint:gosec // Config path from user
-	if err != nil {
-		return "", err
-	}
-
-	// Generate backup filename
-	dir := filepath.Dir(path)
-	base := filepath.Base(path)
-	timestamp := time.Now().Format("20060102-150405")
-	backupName := fmt.Sprintf("%s.%s.bak", base, timestamp)
-	backupPath := filepath.Join(dir, backupName)
-
-	// Write backup
-	if err := os.WriteFile(backupPath, data, 0o600); err != nil {
-		return "", err
-	}
-
-	return backupPath, nil
 }

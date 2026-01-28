@@ -66,12 +66,39 @@ bgp {
 		family {
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 100.100.100.100 next-hop 192.168.1.100;
-				unicast 66.66.66.66 next-hop 1.2.3.4;
-				unicast 77.77.77.77 next-hop 1.2.3.4 watchdog dnsr withdraw true;
-				unicast 88.88.88.88 next-hop 1.2.3.4;
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 192.168.1.100;
+			}
+			nlri {
+				ipv4/unicast add 100.100.100.100/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast add 66.66.66.66/32;
+				ipv4/unicast add 88.88.88.88/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast add 77.77.77.77/32;
+			}
+			watchdog {
+				name dnsr;
+				withdraw true;
 			}
 		}
 		process service-watchdog {

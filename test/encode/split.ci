@@ -34,10 +34,92 @@ bgp {
 		family {
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				unicast 172.10.0.0/22 next-hop 192.0.2.1 med 200 community 174:666 split /24;
-				unicast 172.10.4.0/22 next-hop 192.0.2.1 med 200 community 174:666 split /24;
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.0.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.1.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.2.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.3.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.4.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.5.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.6.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community [ 174:666 ];
+			}
+			nlri {
+				ipv4/unicast 172.10.7.0/24;
 			}
 		}
 	}

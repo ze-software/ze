@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"math"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -23,6 +22,9 @@ const (
 	originIGP = "igp"
 	originEGP = "egp"
 )
+
+// FlowSpec action names.
+const flowSpecRedirectNextHopIETF = "redirect-to-nexthop-ietf"
 
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
@@ -767,159 +769,53 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 		route.NextHop = ip
 	}
 
-	// Build FlowSpec NLRI from match criteria
+	// Build FlowSpec NLRI from match criteria (RFC 8955 Section 4)
 	// For VPN routes, use component bytes (no length prefix - VPN adds its own)
 	isVPN := fr.RD != ""
-	route.NLRI = buildFlowSpecNLRI(fr.Match, fr.IsIPv6, isVPN)
+	route.NLRI = buildFlowSpecNLRI(fr.NLRI, fr.IsIPv6, isVPN)
 
-	// Build communities from "then" actions
-	route.CommunityBytes = buildFlowSpecCommunities(fr.Then)
+	// Build communities (RFC 1997)
+	if c := fr.Community; c != "" {
+		comm, err := ParseCommunity(c)
+		if err != nil {
+			return route, fmt.Errorf("parse community: %w", err)
+		}
+		// Convert []uint32 to wire bytes (4 bytes each, big-endian)
+		for _, v := range comm.Values {
+			route.CommunityBytes = append(route.CommunityBytes,
+				byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+		}
+	}
 
-	// Build extended communities:
-	// 1. First, explicit extended-community (origin, target, etc.)
-	// 2. Then, action-based extended communities (redirect, rate-limit, etc.)
-	// This order matches ExaBGP output for compatibility.
+	// Build extended communities (RFC 8955 Section 7)
+	// Actions like discard, rate-limit, redirect are encoded as extended communities
 	if ec := fr.ExtendedCommunity; ec != "" {
 		extComm, err := ParseExtendedCommunity(ec)
 		if err != nil {
 			return route, fmt.Errorf("parse extended-community: %w", err)
 		}
 		route.ExtCommunityBytes = append(route.ExtCommunityBytes, extComm.Bytes...)
+
+		// Build IPv6 Extended Communities (attribute 25) for redirect-to-nexthop-ietf with IPv6
+		route.IPv6ExtCommunityBytes = buildIPv6ExtCommunityFromString(ec)
 	}
 
-	// Build action-based extended communities from "then" block (redirect, rate-limit, etc.)
-	route.ExtCommunityBytes = append(route.ExtCommunityBytes,
-		buildFlowSpecExtCommunities(fr.Then, route.NextHop)...)
-
-	// Sort extended communities by type for RFC 4360 compliance.
-	// ExaBGP sorts communities by type (origin before redirect, etc.)
+	// Sort extended communities by type for RFC 4360 compliance
 	route.ExtCommunityBytes = sortExtCommunities(route.ExtCommunityBytes)
 
-	// Build IPv6 Extended Communities (attribute 25) for IPv6-specific actions
-	route.IPv6ExtCommunityBytes = buildFlowSpecIPv6ExtCommunity(fr.Then)
+	// Handle raw attributes (e.g., attribute 25 for IPv6 Extended Communities)
+	if fr.Attribute != "" {
+		rawAttr, err := ParseRawAttribute(fr.Attribute)
+		if err != nil {
+			return route, fmt.Errorf("parse raw attribute: %w", err)
+		}
+		// Attribute 25 = IPv6 Extended Communities (RFC 5701)
+		if rawAttr.Code == 25 {
+			route.IPv6ExtCommunityBytes = append(route.IPv6ExtCommunityBytes, rawAttr.Value...)
+		}
+	}
 
 	return route, nil
-}
-
-// buildFlowSpecCommunities builds standard community bytes from FlowSpec "then" actions.
-// RFC 1997 defines the standard BGP Community attribute format (ASN:NN, 4 bytes each).
-func buildFlowSpecCommunities(then map[string]string) []byte {
-	var result []byte
-
-	for action, value := range then {
-		if action == "community" {
-			// Parse community list like [30740:0 30740:30740]
-			value = strings.Trim(value, "[]")
-			parts := strings.Fields(value)
-			for _, part := range parts {
-				asn, val, ok := strings.Cut(part, ":")
-				if !ok {
-					continue
-				}
-				a, _ := strconv.ParseUint(asn, 10, 16)
-				v, _ := strconv.ParseUint(val, 10, 16)
-				result = append(result, byte(a>>8), byte(a), byte(v>>8), byte(v))
-			}
-		}
-	}
-
-	return result
-}
-
-// buildFlowSpecExtCommunities builds extended community bytes from FlowSpec "then" actions.
-// RFC 8955 Section 7 defines Traffic Filtering Action Extended Communities:
-//   - Type 0x8006: Traffic-rate (rate-limit, discard) - RFC 8955 Section 7.3
-//   - Type 0x8007: Traffic-action (sample, terminal) - RFC 8955 Section 7.4
-//   - Type 0x8008: Redirect AS-2byte:value - RFC 8955 Section 7.5
-//   - Type 0x8009: Traffic-marking (DSCP) - RFC 8955 Section 7.6
-//   - Type 0x0800: Redirect to next-hop - RFC 7674 Section 3
-//   - Type 0x010c: Redirect to IPv4 - RFC 7674 Section 3.1
-func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []byte {
-	var result []byte
-
-	for action, value := range then {
-		switch action {
-		case "discard":
-			// Traffic rate 0 = discard - type 0x8006
-			result = append(result, 0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-
-		case "rate-limit":
-			// Traffic rate with value - type 0x8006
-			rate := parseFlowRate(value)
-			result = append(result, 0x80, 0x06)
-			result = append(result, 0x00, 0x00) // 2 bytes padding
-			// IEEE 754 float32 for rate
-			rateBytes := encodeFloat32(rate)
-			result = append(result, rateBytes...)
-
-		case "redirect":
-			// Check if redirect IP matches next-hop - use redirect-to-nexthop
-			if ip, err := netip.ParseAddr(value); err == nil && ip == nextHop && nextHop.IsValid() {
-				// Redirect to next-hop - type 0x0800, subtype 0x00
-				result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-			} else {
-				// Redirect to AS:NN or IP - type 0x8008
-				ec := parseRedirectExtCommunity(value)
-				result = append(result, ec...)
-			}
-
-		case "redirect-to-nexthop":
-			// Redirect to next-hop - type 0x0800, subtype 0x00
-			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
-
-		case "redirect-to-nexthop-ietf":
-			// RFC 7674: Redirect to IP (IETF encoding)
-			// IPv4: type 0x01, subtype 0x0c - format: type(1) subtype(1) IPv4(4) reserved(2)
-			// IPv6: uses attribute 25 (IPv6 Ext Community) - handled separately
-			if ip, err := netip.ParseAddr(value); err == nil && ip.Is4() {
-				ipBytes := ip.As4()
-				result = append(result, 0x01, 0x0c,
-					ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3],
-					0x00, 0x00)
-			}
-			// IPv6 is handled in buildFlowSpecIPv6ExtCommunity
-
-		case "copy":
-			// Copy to IP - type 0x0800, subtype 0x01
-			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
-
-		case "mark":
-			// DSCP marking - type 0x8009
-			dscp := parseFlowOctet(value)
-			result = append(result, 0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, dscp)
-
-		case "action":
-			// Traffic action - type 0x8007
-			flags := parseActionFlags(value)
-			result = append(result, 0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, flags)
-		}
-	}
-
-	return result
-}
-
-// buildFlowSpecIPv6ExtCommunity builds IPv6 Extended Communities (attribute 25, RFC 5701).
-// This is used for actions that require IPv6-specific encoding like redirect-to-nexthop-ietf with IPv6.
-// RFC 5701 Section 2 defines the IPv6 Extended Community format (20 bytes per community).
-// RFC 7674 Section 3.2 defines the Redirect to IPv6 action (subtype 0x000c).
-func buildFlowSpecIPv6ExtCommunity(then map[string]string) []byte {
-	var result []byte
-
-	for action, value := range then {
-		// Handle redirect-to-nexthop-ietf with IPv6 address
-		if action == "redirect-to-nexthop-ietf" {
-			// RFC 7674: Redirect to IPv6 address using IPv6 Extended Community (attr 25)
-			// Format: subtype(2) + IPv6(16) + copy_flag(2) = 20 bytes
-			if ip, err := netip.ParseAddr(value); err == nil && ip.Is6() {
-				ipBytes := ip.As16()
-				result = append(result, 0x00, 0x0c) // Subtype 0x000c = redirect to IP
-				result = append(result, ipBytes[:]...)
-				result = append(result, 0x00, 0x00) // Copy flag = 0
-			}
-		}
-	}
-
-	return result
 }
 
 // sortExtCommunities sorts extended communities by type for RFC 4360 compliance.
@@ -969,12 +865,36 @@ func sortExtCommunities(data []byte) []byte {
 	return result
 }
 
+// buildIPv6ExtCommunityFromString builds IPv6 Extended Communities (attribute 25, RFC 5701)
+// from an extended community string. Only extracts redirect-to-nexthop-ietf with IPv6 addresses.
+// RFC 7674 Section 3.2 defines the Redirect to IPv6 action (subtype 0x000c).
+func buildIPv6ExtCommunityFromString(ec string) []byte {
+	var result []byte
+	parts := strings.Fields(ec)
+
+	for i := 0; i < len(parts); i++ {
+		if parts[i] == flowSpecRedirectNextHopIETF && i+1 < len(parts) {
+			// Check if next part is an IPv6 address
+			if ip, err := netip.ParseAddr(parts[i+1]); err == nil && ip.Is6() {
+				// RFC 5701: IPv6 Extended Community = subtype(2) + IPv6(16) + copy_flag(2) = 20 bytes
+				ipBytes := ip.As16()
+				result = append(result, 0x00, 0x0c) // Subtype 0x000c = redirect to IP
+				result = append(result, ipBytes[:]...)
+				result = append(result, 0x00, 0x00) // Copy flag = 0
+			}
+			i++ // Skip the IP address part
+		}
+	}
+
+	return result
+}
+
 // buildFlowSpecNLRI builds FlowSpec NLRI bytes from match criteria.
 // If forVPN is true, returns component bytes without length prefix (VPN adds its own).
 // RFC 8955 Section 4 defines the FlowSpec NLRI encoding.
 // RFC 8955 Section 4.2.2 defines component types 1-12.
 // RFC 8956 Section 3.7 defines component type 13 (Flow Label, IPv6 only).
-func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte {
+func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []byte {
 	family := nlri.IPv4FlowSpec
 	if isIPv6 {
 		family = nlri.IPv6FlowSpec
@@ -982,9 +902,9 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 
 	fs := nlri.NewFlowSpec(family)
 
-	// Add destination prefix
-	if dst, ok := match["destination"]; ok {
-		prefix, offset := parseFlowPrefixWithOffset(dst)
+	// Add destination prefix (first value only - prefix is singular)
+	if vals, ok := match["destination"]; ok && len(vals) > 0 {
+		prefix, offset := parseFlowPrefixWithOffset(vals[0])
 		if prefix.IsValid() {
 			if prefix.Addr().Is6() && offset > 0 {
 				fs.AddComponent(nlri.NewFlowDestPrefixComponentWithOffset(prefix, offset))
@@ -994,9 +914,9 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 		}
 	}
 
-	// Add source prefix
-	if src, ok := match["source"]; ok {
-		prefix, offset := parseFlowPrefixWithOffset(src)
+	// Add source prefix (first value only - prefix is singular)
+	if vals, ok := match["source"]; ok && len(vals) > 0 {
+		prefix, offset := parseFlowPrefixWithOffset(vals[0])
 		if prefix.IsValid() {
 			if prefix.Addr().Is6() && offset > 0 {
 				fs.AddComponent(nlri.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
@@ -1006,105 +926,105 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 		}
 	}
 
-	// Add protocol
-	if proto, ok := match["protocol"]; ok {
-		matches := parseFlowProtocolMatches(proto)
+	// Add protocol (supports multiple values like [ =tcp =udp ])
+	if vals, ok := match["protocol"]; ok {
+		matches := parseFlowProtocolMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
 		}
 	}
 
 	// Add next-header (IPv6 equivalent of protocol)
-	if nh, ok := match["next-header"]; ok {
-		matches := parseFlowProtocolMatches(nh)
+	if vals, ok := match["next-header"]; ok {
+		matches := parseFlowProtocolMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
 		}
 	}
 
 	// Add port (matches either source or destination)
-	if port, ok := match["port"]; ok {
-		matches := parseFlowMatches(port)
+	if vals, ok := match["port"]; ok {
+		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPort, matches))
 		}
 	}
 
 	// Add destination port
-	if dp, ok := match["destination-port"]; ok {
-		matches := parseFlowMatches(dp)
+	if vals, ok := match["destination-port"]; ok {
+		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowDestPort, matches))
 		}
 	}
 
 	// Add source port
-	if sp, ok := match["source-port"]; ok {
-		matches := parseFlowMatches(sp)
+	if vals, ok := match["source-port"]; ok {
+		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowSourcePort, matches))
 		}
 	}
 
 	// Add packet length
-	if pl, ok := match["packet-length"]; ok {
-		matches := parseFlowMatches(pl)
+	if vals, ok := match["packet-length"]; ok {
+		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPacketLength, matches))
 		}
 	}
 
 	// Add DSCP
-	if dscp, ok := match["dscp"]; ok {
-		vals := parseFlowOctets(dscp)
-		if len(vals) > 0 {
-			fs.AddComponent(nlri.NewFlowDSCPComponent(vals...))
+	if vals, ok := match["dscp"]; ok {
+		octets := parseFlowOctetsSlice(vals)
+		if len(octets) > 0 {
+			fs.AddComponent(nlri.NewFlowDSCPComponent(octets...))
 		}
 	}
 
 	// Add traffic-class (IPv6)
-	if tc, ok := match["traffic-class"]; ok {
-		vals := parseFlowOctets(tc)
-		if len(vals) > 0 {
-			fs.AddComponent(nlri.NewFlowDSCPComponent(vals...))
+	if vals, ok := match["traffic-class"]; ok {
+		octets := parseFlowOctetsSlice(vals)
+		if len(octets) > 0 {
+			fs.AddComponent(nlri.NewFlowDSCPComponent(octets...))
 		}
 	}
 
 	// Add flow-label (IPv6)
-	if fl, ok := match["flow-label"]; ok {
-		values := parseFlowLabels(fl)
-		if len(values) > 0 {
-			fs.AddComponent(nlri.NewFlowFlowLabelComponent(values...))
+	if vals, ok := match["flow-label"]; ok {
+		labels := parseFlowLabelsSlice(vals)
+		if len(labels) > 0 {
+			fs.AddComponent(nlri.NewFlowFlowLabelComponent(labels...))
 		}
 	}
 
 	// Add fragment
-	if frag, ok := match["fragment"]; ok {
-		flags := parseFlowFragment(frag)
+	if vals, ok := match["fragment"]; ok {
+		flags := parseFlowFragmentSlice(vals)
 		if len(flags) > 0 {
 			fs.AddComponent(nlri.NewFlowFragmentComponent(flags...))
 		}
 	}
 
 	// Add TCP flags
-	if tcpf, ok := match["tcp-flags"]; ok {
-		matches := parseFlowTCPFlagMatches(tcpf)
+	if vals, ok := match["tcp-flags"]; ok {
+		matches := parseFlowTCPFlagMatchesSlice(vals)
 		if len(matches) > 0 {
 			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowTCPFlags, matches))
 		}
 	}
 
 	// Add ICMP type
-	if it, ok := match["icmp-type"]; ok {
-		types := parseFlowICMPTypes(it)
+	if vals, ok := match["icmp-type"]; ok {
+		types := parseFlowICMPTypesSlice(vals)
 		if len(types) > 0 {
 			fs.AddComponent(nlri.NewFlowICMPTypeComponent(types...))
 		}
 	}
 
 	// Add ICMP code
-	if ic, ok := match["icmp-code"]; ok {
-		codes := parseFlowICMPCodes(ic)
+	if vals, ok := match["icmp-code"]; ok {
+		codes := parseFlowICMPCodesSlice(vals)
 		if len(codes) > 0 {
 			fs.AddComponent(nlri.NewFlowICMPCodeComponent(codes...))
 		}
@@ -1476,6 +1396,80 @@ func parseFlowLabels(s string) []uint32 {
 	return result
 }
 
+// --- Slice helpers for map[string][]string NLRI format ---
+
+// parseFlowProtocolMatchesSlice parses protocol values from a pre-split slice.
+func parseFlowProtocolMatchesSlice(vals []string) []nlri.FlowMatch {
+	result := make([]nlri.FlowMatch, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowProtocolMatches(v)...)
+	}
+	return result
+}
+
+// parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
+func parseFlowMatchesSlice(vals []string) []nlri.FlowMatch {
+	result := make([]nlri.FlowMatch, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowMatches(v)...)
+	}
+	return result
+}
+
+// parseFlowOctetsSlice parses octet values from a pre-split slice.
+func parseFlowOctetsSlice(vals []string) []uint8 {
+	result := make([]uint8, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowOctets(v)...)
+	}
+	return result
+}
+
+// parseFlowLabelsSlice parses flow-label values from a pre-split slice.
+func parseFlowLabelsSlice(vals []string) []uint32 {
+	result := make([]uint32, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowLabels(v)...)
+	}
+	return result
+}
+
+// parseFlowFragmentSlice parses fragment flags from a pre-split slice.
+func parseFlowFragmentSlice(vals []string) []nlri.FlowFragmentFlag {
+	result := make([]nlri.FlowFragmentFlag, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowFragment(v)...)
+	}
+	return result
+}
+
+// parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
+func parseFlowTCPFlagMatchesSlice(vals []string) []nlri.FlowMatch {
+	result := make([]nlri.FlowMatch, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowTCPFlagMatches(v)...)
+	}
+	return result
+}
+
+// parseFlowICMPTypesSlice parses ICMP types from a pre-split slice.
+func parseFlowICMPTypesSlice(vals []string) []uint8 {
+	result := make([]uint8, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowICMPTypes(v)...)
+	}
+	return result
+}
+
+// parseFlowICMPCodesSlice parses ICMP codes from a pre-split slice.
+func parseFlowICMPCodesSlice(vals []string) []uint8 {
+	result := make([]uint8, 0, len(vals))
+	for _, v := range vals {
+		result = append(result, parseFlowICMPCodes(v)...)
+	}
+	return result
+}
+
 // convertMUPRoute converts config MUP route to reactor MUP route.
 func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 	route := reactor.MUPRoute{
@@ -1735,98 +1729,6 @@ func parseASPathSimple(s string) ([]uint32, error) {
 		result = append(result, uint32(n))
 	}
 	return result, nil
-}
-
-// parseFlowRate parses a rate value for FlowSpec rate-limit action.
-func parseFlowRate(s string) float32 {
-	if s == "" {
-		return 0
-	}
-	n, err := strconv.ParseFloat(s, 32)
-	if err != nil {
-		return 0
-	}
-	return float32(n)
-}
-
-// encodeFloat32 encodes a float32 as 4 bytes (IEEE 754).
-func encodeFloat32(f float32) []byte {
-	bits := math.Float32bits(f)
-	return []byte{
-		byte(bits >> 24),
-		byte(bits >> 16),
-		byte(bits >> 8),
-		byte(bits),
-	}
-}
-
-// parseRedirectExtCommunity parses redirect action value to extended community bytes.
-// Formats: AS:NN (type 0x8008) or IP (redirect-to-nexthop).
-func parseRedirectExtCommunity(s string) []byte {
-	if s == "" {
-		return nil
-	}
-
-	// Check if it's an IP address (redirect to IP)
-	if ip, err := netip.ParseAddr(s); err == nil {
-		if ip.Is4() {
-			// Redirect to IPv4: type 0x8008, subtype 0x08
-			b := ip.As4()
-			return []byte{0x80, 0x08, b[0], b[1], b[2], b[3], 0x00, 0x00}
-		}
-		// IPv6 not commonly used for redirect
-		return nil
-	}
-
-	// Parse AS:NN format
-	parts := strings.Split(s, ":")
-	if len(parts) == 2 {
-		asn, err1 := strconv.ParseUint(parts[0], 10, 32)
-		nn, err2 := strconv.ParseUint(parts[1], 10, 32)
-		if err1 == nil && err2 == nil {
-			if asn <= 0xFFFF {
-				// 2-byte AS format: type 0x80, subtype 0x08
-				return []byte{
-					0x80, 0x08,
-					byte(asn >> 8), byte(asn),
-					byte(nn >> 24), byte(nn >> 16), byte(nn >> 8), byte(nn),
-				}
-			}
-			// 4-byte AS format: type 0x82, subtype 0x08
-			return []byte{
-				0x82, 0x08,
-				byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-				byte(nn >> 8), byte(nn),
-			}
-		}
-	}
-
-	return nil
-}
-
-// parseFlowOctet parses a single octet value.
-func parseFlowOctet(s string) byte {
-	if s == "" {
-		return 0
-	}
-	n, err := strconv.ParseUint(s, 10, 8)
-	if err != nil {
-		return 0
-	}
-	return byte(n)
-}
-
-// parseActionFlags parses traffic action flags.
-func parseActionFlags(s string) byte {
-	var flags byte
-	s = strings.ToLower(s)
-	if strings.Contains(s, "terminal") {
-		flags |= 0x01
-	}
-	if strings.Contains(s, "sample") {
-		flags |= 0x02
-	}
-	return flags
 }
 
 // detectLegacySyntaxHint checks if a parse error is likely due to old syntax

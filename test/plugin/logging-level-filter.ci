@@ -49,8 +49,15 @@ bgp {
 	        }
 	    }
 	
-	    static {
-	        route 192.168.1.0/24 next-hop 10.0.0.1;
+	    update {
+	        attribute {
+	            origin igp;
+	            local-preference 100;
+	            next-hop 10.0.0.1;
+	        }
+	        nlri {
+	            ipv4/unicast add 192.168.1.0/24;
+	        }
 	    }
 	
 	    process gr {

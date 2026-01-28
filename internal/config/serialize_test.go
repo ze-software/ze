@@ -121,38 +121,6 @@ func TestSerializePlugin(t *testing.T) {
 	require.True(t, TreeEqual(tree, tree2), "trees should be equal after roundtrip")
 }
 
-// TestSerializeStatic verifies static route serialization.
-//
-// VALIDATES: Static routes serialize correctly.
-//
-// PREVENTS: Lost route configurations.
-func TestSerializeStatic(t *testing.T) {
-	input := `bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
-        static {
-            route 10.0.0.0/8 {
-                next-hop 192.0.2.1;
-                local-preference 100;
-            }
-        }
-    }
-}
-`
-	schema := YANGSchema()
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	require.NoError(t, err)
-
-	output := Serialize(tree, schema)
-
-	tree2, err := p.Parse(output)
-	require.NoError(t, err)
-
-	require.True(t, TreeEqual(tree, tree2), "trees should be equal after roundtrip")
-}
-
 // TestSerializeCapability verifies capability serialization.
 //
 // VALIDATES: Nested capabilities serialize correctly.

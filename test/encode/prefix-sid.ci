@@ -17,13 +17,29 @@ bgp {
 		group-updates disable;
 
 		family {
-			ipv4/nlri-mpls;
+			ipv4/mpls;
 			ipv4/unicast;
 		}
-		announce {
-			ipv4 {
-				nlri-mpls 198.51.100.100/32 next-hop 198.51.100.1 label 800001 bgp-prefix-sid 777;
-				nlri-mpls 198.51.100.101/32 next-hop 198.51.100.2 label 800002 bgp-prefix-sid "300, [( 800000,4096) ,( 1000000,5000)]";
+		update {
+			attribute {
+				origin igp;
+				next-hop 198.51.100.1;
+				label 800001;
+				bgp-prefix-sid "[ 777 ]";
+			}
+			nlri {
+				ipv4/mpls 198.51.100.100/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 198.51.100.2;
+				label 800002;
+				bgp-prefix-sid "[ 300, [ ( 800000,4096 ) ( 1000000,5000 ) ] ]";
+			}
+			nlri {
+				ipv4/mpls 198.51.100.101/32;
 			}
 		}
 	}

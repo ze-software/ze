@@ -282,167 +282,6 @@ module ze-bgp {
             description "Maintain Adj-RIB-In";
         }
 
-        // Announce container
-        container announce {
-            description "Routes to announce";
-
-            container ipv4 {
-                description "IPv4 announcements";
-                container unicast {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv4 unicast";
-                }
-                container multicast {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv4 multicast";
-                }
-                container nlri-mpls {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv4 labeled unicast";
-                }
-                container mpls-vpn {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv4 MPLS VPN";
-                }
-                container mcast-vpn {
-                    ze:syntax "inline-list";
-                    ze:key-type "string";
-                    description "IPv4 multicast VPN";
-                    // MCAST-VPN specific attributes defined inline
-                    leaf rp { type string; }
-                    leaf group { type string; }
-                    leaf source { type string; }
-                    leaf rd { type string; }
-                    leaf source-as { type uint32; }
-                    leaf next-hop { type string; }
-                    leaf extended-community { ze:syntax "multi-leaf"; type string; }
-                    leaf community { ze:syntax "multi-leaf"; type string; }
-                    leaf origin { type string; }
-                    leaf local-preference { type uint32; }
-                    leaf med { type uint32; }
-                    leaf originator-id { type zt:ipv4-address; }
-                    leaf cluster-list { ze:syntax "multi-leaf"; type string; }
-                }
-                container mup {
-                    ze:syntax "flex";
-                    description "IPv4 MUP";
-                }
-                container flow {
-                    ze:syntax "freeform";
-                    description "IPv4 FlowSpec";
-                }
-            }
-
-            container ipv6 {
-                description "IPv6 announcements";
-                container unicast {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv6 unicast";
-                }
-                container multicast {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv6 multicast";
-                }
-                container nlri-mpls {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv6 labeled unicast";
-                }
-                container mpls-vpn {
-                    ze:syntax "inline-list";
-                    ze:key-type "prefix";
-                    uses zt:route-attributes;
-                    description "IPv6 MPLS VPN";
-                }
-                container mcast-vpn {
-                    ze:syntax "inline-list";
-                    ze:key-type "string";
-                    description "IPv6 multicast VPN";
-                }
-                container mup {
-                    ze:syntax "flex";
-                    description "IPv6 MUP";
-                }
-                container flow {
-                    ze:syntax "freeform";
-                    description "IPv6 FlowSpec";
-                }
-            }
-
-            container l2vpn {
-                description "L2VPN announcements";
-                container vpls {
-                    ze:syntax "flex";
-                    description "VPLS";
-                    leaf rd { type string; description "Route Distinguisher"; }
-                    leaf endpoint { type uint16; description "VPLS endpoint"; }
-                    leaf base { type uint32; description "Label base"; }
-                    leaf offset { type uint16; description "Label offset"; }
-                    leaf size { type uint16; description "Block size"; }
-                    leaf next-hop { type string; description "Next hop"; }
-                    leaf origin { type string; description "Origin"; }
-                    leaf local-preference { type uint32; description "Local preference"; }
-                    leaf med { type uint32; description "MED"; }
-                    leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
-                    leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
-                    leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
-                    leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                    leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
-                }
-                container evpn {
-                    ze:syntax "freeform";
-                    description "EVPN";
-                }
-            }
-
-            container attribute {
-                description "Announce attributes";
-                container atomic-aggregate {
-                    ze:syntax "flex";
-                    description "Atomic aggregate";
-                }
-                container withdraw {
-                    ze:syntax "flex";
-                    description "Withdraw";
-                }
-                container bgp-prefix-sid {
-                    ze:syntax "flex";
-                    description "BGP Prefix SID";
-                }
-            }
-
-            container route {
-                ze:syntax "inline-list";
-                ze:key-type "prefix";
-                uses zt:route-attributes;
-                description "Generic route announcements";
-            }
-        }
-
-        // Static routes
-        container static {
-            description "Static route configuration";
-            container route {
-                ze:syntax "inline-list";
-                ze:key-type "prefix";
-                uses zt:route-attributes;
-                description "Static routes";
-            }
-        }
-
         // Native update syntax - Ze-native route announcements
         // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
         list update {
@@ -466,99 +305,21 @@ module ze-bgp {
                 leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
                 leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
                 leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
-                leaf attribute { type string; description "Generic hex attributes"; }
+                leaf attribute { ze:syntax "value-or-array"; type string; description "Generic hex attributes"; }
                 leaf bgp-prefix-sid { ze:syntax "flex"; type string; description "Prefix-SID (label index)"; }
                 leaf bgp-prefix-sid-srv6 { ze:syntax "flex"; type string; description "SRv6 Prefix-SID"; }
                 leaf split { type string; description "Prefix splitting"; }
-                leaf watchdog { type string; description "Route watchdog name"; }
-                leaf withdraw { type boolean; description "Withdraw flag for watchdog"; }
             }
 
             container nlri {
                 ze:syntax "freeform";
                 description "NLRI by family: ipv4/unicast, ipv6/unicast, etc.";
             }
-        }
 
-        // Flow routes
-        container flow {
-            description "FlowSpec routes";
-            list route {
-                key "name";
-                description "FlowSpec route";
-                leaf name { type string; }
-                leaf rd { type string; }
-                leaf next-hop { type string; }
-                leaf extended-community { type string; }
-                container match {
-                    ze:syntax "freeform";
-                    description "Match criteria";
-                }
-                container scope {
-                    ze:syntax "freeform";
-                    description "Scope criteria";
-                }
-                container then {
-                    ze:syntax "freeform";
-                    description "Actions";
-                }
-            }
-        }
-
-        // L2VPN
-        container l2vpn {
-            description "L2VPN configuration";
-            container vpls {
-                ze:syntax "flex";
-                description "VPLS";
-                leaf rd { type string; description "Route Distinguisher"; }
-                leaf endpoint { type uint16; description "VPLS endpoint"; }
-                leaf base { type uint32; description "Label base"; }
-                leaf offset { type uint16; description "Label offset"; }
-                leaf size { type uint16; description "Block size"; }
-                leaf next-hop { type string; description "Next hop"; }
-                leaf origin { type string; description "Origin"; }
-                leaf local-preference { type uint32; description "Local preference"; }
-                leaf med { type uint32; description "MED"; }
-                leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
-                leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
-                leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
-                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
-            }
-            container evpn {
-                ze:syntax "freeform";
-                description "EVPN";
-            }
-        }
-
-        // Withdraw
-        container withdraw {
-            description "Routes to withdraw";
-            container l2vpn {
-                description "L2VPN withdrawals";
-                container vpls {
-                    ze:syntax "flex";
-                    description "VPLS";
-                    leaf rd { type string; description "Route Distinguisher"; }
-                    leaf endpoint { type uint16; description "VPLS endpoint"; }
-                    leaf base { type uint32; description "Label base"; }
-                    leaf offset { type uint16; description "Label offset"; }
-                    leaf size { type uint16; description "Block size"; }
-                    leaf next-hop { type string; description "Next hop"; }
-                    leaf origin { type string; description "Origin"; }
-                    leaf local-preference { type uint32; description "Local preference"; }
-                    leaf med { type uint32; description "MED"; }
-                    leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
-                    leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
-                    leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
-                    leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                    leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
-                }
-                container evpn {
-                    ze:syntax "freeform";
-                    description "EVPN";
-                }
+            container watchdog {
+                description "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
+                leaf name { type string; description "Watchdog group name"; }
+                leaf withdraw { type boolean; description "Start in withdrawn state (default true)"; }
             }
         }
 
@@ -576,6 +337,11 @@ module ze-bgp {
             leaf name {
                 type string;
                 description "Process name";
+            }
+
+            leaf run {
+                type string;
+                description "Command to execute";
             }
 
             // Old syntax fields
@@ -619,12 +385,6 @@ module ze-bgp {
             }
         }
 
-        // Operational (ExaBGP-specific, parsed but not processed)
-        container operational {
-            ze:syntax "freeform";
-            description "Operational messages";
-        }
-
         // RIB configuration
         container rib {
             description "RIB configuration";
@@ -648,35 +408,5 @@ module ze-bgp {
             }
         }
 
-        // API block (old syntax, migrated to process)
-        container api {
-            description "API configuration (legacy)";
-            container neighbor-changes {
-                ze:syntax "flex";
-                description "Neighbor changes";
-            }
-            container negotiated {
-                description "Negotiated info";
-                container nlri {
-                    ze:syntax "flex";
-                    description "NLRI info";
-                }
-            }
-            container receive {
-                ze:syntax "freeform";
-                description "Receive config";
-            }
-            container send {
-                ze:syntax "freeform";
-                description "Send config";
-            }
-            container processes {
-                description "Processes config";
-                container operational {
-                    ze:syntax "freeform";
-                    description "Operational";
-                }
-            }
-        }
     }
 }

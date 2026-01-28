@@ -25,10 +25,29 @@ bgp {
 		capability {
 			add-path send/receive;
 		}
-		announce {
-			ipv4 {
-				unicast 193.0.2.1 next-hop 10.0.0.1 extended-community 72:0.0.0.1 path-information 1.2.3.4;
-				mpls-vpn 10.0.0.0/24 next-hop 192.168.0.1 origin igp local-preference 100 extended-community "target:0:0 target:1:1" path-information 10 label 20012 rd 100:100;
+		update {
+			attribute {
+				origin igp;
+				next-hop 10.0.0.1;
+				extended-community [ target:72:1 ];
+				path-information 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast 193.0.2.1/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.168.0.1;
+				local-preference 100;
+				extended-community [ target:0:0 target:1:1 ];
+				path-information 10;
+				rd 100:100;
+				label 20012;
+			}
+			nlri {
+				ipv4/mpls-vpn 10.0.0.0/24;
 			}
 		}
 		add-path {
