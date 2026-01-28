@@ -414,16 +414,17 @@ func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
 	return r.WriteTo(buf, off), nil
 }
 
-// packAttributesNoSort packs attributes in the order provided (no sorting).
-// Used when ExaBGP ordering differs from RFC 4271 Appendix F.3.
-func packAttributesNoSort(attrs []attribute.Attribute) []byte {
-	// Calculate total size
+// packAttributesOrdered packs attributes with MP_UNREACH first, regular attrs
+// by type code, then MP_REACH last. This matches ExaBGP output.
+//
+// Uses WriteAttributesOrdered (zero-alloc write into pre-sized buffer).
+func packAttributesOrdered(attrs []attribute.Attribute) []byte {
+	if len(attrs) == 0 {
+		return nil
+	}
 	totalSize := attribute.AttributesSize(attrs)
 	result := make([]byte, totalSize)
-	off := 0
-	for _, attr := range attrs {
-		off += attribute.WriteAttrTo(attr, result, off)
-	}
+	attribute.WriteAttributesOrdered(attrs, result, 0)
 	return result
 }
 
@@ -611,8 +612,9 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 		})
 	}
 
-	// Attributes are already in RFC 4271 type code order.
-	attrBytes := packAttributesNoSort(attrs)
+	// Order attributes: MP_UNREACH first, regular attrs by code, MP_REACH last.
+	// This matches ExaBGP output for compatibility testing.
+	attrBytes := packAttributesOrdered(attrs)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -886,8 +888,9 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 		})
 	}
 
-	// Attributes are already in RFC 4271 type code order.
-	attrBytes := packAttributesNoSort(attrs)
+	// Order attributes: MP_UNREACH first, regular attrs by code, MP_REACH last.
+	// This matches ExaBGP output for compatibility testing.
+	attrBytes := packAttributesOrdered(attrs)
 
 	// Append raw attributes (already packed, pass-through from config)
 	for _, raw := range p.RawAttributeBytes {
@@ -1709,8 +1712,9 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 		attrs = append(attrs, lcs)
 	}
 
-	// Pack attributes (no sort - already in RFC order)
-	attrBytes := packAttributesNoSort(attrs)
+	// Order attributes: MP_UNREACH first, regular attrs by code, MP_REACH last.
+	// This matches ExaBGP output for compatibility testing.
+	attrBytes := packAttributesOrdered(attrs)
 
 	return &Update{
 		PathAttributes: attrBytes,

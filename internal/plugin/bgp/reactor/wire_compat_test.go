@@ -123,10 +123,10 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 	}
 }
 
-// TestWireCompat_VPNIPv4 verifies VPN-IPv4 wire format follows RFC 4271.
+// TestWireCompat_VPNIPv4 verifies VPN-IPv4 wire format.
 //
-// RFC 4271 Appendix F.3: attributes SHOULD be ordered by type code.
-// Order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), LOCAL_PREF(5), MP_REACH(14), EXT_COM(16).
+// Order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), LOCAL_PREF(5), EXT_COM(16), MP_REACH(14 last).
+// MP_REACH_NLRI placed last per docs/architecture/wire/mp-nlri-ordering.md.
 func TestWireCompat_VPNIPv4(t *testing.T) {
 
 	// Build VPN route UPDATE
@@ -142,21 +142,21 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	}
 	update := ub.BuildVPN(params)
 
-	// Expected output following RFC 4271 type code order:
-	// ORIGIN (1) + AS_PATH (2) + NEXT_HOP (3) + LOCAL_PREF (5) + MP_REACH (14) + EXT_COM (16)
+	// Expected output: regular attrs by type code, then MP_REACH last.
+	// ORIGIN (1) + AS_PATH (2) + NEXT_HOP (3) + LOCAL_PREF (5) + EXT_COM (16) + MP_REACH (14 last)
 	expected, _ := hex.DecodeString(
 		"40010100" + // ORIGIN: IGP
 			"400200" + // AS_PATH: empty
 			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
 			"40050400000096" + // LOCAL_PREF: 150
+			"c010080002fde900000064" + // EXT_COMMUNITIES: RT 65001:100
 			"800e20" + // MP_REACH_NLRI header (len=32)
 			"0001800c" + // AFI=1, SAFI=128, NH_LEN=12
 			"0000000000000000c0a80101" + // NH: RD(8 zeros) + IPv4(192.168.1.1)
 			"00" + // Reserved
 			"70" + // NLRI: Length=112 bits (3*8 label + 64 RD + 24 prefix)
 			"000641" + // Label: 100 with BOS
-			"00010000006400640a0000" + // RD + prefix (10.0.0.0/24)
-			"c010080002fde900000064") // EXT_COMMUNITIES: RT 65001:100
+			"00010000006400640a0000") // RD + prefix (10.0.0.0/24)
 
 	if !bytes.Equal(update.PathAttributes, expected) {
 		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
