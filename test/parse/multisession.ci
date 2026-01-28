@@ -17,15 +17,27 @@ bgp {
 		capability {
 			multi-session;
 		}
-		announce {
-			ipv4 {
-				unicast 10.0.0.0/24 next-hop 192.0.2.1;
-				unicast 10.0.1.0/24 next-hop 192.0.2.1;
-				unicast 10.0.2.0/24 next-hop 192.0.2.1;
-				unicast 10.0.3.0/24 next-hop 192.0.2.1;
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
 			}
-			ipv6 {
-				unicast 2A02:B80:0:1::/64 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+			nlri {
+				ipv4/unicast add 10.0.0.0/24;
+				ipv4/unicast add 10.0.1.0/24;
+				ipv4/unicast add 10.0.2.0/24;
+				ipv4/unicast add 10.0.3.0/24;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				next-hop 2A02:B80:0:2::1;
+				local-preference 200;
+				community "30740:0 30740:30740";
+			}
+			nlri {
+				ipv6/unicast add 2A02:B80:0:1::/64;
 			}
 		}
 		process parsed-route-backend {

@@ -58,9 +58,31 @@ clean:
 test-all: test functional
 	@echo "All tests passed"
 
-# Run functional tests (all types)
-functional: functional-encode functional-plugin functional-parse functional-decode
-	@echo "All functional tests passed"
+# Run functional tests (all types, continue on failure to show all results)
+functional:
+	@failed=0; \
+	echo "Running encode functional tests..."; \
+	go run ./cmd/ze-test bgp encode --all || failed=$$((failed + 1)); \
+	echo ""; \
+	echo "Running plugin functional tests..."; \
+	go run ./cmd/ze-test bgp plugin --all || failed=$$((failed + 1)); \
+	echo ""; \
+	echo "Running parse functional tests..."; \
+	go run ./cmd/ze-test bgp parse --all || failed=$$((failed + 1)); \
+	echo ""; \
+	echo "Running decode functional tests..."; \
+	go run ./cmd/ze-test bgp decode --all || failed=$$((failed + 1)); \
+	echo ""; \
+	if [ $$failed -gt 0 ]; then \
+		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+		echo "FUNCTIONAL TESTS: $$failed test suite(s) failed"; \
+		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+		exit 1; \
+	else \
+		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+		echo "All functional tests passed"; \
+		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+	fi
 
 # Run encode functional tests
 functional-encode:

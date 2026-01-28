@@ -11,9 +11,15 @@ bgp {
 		group-updates disable;
 		md5-password abc123;
 		md5-ip 10.0.0.2;
-		announce {
-			ipv4 {
-				unicast 172.10.0.0/16 next-hop 192.0.2.1 med 200 community 174:666;
+		update {
+			attribute {
+				origin igp;
+				next-hop 192.0.2.1;
+				med 200;
+				community 174:666;
+			}
+			nlri {
+				ipv4/unicast add 172.10.0.0/16;
 			}
 		}
 	}
