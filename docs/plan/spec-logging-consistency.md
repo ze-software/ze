@@ -7,24 +7,30 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `.claude/rules/go-standards.md` - current logging docs
 4. `internal/slogutil/slogutil.go` - logging implementation
+5. `internal/trace/trace.go` - trace system being migrated
 
 ## Task
 
 Unify Ze logging system for complete consistency:
 1. Plugins check environment variables (not just CLI flags)
-2. Add logging to core BGP packages that lack it
-3. Update documentation to reflect all subsystems
+2. Add hierarchical logging (base level + specific overrides)
+3. New env var convention: `ze.log.<package-path>`
+4. Migrate trace system to slog (delete internal/trace/)
+5. Update documentation to reflect all subsystems
+
+**Out of scope (separate specs per package):**
+- Add logging to core BGP packages (fsm, message, attribute, nlri, rib, capability, reactor, rr)
 
 ## Problem Statement
 
 ### Inconsistency 1: Plugins Ignore Env Vars
 
-Engine subsystems use `slogutil.Logger()` which reads `ze.log.bgp.<subsystem>`.
+Engine subsystems use `slogutil.Logger()` which reads env vars.
 Plugin processes use `slogutil.LoggerWithLevel()` which only reads CLI `--log-level` flag.
 
 This means:
-- Engine: `ze.log.bgp.server=debug ze bgp server ...` ✅ works
-- Plugin: `ze.log.bgp.gr=debug ze bgp server ...` ❌ ignored
+- Engine: `ze.log.server=debug ze bgp server ...` ✅ works
+- Plugin: `ze.log.gr=debug ze bgp server ...` ❌ ignored
 
 ### Inconsistency 2: Core Packages Lack Logging
 
@@ -43,7 +49,16 @@ This means:
 
 - Only 4 subsystems documented (server, coordinator, filter, plugin)
 - 5 engine subsystems missing (subscribe, peer, session, record, runner)
-- Typo in example: `ze.bgp.log.server` should be `ze.log.bgp.server`
+- Old env var format `ze.log.bgp.<sub>` needs migration to `ze.log.<path>` convention
+
+### Inconsistency 4: Two Logging Systems
+
+`internal/trace/` uses unstructured printf-style logging:
+- Env var: `ze.bgp.debug.trace=config,routes,session,fsm`
+- Output: `[TRACE 15:04:05] cat: msg`
+- No levels, no structured fields, stderr only
+
+Should migrate to slog for consistency and structured logging.
 
 ## Required Reading
 
@@ -52,6 +67,7 @@ This means:
 
 ### Source Code
 - [ ] `internal/slogutil/slogutil.go` - Logger(), LoggerWithLevel() implementation
+- [ ] `internal/trace/trace.go` - trace system to be migrated
 - [ ] `cmd/ze/bgp/plugin_gr.go` - current plugin logging pattern
 - [ ] `cmd/ze/bgp/plugin_rib.go` - current plugin logging pattern
 
@@ -59,33 +75,66 @@ This means:
 
 ### Subsystem Naming Convention
 
-Use dot notation for hierarchical subsystems:
+**Rule:** `ze.log.` + simplified package path (without `internal/plugin/`)
 
-| Subsystem | Env Var | Purpose |
-|-----------|---------|---------|
-| server | `ze.log.bgp.server` | Plugin server |
-| coordinator | `ze.log.bgp.coordinator` | Startup coordinator |
-| filter | `ze.log.bgp.filter` | Route filtering |
-| plugin | `ze.log.bgp.plugin` | stderr relay |
-| subscribe | `ze.log.bgp.subscribe` | Subscriptions |
-| peer | `ze.log.bgp.peer` | Peer management |
-| session | `ze.log.bgp.session` | BGP sessions |
-| gr | `ze.log.bgp.gr` | Graceful restart plugin |
-| rib | `ze.log.bgp.rib` | RIB plugin |
-| bgp.fsm | `ze.log.bgp.bgp.fsm` | FSM state machine |
-| bgp.message | `ze.log.bgp.bgp.message` | Message parsing |
-| bgp.attribute | `ze.log.bgp.bgp.attribute` | Attribute handling |
-| bgp.nlri | `ze.log.bgp.bgp.nlri` | NLRI parsing |
-| bgp.capability | `ze.log.bgp.bgp.capability` | Capability negotiation |
-| bgp.reactor | `ze.log.bgp.bgp.reactor` | Reactor orchestration |
-| bgp.rr | `ze.log.bgp.bgp.rr` | Route reflector |
+| Package | Subsystem | Env Var |
+|---------|-----------|---------|
+| `plugin/server.go` | `server` | `ze.log.server` |
+| `plugin/startup_coordinator.go` | `coordinator` | `ze.log.coordinator` |
+| `plugin/filter.go` | `filter` | `ze.log.filter` |
+| `plugin/process.go` | `process` | `ze.log.process` |
+| `plugin/subscribe.go` | `subscribe` | `ze.log.subscribe` |
+| `plugin/bgp/reactor/peer.go` | `bgp.reactor.peer` | `ze.log.bgp.reactor.peer` |
+| `plugin/bgp/reactor/session.go` | `bgp.reactor.session` | `ze.log.bgp.reactor.session` |
+| `plugin/bgp/reactor/reactor.go` | `bgp.reactor` | `ze.log.bgp.reactor` |
+| `plugin/bgp/fsm/` | `bgp.fsm` | `ze.log.bgp.fsm` |
+| `plugin/bgp/message/` | `bgp.message` | `ze.log.bgp.message` |
+| `plugin/bgp/attribute/` | `bgp.attribute` | `ze.log.bgp.attribute` |
+| `plugin/bgp/nlri/` | `bgp.nlri` | `ze.log.bgp.nlri` |
+| `plugin/bgp/capability/` | `bgp.capability` | `ze.log.bgp.capability` |
+| `plugin/bgp/rib/` | `bgp.rib` | `ze.log.bgp.rib` |
+| `plugin/gr/` | `gr` | `ze.log.gr` |
+| `plugin/rr/` | `rr` | `ze.log.rr` |
+| `plugin/rib/` | `rib` | `ze.log.rib` |
+| `config/` | `config` | `ze.log.config` |
 
-### Plugin Logging Priority
+**New subsystem (from trace migration):**
 
-CLI flag overrides env var (explicit user intent):
-1. Check env var `ze.log.bgp.<subsystem>`
-2. If CLI flag provided and not "disabled", CLI wins
-3. Otherwise env var wins
+| Package | Subsystem | Env Var |
+|---------|-----------|---------|
+| `plugin/bgp/reactor/` (Routes) | `bgp.routes` | `ze.log.bgp.routes` |
+
+**Special env vars (not subsystems):**
+
+| Env Var | Purpose |
+|---------|---------|
+| `ze.log.relay` | Plugin stderr relay level (debug/info/warn/err/disabled) |
+| `ze.log.bgp.backend` | Output: stderr (default), stdout, syslog |
+| `ze.log.bgp.destination` | Syslog address (when backend=syslog) |
+
+### Hierarchical Logging Levels
+
+Base level sets default for all subsystems, specific overrides:
+
+| Env Var | Effect |
+|---------|--------|
+| `ze.log=info` | All subsystems at INFO |
+| `ze.log.bgp=debug` | All bgp.* at DEBUG |
+| `ze.log.bgp.reactor=debug` | All bgp.reactor.* at DEBUG |
+| `ze.log.bgp.fsm=warn` | FSM at WARN (overrides base) |
+
+### Priority Order (Same as ExaBGP)
+
+Highest to lowest:
+1. CLI flag `--log-level` (plugin processes only)
+2. Most specific env var (dot notation): `ze.log.bgp.fsm`
+3. Most specific env var (underscore): `ze_log_bgp_fsm`
+4. Parent env var (dot): `ze.log.bgp`
+5. Parent env var (underscore): `ze_log_bgp`
+6. ... up to `ze.log` / `ze_log`
+7. Default: disabled
+
+Dot notation always takes precedence over underscore at same level.
 
 ## 🧪 TDD Test Plan
 
@@ -93,89 +142,133 @@ CLI flag overrides env var (explicit user intent):
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLoggerWithEnvFallback` | `internal/slogutil/slogutil_test.go` | Env var read when CLI is disabled | |
-| `TestLoggerCLIOverridesEnv` | `internal/slogutil/slogutil_test.go` | CLI flag takes precedence | |
-| `TestLoggerEnvOnlyNoFlag` | `internal/slogutil/slogutil_test.go` | Works with env var alone | |
+| `TestLoggerCLIOverridesEnv` | `internal/slogutil/slogutil_test.go` | CLI flag takes precedence over env | |
+| `TestLoggerSpecificOverridesParent` | `internal/slogutil/slogutil_test.go` | `ze.log.bgp.fsm` overrides `ze.log.bgp` | |
+| `TestLoggerParentLevel` | `internal/slogutil/slogutil_test.go` | `ze.log.bgp=debug` enables all bgp.* | |
+| `TestLoggerRootLevel` | `internal/slogutil/slogutil_test.go` | `ze.log=debug` enables all subsystems | |
+| `TestLoggerDotOverridesUnderscore` | `internal/slogutil/slogutil_test.go` | Dot notation wins over underscore | |
+| `TestLoggerUnderscoreFallback` | `internal/slogutil/slogutil_test.go` | Underscore works when dot not set | |
+| `TestLoggerDisabledCLIFallsBackToEnv` | `internal/slogutil/slogutil_test.go` | CLI "disabled" uses env var | |
+| `TestLoggerInvalidLevel` | `internal/slogutil/slogutil_test.go` | Invalid level string = disabled | |
+| `TestLoggerEmptyEnvAndCLI` | `internal/slogutil/slogutil_test.go` | Both empty = disabled | |
+| `TestLoggerCreated` | `internal/slogutil/slogutil_test.go` | Logger not discard when env set | |
+| `TestRelayLevel` | `internal/slogutil/slogutil_test.go` | `ze.log.relay` controls relay output | |
 
 ### Functional Tests
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| N/A | N/A | Logging is internal, no functional test needed | |
+| N/A | N/A | Logging is internal infrastructure, no end-user functional test | |
 
 ## Files to Modify
 
-### Step 1: Plugin Consistency
-- `internal/slogutil/slogutil.go` - add `LoggerWithEnvFallback()`
-- `cmd/ze/bgp/plugin_gr.go` - use new function
-- `cmd/ze/bgp/plugin_rib.go` - use new function
+### Step 1: Hierarchical Logging + Plugin Consistency
+- `internal/slogutil/slogutil.go` - new env var convention, hierarchical lookup, PluginLogger()
+- `internal/slogutil/slogutil_test.go` - add 11 new unit tests
+- `cmd/ze/bgp/plugin_gr.go` - use PluginLogger()
+- `cmd/ze/bgp/plugin_rib.go` - use PluginLogger()
 
-### Step 2: Core Package Logging
-- `internal/plugin/bgp/fsm/fsm.go` - add logger
-- `internal/plugin/bgp/message/update.go` - add logger (main entry point)
-- `internal/plugin/bgp/attribute/builder.go` - add logger
-- `internal/plugin/bgp/nlri/iterator.go` - add logger
-- `internal/plugin/bgp/rib/store.go` - add logger
-- `internal/plugin/bgp/capability/negotiated.go` - add logger
-- `internal/plugin/bgp/reactor/reactor.go` - add logger
-- `internal/plugin/rr/server.go` - add logger
+### Step 2: Update Existing Loggers
+- `internal/plugin/server.go` - update subsystem name to `server`
+- `internal/plugin/startup_coordinator.go` - update to `coordinator`
+- `internal/plugin/filter.go` - update to `filter`
+- `internal/plugin/process.go` - update to `process`, update relay logic
+- `internal/plugin/subscribe.go` - update to `subscribe`
+- `internal/plugin/bgp/reactor/peer.go` - update to `bgp.reactor.peer`
+- `internal/plugin/bgp/reactor/session.go` - update to `bgp.reactor.session`
+- `internal/test/runner/record.go` - update to `test.record`
+- `internal/test/runner/runner.go` - update to `test.runner`
 
-### Documentation
-- `.claude/rules/go-standards.md` - update subsystem table, fix typo
+### Step 3: Migrate Trace to slog
+- `internal/config/loader.go` - add logger, convert trace calls
+- `internal/plugin/bgp/reactor/peer.go` - convert trace calls (logger exists)
+- `internal/plugin/bgp/reactor/session.go` - convert trace calls (logger exists)
+- `internal/plugin/bgp/reactor/reactor.go` - add logger, convert trace calls
+- Delete `internal/trace/` package after migration
+
+### Step 4: Documentation
+- `.claude/rules/go-standards.md` - rewrite logging section with new convention
 
 ## Implementation Steps
 
-### Step 1: Plugin Logging Consistency
+### Step 1: Hierarchical Logging + Plugin Consistency
 
-1. **Write unit tests** for new `LoggerWithEnvFallback()` function
-   - Test env var alone works
-   - Test CLI flag overrides env var
-   - Test CLI "disabled" falls back to env var
+1. **Write unit tests** for hierarchical logging and PluginLogger()
+   - All 11 tests from TDD Test Plan
    → **Review:** Edge cases covered?
 
 2. **Run tests** - Verify FAIL (paste output)
    → **Review:** Tests fail for the RIGHT reason?
 
-3. **Implement** `LoggerWithEnvFallback(subsystem, cliLevel string)` in slogutil.go
-   - Check env var first via `getLogEnv(subsystem)`
-   - If cliLevel provided and != "disabled", use cliLevel
-   - Otherwise use env var level
-   → **Review:** Simplest solution? Follows existing patterns?
+3. **Implement hierarchical getLogEnv()**
+   - Check most specific env var first: `ze.log.bgp.fsm`
+   - Walk up parent path: `ze.log.bgp` → `ze.log`
+   - At each level, check dot notation then underscore
+   → **Review:** Simplest solution?
 
-4. **Run tests** - Verify PASS (paste output)
+4. **Implement PluginLogger(subsystem, cliLevel string)**
+   - CLI flag takes precedence if != "disabled"
+   - Otherwise use hierarchical env var lookup
+   → **Review:** Follows existing patterns?
 
-5. **Update plugin_gr.go and plugin_rib.go** to use new function
+5. **Run tests** - Verify PASS (paste output)
 
-6. **Verify** - `make lint && make test`
+6. **Update plugin_gr.go and plugin_rib.go** to use PluginLogger()
 
-### Step 2: Core Package Logging
+7. **Verify** - `make lint && make test`
 
-For each package (fsm, message, attribute, nlri, rib, capability, reactor, rr):
+### Step 2: Update Existing Loggers
 
-1. **Add package-level logger** at top of main file:
-   ```
-   var logger = slogutil.Logger("bgp.<package>")
-   ```
+1. **Update all existing Logger() calls** to use new subsystem names
+   - `Logger("server")` → `Logger("server")` (no change needed)
+   - `Logger("peer")` → `Logger("bgp.reactor.peer")`
+   - `Logger("session")` → `Logger("bgp.reactor.session")`
+   - etc.
 
-2. **Add strategic debug logging** for:
-   - Entry points (function start with key parameters)
-   - Error conditions (before returning errors)
-   - State changes (FSM transitions, route updates)
-   - Important decisions (capability negotiation outcomes)
+2. **Update IsPluginRelayEnabled()** to use `ze.log.relay` with level support
 
 3. **Verify** - `make lint && make test`
 
-### Step 3: Documentation Update
+### Step 3: Migrate Trace to slog
 
-1. **Fix typo** in go-standards.md line 30: `ze.bgp.log.server` → `ze.log.bgp.server`
+1. **Files to migrate:**
+   - `internal/config/loader.go` (5 trace calls) - add `Logger("config")`
+   - `internal/plugin/bgp/reactor/peer.go` (~60 trace calls) - logger exists
+   - `internal/plugin/bgp/reactor/session.go` (7 trace calls) - logger exists
+   - `internal/plugin/bgp/reactor/reactor.go` (7 trace calls) - add logger
 
-2. **Update env var table** with all subsystems (engine + plugin + core)
+2. **Trace category → slog subsystem mapping**
 
-3. **Verify** - Review docs for completeness
+   | trace category | slog subsystem |
+   |----------------|----------------|
+   | `trace.Config` | `config` |
+   | `trace.Routes` | `bgp.routes` (new) |
+   | `trace.Session` | `bgp.reactor.session` |
+   | `trace.FSM` | `bgp.reactor.peer` (FSM is per-peer) |
+
+3. **Add routes logger** to reactor/peer.go for Routes category (`bgp.routes`)
+
+4. **Convert each call** - replace printf-style with structured key-value pairs
+
+5. **Delete internal/trace/** after all usages migrated
+
+6. **Verify** - `make lint && make test && make functional`
+
+### Step 4: Documentation Update
+
+1. **Rewrite logging section** in go-standards.md with new `ze.log.<path>` convention
+
+2. **Update env var table** with all subsystems including hierarchical base levels
+
+3. **Document trace removal** - remove any trace references from docs
+
+4. **Verify** - Review docs for completeness
 
 ### Final Verification
 
 - `make lint && make test && make functional` (paste output)
+- Verify no trace imports remain: `grep -r "internal/trace" internal/`
+- Verify old env var format not referenced: `grep -r "ze\.log\.bgp\.\(server\|coordinator\|filter\|plugin\)" .`
 
 ## Checklist
 
@@ -187,7 +280,7 @@ For each package (fsm, message, attribute, nlri, rib, capability, reactor, rr):
 - [ ] Minimal coupling (loggers are package-local)
 
 ### 🧪 TDD
-- [ ] Tests written
+- [ ] Tests written (11 unit tests)
 - [ ] Tests FAIL (output below)
 - [ ] Implementation complete
 - [ ] Tests PASS (output below)
@@ -199,10 +292,25 @@ For each package (fsm, message, attribute, nlri, rib, capability, reactor, rr):
 - [ ] `make test` passes
 - [ ] `make functional` passes
 
+### Existing Loggers Updated
+- [ ] All Logger() calls use new simplified subsystem names
+- [ ] plugin_gr.go uses PluginLogger()
+- [ ] plugin_rib.go uses PluginLogger()
+- [ ] IsPluginRelayEnabled() replaced with relay level check
+
+### Trace Migration
+- [ ] config/loader.go converted
+- [ ] reactor/peer.go converted
+- [ ] reactor/session.go converted
+- [ ] reactor/reactor.go converted
+- [ ] internal/trace/ deleted
+- [ ] No trace imports remain
+
 ### Documentation
-- [ ] go-standards.md updated with all subsystems
-- [ ] Typo fixed
-- [ ] Env var table complete
+- [ ] go-standards.md rewritten with new convention
+- [ ] Env var table complete with all subsystems
+- [ ] Hierarchical logging documented
+- [ ] Old `ze.log.bgp.*` references removed
 
 ## Implementation Summary
 
