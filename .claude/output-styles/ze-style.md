@@ -116,7 +116,7 @@ Always include `file:line` when referencing code:
 ### Tool Output
 Report verification results tersely:
 ```
-✅ make test && make lint && make functional
+✅ make verify
    42 passed, 0 failed, lint clean, 80 functional
 ```
 On failure, show relevant error:

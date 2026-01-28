@@ -90,7 +90,8 @@ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304...
 ## Required Test Sequence
 
 ```bash
-make test && make lint && make functional  # Full verification
+make verify      # Development: lint + test + functional
+make test-all    # Before commit: lint + test + functional-all (includes ExaBGP)
 ```
 
 | Target | Command | Purpose |

@@ -155,7 +155,7 @@ Both produce WireUpdate with wire bytes.
 1. **DESIGN FIRST** - Search for existing code. Extend, don't duplicate. Think deeply.
 2. For BGP code: read RFC from `rfc/` folder first
 3. Write test, see it FAIL, implement, see it PASS (TDD)
-4. Run `make test && make lint && make functional` before claiming done
+4. Run `make verify` (test + lint + functional) before claiming done
 5. Only commit when explicitly requested
 
 ## Planning (see `.claude/rules/planning.md` for full details)

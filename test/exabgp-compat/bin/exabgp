@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""
+ExaBGP compatibility wrapper for ZeBGP.
+
+This script pretends to be ExaBGP but actually:
+1. Converts ExaBGP config to Ze format using `ze bgp config migrate`
+2. Runs `ze bgp server` with the migrated config
+
+Usage:
+    ./exabgp config.conf [options]
+
+Environment variables (ExaBGP compatible):
+    exabgp.tcp.port / exabgp_tcp_port - TCP port to listen on
+    exabgp.tcp.bind / exabgp_tcp_bind - Address to bind to
+"""
+
+import argparse
+import os
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+
+
+def find_ze_binary() -> str:
+    """Find the ze binary."""
+    # Check if ze is in PATH
+    result = subprocess.run(['which', 'ze'], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip()
+
+    # Check relative to this script (development mode)
+    script_dir = Path(__file__).parent.parent.parent.parent
+    ze_path = script_dir / 'ze'
+    if ze_path.exists():
+        return str(ze_path)
+
+    # Try to build it
+    print("Building ze...", file=sys.stderr)
+    result = subprocess.run(
+        ['go', 'build', '-o', str(ze_path), './cmd/ze'],
+        cwd=script_dir,
+        capture_output=True,
+        text=True
+    )
+    if result.returncode == 0 and ze_path.exists():
+        return str(ze_path)
+
+    print(f"Error: Cannot find or build ze binary", file=sys.stderr)
+    print(f"  Tried: {ze_path}", file=sys.stderr)
+    if result.stderr:
+        print(f"  Build error: {result.stderr}", file=sys.stderr)
+    sys.exit(1)
+
+
+def migrate_config(ze_binary: str, config_path: str) -> str:
+    """Migrate ExaBGP config to Ze format."""
+    result = subprocess.run(
+        [ze_binary, 'bgp', 'config', 'migrate', config_path],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        print(f"Error migrating config: {result.stderr}", file=sys.stderr)
+        sys.exit(1)
+
+    return result.stdout
+
+
+def get_exabgp_env_vars() -> dict:
+    """Extract environment variables for Ze port override."""
+    env_vars = {}
+
+    # TCP port - check Ze native var first, then ExaBGP compat vars
+    port = (os.environ.get('ze_bgp_tcp_port') or
+            os.environ.get('exabgp.tcp.port') or
+            os.environ.get('exabgp_tcp_port'))
+    if port:
+        env_vars['port'] = port
+
+    return env_vars
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='ExaBGP compatibility wrapper for ZeBGP',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument('config', help='ExaBGP configuration file')
+    parser.add_argument('-d', '--debug', action='store_true', help='Enable debug output')
+    parser.add_argument('--dry-run', action='store_true', help='Show migrated config without running')
+    parser.add_argument('--once', action='store_true', help='Exit after first peer disconnects')
+
+    # Capture remaining args to pass through
+    args, remaining = parser.parse_known_args()
+
+    ze_binary = find_ze_binary()
+
+    if args.debug:
+        print(f"Using ze binary: {ze_binary}", file=sys.stderr)
+
+    # Migrate the config
+    if args.debug:
+        print(f"Migrating config: {args.config}", file=sys.stderr)
+
+    migrated_config = migrate_config(ze_binary, args.config)
+
+    if args.dry_run:
+        print(migrated_config)
+        return 0
+
+    # Write migrated config to temp file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
+        f.write(migrated_config)
+        temp_config = f.name
+
+    if args.debug:
+        print(f"Migrated config written to: {temp_config}", file=sys.stderr)
+        print("--- Migrated config ---", file=sys.stderr)
+        print(migrated_config, file=sys.stderr)
+        print("--- End config ---", file=sys.stderr)
+
+    try:
+        # Build ze bgp server command
+        cmd = [ze_binary, 'bgp', 'server', temp_config]
+
+        # Add environment-based options
+        env_vars = get_exabgp_env_vars()
+        if env_vars.get('port'):
+            # Ze reads ze_bgp_tcp_port to override peer port (see loader.go:388)
+            os.environ['ze_bgp_tcp_port'] = env_vars['port']
+
+        # For tests: exit after first session so test can complete
+        # (Ze doesn't know it's in a test and would otherwise keep running)
+        os.environ['ze_bgp_tcp_attempts'] = '1'
+
+        if args.debug:
+            cmd.append('--debug')
+
+        if args.debug:
+            print(f"Running: {' '.join(cmd)}", file=sys.stderr)
+
+        # Run ze bgp server
+        result = subprocess.run(cmd)
+        return result.returncode
+
+    finally:
+        # Cleanup temp file
+        try:
+            os.unlink(temp_config)
+        except OSError:
+            pass
+
+
+if __name__ == '__main__':
+    sys.exit(main() or 0)

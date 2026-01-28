@@ -1,0 +1,2913 @@
+#!/usr/bin/env python3
+# encoding: utf-8
+"""
+cache.py
+
+Created by Thomas Mangin
+Copyright (c) 2013-2017 Exa Networks. All rights reserved.
+License: 3-clause BSD. (See the COPYRIGHT file)
+"""
+
+import argparse
+import glob
+import json
+import os
+import re
+import signal
+import subprocess
+import sys
+import time
+from argparse import Namespace, _SubParsersAction
+from dataclasses import dataclass
+from enum import Enum
+from types import FrameType
+from typing import (
+    Any,
+    Dict,
+    Generator,
+    List,
+    Optional,
+    Pattern,
+    TextIO,
+    Type,
+    TypedDict,
+    Union,
+)
+
+try:
+    import psutil
+
+    HAVE_PSUTIL = True
+except ImportError:
+    HAVE_PSUTIL = False
+    psutil = None  # type: ignore[assignment]
+    sys.stderr.write('Warning: psutil not installed, process cleanup may be unreliable\n')
+    sys.stderr.write('Install with: pip install psutil\n')
+
+INTERPRETER: str = os.environ.get('INTERPRETER') or os.environ.get('__PYVENV_LAUNCHER__', sys.executable)
+
+
+# Configuration types for different test classes
+class EncodingConf(TypedDict):
+    """Configuration for encoding tests"""
+
+    confs: List[str]  # List of config file paths
+    ci: str  # Path to .ci file
+    msg: str  # Path to .msg file
+    port: int  # TCP port number
+
+
+class DecodingConf(TypedDict):
+    """Configuration for decoding tests"""
+
+    type: str  # Message type: 'open', 'update', 'nlri'
+    family: str  # Address family: 'ipv4 unicast', etc. (empty for 'open')
+    packet: str  # Hex packet data
+    json: Dict[str, Any]  # Expected decoded JSON
+
+
+class ParsingConf(TypedDict):
+    """Configuration for parsing tests"""
+
+    fname: str  # Configuration file path
+
+
+# Union of all possible configuration types
+TestConf = Union[EncodingConf, DecodingConf, ParsingConf]
+
+
+class Alarm(Exception):
+    pass
+
+
+def flush(
+    *args: object,
+    sep: Optional[str] = ' ',
+    end: Optional[str] = '\n',
+    file: Optional[TextIO] = None,
+) -> None:
+    print(*args, sep=sep, end=end, file=file)
+    if file is None:
+        _ = sys.stdout.flush()
+    else:
+        file.flush()
+
+
+def check_ulimit(minimum: int = 40000) -> None:
+    """
+    Check and set file descriptor limit (ulimit -n) to at least the minimum value.
+
+    Ensure sufficient file descriptors for tests that spawn many processes.
+    Required for functional tests that spawn many simultaneous processes.
+    Default minimum is 40000 (encoding tests spawn 72 daemon + 72 client processes).
+    """
+    try:
+        import resource
+
+        # Get current soft and hard limits
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+
+        # If current limit is sufficient, report and return
+        if soft >= minimum:
+            flush(f'[ulimit] File descriptor limit is {soft} (sufficient, minimum: {minimum})')
+            flush()  # Empty line before starting processes
+            return
+
+        # Try to set to minimum (but not higher than hard limit)
+        new_limit = min(minimum, hard)
+
+        try:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (new_limit, hard))
+            flush(f'[ulimit] Increased file descriptor limit from {soft} to {new_limit}')
+            flush()  # Empty line before starting processes
+        except (ValueError, OSError) as exc:
+            # If we can't set it, warn but continue
+            flush(f'[ulimit] Warning: Could not increase file descriptor limit from {soft} to {minimum}')
+            flush(f'[ulimit] Current limit: {soft}, minimum recommended: {minimum}')
+            flush(f'[ulimit] Error: {exc}')
+            flush(f'[ulimit] Tests may timeout or fail. Run: ulimit -n {minimum}')
+
+    except ImportError:
+        # resource module not available (shouldn't happen on POSIX systems)
+        flush('[ulimit] Warning: Could not check file descriptor limit (resource module unavailable)')
+
+
+def alarm_handler(_number: int, _frame: FrameType) -> None:
+    raise Alarm()
+
+
+def cleanup_test_processes() -> int:
+    """Emergency cleanup of test processes. Returns number killed."""
+    if not HAVE_PSUTIL:
+        # No psutil, try killall
+        subprocess.run(['killall', '-TERM', 'bgp'], stderr=subprocess.DEVNULL, check=False)
+        subprocess.run(['killall', '-TERM', 'exabgp'], stderr=subprocess.DEVNULL, check=False)
+        return 0
+
+    # Kill all test-related processes
+    patterns = ['qa/sbin/bgp', 'sbin/exabgp', 'src/exabgp/application/main', 'run/api-']
+    killed = 0
+    for proc in psutil.process_iter(['pid', 'cmdline']):
+        try:
+            cmdline = ' '.join(proc.info['cmdline'] or [])
+            if any(pattern in cmdline for pattern in patterns):
+                if proc.pid != os.getpid():
+                    proc.terminate()
+                    killed += 1
+        except Exception:
+            continue
+
+    if killed > 0:
+        time.sleep(0.3)  # Brief wait for termination
+    return killed
+
+
+def sigterm_handler(_signum: int, _frame: FrameType) -> None:
+    """Handle SIGTERM - typically from another functional instance cleaning up"""
+    flush('')
+    flush('')
+    flush('=' * 60)
+    flush('TERMINATED: Functional test suite received SIGTERM')
+    flush('=' * 60)
+    flush('This usually means:')
+    flush('  - Another functional test instance cleaned up stale processes')
+    flush('  - This is NOT a code error')
+    flush('  - Check for concurrent test runs')
+    flush('')
+    flush('If you were intentionally running tests concurrently,')
+    flush('wait for the other instance to complete.')
+    flush('')
+    flush('Cleaning up test processes before exit...')
+
+    killed = cleanup_test_processes()
+    if killed > 0:
+        flush(f'Terminated {killed} test process(es)')
+
+    flush('=' * 60)
+    flush('')
+    sys.exit(143)  # 128 + 15 (SIGTERM)
+
+
+def sigint_handler(_signum: int, _frame: FrameType) -> None:
+    """Handle SIGINT - user pressed Ctrl+C"""
+    flush('')
+    flush('')
+    flush('=' * 60)
+    flush('INTERRUPTED: Functional test suite received SIGINT (Ctrl+C)')
+    flush('=' * 60)
+    flush('Test run interrupted by user.')
+    flush('')
+    flush('Cleaning up test processes before exit...')
+
+    killed = cleanup_test_processes()
+    if killed > 0:
+        flush(f'Terminated {killed} test process(es)')
+
+    flush('=' * 60)
+    flush('')
+    sys.exit(130)  # 128 + 2 (SIGINT)
+
+
+def color(prefix: int, suffix: int) -> str:
+    def code(value: int) -> str:
+        return f'\033[{value}m'
+
+    return code(prefix) + code(suffix)
+
+
+# Color helper functions
+def reset() -> str:
+    return color(0, 0)  # NORMAL/RESET
+
+
+def black() -> str:
+    return color(0, 30)  # BLACK
+
+
+def gray() -> str:
+    return color(1, 30)  # GRAY (bold black)
+
+
+def dark_gray() -> str:
+    return color(0, 90)  # DARK GRAY
+
+
+def red() -> str:
+    return color(0, 31)  # RED
+
+
+def bright_red() -> str:
+    return color(0, 91)  # BRIGHT RED
+
+
+def green() -> str:
+    return color(0, 32)  # GREEN
+
+
+def bright_green() -> str:
+    return color(1, 92)  # BRIGHT GREEN (bold)
+
+
+def yellow() -> str:
+    return color(0, 33)  # YELLOW
+
+
+def bright_yellow() -> str:
+    return color(0, 93)  # BRIGHT YELLOW
+
+
+def cyan() -> str:
+    return color(0, 36)  # CYAN
+
+
+class Port:
+    base: int = 1790
+
+    @classmethod
+    def get(cls) -> int:
+        current = cls.base
+        cls.base += 1
+        return current
+
+
+class Path:
+    PROGRAM: str = os.path.realpath(__file__)
+    # ROOT is test/exabgp-compat (one level up from bin/)
+    ROOT: str = os.path.abspath(os.path.join(os.path.dirname(PROGRAM), '..'))
+    SRC: str = os.path.join(ROOT, 'src')
+
+    # ZeBGP paths - use our wrapper and local test data
+    ETC: str = os.path.join(ROOT, 'etc')
+    EXABGP: str = os.path.join(ROOT, 'bin', 'exabgp')  # Our wrapper
+    BGP: str = os.path.join(ROOT, 'bin', 'bgp')  # Mock BGP peer
+    DECODING: str = os.path.join(ROOT, 'decoding')
+    ENCODING: str = os.path.join(ROOT, 'encoding')
+    API: str = os.path.join(ROOT, 'api')
+    CLI: str = os.path.join(ROOT, 'cli')
+
+    ALL_ETC: List[str] = glob.glob(os.path.join(ETC, '*.conf'))
+    ALL_ETC.sort()
+    ALL_DECODING: List[str] = glob.glob(os.path.join(DECODING, '*'))
+    ALL_DECODING.sort()
+    ALL_ENCODING: List[str] = glob.glob(os.path.join(ENCODING, '*.ci'))
+    ALL_ENCODING.sort()
+    ALL_API: List[str] = glob.glob(os.path.join(API, '*.ci'))
+    ALL_API.sort()
+    ALL_CLI: List[str] = glob.glob(os.path.join(CLI, '*.ci'))
+    ALL_CLI.sort()
+
+    @staticmethod
+    def etc(fname: str) -> str:
+        return os.path.abspath(os.path.join(Path.ETC, fname))
+
+    @staticmethod
+    def ci(fname: str, ext: str) -> str:
+        return os.path.abspath(os.path.join(Path.ENCODING, fname) + '.' + ext)
+
+    @staticmethod
+    def cli_ci(fname: str) -> str:
+        return os.path.abspath(os.path.join(Path.CLI, fname) + '.ci')
+
+    @classmethod
+    def validate(cls) -> None:
+        if not os.path.isdir(cls.ETC):
+            sys.exit('could not find etc folder')
+
+        if not os.path.isdir(cls.ENCODING):
+            sys.exit('could not find tests in the encoding folder')
+
+        # DECODING is optional for ZeBGP compat tests
+        # if not os.path.isdir(cls.DECODING):
+        #     sys.exit('could not find the tests in decoding')
+
+        if not os.path.isfile(cls.EXABGP):
+            sys.exit('could not find exabgp wrapper (bin/exabgp)')
+
+        if not os.path.isfile(cls.BGP):
+            sys.exit('could not find the bgp mock peer (bin/bgp)')
+
+    @classmethod
+    def encoding_config(cls) -> 'TestPathConfig':
+        """Get path config for encoding tests."""
+        return TestPathConfig('encoding', cls.ENCODING, has_msg_files=True)
+
+    @classmethod
+    def api_config(cls) -> 'TestPathConfig':
+        """Get path config for API tests."""
+        return TestPathConfig('api', cls.API, has_msg_files=True)
+
+    @classmethod
+    def cli_config(cls) -> 'TestPathConfig':
+        """Get path config for CLI tests."""
+        return TestPathConfig('cli', cls.CLI, has_msg_files=False)
+
+    @classmethod
+    def decoding_config(cls) -> 'TestPathConfig':
+        """Get path config for decoding tests."""
+        return TestPathConfig('decoding', cls.DECODING, has_msg_files=False)
+
+
+@dataclass
+class TestPathConfig:
+    """Configuration for test directory paths.
+
+    Encapsulates the path configuration for a test type, allowing
+    EncodingTests and CLITests to share common logic while using
+    different directories.
+    """
+
+    name: str  # e.g., 'encoding', 'cli'
+    directory: str  # Full path to test directory
+    has_msg_files: bool  # Whether .msg files exist for this test type
+
+    @property
+    def all_ci_files(self) -> List[str]:
+        """Get all .ci files in the directory, sorted."""
+        files = glob.glob(os.path.join(self.directory, '*.ci'))
+        files.sort()
+        return files
+
+    def ci_path(self, fname: str, ext: str = 'ci') -> str:
+        """Get absolute path to a test file with given extension."""
+        return os.path.abspath(os.path.join(self.directory, fname) + '.' + ext)
+
+
+def get_python_process_names() -> tuple:
+    """Get possible Python process names for the current interpreter."""
+    # Base names that are always checked
+    names = ['python', 'python3', 'Python']
+
+    # Add the actual interpreter name from sys.executable
+    if sys.executable:
+        exe_name = os.path.basename(sys.executable)
+        if exe_name and exe_name not in names:
+            names.append(exe_name)
+
+    return tuple(names)
+
+
+def check_concurrent_functional() -> bool:
+    """
+    Check if another functional test runner is already running.
+
+    Returns: True if another functional process found, False otherwise
+    """
+    if not HAVE_PSUTIL:
+        # Without psutil, can't detect concurrent runs
+        return False
+
+    current_pid = os.getpid()
+    python_names = get_python_process_names()
+
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmdline_list = proc.info['cmdline'] or []
+            if not cmdline_list:
+                continue
+
+            # Only match Python processes running the functional script directly
+            # Skip shell processes that might have the string in their command
+            if proc.info['name'] not in python_names:
+                continue
+
+            cmdline = ' '.join(cmdline_list)
+
+            # Check for another functional test runner
+            if 'qa/bin/functional' in cmdline and proc.pid != current_pid:
+                return True
+
+        except Exception:
+            continue
+
+    return False
+
+
+def cleanup_stale_processes(dry_run: bool = False) -> int:
+    """
+    Kill all Python processes related to ExaBGP tests before starting test suite.
+
+    Uses SIGTERM instead of SIGKILL so processes can detect being killed
+    and report this condition (helps distinguish from code errors).
+
+    IMPORTANT: Only kills processes that are NOT other running functional test instances.
+    This prevents killing processes from concurrent test runs.
+
+    Returns: Number of processes killed
+    """
+    killed = 0
+    patterns = [
+        'qa/sbin/bgp',  # Leftover test servers
+        'sbin/exabgp',  # Leftover ExaBGP instances (command line)
+        'src/exabgp/application/main',  # Leftover ExaBGP instances (Python module)
+        'run/api-',  # API test scripts
+    ]
+
+    if not HAVE_PSUTIL:
+        # psutil not available, use killall fallback (less safe with concurrent runs)
+        # Use SIGTERM (-15) instead of SIGKILL (-9)
+        patterns_simple = ['bgp', 'exabgp']
+        for pattern in patterns_simple:
+            try:
+                # Try SIGTERM first
+                result = subprocess.run(
+                    ['killall', '-15', '-q', pattern], timeout=2, stderr=subprocess.DEVNULL, check=False
+                )
+                if result.returncode == 0:
+                    killed += 1
+                    time.sleep(0.5)
+                    # Force kill any survivors
+                    subprocess.run(['killall', '-9', '-q', pattern], timeout=1, stderr=subprocess.DEVNULL, check=False)
+            except (subprocess.TimeoutExpired, FileNotFoundError):
+                pass
+        return killed
+
+    # Get PIDs of all functional test runners (don't kill these or their direct children)
+    functional_pids = set()
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            cmdline_list = proc.info['cmdline'] or []
+            if not cmdline_list:
+                continue
+            cmdline = ' '.join(cmdline_list)
+            if 'qa/bin/functional' in cmdline:
+                functional_pids.add(proc.pid)
+        except Exception:
+            continue
+
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline', 'ppid']):
+        try:
+            cmdline_list = proc.info['cmdline'] or []
+            if not cmdline_list:
+                continue
+
+            cmdline = ' '.join(cmdline_list)
+
+            # Skip current process
+            if proc.pid == os.getpid():
+                continue
+
+            # Skip other functional test runners
+            if proc.pid in functional_pids:
+                continue
+
+            # Skip direct children of ACTIVE functional test runners
+            ppid = proc.info.get('ppid')
+            if ppid and ppid in functional_pids:
+                continue
+
+            # Check if process matches test patterns
+            if any(pattern in cmdline for pattern in patterns):
+                # Additional check: is parent process still alive?
+                # If parent is dead, this is definitely an orphan
+                parent_alive = False
+                if ppid:
+                    try:
+                        parent = psutil.Process(ppid)
+                        parent_alive = parent.is_running()
+                    except Exception:
+                        parent_alive = False
+
+                if dry_run:
+                    orphan_status = ' [ORPHAN]' if not parent_alive else ''
+                    flush(f'[cleanup] Would terminate: PID {proc.pid}{orphan_status} - {cmdline[:80]}')
+                else:
+                    # Use SIGTERM (not SIGKILL) so process can detect and report being killed
+                    proc.terminate()  # SIGTERM
+                    try:
+                        proc.wait(timeout=2)
+                    except psutil.TimeoutExpired:
+                        # If SIGTERM didn't work after 2s, force kill
+                        proc.kill()  # SIGKILL
+                killed += 1
+
+        except Exception:  # psutil.NoSuchProcess, psutil.AccessDenied, etc
+            continue
+
+    return killed
+
+
+class Exec:
+    def __init__(self) -> None:
+        self.code: int = -1
+        self.stdout: bytes = b''
+        self.stderr: bytes = b''
+        self.message: str = ''
+        self._process: Optional[subprocess.Popen] = None
+        self.command: str = ''
+
+    def run(self, command: List[str], env: Optional[Dict[str, str]]) -> 'Exec':
+        self.command = ' '.join([_ if ' ' not in _ else f"'{_}'" for _ in command])
+        # Set up environment to disable ExaBGP logging
+        if env is None:
+            env = os.environ.copy()
+            env['exabgp_log_enable'] = 'false'
+            env['exabgp_api_version'] = '4'  # v6 is default, v4 for backward compatibility (text encoder)
+
+        # Create temp files for output capture to avoid PIPE buffer blocking
+        import tempfile
+        self._stdout_file = tempfile.NamedTemporaryFile(mode='w+b', delete=False, prefix='ze-test-stdout-')
+        self._stderr_file = tempfile.NamedTemporaryFile(mode='w+b', delete=False, prefix='ze-test-stderr-')
+        self._process = subprocess.Popen(
+            command,
+            stdout=self._stdout_file,
+            stderr=self._stderr_file,
+            close_fds=True,
+            stdin=subprocess.DEVNULL,
+            env=env,
+            start_new_session=True,  # Detach from controlling terminal
+        )
+        return self
+
+    def ready(self) -> bool:
+        _ = signal.signal(signal.SIGALRM, alarm_handler)
+        try:
+            _ = signal.alarm(1)
+            polled = self._process.poll()  # type: ignore
+            _ = signal.alarm(0)
+        except Alarm:
+            return False
+        except (OSError, ValueError):
+            return True
+        if polled is None:
+            return False
+        return True
+
+    def report(self, _reason: str = 'issue with exabgp') -> None:
+        # Suppress all diagnostic output to keep test results clean
+        # flush(reason)
+        # flush(f'command> {self.command}')
+        # flush(f'return: {self.code}')
+        # flush(f'stdout: {self.stdout.decode()}')
+        # flush(f'stderr: {self.stderr.decode()}')
+        # flush(f'message: {self.message}')
+        pass
+
+    def collect(self) -> None:
+        if self.stdout:
+            return
+        if self.stderr:
+            return
+        if self.code != -1:
+            return
+
+        _ = signal.signal(signal.SIGALRM, alarm_handler)
+        try:
+            _ = signal.alarm(15)
+            self._process.wait()  # type: ignore
+            self.code = self._process.returncode  # type: ignore
+            # Read output from temp files
+            if hasattr(self, '_stdout_file'):
+                self._stdout_file.seek(0)
+                self.stdout = self._stdout_file.read()
+                self._stdout_file.close()
+                os.unlink(self._stdout_file.name)
+            if hasattr(self, '_stderr_file'):
+                self._stderr_file.seek(0)
+                self.stderr = self._stderr_file.read()
+                self._stderr_file.close()
+                os.unlink(self._stderr_file.name)
+            _ = signal.alarm(0)
+        except ValueError as exc:  # I/O operation on closed file
+            self.message = str(exc)
+        except Alarm as exc:
+            self.message = str(exc)
+
+    def _get_process_tree(self) -> List[Any]:
+        """Get all descendant processes recursively using psutil if available"""
+        if self._process is None:
+            return []
+
+        if not HAVE_PSUTIL:
+            return []
+
+        try:
+            parent = psutil.Process(self._process.pid)
+            children = parent.children(recursive=True)
+            return [parent] + children
+        except Exception:  # psutil.NoSuchProcess or others
+            return []
+
+    def _kill_process_tree(self, signal_type: int = signal.SIGTERM, timeout: float = 2.0) -> int:
+        """
+        Kill process and all descendants using psutil.
+
+        Uses SIGTERM by default (not SIGKILL) so processes can detect being killed
+        and report this condition. Falls back to SIGKILL for survivors.
+
+        Returns: Number of processes killed
+        """
+        if self._process is None:
+            return 0
+
+        if not HAVE_PSUTIL:
+            return 0
+
+        processes = self._get_process_tree()
+        if not processes:
+            # Process already gone
+            return 0
+
+        killed = 0
+
+        # Send signal to all processes
+        for proc in processes:
+            try:
+                proc.send_signal(signal_type)
+                killed += 1
+            except Exception:  # psutil.NoSuchProcess, psutil.AccessDenied, etc
+                continue
+
+        # Wait for termination
+        start = time.time()
+        still_alive = processes.copy()
+
+        while still_alive and (time.time() - start) < timeout:
+            for proc in list(still_alive):
+                try:
+                    if not proc.is_running():
+                        still_alive.remove(proc)
+                except Exception:  # psutil.NoSuchProcess
+                    still_alive.remove(proc)
+            if still_alive:
+                time.sleep(0.1)
+
+        # Force kill any survivors with SIGKILL (only if we didn't already use it)
+        if still_alive and signal_type != signal.SIGKILL:
+            for proc in still_alive:
+                try:
+                    proc.kill()  # SIGKILL
+                except Exception:  # psutil.NoSuchProcess, psutil.AccessDenied
+                    continue
+
+            # Final wait
+            time.sleep(0.2)
+
+        return killed
+
+    def terminate(self, collect: bool = True) -> None:
+        """Enhanced termination with process tree cleanup and retry logic"""
+        if self._process is None:
+            return
+
+        # Try psutil-based tree kill first (most thorough)
+        killed = self._kill_process_tree(signal.SIGTERM, timeout=0.5)
+        if killed > 0:
+            # Force kill any remaining processes
+            self._kill_process_tree(signal.SIGKILL, timeout=1.0)
+
+        # Fallback: Traditional SIGTERM then killpg approach
+        try:
+            self._process.send_signal(signal.SIGTERM)
+            self._process.wait(timeout=0.5)
+        except subprocess.TimeoutExpired:
+            pass  # Will use SIGKILL next
+        except (OSError, ProcessLookupError):
+            pass  # Already dead
+
+        if collect:
+            self.collect()
+
+        # killpg with retry for process groups (fallback or supplement to psutil)
+        for attempt in range(3):
+            try:
+                pgid = os.getpgid(self._process.pid)
+                os.killpg(pgid, signal.SIGKILL)
+
+                # Verify kill succeeded
+                time.sleep(0.1)
+                try:
+                    # Check if process group still exists
+                    os.killpg(pgid, 0)  # Signal 0 = check existence
+                    # If we get here, processes still exist
+                    if attempt < 2:
+                        time.sleep(0.2 * (attempt + 1))  # Exponential backoff
+                        continue
+                except (OSError, ProcessLookupError):
+                    # Process group is gone, success!
+                    break
+
+            except (OSError, ProcessLookupError, AttributeError):
+                # Process or group already gone
+                break
+
+    def __del__(self) -> None:
+        if self._process is not None:
+            self.terminate()
+
+
+State = Enum('State', 'NONE STARTING RUNNING FAIL SUCCESS SKIP TIMEOUT')
+
+
+class Record:
+    _index: int = 0
+    _listing: str = (
+        '0123456789'
+        + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        + 'abcdefghijklmnopqrstuvwxyz'
+        + 'αβγδεζηθικλμνξοπρςστυφχψω'
+        + 'ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ'
+    )
+
+    def __init__(self, nick: str, name: str) -> None:
+        self.nick: str = nick
+        self.name: str = name
+        self.conf: Dict[str, Any] = dict()
+        self.files: List[str] = []
+        self.state: State = State.SKIP
+        self.start_time: Optional[float] = None
+        self.timeout: float = 999999.0  # Effectively disable per-test timeout, use global timeout only
+
+    @classmethod
+    def new(cls, name: str) -> 'Record':
+        return cls(cls.next_nick(), name)
+
+    @classmethod
+    def next_nick(cls) -> str:
+        nick = cls._listing[cls._index]
+        cls._index += 1
+        return nick
+
+    def skip(self) -> 'Record':
+        self.state = State.SKIP
+        return self
+
+    def fail(self) -> 'Record':
+        self.state = State.FAIL
+        return self
+
+    def activate(self) -> 'Record':
+        self.state = State.NONE
+        return self
+
+    def deactivate(self) -> 'Record':
+        self.state = State.SKIP
+        return self
+
+    def is_active(self) -> bool:
+        return self.state not in (State.SKIP, State.FAIL, State.SUCCESS, State.TIMEOUT)
+
+    def setup(self) -> None:
+        if self.state == State.NONE:
+            self.state = State.STARTING
+            return
+        if self.state == State.STARTING:
+            self.state = State.RUNNING
+            self.start_time = time.time()
+            return
+
+    def running(self) -> None:
+        self.state = State.RUNNING
+        if self.start_time is None:
+            self.start_time = time.time()
+
+    def has_timed_out(self) -> bool:
+        """Check if test has exceeded its individual timeout"""
+        if self.start_time is None:
+            return False
+        return (time.time() - self.start_time) > self.timeout
+
+    def mark_timeout(self) -> 'Record':
+        """Mark test as timed out"""
+        self.state = State.TIMEOUT
+        return self
+
+    def result(self, success: bool) -> bool:
+        if success:
+            self.state = State.SUCCESS
+        else:
+            self.state = State.FAIL
+        return success
+
+
+class Tests:
+    def __init__(self, klass: Type[Record]) -> None:
+        self.klass: Type[Record] = klass
+        self._by_nick: Dict[str, Record] = {}
+        self._ordered: List[str] = []
+        self._nl: int = 3
+        self._start_time: Optional[float] = None
+        self._max_timeout: int = 0
+        self._daemons_count: int = 0
+        self._clients_count: int = 0
+        self._retries_done: bool = False
+
+    def new(self, name: str) -> Record:
+        test = self.klass.new(name)
+        self._by_nick[test.nick] = test
+        self._ordered.append(test.nick)
+        self._ordered.sort()
+        return test
+
+    def enable_by_nick(self, nick: str) -> bool:
+        if nick in self._by_nick:
+            _ = self._by_nick[nick].activate()
+            return True
+        return False
+
+    def enable_all(self) -> None:
+        for nick in self._by_nick:
+            _ = self._by_nick[nick].activate()
+
+    def disable_all(self) -> None:
+        for nick in self._by_nick:
+            _ = self._by_nick[nick].deactivate()
+
+    def get_by_nick(self, nick: str) -> Record:
+        return self._by_nick[nick]
+
+    def registered(self) -> List[Record]:
+        return [self._by_nick[nick] for nick in self._ordered]
+
+    def selected(self) -> List[Record]:
+        return [self._by_nick[nick] for nick in self._ordered if self._by_nick[nick].is_active()]
+
+    def _iterate(self) -> Generator[List[Record], None, None]:
+        number = len(self._ordered)
+        lines = number // self._nl
+
+        for line in range(0, lines + 1):
+            tests = []
+            start = line * self._nl
+            for n in range(start, start + self._nl):
+                if n >= number:
+                    continue
+                nick = self._ordered[n]
+                tests.append(self._by_nick[nick])
+            yield tests
+
+    def listing(self) -> None:
+        flush()
+        flush('The available tests are:')
+        flush()
+        for tests in self._iterate():
+            parts = []
+            for test in tests:
+                parts.append(f' {test.nick:2} {test.name:25}')
+            flush(''.join(parts))
+        flush()
+
+    def short_list(self) -> None:
+        flush(' '.join([test.nick for test in self.registered()]))
+
+    def display(
+        self,
+        daemons_started: Optional[int] = None,
+        clients_started: Optional[int] = None,
+    ) -> None:
+        # In quiet mode, suppress all display output
+        if getattr(self, '_quiet', False):
+            return
+        # Show timer in setup phase with [0/max] format
+        if daemons_started is not None and clients_started is not None:
+            if self._max_timeout:
+                timer = f'{yellow()}timeout{reset()} [{0:2d}/{yellow()}{self._max_timeout:2d}{reset()}]'
+            else:
+                timer = ''
+            status = (
+                f'{timer} {cyan()}daemons{reset()} {daemons_started:2d} {cyan()}clients{reset()} {clients_started:2d}'
+                if timer
+                else f'{cyan()}daemons{reset()} {daemons_started:2d} {cyan()}clients{reset()} {clients_started:2d}'
+            )
+            # Clear line before writing to prevent artifacts
+            flush(f'\r\033[K{status}', end='')
+            return
+
+        # Count test states
+        pending = 0
+        passed = 0
+        failed = 0
+        failed_tests: List[str] = []
+        pending_tests: List[str] = []
+
+        for test in self.registered():
+            if test.state == State.SUCCESS:
+                passed += 1
+            elif test.state in (State.FAIL, State.TIMEOUT):
+                failed += 1
+                failed_tests.append(test.nick)
+            elif test.state in (State.NONE, State.STARTING, State.RUNNING):
+                pending += 1
+                pending_tests.append(test.nick)
+
+        # Show timer: elapsed time and timeout limit
+        if self._start_time and self._max_timeout:
+            elapsed = int(time.time() - self._start_time)
+            # Cap displayed elapsed for timeout ratio, but show real elapsed
+            capped = min(elapsed, self._max_timeout)
+            timer = f'{cyan()}elapsed{reset()} {elapsed:2d}s {yellow()}timeout{reset()} [{capped:2d}/{yellow()}{self._max_timeout:2d}{reset()}]'
+        elif self._start_time:
+            elapsed = int(time.time() - self._start_time)
+            timer = f'{cyan()}elapsed{reset()} {elapsed:2d}s'
+        else:
+            timer = ''
+
+        # Prepend daemon/client counts if they're set (for encoding tests) - cyan labels only
+        daemon_client = ''
+        if self._daemons_count > 0 or self._clients_count > 0:
+            daemon_client = (
+                f'{cyan()}daemons{reset()} {self._daemons_count:2d} {cyan()}clients{reset()} {self._clients_count:2d}'
+            )
+
+        # Format with labels and colors
+        # Order: timer, daemon/client, passed, failed (if > 0), pending
+
+        # Build status line
+        status_parts = [timer, daemon_client]
+
+        # Add passed
+        passed_text = f'{green()}passed{reset()} {passed:2d}'
+        status_parts.append(passed_text)
+
+        # Add failed section if there are failures
+        if failed > 0:
+            failed_text = f'{red()}failed{reset()} {failed:2d}'
+            if failed_tests:
+                failed_text += f' [{", ".join(failed_tests)}]'
+            status_parts.append(failed_text)
+
+        # Add pending last (show test IDs if < 10)
+        # Trailing space ensures last character renders in some terminals
+        pending_text = f'{yellow()}pending{reset()} {pending:2d} '
+        if pending > 0 and pending < 10 and pending_tests:
+            pending_text += f'[{", ".join(pending_tests)}] '
+        status_parts.append(pending_text)
+
+        status = ' '.join(status_parts)
+
+        # Clear entire line first, then write status, then return to start
+        # This prevents "X] X] X]" artifacts when status text gets shorter
+        # Reset escape sequence at end forces terminal to process all characters
+        flush(f'\r\033[K{status}\033[0m', end='')
+
+    def legend(self, quiet: bool = False) -> None:
+        if quiet:
+            return
+        flush(
+            '\nFormat: elapsed Ns timeout [0/max] daemons N clients N -> elapsed Ns timeout [N/max] daemons N clients N passed N failed N [IDs] pending N [IDs]\n'
+        )
+
+    def _setup_run(
+        self,
+        timeout: int,
+        verbose: bool = False,
+        debug_tests: Optional[List[str]] = None,
+        quiet: bool = False,
+    ) -> None:
+        """Common initialization for run_selected() methods."""
+        self._start_time = time.time()
+        self._max_timeout = timeout
+        self._verbose = verbose
+        self._debug_tests = set(debug_tests) if debug_tests else set()
+        self._quiet = quiet
+        self.legend(quiet=quiet)
+        check_ulimit()
+
+    def _print_test_output_header(self, test: Record, duration: float) -> None:
+        """Print common test output header: status icon, name, timing."""
+        is_success = test.state == State.SUCCESS
+        status = '✓' if is_success else '✗'
+        color_fn = green() if is_success else red()
+        flush()  # New line to separate from live display
+        flush(f'{color_fn}{status}{reset()} {test.nick} {test.name} ({duration:.2f}s)')
+
+    def _print_test_output_streams(
+        self,
+        stdout: Optional[bytes],
+        stderr: Optional[bytes],
+        stdout_label: str = 'stdout',
+        stderr_label: str = 'stderr',
+        stderr_filter: Optional[Pattern[str]] = None,
+    ) -> None:
+        """Print stdout/stderr output with consistent formatting.
+
+        Args:
+            stdout: Raw stdout bytes
+            stderr: Raw stderr bytes
+            stdout_label: Label for stdout section (default: 'stdout')
+            stderr_label: Label for stderr section (default: 'stderr')
+            stderr_filter: Optional regex pattern - lines matching are excluded
+        """
+        if stdout:
+            decoded = stdout.decode('utf-8', errors='replace')
+            lines = [ln for ln in decoded.split('\n') if ln.strip()]
+            if lines:
+                flush(f'  {cyan()}{stdout_label}{reset()} ({len(lines)} lines):')
+                for line in lines:
+                    flush(f'    {line}')
+
+        if stderr:
+            decoded = stderr.decode('utf-8', errors='replace')
+            lines = [ln for ln in decoded.split('\n') if ln.strip()]
+            if stderr_filter:
+                lines = [ln for ln in lines if not stderr_filter.search(ln)]
+            if lines:
+                flush(f'  {cyan()}{stderr_label}{reset()} ({len(lines)} lines):')
+                for line in lines:
+                    flush(f'    {line}')
+
+    def _print_debug_hints_header(self, is_timeout: bool, duration: float) -> None:
+        """Print common debug hints header."""
+        flush()
+        flush(f'  {yellow()}debug hints:{reset()}')
+        if is_timeout:
+            flush(f'    - test timed out after {duration:.1f}s')
+
+    def _run_event_loop(self, timeout: int, running: set) -> bool:
+        """Run common event loop for monitoring test completion.
+
+        Args:
+            timeout: Total timeout in seconds
+            running: Set of running tests (modified in place)
+
+        Returns:
+            True if all tests passed, False otherwise
+        """
+        success = True
+        exit_time = time.time() + timeout
+        last_display = 0.0
+
+        while running:
+            current_time = time.time()
+
+            # Check timeout first
+            if current_time >= exit_time:
+                self.display()
+                break
+
+            # Throttle display updates to once per second
+            if current_time - last_display >= 1.0:
+                self.display()
+                last_display = current_time
+
+            for test in list(running):
+                # Check per-test timeout first
+                if test.has_timed_out():
+                    running.remove(test)
+                    test.mark_timeout()
+                    test.terminate(collect=False)
+                    success = False
+                    if self._verbose or test.nick in self._debug_tests:
+                        self._print_test_output(test)
+                    continue
+
+                if not test.ready():
+                    continue
+                running.remove(test)
+                test_passed = test.result(test.success())
+                success = test_passed and success
+                if self._verbose or test.nick in self._debug_tests:
+                    self._print_test_output(test)
+
+            # If no tests are still running, exit immediately
+            if not running:
+                self.display()
+                break
+
+            time.sleep(0.1)
+
+        # Clean up any remaining running tests
+        for test in running:
+            test.mark_timeout()
+            test.terminate(collect=False)
+            success = False
+
+        return success
+
+    def _extract_sent_messages(self, client_stderr: str) -> List[str]:
+        """Extract BGP messages sent by client from stderr log"""
+        sent = []
+        for line in client_stderr.split('\n'):
+            if 'sending TCP payload' in line:
+                # Format: "sending TCP payload ( 110) FFFF FFFF..."
+                # Extract hex after the size
+                parts = line.split(')')
+                if len(parts) > 1:
+                    hex_part = parts[1].strip().replace(' ', '')
+                    if hex_part:
+                        sent.append(hex_part)
+        return sent
+
+    def _read_expected_messages(self, msg_file: str) -> List[str]:
+        """Read expected messages from .msg file"""
+        messages = []
+        try:
+            with open(msg_file, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith('#') and not line.startswith('option:'):
+                        # Extract the hex part: "1:raw:FFFF...:0017:02:..." -> full hex
+                        parts = line.split(':', 2)
+                        if len(parts) >= 3 and parts[1] == 'raw':
+                            hex_msg = parts[2].replace(':', '')
+                            messages.append(hex_msg)
+        except Exception:
+            pass
+        return messages
+
+    def _classify_failure(
+        self, server: Optional['Exec'], client: Optional['Exec'], test_state: Optional[State]
+    ) -> tuple[str, Optional[str]]:
+        """Classify the type of failure for clearer debugging.
+
+        Returns:
+            Tuple of (failure_type, traceback_if_crash)
+        """
+        traceback = None
+
+        # Check for Python crash in client (most common debugging scenario)
+        if client and client.stderr:
+            stderr = client.stderr.decode('utf-8', errors='replace')
+            if 'Traceback (most recent call last):' in stderr:
+                # Extract the traceback
+                lines = stderr.split('\n')
+                tb_start = None
+                tb_end = None
+                for i, line in enumerate(lines):
+                    if 'Traceback (most recent call last):' in line:
+                        tb_start = i
+                    elif tb_start is not None and line and not line.startswith(' ') and not line.startswith('File'):
+                        # Found the error line (e.g., "AttributeError: ...")
+                        tb_end = i + 1
+                        break
+                if tb_start is not None:
+                    if tb_end is None:
+                        tb_end = len(lines)
+                    traceback = '\n'.join(lines[tb_start:tb_end])
+                    # Extract error type from last line
+                    error_line = lines[tb_end - 1] if tb_end > 0 else ''
+                    if ':' in error_line:
+                        error_type = error_line.split(':')[0]
+                        return f'CRASH ({error_type})', traceback
+                    return 'CRASH (Python exception)', traceback
+
+        if server and server.code == -1:
+            return 'TIMEOUT (server never received messages or crashed)', None
+        if server and server.stdout:
+            stdout = server.stdout.decode('utf-8', errors='replace')
+            if 'unexpected message' in stdout:
+                return 'MESSAGE_MISMATCH (received message differs from expected)', None
+            if 'received extra message' in stdout:
+                return 'EXTRA_MESSAGE (more messages received than expected)', None
+        if client and client.code != 0:
+            return f'CLIENT_ERROR (client exited with code {client.code})', None
+        if test_state == State.SUCCESS:
+            return 'SUCCESS', None
+        return 'UNKNOWN (check server/client output below)', None
+
+    def _print_debug_output(
+        self,
+        server: Optional['Exec'],
+        client: Optional['Exec'],
+        num_tests_selected: Optional[int],
+    ) -> None:
+        """Print detailed server/client output for debugging.
+
+        Called for single test runs or when exactly one test fails
+        in a multi-test run.
+        """
+        if not server and not client:
+            return
+
+        # Find the test that was run (the one that's not skipped)
+        test = None
+        for t in self.registered():
+            if t.state != State.SKIP:
+                test = t
+                break
+
+        # Classify failure type (also detects success)
+        test_state = test.state if test else None
+        failure_type, traceback = self._classify_failure(server, client, test_state)
+
+        # Only show detailed debug output on failure
+        if test_state == State.SUCCESS:
+            return
+
+        flush()
+        flush('=' * 60)
+        flush('FAILURE ANALYSIS (Single Test Mode)')
+        flush('=' * 60)
+
+        flush(f'Failure type: {failure_type}')
+        flush()
+
+        # Show traceback prominently if there was a crash
+        if traceback:
+            flush(f'{red()}PYTHON TRACEBACK:{reset()}')
+            flush('-' * 60)
+            flush(traceback)
+            flush('-' * 60)
+            flush()
+
+        # Show test files if we have test info
+        if test and hasattr(test, 'conf'):
+            flush('Test files:')
+            if 'confs' in test.conf:
+                for conf in test.conf['confs']:
+                    flush(f'  config: {conf}')
+            if 'msg' in test.conf:
+                flush(f'  expected: {test.conf["msg"]}')
+            flush()
+
+            # Show expected messages
+            if 'msg' in test.conf:
+                expected = self._read_expected_messages(test.conf['msg'])
+                if expected:
+                    flush(f'Expected messages ({len(expected)} total):')
+                    for i, msg in enumerate(expected, 1):
+                        # Truncate long messages but show enough to identify
+                        display_msg = msg if len(msg) <= 100 else msg[:100] + '...'
+                        flush(f'  {i}: {display_msg}')
+                    flush()
+
+        # Show server/client status
+        flush('Process status:')
+        if server:
+            flush(f'  Server: return_code={server.code}')
+        if client:
+            flush(f'  Client: return_code={client.code}')
+        flush()
+
+        # Extract and show what client sent
+        if client and client.stderr:
+            client_stderr = client.stderr.decode('utf-8', errors='replace')
+            sent = self._extract_sent_messages(client_stderr)
+            if sent:
+                flush(f'Client sent ({len(sent)} messages):')
+                for i, msg in enumerate(sent, 1):
+                    display_msg = msg if len(msg) <= 100 else msg[:100] + '...'
+                    flush(f'  {i}: {display_msg}')
+                flush()
+
+        # Generate encode/decode commands for debugging
+        flush('=' * 60)
+        flush('ENCODE/DECODE TOOLS FOR DEBUGGING:')
+        flush('=' * 60)
+        if test and hasattr(test, 'conf') and 'confs' in test.conf:
+            config_file = test.conf['confs'][0] if test.conf['confs'] else None
+            if config_file:
+                flush('  # Decode a hex message using test config:')
+                flush(f'  ./sbin/exabgp decode -c {config_file} "<hex>"')
+                flush()
+        flush('  # Decode any hex UPDATE message:')
+        flush('  ./sbin/exabgp decode "<hex>"')
+        flush()
+        flush('  # Encode a route to hex (for creating test cases):')
+        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4"')
+        flush()
+        flush('  # Round-trip verify (encode then decode):')
+        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4" | ./sbin/exabgp decode')
+        flush()
+        flush('  # Encode with attributes:')
+        flush('  ./sbin/exabgp encode "route 10.0.0.0/24 next-hop 1.2.3.4 as-path [65000 65001] community [65000:100]"')
+        flush()
+        flush('  # Encode IPv6:')
+        flush('  ./sbin/exabgp encode -f "ipv6 unicast" "route 2001:db8::/32 next-hop 2001:db8::1"')
+        flush()
+
+        # Manual debug commands
+        if test:
+            test_type = self.path_config.name
+            flush('Manual debug (run in separate terminals):')
+            flush('  # Terminal 1 - Start server first:')
+            flush(f'  ./qa/bin/functional {test_type} --server {test.nick}')
+            flush('  # Terminal 2 - Then start client:')
+            flush(f'  ./qa/bin/functional {test_type} --client {test.nick}')
+            flush()
+
+            # Show copy-pasteable exabgp command for direct debugging
+            flush('Direct exabgp command (copy-paste to run manually):')
+            client_cmd = self.client_cmd(test.nick)
+            if client_cmd:
+                flush(f'  {client_cmd}')
+            flush()
+
+            flush('For intermittent failures, use --save to capture run logs:')
+            flush(f'  ./qa/bin/functional {test_type} --server {test.nick} --save /tmp/runs/')
+            flush('  # Logs saved with timing, message hashes for comparison')
+            flush()
+
+        # Show raw server output if it has useful info
+        if server:
+            flush('-' * 60)
+            flush('SERVER OUTPUT:')
+            flush('-' * 60)
+            flush(f'Command: {server.command}')
+            flush(f'Return code: {server.code}')
+            if server.stdout:
+                stdout = server.stdout.decode('utf-8', errors='replace')
+                flush('STDOUT:')
+                flush(stdout)
+            else:
+                flush('STDOUT: (empty)')
+            if server.stderr:
+                flush('STDERR:')
+                flush(server.stderr.decode('utf-8', errors='replace'))
+
+        # Show filtered client output (skip keepalive timer spam)
+        if client:
+            flush('-' * 60)
+            flush('CLIENT OUTPUT (filtered):')
+            flush('-' * 60)
+            flush(f'Command: {client.command}')
+            flush(f'Return code: {client.code}')
+            if client.stderr:
+                stderr = client.stderr.decode('utf-8', errors='replace')
+                # Filter out keepalive timer lines for cleaner output
+                filtered_lines = []
+                for line in stderr.split('\n'):
+                    if 'receive-timer' in line or 'send-timer' in line:
+                        continue
+                    filtered_lines.append(line)
+                flush('\n'.join(filtered_lines))
+
+    def _print_test_output(self, test: 'EncodingTests.Test', client_exec: Exec) -> None:
+        """Print test output with timing for verbose mode"""
+        duration = time.time() - test.start_time if test.start_time else 0
+        is_success = test.state == State.SUCCESS
+        is_timeout = test.state == State.TIMEOUT
+        status = '✓' if is_success else '✗'
+        color = green() if is_success else red()
+
+        flush()  # New line to separate from live display
+        flush(f'{color}{status}{reset()} {test.nick} {test.name} ({duration:.2f}s)')
+
+        # Ensure output is collected
+        test.collect()
+        if client_exec:
+            client_exec.collect()
+
+        # Server/daemon output (from qa/sbin/bgp - outputs to stdout and stderr)
+        server_output = []
+        if test.stdout:
+            stdout = test.stdout.decode('utf-8', errors='replace')
+            server_output.extend([ln for ln in stdout.split('\n') if ln.strip()])
+        if test.stderr:
+            stderr = test.stderr.decode('utf-8', errors='replace')
+            server_output.extend([ln for ln in stderr.split('\n') if ln.strip()])
+        if server_output:
+            flush(f'  {cyan()}daemon{reset()} ({len(server_output)} lines):')
+            for line in server_output:
+                flush(f'    {line}')
+
+        # Client output (filtered - exabgp outputs to stderr)
+        if client_exec and client_exec.stderr:
+            stderr = client_exec.stderr.decode('utf-8', errors='replace')
+            filtered = [
+                ln for ln in stderr.split('\n') if ln.strip() and 'receive-timer' not in ln and 'send-timer' not in ln
+            ]
+            if filtered:
+                flush(f'  {cyan()}client{reset()} ({len(filtered)} lines):')
+                for line in filtered:
+                    flush(f'    {line}')
+
+        # Add debug hints on failure
+        if not is_success:
+            test_type = self.path_config.name
+            flush()
+            flush(f'  {yellow()}debug hints:{reset()}')
+            if is_timeout:
+                flush(f'    - test timed out after {duration:.1f}s')
+                flush('    - try increasing --timeout or check for hangs')
+            flush(f'    - run single test: ./qa/bin/functional {test_type} {test.nick}')
+            flush(f'    - manual debug:    ./qa/bin/functional {test_type} --server {test.nick}')
+            flush(f'                       ./qa/bin/functional {test_type} --client {test.nick}')
+            flush('    - decode packets:  ./sbin/exabgp decode "<hex>"')
+
+    def _print_summary_results(
+        self,
+        passed: List[str],
+        failed: List[str],
+        timed_out: List[str],
+        skipped: List[str],
+        quiet: bool = False,
+    ) -> None:
+        """Print test result summary. If quiet=True, only print on failure."""
+        all_failed = failed + timed_out
+        total_run = len(passed) + len(failed) + len(timed_out)
+
+        # Quiet mode: single line on success, verbose on failure
+        if quiet and not all_failed:
+            success_rate = (len(passed) / total_run) * 100 if total_run > 0 else 0
+            flush(f'{green()}passed{reset()} {len(passed)}/{total_run} ({success_rate:.1f}%)')
+            return
+
+        flush()
+        flush('=' * 60)
+        flush('TEST SUMMARY')
+        flush('=' * 60)
+
+        # Always show all possible outcomes with colors matching the display
+        # Only show test IDs for failed and timed out
+        # Use fixed-width labels (9 chars) to align numbers
+        if passed:
+            flush(f'{green()}passed   {reset()} {len(passed):2d}')
+        else:
+            flush(f'{green()}passed   {reset()} {0:2d}')
+
+        if failed:
+            flush(f'{red()}failed   {reset()} {len(failed):2d} [{", ".join(failed)}]')
+        else:
+            flush(f'failed    {0:2d}')
+
+        if timed_out:
+            flush(f'{yellow()}timed out{reset()} {len(timed_out):2d} [{", ".join(timed_out)}]')
+        else:
+            flush(f'timed out {0:2d}')
+
+        if skipped:
+            flush(f'{dark_gray()}skipped  {reset()} {len(skipped):2d}')
+        else:
+            flush(f'skipped   {0:2d}')
+
+        flush('=' * 60)
+
+        if total_run > 0:
+            success_rate = (len(passed) / total_run) * 100 if total_run > 0 else 0
+            flush(f'Total: {total_run} test(s) run, {success_rate:.1f}% passed')
+
+        # Add hint to debug failed tests individually
+        if all_failed and total_run > 1:
+            test_type = self.path_config.name
+            flush()
+            flush('To debug failed tests, run individually:')
+            for nick in all_failed:
+                flush(f'  ./qa/bin/functional {test_type} {nick}')
+            flush()
+            flush('For intermittent failures, use --save to capture run logs:')
+            flush(f'  ./qa/bin/functional {test_type} {all_failed[0]} --save /tmp/runs/')
+            flush()
+            flush('To decode/analyze hex packets from test output:')
+            flush('  ./sbin/exabgp decode "<hex>"')
+
+        flush()
+
+    def summary(
+        self,
+        server: Optional['Exec'],
+        client: Optional['Exec'],
+        num_tests_selected: Optional[int],
+        quiet: bool = False,
+    ) -> None:
+        """Print summary of test results
+
+        Args:
+            server: Optional server Exec object for single test debugging
+            client: Optional client Exec object for single test debugging
+            num_tests_selected: Number of tests that were selected to run (before completion)
+            quiet: If True, only print single line on success, verbose on failure
+        """
+        # Collect test results into categorized lists
+        passed: List[str] = []
+        failed: List[str] = []
+        timed_out: List[str] = []
+        skipped: List[str] = []
+
+        for test in self.registered():
+            if test.state == State.SUCCESS:
+                passed.append(test.nick)
+            elif test.state == State.FAIL:
+                failed.append(test.nick)
+            elif test.state == State.TIMEOUT:
+                timed_out.append(test.nick)
+            elif test.state == State.SKIP:
+                skipped.append(test.nick)
+
+        # Print debug output if in single test mode (only on failure in quiet mode)
+        if not quiet or failed or timed_out:
+            self._print_debug_output(server, client, num_tests_selected)
+
+        # Print summary results
+        self._print_summary_results(passed, failed, timed_out, skipped, quiet=quiet)
+
+
+def parse_ci_file(ci_file: str) -> tuple[list[str], int]:
+    """Parse .ci file for config files and options.
+
+    The .ci file format:
+        option:file:config1.conf
+        option:file:config2.conf
+        option:tcp_connections:2
+        # comments
+        1:raw:FFFF...  (message expectations)
+
+    Returns:
+        Tuple of (list of config file names, tcp_connections count)
+    """
+    config_files: list[str] = []
+    tcp_connections = 1
+    try:
+        with open(ci_file, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('option:file:'):
+                    config_files.append(line.split(':', 2)[2])
+                elif line.startswith('option:tcp_connections:'):
+                    tcp_connections = int(line.split(':')[-1])
+    except Exception:
+        pass
+    return config_files, tcp_connections
+
+
+def parse_msg_options(ci_file: str) -> int:
+    """Parse option directives from .ci file
+
+    Returns:
+        TCP connections count from file, or 1 as default
+    """
+    _, tcp_connections = parse_ci_file(ci_file)
+    return tcp_connections
+
+
+class EncodingTests(Tests):
+    class Test(Record, Exec):  # pyright: ignore[reportUnsafeMultipleInheritance]
+        """Test combining Record state with Exec process management.
+
+        Both __init__ methods are explicitly called to ensure proper initialization.
+        """
+
+        def __init__(self, nick: str, name: str) -> None:
+            Record.__init__(self, nick, name)
+            Exec.__init__(self)
+            self._check: bytes = b'successful'
+
+        @property
+        def encoding_conf(self) -> EncodingConf:
+            """Typed access to encoding configuration"""
+            return self.conf  # type: ignore[return-value]
+
+        # def __eq__ (self, other):
+        #     return self.nick.__eq__(other.nick)
+
+        # def __lt__ (self, other):
+        #     return self.nick.__lt__(other.nick)
+
+        # def __hash__ (self):
+        #     return self.nick.__hash__()
+
+        def success(self) -> bool:
+            self.collect()
+            if self.code == 0:
+                if self._check in self.stdout:
+                    if os.getenv('DEBUG', None) is not None:
+                        self.report('completed successfully')
+                    return True
+                if self._check in self.stderr:
+                    if os.getenv('DEBUG', None) is not None:
+                        self.report('completed successfully')
+                    return True
+
+            self.report(f'failed with code {self.code}')
+            return False
+
+    API: Pattern[str] = re.compile(r'^\s*run\s+(.*)\s*?;\s*?$')
+
+    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+        if path_config is None:
+            path_config = Path.encoding_config()
+        self.path_config = path_config
+        super().__init__(self.Test)
+
+        for filename in self.path_config.all_ci_files:
+            name = os.path.basename(filename)[:-3]
+            test = self.new(name)
+            # Parse merged .ci file format (option:file:... lines for config files)
+            config_files, _ = parse_ci_file(filename)
+            test.conf['confs'] = [Path.etc(_) for _ in config_files]
+            test.conf['ci'] = self.path_config.ci_path(name, 'ci')
+            # .ci file now contains message expectations (merged format)
+            test.conf['msg'] = test.conf['ci']
+            test.conf['port'] = Port.get()
+            # Only .ci file for --edit (merged format contains everything)
+            test.files.append(test.conf['ci'])
+
+    def client_cmd(self, nick: str, port: Optional[int] = None) -> str:
+        """Generate a single-line copy-pasteable client command."""
+        test = self._by_nick.get(nick)
+        if not test:
+            return ''
+
+        tcp_connections = parse_msg_options(test.conf['msg'])
+        actual_port = port if port is not None else test.conf['port']
+
+        env_parts = [
+            'exabgp_tcp_port=%d' % actual_port,
+            f'exabgp_tcp_connections={tcp_connections}',
+            'exabgp_api_cli=false',
+            'exabgp_debug_rotate=true',
+            'exabgp_debug_configuration=true',
+            f'exabgp_api_socketname=exabgp-test-{actual_port}',  # Unique socket per test
+            'exabgp_api_version=4',  # v6 is default, v4 for backward compatibility (text encoder)
+        ]
+        confs = ' '.join(test.conf['confs'])
+        return f'env {" ".join(env_parts)} {Path.EXABGP} -d -p {confs}'
+
+    def client(self, nick: str, port: Optional[int] = None) -> str:
+        if not self.enable_by_nick(nick):
+            sys.exit('no such test')
+        test = self.get_by_nick(nick)
+
+        # Use provided port or fall back to test config
+        actual_port = port if port is not None else test.conf['port']
+
+        # Ze only needs ze_bgp_tcp_port to override peer connection port
+        config = {
+            'env': f'ze_bgp_tcp_port={actual_port}',
+            'exabgp': Path.EXABGP,
+            'confs': ' \\\n    '.join(test.conf['confs']),
+        }
+        return 'env \\\n  %(env)s \\\n   %(exabgp)s -d -p \\\n    %(confs)s' % config
+
+    def server(self, nick: str, save_dir: Optional[str] = None, port: Optional[int] = None) -> str:
+        if not self.enable_by_nick(nick):
+            sys.exit('no such test')
+        test = self.get_by_nick(nick)
+
+        # Use provided port or fall back to test config
+        actual_port = port if port is not None else test.conf['port']
+
+        # Pass config file path for decode commands in mismatch output
+        config_file = test.conf['confs'][0] if test.conf.get('confs') else ''
+
+        env_vars = [
+            'exabgp_tcp_port=%d' % actual_port,
+            f'EXABGP_TEST_CONFIG={config_file}',
+            f'EXABGP_TEST_NAME={nick}',
+        ]
+
+        config = {
+            'env': ' \\\n  '.join(env_vars),
+            'interpreter': INTERPRETER,
+            'bgp': Path.BGP,
+            'msg': test.conf['msg'],
+            'port': actual_port,
+            'save_opt': f'--save {save_dir}' if save_dir else '',
+        }
+
+        return 'env \\\n  %(env)s \\\n  %(interpreter)s %(bgp)s --port %(port)d %(save_opt)s \\\n    %(msg)s' % config
+
+    def dry(self) -> str:
+        result: List[str] = []
+        for test in self.selected():
+            result.append(
+                ' '.join(
+                    [
+                        '>',
+                        sys.argv[0],
+                        self.path_config.name,
+                        '--server',
+                        test.nick,
+                        '--port',
+                        f'{test.conf["port"]}',
+                    ]
+                )
+            )
+            result.append(
+                ' '.join(
+                    [
+                        '>',
+                        sys.argv[0],
+                        self.path_config.name,
+                        '--client',
+                        test.nick,
+                        '--port',
+                        f'{test.conf["port"]}',
+                    ]
+                )
+            )
+        return '\n'.join(result)
+
+    def _retry_failed_tests(self, client: Dict[str, Exec], timeout: int, quiet: bool) -> bool:
+        """Retry all failed tests individually.
+
+        When running tests in parallel, some may fail due to resource contention
+        or timing issues. Retrying them individually often resolves these issues.
+
+        Args:
+            client: Dictionary mapping test nick to client Exec objects
+            timeout: Original timeout value (retry gets half)
+            quiet: Whether to suppress output
+
+        Returns:
+            True if all retries passed, False if any retry failed
+        """
+        failed_tests = [t for t in self.registered() if t.state in (State.FAIL, State.TIMEOUT)]
+        if not failed_tests:
+            return True
+
+        if not quiet:
+            flush()
+            flush()
+            flush('=' * 60)
+            flush(f'{yellow()}RETRYING {len(failed_tests)} FAILED TEST(S){reset()}')
+            flush('=' * 60)
+            flush(f'Tests: {", ".join([t.nick for t in failed_tests])}')
+
+        all_retries_passed = True
+
+        for test in failed_tests:
+            if not quiet:
+                flush(f'  {yellow()}Retry{reset()} {test.nick} {test.name}...', end=' ')
+
+            # Reset test state
+            test.state = State.NONE
+            test.code = -1
+            test.stdout = b''
+            test.stderr = b''
+            test.start_time = None
+
+            # Start server
+            cmd = [
+                sys.argv[0],
+                self.path_config.name,
+                '--server',
+                test.nick,
+                '--port',
+                f'{test.conf["port"]}',
+            ]
+            if self._save_dir:
+                cmd.extend(['--save', self._save_dir])
+            test.run(cmd, env=None)
+            test.setup()
+            test.setup()  # Call twice to advance to RUNNING state
+            time.sleep(0.1)
+
+            # Start client
+            client[test.nick] = Exec().run(
+                [
+                    sys.argv[0],
+                    self.path_config.name,
+                    '--client',
+                    test.nick,
+                    '--port',
+                    f'{test.conf["port"]}',
+                ],
+                env=None,
+            )
+            time.sleep(0.1)
+
+            # Wait for completion (retry gets reasonable time - some tests like api-flow-merge take ~25s)
+            retry_timeout = max(45, timeout // 2)
+            retry_exit_time = time.time() + retry_timeout
+
+            while time.time() < retry_exit_time:
+                if test.ready() and client[test.nick].ready():
+                    break
+                time.sleep(0.1)
+
+            # Terminate both
+            client[test.nick].terminate(collect=False)
+            test.terminate(collect=False)
+
+            # Check result
+            test_passed = test.result(test.success())
+            if test_passed:
+                if not quiet:
+                    flush(f'{green()}✓{reset()}')
+            else:
+                all_retries_passed = False
+                if not quiet:
+                    flush(f'{red()}✗{reset()}')
+
+            # Cleanup
+            time.sleep(0.2)
+            self._force_cleanup_all([test], {test.nick: client[test.nick]})
+
+        # Summary of retry results
+        if not quiet:
+            still_failed = [t for t in failed_tests if t.state in (State.FAIL, State.TIMEOUT)]
+            recovered = len(failed_tests) - len(still_failed)
+            flush()
+            if recovered > 0:
+                flush(f'{green()}Recovered: {recovered}/{len(failed_tests)} test(s) passed on retry{reset()}')
+            if still_failed:
+                flush(
+                    f'{red()}Still failing: {len(still_failed)} test(s): {", ".join([t.nick for t in still_failed])}{reset()}'
+                )
+            flush('=' * 60)
+
+        return all_retries_passed
+
+    def _force_cleanup_all(self, tests: List[Any], clients: Dict[str, Exec]) -> None:
+        """
+        Final cleanup pass to ensure all test processes are dead.
+
+        Uses SIGTERM first (not SIGKILL) so processes can detect being killed.
+        """
+        if not HAVE_PSUTIL:
+            # Fallback to killall if psutil not available
+            # Try SIGTERM first
+            subprocess.run(['killall', '-15', '-q', 'bgp'], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['killall', '-15', '-q', 'exabgp'], stderr=subprocess.DEVNULL, check=False)
+            time.sleep(0.5)
+            # Force kill survivors
+            subprocess.run(['killall', '-9', '-q', 'bgp'], stderr=subprocess.DEVNULL, check=False)
+            subprocess.run(['killall', '-9', '-q', 'exabgp'], stderr=subprocess.DEVNULL, check=False)
+            return
+
+        # Collect all known PIDs from test servers and clients
+        pids_to_kill = set()
+        for test in tests:
+            if hasattr(test, '_process') and test._process and test._process.pid:
+                pids_to_kill.add(test._process.pid)
+
+        for client_exec in clients.values():
+            if client_exec._process and client_exec._process.pid:
+                pids_to_kill.add(client_exec._process.pid)
+
+        # Find all descendants
+        all_to_kill = set()
+        for pid in pids_to_kill:
+            try:
+                parent = psutil.Process(pid)
+                all_to_kill.add(parent)
+                all_to_kill.update(parent.children(recursive=True))
+            except Exception:  # psutil.NoSuchProcess, etc
+                continue
+
+        # Try SIGTERM first (allows processes to detect and report being killed)
+        for proc in all_to_kill:
+            try:
+                proc.terminate()  # SIGTERM
+            except Exception:  # psutil.NoSuchProcess, psutil.AccessDenied
+                continue
+
+        # Wait for graceful termination
+        time.sleep(0.5)
+
+        # Force kill any survivors with SIGKILL
+        for proc in all_to_kill:
+            try:
+                if proc.is_running():
+                    proc.kill()  # SIGKILL
+            except Exception:
+                continue
+
+        # Verify they're dead (wait briefly)
+        time.sleep(0.3)
+
+    def run_selected(
+        self,
+        timeout: int,
+        save_dir: Optional[str] = None,
+        verbose: bool = False,
+        debug_tests: Optional[List[str]] = None,
+        quiet: bool = False,
+    ) -> bool:
+        # Set max timeout before setup so it shows during initialization
+        self._max_timeout: int = timeout
+        self._save_dir = save_dir  # Store for use in server startup
+        self._verbose = verbose  # Store for per-test output display
+        self._debug_tests = set(debug_tests) if debug_tests else set()  # Tests to show verbose output for
+        self._quiet = quiet  # Quiet mode: single line on success, verbose on failure
+        self.legend(quiet=quiet)
+
+        # Install signal handlers to detect when we're killed by another instance
+        signal.signal(signal.SIGTERM, sigterm_handler)
+        signal.signal(signal.SIGINT, sigint_handler)
+
+        # Require psutil for reliable process cleanup
+        if not HAVE_PSUTIL:
+            flush('')
+            flush('=' * 60)
+            flush('ERROR: psutil is required for functional tests')
+            flush('=' * 60)
+            flush('The functional test suite requires psutil for:')
+            flush('  - Reliable process cleanup after test failures')
+            flush('  - Detection of orphaned processes from crashed tests')
+            flush('  - Concurrent test run detection')
+            flush('  - Full process tree termination')
+            flush('')
+            flush('Install with: pip install psutil')
+            flush('Or: pip install -r qa/requirements.txt')
+            flush('=' * 60)
+            flush('')
+            sys.exit(1)
+
+        # Ensure sufficient file descriptors for tests that spawn many processes
+        check_ulimit()
+
+        # Check for concurrent functional test runs
+        if check_concurrent_functional():
+            flush('')
+            flush('=' * 60)
+            flush('WARNING: Another functional test instance is running!')
+            flush('=' * 60)
+            flush('Running tests concurrently may cause failures due to:')
+            flush('  - Port conflicts (tests use same port numbers)')
+            flush('  - Process cleanup conflicts')
+            flush('  - Resource contention')
+            flush('')
+            flush('If you see unexpected test failures, this may be the cause.')
+            flush('Wait for other test run to complete, or use different ports.')
+            flush('=' * 60)
+            flush('')
+            time.sleep(2)  # Give user time to read warning
+
+        # Pre-flight cleanup: kill any stale processes from previous failed runs
+        stale_count = cleanup_stale_processes()
+        if stale_count > 0:
+            flush(f'[cleanup] Killed {stale_count} stale process(es) from previous run')
+            time.sleep(0.5)  # Give OS time to release resources
+
+        success = True
+        client: Dict[str, Exec] = {}
+
+        # Remember how many tests we're running for single-test debug mode
+        num_tests_selected = len(self.selected())
+
+        # Track first failure for debug output in multi-test runs
+        first_failed_test: Optional[EncodingTests.Test] = None
+        first_failed_server: Optional[Exec] = None
+        first_failed_client: Optional[Exec] = None
+
+        # Start daemons (servers) - timer shows [0/max] during setup
+        daemons_started = 0
+        last_daemon_display = -1  # Track last displayed count to avoid duplicates
+        for test in self.selected():
+            test.setup()
+            cmd = [
+                sys.argv[0],
+                self.path_config.name,
+                '--server',
+                test.nick,
+                '--port',
+                f'{test.conf["port"]}',
+            ]
+            if self._save_dir:
+                cmd.extend(['--save', self._save_dir])
+            test.run(cmd, env=None)
+            daemons_started += 1
+            # Only display every 10th daemon and avoid duplicate displays
+            if daemons_started % 10 == 0 and daemons_started != last_daemon_display:
+                self.display(daemons_started=daemons_started, clients_started=0)
+                last_daemon_display = daemons_started
+            time.sleep(0.02)  # Stagger daemon starts to reduce CPU contention
+
+        # Final display for daemons (only if not already displayed)
+        if daemons_started != last_daemon_display:
+            self.display(daemons_started=daemons_started, clients_started=0)
+        time.sleep(0.02)
+
+        # Start clients - timer shows [0/max] during setup
+        # Use slightly longer delay than daemons to reduce CPU contention
+        clients_started = 0
+        last_client_display = -1  # Track last displayed count to avoid duplicates
+        for test in self.selected():
+            test.setup()
+            client[test.nick] = Exec().run(
+                [
+                    sys.argv[0],
+                    self.path_config.name,
+                    '--client',
+                    test.nick,
+                    '--port',
+                    f'{test.conf["port"]}',
+                ],
+                env=None,
+            )
+            clients_started += 1
+            # Only display every 10th client and avoid duplicate displays
+            if clients_started % 10 == 0 and clients_started != last_client_display:
+                self.display(daemons_started=daemons_started, clients_started=clients_started)
+                last_client_display = clients_started
+            time.sleep(0.05)  # Stagger client starts to reduce CPU contention
+
+        # Final display for clients (only if not already displayed)
+        if clients_started != last_client_display:
+            self.display(daemons_started=daemons_started, clients_started=clients_started)
+
+        # Store daemon and client counts for display during test execution
+        self._daemons_count: int = daemons_started
+        self._clients_count: int = clients_started
+
+        # Start timer AFTER setup is complete
+        self._start_time = time.time()
+
+        exit_time = time.time() + timeout
+        last_display = 0  # Track last display time to throttle updates
+
+        running = set(self.selected())
+
+        while running:
+            current_time = time.time()
+
+            # Check timeout first
+            if current_time >= exit_time:
+                # Show final display before cleanup to avoid timer overshoot
+                self.display()
+                break
+
+            # Throttle display updates to once per second
+            if current_time - last_display >= 1.0:
+                self.display()
+                last_display = current_time
+
+            for test in list(running):
+                # Check per-test timeout first
+                if test.has_timed_out():
+                    running.remove(test)
+                    test.mark_timeout()
+                    test.terminate(collect=False)  # Don't block on collect in hot loop
+                    client[test.nick].terminate(collect=False)
+                    success = False
+                    # Capture first failure for debug output
+                    if first_failed_test is None:
+                        first_failed_test = test
+                        test.collect()
+                        client[test.nick].collect()
+                        first_failed_server = test
+                        first_failed_client = client[test.nick]
+                    # Show per-test output in verbose mode or if test is in debug list
+                    if self._verbose or test.nick in self._debug_tests:
+                        self._print_test_output(test, client[test.nick])
+                    continue
+
+                if not test.ready():
+                    continue
+                if not client[test.nick].ready():
+                    continue
+                running.remove(test)
+                # Terminate BOTH client and server when test completes
+                client[test.nick].terminate(collect=False)  # Don't block on collect in hot loop
+                test.terminate(collect=False)  # Also terminate server
+                test_passed = test.result(test.success())
+                success = test_passed and success
+
+                # Capture first failure for debug output
+                if not test_passed and first_failed_test is None:
+                    first_failed_test = test
+                    # Collect output now before it's lost
+                    test.collect()
+                    client[test.nick].collect()
+                    first_failed_server = test
+                    first_failed_client = client[test.nick]
+
+                # Show per-test output in verbose mode or if test is in debug list
+                if self._verbose or test.nick in self._debug_tests:
+                    self._print_test_output(test, client[test.nick])
+
+            # If no tests are still running, exit immediately
+            if not running:
+                # Show final display before cleanup
+                self.display()
+                break
+
+            time.sleep(0.1)
+
+        # Clean up any remaining running tests without blocking
+        for test in running:
+            test.mark_timeout()
+            test.terminate(collect=False)
+            client[test.nick].terminate(collect=False)
+            success = False
+
+        # Comprehensive cleanup pass to ensure all processes are dead
+        # Give time for graceful termination first
+        time.sleep(0.5)
+
+        # Force kill any remaining test processes
+        self._force_cleanup_all(list(self.selected()), client)
+
+        # Retry all failed tests individually
+        # Tests may fail in parallel due to resource contention but pass when run alone
+        # Skip retry when running a single test - no point retrying what was already run individually
+        if num_tests_selected > 1:
+            self._retry_failed_tests(client, timeout, self._quiet)
+        self._retries_done = True
+
+        # Determine final success by checking if ANY tests are still failed
+        # (retries update test.state to SUCCESS if they pass)
+        # Use registered() not selected() - selected() excludes FAIL/TIMEOUT states
+        final_failures = [t for t in self.registered() if t.state in (State.FAIL, State.TIMEOUT)]
+        success = len(final_failures) == 0
+
+        # Move to new line after final display
+        flush()
+
+        # Determine what to show for debug output
+        server_exec = None
+        client_exec = None
+
+        if num_tests_selected == 1:
+            # Single test mode: show debug output for the one test
+            all_tests = self.registered()
+            test = None
+            for t in all_tests:
+                if t.state != State.SKIP:
+                    test = t
+                    break
+
+            if test:
+                server_exec = test
+                client_exec = client.get(test.nick)
+                # Ensure output is collected for display
+                if client_exec and not client_exec.stdout and not client_exec.stderr:
+                    client_exec.collect()
+        else:
+            # Multi-test mode: show debug output if exactly one test failed
+            failures = [t for t in self.selected() if t.state in (State.FAIL, State.TIMEOUT)]
+            if len(failures) == 1 and first_failed_server is not None:
+                server_exec = first_failed_server
+                client_exec = first_failed_client
+
+        self.summary(
+            server=server_exec,
+            client=client_exec,
+            num_tests_selected=num_tests_selected,
+            quiet=self._quiet,
+        )
+        return success
+
+
+class APITests(EncodingTests):
+    """API tests - encoding tests that use the API (run command).
+
+    These tests are identical to encoding tests but are organized in a
+    separate directory (qa/api/) for tests that exercise the API functionality.
+    """
+
+    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+        if path_config is None:
+            path_config = Path.api_config()
+        # Call EncodingTests.__init__ with the api path config
+        super().__init__(path_config)
+
+
+class DecodingTests(Tests):
+    class Test(Record, Exec):  # pyright: ignore[reportUnsafeMultipleInheritance]
+        """Test combining Record state with Exec process management.
+
+        Both __init__ methods are explicitly called to ensure proper initialization.
+        """
+
+        def __init__(self, nick: str, name: str) -> None:
+            Record.__init__(self, nick, name)
+            Exec.__init__(self)
+
+        @property
+        def decoding_conf(self) -> DecodingConf:
+            """Typed access to decoding configuration"""
+            return self.conf  # type: ignore[return-value]
+
+        def _cleanup(self, decoded: Dict[str, Any]) -> Dict[str, Any]:
+            decoded.pop('exabgp', None)
+            decoded.pop('host', None)
+            decoded.pop('pid', None)
+            decoded.pop('ppid', None)
+            decoded.pop('time', None)
+            decoded.pop('version', None)
+            return decoded
+
+        def success(self) -> bool:
+            self.collect()
+            if self.stderr:
+                self.report('stderr is \n' + self.stderr.decode())
+                return False
+            if not self.stdout:
+                self.report('no stdout received')
+                return False
+            try:
+                decoded = json.loads(self.stdout)
+                self._cleanup(decoded)
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+                self.report('issue, report to decode the JSON')
+                return False
+            if decoded != self.conf['json']:
+                from pprint import pformat
+
+                failure = 'issue, JSON does not match'
+                failure += f'\ndecoded : {pformat(decoded)}\n'
+                failure += f'\nexpected: {pformat(self.conf["json"])}'
+                self.report(failure)
+                return False
+            return True
+
+    def __init__(self) -> None:
+        self.path_config = Path.decoding_config()
+        super().__init__(self.Test)
+
+        for filename in Path.ALL_DECODING:
+            name = os.path.basename(filename).split('.')[0]
+            test = self.new(name)
+            with open(filename, 'r') as reader:
+                words = reader.readline().split()
+                test.conf['type'] = words[0]
+                test.conf['family'] = '' if words[0] == 'open' else f'{words[1]} {words[2]}'
+                packet = reader.readline().replace(' ', '').strip()
+                test.conf['packet'] = packet
+                expected = reader.readline().strip()
+                decoded = json.loads(expected)
+                test.conf['json'] = test._cleanup(decoded)
+            test.files.append(filename)
+
+    def dry(self) -> str:
+        result: List[str] = []
+        for test in self.selected():
+            result.append(
+                ' '.join(
+                    [
+                        '>',
+                        Path.EXABGP,
+                        'decode',
+                        f"'-f {test.conf['family']}'" if test.conf['family'] else '',
+                        '--%s' % test.conf['type'],
+                        test.conf['packet'],
+                    ]
+                )
+            )
+        return '\n'.join(result)
+
+    def _print_test_output(self, test: 'DecodingTests.Test') -> None:
+        """Print test output with timing for verbose/debug mode"""
+        duration = time.time() - test.start_time if test.start_time else 0
+        test.collect()
+
+        self._print_test_output_header(test, duration)
+        self._print_test_output_streams(test.stdout, test.stderr)
+
+        # Add debug hints on failure
+        if test.state != State.SUCCESS:
+            self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
+            flush(f'    - run single test: ./qa/bin/functional decoding {test.nick}')
+            flush(
+                f'    - decode command:  ./sbin/exabgp decode -f "{test.conf["family"]}" --{test.conf["type"]} {test.conf["packet"]}'
+            )
+
+    def run_selected(
+        self,
+        timeout: int,
+        verbose: bool = False,
+        debug_tests: Optional[List[str]] = None,
+        quiet: bool = False,
+    ) -> bool:
+        self._setup_run(timeout, verbose, debug_tests, quiet)
+        success = True
+
+        # Launch all decode tests
+        for test in self.selected():
+            test.running()
+            self.display()
+            message = test.conf['type']
+            if message == 'open':
+                cmd = [Path.EXABGP, 'decode', '--%s' % test.conf['type'], test.conf['packet']]
+            elif message in ['update', 'nlri']:
+                cmd = [
+                    Path.EXABGP,
+                    'decode',
+                    '-f',
+                    test.conf['family'],
+                    '--%s' % test.conf['type'],
+                    test.conf['packet'],
+                ]
+            else:
+                raise ValueError(f'invalid message type: {message}')
+            test.run(cmd, env=None)
+
+        # Early result check for fast tests
+        for test in self.selected():
+            self.display()
+            test_passed = test.result(test.success())
+            success = test_passed and success
+            if self._verbose or test.nick in self._debug_tests:
+                self._print_test_output(test)
+            time.sleep(0.05)
+
+        # Run event loop for remaining tests
+        running = set(self.selected())
+        success = self._run_event_loop(timeout, running) and success
+
+        if not self._quiet:
+            flush()
+
+        self.summary(server=None, client=None, num_tests_selected=None)
+        return success
+
+
+class ParsingTests(Tests):
+    def _retry_failed_tests(self, timeout: int) -> bool:
+        """Retry all failed tests individually.
+
+        Returns:
+            True if all retries passed, False if any retry failed
+        """
+        failed_tests = [t for t in self.registered() if t.state in (State.FAIL, State.TIMEOUT)]
+        if not failed_tests:
+            return True
+
+        flush()
+        flush()
+        flush('=' * 60)
+        flush(f'{yellow()}RETRYING {len(failed_tests)} FAILED TEST(S){reset()}')
+        flush('=' * 60)
+        flush(f'Tests: {", ".join([t.nick for t in failed_tests])}')
+
+        all_retries_passed = True
+
+        for test in failed_tests:
+            flush(f'{yellow()}Retry{reset()} {test.nick} {test.name}...', end=' ')
+
+            # Reset test state
+            test.state = State.NONE
+            test.code = -1
+            test.stdout = b''
+            test.stderr = b''
+            test.start_time = None
+
+            # Re-run the validation command
+            test.running()
+            test.run([Path.EXABGP, 'configuration', 'validate', '-nrv', test.conf['fname']], env=None)
+
+            # Wait for completion with timeout
+            retry_timeout = max(10, timeout // 2)
+            retry_exit_time = time.time() + retry_timeout
+
+            while time.time() < retry_exit_time:
+                if test.ready():
+                    break
+                time.sleep(0.1)
+
+            # Check result
+            if not test.ready():
+                test.terminate(collect=False)
+                test.state = State.TIMEOUT
+                all_retries_passed = False
+                flush(f'{red()}✗ (timeout){reset()}')
+            else:
+                test_passed = test.result(test.success())
+                if test_passed:
+                    flush(f'{green()}✓{reset()}')
+                else:
+                    all_retries_passed = False
+                    flush(f'{red()}✗{reset()}')
+
+            time.sleep(0.1)
+
+        # Summary of retry results
+        still_failed = [t for t in failed_tests if t.state in (State.FAIL, State.TIMEOUT)]
+        recovered = len(failed_tests) - len(still_failed)
+        flush()
+        if recovered > 0:
+            flush(f'{green()}Recovered: {recovered}/{len(failed_tests)} test(s) passed on retry{reset()}')
+        if still_failed:
+            flush(
+                f'{red()}Still failing: {len(still_failed)} test(s): {", ".join([t.nick for t in still_failed])}{reset()}'
+            )
+        flush('=' * 60)
+
+        return all_retries_passed
+
+    class Test(Record, Exec):  # pyright: ignore[reportUnsafeMultipleInheritance]
+        """Test combining Record state with Exec process management.
+
+        Both __init__ methods are explicitly called to ensure proper initialization.
+        """
+
+        def __init__(self, nick: str, name: str) -> None:
+            Record.__init__(self, nick, name)
+            Exec.__init__(self)
+
+        @property
+        def parsing_conf(self) -> ParsingConf:
+            """Typed access to parsing configuration"""
+            return self.conf  # type: ignore[return-value]
+
+        def success(self) -> bool:
+            self.collect()
+            if self.code != 0:
+                self.report('return code is not zero')
+                return False
+
+            return self.code == 0
+
+    def __init__(self) -> None:
+        super().__init__(self.Test)
+
+        # Create minimal path_config for summary output compatibility
+        class ParsingPathConfig:
+            name = 'parsing'
+
+        self.path_config = ParsingPathConfig()
+
+        for filename in Path.ALL_ETC:
+            name = os.path.basename(filename).split('.')[0]
+            test = self.new(name)
+            test.conf['fname'] = filename
+            test.files.append(filename)
+
+    def dry(self) -> str:
+        result: List[str] = []
+        for test in self.selected():
+            result.append(' '.join(['>', Path.EXABGP, 'configuration', 'validate', '-nrv', test.conf['fname']]))
+        return '\n'.join(result)
+
+    def _print_test_output(self, test: 'ParsingTests.Test') -> None:
+        """Print test output with timing for verbose/debug mode"""
+        duration = time.time() - test.start_time if test.start_time else 0
+        test.collect()
+
+        self._print_test_output_header(test, duration)
+        self._print_test_output_streams(test.stdout, test.stderr)
+
+        # Add debug hints on failure
+        if test.state != State.SUCCESS:
+            self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
+            flush(f'    - run single test: ./qa/bin/functional parsing {test.nick}')
+            flush(f'    - validate command: ./sbin/exabgp configuration validate -nrv {test.conf["fname"]}')
+
+    def run_selected(
+        self,
+        timeout: int,
+        verbose: bool = False,
+        debug_tests: Optional[List[str]] = None,
+        quiet: bool = False,
+    ) -> bool:
+        self._setup_run(timeout, verbose, debug_tests, quiet)
+        success = True
+
+        # Launch all parsing tests
+        for test in self.selected():
+            test.running()
+            test.run([Path.EXABGP, 'configuration', 'validate', '-nrv', test.conf['fname']], env=None)
+            time.sleep(0.005)
+
+        time.sleep(0.02)
+
+        # Early result check for fast tests
+        for test in self.selected():
+            test_passed = test.result(test.success())
+            success = test_passed and success
+            if self._verbose or test.nick in self._debug_tests:
+                self._print_test_output(test)
+            time.sleep(0.005)
+
+        # Run event loop for remaining tests
+        running = set(self.selected())
+        success = self._run_event_loop(timeout, running) and success
+
+        # Retry all failed tests individually
+        self._retry_failed_tests(timeout)
+
+        # Determine final success by checking if ANY tests are still failed
+        final_failures = [t for t in self.registered() if t.state in (State.FAIL, State.TIMEOUT)]
+        success = len(final_failures) == 0
+
+        if not self._quiet:
+            flush()
+
+        self.summary(server=None, client=None, num_tests_selected=None)
+        return success
+
+
+class CLIConf(TypedDict):
+    """Configuration for CLI tests"""
+
+    confs: List[str]  # List of config file paths
+    ci: str  # Path to .ci file
+
+
+class CLITests(Tests):
+    """CLI tests - validate JSON responses from v6 API commands.
+
+    Unlike encoding tests (which validate BGP wire format), CLI tests:
+    - Start ExaBGP with a config that runs a test script
+    - The test script sends v6 API commands and validates JSON responses
+    - Success: exit code 0 AND 'SUCCESS' in output
+    """
+
+    RUN_PATTERN: Pattern[str] = re.compile(r'^\s*run\s+(.*)\s*?;\s*?$')
+
+    class Test(Record, Exec):  # pyright: ignore[reportUnsafeMultipleInheritance]
+        """Test combining Record state with Exec process management."""
+
+        def __init__(self, nick: str, name: str) -> None:
+            Record.__init__(self, nick, name)
+            Exec.__init__(self)
+            self._check: bytes = b'SUCCESS'
+
+        @property
+        def cli_conf(self) -> 'CLIConf':
+            """Typed access to CLI configuration"""
+            return self.conf  # type: ignore[return-value]
+
+        def success(self) -> bool:
+            self.collect()
+            if self.code == 0:
+                if self._check in self.stdout or self._check in self.stderr:
+                    return True
+            return False
+
+    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+        if path_config is None:
+            path_config = Path.cli_config()
+        self.path_config = path_config
+        super().__init__(self.Test)
+
+        for filename in self.path_config.all_ci_files:
+            name = os.path.basename(filename)[:-3]
+            test = self.new(name)
+            # Parse merged .ci file format (option:file:... lines for config files)
+            config_files, _ = parse_ci_file(filename)
+            test.conf['confs'] = [Path.etc(_) for _ in config_files]
+            test.conf['ci'] = self.path_config.ci_path(name, 'ci')
+            # Only .ci file for --edit (merged format contains everything)
+            test.files.append(test.conf['ci'])
+
+    def dry(self) -> str:
+        result: List[str] = []
+        for test in self.selected():
+            confs = ' '.join(test.conf['confs'])
+            result.append(f'> env exabgp_api_version=6 {Path.EXABGP} -d -p {confs}')
+        return '\n'.join(result)
+
+    def _print_test_output(self, test: 'CLITests.Test') -> None:
+        """Print test output with timing for verbose/debug mode"""
+        duration = time.time() - test.start_time if test.start_time else 0
+        test.collect()
+
+        self._print_test_output_header(test, duration)
+        self._print_test_output_streams(test.stdout, test.stderr)
+
+        # Add debug hints on failure
+        if test.state != State.SUCCESS:
+            self._print_debug_hints_header(test.state == State.TIMEOUT, duration)
+            confs = ' '.join(test.conf['confs'])
+            flush(f'    - run single test: ./qa/bin/functional cli {test.nick}')
+            flush(f'    - run manually:    env exabgp_api_version=6 ./sbin/exabgp -d -p {confs}')
+
+    def run_selected(
+        self,
+        timeout: int,
+        verbose: bool = False,
+        debug_tests: Optional[List[str]] = None,
+        quiet: bool = False,
+    ) -> bool:
+        self._setup_run(timeout, verbose, debug_tests, quiet)
+        success = True
+
+        # Launch all API tests
+        for test in self.selected():
+            test.running()
+            confs = test.conf['confs']
+            # Use v6 API (JSON-only) for API tests
+            env = os.environ.copy()
+            env['exabgp_log_enable'] = 'false'
+            env['exabgp_api_version'] = '6'  # v6 = JSON-only API
+            test.run([Path.EXABGP, '-d', '-p'] + confs, env=env)
+            time.sleep(0.01)
+
+        time.sleep(0.1)
+
+        # Run event loop for test completion
+        running = set(self.selected())
+        success = self._run_event_loop(timeout, running) and success
+
+        if not self._quiet:
+            flush()
+
+        self.summary(server=None, client=None, num_tests_selected=None, quiet=quiet)
+        return success
+
+
+def run_stress_test(
+    tests: 'EncodingTests',
+    test_nick: str,
+    count: int,
+    timeout: int,
+    save_dir: Optional[str] = None,
+) -> None:
+    """Run a single test N times and report statistics."""
+    import contextlib
+    import io
+    import statistics
+
+    if not tests.enable_by_nick(test_nick):
+        sys.exit(f'could not find test {test_nick}')
+
+    flush(f'=== STRESS TEST: {count} runs of test {test_nick} ===')
+    flush()
+
+    results: List[Dict[str, Any]] = []
+    passed = 0
+    failed = 0
+    failed_runs: List[int] = []
+
+    for run_num in range(1, count + 1):
+        start_time = time.time()
+
+        # Create fresh test instance for each run
+        tests.disable_all()
+        tests.enable_by_nick(test_nick)
+
+        # Run the test, suppressing detailed output
+        # Capture stdout to suppress the per-run output
+        with contextlib.redirect_stdout(io.StringIO()):
+            success = tests.run_selected(timeout, save_dir=save_dir)
+        elapsed = time.time() - start_time
+
+        result = {
+            'run': run_num,
+            'success': success,
+            'elapsed': elapsed,
+        }
+        results.append(result)
+
+        status = '\033[32m✓ PASS\033[0m' if success else ' \033[31m✗ FAIL\033[0m'
+        flush(f'Run {run_num:3d}: {status} ({elapsed:.2f}s)')
+
+        if success:
+            passed += 1
+        else:
+            failed += 1
+            failed_runs.append(run_num)
+
+        # Brief pause between runs
+        time.sleep(0.5)
+
+    # Calculate statistics
+    times = [r['elapsed'] for r in results]
+    pass_times = [r['elapsed'] for r in results if r['success']]
+
+    flush()
+    flush('=' * 50)
+    flush('SUMMARY')
+    flush('=' * 50)
+    flush(f'Passed: {passed}/{count} ({100 * passed / count:.1f}%)')
+    if failed > 0:
+        flush(f'\033[31mFailed\033[0m: {failed} (runs {", ".join(map(str, failed_runs))})')
+
+    flush()
+    flush('Timing (all runs):')
+    flush(f'  min: {min(times):.2f}s  avg: {statistics.mean(times):.2f}s  max: {max(times):.2f}s')
+    if len(times) > 1:
+        flush(f'  stddev: {statistics.stdev(times):.2f}s')
+
+    if pass_times and len(pass_times) != len(times):
+        flush()
+        flush('Timing (passed runs only):')
+        flush(f'  min: {min(pass_times):.2f}s  avg: {statistics.mean(pass_times):.2f}s  max: {max(pass_times):.2f}s')
+
+    flush()
+    sys.exit(0 if failed == 0 else 1)
+
+
+def add_test(
+    subparser: '_SubParsersAction[argparse.ArgumentParser]',
+    name: str,
+    tests: Tests,
+    extra: List[str],
+) -> None:
+    sub = subparser.add_parser(name, help=f'run {name} test')
+    if 'dry' in extra:
+        sub.add_argument('--dry', help='show the action', action='store_true')
+    if 'server' in extra:
+        sub.add_argument('--server', help='start the server for a test', type=str, default=None)
+    if 'client' in extra:
+        sub.add_argument('--client', help='start the client for a test', type=str, default=None)
+    if 'list' in extra:
+        sub.add_argument('--list', help='list the files making a test', action='store_true')
+    if 'short_list' in extra:
+        sub.add_argument(
+            '--short-list',
+            help='list test codes only (space separated)',
+            action='store_true',
+        )
+    if 'edit' in extra:
+        sub.add_argument('--edit', help='edit the files making a test', action='store_true')
+    if 'timeout' in extra:
+        sub.add_argument(
+            '--timeout',
+            help='total timeout for all tests (seconds)',
+            type=int,
+            default=20,
+        )
+    if 'port' in extra:
+        sub.add_argument('--port', help='base port to use', type=int, default=1790)
+    if 'save' in extra:
+        sub.add_argument(
+            '--save', help='save run logs to directory (for debugging intermittent failures)', type=str, default=None
+        )
+    if 'stress' in extra:
+        sub.add_argument('--stress', help='run test N times and report statistics', type=int, default=None)
+    if 'verbose' in extra:
+        sub.add_argument('--verbose', '-v', help='show output for each test', action='store_true')
+    if 'debug' in extra:
+        sub.add_argument(
+            '--debug',
+            '-d',
+            help='run all tests but only show verbose output for specified test(s)',
+            nargs='+',
+            default=None,
+        )
+    if 'quiet' in extra:
+        sub.add_argument(
+            '--quiet',
+            '-q',
+            help='minimal output: single line on success, verbose on failure',
+            action='store_true',
+        )
+    sub.add_argument('test', help='name of the test(s) to run', nargs='*', default=None)
+
+    def func(parsed: Namespace) -> None:
+        if 'edit' in extra and parsed.edit:
+            if not parsed.test or len(parsed.test) != 1:
+                sys.exit('--edit requires exactly one test')
+            if not tests.enable_by_nick(parsed.test[0]):
+                sys.exit('no such test')
+            test = tests.get_by_nick(parsed.test[0])
+            if not test.files:
+                sys.exit('no file for the test')
+            editor = os.environ.get('EDITOR', 'vi')
+            command = '%s %s' % (editor, ' '.join(test.files))
+            flush(f'> {command}')
+            if not parsed.dry:
+                sys.exit(os.system(command))
+            return
+
+        if 'list' in extra and parsed.list:
+            tests.listing()
+            return
+
+        if 'short_list' in extra and parsed.short_list:
+            tests.short_list()
+            return
+
+        if 'client' in extra and parsed.client:
+            port = getattr(parsed, 'port', None)
+            command = tests.client(parsed.client, port=port)
+            flush(f'client> {command}')
+            if not parsed.dry:
+                sys.exit(os.system(command))
+            return
+
+        if 'server' in extra and parsed.server:
+            save_dir = getattr(parsed, 'save', None)
+            port = getattr(parsed, 'port', None)
+            command = tests.server(parsed.server, save_dir=save_dir, port=port)
+            flush(f'server> {command}')
+            if not parsed.dry:
+                sys.exit(os.system(command))
+            return
+
+        if 'timeout' not in parsed:
+            parsed.timeout = 0
+
+        if parsed.test:
+            # Enable multiple tests if provided
+            for test_nick in parsed.test:
+                if not tests.enable_by_nick(test_nick):
+                    sys.exit(f'could not find test {test_nick}')
+        else:
+            tests.enable_all()
+
+        if parsed.dry:
+            command = tests.dry()
+            flush(command)
+            sys.exit(0)
+
+        # Handle --stress N: run test N times and report statistics
+        stress_count = getattr(parsed, 'stress', None)
+        if stress_count and isinstance(tests, EncodingTests):
+            if not parsed.test or len(parsed.test) != 1:
+                sys.exit('--stress requires exactly one test')
+            test_nick = parsed.test[0]
+            save_dir = getattr(parsed, 'save', None)
+            run_stress_test(tests, test_nick, stress_count, parsed.timeout, save_dir)
+            return
+
+        # Pass save_dir, verbose, debug_tests, and quiet only if the test class supports it (encoding tests only)
+        save_dir = getattr(parsed, 'save', None)
+        verbose = getattr(parsed, 'verbose', False)
+        debug_tests = getattr(parsed, 'debug', None)
+        quiet = getattr(parsed, 'quiet', False)
+
+        # Handle --debug: run all tests but only show verbose output for specified tests
+        if debug_tests:
+            # Validate debug test nicks
+            for nick in debug_tests:
+                if nick not in tests._by_nick:
+                    sys.exit(f'could not find test {nick}')
+            tests.enable_all()
+
+        # Pass verbose/debug/quiet to all test types that support it
+        if isinstance(tests, EncodingTests):
+            success_exit = tests.run_selected(
+                parsed.timeout, save_dir=save_dir, verbose=verbose, debug_tests=debug_tests, quiet=quiet
+            )
+        elif isinstance(tests, (DecodingTests, ParsingTests, CLITests)):
+            success_exit = tests.run_selected(parsed.timeout, verbose=verbose, debug_tests=debug_tests, quiet=quiet)
+        else:
+            success_exit = tests.run_selected(parsed.timeout)
+        if not quiet:
+            flush()
+        sys.exit(0 if success_exit else 1)
+
+    sub.set_defaults(func=func)
+
+
+if __name__ == '__main__':
+    Path.validate()
+
+    decoding = DecodingTests()
+    encoding = EncodingTests()
+    api = APITests()
+    parsing = ParsingTests()
+    cli = CLITests()
+
+    parser = argparse.ArgumentParser(description='The BGP swiss army knife of networking functional testing tool')
+    subparser = parser.add_subparsers()
+
+    add_test(
+        subparser,
+        'decoding',
+        decoding,
+        ['list', 'short_list', 'edit', 'dry', 'timeout', 'port', 'verbose', 'debug', 'quiet'],
+    )
+    add_test(
+        subparser,
+        'encoding',
+        encoding,
+        [
+            'list',
+            'short_list',
+            'edit',
+            'dry',
+            'timeout',
+            'port',
+            'server',
+            'client',
+            'save',
+            'stress',
+            'verbose',
+            'debug',
+            'quiet',
+        ],
+    )
+    add_test(
+        subparser,
+        'api',
+        api,
+        [
+            'list',
+            'short_list',
+            'edit',
+            'dry',
+            'timeout',
+            'port',
+            'server',
+            'client',
+            'save',
+            'stress',
+            'verbose',
+            'debug',
+            'quiet',
+        ],
+    )
+    add_test(subparser, 'parsing', parsing, ['list', 'short_list', 'dry', 'edit', 'verbose', 'debug', 'quiet'])
+    add_test(subparser, 'cli', cli, ['list', 'short_list', 'dry', 'edit', 'timeout', 'verbose', 'debug', 'quiet'])
+
+    parsed = parser.parse_args()
+    if vars(parsed):
+        parsed.func(parsed)
+    else:
+        parser.print_help()

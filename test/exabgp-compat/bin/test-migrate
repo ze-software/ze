@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""
+Test ExaBGP config migration.
+
+Validates that all ExaBGP configs in etc/ can be migrated to Ze format.
+"""
+
+import glob
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+# Features not supported in ZeBGP
+SKIP_FEATURES = [
+    'multi-session',      # Not implemented
+    'multisession',       # Not implemented
+    'operational',        # ExaBGP-specific
+]
+
+
+def find_ze_binary() -> str:
+    """Find the ze binary."""
+    script_dir = Path(__file__).parent.parent.parent.parent
+    ze_path = script_dir / 'ze'
+    if ze_path.exists():
+        return str(ze_path)
+
+    # Try to build it
+    print("Building ze...", file=sys.stderr)
+    result = subprocess.run(
+        ['go', 'build', '-o', str(ze_path), './cmd/ze'],
+        cwd=script_dir,
+        capture_output=True,
+        text=True
+    )
+    if result.returncode == 0 and ze_path.exists():
+        return str(ze_path)
+
+    print(f"Error: Cannot find or build ze binary", file=sys.stderr)
+    sys.exit(1)
+
+
+def should_skip(config_path: str) -> str:
+    """Check if config uses unsupported features. Returns reason or empty string."""
+    try:
+        with open(config_path) as f:
+            content = f.read().lower()
+    except Exception as e:
+        return f"cannot read: {e}"
+
+    for feature in SKIP_FEATURES:
+        if feature in content:
+            return f"uses {feature}"
+    return ""
+
+
+def test_migration(ze_binary: str, config_path: str) -> tuple:
+    """Test migrating a single config. Returns (success, error_message)."""
+    import tempfile
+
+    result = subprocess.run(
+        [ze_binary, 'bgp', 'config', 'migrate', config_path],
+        capture_output=True,
+        text=True
+    )
+
+    if result.returncode != 0:
+        return False, result.stderr.strip()
+
+    # Verify the output is valid Ze config by writing to temp file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
+        f.write(result.stdout)
+        temp_path = f.name
+
+    try:
+        result2 = subprocess.run(
+            [ze_binary, 'bgp', 'config', 'check', temp_path],
+            capture_output=True,
+            text=True
+        )
+
+        if result2.returncode != 0:
+            return False, f"migrated config invalid: {result2.stderr.strip()}"
+
+        return True, result.stdout
+    finally:
+        os.unlink(temp_path)
+
+
+def main():
+    script_dir = Path(__file__).parent.parent
+    etc_dir = script_dir / 'etc'
+
+    if not etc_dir.exists():
+        print(f"Error: {etc_dir} not found", file=sys.stderr)
+        sys.exit(1)
+
+    ze_binary = find_ze_binary()
+    print(f"Using ze: {ze_binary}")
+    print()
+
+    configs = sorted(glob.glob(str(etc_dir / '*.conf')))
+    if not configs:
+        print("No config files found")
+        sys.exit(1)
+
+    passed = 0
+    failed = 0
+    skipped = 0
+
+    print(f"Testing {len(configs)} ExaBGP configs...")
+    print("=" * 60)
+
+    for config_path in configs:
+        name = os.path.basename(config_path)
+
+        # Check for unsupported features
+        skip_reason = should_skip(config_path)
+        if skip_reason:
+            print(f"SKIP  {name} ({skip_reason})")
+            skipped += 1
+            continue
+
+        success, message = test_migration(ze_binary, config_path)
+
+        if success:
+            print(f"PASS  {name}")
+            passed += 1
+        else:
+            print(f"FAIL  {name}")
+            print(f"      {message[:200]}")
+            failed += 1
+
+    print("=" * 60)
+    print(f"Results: {passed} passed, {failed} failed, {skipped} skipped")
+    print(f"Total: {len(configs)} configs")
+
+    return 0 if failed == 0 else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

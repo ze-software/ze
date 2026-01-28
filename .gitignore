@@ -1,6 +1,7 @@
 # Build artifacts
-bin/
+/bin/
 /ze
+/ze-*
 /functional
 tmp/
 

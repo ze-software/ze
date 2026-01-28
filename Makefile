@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy functional functional-encode functional-plugin functional-decode functional-parse help
+.PHONY: all build test lint clean fmt vet tidy functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-exabgp verify help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -54,8 +54,12 @@ clean:
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 
-# Run all tests including functional tests
-test-all: test functional
+# Run verification (use during development)
+verify: lint test functional
+	@echo "Verification passed"
+
+# Run ALL tests including ExaBGP compat (use before commits)
+test-all: lint test functional-all
 	@echo "All tests passed"
 
 # Run functional tests (all types, continue on failure to show all results)
@@ -84,6 +88,9 @@ functional:
 		echo "═══════════════════════════════════════════════════════════════════════════════"; \
 	fi
 
+# Run all tests including ExaBGP compatibility (use before commits)
+functional-all: functional functional-exabgp
+
 # Run encode functional tests
 functional-encode:
 	@echo "Running encode functional tests..."
@@ -104,6 +111,11 @@ functional-parse:
 	@echo "Running parse functional tests..."
 	go run ./cmd/ze-test bgp parse --all
 
+# Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
+functional-exabgp:
+	@echo "Running ExaBGP compatibility tests..."
+	./test/exabgp-compat/bin/functional encoding --timeout 60
+
 # Quick check (fast feedback during development)
 check: fmt vet
 	@echo "Quick check passed"
@@ -118,14 +130,17 @@ help:
 	@echo ""
 	@echo "  all                  - lint, test, build (default)"
 	@echo "  build                - Build all binaries"
+	@echo "  verify               - Quick verification: lint + test + functional (development)"
 	@echo "  test                 - Run unit tests with race detector"
-	@echo "  test-all             - Run unit tests + functional tests"
+	@echo "  test-all             - Full verification: lint + test + functional-all (before commits)"
 	@echo "  test-cover           - Run tests with coverage report"
-	@echo "  functional           - Run all functional tests"
+	@echo "  functional           - Run functional tests (encode, plugin, parse, decode)"
+	@echo "  functional-all       - Run all functional tests including ExaBGP compat (pre-commit)"
 	@echo "  functional-encode    - Run encode functional tests only"
 	@echo "  functional-plugin    - Run plugin functional tests only"
 	@echo "  functional-decode    - Run decode functional tests only"
 	@echo "  functional-parse     - Run parse functional tests only"
+	@echo "  functional-exabgp    - Run ExaBGP compatibility tests only"
 	@echo "  lint                 - Run golangci-lint"
 	@echo "  fmt                  - Format code (gofmt + goimports)"
 	@echo "  vet                  - Run go vet"

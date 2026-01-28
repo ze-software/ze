@@ -7,11 +7,11 @@ paths:
 
 ## Commit Rules
 - ONLY commit when user explicitly says "commit"
-- Run `make test && make lint && make functional` before commit - ALL must pass
+- Run `make test-all` before commit - ALL must pass
 
 ## Before Any Commit
 ```bash
-make test && make lint && make functional  # ALL must pass with zero issues
+make test-all           # ALL must pass (lint + test + functional + exabgp)
 git status              # Review changes
 git diff --staged       # Review what's staged
 ```
