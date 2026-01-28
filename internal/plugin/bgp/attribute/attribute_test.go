@@ -195,6 +195,30 @@ func TestOrderAttributesSingle(t *testing.T) {
 	assert.Equal(t, AttrOrigin, ordered[0].Code())
 }
 
+// TestOrderAttributesMPPlacement verifies MP_UNREACH first, attrs ordered, MP_REACH last.
+//
+// Order: MP_UNREACH_NLRI (15) → regular attrs by type code → MP_REACH_NLRI (14)
+//
+// VALIDATES: MP attributes placed correctly regardless of input order.
+// PREVENTS: ExaBGP compatibility issues from wrong attribute ordering.
+func TestOrderAttributesMPPlacement(t *testing.T) {
+	// Create attrs in wrong order: REACH(14), COMMUNITY(8), ORIGIN(1), UNREACH(15)
+	mpReach := &MPReachNLRI{AFI: AFIIPv6, SAFI: SAFIUnicast}
+	community := Communities{Community(0xFDE90064)}
+	origin := OriginIGP
+	mpUnreach := &MPUnreachNLRI{AFI: AFIIPv6, SAFI: SAFIUnicast}
+
+	attrs := []Attribute{mpReach, community, origin, mpUnreach}
+
+	ordered := OrderAttributes(attrs)
+
+	require.Len(t, ordered, 4)
+	assert.Equal(t, AttrMPUnreachNLRI, ordered[0].Code()) // 15 - first
+	assert.Equal(t, AttrOrigin, ordered[1].Code())        // 1
+	assert.Equal(t, AttrCommunity, ordered[2].Code())     // 8
+	assert.Equal(t, AttrMPReachNLRI, ordered[3].Code())   // 14 - last
+}
+
 // TestPackAttributesOrdered verifies packing with ordering.
 //
 // RFC 4271 Appendix F.3: Order by type code for efficient comparison.

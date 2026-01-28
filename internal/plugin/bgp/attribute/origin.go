@@ -131,12 +131,16 @@ func PackASPathAttribute(asPath *ASPath, asn4 bool) []byte {
 	return append(header, value...)
 }
 
-// OrderAttributes sorts attributes by type code per RFC 4271 Appendix F.3.
+// OrderAttributes sorts attributes with MP_UNREACH first, regular attributes
+// in type code order, then MP_REACH last.
 //
-// RFC 4271 Appendix F.3 - Path Attribute Ordering:
+// Order: MP_UNREACH_NLRI (15) → regular attrs by type code → MP_REACH_NLRI (14)
 //
-//	"It is a useful optimization to order the path attributes according
-//	 to type code. This optimization is entirely optional."
+// This ordering is valid per RFC 4271 Section 5:
+// "A BGP speaker MUST be prepared to accept attributes in any order."
+//
+// Rationale: Withdrawals (UNREACH) logically precede announcements (REACH).
+// Regular path attributes describe the NLRI in MP_REACH.
 //
 // The function returns a new slice; the original is not modified.
 // If the input is nil, nil is returned.
@@ -152,22 +156,44 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 		return attrs
 	}
 
-	// Create a copy to avoid modifying the original
-	sorted := make([]Attribute, len(attrs))
-	copy(sorted, attrs)
+	// Separate MP attributes from regular attributes
+	var regular []Attribute
+	var mpUnreach Attribute
+	var mpReach Attribute
 
-	// Sort by type code using insertion sort (stable, good for small slices)
-	for i := 1; i < len(sorted); i++ {
-		key := sorted[i]
-		j := i - 1
-		for j >= 0 && sorted[j].Code() > key.Code() {
-			sorted[j+1] = sorted[j]
-			j--
+	for _, attr := range attrs {
+		switch attr.Code() { //nolint:exhaustive // Only MP attrs need special handling
+		case AttrMPUnreachNLRI:
+			mpUnreach = attr
+		case AttrMPReachNLRI:
+			mpReach = attr
+		default:
+			regular = append(regular, attr)
 		}
-		sorted[j+1] = key
 	}
 
-	return sorted
+	// Sort regular attributes by type code using insertion sort (stable, good for small slices)
+	for i := 1; i < len(regular); i++ {
+		key := regular[i]
+		j := i - 1
+		for j >= 0 && regular[j].Code() > key.Code() {
+			regular[j+1] = regular[j]
+			j--
+		}
+		regular[j+1] = key
+	}
+
+	// Build result: UNREACH + regular attrs + REACH
+	result := make([]Attribute, 0, len(attrs))
+	if mpUnreach != nil {
+		result = append(result, mpUnreach)
+	}
+	result = append(result, regular...)
+	if mpReach != nil {
+		result = append(result, mpReach)
+	}
+
+	return result
 }
 
 // PackAttributesOrdered packs a slice of attributes ordered by type code.
