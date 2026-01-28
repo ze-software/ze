@@ -472,3 +472,164 @@ update {
 ```
 
 This requires `extractRoutesFromUpdateBlock()` to understand FlowSpec match criteria syntax, which is significantly more complex than simple prefix parsing.
+
+## Phase 4: Bugs Found from ExaBGP Test Suite
+
+**Goal:** Add ZeBGP unit tests and functional tests to prevent regression for bugs discovered via ExaBGP compatibility testing.
+
+### Bugs Identified
+
+| Test | Bug | Category | Priority |
+|------|-----|----------|----------|
+| conf-addpath (0) | ADD-PATH path-id always 0 | Wire encoding | HIGH |
+| conf-aggregator (1) | ATOMIC_AGGR/AGGREGATOR not in UPDATE | Migration | MEDIUM |
+| conf-attributes (2) | UPDATE before EOR (order issue) | Session behavior | LOW |
+| conf-cap-link-local-nexthop (3) | Missing link-local-nexthop cap (code 77) | Capability | LOW (not implemented) |
+| conf-cap-software-version (4) | Missing route-refresh cap (code 6) in OPEN | Capability | HIGH |
+| EBGP LOCAL_PREF | LOCAL_PREF sent to EBGP peers (RFC violation) | Wire encoding | HIGH |
+| IGP origin | Origin IGP handling verification | Wire encoding | MEDIUM |
+
+### Tests to Add
+
+#### Unit Tests
+
+| Test | File | Validates |
+|------|------|-----------|
+| `TestAddPathPathID` | `internal/bgp/message/update_test.go` | Path-ID non-zero when ADD-PATH negotiated |
+| `TestAggregatorAttribute` | `internal/bgp/message/attribute_test.go` | AGGREGATOR encoded correctly |
+| `TestAtomicAggregate` | `internal/bgp/message/attribute_test.go` | ATOMIC_AGGR present when needed |
+| `TestLocalPrefEBGP` | `internal/bgp/message/update_test.go` | LOCAL_PREF NOT sent to EBGP peers |
+| `TestLocalPrefIBGP` | `internal/bgp/message/update_test.go` | LOCAL_PREF sent to IBGP peers |
+| `TestRouteRefreshCap` | `internal/bgp/capability/open_test.go` | Route-refresh cap in OPEN when enabled |
+| `TestOriginIGP` | `internal/bgp/message/attribute_test.go` | Origin IGP = 0x00 |
+| `TestOriginEGP` | `internal/bgp/message/attribute_test.go` | Origin EGP = 0x01 |
+| `TestOriginIncomplete` | `internal/bgp/message/attribute_test.go` | Origin INCOMPLETE = 0x02 |
+
+#### Functional Tests
+
+| Test | File | Validates |
+|------|------|-----------|
+| `addpath-pathid` | `test/data/encode/addpath-pathid.ci` | Path-ID in UPDATE with ADD-PATH |
+| `ebgp-no-localpref` | `test/data/encode/ebgp-no-localpref.ci` | EBGP UPDATE has no LOCAL_PREF |
+| `ibgp-localpref` | `test/data/encode/ibgp-localpref.ci` | IBGP UPDATE has LOCAL_PREF |
+| `aggregator` | `test/data/encode/aggregator.ci` | AGGREGATOR attribute encoding |
+| `route-refresh-cap` | `test/data/encode/route-refresh-cap.ci` | Route-refresh in OPEN |
+
+### Implementation Order
+
+1. **HIGH priority bugs first:**
+   - ADD-PATH path-id
+   - LOCAL_PREF for EBGP (RFC 4271 violation)
+   - Route-refresh capability
+
+2. **MEDIUM priority:**
+   - AGGREGATOR/ATOMIC_AGGR attributes
+   - Origin attribute values
+
+3. **LOW priority (defer):**
+   - Link-local-nexthop capability (not yet implemented in Ze)
+   - Message ordering (UPDATE before EOR)
+
+### ExaBGP Tests to Remove (Features Not Planned)
+
+| Test | Feature | Reason |
+|------|---------|--------|
+| conf-cap-link-local-nexthop (3) | Link-local nexthop cap | draft-ietf-idr-linklocal-capability not yet RFC |
+| conf-llnh-* | Link-local nexthop | Same as above |
+
+These tests should be removed from the ExaBGP compat suite or marked as "expected fail".
+
+## Phase 5: Template/Inherit Expansion
+
+**Status:** ✅ DONE
+
+### Problem
+
+Migration doesn't expand `inherit` - templates are copied but never applied.
+
+```
+# Input (ExaBGP)
+template { neighbor test { local-as 65533; peer-as 65533; } }
+neighbor 127.0.0.1 { inherit test; router-id 1.2.3.4; }
+
+# Current output (WRONG)
+bgp { peer 127.0.0.1 { router-id 1.2.3.4; } }  # Missing inherited fields!
+template { bgp { peer test { ... } } }          # Template still present!
+
+# Expected output (CORRECT)
+bgp { peer 127.0.0.1 { local-as 65533; peer-as 65533; router-id 1.2.3.4; } }
+# No template block - fully expanded
+```
+
+### Root Cause
+
+- `inherit` field not in `copySimpleFields()` list → dropped silently
+- `migrateTemplate()` copies template but doesn't track for expansion
+- No merge logic when `inherit X` is found
+
+### Fix Required
+
+1. **Collect templates first** - Parse `template { neighbor X { } }` into map
+2. **Expand inherit** - When `inherit X` found in neighbor, merge template X properties
+3. **Remove template block** - Don't output template in serialized config
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `internal/exabgp/migrate.go` | Add template collection, inherit expansion |
+
+### Implementation
+
+1. Add `templates map[string]*config.Tree` to track parsed templates
+2. In `migrateAllNeighbors()`:
+   - Check for `inherit` field
+   - If found, get template from map
+   - Merge template properties (template first, then neighbor overrides)
+3. In `SerializeTree()`:
+   - Skip `template` block (already expanded)
+
+### Tests Affected
+
+| Test | Status After Fix |
+|------|------------------|
+| conf-group (B) | ✅ Migration works |
+| conf-template (X) | ✅ Migration works |
+
+### Implementation Summary (2025-01-28)
+
+**Files Modified:**
+- `internal/exabgp/migrate.go` - Added template expansion
+- `internal/exabgp/migrate_test.go` - Updated tests for new behavior
+
+**Changes Made:**
+1. Added `collectTemplates()` function to extract templates into map
+2. Added `expandInheritance()` function to merge template properties into neighbor
+3. Modified `migrateNeighbors()` to call expansion before migration
+4. Removed `migrateTemplate()` function (no longer needed)
+5. Removed template serialization code from `SerializeTree()`
+6. Updated tests to verify inheritance expansion instead of template copying
+
+**Merge Behavior:**
+- Simple fields: neighbor overrides template
+- Containers (capability, family, nexthop, api): neighbor overrides template
+- Routes (static, announce): MERGE - template routes + neighbor routes
+
+## Phase 6: Link-Local Nexthop Capability (Code 77)
+
+**Status:** DEFER (Draft, not RFC)
+
+### Reference
+
+- **Draft:** [draft-ietf-idr-linklocal-capability-02](https://datatracker.ietf.org/doc/draft-ietf-idr-linklocal-capability/)
+- **Capability Code:** 77 (0x4D)
+- **Capability Length:** 0
+- **Updates:** RFC 2545
+
+### Purpose
+
+Allow IPv6 link-local-only next hops without global address - useful for data center fabrics (RFC 7938).
+
+### Decision
+
+Defer until draft becomes RFC. ExaBGP tests using this capability should be skipped.
