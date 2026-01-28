@@ -330,10 +330,10 @@ neighbor 10.0.0.1 {
 	}
 }
 
-// TestMigrateTemplate verifies template block migration.
+// TestMigrateTemplate verifies template inheritance expansion.
 //
-// VALIDATES: Template neighbors converted to peers with all transformations.
-// PREVENTS: Templates output with ExaBGP syntax (neighbor, "ipv4 unicast").
+// VALIDATES: Template properties merged into neighbor via inherit.
+// PREVENTS: Templates output separately (they should be expanded inline).
 func TestMigrateTemplate(t *testing.T) {
 	input := `
 template {
@@ -348,6 +348,11 @@ template {
 		}
 	}
 }
+neighbor 10.0.0.1 {
+	inherit base;
+	peer-as 65002;
+	router-id 1.2.3.4;
+}
 `
 	tree, err := ParseExaBGPConfig(input)
 	if err != nil {
@@ -361,22 +366,32 @@ template {
 
 	output := SerializeTree(result.Tree)
 
-	// Template should contain peer (not neighbor).
-	if !strings.Contains(output, "peer base") {
-		t.Errorf("expected 'peer base' in template, got:\n%s", output)
-	}
-	if strings.Contains(output, "neighbor base") {
-		t.Errorf("should not contain 'neighbor base'")
+	// Peer should have inherited local-as from template.
+	if !strings.Contains(output, "local-as 65001") {
+		t.Errorf("expected inherited 'local-as 65001', got:\n%s", output)
 	}
 
-	// Family should be converted.
+	// Peer should have its own peer-as.
+	if !strings.Contains(output, "peer-as 65002") {
+		t.Errorf("expected 'peer-as 65002', got:\n%s", output)
+	}
+
+	// Template should NOT appear in output (expanded inline).
+	if strings.Contains(output, "template") {
+		t.Errorf("should not contain 'template' block:\n%s", output)
+	}
+	if strings.Contains(output, "peer base") {
+		t.Errorf("should not contain 'peer base' (template name):\n%s", output)
+	}
+
+	// Family should be inherited and converted.
 	if !strings.Contains(output, "ipv4/unicast") {
-		t.Errorf("expected 'ipv4/unicast', got:\n%s", output)
+		t.Errorf("expected inherited 'ipv4/unicast', got:\n%s", output)
 	}
 
-	// Capability should have enable.
+	// Capability should be inherited with enable.
 	if !strings.Contains(output, "route-refresh enable") {
-		t.Errorf("expected 'route-refresh enable', got:\n%s", output)
+		t.Errorf("expected inherited 'route-refresh enable', got:\n%s", output)
 	}
 }
 
@@ -816,10 +831,10 @@ neighbor 10.0.0.1 {
 	}
 }
 
-// TestMigrateTemplateWithNexthop verifies nexthop block in templates.
+// TestMigrateTemplateWithNexthop verifies nexthop inheritance from templates.
 //
-// VALIDATES: Template neighbor nexthop blocks are converted correctly.
-// PREVENTS: Templates missing nexthop conversion.
+// VALIDATES: Template nexthop blocks are inherited and converted correctly.
+// PREVENTS: Nexthop capability lost during inheritance.
 func TestMigrateTemplateWithNexthop(t *testing.T) {
 	input := `
 template {
@@ -829,6 +844,10 @@ template {
 			ipv4 unicast ipv6;
 		}
 	}
+}
+neighbor 10.0.0.1 {
+	inherit base;
+	peer-as 65002;
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -843,9 +862,14 @@ template {
 
 	output := SerializeTree(result.Tree)
 
-	// Template should have peer (not neighbor).
-	if !strings.Contains(output, "peer base") {
-		t.Errorf("expected 'peer base' in template, got:\n%s", output)
+	// Template should NOT appear (expanded inline).
+	if strings.Contains(output, "peer base") {
+		t.Errorf("should not contain 'peer base' (template):\n%s", output)
+	}
+
+	// Inherited local-as should be present.
+	if !strings.Contains(output, "local-as 65001") {
+		t.Errorf("expected inherited 'local-as 65001', got:\n%s", output)
 	}
 
 	// Nexthop block should be inside capability.

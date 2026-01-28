@@ -29,6 +29,7 @@ type MigrateResult struct {
 //   - process → plugin (wrapped with ze exabgp plugin bridge)
 //   - process { processes [...] } → process NAME { ... } inside peer
 //   - capability { route-refresh; } → capability { route-refresh enable; }
+//   - template { neighbor X { } } + inherit X → expanded peer
 //   - If GR or route-refresh: inject RIB plugin
 func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	if tree == nil {
@@ -38,6 +39,9 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	result := &MigrateResult{
 		Tree: config.NewTree(),
 	}
+
+	// Collect templates for inheritance expansion.
+	templates := collectTemplates(tree)
 
 	// Check if we need to inject RIB plugin
 	needsRIB := NeedsRIBPlugin(tree)
@@ -49,13 +53,31 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	// Migrate processes → plugins (wrapped with bridge)
 	processMap := migrateProcesses(tree, result)
 
-	// Migrate neighbors → peers
-	migrateNeighbors(tree, result, processMap, needsRIB)
+	// Migrate neighbors → peers (with template expansion)
+	migrateNeighbors(tree, result, processMap, needsRIB, templates)
 
-	// Copy other top-level items
+	// Copy other top-level items (excluding templates - they're expanded)
 	copyOtherItems(tree, result)
 
 	return result, nil
+}
+
+// collectTemplates extracts template definitions for inheritance expansion.
+// Returns map of template name → neighbor tree.
+func collectTemplates(tree *config.Tree) map[string]*config.Tree {
+	templates := make(map[string]*config.Tree)
+
+	tmpl := tree.GetContainer("template")
+	if tmpl == nil {
+		return templates
+	}
+
+	// Templates contain neighbor definitions.
+	for _, entry := range tmpl.GetListOrdered("neighbor") {
+		templates[entry.Key] = entry.Value
+	}
+
+	return templates
 }
 
 // NeedsRIBPlugin checks if the config requires a RIB plugin.
@@ -146,25 +168,92 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 }
 
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers.
-func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool) {
+func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool, templates map[string]*config.Tree) {
 	// Use ordered iteration for deterministic output.
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		addr := entry.Key
 		neighborTree := entry.Value
 
+		// Check for template inheritance and expand if found.
+		expandedTree := expandInheritance(neighborTree, templates)
+
 		// Convert neighbor to peer.
-		peer := migrateSingleNeighbor(neighborTree, result)
+		peer := migrateSingleNeighbor(expandedTree, result)
 
 		// If RIB was injected, bind it to this peer.
 		if needsRIB {
-			bindRIBProcess(peer, neighborTree)
+			bindRIBProcess(peer, expandedTree)
 		}
 
 		// Migrate process bindings (old: process { processes [...] } → new: process NAME { ... }).
-		migrateProcessBindings(neighborTree, peer, processMap)
+		migrateProcessBindings(expandedTree, peer, processMap)
 
 		result.Tree.AddListEntry("peer", addr, peer)
 	}
+}
+
+// expandInheritance merges template properties into neighbor if inherit is specified.
+// Template properties are applied first, then neighbor properties override.
+func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree) *config.Tree {
+	// Check for inherit field.
+	inheritName, hasInherit := neighbor.Get("inherit")
+	if !hasInherit {
+		return neighbor
+	}
+
+	// Look up template.
+	tmpl, found := templates[inheritName]
+	if !found {
+		// Template not found - return original (warning could be added).
+		return neighbor
+	}
+
+	// Create merged tree: template first, then neighbor overrides.
+	merged := tmpl.Clone()
+
+	// Merge simple values (neighbor overrides template).
+	// These are the known leaf fields in ExaBGP neighbor config.
+	leafFields := []string{
+		"description", "router-id", "local-address", "local-as", "peer-as",
+		"hold-time", "passive", "listen", "connect", "ttl-security",
+		"md5-password", "md5-base64", "group-updates", "auto-flush",
+	}
+	for _, key := range leafFields {
+		if v, ok := neighbor.Get(key); ok {
+			merged.Set(key, v)
+		}
+	}
+
+	// Merge containers (neighbor overrides template, except static/announce which merge).
+	// These are the known container fields in ExaBGP neighbor config.
+	containerFields := []string{
+		"capability", "family", "nexthop", "api",
+	}
+	for _, key := range containerFields {
+		if c := neighbor.GetContainer(key); c != nil {
+			merged.SetContainer(key, c.Clone())
+		}
+	}
+
+	// Merge static/announce containers (template + neighbor routes).
+	// Multiple static blocks become merged routes.
+	mergeContainerFields := []string{"static", "announce"}
+	for _, key := range mergeContainerFields {
+		if c := neighbor.GetContainer(key); c != nil {
+			merged.MergeContainer(key, c.Clone())
+		}
+	}
+
+	// Merge list entries (append neighbor's to template's).
+	// For static routes, we want template routes + neighbor routes.
+	listFields := []string{"process", "static"}
+	for _, key := range listFields {
+		for _, entry := range neighbor.GetListOrdered(key) {
+			merged.AddListEntry(key, entry.Key, entry.Value.Clone())
+		}
+	}
+
+	return merged
 }
 
 // copySimpleFields copies simple leaf values from neighbor to peer.
@@ -610,28 +699,10 @@ func checkUnsupported(src *config.Tree, result *MigrateResult) {
 }
 
 // copyOtherItems copies non-neighbor, non-process items.
+// Templates are NOT copied - they are expanded via inheritance.
 func copyOtherItems(src *config.Tree, result *MigrateResult) {
-	// Migrate template block if present.
-	// Templates contain neighbor definitions that need the same conversions.
-	if tmpl := src.GetContainer("template"); tmpl != nil {
-		result.Tree.SetContainer("template", migrateTemplate(tmpl, result))
-	}
-}
-
-// migrateTemplate converts template block, migrating nested neighbors.
-func migrateTemplate(src *config.Tree, result *MigrateResult) *config.Tree {
-	dst := config.NewTree()
-
-	// Migrate neighbor templates → peer templates.
-	for _, entry := range src.GetListOrdered("neighbor") {
-		name := entry.Key
-		neighborTree := entry.Value
-
-		peer := migrateSingleNeighbor(neighborTree, result)
-		dst.AddListEntry("peer", name, peer)
-	}
-
-	return dst
+	// Templates are expanded via inherit, not copied.
+	// Other top-level items could be copied here if needed.
 }
 
 // migrateSingleNeighbor converts a single neighbor tree to peer format.
@@ -772,22 +843,5 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	// Write template block.
-	// Ze expects: template { bgp { peer NAME { } } }
-	// Migration produces peers at template level, wrap in bgp block.
-	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		_, _ = fmt.Fprintf(buf, "%stemplate {\n", indent)
-		// Check if template has peer list - wrap in bgp block
-		peerList := tmpl.GetListOrdered("peer")
-		if len(peerList) > 0 {
-			_, _ = fmt.Fprintf(buf, "%s\tbgp {\n", indent)
-			for _, entry := range peerList {
-				_, _ = fmt.Fprintf(buf, "%s\t\tpeer %s {\n", indent, entry.Key)
-				serializeTreeIndent(entry.Value, buf, indent+"\t\t\t", false)
-				_, _ = fmt.Fprintf(buf, "%s\t\t}\n", indent)
-			}
-			_, _ = fmt.Fprintf(buf, "%s\t}\n", indent)
-		}
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
-	}
+	// Templates are expanded via inherit, not serialized.
 }
