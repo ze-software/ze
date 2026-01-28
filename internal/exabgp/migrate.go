@@ -15,6 +15,9 @@ var ErrNilTree = errors.New("nil tree")
 // familyIPv6Unicast is used for IPv6 routes when family detection is needed.
 const familyIPv6Unicast = "ipv6/unicast"
 
+// configTrue represents the string value "true" used in config trees.
+const configTrue = "true"
+
 // MigrateResult holds the outcome of ExaBGP→ZeBGP migration.
 type MigrateResult struct {
 	Tree        *config.Tree // Transformed tree
@@ -303,7 +306,7 @@ func migrateCapability(src, dst *config.Tree) {
 			}
 			// Check for value form (e.g., graceful-restart 120;).
 			if v, ok := srcCap.GetFlex(field); ok {
-				if v == "" || v == "true" {
+				if v == "" || v == configTrue {
 					// ExaBGP allows bare "graceful-restart;" which parser stores as "true".
 					// ZeBGP uses "enable" for boolean capabilities.
 					dstCap.Set(field, "enable")
@@ -417,34 +420,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 	// This uses inline-list as well, so use GetListOrdered.
 	routeList := announce.GetListOrdered("route")
 	for _, routeEntry := range routeList {
-		prefix := routeEntry.Key
-		attrTree := routeEntry.Value
-
-		update := config.NewTree()
-
-		attrBlock := config.NewTree()
-		attrBlock.Set("origin", "igp")
-
-		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-			"extended-community", "large-community", "path-information", "rd", "label"}
-		for _, field := range attrFields {
-			if v, ok := attrTree.Get(field); ok {
-				attrBlock.Set(field, v)
-			}
-		}
-
-		update.SetContainer("attribute", attrBlock)
-
-		nlriBlock := config.NewTree()
-		// Determine family from prefix format.
-		family := defaultFamily
-		if strings.Contains(prefix, ":") {
-			family = familyIPv6Unicast
-		}
-		nlriBlock.Set(family, prefix)
-		update.SetContainer("nlri", nlriBlock)
-
-		dst.AddListEntry("update", "", update)
+		convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst)
 	}
 }
 
@@ -455,35 +431,54 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 	// With ze:syntax "inline-list", routes are stored as list entries.
 	routeList := static.GetListOrdered("route")
 	for _, routeEntry := range routeList {
-		prefix := routeEntry.Key
-		attrTree := routeEntry.Value
-
-		update := config.NewTree()
-
-		attrBlock := config.NewTree()
-		attrBlock.Set("origin", "igp")
-
-		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-			"extended-community", "large-community", "path-information", "rd", "label"}
-		for _, field := range attrFields {
-			if v, ok := attrTree.Get(field); ok {
-				attrBlock.Set(field, v)
-			}
-		}
-
-		update.SetContainer("attribute", attrBlock)
-
-		nlriBlock := config.NewTree()
-		// Determine family from prefix format.
-		family := defaultFamily
-		if strings.Contains(prefix, ":") {
-			family = familyIPv6Unicast
-		}
-		nlriBlock.Set(family, prefix)
-		update.SetContainer("nlri", nlriBlock)
-
-		dst.AddListEntry("update", "", update)
+		convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst)
 	}
+}
+
+// convertRouteToUpdate converts a single ExaBGP route to a Ze update block.
+// prefix is the NLRI prefix (e.g., "10.0.0.0/24").
+// attrTree contains the route attributes from ExaBGP.
+// dst is the peer block where the update will be added.
+func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
+	update := config.NewTree()
+
+	attrBlock := config.NewTree()
+	attrBlock.Set("origin", "igp")
+
+	attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
+		"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
+		"path-information", "rd", "label", "labels"}
+	for _, field := range attrFields {
+		if v, ok := attrTree.Get(field); ok {
+			attrBlock.Set(field, v)
+		}
+	}
+
+	// Handle atomic-aggregate (flag attribute stored as "true")
+	if v, ok := attrTree.Get("atomic-aggregate"); ok && v == configTrue {
+		attrBlock.Set("atomic-aggregate", configTrue)
+	}
+
+	// Handle raw attribute bytes: "[0x20 0xc0 0x...]" → "0x20 0xc0 0x..."
+	if v, ok := attrTree.Get("attribute"); ok {
+		// Strip brackets from array syntax
+		v = strings.TrimPrefix(v, "[")
+		v = strings.TrimSuffix(v, "]")
+		attrBlock.Set("attribute", v)
+	}
+
+	update.SetContainer("attribute", attrBlock)
+
+	nlriBlock := config.NewTree()
+	// Determine family from prefix format.
+	family := defaultFamily
+	if strings.Contains(prefix, ":") {
+		family = familyIPv6Unicast
+	}
+	nlriBlock.Set(family, prefix)
+	update.SetContainer("nlri", nlriBlock)
+
+	dst.AddListEntry("update", "", update)
 }
 
 // convertFamilyBlock converts ExaBGP family syntax to ZeBGP.
