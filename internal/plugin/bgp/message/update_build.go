@@ -294,12 +294,15 @@ func (ub *UpdateBuilder) buildASPath(configuredPath []uint32) *attribute.ASPath 
 
 	switch {
 	case len(configuredPath) > 0:
-		// Use configured path, prepend local AS for eBGP
-		asns := make([]uint32, 0, len(configuredPath)+1)
-		if !ub.IsIBGP {
+		// Use configured path, prepend local AS for eBGP only if not already first.
+		// RFC 4271 Section 5.1.2: "prepend its own AS number as the last element"
+		// (last in the sequence = first when reading left-to-right).
+		asns := configuredPath
+		if !ub.IsIBGP && configuredPath[0] != ub.LocalAS {
+			asns = make([]uint32, 0, len(configuredPath)+1)
 			asns = append(asns, ub.LocalAS)
+			asns = append(asns, configuredPath...)
 		}
-		asns = append(asns, configuredPath...)
 		segments = []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: asns},
 		}

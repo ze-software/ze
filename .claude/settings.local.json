@@ -102,7 +102,7 @@
       "Bash(./.claude/hooks/session-start.sh)",
       "Bash(go run ./cmd/ze *)",
       "Bash(ze-test bgp plugin:*)",
-      "Bash(bash:*)"
+      "Bash(./ze bgp decode:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

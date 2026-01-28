@@ -645,17 +645,18 @@ func TestCmdEncode_ASN4False(t *testing.T) {
 
 	// With 2-byte ASN encoding:
 	// AS_PATH segment: type(1) + count(1) + ASNs(2 bytes each)
-	// Local AS (65001) is prepended, so path is [65001, 65001, 65002]
+	// RFC 4271: Local AS NOT prepended because first ASN already equals local AS.
+	// Configured path [65001, 65002] stays as-is: [65001, 65002]
 	// AS 65001 = 0xFDE9, AS 65002 = 0xFDEA
-	// Segment: 0x02 (AS_SEQUENCE) + 0x03 (count) + FDE9 + FDE9 + FDEA
-	asPath2Byte := []byte{0x02, 0x03, 0xFD, 0xE9, 0xFD, 0xE9, 0xFD, 0xEA}
+	// Segment: 0x02 (AS_SEQUENCE) + 0x02 (count) + FDE9 + FDEA
+	asPath2Byte := []byte{0x02, 0x02, 0xFD, 0xE9, 0xFD, 0xEA}
 	if !bytes.Contains(decoded, asPath2Byte) {
-		t.Errorf("expected 2-byte AS_PATH encoding (02 03 FDE9 FDE9 FDEA), not found in output")
+		t.Errorf("expected 2-byte AS_PATH encoding (02 02 FDE9 FDEA), not found in output")
 	}
 
-	// With 4-byte ASN, each AS would be 4 bytes: 0000FDE9, 0000FDE9, 0000FDEA
+	// With 4-byte ASN, each AS would be 4 bytes: 0000FDE9, 0000FDEA
 	// Verify 4-byte pattern is NOT present
-	asPath4Byte := []byte{0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0xFD, 0xEA}
+	asPath4Byte := []byte{0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0xFD, 0xEA}
 	if bytes.Contains(decoded, asPath4Byte) {
 		t.Errorf("found 4-byte AS_PATH encoding when --asn4=false")
 	}

@@ -1,315 +1,394 @@
-# Spec: RFC 9234 BGP Role for API Policy
+# Spec: RFC 9234 BGP Role Plugin
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file
+2. `.claude/rules/planning.md` - workflow rules
+3. `rfc/short/rfc9234.md` - RFC summary
+4. `internal/plugin/gr/gr.go` - plugin pattern reference
+5. `internal/plugin/registration.go` - plugin protocol
 
 ## Status: Ready for Implementation
 
-## RFC Reference
+## Task
 
-`rfc/rfc9234.txt` - Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages
+Implement RFC 9234 BGP Role as a **plugin** with its own YANG schema.
 
-## Purpose
+**Key design decisions:**
+- Role is a **plugin**, not engine code
+- Plugin owns YANG schema (augments ze-bgp)
+- Plugin sends Role capability via Stage 3
+- Plugin receives OPEN events, validates role pairs, responds accept/reject
+- Role passed once per peer in peer events (not per update)
 
-RFC 9234 Role enables **API-driven routing policy** without attribute parsing:
+## Required Reading
+
+### Architecture Docs
+- [ ] `docs/architecture/api/architecture.md` - plugin protocol, peer events
+
+### RFC Summaries
+- [ ] `rfc/short/rfc9234.md` - Role capability, validation rules
+
+### Code References
+- [ ] `internal/plugin/gr/gr.go` - plugin implementation pattern
+- [ ] `yang/ze-gr.yang` - YANG augment pattern
+
+**Key insights:**
+- Role capability code 9, length 1, value 0-4
+- Plugin validates role pairs per RFC 9234 Table 2
+- Plugin controls accept/reject, engine just delivers events
+
+## Design
+
+### Role Values (RFC 9234 Section 4.1)
+
+| Value | Name | Config Syntax |
+|-------|------|---------------|
+| 0 | Provider | `role provider;` |
+| 1 | RS | `role rs;` |
+| 2 | RS-Client | `role rs-client;` |
+| 3 | Customer | `role customer;` |
+| 4 | Peer | `role peer;` |
+
+### Local Role vs Peer Role
+
+Two distinct roles per peer:
+
+| Term | Meaning | Source |
+|------|---------|--------|
+| Local role | Our role in the relationship | Config: `role customer;` |
+| Peer role | Their role in the relationship | Their OPEN capability |
+
+**Valid pairs (RFC 9234 Table 2):**
+
+| Local Role | Expected Peer Role |
+|------------|-------------------|
+| Provider | Customer |
+| Customer | Provider |
+| RS | RS-Client |
+| RS-Client | RS |
+| Peer | Peer |
+
+### Plugin Architecture
 
 ```
-Customer peer → Receive route → Tag: role=customer → API decides
-                                                        ↓
-                            "Routes from customers can go to providers"
-                                                        ↓
-                            Forward to provider peers only
+internal/plugin/role/
+├── role.go           # Plugin implementation
+├── role_test.go      # Unit tests
+└── ze-role.yang      # YANG schema (augments ze-bgp)
 ```
 
-**Key insight:** Role tag tells the API the relationship, enabling policy decisions without parsing AS_PATH, communities, etc.
-
-## Use Cases
-
-### Route Server (RS)
+### Plugin Registration (Stage 1)
 
 ```
-RS-Client A → Receive → role=rs-client → Forward to other RS-Clients
+declare rfc 9234
+declare receive open
+declare receive negotiated
+declare conf schema capability role { role <role:[a-z-]+>; }
 ```
 
-### Transit/Customer Hierarchy
+### Plugin Config Delivery (Stage 2)
 
+Engine delivers per-peer config:
 ```
-Customer → Receive → role=customer → Can send to: Provider, Peer, RS
-Provider → Receive → role=provider → Can send to: Customers only
-Peer     → Receive → role=peer     → Can send to: Customers only
-```
-
-### Policy Examples
-
-```python
-# External policy process
-if route.tag.role == "customer":
-    # Customer routes can go anywhere
-    forward_to("peer *")
-elif route.tag.role == "provider":
-    # Provider routes only to customers
-    forward_to("peer [role customer]")
-elif route.tag.role == "peer":
-    # Peer routes only to customers
-    forward_to("peer [role customer]")
+config peer 10.0.0.1 capability role role customer
+config done
 ```
 
-## RFC 9234 Overview
+Plugin stores: peer 10.0.0.1 → local-role = customer
 
-### Role Capability (Code 9)
+### Plugin Capability Declaration (Stage 3)
 
-Negotiated in OPEN message:
+Plugin declares Role capability for each peer based on config:
 ```
-Capability Code: 9
-Capability Length: 1
-Capability Value: Role (0-4)
-```
-
-### Role Values
-
-| Value | Role | Description |
-|-------|------|-------------|
-| 0 | Provider | Upstream transit provider |
-| 1 | RS | Route Server |
-| 2 | RS-Client | Route Server Client |
-| 3 | Customer | Downstream customer |
-| 4 | Peer | Settlement-free peer |
-
-### Allowed Relationships
-
-| Local Role | Peer Role | Valid? |
-|------------|-----------|--------|
-| Provider | Customer | ✅ |
-| Customer | Provider | ✅ |
-| RS | RS-Client | ✅ |
-| RS-Client | RS | ✅ |
-| Peer | Peer | ✅ |
-| Provider | Provider | ❌ |
-| Customer | Customer | ❌ |
-
-### OTC Attribute (Type 35)
-
-Only To Customer - marks routes that should not leak:
-- Added by Provider/RS/Peer when sending to Customer
-- If present, route cannot be sent to Provider/Peer
-
-## Implementation
-
-### Capability Negotiation
-
-```go
-// internal/bgp/capability/role.go
-
-type Role uint8
-
-const (
-    RoleProvider  Role = 0
-    RoleRS        Role = 1
-    RoleRSClient  Role = 2
-    RoleCustomer  Role = 3
-    RolePeer      Role = 4
-)
-
-type RoleCapability struct {
-    Role Role
-}
-
-func (c *RoleCapability) Code() CapabilityCode { return CapRole }
-func (c *RoleCapability) Pack() []byte { return []byte{byte(c.Role)} }
-
-func ParseRoleCapability(data []byte) (*RoleCapability, error) {
-    if len(data) != 1 {
-        return nil, ErrInvalidLength
-    }
-    role := Role(data[0])
-    if role > RolePeer {
-        return nil, ErrInvalidRole
-    }
-    return &RoleCapability{Role: role}, nil
-}
+capability hex 9 03 peer 10.0.0.1   # Role=Customer (0x03)
+capability hex 9 00 peer 10.0.0.2   # Role=Provider (0x00)
+capability done
 ```
 
-### Peer Role Storage
+### OPEN Event to Plugin
 
-```go
-// internal/reactor/peer.go
-
-type Peer struct {
-    // ... existing fields ...
-    localRole  capability.Role  // Our role in this relationship
-    peerRole   capability.Role  // Their role (negotiated)
-    roleNegotiated bool         // True if both sides sent Role capability
-}
-
-func (p *Peer) onOpenReceived(open *message.Open) {
-    // Extract Role capability if present
-    if roleCap := open.GetCapability(capability.CapRole); roleCap != nil {
-        p.peerRole = roleCap.(*capability.RoleCapability).Role
-        p.roleNegotiated = true
-    }
-}
-```
-
-### Route Tag
-
-```go
-// internal/rib/route.go
-
-type RouteTag struct {
-    SourceRole   capability.Role  // RFC 9234 role of source peer
-    SourcePeerIP netip.Addr       // For !<ip> selector
-}
-
-type Route struct {
-    // ... existing fields ...
-    tag RouteTag
-}
-```
-
-### OTC Attribute Parsing
-
-```go
-// internal/bgp/attribute/otc.go
-
-// OTC represents the Only To Customer attribute (RFC 9234).
-// Type 35, optional transitive.
-type OTC uint32  // AS number that added OTC
-
-const AttrOTC AttributeCode = 35
-
-func (o OTC) Code() AttributeCode   { return AttrOTC }
-func (o OTC) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
-func (o OTC) Len() int              { return 4 }
-func (o OTC) Pack() []byte {
-    buf := make([]byte, 4)
-    binary.BigEndian.PutUint32(buf, uint32(o))
-    return buf
-}
-
-func ParseOTC(data []byte) (OTC, error) {
-    if len(data) != 4 {
-        return 0, ErrInvalidLength
-    }
-    return OTC(binary.BigEndian.Uint32(data)), nil
-}
-```
-
-### API Output
+When peer's OPEN is received, engine sends to plugins that declared `receive open`:
 
 ```json
 {
-    "type": "update",
-    "route-id": 12345,
-    "tag": {
-        "role": "customer",
-        "source": "10.0.0.1"
-    },
-    "peer": { "address": "10.0.0.1" },
-    "announce": {
-        "nlri": { "ipv4/unicast": ["192.168.1.0/24"] }
-    }
+  "type": "open",
+  "peer": {
+    "address": "10.0.0.1",
+    "asn": 65002
+  },
+  "capabilities": {
+    "role": 0
+  }
 }
 ```
+
+Note: `role` is numeric (wire value), plugin maps to name.
+
+### Plugin Validation Logic
+
+Plugin validates:
+1. Lookup local-role for peer (from Stage 2 config)
+2. Extract peer-role from OPEN event
+3. Check valid pair per Table 2
+4. Respond accept or reject
+
+### Plugin Response
+
+| Response | Effect |
+|----------|--------|
+| `peer 10.0.0.1 open accept` | Continue session |
+| `peer 10.0.0.1 open reject role-mismatch` | NOTIFICATION 2/11 |
+
+### Peer Event Format
+
+After session established, peer events include both roles:
+
+```json
+{
+  "type": "peer",
+  "peer": {
+    "address": "10.0.0.1",
+    "asn": 65002,
+    "local-role": "customer",
+    "peer-role": "provider"
+  },
+  "state": "up"
+}
+```
+
+### Peer Without Role Capability
+
+If peer doesn't send Role capability:
+- `peer-role` is null/absent in events
+- Plugin decides: accept (compatible) or reject (strict mode)
+- Configurable per-peer: `role-strict true;`
 
 ### Peer Selector by Role
 
 ```
-peer [role customer]    # All customers
-peer [role provider]    # All providers
-peer [role peer]        # All peers
-peer [role rs-client]   # All RS-clients
+peer [role customer]      # All peers where local-role=customer
+peer [peer-role provider] # All peers where peer-role=provider
 ```
 
-Implementation:
-```go
-func (r *Reactor) GetMatchingPeers(selector *Selector) []*Peer {
-    if selector.RoleFilter != nil {
-        var result []*Peer
-        for _, p := range r.peers {
-            if p.peerRole == *selector.RoleFilter {
-                result = append(result, p)
-            }
-        }
-        return result
+## YANG Schema
+
+`internal/plugin/role/ze-role.yang`:
+
+```yang
+module ze-role {
+    namespace "urn:ze:role";
+    prefix role;
+
+    import ze-bgp { prefix bgp; }
+
+    description "RFC 9234 BGP Role plugin for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
     }
-    // ... existing matching
+
+    typedef role-type {
+        type enumeration {
+            enum provider { value 0; description "RFC 9234: Provider (0)"; }
+            enum rs { value 1; description "RFC 9234: Route Server (1)"; }
+            enum rs-client { value 2; description "RFC 9234: RS-Client (2)"; }
+            enum customer { value 3; description "RFC 9234: Customer (3)"; }
+            enum peer { value 4; description "RFC 9234: Peer (4)"; }
+        }
+        description "RFC 9234 BGP Role values";
+    }
+
+    augment "/bgp:bgp/bgp:peer" {
+        description "Role configuration for peers";
+
+        leaf role {
+            type role-type;
+            mandatory true;
+            description "Our role in this peer relationship";
+        }
+
+        leaf role-strict {
+            type boolean;
+            default false;
+            description "Require peer to send Role capability";
+        }
+    }
 }
 ```
 
-## Config
-
-### Peer Role Configuration
+**Note:** No `peer-group` augment needed. ZeBGP uses templates + `inherit` for inheritance:
 
 ```
-peer 10.0.0.1 {
-    local-as 65001;
-    peer-as 65002;
-    role customer;  # Our role: we are their customer
+template {
+  bgp {
+    peer * {
+      inherit-name customers;
+      role customer;
+    }
+  }
+}
+
+bgp {
+  peer 10.0.0.1 {
+    inherit customers;   # gets role=customer
+    peer-as 65001;
+  }
 }
 ```
 
-This means:
-- We send Role=Customer in OPEN
-- We expect them to send Role=Provider
-- Routes from them tagged as "from provider"
+## 🧪 TDD Test Plan
 
-## Test Plan
+### Unit Tests
 
-```go
-// TestRoleCapabilityParsing verifies capability parsing.
-// VALIDATES: All 5 role values parsed correctly.
-// PREVENTS: Role misidentification.
-func TestRoleCapabilityParsing(t *testing.T)
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestRoleFromConfig` | `role/role_test.go` | Config parsing stores local-role | |
+| `TestRoleCapabilityBuild` | `role/role_test.go` | Stage 3 capability built correctly | |
+| `TestRoleValidPairs` | `role/role_test.go` | All valid pairs accepted | |
+| `TestRoleInvalidPairs` | `role/role_test.go` | Invalid pairs rejected | |
+| `TestRoleMissingCapability` | `role/role_test.go` | Peer without role handled | |
+| `TestRoleStrictMode` | `role/role_test.go` | Strict mode rejects missing | |
 
-// TestRoleNegotiation verifies OPEN exchange.
-// VALIDATES: Roles stored after negotiation.
-// PREVENTS: Lost role information.
-func TestRoleNegotiation(t *testing.T)
+### Boundary Tests
 
-// TestRouteTagging verifies tag on receive.
-// VALIDATES: Routes tagged with source role.
-// PREVENTS: Missing role tags.
-func TestRouteTagging(t *testing.T)
+| Field | Range | Last Valid | Invalid Above |
+|-------|-------|------------|---------------|
+| Role value | 0-4 | 4 (Peer) | 5 |
+| Capability length | 1 | 1 | 0, 2+ |
 
-// TestOTCParsing verifies OTC attribute parsing.
-// VALIDATES: OTC value extracted correctly.
-// PREVENTS: OTC handling errors.
-func TestOTCParsing(t *testing.T)
+### Functional Tests
 
-// TestRoleSelector verifies peer [role X] selector.
-// VALIDATES: Correct peers matched by role.
-// PREVENTS: Wrong peer selection.
-func TestRoleSelector(t *testing.T)
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `role-valid-pair` | `test/data/plugin/role-valid-pair.ci` | Customer↔Provider accepted | |
+| `role-invalid-pair` | `test/data/plugin/role-invalid-pair.ci` | Customer↔Customer rejected | |
+| `role-peer-event` | `test/data/plugin/role-peer-event.ci` | Peer event has both roles | |
+| `role-strict` | `test/data/plugin/role-strict.ci` | Strict mode rejects missing | |
 
-// TestAPIOutputRole verifies role in API output.
-// VALIDATES: Role tag in JSON output.
-// PREVENTS: Missing role for policy decisions.
-func TestAPIOutputRole(t *testing.T)
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `internal/plugin/role/role.go` | Plugin implementation |
+| `internal/plugin/role/role_test.go` | Unit tests |
+| `internal/plugin/role/ze-role.yang` | YANG schema |
+| `test/data/plugin/role-valid-pair.ci` | Functional test |
+| `test/data/plugin/role-invalid-pair.ci` | Functional test |
+| `test/data/plugin/role-peer-event.ci` | Functional test |
+| `test/data/plugin/role-strict.ci` | Functional test |
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `internal/plugin/types.go` | Add `LocalRole`, `PeerRole` to `PeerInfo` |
+| `internal/plugin/json.go` | Include roles in peer events |
+| `internal/selector/selector.go` | Add `[role X]`, `[peer-role X]` filters |
+
+## Engine Changes Required
+
+| Change | File | Description |
+|--------|------|-------------|
+| OPEN event delivery | `internal/plugin/server.go` | Send OPEN to plugins declaring `receive open` |
+| OPEN response handling | `internal/plugin/command.go` | Parse `peer <addr> open accept/reject` |
+| Session blocking | `internal/plugin/bgp/reactor/session.go` | Wait for plugin response before proceeding |
+| Role in PeerInfo | `internal/plugin/types.go` | Add LocalRole, PeerRole fields |
+
+## Implementation Steps
+
+1. **Create plugin skeleton**
+   - `internal/plugin/role/role.go` with Stage 1-5 handling
+   - Basic registration: `declare rfc 9234`, `declare receive open`
+
+2. **Add YANG schema**
+   - `internal/plugin/role/ze-role.yang`
+   - Augments ze-bgp peer config
+
+3. **Implement config handling (Stage 2)**
+   - Parse `config peer X capability role role Y`
+   - Store local-role per peer
+
+4. **Implement capability declaration (Stage 3)**
+   - Build `capability hex 9 <value> peer <addr>` for each peer
+
+5. **Implement OPEN validation**
+   - Receive OPEN event
+   - Extract peer-role
+   - Validate against local-role per Table 2
+   - Respond accept/reject
+
+6. **Add engine OPEN event delivery** (if not exists)
+   - Check if any plugin declared `receive open`
+   - Format and send OPEN event
+   - Wait for response with timeout
+
+7. **Add roles to peer events**
+   - Modify PeerInfo to include LocalRole, PeerRole
+   - Include in JSON peer events
+
+8. **Add role selectors**
+   - `[role X]` for local-role
+   - `[peer-role X]` for peer-role
+
+9. **Write functional tests**
+
+## RFC Documentation
+
+Add to plugin code:
+```
+// RFC 9234 Section 4.1: BGP Role Capability (Code 9, Length 1)
+// RFC 9234 Section 4.2: Role pair validation per Table 2
+// RFC 9234 Section 4.2: Role Mismatch Notification (2/11)
 ```
 
 ## Checklist
 
-- [ ] Role capability type (code 9)
-- [ ] Role capability parsing
-- [ ] Role capability packing
-- [ ] Peer.localRole, peerRole fields
-- [ ] Role negotiation in OPEN handling
-- [ ] RouteTag with SourceRole
-- [ ] OTC attribute parsing (type 35)
-- [ ] API output includes role tag
-- [ ] `peer [role X]` selector
-- [ ] Config `role` keyword in peer block
-- [ ] Tests pass
-- [ ] `make test && make lint` pass
-- [ ] Functional test
+### 🏗️ Design
+- [ ] Plugin architecture (not engine code)
+- [ ] YANG under plugin folder
+- [ ] Local-role vs peer-role distinction clear
+- [ ] Backward compatible (peer without role)
+
+### 🧪 TDD
+- [ ] Tests written
+- [ ] Tests FAIL
+- [ ] Implementation complete
+- [ ] Tests PASS
+- [ ] All 5 role values tested
+- [ ] All valid pairs tested
+- [ ] All invalid pairs tested
+- [ ] Missing capability case tested
+
+### Verification
+- [ ] `make lint` passes
+- [ ] `make test` passes
+- [ ] `make functional` passes
+
+### Documentation
+- [ ] RFC summary read
+- [ ] RFC references in code
+- [ ] YANG schema documented
+
+## Open Questions
+
+1. **OPEN event delivery** - Does engine already send OPEN events to plugins? If not, this is a larger change.
+
+2. **Multiple plugins receiving OPEN** - If multiple plugins declare `receive open`, how are responses aggregated? All must accept?
+
+3. **Timeout default** - If plugin doesn't respond, accept (compatible) or reject (strict)?
 
 ## Dependencies
 
-None (independent of other specs)
+- Engine must support OPEN event delivery to plugins
+- Engine must support `peer <addr> open accept/reject` response
 
-## Notes
-
-- RFC 9234 is optional - works without negotiation (no role tag)
-- OTC attribute is for route-leak prevention, but we expose it for API policy
-- Role tag enables zero-parse policy decisions
+If OPEN event delivery doesn't exist, this becomes a two-part spec:
+- **Spec A:** Engine OPEN event + response mechanism
+- **Spec B:** Role plugin using that mechanism
 
 ---
 
 **Created:** 2026-01-01
+**Updated:** 2026-01-26
