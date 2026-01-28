@@ -12,6 +12,9 @@ import (
 // ErrNilTree is returned when a nil tree is passed.
 var ErrNilTree = errors.New("nil tree")
 
+// familyIPv6Unicast is used for IPv6 routes when family detection is needed.
+const familyIPv6Unicast = "ipv6/unicast"
+
 // MigrateResult holds the outcome of ExaBGP→ZeBGP migration.
 type MigrateResult struct {
 	Tree        *config.Tree // Transformed tree
@@ -244,34 +247,154 @@ func copyContainers(src, dst *config.Tree) {
 		dst.SetContainer("family", convertFamilyBlock(family))
 	}
 
-	// Copy announce block (Freeform - strip "true" placeholder values).
+	// Convert announce block to update blocks.
 	if announce := src.GetContainer("announce"); announce != nil {
-		dst.SetContainer("announce", convertFreeformBlock(announce))
+		convertAnnounceToUpdate(announce, dst)
 	}
 
-	// Copy static block (Freeform - strip "true" placeholder values).
+	// Convert static block to update blocks.
 	if static := src.GetContainer("static"); static != nil {
-		dst.SetContainer("static", convertFreeformBlock(static))
+		convertStaticToUpdate(static, dst)
 	}
 
 	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.
 }
 
-// convertFreeformBlock converts a Freeform block, stripping "true" placeholder values.
-// Freeform parser stores entries as key → "true", but output should be just "key;".
-func convertFreeformBlock(src *config.Tree) *config.Tree {
-	dst := config.NewTree()
+// convertAnnounceToUpdate converts ExaBGP announce blocks to Ze update blocks.
+// ExaBGP: announce { ipv4 { unicast PREFIX next-hop NH; } }.
+// Ze: update { attribute { next-hop NH; } nlri { ipv4/unicast PREFIX; } }.
+func convertAnnounceToUpdate(announce, dst *config.Tree) {
+	// Process each AFI (ipv4, ipv6, l2vpn)
+	for _, afi := range []string{"ipv4", "ipv6", "l2vpn"} {
+		afiBlock := announce.GetContainer(afi)
+		if afiBlock == nil {
+			continue
+		}
 
-	// Get keys and sort for deterministic output.
-	keys := src.Values()
-	sort.Strings(keys)
+		// Process each SAFI (unicast, multicast, nlri-mpls, mpls-vpn, flow, vpls, evpn)
+		safis := []string{"unicast", "multicast", "nlri-mpls", "mpls-vpn", "flow", "vpls", "evpn"}
+		for _, safi := range safis {
+			// With ze:syntax "inline-list", routes are stored as list entries, not container values.
+			// Each list entry has: Key=prefix, Value=Tree containing attributes.
+			routeList := afiBlock.GetListOrdered(safi)
+			if len(routeList) == 0 {
+				continue
+			}
 
-	for _, key := range keys {
-		// Freeform entries have "true" as placeholder - output as empty.
-		dst.Set(key, "")
+			// Convert family name
+			family := afi + "/" + safi
+
+			// Process each route entry
+			for _, routeEntry := range routeList {
+				prefix := routeEntry.Key
+				attrTree := routeEntry.Value
+
+				update := config.NewTree()
+
+				// Build attribute block from route's attribute tree
+				attrBlock := config.NewTree()
+
+				// Default origin to igp if not specified
+				if origin, ok := attrTree.Get("origin"); ok {
+					attrBlock.Set("origin", origin)
+				} else {
+					attrBlock.Set("origin", "igp")
+				}
+
+				// Copy common attributes from the route's tree
+				attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
+					"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
+					"rd", "label", "labels"}
+				for _, field := range attrFields {
+					if v, ok := attrTree.Get(field); ok {
+						attrBlock.Set(field, v)
+					}
+				}
+
+				update.SetContainer("attribute", attrBlock)
+
+				// Build nlri block
+				nlriBlock := config.NewTree()
+				nlriBlock.Set(family, prefix)
+				update.SetContainer("nlri", nlriBlock)
+
+				// Add update to dst as list entry
+				dst.AddListEntry("update", "", update)
+			}
+		}
 	}
 
-	return dst
+	// Handle announce { route PREFIX ... } (generic route syntax)
+	// This uses inline-list as well, so use GetListOrdered.
+	routeList := announce.GetListOrdered("route")
+	for _, routeEntry := range routeList {
+		prefix := routeEntry.Key
+		attrTree := routeEntry.Value
+
+		update := config.NewTree()
+
+		attrBlock := config.NewTree()
+		attrBlock.Set("origin", "igp")
+
+		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
+			"extended-community", "large-community"}
+		for _, field := range attrFields {
+			if v, ok := attrTree.Get(field); ok {
+				attrBlock.Set(field, v)
+			}
+		}
+
+		update.SetContainer("attribute", attrBlock)
+
+		nlriBlock := config.NewTree()
+		// Determine family from prefix format.
+		family := defaultFamily
+		if strings.Contains(prefix, ":") {
+			family = familyIPv6Unicast
+		}
+		nlriBlock.Set(family, prefix)
+		update.SetContainer("nlri", nlriBlock)
+
+		dst.AddListEntry("update", "", update)
+	}
+}
+
+// convertStaticToUpdate converts ExaBGP static blocks to Ze update blocks.
+// ExaBGP: static { route PREFIX next-hop NH; }.
+// Ze: update { attribute { next-hop NH; } nlri { ipv4/unicast PREFIX; } }.
+func convertStaticToUpdate(static, dst *config.Tree) {
+	// With ze:syntax "inline-list", routes are stored as list entries.
+	routeList := static.GetListOrdered("route")
+	for _, routeEntry := range routeList {
+		prefix := routeEntry.Key
+		attrTree := routeEntry.Value
+
+		update := config.NewTree()
+
+		attrBlock := config.NewTree()
+		attrBlock.Set("origin", "igp")
+
+		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
+			"extended-community", "large-community"}
+		for _, field := range attrFields {
+			if v, ok := attrTree.Get(field); ok {
+				attrBlock.Set(field, v)
+			}
+		}
+
+		update.SetContainer("attribute", attrBlock)
+
+		nlriBlock := config.NewTree()
+		// Determine family from prefix format.
+		family := defaultFamily
+		if strings.Contains(prefix, ":") {
+			family = familyIPv6Unicast
+		}
+		nlriBlock.Set(family, prefix)
+		update.SetContainer("nlri", nlriBlock)
+
+		dst.AddListEntry("update", "", update)
+	}
 }
 
 // convertFamilyBlock converts ExaBGP family syntax to ZeBGP.
@@ -538,11 +661,11 @@ func SerializeTree(tree *config.Tree) string {
 	}
 
 	var buf strings.Builder
-	serializeTreeIndent(tree, &buf, "")
+	serializeTreeIndent(tree, &buf, "", true)
 	return buf.String()
 }
 
-func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string) {
+func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string, isRoot bool) {
 	// Write simple values (sorted for deterministic output).
 	keys := tree.Values()
 	sort.Strings(keys)
@@ -551,6 +674,10 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string)
 		if v == "" {
 			_, _ = fmt.Fprintf(buf, "%s%s;\n", indent, key)
 		} else {
+			// Quote values containing spaces unless already quoted
+			if strings.Contains(v, " ") && !strings.HasPrefix(v, `"`) && !strings.HasPrefix(v, `[`) {
+				v = `"` + v + `"`
+			}
 			_, _ = fmt.Fprintf(buf, "%s%s %s;\n", indent, key, v)
 		}
 	}
@@ -561,76 +688,106 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string)
 		_, _ = fmt.Fprintf(buf, "%splugin {\n", indent)
 		for _, entry := range pluginList {
 			_, _ = fmt.Fprintf(buf, "%s\texternal %s {\n", indent, entry.Key)
-			serializeTreeIndent(entry.Value, buf, indent+"\t\t")
+			serializeTreeIndent(entry.Value, buf, indent+"\t\t", false)
 			_, _ = fmt.Fprintf(buf, "%s\t}\n", indent)
 		}
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	// Write peer blocks.
-	for _, entry := range tree.GetListOrdered("peer") {
-		_, _ = fmt.Fprintf(buf, "%speer %s {\n", indent, entry.Key)
-		serializeTreeIndent(entry.Value, buf, indent+"\t")
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	// Write peer blocks - wrap in bgp {} at root level.
+	peerList := tree.GetListOrdered("peer")
+	if len(peerList) > 0 {
+		if isRoot {
+			_, _ = fmt.Fprintf(buf, "%sbgp {\n", indent)
+			indent += "\t"
+		}
+		for _, entry := range peerList {
+			_, _ = fmt.Fprintf(buf, "%speer %s {\n", indent, entry.Key)
+			serializeTreeIndent(entry.Value, buf, indent+"\t", false)
+			_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+		}
+		if isRoot {
+			indent = indent[:len(indent)-1]
+			_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+		}
 	}
 
 	// Write nested containers.
 	if cap := tree.GetContainer("capability"); cap != nil {
 		_, _ = fmt.Fprintf(buf, "%scapability {\n", indent)
-		serializeTreeIndent(cap, buf, indent+"\t")
+		serializeTreeIndent(cap, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
 	if family := tree.GetContainer("family"); family != nil {
 		_, _ = fmt.Fprintf(buf, "%sfamily {\n", indent)
-		serializeTreeIndent(family, buf, indent+"\t")
+		serializeTreeIndent(family, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
 	// Write nexthop block (RFC 8950).
 	if nexthop := tree.GetContainer("nexthop"); nexthop != nil {
 		_, _ = fmt.Fprintf(buf, "%snexthop {\n", indent)
-		serializeTreeIndent(nexthop, buf, indent+"\t")
+		serializeTreeIndent(nexthop, buf, indent+"\t", false)
+		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	}
+
+	// Write attribute block (used in update blocks).
+	if attr := tree.GetContainer("attribute"); attr != nil {
+		_, _ = fmt.Fprintf(buf, "%sattribute {\n", indent)
+		serializeTreeIndent(attr, buf, indent+"\t", false)
+		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	}
+
+	// Write nlri block (used in update blocks).
+	if nlri := tree.GetContainer("nlri"); nlri != nil {
+		_, _ = fmt.Fprintf(buf, "%snlri {\n", indent)
+		serializeTreeIndent(nlri, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
 	// Write process bindings.
 	for _, entry := range tree.GetListOrdered("process") {
 		_, _ = fmt.Fprintf(buf, "%sprocess %s {\n", indent, entry.Key)
-		serializeTreeIndent(entry.Value, buf, indent+"\t")
+		serializeTreeIndent(entry.Value, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
 	// Write send/receive blocks.
 	if send := tree.GetContainer("send"); send != nil {
 		_, _ = fmt.Fprintf(buf, "%ssend {\n", indent)
-		serializeTreeIndent(send, buf, indent+"\t")
+		serializeTreeIndent(send, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 	if recv := tree.GetContainer("receive"); recv != nil {
 		_, _ = fmt.Fprintf(buf, "%sreceive {\n", indent)
-		serializeTreeIndent(recv, buf, indent+"\t")
+		serializeTreeIndent(recv, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	// Write static block.
-	if static := tree.GetContainer("static"); static != nil {
-		_, _ = fmt.Fprintf(buf, "%sstatic {\n", indent)
-		serializeTreeIndent(static, buf, indent+"\t")
+	// Write update blocks (converted from announce/static).
+	for _, entry := range tree.GetListOrdered("update") {
+		_, _ = fmt.Fprintf(buf, "%supdate {\n", indent)
+		serializeTreeIndent(entry.Value, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
 	// Write template block.
+	// Ze expects: template { bgp { peer NAME { } } }
+	// Migration produces peers at template level, wrap in bgp block.
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
 		_, _ = fmt.Fprintf(buf, "%stemplate {\n", indent)
-		serializeTreeIndent(tmpl, buf, indent+"\t")
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
-	}
-
-	// Write announce block.
-	if announce := tree.GetContainer("announce"); announce != nil {
-		_, _ = fmt.Fprintf(buf, "%sannounce {\n", indent)
-		serializeTreeIndent(announce, buf, indent+"\t")
+		// Check if template has peer list - wrap in bgp block
+		peerList := tmpl.GetListOrdered("peer")
+		if len(peerList) > 0 {
+			_, _ = fmt.Fprintf(buf, "%s\tbgp {\n", indent)
+			for _, entry := range peerList {
+				_, _ = fmt.Fprintf(buf, "%s\t\tpeer %s {\n", indent, entry.Key)
+				serializeTreeIndent(entry.Value, buf, indent+"\t\t\t", false)
+				_, _ = fmt.Fprintf(buf, "%s\t\t}\n", indent)
+			}
+			_, _ = fmt.Fprintf(buf, "%s\t}\n", indent)
+		}
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 }

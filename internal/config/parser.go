@@ -968,6 +968,24 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		tree.Set(name, value)
 		return nil
 
+	case TokenLBracket:
+		// Array mode: parse [ ... ] directly (e.g., "attribute [ 0x20 0xc0 ... ];")
+		arrayVals, err := p.collectArray()
+		if err != nil {
+			return err
+		}
+		value := "[" + strings.Join(arrayVals, " ") + "]"
+
+		// Expect semicolon
+		tok = p.tok.Peek()
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+
+		tree.Set(name, value)
+		return nil
+
 	case TokenWord, TokenString:
 		// Value mode: parse multiple words until semicolon or block delimiter
 		var values []string
@@ -979,14 +997,14 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 				if err != nil {
 					return err
 				}
-				values = append(values, "["+joinStrings(arrayVals, " ")+"]")
+				values = append(values, "["+strings.Join(arrayVals, " ")+"]")
 			case TokenLParen:
 				// Parenthesized: collect ( ... )
 				parenVals, err := p.collectParenthesized()
 				if err != nil {
 					return err
 				}
-				values = append(values, "("+joinStrings(parenVals, " ")+")")
+				values = append(values, "("+strings.Join(parenVals, " ")+")")
 			default:
 				values = append(values, tok.Value)
 				p.tok.Next()
@@ -1046,7 +1064,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		p.tok.Next()
 
 		// Use AppendValue to support multiple inline entries (e.g., multiple mup routes)
-		tree.AppendValue(name, joinStrings(values, " "))
+		tree.AppendValue(name, strings.Join(values, " "))
 		return nil
 
 	default:
@@ -1322,18 +1340,6 @@ func (p *Parser) collectParenthesized() ([]string, error) {
 	}
 
 	return items, nil
-}
-
-// joinStrings joins strings with a separator.
-func joinStrings(strs []string, sep string) string {
-	result := ""
-	for i, s := range strs {
-		if i > 0 {
-			result += sep
-		}
-		result += s
-	}
-	return result
 }
 
 // errorf creates a formatted error with line info.

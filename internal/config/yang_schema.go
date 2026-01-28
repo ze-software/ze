@@ -335,3 +335,18 @@ func isIPType(name string) bool {
 func isASNType(name string) bool {
 	return name == "asn" || name == "zt:asn"
 }
+
+// LoadYANGModule loads a YANG module entry into a schema.
+// This is used by external packages to create schemas from their own YANG modules.
+func LoadYANGModule(schema *Schema, entry *gyang.Entry) {
+	if entry == nil {
+		return
+	}
+	for _, name := range sortedKeys(entry.Dir) {
+		child := entry.Dir[name]
+		node := yangToNode(child, name)
+		if node != nil {
+			schema.Define(name, node)
+		}
+	}
+}

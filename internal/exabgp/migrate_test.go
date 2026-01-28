@@ -380,10 +380,10 @@ template {
 	}
 }
 
-// TestMigrateStaticBlock verifies static block serialization.
+// TestMigrateStaticBlock verifies static block conversion to update blocks.
 //
-// VALIDATES: Static routes preserved in output.
-// PREVENTS: Static block silently dropped.
+// VALIDATES: Static routes converted to update { attribute {} nlri {} }.
+// PREVENTS: Static block dropped or output as-is (Ze rejects static).
 func TestMigrateStaticBlock(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
@@ -406,31 +406,38 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Static block should be present.
-	if !strings.Contains(output, "static {") {
-		t.Errorf("expected static block, got:\n%s", output)
+	// Static block should be converted to update block.
+	if strings.Contains(output, "static {") {
+		t.Errorf("static block should be converted to update, got:\n%s", output)
+	}
+	if !strings.Contains(output, "update {") {
+		t.Errorf("expected update block, got:\n%s", output)
 	}
 
-	// Route should be preserved (without "true" suffix).
-	if !strings.Contains(output, "route 192.168.0.0/24 next-hop 10.0.0.1;") {
-		t.Errorf("expected route entry, got:\n%s", output)
+	// Route should appear in nlri block.
+	if !strings.Contains(output, "ipv4/unicast 192.168.0.0/24;") {
+		t.Errorf("expected nlri entry, got:\n%s", output)
 	}
-	if strings.Contains(output, "true") {
-		t.Errorf("should not contain 'true' placeholder")
+
+	// Next-hop should appear in attribute block.
+	if !strings.Contains(output, "next-hop 10.0.0.1;") {
+		t.Errorf("expected next-hop in attribute, got:\n%s", output)
 	}
 }
 
-// TestMigrateAnnounceBlock verifies announce block serialization.
+// TestMigrateAnnounceBlock verifies announce block conversion to update blocks.
 //
-// VALIDATES: Announce routes preserved in output.
-// PREVENTS: Announce block silently dropped.
+// VALIDATES: Announce routes converted to update { attribute {} nlri {} }.
+// PREVENTS: Announce block dropped or output as-is (Ze rejects announce).
 func TestMigrateAnnounceBlock(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
 	local-as 65001;
 	peer-as 65002;
 	announce {
-		ipv4 unicast 10.0.0.0/24 next-hop self;
+		ipv4 {
+			unicast 10.0.0.0/24 next-hop 192.168.1.1 local-preference 100;
+		}
 	}
 }
 `
@@ -446,14 +453,25 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Announce block should be present.
-	if !strings.Contains(output, "announce {") {
-		t.Errorf("expected announce block, got:\n%s", output)
+	// Announce block should be converted to update block.
+	if strings.Contains(output, "announce {") {
+		t.Errorf("announce block should be converted to update, got:\n%s", output)
+	}
+	if !strings.Contains(output, "update {") {
+		t.Errorf("expected update block, got:\n%s", output)
 	}
 
-	// Announcement should be preserved.
-	if !strings.Contains(output, "ipv4 unicast 10.0.0.0/24 next-hop self;") {
-		t.Errorf("expected announcement entry, got:\n%s", output)
+	// Route should appear in nlri block.
+	if !strings.Contains(output, "ipv4/unicast 10.0.0.0/24;") {
+		t.Errorf("expected nlri entry, got:\n%s", output)
+	}
+
+	// Attributes should appear in attribute block.
+	if !strings.Contains(output, "next-hop 192.168.1.1;") {
+		t.Errorf("expected next-hop in attribute, got:\n%s", output)
+	}
+	if !strings.Contains(output, "local-preference 100;") {
+		t.Errorf("expected local-preference in attribute, got:\n%s", output)
 	}
 }
 

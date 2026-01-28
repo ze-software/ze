@@ -102,9 +102,9 @@ bgp {
 
 // TestCmdConfigMigrate tests the config migrate command.
 //
-// VALIDATES: config migrate rejects old ExaBGP syntax with helpful error.
+// VALIDATES: config migrate handles both native Ze and ExaBGP configs.
 //
-// PREVENTS: Confusion about unsupported migration.
+// PREVENTS: Migration failures for valid configs.
 func TestCmdConfigMigrate(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -112,7 +112,7 @@ func TestCmdConfigMigrate(t *testing.T) {
 		wantError bool
 	}{
 		{
-			name: "current config works",
+			name: "native config works",
 			input: `
 bgp {
 	peer 192.0.2.1 {
@@ -123,27 +123,30 @@ bgp {
 			wantError: false,
 		},
 		{
-			name: "old neighbor syntax rejected",
+			name: "exabgp neighbor syntax migrated",
 			input: `
 neighbor 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantError: true,
+			wantError: false, // ExaBGP migration now works
 		},
 		{
-			name: "announce block rejected",
+			name: "exabgp announce block migrated",
 			input: `
-bgp {
-	peer 192.0.2.1 {
-		peer-as 65001;
-		announce {
-			ipv4 {
-				unicast 10.0.0.0/8 next-hop 192.0.2.254;
-			}
-		}
+neighbor 192.0.2.1 {
+	peer-as 65001;
+	announce {
+		route 10.0.0.0/8 next-hop 192.0.2.254;
 	}
 }
+`,
+			wantError: false, // ExaBGP migration now works
+		},
+		{
+			name: "invalid syntax rejected",
+			input: `
+invalid { syntax }
 `,
 			wantError: true,
 		},

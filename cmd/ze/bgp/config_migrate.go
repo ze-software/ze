@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/exabgp"
 )
 
 // cmdConfigMigrateCLI is the CLI entry point for "ze bgp config migrate".
@@ -137,18 +138,18 @@ func cmdConfigMigrateDryRun(configPath string) int {
 		return exitError
 	}
 
-	// Parse with current schema
+	content := string(data)
+
+	// Try parsing with native Ze schema first
 	p := config.NewParser(config.YANGSchema())
-	tree, err := p.Parse(string(data))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: config uses unsupported ExaBGP syntax\n")
-		fmt.Fprintf(os.Stderr, "  parse error: %v\n", err)
-		fmt.Fprintf(os.Stderr, "\nExaBGP syntax (announce/static blocks) is no longer supported.\n")
-		fmt.Fprintf(os.Stderr, "Use native Ze syntax: update { attribute { } nlri { } }\n")
-		return exitError
+	tree, nativeErr := p.Parse(content)
+
+	if nativeErr != nil {
+		// Native parsing failed - check if it's valid ExaBGP syntax
+		return cmdConfigMigrateDryRunExaBGP(content)
 	}
 
-	// Run dry-run
+	// Native parsing succeeded - run structural migration dry-run
 	result, err := migration.DryRun(tree)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -196,6 +197,28 @@ func cmdConfigMigrateDryRun(configPath string) int {
 	return exitOK
 }
 
+// cmdConfigMigrateDryRunExaBGP handles dry-run for ExaBGP-format configs.
+func cmdConfigMigrateDryRunExaBGP(content string) int {
+	// Try parsing with ExaBGP schema
+	exaTree, exaErr := exabgp.ParseExaBGPConfig(content)
+	if exaErr != nil {
+		fmt.Fprintf(os.Stderr, "error: config cannot be parsed\n")
+		fmt.Fprintf(os.Stderr, "  parse error: %v\n", exaErr)
+		return exitError
+	}
+
+	fmt.Println("ExaBGP config detected. Transformations that would apply:")
+	fmt.Printf("  ⏳ exabgp->ze (neighbor→peer, announce→update, api→process)\n")
+
+	// Check if RIB plugin would be injected
+	if exabgp.NeedsRIBPlugin(exaTree) {
+		fmt.Printf("  ⏳ rib-plugin-injected (GR or route-refresh detected)\n")
+	}
+
+	fmt.Println("\nResult: ExaBGP migration would succeed.")
+	return exitOK
+}
+
 // printMigrateWarnings prints unsupported feature warnings to stderr.
 func printMigrateWarnings(warnings []string) {
 	if len(warnings) > 0 {
@@ -222,14 +245,18 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 		return "", nil, nil, err
 	}
 
-	// Parse with current schema
+	content := string(data)
+
+	// Try parsing with native Ze schema first
 	p := config.NewParser(config.YANGSchema())
-	tree, err := p.Parse(string(data))
-	if err != nil {
-		return "", nil, nil, fmt.Errorf("config uses unsupported ExaBGP syntax: %w\n\nExaBGP syntax (announce/static blocks) is no longer supported.\nUse native Ze syntax: update { attribute { } nlri { } }", err)
+	tree, nativeErr := p.Parse(content)
+
+	if nativeErr != nil {
+		// Native parsing failed - try ExaBGP schema
+		return migrateExaBGPConfig(content, outputPath)
 	}
 
-	// Migrate using new API
+	// Native parsing succeeded - apply structural migrations
 	result, err := migration.Migrate(tree)
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("migration failed: %w", err)
@@ -244,6 +271,45 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 		return "", nil, nil, fmt.Errorf("failed to load YANG schema")
 	}
 	output := config.Serialize(result.Tree, schema)
+
+	if outputPath != "" {
+		if err := os.WriteFile(outputPath, []byte(output), 0o600); err != nil {
+			return "", result, warnings, fmt.Errorf("write output: %w", err)
+		}
+		return "", result, warnings, nil
+	}
+
+	return output, result, warnings, nil
+}
+
+// migrateExaBGPConfig handles migration of ExaBGP-format configs to native Ze format.
+func migrateExaBGPConfig(content, outputPath string) (string, *migration.MigrateResult, []string, error) {
+	// Parse with ExaBGP schema
+	exaTree, exaErr := exabgp.ParseExaBGPConfig(content)
+	if exaErr != nil {
+		return "", nil, nil, fmt.Errorf("failed to parse config (tried both Ze and ExaBGP schemas):\n  ExaBGP parse error: %w", exaErr)
+	}
+
+	// Convert ExaBGP tree to Ze format
+	exaResult, err := exabgp.MigrateFromExaBGP(exaTree)
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("ExaBGP migration failed: %w", err)
+	}
+
+	// Build result for display
+	result := &migration.MigrateResult{
+		Tree:    exaResult.Tree,
+		Applied: []string{"exabgp->ze (neighbor→peer, announce→update, api→process)"},
+	}
+	if exaResult.RIBInjected {
+		result.Applied = append(result.Applied, "rib-plugin-injected")
+	}
+
+	// Collect warnings
+	warnings := exaResult.Warnings
+
+	// Serialize output
+	output := exabgp.SerializeTree(exaResult.Tree)
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, []byte(output), 0o600); err != nil {

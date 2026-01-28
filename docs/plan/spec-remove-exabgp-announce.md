@@ -79,29 +79,37 @@ Users with old ExaBGP configs:
 
 ### Migration Architecture
 
-**CRITICAL:** ExaBGP parsing code must be isolated in migration package with clear naming.
+**ExaBGP parsing code is isolated in `internal/exabgp/` package.**
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `exabgp-legacy.yang` | `internal/config/migration/` | YANG schema for ExaBGP syntax |
-| `ExaBGPSchema()` | `internal/config/migration/` | Go schema from ExaBGP YANG |
-| `ParseExaBGPConfig()` | `internal/config/migration/` | Parse using ExaBGP schema |
-| `ConvertToNative()` | `internal/config/migration/` | Convert ExaBGP tree to native |
+| `ExaBGPSchema()` | `internal/exabgp/schema.go` | Go schema for ExaBGP syntax |
+| `ParseExaBGPConfig()` | `internal/exabgp/schema.go` | Parse using ExaBGP schema |
+| `MigrateFromExaBGP()` | `internal/exabgp/migrate.go` | Convert ExaBGP tree to Ze format |
+| `SerializeTree()` | `internal/exabgp/migrate.go` | Serialize to Ze config format |
 
 **Naming rules:**
 - All ExaBGP-related code has `ExaBGP` or `exabgp` in the name
-- All ExaBGP code lives in `internal/config/migration/`
+- All ExaBGP code lives in `internal/exabgp/`
 - Main config package (`internal/config/`) has NO ExaBGP awareness
 
 **Migration flow:**
 ```
-ExaBGP config → ParseExaBGPConfig() → ExaBGP tree → ConvertToNative() → Native tree → Serialize()
+ze bgp config migrate old.conf
+├─ Try native YANGSchema() parse
+├─ If fails → Try exabgp.ParseExaBGPConfig()
+├─ If ExaBGP parse succeeds → exabgp.MigrateFromExaBGP()
+│   ├─ neighbor → peer
+│   ├─ announce/static → (warning: manual review needed)
+│   ├─ api { processes [...] } → process NAME { }
+│   └─ Auto-inject RIB plugin if GR/route-refresh detected
+└─ Serialize to Ze format via exabgp.SerializeTree()
 ```
 
-**Why separate schema:**
+**Why separate package:**
 - ZeBGP YANG rejects ExaBGP syntax (by design)
 - Migration tool needs to parse old configs
-- Keeping ExaBGP code isolated prevents confusion
+- `ze exabgp plugin` bridge uses same package for runtime translation
 
 ## 🧪 TDD Test Plan
 
@@ -130,10 +138,12 @@ ExaBGP config → ParseExaBGPConfig() → ExaBGP tree → ConvertToNative() → 
 
 ## Files to Create
 
-- `internal/config/migration/exabgp-legacy.yang` - ExaBGP YANG schema
-- `internal/config/migration/exabgp_schema.go` - ExaBGPSchema() function
-- `internal/config/migration/exabgp_convert.go` - ConvertToNative() function
-- `internal/config/migration/exabgp_parse.go` - ParseExaBGPConfig() function
+**Phase 2 used existing `internal/exabgp/` package instead of creating new files:**
+- `internal/exabgp/schema.go` - ExaBGPSchema(), ParseExaBGPConfig() (already existed)
+- `internal/exabgp/migrate.go` - MigrateFromExaBGP(), SerializeTree() (already existed)
+
+**Phase 3 (TODO):**
+- `test/exabgp-compat/` - Test harness for ExaBGP QA suite
 
 ## Files to Delete
 
@@ -161,9 +171,97 @@ ExaBGP config → ParseExaBGPConfig() → ExaBGP tree → ConvertToNative() → 
 6. **Verify all** - `make lint && make test && make functional`
    → ✅ All pass
 
-### Phase 2: ExaBGP Migration Tool (TODO)
+### Phase 2: ExaBGP Migration Tool (DONE)
 
-Create isolated ExaBGP parsing for migration tool. All ExaBGP code in `internal/config/migration/` with clear naming.
+Wired `ze bgp config migrate` to use existing `internal/exabgp/` package:
+- Try native YANGSchema() first
+- If fails, try `exabgp.ParseExaBGPConfig()`
+- Convert via `exabgp.MigrateFromExaBGP()`
+- Serialize to Ze format
+
+**Files modified:**
+- `cmd/ze/bgp/config_migrate.go` - Added ExaBGP fallback parsing
+- `cmd/ze/bgp/config_test.go` - Updated tests to expect migration success
+
+**Existing ExaBGP support (already implemented):**
+- `internal/exabgp/schema.go` - ExaBGPSchema(), ParseExaBGPConfig()
+- `internal/exabgp/migrate.go` - MigrateFromExaBGP(), SerializeTree()
+- `internal/exabgp/bridge.go` - JSON/command translation for `ze exabgp plugin`
+
+### Phase 3: ExaBGP Test Suite Compatibility (IN PROGRESS)
+
+**Goal:** Run ExaBGP's test suite against ZeBGP to validate compatibility.
+
+**Test infrastructure created:**
+- `test/exabgp-compat/` - Test directory with ExaBGP configs
+- `test/exabgp-compat/bin/exabgp` - Wrapper script (migrate + run)
+- `test/exabgp-compat/bin/test-migrate` - Migration validation script
+- `test/exabgp-compat/etc/` - 39 ExaBGP config files
+- `test/exabgp-compat/etc/run/` - 47 run scripts + 3 Python helpers
+- `test/exabgp-compat/encoding/` - 38 CI test files
+
+**Current status: 2/38 configs migrate successfully**
+
+**Issues found:**
+
+| Category | Issue | Files Affected |
+|----------|-------|----------------|
+| ExaBGP schema | Missing `inherit` field | conf-group.conf, conf-template.conf |
+| ExaBGP schema | Missing `add-path` field | conf-addpath.conf |
+| ExaBGP schema | Missing `host-name` field | conf-hostname.conf |
+| ExaBGP schema | Missing `software-version` capability | conf-cap-software-version.conf |
+| ExaBGP schema | Missing `link-local-nexthop` capability | conf-cap-link-local-nexthop.conf, conf-llnh-*.conf |
+| ExaBGP schema | Missing `local-link-local` field | conf-llnh-update.conf |
+| Migration | `announce` block not converted to `update` | Most configs |
+| Migration | `static` block not converted to `update` | Many configs |
+| Parser | Unexpected tokens in static blocks | conf-aggregator.conf |
+| Parser | EOF in neighbor blocks | conf-split.conf |
+
+**How to run tests:**
+
+```bash
+# List available encoding tests
+cd test/exabgp-compat
+./bin/functional encoding --list
+
+# Run a specific test (e.g., test 5 = conf-ebgp)
+./bin/functional encoding 5
+
+# Run all encoding tests
+./bin/functional encoding --all
+
+# Test migration only (no BGP session)
+./bin/test-migrate
+```
+
+**Current blocker:**
+
+Migration outputs `announce { }` which Ze YANG rejects:
+```
+$ ./ze bgp server <(./ze bgp config migrate etc/conf-ebgp.conf)
+error: parse config: line 11: unknown field in peer: announce
+```
+
+**Next steps:**
+
+1. **Implement announce→update conversion** (`internal/exabgp/migrate.go`) - BLOCKING
+   - Convert ExaBGP `announce { ipv4 { unicast PREFIX next-hop NH; } }` to:
+     ```
+     update {
+         attribute { origin igp; next-hop NH; }
+         nlri { ipv4/unicast PREFIX; }
+     }
+     ```
+   - Convert `static { route PREFIX next-hop NH; }` to same `update {}` format
+   - Handle all announce sub-blocks: ipv4/ipv6 unicast, multicast, nlri-mpls, mpls-vpn, flow, l2vpn
+
+2. **Extend ExaBGP schema** (`internal/exabgp/schema.go`)
+   - Add missing fields: inherit, add-path, host-name, software-version
+   - Add missing capabilities: link-local-nexthop, local-link-local
+
+3. **Wire encoding tests** - After migration works
+   - Compare UPDATE bytes from both implementations
+   - Run `test/exabgp-compat/encoding/*.ci` tests
 
 ### Files to Create
 
@@ -214,22 +312,34 @@ Create isolated ExaBGP parsing for migration tool. All ExaBGP code in `internal/
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
+- [x] Tests written
+- [x] Tests FAIL
+- [x] Implementation complete
+- [x] Tests PASS
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes (42/42 encode tests)
 
 ### Cleanup Verification
 - [x] No `announce { }` in YANG
 - [x] No `static { }` in YANG
 - [x] No `LegacyBGPSchema()` in Go
 - [x] No `Field("` definitions in bgp.go (except tests)
-- [ ] All tests use native `update { }` syntax
+- [x] All tests use native `update { }` syntax
+
+### Phase 2: Migration Tool
+- [x] `ze bgp config migrate` handles native configs
+- [x] `ze bgp config migrate` handles ExaBGP configs (fallback)
+- [x] Migration tests pass
+
+### Phase 3: ExaBGP Test Suite (TODO)
+- [ ] Test harness for ExaBGP QA tests
+- [ ] Config migration validation
+- [ ] Wire format parity tests
+- [ ] Plugin bridge compatibility tests
+- [ ] CI integration
 
 ## Remaining Work: Complex NLRI Families
 

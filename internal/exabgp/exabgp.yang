@@ -1,0 +1,212 @@
+module exabgp {
+    namespace "urn:exabgp:config";
+    prefix exabgp;
+
+    import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
+
+    description "ExaBGP configuration syntax for migration to ZeBGP.";
+
+    revision 2026-01-01 {
+        description "ExaBGP syntax for migration";
+    }
+
+    // Route attributes grouping (used in announce/static blocks)
+    grouping route-attributes {
+        leaf next-hop { type string; }
+        leaf origin { type string; }
+        leaf local-preference { type uint32; }
+        leaf med { type uint32; }
+        leaf as-path { ze:syntax "value-or-array"; type string; }
+        leaf community { ze:syntax "value-or-array"; type string; }
+        leaf extended-community { ze:syntax "value-or-array"; type string; }
+        leaf large-community { ze:syntax "value-or-array"; type string; }
+        leaf aggregator { type string; }
+        container atomic-aggregate { ze:syntax "flex"; }
+        leaf originator-id { type zt:ipv4-address; }
+        leaf cluster-list { ze:syntax "value-or-array"; type string; }
+        leaf rd { type string; }
+        leaf label { type string; }
+        leaf labels { ze:syntax "value-or-array"; type string; }
+        leaf name { type string; }
+        leaf watchdog { type string; }
+        leaf split { type string; }
+        container attribute { ze:syntax "flex"; }
+        container bgp-prefix-sid-srv6 { ze:syntax "flex"; }
+        container withdraw { ze:syntax "flex"; }
+    }
+
+    // Top-level process definitions
+    list process {
+        key "name";
+        leaf name { type string; }
+        leaf run { ze:syntax "multi-leaf"; type string; }
+        leaf encoder { type string; }
+        leaf respawn { type boolean; }
+    }
+
+    // ExaBGP uses 'neighbor' not 'peer'
+    list neighbor {
+        key "address";
+        leaf address { type string; }
+        uses neighbor-fields;
+    }
+
+    // Template definitions
+    container template {
+        list neighbor {
+            key "name";
+            leaf name { type string; }
+            uses neighbor-fields;
+        }
+    }
+
+    grouping neighbor-fields {
+        leaf description { type string; }
+        leaf router-id { type zt:ipv4-address; }
+        leaf local-address { type string; }
+        leaf local-as { type zt:asn; }
+        leaf peer-as { type zt:asn; }
+        leaf hold-time { type uint16; default 90; }
+        leaf passive { type boolean; default false; }
+        leaf group-updates { type boolean; default true; }
+        leaf auto-flush { type boolean; default true; }
+
+        // Family block (ExaBGP uses space: "ipv4 unicast")
+        container family {
+            ze:syntax "freeform";
+        }
+
+        // Capabilities
+        container capability {
+            leaf asn4 { type boolean; default true; }
+            container route-refresh { ze:syntax "flex"; }
+            container graceful-restart {
+                ze:syntax "flex";
+                leaf restart-time { type uint16; default 120; }
+            }
+            container add-path {
+                ze:syntax "flex";
+                leaf send { type boolean; default false; }
+                leaf receive { type boolean; default false; }
+            }
+            container extended-message { ze:syntax "flex"; }
+            container nexthop { ze:syntax "flex"; }
+            container multi-session { ze:syntax "flex"; }
+            container operational { ze:syntax "flex"; }
+            container aigp { ze:syntax "flex"; }
+            container software-version { ze:syntax "flex"; }
+            container link-local-nexthop { ze:syntax "flex"; }
+        }
+
+        // Additional fields
+        leaf host-name { type string; }
+        leaf domain-name { type string; }
+        leaf inherit { type string; }
+        leaf md5-password { type string; }
+        leaf ttl-security { type uint16; }
+        leaf local-link-local { type string; }
+
+        // API block (ExaBGP-specific)
+        container api {
+            leaf-list processes { ze:syntax "bracket"; type string; }
+            leaf-list processes-match { ze:syntax "bracket"; type string; }
+            container neighbor-changes { ze:syntax "flex"; }
+            container receive { ze:syntax "freeform"; }
+            container send { ze:syntax "freeform"; }
+        }
+
+        // Process bindings
+        list process {
+            key "name";
+            leaf name { type string; }
+            leaf-list processes { ze:syntax "bracket"; type string; }
+            container receive { ze:syntax "freeform"; }
+            container send { ze:syntax "freeform"; }
+        }
+
+        // Static routes
+        container static {
+            container route {
+                ze:syntax "inline-list";
+                ze:key-type "prefix";
+                uses route-attributes;
+            }
+        }
+
+        // Announce block - structured by AFI/SAFI
+        container announce {
+            container ipv4 {
+                container unicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container multicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container nlri-mpls {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container mpls-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container mcast-vpn { ze:syntax "flex"; }
+                container mup { ze:syntax "flex"; }
+                container flow { ze:syntax "flex"; }
+            }
+            container ipv6 {
+                container unicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container multicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container nlri-mpls {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container mpls-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses route-attributes;
+                }
+                container mcast-vpn { ze:syntax "flex"; }
+                container mup { ze:syntax "flex"; }
+                container flow { ze:syntax "flex"; }
+            }
+            container l2vpn {
+                container vpls { ze:syntax "flex"; }
+                container evpn { ze:syntax "flex"; }
+            }
+            container route {
+                ze:syntax "inline-list";
+                ze:key-type "prefix";
+                uses route-attributes;
+            }
+        }
+
+        // L2VPN
+        container l2vpn { ze:syntax "freeform"; }
+
+        // Flow
+        container flow { ze:syntax "freeform"; }
+
+        // Nexthop encoding (RFC 8950)
+        container nexthop { ze:syntax "freeform"; }
+
+        // Add-path per family
+        container add-path { ze:syntax "freeform"; }
+    }
+}

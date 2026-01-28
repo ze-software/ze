@@ -1,0 +1,51 @@
+#!/usr/bin/env python3
+
+import time
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    try:
+        time.sleep(1)
+
+        send('announce route 192.168.0.0/32 next-hop 10.0.0.0')
+        send('clear adj-rib out')
+        wait_for_ack(expected_count=2)
+        time.sleep(0.1)  # Allow async mode to process before next command
+
+        send('announce route 192.168.0.1/32 next-hop 10.0.0.1')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+        send('clear adj-rib out')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+
+        send('announce route 192.168.0.2/32 next-hop 10.0.0.2')
+        send('announce route 192.168.0.3/32 next-hop 10.0.0.3')
+        wait_for_ack(expected_count=2)
+        time.sleep(0.1)  # Allow async mode to process before next command
+        send('flush adj-rib out')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+
+        send('announce route 192.168.0.4/32 next-hop 10.0.0.4')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+        send('flush adj-rib out')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+
+        send('clear adj-rib out')
+        wait_for_ack()
+        time.sleep(0.1)  # Allow async mode to process before next command
+        send('announce route 192.168.0.5/32 next-hop 10.0.0.5')
+        wait_for_ack()
+
+        wait_for_shutdown(timeout=7.0)
+    except IOError:
+        pass
+
+
+if __name__ == '__main__':
+    main()
