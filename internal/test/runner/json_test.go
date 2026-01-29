@@ -48,8 +48,7 @@ func TestIsSupportedFamily(t *testing.T) {
 func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
 	// Zebgp decode envelope format
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -101,8 +100,7 @@ func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
 func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
 	// Zebgp decode format uses ["prefix"] for IPv4 unicast withdraws
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -136,8 +134,7 @@ func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
 func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 	// Zebgp decode format uses [{"nlri": "prefix"}] for IPv6/MP withdraws
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "::1", "peer": "::1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -171,8 +168,7 @@ func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 // PREVENTS: Family-specific transformation bugs.
 func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "::1", "peer": "::1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -213,8 +209,7 @@ func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 // PREVENTS: Panic on empty message content.
 func TestTransformEnvelopeToPlugin_EOR(t *testing.T) {
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -318,8 +313,7 @@ func TestComparePluginJSON_OrderIndependent(t *testing.T) {
 func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 	// Zebgp decode envelope format for FlowSpec with no-nexthop
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -381,8 +375,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 // PREVENTS: Missing next-hop in redirect rules.
 func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -432,8 +425,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 // PREVENTS: IPv6 FlowSpec validation failures.
 func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "::1", "peer": "::1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
@@ -489,8 +481,7 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 // PREVENTS: FlowSpec withdrawals failing transformation.
 func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 	envelope := map[string]any{
-		"exabgp": "5.0.0",
-		"type":   "update",
+		"type": "update",
 		"neighbor": map[string]any{
 			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
 			"asn":       map[string]any{"local": 65533, "peer": 65533},
