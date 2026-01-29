@@ -78,8 +78,9 @@ type PeerInfo struct {
 // Used by plugin protocol Stage 2 to deliver matching config.
 // Values is a flexible map allowing any capability to be represented.
 type PeerCapabilityConfig struct {
-	Address string            // Peer IP address
-	Values  map[string]string // capability-name → value (e.g., "hostname" → "router1.example.com")
+	Address        string            // Peer IP address
+	Values         map[string]string // capability-name → value (e.g., "hostname" → "router1.example.com")
+	CapabilityJSON string            // Full capability block as JSON - plugins extract what they need
 }
 
 // ReactorStats holds reactor-level statistics.
@@ -434,6 +435,10 @@ type ReactorInterface interface {
 	// GetPeerCapabilityConfigs returns capability configurations for all peers.
 	// Used by plugin protocol Stage 2 to deliver matching config.
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
+
+	// GetConfigTree returns the full config as a map for plugin config delivery.
+	// Plugins request specific roots (e.g., "bgp", "environment") and receive JSON.
+	GetConfigTree() map[string]any
 }
 
 // PeerProcessBinding describes which plugin receives messages from a peer.

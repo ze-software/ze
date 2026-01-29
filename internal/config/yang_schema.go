@@ -53,6 +53,13 @@ func PluginOnlySchema() *Schema {
 // YANGSchema loads YANG and creates a schema from it.
 // Returns nil if YANG loading fails.
 func YANGSchema() *Schema {
+	return YANGSchemaWithPlugins(nil)
+}
+
+// YANGSchemaWithPlugins loads YANG with additional plugin modules.
+// pluginYANG maps module filename to YANG content.
+// Returns nil if YANG loading fails.
+func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil
@@ -63,6 +70,12 @@ func YANGSchema() *Schema {
 	}
 	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
 		return nil
+	}
+	// Load plugin YANG modules
+	for name, content := range pluginYANG {
+		if err := loader.AddModuleFromText(name, content); err != nil {
+			return nil
+		}
 	}
 	if err := loader.Resolve(); err != nil {
 		return nil

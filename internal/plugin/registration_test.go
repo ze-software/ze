@@ -163,47 +163,17 @@ func TestParseFamilyAdd(t *testing.T) {
 	}
 }
 
-// TestParseConfigPattern verifies parsing of "declare conf <pattern>" command.
+// TestParseConfigPatternRejected verifies pattern-based config is rejected.
 //
-// VALIDATES: Config patterns with globs and regex captures are parsed correctly.
-// PREVENTS: Invalid patterns causing startup failures.
-func TestParseConfigPattern(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		wantPattern string
-		wantErr     bool
-	}{
-		{
-			name:        "hostname_pattern",
-			input:       "declare conf peer * capability hostname <hostname:.*>",
-			wantPattern: "peer * capability hostname <hostname:.*>",
-		},
-		{
-			name:        "graceful_restart_pattern",
-			input:       "declare conf peer * capability graceful-restart <restart-time:\\d+>",
-			wantPattern: "peer * capability graceful-restart <restart-time:\\d+>",
-		},
-		{
-			name:    "missing_pattern",
-			input:   "declare conf",
-			wantErr: true,
-		},
-	}
+// VALIDATES: Pattern syntax returns helpful error message.
+// PREVENTS: Confusion when using deprecated pattern syntax.
+func TestParseConfigPatternRejected(t *testing.T) {
+	reg := &PluginRegistration{}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Len(t, reg.ConfigPatterns, 1)
-			assert.Equal(t, tt.wantPattern, reg.ConfigPatterns[0].Pattern)
-		})
-	}
+	// Pattern-based config was removed - should return error with hint
+	err := reg.ParseLine("declare conf peer * capability hostname <hostname:.*>")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "declare wants config")
 }
 
 // TestParseCommandAdd verifies parsing of "declare cmd <command>" command.
@@ -388,65 +358,6 @@ func TestParseCapabilityDone(t *testing.T) {
 	assert.True(t, caps.Done)
 }
 
-// TestConfigPatternMatching verifies config patterns match correctly.
-//
-// VALIDATES: Glob wildcards and regex captures work as specified.
-// PREVENTS: Config delivery to wrong plugins or missing captures.
-func TestConfigPatternMatching(t *testing.T) {
-	tests := []struct {
-		name       string
-		pattern    string
-		config     string
-		wantMatch  bool
-		wantValues map[string]string
-	}{
-		{
-			name:       "hostname_match",
-			pattern:    "peer * capability hostname <hostname:.*>",
-			config:     "peer 192.168.1.1 capability hostname router1.example.com",
-			wantMatch:  true,
-			wantValues: map[string]string{"hostname": "router1.example.com"},
-		},
-		{
-			name:      "no_match_wrong_path",
-			pattern:   "peer * capability hostname <hostname:.*>",
-			config:    "peer 192.168.1.1 capability graceful-restart 120",
-			wantMatch: false,
-		},
-		{
-			name:       "restart_time_match",
-			pattern:    "peer * capability graceful-restart <restart-time:\\d+>",
-			config:     "peer 192.168.1.1 capability graceful-restart 120",
-			wantMatch:  true,
-			wantValues: map[string]string{"restart-time": "120"},
-		},
-		{
-			name:       "multiple_captures",
-			pattern:    "peer * capability graceful-restart <restart-time:\\d+> <forwarding:(true|false)>",
-			config:     "peer 192.168.1.1 capability graceful-restart 120 true",
-			wantMatch:  true,
-			wantValues: map[string]string{"restart-time": "120", "forwarding": "true"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			pat, err := CompileConfigPattern(tt.pattern)
-			require.NoError(t, err)
-
-			match := pat.Match(tt.config)
-			if !tt.wantMatch {
-				assert.Nil(t, match)
-				return
-			}
-			require.NotNil(t, match)
-			for k, v := range tt.wantValues {
-				assert.Equal(t, v, match.Captures[k], "capture %s", k)
-			}
-		})
-	}
-}
-
 // TestConflictDetection verifies command/capability conflict detection.
 //
 // VALIDATES: Duplicate registrations are rejected at startup.
@@ -562,9 +473,6 @@ func TestParseSchemaDeclaration(t *testing.T) {
 			assert.Equal(t, tt.wantName, decl.Name)
 			assert.Equal(t, "capability."+tt.wantName, decl.Path)
 			assert.Equal(t, tt.wantFields, decl.Fields)
-
-			// Also verify config pattern was generated
-			require.NotEmpty(t, reg.ConfigPatterns)
 		})
 	}
 }
@@ -713,4 +621,68 @@ func TestStartHeredoc(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestParseWantsConfigRoot verifies parsing of "declare wants config <root>" command.
+//
+// VALIDATES: Plugin can request specific config subtrees by root name.
+// PREVENTS: Missing config delivery to plugins that need specific roots.
+func TestParseWantsConfigRoot(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantRoots []string
+		wantErr   bool
+	}{
+		{
+			name:      "single_root_bgp",
+			input:     "declare wants config bgp",
+			wantRoots: []string{"bgp"},
+		},
+		{
+			name:      "single_root_environment",
+			input:     "declare wants config environment",
+			wantRoots: []string{"environment"},
+		},
+		{
+			name:      "wildcard_all",
+			input:     "declare wants config *",
+			wantRoots: []string{"*"},
+		},
+		{
+			name:    "missing_root",
+			input:   "declare wants config",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := &PluginRegistration{}
+			err := reg.ParseLine(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantRoots, reg.WantsConfigRoots)
+		})
+	}
+}
+
+// TestParseWantsConfigMultiple verifies multiple config root declarations.
+//
+// VALIDATES: Plugin can request multiple config subtrees.
+// PREVENTS: Only last root being stored instead of all.
+func TestParseWantsConfigMultiple(t *testing.T) {
+	reg := &PluginRegistration{}
+
+	err := reg.ParseLine("declare wants config bgp")
+	require.NoError(t, err)
+	err = reg.ParseLine("declare wants config environment")
+	require.NoError(t, err)
+
+	assert.Len(t, reg.WantsConfigRoots, 2)
+	assert.Contains(t, reg.WantsConfigRoots, "bgp")
+	assert.Contains(t, reg.WantsConfigRoots, "environment")
 }

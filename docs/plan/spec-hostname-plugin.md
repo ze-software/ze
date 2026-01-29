@@ -36,12 +36,14 @@ Create hostname capability plugin (draft-walton-bgp-hostname, code 73) with its 
 
 ## Config Syntax
 
-| Syntax | Example | Auto-inject? |
-|--------|---------|--------------|
-| Legacy | `peer X { host-name foo; domain-name bar.com; }` | Yes |
-| New | `peer X { capability { hostname { host foo; domain bar.com; } } }` | Yes |
+| Syntax | Example | Requires Plugin? |
+|--------|---------|------------------|
+| Legacy | `peer X { host-name foo; domain-name bar.com; }` | Yes (`--plugin ze.hostname`) |
+| New | `peer X { capability { hostname { host foo; domain bar.com; } } }` | Yes (`--plugin ze.hostname`) |
 
 Both syntaxes produce identical wire encoding.
+
+**No auto-injection:** The hostname capability ONLY works when the plugin is loaded. Without `--plugin ze.hostname`, config using these fields will fail with "unknown field".
 
 ## Design
 
@@ -70,6 +72,44 @@ Both syntaxes produce identical wire encoding.
 | `peer/domain-name` | leaf string | Legacy syntax |
 
 ### Plugin Protocol
+
+**⚠️ DESIGN ISSUE: Config Delivery Mechanism**
+
+Current approach (pattern-based) requires plugin-specific extraction code in `bgp.go`:
+- Plugin YANG augments schema → parser accepts new fields
+- BUT extracting those fields into `RawCapabilityConfig` requires hardcoded knowledge of each plugin's containers
+- This defeats the purpose of plugins being self-contained
+
+**Proposed solution:** Send entire peer config as JSON to plugins during Stage 2.
+
+| Approach | Current (Pattern-Based) | Proposed (JSON Config) |
+|----------|------------------------|------------------------|
+| Plugin declares | Pattern for each field | Nothing (or just "wants config") |
+| Server sends | Matched values only | Full peer config as JSON |
+| Plugin extracts | From `config peer <addr> <field> <value>` lines | From JSON map |
+| Cross-plugin data | Not available | Full config visible |
+| Core code changes | Required per plugin | None |
+
+**Questions to resolve:**
+
+1. **Scope:** Send entire peer config or just capability subtree?
+2. **Format:** JSON map of maps? Nested structure matching YANG?
+3. **Timing:** Still Stage 2, or different mechanism?
+4. **Backward compat:** Replace pattern-based or add alongside?
+
+**Example JSON delivery (proposed):**
+
+Stage 2 would send:
+```
+config json {"address":"127.0.0.1","capability":{"hostname":{"host":"my-host","domain":"example.com"}}}
+config done
+```
+
+Plugin parses JSON, extracts what it needs based on its YANG knowledge.
+
+---
+
+**Legacy pattern-based approach** (may be deprecated):
 
 Plugin declares config patterns for both syntaxes:
 
@@ -115,9 +155,10 @@ Wire: `07 726F7574657231 0B 6578616D706C652E636F6D`
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `hostname-new-syntax` | `test/encode/hostname-new-syntax.ci` | New syntax works | |
-| `hostname-legacy` | `test/encode/hostname.ci` | Legacy syntax works | |
-| `hostname-exabgp` | `test/exabgp-compat/encoding/conf-hostname.ci` | ExaBGP compat | |
+| `hostname-new-syntax` | `test/encode/hostname-new-syntax.ci` | New syntax with `--plugin ze.hostname` | |
+| `hostname-legacy` | `test/encode/hostname.ci` | Legacy syntax with `--plugin ze.hostname` | |
+
+**Note:** All tests require `--plugin ze.hostname` flag. No auto-injection.
 
 ## Files to Create
 
@@ -132,9 +173,9 @@ Wire: `07 726F7574657231 0B 6578616D706C652E636F6D`
 
 - `cmd/ze/bgp/plugin.go` - Add "hostname" subcommand
 - `internal/plugin/bgp/schema/ze-bgp.yang` - Remove host-name/domain-name (moved to plugin)
-- `internal/config/loader.go` - Remove manual FQDN injection
-- `internal/config/bgp.go` - Remove Hostname/DomainName fields
-- `internal/exabgp/migrate.go` - Add `NeedsHostnamePlugin()`
+- `internal/config/loader.go` - Remove manual FQDN injection (lines 371-379)
+- `internal/config/bgp.go` - Remove Hostname/DomainName fields from PeerConfig
+- `test/encode/hostname.ci` - Add `--plugin ze.hostname` to command
 
 ## Files to Keep
 

@@ -856,3 +856,129 @@ func TestMergeCliPluginsInternal(t *testing.T) {
 	assert.False(t, cfg2.Plugins[0].Internal, "external plugin should have Internal=false")
 	assert.Equal(t, "./custom-plugin", cfg2.Plugins[0].Run)
 }
+
+// TestHostnameRequiresPlugin verifies hostname/domain-name require plugin.
+//
+// VALIDATES: Parsing fails for host-name/domain-name without hostname plugin.
+// PREVENTS: Silent ignore of hostname config when plugin not loaded.
+func TestHostnameRequiresPlugin(t *testing.T) {
+	input := `
+bgp {
+    peer 192.0.2.1 {
+        peer-as 65001;
+        host-name my-host-name;
+    }
+}
+`
+	// Without hostname plugin, YANG schema doesn't include host-name leaf
+	p := NewParser(YANGSchema())
+	_, err := p.Parse(input)
+
+	// Parsing should fail - host-name is not in base schema
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "host-name")
+}
+
+// TestHostnameWithPluginYANG verifies hostname plugin YANG enables parsing.
+//
+// VALIDATES: With plugin YANG, host-name/domain-name parse and populate RawCapabilityConfig.
+// PREVENTS: Plugin not receiving config values.
+func TestHostnameWithPluginYANG(t *testing.T) {
+	input := `
+bgp {
+    peer 192.0.2.1 {
+        peer-as 65001;
+        host-name my-host-name;
+        domain-name my-domain.com;
+    }
+}
+`
+	// Load plugin YANG
+	pluginYANG := map[string]string{
+		"ze-hostname.yang": `module ze-hostname {
+    namespace "urn:ze:hostname";
+    prefix hostname;
+    import ze-bgp { prefix ze-bgp; }
+    revision 2025-01-29 { description "Test"; }
+    augment "/ze-bgp:bgp/ze-bgp:peer" {
+        leaf host-name { type string; }
+        leaf domain-name { type string; }
+    }
+}`,
+	}
+
+	// With plugin YANG, parsing should succeed
+	schema := YANGSchemaWithPlugins(pluginYANG)
+	require.NotNil(t, schema, "schema should load")
+
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err, "parsing should succeed with plugin YANG")
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, cfg.Peers, 1)
+
+	peer := cfg.Peers[0]
+
+	// Verify RawCapabilityConfig for plugin delivery
+	require.NotNil(t, peer.RawCapabilityConfig, "RawCapabilityConfig should be populated")
+	require.NotNil(t, peer.RawCapabilityConfig["hostname"], "hostname scope should exist")
+	assert.Equal(t, "my-host-name", peer.RawCapabilityConfig["hostname"]["host"])
+	assert.Equal(t, "my-domain.com", peer.RawCapabilityConfig["hostname"]["domain"])
+}
+
+// TestHostnameNewSyntax verifies the new capability { hostname { ... } } syntax.
+//
+// VALIDATES: New syntax capability { hostname { host ...; domain ...; } } populates CapabilityConfigJSON.
+// PREVENTS: New syntax not being extracted for plugin delivery.
+func TestHostnameNewSyntax(t *testing.T) {
+	input := `
+bgp {
+    peer 192.0.2.1 {
+        peer-as 65001;
+        capability {
+            hostname {
+                host my-host-name;
+                domain my-domain.com;
+            }
+        }
+    }
+}
+`
+	// Load plugin YANG
+	pluginYANG := map[string]string{
+		"ze-hostname.yang": `module ze-hostname {
+    namespace "urn:ze:hostname";
+    prefix hostname;
+    import ze-bgp { prefix ze-bgp; }
+    revision 2025-01-29 { description "Test"; }
+    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
+        container hostname {
+            leaf host { type string; }
+            leaf domain { type string; }
+        }
+    }
+}`,
+	}
+
+	// With plugin YANG, parsing should succeed
+	schema := YANGSchemaWithPlugins(pluginYANG)
+	require.NotNil(t, schema, "schema should load")
+
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err, "parsing should succeed with plugin YANG")
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, cfg.Peers, 1)
+
+	peer := cfg.Peers[0]
+
+	// Verify CapabilityConfigJSON for plugin delivery (new JSON-based approach)
+	require.NotEmpty(t, peer.CapabilityConfigJSON, "CapabilityConfigJSON should be populated")
+	assert.Contains(t, peer.CapabilityConfigJSON, `"hostname"`)
+	assert.Contains(t, peer.CapabilityConfigJSON, `"host":"my-host-name"`)
+	assert.Contains(t, peer.CapabilityConfigJSON, `"domain":"my-domain.com"`)
+}

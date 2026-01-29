@@ -547,7 +547,7 @@ func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 		return true
 	}
 
-	logger().Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
+	logger().Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "config_roots", reg.WantsConfigRoots)
 	reg.Name = proc.config.Name
 	if err := s.registry.Register(reg); err != nil {
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
@@ -622,66 +622,102 @@ func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
 	return declarations
 }
 
-// deliverConfig sends matching configuration to a plugin (Stage 2).
-// Matches registered config patterns against peer capability configs.
+// deliverConfig sends configuration to a plugin (Stage 2).
+// Plugins declare which config roots they want via "declare wants config <root>".
+// Format: "config json <root> <json>" for each declared root.
+// Supports path-based scopes: "bgp/peer" extracts configTree["bgp"]["peer"].
 func (s *Server) deliverConfig(proc *Process) {
 	logger().Debug("server: deliverConfig START", "plugin", proc.Name())
 	reg := proc.Registration()
-	if len(reg.ConfigPatterns) == 0 || s.reactor == nil {
-		logger().Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
+
+	// Fast path: plugin doesn't want any config
+	if len(reg.WantsConfigRoots) == 0 {
+		logger().Debug("server: deliverConfig FAST PATH (no config roots)", "plugin", proc.Name())
 		_ = proc.WriteEvent("config done")
 		return
 	}
 
-	// Get peer capability configs from reactor
-	logger().Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
-	peerConfigs := s.reactor.GetPeerCapabilityConfigs()
-	logger().Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
+	if s.reactor == nil {
+		logger().Debug("server: deliverConfig FAST PATH (no reactor)", "plugin", proc.Name())
+		_ = proc.WriteEvent("config done")
+		return
+	}
 
-	// For each peer, try to match patterns and deliver config
-	for _, peerCfg := range peerConfigs {
-		context := "peer " + peerCfg.Address
+	// Get full config tree from reactor
+	configTree := s.reactor.GetConfigTree()
+	if configTree == nil {
+		logger().Debug("server: deliverConfig FAST PATH (no config tree)", "plugin", proc.Name())
+		_ = proc.WriteEvent("config done")
+		return
+	}
 
-		for _, pattern := range reg.ConfigPatterns {
-			// Try to match pattern against known config paths
-			matches := matchConfigPattern(pattern, peerCfg)
-			for name, value := range matches {
-				if value != "" {
-					line := FormatConfigDelivery(context, name, value)
-					_ = proc.WriteEvent(line)
-				}
-			}
+	// Send each requested root as JSON
+	for _, root := range reg.WantsConfigRoots {
+		subtree := extractConfigSubtree(configTree, root)
+		if subtree == nil {
+			logger().Debug("server: deliverConfig root not found", "plugin", proc.Name(), "root", root)
+			continue
 		}
+
+		// Serialize to JSON
+		jsonBytes, err := json.Marshal(subtree)
+		if err != nil {
+			logger().Warn("server: deliverConfig JSON marshal failed", "plugin", proc.Name(), "root", root, "err", err)
+			continue
+		}
+
+		// Format: config json <root> <json>
+		line := fmt.Sprintf("config json %s %s", root, string(jsonBytes))
+		_ = proc.WriteEvent(line)
+		logger().Debug("server: deliverConfig sent", "plugin", proc.Name(), "root", root)
 	}
 
 	logger().Debug("server: deliverConfig DONE", "plugin", proc.Name())
 	_ = proc.WriteEvent("config done")
 }
 
-// matchConfigPattern tries to match a config pattern against peer config.
-// Returns map of capture-name → value for any matches.
-// Uses the flexible Values map to support any capability type.
-func matchConfigPattern(pattern *ConfigPattern, cfg PeerCapabilityConfig) map[string]string {
-	result := make(map[string]string)
+// extractConfigSubtree extracts a subtree from the config based on path.
+// Always returns data wrapped in its full path structure from root.
+// Supports:
+//   - "*" → entire tree
+//   - "bgp" → {"bgp": configTree["bgp"]}
+//   - "bgp/peer" → {"bgp": {"peer": configTree["bgp"]["peer"]}}
+func extractConfigSubtree(configTree map[string]any, path string) any {
+	if path == "*" {
+		return configTree
+	}
 
-	// Try to match pattern against each capability value
-	// Pattern format: "peer * capability <type> <capture>"
-	for capName, capValue := range cfg.Values {
-		if capValue == "" {
-			continue
-		}
-
-		// Build config path string to match against pattern
-		path := "peer " + cfg.Address + " capability " + capName + " " + capValue
-
-		match := pattern.Match(path)
-		if match != nil {
-			for name, val := range match.Captures {
-				result[name] = val
-			}
+	// Split path by "/" and filter empty parts
+	rawParts := strings.Split(path, "/")
+	var parts []string
+	for _, p := range rawParts {
+		if p != "" {
+			parts = append(parts, p)
 		}
 	}
 
+	if len(parts) == 0 {
+		return configTree
+	}
+
+	// Navigate to the leaf data
+	var current any = configTree
+	for _, part := range parts {
+		m, ok := current.(map[string]any)
+		if !ok {
+			return nil
+		}
+		current = m[part]
+		if current == nil {
+			return nil
+		}
+	}
+
+	// Wrap the leaf data in its path structure (from leaf to root)
+	result := current
+	for i := len(parts) - 1; i >= 0; i-- {
+		result = map[string]any{parts[i]: result}
+	}
 	return result
 }
 

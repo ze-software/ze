@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -75,6 +76,9 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	// Store environment values for later use
 	cfg.EnvValues = envValues
 
+	// Store config tree for plugin JSON delivery
+	cfg.ConfigTree = tree.ToMap()
+
 	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
 
 	// Create reactor
@@ -100,23 +104,47 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 //   - "/path" -> fork absolute path binary
 //   - "cmd args..." -> fork command with args
 //   - "auto" -> auto-discover all plugins (not implemented yet)
+//
+// Plugin YANG schemas are loaded before config parsing to allow plugins
+// to augment the config schema (e.g., hostname plugin adds host-name/domain-name).
 func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reactor, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // Config file path from user
+	var data []byte
+	var err error
+
+	// Support stdin when path is "-"
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path) //nolint:gosec // Config file path from user
+	}
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
 
-	cfg, _, err := LoadReactorWithConfig(string(data))
+	// Collect plugin YANG before parsing (plugins may augment schema)
+	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
+
+	// Parse config with plugin YANG schemas merged
+	cfg, _, err := loadReactorWithConfigAndYANG(string(data), pluginYANG)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config directory for process execution
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return nil, fmt.Errorf("resolve config path: %w", err)
+	// Set config directory for process execution (use cwd for stdin)
+	var absPath string
+	if path == "-" {
+		absPath, err = os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("get working directory: %w", err)
+		}
+		cfg.ConfigDir = absPath
+	} else {
+		absPath, err = filepath.Abs(path)
+		if err != nil {
+			return nil, fmt.Errorf("resolve config path: %w", err)
+		}
+		cfg.ConfigDir = filepath.Dir(absPath)
 	}
-	cfg.ConfigDir = filepath.Dir(absPath)
 
 	// Merge CLI plugins with config plugins
 	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
@@ -130,6 +158,58 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	}
 
 	return r, nil
+}
+
+// loadReactorWithConfigAndYANG parses config with additional plugin YANG schemas.
+func loadReactorWithConfigAndYANG(input string, pluginYANG map[string]string) (*BGPConfig, *reactor.Reactor, error) {
+	// Parse input using YANG-derived schema with plugin augmentations
+	schema := YANGSchemaWithPlugins(pluginYANG)
+	if schema == nil {
+		return nil, nil, fmt.Errorf("failed to load YANG schema")
+	}
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	if err != nil {
+		// Check if this looks like old syntax and provide migration hint
+		if hint := detectLegacySyntaxHint(input, err); hint != "" {
+			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+		}
+		return nil, nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	// Log parse warnings
+	if warnings := p.Warnings(); len(warnings) > 0 {
+		configLogger().Debug("config parsed", "warnings", warnings)
+	}
+
+	// Extract environment block (ze-specific, before conversion)
+	envValues := ExtractEnvironment(tree)
+
+	// Apply log config to environment variables.
+	// Lazy loggers (LazyLogger) will pick up these settings on first use.
+	slogutil.ApplyLogConfig(envValues)
+
+	// Convert to typed config
+	cfg, err := TreeToConfig(tree)
+	if err != nil {
+		return nil, nil, fmt.Errorf("convert config: %w", err)
+	}
+
+	// Store environment values for later use
+	cfg.EnvValues = envValues
+
+	// Store config tree for plugin JSON delivery
+	cfg.ConfigTree = tree.ToMap()
+
+	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
+
+	// Create reactor
+	r, err := CreateReactor(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return cfg, r, nil
 }
 
 // mergeCliPlugins resolves CLI plugin strings and merges them with config plugins.
@@ -264,6 +344,7 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		RouterID:    cfg.RouterID,
 		LocalAS:     cfg.LocalAS,
 		ConfigDir:   configDir,
+		ConfigTree:  cfg.ConfigTree,
 		MaxSessions: env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
 	}
 
@@ -368,13 +449,9 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		}
 	}
 
-	// Add FQDN capability if hostname or domain is set.
-	if nc.Hostname != "" || nc.DomainName != "" {
-		n.Capabilities = append(n.Capabilities, &capability.FQDN{
-			Hostname:   nc.Hostname,
-			DomainName: nc.DomainName,
-		})
-	}
+	// NOTE: FQDN capability (host-name/domain-name) is now handled by hostname plugin.
+	// Load with: ze bgp server --plugin ze.hostname config.conf
+
 	if nc.Capabilities.SoftwareVersion {
 		n.Capabilities = append(n.Capabilities, &capability.SoftwareVersion{
 			Version: "ExaBGP/5.0.0-0+test",
@@ -625,6 +702,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 
 	// Copy raw capability config for plugin delivery
 	n.RawCapabilityConfig = nc.RawCapabilityConfig
+	n.CapabilityConfigJSON = nc.CapabilityConfigJSON
 
 	return n, nil
 }

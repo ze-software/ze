@@ -19,6 +19,10 @@ func cmdPlugin(args []string) int {
 		return cmdPluginRib(args[1:])
 	case "gr":
 		return cmdPluginGR(args[1:])
+	case "hostname":
+		return cmdPluginHostname(args[1:])
+	case "test":
+		return cmdPluginTest(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent with main.go, config.go
 		pluginUsage()
 		return 0
@@ -36,6 +40,8 @@ Plugin Subcommands:
   rr           Run as Route Server (IX route server plugin)
   rib          Run as RIB plugin (tracks Adj-RIB-In/Out, replays on reconnect)
   gr           Run as Graceful Restart capability plugin
+  hostname     Run as Hostname (FQDN) capability plugin
+  test         Test plugin YANG schema and config delivery (debugging)
   help         Show this help
 
 The plugin subcommands run as API processes that communicate with ze
@@ -52,5 +58,10 @@ Example config:
       run "ze bgp plugin rib";
       encoder json;
   }
+
+Testing:
+  ze bgp plugin test --plugin ze.hostname --schema config.conf
+  ze bgp plugin test --plugin ze.hostname --tree config.conf
+  ze bgp plugin test --plugin ze.hostname --json config.conf
 `)
 }

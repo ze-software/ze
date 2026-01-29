@@ -289,6 +289,48 @@ func (t *Tree) ClearList(name string) {
 	delete(t.listOrder, name)
 }
 
+// ToMap converts the Tree to a nested map[string]any suitable for JSON serialization.
+// Used for plugin config delivery - plugins receive config as JSON and extract what they need.
+func (t *Tree) ToMap() map[string]any {
+	if t == nil {
+		return nil
+	}
+
+	result := make(map[string]any)
+
+	// Add leaf values
+	for k, v := range t.values {
+		result[k] = v
+	}
+
+	// Add multi-values as arrays
+	for k, v := range t.multiValues {
+		if len(v) == 1 {
+			result[k] = v[0]
+		} else if len(v) > 1 {
+			result[k] = v
+		}
+	}
+
+	// Add containers (recursively)
+	for k, v := range t.containers {
+		result[k] = v.ToMap()
+	}
+
+	// Add lists as nested objects (key → subtree)
+	for listName, entries := range t.lists {
+		listMap := make(map[string]any)
+		for key, tree := range entries {
+			listMap[key] = tree.ToMap()
+		}
+		if len(listMap) > 0 {
+			result[listName] = listMap
+		}
+	}
+
+	return result
+}
+
 // Parser parses ExaBGP-style configuration.
 type Parser struct {
 	schema   *Schema

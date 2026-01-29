@@ -84,6 +84,10 @@ type Config struct {
 	// Required for Reload() to work.
 	ConfigPath string
 
+	// ConfigTree is the full config as a map for plugin JSON delivery.
+	// Plugins request specific roots (e.g., "bgp") and receive that subtree as JSON.
+	ConfigTree map[string]any
+
 	// RecentUpdateTTL is how long update-ids remain valid for forwarding.
 	// Default: 60s. Zero disables caching (forwarding won't work).
 	RecentUpdateTTL time.Duration
@@ -213,6 +217,9 @@ type Reactor struct {
 	// Recent UPDATE cache for efficient forwarding via update-id
 	recentUpdates *RecentUpdateCache
 
+	// Config tree for plugin JSON delivery
+	configTree map[string]any
+
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver // Receives raw BGP messages
 
@@ -280,8 +287,9 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 	for _, p := range a.r.peers {
 		s := p.Settings()
 		cfg := plugin.PeerCapabilityConfig{
-			Address: s.Address.String(),
-			Values:  make(map[string]string),
+			Address:        s.Address.String(),
+			Values:         make(map[string]string),
+			CapabilityJSON: s.CapabilityConfigJSON,
 		}
 
 		// Extract capability values via ConfigProvider interface.
@@ -309,6 +317,13 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 		result = append(result, cfg)
 	}
 	return result
+}
+
+// GetConfigTree returns the full config as a map for plugin config delivery.
+func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+	return a.r.configTree
 }
 
 // Stats returns reactor statistics for the API.
@@ -3613,6 +3628,7 @@ func New(config *Config) *Reactor {
 		ribStore:      rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:      NewWatchdogManager(),
 		recentUpdates: NewRecentUpdateCache(ttl, maxEntries),
+		configTree:    config.ConfigTree,
 	}
 }
 
@@ -4150,6 +4166,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				WorkDir:       r.config.ConfigDir,
 				ReceiveUpdate: pc.ReceiveUpdate,
 				StageTimeout:  pc.StageTimeout,
+				Internal:      pc.Internal, // Run in-process via goroutine
 			})
 		}
 		r.api = plugin.NewServer(apiConfig, &reactorAPIAdapter{r})

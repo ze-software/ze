@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"sort"
@@ -113,13 +114,14 @@ func DefaultRIBOutConfig() RIBOutConfig {
 
 // BGPConfig is the typed configuration structure.
 type BGPConfig struct {
-	RouterID  uint32
-	LocalAS   uint32
-	Listen    string
-	Peers     []PeerConfig
-	Plugins   []PluginConfig
-	ConfigDir string                       // Directory containing config file (set by LoadReactorFile)
-	EnvValues map[string]map[string]string // Environment block values (ze-specific)
+	RouterID   uint32
+	LocalAS    uint32
+	Listen     string
+	Peers      []PeerConfig
+	Plugins    []PluginConfig
+	ConfigDir  string                       // Directory containing config file (set by LoadReactorFile)
+	EnvValues  map[string]map[string]string // Environment block values (ze-specific)
+	ConfigTree map[string]any               // Full config tree for plugin JSON delivery
 }
 
 // PeerConfig holds neighbor configuration.
@@ -138,8 +140,6 @@ type PeerConfig struct {
 	Families             []string       // Legacy: "ipv4/unicast", "ipv6/unicast" etc.
 	FamilyConfigs        []FamilyConfig // New: structured family config with mode
 	IgnoreFamilyMismatch bool           // Ignore NLRI for non-negotiated AFI/SAFI instead of error
-	Hostname             string
-	DomainName           string
 	Capabilities         CapabilityConfig
 	AddPathFamilies      []AddPathFamilyConfig // Per-family add-path settings (RFC 7911)
 	NexthopFamilies      []NexthopFamilyConfig // RFC 8950 Extended Next Hop families
@@ -150,6 +150,7 @@ type PeerConfig struct {
 	MUPRoutes            []MUPRouteConfig
 	ProcessBindings      []PeerProcessBinding         // Per-peer process bindings
 	RawCapabilityConfig  map[string]map[string]string // Capability config for plugins
+	CapabilityConfigJSON string                       // Full capability config as JSON for plugin delivery
 }
 
 // PeerProcessBinding binds a peer to a plugin process with specific content and message config.
@@ -857,12 +858,26 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 		nc.GroupUpdates = v == configTrue
 	}
 
+	// host-name/domain-name are provided by hostname plugin's YANG schema.
+	// When plugin is loaded, these fields become valid and are extracted
+	// into RawCapabilityConfig for delivery to the plugin during Stage 2.
 	if v, ok := tree.Get("host-name"); ok {
-		nc.Hostname = v
+		if nc.RawCapabilityConfig == nil {
+			nc.RawCapabilityConfig = make(map[string]map[string]string)
+		}
+		if nc.RawCapabilityConfig["hostname"] == nil {
+			nc.RawCapabilityConfig["hostname"] = make(map[string]string)
+		}
+		nc.RawCapabilityConfig["hostname"]["host"] = v
 	}
-
 	if v, ok := tree.Get("domain-name"); ok {
-		nc.DomainName = v
+		if nc.RawCapabilityConfig == nil {
+			nc.RawCapabilityConfig = make(map[string]map[string]string)
+		}
+		if nc.RawCapabilityConfig["hostname"] == nil {
+			nc.RawCapabilityConfig["hostname"] = make(map[string]string)
+		}
+		nc.RawCapabilityConfig["hostname"]["domain"] = v
 	}
 
 	// Families - FamilyBlock stores "ipv4/unicast" as key with mode as value
@@ -968,6 +983,31 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 		// Format: capability { nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; } }
 		if nhBlock := cap.GetContainer("nexthop"); nhBlock != nil {
 			nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
+		}
+		// draft-walton-bgp-hostname: Extract hostname from capability block.
+		// Format: capability { hostname { host <name>; domain <domain>; } }
+		// Populates RawCapabilityConfig for plugin config delivery (pattern-based).
+		if hostname := cap.GetContainer("hostname"); hostname != nil {
+			if nc.RawCapabilityConfig == nil {
+				nc.RawCapabilityConfig = make(map[string]map[string]string)
+			}
+			if nc.RawCapabilityConfig["hostname"] == nil {
+				nc.RawCapabilityConfig["hostname"] = make(map[string]string)
+			}
+			if v, ok := hostname.Get("host"); ok {
+				nc.RawCapabilityConfig["hostname"]["host"] = v
+			}
+			if v, ok := hostname.Get("domain"); ok {
+				nc.RawCapabilityConfig["hostname"]["domain"] = v
+			}
+		}
+		// Convert entire capability container to JSON for plugin delivery.
+		// Plugins receive full config as JSON and extract what they need.
+		// This solves the "DESIGN ISSUE" from spec-hostname-plugin.md - no per-plugin extraction code needed.
+		if capMap := cap.ToMap(); len(capMap) > 0 {
+			if jsonBytes, err := json.Marshal(capMap); err == nil {
+				nc.CapabilityConfigJSON = string(jsonBytes)
+			}
 		}
 	}
 

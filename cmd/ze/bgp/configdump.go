@@ -116,9 +116,7 @@ func printConfig(cfg *config.BGPConfig) {
 		if n.Passive {
 			fmt.Printf("  passive: true\n")
 		}
-		if n.Hostname != "" {
-			fmt.Printf("  hostname: %s\n", n.Hostname)
-		}
+		// hostname/domain-name handled by hostname plugin (not in core config)
 
 		// Families
 		if len(n.Families) > 0 {

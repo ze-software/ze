@@ -12,7 +12,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -101,10 +100,10 @@ type PluginRegistration struct {
 	RFCs               []uint16            // RFC numbers for human-readable feature tracking
 	Encodings          []string            // Supported encodings (text, b64, hex)
 	Families           []string            // Address families (e.g., "ipv4/unicast", "all")
-	ConfigPatterns     []*ConfigPattern    // Config patterns with captures
 	Commands           []string            // Command names to register
 	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
+	WantsConfigRoots   []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
 	Done               bool                // True when "registration done" received
 
 	// YANG schema declarations (Hub Architecture)
@@ -128,21 +127,6 @@ type SchemaDeclaration struct {
 	Path   string            // Location in schema (e.g., "capability.graceful-restart")
 	Name   string            // Capability name (e.g., "graceful-restart")
 	Fields map[string]string // field name -> type (e.g., "restart-time" -> "uint16")
-}
-
-// ConfigPattern represents a config hook pattern with regex captures.
-type ConfigPattern struct {
-	Pattern  string         // Original pattern string
-	Regex    *regexp.Regexp // Compiled regex for matching
-	Captures []string       // Named capture groups in order
-	Literals []string       // Literal parts between captures
-}
-
-// ConfigMatch represents a successful pattern match with captured values.
-type ConfigMatch struct {
-	Pattern  *ConfigPattern    // The pattern that matched
-	Captures map[string]string // Captured values by name
-	Context  string            // The context (e.g., "peer 192.168.1.1")
 }
 
 // PluginCapability represents a capability declaration from Stage 3.
@@ -256,6 +240,8 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return reg.parseSchema(parts[2:], line)
 	case "priority":
 		return reg.parsePriority(parts[2:])
+	case "wants":
+		return reg.parseWants(parts[2:])
 	case statusDone:
 		reg.Done = true
 		return nil
@@ -327,31 +313,19 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 	return nil
 }
 
-// parseConf handles "declare conf <pattern>" or "declare conf schema ...".
+// parseConf handles "declare conf schema ...".
+// Pattern-based config delivery is removed - use "declare wants config <root>" instead.
 func (reg *PluginRegistration) parseConf(args []string, line string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("expected 'declare conf <pattern>' or 'declare conf schema ...'")
+		return fmt.Errorf("expected 'declare conf schema ...'")
 	}
 
-	// Check if this is a schema declaration
+	// Only schema declarations are supported
 	if args[0] == "schema" {
 		return reg.parseConfSchema(args[1:], line)
 	}
 
-	// Extract pattern from original line to preserve spacing
-	idx := strings.Index(line, "declare conf ")
-	if idx < 0 {
-		return fmt.Errorf("malformed conf command")
-	}
-	patternStr := strings.TrimSpace(line[idx+len("declare conf "):])
-
-	pat, err := CompileConfigPattern(patternStr)
-	if err != nil {
-		return fmt.Errorf("invalid config pattern: %w", err)
-	}
-
-	reg.ConfigPatterns = append(reg.ConfigPatterns, pat)
-	return nil
+	return fmt.Errorf("pattern-based config delivery removed; use 'declare wants config <root>' instead")
 }
 
 // parseConfSchema handles "declare conf schema capability <name> { <field> <type>; ... }".
@@ -407,20 +381,11 @@ func (reg *PluginRegistration) parseConfSchema(args []string, line string) error
 			return fmt.Errorf("expected <name:regex> pattern, got: %s", typeSpec)
 		}
 
-		captureName := inner[:colonIdx]
 		captureRegex := inner[colonIdx+1:]
 
 		// Infer type from regex pattern
 		fieldType := inferFieldType(captureRegex)
 		fields[fieldName] = fieldType
-
-		// Also store as config pattern for config delivery
-		patternStr := fmt.Sprintf("peer * capability %s %s <%s:%s>", capName, fieldName, captureName, captureRegex)
-		pat, err := CompileConfigPattern(patternStr)
-		if err != nil {
-			return fmt.Errorf("invalid pattern for field %s: %w", fieldName, err)
-		}
-		reg.ConfigPatterns = append(reg.ConfigPatterns, pat)
 	}
 
 	reg.SchemaDeclarations = append(reg.SchemaDeclarations, SchemaDeclaration{
@@ -502,6 +467,29 @@ func (reg *PluginRegistration) parsePriority(args []string) error {
 	return nil
 }
 
+// parseWants handles "declare wants <what>".
+// Supported:
+//   - config <root>: receive specific config subtree as JSON (e.g., "bgp", "environment", "*").
+func (reg *PluginRegistration) parseWants(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare wants config <root>'")
+	}
+
+	switch args[0] {
+	case "config":
+		// "declare wants config <root>" - request specific config subtree
+		if len(args) < 2 {
+			return fmt.Errorf("expected 'declare wants config <root>'")
+		}
+		root := args[1]
+		reg.WantsConfigRoots = append(reg.WantsConfigRoots, root)
+	default:
+		return fmt.Errorf("unknown wants type: %s (valid: config)", args[0])
+	}
+
+	return nil
+}
+
 // parseSchema handles "declare schema <type> <value>".
 // Types:
 //   - module <name> - YANG module name
@@ -567,127 +555,6 @@ func (reg *PluginRegistration) AppendHeredocLine(line string) {
 		reg.PluginSchema.Yang += "\n"
 	}
 	reg.PluginSchema.Yang += line
-}
-
-// CompileConfigPattern compiles a config pattern string into a ConfigPattern.
-// Pattern syntax:
-//   - "*" matches any single path element (not slashes/spaces)
-//   - "<name:regex>" is a named capture with validation regex
-//
-// Example: "peer * capability hostname <hostname:.*>".
-func CompileConfigPattern(pattern string) (*ConfigPattern, error) {
-	pat := &ConfigPattern{
-		Pattern:  pattern,
-		Captures: make([]string, 0),
-	}
-
-	// Build regex from pattern
-	var regexParts []string
-	remaining := pattern
-
-	for len(remaining) > 0 {
-		// Look for capture group
-		captureStart := strings.Index(remaining, "<")
-		if captureStart < 0 {
-			// No more captures - escape rest as literal
-			regexParts = append(regexParts, convertGlobToRegex(remaining))
-			break
-		}
-
-		// Add literal before capture
-		if captureStart > 0 {
-			regexParts = append(regexParts, convertGlobToRegex(remaining[:captureStart]))
-		}
-
-		// Find capture end
-		captureEnd := strings.Index(remaining[captureStart:], ">")
-		if captureEnd < 0 {
-			return nil, fmt.Errorf("unclosed capture group in pattern: %s", pattern)
-		}
-		captureEnd += captureStart
-
-		// Parse capture: <name:regex>
-		capture := remaining[captureStart+1 : captureEnd]
-		colonIdx := strings.Index(capture, ":")
-		if colonIdx < 0 {
-			return nil, fmt.Errorf("capture missing regex: <%s>", capture)
-		}
-
-		captureName := capture[:colonIdx]
-		captureRegex := capture[colonIdx+1:]
-
-		// Validate regex
-		if _, err := regexp.Compile(captureRegex); err != nil {
-			return nil, fmt.Errorf("invalid regex in capture <%s>: %w", capture, err)
-		}
-
-		pat.Captures = append(pat.Captures, captureName)
-		// Go regex requires alphanumeric names - replace hyphens with underscores
-		regexName := strings.ReplaceAll(captureName, "-", "_")
-		regexParts = append(regexParts, "(?P<"+regexName+">"+captureRegex+")")
-
-		remaining = remaining[captureEnd+1:]
-	}
-
-	// Compile full regex
-	fullRegex := "^" + strings.Join(regexParts, "") + "$"
-	var err error
-	pat.Regex, err = regexp.Compile(fullRegex)
-	if err != nil {
-		return nil, fmt.Errorf("failed to compile pattern regex: %w", err)
-	}
-
-	return pat, nil
-}
-
-// convertGlobToRegex converts glob wildcards to regex.
-func convertGlobToRegex(s string) string {
-	// Escape regex special chars except *
-	var result strings.Builder
-	for _, c := range s {
-		switch c {
-		case '*':
-			result.WriteString(`\S+`) // Match non-whitespace
-		case '.', '^', '$', '+', '?', '{', '}', '[', ']', '|', '(', ')', '\\':
-			result.WriteRune('\\')
-			result.WriteRune(c)
-		default:
-			result.WriteRune(c)
-		}
-	}
-	return result.String()
-}
-
-// Match tests if a config line matches this pattern.
-// Returns nil if no match, otherwise returns the captured values.
-func (pat *ConfigPattern) Match(config string) *ConfigMatch {
-	matches := pat.Regex.FindStringSubmatch(config)
-	if matches == nil {
-		return nil
-	}
-
-	result := &ConfigMatch{
-		Pattern:  pat,
-		Captures: make(map[string]string),
-	}
-
-	// Extract named captures - map regex names (underscores) back to original names (hyphens)
-	regexNames := pat.Regex.SubexpNames()
-	for i, regexName := range regexNames {
-		if regexName != "" && i < len(matches) {
-			// Find the original capture name with hyphens
-			originalName := regexName
-			for _, capName := range pat.Captures {
-				if strings.ReplaceAll(capName, "-", "_") == regexName {
-					originalName = capName
-					break
-				}
-			}
-			result.Captures[originalName] = matches[i]
-		}
-	}
-
-	return result
 }
 
 // ParseLine parses a Stage 3 capability command.
@@ -775,12 +642,6 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 	})
 
 	return nil
-}
-
-// FormatConfigDelivery formats a config match for delivery to plugin.
-// Format: "config <context> <name> <value>".
-func FormatConfigDelivery(context, name, value string) string {
-	return fmt.Sprintf("config %s %s %s", context, name, value)
 }
 
 // FormatRegistrySharing formats the registry sharing messages for Stage 4.

@@ -221,15 +221,7 @@ module ze-bgp {
         }
 
         // Additional peer settings
-        leaf host-name {
-            type string;
-            description "Host name for FQDN capability";
-        }
-
-        leaf domain-name {
-            type string;
-            description "Domain name for FQDN capability";
-        }
+        // NOTE: host-name/domain-name moved to hostname plugin (ze-hostname.yang)
 
         leaf md5-password {
             type string;

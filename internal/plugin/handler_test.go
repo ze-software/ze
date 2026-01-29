@@ -224,6 +224,10 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []PeerCapabilityConfig {
 	return nil // Mock: no capability configs
 }
 
+func (m *mockReactor) GetConfigTree() map[string]any {
+	return nil // Mock: no config tree
+}
+
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }
