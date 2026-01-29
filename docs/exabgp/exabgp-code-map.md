@@ -1,8 +1,8 @@
-# ExaBGP to ZeBGP Code Map
+# ExaBGP to Ze Code Map
 
 ## TL;DR (Read This First)
 
-| ExaBGP | ZeBGP | Notes |
+| ExaBGP | Ze | Notes |
 |--------|-------|-------|
 | `bgp/message/` | `internal/bgp/message/` | Message types |
 | `bgp/message/open/capability/` | `internal/bgp/capability/` | Capabilities |
@@ -15,7 +15,7 @@
 
 ---
 
-**Purpose:** Map ExaBGP source structure to ZeBGP equivalents
+**Purpose:** Map ExaBGP source structure to Ze equivalents
 **Source:** `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/` (372 Python files)
 **Target:** `internal/`, `internal/`, `cmd/`
 
@@ -23,7 +23,7 @@
 
 ## Overview
 
-| ExaBGP Module | Files | ZeBGP Equivalent | Notes |
+| ExaBGP Module | Files | Ze Equivalent | Notes |
 |---------------|-------|------------------|-------|
 | `bgp/` | 120+ | `internal/bgp/` | Core protocol |
 | `reactor/` | 30+ | `internal/reactor/` | Event loop, peers |
@@ -45,7 +45,7 @@
 
 ### 1.1 Messages (`bgp/message/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `message.py` | Base message class | `internal/bgp/message/message.go` |
 | `message_type.py` | Message type enum | `internal/bgp/message/types.go` |
@@ -61,7 +61,7 @@
 
 ### 1.2 OPEN Message (`bgp/message/open/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `open/capability/capability.py` | Capability base | `internal/bgp/capability/capability.go` |
 | `open/capability/capabilities.py` | Capability collection | `internal/bgp/capability/capabilities.go` |
@@ -81,7 +81,7 @@
 
 ### 1.3 UPDATE Message (`bgp/message/update/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `update/__init__.py` | UPDATE message | `internal/bgp/message/update.go` |
 | `update/collection.py` | Route collection | `internal/bgp/message/update_collection.go` |
@@ -89,7 +89,7 @@
 
 ### 1.4 Path Attributes (`bgp/message/update/attribute/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `attribute/attribute.py` | Attribute base | `internal/bgp/attribute/attribute.go` |
 | `attribute/collection.py` | Attribute collection | `internal/bgp/attribute/collection.go` |
@@ -111,7 +111,7 @@
 
 ### 1.5 Communities (`bgp/message/update/attribute/community/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `community/initial/community.py` | Standard community | `internal/bgp/attribute/community.go` |
 | `community/extended/*.py` | Extended communities | `internal/bgp/attribute/extcommunity.go` |
@@ -119,7 +119,7 @@
 
 ### 1.6 BGP-LS Attributes (`bgp/message/update/attribute/bgpls/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `bgpls/node/*.py` | Node attributes | `internal/bgp/attribute/bgpls/node.go` |
 | `bgpls/link/*.py` | Link attributes | `internal/bgp/attribute/bgpls/link.go` |
@@ -127,14 +127,14 @@
 
 ### 1.7 SR/SRv6 (`bgp/message/update/attribute/sr/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `sr/*.py` | Segment Routing | `internal/bgp/attribute/sr/sr.go` |
 | `sr/srv6/*.py` | SRv6 | `internal/bgp/attribute/sr/srv6.go` |
 
 ### 1.8 NLRI Types (`bgp/message/update/nlri/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `nlri/nlri.py` | NLRI base class | `internal/bgp/nlri/nlri.go` |
 | `nlri/collection.py` | NLRI collection | `internal/bgp/nlri/collection.go` |
@@ -150,7 +150,7 @@
 
 ### 1.9 EVPN (`bgp/message/update/nlri/evpn/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `evpn/nlri.py` | EVPN base | `internal/bgp/nlri/evpn/evpn.go` |
 | `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/bgp/nlri/evpn/type1.go` |
@@ -161,7 +161,7 @@
 
 ### 1.10 BGP-LS NLRI (`bgp/message/update/nlri/bgpls/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `bgpls/nlri.py` | BGP-LS base | `internal/bgp/nlri/bgpls/bgpls.go` |
 | `bgpls/node.py` | Node NLRI | `internal/bgp/nlri/bgpls/node.go` |
@@ -172,7 +172,7 @@
 
 ### 1.11 MUP (`bgp/message/update/nlri/mup/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `mup/nlri.py` | MUP base | `internal/bgp/nlri/mup/mup.go` |
 | `mup/isd.py` | Interwork SD | `internal/bgp/nlri/mup/isd.go` |
@@ -182,14 +182,14 @@
 
 ### 1.12 MVPN (`bgp/message/update/nlri/mvpn/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `mvpn/nlri.py` | MVPN base | `internal/bgp/nlri/mvpn/mvpn.go` |
 | `mvpn/*.py` | MVPN route types | `internal/bgp/nlri/mvpn/*.go` |
 
 ### 1.13 Qualifiers (`bgp/message/update/nlri/qualifier/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `qualifier/rd.py` | Route Distinguisher | `internal/bgp/nlri/rd.go` |
 | `qualifier/esi.py` | Ethernet Segment ID | `internal/bgp/nlri/esi.go` |
@@ -200,14 +200,14 @@
 
 ### 1.14 Neighbor (`bgp/neighbor/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `neighbor/neighbor.py` | Neighbor config | `internal/config/neighbor.go` |
 | `neighbor/*.py` | Neighbor helpers | `internal/config/neighbor_*.go` |
 
 ### 1.15 FSM (`bgp/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `fsm.py` | State machine | `internal/bgp/fsm/fsm.go` |
 | `timer.py` | BGP timers | `internal/bgp/fsm/timer.go` |
@@ -216,7 +216,7 @@
 
 ## 2. Reactor (`reactor/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `loop.py` | Main event loop | `internal/reactor/reactor.go` |
 | `asynchronous.py` | Async handling | `internal/reactor/reactor.go` (goroutines) |
@@ -230,21 +230,21 @@
 
 ### 2.1 Peer Management (`reactor/peer/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `peer/__init__.py` | Peer class | `internal/reactor/peer.go` |
 | `peer/handlers/*.py` | Message handlers | `internal/reactor/handlers/*.go` |
 
 ### 2.2 Network (`reactor/network/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `network/connection.py` | TCP connection | `internal/reactor/connection.go` |
 | `network/*.py` | Network utilities | `internal/reactor/network.go` |
 
 ### 2.3 API (`reactor/api/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `api/__init__.py` | API server | `internal/plugin/server.go` |
 | `api/processes.py` | External processes | `internal/plugin/process.go` |
@@ -258,7 +258,7 @@
 
 ## 3. Configuration (`configuration/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `configuration.py` | Main parser | `internal/config/parser.go` |
 | `parser.py` | Parser utilities | `internal/config/parser.go` |
@@ -277,7 +277,7 @@
 
 ### 3.1 Core (`configuration/core/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `core/tokeniser.py` | Tokenizer | `internal/config/tokenizer.go` |
 | `core/section.py` | Section handling | `internal/config/section.go` |
@@ -285,7 +285,7 @@
 
 ### 3.2 Sections
 
-| ExaBGP Directory | Purpose | ZeBGP File |
+| ExaBGP Directory | Purpose | Ze File |
 |------------------|---------|------------|
 | `announce/` | Announce config | `internal/config/announce.go` |
 | `flow/` | FlowSpec config | `internal/config/flow.go` |
@@ -300,7 +300,7 @@
 
 ## 4. RIB (`rib/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `rib.py` | Main RIB | `internal/rib/rib.go` |
 | `incoming.py` | Adj-RIB-In | `internal/rib/incoming.go` |
@@ -312,7 +312,7 @@
 
 ## 5. Application (`application/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `main.py` | Entry point | `cmd/ze/bgp/main.go` |
 | `run.py` | Run daemon | `cmd/ze/bgp/run.go` |
@@ -337,7 +337,7 @@
 
 ## 6. Protocol Utilities (`protocol/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `ip/address.py` | IP addresses | `netip` (stdlib) |
 | `ip/tcp/*.py` | TCP utilities | `net` (stdlib) |
@@ -347,7 +347,7 @@
 
 ## 7. Environment (`environment/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `setup.py` | Environment setup | `internal/config/environment.go` |
 | `*.py` | Env var handling | `internal/config/environment.go` |
@@ -356,7 +356,7 @@
 
 ## 8. Utilities (`util/`)
 
-| ExaBGP File | Purpose | ZeBGP File |
+| ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
 | `dns.py` | DNS utilities | `net` (stdlib) |
 | `ip.py` | IP utilities | `netip` (stdlib) |
@@ -383,23 +383,23 @@
 
 ### 1. Concurrency Model
 - **ExaBGP:** Python async/generator-based reactor
-- **ZeBGP:** Goroutine per peer, channels for communication
+- **Ze:** Goroutine per peer, channels for communication
 
 ### 2. Memory Management
 - **ExaBGP:** Python GC, no explicit pooling
-- **ZeBGP:** Explicit pool with handle-based deduplication
+- **Ze:** Explicit pool with handle-based deduplication
 
 ### 3. API Format
 - **ExaBGP:** Multiple JSON format versions
-- **ZeBGP:** Single unified format (RFC-aligned)
+- **Ze:** Single unified format (RFC-aligned)
 
 ### 4. Configuration
 - **ExaBGP:** Text file parsing with tokenizer
-- **ZeBGP:** Same format + VyOS-like interactive editor
+- **Ze:** Same format + VyOS-like interactive editor
 
 ### 5. Type System
 - **ExaBGP:** Runtime type checking, optional hints
-- **ZeBGP:** Compile-time type checking (Go)
+- **Ze:** Compile-time type checking (Go)
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-ZeBGP has multiple route representations serving different purposes in the data flow pipeline.
+Ze has multiple route representations serving different purposes in the data flow pipeline.
 
 ## Route Structs Inventory
 

@@ -1,7 +1,7 @@
 # API Architecture
 
 > **ARCHITECTURE:** API programs own ALL RIB data and logic.
-> The ZeBGP engine is a minimal BGP speaker - no RIB, no best-path, no policy.
+> The Ze engine is a minimal BGP speaker - no RIB, no best-path, no policy.
 > See `docs/architecture/rib-transition.md` for the full architecture.
 
 ## Implementation Status
@@ -139,7 +139,7 @@ peer <address> {
 
 ### Key Differences from ExaBGP
 
-| Aspect | ExaBGP | ZeBGP |
+| Aspect | ExaBGP | Ze |
 |--------|--------|-------|
 | Keyword | `neighbor {` | `peer {` |
 | API binding | `api { processes [foo]; }` | `api foo { ... }` in peer |
@@ -176,7 +176,7 @@ Per-binding format/encoding applied
 
 ## Overview
 
-The ZeBGP API system enables external route injection and daemon control via:
+The Ze API system enables external route injection and daemon control via:
 - Unix socket connections (CLI tools)
 - Subprocess management (external route generators)
 
@@ -821,7 +821,7 @@ Key operations:
 
 > **Implementation spec:** `docs/plan/done/148-api-command-restructure-step-8.md`
 
-ZeBGP implements route reflection through the API, not internally. This enables
+Ze implements route reflection through the API, not internally. This enables
 external policy engines to make routing decisions.
 
 ### Architecture

@@ -252,7 +252,7 @@ peer 192.168.1.2 {
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Go Tokenizer
 

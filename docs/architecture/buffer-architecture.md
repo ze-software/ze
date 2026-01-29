@@ -23,7 +23,7 @@ See `docs/plan/spec-buffer-first-migration.md` for detailed implementation plan.
 
 ## Executive Summary
 
-ZeBGP uses a **buffer-first** architecture where BGP messages are represented as byte buffers with iterators and partial parsers. This eliminates duplication between wire format and parsed representations, enables zero-copy operations, and provides a single source of truth.
+Ze uses a **buffer-first** architecture where BGP messages are represented as byte buffers with iterators and partial parsers. This eliminates duplication between wire format and parsed representations, enables zero-copy operations, and provides a single source of truth.
 
 **Core principle:** One representation (bytes). Everything else is views/iterators.
 

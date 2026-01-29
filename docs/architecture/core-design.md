@@ -1,9 +1,9 @@
-# ZeBGP Core Design
+# Ze Core Design
 
 **Status:** Canonical Architecture Reference
 **Date:** 2026-01-11
 
-This document captures the fundamental design principles for ZeBGP.
+This document captures the fundamental design principles for Ze.
 All new code MUST follow these patterns.
 
 ---
@@ -24,7 +24,7 @@ All new code MUST follow these patterns.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ZeBGP ENGINE                                    │
+│                              Ze ENGINE                                    │
 │                                                                             │
 │   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
 │   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
@@ -292,7 +292,7 @@ The NextHop type must handle this context-dependent encoding.
 
 ## 6. API Pipe Communication
 
-ZeBGP engine communicates with plugins via stdin/stdout pipes.
+Ze engine communicates with plugins via stdin/stdout pipes.
 
 ### Two Input Modes
 

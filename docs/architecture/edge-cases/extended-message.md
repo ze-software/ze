@@ -245,7 +245,7 @@ FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF  # Marker
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Capability
 

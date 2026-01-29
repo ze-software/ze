@@ -1,6 +1,6 @@
 # .ci Test File Format
 
-The `.ci` format is used by ZeBGP's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands.
+The `.ci` format is used by Ze's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands.
 
 ## Syntax Overview
 
@@ -62,7 +62,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze bgp server -:stdin=zebgp
+cmd=foreground:seq=1:exec=ze bgp server -:stdin=ze
 ```
 
 **Single-line hex (decode test):**

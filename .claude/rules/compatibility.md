@@ -1,10 +1,10 @@
 # No Backwards Compatibility
 
-**ZeBGP has never been released. There are no users.**
+**Ze has never been released. There are no users.**
 
-## ZeBGP-to-ZeBGP Compatibility
+## Ze-to-Ze Compatibility
 
-ZeBGP will never have backwards compatibility with itself:
+Ze will never have backwards compatibility with itself:
 - NO backwards compatibility code
 - NO backwards compatibility comments
 - NO legacy shims or fallbacks
@@ -25,8 +25,8 @@ ExaBGP compatibility is provided via **external tools**, not in-engine code:
 
 | Tool | Purpose |
 |------|---------|
-| `ze exabgp plugin` | Run ExaBGP plugins with ZeBGP (bidirectional JSON/command translation) |
-| `ze bgp config migrate` | Convert ExaBGP configs to ZeBGP format |
+| `ze exabgp plugin` | Run ExaBGP plugins with Ze (bidirectional JSON/command translation) |
+| `ze bgp config migrate` | Convert ExaBGP configs to Ze format |
 
 ### Architecture
 
@@ -40,7 +40,7 @@ cmd/ze/bgp/exabgp.go   # CLI wrapper - ze exabgp plugin <cmd>
 
 This allows:
 - Programmatic use of translation in other Go tools
-- CLI for direct use in ZeBGP `run` commands
+- CLI for direct use in Ze `run` commands
 - Testing the library independently
 
 ### Usage
@@ -49,7 +49,7 @@ This allows:
 # Command line
 ze exabgp plugin /path/to/exabgp-plugin.py
 
-# ZeBGP config
+# Ze config
 process exabgp-compat {
     run "ze exabgp plugin /path/to/exabgp-plugin.py";
 }

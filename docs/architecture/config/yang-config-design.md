@@ -42,7 +42,7 @@ YANG Schema → libyang Validation → Go Handler → System
 
 **YANG defines format. Extensions declare behavior. Implementation executes behavior.**
 
-Other YANG tools see valid schemas. ZeBGP additionally executes the extensions.
+Other YANG tools see valid schemas. Ze additionally executes the extensions.
 
 ---
 

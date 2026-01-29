@@ -2,7 +2,7 @@
 
 ## TL;DR
 
-ZeBGP-specific feature to set environment variables from the config file:
+Ze-specific feature to set environment variables from the config file:
 
 ```
 environment {
@@ -66,8 +66,8 @@ environment {
 | | respawn | bool | - | false |
 | | terminate | bool | - | false |
 | | cli | bool | - | true |
-| | pipename | string | - | zebgp |
-| | socketname | string | - | zebgp |
+| | pipename | string | - | ze |
+| | socketname | string | - | ze |
 | **reactor** | speed | float | 0.1-10.0 | 1.0 |
 | **debug** | pdb | bool | - | false |
 | | memory | bool | - | false |
@@ -98,10 +98,10 @@ environment {
 
 ## Strict Validation
 
-ZeBGP uses **strict validation** - invalid values cause startup failure:
+Ze uses **strict validation** - invalid values cause startup failure:
 
 ```bash
-# These will cause ZeBGP to refuse to start:
+# These will cause Ze to refuse to start:
 ze.bgp.tcp.port=abc          # Invalid: not a number
 ze.bgp.tcp.port=99999        # Invalid: out of range (1-65535)
 ze.bgp.log.level=BOGUS       # Invalid: unknown level
@@ -145,7 +145,7 @@ peer 192.0.2.2 {
 ```
 environment {
     daemon {
-        user zebgp;
+        user ze;
         daemonize true;
     }
     log {
@@ -180,7 +180,7 @@ ze bgp run config.conf
 
 ## Differences from ExaBGP
 
-| Feature | ExaBGP | ZeBGP |
+| Feature | ExaBGP | Ze |
 |---------|--------|-------|
 | Environment source | Separate INI file (`exabgp.env`) | Config block + OS env |
 | Invalid values | Silent fallback to default | Strict error, refuse to start |

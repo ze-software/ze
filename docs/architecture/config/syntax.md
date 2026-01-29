@@ -60,7 +60,7 @@ bgp {
 
 ### environment
 
-ZeBGP-specific block for setting environment configuration from the config file.
+Ze-specific block for setting environment configuration from the config file.
 See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for full documentation.
 
 ```
@@ -294,7 +294,7 @@ add-path {
 }
 ```
 
-### Process Section (ZeBGP New Syntax)
+### Process Section (Ze New Syntax)
 
 ```
 # Named process binding (preferred)
@@ -912,7 +912,7 @@ include "/etc/exabgp/neighbors.conf";
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Parser Architecture
 

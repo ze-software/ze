@@ -193,7 +193,7 @@ func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI, ctx *conte
 
 ### No Backwards Compatibility
 
-ZeBGP has never been released. No backwards compatibility needed:
+Ze has never been released. No backwards compatibility needed:
 - Change interface directly
 - Fix all implementations
 - Fix all callers

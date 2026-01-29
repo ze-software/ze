@@ -282,7 +282,7 @@ C0 A8 01 01         # Next Hop = 192.168.1.1
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### PathInfo Type
 

@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -1064,16 +1065,16 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 		family = nlri.IPv6FlowSpec
 	}
 
-	fs := nlri.NewFlowSpec(family)
+	fs := flowspec.NewFlowSpec(family)
 
 	// Add destination prefix (first value only - prefix is singular)
 	if vals, ok := match["destination"]; ok && len(vals) > 0 {
 		prefix, offset := parseFlowPrefixWithOffset(vals[0])
 		if prefix.IsValid() {
 			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(nlri.NewFlowDestPrefixComponentWithOffset(prefix, offset))
+				fs.AddComponent(flowspec.NewFlowDestPrefixComponentWithOffset(prefix, offset))
 			} else {
-				fs.AddComponent(nlri.NewFlowDestPrefixComponent(prefix))
+				fs.AddComponent(flowspec.NewFlowDestPrefixComponent(prefix))
 			}
 		}
 	}
@@ -1083,9 +1084,9 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 		prefix, offset := parseFlowPrefixWithOffset(vals[0])
 		if prefix.IsValid() {
 			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(nlri.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
+				fs.AddComponent(flowspec.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
 			} else {
-				fs.AddComponent(nlri.NewFlowSourcePrefixComponent(prefix))
+				fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(prefix))
 			}
 		}
 	}
@@ -1094,7 +1095,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["protocol"]; ok {
 		matches := parseFlowProtocolMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
 		}
 	}
 
@@ -1102,7 +1103,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["next-header"]; ok {
 		matches := parseFlowProtocolMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
 		}
 	}
 
@@ -1110,7 +1111,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["port"]; ok {
 		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPort, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowPort, matches))
 		}
 	}
 
@@ -1118,7 +1119,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["destination-port"]; ok {
 		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowDestPort, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, matches))
 		}
 	}
 
@@ -1126,7 +1127,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["source-port"]; ok {
 		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowSourcePort, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowSourcePort, matches))
 		}
 	}
 
@@ -1134,7 +1135,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["packet-length"]; ok {
 		matches := parseFlowMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPacketLength, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowPacketLength, matches))
 		}
 	}
 
@@ -1142,7 +1143,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["dscp"]; ok {
 		octets := parseFlowOctetsSlice(vals)
 		if len(octets) > 0 {
-			fs.AddComponent(nlri.NewFlowDSCPComponent(octets...))
+			fs.AddComponent(flowspec.NewFlowDSCPComponent(octets...))
 		}
 	}
 
@@ -1150,7 +1151,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["traffic-class"]; ok {
 		octets := parseFlowOctetsSlice(vals)
 		if len(octets) > 0 {
-			fs.AddComponent(nlri.NewFlowDSCPComponent(octets...))
+			fs.AddComponent(flowspec.NewFlowDSCPComponent(octets...))
 		}
 	}
 
@@ -1158,7 +1159,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["flow-label"]; ok {
 		labels := parseFlowLabelsSlice(vals)
 		if len(labels) > 0 {
-			fs.AddComponent(nlri.NewFlowFlowLabelComponent(labels...))
+			fs.AddComponent(flowspec.NewFlowFlowLabelComponent(labels...))
 		}
 	}
 
@@ -1166,7 +1167,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["fragment"]; ok {
 		flags := parseFlowFragmentSlice(vals)
 		if len(flags) > 0 {
-			fs.AddComponent(nlri.NewFlowFragmentComponent(flags...))
+			fs.AddComponent(flowspec.NewFlowFragmentComponent(flags...))
 		}
 	}
 
@@ -1174,7 +1175,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["tcp-flags"]; ok {
 		matches := parseFlowTCPFlagMatchesSlice(vals)
 		if len(matches) > 0 {
-			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowTCPFlags, matches))
+			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowTCPFlags, matches))
 		}
 	}
 
@@ -1182,7 +1183,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["icmp-type"]; ok {
 		types := parseFlowICMPTypesSlice(vals)
 		if len(types) > 0 {
-			fs.AddComponent(nlri.NewFlowICMPTypeComponent(types...))
+			fs.AddComponent(flowspec.NewFlowICMPTypeComponent(types...))
 		}
 	}
 
@@ -1190,7 +1191,7 @@ func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []by
 	if vals, ok := match["icmp-code"]; ok {
 		codes := parseFlowICMPCodesSlice(vals)
 		if len(codes) > 0 {
-			fs.AddComponent(nlri.NewFlowICMPCodeComponent(codes...))
+			fs.AddComponent(flowspec.NewFlowICMPCodeComponent(codes...))
 		}
 	}
 
@@ -1248,35 +1249,35 @@ func parseFlowProtocols(s string) []uint8 {
 }
 
 // parseFlowProtocolMatches parses protocol values with operators.
-func parseFlowProtocolMatches(s string) []nlri.FlowMatch {
+func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []nlri.FlowMatch
+	var result []flowspec.FlowMatch
 
 	protoMap := map[string]uint8{
 		"icmp": 1, "igmp": 2, "tcp": 6, "udp": 17, "gre": 47, "esp": 50, "ah": 51,
 	}
 
 	for _, p := range parts {
-		var op nlri.FlowOperator
+		var op flowspec.FlowOperator
 
 		// Parse operator prefix
 		switch {
 		case strings.HasPrefix(p, "!="):
-			op = nlri.FlowOpNotEq
+			op = flowspec.FlowOpNotEq
 			p = strings.TrimPrefix(p, "!=")
 		case strings.HasPrefix(p, "="):
-			op = nlri.FlowOpEqual
+			op = flowspec.FlowOpEqual
 			p = strings.TrimPrefix(p, "=")
 		default:
-			op = nlri.FlowOpEqual
+			op = flowspec.FlowOpEqual
 		}
 
 		p = strings.ToLower(p)
 		if v, ok := protoMap[p]; ok {
-			result = append(result, nlri.FlowMatch{Op: op, Value: uint64(v)})
+			result = append(result, flowspec.FlowMatch{Op: op, Value: uint64(v)})
 		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, nlri.FlowMatch{Op: op, Value: n})
+			result = append(result, flowspec.FlowMatch{Op: op, Value: n})
 		}
 	}
 	return result
@@ -1296,44 +1297,44 @@ func parseFlowPorts(s string) []uint16 {
 
 // parseFlowMatches parses FlowSpec match expressions with operators.
 // Formats: "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088", "!=443".
-func parseFlowMatches(s string) []nlri.FlowMatch {
+func parseFlowMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []nlri.FlowMatch
+	var result []flowspec.FlowMatch
 
 	for _, p := range parts {
 		// Handle range operators like ">8080&<8088" by splitting on &
 		rangeParts := strings.Split(p, "&")
 		for i, rp := range rangeParts {
-			var op nlri.FlowOperator
+			var op flowspec.FlowOperator
 			isAnd := i > 0 // Parts after & are AND-ed with previous
 
 			// Parse operator prefix
 			switch {
 			case strings.HasPrefix(rp, "!="):
-				op = nlri.FlowOpNotEq
+				op = flowspec.FlowOpNotEq
 				rp = strings.TrimPrefix(rp, "!=")
 			case strings.HasPrefix(rp, ">="):
-				op = nlri.FlowOpGreater | nlri.FlowOpEqual
+				op = flowspec.FlowOpGreater | flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, ">=")
 			case strings.HasPrefix(rp, "<="):
-				op = nlri.FlowOpLess | nlri.FlowOpEqual
+				op = flowspec.FlowOpLess | flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, "<=")
 			case strings.HasPrefix(rp, ">"):
-				op = nlri.FlowOpGreater
+				op = flowspec.FlowOpGreater
 				rp = strings.TrimPrefix(rp, ">")
 			case strings.HasPrefix(rp, "<"):
-				op = nlri.FlowOpLess
+				op = flowspec.FlowOpLess
 				rp = strings.TrimPrefix(rp, "<")
 			case strings.HasPrefix(rp, "="):
-				op = nlri.FlowOpEqual
+				op = flowspec.FlowOpEqual
 				rp = strings.TrimPrefix(rp, "=")
 			default:
-				op = nlri.FlowOpEqual // Default to equality
+				op = flowspec.FlowOpEqual // Default to equality
 			}
 
 			if n, err := strconv.ParseUint(rp, 10, 32); err == nil {
-				result = append(result, nlri.FlowMatch{
+				result = append(result, flowspec.FlowMatch{
 					Op:    op,
 					And:   isAnd,
 					Value: n,
@@ -1468,16 +1469,16 @@ func parseFlowICMPCodes(s string) []uint8 {
 }
 
 // parseFlowFragment parses fragment flags like "[ first-fragment last-fragment ]".
-func parseFlowFragment(s string) []nlri.FlowFragmentFlag {
+func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []nlri.FlowFragmentFlag
+	var result []flowspec.FlowFragmentFlag
 
-	flagMap := map[string]nlri.FlowFragmentFlag{
-		"dont-fragment":  nlri.FlowFragDontFragment,
-		"is-fragment":    nlri.FlowFragIsFragment,
-		"first-fragment": nlri.FlowFragFirstFragment,
-		"last-fragment":  nlri.FlowFragLastFragment,
+	flagMap := map[string]flowspec.FlowFragmentFlag{
+		"dont-fragment":  flowspec.FlowFragDontFragment,
+		"is-fragment":    flowspec.FlowFragIsFragment,
+		"first-fragment": flowspec.FlowFragFirstFragment,
+		"last-fragment":  flowspec.FlowFragLastFragment,
 	}
 
 	for _, p := range parts {
@@ -1506,10 +1507,10 @@ func parseFlowTCPFlags(s string) []uint8 {
 //   - 0x01 = MATCH (exact match)
 //   - 0x02 = NOT (negate)
 //   - 0x40 = AND (AND with previous)
-func parseFlowTCPFlagMatches(s string) []nlri.FlowMatch {
+func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []nlri.FlowMatch
+	var result []flowspec.FlowMatch
 
 	flagMap := map[string]uint8{
 		"fin": 0x01, "syn": 0x02, "rst": 0x04, "reset": 0x04,
@@ -1522,7 +1523,7 @@ func parseFlowTCPFlagMatches(s string) []nlri.FlowMatch {
 		// Handle combined flags like "RST&FIN&!=push"
 		flagParts := strings.Split(p, "&")
 		for i, fp := range flagParts {
-			var op nlri.FlowOperator
+			var op flowspec.FlowOperator
 			isAnd := i > 0 // Parts after & are AND-ed
 
 			// Check for != (NOT+MATCH)
@@ -1538,7 +1539,7 @@ func parseFlowTCPFlagMatches(s string) []nlri.FlowMatch {
 
 			fp = strings.ToLower(fp)
 			if f, ok := flagMap[fp]; ok {
-				result = append(result, nlri.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
+				result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
 			}
 		}
 	}
@@ -1563,8 +1564,8 @@ func parseFlowLabels(s string) []uint32 {
 // --- Slice helpers for map[string][]string NLRI format ---
 
 // parseFlowProtocolMatchesSlice parses protocol values from a pre-split slice.
-func parseFlowProtocolMatchesSlice(vals []string) []nlri.FlowMatch {
-	result := make([]nlri.FlowMatch, 0, len(vals))
+func parseFlowProtocolMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		result = append(result, parseFlowProtocolMatches(v)...)
 	}
@@ -1572,8 +1573,8 @@ func parseFlowProtocolMatchesSlice(vals []string) []nlri.FlowMatch {
 }
 
 // parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
-func parseFlowMatchesSlice(vals []string) []nlri.FlowMatch {
-	result := make([]nlri.FlowMatch, 0, len(vals))
+func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		result = append(result, parseFlowMatches(v)...)
 	}
@@ -1599,8 +1600,8 @@ func parseFlowLabelsSlice(vals []string) []uint32 {
 }
 
 // parseFlowFragmentSlice parses fragment flags from a pre-split slice.
-func parseFlowFragmentSlice(vals []string) []nlri.FlowFragmentFlag {
-	result := make([]nlri.FlowFragmentFlag, 0, len(vals))
+func parseFlowFragmentSlice(vals []string) []flowspec.FlowFragmentFlag {
+	result := make([]flowspec.FlowFragmentFlag, 0, len(vals))
 	for _, v := range vals {
 		result = append(result, parseFlowFragment(v)...)
 	}
@@ -1608,8 +1609,8 @@ func parseFlowFragmentSlice(vals []string) []nlri.FlowFragmentFlag {
 }
 
 // parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
-func parseFlowTCPFlagMatchesSlice(vals []string) []nlri.FlowMatch {
-	result := make([]nlri.FlowMatch, 0, len(vals))
+func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
+	result := make([]flowspec.FlowMatch, 0, len(vals))
 	for _, v := range vals {
 		result = append(result, parseFlowTCPFlagMatches(v)...)
 	}

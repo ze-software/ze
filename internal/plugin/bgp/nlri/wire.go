@@ -57,6 +57,9 @@ func (w *WireNLRI) PathID() uint32 {
 	return binary.BigEndian.Uint32(w.data[:4])
 }
 
+// SupportsAddPath returns true - WireNLRI is a passthrough and supports ADD-PATH.
+func (w *WireNLRI) SupportsAddPath() bool { return true }
+
 // Bytes returns raw data as-is (including path-id if present).
 func (w *WireNLRI) Bytes() []byte {
 	return w.data

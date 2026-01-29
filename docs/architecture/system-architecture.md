@@ -1,13 +1,13 @@
-# ZeBGP System Architecture
+# Ze System Architecture
 
 **Status:** Target Architecture (spec in progress)
-**Purpose:** Describes how ZeBGP will look and function after the hub/process separation refactor
+**Purpose:** Describes how Ze will look and function after the hub/process separation refactor
 
 ---
 
 ## Overview
 
-ZeBGP runs as a **hub process** (`ze`) that orchestrates separate **plugin processes** communicating via pipes. This architecture enables:
+Ze runs as a **hub process** (`ze`) that orchestrates separate **plugin processes** communicating via pipes. This architecture enables:
 
 - Language freedom (plugins can be Go, Python, Rust, etc.)
 - Crash isolation (BGP crash doesn't kill RIB)
@@ -31,12 +31,12 @@ ZeBGP runs as a **hub process** (`ze`) that orchestrates separate **plugin proce
 
 ---
 
-## Running ZeBGP
+## Running Ze
 
 ### Basic Usage
 
 ```bash
-# Start ZeBGP with a config file
+# Start Ze with a config file
 ze config.conf
 
 # The hub process:
@@ -155,7 +155,7 @@ acme {
 
 ### Built-in Plugins
 
-Shipped with ZeBGP, same binary:
+Shipped with Ze, same binary:
 
 | Plugin | Binary | Purpose |
 |--------|--------|---------|
@@ -497,7 +497,7 @@ Usage (Go):
   // changes = []Change{{Action: "create", Path: "bgp.peer[addr=X]", Data: {...}}, ...}
 ```
 
-This library is part of the ZeBGP codebase, available to all plugins.
+This library is part of the Ze codebase, available to all plugins.
 
 ---
 
@@ -625,7 +625,7 @@ internal/
 ## Example Session
 
 ```bash
-# Start ZeBGP
+# Start Ze
 $ ze /etc/ze/config.conf
 [hub] Starting with config /etc/ze/config.conf
 [hub] Forking ze bgp (pid 1235)

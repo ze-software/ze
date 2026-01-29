@@ -11,7 +11,7 @@ Config should NOT contain version numbers. Design for migration.
 
 ## Fail on Unknown
 
-ZeBGP MUST reject configs with unknown variables/blocks.
+Ze MUST reject configs with unknown variables/blocks.
 
 - Unknown key at any level → fail with clear error
 - No silent ignore of typos or deprecated fields

@@ -36,7 +36,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  ZeBGP Engine (Minimal)                                              │
+│  Ze Engine (Minimal)                                              │
 │  • FSM, parsing, wire I/O                                           │
 │  • BGP cache (lifetime controlled by API via `bgp cache` commands)  │
 │  • NO RIB, NO route storage                                         │

@@ -174,7 +174,25 @@ Both produce WireUpdate with wire bytes.
 
 **Investigation → Test Rule:** If you investigate/debug something, add a test so future devs don't have to re-investigate.
 
+## ⛔ Before Writing ANY Spec
+
+**BLOCKING - ENFORCED AT EVERY START:**
+
+Before writing or editing ANY spec file (`docs/plan/spec-*.md`):
+
+1. **READ the source files that will be modified** - Not docs, the ACTUAL CODE
+2. **Document current behavior** - What does the code do NOW?
+3. **Preserve behavior by default** - Unless user explicitly says to change it
+
+**Why:** I invented a new JSON format instead of reading `decode.go` and preserving the existing one. This wasted money and broke tests.
+
+**Verification question before spec writing:**
+> "Have I read the actual source files listed in 'Files to Modify'? Can I describe what they currently do?"
+
+If NO → READ THE CODE FIRST. Do not proceed.
+
 ## Key Rules
+- **Read source before spec** - BLOCKING: Read actual code files before writing specs. Document current behavior. Preserve it unless told otherwise.
 - **No code without understanding** - BLOCKING: Do not write any code until you have read relevant existing code and understand the architecture. Search, read, analyze BEFORE proposing changes.
 - **Design before code** - Search codebase first. Reuse/extend existing code. Think deeply before implementing.
 - **TDD MANDATORY** - Test must exist and fail before implementation
@@ -182,16 +200,20 @@ Both produce WireUpdate with wire bytes.
 - **Verify before claiming** - Paste command output as proof
 - **Git safety** - Never commit/push without explicit request
 
-## Post-Compaction Recovery
+## Post-Compaction / Resuming Spec Work
 
 **BLOCKING:** See `.claude/rules/post-compaction.md` for full procedure.
 
+Applies when: compaction, new session, resuming a spec, coming back after other work.
+
 Quick checklist:
 1. **Read selected spec** - `.claude/selected-spec` → `docs/plan/<spec-name>`
-2. **Read spec's Required Reading** - ALL docs listed
-3. **Read session state** - `.claude/session-state.md` (decisions, progress)
-4. **Check git status** - What files are modified?
-5. **Update session-state.md** - After reading, track what you've recovered
+2. **Read source files** - ALL files in "Current Behavior" and "Files to Modify"
+3. **Read spec's Required Reading** - ALL docs listed (ignore checkboxes)
+4. **Read session state** - `.claude/session-state.md` (decisions, progress)
+5. **Check git status** - What files are modified?
+
+**Checkboxes are lies.** `[x]` means read in PREVIOUS session. Re-read everything.
 
 **Spec selection:** Only ONE spec at a time.
 ```bash

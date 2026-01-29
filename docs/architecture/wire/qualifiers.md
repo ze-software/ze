@@ -404,7 +404,7 @@ class MAC:
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Singleton Pattern
 

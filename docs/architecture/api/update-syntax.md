@@ -788,11 +788,11 @@ Send raw bytes with no validation ("trust me bro" mode):
 
 | Command | What's sent | Header |
 |---------|-------------|--------|
-| `peer X raw <type> <enc> <data>` | Message payload | ZeBGP adds |
+| `peer X raw <type> <enc> <data>` | Message payload | Ze adds |
 | `peer X raw <enc> <data>` | Full packet | User provides FF*16 |
 
 ```bash
-# Payload only (ZeBGP adds 19-byte header)
+# Payload only (Ze adds 19-byte header)
 peer 10.0.0.1 raw update hex 0000000e40010100400200400304c0a80101180a00
 peer 10.0.0.1 raw notification hex 0602
 peer 10.0.0.1 raw keepalive hex

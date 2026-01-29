@@ -1,4 +1,4 @@
-# ZeBGP Design Transition: RIB in API Program
+# Ze Design Transition: RIB in API Program
 
 **Status:** Active Design Target
 **Date:** 2026-01-04
@@ -8,7 +8,7 @@
 
 ## Executive Summary
 
-ZeBGP is transitioning to an architecture where **all RIB data and logic lives in API programs**, not the core engine. The engine remains a minimal BGP speaker focused on protocol handling ("parse on demand"), while API programs own route storage, policy decisions, and features like graceful-restart.
+Ze is transitioning to an architecture where **all RIB data and logic lives in API programs**, not the core engine. The engine remains a minimal BGP speaker focused on protocol handling ("parse on demand"), while API programs own route storage, policy decisions, and features like graceful-restart.
 
 **Key principles:**
 1. **Engine = Protocol** - FSM, parsing, wire I/O, capability negotiation
@@ -53,7 +53,7 @@ Engine receives UPDATE → Send JSON+wire bytes → API stores in pool → API d
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                     ZeBGP ENGINE (Minimal)                               │
+│                     Ze ENGINE (Minimal)                               │
 │                                                                         │
 │  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐     │
 │  │  FSM            │    │  Parser         │    │  Wire I/O       │     │
@@ -115,7 +115,7 @@ Engine receives UPDATE → Send JSON+wire bytes → API stores in pool → API d
 
 ## Key Components
 
-### 1. ZeBGP Engine (Minimal)
+### 1. Ze Engine (Minimal)
 
 What the engine does:
 - **FSM**: Connect, OpenSent, OpenConfirm, Established states
@@ -454,7 +454,7 @@ Family is required for proper UPDATE construction. This allows API to rebuild UP
 | Go types and interfaces | May change without notice |
 | Internal wire representations | May change without notice |
 
-**Implication:** Plugins should communicate via text/JSON protocol over stdin/stdout, not by importing ZeBGP Go packages. This enables polyglot plugins and avoids coupling to internal structure.
+**Implication:** Plugins should communicate via text/JSON protocol over stdin/stdout, not by importing Ze Go packages. This enables polyglot plugins and avoids coupling to internal structure.
 
 ---
 

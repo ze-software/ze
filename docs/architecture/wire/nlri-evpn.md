@@ -282,7 +282,7 @@ class MAC(EVPN):
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Packed-Bytes-First Pattern
 

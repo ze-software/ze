@@ -51,15 +51,6 @@ func TestLenWithContext_MatchesPack(t *testing.T) {
 			name: "LabeledUnicast_withPath",
 			nlri: mustParseLabeledUnicast(t, "10.0.0.0/24", true, 77),
 		},
-		// FlowSpec (no ADD-PATH support)
-		{
-			name: "FlowSpec_IPv4",
-			nlri: mustParseFlowSpec(t, true),
-		},
-		{
-			name: "FlowSpec_IPv6",
-			nlri: mustParseFlowSpec(t, false),
-		},
 	}
 
 	// Test all context combinations
@@ -94,7 +85,7 @@ func TestLenWithContext_MatchesPack(t *testing.T) {
 }
 
 // TestLenWithContext_MatchesWriteNLRI_AllTypes verifies that LenWithContext returns the same
-// length as WriteNLRI actually writes for all NLRI types including FlowSpec.
+// length as WriteNLRI actually writes for all NLRI types.
 //
 // Phase 3: WriteTo writes payload only. Use WriteNLRI for ADD-PATH encoding.
 //
@@ -117,8 +108,6 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 		// LabeledUnicast - supports ADD-PATH
 		{"LabeledUnicast_noPath", mustParseLabeledUnicast(t, "172.16.0.0/16", false, 0), true},
 		{"LabeledUnicast_withPath", mustParseLabeledUnicast(t, "172.16.0.0/16", true, 4), true},
-		// FlowSpec - does NOT support ADD-PATH
-		{"FlowSpec_IPv4", mustParseFlowSpec(t, true), false},
 		// EVPN - supports ADD-PATH
 		{"EVPNType2_MAC", mustParseEVPNType2(t), true},
 		{"EVPNType5_Prefix", mustParseEVPNType5(t), true},
@@ -201,24 +190,6 @@ func mustParseLabeledUnicast(t *testing.T, prefix string, _ bool, pathID uint32)
 		},
 		labels: []uint32{16000}, // Single label
 	}
-}
-
-// mustParseFlowSpec creates FlowSpec NLRI for testing.
-// FlowSpec doesn't support ADD-PATH, so hasPath is always false.
-func mustParseFlowSpec(t *testing.T, isIPv4 bool) *FlowSpec {
-	t.Helper()
-	family := Family{AFI: AFIIPv4, SAFI: SAFIFlowSpec}
-	if !isIPv4 {
-		family = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpec}
-	}
-	// Create FlowSpec with pre-cached bytes (simulating parsed FlowSpec)
-	// This avoids needing to construct components
-	fs := &FlowSpec{
-		family:     family,
-		components: nil,
-		cached:     []byte{0x03, 0x01, 0x18, 0x0a}, // Simple dest prefix 10.0.0.0/24
-	}
-	return fs
 }
 
 // mustParseEVPNType2 creates an EVPN Type 2 (MAC/IP) NLRI for testing.

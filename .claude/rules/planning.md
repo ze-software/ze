@@ -21,12 +21,15 @@ This prevents drift between rules and practice.
 echo "spec-rfc9234-role.md" > .claude/selected-spec
 ```
 
-### After Context Compaction
+### After Context Compaction or Session Restart
 
-**CRITICAL:** After compaction, you MUST:
+**CRITICAL:** After compaction or new session, you MUST:
 1. Read the selected spec: `docs/plan/<selected-spec>`
-2. Read ALL docs listed in the spec's "Required Reading" section
-3. Re-read this file (planning.md)
+2. **RE-READ ALL docs** listed in the spec's "Required Reading" section
+3. **RE-READ ALL source files** listed in "Current Behavior" and "Files to Modify"
+4. Re-read this file (planning.md)
+
+**Checkboxes mean nothing after compaction.** A `[x]` next to a doc means you read it in a PREVIOUS session. You don't remember the content. RE-READ IT.
 
 The session-start hook shows the selected spec prominently. If no spec is selected, it lists all active specs for you to choose from.
 
@@ -99,27 +102,36 @@ Complete IN ORDER. Do not skip steps.
       → Use phase checklists to ensure completeness
 
 [ ] 8. Read source code for affected area
+      → READ the ACTUAL source files that will be modified (not just docs)
+      → Document current behavior: What does this code output? What format?
+      → **BLOCKING:** Cannot write spec until you can answer:
+        "What does the existing code do? What must be preserved?"
 
-[ ] 9. TDD Planning - identify tests BEFORE implementation
-      → Unit tests needed (write BEFORE implementation - strict TDD)
-      → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
-      → Functional tests needed (write AFTER feature works - end of plan)
-      → Test file locations
+[ ] 9. Document existing behavior in spec
+      → Add "Current Behavior" section to spec
+      → List exact output formats, function signatures, test expectations
+      → These are preserved unless user explicitly says to change
 
-[ ] 10. Present implementation plan to user
+[ ] 10. TDD Planning - identify tests BEFORE implementation
+       → Unit tests needed (write BEFORE implementation - strict TDD)
+       → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
+       → Functional tests needed (write AFTER feature works - end of plan)
+       → Test file locations
+
+[ ] 11. Present implementation plan to user
        → WAIT for approval before continuing
 
-[ ] 11. Write spec to `docs/plan/spec-<task>.md`
+[ ] 12. Write spec to `docs/plan/spec-<task>.md`
        → FIRST complete "Pre-Spec Verification" checklist below
        → Match template format EXACTLY (not approximately)
 
-[ ] 12. Track spec with git
+[ ] 13. Track spec with git
        → `git add docs/plan/spec-<task>.md`
        → Ensures spec is not lost if session ends
 
-[ ] 13. Begin TDD cycle (test fails → implement → test passes)
+[ ] 14. Begin TDD cycle (test fails → implement → test passes)
 
-[ ] 14. Post-implementation completion (see "Completion Checklist" below)
+[ ] 15. Post-implementation completion (see "Completion Checklist" below)
 ```
 
 ## Keyword → Documentation Mapping
@@ -188,6 +200,17 @@ Present to user BEFORE writing code:
 
 ### RFC Summaries (MUST for protocol work)
 - `rfc/short/rfcNNNN.md` - [key insight]
+
+### Current Behavior (MANDATORY - read source first)
+**Source files read:**
+- `path/to/file.go` - [what it does now]
+
+**Behavior to preserve:**
+- [output format, function signature, test expectations that MUST NOT change]
+- [example: JSON output uses keys like "destination-ipv6", nested [[]] arrays]
+
+**Behavior to change (only if user requested):**
+- [explicit changes user asked for, or "None - preserve all"]
 
 ### 🧪 Tests First (TDD)
 **Unit tests:**
@@ -275,6 +298,27 @@ Instead of function implementations, use prose or steps:
 4. Return response to caller
 ```
 
+## Spec Editing: Append-Only
+
+**BLOCKING:** When editing specs, NEVER delete existing content.
+
+| Action | Allowed |
+|--------|---------|
+| Add new sections | ✅ |
+| Add clarifications | ✅ |
+| Add status updates | ✅ |
+| Mark superseded with ~~strikethrough~~ + reason | ✅ |
+| Delete content | ❌ |
+| Remove decisions | ❌ |
+| Overwrite previous text | ❌ |
+
+**Why:** Preserves decision history. After context compaction, deleted content is lost forever - you'll re-investigate solved problems and remake already-made decisions.
+
+**When deletion IS allowed:**
+- Moving spec to `docs/plan/done/` (completion)
+- User explicitly requests deletion
+- Fixing typos (not content changes)
+
 ## Pre-Spec Verification
 
 **BLOCKING: Before writing any spec file, complete this checklist:**
@@ -292,6 +336,8 @@ Instead of function implementations, use prose or steps:
 [ ] 10. No code snippets - use tables and prose (see Spec Writing Style)
 [ ] 11. Files to Modify includes feature code (internal/*, cmd/*), not only tests
 [ ] 12. Functional Tests section includes .ci files for end-user verification
+[ ] 13. Current Behavior section completed (source files read, behavior documented)
+[ ] 14. "Behavior to change" is empty OR user explicitly requested the change
 ```
 
 **Common mistakes:**
@@ -304,6 +350,8 @@ Instead of function implementations, use prose or steps:
 - Code snippets in spec → use tables and prose instead (see Spec Writing Style)
 - Files to Modify contains only test files → feature code must be integrated (`internal/*`, `cmd/*`)
 - Missing functional tests → every feature needs `.ci` tests for end-user verification
+- Missing "Current Behavior" section → MUST document what existing code does BEFORE writing spec
+- Inventing new formats → preserve existing behavior unless user explicitly asked to change it
 
 ## Spec File Template
 
@@ -333,6 +381,19 @@ Write to `docs/plan/spec-<task-name>.md`:
 
 **Key insights:**
 - [insight from docs]
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE writing this spec)
+- [ ] `path/to/file.go` - [what it currently does]
+
+**Behavior to preserve:** (unless user explicitly said to change)
+- [output format, e.g., "JSON uses nested [[]] arrays for OR/AND grouping"]
+- [function signatures that callers depend on]
+- [test expectations from existing .ci files]
+
+**Behavior to change:** (only if user explicitly requested)
+- [list changes user asked for, or "None - preserve all existing behavior"]
 
 ## 🧪 TDD Test Plan
 

@@ -43,7 +43,7 @@ ExaBGP supports 42 AFI/SAFI combinations. Key ones:
 
 ## Class Hierarchy
 
-### ZeBGP Type Hierarchy (with Embedding)
+### Ze Type Hierarchy (with Embedding)
 
 ```
 NLRI (interface)
@@ -396,7 +396,7 @@ With ADD-PATH (RFC 7911):
 +---------------------------+
 ```
 
-### ZeBGP Implementation
+### Ze Implementation
 
 ```go
 // internal/bgp/nlri/labeled.go
@@ -448,7 +448,7 @@ Wire: [32, 0x00, 0x06, 0x41, 10]
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### NLRI Interface (Payload-Only)
 

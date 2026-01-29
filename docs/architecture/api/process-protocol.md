@@ -76,7 +76,7 @@ peer 127.0.0.1 {         →      4. Parse rest of config
                                 6. Continue normal stages  →    (capability injection, ready)
 ```
 
-**Key principle:** ZeBGP engine has NO hardcoded knowledge of capability-specific config
+**Key principle:** Ze engine has NO hardcoded knowledge of capability-specific config
 (like `graceful-restart`). Plugins define their own config schema via `declare conf schema`.
 
 **Benefits:**
@@ -84,9 +84,9 @@ peer 127.0.0.1 {         →      4. Parse rest of config
 - No engine changes for new capabilities
 - Config schema is self-documenting via plugin declarations
 
-### 5-Stage Startup Protocol (ZeBGP)
+### 5-Stage Startup Protocol (Ze)
 
-ZeBGP uses a synchronized 5-stage startup protocol with barriers between stages.
+Ze uses a synchronized 5-stage startup protocol with barriers between stages.
 All plugins must complete each stage before any can proceed to the next.
 
 ```
@@ -167,7 +167,7 @@ All plugins must complete each stage before any can proceed to the next.
 
 **Stage Commands:**
 
-| Stage | Plugin → ZeBGP | ZeBGP → Plugin |
+| Stage | Plugin → Ze | Ze → Plugin |
 |-------|----------------|----------------|
 | 1. Registration | `declare cmd/conf/receive/...`, `declare done` | - |
 | 2. Config | - | `config peer <addr> <key> <value>`, `config done` |
@@ -278,7 +278,7 @@ Error:
 {"serial":"3","status":"error","data":"invalid command"}
 ```
 
-**Process controls serial numbering.** ZeBGP echoes serial back for correlation.
+**Process controls serial numbering.** Ze echoes serial back for correlation.
 
 ---
 
@@ -394,7 +394,7 @@ Processes inherit:
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Process Manager
 
@@ -474,16 +474,16 @@ func (pm *ProcessManager) respawn(name string) error {
 
 ## Plugin Command Registration
 
-External processes can register custom commands that extend ZeBGP's API.
+External processes can register custom commands that extend Ze's API.
 
 ### Registration Protocol
 
-**Process → ZeBGP (stdout):**
+**Process → Ze (stdout):**
 ```
 #N register command "<name>" description "<help>" [args "<usage>"] [completable] [timeout <duration>]
 ```
 
-**ZeBGP → Process (stdin):**
+**Ze → Process (stdin):**
 ```json
 {"serial":"N","status":"done"}
 {"serial":"N","status":"error","data":"conflicts with builtin: ..."}
@@ -506,12 +506,12 @@ External processes can register custom commands that extend ZeBGP's API.
 
 ### Command Execution
 
-**ZeBGP → Process (stdin):**
+**Ze → Process (stdin):**
 ```json
 {"serial":"a","type":"request","command":"myapp status","args":["component"],"peer":"*"}
 ```
 
-**Process → ZeBGP (stdout):**
+**Process → Ze (stdout):**
 ```
 @a done {"status": "running"}
 @a error "component not found"
@@ -532,12 +532,12 @@ Partials reset the timeout timer. JSON responses include `"partial": true`.
 
 If registered with `completable`, process receives completion requests:
 
-**ZeBGP → Process:**
+**Ze → Process:**
 ```json
 {"serial":"b","type":"complete","command":"myapp copy","args":["file1"],"partial":"f"}
 ```
 
-**Process → ZeBGP:**
+**Process → Ze:**
 ```
 @b done {"completions":[{"value":"file2","help":"Second file"}]}
 ```
@@ -575,7 +575,7 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 │                        GR PLUGIN MESSAGE FLOW                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ZeBGP Engine                              GR Plugin (ze bgp plugin gr)     │
+│   Ze Engine                              GR Plugin (ze bgp plugin gr)     │
 │   ────────────                              ────────────────────────────    │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
@@ -646,7 +646,7 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 │                        RIB PLUGIN MESSAGE FLOW                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ZeBGP Engine                              RIB Plugin (ze bgp plugin rib)   │
+│   Ze Engine                              RIB Plugin (ze bgp plugin rib)   │
 │   ────────────                              ─────────────────────────────   │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │

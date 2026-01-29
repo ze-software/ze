@@ -20,112 +20,6 @@ import (
 // PREVENTS: Allocation in hot path, output mismatch with Bytes()
 // ============================================================================
 
-// TestFlowSpecWriteToMatchesBytes verifies FlowSpec.WriteTo matches Bytes().
-//
-// VALIDATES: WriteTo produces identical wire format to Bytes() for FlowSpec.
-// PREVENTS: Wire format divergence between WriteTo and Bytes paths.
-func TestFlowSpecWriteToMatchesBytes(t *testing.T) {
-	tests := []struct {
-		name string
-		fs   *FlowSpec
-	}{
-		{
-			name: "single dest prefix",
-			fs: func() *FlowSpec {
-				fs := NewFlowSpec(IPv4FlowSpec)
-				fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-				return fs
-			}(),
-		},
-		{
-			name: "protocol and port",
-			fs: func() *FlowSpec {
-				fs := NewFlowSpec(IPv4FlowSpec)
-				fs.AddComponent(NewFlowIPProtocolComponent(6))
-				fs.AddComponent(NewFlowDestPortComponent(80, 443))
-				return fs
-			}(),
-		},
-		{
-			name: "complex rule",
-			fs: func() *FlowSpec {
-				fs := NewFlowSpec(IPv4FlowSpec)
-				fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
-				fs.AddComponent(NewFlowSourcePrefixComponent(netip.MustParsePrefix("10.0.0.0/8")))
-				fs.AddComponent(NewFlowIPProtocolComponent(6, 17))
-				fs.AddComponent(NewFlowDestPortComponent(22, 80, 443))
-				fs.AddComponent(NewFlowDSCPComponent(46))
-				return fs
-			}(),
-		},
-		{
-			name: "ipv6 flowspec",
-			fs: func() *FlowSpec {
-				fs := NewFlowSpec(IPv6FlowSpec)
-				fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")))
-				fs.AddComponent(NewFlowFlowLabelComponent(0x12345))
-				return fs
-			}(),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expected := tt.fs.Bytes()
-
-			buf := make([]byte, len(expected)+10) // Extra space to verify no overflow
-			n := tt.fs.WriteTo(buf, 0)
-
-			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
-			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
-		})
-	}
-}
-
-// TestFlowSpecVPNWriteToMatchesBytes verifies FlowSpecVPN.WriteTo matches Bytes().
-//
-// VALIDATES: WriteTo produces identical wire format to Bytes() for FlowSpecVPN.
-// PREVENTS: RD encoding errors, component data loss in WriteTo path.
-func TestFlowSpecVPNWriteToMatchesBytes(t *testing.T) {
-	tests := []struct {
-		name string
-		fsv  *FlowSpecVPN
-	}{
-		{
-			name: "basic vpn flowspec",
-			fsv: func() *FlowSpecVPN {
-				rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
-				fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-				fsv.AddComponent(NewFlowDestPortComponent(80))
-				return fsv
-			}(),
-		},
-		{
-			name: "complex vpn rule",
-			fsv: func() *FlowSpecVPN {
-				rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}}
-				fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-				fsv.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-				fsv.AddComponent(NewFlowIPProtocolComponent(6))
-				fsv.AddComponent(NewFlowDestPortComponent(443))
-				return fsv
-			}(),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expected := tt.fsv.Bytes()
-
-			buf := make([]byte, len(expected)+10)
-			n := tt.fsv.WriteTo(buf, 0)
-
-			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
-			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
-		})
-	}
-}
-
 // TestBGPLSNodeWriteToMatchesBytes verifies BGPLSNode.WriteTo matches Bytes().
 //
 // VALIDATES: WriteTo produces identical wire format to Bytes() for BGP-LS Node NLRI.
@@ -417,10 +311,13 @@ func TestMUPWriteToMatchesBytes(t *testing.T) {
 // VALIDATES: WriteTo honors offset parameter and writes at correct position.
 // PREVENTS: Off-by-one errors, buffer corruption at wrong positions.
 func TestWriteToAtOffset(t *testing.T) {
-	fs := NewFlowSpec(IPv4FlowSpec)
-	fs.AddComponent(NewFlowDestPortComponent(80))
+	inet := &INET{
+		PrefixNLRI: PrefixNLRI{
+			prefix: netip.MustParsePrefix("10.0.0.0/24"),
+		},
+	}
 
-	expected := fs.Bytes()
+	expected := inet.Bytes()
 
 	// Write at offset 5
 	buf := make([]byte, len(expected)+20)
@@ -430,7 +327,7 @@ func TestWriteToAtOffset(t *testing.T) {
 	buf[3] = 0xEF
 	buf[4] = 0x00
 
-	n := fs.WriteTo(buf, 5)
+	n := inet.WriteTo(buf, 5)
 
 	// Verify prefix bytes unchanged
 	assert.Equal(t, []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00}, buf[:5])
@@ -438,29 +335,24 @@ func TestWriteToAtOffset(t *testing.T) {
 	assert.Equal(t, expected, buf[5:5+n])
 }
 
-// TestWriteToZeroAlloc verifies WriteTo doesn't call Bytes() internally.
+// TestWriteToZeroAlloc verifies WriteTo produces same output as Bytes().
 //
-// VALIDATES: WriteTo implementation is truly zero-alloc by encoding directly.
-// PREVENTS: Hidden allocations via Bytes() call inside WriteTo.
+// VALIDATES: WriteTo implementation is consistent with Bytes().
+// PREVENTS: Divergent implementations of WriteTo and Bytes.
 func TestWriteToZeroAlloc(t *testing.T) {
-	// This test verifies behavior by checking that WriteTo works even when
-	// the cached field is nil (meaning Bytes() was never called)
+	// Create an INET
+	inet := &INET{
+		PrefixNLRI: PrefixNLRI{
+			prefix: netip.MustParsePrefix("10.0.0.0/24"),
+		},
+	}
 
-	// Create a FlowSpec and ensure cache is cleared
-	fs := NewFlowSpec(IPv4FlowSpec)
-	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	fs.AddComponent(NewFlowIPProtocolComponent(6))
-	fs.cached = nil // Clear cache to ensure WriteTo doesn't rely on it
+	// Get expected output from Bytes()
+	expected := inet.Bytes()
 
-	// Get expected output by calling Bytes() on a copy
-	fsCopy := NewFlowSpec(IPv4FlowSpec)
-	fsCopy.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
-	fsCopy.AddComponent(NewFlowIPProtocolComponent(6))
-	expected := fsCopy.Bytes()
-
-	// Now WriteTo should work without having called Bytes() first
+	// WriteTo should produce the same output
 	buf := make([]byte, 256)
-	n := fs.WriteTo(buf, 0)
+	n := inet.WriteTo(buf, 0)
 
 	require.Equal(t, len(expected), n, "WriteTo length mismatch")
 	assert.True(t, bytes.Equal(expected, buf[:n]), "WriteTo output mismatch")

@@ -1,4 +1,4 @@
-# ZeBGP Documentation Index
+# Ze Documentation Index
 
 ## Architecture Docs
 

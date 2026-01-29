@@ -238,7 +238,7 @@ AS4_PATH attribute:
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### ASN Type
 

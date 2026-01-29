@@ -700,7 +700,7 @@ This architecture provides:
 
 ---
 
-## 7. Relevance to ZeBGP
+## 7. Relevance to Ze
 
 ### Core Pattern: XML → Validation → Template
 
@@ -721,7 +721,7 @@ This architecture provides:
 | owner binding | Each subtree has single responsible handler |
 | Two-layer validation | Fast syntax check + deep semantic check |
 
-### Interesting Patterns for ZeBGP
+### Interesting Patterns for Ze
 
 - **Schema-driven CLI** - XML defines valid paths, CLI auto-generated
 - **Owner pattern** - subtree → handler binding (similar to plugin model?)

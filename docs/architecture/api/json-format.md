@@ -1,6 +1,6 @@
-# ZeBGP JSON Output Format
+# Ze JSON Output Format
 
-**Purpose:** Document ZeBGP's JSON output format for plugin communication.
+**Purpose:** Document Ze's JSON output format for plugin communication.
 
 **Version:** IPC Protocol 2.0
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-ZeBGP outputs JSON messages to external processes via stdout. All messages follow IPC Protocol 2.0 format with a top-level `type` field indicating which key contains the payload.
+Ze outputs JSON messages to external processes via stdout. All messages follow IPC Protocol 2.0 format with a top-level `type` field indicating which key contains the payload.
 
 ---
 

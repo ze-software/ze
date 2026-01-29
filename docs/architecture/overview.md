@@ -1,4 +1,4 @@
-# ZeBGP Architecture Plan
+# Ze Architecture Plan
 
 **Status:** ✅ Implementation Complete (Phase 12-13 ongoing)
 **Created:** 2025-12-19
@@ -28,7 +28,7 @@
 
 ### What We're Building
 
-ZeBGP is a Go rewrite of ExaBGP with these goals:
+Ze is a Go rewrite of ExaBGP with these goals:
 - **100% API compatibility** with ExaBGP (JSON output, commands)
 - **100% config compatibility** (same file format, env vars)
 - **10x performance** improvement (parsing, memory)
@@ -65,7 +65,7 @@ ZeBGP is a Go rewrite of ExaBGP with these goals:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ZeBGP Daemon                                    │
+│                              Ze Daemon                                    │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐  │
@@ -110,9 +110,9 @@ ZeBGP is a Go rewrite of ExaBGP with these goals:
 ### Directory Structure
 
 ```
-zebgp/
+ze/
 ├── cmd/
-│   ├── zebgp/              # Main daemon
+│   ├── ze/              # Main daemon
 │   │   └── main.go
 │   ├── ze-bgp-cli/          # Interactive CLI
 │   │   └── main.go
@@ -288,7 +288,7 @@ Each attribute type has its own deduplication pool:
 When a message can be forwarded unchanged:
 
 ```
-Peer A ──[UPDATE bytes]──▶ ZeBGP ──[same bytes]──▶ Peer B
+Peer A ──[UPDATE bytes]──▶ Ze ──[same bytes]──▶ Peer B
                               │
                               └─ No parsing, no repacking
 ```
@@ -556,16 +556,16 @@ func (e *Editor) Load(path string) error      // load from file
 
 **CLI Session Example:**
 ```
-zebgp# configure
-zebgp(config)# edit neighbor 192.168.1.2
-zebgp(config-neighbor)# set description "Transit Provider"
-zebgp(config-neighbor)# set peer-as 65002
-zebgp(config-neighbor)# set local-as 65001
-zebgp(config-neighbor)# edit family
-zebgp(config-neighbor-family)# set ipv4/unicast
-zebgp(config-neighbor-family)# set ipv6/unicast
-zebgp(config-neighbor-family)# top
-zebgp(config)# compare
+ze# configure
+ze(config)# edit neighbor 192.168.1.2
+ze(config-neighbor)# set description "Transit Provider"
+ze(config-neighbor)# set peer-as 65002
+ze(config-neighbor)# set local-as 65001
+ze(config-neighbor)# edit family
+ze(config-neighbor-family)# set ipv4/unicast
+ze(config-neighbor-family)# set ipv6/unicast
+ze(config-neighbor-family)# top
+ze(config)# compare
 + neighbor 192.168.1.2 {
 +     description "Transit Provider"
 +     peer-as 65002
@@ -575,10 +575,10 @@ zebgp(config)# compare
 +         ipv6/unicast
 +     }
 + }
-zebgp(config)# commit
+ze(config)# commit
 Configuration committed.
-zebgp(config)# exit
-zebgp#
+ze(config)# exit
+ze#
 ```
 
 **Features:**
@@ -619,9 +619,9 @@ set neighbor 192.168.1.2 api processes announce-routes
 
 **Import from ExaBGP:**
 ```
-zebgp# load exabgp /path/to/exabgp.conf
+ze# load exabgp /path/to/exabgp.conf
 Imported 3 neighbors, 2 processes.
-zebgp# show configuration
+ze# show configuration
 set neighbor 192.168.1.2 description "Transit Provider"
 set neighbor 192.168.1.2 peer-as 65002
 ...
@@ -1110,7 +1110,7 @@ func TestRoundTrip(t *testing.T) {
 
 ```go
 func TestPeerSession(t *testing.T) {
-    // Start two ZeBGP instances
+    // Start two Ze instances
     // Establish session
     // Exchange routes
     // Verify convergence
@@ -1120,7 +1120,7 @@ func TestPeerSession(t *testing.T) {
 ### 11.5 ExaBGP Interop Tests
 
 ```bash
-# Run ZeBGP as neighbor to ExaBGP
+# Run Ze as neighbor to ExaBGP
 ./scripts/test-exabgp-interop.sh
 ```
 

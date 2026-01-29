@@ -470,6 +470,7 @@ func (b *bgplsBase) ProtocolID() BGPLSProtocolID { return b.protocolID }
 func (b *bgplsBase) Identifier() uint64          { return b.identifier }
 func (b *bgplsBase) PathID() uint32              { return 0 }
 func (b *bgplsBase) HasPathID() bool             { return false }
+func (b *bgplsBase) SupportsAddPath() bool       { return false }
 
 // BGPLSNode represents a Node NLRI.
 // RFC 7752 Section 3.2.1 defines the Node NLRI format (NLRI Type 1).

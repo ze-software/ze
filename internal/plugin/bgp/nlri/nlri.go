@@ -260,6 +260,11 @@ type NLRI interface {
 	//
 	// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
 	WriteTo(buf []byte, off int) int
+
+	// SupportsAddPath returns true if this NLRI type supports ADD-PATH encoding.
+	// RFC 7911 Section 3: ADD-PATH capability allows multiple paths per prefix.
+	// Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH per their RFCs.
+	SupportsAddPath() bool
 }
 
 // LenWithContext returns the wire-format length adjusted for ADD-PATH.
@@ -276,7 +281,7 @@ func LenWithContext(n NLRI, addPath bool) int {
 	baseLen := n.Len()
 
 	// Types that don't support ADD-PATH
-	if !supportsAddPath(n) {
+	if !n.SupportsAddPath() {
 		return baseLen
 	}
 
@@ -286,20 +291,6 @@ func LenWithContext(n NLRI, addPath bool) int {
 	}
 
 	return baseLen
-}
-
-// supportsAddPath returns true if the NLRI type supports ADD-PATH encoding.
-func supportsAddPath(n NLRI) bool {
-	switch n.(type) {
-	case *FlowSpec, *FlowSpecVPN:
-		return false
-	case *BGPLSNode, *BGPLSLink, *BGPLSPrefix, *BGPLSSRv6SID:
-		return false
-	case *MVPN, *VPLS, *RTC, *MUP:
-		return false
-	default:
-		return true
-	}
 }
 
 // WriteNLRI writes NLRI with ADD-PATH handling into buf at offset.
@@ -314,7 +305,7 @@ func WriteNLRI(n NLRI, buf []byte, off int, addPath bool) int {
 
 	// Handle ADD-PATH path identifier
 	// RFC 7911: Path ID only included when addPath=true AND NLRI supports it
-	if addPath && supportsAddPath(n) {
+	if addPath && n.SupportsAddPath() {
 		binary.BigEndian.PutUint32(buf[pos:], n.PathID())
 		pos += 4
 	}

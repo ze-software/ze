@@ -184,17 +184,17 @@ result := peer.Run(ctx)
 
 ## ExaBGP Compatibility
 
-The `internal/exabgp/` library provides ZeBGP ↔ ExaBGP format translation:
+The `internal/exabgp/` library provides Ze ↔ ExaBGP format translation:
 
 ```bash
 # Run Go tests for exabgp package
 go test -v ./internal/exabgp/...
 
-# Use ze exabgp plugin to run ExaBGP plugins with ZeBGP
+# Use ze exabgp plugin to run ExaBGP plugins with Ze
 ze exabgp plugin /path/to/exabgp-plugin.py
 ```
 
-### In ZeBGP Config
+### In Ze Config
 
 ```
 process exabgp-compat {
@@ -205,7 +205,7 @@ process exabgp-compat {
 ### Testing with ExaBGP
 
 ```bash
-# ZeBGP peer against ExaBGP test file
+# Ze peer against ExaBGP test file
 ze-peer --port 1790 ../5.0/qa/encoding/api-announce.msg
 
 # ExaBGP against ze-peer

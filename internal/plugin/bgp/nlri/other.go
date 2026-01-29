@@ -239,6 +239,9 @@ func (m *MVPN) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (m *MVPN) HasPathID() bool { return false }
 
+// SupportsAddPath returns false - MVPN doesn't support ADD-PATH.
+func (m *MVPN) SupportsAddPath() bool { return false }
+
 // String returns command-style format for API round-trip compatibility.
 // Format: <type> [rd set <rd>].
 func (m *MVPN) String() string {
@@ -437,6 +440,9 @@ func (v *VPLS) PathID() uint32 { return 0 }
 
 // HasPathID returns false.
 func (v *VPLS) HasPathID() bool { return false }
+
+// SupportsAddPath returns false - VPLS doesn't support ADD-PATH.
+func (v *VPLS) SupportsAddPath() bool { return false }
 
 // String returns command-style format for API round-trip compatibility.
 // Format: rd set <rd> ve-id set <id> label set <label>.
@@ -645,6 +651,9 @@ func (r *RTC) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (r *RTC) HasPathID() bool { return false }
 
+// SupportsAddPath returns false - RTC doesn't support ADD-PATH.
+func (r *RTC) SupportsAddPath() bool { return false }
+
 // String returns command-style format for API round-trip compatibility.
 // Format: default | origin-as set <asn> rt set <rt>.
 func (r *RTC) String() string {
@@ -838,6 +847,9 @@ func (m *MUP) PathID() uint32 { return 0 }
 
 // HasPathID returns false.
 func (m *MUP) HasPathID() bool { return false }
+
+// SupportsAddPath returns false - MUP doesn't support ADD-PATH.
+func (m *MUP) SupportsAddPath() bool { return false }
 
 // String returns command-style format for API round-trip compatibility.
 // Format: <type> [rd set <rd>].

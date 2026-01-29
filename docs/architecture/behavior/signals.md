@@ -227,7 +227,7 @@ def shutdown(self):
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Signal Package
 

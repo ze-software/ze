@@ -299,7 +299,7 @@ This means: (port > 8080 AND port < 8088) OR (port = 3128).
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Rule Parsing
 

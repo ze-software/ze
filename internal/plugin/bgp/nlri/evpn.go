@@ -270,6 +270,7 @@ func (e *EVPNType1) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType1) Labels() []uint32         { return e.labels }
 func (e *EVPNType1) PathID() uint32           { return e.pathID }
 func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType1) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType1) Bytes() []byte {
 	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Labels (3+)
@@ -441,6 +442,7 @@ func (e *EVPNType2) IP() netip.Addr           { return e.ip }
 func (e *EVPNType2) Labels() []uint32         { return e.labels }
 func (e *EVPNType2) PathID() uint32           { return e.pathID }
 func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType2) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType2) Bytes() []byte {
 	// RFC 7432 Section 7.2: RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) +
@@ -607,6 +609,7 @@ func (e *EVPNType3) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType3) OriginatorIP() netip.Addr { return e.originatorIP }
 func (e *EVPNType3) PathID() uint32           { return e.pathID }
 func (e *EVPNType3) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType3) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType3) Bytes() []byte {
 	// RFC 7432 Section 7.3: RD (8) + EthTag (4) + IPLen (1) + IP (4/16)
@@ -742,6 +745,7 @@ func (e *EVPNType4) ESI() ESI                 { return e.esi }
 func (e *EVPNType4) OriginatorIP() netip.Addr { return e.originatorIP }
 func (e *EVPNType4) PathID() uint32           { return e.pathID }
 func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType4) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType4) Bytes() []byte {
 	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
@@ -925,6 +929,7 @@ func (e *EVPNType5) Gateway() netip.Addr      { return e.gateway }
 func (e *EVPNType5) Labels() []uint32         { return e.labels }
 func (e *EVPNType5) PathID() uint32           { return e.pathID }
 func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
+func (e *EVPNType5) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType5) Bytes() []byte {
 	// RFC 9136 Section 3.1: IP Prefix route encoding
@@ -1042,6 +1047,7 @@ func (e *EVPNGeneric) RouteType() EVPNRouteType { return e.routeType }
 func (e *EVPNGeneric) RD() RouteDistinguisher   { return RouteDistinguisher{} }
 func (e *EVPNGeneric) PathID() uint32           { return e.pathID }
 func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
+func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
 func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
 func (e *EVPNGeneric) String() string           { return fmt.Sprintf("evpn-type%d", e.routeType) }

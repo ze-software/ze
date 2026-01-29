@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.
@@ -641,26 +642,26 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 		family = nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIFlowSpec}
 	}
 
-	fs := nlri.NewFlowSpec(family)
+	fs := flowspec.NewFlowSpec(family)
 
 	// Add components based on parsed route
 	if parsed.DestPrefix != nil {
-		fs.AddComponent(nlri.NewFlowDestPrefixComponent(*parsed.DestPrefix))
+		fs.AddComponent(flowspec.NewFlowDestPrefixComponent(*parsed.DestPrefix))
 	}
 	if parsed.SourcePrefix != nil {
-		fs.AddComponent(nlri.NewFlowSourcePrefixComponent(*parsed.SourcePrefix))
+		fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(*parsed.SourcePrefix))
 	}
 	if len(parsed.Protocols) > 0 {
-		fs.AddComponent(nlri.NewFlowIPProtocolComponent(parsed.Protocols...))
+		fs.AddComponent(flowspec.NewFlowIPProtocolComponent(parsed.Protocols...))
 	}
 	if len(parsed.Ports) > 0 {
-		fs.AddComponent(nlri.NewFlowPortComponent(parsed.Ports...))
+		fs.AddComponent(flowspec.NewFlowPortComponent(parsed.Ports...))
 	}
 	if len(parsed.DestPorts) > 0 {
-		fs.AddComponent(nlri.NewFlowDestPortComponent(parsed.DestPorts...))
+		fs.AddComponent(flowspec.NewFlowDestPortComponent(parsed.DestPorts...))
 	}
 	if len(parsed.SourcePorts) > 0 {
-		fs.AddComponent(nlri.NewFlowSourcePortComponent(parsed.SourcePorts...))
+		fs.AddComponent(flowspec.NewFlowSourcePortComponent(parsed.SourcePorts...))
 	}
 
 	// Get NLRI bytes

@@ -22,7 +22,7 @@ Prefer structured key-value pairs over formatted strings.
 
 ### Per-Subsystem Logging
 
-ZeBGP uses per-subsystem logging via `internal/slogutil`. Each subsystem has independent enable/disable control with hierarchical inheritance.
+Ze uses per-subsystem logging via `internal/slogutil`. Each subsystem has independent enable/disable control with hierarchical inheritance.
 
 **Engine subsystems** (use `slogutil.Logger()`):
 ```go

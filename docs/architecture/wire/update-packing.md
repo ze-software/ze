@@ -33,7 +33,7 @@ Result:
 - Parsing must scan entire attribute section to find MP_REACH/MP_UNREACH
 - RFC type-code ordering (Appendix F.3) scatters related data
 
-## ZeBGP Packing Strategy
+## Ze Packing Strategy
 
 ### Goal: Restore Parsing Efficiency
 
@@ -75,5 +75,5 @@ Senders MAY order attributes however they want (RFC 4271 Appendix F.3 is SHOULD,
 
 ## Non-Goal
 
-This is NOT proposing an RFC change. Just documenting ZeBGP's internal strategy
+This is NOT proposing an RFC change. Just documenting Ze's internal strategy
 for efficient UPDATE construction while remaining fully RFC-compliant.

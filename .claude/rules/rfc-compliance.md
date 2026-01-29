@@ -5,7 +5,7 @@ paths:
 
 # RFC Compliance
 
-ZeBGP MUST be a fully RFC 4271 compliant BGP speaker.
+Ze MUST be a fully RFC 4271 compliant BGP speaker.
 
 ## Before Implementing BGP Features
 

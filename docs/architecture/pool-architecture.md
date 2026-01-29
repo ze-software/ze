@@ -1,7 +1,7 @@
-# ZeBGP Pool Architecture
+# Ze Pool Architecture
 
 > **Context:** This pool design is for **API programs** that implement RIB storage.
-> The ZeBGP engine does NOT use pools - it passes wire bytes to API programs.
+> The Ze engine does NOT use pools - it passes wire bytes to API programs.
 > See `docs/architecture/core-design.md` for the canonical architecture reference.
 > See `docs/architecture/rib-transition.md` for the overall architecture.
 
@@ -42,7 +42,7 @@ The pool lives in the **API program**, not the engine. Wire bytes flow from engi
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ZeBGP ENGINE                                       │
+│                           Ze ENGINE                                       │
 │                                                                             │
 │   Network recv()                                                            │
 │        │                                                                    │
@@ -765,7 +765,7 @@ func (p *Pool) IsIdle(d time.Duration) bool
 
 ## Global Pool Instances
 
-ZeBGP provides pre-configured global pools in `internal/pool/attributes.go`:
+Ze provides pre-configured global pools in `internal/pool/attributes.go`:
 
 ### Blob-Level Pools
 

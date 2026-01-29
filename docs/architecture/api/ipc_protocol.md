@@ -349,7 +349,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `system command complete "<partial>"` | Completion |
 | `system subsystem list` | List available subsystems |
 | `system shutdown` | Graceful application shutdown |
-| `system version software` | ZeBGP version |
+| `system version software` | Ze version |
 | `system version api` | IPC protocol version |
 
 ### RIB Namespace

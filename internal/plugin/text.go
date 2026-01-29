@@ -9,6 +9,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 )
 
 // Encoding constants for process output formatting.
@@ -388,7 +389,7 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 	case *nlri.LabeledUnicast:
 		formatLabeledUnicastJSON(sb, v)
 		return
-	case *nlri.FlowSpecVPN:
+	case *flowspec.FlowSpecVPN:
 		formatFlowSpecVPNJSON(sb, v)
 		return
 	case *nlri.EVPNType2:
@@ -512,7 +513,7 @@ func formatEVPNType2JSON(sb *strings.Builder, v *nlri.EVPNType2) {
 
 // formatFlowSpecVPNJSON formats a FlowSpecVPN NLRI as structured JSON.
 // RFC 8955: {"rd":"0:65000:1", ...flowspec components...}.
-func formatFlowSpecVPNJSON(sb *strings.Builder, v *nlri.FlowSpecVPN) {
+func formatFlowSpecVPNJSON(sb *strings.Builder, v *flowspec.FlowSpecVPN) {
 	sb.WriteString(`{"rd":"`)
 	sb.WriteString(v.RD().String())
 	sb.WriteString(`"`)

@@ -7,11 +7,11 @@
 
 ## Overview
 
-ZeBGP uses target-first syntax with JSON or text encoding.
+Ze uses target-first syntax with JSON or text encoding.
 
 ### ExaBGP Differences
 
-| Aspect | ExaBGP | ZeBGP |
+| Aspect | ExaBGP | Ze |
 |--------|--------|-------|
 | Syntax styles | v4 (action-first) and v6 (target-first) | Target-first only |
 | Encoder | json or text (v4), json only (v6) | json or text |
@@ -119,7 +119,7 @@ subscribe rib event route                               # RIB route events
 
 ```
 system help              # Show help (uses dispatcher, includes plugin commands)
-system version software  # Show ZeBGP version
+system version software  # Show Ze version
 system version api       # Show IPC protocol version
 system shutdown          # Graceful application shutdown
 system subsystem list    # List available subsystems
@@ -143,7 +143,7 @@ peer create <config>     # Create dynamic peer
 peer <ip> delete         # Delete dynamic peer
 ```
 
-### Cache Commands (ZeBGP)
+### Cache Commands (Ze)
 
 > **Implementation spec:** `docs/plan/done/148-api-command-restructure-step-8.md`
 
@@ -291,7 +291,7 @@ version
 
 ---
 
-## API Content Configuration (ZeBGP)
+## API Content Configuration (Ze)
 
 ### Attribute Filtering
 
@@ -384,12 +384,12 @@ path-information <id>            # ADD-PATH path ID
 atomic-aggregate                 # Atomic aggregate flag
 aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
-split /<len>                     # ZeBGP: prefix expansion (see below)
+split /<len>                     # Ze: prefix expansion (see below)
 ```
 
 ---
 
-## Split Keyword (ZeBGP Extension)
+## Split Keyword (Ze Extension)
 
 The `split` keyword expands a prefix into smaller prefixes. All attributes apply to each generated prefix.
 
@@ -584,7 +584,7 @@ group
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Command Dispatcher
 

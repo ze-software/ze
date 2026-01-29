@@ -266,7 +266,7 @@ def check_collision(self, remote_id):
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### FSM Type
 

@@ -445,7 +445,7 @@ After all plugins send `ready`, BGP peers start.
 |---------|-------------|
 | `system subsystem list` | List available subsystems |
 | `system shutdown` | Graceful shutdown |
-| `system version software` | ZeBGP version |
+| `system version software` | Ze version |
 | `system version api` | IPC protocol version |
 
 ---

@@ -21,6 +21,8 @@ func cmdPlugin(args []string) int {
 		return cmdPluginGR(args[1:])
 	case "hostname":
 		return cmdPluginHostname(args[1:])
+	case "flowspec":
+		return cmdPluginFlowSpec(args[1:])
 	case "test":
 		return cmdPluginTest(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent with main.go, config.go
@@ -41,6 +43,7 @@ Plugin Subcommands:
   rib          Run as RIB plugin (tracks Adj-RIB-In/Out, replays on reconnect)
   gr           Run as Graceful Restart capability plugin
   hostname     Run as Hostname (FQDN) capability plugin
+  flowspec     Run as FlowSpec family plugin (RFC 8955, 8956)
   test         Test plugin YANG schema and config delivery (debugging)
   help         Show this help
 

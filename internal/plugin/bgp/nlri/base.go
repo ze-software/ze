@@ -37,6 +37,11 @@ func (p *PrefixNLRI) PathID() uint32 {
 	return p.pathID
 }
 
+// SupportsAddPath returns true - prefix NLRIs support ADD-PATH per RFC 7911.
+func (p *PrefixNLRI) SupportsAddPath() bool {
+	return true
+}
+
 // RDNLRIBase provides common fields for RD-based NLRI types.
 //
 // Embedded by MVPN and MUP to share:

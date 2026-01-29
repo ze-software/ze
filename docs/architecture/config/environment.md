@@ -7,15 +7,15 @@
 
 ## ExaBGP Differences
 
-| Aspect | ExaBGP | ZeBGP |
+| Aspect | ExaBGP | Ze |
 |--------|--------|-------|
-| Prefix | `exabgp.` | `zebgp.` |
+| Prefix | `exabgp.` | `ze.` |
 | API version var | `exabgp.api.version` (4 or 6) | Not present (single format) |
 | Invalid values | Silent defaults | Startup failure |
 | Config block | Not supported | `environment { }` in config |
 | Validation | Runtime | `ze bgp config check --env` |
 
-## ZeBGP Enhancements
+## Ze Enhancements
 
 1. **Config block support:** Set environment in config file via `environment { }` block
 2. **Strict validation:** Invalid values cause startup failure (not silent defaults)
@@ -23,7 +23,7 @@
 
 See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for the config block syntax.
 
-**ZeBGP priority:** `ze.bgp.x.y` > `zebgp_x_y` > config block > defaults
+**Ze priority:** `ze.bgp.x.y` > `ze_x_y` > config block > defaults
 
 ---
 
@@ -110,7 +110,7 @@ Priority: `exabgp.x.y` > `exabgp_x_y` > INI file > default
 | exabgp.tcp.port | int | 179 | Port to bind |
 | exabgp.tcp.acl | bool | false | Experimental ACL |
 
-**tcp.attempts behavior:** When set to N > 0, ZeBGP exits after N peer sessions have disconnected (after reaching ESTABLISHED state). Useful for testing scenarios where you want ZeBGP to exit after completing a test exchange.
+**tcp.attempts behavior:** When set to N > 0, Ze exits after N peer sessions have disconnected (after reaching ESTABLISHED state). Useful for testing scenarios where you want Ze to exit after completing a test exchange.
 
 ### bgp
 
@@ -238,7 +238,7 @@ if env.tcp.once and not env.tcp.attempts:
     env.tcp.attempts = 1
 ```
 
-**Effect:** ZeBGP exits after the first peer session disconnects (after reaching ESTABLISHED).
+**Effect:** Ze exits after the first peer session disconnects (after reaching ESTABLISHED).
 
 ### tcp.connections → tcp.attempts
 
@@ -250,7 +250,7 @@ if connections:
 
 ---
 
-## ZeBGP Implementation Notes
+## Ze Implementation Notes
 
 ### Go Configuration
 

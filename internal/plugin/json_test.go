@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1477,7 +1478,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		name       string
 		rdType     nlri.RDType
 		rdValue    [6]byte
-		components []nlri.FlowComponent
+		components []flowspec.FlowComponent
 		wantRD     string
 		wantSpec   string // Expected substring in spec field
 	}{
@@ -1485,8 +1486,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			name:    "flowspec_vpn_dest_prefix",
 			rdType:  nlri.RDType0,
 			rdValue: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}, // 65000:100
-			components: []nlri.FlowComponent{
-				nlri.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
 			},
 			wantRD:   "0:65000:100",
 			wantSpec: "destination 10.0.0.0/24",
@@ -1495,8 +1496,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			name:    "flowspec_vpn_protocol",
 			rdType:  nlri.RDType2,
 			rdValue: [6]byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x64}, // 65536:100
-			components: []nlri.FlowComponent{
-				nlri.NewFlowIPProtocolComponent(6), // TCP
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowIPProtocolComponent(6), // TCP
 			},
 			wantRD:   "2:65536:100",
 			wantSpec: "protocol",
@@ -1505,8 +1506,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			name:    "flowspec_vpn_port_range",
 			rdType:  nlri.RDType1,
 			rdValue: [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}, // 10.0.0.1:100
-			components: []nlri.FlowComponent{
-				nlri.NewFlowDestPortComponent(80, 443),
+			components: []flowspec.FlowComponent{
+				flowspec.NewFlowDestPortComponent(80, 443),
 			},
 			wantRD:   "1:10.0.0.1:100",
 			wantSpec: "destination-port",
@@ -1517,7 +1518,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create FlowSpecVPN
 			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
-			fsv := nlri.NewFlowSpecVPN(nlri.IPv4FlowSpec, rd)
+			fsv := flowspec.NewFlowSpecVPN(nlri.IPv4FlowSpec, rd)
 			for _, comp := range tc.components {
 				fsv.AddComponent(comp)
 			}
