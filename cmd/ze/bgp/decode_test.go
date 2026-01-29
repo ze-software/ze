@@ -14,6 +14,9 @@ const (
 	// testBGPLSLinkUpdate is hex data for a BGP-LS Link UPDATE message (from bgp-ls-2.test).
 	testBGPLSLinkUpdate = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00AA0200000093800E7240044704C0A8FF1D000002006503000000000000000001000020020000040000FDE902010004000000000202000400000000020300040A01010101010024020000040000FDE902010004000000000202000400000000020300080A0104010A010102010300040A010101010400040A0101024001010040020602010000FDE980040400000000801D0704470003000001"
 
+	// testBGPLSLinkNLRI is raw BGP-LS Link NLRI bytes (from bgp-ls-1.test).
+	testBGPLSLinkNLRI = "0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202"
+
 	// testBGPLSLinkNLRIType is the expected NLRI type for Link NLRI.
 	testBGPLSLinkNLRIType = "bgpls-link"
 )
@@ -1054,7 +1057,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 func TestBGPLSRawNLRIFormat(t *testing.T) {
 	// From bgp-ls-1.test - raw NLRI without BGP header
 	// Type: nlri bgp-ls/bgp-ls
-	hexInput := "0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202"
+	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
 	if err != nil {
@@ -1091,7 +1094,7 @@ func TestBGPLSRawNLRIFormat(t *testing.T) {
 // PREVENTS: Missing routing topology identifier.
 func TestBGPLSL3RoutingTopology(t *testing.T) {
 	// Link NLRI should have l3-routing-topology from identifier field
-	hexInput := "0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202"
+	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
 	if err != nil {
@@ -1201,6 +1204,95 @@ func TestParseSRMPLSAdjSID(t *testing.T) {
 			}
 			if l, ok := flags["L"].(int); ok && l != tt.wantL {
 				t.Errorf("L flag = %d, want %d", l, tt.wantL)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// NLRI Flag Tests (Family Plugin Infrastructure)
+// =============================================================================
+
+// TestDecodeNLRIFlag verifies --nlri flag takes family string and triggers NLRI mode.
+//
+// VALIDATES: --nlri <family> correctly sets NLRI decode mode with family context.
+// PREVENTS: --nlri flag being parsed incorrectly or family not being passed.
+func TestDecodeNLRIFlag(t *testing.T) {
+	// Test NLRI mode with BGP-LS family (no plugin, uses built-in decode)
+	hexInput := testBGPLSLinkNLRI
+
+	// decodeHexPacket with "nlri" type and family
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// NLRI mode should produce flat JSON (no exabgp wrapper)
+	if _, hasExabgp := result["exabgp"]; hasExabgp {
+		t.Error("NLRI mode should not have exabgp wrapper")
+	}
+
+	// Should have BGP-LS fields
+	if result["ls-nlri-type"] == nil {
+		t.Error("missing ls-nlri-type field")
+	}
+}
+
+// TestDecodeNLRIFlagWithPlugin verifies --nlri with plugin falls back correctly.
+//
+// VALIDATES: When plugin specified but not available, falls back to built-in decode.
+// PREVENTS: Crash or empty output when plugin unavailable.
+func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
+	// FlowSpec NLRI - plugin not available in test, should fall back to built-in
+	// This tests the infrastructure path even without actual plugin
+	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
+
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flowspec", []string{"flowspec"})
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON: %v", err)
+	}
+
+	// Should have some output (either plugin or fallback)
+	if len(result) == 0 {
+		t.Error("expected non-empty result")
+	}
+}
+
+// TestLookupFamilyPlugin verifies family plugin lookup with case insensitivity.
+//
+// VALIDATES: lookupFamilyPlugin normalizes family to lowercase.
+// PREVENTS: Case mismatch causing plugin lookup failures.
+func TestLookupFamilyPlugin(t *testing.T) {
+	tests := []struct {
+		family  string
+		plugins []string
+		want    string
+	}{
+		{"ipv4/flowspec", []string{"flowspec"}, "flowspec"},
+		{"IPV4/FLOWSPEC", []string{"flowspec"}, "flowspec"},
+		{"IPv4/FlowSpec", []string{"flowspec"}, "flowspec"},
+		{"ipv4/flowspec", []string{"other"}, ""},   // Plugin not enabled
+		{"ipv4/flowspec", nil, ""},                 // No plugins
+		{"ipv4/unicast", []string{"flowspec"}, ""}, // Unknown family
+		{"ipv6/flowspec-vpn", []string{"flowspec"}, "flowspec"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.family, func(t *testing.T) {
+			got := lookupFamilyPlugin(tt.family, tt.plugins)
+			if got != tt.want {
+				t.Errorf("lookupFamilyPlugin(%q, %v) = %q, want %q",
+					tt.family, tt.plugins, got, tt.want)
 			}
 		})
 	}

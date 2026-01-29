@@ -72,13 +72,14 @@ var validAFIs = map[string]bool{
 
 // Valid SAFI names for family registration.
 var validSAFIs = map[string]bool{
-	"unicast":   true,
-	"multicast": true,
-	"mpls-vpn":  true,
-	"nlri-mpls": true,
-	"flowspec":  true,
-	"evpn":      true,
-	"mup":       true,
+	"unicast":      true,
+	"multicast":    true,
+	"mpls-vpn":     true,
+	"nlri-mpls":    true,
+	"flowspec":     true,
+	"flowspec-vpn": true,
+	"evpn":         true,
+	"mup":          true,
 }
 
 // Valid receive types for message subscription.
@@ -100,6 +101,7 @@ type PluginRegistration struct {
 	RFCs               []uint16            // RFC numbers for human-readable feature tracking
 	Encodings          []string            // Supported encodings (text, b64, hex)
 	Families           []string            // Address families (e.g., "ipv4/unicast", "all")
+	DecodeFamilies     []string            // Families this plugin decodes (claimed via "declare family X decode")
 	Commands           []string            // Command names to register
 	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
@@ -151,6 +153,7 @@ type PluginRegistry struct {
 	plugins      map[string]*PluginRegistration
 	commands     map[string]string // command → plugin name
 	capabilities map[uint8]string  // capability code → plugin name
+	families     map[string]string // family → plugin name (for decode claims)
 }
 
 // NewPluginRegistry creates a new plugin registry.
@@ -159,6 +162,7 @@ func NewPluginRegistry() *PluginRegistry {
 		plugins:      make(map[string]*PluginRegistration),
 		commands:     make(map[string]string),
 		capabilities: make(map[uint8]string),
+		families:     make(map[string]string),
 	}
 }
 
@@ -175,14 +179,37 @@ func (r *PluginRegistry) Register(reg *PluginRegistration) error {
 		}
 	}
 
+	// Check family decode conflicts
+	for _, family := range reg.DecodeFamilies {
+		familyKey := strings.ToLower(family)
+		if existing, ok := r.families[familyKey]; ok {
+			return fmt.Errorf("family conflict: %s already registered by %s", family, existing)
+		}
+	}
+
 	// Register commands
 	for _, cmd := range reg.Commands {
 		cmdKey := strings.ToLower(cmd)
 		r.commands[cmdKey] = reg.Name
 	}
 
+	// Register family decode claims
+	for _, family := range reg.DecodeFamilies {
+		familyKey := strings.ToLower(family)
+		r.families[familyKey] = reg.Name
+	}
+
 	r.plugins[reg.Name] = reg
 	return nil
+}
+
+// LookupFamily finds which plugin registered to decode a family.
+// Returns empty string if no plugin registered for the family.
+// Family string is normalized to lowercase for lookup.
+func (r *PluginRegistry) LookupFamily(family string) string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.families[strings.ToLower(family)]
 }
 
 // RegisterCapabilities adds capability declarations, checking for conflicts.
@@ -280,7 +307,7 @@ func (reg *PluginRegistration) parseEncoding(args []string) error {
 	return nil
 }
 
-// parseFamily handles "declare family <afi> <safi>" or "declare family all".
+// parseFamily handles "declare family <afi> <safi> [decode]" or "declare family all".
 func (reg *PluginRegistration) parseFamily(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("expected 'declare family <afi> <safi>' or 'declare family all'")
@@ -288,8 +315,12 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 
 	afi := strings.ToLower(args[0])
 
-	// Handle "declare family all"
+	// Handle "declare family all [decode]"
 	if afi == "all" {
+		// Check for invalid "all decode" - cannot claim decode for all families
+		if len(args) >= 2 && strings.ToLower(args[1]) == "decode" {
+			return fmt.Errorf("cannot claim decode for 'all' families")
+		}
 		reg.Families = append(reg.Families, "all")
 		return nil
 	}
@@ -309,7 +340,14 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 		return fmt.Errorf("invalid SAFI: %s", args[1])
 	}
 
-	reg.Families = append(reg.Families, afi+"/"+safi)
+	family := afi + "/" + safi
+	reg.Families = append(reg.Families, family)
+
+	// Check for optional "decode" keyword
+	if len(args) >= 3 && strings.ToLower(args[2]) == "decode" {
+		reg.DecodeFamilies = append(reg.DecodeFamilies, family)
+	}
+
 	return nil
 }
 

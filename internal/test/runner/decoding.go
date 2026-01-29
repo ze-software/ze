@@ -276,7 +276,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 		return msgType, family, hexPayload
 	}
 
-	// Parse exec command: ze-test decode [--family <family>] [--open|--update|--nlri] -
+	// Parse exec command: ze-test decode [--family <family>] [--open|--update] [--nlri <family>] -
 	args := strings.Fields(execPart)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -292,6 +292,11 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 			msgType = msgTypeUpdate
 		case "--nlri":
 			msgType = msgTypeNLRI
+			// --nlri takes family as its value
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				family = args[i+1]
+				i++
+			}
 		}
 	}
 
@@ -436,15 +441,22 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	case "open":
 		args = append(args, "--open")
 	case "nlri":
-		args = append(args, "--nlri")
+		// --nlri takes the family as its value
+		if test.Family != "" {
+			args = append(args, "--nlri", test.Family)
+		} else {
+			args = append(args, "--nlri", "unknown/unknown")
+		}
 	case msgTypeUpdate:
 		args = append(args, "--update")
+		if test.Family != "" {
+			args = append(args, "-f", test.Family)
+		}
 	default:
 		args = append(args, "--update") // Default to update.
-	}
-
-	if test.Family != "" {
-		args = append(args, "-f", test.Family)
+		if test.Family != "" {
+			args = append(args, "-f", test.Family)
+		}
 	}
 
 	args = append(args, test.HexPayload)

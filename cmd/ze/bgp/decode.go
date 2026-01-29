@@ -34,10 +34,10 @@ func cmdDecode(args []string) int {
 
 	openMsg := fs.Bool("open", false, "decode as OPEN message")
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
-	nlriOnly := fs.Bool("nlri", false, "decode as NLRI only")
-	family := fs.String("f", "", "address family (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
+	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flowspec')")
+	family := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
 	var plugins pluginFlags
-	fs.Var(&plugins, "plugin", "plugin for capability decoding (e.g., ze.hostname)")
+	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp decode [options] <hex-payload>
@@ -52,7 +52,8 @@ Examples:
   ze bgp decode --open FFFF...       # Decode OPEN message
   ze bgp decode --update FFFF...     # Decode UPDATE message
   ze bgp decode --plugin ze.hostname --open FFFF...  # Decode with hostname plugin
-  ze bgp decode -f "l2vpn/evpn" --nlri 02...  # Decode NLRI with family context
+  ze bgp decode --nlri l2vpn/evpn 02...  # Decode NLRI with family
+  ze bgp decode --plugin flowspec --nlri ipv4/flowspec 07...  # Decode NLRI via plugin
 
 The hex payload can include colons or spaces which will be stripped.
 `)
@@ -77,11 +78,17 @@ The hex payload can include colons or spaces which will be stripped.
 		msgType = msgTypeOpen
 	case *updateMsg:
 		msgType = msgTypeUpdate
-	case *nlriOnly:
+	case *nlriFamily != "":
 		msgType = msgTypeNLRI
 	}
 
-	output, err := decodeHexPacket(payload, msgType, *family, plugins)
+	// Use nlriFamily for NLRI mode, fall back to -f flag
+	familyStr := *family
+	if *nlriFamily != "" {
+		familyStr = *nlriFamily
+	}
+
+	output, err := decodeHexPacket(payload, msgType, familyStr, plugins)
 	if err != nil {
 		// Return valid JSON error
 		errJSON := map[string]any{
@@ -123,7 +130,7 @@ func decodeHexPacket(hexStr, msgType, family string, plugins []string) (string, 
 
 	// For NLRI-only mode, don't wrap in envelope
 	if msgType == msgTypeNLRI {
-		return decodeNLRIOnly(data, family)
+		return decodeNLRIOnly(data, family, plugins)
 	}
 
 	// Build JSON output with envelope
@@ -333,6 +340,16 @@ var pluginCapabilityMap = map[uint8]string{
 	73: "hostname", // FQDN capability
 }
 
+// pluginFamilyMap maps address families to plugin names for CLI decode.
+// Used by standalone `ze bgp decode` command which has no runtime registry.
+// When engine is running, PluginRegistry.LookupFamily is used instead.
+var pluginFamilyMap = map[string]string{
+	"ipv4/flowspec":     "flowspec",
+	"ipv6/flowspec":     "flowspec",
+	"ipv4/flowspec-vpn": "flowspec",
+	"ipv6/flowspec-vpn": "flowspec",
+}
+
 // unknownCapability returns JSON for an unrecognized/plugin-required capability.
 // If a plugin is specified that can decode this capability, it will be invoked.
 func unknownCapability(c capability.Capability, plugins []string) map[string]any {
@@ -372,10 +389,11 @@ func hasPluginEnabled(plugins []string, name string) bool {
 	return false
 }
 
-// invokePluginDecode spawns a plugin in decode mode and requests capability decoding.
+// invokePluginDecodeRequest spawns a plugin in decode mode and sends a decode request.
 // Returns decoded JSON map or nil if decoding failed.
-func invokePluginDecode(pluginName string, code uint8, hexData string) map[string]any {
-	// Build plugin command - pluginName comes from pluginCapabilityMap (fixed values)
+// The request format varies: "decode capability <code> <hex>" or "decode nlri <family> <hex>".
+func invokePluginDecodeRequest(pluginName, request string) map[string]any {
+	// Build plugin command - pluginName comes from fixed maps (pluginCapabilityMap, pluginFamilyMap)
 	args := []string{"bgp", "plugin", pluginName, "--decode"}
 
 	// Create command with timeout context (short timeout for decode operation)
@@ -397,8 +415,7 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 	}
 
 	// Send decode request
-	request := fmt.Sprintf("decode capability %d %s\n", code, hexData)
-	_, _ = stdin.Write([]byte(request))
+	_, _ = stdin.Write([]byte(request + "\n"))
 	_ = stdin.Close()
 
 	// Read response
@@ -418,6 +435,34 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 
 	_ = cmd.Wait()
 	return nil
+}
+
+// invokePluginDecode spawns a plugin in decode mode and requests capability decoding.
+// Returns decoded JSON map or nil if decoding failed.
+func invokePluginDecode(pluginName string, code uint8, hexData string) map[string]any {
+	request := fmt.Sprintf("decode capability %d %s", code, hexData)
+	return invokePluginDecodeRequest(pluginName, request)
+}
+
+// invokePluginNLRIDecode spawns a plugin in decode mode and requests NLRI decoding.
+// Returns decoded JSON map or nil if decoding failed.
+func invokePluginNLRIDecode(pluginName, family, hexData string) map[string]any {
+	request := fmt.Sprintf("decode nlri %s %s", family, hexData)
+	return invokePluginDecodeRequest(pluginName, request)
+}
+
+// lookupFamilyPlugin returns the plugin name for a family, checking enabled plugins.
+// Returns empty string if no matching plugin found.
+// Family string is normalized to lowercase for lookup.
+func lookupFamilyPlugin(family string, plugins []string) string {
+	pluginName, ok := pluginFamilyMap[strings.ToLower(family)]
+	if !ok {
+		return ""
+	}
+	if !hasPluginEnabled(plugins, pluginName) {
+		return ""
+	}
+	return pluginName
 }
 
 // decodeUpdateMessage decodes a BGP UPDATE message.
@@ -2295,8 +2340,24 @@ func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 	return routes
 }
 
-// decodeNLRIOnly decodes NLRI without envelope (for bgp-ls tests).
-func decodeNLRIOnly(data []byte, family string) (string, error) {
+// decodeNLRIOnly decodes NLRI without envelope.
+// If a matching plugin is enabled, it will be invoked for decoding.
+func decodeNLRIOnly(data []byte, family string, plugins []string) (string, error) {
+	// Try plugin decode first if plugin is enabled for this family
+	pluginName := lookupFamilyPlugin(family, plugins)
+	if pluginName != "" {
+		hexData := fmt.Sprintf("%X", data)
+		result := invokePluginNLRIDecode(pluginName, family, hexData)
+		if result != nil {
+			jsonData, err := json.Marshal(result)
+			if err != nil {
+				return "", fmt.Errorf("json marshal: %w", err)
+			}
+			return string(jsonData), nil
+		}
+		// Plugin failed, fall through to built-in decode
+	}
+
 	afi, safi := parseFamily(family)
 
 	var result any
