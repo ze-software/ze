@@ -64,14 +64,7 @@ for fn in $FUNCS; do
 done
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-    echo -e "${RED}${BOLD}❌ BLOCKED: Duplicate code detected${RESET}" >&2
-    echo "" >&2
-    for err in "${ERRORS[@]}"; do
-        echo -e "  ${RED}✗${RESET} $err" >&2
-    done
-    echo "" >&2
-    echo -e "  ${YELLOW}Read existing code first, then extend it${RESET}" >&2
-    echo -e "  ${YELLOW}See: .claude/rules/understand-first.md${RESET}" >&2
+    echo -e "${RED}❌ Duplicate: ${ERRORS[0]}${RESET}" >&2
     exit 2
 fi
 

@@ -1,52 +1,26 @@
 #!/bin/bash
-# SessionStart hook - checks git status, test state, and active specs
+# SessionStart hook - compact status summary (token-optimized)
 
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 
-# Check git status
-MODIFIED=$(git status --porcelain 2>/dev/null | wc -l | tr -d ' ')
-
-if [ "$MODIFIED" -gt 0 ]; then
-    echo "⚠️  $MODIFIED uncommitted changes:"
-    git status -s
+# Git status summary (compact)
+STATUS=$(git status --porcelain 2>/dev/null)
+if [ -n "$STATUS" ]; then
+    TOTAL=$(echo "$STATUS" | wc -l | tr -d ' ')
+    MODIFIED=$(echo "$STATUS" | grep -c '^ M' 2>/dev/null || true)
+    ADDED=$(echo "$STATUS" | grep -c '^??' 2>/dev/null || true)
+    : "${MODIFIED:=0}" "${ADDED:=0}"
+    echo "⚠️ ${TOTAL} uncommitted: ${MODIFIED}M ${ADDED}A"
 else
-    echo "✅ Repo clean"
+    echo "✅ Clean"
 fi
 
-# Check for selected spec
-SELECTED_SPEC=""
-if [ -f ".claude/selected-spec" ]; then
-    # Read non-comment, non-empty line
-    SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec | grep -v '^$' | head -1)
-fi
-
-# Check for active specs in docs/plan/
-ACTIVE_SPECS=$(find docs/plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | sort)
-SPEC_COUNT=$(echo "$ACTIVE_SPECS" | grep -c .)
+# Selected spec (compact)
+SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | head -1)
+SPEC_COUNT=$(find docs/plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | wc -l | tr -d ' ')
 
 if [ -n "$SELECTED_SPEC" ] && [ -f "docs/plan/$SELECTED_SPEC" ]; then
-    echo ""
-    echo "🎯 SELECTED SPEC - RE-READ before continuing:"
-    echo "   → docs/plan/$SELECTED_SPEC"
-    echo ""
-    echo "⚠️  After compaction: RE-READ the spec and its Required Reading docs!"
-    echo ""
-    if [ "$SPEC_COUNT" -gt 1 ]; then
-        echo "📋 Other specs ($((SPEC_COUNT - 1))):"
-        for spec in $ACTIVE_SPECS; do
-            BASENAME=$(basename "$spec")
-            if [ "$BASENAME" != "$SELECTED_SPEC" ]; then
-                echo "   → $spec"
-            fi
-        done
-    fi
-elif [ -n "$ACTIVE_SPECS" ]; then
-    echo ""
-    echo "📋 ACTIVE SPECS ($SPEC_COUNT) - No spec selected:"
-    for spec in $ACTIVE_SPECS; do
-        echo "   → $spec"
-    done
-    echo ""
-    echo "💡 To select: write spec filename to .claude/selected-spec"
-    echo "   Example: echo 'spec-rfc9234-role.md' >> .claude/selected-spec"
+    echo "🎯 SPEC: $SELECTED_SPEC (+$((SPEC_COUNT-1)) others)"
+elif [ "$SPEC_COUNT" -gt 0 ]; then
+    echo "📋 ${SPEC_COUNT} specs, none selected"
 fi

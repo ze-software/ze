@@ -62,31 +62,12 @@ if [[ "$TOOL_NAME" == "Write" && ! -f "$FILE_PATH" ]]; then
     fi
 fi
 
-# Output and block on errors
+# Output (compact)
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-    echo -e "${RED}${BOLD}❌ BLOCKED: Cannot write Go file without preparation${RESET}" >&2
-    echo "" >&2
-    for err in "${ERRORS[@]}"; do
-        echo -e "  ${RED}✗${RESET} $err" >&2
-    done
-    if [[ ${#WARNINGS[@]} -gt 0 ]]; then
-        echo "" >&2
-        for warn in "${WARNINGS[@]}"; do
-            echo -e "  ${YELLOW}⚠${RESET} $warn" >&2
-        done
-    fi
-    echo "" >&2
-    echo -e "  ${YELLOW}See: .claude/rules/post-compaction.md${RESET}" >&2
+    echo -e "${RED}❌ No session-state.md - see post-compaction.md${RESET}" >&2
     exit 2
 fi
 
-# Output warnings only
-if [[ ${#WARNINGS[@]} -gt 0 ]]; then
-    echo -e "${YELLOW}⚠️  Pre-write warnings:${RESET}" >&2
-    for warn in "${WARNINGS[@]}"; do
-        echo -e "  ${YELLOW}→${RESET} $warn" >&2
-    done
-    echo "" >&2
-fi
+[[ ${#WARNINGS[@]} -gt 0 ]] && echo -e "${YELLOW}⚠ Similar files exist - check first${RESET}" >&2
 
 exit 0

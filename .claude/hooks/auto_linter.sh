@@ -70,25 +70,12 @@ if command -v golangci-lint &> /dev/null; then
     OUTPUT=$(golangci-lint run --new-from-rev=HEAD --timeout=30s "$REL_PATH" 2>&1) || true
 
     if [[ -n "$OUTPUT" && ! "$OUTPUT" =~ "no issues" ]]; then
-        # Count issues
         ISSUE_COUNT=$(echo "$OUTPUT" | grep -c ":" || echo "0")
-
-        echo -e "${YELLOW}⚠️  golangci-lint found ${BOLD}${ISSUE_COUNT}${RESET}${YELLOW} issue(s) in ${CYAN}$(basename "$FILE_PATH")${RESET}${YELLOW}:${RESET}" >&2
-
-        # Show first 5 issues
-        echo "$OUTPUT" | head -5 | while read -r line; do
-            echo -e "   ${DIM}${line}${RESET}" >&2
+        echo -e "${YELLOW}⚠ lint: ${ISSUE_COUNT} issues${RESET}" >&2
+        echo "$OUTPUT" | head -3 | while read -r line; do
+            echo -e "  ${DIM}${line}${RESET}" >&2
         done
-
-        TOTAL=$(echo "$OUTPUT" | wc -l)
-        if [[ $TOTAL -gt 5 ]]; then
-            echo -e "   ${DIM}... and $((TOTAL - 5)) more${RESET}" >&2
-        fi
-
-        echo -e "${RED}${BOLD}Fix lint issues before continuing.${RESET}" >&2
-
-        # BLOCKING: reject until lint passes
-        exit 1
+        exit 2
     fi
 fi
 

@@ -41,6 +41,7 @@ CONTENT=$(cat "$FILE_PATH")
 REQUIRED_SECTIONS=(
     "## Task"
     "## Required Reading"
+    "## Current Behavior"
     "## 🧪 TDD Test Plan"
     "### Unit Tests"
     "## Files to Modify"
@@ -53,6 +54,27 @@ for section in "${REQUIRED_SECTIONS[@]}"; do
         ERRORS+=("Missing required section: $section")
     fi
 done
+
+# === CURRENT BEHAVIOR CHECK ===
+# Ensure source files were actually read (not just placeholders)
+CURRENT_BEHAVIOR_SECTION=$(sed -n '/^## Current Behavior/,/^##/p' "$FILE_PATH" | head -30)
+if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
+    # Check for "Source files read:" with actual file paths
+    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^\s*-\s*\[\s*\]\s*`[^`]+\.(go|py|rs|ts|js)`'; then
+        # No unchecked source files - check for checked ones
+        if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE '^\s*-\s*\[x\]\s*`[^`]+\.(go|py|rs|ts|js)`'; then
+            ERRORS+=("Current Behavior section must list source files read (e.g., '- [ ] \`path/to/file.go\`')")
+        fi
+    fi
+
+    # Check for "Behavior to preserve:" with actual content
+    if ! echo "$CURRENT_BEHAVIOR_SECTION" | grep -qiE 'behavior to preserve|preserve.*:'; then
+        WARNINGS+=("Current Behavior should document 'Behavior to preserve'")
+    elif echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE 'Behavior to preserve.*:\s*$'; then
+        # Empty behavior to preserve
+        ERRORS+=("Current Behavior: 'Behavior to preserve' section is empty. Document existing behavior!")
+    fi
+fi
 
 # === RFC SUMMARY CHECK ===
 # Extract referenced RFC summaries and check they exist
@@ -135,30 +157,18 @@ if [[ "$FUNC_DEFS" -gt 0 ]]; then
     ERRORS+=("Specs MUST NOT contain function definitions. Use tables/prose to describe behavior")
 fi
 
-# === OUTPUT RESULTS ===
+# === OUTPUT RESULTS (compact) ===
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
-    echo -e "${RED}${BOLD}❌ Spec validation FAILED:${RESET} $(basename "$FILE_PATH")" >&2
-    echo "" >&2
-    for err in "${ERRORS[@]}"; do
+    echo -e "${RED}❌ Spec invalid (${#ERRORS[@]} errors):${RESET}" >&2
+    for err in "${ERRORS[@]:0:5}"; do  # Max 5 errors
         echo -e "  ${RED}✗${RESET} $err" >&2
     done
-    if [[ ${#WARNINGS[@]} -gt 0 ]]; then
-        echo "" >&2
-        for warn in "${WARNINGS[@]}"; do
-            echo -e "  ${YELLOW}⚠${RESET} $warn" >&2
-        done
-    fi
-    echo "" >&2
-    echo -e "  ${YELLOW}See: .claude/rules/planning.md${RESET}" >&2
-    exit 2  # Exit 2 = BLOCKING (stops the operation)
+    [[ ${#ERRORS[@]} -gt 5 ]] && echo -e "  ... +$((${#ERRORS[@]}-5)) more" >&2
+    exit 2
 fi
 
 if [[ ${#WARNINGS[@]} -gt 0 ]]; then
-    echo -e "${YELLOW}⚠️  Spec warnings:${RESET} $(basename "$FILE_PATH")" >&2
-    for warn in "${WARNINGS[@]}"; do
-        echo -e "  ${YELLOW}⚠${RESET} $warn" >&2
-    done
+    echo -e "${YELLOW}⚠ Spec: ${#WARNINGS[@]} warnings${RESET}" >&2
 fi
 
-echo -e "${GREEN}✅ Spec valid:${RESET} $(basename "$FILE_PATH")"
 exit 0

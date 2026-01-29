@@ -22,9 +22,7 @@ DESTRUCTIVE_PATTERNS=(
 
 for pattern in "${DESTRUCTIVE_PATTERNS[@]}"; do
     if [[ "$COMMAND" == *"$pattern"* ]]; then
-        echo "BLOCKED: Destructive git command detected: $pattern"
-        echo "This command would discard work and is permanently blocked."
-        echo "To use this command, run it manually in your terminal."
+        echo "❌ Blocked: $pattern (run manually)" >&2
         exit 2
     fi
 done
