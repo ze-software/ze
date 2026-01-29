@@ -38,6 +38,24 @@ Move FlowSpec NLRI implementation from `internal/plugin/bgp/nlri/flowspec.go` to
 - FlowSpec does NOT support ADD-PATH (RFC 8955)
 - Current implementation is complete and well-tested
 
+## Current Behavior
+
+**Source files read:**
+- [x] `internal/plugin/flowspec/plugin.go` - Plugin with decode/encode handlers
+- [x] `internal/plugin/flowspec/types.go` - FlowSpec types (moved from nlri/)
+- [x] `internal/plugin/update_text.go` - Text parsing, calls flowspec directly
+
+**Behavior to preserve:**
+- FlowSpec JSON output format (nested arrays for components)
+- All 13 component types supported
+- VPN variants with Route Distinguisher
+- Wire encoding/decoding round-trip
+
+**Behavior to change:**
+- Engine currently calls `flowspec.EncodeFlowSpecComponents()` as Go function
+- Should use plugin API (`encode nlri ...` protocol) for language independence
+- RD syntax should be part of components, not special prefix before `add`
+
 ## Current Implementation Analysis
 
 ### Files to Move
@@ -224,11 +242,11 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFlowSpecDecodeMode` | `internal/plugin/flowspec/flowspec_test.go` | Decode mode protocol | |
-| `TestFlowSpecJSONRoundTrip` | `internal/plugin/flowspec/flowspec_test.go` | JSON ↔ struct | |
-| `TestFlowSpecWireRoundTrip` | `internal/plugin/flowspec/flowspec_test.go` | wire ↔ struct | |
-| `TestFlowSpecAllComponents` | `internal/plugin/flowspec/flowspec_test.go` | All 13 component types | |
-| `TestFlowSpecVPN` | `internal/plugin/flowspec/flowspec_test.go` | VPN variant with RD | |
+| `TestFlowSpecDecodeMode` | `internal/plugin/flowspec/flowspec_test.go` | Decode mode protocol | ✅ |
+| `TestFlowSpecJSONRoundTrip` | `internal/plugin/flowspec/flowspec_test.go` | JSON ↔ struct | ✅ |
+| `TestFlowSpecWireRoundTrip` | `internal/plugin/flowspec/flowspec_test.go` | wire ↔ struct | ✅ |
+| `TestFlowSpecAllComponents` | `internal/plugin/flowspec/flowspec_test.go` | All 13 component types | ✅ |
+| `TestFlowSpecVPN` | `internal/plugin/flowspec/flowspec_test.go` | VPN variant with RD | ✅ |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -243,7 +261,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `flowspec-decode` | `test/data/decode/flowspec-plugin.ci` | Decode FlowSpec NLRI via CLI | |
+| `flowspec-decode` | `test/data/decode/flowspec-plugin.ci` | Decode FlowSpec NLRI via CLI | ✅ |
 | `flowspec-roundtrip` | `test/data/encode/flowspec-plugin.ci` | Encode then decode FlowSpec | |
 
 ## Design Decisions
@@ -280,54 +298,220 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - ADD-PATH not supported for FlowSpec families
 - IPv6 offset field only valid for type 1 and 2 components
 
-## Implementation Summary
-
-<!-- Fill after implementation -->
+## Implementation Summary (Phase 1)
 
 ### What Was Implemented
-- [To be filled]
+- `internal/plugin/flowspec/plugin.go` - Plugin with decode mode and startup protocol
+- `internal/plugin/flowspec/plugin_test.go` - Unit tests (decode, boundary, VPN)
+- `cmd/ze/bgp/plugin_flowspec.go` - CLI entry point
+- `test/decode/flowspec-plugin.ci` - Functional test
+- Auto-invoke for flowspec families in `pluginFamilyMap`
+- Registered in `internalPluginRunners` for in-process execution
 
 ### Bugs Found/Fixed
-- [To be filled]
+- Wire encoding in tests: flow label op byte 0xa1 (not 0x91) for 4-byte values
+- Wire encoding in tests: IPv6 VPN length 0x0f (not 0x11)
+- Missing RD verification in VPN test assertions
+- Dead code in `lookupFamilyPlugin` (speculative loop removed)
 
 ### Design Insights
-- [To be filled]
+- Plugin is thin wrapper over existing `nlri.ParseFlowSpec` / `nlri.ParseFlowSpecVPN`
+- No code moved from nlri package - reused via import
+- Auto-invoke simplifies CLI: `ze bgp decode` auto-uses flowspec plugin for flowspec families
 
 ### Deviations from Plan
-- [To be filled]
+- Did NOT move flowspec.go from nlri package (reused existing code instead)
+- Plugin is decode-only for now (full event handling not implemented)
+- Files to Delete section not executed (code reused, not moved)
 
-## Checklist
+## Checklist (Phase 1)
 
 ### 🏗️ Design
-- [ ] No premature abstraction (3+ concrete use cases exist?)
-- [ ] No speculative features (is this needed NOW?)
-- [ ] Single responsibility (each component does ONE thing?)
-- [ ] Explicit behavior (no hidden magic or conventions?)
-- [ ] Minimal coupling (components isolated, dependencies minimal?)
-- [ ] Next-developer test (would they understand this quickly?)
+- [x] No premature abstraction (3+ concrete use cases exist?)
+- [x] No speculative features (is this needed NOW?)
+- [x] Single responsibility (each component does ONE thing?)
+- [x] Explicit behavior (no hidden magic or conventions?)
+- [x] Minimal coupling (components isolated, dependencies minimal?)
+- [x] Next-developer test (would they understand this quickly?)
+
+### 🧪 TDD
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
+- [x] Boundary tests cover all numeric inputs
+- [x] Feature code integrated into codebase
+- [x] Functional tests verify end-user behavior
+
+### Verification
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
+
+### Documentation
+- [x] Required docs read
+- [x] RFC summaries read
+- [x] RFC references added to code
+- [x] RFC constraint comments added
+
+### Completion
+- [ ] Architecture docs updated with learnings
+- [x] Spec updated with Implementation Summary
+- [ ] Spec moved to `docs/plan/done/`
+- [ ] All files committed together
+
+---
+
+# Phase 2: Engine FlowSpec Isolation
+
+## Task
+
+Make the engine FlowSpec-agnostic. Only the plugin knows FlowSpec semantics.
+
+**Architecture:**
+- Engine passes raw NLRI bytes via API
+- Plugin handles encode (text→wire) and decode (wire→JSON)
+- Engine uses `WireNLRI` for FlowSpec, never parses components
+- FlowSpec types move from `nlri/` to plugin
+
+## Phase 2 Status
+
+| Component | Status |
+|-----------|--------|
+| Plugin decode mode | ✅ Done (Phase 1) |
+| Plugin encode mode | ✅ Added (but called as Go function, not via API) |
+| Engine text parsing | ⚠️ Uses direct Go call, not plugin API |
+| FlowSpec types | ✅ Moved to `internal/plugin/flowspec/types.go` |
+| `nlri/flowspec.go` | ✅ Deleted |
+
+## Outstanding Issues
+
+### Issue 1: Direct Go Function Call (Not Plugin API)
+
+**Current (wrong):**
+```
+update_text.go:1563 calls flowspec.EncodeFlowSpecComponents() directly
+```
+
+This bypasses the plugin protocol, meaning:
+- Cannot swap FlowSpec plugin for Python/Rust implementation
+- Tight coupling between engine and Go flowspec code
+- Plugin architecture not being used for encoding
+
+**Required fix:**
+```
+Engine                              Plugin (any language)
+──────                              ─────────────────────
+                    spawn + stdin/stdout
+           ─────────────────────────────────►
+
+encode nlri ipv4/flowspec destination 10.0.0.0/24 protocol tcp
+           ─────────────────────────────────►
+
+           ◄─────────────────────────────────
+encoded hex 0801180A0000038106
+```
+
+Need to implement `invokePluginNLRIEncode` similar to `invokePluginNLRIDecode`.
+
+### Issue 2: RD Syntax Position
+
+**Current (inconsistent):**
+```
+nlri ipv4/flowspec-vpn rd 65000:100 add destination 10.0.0.0/24
+                       ^^^^^^^^^^^
+                       RD before "add" - special case
+```
+
+**Required (consistent):**
+```
+nlri ipv4/flowspec-vpn add rd 65000:100 destination 10.0.0.0/24
+                           ^^^^^^^^^^^
+                           RD as component after "add" - like other components
+```
+
+The RD should be part of the FlowSpec components, not a special prefix. This keeps the syntax uniform and allows the plugin to handle RD parsing entirely.
+
+## Encode Mode Protocol
+
+| Direction | Format | Example |
+|-----------|--------|---------|
+| Request | `encode nlri <family> <components>` | `encode nlri ipv4/flowspec destination 10.0.0.0/24 protocol 6` |
+| Response | `encoded hex <bytes>` | `encoded hex 0701180A00000381068150` |
+| Error | `encoded error <msg>` | `encoded error invalid prefix` |
+
+## Phase 2 Implementation Steps
+
+### Step 1: Plugin encode mode ✅
+- Add `handleEncodeNLRI` to plugin
+- Parse text components (destination, protocol, etc.)
+- Return hex wire bytes
+
+### Step 2: Add invoke helper
+- Add `invokePluginNLRIEncode` in decode.go
+- Similar pattern to decode: spawn plugin, send request, get response
+
+### Step 3: Update update_text.go
+- For FlowSpec families, call plugin instead of creating `nlri.FlowSpec`
+- Plugin returns hex bytes → create `WireNLRI`
+- Remove: `parseFlowSpecComponents`, `parseFlowSpecComponent`, etc.
+
+### Step 4: Move types to plugin
+- Copy `nlri/flowspec.go` to `internal/plugin/flowspec/types.go`
+- Update imports in plugin
+- Keep minimal stubs in nlri (family constants only)
+
+### Step 5: Delete nlri/flowspec.go
+- Verify no engine code imports FlowSpec types
+- Delete file
+- Update tests
+
+### Step 6: Verify
+- `make verify` must pass
+- All FlowSpec encoding/decoding still works via plugin
+
+## Phase 2 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestFlowSpecEncodeMode` | `plugin_test.go` | Encode protocol | |
+| `TestFlowSpecEncodeAllComponents` | `plugin_test.go` | All 13 types | |
+| `TestFlowSpecEncodeVPN` | `plugin_test.go` | VPN with RD | |
+| `TestFlowSpecRoundTrip` | `plugin_test.go` | encode → decode | |
+
+### Boundary Tests
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| Port | 0-65535 | 65535 | N/A | 65536 |
+| DSCP | 0-63 | 63 | N/A | 64 |
+| Protocol | 0-255 | 255 | N/A | 256 |
+
+### Functional Tests
+| Test | Location | Scenario | Status |
+|------|----------|----------|--------|
+| `flowspec-encode` | `test/decode/flowspec-encode.ci` | CLI encode path | |
+
+## Phase 2 Checklist
+
+### 🏗️ Design
+- [ ] Plugin handles both encode and decode
+- [ ] Engine uses WireNLRI for FlowSpec
+- [ ] No FlowSpec parsing in engine
+- [ ] Types moved to plugin package
 
 ### 🧪 TDD
 - [ ] Tests written
-- [ ] Tests FAIL (output below)
+- [ ] Tests FAIL
 - [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs
-- [ ] Feature code integrated into codebase
-- [ ] Functional tests verify end-user behavior
+- [ ] Tests PASS
 
 ### Verification
 - [ ] `make lint` passes
 - [ ] `make test` passes
 - [ ] `make functional` passes
 
-### Documentation
-- [ ] Required docs read
-- [ ] RFC summaries read
-- [ ] RFC references added to code
-- [ ] RFC constraint comments added
-
 ### Completion
-- [ ] Architecture docs updated with learnings
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/`
+- [ ] FlowSpec types removed from nlri/
+- [ ] Engine text parsing removed
 - [ ] All files committed together

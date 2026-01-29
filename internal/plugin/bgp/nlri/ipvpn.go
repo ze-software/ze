@@ -143,7 +143,29 @@ func (rd RouteDistinguisher) String() string {
 func ParseRDString(s string) (RouteDistinguisher, error) {
 	var rd RouteDistinguisher
 	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
+
+	// Handle typed format: type:ASN:value or type:IP:value (3 parts)
+	// This format is produced by RouteDistinguisher.String()
+	// Type 0: "0:ASN:assigned" (e.g., "0:65000:100")
+	// Type 1: "1:IP:assigned" (e.g., "1:1.2.3.4:100")
+	// Type 2: "2:ASN:assigned" (e.g., "2:65000:100")
+	if len(parts) == 3 {
+		rdType, err := strconv.ParseUint(parts[0], 10, 8)
+		if err != nil || rdType > 2 {
+			return rd, fmt.Errorf("invalid RD type: %s", parts[0])
+		}
+		// For Type 1, middle part must be an IP address (contains dots)
+		if rdType == 1 && !strings.Contains(parts[1], ".") {
+			return rd, fmt.Errorf("invalid RD format: type 1 requires IP address, got %s", parts[1])
+		}
+		// For Type 0/2, middle part must be numeric (no dots)
+		if rdType != 1 && strings.Contains(parts[1], ".") {
+			return rd, fmt.Errorf("invalid RD format: type %d requires ASN, got IP %s", rdType, parts[1])
+		}
+		// Reconstruct as 2-part format for parsing below
+		rd.Type = RDType(rdType)
+		parts = parts[1:] // Now parts is [ASN/IP, value]
+	} else if len(parts) != 2 {
 		return rd, fmt.Errorf("invalid RD format: %s (expected ASN:value or IP:value)", s)
 	}
 
@@ -424,6 +446,9 @@ func (v *IPVPN) Prefix() netip.Prefix { return v.prefix }
 
 // PathID returns the ADD-PATH path identifier (0 if none).
 func (v *IPVPN) PathID() uint32 { return v.pathID }
+
+// SupportsAddPath returns true - VPN NLRIs support ADD-PATH per RFC 7911.
+func (v *IPVPN) SupportsAddPath() bool { return true }
 
 // Bytes returns the wire format (payload only, no path ID).
 //

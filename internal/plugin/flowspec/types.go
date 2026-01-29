@@ -1,5 +1,7 @@
-// Package nlri implements BGP Network Layer Reachability Information types.
-package nlri
+// Package flowspec implements FlowSpec NLRI types for the flowspec plugin.
+// RFC 8955: Dissemination of Flow Specification Rules (IPv4 FlowSpec)
+// RFC 8956: Dissemination of Flow Specification Rules for IPv6
+package flowspec
 
 import (
 	"encoding/binary"
@@ -9,8 +11,43 @@ import (
 	"slices"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
 )
+
+// Type aliases for nlri types used by FlowSpec.
+// This allows the flowspec package to be self-contained while reusing nlri definitions.
+type (
+	Family             = nlri.Family
+	AFI                = nlri.AFI
+	SAFI               = nlri.SAFI
+	RouteDistinguisher = nlri.RouteDistinguisher
+)
+
+// Re-export type from nlri for RouteDistinguisher.
+type RDType = nlri.RDType
+
+// Re-export constants from nlri for local use.
+const (
+	AFIIPv4         = nlri.AFIIPv4
+	AFIIPv6         = nlri.AFIIPv6
+	SAFIFlowSpec    = nlri.SAFIFlowSpec
+	SAFIFlowSpecVPN = nlri.SAFIFlowSpecVPN
+	RDType0         = nlri.RDType0
+	RDType1         = nlri.RDType1
+	RDType2         = nlri.RDType2
+)
+
+// Re-export family constants from nlri.
+var (
+	IPv4FlowSpec    = nlri.IPv4FlowSpec
+	IPv6FlowSpec    = nlri.IPv6FlowSpec
+	IPv4FlowSpecVPN = nlri.IPv4FlowSpecVPN
+	IPv6FlowSpecVPN = nlri.IPv6FlowSpecVPN
+)
+
+// ParseRouteDistinguisher parses an 8-byte Route Distinguisher.
+var ParseRouteDistinguisher = nlri.ParseRouteDistinguisher
 
 // FlowSpec errors.
 var (
@@ -283,6 +320,11 @@ func (f *FlowSpec) PathID() uint32 {
 
 // HasPathID returns false.
 func (f *FlowSpec) HasPathID() bool {
+	return false
+}
+
+// SupportsAddPath returns false - FlowSpec doesn't support ADD-PATH per RFC 8955.
+func (f *FlowSpec) SupportsAddPath() bool {
 	return false
 }
 
@@ -1177,6 +1219,11 @@ func (f *FlowSpecVPN) PathID() uint32 {
 
 // HasPathID returns false.
 func (f *FlowSpecVPN) HasPathID() bool {
+	return false
+}
+
+// SupportsAddPath returns false - FlowSpec VPN doesn't support ADD-PATH per RFC 8955.
+func (f *FlowSpecVPN) SupportsAddPath() bool {
 	return false
 }
 

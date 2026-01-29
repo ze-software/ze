@@ -1,0 +1,1026 @@
+// Package flowspec implements a FlowSpec family plugin for ze.
+// It handles decoding of FlowSpec NLRI (RFC 8955, 8956) for the decode mode protocol.
+//
+// RFC 8955: Dissemination of Flow Specification Rules (IPv4 FlowSpec)
+// RFC 8956: Dissemination of Flow Specification Rules for IPv6
+package flowspec
+
+import (
+	"bufio"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/netip"
+	"strconv"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+)
+
+// flowLogger is the package-level logger, disabled by default.
+var flowLogger = slogutil.DiscardLogger()
+
+// SetFlowSpecLogger sets the package-level logger.
+// Called by cmd/ze/bgp/plugin_flowspec.go with slogutil.PluginLogger().
+func SetFlowSpecLogger(l *slog.Logger) {
+	if l != nil {
+		flowLogger = l
+	}
+}
+
+// FlowSpecPlugin implements a FlowSpec family plugin.
+// For now, it only supports decode mode (started with --decode).
+// Full plugin mode (receiving UPDATE events) is not yet implemented.
+type FlowSpecPlugin struct {
+	input  *bufio.Scanner
+	output io.Writer
+}
+
+// MaxLineSize is the maximum size of a single input line (1MB).
+const MaxLineSize = 1024 * 1024
+
+// NewFlowSpecPlugin creates a new FlowSpec Plugin.
+func NewFlowSpecPlugin(input io.Reader, output io.Writer) *FlowSpecPlugin {
+	scanner := bufio.NewScanner(input)
+	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
+	return &FlowSpecPlugin{
+		input:  scanner,
+		output: output,
+	}
+}
+
+// Run starts the flowspec plugin in normal mode.
+// Currently only performs startup protocol - full event handling not yet implemented.
+func (p *FlowSpecPlugin) Run() int {
+	flowLogger.Debug("flowspec plugin starting")
+	p.doStartupProtocol()
+	flowLogger.Debug("flowspec plugin startup complete, entering event loop")
+	p.eventLoop()
+	return 0
+}
+
+// doStartupProtocol performs the 5-stage plugin registration protocol.
+func (p *FlowSpecPlugin) doStartupProtocol() {
+	// Stage 1: Declaration - claim FlowSpec family decoding
+	p.send("declare family ipv4 flowspec decode")
+	p.send("declare family ipv6 flowspec decode")
+	p.send("declare family ipv4 flowspec-vpn decode")
+	p.send("declare family ipv6 flowspec-vpn decode")
+	p.send("declare rfc 8955")
+	p.send("declare rfc 8956")
+	p.send("declare encoding hex")
+	p.send("declare done")
+
+	// Stage 2: Parse config (FlowSpec plugin doesn't need config)
+	p.waitForLine("config done")
+
+	// Stage 3: No capabilities to register
+	p.send("capability done")
+
+	// Stage 4: Wait for registry
+	p.waitForLine("registry done")
+
+	// Stage 5: Ready
+	p.send("ready")
+}
+
+// eventLoop runs the minimal event loop.
+// FlowSpec plugin is decode-only for now - just handles shutdown.
+func (p *FlowSpecPlugin) eventLoop() {
+	for p.input.Scan() {
+		line := p.input.Text()
+		if len(line) == 0 {
+			continue
+		}
+		// FlowSpec plugin doesn't handle events yet - just consume until EOF
+		flowLogger.Debug("event (ignored)", "line", line[:min(50, len(line))])
+	}
+}
+
+// waitForLine reads lines until one matches the expected line.
+func (p *FlowSpecPlugin) waitForLine(expected string) {
+	for p.input.Scan() {
+		line := p.input.Text()
+		if line == expected {
+			return
+		}
+	}
+}
+
+// send sends raw output to ze.
+func (p *FlowSpecPlugin) send(msg string) {
+	_, _ = fmt.Fprintf(p.output, "%s\n", msg)
+}
+
+// GetFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.
+// FlowSpec plugin doesn't augment config schema, returns empty.
+func GetFlowSpecYANG() string {
+	return ""
+}
+
+// FlowSpecFamilies returns the address families this plugin can decode.
+func FlowSpecFamilies() []string {
+	return []string{
+		"ipv4/flowspec",
+		"ipv6/flowspec",
+		"ipv4/flowspec-vpn",
+		"ipv6/flowspec-vpn",
+	}
+}
+
+// RunFlowSpecDecode runs the plugin in decode/encode mode for ze bgp decode/encode.
+// Handles both decode and encode requests on stdin, writes responses to stdout.
+//
+// Decode format: "decode nlri <family> <hex>" → "decoded json <json>" or "decoded unknown"
+// Encode format: "encode nlri <family> <components...>" → "encoded hex <hex>" or "encoded error <msg>".
+func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
+	writeUnknown := func() { _, _ = fmt.Fprintf(output, "decoded unknown\n") }
+	writeError := func(msg string) { _, _ = fmt.Fprintf(output, "encoded error %s\n", msg) }
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) < 3 {
+			writeUnknown()
+			continue
+		}
+
+		cmd := parts[0]
+		objType := parts[1]
+
+		switch {
+		case cmd == "decode" && objType == "nlri":
+			handleDecodeNLRI(parts, output, writeUnknown)
+		case cmd == "encode" && objType == "nlri":
+			handleEncodeNLRI(parts, output, writeError)
+		default:
+			writeUnknown()
+		}
+	}
+	return 0
+}
+
+// handleDecodeNLRI handles: decode nlri <family> <hex>.
+func handleDecodeNLRI(parts []string, output io.Writer, writeUnknown func()) {
+	if len(parts) < 4 {
+		writeUnknown()
+		return
+	}
+
+	family := strings.ToLower(parts[2])
+	hexData := parts[3]
+
+	if !isValidFlowSpecFamily(family) {
+		writeUnknown()
+		return
+	}
+
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		writeUnknown()
+		return
+	}
+
+	result := decodeFlowSpecNLRI(family, data)
+	if result == nil {
+		writeUnknown()
+		return
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		writeUnknown()
+		return
+	}
+	_, _ = fmt.Fprintf(output, "decoded json %s\n", jsonBytes)
+}
+
+// handleEncodeNLRI handles: encode nlri <family> <components...>
+// Components: destination <prefix> | source <prefix> | protocol <num> | port <op><num> | ...
+func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string)) {
+	if len(parts) < 4 {
+		writeError("missing family or components")
+		return
+	}
+
+	family := strings.ToLower(parts[2])
+	if !isValidFlowSpecFamily(family) {
+		writeError("invalid family: " + family)
+		return
+	}
+
+	// Parse family using nlri.ParseFamily (still in nlri package)
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		writeError("unknown family: " + family)
+		return
+	}
+
+	// Parse components from remaining args
+	args := parts[3:]
+	wireBytes, err := EncodeFlowSpecComponents(fam, args)
+	if err != nil {
+		writeError(err.Error())
+		return
+	}
+
+	_, _ = fmt.Fprintf(output, "encoded hex %s\n", strings.ToUpper(hex.EncodeToString(wireBytes)))
+}
+
+// isValidFlowSpecFamily checks if family is a FlowSpec family.
+func isValidFlowSpecFamily(family string) bool {
+	switch family {
+	case "ipv4/flowspec", "ipv6/flowspec", "ipv4/flowspec-vpn", "ipv6/flowspec-vpn":
+		return true
+	default:
+		return false
+	}
+}
+
+// decodeFlowSpecNLRI decodes FlowSpec NLRI wire bytes to JSON map.
+func decodeFlowSpecNLRI(family string, data []byte) map[string]any {
+	isVPN := strings.HasSuffix(family, "-vpn")
+
+	// Determine Family from family string
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		flowLogger.Debug("unknown family", "family", family)
+		return nil
+	}
+
+	var fs *FlowSpec
+	var rd *RouteDistinguisher
+
+	if isVPN {
+		fsv, err := ParseFlowSpecVPN(fam, data)
+		if err != nil {
+			flowLogger.Debug("parse flowspec vpn failed", "err", err)
+			return nil
+		}
+		fs = fsv.FlowSpec()
+		rdVal := fsv.RD()
+		rd = &rdVal
+	} else {
+		var err error
+		fs, err = ParseFlowSpec(fam, data)
+		if err != nil {
+			flowLogger.Debug("parse flowspec failed", "err", err)
+			return nil
+		}
+	}
+
+	return flowSpecToJSON(fs, family, rd)
+}
+
+// flowSpecToJSON converts FlowSpec to JSON representation.
+// Format: {"rd": "...", "destination-ipv6": [["prefix/len/offset"]], ...}.
+// Note: "family" is NOT included since it's already in the JSON path when embedded.
+func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[string]any {
+	result := make(map[string]any)
+
+	// Add RD for VPN families
+	if rd != nil {
+		result["rd"] = rd.String()
+	}
+
+	// Determine IPv4 vs IPv6 from family string
+	isIPv6 := strings.Contains(family, "ipv6")
+
+	for _, comp := range fs.Components() {
+		key, values := componentToJSON(comp, isIPv6)
+		result[key] = values
+	}
+
+	return result
+}
+
+// componentToJSON converts a FlowComponent to ExaBGP JSON format.
+// Returns the key name and nested array values.
+func componentToJSON(comp FlowComponent, isIPv6 bool) (string, [][]string) {
+	compType := comp.Type()
+
+	switch compType {
+	case FlowDestPrefix:
+		key := "destination"
+		if isIPv6 {
+			key = "destination-ipv6"
+		}
+		prefix := formatPrefixWithOffset(comp)
+		return key, [][]string{{prefix}}
+
+	case FlowSourcePrefix:
+		key := "source"
+		if isIPv6 {
+			key = "source-ipv6"
+		}
+		prefix := formatPrefixWithOffset(comp)
+		return key, [][]string{{prefix}}
+
+	case FlowIPProtocol:
+		key := "protocol"
+		if isIPv6 {
+			key = "next-header"
+		}
+		return key, formatNumericMatches(comp, compType)
+
+	case FlowPort:
+		return "port", formatNumericMatches(comp, compType)
+
+	case FlowDestPort:
+		return "destination-port", formatNumericMatches(comp, compType)
+
+	case FlowSourcePort:
+		return "source-port", formatNumericMatches(comp, compType)
+
+	case FlowICMPType:
+		return "icmp-type", formatNumericMatches(comp, compType)
+
+	case FlowICMPCode:
+		return "icmp-code", formatNumericMatches(comp, compType)
+
+	case FlowTCPFlags:
+		return "tcp-flags", formatBitmaskMatches(comp, tcpFlagValueToNames)
+
+	case FlowPacketLength:
+		return "packet-length", formatNumericMatches(comp, compType)
+
+	case FlowDSCP:
+		return "dscp", formatNumericMatches(comp, compType)
+
+	case FlowFragment:
+		return "fragment", formatBitmaskMatches(comp, fragmentFlagValueToNames)
+
+	case FlowFlowLabel:
+		return "flow-label", formatNumericMatches(comp, compType)
+
+	default:
+		return fmt.Sprintf("type-%d", compType), [][]string{}
+	}
+}
+
+// formatPrefixWithOffset formats a prefix component as "prefix/length/offset".
+func formatPrefixWithOffset(comp FlowComponent) string {
+	prefix := ""
+	offset := uint8(0)
+
+	if pc, ok := comp.(interface{ Prefix() netip.Prefix }); ok {
+		prefix = pc.Prefix().String()
+	}
+	if oc, ok := comp.(interface{ Offset() uint8 }); ok {
+		offset = oc.Offset()
+	}
+
+	return fmt.Sprintf("%s/%d", prefix, offset)
+}
+
+// protocolNumberToName maps protocol numbers to names for ExaBGP output.
+var protocolNumberToName = map[uint8]string{
+	1:   "icmp",
+	2:   "igmp",
+	6:   "tcp",
+	17:  "udp",
+	47:  "gre",
+	58:  "icmpv6",
+	89:  "ospf",
+	132: "sctp",
+}
+
+// formatNumericMatches formats numeric component matches for ExaBGP JSON.
+// Returns nested arrays: [[value1], [value2]] for OR logic.
+func formatNumericMatches(comp FlowComponent, compType FlowComponentType) [][]string {
+	nc, ok := comp.(interface{ Matches() []FlowMatch })
+	if !ok {
+		return [][]string{}
+	}
+
+	matches := nc.Matches()
+	result := make([][]string, 0, len(matches))
+	var andGroup []string
+
+	for _, m := range matches {
+		valStr := formatNumericValue(m, compType)
+
+		if m.And && len(andGroup) > 0 {
+			// Continue AND group
+			andGroup = append(andGroup, valStr)
+		} else {
+			// Start new OR group (flush previous AND group if any)
+			if len(andGroup) > 0 {
+				result = append(result, andGroup)
+			}
+			andGroup = []string{valStr}
+		}
+	}
+
+	// Flush final group
+	if len(andGroup) > 0 {
+		result = append(result, andGroup)
+	}
+
+	return result
+}
+
+// formatNumericValue formats a single numeric match value.
+func formatNumericValue(m FlowMatch, compType FlowComponentType) string {
+	// For protocol, try to use name
+	if compType == FlowIPProtocol {
+		if name, ok := protocolNumberToName[uint8(m.Value)]; ok { //nolint:gosec // Protocol values are 8-bit
+			return formatWithOperator(name, m.Op)
+		}
+	}
+
+	// Format with operator prefix
+	return formatWithOperator(fmt.Sprintf("%d", m.Value), m.Op)
+}
+
+// formatWithOperator adds operator prefix to a value string.
+func formatWithOperator(value string, op FlowOperator) string {
+	// Mask out non-comparison bits
+	compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
+
+	switch compOp { //nolint:exhaustive // Masked bits cannot match
+	case FlowOpEqual:
+		return "=" + value
+	case FlowOpGreater:
+		return ">" + value
+	case FlowOpLess:
+		return "<" + value
+	case FlowOpGreater | FlowOpEqual:
+		return ">=" + value
+	case FlowOpLess | FlowOpEqual:
+		return "<=" + value
+	case FlowOpNotEq:
+		return "!=" + value
+	default:
+		return "=" + value
+	}
+}
+
+// tcpFlagValueToNames maps TCP flag bit values to names.
+var tcpFlagValueToNames = map[uint8]string{
+	0x01: "fin",
+	0x02: "syn",
+	0x04: "rst",
+	0x08: "push", // ExaBGP uses "push" not "psh"
+	0x10: "ack",
+	0x20: "urg",
+	0x40: "ece",
+	0x80: "cwr",
+}
+
+// fragmentFlagValueToNames maps fragment flag bit values to names.
+var fragmentFlagValueToNames = map[uint8]string{
+	0x01: "dont-fragment",
+	0x02: "is-fragment",
+	0x04: "first-fragment",
+	0x08: "last-fragment",
+}
+
+// formatBitmaskMatches formats bitmask component matches (TCP flags, Fragment).
+// Returns nested arrays with combined flag names.
+func formatBitmaskMatches(comp FlowComponent, flagMap map[uint8]string) [][]string {
+	nc, ok := comp.(interface{ Matches() []FlowMatch })
+	if !ok {
+		return [][]string{}
+	}
+
+	matches := nc.Matches()
+	result := make([][]string, 0, len(matches))
+	var andGroup []string
+
+	for _, m := range matches {
+		valStr := formatBitmaskValue(m, flagMap)
+
+		if m.And && len(andGroup) > 0 {
+			// Continue AND group
+			andGroup = append(andGroup, valStr)
+		} else {
+			// Start new OR group
+			if len(andGroup) > 0 {
+				result = append(result, andGroup)
+			}
+			andGroup = []string{valStr}
+		}
+	}
+
+	// Flush final group
+	if len(andGroup) > 0 {
+		result = append(result, andGroup)
+	}
+
+	return result
+}
+
+// formatBitmaskValue formats a bitmask value with operator prefix.
+// E.g., "=syn", "=rst", "!fin", "=syn+ack".
+func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
+	// Build prefix from operator
+	var prefix string
+	if m.Op&FlowOpNot != 0 {
+		prefix = "!"
+	}
+	if m.Op&FlowOpMatch != 0 {
+		prefix += "="
+	}
+	if prefix == "" {
+		prefix = "=" // Default to match
+	}
+
+	// Build flag names joined with +
+	flags := uint8(m.Value) //nolint:gosec // Bitmask values are 8-bit
+	var names []string
+
+	// Check each bit in order
+	for bit := uint8(0x01); bit != 0; bit <<= 1 {
+		if flags&bit != 0 {
+			if name, ok := flagMap[bit]; ok {
+				names = append(names, name)
+			}
+		}
+	}
+
+	if len(names) == 0 {
+		return fmt.Sprintf("%s%d", prefix, flags)
+	}
+
+	return prefix + strings.Join(names, "+")
+}
+
+// ============================================================================
+// Encoding: Text → Wire bytes
+// ============================================================================
+
+// FlowSpec component keywords.
+const (
+	kwDestination  = "destination"      // Type 1
+	kwSource       = "source"           // Type 2
+	kwProtocol     = "protocol"         // Type 3
+	kwPort         = "port"             // Type 4
+	kwDestPort     = "destination-port" // Type 5
+	kwSourcePort   = "source-port"      // Type 6
+	kwICMPType     = "icmp-type"        // Type 7
+	kwICMPCode     = "icmp-code"        // Type 8
+	kwTCPFlags     = "tcp-flags"        // Type 9
+	kwPacketLength = "packet-length"    // Type 10
+	kwDSCP         = "dscp"             // Type 11
+	kwFragment     = "fragment"         // Type 12
+	kwRD           = "rd"               // Route Distinguisher (VPN)
+)
+
+// protocolNameToNumber maps protocol names to numbers.
+// IANA Protocol Numbers: https://www.iana.org/assignments/protocol-numbers
+var protocolNameToNumber = map[string]uint8{
+	"icmp":   1,
+	"igmp":   2,
+	"tcp":    6,
+	"udp":    17,
+	"gre":    47,
+	"icmpv6": 58,
+	"ospf":   89,
+	"sctp":   132,
+}
+
+// tcpFlagNameToValue maps TCP flag names to values.
+// RFC 8955 Section 4.2.2.9.
+var tcpFlagNameToValue = map[string]uint8{
+	"fin":  0x01,
+	"syn":  0x02,
+	"rst":  0x04,
+	"psh":  0x08,
+	"push": 0x08, // alias for psh
+	"ack":  0x10,
+	"urg":  0x20,
+	"ece":  0x40,
+	"cwr":  0x80,
+}
+
+// fragmentFlagNameToValue maps fragment flag names to values.
+// RFC 8955 Section 4.2.2.12.
+var fragmentFlagNameToValue = map[string]uint8{
+	"dont-fragment":  0x01,
+	"is-fragment":    0x02,
+	"first-fragment": 0x04,
+	"last-fragment":  0x08,
+	"df":             0x01, // alias
+	"isf":            0x02, // alias
+	"ff":             0x04, // alias
+	"lf":             0x08, // alias
+}
+
+// EncodeFlowSpecComponents parses text components and returns wire bytes.
+// Format: <component>+ where component is one of:
+//   - destination <prefix>
+//   - source <prefix>
+//   - protocol <num|name>+
+//   - port <op><num>+
+//   - rd <type:admin:value> (for VPN families)
+//   - etc.
+//
+// This function is used by the engine to delegate FlowSpec text parsing to the plugin.
+func EncodeFlowSpecComponents(family Family, args []string) ([]byte, error) {
+	isVPN := family.SAFI == SAFIFlowSpecVPN
+
+	var fs *FlowSpec
+	var fsv *FlowSpecVPN
+	var rd RouteDistinguisher
+
+	// Parse RD first if VPN family
+	if isVPN {
+		var consumed int
+		var err error
+		rd, consumed, err = parseRDFromArgs(args)
+		if err != nil {
+			return nil, err
+		}
+		args = args[consumed:]
+		fsv = NewFlowSpecVPN(family, rd)
+	} else {
+		fs = NewFlowSpec(family)
+	}
+
+	addComponent := func(c FlowComponent) {
+		if fsv != nil {
+			fsv.AddComponent(c)
+		} else {
+			fs.AddComponent(c)
+		}
+	}
+
+	// Parse components
+	i := 0
+	for i < len(args) {
+		comp, consumed, err := parseComponentText(args[i:], family)
+		if err != nil {
+			return nil, err
+		}
+		addComponent(comp)
+		i += consumed
+	}
+
+	// Return wire bytes
+	if fsv != nil {
+		if len(fsv.Components()) == 0 {
+			return nil, fmt.Errorf("flowspec requires at least one component")
+		}
+		return fsv.Bytes(), nil
+	}
+	if len(fs.Components()) == 0 {
+		return nil, fmt.Errorf("flowspec requires at least one component")
+	}
+	return fs.Bytes(), nil
+}
+
+// parseRDFromArgs parses "rd <value>" from args.
+func parseRDFromArgs(args []string) (RouteDistinguisher, int, error) {
+	for i := 0; i < len(args)-1; i++ {
+		if args[i] == kwRD {
+			rd, err := nlri.ParseRDString(args[i+1])
+			if err != nil {
+				return RouteDistinguisher{}, 0, fmt.Errorf("invalid rd: %w", err)
+			}
+			return rd, 2, nil
+		}
+	}
+	return RouteDistinguisher{}, 0, fmt.Errorf("rd required for VPN family")
+}
+
+// parseComponentText parses a single FlowSpec component from args.
+// Named differently from parseFlowComponent in types.go (which parses wire format).
+func parseComponentText(args []string, family Family) (FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("expected component")
+	}
+
+	keyword := strings.ToLower(args[0])
+
+	switch keyword {
+	case kwDestination:
+		return parsePrefixComponentText(args, FlowDestPrefix, family)
+	case kwSource:
+		return parsePrefixComponentText(args, FlowSourcePrefix, family)
+	case kwProtocol:
+		return parseProtocolComponentText(args[1:])
+	case kwPort:
+		return parseNumericComponentText(args[1:], FlowPort)
+	case kwDestPort:
+		return parseNumericComponentText(args[1:], FlowDestPort)
+	case kwSourcePort:
+		return parseNumericComponentText(args[1:], FlowSourcePort)
+	case kwICMPType:
+		return parseNumericComponentText(args[1:], FlowICMPType)
+	case kwICMPCode:
+		return parseNumericComponentText(args[1:], FlowICMPCode)
+	case kwTCPFlags:
+		return parseTCPFlagsComponentText(args[1:])
+	case kwPacketLength:
+		return parseNumericComponentText(args[1:], FlowPacketLength)
+	case kwDSCP:
+		return parseNumericComponentText(args[1:], FlowDSCP)
+	case kwFragment:
+		return parseFragmentComponentText(args[1:])
+	case kwRD:
+		// Skip rd - already parsed
+		return nil, 2, nil
+	default:
+		return nil, 0, fmt.Errorf("unknown component: %s", keyword)
+	}
+}
+
+// parsePrefixComponentText parses destination or source prefix from text.
+func parsePrefixComponentText(args []string, compType FlowComponentType, family Family) (FlowComponent, int, error) {
+	if len(args) < 2 {
+		return nil, 0, fmt.Errorf("%s requires prefix", args[0])
+	}
+
+	prefix, err := netip.ParsePrefix(args[1])
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid prefix: %w", err)
+	}
+
+	// Validate AFI match
+	if prefix.Addr().Is4() && family.AFI != AFIIPv4 {
+		return nil, 0, fmt.Errorf("IPv4 prefix for IPv6 flowspec")
+	}
+	if prefix.Addr().Is6() && family.AFI != AFIIPv6 {
+		return nil, 0, fmt.Errorf("IPv6 prefix for IPv4 flowspec")
+	}
+
+	if compType == FlowDestPrefix {
+		return NewFlowDestPrefixComponent(prefix), 2, nil
+	}
+	return NewFlowSourcePrefixComponent(prefix), 2, nil
+}
+
+// parseProtocolComponentText parses protocol values (names or numbers).
+func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
+	var protocols []uint8
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := strings.ToLower(args[i])
+		if isComponentKeyword(token) {
+			break
+		}
+
+		// Try name first
+		if num, ok := protocolNameToNumber[token]; ok {
+			protocols = append(protocols, num)
+			consumed++
+			continue
+		}
+
+		// Try number
+		num, err := parseUint8(token)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid protocol: %s", token)
+			}
+			break
+		}
+		protocols = append(protocols, num)
+		consumed++
+	}
+
+	if len(protocols) == 0 {
+		return nil, 0, fmt.Errorf("protocol requires value")
+	}
+
+	return NewFlowIPProtocolComponent(protocols...), consumed + 1, nil
+}
+
+// parseNumericComponentText parses numeric component with operators.
+func parseNumericComponentText(args []string, compType FlowComponentType) (FlowComponent, int, error) {
+	var matches []FlowMatch
+	consumed := 0
+
+	maxValue := componentMaxValue(compType)
+
+	for i := 0; i < len(args); i++ {
+		token := args[i]
+		if isComponentKeyword(strings.ToLower(token)) {
+			break
+		}
+
+		op, value, err := parseOperatorValue(token)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid %s value: %w", compType, err)
+			}
+			break
+		}
+
+		if value > maxValue {
+			return nil, 0, fmt.Errorf("%s value %d exceeds max %d", compType, value, maxValue)
+		}
+
+		matches = append(matches, FlowMatch{
+			Op:    op,
+			Value: value,
+			And:   consumed > 0,
+		})
+		consumed++
+	}
+
+	if len(matches) == 0 {
+		return nil, 0, fmt.Errorf("%s requires value", compType)
+	}
+
+	return NewFlowNumericComponent(compType, matches), consumed + 1, nil
+}
+
+// parseTCPFlagsComponentText parses TCP flags with bitmask operators.
+func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
+	var matches []FlowMatch
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := strings.ToLower(args[i])
+		if isComponentKeyword(token) {
+			break
+		}
+
+		// Parse modifiers and flags
+		op, flags, hasAndPrefix, err := parseBitmaskValue(token, tcpFlagNameToValue)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid tcp-flags: %w", err)
+			}
+			break
+		}
+
+		matches = append(matches, FlowMatch{
+			Op:    op,
+			Value: uint64(flags),
+			And:   hasAndPrefix, // AND only if explicit & prefix
+		})
+		consumed++
+	}
+
+	if len(matches) == 0 {
+		return nil, 0, fmt.Errorf("tcp-flags requires value")
+	}
+
+	return NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil
+}
+
+// parseFragmentComponentText parses fragment flags.
+func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
+	var matches []FlowMatch
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := strings.ToLower(args[i])
+		if isComponentKeyword(token) {
+			break
+		}
+
+		op, flags, hasAndPrefix, err := parseBitmaskValue(token, fragmentFlagNameToValue)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid fragment: %w", err)
+			}
+			break
+		}
+
+		matches = append(matches, FlowMatch{
+			Op:    op,
+			Value: uint64(flags),
+			And:   hasAndPrefix, // AND only if explicit & prefix
+		})
+		consumed++
+	}
+
+	if len(matches) == 0 {
+		return nil, 0, fmt.Errorf("fragment requires value")
+	}
+
+	return NewFlowFragmentMatchComponent(matches), consumed + 1, nil
+}
+
+// isComponentKeyword checks if token is a component keyword.
+func isComponentKeyword(token string) bool {
+	switch token {
+	case kwDestination, kwSource, kwProtocol, kwPort, kwDestPort, kwSourcePort,
+		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP, kwFragment, kwRD:
+		return true
+	}
+	return false
+}
+
+// componentMaxValue returns max valid value for component type.
+func componentMaxValue(compType FlowComponentType) uint64 {
+	switch compType { //nolint:exhaustive // Only numeric types
+	case FlowIPProtocol, FlowICMPType, FlowICMPCode:
+		return 255
+	case FlowPort, FlowDestPort, FlowSourcePort, FlowPacketLength:
+		return 65535
+	case FlowDSCP:
+		return 63
+	default:
+		return 0xFFFFFFFF
+	}
+}
+
+// parseOperatorValue parses "<op><value>" like "=80", ">100", "80".
+func parseOperatorValue(token string) (FlowOperator, uint64, error) {
+	op := FlowOpEqual
+	s := token
+
+	// Parse operator prefix
+	switch {
+	case strings.HasPrefix(s, ">="):
+		op = FlowOpGreater | FlowOpEqual
+		s = s[2:]
+	case strings.HasPrefix(s, "<="):
+		op = FlowOpLess | FlowOpEqual
+		s = s[2:]
+	case strings.HasPrefix(s, "!="):
+		op = FlowOpNotEq
+		s = s[2:]
+	case strings.HasPrefix(s, ">"):
+		op = FlowOpGreater
+		s = s[1:]
+	case strings.HasPrefix(s, "<"):
+		op = FlowOpLess
+		s = s[1:]
+	case strings.HasPrefix(s, "="):
+		op = FlowOpEqual
+		s = s[1:]
+	}
+
+	value, err := parseUint64(s)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return op, value, nil
+}
+
+// parseBitmaskValue parses bitmask with modifiers like "!syn", "=ack", "syn&ack", "&!is-fragment".
+// Returns operator, flags value, whether token had AND prefix, and error.
+func parseBitmaskValue(token string, nameToValue map[string]uint8) (FlowOperator, uint8, bool, error) {
+	var op FlowOperator
+	s := token
+
+	// Handle leading & (AND connector with previous) - strip it first
+	hasAndPrefix := strings.HasPrefix(s, "&")
+	s = strings.TrimPrefix(s, "&")
+
+	// Parse modifiers (!, =) that may come after & prefix
+	if strings.HasPrefix(s, "!") {
+		op |= FlowOpNot
+		s = s[1:]
+	}
+	if strings.HasPrefix(s, "=") {
+		op |= FlowOpMatch
+		s = s[1:]
+	}
+
+	// Parse flag names (may be combined with &)
+	var flags uint8
+	for _, part := range strings.Split(s, "&") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if val, ok := nameToValue[part]; ok {
+			flags |= val
+		} else {
+			// Try numeric
+			num, err := parseUint8(part)
+			if err != nil {
+				return 0, 0, false, fmt.Errorf("unknown flag: %s", part)
+			}
+			flags |= num
+		}
+	}
+
+	return op, flags, hasAndPrefix, nil
+}
+
+func parseUint8(s string) (uint8, error) {
+	v, err := parseUint64(s)
+	if err != nil {
+		return 0, err
+	}
+	if v > 255 {
+		return 0, fmt.Errorf("value %d exceeds uint8", v)
+	}
+	return uint8(v), nil //nolint:gosec // bounds checked
+}
+
+func parseUint64(s string) (uint64, error) {
+	// Handle hex
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		return strconv.ParseUint(s[2:], 16, 64)
+	}
+	return strconv.ParseUint(s, 10, 64)
+}

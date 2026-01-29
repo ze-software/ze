@@ -1,4 +1,4 @@
-package nlri
+package flowspec
 
 import (
 	"encoding/binary"

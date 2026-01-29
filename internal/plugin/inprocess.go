@@ -3,6 +3,7 @@ package plugin
 import (
 	"io"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
@@ -34,6 +35,11 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 		// Configure logger for in-process plugin (uses ze.log.hostname env var)
 		hostname.ConfigureLogger(slogutil.Logger("hostname"))
 		return hostname.NewHostnamePlugin(in, out).Run()
+	},
+	"flowspec": func(in io.Reader, out io.Writer) int {
+		// Configure logger for in-process plugin (uses ze.log.flowspec env var)
+		flowspec.SetFlowSpecLogger(slogutil.Logger("flowspec"))
+		return flowspec.NewFlowSpecPlugin(in, out).Run()
 	},
 }
 

@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
@@ -139,6 +140,28 @@ func testExtractASPath(t *testing.T, wire *attribute.AttributesWire) []uint32 {
 		}
 	}
 	return nil
+}
+
+// testExtractFlowSpec decodes WireNLRI back to FlowSpec for test assertions.
+// FlowSpec text parsing returns WireNLRI (engine is FlowSpec-agnostic),
+// so tests use this helper to verify FlowSpec components.
+func testExtractFlowSpec(t *testing.T, n nlri.NLRI) *flowspec.FlowSpec {
+	t.Helper()
+	wire, ok := n.(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", n)
+	fs, err := flowspec.ParseFlowSpec(wire.Family(), wire.Bytes())
+	require.NoError(t, err)
+	return fs
+}
+
+// testExtractFlowSpecVPN decodes WireNLRI back to FlowSpecVPN for test assertions.
+func testExtractFlowSpecVPN(t *testing.T, n nlri.NLRI) *flowspec.FlowSpecVPN {
+	t.Helper()
+	wire, ok := n.(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", n)
+	fsv, err := flowspec.ParseFlowSpecVPN(wire.Family(), wire.Bytes())
+	require.NoError(t, err)
+	return fsv
 }
 
 // TestParseUpdateText_EmptyInput verifies empty args returns empty result.
@@ -2227,10 +2250,9 @@ func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok, "expected FlowSpec NLRI")
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowDestPrefix, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowDestPrefix, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecProtocol verifies protocol component parsing.
@@ -2259,10 +2281,9 @@ func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowIPProtocol, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowIPProtocol, fs.Components()[0].Type())
 		})
 	}
 }
@@ -2275,15 +2296,15 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 	tests := []struct {
 		name string
 		port string
-		op   nlri.FlowOperator
+		op   flowspec.FlowOperator
 		val  uint64
 	}{
-		{"equal", "=80", nlri.FlowOpEqual, 80},
-		{"gt", ">1024", nlri.FlowOpGreater, 1024},
-		{"lt", "<1024", nlri.FlowOpLess, 1024},
-		{"ge", ">=1024", nlri.FlowOpGreater | nlri.FlowOpEqual, 1024},
-		{"le", "<=1024", nlri.FlowOpLess | nlri.FlowOpEqual, 1024},
-		{"bare", "80", nlri.FlowOpEqual, 80}, // default to equal
+		{"equal", "=80", flowspec.FlowOpEqual, 80},
+		{"gt", ">1024", flowspec.FlowOpGreater, 1024},
+		{"lt", "<1024", flowspec.FlowOpLess, 1024},
+		{"ge", ">=1024", flowspec.FlowOpGreater | flowspec.FlowOpEqual, 1024},
+		{"le", "<=1024", flowspec.FlowOpLess | flowspec.FlowOpEqual, 1024},
+		{"bare", "80", flowspec.FlowOpEqual, 80}, // default to equal
 	}
 
 	for _, tc := range tests {
@@ -2294,10 +2315,9 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowDestPort, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowDestPort, fs.Components()[0].Type())
 		})
 	}
 }
@@ -2313,10 +2333,9 @@ func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowDestPort, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowDestPort, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecMultipleComponents verifies multiple components.
@@ -2333,18 +2352,17 @@ func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 3)
 
 	// Verify all three components present (order may vary due to sorting)
-	types := make(map[nlri.FlowComponentType]bool)
+	types := make(map[flowspec.FlowComponentType]bool)
 	for _, c := range fs.Components() {
 		types[c.Type()] = true
 	}
-	assert.True(t, types[nlri.FlowDestPrefix])
-	assert.True(t, types[nlri.FlowIPProtocol])
-	assert.True(t, types[nlri.FlowDestPort])
+	assert.True(t, types[flowspec.FlowDestPrefix])
+	assert.True(t, types[flowspec.FlowIPProtocol])
+	assert.True(t, types[flowspec.FlowDestPort])
 }
 
 // TestParseUpdateText_FlowSpecWithdraw verifies del syntax for FlowSpec.
@@ -2360,8 +2378,7 @@ func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 	require.Len(t, result.Groups[0].Withdraw, 1)
 	require.Empty(t, result.Groups[0].Announce)
 
-	fs, ok := result.Groups[0].Withdraw[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Withdraw[0])
 	require.Len(t, fs.Components(), 1)
 }
 
@@ -2377,8 +2394,7 @@ func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
-	require.True(t, ok, "expected FlowSpecVPN NLRI")
+	fsv := testExtractFlowSpecVPN(t, result.Groups[0].Announce[0])
 	assert.Equal(t, "0:65000:100", fsv.RD().String())
 	require.Len(t, fsv.Components(), 1)
 }
@@ -2394,8 +2410,7 @@ func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
 }
 
@@ -2410,10 +2425,9 @@ func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowTCPFlags, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecFragment verifies fragment component.
@@ -2427,10 +2441,9 @@ func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowFragment, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecTCPFlagsOperators verifies bitmask operators.
@@ -2441,15 +2454,15 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 	tests := []struct {
 		name   string
 		flags  []string
-		wantOp nlri.FlowOperator
+		wantOp flowspec.FlowOperator
 		wantV  uint8
 	}{
 		{"bare_flag", []string{"syn"}, 0, 0x02},
-		{"match_exact", []string{"=syn"}, nlri.FlowOpMatch, 0x02},
-		{"not_flag", []string{"!rst"}, nlri.FlowOpNot, 0x04},
-		{"not_match", []string{"!=ack"}, nlri.FlowOpNot | nlri.FlowOpMatch, 0x10},
-		{"combined_flags", []string{"syn&ack"}, 0, 0x12},                 // SYN + ACK
-		{"exact_combined", []string{"=syn&ack"}, nlri.FlowOpMatch, 0x12}, // exact SYN+ACK
+		{"match_exact", []string{"=syn"}, flowspec.FlowOpMatch, 0x02},
+		{"not_flag", []string{"!rst"}, flowspec.FlowOpNot, 0x04},
+		{"not_match", []string{"!=ack"}, flowspec.FlowOpNot | flowspec.FlowOpMatch, 0x10},
+		{"combined_flags", []string{"syn&ack"}, 0, 0x12},                     // SYN + ACK
+		{"exact_combined", []string{"=syn&ack"}, flowspec.FlowOpMatch, 0x12}, // exact SYN+ACK
 	}
 
 	for _, tc := range tests {
@@ -2459,10 +2472,9 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowTCPFlags, fs.Components()[0].Type())
 		})
 	}
 }
@@ -2489,10 +2501,9 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowFragment, fs.Components()[0].Type())
 		})
 	}
 }
@@ -2592,10 +2603,9 @@ func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowSourcePrefix, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowSourcePrefix, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecICMPType verifies ICMP type component.
@@ -2609,10 +2619,9 @@ func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowICMPType, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowICMPType, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecICMPCode verifies ICMP code component.
@@ -2626,10 +2635,9 @@ func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowICMPCode, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowICMPCode, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecDSCP verifies DSCP component.
@@ -2643,10 +2651,9 @@ func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowDSCP, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowDSCP, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecPacketLength verifies packet-length component.
@@ -2660,10 +2667,9 @@ func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowPacketLength, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowPacketLength, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecSourcePort verifies source-port component.
@@ -2677,10 +2683,9 @@ func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowSourcePort, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowSourcePort, fs.Components()[0].Type())
 }
 
 // TestParseUpdateText_FlowSpecPort verifies port (any) component.
@@ -2694,10 +2699,9 @@ func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-	require.True(t, ok)
+	fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 	require.Len(t, fs.Components(), 1)
-	assert.Equal(t, nlri.FlowPort, fs.Components()[0].Type())
+	assert.Equal(t, flowspec.FlowPort, fs.Components()[0].Type())
 }
 
 // ============================================================================
@@ -2712,24 +2716,24 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 	tests := []struct {
 		name      string
 		component []string
-		wantType  nlri.FlowComponentType
+		wantType  flowspec.FlowComponentType
 	}{
-		{"destination", []string{"destination", "10.0.0.0/24"}, nlri.FlowDestPrefix},
-		{"source", []string{"source", "192.168.0.0/16"}, nlri.FlowSourcePrefix},
-		{"protocol_tcp", []string{"protocol", "tcp"}, nlri.FlowIPProtocol},
-		{"protocol_udp", []string{"protocol", "udp"}, nlri.FlowIPProtocol},
-		{"protocol_icmp", []string{"protocol", "icmp"}, nlri.FlowIPProtocol},
-		{"protocol_gre", []string{"protocol", "gre"}, nlri.FlowIPProtocol},
-		{"protocol_numeric", []string{"protocol", "47"}, nlri.FlowIPProtocol},
-		{"port", []string{"port", "=80"}, nlri.FlowPort},
-		{"destination-port", []string{"destination-port", "=443"}, nlri.FlowDestPort},
-		{"source-port", []string{"source-port", ">=1024"}, nlri.FlowSourcePort},
-		{"icmp-type", []string{"icmp-type", "8"}, nlri.FlowICMPType},
-		{"icmp-code", []string{"icmp-code", "0"}, nlri.FlowICMPCode},
-		{"tcp-flags", []string{"tcp-flags", "syn"}, nlri.FlowTCPFlags},
-		{"packet-length", []string{"packet-length", ">=64"}, nlri.FlowPacketLength},
-		{"dscp", []string{"dscp", "46"}, nlri.FlowDSCP},
-		{"fragment", []string{"fragment", "dont-fragment"}, nlri.FlowFragment},
+		{"destination", []string{"destination", "10.0.0.0/24"}, flowspec.FlowDestPrefix},
+		{"source", []string{"source", "192.168.0.0/16"}, flowspec.FlowSourcePrefix},
+		{"protocol_tcp", []string{"protocol", "tcp"}, flowspec.FlowIPProtocol},
+		{"protocol_udp", []string{"protocol", "udp"}, flowspec.FlowIPProtocol},
+		{"protocol_icmp", []string{"protocol", "icmp"}, flowspec.FlowIPProtocol},
+		{"protocol_gre", []string{"protocol", "gre"}, flowspec.FlowIPProtocol},
+		{"protocol_numeric", []string{"protocol", "47"}, flowspec.FlowIPProtocol},
+		{"port", []string{"port", "=80"}, flowspec.FlowPort},
+		{"destination-port", []string{"destination-port", "=443"}, flowspec.FlowDestPort},
+		{"source-port", []string{"source-port", ">=1024"}, flowspec.FlowSourcePort},
+		{"icmp-type", []string{"icmp-type", "8"}, flowspec.FlowICMPType},
+		{"icmp-code", []string{"icmp-code", "0"}, flowspec.FlowICMPCode},
+		{"tcp-flags", []string{"tcp-flags", "syn"}, flowspec.FlowTCPFlags},
+		{"packet-length", []string{"packet-length", ">=64"}, flowspec.FlowPacketLength},
+		{"dscp", []string{"dscp", "46"}, flowspec.FlowDSCP},
+		{"fragment", []string{"fragment", "dont-fragment"}, flowspec.FlowFragment},
 	}
 
 	for _, tc := range tests {
@@ -2740,8 +2744,7 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1, "expected 1 component for %s", tc.name)
 			assert.Equal(t, tc.wantType, fs.Components()[0].Type())
 		})
@@ -2766,8 +2769,7 @@ func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
 				require.Len(t, result.Groups, 1)
 				require.Len(t, result.Groups[0].Announce, 1)
 
-				fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-				require.True(t, ok)
+				fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 				require.Len(t, fs.Components(), 1)
 			})
 		}
@@ -2782,70 +2784,70 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 	tests := []struct {
 		name     string
 		flags    []string
-		wantOps  []nlri.FlowOperator // Expected Op field per match
-		wantAnds []bool              // Expected And field per match
-		wantVals []uint64            // Expected Value field per match
+		wantOps  []flowspec.FlowOperator // Expected Op field per match
+		wantAnds []bool                  // Expected And field per match
+		wantVals []uint64                // Expected Value field per match
 	}{
 		{
 			name:     "bare_syn",
 			flags:    []string{"syn"},
-			wantOps:  []nlri.FlowOperator{0}, // INCLUDE = 0x00
+			wantOps:  []flowspec.FlowOperator{0}, // INCLUDE = 0x00
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x02},
 		},
 		{
 			name:     "match_syn",
 			flags:    []string{"=syn"},
-			wantOps:  []nlri.FlowOperator{nlri.FlowOpMatch}, // 0x01
+			wantOps:  []flowspec.FlowOperator{flowspec.FlowOpMatch}, // 0x01
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x02},
 		},
 		{
 			name:     "not_syn",
 			flags:    []string{"!syn"},
-			wantOps:  []nlri.FlowOperator{nlri.FlowOpNot}, // 0x02
+			wantOps:  []flowspec.FlowOperator{flowspec.FlowOpNot}, // 0x02
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x02},
 		},
 		{
 			name:     "not_match_syn",
 			flags:    []string{"!=syn"},
-			wantOps:  []nlri.FlowOperator{nlri.FlowOpNot | nlri.FlowOpMatch}, // 0x03
+			wantOps:  []flowspec.FlowOperator{flowspec.FlowOpNot | flowspec.FlowOpMatch}, // 0x03
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x02},
 		},
 		{
 			name:     "syn_and_ack",
 			flags:    []string{"syn&ack"},
-			wantOps:  []nlri.FlowOperator{0}, // Combined in single match
+			wantOps:  []flowspec.FlowOperator{0}, // Combined in single match
 			wantAnds: []bool{false},
 			wantVals: []uint64{0x12}, // SYN(0x02) | ACK(0x10) = 0x12
 		},
 		{
 			name:     "syn_or_ack_tokens",
 			flags:    []string{"syn", "ack"},
-			wantOps:  []nlri.FlowOperator{0, 0}, // Two matches, OR logic (And=false)
+			wantOps:  []flowspec.FlowOperator{0, 0}, // Two matches, OR logic (And=false)
 			wantAnds: []bool{false, false},
 			wantVals: []uint64{0x02, 0x10},
 		},
 		{
 			name:     "syn_and_not_rst",
 			flags:    []string{"syn", "&!rst"},
-			wantOps:  []nlri.FlowOperator{0, nlri.FlowOpNot}, // syn=0, !rst=0x02
-			wantAnds: []bool{false, true},                    // Second has And=true
+			wantOps:  []flowspec.FlowOperator{0, flowspec.FlowOpNot}, // syn=0, !rst=0x02
+			wantAnds: []bool{false, true},                            // Second has And=true
 			wantVals: []uint64{0x02, 0x04},
 		},
 		{
 			name:     "match_syn_and_not_rst",
 			flags:    []string{"=syn", "&!rst"},
-			wantOps:  []nlri.FlowOperator{nlri.FlowOpMatch, nlri.FlowOpNot}, // =syn=0x01, !rst=0x02
+			wantOps:  []flowspec.FlowOperator{flowspec.FlowOpMatch, flowspec.FlowOpNot}, // =syn=0x01, !rst=0x02
 			wantAnds: []bool{false, true},
 			wantVals: []uint64{0x02, 0x04},
 		},
 		{
 			name:     "ece_cwr",
 			flags:    []string{"ece&cwr"},
-			wantOps:  []nlri.FlowOperator{0},
+			wantOps:  []flowspec.FlowOperator{0},
 			wantAnds: []bool{false},
 			wantVals: []uint64{0xC0}, // ECE(0x40) | CWR(0x80) = 0xC0
 		},
@@ -2857,16 +2859,15 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
 
 			comp := fs.Components()[0]
-			assert.Equal(t, nlri.FlowTCPFlags, comp.Type())
+			assert.Equal(t, flowspec.FlowTCPFlags, comp.Type())
 
 			// Get the matches from the component
 			type matchGetter interface {
-				Matches() []nlri.FlowMatch
+				Matches() []flowspec.FlowMatch
 			}
 			mg, ok := comp.(matchGetter)
 			require.True(t, ok, "component should have Matches() method")
@@ -2937,8 +2938,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
 
 			// Get component bytes
@@ -3009,10 +3009,9 @@ func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowTCPFlags, fs.Components()[0].Type())
 		})
 	}
 }
@@ -3056,10 +3055,9 @@ func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			require.Len(t, fs.Components(), 1)
-			assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+			assert.Equal(t, flowspec.FlowFragment, fs.Components()[0].Type())
 		})
 	}
 }
@@ -3129,8 +3127,7 @@ func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			assert.Len(t, fs.Components(), tc.wantCount, "expected %d components", tc.wantCount)
 		})
 	}
@@ -3161,8 +3158,7 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
 		})
 	}
@@ -3194,8 +3190,7 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
-			fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
-			require.True(t, ok, "expected FlowSpecVPN, got %T", result.Groups[0].Announce[0])
+			fsv := testExtractFlowSpecVPN(t, result.Groups[0].Announce[0])
 			assert.Equal(t, tc.rdOutput, fsv.RD().String())
 		})
 	}
@@ -3225,8 +3220,7 @@ func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 			require.Empty(t, result.Groups[0].Announce)
 			require.Len(t, result.Groups[0].Withdraw, 1)
 
-			fs, ok := result.Groups[0].Withdraw[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Withdraw[0])
 			assert.Greater(t, len(fs.Components()), 0)
 		})
 	}
@@ -3300,12 +3294,12 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 		{
 			name:    "port_value_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "destination-port", "99999"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 		{
 			name:    "dscp_value_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "dscp", "64"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 		{
 			name:    "protocol_value_overflow",
@@ -3315,22 +3309,22 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 		{
 			name:    "icmp_type_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-type", "256"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 		{
 			name:    "icmp_code_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-code", "256"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 		{
 			name:    "source_port_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "source-port", "65536"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 		{
 			name:    "packet_length_overflow",
 			args:    []string{"nlri", "ipv4/flowspec", "add", "packet-length", "65536"},
-			wantErr: "exceeds maximum",
+			wantErr: "exceeds max",
 		},
 	}
 
@@ -3418,8 +3412,7 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 			require.Len(t, result.Groups[0].Announce, 1)
 			require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 
-			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
-			require.True(t, ok)
+			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
 			assert.Greater(t, len(fs.Components()), 0)
 		})
 	}
