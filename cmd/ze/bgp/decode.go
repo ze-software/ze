@@ -1,6 +1,8 @@
 package bgp
 
 import (
+	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +11,7 @@ import (
 	"math"
 	"net/netip"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -33,6 +36,8 @@ func cmdDecode(args []string) int {
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
 	nlriOnly := fs.Bool("nlri", false, "decode as NLRI only")
 	family := fs.String("f", "", "address family (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
+	var plugins pluginFlags
+	fs.Var(&plugins, "plugin", "plugin for capability decoding (e.g., ze.hostname)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp decode [options] <hex-payload>
@@ -46,6 +51,7 @@ Options:
 Examples:
   ze bgp decode --open FFFF...       # Decode OPEN message
   ze bgp decode --update FFFF...     # Decode UPDATE message
+  ze bgp decode --plugin ze.hostname --open FFFF...  # Decode with hostname plugin
   ze bgp decode -f "l2vpn/evpn" --nlri 02...  # Decode NLRI with family context
 
 The hex payload can include colons or spaces which will be stripped.
@@ -75,7 +81,7 @@ The hex payload can include colons or spaces which will be stripped.
 		msgType = msgTypeNLRI
 	}
 
-	output, err := decodeHexPacket(payload, msgType, *family)
+	output, err := decodeHexPacket(payload, msgType, *family, plugins)
 	if err != nil {
 		// Return valid JSON error
 		errJSON := map[string]any{
@@ -92,7 +98,7 @@ The hex payload can include colons or spaces which will be stripped.
 }
 
 // decodeHexPacket decodes a hex BGP packet and returns ExaBGP-compatible JSON.
-func decodeHexPacket(hexStr, msgType, family string) (string, error) {
+func decodeHexPacket(hexStr, msgType, family string, plugins []string) (string, error) {
 	// Normalize hex input - remove colons, spaces, uppercase
 	hexStr = strings.ReplaceAll(hexStr, ":", "")
 	hexStr = strings.ReplaceAll(hexStr, " ", "")
@@ -124,7 +130,7 @@ func decodeHexPacket(hexStr, msgType, family string) (string, error) {
 	var result map[string]any
 	switch msgType {
 	case msgTypeOpen:
-		result, err = decodeOpenMessage(data, hasHeader)
+		result, err = decodeOpenMessage(data, hasHeader, plugins)
 	case msgTypeUpdate:
 		result, err = decodeUpdateMessage(data, family, hasHeader)
 	default:
@@ -200,7 +206,7 @@ func makeEnvelope(msgType string) map[string]any {
 }
 
 // decodeOpenMessage decodes a BGP OPEN message.
-func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
+func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[string]any, error) {
 	body := data
 	if hasHeader {
 		if len(data) < message.HeaderLen {
@@ -229,7 +235,7 @@ func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	// Build capabilities JSON - keyed by capability code
 	capsJSON := make(map[string]any)
 	for _, c := range caps {
-		capsJSON[fmt.Sprintf("%d", c.Code())] = capabilityToJSON(c)
+		capsJSON[fmt.Sprintf("%d", c.Code())] = capabilityToJSON(c, plugins)
 	}
 
 	neighbor := map[string]any{
@@ -277,7 +283,8 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 }
 
 // capabilityToJSON converts a capability to its JSON representation.
-func capabilityToJSON(c capability.Capability) map[string]any {
+// Plugin-provided capabilities are decoded only when the plugin is specified.
+func capabilityToJSON(c capability.Capability, plugins []string) map[string]any {
 	switch cap := c.(type) {
 	case *capability.Multiprotocol:
 		return map[string]any{
@@ -315,17 +322,102 @@ func capabilityToJSON(c capability.Capability) map[string]any {
 		return map[string]any{
 			"software": cap.Version,
 		}
-	case *capability.FQDN:
-		return map[string]any{
-			"name":     "fqdn",
-			"hostname": cap.Hostname,
-			"domain":   cap.DomainName,
-		}
 	default:
-		return map[string]any{
-			"name": fmt.Sprintf("unknown-%d", c.Code()),
+		return unknownCapability(c, plugins)
+	}
+}
+
+// pluginCapabilityMap maps capability codes to plugin names.
+// Plugins that can decode specific capabilities register here.
+var pluginCapabilityMap = map[uint8]string{
+	73: "hostname", // FQDN capability
+}
+
+// unknownCapability returns JSON for an unrecognized/plugin-required capability.
+// If a plugin is specified that can decode this capability, it will be invoked.
+func unknownCapability(c capability.Capability, plugins []string) map[string]any {
+	raw := c.Pack()
+	// Pack() returns full TLV (code + length + value), extract just the value
+	var rawHex string
+	if len(raw) >= 2 {
+		rawHex = fmt.Sprintf("%X", raw[2:])
+	}
+
+	// Check if a plugin can decode this capability
+	pluginName, hasPlugin := pluginCapabilityMap[uint8(c.Code())]
+	if hasPlugin && hasPluginEnabled(plugins, pluginName) {
+		// Try plugin decode
+		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
+		if result != nil {
+			return result
 		}
 	}
+
+	// Fallback: return unknown with raw data
+	return map[string]any{
+		"name": "unknown",
+		"code": c.Code(),
+		"raw":  rawHex,
+	}
+}
+
+// hasPluginEnabled checks if a plugin is in the enabled list.
+// Accepts both "ze.name" and "name" formats.
+func hasPluginEnabled(plugins []string, name string) bool {
+	for _, p := range plugins {
+		if p == name || p == "ze."+name {
+			return true
+		}
+	}
+	return false
+}
+
+// invokePluginDecode spawns a plugin in decode mode and requests capability decoding.
+// Returns decoded JSON map or nil if decoding failed.
+func invokePluginDecode(pluginName string, code uint8, hexData string) map[string]any {
+	// Build plugin command - pluginName comes from pluginCapabilityMap (fixed values)
+	args := []string{"bgp", "plugin", pluginName, "--decode"}
+
+	// Create command with timeout context (short timeout for decode operation)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil
+	}
+
+	// Send decode request
+	request := fmt.Sprintf("decode capability %d %s\n", code, hexData)
+	_, _ = stdin.Write([]byte(request))
+	_ = stdin.Close()
+
+	// Read response
+	scanner := bufio.NewScanner(stdout)
+	var result map[string]any
+	if scanner.Scan() {
+		line := scanner.Text()
+		// Parse: "decoded json <json>" or "decoded unknown"
+		if strings.HasPrefix(line, "decoded json ") {
+			jsonStr := strings.TrimPrefix(line, "decoded json ")
+			if err := json.Unmarshal([]byte(jsonStr), &result); err == nil {
+				_ = cmd.Wait()
+				return result
+			}
+		}
+	}
+
+	_ = cmd.Wait()
+	return nil
 }
 
 // decodeUpdateMessage decodes a BGP UPDATE message.

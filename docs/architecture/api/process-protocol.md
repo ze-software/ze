@@ -813,4 +813,74 @@ while still requiring bindings for plugins that need runtime event filtering.
 
 ---
 
-**Last Updated:** 2026-01-18
+## Capability Decode API
+
+Plugins can provide capability decoding for `ze bgp decode --plugin <name>`.
+
+This is a **standalone mode** separate from the 5-stage startup protocol.
+
+### Usage
+
+```bash
+# Decode OPEN message with plugin-provided capability decoding
+ze bgp decode --plugin ze.hostname --open FFFF...
+```
+
+Without plugin, unknown capabilities show raw hex:
+```json
+{"code": 73, "name": "unknown", "raw": "0C6D792D686F73742D6E616D65..."}
+```
+
+With plugin, capabilities are decoded:
+```json
+{"name": "fqdn", "hostname": "my-host-name", "domain": "my-domain-name.com"}
+```
+
+### Protocol
+
+Plugin is spawned with `--decode` flag and communicates via stdin/stdout:
+
+| Direction | Message |
+|-----------|---------|
+| ze → plugin | `decode capability 73 0C6D792D686F73742D6E616D65...` |
+| plugin → ze | `decoded json {"name":"fqdn","hostname":"my-host-name","domain":"my-domain-name.com"}` |
+
+If plugin cannot decode:
+
+| Direction | Message |
+|-----------|---------|
+| plugin → ze | `decoded unknown` |
+
+### Plugin Implementation
+
+Plugin entry point with `--decode` flag:
+
+```bash
+ze bgp plugin hostname --decode
+```
+
+Plugin reads decode requests from stdin, writes responses to stdout, exits on EOF.
+
+### Capability Registration
+
+Currently, capability-to-plugin mapping is hardcoded in `decode.go`:
+
+```go
+var pluginCapabilityMap = map[uint8]string{
+    73: "hostname", // FQDN capability
+}
+```
+
+Future: Plugins will declare decodable capabilities via `declare decode capability <code>`.
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `cmd/ze/bgp/decode.go` | Invokes plugin decode API |
+| `cmd/ze/bgp/plugin_hostname.go` | `--decode` flag handling |
+| `internal/plugin/hostname/hostname.go` | `RunDecodeMode()` implementation |
+
+---
+
+**Last Updated:** 2026-01-29

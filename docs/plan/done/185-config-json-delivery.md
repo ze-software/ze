@@ -97,6 +97,64 @@ Config File → Parser.Parse() → Tree
                 send "config json <root> <json>"
 ```
 
+## Capability Decode API
+
+Plugins can provide capability decoding for `ze bgp decode --plugin <name>`.
+
+### Declaration
+
+Plugin declares decodable capabilities during registration:
+
+| Declaration | Meaning |
+|-------------|---------|
+| `declare decode capability 73` | Can decode capability code 73 (FQDN) |
+
+### Decode Protocol
+
+When `ze bgp decode --plugin ze.hostname --open <hex>` is called:
+
+1. Decode command spawns plugin with `--decode` flag
+2. For each unknown capability, sends decode request
+3. Plugin responds with JSON or "unknown"
+
+| Direction | Message |
+|-----------|---------|
+| ze → plugin | `decode capability 73 0C6D792D686F73742D6E616D65...` |
+| plugin → ze | `decoded json {"name":"fqdn","hostname":"my-host-name","domain":"my-domain-name.com"}` |
+
+If plugin cannot decode:
+
+| Direction | Message |
+|-----------|---------|
+| plugin → ze | `decoded unknown` |
+
+### Plugin Decode Mode
+
+Plugin entry point with `--decode` flag:
+
+```
+ze bgp plugin hostname --decode
+```
+
+Plugin reads decode requests from stdin, writes responses to stdout, exits on EOF.
+
+### Data Flow
+
+```
+ze bgp decode --plugin ze.hostname --open <hex>
+    │
+    ├─ Parse OPEN message
+    │
+    ├─ For each capability:
+    │   ├─ Known (MP, ASN4, etc.) → decode internally
+    │   └─ Unknown → check if plugin declared decode for this code
+    │       │
+    │       ├─ Yes → spawn plugin --decode, send request, get JSON
+    │       └─ No → return {"name":"unknown","code":73,"raw":"..."}
+    │
+    └─ Output combined JSON
+```
+
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
@@ -110,7 +168,9 @@ Config File → Parser.Parse() → Tree
 | `TestDiffMapsNested` | `internal/config/diff_test.go` | Deep comparison | |
 | `TestParseWantsConfigRoot` | `internal/plugin/registration_test.go` | Parse single root | |
 | `TestParseWantsConfigMultiple` | `internal/plugin/registration_test.go` | Parse multiple roots | |
+| `TestParseDecodeCapability` | `internal/plugin/registration_test.go` | Parse `declare decode capability 73` | |
 | `TestDeliverConfigByRoot` | `internal/plugin/server_test.go` | Correct JSON per root | |
+| `TestDecodeWithPlugin` | `cmd/ze/bgp/decode_test.go` | Plugin invoked for declared capability | |
 
 ### Boundary Tests
 
@@ -124,14 +184,16 @@ N/A - no numeric inputs in this feature.
 
 ## Files to Modify
 
-- `internal/plugin/registration.go` - Add `WantsConfigRoots []string`, parse new declaration
+- `internal/plugin/registration.go` - Add `WantsConfigRoots []string`, `DecodeCapabilities []uint8`, parse new declarations
 - `internal/plugin/server.go` - Rewrite `deliverConfig()`, add `notifyConfigReload()`
 - `internal/plugin/types.go` - Remove pattern types, simplify `PeerCapabilityConfig`
 - `internal/config/bgp.go` - Add `ParsedTree`, remove hostname extraction (989-1001), remove `RawCapabilityConfig`
 - `internal/config/loader.go` - Store parsed tree in BGPConfig
 - `internal/plugin/bgp/reactor/reactor.go` - Call notification after Reload()
 - `internal/plugin/bgp/reactor/peersettings.go` - Remove `CapabilityConfigJSON`
-- `internal/plugin/hostname/hostname.go` - Update to use `declare wants config bgp`
+- `internal/plugin/hostname/hostname.go` - Update to use `declare wants config bgp`, add `declare decode capability 73`, implement decode mode
+- `cmd/ze/bgp/decode.go` - Invoke plugin decode API for unknown capabilities
+- `cmd/ze/bgp/plugin_hostname.go` - Add `--decode` flag handling
 
 ## Files to Create
 
@@ -209,7 +271,21 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 19. **Run functional test** - Verify config delivery (paste output)
 
-### Phase 5: Cleanup
+### Phase 5: Capability Decode API
+
+20. **Add DecodeCapabilities** - To `PluginRegistration` struct
+
+21. **Parse declaration** - `declare decode capability <code>` handling
+
+22. **Add --decode flag** - To `plugin_hostname.go`, implement decode loop
+
+23. **Update hostname plugin** - Add decode capability declaration, implement decode handler
+
+24. **Update decode.go** - Spawn plugin for unknown capabilities, parse response
+
+25. **Test decode flow** - `ze bgp decode --plugin ze.hostname --open <hex>`
+
+### Phase 6: Cleanup
 
 20. **Remove pattern code** - Types, functions, matching logic
     → **Review:** Any orphaned code remaining?
@@ -231,35 +307,35 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Checklist
 
 ### 🏗️ Design (see `rules/design-principles.md`)
-- [ ] No premature abstraction (3+ concrete use cases exist?)
-- [ ] No speculative features (is this needed NOW?)
-- [ ] Single responsibility (each component does ONE thing?)
-- [ ] Explicit behavior (no hidden magic or conventions?)
-- [ ] Minimal coupling (components isolated, dependencies minimal?)
-- [ ] Next-developer test (would they understand this quickly?)
+- [x] No premature abstraction (3+ concrete use cases exist?)
+- [x] No speculative features (is this needed NOW?)
+- [x] Single responsibility (each component does ONE thing?)
+- [x] Explicit behavior (no hidden magic or conventions?)
+- [x] Minimal coupling (components isolated, dependencies minimal?)
+- [x] Next-developer test (would they understand this quickly?)
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs (N/A for this spec)
-- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
-- [ ] Functional tests verify end-user behavior (`.ci` files)
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
+- [x] Boundary tests cover all numeric inputs (N/A for this spec)
+- [x] Feature code integrated into codebase (`internal/*`, `cmd/*`)
+- [x] Functional tests verify end-user behavior (`.ci` files)
 
 ### Verification
-- [ ] `make lint` passes (26 linters)
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (26 linters)
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation (during implementation)
-- [ ] Required docs read
-- [ ] RFC summaries read (N/A - not protocol work)
-- [ ] Code comments added
+- [x] Required docs read
+- [x] RFC summaries read (N/A - not protocol work)
+- [x] Code comments added
 
 ### Completion (after tests pass)
-- [ ] Architecture docs updated with learnings
-- [ ] Spec updated with Implementation Summary
+- [x] Architecture docs updated with learnings
+- [x] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
 - [ ] All files committed together
 
@@ -267,18 +343,56 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 N/A - this is infrastructure work, not BGP protocol implementation.
 
+## TODO
+
+- [x] Implement capability decode API (Phase 5 in Implementation Steps)
+  - ~~Plugin declares `declare decode capability <code>`~~ (hardcoded map for now)
+  - decode.go spawns plugin with `--decode` flag
+  - Protocol: `decode capability <code> <hex>` → `decoded json {...}`
+  - Update hostname plugin to support decode mode
+
 ## Implementation Summary
 
-<!-- Fill this section AFTER implementation, before moving to done -->
-
 ### What Was Implemented
-- [List actual changes made]
+
+**Core JSON Config Delivery:**
+- `declare wants config <root>` declaration parsing in `registration.go`
+- `deliverConfig()` rewritten to send `config json <root> <json>` per declared root
+- `extractConfigSubtree()` for path-based extraction (e.g., "bgp/peer")
+- Config tree stored in `BGPConfig.ParsedTree` and passed to reactor
+- `ReactorInterface.GetConfigTree()` for server access to config
+
+**Diff Library:**
+- `internal/config/diff.go` - VyOS-style `DiffMaps()` with deep comparison
+- `ConfigDiff` struct with Added/Removed/Changed maps
+- Full test coverage in `diff_test.go`
+
+**Debug Tooling:**
+- `ze bgp plugin-test` command for debugging config delivery
+- Shows schema fields, config tree, JSON that would be sent to plugins
+
+**Plugin-Gated Capability Decoding:**
+- `ze bgp decode --plugin <name>` flag for capability decoding
+- FQDN (code 73) requires `--plugin hostname` to decode
+- Without plugin: `{"name":"unknown","code":73,"raw":"..."}`
 
 ### Bugs Found/Fixed
-- [Any bugs discovered during implementation]
+- `reactor.go`: `Internal` flag not copied in plugin config conversion (missing field)
+- `hostname.go`: Config tree wrapped as `{"bgp": {...}}` - added unwrapping logic
 
 ### Design Insights
-- [Key learnings that should be documented elsewhere]
+- Plugins should declare config roots, not patterns - simpler and more flexible
+- Full JSON delivery lets plugins extract what they need based on YANG knowledge
+- Plugin-gated decoding keeps capability knowledge in plugins, not core
 
 ### Deviations from Plan
-- [Any differences from original plan and why]
+
+**Deferred cleanup (future PR):**
+- `CapabilityConfigJSON` field still exists (used by existing code paths)
+- `RawCapabilityConfig` field still exists
+- `host-name`/`domain-name` extraction in `bgp.go` still exists
+- Pattern-based types removed, but some fields remain for compatibility
+
+**Added beyond plan:**
+- `ze bgp plugin-test` debug command
+- Plugin-gated capability decoding in `ze bgp decode`

@@ -270,6 +270,91 @@ func GetYANG() string {
 	return hostnameYANG
 }
 
+// DecodableCapabilities returns the capability codes this plugin can decode.
+func DecodableCapabilities() []uint8 {
+	return []uint8{73} // FQDN capability
+}
+
+// RunDecodeMode runs the plugin in decode mode for ze bgp decode.
+// Reads decode requests from stdin, writes JSON responses to stdout.
+// Format: "decode capability <code> <hex>" → "decoded json <json>" or "decoded unknown".
+func RunDecodeMode(input io.Reader, output io.Writer) int {
+	writeUnknown := func() { _, _ = fmt.Fprintf(output, "decoded unknown\n") }
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		// Parse: "decode capability <code> <hex>"
+		parts := strings.Fields(line)
+		if len(parts) < 4 || parts[0] != "decode" || parts[1] != "capability" {
+			writeUnknown()
+			continue
+		}
+
+		// Check capability code
+		if parts[2] != "73" {
+			writeUnknown()
+			continue
+		}
+
+		// Decode hex payload
+		hexData := parts[3]
+		data, err := hex.DecodeString(hexData)
+		if err != nil {
+			writeUnknown()
+			continue
+		}
+
+		// Parse FQDN capability value
+		result := decodeFQDN(data)
+		if result == nil {
+			writeUnknown()
+			continue
+		}
+
+		// Output JSON
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			writeUnknown()
+			continue
+		}
+		_, _ = fmt.Fprintf(output, "decoded json %s\n", jsonBytes)
+	}
+	return 0
+}
+
+// decodeFQDN decodes FQDN capability wire bytes to JSON map.
+// Wire format: hostname-len (1) + hostname + domain-len (1) + domain.
+func decodeFQDN(data []byte) map[string]any {
+	if len(data) < 1 {
+		return nil
+	}
+
+	hostLen := int(data[0])
+	if len(data) < 1+hostLen+1 {
+		return nil
+	}
+
+	hostname := string(data[1 : 1+hostLen])
+
+	domainLen := int(data[1+hostLen])
+	if len(data) < 1+hostLen+1+domainLen {
+		return nil
+	}
+
+	domain := string(data[2+hostLen : 2+hostLen+domainLen])
+
+	return map[string]any{
+		"name":     "fqdn",
+		"hostname": hostname,
+		"domain":   domain,
+	}
+}
+
 // hostnameYANG is the embedded YANG schema.
 const hostnameYANG = `module ze-hostname {
     namespace "urn:ze:hostname";

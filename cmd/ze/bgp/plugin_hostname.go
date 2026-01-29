@@ -15,6 +15,7 @@ func cmdPluginHostname(args []string) int {
 	fs := flag.NewFlagSet("plugin hostname", flag.ExitOnError)
 	logLevel := fs.String("log-level", "disabled", "Log level (disabled, debug, info, warn, err)")
 	showYang := fs.Bool("yang", false, "Output YANG schema and exit")
+	decodeMode := fs.Bool("decode", false, "Run in decode mode (for ze bgp decode)")
 	_ = fs.Parse(args)
 
 	// Output YANG schema if requested
@@ -25,6 +26,11 @@ func cmdPluginHostname(args []string) int {
 
 	// Configure plugin logger (CLI flag takes precedence, then env var hierarchy)
 	hostname.ConfigureLogger(slogutil.PluginLogger("hostname", *logLevel))
+
+	// Decode mode: read capability decode requests, output JSON
+	if *decodeMode {
+		return hostname.RunDecodeMode(os.Stdin, os.Stdout)
+	}
 
 	plugin := hostname.NewHostnamePlugin(os.Stdin, os.Stdout)
 	return plugin.Run()

@@ -177,6 +177,26 @@ Wire: `07 726F7574657231 0B 6578616D706C652E636F6D`
 - `internal/config/bgp.go` - Remove Hostname/DomainName fields from PeerConfig
 - `test/encode/hostname.ci` - Add `--plugin ze.hostname` to command
 
+## Decode Mode
+
+Plugin supports `--decode` flag for capability decoding with `ze bgp decode`:
+
+```bash
+ze bgp decode --plugin ze.hostname --open <hex>
+```
+
+| Without Plugin | With Plugin |
+|----------------|-------------|
+| `{"name":"unknown","code":73,"raw":"..."}` | `{"name":"fqdn","hostname":"...","domain":"..."}` |
+
+**Protocol:**
+```
+ze → plugin:  decode capability 73 <hex>
+plugin → ze:  decoded json {"name":"fqdn","hostname":"...","domain":"..."}
+```
+
+See `docs/architecture/api/process-protocol.md` for full decode API spec.
+
 ## Files to Keep
 
 - `internal/plugin/bgp/capability/capability.go` - Keep FQDN struct for parsing peer OPEN
@@ -229,13 +249,60 @@ Wire: `07 726F7574657231 0B 6578616D706C652E636F6D`
 ## Checklist
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
-- [ ] Functional tests pass
+- [x] Tests written
+- [x] Tests FAIL
+- [x] Implementation complete
+- [x] Tests PASS
+- [x] Functional tests pass
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
+
+## Implementation Summary
+
+### What Was Implemented
+
+**Hostname Plugin:**
+- `internal/plugin/hostname/hostname.go` - FQDN capability plugin (code 73)
+- Receives config via `declare wants config bgp` → `config json bgp {...}`
+- Parses per-peer `capability.hostname.{host,domain}` from JSON
+- Registers `capability hex 73 <wire> peer <addr>` per peer
+- Wire encoding: hostname-len + hostname + domain-len + domain
+
+**YANG Schema:**
+- Embedded `ze-hostname` module in hostname.go
+- Augments `/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability` with `hostname` container
+- Legacy augment at peer level for `host-name`/`domain-name`
+
+**CLI:**
+- `ze bgp plugin hostname` - standalone plugin execution
+- `--yang` flag outputs embedded YANG schema
+- `--log-level` flag for debug logging
+
+**In-Process Execution:**
+- `internal/plugin/inprocess.go` - registers hostname plugin runner
+- `--plugin ze.hostname` runs plugin in-process (goroutine, not subprocess)
+
+**Decode Mode:**
+- `ze bgp decode --plugin hostname --open <hex>` decodes FQDN capability
+- Without plugin: shows `{"name":"unknown","code":73,"raw":"..."}`
+- With plugin: shows `{"name":"fqdn","hostname":"...","domain":"..."}`
+
+**Tests:**
+- `hostname_test.go` - config parsing, wire encoding, boundaries, YANG output
+- `test/encode/hostname.ci` - functional test
+
+### Bugs Found/Fixed
+- Config tree delivered wrapped as `{"bgp":{...}}` - added unwrapping in `parseBGPConfig()`
+
+### Design Insights
+- Plugin YANG defines config schema; plugin extracts what it needs from JSON
+- Capability decoding belongs in plugins, not core decode.go
+- In-process plugins (goroutine) simpler than subprocess for built-in plugins
+
+### Deviations from Plan
+- No separate `ze-hostname.yang` file - embedded as string constant in hostname.go
+- No `embed.go` file needed - YANG is a const string
+- Decode mode implemented via `--plugin` flag in decode.go, not separate protocol
