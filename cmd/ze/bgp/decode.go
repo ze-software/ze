@@ -2127,8 +2127,13 @@ func formatOpenHuman(result map[string]any) string {
 // formatCapabilityHuman formats a single capability for human output.
 func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 	name, _ := cap["name"].(string)
-	if name == "" {
-		name = "unknown"
+	if name == "" || name == "unknown" {
+		// For unknown capabilities, use "code=N" as the label
+		if code, ok := cap["code"]; ok {
+			name = fmt.Sprintf("code=%v", formatNumber(code))
+		} else {
+			name = "unknown"
+		}
 	}
 
 	fmt.Fprintf(sb, "    %-20s ", name)
@@ -2168,16 +2173,16 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 			}
 			sb.WriteString(strings.Join(fams, ", "))
 		}
-	case "unknown":
-		if code, ok := cap["code"]; ok {
-			fmt.Fprintf(sb, "code=%v", formatNumber(code))
-		}
 	case "route-refresh", "extended-message": // No additional value needed
 		break
-	default: // Handle software version and other capabilities
+	case "software-version":
 		if sw, ok := cap["software"].(string); ok {
 			sb.WriteString(sw)
 		}
+	}
+	// Unknown capabilities (name starts with "code=") show raw hex data
+	if raw, ok := cap["raw"].(string); ok && raw != "" {
+		sb.WriteString(raw)
 	}
 
 	sb.WriteString("\n")
