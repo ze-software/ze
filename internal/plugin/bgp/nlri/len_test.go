@@ -108,9 +108,7 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 		// LabeledUnicast - supports ADD-PATH
 		{"LabeledUnicast_noPath", mustParseLabeledUnicast(t, "172.16.0.0/16", false, 0), true},
 		{"LabeledUnicast_withPath", mustParseLabeledUnicast(t, "172.16.0.0/16", true, 4), true},
-		// EVPN - supports ADD-PATH
-		{"EVPNType2_MAC", mustParseEVPNType2(t), true},
-		{"EVPNType5_Prefix", mustParseEVPNType5(t), true},
+		// Note: EVPN tests moved to internal/plugin/evpn/types_test.go
 	}
 
 	addPathValues := []bool{false, true}
@@ -190,23 +188,4 @@ func mustParseLabeledUnicast(t *testing.T, prefix string, _ bool, pathID uint32)
 		},
 		labels: []uint32{16000}, // Single label
 	}
-}
-
-// mustParseEVPNType2 creates an EVPN Type 2 (MAC/IP) NLRI for testing.
-// RFC 7432 Section 7.2.
-func mustParseEVPNType2(t *testing.T) *EVPNType2 {
-	t.Helper()
-	rd := RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}}
-	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
-	ip := netip.MustParseAddr("10.0.0.1")
-	return NewEVPNType2(rd, ESI{}, 0, mac, ip, []uint32{100})
-}
-
-// mustParseEVPNType5 creates an EVPN Type 5 (IP Prefix) NLRI for testing.
-// RFC 9136 Section 3.
-func mustParseEVPNType5(t *testing.T) *EVPNType5 {
-	t.Helper()
-	rd := RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}}
-	prefix := netip.MustParsePrefix("10.0.0.0/24")
-	return NewEVPNType5(rd, ESI{}, 0, prefix, netip.Addr{}, []uint32{100})
 }

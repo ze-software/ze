@@ -9,6 +9,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 )
 
@@ -392,7 +393,7 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 	case *flowspec.FlowSpecVPN:
 		formatFlowSpecVPNJSON(sb, v)
 		return
-	case *nlri.EVPNType2:
+	case *evpn.EVPNType2:
 		formatEVPNType2JSON(sb, v)
 		return
 	}
@@ -467,7 +468,7 @@ func formatLabeledUnicastJSON(sb *strings.Builder, v *nlri.LabeledUnicast) {
 
 // formatEVPNType2JSON formats an EVPN Type 2 (MAC/IP Advertisement) NLRI as structured JSON.
 // RFC 7432 Section 7.2: {"route-type":"mac-ip-advertisement","rd":"0:65000:1","esi":"00:...","mac":"...", ...}.
-func formatEVPNType2JSON(sb *strings.Builder, v *nlri.EVPNType2) {
+func formatEVPNType2JSON(sb *strings.Builder, v *evpn.EVPNType2) {
 	sb.WriteString(`{"route-type":"`)
 	sb.WriteString(v.RouteType().String())
 	sb.WriteString(`","rd":"`)

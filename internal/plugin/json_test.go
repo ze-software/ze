@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1189,7 +1190,7 @@ func TestJSONEncoderEVPN(t *testing.T) {
 }
 
 // createTestEVPNType2 creates an EVPNType2 for testing by parsing wire format.
-func createTestEVPNType2(rdBytes, esiBytes, ethTagBytes, macBytes, ipBytes, labelBytes []byte) *nlri.EVPNType2 {
+func createTestEVPNType2(rdBytes, esiBytes, ethTagBytes, macBytes, ipBytes, labelBytes []byte) *evpn.EVPNType2 {
 	// Build the full wire data that parseEVPNType2 expects
 	// Preallocate: RD + ESI + EthTag + MACLen(1) + MAC + IPLen(1) + IP + Labels
 	dataLen := len(rdBytes) + len(esiBytes) + len(ethTagBytes) + 1 + len(macBytes) + 1 + len(ipBytes) + len(labelBytes)
@@ -1205,16 +1206,16 @@ func createTestEVPNType2(rdBytes, esiBytes, ethTagBytes, macBytes, ipBytes, labe
 
 	// Build full EVPN NLRI with type and length header (preallocate: 2 + data)
 	evpnData := make([]byte, 0, 2+len(data))
-	evpnData = append(evpnData, byte(nlri.EVPNRouteType2), byte(len(data)))
+	evpnData = append(evpnData, byte(evpn.EVPNRouteType2), byte(len(data)))
 	evpnData = append(evpnData, data...)
 
 	// Parse using the public ParseEVPN function
-	parsed, _, err := nlri.ParseEVPN(evpnData, false)
+	parsed, _, err := evpn.ParseEVPN(evpnData, false)
 	if err != nil {
 		panic(fmt.Sprintf("failed to parse test EVPN: %v", err))
 	}
 
-	evpn, ok := parsed.(*nlri.EVPNType2)
+	evpn, ok := parsed.(*evpn.EVPNType2)
 	if !ok {
 		panic(fmt.Sprintf("expected *EVPNType2, got %T", parsed))
 	}

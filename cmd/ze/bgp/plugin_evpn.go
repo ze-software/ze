@@ -7,44 +7,43 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// cmdPluginFlowSpec runs the FlowSpec family plugin.
-// It handles decoding of FlowSpec NLRI (RFC 8955, 8956).
+// cmdPluginEVPN runs the EVPN family plugin.
+// It handles decoding of EVPN NLRI (RFC 7432, 9136).
 //
 // CLI Mode: Direct hex input for human use.
 //
-//	ze bgp plugin flowspec --json 0718...   # JSON output
-//	ze bgp plugin flowspec --text 0718...   # text output
-//	ze bgp plugin flowspec --json -         # read hex from stdin
+//	ze bgp plugin evpn --json 02210001252C...   # JSON output (default format)
+//	ze bgp plugin evpn --text 02210001252C...   # text output
+//	ze bgp plugin evpn --json -                 # read hex from stdin
 //
 // Engine Decode Mode (--decode): Protocol commands on stdin.
 //
-//	ze bgp plugin flowspec --decode         # reads "decode nlri ..." from stdin
+//	ze bgp plugin evpn --decode                 # reads "decode nlri ..." from stdin
 //
 // Engine Mode (no flags, no args): Full plugin with startup protocol.
-func cmdPluginFlowSpec(args []string) int {
-	fs := flag.NewFlagSet("plugin flowspec", flag.ExitOnError)
+func cmdPluginEVPN(args []string) int {
+	fs := flag.NewFlagSet("plugin evpn", flag.ExitOnError)
 	logLevel := fs.String("log-level", "disabled", "Log level (disabled, debug, info, warn, err)")
 	showYang := fs.Bool("yang", false, "Output YANG schema and exit")
 	decodeMode := fs.Bool("decode", false, "Engine decode protocol mode (reads commands from stdin)")
 	textHex := fs.String("text", "", "Decode hex and output human-readable text (use - for stdin)")
 	jsonHex := fs.String("json", "", "Decode hex and output JSON (use - for stdin)")
-	family := fs.String("family", "ipv4/flow", "Address family (ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn)")
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
 
 	// Output YANG schema if requested
 	if *showYang {
-		fmt.Print(flowspec.GetFlowSpecYANG())
+		fmt.Print(evpn.GetEVPNYANG())
 		return 0
 	}
 
 	// Configure plugin logger (CLI flag takes precedence, then env var hierarchy)
-	flowspec.SetFlowSpecLogger(slogutil.PluginLogger("flowspec", *logLevel))
+	evpn.SetEVPNLogger(slogutil.PluginLogger("evpn", *logLevel))
 
 	// CLI Mode: --text <hex> or --json <hex> (mutually exclusive)
 	if *textHex != "" && *jsonHex != "" {
@@ -68,15 +67,15 @@ func cmdPluginFlowSpec(args []string) int {
 				return 1
 			}
 		}
-		return flowspec.RunCLIDecode(hex, *family, textOutput, os.Stdout, os.Stderr)
+		return evpn.RunCLIDecode(hex, textOutput, os.Stdout, os.Stderr)
 	}
 
 	// Engine Decode Mode: protocol commands on stdin (used by ze bgp decode)
 	if *decodeMode {
-		return flowspec.RunFlowSpecDecode(os.Stdin, os.Stdout)
+		return evpn.RunEVPNDecode(os.Stdin, os.Stdout)
 	}
 
 	// Engine Mode: full plugin with startup protocol
-	plugin := flowspec.NewFlowSpecPlugin(os.Stdin, os.Stdout)
+	plugin := evpn.NewEVPNPlugin(os.Stdin, os.Stdout)
 	return plugin.Run()
 }

@@ -1,49 +1,55 @@
-// Package nlri provides EVPN NLRI parsing and encoding.
-//
-// EVPN is defined in RFC 7432 (BGP MPLS-Based Ethernet VPN).
-// EVPN Type 5 (IP Prefix) is defined in RFC 9136.
-//
-// RFC 7432 Section 7: BGP EVPN Routes
-// RFC 7432 Section 7.1: Ethernet Auto-discovery Route (Type 1)
-// RFC 7432 Section 7.2: MAC/IP Advertisement Route (Type 2)
-// RFC 7432 Section 7.3: Inclusive Multicast Ethernet Tag Route (Type 3)
-// RFC 7432 Section 7.4: Ethernet Segment Route (Type 4)
-// RFC 9136 Section 3: IP Prefix Route (Type 5)
-package nlri
+// Package evpn implements EVPN NLRI types for the evpn plugin.
+// RFC 7432: BGP MPLS-Based Ethernet VPN
+// RFC 9136: IP Prefix Advertisement in EVPN
+package evpn
 
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+)
+
+// Type aliases for nlri types used by EVPN.
+type (
+	Family             = nlri.Family
+	RouteDistinguisher = nlri.RouteDistinguisher
+)
+
+// Re-export constants from nlri for local use.
+var L2VPNEVPN = nlri.L2VPNEVPN
+
+// Re-export parsing functions.
+var (
+	ParseRouteDistinguisher = nlri.ParseRouteDistinguisher
+	ParseLabelStack         = nlri.ParseLabelStack
+	EncodeLabelStack        = nlri.EncodeLabelStack
+	ParseRDString           = nlri.ParseRDString
+)
+
+// EVPN errors.
+var (
+	ErrEVPNTruncated      = errors.New("evpn: truncated data")
+	ErrEVPNInvalidAddress = errors.New("evpn: invalid address")
+	ErrEVPNInvalidPrefix  = errors.New("evpn: invalid prefix")
 )
 
 // EVPNRouteType identifies the EVPN route type.
-// RFC 7432 Section 7 defines the EVPN NLRI format:
-//
-//	+-----------------------------------+
-//	|    Route Type (1 octet)           |
-//	+-----------------------------------+
-//	|     Length (1 octet)              |
-//	+-----------------------------------+
-//	| Route Type specific (variable)    |
-//	+-----------------------------------+
+// RFC 7432 Section 7 defines the EVPN NLRI format.
 type EVPNRouteType uint8
 
 // EVPN Route Types per RFC 7432 Section 7 and RFC 9136.
 const (
-	// EVPNRouteType1 is Ethernet Auto-Discovery (RFC 7432 Section 7.1).
-	EVPNRouteType1 EVPNRouteType = 1
-	// EVPNRouteType2 is MAC/IP Advertisement (RFC 7432 Section 7.2).
-	EVPNRouteType2 EVPNRouteType = 2
-	// EVPNRouteType3 is Inclusive Multicast Ethernet Tag (RFC 7432 Section 7.3).
-	EVPNRouteType3 EVPNRouteType = 3
-	// EVPNRouteType4 is Ethernet Segment (RFC 7432 Section 7.4).
-	EVPNRouteType4 EVPNRouteType = 4
-	// EVPNRouteType5 is IP Prefix (RFC 9136 Section 3).
-	EVPNRouteType5 EVPNRouteType = 5
+	EVPNRouteType1 EVPNRouteType = 1 // Ethernet Auto-Discovery (RFC 7432 Section 7.1)
+	EVPNRouteType2 EVPNRouteType = 2 // MAC/IP Advertisement (RFC 7432 Section 7.2)
+	EVPNRouteType3 EVPNRouteType = 3 // Inclusive Multicast Ethernet Tag (RFC 7432 Section 7.3)
+	EVPNRouteType4 EVPNRouteType = 4 // Ethernet Segment (RFC 7432 Section 7.4)
+	EVPNRouteType5 EVPNRouteType = 5 // IP Prefix (RFC 9136 Section 3)
 )
 
 // String returns the route type name.
@@ -59,9 +65,8 @@ func (t EVPNRouteType) String() string {
 		return "ethernet-segment"
 	case EVPNRouteType5:
 		return "ip-prefix"
-	default:
-		return fmt.Sprintf("evpn-type-%d", t)
 	}
+	return fmt.Sprintf("evpn-type-%d", t)
 }
 
 // ESI represents a 10-byte Ethernet Segment Identifier.
@@ -69,9 +74,7 @@ func (t EVPNRouteType) String() string {
 type ESI [10]byte
 
 // IsZero returns true if ESI is all zeros.
-func (e ESI) IsZero() bool {
-	return e == ESI{}
-}
+func (e ESI) IsZero() bool { return e == ESI{} }
 
 // String returns hex representation.
 func (e ESI) String() string {
@@ -80,18 +83,12 @@ func (e ESI) String() string {
 }
 
 // ParseESIString parses an Ethernet Segment Identifier from string format.
-//
-// RFC 7432 Section 5 defines ESI as a 10-byte identifier.
-// Supports: "0" (all zeros), plain hex (20 chars), colon-separated (10 bytes).
 func ParseESIString(s string) (ESI, error) {
 	var esi ESI
-
-	// Handle "0" or empty for all zeros
 	if s == "0" || s == "" {
 		return esi, nil
 	}
 
-	// Try colon-separated format (00:11:22:33:44:55:66:77:88:99)
 	if strings.Contains(s, ":") {
 		parts := strings.Split(s, ":")
 		if len(parts) != 10 {
@@ -107,7 +104,6 @@ func ParseESIString(s string) (ESI, error) {
 		return esi, nil
 	}
 
-	// Try plain hex format (20 chars)
 	if len(s) == 20 {
 		decoded, err := hex.DecodeString(s)
 		if err != nil {
@@ -117,23 +113,47 @@ func ParseESIString(s string) (ESI, error) {
 		return esi, nil
 	}
 
-	return esi, fmt.Errorf("invalid ESI format: %s (expected 0, 20 hex chars, or colon-separated)", s)
+	return esi, fmt.Errorf("invalid ESI format: %s", s)
+}
+
+// parseOriginatorIP parses an originator IP from wire format.
+// Returns the parsed IP address and the number of bytes consumed (ipLen/8).
+// RFC 7432 Section 7.3/7.4: IP length is in bits (32 or 128).
+func parseOriginatorIP(data []byte, offset int, ipLen byte) (netip.Addr, int, error) {
+	if ipLen == 32 {
+		if offset+4 > len(data) {
+			return netip.Addr{}, 0, ErrEVPNTruncated
+		}
+		return netip.AddrFrom4([4]byte(data[offset : offset+4])), 4, nil
+	}
+	if ipLen == 128 {
+		if offset+16 > len(data) {
+			return netip.Addr{}, 0, ErrEVPNTruncated
+		}
+		return netip.AddrFrom16([16]byte(data[offset : offset+16])), 16, nil
+	}
+	return netip.Addr{}, 0, ErrEVPNInvalidAddress
 }
 
 // EVPN is the interface for all EVPN route types.
-// All EVPN routes carry a Route Distinguisher (RFC 7432 Section 7).
 type EVPN interface {
-	NLRI
 	RouteType() EVPNRouteType
 	RD() RouteDistinguisher
+	Family() Family
+	Bytes() []byte
+	Len() int
+	String() string
+	PathID() uint32
+	HasPathID() bool
+	SupportsAddPath() bool
+	WriteTo(buf []byte, off int) int
 }
 
 // ParseEVPN parses an EVPN NLRI from wire format.
-// RFC 7432 Section 7: The EVPN NLRI is carried in BGP using BGP Multiprotocol
-// Extensions with AFI 25 (L2VPN) and SAFI 70 (EVPN).
-func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
+// RFC 7432 Section 7: AFI 25 (L2VPN) and SAFI 70 (EVPN).
+func ParseEVPN(data []byte, addpath bool) (EVPN, []byte, error) {
 	if len(data) < 2 {
-		return nil, nil, ErrShortRead
+		return nil, nil, ErrEVPNTruncated
 	}
 
 	offset := 0
@@ -141,79 +161,63 @@ func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 
 	if addpath {
 		if len(data) < 4 {
-			return nil, nil, ErrShortRead
+			return nil, nil, ErrEVPNTruncated
 		}
 		pathID = binary.BigEndian.Uint32(data[:4])
 		offset = 4
 	}
 
 	if offset >= len(data) {
-		return nil, nil, ErrShortRead
+		return nil, nil, ErrEVPNTruncated
 	}
 
 	routeType := EVPNRouteType(data[offset])
 	offset++
 
 	if offset >= len(data) {
-		return nil, nil, ErrShortRead
+		return nil, nil, ErrEVPNTruncated
 	}
 
 	length := int(data[offset])
 	offset++
 
 	if offset+length > len(data) {
-		return nil, nil, ErrShortRead
+		return nil, nil, ErrEVPNTruncated
 	}
 
 	nlriData := data[offset : offset+length]
 
-	var nlri NLRI
+	var evpn EVPN
 	var err error
 
-	switch routeType { //nolint:exhaustive // Unsupported types handled as EVPNGeneric
+	switch routeType {
 	case EVPNRouteType1:
-		nlri, err = parseEVPNType1(nlriData, pathID, addpath)
+		evpn, err = parseEVPNType1(nlriData, pathID, addpath)
 	case EVPNRouteType2:
-		nlri, err = parseEVPNType2(nlriData, pathID, addpath)
+		evpn, err = parseEVPNType2(nlriData, pathID, addpath)
 	case EVPNRouteType3:
-		nlri, err = parseEVPNType3(nlriData, pathID, addpath)
+		evpn, err = parseEVPNType3(nlriData, pathID, addpath)
 	case EVPNRouteType4:
-		nlri, err = parseEVPNType4(nlriData, pathID, addpath)
+		evpn, err = parseEVPNType4(nlriData, pathID, addpath)
 	case EVPNRouteType5:
-		nlri, err = parseEVPNType5(nlriData, pathID, addpath)
-	default:
-		// Generic EVPN for unsupported types
-		nlri = &EVPNGeneric{
-			routeType: routeType,
-			data:      nlriData,
-			pathID:    pathID,
-			hasPath:   addpath,
-		}
+		evpn, err = parseEVPNType5(nlriData, pathID, addpath)
+	case 0, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15: // Reserved/unknown route types
+		evpn = &EVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
+	}
+
+	// Handle any other route type as generic
+	if evpn == nil && err == nil {
+		evpn = &EVPNGeneric{routeType: routeType, data: nlriData, pathID: pathID, hasPath: addpath}
 	}
 
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return nlri, data[offset+length:], nil
+	return evpn, data[offset+length:], nil
 }
 
-// EVPNType1 represents an Ethernet Auto-Discovery route.
-// RFC 7432 Section 7.1 defines the wire format:
-//
-//	+---------------------------------------+
-//	|  Route Distinguisher (RD) (8 octets)  |
-//	+---------------------------------------+
-//	|Ethernet Segment Identifier (10 octets)|
-//	+---------------------------------------+
-//	|  Ethernet Tag ID (4 octets)           |
-//	+---------------------------------------+
-//	|  MPLS Label (3 octets)                |
-//	+---------------------------------------+
-//
-// This route is used for multihoming fast convergence and aliasing.
-// Per RFC 7432, only ESI and Ethernet Tag are part of the route key;
-// the MPLS Label is a route attribute.
+// EVPNType1 represents an Ethernet Auto-Discovery route (RFC 7432 Section 7.1).
 type EVPNType1 struct {
 	rd          RouteDistinguisher
 	esi         ESI
@@ -223,18 +227,14 @@ type EVPNType1 struct {
 	hasPath     bool
 }
 
-// parseEVPNType1 parses an Ethernet Auto-Discovery route per RFC 7432 Section 7.1.
 func parseEVPNType1(data []byte, pathID uint32, hasPath bool) (*EVPNType1, error) {
-	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Label (3+)
 	if len(data) < 8+10+4 {
-		return nil, ErrShortRead
+		return nil, ErrEVPNTruncated
 	}
 
 	e := &EVPNType1{pathID: pathID, hasPath: hasPath}
-
 	offset := 0
 
-	// RD
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
 	if err != nil {
 		return nil, err
@@ -242,15 +242,12 @@ func parseEVPNType1(data []byte, pathID uint32, hasPath bool) (*EVPNType1, error
 	e.rd = rd
 	offset += 8
 
-	// ESI
 	copy(e.esi[:], data[offset:offset+10])
 	offset += 10
 
-	// Ethernet Tag
 	e.ethernetTag = binary.BigEndian.Uint32(data[offset : offset+4])
 	offset += 4
 
-	// Labels (remaining bytes)
 	if offset < len(data) {
 		labels, _, err := ParseLabelStack(data[offset:])
 		if err != nil {
@@ -273,7 +270,6 @@ func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType1) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType1) Bytes() []byte {
-	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Labels (3+)
 	labelBytes := EncodeLabelStack(e.labels)
 	payloadLen := 8 + 10 + 4 + len(labelBytes)
 
@@ -284,22 +280,17 @@ func (e *EVPNType1) Bytes() []byte {
 	offset := 2
 	copy(buf[offset:], e.rd.Bytes())
 	offset += 8
-
 	copy(buf[offset:], e.esi[:])
 	offset += 10
-
 	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
 	offset += 4
-
 	copy(buf[offset:], labelBytes)
 
 	return buf
 }
 
 func (e *EVPNType1) Len() int {
-	n := 8 + 10 + 4
-	n += len(e.labels) * 3
-	return n + 2 // +2 for type and length
+	return 8 + 10 + 4 + len(e.labels)*3 + 2
 }
 
 func (e *EVPNType1) String() string {
@@ -309,44 +300,20 @@ func (e *EVPNType1) String() string {
 	sb.WriteString(" esi set ")
 	sb.WriteString(e.esi.String())
 	sb.WriteString(" etag set ")
-	sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+	fmt.Fprintf(&sb, "%d", e.ethernetTag)
 	if len(e.labels) > 0 {
 		sb.WriteString(" label set ")
-		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		fmt.Fprintf(&sb, "%d", e.labels[0])
 		for _, l := range e.labels[1:] {
-			sb.WriteString(",")
-			sb.WriteString(fmt.Sprintf("%d", l))
+			fmt.Fprintf(&sb, ",%d", l)
 		}
 	}
 	return sb.String()
 }
 
-// EVPNType2 represents a MAC/IP Advertisement route.
-// RFC 7432 Section 7.2 defines the wire format:
-//
-//	+---------------------------------------+
-//	|  RD (8 octets)                        |
-//	+---------------------------------------+
-//	|Ethernet Segment Identifier (10 octets)|
-//	+---------------------------------------+
-//	|  Ethernet Tag ID (4 octets)           |
-//	+---------------------------------------+
-//	|  MAC Address Length (1 octet)         |
-//	+---------------------------------------+
-//	|  MAC Address (6 octets)               |
-//	+---------------------------------------+
-//	|  IP Address Length (1 octet)          |
-//	+---------------------------------------+
-//	|  IP Address (0, 4, or 16 octets)      |
-//	+---------------------------------------+
-//	|  MPLS Label1 (3 octets)               |
-//	+---------------------------------------+
-//	|  MPLS Label2 (0 or 3 octets)          |
-//	+---------------------------------------+
-//
-// Both MAC and IP address lengths are in bits (RFC 7432 Section 7.2).
-// MAC Address Length MUST be 48 for Ethernet MACs.
-// IP Address Length is 0 (none), 32 (IPv4), or 128 (IPv6).
+func (e *EVPNType1) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+
+// EVPNType2 represents a MAC/IP Advertisement route (RFC 7432 Section 7.2).
 type EVPNType2 struct {
 	rd          RouteDistinguisher
 	esi         ESI
@@ -358,18 +325,14 @@ type EVPNType2 struct {
 	hasPath     bool
 }
 
-// parseEVPNType2 parses a MAC/IP Advertisement route per RFC 7432 Section 7.2.
 func parseEVPNType2(data []byte, pathID uint32, hasPath bool) (*EVPNType2, error) {
-	// RFC 7432 Section 7.2: RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) + IPLen (1)
 	if len(data) < 8+10+4+1+6+1 {
-		return nil, ErrShortRead
+		return nil, ErrEVPNTruncated
 	}
 
 	e := &EVPNType2{pathID: pathID, hasPath: hasPath}
-
 	offset := 0
 
-	// RD
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
 	if err != nil {
 		return nil, err
@@ -377,50 +340,52 @@ func parseEVPNType2(data []byte, pathID uint32, hasPath bool) (*EVPNType2, error
 	e.rd = rd
 	offset += 8
 
-	// ESI
 	copy(e.esi[:], data[offset:offset+10])
 	offset += 10
 
-	// Ethernet Tag
 	e.ethernetTag = binary.BigEndian.Uint32(data[offset : offset+4])
 	offset += 4
 
-	// MAC Length in bits (RFC 7432 Section 7.2: MUST be 48 for Ethernet)
 	macLen := data[offset]
 	offset++
 	if macLen != 48 {
-		return nil, ErrInvalidAddress
+		return nil, ErrEVPNInvalidAddress
 	}
 
-	// MAC
 	copy(e.mac[:], data[offset:offset+6])
 	offset += 6
 
-	// IP Length in bits (RFC 7432 Section 7.2: 0, 32, or 128)
 	ipLen := data[offset]
 	offset++
 
-	// IP (optional per RFC 7432 Section 10)
 	switch ipLen {
 	case 0:
-		// No IP
+		// No IP address - valid per RFC 7432 Section 7.2
 	case 32:
 		if offset+4 > len(data) {
-			return nil, ErrShortRead
+			return nil, ErrEVPNTruncated
 		}
 		e.ip = netip.AddrFrom4([4]byte(data[offset : offset+4]))
 		offset += 4
 	case 128:
 		if offset+16 > len(data) {
-			return nil, ErrShortRead
+			return nil, ErrEVPNTruncated
 		}
 		e.ip = netip.AddrFrom16([16]byte(data[offset : offset+16]))
 		offset += 16
-	default:
-		return nil, ErrInvalidAddress
+	case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+		49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+		65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+		81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96,
+		97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+		111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
+		124, 125, 126, 127:
+		// Invalid IP lengths per RFC 7432 Section 7.2
+		return nil, ErrEVPNInvalidAddress
 	}
 
-	// Labels (remaining bytes)
 	if offset < len(data) {
 		labels, _, err := ParseLabelStack(data[offset:])
 		if err != nil {
@@ -445,8 +410,6 @@ func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType2) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType2) Bytes() []byte {
-	// RFC 7432 Section 7.2: RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) +
-	// IPLen (1) + IP (0/4/16) + Labels (3+)
 	labelBytes := EncodeLabelStack(e.labels)
 
 	ipLen := 0
@@ -472,27 +435,20 @@ func (e *EVPNType2) Bytes() []byte {
 	offset := 2
 	copy(buf[offset:], e.rd.Bytes())
 	offset += 8
-
 	copy(buf[offset:], e.esi[:])
 	offset += 10
-
 	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
 	offset += 4
-
-	buf[offset] = 48 // MAC length in bits (always 48 for Ethernet)
+	buf[offset] = 48
 	offset++
-
 	copy(buf[offset:], e.mac[:])
 	offset += 6
-
 	buf[offset] = byte(ipLen)
 	offset++
-
 	if len(ipBytes) > 0 {
 		copy(buf[offset:], ipBytes)
 		offset += len(ipBytes)
 	}
-
 	copy(buf[offset:], labelBytes)
 
 	return buf
@@ -507,8 +463,7 @@ func (e *EVPNType2) Len() int {
 			n += 16
 		}
 	}
-	n += len(e.labels) * 3
-	return n + 2 // +2 for type and length
+	return n + len(e.labels)*3 + 2
 }
 
 func (e *EVPNType2) String() string {
@@ -516,42 +471,27 @@ func (e *EVPNType2) String() string {
 	sb.WriteString("mac-ip rd set ")
 	sb.WriteString(e.rd.String())
 	sb.WriteString(" mac set ")
-	sb.WriteString(fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5]))
+	fmt.Fprintf(&sb, "%02x:%02x:%02x:%02x:%02x:%02x",
+		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5])
 	if e.ip.IsValid() {
 		sb.WriteString(" ip set ")
 		sb.WriteString(e.ip.String())
 	}
 	if e.ethernetTag != 0 {
-		sb.WriteString(" etag set ")
-		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
 	}
 	if len(e.labels) > 0 {
-		sb.WriteString(" label set ")
-		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		fmt.Fprintf(&sb, " label set %d", e.labels[0])
 		for _, l := range e.labels[1:] {
-			sb.WriteString(",")
-			sb.WriteString(fmt.Sprintf("%d", l))
+			fmt.Fprintf(&sb, ",%d", l)
 		}
 	}
 	return sb.String()
 }
 
-// EVPNType3 represents an Inclusive Multicast Ethernet Tag route.
-// RFC 7432 Section 7.3 defines the wire format:
-//
-//	+---------------------------------------+
-//	|  RD (8 octets)                        |
-//	+---------------------------------------+
-//	|  Ethernet Tag ID (4 octets)           |
-//	+---------------------------------------+
-//	|  IP Address Length (1 octet)          |
-//	+---------------------------------------+
-//	|  Originating Router's IP Address      |
-//	|          (4 or 16 octets)             |
-//	+---------------------------------------+
-//
-// IP Address Length is in bits (32 or 128 per RFC 7432 Section 7.3).
+func (e *EVPNType2) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+
+// EVPNType3 represents an Inclusive Multicast Ethernet Tag route (RFC 7432 Section 7.3).
 type EVPNType3 struct {
 	rd           RouteDistinguisher
 	ethernetTag  uint32
@@ -560,15 +500,12 @@ type EVPNType3 struct {
 	hasPath      bool
 }
 
-// parseEVPNType3 parses an Inclusive Multicast Ethernet Tag route per RFC 7432 Section 7.3.
 func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*EVPNType3, error) {
-	// RFC 7432 Section 7.3: RD (8) + EthTag (4) + IPLen (1) + IP
 	if len(data) < 8+4+1 {
-		return nil, ErrShortRead
+		return nil, ErrEVPNTruncated
 	}
 
 	e := &EVPNType3{pathID: pathID, hasPath: hasPath}
-
 	offset := 0
 
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
@@ -584,20 +521,11 @@ func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*EVPNType3, error
 	ipLen := data[offset]
 	offset++
 
-	switch ipLen {
-	case 32:
-		if offset+4 > len(data) {
-			return nil, ErrShortRead
-		}
-		e.originatorIP = netip.AddrFrom4([4]byte(data[offset : offset+4]))
-	case 128:
-		if offset+16 > len(data) {
-			return nil, ErrShortRead
-		}
-		e.originatorIP = netip.AddrFrom16([16]byte(data[offset : offset+16]))
-	default:
-		return nil, ErrInvalidAddress
+	ip, _, err := parseOriginatorIP(data, offset, ipLen)
+	if err != nil {
+		return nil, err
 	}
+	e.originatorIP = ip
 
 	return e, nil
 }
@@ -612,7 +540,6 @@ func (e *EVPNType3) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType3) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType3) Bytes() []byte {
-	// RFC 7432 Section 7.3: RD (8) + EthTag (4) + IPLen (1) + IP (4/16)
 	var ipLen int
 	var ipBytes []byte
 	if e.originatorIP.Is4() {
@@ -634,13 +561,10 @@ func (e *EVPNType3) Bytes() []byte {
 	offset := 2
 	copy(buf[offset:], e.rd.Bytes())
 	offset += 8
-
 	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
 	offset += 4
-
 	buf[offset] = byte(ipLen)
 	offset++
-
 	copy(buf[offset:], ipBytes)
 
 	return buf
@@ -653,7 +577,7 @@ func (e *EVPNType3) Len() int {
 	} else {
 		n += 16
 	}
-	return n + 2 // +2 for type and length
+	return n + 2
 }
 
 func (e *EVPNType3) String() string {
@@ -663,28 +587,14 @@ func (e *EVPNType3) String() string {
 	sb.WriteString(" ip set ")
 	sb.WriteString(e.originatorIP.String())
 	if e.ethernetTag != 0 {
-		sb.WriteString(" etag set ")
-		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
 	}
 	return sb.String()
 }
 
-// EVPNType4 represents an Ethernet Segment route.
-// RFC 7432 Section 7.4 defines the wire format:
-//
-//	+---------------------------------------+
-//	|  RD (8 octets)                        |
-//	+---------------------------------------+
-//	|Ethernet Segment Identifier (10 octets)|
-//	+---------------------------------------+
-//	|  IP Address Length (1 octet)          |
-//	+---------------------------------------+
-//	|  Originating Router's IP Address      |
-//	|          (4 or 16 octets)             |
-//	+---------------------------------------+
-//
-// This route is used for Designated Forwarder (DF) election in multihoming.
-// IP Address Length is in bits (32 for IPv4, 128 for IPv6).
+func (e *EVPNType3) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+
+// EVPNType4 represents an Ethernet Segment route (RFC 7432 Section 7.4).
 type EVPNType4 struct {
 	rd           RouteDistinguisher
 	esi          ESI
@@ -693,18 +603,14 @@ type EVPNType4 struct {
 	hasPath      bool
 }
 
-// parseEVPNType4 parses an Ethernet Segment route per RFC 7432 Section 7.4.
 func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*EVPNType4, error) {
-	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
 	if len(data) < 8+10+1 {
-		return nil, ErrShortRead
+		return nil, ErrEVPNTruncated
 	}
 
 	e := &EVPNType4{pathID: pathID, hasPath: hasPath}
-
 	offset := 0
 
-	// RD
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
 	if err != nil {
 		return nil, err
@@ -712,27 +618,33 @@ func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*EVPNType4, error
 	e.rd = rd
 	offset += 8
 
-	// ESI
 	copy(e.esi[:], data[offset:offset+10])
 	offset += 10
 
-	// IP Address Length in bits (RFC 7432 Section 7.4: 32 or 128)
 	ipLen := data[offset]
 	offset++
 
 	switch ipLen {
 	case 32:
 		if offset+4 > len(data) {
-			return nil, ErrShortRead
+			return nil, ErrEVPNTruncated
 		}
 		e.originatorIP = netip.AddrFrom4([4]byte(data[offset : offset+4]))
 	case 128:
 		if offset+16 > len(data) {
-			return nil, ErrShortRead
+			return nil, ErrEVPNTruncated
 		}
 		e.originatorIP = netip.AddrFrom16([16]byte(data[offset : offset+16]))
-	default:
-		return nil, ErrInvalidAddress
+	case 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
+		33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+		49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64,
+		65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+		81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96,
+		97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+		111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123,
+		124, 125, 126, 127:
+		return nil, ErrEVPNInvalidAddress
 	}
 
 	return e, nil
@@ -748,7 +660,6 @@ func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType4) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType4) Bytes() []byte {
-	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
 	var ipLen int
 	var ipBytes []byte
 	if e.originatorIP.Is4() {
@@ -770,13 +681,10 @@ func (e *EVPNType4) Bytes() []byte {
 	offset := 2
 	copy(buf[offset:], e.rd.Bytes())
 	offset += 8
-
 	copy(buf[offset:], e.esi[:])
 	offset += 10
-
 	buf[offset] = byte(ipLen)
 	offset++
-
 	copy(buf[offset:], ipBytes)
 
 	return buf
@@ -789,7 +697,7 @@ func (e *EVPNType4) Len() int {
 	} else {
 		n += 16
 	}
-	return n + 2 // +2 for type and length
+	return n + 2
 }
 
 func (e *EVPNType4) String() string {
@@ -803,27 +711,9 @@ func (e *EVPNType4) String() string {
 	return sb.String()
 }
 
-// EVPNType5 represents an IP Prefix route.
-// RFC 9136 Section 3 defines the wire format:
-//
-//	+---------------------------------------+
-//	|      RD (8 octets)                    |
-//	+---------------------------------------+
-//	|Ethernet Segment Identifier (10 octets)|
-//	+---------------------------------------+
-//	|  Ethernet Tag ID (4 octets)           |
-//	+---------------------------------------+
-//	|  IP Prefix Length (1 octet)           |
-//	+---------------------------------------+
-//	|  IP Prefix (4 or 16 octets)           |
-//	+---------------------------------------+
-//	|  GW IP Address (4 or 16 octets)       |
-//	+---------------------------------------+
-//	|  MPLS Label (3 octets)                |
-//	+---------------------------------------+
-//
-// RFC 9136: IP Prefix Length is 0-32 for IPv4, 0-128 for IPv6.
-// Total length is 34 octets for IPv4 or 58 octets for IPv6.
+func (e *EVPNType4) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+
+// EVPNType5 represents an IP Prefix route (RFC 9136 Section 3).
 type EVPNType5 struct {
 	rd          RouteDistinguisher
 	esi         ESI
@@ -835,23 +725,13 @@ type EVPNType5 struct {
 	hasPath     bool
 }
 
-// parseEVPNType5 parses an IP Prefix route per RFC 9136 Section 3.1.
-// RFC 9136 specifies fixed-size NLRI:
-//   - IPv4: Length = 34 bytes (RD:8 + ESI:10 + ETag:4 + IPLen:1 + IP:4 + GW:4 + Label:3)
-//   - IPv6: Length = 58 bytes (RD:8 + ESI:10 + ETag:4 + IPLen:1 + IP:16 + GW:16 + Label:3)
 func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error) {
-	// RFC 9136 Section 3.1: Length MUST be 34 (IPv4) or 58 (IPv6)
-	switch len(data) {
-	case 34:
-		// IPv4 Type 5
-	case 58:
-		// IPv6 Type 5
-	default:
-		return nil, ErrInvalidAddress
+	// RFC 9136: Length MUST be 34 (IPv4) or 58 (IPv6)
+	if len(data) != 34 && len(data) != 58 {
+		return nil, ErrEVPNInvalidAddress
 	}
 
 	e := &EVPNType5{pathID: pathID, hasPath: hasPath}
-
 	offset := 0
 
 	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
@@ -870,44 +750,35 @@ func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error
 	ipLen := int(data[offset])
 	offset++
 
-	// RFC 9136 Section 3.1: IP Prefix is FIXED 4 octets (IPv4) or 16 octets (IPv6)
-	// Determined by total NLRI length, not prefix length
 	var addr netip.Addr
 	if len(data) == 34 {
-		// IPv4: Fixed 4-byte prefix field
 		if ipLen > 32 {
-			return nil, ErrInvalidPrefix
+			return nil, ErrEVPNInvalidPrefix
 		}
 		var ip [4]byte
 		copy(ip[:], data[offset:offset+4])
 		addr = netip.AddrFrom4(ip)
 		offset += 4
-
-		// Gateway: Fixed 4 bytes
 		e.gateway = netip.AddrFrom4([4]byte(data[offset : offset+4]))
 		offset += 4
 	} else {
-		// IPv6: Fixed 16-byte prefix field
 		if ipLen > 128 {
-			return nil, ErrInvalidPrefix
+			return nil, ErrEVPNInvalidPrefix
 		}
 		var ip [16]byte
 		copy(ip[:], data[offset:offset+16])
 		addr = netip.AddrFrom16(ip)
 		offset += 16
-
-		// Gateway: Fixed 16 bytes
 		e.gateway = netip.AddrFrom16([16]byte(data[offset : offset+16]))
 		offset += 16
 	}
 
 	prefix, err := addr.Prefix(ipLen)
 	if err != nil {
-		return nil, ErrInvalidPrefix
+		return nil, ErrEVPNInvalidPrefix
 	}
 	e.prefix = prefix
 
-	// Labels (remaining 3 bytes)
 	if offset < len(data) {
 		labels, _, err := ParseLabelStack(data[offset:])
 		if err != nil {
@@ -932,9 +803,6 @@ func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType5) SupportsAddPath() bool    { return true }
 
 func (e *EVPNType5) Bytes() []byte {
-	// RFC 9136 Section 3.1: IP Prefix route encoding
-	// IPv4: RD (8) + ESI (10) + EthTag (4) + PrefixLen (1) + Prefix (4) + GW (4) + Labels (3) = 34
-	// IPv6: RD (8) + ESI (10) + EthTag (4) + PrefixLen (1) + Prefix (16) + GW (16) + Labels (3) = 58
 	labelBytes := EncodeLabelStack(e.labels)
 
 	var prefixSize int
@@ -953,39 +821,30 @@ func (e *EVPNType5) Bytes() []byte {
 	offset := 2
 	copy(buf[offset:], e.rd.Bytes())
 	offset += 8
-
 	copy(buf[offset:], e.esi[:])
 	offset += 10
-
 	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
 	offset += 4
-
 	buf[offset] = byte(e.prefix.Bits())
 	offset++
 
-	// RFC 9136: Prefix field is FIXED size (4 or 16 bytes), not variable
-	// RFC 9136 Section 3.1: Gateway IP is 0 when not used
 	if prefixSize == 4 {
 		ip4 := e.prefix.Addr().As4()
 		copy(buf[offset:], ip4[:])
 		offset += 4
-
 		if e.gateway.IsValid() {
 			gw4 := e.gateway.As4()
 			copy(buf[offset:], gw4[:])
 		}
-		// else: leave as zeros (gateway not used)
 		offset += 4
 	} else {
 		ip6 := e.prefix.Addr().As16()
 		copy(buf[offset:], ip6[:])
 		offset += 16
-
 		if e.gateway.IsValid() {
 			gw6 := e.gateway.As16()
 			copy(buf[offset:], gw6[:])
 		}
-		// else: leave as zeros (gateway not used)
 		offset += 16
 	}
 
@@ -995,9 +854,8 @@ func (e *EVPNType5) Bytes() []byte {
 }
 
 func (e *EVPNType5) Len() int {
-	// RFC 9136: Fixed lengths (34 for IPv4, 58 for IPv6)
 	if e.prefix.Addr().Is4() {
-		return 34 + 2 // +2 for type and length header
+		return 34 + 2
 	}
 	return 58 + 2
 }
@@ -1013,28 +871,24 @@ func (e *EVPNType5) String() string {
 		sb.WriteString(e.esi.String())
 	}
 	if e.ethernetTag != 0 {
-		sb.WriteString(" etag set ")
-		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
 	}
 	if e.gateway.IsValid() && !e.gateway.IsUnspecified() {
 		sb.WriteString(" gateway set ")
 		sb.WriteString(e.gateway.String())
 	}
 	if len(e.labels) > 0 {
-		sb.WriteString(" label set ")
-		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		fmt.Fprintf(&sb, " label set %d", e.labels[0])
 		for _, l := range e.labels[1:] {
-			sb.WriteString(",")
-			sb.WriteString(fmt.Sprintf("%d", l))
+			fmt.Fprintf(&sb, ",%d", l)
 		}
 	}
 	return sb.String()
 }
 
+func (e *EVPNType5) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+
 // EVPNGeneric holds unparsed EVPN routes.
-// Used for route types not yet implemented (e.g., Type 1, Type 4).
-// RFC 7432 Section 7.1: Type 1 - Ethernet Auto-discovery per-ES and per-EVI.
-// RFC 7432 Section 7.4: Type 4 - Ethernet Segment route for DF election.
 type EVPNGeneric struct {
 	routeType EVPNRouteType
 	data      []byte
@@ -1051,71 +905,38 @@ func (e *EVPNGeneric) SupportsAddPath() bool    { return true }
 func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
 func (e *EVPNGeneric) String() string           { return fmt.Sprintf("evpn-type%d", e.routeType) }
+func (e *EVPNGeneric) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], e.Bytes())
+}
 
-// WriteTo methods for EVPN types - write payload without path ID.
-// RFC 7911 Section 3: Path ID is NOT written by these methods.
-// Use WriteNLRI() for ADD-PATH encoding with path identifier.
-
-func (e *EVPNType1) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
-func (e *EVPNType2) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
-func (e *EVPNType3) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
-func (e *EVPNType4) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
-func (e *EVPNType5) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
-func (e *EVPNGeneric) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
+// Constructors for creating EVPN routes.
 
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
-// RFC 7432 Section 7.1.
 func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, labels []uint32) *EVPNType1 {
-	return &EVPNType1{
-		rd:          rd,
-		esi:         esi,
-		ethernetTag: ethernetTag,
-		labels:      labels,
-	}
+	return &EVPNType1{rd: rd, esi: esi, ethernetTag: ethernetTag, labels: labels}
 }
 
 // NewEVPNType2 creates a MAC/IP Advertisement route (Type 2).
-// RFC 7432 Section 7.2.
 func NewEVPNType2(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, mac [6]byte, ip netip.Addr, labels []uint32) *EVPNType2 {
-	return &EVPNType2{
-		rd:          rd,
-		esi:         esi,
-		ethernetTag: ethernetTag,
-		mac:         mac,
-		ip:          ip,
-		labels:      labels,
-	}
+	return &EVPNType2{rd: rd, esi: esi, ethernetTag: ethernetTag, mac: mac, ip: ip, labels: labels}
 }
 
 // NewEVPNType3 creates an Inclusive Multicast Ethernet Tag route (Type 3).
-// RFC 7432 Section 7.3.
 func NewEVPNType3(rd RouteDistinguisher, ethernetTag uint32, originatorIP netip.Addr) *EVPNType3 {
-	return &EVPNType3{
-		rd:           rd,
-		ethernetTag:  ethernetTag,
-		originatorIP: originatorIP,
-	}
+	return &EVPNType3{rd: rd, ethernetTag: ethernetTag, originatorIP: originatorIP}
 }
 
 // NewEVPNType4 creates an Ethernet Segment route (Type 4).
-// RFC 7432 Section 7.4.
 func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) *EVPNType4 {
-	return &EVPNType4{
-		rd:           rd,
-		esi:          esi,
-		originatorIP: originatorIP,
-	}
+	return &EVPNType4{rd: rd, esi: esi, originatorIP: originatorIP}
 }
 
 // NewEVPNType5 creates an IP Prefix route (Type 5).
-// RFC 9136 Section 3.1.
 func NewEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, labels []uint32) *EVPNType5 {
-	return &EVPNType5{
-		rd:          rd,
-		esi:         esi,
-		ethernetTag: ethernetTag,
-		prefix:      prefix,
-		gateway:     gateway,
-		labels:      labels,
-	}
+	return &EVPNType5{rd: rd, esi: esi, ethernetTag: ethernetTag, prefix: prefix, gateway: gateway, labels: labels}
+}
+
+// EVPNFamilies returns the address families this plugin can decode.
+func EVPNFamilies() []string {
+	return []string{"l2vpn/evpn"}
 }

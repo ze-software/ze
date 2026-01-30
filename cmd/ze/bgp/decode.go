@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"math"
 	"net/netip"
 	"os"
@@ -366,6 +367,7 @@ var pluginFamilyMap = map[string]string{
 	"ipv6/flow":     "flowspec",
 	"ipv4/flow-vpn": "flowspec",
 	"ipv6/flow-vpn": "flowspec",
+	"l2vpn/evpn":    "evpn",
 }
 
 // unknownCapability returns JSON for an unrecognized/plugin-required capability.
@@ -463,10 +465,67 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 }
 
 // invokePluginNLRIDecode spawns a plugin in decode mode and requests NLRI decoding.
-// Returns decoded JSON map or nil if decoding failed.
-func invokePluginNLRIDecode(pluginName, family, hexData string) map[string]any {
+// Returns decoded JSON (array or map) or nil if decoding failed.
+func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 	request := fmt.Sprintf("decode nlri %s %s", family, hexData)
-	return invokePluginDecodeRequest(pluginName, request)
+	return invokePluginNLRIDecodeRequest(pluginName, request)
+}
+
+// invokePluginNLRIDecodeRequest spawns a plugin and sends an NLRI decode request.
+// Returns decoded JSON (can be array or map) or nil if decoding failed.
+// Unlike invokePluginDecodeRequest, this handles both array and map responses.
+func invokePluginNLRIDecodeRequest(pluginName, request string) any {
+	args := []string{"bgp", "plugin", pluginName, "--decode"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		slog.Debug("plugin stdin pipe failed", "plugin", pluginName, "err", err)
+		return nil
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		slog.Debug("plugin stdout pipe failed", "plugin", pluginName, "err", err)
+		return nil
+	}
+
+	if err := cmd.Start(); err != nil {
+		slog.Debug("plugin start failed", "plugin", pluginName, "err", err)
+		return nil
+	}
+
+	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
+	}
+	if err := stdin.Close(); err != nil {
+		slog.Debug("plugin stdin close failed", "plugin", pluginName, "err", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	if scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "decoded json ") {
+			jsonStr := strings.TrimPrefix(line, "decoded json ")
+			// Try array first (EVPN returns array), then map (FlowSpec returns map)
+			var arrResult []any
+			if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
+				_ = cmd.Wait()
+				return arrResult
+			}
+			var mapResult map[string]any
+			if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
+				_ = cmd.Wait()
+				return mapResult
+			}
+			slog.Debug("plugin json parse failed", "plugin", pluginName, "json", jsonStr)
+		}
+	}
+
+	_ = cmd.Wait()
+	return nil
 }
 
 // lookupFamilyPlugin returns the plugin name for a family.
@@ -919,14 +978,33 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 
 	switch {
 	case afi == nlri.AFIL2VPN && safi == nlri.SAFIEVPN:
-		routes = parseEVPNRoutes(data)
+		// EVPN decoding delegated to plugin
+		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		hexData := fmt.Sprintf("%X", data)
+		result := invokePluginNLRIDecode("evpn", family, hexData)
+		if result != nil {
+			// Result can be array (multiple NLRIs) or map (single NLRI)
+			if arr, ok := result.([]any); ok {
+				routes = arr
+			} else {
+				routes = []any{result}
+			}
+		} else {
+			// Plugin failed or unavailable - return raw bytes
+			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+		}
 	case safi == nlri.SAFIFlowSpec || safi == nlri.SAFIFlowSpecVPN:
 		// FlowSpec decoding delegated to plugin
 		family := nlri.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
 		result := invokePluginNLRIDecode("flowspec", family, hexData)
 		if result != nil {
-			routes = []any{result}
+			// Result can be array (multiple NLRIs) or map (single NLRI)
+			if arr, ok := result.([]any); ok {
+				routes = arr
+			} else {
+				routes = []any{result}
+			}
 		} else {
 			// Plugin failed or unavailable - return raw bytes
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
@@ -939,276 +1017,6 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 	}
 
 	return routes
-}
-
-// parseEVPNRoutes parses EVPN NLRI with lenient label handling.
-// The standard nlri.ParseEVPN fails on labels without bottom-of-stack bit,
-// so we implement custom parsing here for decode command.
-func parseEVPNRoutes(data []byte) []any {
-	var routes []any
-	remaining := data
-
-	for len(remaining) >= 2 {
-		routeType := remaining[0]
-		routeLen := int(remaining[1])
-
-		if len(remaining) < 2+routeLen {
-			routes = append(routes, map[string]any{
-				"code":   int(routeType),
-				"parsed": false,
-				"raw":    fmt.Sprintf("%X", remaining),
-			})
-			break
-		}
-
-		routeData := remaining[:2+routeLen]
-		routeBody := remaining[2 : 2+routeLen]
-
-		// Parse based on route type with lenient handling
-		route := parseEVPNRouteLenient(int(routeType), routeBody, routeData)
-		routes = append(routes, route)
-
-		remaining = remaining[2+routeLen:]
-	}
-
-	return routes
-}
-
-// parseEVPNRouteLenient parses EVPN routes with lenient error handling.
-func parseEVPNRouteLenient(routeType int, body, fullData []byte) map[string]any {
-	result := map[string]any{
-		"code": routeType,
-		"raw":  fmt.Sprintf("%X", fullData),
-	}
-
-	// Minimum sizes: RD(8) + varies by type
-	switch routeType {
-	case 2: // MAC/IP Advertisement - most common
-		if len(body) < 30 { // RD(8)+ESI(10)+ETag(4)+MACLen(1)+MAC(6)+IPLen(1)
-			result["parsed"] = false
-			return result
-		}
-		return parseEVPNType2Lenient(body, result)
-
-	case 1, 3, 4, 5:
-		// Try standard parser first, fall back to unparsed
-		parsed, _, err := nlri.ParseEVPN(fullData, false)
-		if err == nil {
-			return evpnToJSON(parsed)
-		}
-		result["parsed"] = false
-		return result
-
-	default:
-		result["parsed"] = false
-		return result
-	}
-}
-
-// parseEVPNType2Lenient parses EVPN Type 2 (MAC/IP) with lenient label handling.
-func parseEVPNType2Lenient(data []byte, result map[string]any) map[string]any {
-	offset := 0
-
-	// RD (8 bytes)
-	if offset+8 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	rd, err := nlri.ParseRouteDistinguisher(data[offset : offset+8])
-	if err != nil {
-		result["parsed"] = false
-		return result
-	}
-	result["rd"] = rd.String()
-	offset += 8
-
-	// ESI (10 bytes)
-	if offset+10 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	var esi nlri.ESI
-	copy(esi[:], data[offset:offset+10])
-	result["esi"] = formatESI(esi)
-	offset += 10
-
-	// Ethernet Tag (4 bytes)
-	if offset+4 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	result["ethernet-tag"] = binary.BigEndian.Uint32(data[offset : offset+4])
-	offset += 4
-
-	// MAC Length (1 byte)
-	if offset+1 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	macLen := data[offset]
-	offset++
-	if macLen != 48 {
-		result["parsed"] = false
-		return result
-	}
-
-	// MAC (6 bytes)
-	if offset+6 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	var mac [6]byte
-	copy(mac[:], data[offset:offset+6])
-	result["mac"] = formatMAC(mac)
-	offset += 6
-
-	// IP Length (1 byte)
-	if offset+1 > len(data) {
-		result["parsed"] = false
-		return result
-	}
-	ipLen := data[offset]
-	offset++
-
-	// IP (optional)
-	switch ipLen {
-	case 0:
-		// No IP
-	case 32:
-		if offset+4 > len(data) {
-			result["parsed"] = false
-			return result
-		}
-		ip := netip.AddrFrom4([4]byte(data[offset : offset+4]))
-		result["ip"] = ip.String()
-		offset += 4
-	case 128:
-		if offset+16 > len(data) {
-			result["parsed"] = false
-			return result
-		}
-		ip := netip.AddrFrom16([16]byte(data[offset : offset+16]))
-		result["ip"] = ip.String()
-		offset += 16
-	default:
-		result["parsed"] = false
-		return result
-	}
-
-	// Labels - lenient parsing (just read available 3-byte chunks)
-	if offset < len(data) {
-		labels := parseLabelStackLenient(data[offset:])
-		result["label"] = labels
-	} else {
-		result["label"] = [][]int{{0}}
-	}
-
-	result["parsed"] = true
-	result["name"] = "MAC/IP advertisement"
-	return result
-}
-
-// parseLabelStackLenient parses labels without requiring bottom-of-stack bit.
-func parseLabelStackLenient(data []byte) [][]int {
-	var labels [][]int
-	for len(data) >= 3 {
-		labelVal := int(data[0])<<12 | int(data[1])<<4 | int(data[2]>>4)
-		labels = append(labels, []int{labelVal})
-		data = data[3:]
-	}
-	if len(labels) == 0 {
-		return [][]int{{0}}
-	}
-	return labels
-}
-
-// evpnToJSON converts an EVPN NLRI to ExaBGP JSON format.
-func evpnToJSON(n nlri.NLRI) map[string]any {
-	evpn, ok := n.(nlri.EVPN)
-	if !ok {
-		return map[string]any{
-			"parsed": false,
-			"raw":    fmt.Sprintf("%X", n.Bytes()),
-		}
-	}
-
-	// Check if this is a generic (unparsed) EVPN route
-	if _, isGeneric := n.(*nlri.EVPNGeneric); isGeneric {
-		return map[string]any{
-			"code":   int(evpn.RouteType()),
-			"parsed": false,
-			"raw":    fmt.Sprintf("%X", n.Bytes()),
-		}
-	}
-
-	result := map[string]any{
-		"code":   int(evpn.RouteType()),
-		"parsed": true,
-		"raw":    fmt.Sprintf("%X", n.Bytes()),
-		"name":   evpn.RouteType().String(),
-		"rd":     evpn.RD().String(),
-	}
-
-	switch r := n.(type) {
-	case *nlri.EVPNType1:
-		result["esi"] = formatESI(r.ESI())
-		result["ethernet-tag"] = r.EthernetTag()
-		result["label"] = formatLabels(r.Labels())
-
-	case *nlri.EVPNType2:
-		result["esi"] = formatESI(r.ESI())
-		result["ethernet-tag"] = r.EthernetTag()
-		result["mac"] = formatMAC(r.MAC())
-		if r.IP().IsValid() {
-			result["ip"] = r.IP().String()
-		}
-		result["label"] = formatLabels(r.Labels())
-
-	case *nlri.EVPNType3:
-		result["ethernet-tag"] = r.EthernetTag()
-		result["originator"] = r.OriginatorIP().String()
-
-	case *nlri.EVPNType4:
-		result["esi"] = formatESI(r.ESI())
-		result["originator"] = r.OriginatorIP().String()
-
-	case *nlri.EVPNType5:
-		result["esi"] = formatESI(r.ESI())
-		result["ethernet-tag"] = r.EthernetTag()
-		result["prefix"] = r.Prefix().String()
-		if r.Gateway().IsValid() && !r.Gateway().IsUnspecified() {
-			result["gateway"] = r.Gateway().String()
-		}
-		result["label"] = formatLabels(r.Labels())
-	}
-
-	return result
-}
-
-// formatESI formats an ESI for JSON output.
-func formatESI(esi nlri.ESI) string {
-	if esi.IsZero() {
-		return "-"
-	}
-	return esi.String()
-}
-
-// formatMAC formats a MAC address for JSON output.
-func formatMAC(mac [6]byte) string {
-	return fmt.Sprintf("%02X:%02X:%02X:%02X:%02X:%02X",
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
-}
-
-// formatLabels formats MPLS labels for JSON output.
-func formatLabels(labels []uint32) [][]int {
-	if len(labels) == 0 {
-		return [][]int{{0}}
-	}
-	result := make([][]int, len(labels))
-	for i, l := range labels {
-		result[i] = []int{int(l)}
-	}
-	return result
 }
 
 // parseBGPLSRoutes parses BGP-LS NLRI.
@@ -1994,7 +1802,15 @@ func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON boo
 		result := invokePluginNLRIDecode(pluginName, family, hexData)
 		if result != nil {
 			if !outputJSON {
-				return formatNLRIHuman(result, family), nil
+				// Handle both array and map results
+				if mapResult, ok := result.(map[string]any); ok {
+					return formatNLRIHuman(mapResult, family), nil
+				}
+				if arrResult, ok := result.([]any); ok && len(arrResult) > 0 {
+					if firstMap, ok := arrResult[0].(map[string]any); ok {
+						return formatNLRIHuman(firstMap, family), nil
+					}
+				}
 			}
 			jsonData, err := json.Marshal(result)
 			if err != nil {
@@ -2005,25 +1821,18 @@ func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON boo
 		// Plugin failed, fall through to built-in decode
 	}
 
-	afi, safi := parseFamily(family)
+	afi, _ := parseFamily(family)
 
 	var result map[string]any
-	switch {
-	case afi == nlri.AFIBGPLS:
+	if afi == nlri.AFIBGPLS {
 		routes := parseBGPLSRoutes(data)
 		if len(routes) > 0 {
 			if r, ok := routes[0].(map[string]any); ok {
 				result = r
 			}
 		}
-	case afi == nlri.AFIL2VPN && safi == nlri.SAFIEVPN:
-		routes := parseEVPNRoutes(data)
-		if len(routes) > 0 {
-			if r, ok := routes[0].(map[string]any); ok {
-				result = r
-			}
-		}
-	default: // Unknown family - return raw bytes
+	} else {
+		// Unknown family or plugin-handled family - return raw bytes
 		result = map[string]any{
 			"parsed": false,
 			"raw":    fmt.Sprintf("%X", data),

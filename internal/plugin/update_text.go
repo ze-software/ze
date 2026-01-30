@@ -34,6 +34,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 )
 
@@ -2123,7 +2124,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		if !hasMAC {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("mac-ip route requires mac")
 		}
-		evpnNLRI = nlri.NewEVPNType2(rd, esi, ethernetTag, mac, ip, labels)
+		evpnNLRI = evpn.NewEVPNType2(rd, esi, ethernetTag, mac, ip, labels)
 
 	case kwIPPrefix:
 		if !prefix.IsValid() {
@@ -2138,7 +2139,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		if esiNonZero && gateway.IsValid() {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
 		}
-		evpnNLRI = nlri.NewEVPNType5(rd, esi, ethernetTag, prefix, gateway, labels)
+		evpnNLRI = evpn.NewEVPNType5(rd, esi, ethernetTag, prefix, gateway, labels)
 
 	case kwMulticast:
 		// Type 3: Inclusive Multicast Ethernet Tag route
@@ -2146,7 +2147,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		if !originatorIP.IsValid() {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("multicast route requires ip (originator)")
 		}
-		evpnNLRI = nlri.NewEVPNType3(rd, ethernetTag, originatorIP)
+		evpnNLRI = evpn.NewEVPNType3(rd, ethernetTag, originatorIP)
 	}
 
 	// Add to appropriate list

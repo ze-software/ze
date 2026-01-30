@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
@@ -3580,7 +3581,7 @@ func TestParseUpdateText_EVPNType2Basic(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
 
-	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType2)
+	evpn, ok := result.Groups[0].Announce[0].(*evpn.EVPNType2)
 	require.True(t, ok, "expected EVPNType2 NLRI, got %T", result.Groups[0].Announce[0])
 	assert.Equal(t, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, evpn.MAC())
 }
@@ -3602,7 +3603,7 @@ func TestParseUpdateText_EVPNType2WithIP(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType2)
+	evpn, ok := result.Groups[0].Announce[0].(*evpn.EVPNType2)
 	require.True(t, ok, "expected EVPNType2 NLRI, got %T", result.Groups[0].Announce[0])
 	assert.True(t, evpn.IP().IsValid())
 }
@@ -3624,7 +3625,7 @@ func TestParseUpdateText_EVPNType5Basic(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
 
-	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType5)
+	evpn, ok := result.Groups[0].Announce[0].(*evpn.EVPNType5)
 	require.True(t, ok, "expected EVPNType5 NLRI, got %T", result.Groups[0].Announce[0])
 	assert.Equal(t, "10.0.0.0/24", evpn.Prefix().String())
 }
@@ -3656,7 +3657,7 @@ func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
 
-	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType3)
+	evpn, ok := result.Groups[0].Announce[0].(*evpn.EVPNType3)
 	require.True(t, ok, "expected EVPNType3 NLRI, got %T", result.Groups[0].Announce[0])
 	assert.Equal(t, "192.168.1.1", evpn.OriginatorIP().String())
 }
@@ -3677,7 +3678,7 @@ func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType5)
+	evpn, ok := result.Groups[0].Announce[0].(*evpn.EVPNType5)
 	require.True(t, ok, "expected EVPNType5 NLRI, got %T", result.Groups[0].Announce[0])
 	assert.Equal(t, "10.0.0.0/24", evpn.Prefix().String())
 	assert.Equal(t, "192.168.1.254", evpn.Gateway().String())

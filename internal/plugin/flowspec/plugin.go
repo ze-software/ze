@@ -256,6 +256,44 @@ func GetFlowSpecYANG() string {
 	return ""
 }
 
+// RunCLIDecode decodes FlowSpec NLRI from hex string for CLI mode.
+// This is for direct CLI invocation: ze bgp plugin flowspec --json <hex>
+// Output is plain JSON or text (no "decoded json" prefix).
+// Errors go to errOut (typically stderr), results go to output (typically stdout).
+func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		_, _ = fmt.Fprintf(errOut, "error: invalid hex: %v\n", err)
+		return 1
+	}
+
+	if !isValidFlowSpecFamily(family) {
+		_, _ = fmt.Fprintf(errOut, "error: invalid family: %s\n", family)
+		return 1
+	}
+
+	result := decodeFlowSpecNLRI(family, data)
+	if result == nil {
+		_, _ = fmt.Fprintln(errOut, "error: no valid FlowSpec decoded")
+		return 1
+	}
+
+	if textOutput {
+		text := formatFlowSpecText(result)
+		_, _ = fmt.Fprintln(output, text)
+		return 0
+	}
+
+	// JSON output (default)
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		_, _ = fmt.Fprintf(errOut, "error: JSON encoding failed: %v\n", err)
+		return 1
+	}
+	_, _ = fmt.Fprintln(output, string(jsonBytes))
+	return 0
+}
+
 // FlowSpecFamilies returns the address families this plugin can decode.
 func FlowSpecFamilies() []string {
 	return []string{

@@ -5,23 +5,79 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `docs/plan/spec-01-family-plugin-infrastructure.md` - infrastructure
-4. `docs/plan/spec-02-flowspec-plugin.md` - reference for plugin pattern
-5. `internal/plugin/bgp/nlri/ipvpn.go` - current VPN implementation
+3. `internal/plugin/bgp/nlri/ipvpn.go` - current VPN implementation
+4. `internal/plugin/flowspec/types.go` - reference for correct dependency pattern
+5. `docs/plan/spec-03-evpn-plugin.md` - lessons learned from EVPN migration
 
 ## Task
 
-Move VPNv4/VPNv6 NLRI implementation from `internal/plugin/bgp/nlri/ipvpn.go` to a standalone family plugin at `internal/plugin/vpn/`.
+Create a VPN family plugin at `internal/plugin/vpn/` to handle VPNv4/VPNv6 decoding.
 
-**Prerequisites:** spec-01-family-plugin-infrastructure must be complete.
+**Current State:** No plugin exists yet. VPN types are in `internal/plugin/bgp/nlri/ipvpn.go`.
+
+**Critical Note:** `RouteDistinguisher` and `RDType` are **shared types** used by EVPN, FlowSpec, and other families. These MUST stay in `nlri/ipvpn.go`. Only the `IPVPN` struct and its parsing should move to the plugin.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/plugin/bgp/nlri/ipvpn.go` - IPVPN struct, RouteDistinguisher, label parsing
+- [ ] `internal/plugin/flowspec/types.go` - reference for correct dependency pattern
+
+**Behavior to preserve:**
+- `RouteDistinguisher` type and parsing (stays in nlri - shared)
+- `RDType` constants (stays in nlri - shared)
+- `ParseLabelStack`, `EncodeLabelStack` (stays in nlri - shared)
+- `IPVPN` struct wire format and encoding
+- Label stack handling with S-bit
+
+**Behavior to change:**
+- Move `IPVPN` struct to `internal/plugin/vpn/`
+- Consumers use `vpn.IPVPN` instead of `nlri.IPVPN`
+
+## The Shared Types Problem
+
+### What STAYS in nlri (shared by multiple families)
+
+| Type | Used By |
+|------|---------|
+| `RouteDistinguisher` | IPVPN, EVPN, FlowSpecVPN, MVPN, VPLS, MUP |
+| `RDType` (0, 1, 2) | All RD-using families |
+| `ParseRouteDistinguisher` | All RD-using families |
+| `ParseLabelStack` | IPVPN, EVPN, Labeled Unicast |
+| `EncodeLabelStack` | IPVPN, EVPN, Labeled Unicast |
+
+### What MOVES to vpn plugin
+
+| Type | Description |
+|------|-------------|
+| `IPVPN` struct | VPNv4/VPNv6 NLRI |
+| `ParseIPVPN` | Wire parsing for VPN |
+| `NewIPVPN` | Constructor |
+
+### Dependency Direction (Like FlowSpec)
+
+```
+internal/plugin/bgp/nlri
+    ├── RouteDistinguisher (SHARED - stays here)
+    ├── ParseLabelStack (SHARED - stays here)
+    └── does NOT import vpn
+
+internal/plugin/vpn
+    imports → nlri (for RouteDistinguisher, labels)
+    exports → IPVPN, ParseIPVPN, NewIPVPN
+
+Consumers (decode.go, encode.go, etc.):
+    import → nlri (for RouteDistinguisher when needed)
+    import → vpn (for IPVPN type)
+```
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/plan/spec-01-family-plugin-infrastructure.md` - infrastructure
+- [ ] `docs/architecture/cli/plugin-modes.md` - **CRITICAL**: Plugin CLI/Engine mode interface spec
 - [ ] `internal/plugin/bgp/nlri/ipvpn.go` - current implementation
-- [ ] `internal/plugin/hostname/hostname.go` - plugin pattern
-- [ ] `docs/architecture/wire/nlri.md` - NLRI wire formats
+- [ ] `internal/plugin/flowspec/types.go` - correct dependency pattern
+- [ ] `docs/plan/spec-03-evpn-plugin.md` - import cycle lessons
 
 ### RFC Summaries
 - [ ] `rfc/short/rfc4364.md` - BGP/MPLS IP VPNs
@@ -31,133 +87,201 @@ Move VPNv4/VPNv6 NLRI implementation from `internal/plugin/bgp/nlri/ipvpn.go` to
 - VPN NLRI = Route Distinguisher (8 bytes) + MPLS Label(s) + Prefix
 - Route Distinguisher types: 0 (2+4), 1 (4+2), 2 (4+4)
 - MPLS label stack (20-bit labels, 3 bytes each with S-bit)
-- 6PE/6VPE uses IPv6 prefix with IPv4 next-hop
+- RouteDistinguisher is SHARED - do not move it
+
+## Files to Modify
+
+- `cmd/ze/bgp/encode.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`, add vpn import
+- `internal/plugin/update_text.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`
+- `internal/plugin/update_text_test.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`
+- `internal/plugin/text.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`
+- `internal/plugin/json_test.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`
+- `internal/plugin/bgp/reactor/reactor.go` - change `nlri.IPVPN*` → `vpn.IPVPN*`
+- `internal/plugin/inprocess.go` - register vpn in internalPluginRunners
+- `cmd/ze/bgp/bgp.go` - add `plugin vpn` subcommand
+
+## Files to Create
+
+- `internal/plugin/vpn/vpn.go` - plugin main with decode mode
+- `internal/plugin/vpn/types.go` - IPVPN struct (imports nlri for RD/labels)
+- `internal/plugin/vpn/vpn_test.go` - unit tests
+- `cmd/ze/bgp/plugin_vpn.go` - CLI entry point
+
+## Files to Delete
+
+- None initially. After migration verified:
+  - Remove `IPVPN` struct from `nlri/ipvpn.go` (keep RouteDistinguisher, labels)
+  - Remove IPVPN tests from `nlri/ipvpn_test.go` (keep RD/label tests)
 
 ## VPN Families
 
 | Family | AFI | SAFI | Description |
 |--------|-----|------|-------------|
-| `ipv4/mpls-vpn` | 1 | 128 | VPNv4 |
-| `ipv6/mpls-vpn` | 2 | 128 | VPNv6 |
+| `ipv4/vpn` | 1 | 128 | VPNv4 (RFC 4364) |
+| `ipv6/vpn` | 2 | 128 | VPNv6 (RFC 4659) |
 
-## Route Distinguisher Types
+## CLI Mode Interface (per plugin-modes.md)
 
-| Type | Format | Example |
-|------|--------|---------|
-| 0 | 2-byte ASN : 4-byte value | `65000:1000` |
-| 1 | 4-byte IP : 2-byte value | `192.0.2.1:100` |
-| 2 | 4-byte ASN : 2-byte value | `4200000001:100` |
+### Invocation
 
-## Target State
+```bash
+# CLI Mode - JSON output
+ze bgp plugin vpn --json 0001000100000001...
 
-### Plugin Structure
+# CLI Mode - Text output
+ze bgp plugin vpn --text 0001000100000001...
 
-| File | Purpose |
-|------|---------|
-| `internal/plugin/vpn/vpn.go` | Plugin main, decode mode handler |
-| `internal/plugin/vpn/parse.go` | Wire bytes → VPN struct |
-| `internal/plugin/vpn/encode.go` | VPN struct → wire bytes |
-| `internal/plugin/vpn/json.go` | VPN ↔ JSON conversion |
-| `internal/plugin/vpn/rd.go` | Route Distinguisher types |
-| `internal/plugin/vpn/label.go` | MPLS label handling |
-| `internal/plugin/vpn/vpn_test.go` | Unit tests |
-| `cmd/ze/bgp/plugin_vpn.go` | CLI entry point |
+# CLI Mode - From stdin
+echo "0001000100000001..." | ze bgp plugin vpn --json -
 
-### Plugin Registration
+# CLI Mode - With family context (VPNv4 vs VPNv6)
+ze bgp plugin vpn --json --family ipv4/vpn 0001000100000001...
 
-| Declaration | Purpose |
-|-------------|---------|
-| `declare family ipv4 mpls-vpn decode` | Claim VPNv4 decoding |
-| `declare family ipv6 mpls-vpn decode` | Claim VPNv6 decoding |
-| `declare rfc 4364` | RFC reference |
-| `declare rfc 4659` | RFC reference |
-| `declare encoding hex` | Wire encoding |
+# Engine Decode Mode - Protocol commands on stdin
+ze bgp plugin vpn --decode
 
-### JSON Format
+# Engine Mode - Full protocol loop
+ze bgp plugin vpn
+```
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `family` | string | `"ipv4/mpls-vpn"` or `"ipv6/mpls-vpn"` |
-| `rd` | string | Route Distinguisher (formatted) |
-| `rd-type` | integer | 0, 1, or 2 |
-| `labels` | array | MPLS label stack |
-| `prefix` | string | IP prefix |
+### CLI Flags
 
-## Files to Modify
+| Flag | Type | Description |
+|------|------|-------------|
+| `--json <hex\|->` | string | Decode hex, output JSON (use `-` for stdin) |
+| `--text <hex\|->` | string | Decode hex, output text (use `-` for stdin) |
+| `--family <family>` | string | Address family context (`ipv4/vpn` or `ipv6/vpn`) |
+| `--decode` | bool | Engine decode protocol mode |
+| `--log-level` | string | Log level (disabled, debug, info, warn, err) |
+| `--yang` | bool | Output YANG schema and exit |
 
-- `internal/plugin/inprocess.go` - register vpn in internalPluginRunners
-- `internal/plugin/bgp/nlri/nlri.go` - remove VPN family constants
-- `cmd/ze/bgp/bgp.go` - add `plugin vpn` subcommand
+### Output Formats
 
-## Files to Create
+**JSON (`--json`):**
+```json
+[{"rd":"1:1","prefix":"10.0.0.0/24","labels":[[100]]}]
+```
 
-- `internal/plugin/vpn/vpn.go` - plugin main
-- `internal/plugin/vpn/parse.go` - wire parsing
-- `internal/plugin/vpn/encode.go` - wire encoding
-- `internal/plugin/vpn/json.go` - JSON conversion
-- `internal/plugin/vpn/rd.go` - Route Distinguisher
-- `internal/plugin/vpn/label.go` - MPLS labels
-- `internal/plugin/vpn/vpn_test.go` - unit tests
-- `cmd/ze/bgp/plugin_vpn.go` - CLI entry
+**Text (`--text`):**
+```
+VPNv4 rd=1:1 prefix=10.0.0.0/24 label=100
+```
 
-## Files to Delete
+### Engine Decode Mode Protocol
 
-- `internal/plugin/bgp/nlri/ipvpn.go` - moved to plugin
-- `internal/plugin/bgp/nlri/ipvpn_test.go` - moved to plugin
+```
+# Engine calls plugin with --decode flag
+ze bgp plugin vpn --decode
+# Plugin reads from stdin: decode nlri ipv4/vpn 0001000100000001...
+# Plugin responds: decoded json [{"rd":"1:1","prefix":"10.0.0.0/24","labels":[[100]]}]
+```
 
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Create plugin directory** - `internal/plugin/vpn/`
-   → **Review:** Directory structure matches pattern?
+### Phase 1: Create Plugin (New Code)
 
-2. **Extract RD types** - Create `rd.go`
-   → **Review:** All 3 RD types handled?
+1. **Create `internal/plugin/vpn/types.go`**
+   - Import `nlri` for `RouteDistinguisher`, `Family`, label functions
+   - Define `IPVPN` struct (copy from nlri/ipvpn.go)
+   - Define `ParseIPVPN` function
+   - Define `NewIPVPN` constructor
+   - Test: `go build ./internal/plugin/vpn/...`
+   → **Review:** Compiles? Uses nlri types correctly?
 
-3. **Extract label handling** - Create `label.go`
-   → **Review:** Label stack encoding correct? S-bit handled?
+2. **Create `internal/plugin/vpn/vpn.go`**
+   - Plugin main with decode mode handler
+   - Startup protocol: declare both families
+   - Event loop for decode requests
+   - Test: `go build ./internal/plugin/vpn/...`
+   → **Review:** Declarations for both VPNv4 and VPNv6?
 
-4. **Create parse.go** - Extract parsing functions
-   → **Review:** Both VPNv4 and VPNv6?
+3. **Create `internal/plugin/vpn/vpn_test.go`**
+   - Wire roundtrip tests for VPNv4 and VPNv6
+   - All 3 RD types tested
+   - Label stack tests
+   - Test: `go test ./internal/plugin/vpn/... -v`
+   → **Review:** Tests pass?
 
-5. **Create encode.go** - Extract encoding functions
-   → **Review:** WriteTo methods work?
+4. **Create `cmd/ze/bgp/plugin_vpn.go`** (per `plugin-modes.md`)
+   - CLI entry point with three-mode support:
+     - `--json <hex|->` - decode hex, output JSON (use `-` for stdin)
+     - `--text <hex|->` - decode hex, output text (use `-` for stdin)
+     - `--decode` - engine decode protocol mode
+     - `--family <family>` - address family context
+     - `--log-level` - logger configuration
+     - `--yang` - output YANG schema
+   - Mode detection: `--json`/`--text` → CLI mode, `--decode` → engine decode, else → engine mode
+   - Test: `go build ./cmd/ze/bgp/...`
+   → **Review:** Follows plugin-modes.md pattern? All three modes work?
 
-6. **Create json.go** - Add JSON marshal/unmarshal
-   → **Review:** RD formatted correctly?
+5. **Register in `internal/plugin/inprocess.go`**
+   - Add vpn to internalPluginRunners
+   - Add to familyToPlugin map for ipv4/vpn and ipv6/vpn
+   - Test: `go build ./internal/plugin/...`
+   → **Review:** Registered correctly?
 
-7. **Create vpn.go** - Plugin main with decode mode
-   → **Review:** Both families declared?
+### Phase 2: Update Consumers
 
-8. **Move tests** - Adapt for new package
-   → **Review:** VPNv4 and VPNv6 covered?
+6. **Update `cmd/ze/bgp/encode.go`**
+   - Add import: `"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"`
+   - Replace `nlri.IPVPN` with `vpn.IPVPN`
+   - Replace `nlri.NewIPVPN` with `vpn.NewIPVPN`
+   - Test: `go build ./cmd/ze/bgp/...`
+   → **Review:** Compiles?
 
-9. **Write decode mode tests** - Test decode nlri protocol
-   → **Review:** All RD types tested?
+7. **Update `internal/plugin/update_text.go`**
+   - Add vpn import
+   - Replace IPVPN references
+   - Test: `go build ./internal/plugin/...`
+   → **Review:** Compiles?
 
-10. **Run tests** - Verify PASS
-    → **Review:** Coverage maintained?
+8. **Update `internal/plugin/update_text_test.go`**
+   - Add vpn import
+   - Replace IPVPN references
+   - Test: `go test ./internal/plugin/... -run VPN`
+   → **Review:** Tests pass?
 
-11. **Create CLI entry** - `cmd/ze/bgp/plugin_vpn.go`
-    → **Review:** Matches pattern?
+9. **Update `internal/plugin/text.go`**
+   - Add vpn import
+   - Replace IPVPN references
+   - Test: `go build ./internal/plugin/...`
+   → **Review:** Compiles?
 
-12. **Register in inprocess.go** - Add to internalPluginRunners
-    → **Review:** Logger configured?
+10. **Update `internal/plugin/json_test.go`**
+    - Add vpn import
+    - Replace IPVPN references
+    - Test: `go test ./internal/plugin/... -run VPN`
+    → **Review:** Tests pass?
 
-13. **Delete original files** - Remove from nlri/
-    → **Review:** No broken imports?
+11. **Update `internal/plugin/bgp/reactor/reactor.go`**
+    - Add vpn import
+    - Replace IPVPN references
+    - Test: `go build ./internal/plugin/bgp/reactor/...`
+    → **Review:** Compiles?
 
-14. **Create functional test** - `test/data/decode/vpn-plugin.ci`
-    → **Review:** Tests both families?
+### Phase 3: Verification
 
-15. **Verify all** - `make lint && make test && make functional` (paste output)
-    → **Review:** Zero errors?
+12. **Full build** - `go build ./...`
+    → **Review:** No compilation errors?
 
-16. **Final self-review**
-    - VPNv4 and VPNv6 both work
-    - All RD types supported
-    - Label stack handling correct
+13. **Run lint** - `make lint`
+    → **Review:** No new lint errors? (paste output)
+
+14. **Run tests** - `make test`
+    → **Review:** All tests pass? (paste output)
+
+15. **Run functional** - `make functional`
+    → **Review:** All functional tests pass? (paste output)
+
+### Phase 4: Cleanup (After Verification)
+
+16. **Remove IPVPN from nlri/ipvpn.go**
+    - Keep RouteDistinguisher, RDType, label functions
+    - Remove IPVPN struct, ParseIPVPN, NewIPVPN
+    - Test: `go build ./...`
+    → **Review:** No broken imports? RouteDistinguisher still works?
 
 ## 🧪 TDD Test Plan
 
@@ -165,48 +289,43 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestVPNDecodeMode` | `internal/plugin/vpn/vpn_test.go` | Decode mode protocol | |
+| `TestVPNv4WireRoundTrip` | `internal/plugin/vpn/vpn_test.go` | VPNv4 wire format | |
+| `TestVPNv6WireRoundTrip` | `internal/plugin/vpn/vpn_test.go` | VPNv6 wire format | |
 | `TestVPNJSONRoundTrip` | `internal/plugin/vpn/vpn_test.go` | JSON ↔ struct | |
-| `TestVPNWireRoundTrip` | `internal/plugin/vpn/vpn_test.go` | wire ↔ struct | |
-| `TestVPNv4` | `internal/plugin/vpn/vpn_test.go` | VPNv4 specific | |
-| `TestVPNv6` | `internal/plugin/vpn/vpn_test.go` | VPNv6 specific | |
-| `TestRDAllTypes` | `internal/plugin/vpn/vpn_test.go` | All 3 RD types | |
-| `TestLabelStack` | `internal/plugin/vpn/vpn_test.go` | Multi-label stacks | |
+| `TestVPNAllRDTypes` | `internal/plugin/vpn/vpn_test.go` | RD types 0, 1, 2 | |
+| `TestVPNLabelStack` | `internal/plugin/vpn/vpn_test.go` | Multi-label handling | |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| RD type | 0-2 | 2 | N/A | 3 |
-| MPLS label | 0-0xFFFFF | 0xFFFFF | N/A | 0x100000 |
+| RD type | 0-2 | 2 | N/A (0 valid) | 3 (unknown) |
+| MPLS label | 0-0xFFFFF | 0xFFFFF (20-bit max) | N/A | 0x100000 |
 | Prefix len IPv4 | 0-32 | 32 | N/A | 33 |
 | Prefix len IPv6 | 0-128 | 128 | N/A | 129 |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `vpn-decode` | `test/data/decode/vpn-plugin.ci` | Decode VPN NLRI via CLI | |
-| `vpnv4-roundtrip` | `test/data/encode/vpnv4-plugin.ci` | VPNv4 encode/decode | |
-| `vpnv6-roundtrip` | `test/data/encode/vpnv6-plugin.ci` | VPNv6 encode/decode | |
+| `vpn-decode` | `test/decode/vpn-*.ci` | Decode VPN NLRI via CLI | |
 
 ## Design Decisions
 
-### RD String Format
+### Why Keep RouteDistinguisher in nlri?
 
-| Type | Format | Example |
-|------|--------|---------|
-| 0 | `<2-byte-asn>:<4-byte-value>` | `65000:1000` |
-| 1 | `<ip>:<2-byte-value>` | `192.0.2.1:100` |
-| 2 | `<4-byte-asn>:<2-byte-value>` | `4200000001:100` |
+`RouteDistinguisher` is used by 6+ NLRI families. Moving it to the vpn plugin would require all other families to import vpn, creating unnecessary coupling.
 
-**Decision:** Use colon-separated format matching industry convention.
+**Decision:** Keep shared types in nlri. Plugin-specific types move to plugin.
 
-### Label Stack Representation
+### Plugin Registration
 
-| Option | Format | Pros | Cons |
-|--------|--------|------|------|
-| Array | `[100, 200]` | Clear | Verbose |
-| String | `100/200` | Compact | Parsing needed |
-
-**Decision:** Array of integers for clarity and JSON compatibility.
+```
+declare family ipv4 vpn decode
+declare family ipv6 vpn decode
+declare rfc 4364
+declare rfc 4659
+declare encoding hex
+declare done
+```
 
 ## RFC Documentation
 
@@ -235,12 +354,12 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Checklist
 
 ### 🏗️ Design
-- [ ] No premature abstraction (3+ concrete use cases exist?)
-- [ ] No speculative features (is this needed NOW?)
-- [ ] Single responsibility (each component does ONE thing?)
-- [ ] Explicit behavior (no hidden magic or conventions?)
-- [ ] Minimal coupling (components isolated, dependencies minimal?)
-- [ ] Next-developer test (would they understand this quickly?)
+- [ ] No premature abstraction (following existing flowspec pattern)
+- [ ] No speculative features (only decode mode initially)
+- [ ] Single responsibility (vpn package owns IPVPN type)
+- [ ] Explicit behavior (direct imports, no re-export magic)
+- [ ] Minimal coupling (shared types stay in nlri)
+- [ ] Next-developer test (follows existing flowspec pattern)
 
 ### 🧪 TDD
 - [ ] Tests written

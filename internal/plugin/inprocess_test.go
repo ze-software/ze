@@ -107,3 +107,61 @@ func TestDeriveNameEdgeCases(t *testing.T) {
 		})
 	}
 }
+
+// TestGetPluginForFamily verifies family-to-plugin mapping.
+//
+// VALIDATES: Each family maps to the correct internal plugin.
+// PREVENTS: Families not auto-loading their plugins.
+func TestGetPluginForFamily(t *testing.T) {
+	tests := []struct {
+		family string
+		want   string
+	}{
+		// FlowSpec families
+		{"ipv4/flow", "flowspec"},
+		{"ipv6/flow", "flowspec"},
+		{"ipv4/flow-vpn", "flowspec"},
+		{"ipv6/flow-vpn", "flowspec"},
+		// EVPN family
+		{"l2vpn/evpn", "evpn"},
+		// Unknown families
+		{"ipv4/unicast", ""},
+		{"ipv6/unicast", ""},
+		{"unknown", ""},
+		{"", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.family, func(t *testing.T) {
+			got := GetPluginForFamily(tt.family)
+			assert.Equal(t, tt.want, got, "family %q should map to plugin %q", tt.family, tt.want)
+		})
+	}
+}
+
+// TestGetRequiredPlugins verifies plugin list generation from families.
+//
+// VALIDATES: GetRequiredPlugins returns correct plugins for families.
+// PREVENTS: Missing plugin auto-loading when families are configured.
+func TestGetRequiredPlugins(t *testing.T) {
+	tests := []struct {
+		name     string
+		families []string
+		want     []string
+	}{
+		{"empty", []string{}, nil},
+		{"evpn_only", []string{"l2vpn/evpn"}, []string{"evpn"}},
+		{"flowspec_only", []string{"ipv4/flow"}, []string{"flowspec"}},
+		{"evpn_and_flowspec", []string{"l2vpn/evpn", "ipv4/flow"}, []string{"evpn", "flowspec"}},
+		{"flowspec_dedupe", []string{"ipv4/flow", "ipv6/flow"}, []string{"flowspec"}},
+		{"unknown_ignored", []string{"ipv4/unicast", "l2vpn/evpn"}, []string{"evpn"}},
+		{"all_unknown", []string{"ipv4/unicast", "ipv6/unicast"}, nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetRequiredPlugins(tt.families)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

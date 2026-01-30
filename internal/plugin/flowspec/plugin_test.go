@@ -656,3 +656,77 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// TestRunCLIDecode verifies CLI decode mode.
+//
+// VALIDATES: RunCLIDecode decodes hex and outputs JSON/text correctly.
+// PREVENTS: CLI mode regression.
+func TestRunCLIDecode(t *testing.T) {
+	// Valid FlowSpec NLRI: destination 10.0.0.0/24
+	validHex := "0501180A0000"
+
+	tests := []struct {
+		name       string
+		hex        string
+		family     string
+		textOutput bool
+		wantCode   int
+		wantOut    string
+		wantErr    string
+	}{
+		{
+			name:       "valid_json",
+			hex:        validHex,
+			family:     "ipv4/flow",
+			textOutput: false,
+			wantCode:   0,
+			wantOut:    "destination",
+		},
+		{
+			name:       "valid_text",
+			hex:        validHex,
+			family:     "ipv4/flow",
+			textOutput: true,
+			wantCode:   0,
+			wantOut:    "destination",
+		},
+		{
+			name:       "invalid_hex",
+			hex:        "ZZZZ",
+			family:     "ipv4/flow",
+			textOutput: false,
+			wantCode:   1,
+			wantErr:    "invalid hex",
+		},
+		{
+			name:       "invalid_family",
+			hex:        validHex,
+			family:     "invalid/family",
+			textOutput: false,
+			wantCode:   1,
+			wantErr:    "invalid family",
+		},
+		{
+			name:       "empty_hex",
+			hex:        "",
+			family:     "ipv4/flow",
+			textOutput: false,
+			wantCode:   1,
+			wantErr:    "no valid FlowSpec",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var out, errOut bytes.Buffer
+			code := RunCLIDecode(tt.hex, tt.family, tt.textOutput, &out, &errOut)
+			assert.Equal(t, tt.wantCode, code)
+			if tt.wantOut != "" {
+				assert.Contains(t, out.String(), tt.wantOut)
+			}
+			if tt.wantErr != "" {
+				assert.Contains(t, errOut.String(), tt.wantErr)
+			}
+		})
+	}
+}

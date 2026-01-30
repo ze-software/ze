@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 )
 
@@ -366,18 +367,18 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, _, addPath bool
 	updateBody := message.PackTo(update, nil)
 
 	// For NLRI bytes, we need to build and pack the NLRI
-	var evpnNLRI nlri.EVPN
+	var evpnNLRI evpn.EVPN
 	switch params.RouteType {
 	case 1:
-		evpnNLRI = nlri.NewEVPNType1(params.RD, params.ESI, params.EthernetTag, params.Labels)
+		evpnNLRI = evpn.NewEVPNType1(params.RD, params.ESI, params.EthernetTag, params.Labels)
 	case 2:
-		evpnNLRI = nlri.NewEVPNType2(params.RD, params.ESI, params.EthernetTag, params.MAC, params.IP, params.Labels)
+		evpnNLRI = evpn.NewEVPNType2(params.RD, params.ESI, params.EthernetTag, params.MAC, params.IP, params.Labels)
 	case 3:
-		evpnNLRI = nlri.NewEVPNType3(params.RD, params.EthernetTag, params.OriginatorIP)
+		evpnNLRI = evpn.NewEVPNType3(params.RD, params.EthernetTag, params.OriginatorIP)
 	case 4:
-		evpnNLRI = nlri.NewEVPNType4(params.RD, params.ESI, params.OriginatorIP)
+		evpnNLRI = evpn.NewEVPNType4(params.RD, params.ESI, params.OriginatorIP)
 	case 5:
-		evpnNLRI = nlri.NewEVPNType5(params.RD, params.ESI, params.EthernetTag, params.Prefix, params.Gateway, params.Labels)
+		evpnNLRI = evpn.NewEVPNType5(params.RD, params.ESI, params.EthernetTag, params.Prefix, params.Gateway, params.Labels)
 	}
 	nlriLen := nlri.LenWithContext(evpnNLRI, addPath)
 	nlriBytes := make([]byte, nlriLen)
@@ -406,7 +407,7 @@ func l2vpnRouteToEVPNParams(r plugin.L2VPNRoute) (message.EVPNParams, error) {
 	}
 
 	// Parse ESI
-	esi, err := nlri.ParseESIString(r.ESI)
+	esi, err := evpn.ParseESIString(r.ESI)
 	if err != nil {
 		return p, fmt.Errorf("invalid ESI: %w", err)
 	}

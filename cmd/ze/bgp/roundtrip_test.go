@@ -303,6 +303,10 @@ func TestRoundTrip_MED(t *testing.T) {
 // VALIDATES: EVPN MAC/IP route preserves MAC, RD, and label.
 // PREVENTS: EVPN encoding/decoding bugs.
 func TestRoundTrip_EVPN_Type2(t *testing.T) {
+	// TODO: EVPN decoding now uses plugin which requires subprocess spawning.
+	// Functional test test/decode/bgp-evpn-1.ci validates the full flow.
+	t.Skip("EVPN decoding delegated to plugin - unit test replaced by functional test")
+
 	var encodeOut bytes.Buffer
 	oldStdout := encodeStdout
 	encodeStdout = &encodeOut

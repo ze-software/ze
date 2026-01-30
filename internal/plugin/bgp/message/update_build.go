@@ -12,6 +12,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 )
 
 // UpdateBuilder provides context for building UPDATE messages.
@@ -1724,18 +1725,18 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 // buildMPReachEVPN builds MP_REACH_NLRI for EVPN routes.
 func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 	// Build EVPN NLRI based on route type
-	var evpnNLRI nlri.EVPN
+	var evpnNLRI evpn.EVPN
 	switch p.RouteType {
 	case 1:
-		evpnNLRI = nlri.NewEVPNType1(p.RD, p.ESI, p.EthernetTag, p.Labels)
+		evpnNLRI = evpn.NewEVPNType1(p.RD, p.ESI, p.EthernetTag, p.Labels)
 	case 2:
-		evpnNLRI = nlri.NewEVPNType2(p.RD, p.ESI, p.EthernetTag, p.MAC, p.IP, p.Labels)
+		evpnNLRI = evpn.NewEVPNType2(p.RD, p.ESI, p.EthernetTag, p.MAC, p.IP, p.Labels)
 	case 3:
-		evpnNLRI = nlri.NewEVPNType3(p.RD, p.EthernetTag, p.OriginatorIP)
+		evpnNLRI = evpn.NewEVPNType3(p.RD, p.EthernetTag, p.OriginatorIP)
 	case 4:
-		evpnNLRI = nlri.NewEVPNType4(p.RD, p.ESI, p.OriginatorIP)
+		evpnNLRI = evpn.NewEVPNType4(p.RD, p.ESI, p.OriginatorIP)
 	case 5:
-		evpnNLRI = nlri.NewEVPNType5(p.RD, p.ESI, p.EthernetTag, p.Prefix, p.Gateway, p.Labels)
+		evpnNLRI = evpn.NewEVPNType5(p.RD, p.ESI, p.EthernetTag, p.Prefix, p.Gateway, p.Labels)
 	default:
 		// Unknown type - return empty
 		return &rawAttribute{
