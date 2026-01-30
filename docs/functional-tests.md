@@ -35,7 +35,7 @@ ze-test bgp encode --count 10 0 1
 
 ## Test Types
 
-### 1. Encode Tests (`test/data/encode/`)
+### 1. Encode Tests (`test/encode/`)
 
 Static route tests - routes defined in config, sent at session establishment.
 
@@ -43,34 +43,49 @@ Static route tests - routes defined in config, sent at session establishment.
 - `*.ci` - Expected messages and config reference
 - `*.conf` - ZeBGP configuration
 
-### 2. Parse Tests (`test/data/parse/`)
+### 2. Parse Tests (`test/parse/`)
 
 Config parsing tests - verify configurations parse correctly.
 
-**Positive tests** (expect success) in `valid/` subdirectory:
-- `valid/*.conf` - Valid config that should parse
+**Files:** All parse tests use `.ci` format with embedded config.
 
-**Negative tests** (expect failure) in `invalid/` subdirectory:
-- `invalid/*.conf` - Invalid config that should fail
-- `invalid/*.expect` - Expected error substring (or `regex:` pattern)
-
-**Example negative test:**
+**Positive tests** (expect success):
 ```
-# test/data/parse/invalid/route-refresh-no-process.conf
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { route-refresh; }
+# test/parse/simple-v4.ci
+stdin=config:terminator=EOF_CONF
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.2;
+        local-as 65533;
+        peer-as 65533;
+    }
 }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect=exit:code=0
 ```
 
+**Negative tests** (expect failure):
 ```
-# test/data/parse/invalid/route-refresh-no-process.expect
-route-refresh requires process with send { update; }
+# test/parse/route-refresh-no-process.ci
+stdin=config:terminator=EOF_CONF
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { route-refresh; }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=route-refresh requires process with send { update; }
 ```
 
-### 3. API Tests (`test/data/api/`)
+### 3. API Tests (`test/api/`)
 
 Dynamic route tests - routes injected via scripts using the process API.
 
@@ -454,10 +469,10 @@ ze-test bgp encode --timeout 60s --verbose 4
 
 ```bash
 # Terminal 1: Start peer
-ze-peer --port 1790 test/data/encode/ebgp.ci
+ze-peer --port 1790 test/encode/ebgp.ci
 
 # Terminal 2: Run ze bgp
-env ze_bgp_tcp_port=1790 ze bgp server test/data/encode/ebgp.conf
+env ze_bgp_tcp_port=1790 ze bgp server test/encode/ebgp.conf
 ```
 
 ### Decode message bytes
@@ -479,7 +494,7 @@ ze bgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 Single self-contained `.ci` file with embedded config:
 
 ```
-# test/data/encode/mytest.ci
+# test/encode/mytest.ci
 tmpfs=mytest.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 1.2.3.4;
@@ -506,7 +521,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0200000015400101
 ### Option 2: Separate Files
 
 ```
-# test/data/encode/mytest.conf
+# test/encode/mytest.conf
 peer 127.0.0.1 {
     router-id 1.2.3.4;
     local-address 127.0.0.1;
@@ -525,7 +540,7 @@ peer 127.0.0.1 {
 ```
 
 ```
-# test/data/encode/mytest.ci
+# test/encode/mytest.ci
 option=file:path=mytest.conf
 cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
@@ -537,33 +552,34 @@ Run with ExaBGP first to capture correct bytes, or use `ze bgp decode` to verify
 
 ### Adding Negative Parsing Tests
 
-To test that invalid configs are rejected with specific errors:
+To test that invalid configs are rejected with specific errors, create a `.ci` file:
 
-**1. Create invalid config:**
 ```
-# test/data/parse/invalid/my-error.conf
-peer 10.0.0.1 {
-    # ... invalid configuration ...
+# test/parse/my-error.ci
+stdin=config:terminator=EOF_CONF
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        # ... invalid configuration ...
+    }
 }
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=specific error message substring
 ```
 
-**2. Create .expect file with expected error:**
-
-**Substring match (default):**
+**Regex match** (for variable parts like IPs, line numbers):
 ```
-# test/data/parse/invalid/my-error.expect
-specific error message substring
-```
-
-**Regex match (for variable parts like IPs, line numbers):**
-```
-# test/data/parse/invalid/my-error.expect
-regex:peer \d+\.\d+\.\d+\.\d+: route-refresh requires
+expect=stderr:regex=peer \d+\.\d+\.\d+\.\d+: route-refresh requires
 ```
 
 The test passes if:
-- `ze bgp validate` exits with non-zero status
-- Output contains the expected substring OR matches the regex pattern
+- `ze bgp validate` exits with code 1
+- Stderr contains the expected substring OR matches the regex pattern
 
 ---
 

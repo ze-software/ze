@@ -268,3 +268,77 @@ func TestFamilyDecodeFlowSpecVPN(t *testing.T) {
 	assert.Contains(t, reg.Families, "ipv4/flowspec-vpn")
 	assert.Contains(t, reg.DecodeFamilies, "ipv4/flowspec-vpn")
 }
+
+// TestFamilyRegistrationWithEncode verifies "declare family <afi> <safi> encode" works.
+//
+// VALIDATES: "encode" keyword registers family same as "decode".
+// PREVENTS: "encode" declarations being silently ignored.
+func TestFamilyRegistrationWithEncode(t *testing.T) {
+	tests := []struct {
+		name               string
+		input              string
+		wantFamily         string
+		wantDecodeFamilies []string
+	}{
+		{
+			name:               "ipv4_flowspec_encode",
+			input:              "declare family ipv4 flowspec encode",
+			wantFamily:         "ipv4/flowspec",
+			wantDecodeFamilies: []string{"ipv4/flowspec"},
+		},
+		{
+			name:               "ipv6_flowspec_encode",
+			input:              "declare family ipv6 flowspec encode",
+			wantFamily:         "ipv6/flowspec",
+			wantDecodeFamilies: []string{"ipv6/flowspec"},
+		},
+		{
+			name:               "l2vpn_evpn_encode",
+			input:              "declare family l2vpn evpn encode",
+			wantFamily:         "l2vpn/evpn",
+			wantDecodeFamilies: []string{"l2vpn/evpn"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := &PluginRegistration{}
+			err := reg.ParseLine(tt.input)
+			require.NoError(t, err)
+			assert.Contains(t, reg.Families, tt.wantFamily)
+			assert.Equal(t, tt.wantDecodeFamilies, reg.DecodeFamilies)
+		})
+	}
+}
+
+// TestFamilyRegistrationBothEncodeAndDecode verifies plugin can declare both.
+//
+// VALIDATES: Plugin declaring both encode and decode registers once.
+// PREVENTS: Duplicate family entries in DecodeFamilies.
+func TestFamilyRegistrationBothEncodeAndDecode(t *testing.T) {
+	reg := &PluginRegistration{}
+
+	// Declare encode first
+	err := reg.ParseLine("declare family ipv4 flowspec encode")
+	require.NoError(t, err)
+
+	// Then declare decode for same family
+	err = reg.ParseLine("declare family ipv4 flowspec decode")
+	require.NoError(t, err)
+
+	// Should have family listed twice in Families (both declarations)
+	// but only once in DecodeFamilies (deduplication)
+	assert.Equal(t, []string{"ipv4/flowspec", "ipv4/flowspec"}, reg.Families)
+	assert.Equal(t, []string{"ipv4/flowspec"}, reg.DecodeFamilies) // No duplicate
+}
+
+// TestFamilyAllCannotEncode verifies "declare family all encode" is rejected.
+//
+// VALIDATES: Cannot claim encode for "all" families.
+// PREVENTS: Plugin claiming encode for all families (undefined behavior).
+func TestFamilyAllCannotEncode(t *testing.T) {
+	reg := &PluginRegistration{}
+	err := reg.ParseLine("declare family all encode")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "all")
+}

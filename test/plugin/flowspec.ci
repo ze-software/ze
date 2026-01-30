@@ -1,0 +1,77 @@
+# FlowSpec plugin test - verify FlowSpec routes via external process API
+# Tests Python plugin sending FlowSpec routes
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Route sent by plugin script
+cmd=api:conn=1:seq=1:text=bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064C010080800000000000001800E100001850401020304000602200A000002
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flowspec":[{"action":"add","nlri":{"source":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
+# EOR sent by plugin script
+cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv4/flow eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
+EOF_PEER
+
+# Python plugin script
+tmpfs=flowspec.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+from ze_bgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Send FlowSpec route (same as static route in config)
+    send('bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32')
+    time.sleep(0.2)
+
+    wait_for_ack(expected_count=1)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with BOTH static route AND plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external flowspec-process {
+		run ./flowspec.run;
+		encoder json;
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/flow;
+		}
+
+		# Static FlowSpec route (ensures route is sent)
+		update {
+			attribute {
+				next-hop 1.2.3.4;
+				extended-community [copy-to-nexthop];
+			}
+			nlri {
+				ipv4/flow source-ipv4 10.0.0.2/32;
+			}
+		}
+
+		process flowspec-process {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

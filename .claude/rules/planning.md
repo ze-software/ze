@@ -411,7 +411,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 <!-- REQUIRED: Verify feature works from end-user perspective -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/data/.../*.ci` | [what user expects to happen] | |
+| `test-xxx` | `test/.../*.ci` | [what user expects to happen] | |
 
 ### Future (if deferring any tests)
 - [Tests to add later and why deferred]
@@ -423,7 +423,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 ## Files to Create
 <!-- Feature code for codebase integration + functional tests for end-user verification -->
 - `internal/...` - [new feature file]
-- `test/data/.../*.ci` - [functional test for end-user behavior]
+- `test/.../*.ci` - [functional test for end-user behavior]
 
 ## Implementation Steps
 

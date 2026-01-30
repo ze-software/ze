@@ -1532,7 +1532,8 @@ func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (n
 }
 
 // parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
-// Delegates to flowspec plugin for text parsing, returns WireNLRI.
+// Calls flowspec.EncodeFlowSpecComponents directly (in-process plugin).
+// For external family plugins, use server.EncodeNLRI() instead.
 // RFC 8955: Components are ANDed together.
 func parseFlowSpecComponents(args []string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	// Collect component tokens until boundary or mode switch
@@ -1559,7 +1560,7 @@ func parseFlowSpecComponents(args []string, family nlri.Family, accum nlriAccum)
 	}
 	pluginArgs = append(pluginArgs, args[:consumed]...)
 
-	// Call flowspec plugin to encode text to wire bytes
+	// Call flowspec encoder directly (in-process plugin)
 	wireBytes, err := flowspec.EncodeFlowSpecComponents(family, pluginArgs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("flowspec encode: %w", err)

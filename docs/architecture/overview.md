@@ -205,7 +205,7 @@ ze/
 │       ├── attribute.go    # Attribute store
 │       └── nlri.go         # NLRI store
 │
-├── test/data/               # Test fixtures
+├── test/               # Test fixtures
 │   ├── encoding/           # From ExaBGP qa/encoding
 │   ├── decoding/           # From ExaBGP qa/decoding
 │   └── messages/           # Raw BGP messages
@@ -1091,8 +1091,8 @@ Convert ExaBGP's test suite:
 ./scripts/convert-exabgp-tests.sh
 
 # Run converted tests
-go test -race ./test/data/encoding/...
-go test -race ./test/data/decoding/...
+go test -race ./test/encode/...
+go test -race ./test/decode/...
 ```
 
 ### 11.3 Round-Trip Tests

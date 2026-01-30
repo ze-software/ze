@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -550,4 +551,67 @@ func mustParseAddr(t *testing.T, s string) netip.Addr {
 	addr, err := netip.ParseAddr(s)
 	require.NoError(t, err)
 	return addr
+}
+
+// TestEncodeNLRI_NotConfigured verifies error when server has no plugin support.
+//
+// VALIDATES: EncodeNLRI returns error when registry/procManager nil.
+//
+// PREVENTS: Nil pointer dereference when plugins not configured.
+func TestEncodeNLRI_NotConfigured(t *testing.T) {
+	// Server without plugins
+	server := NewServer(&ServerConfig{}, nil)
+
+	_, err := server.EncodeNLRI(nlri.IPv4FlowSpec, []string{"destination", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not configured for plugins")
+}
+
+// TestEncodeNLRI_NoPlugin verifies error when no plugin registered for family.
+//
+// VALIDATES: EncodeNLRI returns clear error for unregistered families.
+//
+// PREVENTS: Confusing errors or silent failures.
+func TestEncodeNLRI_NoPlugin(t *testing.T) {
+	// Create server with plugins config but no actual plugins
+	server := NewServer(&ServerConfig{
+		Plugins: []PluginConfig{{Name: "test"}},
+	}, nil)
+	// Initialize registry manually (normally done in Start)
+	server.registry = NewPluginRegistry()
+	server.procManager = NewProcessManager(nil)
+
+	_, err := server.EncodeNLRI(nlri.IPv4FlowSpec, []string{"destination", "10.0.0.0/24"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no plugin registered for family")
+}
+
+// TestDecodeNLRI_NotConfigured verifies error when server has no plugin support.
+//
+// VALIDATES: DecodeNLRI returns error when registry/procManager nil.
+//
+// PREVENTS: Nil pointer dereference when plugins not configured.
+func TestDecodeNLRI_NotConfigured(t *testing.T) {
+	server := NewServer(&ServerConfig{}, nil)
+
+	_, err := server.DecodeNLRI(nlri.IPv4FlowSpec, "0701180A0000")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not configured for plugins")
+}
+
+// TestDecodeNLRI_NoPlugin verifies error when no plugin registered for family.
+//
+// VALIDATES: DecodeNLRI returns clear error for unregistered families.
+//
+// PREVENTS: Confusing errors or silent failures.
+func TestDecodeNLRI_NoPlugin(t *testing.T) {
+	server := NewServer(&ServerConfig{
+		Plugins: []PluginConfig{{Name: "test"}},
+	}, nil)
+	server.registry = NewPluginRegistry()
+	server.procManager = NewProcessManager(nil)
+
+	_, err := server.DecodeNLRI(nlri.IPv4FlowSpec, "0701180A0000")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no plugin registered for family")
 }

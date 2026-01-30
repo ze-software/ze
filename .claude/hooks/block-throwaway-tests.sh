@@ -24,7 +24,7 @@ ERRORS=()
 if [[ "$FILE_PATH" =~ ^/tmp/ ]] || [[ "$FILE_PATH" =~ ^/var/tmp/ ]]; then
     if [[ "$FILE_PATH" =~ \.(go|py|sh)$ ]]; then
         ERRORS+=("Throwaway test file in $FILE_PATH")
-        ERRORS+=("→ Add to test/data/ for functional tests")
+        ERRORS+=("→ Add to test/ for functional tests")
         ERRORS+=("→ Add to internal/*/...test.go for unit tests")
     fi
 fi
@@ -34,7 +34,7 @@ if [[ "$FILE_PATH" =~ test_.*\.(go|py|sh)$ ]] || [[ "$FILE_PATH" =~ _test_.*\.(g
     if [[ ! "$FILE_PATH" =~ ^.*/internal/ ]] && [[ ! "$FILE_PATH" =~ ^.*/test/ ]] && [[ ! "$FILE_PATH" =~ ^.*/cmd/ ]]; then
         ERRORS+=("Test file in wrong location: $FILE_PATH")
         ERRORS+=("→ Unit tests go in internal/*/_test.go")
-        ERRORS+=("→ Functional tests go in test/data/")
+        ERRORS+=("→ Functional tests go in test/")
     fi
 fi
 

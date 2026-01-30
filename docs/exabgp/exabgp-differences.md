@@ -36,7 +36,7 @@ ZeBGP:   ORIGIN, AS_PATH, LOCAL_PREF, LARGE_COMMUNITY, MP_REACH_NLRI
 
 **Files affected:**
 - `internal/reactor/reactor.go` - `buildAnnounceUpdate()`
-- `test/data/api/*.ci` - Expected message files
+- `test/api/*.ci` - Expected message files
 
 **Decision rationale:**
 1. Fixed order is simpler to implement and maintain

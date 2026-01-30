@@ -28,7 +28,7 @@ const (
 // PREVENTS: Decode command producing malformed or incompatible output.
 func TestDecodeOpen(t *testing.T) {
 	// Simple OPEN message: version 4, AS 65533, hold time 180, router-id 10.0.0.2
-	// From test/data/decode/bgp-open-sofware-version.test
+	// From test/decode/bgp-open-sofware-version.test
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD02224B201F4578614247502F6D61696E2D633261326561386562642D3230323430373135"
 
 	output, err := decodeHexPacket(hexInput, "open", "", nil)
@@ -203,7 +203,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 //
 // PREVENTS: Decode command failing on UPDATE messages.
 func TestDecodeUpdate(t *testing.T) {
-	// UPDATE message from test/data/decode/ipv4-unicast-1.test
+	// UPDATE message from test/decode/ipv4-unicast-1.test
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501800404000000C840050400000064000000002001010101"
 
 	output, err := decodeHexPacket(hexInput, "update", "", nil)

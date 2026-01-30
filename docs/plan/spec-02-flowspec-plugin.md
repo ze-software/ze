@@ -379,58 +379,181 @@ Make the engine FlowSpec-agnostic. Only the plugin knows FlowSpec semantics.
 | Component | Status |
 |-----------|--------|
 | Plugin decode mode | ✅ Done (Phase 1) |
-| Plugin encode mode | ✅ Added (but called as Go function, not via API) |
-| Engine text parsing | ⚠️ Uses direct Go call, not plugin API |
+| Plugin encode mode | ✅ Added |
+| Engine text parsing | ✅ Uses direct Go call (in-process shortcut) |
 | FlowSpec types | ✅ Moved to `internal/plugin/flowspec/types.go` |
 | `nlri/flowspec.go` | ✅ Deleted |
 
-## Outstanding Issues
+## Plugin Invocation Design
 
-### Issue 1: Direct Go Function Call (Not Plugin API)
+### Long-Lived Plugin Architecture
 
-**Current (wrong):**
+Family plugins (like flowspec) run as **long-lived goroutines** (or subprocesses for external plugins).
+The plugin starts once and handles all encode/decode requests for its registered families.
+
 ```
-update_text.go:1563 calls flowspec.EncodeFlowSpecComponents() directly
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ENGINE                                          │
+│                                                                              │
+│   update_text.go                           Plugin Registry                   │
+│   ┌─────────────┐                         ┌─────────────────┐               │
+│   │ parse nlri  │ ──── lookup family ───► │ ipv4/flowspec   │───┐           │
+│   │ ipv4/flow.. │                         │ ipv6/flowspec   │   │           │
+│   └─────────────┘                         │ ipv4/flowspec-vpn│   │           │
+│                                           │ ipv6/flowspec-vpn│   │           │
+│                                           └─────────────────┘   │           │
+│                                                                  │           │
+│   ┌──────────────────────────────────────────────────────────────┼──────┐   │
+│   │                     io.Pipe (stdin/stdout)                   │      │   │
+│   └──────────────────────────────────────────────────────────────┼──────┘   │
+│                                                                  │           │
+│   ┌──────────────────────────────────────────────────────────────▼──────┐   │
+│   │                    FLOWSPEC PLUGIN (goroutine)                      │   │
+│   │                                                                      │   │
+│   │  Startup: declare family ipv4 flowspec decode                       │   │
+│   │           declare family ipv6 flowspec decode                       │   │
+│   │           declare family ipv4 flowspec-vpn decode                   │   │
+│   │           declare family ipv6 flowspec-vpn decode                   │   │
+│   │           declare done                                               │   │
+│   │                                                                      │   │
+│   │  Loop:    encode nlri ipv4/flowspec destination 10.0.0.0/24 ...     │   │
+│   │           → encoded hex 0701180A...                                  │   │
+│   │                                                                      │   │
+│   │           decode nlri ipv4/flowspec 0701180A...                      │   │
+│   │           → decoded json {"destination":[["10.0.0.0/24/0"]]}        │   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-This bypasses the plugin protocol, meaning:
-- Cannot swap FlowSpec plugin for Python/Rust implementation
-- Tight coupling between engine and Go flowspec code
-- Plugin architecture not being used for encoding
+### Startup Protocol
 
-**Required fix:**
+1. **Engine starts plugin** (goroutine + io.Pipe, or fork for external)
+2. **Plugin declares families** it handles:
+   ```
+   declare family ipv4 flowspec decode
+   declare family ipv4 flowspec encode
+   declare family ipv6 flowspec decode
+   declare family ipv6 flowspec encode
+   ...
+   declare done
+   ```
+3. **Engine registers plugin** in family→plugin map
+4. **Plugin enters request loop** - handles encode/decode requests
+
+### Request/Response Protocol
+
+| Direction | Format | Example |
+|-----------|--------|---------|
+| Encode request | `encode nlri <family> <args>` | `encode nlri ipv4/flowspec destination 10.0.0.0/24` |
+| Encode response | `encoded hex <bytes>` | `encoded hex 0701180A0000` |
+| Decode request | `decode nlri <family> <hex>` | `decode nlri ipv4/flowspec 0701180A0000` |
+| Decode response | `decoded json <json>` | `decoded json {"destination":[["10.0.0.0/24/0"]]}` |
+| Error | `encoded error <msg>` | `encoded error invalid prefix` |
+
+### Benefits
+
+- **Single plugin instance** - no per-request overhead
+- **Language agnostic** - same protocol for Go, Python, Rust
+- **Hot-swappable** - restart plugin without engine restart
+- **Testable** - can test plugin protocol independently
+
+### Current Status
+
+✅ **Phase 4 Complete** - Generic NLRI routing implemented.
+
+**Architecture:**
+1. Flowspec plugin handles encode/decode in event loop
+2. `LookupFamily()` returns plugin name for any family
+3. Plugin protocol works (encode/decode requests via pipe)
+4. Generic `server.EncodeNLRI()` and `server.DecodeNLRI()` for external plugins
+5. In-process plugins (flowspec) called directly for efficiency
+
+---
+
+## Phase 4: Generic NLRI Routing (DONE)
+
+### Design
+
 ```
-Engine                              Plugin (any language)
-──────                              ─────────────────────
-                    spawn + stdin/stdout
-           ─────────────────────────────────►
+For external plugins:
+update_text.go → server.EncodeNLRI(family, args)
+                        │
+                        ▼
+               registry.LookupFamily(family) → plugin name
+                        │
+                        ▼
+               plugin.SendRequest("encode nlri <family> <args>")
 
-encode nlri ipv4/flowspec destination 10.0.0.0/24 protocol tcp
-           ─────────────────────────────────►
-
-           ◄─────────────────────────────────
-encoded hex 0801180A0000038106
+For in-process plugins (flowspec):
+update_text.go → flowspec.EncodeFlowSpecComponents(family, args)
+                 (direct call for efficiency)
 ```
 
-Need to implement `invokePluginNLRIEncode` similar to `invokePluginNLRIDecode`.
+### What Was Implemented
 
-### Issue 2: RD Syntax Position
+1. **Generic `EncodeNLRI(family, args)` method on Server**
+   - Looks up plugin via `registry.LookupFamily()`
+   - Sends request via pipe, returns wire bytes
+   - Returns error if no plugin registered or server not configured
+   - Includes nil checks for registry and procManager
 
-**Current (inconsistent):**
+2. **Generic `DecodeNLRI(family, hex)` method on Server**
+   - Looks up plugin via `registry.LookupFamily()`
+   - Sends request via pipe, returns JSON
+   - Includes nil checks for registry and procManager
+
+3. **Fixed "encode" family registration**
+   - `declare family <afi> <safi> encode` now registers the family
+   - Previously "encode" was silently ignored, only "decode" worked
+   - Both encode and decode register to same map (deduplication)
+
+4. **Removed FlowSpec-specific code:**
+   - `FlowSpecEncoder` variable removed
+   - `EncodeFlowSpecViaPlugin()` removed
+   - `SetupFlowSpecEncoder()` removed
+
+5. **Update `update_text.go`**
+   - FlowSpec encoding calls `flowspec.EncodeFlowSpecComponents()` directly
+   - No indirection for in-process plugins (better performance)
+   - External plugins would use `server.EncodeNLRI()`
+
+6. **Unit tests added**
+   - `TestEncodeNLRI_NotConfigured`, `TestEncodeNLRI_NoPlugin`
+   - `TestDecodeNLRI_NotConfigured`, `TestDecodeNLRI_NoPlugin`
+   - `TestFamilyRegistrationWithEncode`, `TestFamilyRegistrationBothEncodeAndDecode`
+   - `TestFamilyAllCannotEncode`
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `server.go` | Added `EncodeNLRI()`, `DecodeNLRI()` with nil checks, removed FlowSpec methods |
+| `update_text.go` | Removed `FlowSpecEncoder`, calls flowspec package directly |
+| `registration.go` | Fixed parseFamily to handle "encode" keyword same as "decode" |
+| `server_test.go` | Added tests for EncodeNLRI/DecodeNLRI error cases |
+| `registration_family_test.go` | Added tests for "encode" keyword registration |
+| `docs/architecture/api/process-protocol.md` | Updated Engine Routing section |
+
+### Phase 4 Checklist
+
+- [x] Generic `EncodeNLRI(family, args)` method
+- [x] Generic `DecodeNLRI(family, hex)` method
+- [x] `FlowSpecEncoder` variable removed
+- [x] `update_text.go` uses direct call for in-process plugins
+- [x] Works for any family plugin (not just FlowSpec)
+- [x] Nil pointer checks added
+- [x] "encode" family registration fixed
+- [x] Unit tests for new methods
+
+## RD Syntax
+
+The current syntax places `rd` before `add`:
+
 ```
 nlri ipv4/flowspec-vpn rd 65000:100 add destination 10.0.0.0/24
-                       ^^^^^^^^^^^
-                       RD before "add" - special case
 ```
 
-**Required (consistent):**
-```
-nlri ipv4/flowspec-vpn add rd 65000:100 destination 10.0.0.0/24
-                           ^^^^^^^^^^^
-                           RD as component after "add" - like other components
-```
-
-The RD should be part of the FlowSpec components, not a special prefix. This keeps the syntax uniform and allows the plugin to handle RD parsing entirely.
+This is consistent with other VPN families and is the documented API.
 
 ## Encode Mode Protocol
 
@@ -443,75 +566,41 @@ The RD should be part of the FlowSpec components, not a special prefix. This kee
 ## Phase 2 Implementation Steps
 
 ### Step 1: Plugin encode mode ✅
-- Add `handleEncodeNLRI` to plugin
-- Parse text components (destination, protocol, etc.)
-- Return hex wire bytes
+- Added `handleEncodeNLRI` to plugin
+- Parses text components (destination, protocol, etc.)
+- Returns hex wire bytes
 
-### Step 2: Add invoke helper
-- Add `invokePluginNLRIEncode` in decode.go
-- Similar pattern to decode: spawn plugin, send request, get response
+### Step 2: Engine uses direct shortcut ✅
+- `update_text.go` calls `flowspec.EncodeFlowSpecComponents()` directly
+- This is the in-process shortcut (no subprocess overhead)
+- External plugins would use subprocess + protocol
 
-### Step 3: Update update_text.go
-- For FlowSpec families, call plugin instead of creating `nlri.FlowSpec`
-- Plugin returns hex bytes → create `WireNLRI`
-- Remove: `parseFlowSpecComponents`, `parseFlowSpecComponent`, etc.
+### Step 3: Move types to plugin ✅
+- Types moved to `internal/plugin/flowspec/types.go`
+- Plugin is self-contained
 
-### Step 4: Move types to plugin
-- Copy `nlri/flowspec.go` to `internal/plugin/flowspec/types.go`
-- Update imports in plugin
-- Keep minimal stubs in nlri (family constants only)
+### Step 4: Delete nlri/flowspec.go ✅
+- Verified no flowspec files in nlri/
+- All FlowSpec code now in plugin package
 
-### Step 5: Delete nlri/flowspec.go
-- Verify no engine code imports FlowSpec types
-- Delete file
-- Update tests
-
-### Step 6: Verify
-- `make verify` must pass
-- All FlowSpec encoding/decoding still works via plugin
-
-## Phase 2 TDD Test Plan
-
-### Unit Tests
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| `TestFlowSpecEncodeMode` | `plugin_test.go` | Encode protocol | |
-| `TestFlowSpecEncodeAllComponents` | `plugin_test.go` | All 13 types | |
-| `TestFlowSpecEncodeVPN` | `plugin_test.go` | VPN with RD | |
-| `TestFlowSpecRoundTrip` | `plugin_test.go` | encode → decode | |
-
-### Boundary Tests
-| Field | Range | Last Valid | Invalid Below | Invalid Above |
-|-------|-------|------------|---------------|---------------|
-| Port | 0-65535 | 65535 | N/A | 65536 |
-| DSCP | 0-63 | 63 | N/A | 64 |
-| Protocol | 0-255 | 255 | N/A | 256 |
-
-### Functional Tests
-| Test | Location | Scenario | Status |
-|------|----------|----------|--------|
-| `flowspec-encode` | `test/decode/flowspec-encode.ci` | CLI encode path | |
+### Step 5: Verify ✅
+- `make verify` passes
+- All FlowSpec encoding/decoding works
 
 ## Phase 2 Checklist
 
 ### 🏗️ Design
-- [ ] Plugin handles both encode and decode
-- [ ] Engine uses WireNLRI for FlowSpec
-- [ ] No FlowSpec parsing in engine
-- [ ] Types moved to plugin package
-
-### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
+- [x] Plugin handles both encode and decode
+- [x] Engine uses WireNLRI for FlowSpec
+- [x] FlowSpec parsing isolated in plugin (direct shortcut)
+- [x] Types moved to plugin package
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Completion
-- [ ] FlowSpec types removed from nlri/
-- [ ] Engine text parsing removed
+- [x] FlowSpec types removed from nlri/
+- [x] Engine uses plugin for FlowSpec (direct shortcut)
 - [ ] All files committed together

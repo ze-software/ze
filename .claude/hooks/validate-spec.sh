@@ -138,8 +138,8 @@ fi
 FUNC_TEST_SECTION=$(sed -n '/^### Functional Tests/,/^###\|^##/p' "$FILE_PATH" | head -20)
 if [[ -z "$FUNC_TEST_SECTION" ]]; then
     WARNINGS+=("Missing '### Functional Tests' section. Features need functional tests to verify end-user behavior")
-elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci|test/data/'; then
-    WARNINGS+=("Functional Tests section should reference .ci files or test/data/ locations for end-user verification")
+elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci|test/'; then
+    WARNINGS+=("Functional Tests section should reference .ci files or test/ locations for end-user verification")
 fi
 
 # === NO CODE IN SPECS CHECK ===

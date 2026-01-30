@@ -340,8 +340,8 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 6.4 Tests
 
 ```
-[ ] Valid config test: test/data/parse/valid/<feature>.conf
-[ ] Invalid config test: test/data/parse/invalid/<feature>.conf + .expect
+[ ] Valid config test: test/parse/<feature>.ci (expect=exit:code=0)
+[ ] Invalid config test: test/parse/<feature>-invalid.ci (expect=exit:code=1 + expect=stderr:contains=)
 [ ] Test all validation rules trigger appropriately
 ```
 
@@ -370,7 +370,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 7.3 Tests
 
 ```
-[ ] Functional test: test/data/plugin/<feature>/
+[ ] Functional test: test/plugin/<feature>/
 [ ] Test valid command variations
 [ ] Test error handling for invalid commands
 ```
@@ -437,8 +437,8 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ### 9.2 Encoding Tests
 
 ```
-[ ] Create test/data/encode/<feature>.conf (peer config with feature enabled)
-[ ] Create test/data/encode/<feature>.ci (command/wire pairs)
+[ ] Create test/encode/<feature>.conf (peer config with feature enabled)
+[ ] Create test/encode/<feature>.ci (command/wire pairs)
 [ ] Test happy path: feature used correctly produces correct wire bytes
 [ ] Test variations: different parameter combinations
 [ ] Test boundaries: min/max values that affect encoding
@@ -447,7 +447,7 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ### 9.3 Plugin Tests
 
 ```
-[ ] Create test/data/plugin/<feature>/ directory
+[ ] Create test/plugin/<feature>/ directory
 [ ] Test plugin receives correct JSON events when feature is active
 [ ] Test plugin commands produce correct behavior
 [ ] Test error responses when plugin sends invalid commands
@@ -456,8 +456,8 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ### 9.4 Config Tests
 
 ```
-[ ] Create test/data/parse/valid/<feature>.conf - valid configurations
-[ ] Create test/data/parse/invalid/<feature>.conf + .expect - invalid configs with expected errors
+[ ] Create test/parse/<feature>.ci - valid configurations (expect=exit:code=0)
+[ ] Create test/parse/<feature>-invalid.ci - invalid configs (expect=exit:code=1 + expect=stderr:contains=)
 [ ] Test feature enables/disables correctly via config
 [ ] Test config validation catches user mistakes
 ```

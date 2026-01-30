@@ -26,9 +26,9 @@ func main() {
 
 ✅ **Right:** Add to functional tests
 ```
-# test/data/parse/valid/my-feature.conf (positive test)
-# test/data/parse/invalid/my-error.conf + .expect (negative test)
-# .expect can use "regex:" prefix for pattern matching
+# test/parse/my-feature.ci (valid: expect=exit:code=0)
+# test/parse/my-error.ci (invalid: expect=exit:code=1 + expect=stderr:contains=)
+# stderr can use "regex=" for pattern matching
 ```
 
 ### Why This Matters
@@ -42,10 +42,10 @@ func main() {
 
 | Situation | Action |
 |-----------|--------|
-| Checking valid config parses | Add to `test/data/parse/valid/` |
-| Checking invalid config fails | Add to `test/data/parse/invalid/` with `.expect` |
-| Checking BGP message encoding | Add to `test/data/encode/` |
-| Checking API behavior | Add to `test/data/plugin/` |
+| Checking valid config parses | Add `.ci` to `test/parse/` with `expect=exit:code=0` |
+| Checking invalid config fails | Add `.ci` to `test/parse/` with `expect=exit:code=1` + `expect=stderr:contains=` |
+| Checking BGP message encoding | Add to `test/encode/` |
+| Checking API behavior | Add to `test/plugin/` |
 | Checking wire format decoding | Add to `test/decode/` |
 
 ## Functional Test Location
@@ -54,19 +54,19 @@ func main() {
 
 | Test Type | Location | Format |
 |-----------|----------|--------|
-| BGP encoding tests | `test/data/encode/<name>.conf` + `<name>.ci` | Config + expectations |
-| Plugin tests | `test/data/plugin/<name>.conf` + `<name>.ci` | Config + expectations |
-| Parsing tests (valid) | `test/data/parse/valid/<name>.conf` | Config only |
-| Parsing tests (invalid) | `test/data/parse/invalid/<name>.conf` + `<name>.expect` | Config + error |
+| BGP encoding tests | `test/encode/<name>.ci` | Config (embedded or ref) + expectations |
+| Plugin tests | `test/plugin/<name>.ci` | Config + expectations |
+| Parsing tests | `test/parse/<name>.ci` | Embedded config + exit code + optional stderr |
 | Decoding tests | `test/decode/<name>.ci` | stdin + cmd + expect=json |
 | Unit tests | `internal/<package>/<file>_test.go` | Go test file |
 
 ### Creating Functional Tests
 
-1. **Encoding test:** Create `test/data/encode/<name>.conf` and `test/data/encode/<name>.ci`
-2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
-3. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
-4. **Run:** `make functional` or `ze-test bgp <type> --list` to verify
+1. **Encoding test:** Create `test/encode/<name>.ci` (config can be embedded or separate `.conf`)
+2. **Plugin test:** Create `test/plugin/<name>.ci`
+3. **Parse test:** Create `test/parse/<name>.ci` with embedded config, `ze bgp validate`, and exit expectations
+4. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
+5. **Run:** `make functional` or `ze-test bgp <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -83,7 +83,7 @@ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304...
 ❌ Ad-hoc scripts that aren't committed
 ❌ Manual testing without saving the test
 
-✅ Save to `test/data/` appropriate subdirectory
+✅ Save to `test/` appropriate subdirectory
 ✅ Verify with `make functional`
 ✅ Commit with the feature
 
@@ -136,7 +136,7 @@ go test -fuzz=. -fuzztime=10s ./internal/bgp/...  # All fuzz tests (CI)
 go test -list='Fuzz.*' ./...                  # List fuzz tests
 ```
 
-Corpus location: `test/data/fuzz/<FuzzName>/`
+Corpus location: `test/fuzz/<FuzzName>/`
 
 ## Functional Testing
 

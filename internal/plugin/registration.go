@@ -307,7 +307,9 @@ func (reg *PluginRegistration) parseEncoding(args []string) error {
 	return nil
 }
 
-// parseFamily handles "declare family <afi> <safi> [decode]" or "declare family all".
+// parseFamily handles "declare family <afi> <safi> [encode|decode]" or "declare family all".
+// Both "encode" and "decode" keywords register the family for NLRI routing.
+// A plugin typically declares both to handle encode (text→wire) and decode (wire→JSON).
 func (reg *PluginRegistration) parseFamily(args []string) error {
 	if len(args) < 1 {
 		return fmt.Errorf("expected 'declare family <afi> <safi>' or 'declare family all'")
@@ -315,11 +317,14 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 
 	afi := strings.ToLower(args[0])
 
-	// Handle "declare family all [decode]"
+	// Handle "declare family all [encode|decode]"
 	if afi == "all" {
-		// Check for invalid "all decode" - cannot claim decode for all families
-		if len(args) >= 2 && strings.ToLower(args[1]) == "decode" {
-			return fmt.Errorf("cannot claim decode for 'all' families")
+		// Check for invalid "all encode/decode" - cannot claim for all families
+		if len(args) >= 2 {
+			kw := strings.ToLower(args[1])
+			if kw == "decode" || kw == "encode" {
+				return fmt.Errorf("cannot claim %s for 'all' families", kw)
+			}
 		}
 		reg.Families = append(reg.Families, "all")
 		return nil
@@ -343,9 +348,23 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 	family := afi + "/" + safi
 	reg.Families = append(reg.Families, family)
 
-	// Check for optional "decode" keyword
-	if len(args) >= 3 && strings.ToLower(args[2]) == "decode" {
-		reg.DecodeFamilies = append(reg.DecodeFamilies, family)
+	// Check for optional "encode" or "decode" keyword
+	// Both register the family for NLRI routing via server.EncodeNLRI/DecodeNLRI
+	if len(args) >= 3 {
+		kw := strings.ToLower(args[2])
+		if kw == "decode" || kw == "encode" {
+			// Avoid duplicates if plugin declares both encode and decode
+			found := false
+			for _, f := range reg.DecodeFamilies {
+				if f == family {
+					found = true
+					break
+				}
+			}
+			if !found {
+				reg.DecodeFamilies = append(reg.DecodeFamilies, family)
+			}
+		}
 	}
 
 	return nil

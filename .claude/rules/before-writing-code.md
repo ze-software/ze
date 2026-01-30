@@ -11,7 +11,7 @@ Before writing anything new:
 grep -r "TestYourFeature\|your_pattern" internal/ test/
 
 # Search for similar functional tests
-grep -r "your_pattern" test/data/
+grep -r "your_pattern" test/
 
 # Search for similar functionality
 grep -r "FunctionName\|pattern" internal/
@@ -104,7 +104,7 @@ Before ending work:
 
 ## Correct Approach
 
-✅ Search first: `grep -r "send-unknown-message" test/data/`
+✅ Search first: `grep -r "send-unknown-message" test/`
 
 ✅ Found existing: "unknown-message.ci already tests this"
 
