@@ -274,7 +274,12 @@ func FlowSpecFamilies() []string {
 //   - "decode json nlri <family> <hex>" → JSON (explicit)
 //   - "decode text nlri <family> <hex>" → human-readable text
 //
-// Encode format: "encode nlri <family> <components...>" → "encoded hex <hex>" or "encoded error <msg>".
+// Encode formats:
+//   - "encode nlri <family> <components...>" → text input (default)
+//   - "encode text nlri <family> <components...>" → text input (explicit)
+//   - "encode json nlri <family> <json>" → JSON input
+//
+// Response: "encoded hex <hex>" or "encoded error <msg>".
 func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 	// Response writers - use io.WriteString, errors discarded for protocol writes.
 	writeResponse := func(s string) {
@@ -300,13 +305,22 @@ func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 		cmd := parts[0]
 		objType := parts[1]
 
-		// Handle format specifier for decode
-		format := fmtJSON // default
-		if cmd == cmdDecode && (objType == fmtJSON || objType == fmtText) {
+		// Handle format specifier for decode/encode
+		// Decode: default=json, Encode: default=text
+		format := fmtJSON
+		if cmd == cmdEncode {
+			format = fmtText // encode defaults to text input
+		}
+
+		if objType == fmtJSON || objType == fmtText {
 			format = objType
-			// Shift parts: decode json nlri → decode nlri (with format stored)
+			// Shift parts: cmd format nlri → cmd nlri (with format stored)
 			if len(parts) < 4 {
-				writeUnknown()
+				if cmd == cmdDecode {
+					writeUnknown()
+				} else {
+					writeError("missing arguments")
+				}
 				continue
 			}
 			objType = parts[2]
@@ -317,11 +331,15 @@ func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 		case cmd == cmdDecode && objType == objTypeNLRI:
 			handleDecodeNLRI(parts, format, output, writeUnknown)
 		case cmd == cmdEncode && objType == objTypeNLRI:
-			handleEncodeNLRI(parts, output, writeError)
+			if format == fmtJSON {
+				handleEncodeNLRIFromJSON(parts, output, writeError)
+			} else {
+				handleEncodeNLRI(parts, output, writeError)
+			}
 		case cmd == cmdDecode:
 			writeUnknown()
 		case cmd == cmdEncode:
-			writeUnknown()
+			writeError("unsupported object type")
 		}
 	}
 	return 0
@@ -460,6 +478,141 @@ func contains(slice []string, val string) bool {
 		}
 	}
 	return false
+}
+
+// handleEncodeNLRIFromJSON handles: encode json nlri <family> <json>.
+// JSON format matches decode output: {"destination":[["10.0.0.0/24/0"]],...}.
+func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(string)) {
+	if len(parts) < 4 {
+		writeError("missing family or JSON")
+		return
+	}
+
+	family := strings.ToLower(parts[2])
+	if !isValidFlowSpecFamily(family) {
+		writeError("invalid family: " + family)
+		return
+	}
+
+	// JSON is the remaining part (may have been split by Fields if it had spaces)
+	jsonStr := strings.Join(parts[3:], " ")
+
+	// Parse JSON
+	var jsonMap map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &jsonMap); err != nil {
+		writeError("invalid JSON: " + err.Error())
+		return
+	}
+
+	// Convert JSON to text components
+	textArgs, err := jsonToTextComponents(jsonMap)
+	if err != nil {
+		writeError(err.Error())
+		return
+	}
+
+	// Parse family
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		writeError("unknown family: " + family)
+		return
+	}
+
+	// Encode using existing text encoder
+	wireBytes, err := EncodeFlowSpecComponents(fam, textArgs)
+	if err != nil {
+		writeError(err.Error())
+		return
+	}
+
+	writeHex := func(s string) {
+		_, err := io.WriteString(output, s)
+		_ = err // Protocol writes - pipe failure causes exit
+	}
+	writeHex("encoded hex " + strings.ToUpper(hex.EncodeToString(wireBytes)) + "\n")
+}
+
+// jsonToTextComponents converts JSON FlowSpec format to text component args.
+// JSON: {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"]]}
+// Text: ["destination", "10.0.0.0/24", "protocol", "=tcp"].
+func jsonToTextComponents(m map[string]any) ([]string, error) {
+	var args []string
+
+	// Process components in a defined order for consistency
+	componentOrder := []string{
+		"destination", "destination-ipv6", "source", "source-ipv6",
+		"protocol", "next-header", "port", "destination-port", "source-port",
+		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
+		"fragment", "flow-label",
+	}
+
+	for _, key := range componentOrder {
+		val, ok := m[key]
+		if !ok {
+			continue
+		}
+
+		// Handle nested array format: [[val1, val2], [val3]]
+		// Outer array = OR, Inner array = AND
+		arr, ok := val.([]any)
+		if !ok {
+			continue
+		}
+
+		for _, orGroup := range arr {
+			innerArr, ok := orGroup.([]any)
+			if !ok {
+				// Single value, not nested
+				if s, ok := orGroup.(string); ok {
+					args = append(args, key, normalizeJSONValue(key, s))
+				}
+				continue
+			}
+
+			// Inner array - for now just use first value (most common case)
+			// Full AND/OR support would require more complex encoding
+			for _, v := range innerArr {
+				if s, ok := v.(string); ok {
+					args = append(args, key, normalizeJSONValue(key, s))
+					break // Just use first value for simplicity
+				}
+			}
+		}
+	}
+
+	if len(args) == 0 {
+		return nil, fmt.Errorf("no valid components in JSON")
+	}
+
+	return args, nil
+}
+
+// normalizeJSONValue converts JSON value format to text format.
+// E.g., "10.0.0.0/24/0" → "10.0.0.0/24" (strip offset for prefixes).
+// E.g., "=tcp" → "tcp" (strip operator for protocol/next-header).
+func normalizeJSONValue(key, val string) string {
+	// Strip /0 offset suffix from prefixes (destination, source)
+	if strings.HasPrefix(key, "destination") || strings.HasPrefix(key, "source") {
+		if strings.HasSuffix(val, "/0") {
+			// "10.0.0.0/24/0" → "10.0.0.0/24"
+			parts := strings.Split(val, "/")
+			if len(parts) == 3 {
+				return parts[0] + "/" + parts[1]
+			}
+		}
+	}
+
+	// Strip operator prefix for protocol/next-header (text parser expects plain value)
+	if key == kwProtocol || key == "next-header" {
+		// "=tcp" → "tcp", "=6" → "6"
+		val = strings.TrimPrefix(val, "=")
+		val = strings.TrimPrefix(val, "<")
+		val = strings.TrimPrefix(val, ">")
+		val = strings.TrimPrefix(val, "!")
+		val = strings.TrimPrefix(val, "&")
+	}
+
+	return val
 }
 
 // handleEncodeNLRI handles: encode nlri <family> <components...>

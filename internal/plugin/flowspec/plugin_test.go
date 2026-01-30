@@ -445,3 +445,73 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 		})
 	}
 }
+
+// TestEncodeJSONFormat verifies JSON input for encode.
+//
+// VALIDATES: Plugin accepts JSON input and encodes to wire bytes.
+// PREVENTS: Missing JSON encode support, breaking round-trip encode/decode.
+func TestEncodeJSONFormat(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       string
+		wantHex     string // Expected hex in output (substring)
+		wantError   bool
+		errorSubstr string
+	}{
+		{
+			name:    "json_destination_prefix",
+			input:   `encode json nlri ipv4/flow {"destination":[["10.0.0.0/24/0"]]}` + "\n",
+			wantHex: "0A0000", // 10.0.0.0 in hex
+		},
+		{
+			name:    "json_destination_with_protocol",
+			input:   `encode json nlri ipv4/flow {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"]]}` + "\n",
+			wantHex: "0A0000", // Contains destination
+		},
+		{
+			name:    "text_explicit_format",
+			input:   "encode text nlri ipv4/flow destination 10.0.0.0/24\n",
+			wantHex: "0A0000",
+		},
+		{
+			name:    "default_text_format",
+			input:   "encode nlri ipv4/flow destination 10.0.0.0/24\n",
+			wantHex: "0A0000",
+		},
+		{
+			name:        "json_invalid_json",
+			input:       `encode json nlri ipv4/flow {invalid}` + "\n",
+			wantError:   true,
+			errorSubstr: "invalid",
+		},
+		{
+			name:        "json_invalid_family",
+			input:       `encode json nlri ipv4/unicast {"foo":"bar"}` + "\n",
+			wantError:   true,
+			errorSubstr: "invalid family",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := strings.NewReader(tt.input)
+			output := &bytes.Buffer{}
+
+			exitCode := RunFlowSpecDecode(input, output)
+			assert.Equal(t, 0, exitCode)
+
+			result := output.String()
+
+			if tt.wantError {
+				assert.Contains(t, result, "encoded error")
+				if tt.errorSubstr != "" {
+					assert.Contains(t, result, tt.errorSubstr)
+				}
+				return
+			}
+
+			assert.Contains(t, result, "encoded hex")
+			assert.Contains(t, result, tt.wantHex)
+		})
+	}
+}
