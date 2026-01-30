@@ -27,6 +27,46 @@ type ResolvedPlugin struct {
 	Command []string // For external: binary and args to exec
 }
 
+// PluginInfo contains metadata about an internal plugin.
+type PluginInfo struct {
+	Name         string   `json:"name"`                   // Plugin name (e.g., "flowspec")
+	Description  string   `json:"description"`            // Human-readable description
+	RFCs         []string `json:"rfcs,omitempty"`         // Related RFCs
+	Capabilities []int    `json:"capabilities,omitempty"` // Capability codes this plugin handles
+	Families     []string `json:"families,omitempty"`     // Address families this plugin handles
+}
+
+// internalPluginInfo contains metadata for each internal plugin.
+var internalPluginInfo = map[string]PluginInfo{
+	"flowspec": {
+		Name:        "flowspec",
+		Description: "FlowSpec NLRI encoding/decoding",
+		RFCs:        []string{"8955", "8956"},
+		Families:    []string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn"},
+	},
+	"gr": {
+		Name:        "gr",
+		Description: "Graceful Restart state management",
+		RFCs:        []string{"4724"},
+	},
+	"hostname": {
+		Name:         "hostname",
+		Description:  "FQDN capability decoding",
+		RFCs:         []string{"5765"},
+		Capabilities: []int{73},
+	},
+	"rib": {
+		Name:        "rib",
+		Description: "Route Information Base storage",
+		RFCs:        []string{"4271"},
+	},
+	"rr": {
+		Name:        "rr",
+		Description: "Route Reflector / Route Server",
+		RFCs:        []string{"4456"},
+	},
+}
+
 // AvailableInternalPlugins returns the list of internal plugin names.
 // Used by `ze --plugin` to list available plugins.
 // Uses internalPluginRunners from inprocess.go as single source of truth.
@@ -38,6 +78,22 @@ func AvailableInternalPlugins() []string {
 	// Sort for stable output
 	sort.Strings(plugins)
 	return plugins
+}
+
+// InternalPluginInfo returns metadata for all internal plugins.
+// Returns a slice sorted by plugin name.
+func InternalPluginInfo() []PluginInfo {
+	names := AvailableInternalPlugins()
+	result := make([]PluginInfo, 0, len(names))
+	for _, name := range names {
+		if info, ok := internalPluginInfo[name]; ok {
+			result = append(result, info)
+		} else {
+			// Fallback for plugins without metadata
+			result = append(result, PluginInfo{Name: name})
+		}
+	}
+	return result
 }
 
 // ErrEmptyPlugin is returned when an empty plugin string is provided.

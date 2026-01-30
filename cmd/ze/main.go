@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -59,11 +60,9 @@ func main() {
 		usage()
 		os.Exit(0)
 	case "--plugins":
-		// Output list of available plugins (one per line)
-		// Uses internal registry as single source of truth
-		for _, name := range plugin.AvailableInternalPlugins() {
-			fmt.Println(name)
-		}
+		// Check for --json flag
+		jsonOutput := len(os.Args) > 2 && os.Args[2] == "--json"
+		printPlugins(jsonOutput)
 		os.Exit(0)
 	}
 
@@ -156,4 +155,39 @@ Examples:
   ze cli --run "peer list"            Execute CLI command
   ze bgp help                         Show BGP commands
 `)
+}
+
+// printPlugins outputs available plugins in table or JSON format.
+func printPlugins(jsonOutput bool) {
+	plugins := plugin.InternalPluginInfo()
+
+	if jsonOutput {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(plugins)
+		return
+	}
+
+	// Tabulated output
+	// Header
+	fmt.Printf("%-12s  %-35s  %-20s  %-15s  %s\n",
+		"NAME", "DESCRIPTION", "RFC", "CAPABILITY", "FAMILY")
+	fmt.Printf("%-12s  %-35s  %-20s  %-15s  %s\n",
+		"----", "-----------", "---", "----------", "------")
+
+	for _, info := range plugins {
+		rfcs := strings.Join(info.RFCs, ", ")
+		caps := ""
+		if len(info.Capabilities) > 0 {
+			capStrs := make([]string, len(info.Capabilities))
+			for i, c := range info.Capabilities {
+				capStrs[i] = fmt.Sprintf("%d", c)
+			}
+			caps = strings.Join(capStrs, ", ")
+		}
+		families := strings.Join(info.Families, ", ")
+
+		fmt.Printf("%-12s  %-35s  %-20s  %-15s  %s\n",
+			info.Name, info.Description, rfcs, caps, families)
+	}
 }
