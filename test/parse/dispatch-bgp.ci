@@ -1,0 +1,20 @@
+# Dispatch test: ze config.conf with bgp {} block validates correctly
+# This tests that config dispatch recognizes bgp {} and routes to BGP daemon
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.2;
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+		hold-time 180;
+		family {
+			ipv4/unicast;
+		}
+	}
+}
+EOF_CONF
+
+# Use validate to test config parsing without starting daemon
+cmd:foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect:exit:code=0

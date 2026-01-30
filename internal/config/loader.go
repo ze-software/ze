@@ -39,6 +39,37 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	return r, err
 }
 
+// LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
+// This is used when config data is already read (e.g., from stdin) and plugins
+// need to be merged in.
+func LoadReactorWithPlugins(input string, cliPlugins []string) (*reactor.Reactor, error) {
+	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
+	cfg, err := parseConfigWithYANG(input, pluginYANG)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set config directory for process execution (use cwd since we have data, not path)
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("get working directory: %w", err)
+	}
+	cfg.ConfigDir = cwd
+
+	// Merge CLI plugins BEFORE creating reactor
+	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
+		return nil, fmt.Errorf("resolve plugins: %w", err)
+	}
+
+	// Create reactor (no path since config came from data)
+	r, err := CreateReactor(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
+}
+
 // LoadReactorWithConfig parses config and returns both Config and Reactor.
 func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	// Parse input using YANG-derived schema
@@ -126,7 +157,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
 
 	// Parse config with plugin YANG schemas merged
-	cfg, _, err := loadReactorWithConfigAndYANG(string(data), pluginYANG)
+	cfg, err := parseConfigWithYANG(string(data), pluginYANG)
 	if err != nil {
 		return nil, err
 	}
@@ -161,21 +192,22 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	return r, nil
 }
 
-// loadReactorWithConfigAndYANG parses config with additional plugin YANG schemas.
-func loadReactorWithConfigAndYANG(input string, pluginYANG map[string]string) (*BGPConfig, *reactor.Reactor, error) {
+// parseConfigWithYANG parses config with additional plugin YANG schemas.
+// Returns typed config without creating reactor (callers may need to modify config first).
+func parseConfigWithYANG(input string, pluginYANG map[string]string) (*BGPConfig, error) {
 	// Parse input using YANG-derived schema with plugin augmentations
 	schema := YANGSchemaWithPlugins(pluginYANG)
 	if schema == nil {
-		return nil, nil, fmt.Errorf("failed to load YANG schema")
+		return nil, fmt.Errorf("failed to load YANG schema")
 	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		// Check if this looks like old syntax and provide migration hint
 		if hint := detectLegacySyntaxHint(input, err); hint != "" {
-			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+			return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
 		}
-		return nil, nil, fmt.Errorf("parse config: %w", err)
+		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	// Log parse warnings
@@ -193,7 +225,7 @@ func loadReactorWithConfigAndYANG(input string, pluginYANG map[string]string) (*
 	// Convert to typed config
 	cfg, err := TreeToConfig(tree)
 	if err != nil {
-		return nil, nil, fmt.Errorf("convert config: %w", err)
+		return nil, fmt.Errorf("convert config: %w", err)
 	}
 
 	// Store environment values for later use
@@ -204,13 +236,7 @@ func loadReactorWithConfigAndYANG(input string, pluginYANG map[string]string) (*
 
 	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
 
-	// Create reactor
-	r, err := CreateReactor(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return cfg, r, nil
+	return cfg, nil
 }
 
 // mergeCliPlugins resolves CLI plugin strings and merges them with config plugins.

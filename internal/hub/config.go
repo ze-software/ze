@@ -9,6 +9,7 @@ package hub
 
 import (
 	"fmt"
+	"io"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
@@ -18,8 +19,16 @@ import (
 // Note: This extends the existing HubConfig in hub.go with config-related fields.
 
 // LoadHubConfig loads configuration from a file.
+// If path is "-", reads from stdin.
 func LoadHubConfig(path string) (*HubConfig, error) {
-	data, err := os.ReadFile(path) //nolint:gosec // Config file path from command line
+	var data []byte
+	var err error
+
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path) //nolint:gosec // Config file path from command line
+	}
 	if err != nil {
 		return nil, fmt.Errorf("loading config: %w", err)
 	}

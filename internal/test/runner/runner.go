@@ -467,7 +467,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		)
 	}
 
-	clientCmd := exec.CommandContext(testCtx, r.zePath, "bgp", "server", configPath) //nolint:gosec // test runner, paths from temp dir
+	clientCmd := exec.CommandContext(testCtx, r.zePath, configPath) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
 
 	clientStdout := &strings.Builder{}
@@ -684,7 +684,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			stdinContent = nil // Don't pipe to stdin
 		}
 
-		// ze bgp server reads config from file, not stdin.
+		// ze reads config from file, not stdin.
 		// If args contain "-", replace with temp file.
 		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
 		if binName == "ze" && stdinContent != nil {

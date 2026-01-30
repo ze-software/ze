@@ -1,0 +1,14 @@
+# Parse test: config without bgp {} block fails validation
+# This verifies the validator rejects configs missing the required bgp block
+stdin=config:terminator=EOF_CONF
+# Config with only environment block - no bgp block
+environment {
+	log {
+		level info;
+	}
+}
+EOF_CONF
+
+cmd:foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect:exit:code=1
+expect:stderr:contains=missing required bgp { } block

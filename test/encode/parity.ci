@@ -40,4 +40,4 @@ EOF_CONF
 
 # Process orchestration
 cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
+cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
