@@ -26,6 +26,12 @@ type APISyncState struct {
 
 	// apiTimeout is configurable for testing.
 	apiTimeout time.Duration
+
+	// startupComplete is closed when plugin startup (all phases) is done.
+	startupComplete chan struct{}
+
+	// startupCompleteOnce ensures startupComplete is closed only once.
+	startupCompleteOnce sync.Once
 }
 
 // SetAPIProcessCount sets the number of API processes to wait for.
@@ -35,6 +41,8 @@ func (r *Reactor) SetAPIProcessCount(count int) {
 	r.readyCount.Store(0)
 	r.apiReady = make(chan struct{})
 	r.apiReadyOnce = sync.Once{}
+	r.startupComplete = make(chan struct{})
+	r.startupCompleteOnce = sync.Once{}
 	if r.apiTimeout == 0 {
 		r.apiTimeout = DefaultAPITimeout
 	}
@@ -90,6 +98,38 @@ func (r *Reactor) signalAllReady() {
 	r.apiReadyOnce.Do(func() {
 		close(r.apiReady)
 	})
+}
+
+// SignalPluginStartupComplete signals that all plugin phases are done.
+// Called by Server after Phase 1 + Phase 2 complete.
+func (r *Reactor) SignalPluginStartupComplete() {
+	r.startupCompleteOnce.Do(func() {
+		if r.startupComplete != nil {
+			close(r.startupComplete)
+		}
+	})
+}
+
+// WaitForPluginStartupComplete blocks until plugin startup is complete or timeout.
+// This waits for both Phase 1 (explicit) and Phase 2 (auto-load) to finish.
+// Uses 3x the API timeout since it covers multiple plugin phases.
+func (r *Reactor) WaitForPluginStartupComplete() {
+	if r.startupComplete == nil {
+		return
+	}
+
+	// Use longer timeout for startup complete (covers Phase 1 + Phase 2)
+	startupTimeout := 3 * r.apiTimeout
+	if startupTimeout == 0 {
+		startupTimeout = 3 * DefaultAPITimeout
+	}
+
+	select {
+	case <-r.startupComplete:
+		return
+	case <-time.After(startupTimeout):
+		slog.Warn("plugin startup timeout", "timeout", startupTimeout)
+	}
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.

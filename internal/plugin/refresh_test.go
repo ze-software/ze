@@ -99,6 +99,7 @@ func (m *mockReactorRefresh) GetPeerCapabilityConfigs() []PeerCapabilityConfig {
 func (m *mockReactorRefresh) GetConfigTree() map[string]any                    { return nil }
 func (m *mockReactorRefresh) SignalAPIReady()                                  {}
 func (m *mockReactorRefresh) AddAPIProcessCount(_ int)                         {}
+func (m *mockReactorRefresh) SignalPluginStartupComplete()                     {}
 func (m *mockReactorRefresh) SignalPeerAPIReady(_ string)                      {}
 func (m *mockReactorRefresh) AnnounceNLRIBatch(_ string, _ NLRIBatch) error    { return nil }
 func (m *mockReactorRefresh) WithdrawNLRIBatch(_ string, _ NLRIBatch) error    { return nil }

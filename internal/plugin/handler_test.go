@@ -303,7 +303,8 @@ func (m *mockReactor) ListUpdates() []uint64 {
 
 func (m *mockReactor) SignalAPIReady() {}
 
-func (m *mockReactor) AddAPIProcessCount(_ int) {}
+func (m *mockReactor) AddAPIProcessCount(_ int)     {}
+func (m *mockReactor) SignalPluginStartupComplete() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 

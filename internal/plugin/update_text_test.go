@@ -1129,6 +1129,7 @@ func (m *mockReactorBatch) ReleaseUpdate(_ uint64) error                        
 func (m *mockReactorBatch) ListUpdates() []uint64                                    { return nil }
 func (m *mockReactorBatch) SignalAPIReady()                                          {}
 func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                 {}
+func (m *mockReactorBatch) SignalPluginStartupComplete()                             {}
 func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                              {}
 func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil

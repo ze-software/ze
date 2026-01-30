@@ -551,21 +551,25 @@ OPEN: Multiprotocol(AFI=1, SAFI=133)
 This is intentional: explicit config = full control. Plugin families provide defaults
 when config doesn't specify families.
 
-**Auto-loading plugins:** When a family is configured but no plugin is explicitly loaded,
+**Auto-loading plugins:** When a family is configured but no plugin has claimed it,
 the engine automatically loads the internal plugin for that family (if one exists).
 
-Auto-loading is **prevented** when:
-1. `--plugin ze.<name>` is passed on command line (e.g., `--plugin ze.flowspec`)
-2. A plugin named `<name>` is configured in config file (e.g., `plugin { external flowspec { ... } }`)
+**Two-phase plugin startup:**
+1. **Phase 1:** Explicit plugins start first and register their families
+2. **Phase 2:** After Phase 1 completes, engine checks which configured families are still unclaimed
+3. Internal plugins are auto-loaded ONLY for unclaimed families
 
-The check is based on **plugin NAME**, not what families the plugin claims.
+Auto-loading is **prevented** when:
+1. An explicit plugin declares `decode` for the family (family-based check)
+2. `--plugin ze.<name>` is passed on command line (prevents auto-load for that plugin)
+
+The check is based on **family claims**, not plugin name. Plugin names are informational only.
 
 | Config | Plugin | Result |
 |--------|--------|--------|
 | `family { ipv4/flow; }` | None | ✅ Auto-loads `ze.flowspec` |
 | `family { ipv4/flow; }` | `--plugin ze.flowspec` | ✅ Uses explicit plugin (no auto-load) |
-| `family { ipv4/flow; }` | `plugin { external flowspec { ... } }` | ✅ Uses config plugin (no auto-load) |
-| `family { ipv4/flow; }` | `plugin { external my-flowspec { ... } }` | ⚠️ Both load, conflict if both claim family |
+| `family { ipv4/flow; }` | `plugin { external my-traffic { declares ipv4/flow } }` | ✅ Uses config plugin (no auto-load, family claimed) |
 | `family { ipv4/foo; }` | None | ❌ Startup fails (no plugin for family) |
 
 **Functional tests:**

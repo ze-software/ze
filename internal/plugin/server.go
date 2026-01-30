@@ -244,8 +244,19 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadPlugins); err != nil {
 			logger().Error("auto-load plugin startup failed", "error", err)
+			s.signalStartupComplete()
 			return
 		}
+	}
+
+	// Signal that all plugin phases are complete
+	s.signalStartupComplete()
+}
+
+// signalStartupComplete notifies reactor that plugin startup is done.
+func (s *Server) signalStartupComplete() {
+	if s.reactor != nil {
+		s.reactor.SignalPluginStartupComplete()
 	}
 }
 
@@ -274,6 +285,7 @@ func (s *Server) runPluginPhase(plugins []PluginConfig) error {
 
 // handleProcessCommandsSync handles commands from all processes and waits for completion.
 // Blocks until all plugins reach StageRunning or context is cancelled.
+// After StageRunning, starts async handlers for continued operation.
 func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 	// Get all processes from the manager
 	pm.mu.RLock()
@@ -283,17 +295,124 @@ func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 	}
 	pm.mu.RUnlock()
 
-	// Start a goroutine to handle each process
+	// Start a goroutine to handle startup for each process
 	var procWg sync.WaitGroup
 	for _, proc := range processes {
 		procWg.Add(1)
 		go func(p *Process) {
 			defer procWg.Done()
-			s.handleSingleProcessCommands(p)
+			s.handleProcessStartup(p)
 		}(proc)
 	}
 
 	procWg.Wait()
+
+	// After startup, start async handlers for continued operation
+	for _, proc := range processes {
+		go s.handleSingleProcessCommands(proc)
+	}
+}
+
+// handleProcessStartup handles a process until it reaches StageRunning.
+// Returns when startup is complete, allowing the sync phase to finish.
+func (s *Server) handleProcessStartup(proc *Process) {
+	// Initialize process to registration stage
+	proc.SetStage(StageRegistration)
+
+	cmdCtx := &CommandContext{
+		Reactor:       s.reactor,
+		Encoder:       s.encoder,
+		CommitManager: s.commitManager,
+		Dispatcher:    s.dispatcher,
+		Subscriptions: s.subscriptions,
+		Process:       proc,
+		Peer:          "*",
+	}
+
+	for proc.Running() && s.ctx.Err() == nil {
+		// Read command from process stdout with timeout
+		readCtx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
+		line, err := proc.ReadCommand(readCtx)
+		cancel()
+
+		if err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				continue
+			}
+			return
+		}
+
+		if line == "" {
+			continue
+		}
+
+		// Parse #N serial prefix
+		serial, cmd := parseSerial(line)
+		cmdCtx.Serial = serial
+
+		// Handle based on current stage
+		stage := proc.Stage()
+		switch stage {
+		case StageRegistration:
+			if s.handleRegistrationLine(proc, line) {
+				continue
+			}
+		case StageCapability:
+			if s.handleCapabilityLine(proc, line) {
+				continue
+			}
+		case StageRunning:
+			// Startup complete - return from sync handler
+			// Commands will be handled by async handler started after
+			return
+		case StageInit, StageConfig, StageRegistry, StageReady:
+			// Other stages: fall through to dispatch
+		}
+
+		// Handle "ready" command (Stage 5)
+		if cmd == "ready" {
+			if s.coordinator != nil {
+				s.coordinator.StageComplete(proc.Index(), StageReady)
+
+				timeout := proc.config.StageTimeout
+				if timeout == 0 {
+					timeout = defaultStageTimeout
+				}
+
+				stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
+				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
+				cancel()
+				if err != nil {
+					logger().Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
+					s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
+					return
+				}
+			}
+
+			proc.SetStage(StageRunning)
+			if s.reactor != nil {
+				s.reactor.SignalAPIReady()
+			}
+			// Startup complete - return
+			return
+		}
+
+		// Dispatch command (handles subscribe, etc. during startup)
+		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
+		if err != nil {
+			if errors.Is(err, ErrSilent) {
+				continue
+			}
+			resp = &Response{Status: "error", Data: err.Error()}
+		}
+
+		// Send response only if serial present
+		if serial != "" && resp != nil {
+			resp.Serial = serial
+			respJSON, _ := json.Marshal(WrapResponse(resp))
+			_ = proc.WriteEvent(string(respJSON))
+		}
+	}
 }
 
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families

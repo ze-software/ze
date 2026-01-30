@@ -426,6 +426,10 @@ type ReactorInterface interface {
 	// Used for two-phase plugin startup: Phase 1 (explicit) + Phase 2 (auto-load).
 	AddAPIProcessCount(count int)
 
+	// SignalPluginStartupComplete signals that all plugin phases are done.
+	// Called by Server after Phase 1 (explicit) + Phase 2 (auto-load) complete.
+	SignalPluginStartupComplete()
+
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	// Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 	SignalPeerAPIReady(peerAddr string)

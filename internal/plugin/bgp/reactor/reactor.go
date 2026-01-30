@@ -3597,6 +3597,11 @@ func (a *reactorAPIAdapter) AddAPIProcessCount(count int) {
 	a.r.AddAPIProcessCount(count)
 }
 
+// SignalPluginStartupComplete signals that all plugin phases are done.
+func (a *reactorAPIAdapter) SignalPluginStartupComplete() {
+	a.r.SignalPluginStartupComplete()
+}
+
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
 	a.r.SignalPeerAPIReady(peerAddr)
@@ -4221,8 +4226,11 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// during their startup protocol. Holding the write lock here causes deadlock.
 	r.mu.Unlock()
 
-	// Wait for API processes to signal readiness before starting peers.
-	// All processes must send "plugin session ready" before BGP sessions start.
+	// Wait for plugin startup to complete (Phase 1 + Phase 2) before validating.
+	// This ensures auto-loaded plugins have registered their families.
+	r.WaitForPluginStartupComplete()
+
+	// Also wait for individual plugins to signal ready (backwards compat).
 	r.WaitForAPIReady()
 
 	// Validate peer families against available plugin decoders.
