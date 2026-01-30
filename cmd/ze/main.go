@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
@@ -45,6 +46,8 @@ func main() {
 	switch arg {
 	case "bgp":
 		os.Exit(bgp.Run(args[1:]))
+	case "cli":
+		os.Exit(cli.Run(args[1:]))
 	case "config":
 		os.Exit(zeconfig.Run(args[1:]))
 	case "exabgp":
@@ -139,8 +142,9 @@ Options:
   --plugins         List available internal plugins
 
 Commands:
+  cli      Interactive CLI for running daemons
   bgp      BGP daemon and tools
-  exabgp   ExaBGP compatibility tools
+  exabgp   ExaBGP tools
   version  Show version
   help     Show this help
 
@@ -148,6 +152,8 @@ Examples:
   ze config.conf                      Start with config
   ze --plugin ze.hostname config.conf Start with hostname plugin
   ze --plugins                        List available plugins
+  ze cli                              Interactive CLI
+  ze cli --run "peer list"            Execute CLI command
   ze bgp help                         Show BGP commands
 `)
 }

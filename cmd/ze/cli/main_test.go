@@ -1,4 +1,4 @@
-package bgp
+package cli
 
 import (
 	"bufio"
@@ -55,7 +55,7 @@ func (s *mockServer) serve() {
 }
 
 func (s *mockServer) handleConn(conn net.Conn) {
-	defer func() { _ = conn.Close() }()
+	defer conn.Close() //nolint:errcheck // test cleanup
 
 	reader := bufio.NewReader(conn)
 
@@ -68,8 +68,13 @@ func (s *mockServer) handleConn(conn net.Conn) {
 		cmd := strings.TrimSpace(line)
 		resp := s.handleCommand(cmd)
 
-		data, _ := json.Marshal(resp)
-		_, _ = conn.Write(append(data, '\n'))
+		data, err := json.Marshal(resp)
+		if err != nil {
+			return
+		}
+		if _, err := conn.Write(append(data, '\n')); err != nil {
+			return
+		}
 	}
 }
 
@@ -124,7 +129,7 @@ func (s *mockServer) handleCommand(cmd string) map[string]any {
 			"status": "error",
 			"error":  "unknown command",
 		}
-	default:
+	default: // handle unknown commands gracefully in test
 		return map[string]any{
 			"status": "done",
 		}
@@ -132,7 +137,7 @@ func (s *mockServer) handleCommand(cmd string) map[string]any {
 }
 
 func (s *mockServer) Close() {
-	_ = s.listener.Close()
+	s.listener.Close() //nolint:errcheck,gosec // test cleanup
 	<-s.done
 }
 
@@ -156,14 +161,17 @@ func captureOutput(t *testing.T, isStderr bool, fn func()) string {
 
 	fn()
 
-	_ = w.Close()
+	w.Close() //nolint:errcheck,gosec // test cleanup
 	if isStderr {
 		os.Stderr = old
 	} else {
 		os.Stdout = old
 	}
 
-	out, _ := io.ReadAll(r)
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("failed to read captured output: %v", err)
+	}
 	return string(out)
 }
 
@@ -175,7 +183,7 @@ func TestCLIClient_SendCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer client.Close() //nolint:errcheck // test cleanup
 
 	tests := []struct {
 		name    string
@@ -212,7 +220,7 @@ func TestCLIClient_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer client.Close() //nolint:errcheck // test cleanup
 
 	var code int
 	output := captureOutput(t, false, func() {
@@ -236,7 +244,7 @@ func TestCLIClient_ExecuteError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer client.Close() //nolint:errcheck // test cleanup
 
 	var code int
 	output := captureOutput(t, true, func() {
@@ -267,7 +275,7 @@ func TestCLIClient_MultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer func() { _ = client.Close() }()
+	defer client.Close() //nolint:errcheck // test cleanup
 
 	// Send multiple commands on same connection
 	commands := []string{"system version", "daemon status", "peer list"}
@@ -283,43 +291,65 @@ func TestCLIClient_MultipleCommands(t *testing.T) {
 	}
 }
 
-// TestCmdCLI_RunFlag verifies cli --run executes a single command and exits.
+// TestRun_RunFlag verifies cli --run executes a single command and exits.
 //
 // VALIDATES: cli --run "<command>" executes command and returns result.
 // PREVENTS: regression when run command is merged into cli.
-func TestCmdCLI_RunFlag(t *testing.T) {
+func TestRun_RunFlag(t *testing.T) {
 	server := newMockServer(t)
 	defer server.Close()
 
 	// Test successful command
 	var code int
 	output := captureOutput(t, false, func() {
-		code = cmdCLI([]string{"--socket", server.path, "--run", "system version"})
+		code = Run([]string{"--socket", server.path, "--run", "system version"})
 	})
 
 	if code != 0 {
-		t.Errorf("cmdCLI(--run) returned %d, want 0", code)
+		t.Errorf("Run(--run) returned %d, want 0", code)
 	}
 
 	if !strings.Contains(output, "version") {
-		t.Errorf("cmdCLI(--run) output = %q, want to contain 'version'", output)
+		t.Errorf("Run(--run) output = %q, want to contain 'version'", output)
 	}
 }
 
-// TestCmdCLI_RunFlagError verifies cli --run returns error code on failure.
+// TestRun_RunFlagError verifies cli --run returns error code on failure.
 //
 // VALIDATES: cli --run returns non-zero on error.
 // PREVENTS: error status being swallowed.
-func TestCmdCLI_RunFlagError(t *testing.T) {
+func TestRun_RunFlagError(t *testing.T) {
 	server := newMockServer(t)
 	defer server.Close()
 
 	var code int
-	_ = captureOutput(t, true, func() {
-		code = cmdCLI([]string{"--socket", server.path, "--run", "bad command"})
+	captureOutput(t, true, func() {
+		code = Run([]string{"--socket", server.path, "--run", "bad command"})
 	})
 
 	if code != 1 {
-		t.Errorf("cmdCLI(--run error) returned %d, want 1", code)
+		t.Errorf("Run(--run error) returned %d, want 1", code)
+	}
+}
+
+// TestRun_BgpSubsystem verifies explicit bgp subsystem works.
+//
+// VALIDATES: ze cli bgp --run works with explicit subsystem.
+// PREVENTS: subsystem dispatch breaking.
+func TestRun_BgpSubsystem(t *testing.T) {
+	server := newMockServer(t)
+	defer server.Close()
+
+	var code int
+	output := captureOutput(t, false, func() {
+		code = Run([]string{"bgp", "--socket", server.path, "--run", "system version"})
+	})
+
+	if code != 0 {
+		t.Errorf("Run(bgp --run) returned %d, want 0", code)
+	}
+
+	if !strings.Contains(output, "version") {
+		t.Errorf("Run(bgp --run) output = %q, want to contain 'version'", output)
 	}
 }

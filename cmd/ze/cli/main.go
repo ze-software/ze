@@ -1,4 +1,5 @@
-package bgp
+// Package cli provides the ze cli subcommand.
+package cli
 
 import (
 	"bufio"
@@ -18,6 +19,91 @@ import (
 
 const defaultSocketPath = "/var/run/ze-bgp.sock"
 const statusError = "error"
+
+// Run executes the cli subcommand with the given arguments.
+// Returns exit code.
+func Run(args []string) int {
+	// Check for help first
+	if len(args) > 0 && (args[0] == "help" || args[0] == "-h" || args[0] == "--help") {
+		usage()
+		return 0
+	}
+
+	// Check for subsystem prefix (e.g., "ze cli bgp ...")
+	if len(args) > 0 && args[0] == "bgp" {
+		return runBGP(args[1:])
+	}
+
+	// Default: BGP subsystem (only one for now)
+	return runBGP(args)
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, `Usage: ze cli [subsystem] [options]
+
+Interactive CLI for Ze daemons.
+
+Subsystems:
+  bgp    BGP daemon (default)
+
+Options:
+  --socket <path>    Path to API socket (default: /var/run/ze-bgp.sock)
+  --run <command>    Execute single command and exit
+
+Examples:
+  ze cli                           Interactive BGP CLI
+  ze cli bgp                       Interactive BGP CLI (explicit)
+  ze cli --run "peer list"         Execute command
+  ze cli bgp --run "daemon status" Execute command (explicit)
+`)
+}
+
+// runBGP runs the BGP CLI.
+func runBGP(args []string) int {
+	fs := flag.NewFlagSet("cli", flag.ExitOnError)
+	socketPath := fs.String("socket", defaultSocketPath, "Path to API socket")
+	runCmd := fs.String("run", "", "Execute single command and exit")
+
+	if err := fs.Parse(args); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	// Try to connect to daemon
+	client, err := newCLIClient(*socketPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: cannot connect to %s: %v\n", *socketPath, err)
+		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
+		return 1
+	}
+	defer func() { _ = client.Close() }()
+
+	// If --run specified, execute single command and exit
+	if *runCmd != "" {
+		return client.Execute(*runCmd)
+	}
+
+	// Create initial model
+	ti := textinput.New()
+	ti.Placeholder = "type command or press Tab for suggestions"
+	ti.Focus()
+	ti.CharLimit = 256
+	ti.Width = 60
+
+	m := model{
+		textInput: ti,
+		client:    client,
+	}
+
+	// Run the bubbletea program
+	p := tea.NewProgram(m, tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	return 0
+}
 
 // cliResponse represents an API response.
 type cliResponse struct {
@@ -123,7 +209,7 @@ func (c *cliClient) printData(data map[string]any, indent string) {
 		case map[string]any:
 			fmt.Printf("%s%s:\n", indent, key)
 			c.printData(v, indent+"  ")
-		default:
+		default: // print unknown types with generic format
 			fmt.Printf("%s%s: %v\n", indent, key, value)
 		}
 	}
@@ -233,52 +319,6 @@ type executeResultMsg struct {
 	err    error
 }
 
-func cmdCLI(args []string) int {
-	fs := flag.NewFlagSet("cli", flag.ExitOnError)
-	socketPath := fs.String("socket", defaultSocketPath, "Path to API socket")
-	runCmd := fs.String("run", "", "Execute single command and exit")
-
-	if err := fs.Parse(args); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	// Try to connect to daemon
-	client, err := newCLIClient(*socketPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot connect to %s: %v\n", *socketPath, err)
-		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
-		return 1
-	}
-	defer func() { _ = client.Close() }()
-
-	// If --run specified, execute single command and exit
-	if *runCmd != "" {
-		return client.Execute(*runCmd)
-	}
-
-	// Create initial model
-	ti := textinput.New()
-	ti.Placeholder = "type command or press Tab for suggestions"
-	ti.Focus()
-	ti.CharLimit = 256
-	ti.Width = 60
-
-	m := model{
-		textInput: ti,
-		client:    client,
-	}
-
-	// Run the bubbletea program
-	p := tea.NewProgram(m, tea.WithAltScreen())
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	return 0
-}
-
 func (m model) Init() tea.Cmd {
 	return textinput.Blink
 }
@@ -330,8 +370,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.selected = 0
 			return m, m.executeCommand(input)
 
-		default:
-			// All other keys: update text input and regenerate suggestions
+		default: // handle all other keys via textinput
 			m.textInput, cmd = m.textInput.Update(msg)
 			m.updateSuggestions()
 			m.selected = 0

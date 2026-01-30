@@ -30,8 +30,6 @@ func Run(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: 'ze bgp server' is deprecated\n")
 		fmt.Fprintf(os.Stderr, "use 'ze config.conf' to start the BGP daemon\n")
 		return 1
-	case "cli":
-		return cmdCLI(args[1:])
 	case "validate":
 		return cmdValidate(args[1:])
 	case "decode":
@@ -69,8 +67,6 @@ Usage:
 To start the BGP daemon, use: ze <config>
 
 Commands:
-  cli                  Interactive CLI with autocomplete
-  cli --run <command>  Execute API command on running daemon
   validate <config>    Validate configuration file
   decode <hex>         Decode BGP message from hex to JSON
   encode <route>       Encode API route command to BGP hex
@@ -91,8 +87,7 @@ Config Subcommands:
 
 Examples:
   ze config.conf                          # Start BGP daemon
-  ze bgp cli --run "peer list"
-  ze bgp cli
+  ze cli --run "peer list"                # Use ze cli (not ze bgp cli)
   ze bgp validate /etc/ze/bgp/config.conf
   ze bgp config edit /etc/ze/bgp/config.conf
   ze bgp config check config.conf
