@@ -3,6 +3,7 @@ package plugin
 import (
 	"bufio"
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -191,6 +193,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		// Start command handlers for each process
 		s.wg.Add(1)
 		go s.handleProcessCommands()
+
+		// Generic NLRI encoding available via s.EncodeNLRI(family, args)
+		// Plugins register families via "declare family <afi> <safi> encode/decode"
 	}
 
 	// Only start socket listener if socket path is configured
@@ -1123,4 +1128,101 @@ func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage)
 		Format:   FormatParsed,
 	}
 	return FormatSentMessage(peer, msg, content)
+}
+
+// EncodeNLRI encodes NLRI by routing to the appropriate family plugin.
+// This is the public API for external callers (CLI tools, external plugins, tests).
+// Internal code paths use direct function calls for performance (e.g., update_text.go
+// calls flowspec.Encode directly). This method exists for callers that don't know
+// which plugin handles a family at compile time.
+// Returns error if no plugin registered or plugin not running.
+func (s *Server) EncodeNLRI(family nlri.Family, args []string) ([]byte, error) {
+	if s.registry == nil || s.procManager == nil {
+		return nil, fmt.Errorf("server not configured for plugins")
+	}
+
+	familyStr := family.String()
+	pluginName := s.registry.LookupFamily(familyStr)
+	if pluginName == "" {
+		return nil, fmt.Errorf("no plugin registered for family %s", familyStr)
+	}
+
+	// Get the process
+	proc := s.procManager.GetProcess(pluginName)
+	if proc == nil {
+		return nil, fmt.Errorf("plugin %s not running", pluginName)
+	}
+
+	// Build request: "encode nlri <family> <args...>"
+	command := fmt.Sprintf("encode nlri %s %s", familyStr, strings.Join(args, " "))
+
+	// Send request and wait for response
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+
+	response, err := proc.SendRequest(ctx, command)
+	if err != nil {
+		return nil, fmt.Errorf("plugin request failed: %w", err)
+	}
+
+	// Parse response: "encoded hex <hex>" or "encoded error <msg>"
+	if strings.HasPrefix(response, "encoded hex ") {
+		hexStr := strings.TrimPrefix(response, "encoded hex ")
+		data, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return nil, fmt.Errorf("decode plugin hex response: %w", err)
+		}
+		return data, nil
+	}
+	if strings.HasPrefix(response, "encoded error ") {
+		return nil, errors.New(strings.TrimPrefix(response, "encoded error "))
+	}
+
+	return nil, fmt.Errorf("unexpected plugin response: %s", response)
+}
+
+// DecodeNLRI decodes NLRI by routing to the appropriate family plugin.
+// This is the public API for external callers (CLI tools, external plugins, tests).
+// Internal code paths use direct function calls for performance. This method exists
+// for callers that don't know which plugin handles a family at compile time.
+// Returns the JSON representation of the decoded NLRI.
+// Returns error if no plugin registered or plugin not running.
+func (s *Server) DecodeNLRI(family nlri.Family, hexData string) (string, error) {
+	if s.registry == nil || s.procManager == nil {
+		return "", fmt.Errorf("server not configured for plugins")
+	}
+
+	familyStr := family.String()
+	pluginName := s.registry.LookupFamily(familyStr)
+	if pluginName == "" {
+		return "", fmt.Errorf("no plugin registered for family %s", familyStr)
+	}
+
+	// Get the process
+	proc := s.procManager.GetProcess(pluginName)
+	if proc == nil {
+		return "", fmt.Errorf("plugin %s not running", pluginName)
+	}
+
+	// Build request: "decode nlri <family> <hex>"
+	command := fmt.Sprintf("decode nlri %s %s", familyStr, hexData)
+
+	// Send request and wait for response
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+
+	response, err := proc.SendRequest(ctx, command)
+	if err != nil {
+		return "", fmt.Errorf("plugin request failed: %w", err)
+	}
+
+	// Parse response: "decoded json <json>" or "decoded unknown"
+	if strings.HasPrefix(response, "decoded json ") {
+		return strings.TrimPrefix(response, "decoded json "), nil
+	}
+	if response == "decoded unknown" {
+		return "", fmt.Errorf("plugin could not decode NLRI")
+	}
+
+	return "", fmt.Errorf("unexpected plugin response: %s", response)
 }

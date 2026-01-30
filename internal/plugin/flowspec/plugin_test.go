@@ -263,3 +263,89 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 		})
 	}
 }
+
+// TestEventLoopSerialPrefix verifies the eventLoop uses correct serial prefixes.
+// Request: #serial command → Response: @serial result
+//
+// VALIDATES: Response uses @ prefix (not # which is for requests).
+// PREVENTS: Protocol mismatch where plugin echoes # instead of @.
+func TestEventLoopSerialPrefix(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantPrefix   string
+		wantContains string
+	}{
+		{
+			name:         "encode_with_serial",
+			input:        "#42 encode nlri ipv4/flowspec destination 10.0.0.0/24\n",
+			wantPrefix:   "@42 encoded hex ",
+			wantContains: "0A0000", // 10.0.0.0 in hex
+		},
+		{
+			name:         "decode_with_serial",
+			input:        "#abc decode nlri ipv4/flowspec 0501180a0000\n",
+			wantPrefix:   "@abc decoded json ",
+			wantContains: "10.0.0.0/24",
+		},
+		{
+			name:         "encode_error_with_serial",
+			input:        "#99 encode nlri ipv4/unicast destination 10.0.0.0/24\n",
+			wantPrefix:   "@99 encoded error ",
+			wantContains: "invalid family",
+		},
+		{
+			name:         "decode_unknown_with_serial",
+			input:        "#xyz decode nlri ipv4/unicast 180a0000\n",
+			wantPrefix:   "@xyz decoded unknown",
+			wantContains: "",
+		},
+		{
+			name:         "no_serial_encode",
+			input:        "encode nlri ipv4/flowspec destination 10.0.0.0/24\n",
+			wantPrefix:   "encoded hex ",
+			wantContains: "0A0000",
+		},
+		{
+			name:         "no_serial_decode",
+			input:        "decode nlri ipv4/flowspec 0501180a0000\n",
+			wantPrefix:   "decoded json ",
+			wantContains: "10.0.0.0/24",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Provide startup handshake + test request
+			startupInput := "config done\nregistry done\n" + tt.input
+			input := strings.NewReader(startupInput)
+			output := &bytes.Buffer{}
+
+			plugin := NewFlowSpecPlugin(input, output)
+			plugin.Run()
+
+			result := output.String()
+
+			// Skip startup output (declare lines, capability done, ready)
+			lines := strings.Split(result, "\n")
+			var responseLine string
+			for _, line := range lines {
+				// Find the response line (not startup protocol)
+				if strings.HasPrefix(line, "@") ||
+					strings.HasPrefix(line, "encoded") ||
+					strings.HasPrefix(line, "decoded") {
+					responseLine = line
+					break
+				}
+			}
+
+			require.NotEmpty(t, responseLine, "no response found in output: %s", result)
+			assert.True(t, strings.HasPrefix(responseLine, tt.wantPrefix),
+				"expected prefix %q, got: %s", tt.wantPrefix, responseLine)
+
+			if tt.wantContains != "" {
+				assert.Contains(t, responseLine, tt.wantContains)
+			}
+		})
+	}
+}

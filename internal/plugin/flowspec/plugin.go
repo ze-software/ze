@@ -64,10 +64,16 @@ func (p *FlowSpecPlugin) Run() int {
 
 // doStartupProtocol performs the 5-stage plugin registration protocol.
 func (p *FlowSpecPlugin) doStartupProtocol() {
-	// Stage 1: Declaration - claim FlowSpec family decoding
+	// Stage 1: Declaration - claim FlowSpec family encode AND decode
+	// Encode: text components → wire bytes
+	// Decode: wire bytes → JSON
+	p.send("declare family ipv4 flowspec encode")
 	p.send("declare family ipv4 flowspec decode")
+	p.send("declare family ipv6 flowspec encode")
 	p.send("declare family ipv6 flowspec decode")
+	p.send("declare family ipv4 flowspec-vpn encode")
 	p.send("declare family ipv4 flowspec-vpn decode")
+	p.send("declare family ipv6 flowspec-vpn encode")
 	p.send("declare family ipv6 flowspec-vpn decode")
 	p.send("declare rfc 8955")
 	p.send("declare rfc 8956")
@@ -87,17 +93,135 @@ func (p *FlowSpecPlugin) doStartupProtocol() {
 	p.send("ready")
 }
 
-// eventLoop runs the minimal event loop.
-// FlowSpec plugin is decode-only for now - just handles shutdown.
+// eventLoop handles encode/decode requests from the engine.
+// Request formats:
+//   - "#serial encode nlri <family> <args...>" → "@serial encoded hex <hex>"
+//   - "#serial decode nlri <family> <hex>"     → "@serial decoded json <json>"
+//
+// Note: Requests use # prefix, responses use @ prefix (standard plugin protocol).
 func (p *FlowSpecPlugin) eventLoop() {
 	for p.input.Scan() {
 		line := p.input.Text()
 		if len(line) == 0 {
 			continue
 		}
-		// FlowSpec plugin doesn't handle events yet - just consume until EOF
-		flowLogger.Debug("event (ignored)", "line", line[:min(50, len(line))])
+
+		flowLogger.Debug("received", "line", line[:min(80, len(line))])
+
+		// Parse serial prefix: "#serial command..."
+		serial, command := parseSerialPrefix(line)
+
+		// Handle encode/decode requests
+		response := p.handleRequest(command)
+		if response != "" {
+			if serial != "" {
+				// Response uses @ prefix (not # which is for requests)
+				p.send(fmt.Sprintf("@%s %s", serial, response))
+			} else {
+				p.send(response)
+			}
+		}
 	}
+}
+
+// parseSerialPrefix extracts "#serial" prefix from a line.
+// Returns (serial, rest) where serial is empty if no prefix.
+func parseSerialPrefix(line string) (string, string) {
+	if len(line) > 0 && line[0] == '#' {
+		// Find space after serial
+		idx := strings.IndexByte(line, ' ')
+		if idx > 1 {
+			return line[1:idx], line[idx+1:]
+		}
+	}
+	return "", line
+}
+
+// Protocol constants for request/response handling.
+const (
+	objTypeNLRI     = "nlri"
+	respDecodedUnk  = "decoded unknown"
+	respEncodedErr  = "encoded error "
+	respEncodedHex  = "encoded hex "
+	respDecodedJSON = "decoded json "
+)
+
+// handleRequest processes a single request and returns the response.
+func (p *FlowSpecPlugin) handleRequest(line string) string {
+	parts := strings.Fields(line)
+	if len(parts) < 3 {
+		return ""
+	}
+
+	cmd := parts[0]
+	objType := parts[1]
+
+	switch {
+	case cmd == "encode" && objType == objTypeNLRI:
+		return p.handleEncodeRequest(parts)
+	case cmd == "decode" && objType == objTypeNLRI:
+		return p.handleDecodeRequest(parts)
+	}
+
+	return ""
+}
+
+// handleEncodeRequest handles: encode nlri <family> <args...>.
+// Returns "encoded hex <hex>" or "encoded error <msg>".
+func (p *FlowSpecPlugin) handleEncodeRequest(parts []string) string {
+	if len(parts) < 4 {
+		return respEncodedErr + "missing family or components"
+	}
+
+	family := strings.ToLower(parts[2])
+	if !isValidFlowSpecFamily(family) {
+		return respEncodedErr + "invalid family: " + family
+	}
+
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		return respEncodedErr + "unknown family: " + family
+	}
+
+	args := parts[3:]
+	wireBytes, err := EncodeFlowSpecComponents(fam, args)
+	if err != nil {
+		return respEncodedErr + err.Error()
+	}
+
+	return respEncodedHex + strings.ToUpper(hex.EncodeToString(wireBytes))
+}
+
+// handleDecodeRequest handles: decode nlri <family> <hex>.
+// Returns "decoded json <json>" or "decoded unknown".
+func (p *FlowSpecPlugin) handleDecodeRequest(parts []string) string {
+	if len(parts) < 4 {
+		return respDecodedUnk
+	}
+
+	family := strings.ToLower(parts[2])
+	hexData := parts[3]
+
+	if !isValidFlowSpecFamily(family) {
+		return respDecodedUnk
+	}
+
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		return respDecodedUnk
+	}
+
+	result := decodeFlowSpecNLRI(family, data)
+	if result == nil {
+		return respDecodedUnk
+	}
+
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return respDecodedUnk
+	}
+
+	return respDecodedJSON + string(jsonBytes)
 }
 
 // waitForLine reads lines until one matches the expected line.
