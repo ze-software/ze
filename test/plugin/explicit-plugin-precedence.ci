@@ -14,13 +14,13 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option:open:value=inspect-open-message
+option=open:value=inspect-open-message
 # Expect OPEN with:
 # - ASN=1 (0x0001), hold=90s (0x005A), router-id=1.2.3.4 (0x01020304)
 # - Opt params (16 bytes = 0x10):
 #   - Multiprotocol ipv4/flow: 02 06 01 04 00 01 00 85
 #   - ASN4: 02 06 41 04 00 00 00 01
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A010203041002060104000100850206410400000001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A010203041002060104000100850206410400000001
 EOF_PEER
 
 # ze bgp configuration
@@ -43,5 +43,5 @@ EOF_CONF
 
 # Process orchestration
 # --plugin ze.flowspec is explicit - prevents auto-loading
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze --plugin ze.flowspec -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.flowspec -:stdin=ze-bgp:timeout=10s

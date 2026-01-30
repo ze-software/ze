@@ -598,18 +598,23 @@ generateDecoded:
 	return nil
 }
 
-// parseLine parses a single .ci line in the action:type:key=value format.
+// parseLine parses a single .ci line in the action=type:key=value format.
 func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
-	// Parse action:type:key=value:key=value:...
-	// All segments separated by colon, only key=value pairs use equals
+	// Parse action=type:key=value:key=value:...
+	// First segment is action=type, remaining segments are key=value pairs
 	parts := strings.Split(line, ":")
-	if len(parts) < 2 {
-		return fmt.Errorf("invalid format %q, expected action:type:key=value", line)
+	if len(parts) < 1 {
+		return fmt.Errorf("invalid format %q, expected action=type:key=value", line)
 	}
 
-	action := parts[0]
-	lineType := parts[1]
-	kvPairs := ci.ParseKVPairs(parts[2:])
+	// First segment is action=type
+	actionType := strings.SplitN(parts[0], "=", 2)
+	if len(actionType) != 2 {
+		return fmt.Errorf("invalid format %q, expected action=type:key=value", line)
+	}
+	action := actionType[0]
+	lineType := actionType[1]
+	kvPairs := ci.ParseKVPairs(parts[1:])
 
 	switch action {
 	case "option":
@@ -657,7 +662,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return fmt.Errorf("option:asn missing value=")
 		}
 		r.Extra["asn"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option:asn:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option=asn:value=%s", value))
 
 	case "bind":
 		value := kv["value"]
@@ -665,7 +670,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 			return fmt.Errorf("option:bind missing value=")
 		}
 		r.Extra["bind"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option:bind:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option=bind:value=%s", value))
 
 	case "timeout":
 		value := kv["value"]
@@ -679,21 +684,21 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 		if value == "" {
 			return fmt.Errorf("option:tcp_connections missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option:tcp_connections:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option=tcp_connections:value=%s", value))
 
 	case "open":
 		value := kv["value"]
 		if value == "" {
 			return fmt.Errorf("option:open missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option:open:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option=open:value=%s", value))
 
 	case "update":
 		value := kv["value"]
 		if value == "" {
 			return fmt.Errorf("option:update missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option:update:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option=update:value=%s", value))
 
 	case "env":
 		varName := kv["var"]
@@ -729,7 +734,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			msg.Raw = rawBytes
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("expect:bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		r.Expects = append(r.Expects, fmt.Sprintf("expect=bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
 
 	case "json":
 		conn, seq, err := parseConnSeq(kv)
@@ -801,7 +806,7 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		}
 		text := kv["text"]
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action:notification:conn=%d:seq=%d:text=%s", conn, seq, text))
+		r.Expects = append(r.Expects, fmt.Sprintf("action=notification:conn=%d:seq=%d:text=%s", conn, seq, text))
 
 	case "send":
 		conn, seq, err := parseConnSeq(kv)
@@ -813,7 +818,7 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 			return fmt.Errorf("action:send missing hex=")
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action:send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
 
 	default:
 		return fmt.Errorf("unknown action type %q", actType)

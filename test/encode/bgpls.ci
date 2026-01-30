@@ -1,9 +1,9 @@
 # BGP-LS family test - verifies capability negotiation and EOR
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option:asn:value=1
-cmd:api:conn=1:seq=1:text=bgp peer * update text nlri bgp-ls/bgp-ls eor
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400447
+option=asn:value=1
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri bgp-ls/bgp-ls eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400447
 EOF_PEER
 
 # ze bgp configuration
@@ -23,5 +23,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

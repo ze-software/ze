@@ -229,15 +229,15 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 			continue
 		}
 
-		// Parse expect:exit:code=N
-		if strings.HasPrefix(trimmed, "expect:exit:code=") {
+		// Parse expect=exit:code=N
+		if strings.HasPrefix(trimmed, "expect=exit:code=") {
 			// We don't need to store this - positive tests expect 0, negative expect non-0
 			continue
 		}
 
-		// Parse expect:stderr:contains=<error>
-		if strings.HasPrefix(trimmed, "expect:stderr:contains=") {
-			test.ExpectError = strings.TrimPrefix(trimmed, "expect:stderr:contains=")
+		// Parse expect=stderr:contains=<error>
+		if strings.HasPrefix(trimmed, "expect=stderr:contains=") {
+			test.ExpectError = strings.TrimPrefix(trimmed, "expect=stderr:contains=")
 			continue
 		}
 

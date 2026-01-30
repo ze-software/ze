@@ -1,8 +1,8 @@
 # ze-peer expectations (what peer expects to receive)
 stdin=peer:terminator=EOF_PEER
-option:asn:value=65000
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
-expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # ze bgp configuration
@@ -33,5 +33,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

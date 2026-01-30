@@ -708,42 +708,42 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
 
 // parseExpectRule parses new format expect rules.
 // Returns conn (1-4), seq, and normalized content.
-// Only handles: expect:bgp:conn=N:seq=N:hex=... and action:notification:conn=N:seq=N:text=...
+// Only handles: expect=bgp:conn=N:seq=N:hex=... and action=notification:conn=N:seq=N:text=...
 // Returns error for invalid or incomplete rules.
 func parseExpectRule(rule string) (conn, seq int, content string, err error) {
-	// expect:bgp:conn=N:seq=N:hex=...
-	if strings.HasPrefix(rule, "expect:bgp:") {
-		kv := parseKV(strings.TrimPrefix(rule, "expect:bgp:"))
+	// expect=bgp:conn=N:seq=N:hex=...
+	if strings.HasPrefix(rule, "expect=bgp:") {
+		kv := parseKV(strings.TrimPrefix(rule, "expect=bgp:"))
 
 		connStr := kv["conn"]
 		if connStr == "" {
-			return 0, 0, "", fmt.Errorf("expect:bgp missing conn: %q", rule)
+			return 0, 0, "", fmt.Errorf("expect=bgp missing conn: %q", rule)
 		}
 		conn, err = strconv.Atoi(connStr)
 		if err != nil || conn < 1 || conn > 4 {
-			return 0, 0, "", fmt.Errorf("expect:bgp invalid conn=%q (must be 1-4): %q", connStr, rule)
+			return 0, 0, "", fmt.Errorf("expect=bgp invalid conn=%q (must be 1-4): %q", connStr, rule)
 		}
 
 		seqStr := kv["seq"]
 		if seqStr == "" {
-			return 0, 0, "", fmt.Errorf("expect:bgp missing seq: %q", rule)
+			return 0, 0, "", fmt.Errorf("expect=bgp missing seq: %q", rule)
 		}
 		seq, err = strconv.Atoi(seqStr)
 		if err != nil || seq < 1 {
-			return 0, 0, "", fmt.Errorf("expect:bgp invalid seq=%q (must be >= 1): %q", seqStr, rule)
+			return 0, 0, "", fmt.Errorf("expect=bgp invalid seq=%q (must be >= 1): %q", seqStr, rule)
 		}
 
 		hex := kv["hex"]
 		if hex == "" {
-			return 0, 0, "", fmt.Errorf("expect:bgp missing hex: %q", rule)
+			return 0, 0, "", fmt.Errorf("expect=bgp missing hex: %q", rule)
 		}
 		content = strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
 		return conn, seq, content, nil
 	}
 
-	// action:notification:conn=N:seq=N:text=...
-	if strings.HasPrefix(rule, "action:notification:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action:notification:"))
+	// action=notification:conn=N:seq=N:text=...
+	if strings.HasPrefix(rule, "action=notification:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=notification:"))
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -771,9 +771,9 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		return conn, seq, content, nil
 	}
 
-	// action:send:conn=N:seq=N:hex=...
-	if strings.HasPrefix(rule, "action:send:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action:send:"))
+	// action=send:conn=N:seq=N:hex=...
+	if strings.HasPrefix(rule, "action=send:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=send:"))
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -1027,16 +1027,21 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 			continue
 		}
 
-		// Parse format: action:type:key=value:...
-		// All segments separated by colon, only key=value pairs use equals
+		// Parse format: action=type:key=value:...
+		// First segment is action=type, remaining segments are key=value pairs
 		parts := strings.Split(line, ":")
-		if len(parts) < 2 {
+		if len(parts) < 1 {
 			return nil, nil, fmt.Errorf("line %d: invalid format %q", lineNum, line)
 		}
 
-		action := parts[0]
-		lineType := parts[1]
-		kv := ci.ParseKVPairs(parts[2:])
+		// First segment is action=type
+		actionType := strings.SplitN(parts[0], "=", 2)
+		if len(actionType) != 2 {
+			return nil, nil, fmt.Errorf("line %d: invalid format %q, expected action=type:key=value", lineNum, line)
+		}
+		action := actionType[0]
+		lineType := actionType[1]
+		kv := ci.ParseKVPairs(parts[1:])
 
 		switch action {
 		case "option":
@@ -1044,18 +1049,18 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 
 		case "expect":
 			if lineType == "bgp" {
-				// Pass through new format: expect:bgp:conn=N:seq=N:hex=...
+				// Pass through new format: expect=bgp:conn=N:seq=N:hex=...
 				expect = append(expect, line)
 			}
 			// Ignore json, stderr, syslog - handled by test runner
 
 		case "action":
 			if lineType == "notification" {
-				// Pass through new format: action:notification:conn=N:seq=N:text=...
+				// Pass through new format: action=notification:conn=N:seq=N:text=...
 				expect = append(expect, line)
 			}
 			if lineType == "send" {
-				// Pass through new format: action:send:conn=N:seq=N:hex=...
+				// Pass through new format: action=send:conn=N:seq=N:hex=...
 				expect = append(expect, line)
 			}
 

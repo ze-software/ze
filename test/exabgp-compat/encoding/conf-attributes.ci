@@ -1,4 +1,4 @@
-option:file:conf-attributes.conf
+option=file:conf-attributes.conf
 # Empty UPDATE (EOR for IPv4 unicast)
 1:cmd:announce eor ipv4 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000

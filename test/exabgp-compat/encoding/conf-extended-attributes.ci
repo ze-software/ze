@@ -1,4 +1,4 @@
-option:file:conf-extended-attributes.conf
+option=file:conf-extended-attributes.conf
 1:cmd:announce route 10.0.0.1/32 next-hop 15.15.15.1 origin igp local-preference 100 extended-community [origin:100:0.0.3.232]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003C:02:00000020400101004002004003040F0F0F0140050400000064C0100800030064000003E8200A000001
 1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":1,"peer":1},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":844854426862568,"string":"origin:100:0.0.3.232"}]},"announce":{"ipv4 unicast":{"15.15.15.1":[{"nlri":"10.0.0.1/32"}]}}}}}}

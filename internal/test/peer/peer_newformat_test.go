@@ -17,20 +17,20 @@ func TestPeerLoadExpectNewFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	ciFile := filepath.Join(tmpDir, "test.ci")
 
-	ciContent := `option:file:path=test.conf
-option:asn:value=65000
-option:bind:value=ipv6
-option:tcp_connections:value=2
-option:open:value=send-unknown-capability
-option:open:value=inspect-open-message
-option:open:value=send-unknown-message
-option:update:value=send-default-route
-option:env:var=ze.log.bgp.server:value=debug
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02
-expect:json:conn=1:seq=1:json={"type":"keepalive"}
-cmd:api:conn=1:seq=1:text=update text nhop set 1.2.3.4
-action:notification:conn=1:seq=2:text=session ending`
+	ciContent := `option=file:path=test.conf
+option=asn:value=65000
+option=bind:value=ipv6
+option=tcp_connections:value=2
+option=open:value=send-unknown-capability
+option=open:value=inspect-open-message
+option=open:value=send-unknown-message
+option=update:value=send-default-route
+option=env:var=ze.log.bgp.server:value=debug
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02
+expect=json:conn=1:seq=1:json={"type":"keepalive"}
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4
+action=notification:conn=1:seq=2:text=session ending`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
@@ -54,13 +54,13 @@ action:notification:conn=1:seq=2:text=session ending`
 	foundBGP2 := false
 	foundNotification := false
 	for _, exp := range expects {
-		if exp == "expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304" {
+		if exp == "expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304" {
 			foundBGP1 = true
 		}
-		if exp == "expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02" {
+		if exp == "expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02" {
 			foundBGP2 = true
 		}
-		if exp == "action:notification:conn=1:seq=2:text=session ending" {
+		if exp == "action=notification:conn=1:seq=2:text=session ending" {
 			foundNotification = true
 		}
 	}

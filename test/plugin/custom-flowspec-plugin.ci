@@ -16,12 +16,12 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option:open:value=inspect-open-message
+option=open:value=inspect-open-message
 # Expect OPEN with ipv4/flow + ipv4/unicast capabilities
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003501040001005A0102030418020601040001008502060104000100010206410400000001
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003501040001005A0102030418020601040001008502060104000100010206410400000001
 # Expect marker UPDATE from custom plugin: 77.77.77.0/24
 # This proves our custom plugin is active (internal flowspec wouldn't send this)
-expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040102030440050400000064184d4d4d
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040102030440050400000064184d4d4d
 EOF_PEER
 
 # Custom plugin with UNRELATED name that claims flowspec families
@@ -98,5 +98,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

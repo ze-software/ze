@@ -1,4 +1,4 @@
-option:file:conf-split.conf
+option=file:conf-split.conf
 1:cmd:announce route 172.10.0.0/24 next-hop 192.0.2.1 origin igp local-preference 100 med 200 community [174:666]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003E02:0000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A00
 1:cmd:announce route 172.10.1.0/24 next-hop 192.0.2.1 origin igp local-preference 100 med 200 community [174:666]

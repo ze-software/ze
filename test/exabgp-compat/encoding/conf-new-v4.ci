@@ -1,4 +1,4 @@
-option:file:conf-new-v4.conf
+option=file:conf-new-v4.conf
 1:cmd:announce attributes next-hop 10.0.255.254 origin igp local-preference 100 community [30740:30740] nlri 10.0.2.0/24 10.0.6.0/24
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003B:02:0000001C400101004002004003040A00FFFE40050400000064C0080478147814180A0002180A0006
 1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":65533,"peer":65533},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"community":[[30740,30740]]},"announce":{"ipv4 unicast":{"10.0.255.254":[{"nlri":"10.0.2.0/24"},{"nlri":"10.0.6.0/24"}]}}}}}}

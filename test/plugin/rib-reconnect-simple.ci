@@ -2,22 +2,22 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option:tcp_connections:value=2
-option:timeout:value=15s
+option=tcp_connections:value=2
+option=timeout:value=15s
 
 # Test: Static route resent on reconnection with RIB plugin
 # Verifies that sendInitialRoutes sends static route and EOR on reconnection
 # NOTE: RIB plugin also replays routes on state up, so we get 2 UPDATEs (no dedup)
 
 # Connection A: Static route + EOR
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-action:notification:conn=1:seq=2:text=Peer Reset
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=notification:conn=1:seq=2:text=Peer Reset
 
 # Connection B: Static route + RIB replay + EOR (duplicate expected - no dedup)
-expect:bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
-expect:bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
-expect:bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # ze bgp configuration
@@ -69,5 +69,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

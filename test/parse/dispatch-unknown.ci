@@ -9,6 +9,6 @@ environment {
 }
 EOF_CONF
 
-cmd:foreground:seq=1:exec=ze bgp validate -:stdin=config
-expect:exit:code=1
-expect:stderr:contains=missing required bgp { } block
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=missing required bgp { } block

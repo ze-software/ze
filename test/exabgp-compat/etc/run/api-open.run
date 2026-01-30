@@ -14,7 +14,7 @@ def main() -> None:
     ]
 
     try:
-        while os.getppid() != 1 and expect:
+        while os.getppid() != 1 and expect=
             line = sys.stdin.readline().strip()
 
             expected = expect.pop(0)

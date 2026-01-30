@@ -1266,10 +1266,10 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	for _, pattern := range rec.ExpectStderr {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return fmt.Errorf("invalid expect:stderr pattern %q: %w", pattern, err)
+			return fmt.Errorf("invalid expect=stderr pattern %q: %w", pattern, err)
 		}
 		if !re.MatchString(stderr) {
-			return fmt.Errorf("expect:stderr pattern not found: %s", pattern)
+			return fmt.Errorf("expect=stderr pattern not found: %s", pattern)
 		}
 	}
 
@@ -1277,10 +1277,10 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	for _, pattern := range rec.RejectStderr {
 		re, err := regexp.Compile(pattern)
 		if err != nil {
-			return fmt.Errorf("invalid reject:stderr pattern %q: %w", pattern, err)
+			return fmt.Errorf("invalid reject=stderr pattern %q: %w", pattern, err)
 		}
 		if re.MatchString(stderr) {
-			return fmt.Errorf("reject:stderr pattern found: %s", pattern)
+			return fmt.Errorf("reject=stderr pattern found: %s", pattern)
 		}
 	}
 
@@ -1288,7 +1288,7 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	if syslogSrv != nil {
 		for _, pattern := range rec.ExpectSyslog {
 			if !syslogSrv.Match(pattern) {
-				return fmt.Errorf("expect:syslog pattern not found: %s", pattern)
+				return fmt.Errorf("expect=syslog pattern not found: %s", pattern)
 			}
 		}
 	}

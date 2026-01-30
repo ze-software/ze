@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
 )
 
-// TestValidateLoggingExpectStderr verifies expect:stderr pattern matching.
+// TestValidateLoggingExpectStderr verifies expect=stderr pattern matching.
 //
 // VALIDATES: Expected patterns are found in stderr output.
 // PREVENTS: False positives/negatives in stderr log verification.
@@ -36,7 +36,7 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 			patterns:  []string{"subsystem=server"},
 			stderr:    "level=INFO subsystem=filter msg=test",
 			wantError: true,
-			errMsg:    "expect:stderr pattern not found: subsystem=server",
+			errMsg:    "expect=stderr pattern not found: subsystem=server",
 		},
 		{
 			name:      "regex_pattern_found",
@@ -55,14 +55,14 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 			patterns:  []string{"subsystem=server", "level=DEBUG"},
 			stderr:    "level=INFO subsystem=server msg=test",
 			wantError: true,
-			errMsg:    "expect:stderr pattern not found: level=DEBUG",
+			errMsg:    "expect=stderr pattern not found: level=DEBUG",
 		},
 		{
 			name:      "invalid_regex",
 			patterns:  []string{"[invalid"},
 			stderr:    "level=INFO",
 			wantError: true,
-			errMsg:    "invalid expect:stderr pattern",
+			errMsg:    "invalid expect=stderr pattern",
 		},
 		{
 			name:      "empty_pattern_matches_anything",
@@ -95,7 +95,7 @@ func TestValidateLoggingExpectStderr(t *testing.T) {
 	}
 }
 
-// TestValidateLoggingRejectStderr verifies reject:stderr pattern matching.
+// TestValidateLoggingRejectStderr verifies reject=stderr pattern matching.
 //
 // VALIDATES: Rejected patterns cause failure when found in stderr.
 // PREVENTS: Unwanted log messages going undetected.
@@ -118,21 +118,21 @@ func TestValidateLoggingRejectStderr(t *testing.T) {
 			patterns:  []string{"level=ERROR"},
 			stderr:    "level=ERROR subsystem=server",
 			wantError: true,
-			errMsg:    "reject:stderr pattern found: level=ERROR",
+			errMsg:    "reject=stderr pattern found: level=ERROR",
 		},
 		{
 			name:      "regex_pattern_found",
 			patterns:  []string{"error.*fatal"},
 			stderr:    "error: something fatal happened",
 			wantError: true,
-			errMsg:    "reject:stderr pattern found: error.*fatal",
+			errMsg:    "reject=stderr pattern found: error.*fatal",
 		},
 		{
 			name:      "invalid_regex",
 			patterns:  []string{"(unclosed"},
 			stderr:    "level=INFO",
 			wantError: true,
-			errMsg:    "invalid reject:stderr pattern",
+			errMsg:    "invalid reject=stderr pattern",
 		},
 	}
 
@@ -153,7 +153,7 @@ func TestValidateLoggingRejectStderr(t *testing.T) {
 	}
 }
 
-// TestValidateLoggingExpectSyslog verifies expect:syslog pattern matching.
+// TestValidateLoggingExpectSyslog verifies expect=syslog pattern matching.
 //
 // VALIDATES: Expected patterns are found in syslog messages.
 // PREVENTS: Syslog backend tests silently failing.
@@ -176,7 +176,7 @@ func TestValidateLoggingExpectSyslog(t *testing.T) {
 			patterns:   []string{"subsystem=server"},
 			syslogMsgs: []string{"<14>level=INFO subsystem=filter msg=test"},
 			wantError:  true,
-			errMsg:     "expect:syslog pattern not found: subsystem=server",
+			errMsg:     "expect=syslog pattern not found: subsystem=server",
 		},
 		{
 			name:       "multiple_patterns_all_found",
@@ -251,7 +251,7 @@ func TestValidateLoggingCombined(t *testing.T) {
 	// Expect passes but reject fails
 	err = r.validateLogging(rec, "level=ERROR subsystem=server", nil)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "reject:stderr pattern found")
+	assert.Contains(t, err.Error(), "reject=stderr pattern found")
 }
 
 // sendUDPMessage sends a UDP message to localhost:port.

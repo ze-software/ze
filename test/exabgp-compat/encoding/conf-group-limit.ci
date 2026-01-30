@@ -1,4 +1,4 @@
-option:file:conf-group-limit.conf
+option=file:conf-group-limit.conf
 # EOR
 1:cmd:announce eor ipv4 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000

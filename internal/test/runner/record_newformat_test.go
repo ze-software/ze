@@ -11,7 +11,7 @@ import (
 
 // TestParseCIExpectBGP verifies parsing of expect:bgp lines.
 //
-// VALIDATES: expect:bgp:conn=N:seq=N:hex=... is parsed correctly.
+// VALIDATES: expect=bgp:conn=N:seq=N:hex=... is parsed correctly.
 // PREVENTS: BGP message expectations not being captured.
 func TestParseCIExpectBGP(t *testing.T) {
 	ResetNickCounter()
@@ -20,9 +20,9 @@ func TestParseCIExpectBGP(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -50,7 +50,7 @@ expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 // TestParseCIExpectJSON verifies parsing of expect:json lines.
 //
-// VALIDATES: expect:json:conn=N:seq=N:json={...} is parsed and linked to same seq.
+// VALIDATES: expect=json:conn=N:seq=N:json={...} is parsed and linked to same seq.
 // PREVENTS: JSON validation not being associated with correct message.
 func TestParseCIExpectJSON(t *testing.T) {
 	ResetNickCounter()
@@ -59,9 +59,9 @@ func TestParseCIExpectJSON(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-expect:json:conn=1:seq=1:json={"type":"keepalive"}`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+expect=json:conn=1:seq=1:json={"type":"keepalive"}`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -84,7 +84,7 @@ expect:json:conn=1:seq=1:json={"type":"keepalive"}`
 
 // TestParseCIOptionEnv verifies parsing of option:env lines.
 //
-// VALIDATES: option:env:var=X:value=Y is parsed correctly.
+// VALIDATES: option=env:var=X:value=Y is parsed correctly.
 // PREVENTS: Environment variables not being set for tests.
 func TestParseCIOptionEnv(t *testing.T) {
 	ResetNickCounter()
@@ -93,10 +93,10 @@ func TestParseCIOptionEnv(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-option:env:var=ze.log.bgp.server:value=debug
-option:env:var=ze.log.bgp.filter:value=info
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+	ciContent := `option=file:path=test.conf
+option=env:var=ze.log.bgp.server:value=debug
+option=env:var=ze.log.bgp.filter:value=info
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -114,7 +114,7 @@ expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 
 // TestParseCIOptionFile verifies parsing of option:file lines.
 //
-// VALIDATES: option:file:path=X is parsed correctly.
+// VALIDATES: option=file:path=X is parsed correctly.
 // PREVENTS: Config file not being loaded.
 func TestParseCIOptionFile(t *testing.T) {
 	ResetNickCounter()
@@ -123,8 +123,8 @@ func TestParseCIOptionFile(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "myconfig.conf")
 
-	ciContent := `option:file:path=myconfig.conf
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+	ciContent := `option=file:path=myconfig.conf
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -150,11 +150,11 @@ func TestParseCIMultiConn(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:seq=1:hex=AAAA
-expect:bgp:conn=2:seq=1:hex=BBBB
-expect:bgp:conn=1:seq=2:hex=CCCC
-expect:bgp:conn=2:seq=2:hex=DDDD`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=AAAA
+expect=bgp:conn=2:seq=1:hex=BBBB
+expect=bgp:conn=1:seq=2:hex=CCCC
+expect=bgp:conn=2:seq=2:hex=DDDD`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -189,9 +189,9 @@ func TestParseCISameSeq(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 
 	// Two messages with same seq - order unknown, accept either first
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:seq=1:hex=AAAA
-expect:bgp:conn=1:seq=1:hex=BBBB`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=AAAA
+expect=bgp:conn=1:seq=1:hex=BBBB`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -210,7 +210,7 @@ expect:bgp:conn=1:seq=1:hex=BBBB`
 
 // TestParseCIActionNotification verifies parsing of action:notification lines.
 //
-// VALIDATES: action:notification:conn=N:seq=N:text=X is parsed correctly.
+// VALIDATES: action=notification:conn=N:seq=N:text=X is parsed correctly.
 // PREVENTS: Notification actions not being recognized.
 func TestParseCIActionNotification(t *testing.T) {
 	ResetNickCounter()
@@ -219,9 +219,9 @@ func TestParseCIActionNotification(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-action:notification:conn=1:seq=2:text=session ending`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=notification:conn=1:seq=2:text=session ending`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -233,10 +233,10 @@ action:notification:conn=1:seq=2:text=session ending`
 	rec := et.GetByNick("0")
 	require.NotNil(t, rec)
 
-	// Notification should be in Expects for testpeer to process (new format).
+	// Notification should be in Expects for testpeer to process.
 	found := false
 	for _, exp := range rec.Expects {
-		if exp == "action:notification:conn=1:seq=2:text=session ending" {
+		if exp == "action=notification:conn=1:seq=2:text=session ending" {
 			found = true
 			break
 		}
@@ -246,7 +246,7 @@ action:notification:conn=1:seq=2:text=session ending`
 
 // TestParseCICmdAPI verifies parsing of cmd:api documentation lines.
 //
-// VALIDATES: cmd:api:conn=N:seq=N:text=X is parsed and stored.
+// VALIDATES: cmd=api:conn=N:seq=N:text=X is parsed and stored.
 // PREVENTS: API command documentation not being captured.
 func TestParseCICmdAPI(t *testing.T) {
 	ResetNickCounter()
@@ -255,9 +255,9 @@ func TestParseCICmdAPI(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-cmd:api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
+	ciContent := `option=file:path=test.conf
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -276,7 +276,7 @@ expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 // TestParseCIRejectSyslog verifies parsing of reject:syslog lines.
 //
-// VALIDATES: reject:syslog:pattern=X is parsed correctly.
+// VALIDATES: reject=syslog:pattern=X is parsed correctly.
 // PREVENTS: Syslog rejection patterns not being captured.
 func TestParseCIRejectSyslog(t *testing.T) {
 	ResetNickCounter()
@@ -285,10 +285,10 @@ func TestParseCIRejectSyslog(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-reject:syslog:pattern=fatal
-reject:syslog:pattern=panic
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
+	ciContent := `option=file:path=test.conf
+reject=syslog:pattern=fatal
+reject=syslog:pattern=panic
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -314,8 +314,8 @@ func TestParseCIMissingConn(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:seq=1:hex=FFFFFFFF`
+	ciContent := `option=file:path=test.conf
+expect=bgp:seq=1:hex=FFFFFFFF`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
@@ -338,8 +338,8 @@ func TestParseCIMissingSeq(t *testing.T) {
 	ciFile := filepath.Join(tmpDir, "test.ci")
 	confFile := filepath.Join(tmpDir, "test.conf")
 
-	ciContent := `option:file:path=test.conf
-expect:bgp:conn=1:hex=FFFFFFFF`
+	ciContent := `option=file:path=test.conf
+expect=bgp:conn=1:hex=FFFFFFFF`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 	require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))

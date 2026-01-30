@@ -1,7 +1,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd:api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 extended-community set [target:72:1] nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32
-expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040A00000140050400000064C01008000200480000000120C1000201
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 extended-community set [target:72:1] nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040A00000140050400000064C01008000200480000000120C1000201
 EOF_PEER
 
 # ze bgp configuration
@@ -32,5 +32,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd:foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

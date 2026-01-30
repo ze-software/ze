@@ -1,4 +1,4 @@
-option:file:api-watchdog.conf
+option=file:api-watchdog.conf
 1:cmd:announce eor ipv4 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
 1:cmd:announce attributes next-hop 1.2.3.4 origin igp local-preference 100 nlri 66.66.66.66/32 88.88.88.88/32

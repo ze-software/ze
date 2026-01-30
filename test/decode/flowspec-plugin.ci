@@ -3,5 +3,5 @@
 # Uses IPv4 FlowSpec with destination 10.0.0.0/24 and protocol TCP (6)
 # Wire: len=08, dest(type=01, len=18(24), prefix=0a0000), protocol(type=03, op=81(end,eq), value=06)
 stdin=payload:hex=0801180a0000038106
-cmd:foreground:seq=1:exec=ze-test decode --json --nlri ipv4/flow -:stdin=payload
-expect:json:json={ "destination": [["10.0.0.0/24/0"]], "protocol": [["=tcp"]] }
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/flow -:stdin=payload
+expect=json:json={ "destination": [["10.0.0.0/24/0"]], "protocol": [["=tcp"]] }

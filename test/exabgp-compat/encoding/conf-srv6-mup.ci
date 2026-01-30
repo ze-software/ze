@@ -1,4 +1,4 @@
-option:file:conf-srv6-mup.conf
+option=file:conf-srv6-mup.conf
 # EOR for ipv4 mup (AFI=1, SAFI=85)
 1:cmd:announce eor ipv4 mup
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000155
