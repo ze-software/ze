@@ -32,7 +32,7 @@ Current code uses `append()` extensively:
 ### WireWriter Interface
 
 ```go
-// WireWriter is in internal/bgp/context/context.go (not wire package due to import cycle).
+// WireWriter is in internal/plugin/bgp/context/context.go (not wire package due to import cycle).
 // Implemented by all wire types (Message, Attribute, NLRI).
 // Uses EncodingContext for capability-dependent encoding (ASN4, ADD-PATH, etc.)
 type WireWriter interface {
@@ -48,20 +48,7 @@ type WireWriter interface {
 }
 ```
 
-Message and Attribute embed WireWriter:
-
-```go
-type Message interface {
-    WireWriter
-    Type() MessageType
-}
-
-type Attribute interface {
-    WireWriter
-    Code() AttributeCode
-    Flags() AttributeFlags
-}
-```
+**Note:** Attribute interface has separate methods (`Len()`, `WriteTo()`, `WriteToWithContext()`) rather than embedding WireWriter directly. See `internal/plugin/bgp/attribute/attribute.go`.
 
 All wire types implement WireWriter:
 - `Attribute` types (Origin, ASPath, NextHop, etc.)
@@ -213,19 +200,20 @@ Ze has never been released. No backwards compatibility needed:
 `CheckedWriteTo()` provides a safe path with explicit error handling:
 
 ```go
-// CheckedWireWriter extends WireWriter with capacity validation.
-type CheckedWireWriter interface {
-    WireWriter
-    // CheckedWriteTo validates capacity before writing.
-    // Returns (bytesWritten, error). On error, buffer state is undefined.
-    CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error)
+// CheckedBufWriter (internal/plugin/bgp/wire/writer.go)
+type CheckedBufWriter interface {
+    BufWriter
+    CheckedWriteTo(buf []byte, off int) (int, error)
+    Len() int
 }
 ```
+
+**Note:** The actual interface is `CheckedBufWriter` (context-free), not context-dependent.
 
 ### Error Types
 
 ```go
-// internal/bgp/wire/errors.go
+// internal/plugin/bgp/wire/errors.go
 var ErrBufferTooSmall = errors.New("wire: buffer too small")
 ```
 
@@ -233,20 +221,22 @@ var ErrBufferTooSmall = errors.New("wire: buffer too small")
 
 ```go
 // CheckedWriteTo validates capacity before delegating to WriteTo.
-func (x *Foo) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
-    needed := x.Len(ctx)
+func (x *Foo) CheckedWriteTo(buf []byte, off int) (int, error) {
+    needed := x.Len()
     if len(buf) < off+needed {
         return 0, wire.ErrBufferTooSmall
     }
-    return x.WriteTo(buf, off, ctx), nil
+    return x.WriteTo(buf, off), nil
 }
 
 // WriteTo unchanged - caller guarantees capacity.
-func (x *Foo) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
+func (x *Foo) WriteTo(buf []byte, off int) int {
     buf[off] = x.value
     return 1
 }
 ```
+
+**Note:** For context-dependent types (AS_PATH, Aggregator), use the context-aware methods in the Attribute interface.
 
 ### Usage Guidelines
 
@@ -262,49 +252,41 @@ func (x *Foo) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
 Composite types validate total capacity once, then use `WriteTo()` internally:
 
 ```go
-func (c *Composite) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
-    needed := c.Len(ctx)  // Sum of all children
+func (c *Composite) CheckedWriteTo(buf []byte, off int) (int, error) {
+    needed := c.Len()  // Sum of all children
     if len(buf) < off+needed {
         return 0, wire.ErrBufferTooSmall
     }
-    return c.WriteTo(buf, off, ctx), nil
+    return c.WriteTo(buf, off), nil
 }
 
-func (c *Composite) WriteTo(buf []byte, off int, ctx *context.EncodingContext) int {
+func (c *Composite) WriteTo(buf []byte, off int) int {
     pos := off
-    pos += c.child1.WriteTo(buf, pos, ctx)  // Unchecked - capacity guaranteed
-    pos += c.child2.WriteTo(buf, pos, ctx)
+    pos += c.child1.WriteTo(buf, pos)  // Unchecked - capacity guaranteed
+    pos += c.child2.WriteTo(buf, pos)
     return pos - off
 }
 ```
 
-### Context-Dependent Types
+### Context-Dependent Attributes
 
-Some types have different wire lengths depending on encoding context (e.g., ASN4 capability).
-The `Len(ctx)` method handles this:
+Some attribute types have different wire lengths depending on encoding context (e.g., ASN4 capability).
+These use the Attribute interface's context-aware methods (`LenWithContext`, `WriteToWithContext`):
 
 ```go
 // Aggregator: 8 bytes with ASN4, 6 bytes with legacy 2-byte ASN
-func (a *Aggregator) Len(ctx *context.EncodingContext) int {
-    if ctx == nil || ctx.ASN4() {
+func (a *Aggregator) LenWithContext(srcCtx, dstCtx *context.EncodingContext) int {
+    if dstCtx == nil || dstCtx.ASN4() {
         return 8
     }
     return 6
-}
-
-func (a *Aggregator) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
-    needed := a.Len(ctx)
-    if len(buf) < off+needed {
-        return 0, wire.ErrBufferTooSmall
-    }
-    return a.WriteTo(buf, off, ctx), nil
 }
 ```
 
 **Types with context-dependent lengths:**
 - `Aggregator` - 6 or 8 bytes based on ASN4
 - `ASPath` - 2 or 4 bytes per ASN based on ASN4
-- `WireNLRI` - varies based on ADD-PATH context (path-id added/stripped)
+- NLRI types - vary based on ADD-PATH context (path-id added/stripped)
 
 ### WireNLRI Zero-Allocation Pattern
 
@@ -338,4 +320,4 @@ func (w *WireNLRI) Pack(ctx *PackContext) []byte {
 
 ---
 
-**Last Updated:** 2026-01-13
+**Last Updated: 2026-01-30

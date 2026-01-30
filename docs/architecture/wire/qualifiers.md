@@ -406,46 +406,31 @@ class MAC:
 
 ## Ze Implementation Notes
 
-### Singleton Pattern
+### RouteDistinguisher Structure
 
-All qualifiers use singletons for common values:
-
-```go
-var (
-    NoRD    = RouteDistinguisher{}
-    NoLabel = Labels{}
-    NoPath  = PathInfo{disabled: true}
-    NoESI   = ESI{}  // All zeros
-    NoETag  = EthernetTag{}
-)
-```
-
-### Immutability
-
-Qualifiers are immutable once created:
+Defined in `internal/plugin/bgp/nlri/ipvpn.go`:
 
 ```go
 type RouteDistinguisher struct {
-    packed [8]byte
+    Type  RDType   // RFC 4364 Section 4.2: Type field (2 bytes)
+    Value [6]byte  // RFC 4364 Section 4.2: Value field (6 bytes)
 }
+```
 
-func (rd RouteDistinguisher) Pack() []byte {
-    return rd.packed[:]
-}
+### Zero Values
 
-func (rd RouteDistinguisher) String() string {
-    // Parse and format based on type
-}
+Zero-valued structs represent "no value":
+
+```go
+var rd RouteDistinguisher  // Zero RD
 ```
 
 ### Comparison
 
-Qualifiers compare by packed bytes:
+Qualifiers compare by struct equality (value semantics):
 
 ```go
-func (rd RouteDistinguisher) Equal(other RouteDistinguisher) bool {
-    return rd.packed == other.packed
-}
+if rd1 == rd2 { ... }  // Direct struct comparison
 ```
 
 ---

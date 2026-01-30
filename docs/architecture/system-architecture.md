@@ -1,13 +1,23 @@
 # Ze System Architecture
 
-**Status:** Target Architecture (spec in progress)
-**Purpose:** Describes how Ze will look and function after the hub/process separation refactor
+**Status:** Implemented (Hub Mode)
+**Last Updated:** 2026-01-30
+**Purpose:** Describes Ze's hub/orchestrator mode with separate plugin processes
 
 ---
 
 ## Overview
 
-Ze runs as a **hub process** (`ze`) that orchestrates separate **plugin processes** communicating via pipes. This architecture enables:
+Ze supports two operating modes:
+
+| Mode | Trigger | Description |
+|------|---------|-------------|
+| **In-process** | `bgp { }` block in config | BGP daemon with in-process plugins (simpler, default) |
+| **Hub mode** | `plugin { external ... }` block | Hub orchestrates separate plugin processes (this doc) |
+
+**This document describes Hub mode.**
+
+In hub mode, Ze runs as a **hub process** (`ze`) that orchestrates separate **plugin processes** communicating via pipes. This architecture enables:
 
 - Language freedom (plugins can be Go, Python, Rust, etc.)
 - Crash isolation (BGP crash doesn't kill RIB)
@@ -668,11 +678,12 @@ $ kill -TERM $(pgrep -f "ze config.conf")
 
 ## Related Documents
 
-- [Hub Architecture](hub-architecture.md) - Internal design details
+- [Core Design](core-design.md) - Canonical architecture (describes in-process mode)
+- [Hub Architecture](hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](config/yang-config-design.md) - Schema design
-- [Spec: Reactor Service Separation](../plan/spec-reactor-service-separation.md) - Implementation plan
+- [Spec: Config Dispatch](../plan/spec-config-dispatch.md) - Mode selection by config content
 
 ---
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-01-30

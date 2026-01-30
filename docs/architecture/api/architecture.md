@@ -8,17 +8,17 @@
 
 | Feature | Status | Code Location |
 |---------|--------|---------------|
-| Process management | ✅ Done | `process.go` |
-| Backpressure (1000/100) | ✅ Done | `process.go:18-26` |
-| Respawn limits (5/60s) | ✅ Done | `process.go:28-33` |
-| Command dispatch | ✅ Done | `command.go` |
-| Plugin commands | ✅ Done | `registry.go`, `plugin.go` |
-| Route injection | ✅ Done | `route.go` |
-| BGP cache commands | ✅ Done | `cache.go` |
-| Session sync | ✅ Done | `session.go` |
-| JSON/text encoding | ✅ Done | `json.go`, `text.go` |
-| RR plugin | ✅ Done | `rr/server.go` |
-| RIB plugin | ✅ Done | `rib/rib.go` |
+| Process management | ✅ Done | `internal/plugin/process.go` |
+| Backpressure (1000/100) | ✅ Done | `internal/plugin/process.go` |
+| Respawn limits (5/60s) | ✅ Done | `internal/plugin/process.go` |
+| Command dispatch | ✅ Done | `internal/plugin/command.go` |
+| Plugin commands | ✅ Done | `internal/plugin/registry.go`, `internal/plugin/plugin.go` |
+| Route injection | ✅ Done | `internal/plugin/rib/` |
+| BGP cache commands | ✅ Done | `internal/plugin/cache.go` |
+| Session sync | ✅ Done | `internal/plugin/session.go` |
+| JSON/text encoding | ✅ Done | `internal/plugin/json.go` |
+| RR plugin | ✅ Done | `internal/plugin/rr/` |
+| RIB plugin | ✅ Done | `internal/plugin/rib/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
 
 ---
@@ -31,7 +31,7 @@
 | **API Role** | RIB storage, policy, best-path, GR state |
 | **Communication** | JSON events + base64 wire bytes |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
-| **RIB** | Owned by API program (use `internal/rib/` as reference) |
+| **RIB** | Owned by API program (use `internal/plugin/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **Cache Control** | API controls cache via `bgp cache` commands |
 
@@ -57,7 +57,7 @@
 
 | Component | Description |
 |-----------|-------------|
-| RIB | Route storage (use `internal/rib/` as reference) |
+| RIB | Route storage (use `internal/plugin/bgp/rib/` as reference) |
 | Pool | Attribute deduplication (see `POOL_ARCHITECTURE.md`) |
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
@@ -343,7 +343,7 @@ type PathAttributes struct {
 
 ### Next-Hop Resolution
 
-`RouteNextHop` is resolved at **peer level** in `internal/reactor/peer.go` via `resolveNextHop()`:
+`RouteNextHop` is resolved at **peer level** in `internal/plugin/bgp/reactor/peer.go` via `resolveNextHop()`:
 
 | Policy | Behavior |
 |--------|----------|
@@ -794,7 +794,7 @@ See `PROCESS_PROTOCOL.md` for full protocol details.
 > **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
 > The engine has no route storage - it delegates to API.
 
-API programs use `internal/rib/` as reference implementation:
+API programs use `internal/plugin/bgp/rib/` as reference implementation:
 
 ```go
 // In API program
@@ -1089,7 +1089,7 @@ if needsAPIWait {
 | `internal/plugin/text.go` | Text/JSON formatting including FormatStateChange |
 | `internal/plugin/commit_manager.go` | Transaction management |
 | `internal/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
-| `internal/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
-| `internal/reactor/peer.go` | FSM callback, reactor notification, API sync |
-| `internal/reactor/session.go` | Session lifecycle, teardown handling |
-| `internal/rib/outgoing.go` | Adj-RIB-Out structure |
+| `internal/plugin/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
+| `internal/plugin/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
+| `internal/plugin/bgp/reactor/session.go` | Session lifecycle, teardown handling |
+| `internal/plugin/bgp/rib/outgoing.go` | Adj-RIB-Out structure |

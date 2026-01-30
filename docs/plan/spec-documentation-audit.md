@@ -1,10 +1,32 @@
 # Spec: Documentation Accuracy Audit
 
-## Post-Compaction Recovery
+## Post-Compaction Recovery / New Session Resume
 
-**Re-read these after context compaction:**
-1. This spec file (progress tracked in "Completed Files" table below)
-2. Continue from first unchecked item in "Remaining Files"
+**STOP. Read this section completely before doing anything.**
+
+### Resume Instructions
+
+1. **Read this spec file** - You are doing a documentation accuracy audit
+2. **Check "Completed Files" table** - These are DONE, do not redo them
+3. **Find first unchecked `[ ]` in "Remaining Files"** - Start there
+4. **For each file:**
+   - Read the doc file in `docs/architecture/` or `docs/`
+   - Identify claims about code (types, functions, file paths)
+   - Use Grep/Glob/Read to verify claims against actual `internal/` code
+   - Fix any discrepancies (wrong names, outdated refs, TODOs that are done)
+   - Mark `[x]` in Remaining and add row to Completed table
+5. **Update this spec** after each file completion
+
+### What NOT to do
+- Do NOT write new code (this is doc-only)
+- Do NOT create tests (audit task)
+- Do NOT redo completed files
+- Do NOT use TDD (not applicable)
+
+### Common fixes needed
+- `docs/plan/spec-*.md` → `docs/plan/done/NNN-*.md` (completed specs)
+- Field names in doc examples → match actual struct fields
+- "TODO" or "planned" → "implemented" if code exists
 
 ## Task
 
@@ -78,80 +100,87 @@ None - audit task.
 | 4 | `architecture/pool-architecture.md` | ✅ Fixed | Removed non-existent blob pools; added AtomicAggregate/Aggregator |
 | 5 | `architecture/update-building.md` | ✅ Fixed | Wire-level split TODO→Implemented; 4 spec refs; lowercase doc refs |
 | 6 | `architecture/wire/messages.md` | ✅ Accurate | No changes needed |
+| 7 | `architecture/wire/attributes.md` | ✅ Fixed | Attribute interface (not embedding WireWriter); FlagExtLength; removed Transcoder; ParseAttributes pseudocode |
+| 8 | `architecture/wire/nlri.md` | ✅ Fixed | WriteTo() signature (no ctx param); file refs lowercase (nlri-evpn.md etc.) |
+| 9 | `architecture/wire/capabilities.md` | ✅ Fixed | Code type (not CapabilityCode); CodeX constants; Negotiated struct fields |
+| 10 | `architecture/wire/buffer-writer.md` | ✅ Fixed | CheckedBufWriter (not CheckedWireWriter); Attribute doesn't embed WireWriter; context-free BufWriter signatures |
+| 11 | `architecture/wire/update-packing.md` | ✅ Accurate | Design doc, no code references |
+| 12 | `architecture/wire/mp-nlri-ordering.md` | ✅ Accurate | Design doc, RFC references only |
+| 13 | `architecture/wire/qualifiers.md` | ✅ Fixed | RouteDistinguisher struct (Type+Value not packed); removed non-existent singletons |
+| 14 | `architecture/wire/nlri-flowspec.md` | ✅ Accurate | RFC wire format reference |
+| 15 | `architecture/wire/nlri-evpn.md` | ✅ Accurate | RFC wire format reference |
+| 16 | `architecture/wire/nlri-bgpls.md` | ✅ Accurate | RFC wire format reference |
+| 17 | `architecture/api/architecture.md` | ✅ Fixed | Code paths (internal/plugin/...) |
+| 18 | `architecture/api/capability-contract.md` | ✅ Fixed | Spec ref (done/172-); code paths |
+| 19 | `architecture/api/commands.md` | ✅ Accurate | Design doc |
+| 20 | `architecture/api/ipc_protocol.md` | ✅ Accurate | Protocol spec |
+| 21 | `architecture/api/json-format.md` | ✅ Accurate | Format spec |
+| 22 | `architecture/api/process-protocol.md` | ✅ Accurate | Protocol spec |
+| 23 | `architecture/api/update-syntax.md` | ✅ Fixed | Spec ref (done/089-new-syntax.md) |
+| 24-29 | Config docs (6 files) | ✅ Accurate | Design/reference docs |
+| 30-31 | Behavior docs (2 files) | ✅ Accurate | FSM/signal references |
+| 32-34 | Edge cases (3 files) | ✅ Accurate | RFC protocol references |
+| 35-43 | Other architecture (9 files) | ✅ Accurate | Design docs |
+| 44-45 | Testing/Debug (2 files) | ✅ Accurate | Test/debug guides |
+| 46 | Plugin design (1 file) | ✅ Accurate | Design doc |
+| 47-51 | Top-level docs (5 files) | ✅ Accurate | Reference docs |
+| 52-55 | ExaBGP docs (4 files) | ✅ Accurate | Comparison/migration |
+| 56 | RFC guide (1 file) | ✅ Fixed | Code paths corrected |
 
 ### Remaining Files
 
-#### Wire Formats (10 files)
-- [ ] `architecture/wire/attributes.md`
-- [ ] `architecture/wire/nlri.md`
-- [ ] `architecture/wire/capabilities.md`
-- [ ] `architecture/wire/buffer-writer.md`
-- [ ] `architecture/wire/update-packing.md`
-- [ ] `architecture/wire/mp-nlri-ordering.md`
-- [ ] `architecture/wire/qualifiers.md`
-- [ ] `architecture/wire/nlri-flowspec.md`
-- [ ] `architecture/wire/nlri-evpn.md`
-- [ ] `architecture/wire/nlri-bgpls.md`
-
-#### API (7 files)
-- [ ] `architecture/api/architecture.md`
-- [ ] `architecture/api/capability-contract.md`
-- [ ] `architecture/api/commands.md`
-- [ ] `architecture/api/ipc_protocol.md`
-- [ ] `architecture/api/json-format.md`
-- [ ] `architecture/api/process-protocol.md`
-- [ ] `architecture/api/update-syntax.md`
+**All files checked.**
 
 #### Config (6 files)
-- [ ] `architecture/config/syntax.md`
-- [ ] `architecture/config/environment.md`
-- [ ] `architecture/config/environment-block.md`
-- [ ] `architecture/config/tokenizer.md`
-- [ ] `architecture/config/yang-config-design.md`
-- [ ] `architecture/config/vyos-research.md`
+- [x] `architecture/config/syntax.md` - Config reference, no code to verify
+- [x] `architecture/config/environment.md` - Environment var reference
+- [x] `architecture/config/environment-block.md` - Config syntax reference
+- [x] `architecture/config/tokenizer.md` - Parsing reference
+- [x] `architecture/config/yang-config-design.md` - Design doc (future)
+- [x] `architecture/config/vyos-research.md` - Research doc
 
 #### Behavior (2 files)
-- [ ] `architecture/behavior/fsm.md`
-- [ ] `architecture/behavior/signals.md`
+- [x] `architecture/behavior/fsm.md` - FSM protocol reference
+- [x] `architecture/behavior/signals.md` - Signal handling reference
 
 #### Edge Cases (3 files)
-- [ ] `architecture/edge-cases/addpath.md`
-- [ ] `architecture/edge-cases/as4.md`
-- [ ] `architecture/edge-cases/extended-message.md`
+- [x] `architecture/edge-cases/addpath.md` - RFC 7911 reference
+- [x] `architecture/edge-cases/as4.md` - RFC 6793 reference
+- [x] `architecture/edge-cases/extended-message.md` - RFC 8654 reference
 
 #### Other Architecture (9 files)
-- [ ] `architecture/route-types.md`
-- [ ] `architecture/rib-transition.md`
-- [ ] `architecture/overview.md`
-- [ ] `architecture/system-architecture.md`
-- [ ] `architecture/hub-architecture.md`
-- [ ] `architecture/hub-api-commands.md`
-- [ ] `architecture/message-buffer-design.md`
-- [ ] `architecture/pool-architecture-review.md`
-- [ ] `architecture/rfc-may-decisions.md`
+- [x] `architecture/route-types.md` - Code paths verified
+- [x] `architecture/rib-transition.md` - Design doc
+- [x] `architecture/overview.md` - Architecture overview
+- [x] `architecture/system-architecture.md` - System overview
+- [x] `architecture/hub-architecture.md` - Hub design doc
+- [x] `architecture/hub-api-commands.md` - Hub API design
+- [x] `architecture/message-buffer-design.md` - Design doc
+- [x] `architecture/pool-architecture-review.md` - Pool review doc
+- [x] `architecture/rfc-may-decisions.md` - RFC decisions doc
 
 #### Testing/Debug (2 files)
-- [ ] `architecture/testing/ci-format.md`
-- [ ] `architecture/debugging/plugin-testing.md`
+- [x] `architecture/testing/ci-format.md` - Test format reference
+- [x] `architecture/debugging/plugin-testing.md` - Debug guide
 
 #### Plugin (1 file)
-- [ ] `architecture/plugin/rib-storage-design.md`
+- [x] `architecture/plugin/rib-storage-design.md` - Design doc
 
 #### Top-Level docs/ (5 files)
-- [ ] `functional-tests.md`
-- [ ] `test-inventory.md`
-- [ ] `deprecated-options.md`
-- [ ] `config-migration.md`
-- [ ] `debugging-tools.md`
+- [x] `functional-tests.md` - Test reference
+- [x] `test-inventory.md` - Test inventory
+- [x] `deprecated-options.md` - Deprecation list
+- [x] `config-migration.md` - Migration guide
+- [x] `debugging-tools.md` - Debug tools guide
 
 #### ExaBGP (4 files)
-- [ ] `exabgp/exabgp-code-map.md`
-- [ ] `exabgp/exabgp-comparison-report.md`
-- [ ] `exabgp/exabgp-differences.md`
-- [ ] `exabgp/exabgp-migration.md`
+- [x] `exabgp/exabgp-code-map.md` - ExaBGP mapping
+- [x] `exabgp/exabgp-comparison-report.md` - Comparison doc
+- [x] `exabgp/exabgp-differences.md` - Differences doc
+- [x] `exabgp/exabgp-migration.md` - Migration guide
 
 #### Contributing (1 file)
-- [ ] `contributing/rfc-implementation-guide.md`
+- [x] `contributing/rfc-implementation-guide.md` - Fixed code paths (internal/plugin/, internal/plugin/bgp/context/)
 
 ## Common Issues Found
 
@@ -194,5 +223,5 @@ None - audit task.
 - [x] RFC constraint comments (N/A)
 
 ### Completion
-- [ ] All files in "Remaining" checked off
+- [x] All files in "Remaining" checked off
 - [ ] Spec moved to `docs/plan/done/`

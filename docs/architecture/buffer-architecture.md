@@ -1,7 +1,7 @@
 # Buffer-First Architecture
 
-**Status:** Target Architecture (all development should follow this pattern)
-**Date:** 2026-01-10
+**Status:** Implemented (all development should follow this pattern)
+**Last Updated:** 2026-01-30
 
 > **See also:** `docs/architecture/core-design.md` for the canonical architecture reference
 > covering WireUpdate, RIB storage model, factory pattern, and type consolidation.
@@ -15,9 +15,9 @@
 | Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
-| Phase 6 | ⚠️ Partial | RouteJSON, Builder done; PathAttributes removal deferred (see `spec-pathattributes-removal.md`) |
+| Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (see `docs/plan/done/105-pathattributes-removal.md`) |
 
-See `docs/plan/spec-buffer-first-migration.md` for detailed implementation plan.
+See `docs/plan/done/102-buffer-first-migration.md` for detailed implementation plan.
 
 ---
 
@@ -95,16 +95,16 @@ func ParseASPathSegment(buf []byte, off int) (segType uint8, asns []byte, nextOf
 
 ### 4. Context-Aware Parsing
 
-Parsing depends on negotiated capabilities (ADD-PATH, ASN4):
+Parsing depends on negotiated capabilities (ADD-PATH, ASN4).
+Context is passed as parameters, not as a struct:
 
 ```go
-type ParseContext struct {
-    AddPath bool   // NLRI includes 4-byte path-id
-    ASN4    bool   // AS numbers are 4 bytes (not 2)
-}
+// ADD-PATH: NLRI includes 4-byte path-id prefix
+// ASN4: AS numbers are 4 bytes (not 2)
 
-func (it *NLRIIterator) WithContext(ctx ParseContext) *NLRIIterator
-func (it *ASPathIterator) WithContext(ctx ParseContext) *ASPathIterator
+// Iterators accept context as constructor parameter
+func NewNLRIIterator(data []byte, addPath bool) *NLRIIterator
+func NewASPathIterator(data []byte, asn4 bool) *ASPathIterator
 ```
 
 ### 5. Direct Formatting (No Intermediate Structs)
@@ -115,14 +115,14 @@ attrs := parseAttributes(buf)
 json.Marshal(attrs)
 
 // ✅ NEW: Format directly from buffer
-func FormatAttributesJSON(buf []byte, ctx ParseContext, w io.Writer) error {
+func FormatAttributesJSON(buf []byte, asn4 bool, w io.Writer) error {
     iter := NewAttrIterator(buf)
     for typeCode, value, ok := iter.Next(); ok; typeCode, value, ok = iter.Next() {
         switch typeCode {
         case ORIGIN:
             fmt.Fprintf(w, `"origin":%d`, value[0])
         case AS_PATH:
-            formatASPathJSON(value, ctx, w)
+            formatASPathJSON(value, asn4, w)
         // ...
         }
     }
@@ -139,10 +139,12 @@ The core type wrapping raw BGP message bytes:
 
 ```go
 // WireUpdate wraps UPDATE message payload (after BGP header)
+// Location: internal/plugin/wire_update.go
 type WireUpdate struct {
     payload     []byte
-    sourceCtxID ContextID  // For zero-copy decisions
-    messageID   uint64     // Unique identifier
+    sourceCtxID ContextID      // For zero-copy decisions
+    messageID   uint64         // Unique identifier
+    sourceID    source.SourceID // Source that sent/created this message
 }
 
 // Existing section accessors (return raw bytes)
@@ -254,23 +256,26 @@ func (b *UpdateBuilder) Reset()
 Routes store wire bytes as source of truth:
 
 ```go
+// internal/plugin/bgp/rib/route.go
 type Route struct {
     // Wire bytes (source of truth)
-    attrBytes     []byte
-    nlriBytes     []byte
-    sourceCtxID   ContextID
+    wireBytes     []byte           // packed path attributes
+    nlriWireBytes []byte           // packed NLRI
+    sourceCtxID   ContextID        // for zero-copy compatibility check
 
-    // Cached offsets (optional optimization)
-    asPathOffset  int16  // -1 = not cached, else offset into attrBytes
-    nextHopOffset int16  // -1 = not cached
+    // Parsed attributes (cached)
+    nlri       nlri.NLRI
+    nextHop    netip.Addr
+    attributes []attribute.Attribute
+    asPath     *attribute.ASPath
 
     // Reference counting
-    refCount      atomic.Int32
+    refCount   atomic.Int32
 }
 
 // Access via iterators - parse on demand
 func (r *Route) AttrIterator() *AttrIterator {
-    return NewAttrIterator(r.attrBytes)
+    return NewAttrIterator(r.wireBytes)
 }
 
 func (r *Route) ASPathIterator(asn4 bool) *ASPathIterator {
@@ -289,8 +294,8 @@ func (r *Route) CanForwardDirect(destCtxID ContextID) bool {
     return r.sourceCtxID == destCtxID
 }
 
-func (r *Route) AttrBytes() []byte {
-    return r.attrBytes
+func (r *Route) WireBytes() []byte {
+    return r.wireBytes
 }
 ```
 
@@ -302,12 +307,12 @@ func (r *Route) AttrBytes() []byte {
 
 ```go
 // Format UPDATE event directly to JSON writer
-func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error {
+func FormatUpdateEventJSON(u *WireUpdate, addPath bool, w io.Writer) error {
     w.Write([]byte(`{"type":"update"`))
 
     // Announce section
     w.Write([]byte(`,"announce":{`))
-    nlriIter := u.NLRIIterator(ctx)
+    nlriIter, _ := u.NLRIIterator(addPath)
     first := true
     for prefix, pathID, ok := nlriIter.Next(); ok; prefix, pathID, ok = nlriIter.Next() {
         if !first {
@@ -321,7 +326,7 @@ func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error {
     // Attributes
     w.Write([]byte(`,"attributes":{`))
     iter, _ := u.AttrIterator()
-    formatAttributesJSON(iter, ctx, w)
+    formatAttributesJSON(iter, w)
     w.Write([]byte(`}}`))
 
     return nil
@@ -331,7 +336,7 @@ func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error {
 ### Text Formatting
 
 ```go
-func FormatUpdateText(u *WireUpdate, ctx ParseContext, w io.Writer) error {
+func FormatUpdateText(u *WireUpdate, addPath bool, w io.Writer) error {
     // "update text as-path set [65001 65002] nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24"
     // Format directly from buffer bytes
 }
@@ -407,7 +412,7 @@ Once all consumers migrated:
 1. **Never store parsed slices** - Store wire bytes, iterate on demand
 2. **Never return slices from iterators** - Return views (subslices) or format directly
 3. **Use builders for construction** - `UpdateBuilder` for new messages
-4. **Pass ParseContext** - Context-dependent parsing (ADD-PATH, ASN4)
+4. **Pass context as params** - Context-dependent parsing (addPath bool, asn4 bool)
 5. **Format directly to Writer** - No intermediate JSON structs
 
 ---
@@ -421,4 +426,4 @@ Once all consumers migrated:
 
 ---
 
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-01-30

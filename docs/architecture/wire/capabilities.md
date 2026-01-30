@@ -299,21 +299,29 @@ draft-abraitis-bgp-version-capability
 
 ### Negotiated State
 
+Defined in `internal/plugin/bgp/capability/negotiated.go`:
+
 ```go
 type Negotiated struct {
-    // Capabilities
-    ASN4            bool      // 4-byte AS support
-    AddPath         map[Family]int  // Family -> send/receive flags
-    Refresh         bool      // Route refresh
-    EnhancedRefresh bool      // Enhanced route refresh
-    ExtendedMessage bool      // Extended message (>4096)
-    GracefulRestart *GRState  // Graceful restart state
+    // Sub-components (composite pattern)
+    Identity *PeerIdentity // ASNs, Router IDs
+    Encoding *EncodingCaps // ASN4, families, ADD-PATH
+    Session  *SessionCaps  // ExtendedMessage, GR
 
-    // Derived values
-    LocalAS         uint32    // Local AS (4-byte)
-    PeerAS          uint32    // Peer AS (4-byte)
-    HoldTime        uint16    // Negotiated hold time
-    Families        []Family  // Negotiated address families
+    // Backward-compat fields (delegates to sub-components)
+    LocalASN             uint32
+    PeerASN              uint32
+    ASN4                 bool
+    ExtendedMessage      bool
+    RouteRefresh         bool
+    EnhancedRouteRefresh bool
+    HoldTime             uint16
+    GracefulRestart      *GracefulRestart
+
+    // Internal maps
+    families        map[Family]bool
+    addPath         map[Family]AddPathMode
+    extendedNextHop map[Family]AFI
 }
 ```
 
@@ -323,48 +331,35 @@ type Negotiated struct {
 
 ### Capability Interface
 
+Defined in `internal/plugin/bgp/capability/capability.go`:
+
 ```go
 type Capability interface {
-    Code() CapabilityCode
+    Code() Code
     Pack() []byte
 }
 
-type CapabilityCode uint8
+type Code uint8
 
 const (
-    CapMultiprotocol   CapabilityCode = 1
-    CapRouteRefresh    CapabilityCode = 2
-    CapExtendedNextHop CapabilityCode = 5
-    CapExtendedMessage CapabilityCode = 6
-    CapGracefulRestart CapabilityCode = 64
-    CapASN4            CapabilityCode = 65
-    CapAddPath         CapabilityCode = 69
-    CapEnhancedRefresh CapabilityCode = 70
-    CapHostname        CapabilityCode = 73
-    CapSoftwareVersion CapabilityCode = 75
+    CodeMultiprotocol        Code = 1  // RFC 4760
+    CodeRouteRefresh         Code = 2  // RFC 2918
+    CodeExtendedNextHop      Code = 5  // RFC 8950
+    CodeExtendedMessage      Code = 6  // RFC 8654
+    CodeGracefulRestart      Code = 64 // RFC 4724
+    CodeASN4                 Code = 65 // RFC 6793
+    CodeAddPath              Code = 69 // RFC 7911
+    CodeEnhancedRouteRefresh Code = 70 // RFC 7313
+    CodeFQDN                 Code = 73 // RFC 8516
+    CodeSoftwareVersion      Code = 75 // draft
 )
 ```
 
 ### Parsing Capabilities
 
-```go
-func ParseCapabilities(data []byte) (map[CapabilityCode]Capability, error) {
-    caps := make(map[CapabilityCode]Capability)
-    for len(data) >= 2 {
-        code := CapabilityCode(data[0])
-        length := int(data[1])
-        if len(data) < 2+length {
-            return nil, ErrTruncated
-        }
-        value := data[2 : 2+length]
-        caps[code] = parseCapability(code, value)
-        data = data[2+length:]
-    }
-    return caps, nil
-}
-```
+Parsing is done via `Parse()` in `parse.go`, returning `[]Capability`.
 
 ---
 
 **Created:** 2025-12-19
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-30

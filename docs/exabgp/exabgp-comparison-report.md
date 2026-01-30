@@ -347,12 +347,12 @@ Both use same RFC 4271 states:
 ## File Locations
 
 ### ZeBGP
-- Messages: `internal/bgp/message/`
-- Capabilities: `internal/bgp/capability/`
-- Attributes: `internal/bgp/attribute/`
-- NLRI: `internal/bgp/nlri/`
-- FSM: `internal/bgp/fsm/`
-- Reactor: `internal/reactor/`
+- Messages: `internal/plugin/bgp/message/`
+- Capabilities: `internal/plugin/bgp/capability/`
+- Attributes: `internal/plugin/bgp/attribute/`
+- NLRI: `internal/plugin/bgp/nlri/`
+- FSM: `internal/plugin/bgp/fsm/`
+- Reactor: `internal/plugin/bgp/reactor/`
 - Config: `internal/config/`
 
 ### ExaBGP

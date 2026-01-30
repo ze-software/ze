@@ -63,7 +63,7 @@ All new code MUST follow these patterns.
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see internal/bgp/capability/negotiated.go for full struct
+// Simplified view - see internal/plugin/bgp/capability/negotiated.go for full struct
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -85,6 +85,7 @@ type Negotiated struct {
 - Different ContextID = must re-encode for target peer's capabilities
 
 ```go
+// internal/plugin/bgp/context/registry.go
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -125,6 +126,7 @@ type WireUpdate struct {
     payload     []byte           // UPDATE body (after BGP header)
     sourceCtxID bgpctx.ContextID // For zero-copy forwarding decisions
     messageID   uint64           // Unique ID for forward-by-id
+    sourceID    source.SourceID  // Source that sent/created this message
 }
 
 // Lazy-parsed views into payload (zero-copy)
@@ -187,24 +189,24 @@ type RIB struct {
 }
 ```
 
-### Route Entry (References, Not Copies)
+### Route Entry (Pool Handles, Not Copies)
 
 ```go
+// internal/plugin/rib/storage/routeentry.go
 type RouteEntry struct {
-    // All fields are references into pools (not copies)
-    nlri        nlri.NLRI    // from nlriPools[family]
-    origin      *Origin      // from originPool
-    asPath      *ASPath      // from asPathPool
-    localPref   *uint32      // from localPrefPool
-    med         *uint32      // from medPool
-    communities *Communities // from communityPool
+    // All fields are opaque handles into attribute pools (not copies)
+    // Use pool.Handle for indirection - enables refcounting and deduplication
+    Origin           pool.Handle // ORIGIN (type 1)
+    ASPath           pool.Handle // AS_PATH (type 2)
+    NextHop          pool.Handle // NEXT_HOP (type 3)
+    LocalPref        pool.Handle // LOCAL_PREF (type 5)
+    MED              pool.Handle // MULTI_EXIT_DISC (type 4)
+    Communities      pool.Handle // COMMUNITIES (type 8)
+    LargeCommunities pool.Handle // LARGE_COMMUNITIES (type 32)
+    ExtCommunities   pool.Handle // EXTENDED_COMMUNITIES (type 16)
+    ClusterList      pool.Handle // CLUSTER_LIST (type 10)
+    OriginatorID     pool.Handle // ORIGINATOR_ID (type 9)
     // ... other attributes
-
-    // Next-hop: special encoding (attribute vs MP_REACH_NLRI)
-    nextHop     *NextHop
-
-    // For zero-copy forwarding
-    sourceCtxID bgpctx.ContextID
 }
 ```
 
@@ -243,7 +245,7 @@ nlriPools map[nlri.Family]*Pool[nlri.NLRI]
 //   ...
 ```
 
-All NLRI types implement the wire writer interfaces:
+All NLRI types implement the NLRI interface:
 
 ```go
 // Base interface - caller guarantees buffer capacity
@@ -258,19 +260,24 @@ type CheckedBufWriter interface {
     Len() int
 }
 
-// Context-dependent types (NLRI, ASPath, Aggregator) use:
-type WireNLRI interface {
+// NLRI interface (internal/plugin/bgp/nlri/nlri.go)
+type NLRI interface {
     Family() Family
-    Len() int
-    LenWithContext(ctx *PackContext) int                        // ADD-PATH aware
-    WriteTo(buf []byte, off int, ctx *PackContext) int          // context-aware write
-    CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error)
+    Bytes() []byte                    // Wire-format encoding (payload only)
+    Len() int                         // Payload length (no path ID)
+    String() string                   // Human-readable representation
+    PathID() uint32                   // ADD-PATH path identifier (0 if not present)
+    WriteTo(buf []byte, off int) int  // Write payload (no path ID)
+    SupportsAddPath() bool            // Whether this NLRI type supports ADD-PATH
 }
+
+// LenWithContext is a standalone function for ADD-PATH aware length:
+func LenWithContext(n NLRI, addPath bool) int
+// Returns Len() if addPath=false, Len()+4 if addPath=true
 ```
 
-**PackContext** carries negotiated capabilities for encoding:
-- `AddPath bool` - include 4-byte path-id prefix?
-- `ASN4 bool` - use 4-byte ASNs in AS_PATH?
+**ADD-PATH encoding:** Use `WriteNLRI()` helper function for ADD-PATH aware encoding,
+which prepends the 4-byte path ID when needed.
 
 ---
 
@@ -483,9 +490,11 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 ## 10. What Gets Eliminated
 
+> **Note:** These are planned refactorings. See `docs/plan/spec-message-update-removal.md` for `message.Update` removal tracking.
+
 | Current Type | Status | Replacement |
 |--------------|--------|-------------|
-| `message.Update` | Remove | `WireUpdate` |
+| `message.Update` | Planned (see spec) | `WireUpdate` |
 | `rib.Route` with parsed attrs | Refactor | `RouteEntry` with pool refs |
 | `plugin/rib.Route` (strings) | Remove | Use core RIB |
 | `plugin/rr.Route` | Remove | Use core RIB |
@@ -513,4 +522,4 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 ---
 
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-01-30 (RouteEntry updated to match pool.Handle implementation)

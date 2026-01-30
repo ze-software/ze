@@ -767,42 +767,33 @@ func (p *Pool) IsIdle(d time.Duration) bool
 
 Ze provides pre-configured global pools in `internal/pool/attributes.go`:
 
-### Blob-Level Pools
-
-| Pool | Index | Initial Size | Purpose |
-|------|-------|--------------|---------|
-| `Attributes` | 0 | 1MB | Full attribute blob deduplication |
-| `NLRI` | 1 | 256KB | NLRI wire bytes deduplication |
-
 ### Per-Attribute-Type Pools
 
 For fine-grained deduplication when routes share some but not all attributes:
 
-| Pool | Index | Initial Size | Expected Entries |
-|------|-------|--------------|------------------|
-| `Origin` | 2 | 64B | 3 (IGP, EGP, INCOMPLETE) |
-| `ASPath` | 3 | 256KB | ~10,000 |
-| `LocalPref` | 4 | 4KB | ~100 |
-| `MED` | 5 | 16KB | ~1,000 |
-| `NextHop` | 6 | 16KB | ~1,000 |
-| `Communities` | 7 | 64KB | ~5,000 |
-| `LargeCommunities` | 8 | 16KB | ~1,000 |
-| `ExtCommunities` | 9 | 16KB | ~1,000 |
-| `ClusterList` | 10 | 4KB | ~100 |
-| `OriginatorID` | 11 | 4KB | ~100 |
-| `OtherAttrs` | 12 | 64KB | Unknown/other attrs |
+| Pool | Index | Initial Size | Purpose |
+|------|-------|--------------|---------|
+| `Origin` | 2 | 64B | ORIGIN (3 values: IGP, EGP, INCOMPLETE) |
+| `ASPath` | 3 | 256KB | AS_PATH (RFC 4271) |
+| `LocalPref` | 4 | 4KB | LOCAL_PREF (RFC 4271) |
+| `MED` | 5 | 16KB | MULTI_EXIT_DISC (RFC 4271) |
+| `NextHop` | 6 | 16KB | NEXT_HOP (RFC 4271) |
+| `Communities` | 7 | 64KB | COMMUNITIES (RFC 1997) |
+| `LargeCommunities` | 8 | 16KB | LARGE_COMMUNITIES (RFC 8092) |
+| `ExtCommunities` | 9 | 16KB | EXTENDED_COMMUNITIES (RFC 4360) |
+| `ClusterList` | 10 | 4KB | CLUSTER_LIST (RFC 4456) |
+| `OriginatorID` | 11 | 4KB | ORIGINATOR_ID (RFC 4456) |
+| `AtomicAggregate` | 12 | 64B | ATOMIC_AGGREGATE (RFC 4271) |
+| `Aggregator` | 13 | 4KB | AGGREGATOR (RFC 4271) |
+| `OtherAttrs` | 14 | 64KB | Unknown/unhandled attributes |
 
 ### Usage Pattern
 
-**Blob-level** (simple, existing `FamilyRIB`):
-```go
-h := pool.Attributes.Intern(attrBytes)  // Entire blob as one entry
-```
-
-**Per-attribute** (fine-grained, `FamilyRIBPerAttr`):
+**Per-attribute** (fine-grained deduplication):
 ```go
 entry, _ := storage.ParseAttributes(attrBytes)  // Parses into per-type handles
 // entry.Origin, entry.ASPath, etc. are individual pool handles
+// Access: data, _ := pool.Origin.Get(entry.Origin)
 ```
 
 **Memory improvement:** Routes with identical ORIGIN/LOCAL_PREF but different MED share ORIGIN/LOCAL_PREF pool entries instead of duplicating the entire blob.
@@ -882,4 +873,4 @@ routes = {}  # (peer, prefix) -> {'attrs': bytes, 'nlri': bytes, 'msg_id': int}
 
 ---
 
-**Last Updated:** 2026-01-26
+**Last Updated:** 2026-01-30

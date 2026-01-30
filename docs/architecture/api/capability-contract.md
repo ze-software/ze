@@ -4,15 +4,15 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| `msg-id` in events | ✅ Done | `json.go`, `text.go` |
-| `bgp cache <id> forward` | ✅ Done | `cache.go` |
-| `capability route-refresh` | ✅ Done | `rr/server.go:68` |
-| `plugin session ready` | ✅ Done | `plugin.go` |
-| Refresh event handling | ✅ Done | `rr/server.go`, `decode.go` |
-| `bgp cache <id> retain/release/expire` | ✅ Done | `cache.go` |
-| `bgp cache list` | ✅ Done | `cache.go` |
+| `msg-id` in events | ✅ Done | `internal/plugin/json.go` |
+| `bgp cache <id> forward` | ✅ Done | `internal/plugin/cache.go` |
+| `capability route-refresh` | ✅ Done | `internal/plugin/rr/` |
+| `plugin session ready` | ✅ Done | `internal/plugin/plugin.go` |
+| Refresh event handling | ✅ Done | `internal/plugin/rr/` |
+| `bgp cache <id> retain/release/expire` | ✅ Done | `internal/plugin/cache.go` |
+| `bgp cache list` | ✅ Done | `internal/plugin/cache.go` |
 | Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
-| Config validation (GR/RR→API) | ✅ Done | `bgp.go:validateProcessCapabilities` |
+| Config validation (GR/RR→API) | ✅ Done | Config validation |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
 
 ---
@@ -28,7 +28,7 @@
 | **Cache Control** | API retains cache entries for replay, releases when done |
 | **Fail-fast** | GR/RR configured without capable API = refuse to start |
 
-**Full spec:** `docs/plan/spec-api-capability-contract.md`
+**Full spec:** `docs/plan/done/172-api-capability-contract.md`
 
 ---
 

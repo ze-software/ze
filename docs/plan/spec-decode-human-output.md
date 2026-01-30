@@ -1,4 +1,4 @@
-# Spec: 03 - Human-Readable Decode Output
+# Spec: Human-Readable Decode Output
 
 ## Post-Compaction Recovery
 

@@ -13,9 +13,9 @@ Ze has multiple route representations serving different purposes in the data flo
 | `rib.Route` | `internal/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
 | `rr.Route` | `internal/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
 | `RIBRoute` | `internal/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
-| `rib.Route` | `internal/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+| `rib.Route` | `internal/plugin/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
 
-**Note:** Two different `rib.Route` types exist - one in `internal/plugin/rib/` (plugin) and one in `internal/rib/` (core engine).
+**Note:** Two different `rib.Route` types exist - one in `internal/plugin/rib/` (plugin) and one in `internal/plugin/bgp/rib/` (core engine).
 
 ## Route Type Families
 
@@ -93,7 +93,7 @@ internal/plugin/
 internal/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)
 
-internal/bgp/attribute/
+internal/plugin/bgp/attribute/
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()
 └── *.go              # Wire format encoding/decoding
 ```

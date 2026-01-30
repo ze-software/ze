@@ -441,88 +441,61 @@ Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 
 ### Attribute Interface
 
-Attribute embeds WireWriter for zero-allocation encoding:
+Defined in `internal/plugin/bgp/attribute/attribute.go`:
 
 ```go
-// WireWriter in internal/bgp/context/context.go (not wire package due to import cycle)
-type WireWriter interface {
-    Len(ctx *EncodingContext) int
-    WriteTo(buf []byte, off int, ctx *EncodingContext) int
-}
-
-// Attribute in internal/bgp/attribute/attribute.go
 type Attribute interface {
-    context.WireWriter
     Code() AttributeCode
     Flags() AttributeFlags
+    Len() int
+    Pack() []byte
+    PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
+    WriteTo(buf []byte, off int) int
+    WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
 }
 
 type AttributeCode uint8
 type AttributeFlags uint8
 
 const (
-    FlagOptional       AttributeFlags = 0x80
-    FlagTransitive     AttributeFlags = 0x40
-    FlagPartial        AttributeFlags = 0x20
-    FlagExtendedLength AttributeFlags = 0x10
+    FlagOptional   AttributeFlags = 0x80
+    FlagTransitive AttributeFlags = 0x40
+    FlagPartial    AttributeFlags = 0x20
+    FlagExtLength  AttributeFlags = 0x10
 )
+```
 
-// Context-independent attributes ignore context
-func (o Origin) Len(_ *context.EncodingContext) int { return 1 }
-func (o Origin) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
-    buf[off] = byte(o)
-    return 1
-}
+**Note:** Context-dependent attributes (AS_PATH, Aggregator) use `PackWithContext`/`WriteToWithContext` for ASN4 encoding decisions. Most attributes ignore the context parameters.
 
-// Context-dependent attributes use context for encoding
-func (p *ASPath) Len(ctx *context.EncodingContext) int {
-    if ctx == nil || ctx.ASN4() {
-        return p.len4byte()
-    }
-    return p.len2byte()
-}
+### WireWriter Interface
 
-// Transcoder interface for srcCtx → dstCtx transcoding
-type Transcoder interface {
-    WireWriter
-    LenTranscode(srcCtx, dstCtx *context.EncodingContext) int
-    WriteToTranscode(buf []byte, off int, srcCtx, dstCtx *context.EncodingContext) int
+Defined in `internal/plugin/bgp/context/context.go` - used by messages, not directly embedded by Attribute:
+
+```go
+type WireWriter interface {
+    Len(ctx *EncodingContext) int
+    WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
-// Only AS_PATH and Aggregator implement Transcoder
 ```
 
 ### Attribute Parsing
 
-```go
-func ParseAttributes(data []byte, ctx *context.EncodingContext) ([]Attribute, error) {
-    var attrs []Attribute
-    for len(data) >= 3 {
-        flags := AttributeFlags(data[0])
-        code := AttributeCode(data[1])
+Parsing uses `AttributesWire` (lazy parsing, `internal/plugin/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/plugin/rib/storage/attrparse.go`).
 
-        var length int
-        if flags&FlagExtendedLength != 0 {
-            length = int(binary.BigEndian.Uint16(data[2:4]))
-            data = data[4:]
-        } else {
-            length = int(data[2])
-            data = data[3:]
-        }
+Simplified parsing logic (pseudocode):
 
-        if len(data) < length {
-            return nil, ErrTruncated
-        }
-
-        attr, err := parseAttribute(code, flags, data[:length], ctx)
-        if err != nil {
-            return nil, err
-        }
-        attrs = append(attrs, attr)
-        data = data[length:]
-    }
-    return attrs, nil
-}
 ```
+for each attribute in packed bytes:
+    flags = byte[0]
+    code = byte[1]
+    if flags & 0x10 (ExtLength):
+        length = bytes[2:4] as uint16, skip 4 bytes
+    else:
+        length = byte[2], skip 3 bytes
+    parse attribute value from next 'length' bytes
+```
+
+Actual implementation uses `ParseHeader()` function in `attribute.go`.
 
 ---
 
@@ -559,4 +532,4 @@ index := make([]attrIndex, 0, 8)  // 99.9% of routes fit without reallocation
 ---
 
 **Created:** 2025-12-19
-**Last Updated:** 2026-01-13
+**Last Updated: 2026-01-30

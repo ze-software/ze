@@ -264,7 +264,7 @@ Wire: 60 00 3E 81 00 00 FD E8 00 00 00 64 0A
 
 ## EVPN NLRI (RFC 7432)
 
-See `NLRI_EVPN.md` for detailed documentation.
+See `nlri-evpn.md` for detailed documentation.
 
 ### Wire Format
 
@@ -292,7 +292,7 @@ See `NLRI_EVPN.md` for detailed documentation.
 
 ## FlowSpec NLRI (RFC 5575)
 
-See `NLRI_FLOWSPEC.md` for detailed documentation.
+See `nlri-flowspec.md` for detailed documentation.
 
 ### Wire Format
 
@@ -333,7 +333,7 @@ See `NLRI_FLOWSPEC.md` for detailed documentation.
 
 ## BGP-LS NLRI (RFC 7752)
 
-See `NLRI_BGPLS.md` for detailed documentation.
+See `nlri-bgpls.md` for detailed documentation.
 
 ### Wire Format
 
@@ -399,16 +399,16 @@ With ADD-PATH (RFC 7911):
 ### Ze Implementation
 
 ```go
-// internal/bgp/nlri/labeled.go
+// internal/plugin/bgp/nlri/labeled.go
 type LabeledUnicast struct {
     PrefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
     labels  []uint32     // Label stack (BOS on last)
 }
 
 // NLRI interface methods (payload-only, no path ID)
-func (l *LabeledUnicast) Len() int                              // Payload length only
-func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx) int  // Write payload only (uses WriteLabelStack)
-func (l *LabeledUnicast) Bytes() []byte                         // Payload bytes only (uses EncodeLabelStack)
+func (l *LabeledUnicast) Len() int                       // Payload length only
+func (l *LabeledUnicast) WriteTo(buf []byte, off int) int  // Write payload only
+func (l *LabeledUnicast) Bytes() []byte                  // Payload bytes only
 // Family(), Prefix(), PathID() inherited from PrefixNLRI
 
 // For ADD-PATH aware encoding, use package functions:
@@ -457,10 +457,11 @@ After ADD-PATH simplification (Phase 3), NLRI methods return **payload only**:
 ```go
 type NLRI interface {
     Family() Family
-    Len() int                                    // Payload length (no path ID)
-    Bytes() []byte                               // Payload bytes (no path ID)
-    WriteTo(buf []byte, off int, ctx) int        // Write payload only
-    PathID() uint32                              // Stored path ID (0 if unset)
+    Len() int                           // Payload length (no path ID)
+    Bytes() []byte                      // Payload bytes (no path ID)
+    WriteTo(buf []byte, off int) int    // Write payload only (no path ID)
+    PathID() uint32                     // Stored path ID (0 if unset)
+    SupportsAddPath() bool              // True if ADD-PATH supported
     String() string
 }
 
@@ -540,4 +541,4 @@ func (i *INET) Index() []byte {
 
 ---
 
-**Last Updated:** 2026-01-07
+**Last Updated: 2026-01-30
