@@ -19,12 +19,12 @@ func TestNotificationTextPreserved(t *testing.T) {
 	}{
 		{
 			name:     "mixed case text preserved",
-			input:    "action=notification:conn=1:seq=1:text=Hello World",
+			input:    "action:notification:conn=1:seq=1:text=Hello World",
 			wantText: "Hello World",
 		},
 		{
 			name:     "all caps text preserved",
-			input:    "action=notification:conn=1:seq=1:text=HELLO WORLD",
+			input:    "action:notification:conn=1:seq=1:text=HELLO WORLD",
 			wantText: "HELLO WORLD",
 		},
 	}
@@ -86,7 +86,7 @@ func TestNotificationMsgLengthCapped(t *testing.T) {
 
 // TestNotificationWithColons ensures colons in message text are preserved.
 func TestNotificationWithColons(t *testing.T) {
-	input := "action=notification:conn=1:seq=1:text=time: 12:30:45 zone: UTC"
+	input := "action:notification:conn=1:seq=1:text=time: 12:30:45 zone: UTC"
 	c, err := NewChecker([]string{input})
 	require.NoError(t, err)
 	c.Init()
@@ -147,8 +147,8 @@ func TestModeStringAndParse(t *testing.T) {
 // TestNotificationSequence tests notification at non-first position.
 func TestNotificationSequence(t *testing.T) {
 	inputs := []string{
-		"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
-		"action=notification:conn=1:seq=2:text=session ending",
+		"expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
+		"action:notification:conn=1:seq=2:text=session ending",
 	}
 
 	c, err := NewChecker(inputs)
@@ -158,7 +158,7 @@ func TestNotificationSequence(t *testing.T) {
 	// First should NOT be a notification (it's a BGP expect)
 	ok, _ := c.NextNotificationAction()
 	if ok {
-		t.Error("expect=bgp should not be a notification action")
+		t.Error("expect:bgp should not be a notification action")
 	}
 
 	// Simulate receiving the expected message (this advances the queue)
@@ -173,9 +173,9 @@ func TestNotificationSequence(t *testing.T) {
 // VALIDATES: Different conn values create separate sequences with correct IDs.
 func TestMultiConnectionSequences(t *testing.T) {
 	inputs := []string{
-		"expect=bgp:conn=1:seq=1:hex=AAAA",
-		"expect=bgp:conn=2:seq=1:hex=BBBB",
-		"expect=bgp:conn=3:seq=1:hex=CCCC",
+		"expect:bgp:conn=1:seq=1:hex=AAAA",
+		"expect:bgp:conn=2:seq=1:hex=BBBB",
+		"expect:bgp:conn=3:seq=1:hex=CCCC",
 	}
 
 	c, err := NewChecker(inputs)
@@ -210,112 +210,112 @@ func TestParseExpectRuleValidation(t *testing.T) {
 		input   string
 		wantErr string
 	}{
-		// expect=bgp validation
+		// expect:bgp validation
 		{
 			name:    "bgp missing conn",
-			input:   "expect=bgp:seq=1:hex=FFFF",
+			input:   "expect:bgp:seq=1:hex=FFFF",
 			wantErr: "missing conn",
 		},
 		{
 			name:    "bgp missing seq",
-			input:   "expect=bgp:conn=1:hex=FFFF",
+			input:   "expect:bgp:conn=1:hex=FFFF",
 			wantErr: "missing seq",
 		},
 		{
 			name:    "bgp missing hex",
-			input:   "expect=bgp:conn=1:seq=1:",
+			input:   "expect:bgp:conn=1:seq=1:",
 			wantErr: "missing hex",
 		},
 		{
 			name:    "bgp invalid conn zero",
-			input:   "expect=bgp:conn=0:seq=1:hex=FFFF",
+			input:   "expect:bgp:conn=0:seq=1:hex=FFFF",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "bgp invalid conn five",
-			input:   "expect=bgp:conn=5:seq=1:hex=FFFF",
+			input:   "expect:bgp:conn=5:seq=1:hex=FFFF",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "bgp invalid seq zero",
-			input:   "expect=bgp:conn=1:seq=0:hex=FFFF",
+			input:   "expect:bgp:conn=1:seq=0:hex=FFFF",
 			wantErr: "invalid seq",
 		},
 		{
 			name:    "bgp invalid seq negative",
-			input:   "expect=bgp:conn=1:seq=-1:hex=FFFF",
+			input:   "expect:bgp:conn=1:seq=-1:hex=FFFF",
 			wantErr: "invalid seq",
 		},
-		// action=notification validation
+		// action:notification validation
 		{
 			name:    "notification missing conn",
-			input:   "action=notification:seq=1:text=hello",
+			input:   "action:notification:seq=1:text=hello",
 			wantErr: "missing conn",
 		},
 		{
 			name:    "notification missing seq",
-			input:   "action=notification:conn=1:text=hello",
+			input:   "action:notification:conn=1:text=hello",
 			wantErr: "missing seq",
 		},
 		{
 			name:    "notification missing text",
-			input:   "action=notification:conn=1:seq=1:",
+			input:   "action:notification:conn=1:seq=1:",
 			wantErr: "missing text",
 		},
 		{
 			name:    "notification invalid conn zero",
-			input:   "action=notification:conn=0:seq=1:text=hello",
+			input:   "action:notification:conn=0:seq=1:text=hello",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "notification invalid conn five",
-			input:   "action=notification:conn=5:seq=1:text=hello",
+			input:   "action:notification:conn=5:seq=1:text=hello",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "notification invalid seq zero",
-			input:   "action=notification:conn=1:seq=0:text=hello",
+			input:   "action:notification:conn=1:seq=0:text=hello",
 			wantErr: "invalid seq",
 		},
 		{
 			name:    "notification invalid seq negative",
-			input:   "action=notification:conn=1:seq=-1:text=hello",
+			input:   "action:notification:conn=1:seq=-1:text=hello",
 			wantErr: "invalid seq",
 		},
-		// action=send validation
+		// action:send validation
 		{
 			name:    "send missing conn",
-			input:   "action=send:seq=1:hex=FFFF",
+			input:   "action:send:seq=1:hex=FFFF",
 			wantErr: "missing conn",
 		},
 		{
 			name:    "send missing seq",
-			input:   "action=send:conn=1:hex=FFFF",
+			input:   "action:send:conn=1:hex=FFFF",
 			wantErr: "missing seq",
 		},
 		{
 			name:    "send missing hex",
-			input:   "action=send:conn=1:seq=1:",
+			input:   "action:send:conn=1:seq=1:",
 			wantErr: "missing hex",
 		},
 		{
 			name:    "send invalid conn zero",
-			input:   "action=send:conn=0:seq=1:hex=FFFF",
+			input:   "action:send:conn=0:seq=1:hex=FFFF",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "send invalid conn five",
-			input:   "action=send:conn=5:seq=1:hex=FFFF",
+			input:   "action:send:conn=5:seq=1:hex=FFFF",
 			wantErr: "invalid conn",
 		},
 		{
 			name:    "send invalid seq zero",
-			input:   "action=send:conn=1:seq=0:hex=FFFF",
+			input:   "action:send:conn=1:seq=0:hex=FFFF",
 			wantErr: "invalid seq",
 		},
 		{
 			name:    "send invalid seq negative",
-			input:   "action=send:conn=1:seq=-1:hex=FFFF",
+			input:   "action:send:conn=1:seq=-1:hex=FFFF",
 			wantErr: "invalid seq",
 		},
 		// Unknown format
@@ -347,14 +347,14 @@ func TestParseExpectRuleValid(t *testing.T) {
 		name  string
 		input string
 	}{
-		{"bgp valid", "expect=bgp:conn=1:seq=1:hex=FFFF"},
-		{"bgp conn 4", "expect=bgp:conn=4:seq=1:hex=FFFF"},
-		{"bgp high seq", "expect=bgp:conn=1:seq=99:hex=FFFF"},
-		{"notification valid", "action=notification:conn=1:seq=1:text=hello"},
-		{"notification with colons", "action=notification:conn=1:seq=1:text=a:b:c"},
-		{"send valid", "action=send:conn=1:seq=1:hex=FFFF"},
-		{"send with colons in hex", "action=send:conn=1:seq=1:hex=FF:FF:FF"},
-		{"send conn 4", "action=send:conn=4:seq=1:hex=FFFF"},
+		{"bgp valid", "expect:bgp:conn=1:seq=1:hex=FFFF"},
+		{"bgp conn 4", "expect:bgp:conn=4:seq=1:hex=FFFF"},
+		{"bgp high seq", "expect:bgp:conn=1:seq=99:hex=FFFF"},
+		{"notification valid", "action:notification:conn=1:seq=1:text=hello"},
+		{"notification with colons", "action:notification:conn=1:seq=1:text=a:b:c"},
+		{"send valid", "action:send:conn=1:seq=1:hex=FFFF"},
+		{"send with colons in hex", "action:send:conn=1:seq=1:hex=FF:FF:FF"},
+		{"send conn 4", "action:send:conn=4:seq=1:hex=FFFF"},
 	}
 
 	for _, tt := range tests {
@@ -379,17 +379,17 @@ func TestSendActionParsing(t *testing.T) {
 	}{
 		{
 			name:    "simple hex",
-			input:   "action=send:conn=1:seq=1:hex=FFFF",
+			input:   "action:send:conn=1:seq=1:hex=FFFF",
 			wantHex: "FFFF",
 		},
 		{
 			name:    "hex with colons stripped",
-			input:   "action=send:conn=1:seq=1:hex=FF:FF:AA:BB",
+			input:   "action:send:conn=1:seq=1:hex=FF:FF:AA:BB",
 			wantHex: "FFFFAABB",
 		},
 		{
 			name:    "lowercase hex normalized",
-			input:   "action=send:conn=1:seq=1:hex=aabbccdd",
+			input:   "action:send:conn=1:seq=1:hex=aabbccdd",
 			wantHex: "AABBCCDD",
 		},
 	}
@@ -416,14 +416,14 @@ func TestSendActionParsing(t *testing.T) {
 //
 // VALIDATES: Send actions trigger sending, not receiving expectations.
 func TestSendNotTreatedAsExpect(t *testing.T) {
-	c, err := NewChecker([]string{"action=send:conn=1:seq=1:hex=FFFF"})
+	c, err := NewChecker([]string{"action:send:conn=1:seq=1:hex=FFFF"})
 	require.NoError(t, err)
 	c.Init()
 
 	// Should be a send action, not an expect
 	ok, _ := c.NextSendAction()
 	if !ok {
-		t.Error("action=send should be treated as send action")
+		t.Error("action:send should be treated as send action")
 	}
 }
 

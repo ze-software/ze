@@ -442,23 +442,23 @@ EOF
 // TestNonTmpfsLinesPassthrough verifies non-Tmpfs lines are collected.
 //
 // VALIDATES: Lines not starting with tmpfs= are available for other consumers.
-// PREVENTS: Losing cmd=, option=, expect= lines.
+// PREVENTS: Losing cmd:, option:, expect: lines.
 func TestNonTmpfsLinesPassthrough(t *testing.T) {
 	input := `tmpfs=peer.conf:terminator=EOF_CONF
 content
 EOF_CONF
 
-option=asn:value=65533
-cmd=ze bgp validate tmpfs//peer.conf
-expect=exit:code=0
+option:asn:value=65533
+cmd:ze bgp validate tmpfs//peer.conf
+expect:exit:code=0
 `
 	v, err := Parse(strings.NewReader(input))
 	require.NoError(t, err)
 	require.Len(t, v.Files, 1)
 	require.Len(t, v.OtherLines, 3)
-	assert.Equal(t, "option=asn:value=65533", v.OtherLines[0])
-	assert.Equal(t, "cmd=ze bgp validate tmpfs//peer.conf", v.OtherLines[1])
-	assert.Equal(t, "expect=exit:code=0", v.OtherLines[2])
+	assert.Equal(t, "option:asn:value=65533", v.OtherLines[0])
+	assert.Equal(t, "cmd:ze bgp validate tmpfs//peer.conf", v.OtherLines[1])
+	assert.Equal(t, "expect:exit:code=0", v.OtherLines[2])
 }
 
 // TestParseWithLimits verifies custom limits are respected.
@@ -512,14 +512,14 @@ func TestLargeReader(t *testing.T) {
 func TestTmpfsResolve(t *testing.T) {
 	v := &Tmpfs{
 		OtherLines: []string{
-			"cmd=ze bgp validate tmpfs//peer.conf",
-			"cmd=ze bgp run tmpfs//scripts/plugin.py",
+			"cmd:ze bgp validate tmpfs//peer.conf",
+			"cmd:ze bgp run tmpfs//scripts/plugin.py",
 		},
 	}
 
 	resolved := v.ResolveTmpfsPaths()
-	assert.Equal(t, "cmd=ze bgp validate peer.conf", resolved[0])
-	assert.Equal(t, "cmd=ze bgp run scripts/plugin.py", resolved[1])
+	assert.Equal(t, "cmd:ze bgp validate peer.conf", resolved[0])
+	assert.Equal(t, "cmd:ze bgp run scripts/plugin.py", resolved[1])
 }
 
 // TestCleanup verifies temp directory removal.

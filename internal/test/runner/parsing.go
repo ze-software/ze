@@ -56,7 +56,7 @@ func NewParsingTests(baseDir string) *ParsingTests {
 // Discover finds parsing tests in the directory.
 // Supports two formats:
 //   - Legacy: valid/*.conf (positive) and invalid/*.conf + .expect (negative)
-//   - Unified: *.ci files with stdin=, cmd=, expect= lines
+//   - Unified: *.ci files with stdin=, cmd:, expect: lines
 func (pt *ParsingTests) Discover(dir string) error {
 	ResetNickCounter()
 
@@ -229,19 +229,19 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 			continue
 		}
 
-		// Parse expect=exit:code=N
-		if strings.HasPrefix(trimmed, "expect=exit:code=") {
+		// Parse expect:exit:code=N
+		if strings.HasPrefix(trimmed, "expect:exit:code=") {
 			// We don't need to store this - positive tests expect 0, negative expect non-0
 			continue
 		}
 
-		// Parse expect=stderr:contains=<error>
-		if strings.HasPrefix(trimmed, "expect=stderr:contains=") {
-			test.ExpectError = strings.TrimPrefix(trimmed, "expect=stderr:contains=")
+		// Parse expect:stderr:contains=<error>
+		if strings.HasPrefix(trimmed, "expect:stderr:contains=") {
+			test.ExpectError = strings.TrimPrefix(trimmed, "expect:stderr:contains=")
 			continue
 		}
 
-		// Skip other lines (cmd=, etc.)
+		// Skip other lines (cmd:, etc.)
 	}
 
 	if err := scanner.Err(); err != nil {

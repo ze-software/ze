@@ -784,36 +784,43 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Wait for peer (first background process, typically ze-peer) to finish.
-	// The peer validates messages and exits when done (success/fail/timeout).
-	// Daemons (foreground) run until killed.
-	var peerProc *exec.Cmd
+	// Find peer and foreground (daemon) processes
+	var peerProc, fgProc *exec.Cmd
 	for _, p := range bgProcs {
-		// Find the peer process (the one with ze-peer args)
 		if strings.Contains(p.Path, "ze-peer") || strings.Contains(p.String(), "ze-peer") {
 			peerProc = p
-			break
+		} else {
+			fgProc = p // Last non-peer process is foreground
 		}
 	}
 
+	// Kill processes on context cancellation
+	go func() {
+		<-testCtx.Done()
+		for _, p := range bgProcs {
+			if p.Process != nil {
+				_ = p.Process.Kill()
+			}
+		}
+	}()
+
 	var err error
-	if peerProc != nil {
-		// Wait for peer to finish
+
+	// If testing exit code, wait for foreground process instead of peer
+	if rec.ExpectExitCode != nil && fgProc != nil {
+		fgDone := make(chan error, 1)
+		go func() {
+			fgDone <- fgProc.Wait()
+		}()
+		err = <-fgDone
+	} else if peerProc != nil {
+		// Wait for peer (first background process, typically ze-peer) to finish.
+		// The peer validates messages and exits when done (success/fail/timeout).
+		// Daemons (foreground) run until killed.
 		peerDone := make(chan error, 1)
 		go func() {
 			peerDone <- peerProc.Wait()
 		}()
-
-		// Kill processes on context cancellation
-		go func() {
-			<-testCtx.Done()
-			for _, p := range bgProcs {
-				if p.Process != nil {
-					_ = p.Process.Kill()
-				}
-			}
-		}()
-
 		err = <-peerDone
 	}
 

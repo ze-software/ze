@@ -24,8 +24,8 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-option=asn:value=65533
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+option:asn:value=65533
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 `
 	ciFile := filepath.Join(tmpDir, "test-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -57,7 +57,7 @@ func TestParseTmpfsMultipleFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	ciContent := `tmpfs=rules.ci:terminator=EOF_RULES
-option=asn:value=65533
+option:asn:value=65533
 EOF_RULES
 
 tmpfs=peer.conf:terminator=EOF_CONF
@@ -66,7 +66,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-option=asn:value=65533
+option:asn:value=65533
 `
 	ciFile := filepath.Join(tmpDir, "multi-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -101,7 +101,7 @@ tmpfs=scripts/plugin.py:terminator=EOF_PY
 print("hello")
 EOF_PY
 
-option=asn:value=65533
+option:asn:value=65533
 `
 	ciFile := filepath.Join(tmpDir, "subdir-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -131,9 +131,9 @@ func TestParseNoTmpfs(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 	require.NoError(t, os.WriteFile(confFile, []byte(confContent), 0o600))
 
-	ciContent := `option=file:path=test.conf
-option=asn:value=65533
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+	ciContent := `option:file:path=test.conf
+option:asn:value=65533
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 `
 	ciFile := filepath.Join(tmpDir, "no-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -148,6 +148,6 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 
 	// TmpfsFiles should be nil or empty when no tmpfs blocks
 	assert.Empty(t, r.TmpfsFiles)
-	// Config should still be parsed from option=file
+	// Config should still be parsed from option:file
 	assert.Equal(t, confFile, r.ConfigFile)
 }

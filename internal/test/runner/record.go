@@ -123,12 +123,16 @@ type Record struct {
 	ClientOutput    string
 
 	// Logging test options
-	EnvVars      []string // option=env:var=KEY:value=VALUE
+	EnvVars      []string // option:env:var=KEY:value=VALUE
 	ExpectStderr []string // expect=stderr:pattern=PATTERN (regex)
 	RejectStderr []string // reject=stderr:pattern=PATTERN (regex)
 	ExpectSyslog []string // expect=syslog:pattern=PATTERN (regex)
 	RejectSyslog []string // reject=syslog:pattern=PATTERN (regex)
 	SyslogPort   int      // Dynamically assigned port for test-syslog
+
+	// Exit code validation
+	ExpectExitCode    *int   // expect:exit:code=N - expected exit code (nil = don't check)
+	ExpectStderrMatch string // expect=stderr:contains=TEXT - substring match (not regex)
 
 	// Tmpfs embedded files
 	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks
@@ -560,7 +564,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		}
 	}
 
-	// Parse the non-Tmpfs lines (option=, expect=, cmd=, run=, etc.)
+	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.)
 	for lineNum, line := range v.OtherLines {
 		if err := et.parseLine(r, ciFile, line); err != nil {
 			return fmt.Errorf("line %d: %w", lineNum+1, err)
@@ -594,25 +598,18 @@ generateDecoded:
 	return nil
 }
 
-// parseLine parses a single .ci line in the new key=value format.
+// parseLine parses a single .ci line in the action:type:key=value format.
 func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
-	// Parse action=type:key=value:key=value:...
-	eqIdx := strings.Index(line, "=")
-	if eqIdx == -1 {
-		return fmt.Errorf("invalid format %q, expected action=type:key=value", line)
+	// Parse action:type:key=value:key=value:...
+	// All segments separated by colon, only key=value pairs use equals
+	parts := strings.Split(line, ":")
+	if len(parts) < 2 {
+		return fmt.Errorf("invalid format %q, expected action:type:key=value", line)
 	}
 
-	action := line[:eqIdx]
-	rest := line[eqIdx+1:]
-
-	// Split rest into type and key=value pairs
-	parts := strings.Split(rest, ":")
-	if len(parts) == 0 {
-		return fmt.Errorf("invalid format %q - missing type after =", line)
-	}
-
-	lineType := parts[0]
-	kvPairs := ci.ParseKVPairs(parts[1:])
+	action := parts[0]
+	lineType := parts[1]
+	kvPairs := ci.ParseKVPairs(parts[2:])
 
 	switch action {
 	case "option":
@@ -636,7 +633,7 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "file":
 		configName := kv["path"]
 		if configName == "" {
-			return fmt.Errorf("option=file missing path=")
+			return fmt.Errorf("option:file missing path=")
 		}
 		configPath := filepath.Join(filepath.Dir(ciFile), configName)
 		absConfig, err := filepath.Abs(configPath)
@@ -657,52 +654,52 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	case "asn":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=asn missing value=")
+			return fmt.Errorf("option:asn missing value=")
 		}
 		r.Extra["asn"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option=asn:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option:asn:value=%s", value))
 
 	case "bind":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=bind missing value=")
+			return fmt.Errorf("option:bind missing value=")
 		}
 		r.Extra["bind"] = value
-		r.Options = append(r.Options, fmt.Sprintf("option=bind:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option:bind:value=%s", value))
 
 	case "timeout":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=timeout missing value=")
+			return fmt.Errorf("option:timeout missing value=")
 		}
 		r.Extra["timeout"] = value
 
 	case "tcp_connections":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=tcp_connections missing value=")
+			return fmt.Errorf("option:tcp_connections missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=tcp_connections:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option:tcp_connections:value=%s", value))
 
 	case "open":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=open missing value=")
+			return fmt.Errorf("option:open missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=open:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option:open:value=%s", value))
 
 	case "update":
 		value := kv["value"]
 		if value == "" {
-			return fmt.Errorf("option=update missing value=")
+			return fmt.Errorf("option:update missing value=")
 		}
-		r.Options = append(r.Options, fmt.Sprintf("option=update:value=%s", value))
+		r.Options = append(r.Options, fmt.Sprintf("option:update:value=%s", value))
 
 	case "env":
 		varName := kv["var"]
 		value := kv["value"]
 		if varName == "" {
-			return fmt.Errorf("option=env missing var=")
+			return fmt.Errorf("option:env missing var=")
 		}
 		// Store as KEY=VALUE for environment setting
 		r.EnvVars = append(r.EnvVars, fmt.Sprintf("%s=%s", varName, value))
@@ -713,17 +710,17 @@ func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[s
 	return nil
 }
 
-// parseExpect handles expect=type:... lines.
+// parseExpect handles expect:type:... lines.
 func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
 	switch expType {
 	case "bgp":
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
-			return fmt.Errorf("expect=bgp: %w", err)
+			return fmt.Errorf("expect:bgp: %w", err)
 		}
 		hexData := kv["hex"]
 		if hexData == "" {
-			return fmt.Errorf("expect=bgp missing hex=")
+			return fmt.Errorf("expect:bgp missing hex=")
 		}
 		idx := connSeqToIndex(conn, seq)
 		msg := r.getOrCreateMessage(idx)
@@ -732,24 +729,40 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 			msg.Raw = rawBytes
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("expect=bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		r.Expects = append(r.Expects, fmt.Sprintf("expect:bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
 
 	case "json":
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
-			return fmt.Errorf("expect=json: %w", err)
+			return fmt.Errorf("expect:json: %w", err)
 		}
 		jsonData := kv["json"]
 		if jsonData == "" {
-			return fmt.Errorf("expect=json missing json=")
+			return fmt.Errorf("expect:json missing json=")
 		}
 		idx := connSeqToIndex(conn, seq)
 		msg := r.getOrCreateMessage(idx)
 		msg.JSON = jsonData
 
+	case "exit":
+		codeStr := kv["code"]
+		if codeStr == "" {
+			return fmt.Errorf("expect:exit missing code=")
+		}
+		code, err := strconv.Atoi(codeStr)
+		if err != nil {
+			return fmt.Errorf("expect:exit invalid code=%q: %w", codeStr, err)
+		}
+		r.ExpectExitCode = &code
+
 	case "stderr":
-		pattern := kv["pattern"]
-		r.ExpectStderr = append(r.ExpectStderr, pattern)
+		// Support both pattern= (regex) and contains= (substring)
+		if pattern, ok := kv["pattern"]; ok {
+			r.ExpectStderr = append(r.ExpectStderr, pattern)
+		}
+		if contains := kv["contains"]; contains != "" {
+			r.ExpectStderrMatch = contains
+		}
 
 	case "syslog":
 		pattern := kv["pattern"]
@@ -761,7 +774,7 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 	return nil
 }
 
-// parseReject handles reject=type:... lines.
+// parseReject handles reject:type:... lines.
 func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]string) error {
 	switch rejType {
 	case "stderr":
@@ -778,29 +791,29 @@ func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]st
 	return nil
 }
 
-// parseAction handles action=type:... lines.
+// parseAction handles action:type:... lines.
 func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]string) error {
 	switch actType {
 	case "notification":
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
-			return fmt.Errorf("action=notification: %w", err)
+			return fmt.Errorf("action:notification: %w", err)
 		}
 		text := kv["text"]
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=notification:conn=%d:seq=%d:text=%s", conn, seq, text))
+		r.Expects = append(r.Expects, fmt.Sprintf("action:notification:conn=%d:seq=%d:text=%s", conn, seq, text))
 
 	case "send":
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
-			return fmt.Errorf("action=send: %w", err)
+			return fmt.Errorf("action:send: %w", err)
 		}
 		hexData := kv["hex"]
 		if hexData == "" {
-			return fmt.Errorf("action=send missing hex=")
+			return fmt.Errorf("action:send missing hex=")
 		}
 		// Add to Expects for testpeer (new format).
-		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+		r.Expects = append(r.Expects, fmt.Sprintf("action:send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
 
 	default:
 		return fmt.Errorf("unknown action type %q", actType)
@@ -808,13 +821,13 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 	return nil
 }
 
-// parseCmd handles cmd=type:... lines.
+// parseCmd handles cmd:type:... lines.
 func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string) error {
 	switch cmdType {
 	case "api":
 		conn, seq, err := parseConnSeq(kv)
 		if err != nil {
-			return fmt.Errorf("cmd=api: %w", err)
+			return fmt.Errorf("cmd:api: %w", err)
 		}
 		text := kv["text"]
 		idx := connSeqToIndex(conn, seq)
@@ -824,16 +837,16 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 	case "background", "foreground":
 		seqStr := kv["seq"]
 		if seqStr == "" {
-			return fmt.Errorf("cmd=%s missing seq=", cmdType)
+			return fmt.Errorf("cmd:%s missing seq=", cmdType)
 		}
 		seq, err := strconv.Atoi(seqStr)
 		if err != nil || seq < 1 {
-			return fmt.Errorf("cmd=%s invalid seq=%q", cmdType, seqStr)
+			return fmt.Errorf("cmd:%s invalid seq=%q", cmdType, seqStr)
 		}
 
 		exec := kv["exec"]
 		if exec == "" {
-			return fmt.Errorf("cmd=%s missing exec=", cmdType)
+			return fmt.Errorf("cmd:%s missing exec=", cmdType)
 		}
 
 		rc := RunCommand{

@@ -181,8 +181,8 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 			continue
 		}
 
-		// Parse cmd= line
-		if strings.HasPrefix(line, "cmd=") {
+		// Parse cmd: line
+		if strings.HasPrefix(line, "cmd:") {
 			cmdLine = line
 			continue
 		}
@@ -207,9 +207,9 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 			continue
 		}
 
-		// Parse expect=json: line
-		if strings.HasPrefix(line, "expect=json:") {
-			rest := strings.TrimPrefix(line, "expect=json:")
+		// Parse expect:json: line
+		if strings.HasPrefix(line, "expect:json:") {
+			rest := strings.TrimPrefix(line, "expect:json:")
 			if strings.HasPrefix(rest, "json=") {
 				expectedJSON = strings.TrimPrefix(rest, "json=")
 			}
@@ -221,7 +221,7 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		return nil, err
 	}
 
-	// New format: extract from cmd= line
+	// New format: extract from cmd: line
 	if cmdLine != "" && hexPayload == "" {
 		msgType, family, hexPayload = parseDecodeCmdLine(cmdLine, stdinBlocks)
 	}
@@ -234,7 +234,7 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		return nil, fmt.Errorf("missing hex payload (use stdin=payload:hex= or decode=)")
 	}
 	if expectedJSON == "" {
-		return nil, fmt.Errorf("missing expect=json: line")
+		return nil, fmt.Errorf("missing expect:json: line")
 	}
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
@@ -258,7 +258,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 	var family, hexPayload string
 
 	// Find exec= part
-	rest := strings.TrimPrefix(cmdLine, "cmd=")
+	rest := strings.TrimPrefix(cmdLine, "cmd:")
 	parts := strings.Split(rest, ":")
 
 	var execPart string
