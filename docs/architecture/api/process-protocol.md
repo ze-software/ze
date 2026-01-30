@@ -616,12 +616,34 @@ After startup, plugin enters request loop:
 
 | Direction | Format | Example |
 |-----------|--------|---------|
-| Encode request | `encode nlri <family> <args>` | `encode nlri ipv4/flowspec destination 10.0.0.0/24` |
+| Encode request (text, default) | `encode nlri <family> <args>` | `encode nlri ipv4/flowspec destination 10.0.0.0/24` |
+| Encode request (text, explicit) | `encode text nlri <family> <args>` | `encode text nlri ipv4/flowspec destination 10.0.0.0/24` |
+| Encode request (JSON) | `encode json nlri <family> <json>` | `encode json nlri ipv4/flowspec {"destination":[["10.0.0.0/24/0"]]}` |
 | Encode success | `encoded hex <bytes>` | `encoded hex 0701180A0000` |
 | Encode error | `encoded error <msg>` | `encoded error invalid prefix` |
 | Decode request | `decode nlri <family> <hex>` | `decode nlri ipv4/flowspec 0701180A0000` |
 | Decode success | `decoded json <json>` | `decoded json {"destination":[["10.0.0.0/24/0"]]}` |
 | Decode failure | `decoded unknown` | `decoded unknown` |
+
+**Encode Format Specifier:**
+- `encode nlri` (default): Text input format - component keywords followed by values
+- `encode text nlri`: Explicit text input (same as default)
+- `encode json nlri`: JSON input matching decode output format
+
+**Round-trip workflow:**
+```
+# Decode to JSON
+decode nlri ipv4/flowspec 0501180A0000
+decoded json {"destination":[["10.0.0.0/24/0"]]}
+
+# Modify JSON as needed, then encode back
+encode json nlri ipv4/flowspec {"destination":[["10.0.0.0/24/0"]]}
+encoded hex 0501180A0000
+```
+
+**JSON format notes:**
+- JSON must be minified (no spaces) since protocol is space-delimited
+- JSON structure matches decode output exactly
 
 ### Mode 1: In-Process (goroutine + io.Pipe)
 

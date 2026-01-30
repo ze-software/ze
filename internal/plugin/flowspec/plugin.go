@@ -533,13 +533,23 @@ func handleEncodeNLRIFromJSON(parts []string, output io.Writer, writeError func(
 }
 
 // jsonToTextComponents converts JSON FlowSpec format to text component args.
-// JSON: {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"]]}
-// Text: ["destination", "10.0.0.0/24", "protocol", "=tcp"].
+// JSON: {"destination":[["10.0.0.0/24/0"]],"protocol":[["=tcp"],["=udp"]]}
+// Text: ["destination", "10.0.0.0/24", "protocol", "tcp", "udp"].
+//
+// For simple OR groups (each inner array has one value), all values go after
+// a single keyword: "protocol tcp udp" → one component with OR values.
+//
+// For complex OR-of-AND groups (inner arrays have multiple values), each OR
+// group becomes a separate keyword entry: "port >80 <100 port >443 <500"
+// → two components that get merged on decode.
 func jsonToTextComponents(m map[string]any) ([]string, error) {
 	var args []string
 
 	// Process components in a defined order for consistency
+	// JSON keys match text keywords (destination-ipv6, next-header, etc.)
+	// RD must come first for VPN families (parsed before components)
 	componentOrder := []string{
+		"rd", // Route Distinguisher - must be first for VPN families
 		"destination", "destination-ipv6", "source", "source-ipv6",
 		"protocol", "next-header", "port", "destination-port", "source-port",
 		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
@@ -552,6 +562,14 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			continue
 		}
 
+		// Handle RD specially - it's a simple string, not an array
+		if key == "rd" {
+			if rdStr, ok := val.(string); ok {
+				args = append(args, "rd", rdStr)
+			}
+			continue
+		}
+
 		// Handle nested array format: [[val1, val2], [val3]]
 		// Outer array = OR, Inner array = AND
 		arr, ok := val.([]any)
@@ -559,22 +577,56 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			continue
 		}
 
+		// Check if this is simple OR (each inner array has exactly one value)
+		// or complex OR-of-AND (some inner arrays have multiple values)
+		isSimpleOR := true
 		for _, orGroup := range arr {
-			innerArr, ok := orGroup.([]any)
-			if !ok {
-				// Single value, not nested
-				if s, ok := orGroup.(string); ok {
-					args = append(args, key, normalizeJSONValue(key, s))
-				}
-				continue
+			if innerArr, ok := orGroup.([]any); ok && len(innerArr) > 1 {
+				isSimpleOR = false
+				break
 			}
+		}
 
-			// Inner array - for now just use first value (most common case)
-			// Full AND/OR support would require more complex encoding
-			for _, v := range innerArr {
-				if s, ok := v.(string); ok {
-					args = append(args, key, normalizeJSONValue(key, s))
-					break // Just use first value for simplicity
+		if isSimpleOR {
+			// Simple OR: collect all values, emit once with keyword
+			// "protocol tcp udp" → one component with OR values
+			var values []string
+			for _, orGroup := range arr {
+				if innerArr, ok := orGroup.([]any); ok {
+					for _, v := range innerArr {
+						if s, ok := v.(string); ok {
+							values = append(values, normalizeJSONValue(key, s))
+						}
+					}
+				} else if s, ok := orGroup.(string); ok {
+					values = append(values, normalizeJSONValue(key, s))
+				}
+			}
+			if len(values) > 0 {
+				args = append(args, key)
+				args = append(args, values...)
+			}
+		} else {
+			// Complex OR-of-AND: emit each OR group with its own keyword
+			// "port >80 <100 port >443 <500" → two components
+			// The decoder merges components with same key into one JSON entry
+			for _, orGroup := range arr {
+				innerArr, ok := orGroup.([]any)
+				if !ok {
+					if s, ok := orGroup.(string); ok {
+						args = append(args, key, normalizeJSONValue(key, s))
+					}
+					continue
+				}
+				var values []string
+				for _, v := range innerArr {
+					if s, ok := v.(string); ok {
+						values = append(values, normalizeJSONValue(key, s))
+					}
+				}
+				if len(values) > 0 {
+					args = append(args, key)
+					args = append(args, values...)
 				}
 			}
 		}
@@ -695,6 +747,10 @@ func decodeFlowSpecNLRI(family string, data []byte) map[string]any {
 // flowSpecToJSON converts FlowSpec to JSON representation.
 // Format: {"rd": "...", "destination-ipv6": [["prefix/len/offset"]], ...}.
 // Note: "family" is NOT included since it's already in the JSON path when embedded.
+//
+// Multiple components of the same type are merged into a single key with
+// combined OR groups. This enables round-trip: if two "port" components
+// exist in wire format, they become one "port" key with multiple OR groups.
 func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[string]any {
 	result := make(map[string]any)
 
@@ -708,7 +764,16 @@ func flowSpecToJSON(fs *FlowSpec, family string, rd *RouteDistinguisher) map[str
 
 	for _, comp := range fs.Components() {
 		key, values := componentToJSON(comp, isIPv6)
-		result[key] = values
+		// Merge with existing values if key already exists (multiple components of same type)
+		if existing, ok := result[key]; ok {
+			if existingSlice, ok := existing.([][]string); ok {
+				result[key] = append(existingSlice, values...)
+			} else {
+				result[key] = values
+			}
+		} else {
+			result[key] = values
+		}
 	}
 
 	return result
@@ -972,19 +1037,23 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
 
 // FlowSpec component keywords.
 const (
-	kwDestination  = "destination"      // Type 1
-	kwSource       = "source"           // Type 2
-	kwProtocol     = "protocol"         // Type 3
-	kwPort         = "port"             // Type 4
-	kwDestPort     = "destination-port" // Type 5
-	kwSourcePort   = "source-port"      // Type 6
-	kwICMPType     = "icmp-type"        // Type 7
-	kwICMPCode     = "icmp-code"        // Type 8
-	kwTCPFlags     = "tcp-flags"        // Type 9
-	kwPacketLength = "packet-length"    // Type 10
-	kwDSCP         = "dscp"             // Type 11
-	kwFragment     = "fragment"         // Type 12
-	kwRD           = "rd"               // Route Distinguisher (VPN)
+	kwDestination     = "destination"      // Type 1 (IPv4)
+	kwDestinationIPv6 = "destination-ipv6" // Type 1 (IPv6)
+	kwSource          = "source"           // Type 2 (IPv4)
+	kwSourceIPv6      = "source-ipv6"      // Type 2 (IPv6)
+	kwProtocol        = "protocol"         // Type 3 (IPv4)
+	kwNextHeader      = "next-header"      // Type 3 (IPv6)
+	kwPort            = "port"             // Type 4
+	kwDestPort        = "destination-port" // Type 5
+	kwSourcePort      = "source-port"      // Type 6
+	kwICMPType        = "icmp-type"        // Type 7
+	kwICMPCode        = "icmp-code"        // Type 8
+	kwTCPFlags        = "tcp-flags"        // Type 9
+	kwPacketLength    = "packet-length"    // Type 10
+	kwDSCP            = "dscp"             // Type 11
+	kwFragment        = "fragment"         // Type 12
+	kwFlowLabel       = "flow-label"       // Type 13 (IPv6 only)
+	kwRD              = "rd"               // Route Distinguisher (VPN)
 )
 
 // protocolNameToNumber maps protocol names to numbers.
@@ -1114,11 +1183,11 @@ func parseComponentText(args []string, family Family) (FlowComponent, int, error
 	keyword := strings.ToLower(args[0])
 
 	switch keyword {
-	case kwDestination:
+	case kwDestination, kwDestinationIPv6:
 		return parsePrefixComponentText(args, FlowDestPrefix, family)
-	case kwSource:
+	case kwSource, kwSourceIPv6:
 		return parsePrefixComponentText(args, FlowSourcePrefix, family)
-	case kwProtocol:
+	case kwProtocol, kwNextHeader:
 		return parseProtocolComponentText(args[1:])
 	case kwPort:
 		return parseNumericComponentText(args[1:], FlowPort)
@@ -1138,12 +1207,15 @@ func parseComponentText(args []string, family Family) (FlowComponent, int, error
 		return parseNumericComponentText(args[1:], FlowDSCP)
 	case kwFragment:
 		return parseFragmentComponentText(args[1:])
+	case kwFlowLabel:
+		return parseNumericComponentText(args[1:], FlowFlowLabel)
 	case kwRD:
 		// Skip rd - already parsed
 		return nil, 2, nil
-	default:
-		return nil, 0, fmt.Errorf("unknown component: %s", keyword)
 	}
+
+	// Unknown keyword - return error (not silent ignore)
+	return nil, 0, fmt.Errorf("unknown component: %s", keyword)
 }
 
 // parsePrefixComponentText parses destination or source prefix from text.
@@ -1320,8 +1392,10 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 // isComponentKeyword checks if token is a component keyword.
 func isComponentKeyword(token string) bool {
 	switch token {
-	case kwDestination, kwSource, kwProtocol, kwPort, kwDestPort, kwSourcePort,
-		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP, kwFragment, kwRD:
+	case kwDestination, kwDestinationIPv6, kwSource, kwSourceIPv6,
+		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
+		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
+		kwFragment, kwFlowLabel, kwRD:
 		return true
 	}
 	return false

@@ -2,6 +2,7 @@ package flowspec
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -512,6 +513,146 @@ func TestEncodeJSONFormat(t *testing.T) {
 
 			assert.Contains(t, result, "encoded hex")
 			assert.Contains(t, result, tt.wantHex)
+		})
+	}
+}
+
+// TestEncodeJSONRoundTrip verifies decode→encode round-trip via JSON.
+//
+// VALIDATES: Decode output can be used as encode input, producing same wire bytes.
+// PREVENTS: Format mismatch between decode JSON output and encode JSON input.
+func TestEncodeJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		name   string
+		family string
+		text   string // Text input to encode initially
+	}{
+		{
+			name:   "destination_only",
+			family: "ipv4/flow",
+			text:   "destination 10.0.0.0/24",
+		},
+		{
+			name:   "destination_with_protocol",
+			family: "ipv4/flow",
+			text:   "destination 192.168.1.0/24 protocol 6",
+		},
+		{
+			name:   "source_with_port",
+			family: "ipv4/flow",
+			text:   "source 10.0.0.0/8 destination-port =80",
+		},
+		{
+			name:   "multiple_protocols_or",
+			family: "ipv4/flow",
+			text:   "protocol 6 17", // TCP OR UDP - must round-trip correctly
+		},
+		{
+			name:   "multiple_ports",
+			family: "ipv4/flow",
+			text:   "destination-port =80 =443 =8080",
+		},
+		{
+			name:   "ipv6_destination",
+			family: "ipv6/flow",
+			text:   "destination 2001:db8::/32",
+		},
+		// Complex OR-of-AND groups
+		{
+			name:   "or_of_and_port_range",
+			family: "ipv4/flow",
+			text:   "port >80 <100 port >443 <500", // (>80 AND <100) OR (>443 AND <500)
+		},
+		// VPN families
+		{
+			name:   "vpn_ipv4_destination",
+			family: "ipv4/flow-vpn",
+			text:   "rd 100:1 destination 10.0.0.0/24",
+		},
+		{
+			name:   "vpn_ipv6_destination",
+			family: "ipv6/flow-vpn",
+			text:   "rd 100:1 destination 2001:db8::/32",
+		},
+		// TCP flags
+		{
+			name:   "tcp_flags_syn",
+			family: "ipv4/flow",
+			text:   "tcp-flags =syn",
+		},
+		{
+			name:   "tcp_flags_multiple",
+			family: "ipv4/flow",
+			text:   "tcp-flags =syn =ack",
+		},
+		// Fragment
+		{
+			name:   "fragment_flags",
+			family: "ipv4/flow",
+			text:   "fragment =is-fragment",
+		},
+		// ICMP
+		{
+			name:   "icmp_type",
+			family: "ipv4/flow",
+			text:   "icmp-type =8",
+		},
+		{
+			name:   "icmp_code",
+			family: "ipv4/flow",
+			text:   "icmp-code =0",
+		},
+		// DSCP
+		{
+			name:   "dscp_value",
+			family: "ipv4/flow",
+			text:   "dscp =46",
+		},
+		// Packet length
+		{
+			name:   "packet_length",
+			family: "ipv4/flow",
+			text:   "packet-length >=64 <=1500",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Step 1: Encode text → hex
+			encodeTextInput := fmt.Sprintf("encode nlri %s %s\n", tt.family, tt.text)
+			encodeTextOutput := &bytes.Buffer{}
+			RunFlowSpecDecode(strings.NewReader(encodeTextInput), encodeTextOutput)
+
+			encodeResult := encodeTextOutput.String()
+			require.Contains(t, encodeResult, "encoded hex ", "text encode should succeed")
+
+			// Extract hex from "encoded hex XXXX"
+			hex1 := strings.TrimSpace(strings.TrimPrefix(encodeResult, "encoded hex "))
+
+			// Step 2: Decode hex → JSON
+			decodeInput := fmt.Sprintf("decode nlri %s %s\n", tt.family, hex1)
+			decodeOutput := &bytes.Buffer{}
+			RunFlowSpecDecode(strings.NewReader(decodeInput), decodeOutput)
+
+			decodeResult := decodeOutput.String()
+			require.Contains(t, decodeResult, "decoded json ", "decode should succeed")
+
+			// Extract JSON from "decoded json {...}"
+			jsonStr := strings.TrimSpace(strings.TrimPrefix(decodeResult, "decoded json "))
+
+			// Step 3: Encode JSON → hex
+			encodeJSONInput := fmt.Sprintf("encode json nlri %s %s\n", tt.family, jsonStr)
+			encodeJSONOutput := &bytes.Buffer{}
+			RunFlowSpecDecode(strings.NewReader(encodeJSONInput), encodeJSONOutput)
+
+			encodeJSONResult := encodeJSONOutput.String()
+			require.Contains(t, encodeJSONResult, "encoded hex ", "JSON encode should succeed")
+
+			// Extract hex from result
+			hex2 := strings.TrimSpace(strings.TrimPrefix(encodeJSONResult, "encoded hex "))
+
+			// Step 4: Verify hex matches
+			assert.Equal(t, hex1, hex2, "round-trip hex should match: text→hex→json→hex")
 		})
 	}
 }
