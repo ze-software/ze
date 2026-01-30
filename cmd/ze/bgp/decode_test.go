@@ -19,6 +19,15 @@ const (
 
 	// testBGPLSLinkNLRIType is the expected NLRI type for Link NLRI.
 	testBGPLSLinkNLRIType = "bgpls-link"
+
+	// testOpenMsgHex is hex data for OPEN message with software version capability.
+	testOpenMsgHex = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD02224B201F4578614247502F6D61696E2D633261326561386562642D3230323430373135"
+
+	// testUpdateMsgHex is hex data for UPDATE message with IPv4 unicast route.
+	testUpdateMsgHex = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501800404000000C840050400000064000000002001010101"
+
+	// testCapNameUnknown is the expected capability name for unknown capabilities.
+	testCapNameUnknown = "unknown"
 )
 
 // TestDecodeOpen verifies OPEN message decoding produces ExaBGP-compatible JSON.
@@ -29,9 +38,9 @@ const (
 func TestDecodeOpen(t *testing.T) {
 	// Simple OPEN message: version 4, AS 65533, hold time 180, router-id 10.0.0.2
 	// From test/decode/bgp-open-sofware-version.test
-	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD02224B201F4578614247502F6D61696E2D633261326561386562642D3230323430373135"
+	hexInput := testOpenMsgHex
 
-	output, err := decodeHexPacket(hexInput, "open", "", nil)
+	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -87,7 +96,7 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode WITHOUT plugin - should show unknown
-	output, err := decodeHexPacket(hexInput, "open", "", nil)
+	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -116,7 +125,7 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 		t.Fatal("missing capability 73")
 	}
 
-	if cap73["name"] != "unknown" {
+	if cap73["name"] != testCapNameUnknown {
 		t.Errorf("expected name 'unknown', got %v", cap73["name"])
 	}
 	// JSON unmarshals numbers as float64 into map[string]any
@@ -148,7 +157,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode WITH plugin
-	output, err := decodeHexPacket(hexInput, "open", "", []string{"ze.hostname"})
+	output, err := decodeHexPacket(hexInput, "open", "", []string{"ze.hostname"}, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -187,7 +196,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 		if cap73["domain"] != "my-domain-name.com" {
 			t.Errorf("expected domain 'my-domain-name.com', got %v", cap73["domain"])
 		}
-	case "unknown":
+	case testCapNameUnknown:
 		// Plugin not available in test env - verify fallback has raw data
 		if _, hasRaw := cap73["raw"]; !hasRaw {
 			t.Error("unknown capability should have 'raw' field")
@@ -204,9 +213,9 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 // PREVENTS: Decode command failing on UPDATE messages.
 func TestDecodeUpdate(t *testing.T) {
 	// UPDATE message from test/decode/ipv4-unicast-1.test
-	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501800404000000C840050400000064000000002001010101"
+	hexInput := testUpdateMsgHex
 
-	output, err := decodeHexPacket(hexInput, "update", "", nil)
+	output, err := decodeHexPacket(hexInput, "update", "", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -386,7 +395,7 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	// From bgp-flow-2: rate-limit:0
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
-	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", nil)
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -427,7 +436,7 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	// From bgp-ls-2.test - Link NLRI with local and remote node descriptors
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -602,7 +611,7 @@ func TestBGPLSAttribute(t *testing.T) {
 	// From bgp-ls-2.test - has bgp-ls attribute with igp-metric: 1
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -640,7 +649,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	// Even if empty, they should be present as arrays
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -688,7 +697,7 @@ func TestBGPLSRawNLRIFormat(t *testing.T) {
 	// Type: nlri bgp-ls/bgp-ls
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -725,7 +734,7 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	// Link NLRI should have l3-routing-topology from identifier field
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -851,7 +860,7 @@ func TestDecodeNLRIFlag(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	// decodeHexPacket with "nlri" type and family
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -881,7 +890,7 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// This tests the infrastructure path even without actual plugin
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
-	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"flowspec"})
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"flowspec"}, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -931,7 +940,7 @@ func TestLookupFamilyPlugin(t *testing.T) {
 //
 // VALIDATES: Lossless JSON format with array accumulation.
 //
-// PREVENTS: Data loss from duplicate keys (ExaBGP bug).
+// PREVENTS: Data loss from duplicate keys.
 func TestSRAdjMultipleInstances(t *testing.T) {
 	result := make(map[string]any)
 
@@ -964,5 +973,224 @@ func TestSRAdjMultipleInstances(t *testing.T) {
 	}
 	if sids1[0] != 299776 {
 		t.Errorf("second SID = %d, want 299776", sids1[0])
+	}
+}
+
+// =============================================================================
+// Human-Readable Output Tests
+// =============================================================================
+
+// TestDecodeOpenHuman verifies OPEN message decoding produces human-readable output.
+//
+// VALIDATES: Human-readable format has correct structure and values.
+// PREVENTS: Malformed human output format.
+func TestDecodeOpenHuman(t *testing.T) {
+	// Simple OPEN message: version 4, AS 65533, hold time 180, router-id 10.0.0.2
+	hexInput := testOpenMsgHex
+
+	output, err := decodeHexPacket(hexInput, "open", "", nil, false)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// Human output should NOT be valid JSON
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err == nil {
+		t.Error("human output should not be valid JSON")
+	}
+
+	// Check for expected structure
+	if !strings.Contains(output, "BGP OPEN Message") {
+		t.Error("missing 'BGP OPEN Message' header")
+	}
+	if !strings.Contains(output, "Version:") {
+		t.Error("missing 'Version:' field")
+	}
+	if !strings.Contains(output, "ASN:") {
+		t.Error("missing 'ASN:' field")
+	}
+	if !strings.Contains(output, "65533") {
+		t.Error("missing ASN value 65533")
+	}
+	if !strings.Contains(output, "Hold Time:") {
+		t.Error("missing 'Hold Time:' field")
+	}
+	if !strings.Contains(output, "180") {
+		t.Error("missing hold time value 180")
+	}
+	if !strings.Contains(output, "Router ID:") {
+		t.Error("missing 'Router ID:' field")
+	}
+	if !strings.Contains(output, "10.0.0.2") {
+		t.Error("missing router ID value 10.0.0.2")
+	}
+	if !strings.Contains(output, "Capabilities:") {
+		t.Error("missing 'Capabilities:' section")
+	}
+	if !strings.Contains(output, "multiprotocol") {
+		t.Error("missing multiprotocol capability")
+	}
+	if !strings.Contains(output, "ipv4/unicast") {
+		t.Error("missing ipv4/unicast family")
+	}
+}
+
+// TestDecodeOpenJSON verifies OPEN message with --json flag produces JSON output.
+//
+// VALIDATES: JSON flag produces structured JSON output.
+// PREVENTS: --json flag not working correctly.
+func TestDecodeOpenJSON(t *testing.T) {
+	hexInput := testOpenMsgHex
+
+	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// JSON output should be valid JSON
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("--json output should be valid JSON: %v", err)
+	}
+
+	// Check required JSON fields
+	if result["type"] != "open" {
+		t.Errorf("expected type 'open', got %v", result["type"])
+	}
+
+	neighbor, ok := result["neighbor"].(map[string]any)
+	if !ok {
+		t.Fatal("missing 'neighbor' field")
+	}
+
+	openSection, ok := neighbor["open"].(map[string]any)
+	if !ok {
+		t.Fatal("missing 'open' section")
+	}
+
+	if openSection["asn"] != float64(65533) {
+		t.Errorf("expected asn 65533, got %v", openSection["asn"])
+	}
+}
+
+// TestDecodeUpdateHuman verifies UPDATE message decoding produces human-readable output.
+//
+// VALIDATES: Human-readable UPDATE format has correct structure.
+// PREVENTS: Malformed human UPDATE output.
+func TestDecodeUpdateHuman(t *testing.T) {
+	// UPDATE message from test/decode/ipv4-unicast-1.test
+	hexInput := testUpdateMsgHex
+
+	output, err := decodeHexPacket(hexInput, "update", "", nil, false)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// Human output should NOT be valid JSON
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err == nil {
+		t.Error("human output should not be valid JSON")
+	}
+
+	// Check for expected structure
+	if !strings.Contains(output, "BGP UPDATE Message") {
+		t.Error("missing 'BGP UPDATE Message' header")
+	}
+	if !strings.Contains(output, "Attributes:") {
+		t.Error("missing 'Attributes:' section")
+	}
+	if !strings.Contains(output, "origin") {
+		t.Error("missing 'origin' attribute")
+	}
+	if !strings.Contains(output, "igp") {
+		t.Error("missing origin value 'igp'")
+	}
+}
+
+// TestDecodeUpdateJSON verifies UPDATE message with --json flag produces JSON output.
+//
+// VALIDATES: JSON flag produces structured UPDATE JSON.
+// PREVENTS: --json flag not working for UPDATE messages.
+func TestDecodeUpdateJSON(t *testing.T) {
+	hexInput := testUpdateMsgHex
+
+	output, err := decodeHexPacket(hexInput, "update", "", nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("--json output should be valid JSON: %v", err)
+	}
+
+	if result["type"] != "update" {
+		t.Errorf("expected type 'update', got %v", result["type"])
+	}
+}
+
+// TestDecodeNLRIHuman verifies NLRI decoding produces human-readable output.
+//
+// VALIDATES: Human-readable NLRI format for BGP-LS.
+// PREVENTS: Malformed human NLRI output.
+func TestDecodeNLRIHuman(t *testing.T) {
+	// BGP-LS Link NLRI
+	hexInput := testBGPLSLinkNLRI
+
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, false)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// Human output should NOT be valid JSON
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err == nil {
+		t.Error("human output should not be valid JSON")
+	}
+
+	// Check for expected structure - should have NLRI info
+	if !strings.Contains(output, "NLRI") && !strings.Contains(output, "BGP-LS") {
+		t.Error("missing NLRI header in human output")
+	}
+}
+
+// TestDecodeNLRIJSON verifies NLRI decoding with --json flag produces JSON output.
+//
+// VALIDATES: JSON flag produces structured NLRI JSON.
+// PREVENTS: --json flag not working for NLRI decoding.
+func TestDecodeNLRIJSON(t *testing.T) {
+	hexInput := testBGPLSLinkNLRI
+
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("--json output should be valid JSON: %v", err)
+	}
+
+	if result["ls-nlri-type"] != "bgpls-link" {
+		t.Errorf("expected ls-nlri-type 'bgpls-link', got %v", result["ls-nlri-type"])
+	}
+}
+
+// TestDecodeErrorHuman verifies error output in human-readable mode.
+//
+// VALIDATES: Errors show human-readable message, not JSON.
+// PREVENTS: JSON error format when human output requested.
+func TestDecodeErrorHuman(t *testing.T) {
+	// Invalid hex input
+	hexInput := "ZZZ"
+
+	_, err := decodeHexPacket(hexInput, "open", "", nil, false)
+	if err == nil {
+		t.Fatal("expected error for invalid hex")
+	}
+
+	// Error message should contain useful info
+	if !strings.Contains(err.Error(), "invalid hex") {
+		t.Errorf("expected 'invalid hex' in error, got: %v", err)
 	}
 }

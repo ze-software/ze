@@ -29,6 +29,7 @@ type DecodingTest struct {
 	Family       string // e.g., "l2vpn/evpn"
 	HexPayload   string
 	ExpectedJSON string
+	OutputJSON   bool // true if --json flag specified in test
 
 	// Results
 	Active     bool
@@ -222,8 +223,9 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 	}
 
 	// New format: extract from cmd: line
+	var outputJSON bool
 	if cmdLine != "" && hexPayload == "" {
-		msgType, family, hexPayload = parseDecodeCmdLine(cmdLine, stdinBlocks)
+		msgType, family, hexPayload, outputJSON = parseDecodeCmdLine(cmdLine, stdinBlocks)
 	}
 
 	// Validate required fields
@@ -248,14 +250,16 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		Family:       family,
 		HexPayload:   hexPayload,
 		ExpectedJSON: expectedJSON,
+		OutputJSON:   outputJSON,
 	}, nil
 }
 
-// parseDecodeCmdLine extracts type, family, and hex payload from a cmd= line.
-// Format: cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload.
-func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, string, string) {
+// parseDecodeCmdLine extracts type, family, hex payload, and json flag from a cmd= line.
+// Format: cmd=foreground:seq=1:exec=ze-test decode [--json] --family <family> -:stdin=payload.
+func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, string, string, bool) {
 	msgType := msgTypeUpdate // Default
 	var family, hexPayload string
+	var outputJSON bool
 
 	// Find exec= part
 	rest := strings.TrimPrefix(cmdLine, "cmd:")
@@ -273,14 +277,16 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 	}
 
 	if execPart == "" {
-		return msgType, family, hexPayload
+		return msgType, family, hexPayload, outputJSON
 	}
 
-	// Parse exec command: ze-test decode [--family <family>] [--open|--update] [--nlri <family>] -
+	// Parse exec command: ze-test decode [--json] [--family <family>] [--open|--update] [--nlri <family>] -
 	args := strings.Fields(execPart)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
+		case "--json", "-json":
+			outputJSON = true
 		case "--family", "-f":
 			if i+1 < len(args) {
 				family = args[i+1]
@@ -307,7 +313,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 		}
 	}
 
-	return msgType, family, hexPayload
+	return msgType, family, hexPayload, outputJSON
 }
 
 // parseTypeLine parses "update l2vpn/evpn" into type and family.
@@ -436,6 +442,11 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	// Build command args
 	args := []string{"bgp", "decode"}
+
+	// Add --json flag if test specifies it
+	if test.OutputJSON {
+		args = append(args, "--json")
+	}
 
 	switch test.Type {
 	case "open":
