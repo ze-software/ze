@@ -4,7 +4,7 @@ ExaBGP compatibility wrapper for ZeBGP.
 
 This script pretends to be ExaBGP but actually:
 1. Converts ExaBGP config to Ze format using `ze bgp config migrate`
-2. Runs `ze bgp server` with the migrated config
+2. Runs `ze` with the migrated config
 
 Usage:
     ./exabgp config.conf [options]
@@ -122,8 +122,8 @@ def main():
         print("--- End config ---", file=sys.stderr)
 
     try:
-        # Build ze bgp server command
-        cmd = [ze_binary, 'bgp', 'server', temp_config]
+        # Build ze command
+        cmd = [ze_binary, temp_config]
 
         # Add environment-based options
         env_vars = get_exabgp_env_vars()
@@ -136,12 +136,9 @@ def main():
         os.environ['ze_bgp_tcp_attempts'] = '1'
 
         if args.debug:
-            cmd.append('--debug')
-
-        if args.debug:
             print(f"Running: {' '.join(cmd)}", file=sys.stderr)
 
-        # Run ze bgp server
+        # Run ze
         result = subprocess.run(cmd)
         return result.returncode
 
