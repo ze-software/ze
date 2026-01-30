@@ -1566,7 +1566,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 
 		// Handle complex NLRI families specially
 		switch family {
-		case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn", "ipv4/flowspec", "ipv6/flowspec":
+		case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
 			fr, err := parseFlowSpecNLRILine(line, attr)
 			if err != nil {
 				return nil, fmt.Errorf("flowspec nlri: %w", err)

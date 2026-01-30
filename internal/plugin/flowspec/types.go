@@ -329,19 +329,19 @@ func (f *FlowSpec) SupportsAddPath() bool {
 }
 
 // String returns command-style representation for API round-trip compatibility.
-// Format: flowspec <component>+ where each component is "<type> <values>".
+// Format: flow <component>+ where each component is "<type> <values>".
 func (f *FlowSpec) String() string {
 	if len(f.components) == 0 {
-		return "flowspec"
+		return "flow"
 	}
 	parts := make([]string, len(f.components))
 	for i, c := range f.components {
 		parts[i] = c.String()
 	}
-	return "flowspec " + strings.Join(parts, " ")
+	return "flow " + strings.Join(parts, " ")
 }
 
-// ComponentString returns just the components without the "flowspec" prefix.
+// ComponentString returns just the components without the "flow" prefix.
 // Used by FlowSpecVPN to embed components after the RD.
 func (f *FlowSpec) ComponentString() string {
 	if len(f.components) == 0 {
@@ -1228,13 +1228,13 @@ func (f *FlowSpecVPN) SupportsAddPath() bool {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: flowspec-vpn rd <rd> <components>.
+// Format: flow-vpn rd <rd> <components>.
 func (f *FlowSpecVPN) String() string {
 	compStr := f.flowSpec.ComponentString()
 	if compStr == "" {
-		return fmt.Sprintf("flowspec-vpn rd %s", f.rd)
+		return fmt.Sprintf("flow-vpn rd %s", f.rd)
 	}
-	return fmt.Sprintf("flowspec-vpn rd %s %s", f.rd, compStr)
+	return fmt.Sprintf("flow-vpn rd %s %s", f.rd, compStr)
 }
 
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.

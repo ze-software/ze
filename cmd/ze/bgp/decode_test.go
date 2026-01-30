@@ -881,7 +881,7 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// This tests the infrastructure path even without actual plugin
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
-	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flowspec", []string{"flowspec"})
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"flowspec"})
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -907,13 +907,13 @@ func TestLookupFamilyPlugin(t *testing.T) {
 		plugins []string
 		want    string
 	}{
-		{"ipv4/flowspec", []string{"flowspec"}, "flowspec"},
-		{"IPV4/FLOWSPEC", []string{"flowspec"}, "flowspec"},
-		{"IPv4/FlowSpec", []string{"flowspec"}, "flowspec"},
-		{"ipv4/flowspec", []string{"other"}, "flowspec"}, // Auto-invoked for known family
-		{"ipv4/flowspec", nil, "flowspec"},               // Auto-invoked for known family
-		{"ipv4/unicast", []string{"flowspec"}, ""},       // Unknown family, no plugin
-		{"ipv6/flowspec-vpn", []string{"flowspec"}, "flowspec"},
+		{"ipv4/flow", []string{"flowspec"}, "flowspec"},
+		{"IPV4/FLOW", []string{"flowspec"}, "flowspec"},
+		{"IPv4/Flow", []string{"flowspec"}, "flowspec"},
+		{"ipv4/flow", []string{"other"}, "flowspec"}, // Auto-invoked for known family
+		{"ipv4/flow", nil, "flowspec"},               // Auto-invoked for known family
+		{"ipv4/unicast", []string{"flowspec"}, ""},   // Unknown family, no plugin
+		{"ipv6/flow-vpn", []string{"flowspec"}, "flowspec"},
 	}
 
 	for _, tt := range tests {

@@ -72,14 +72,14 @@ var validAFIs = map[string]bool{
 
 // Valid SAFI names for family registration.
 var validSAFIs = map[string]bool{
-	"unicast":      true,
-	"multicast":    true,
-	"mpls-vpn":     true,
-	"nlri-mpls":    true,
-	"flowspec":     true,
-	"flowspec-vpn": true,
-	"evpn":         true,
-	"mup":          true,
+	"unicast":   true,
+	"multicast": true,
+	"mpls-vpn":  true,
+	"nlri-mpls": true,
+	"flow":      true,
+	"flow-vpn":  true,
+	"evpn":      true,
+	"mup":       true,
 }
 
 // Valid receive types for message subscription.

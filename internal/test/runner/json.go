@@ -13,7 +13,7 @@ import (
 func isSupportedFamily(family string) bool {
 	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
 	switch normalized {
-	case "ipv4/unicast", "ipv6/unicast", "ipv4/flowspec", "ipv6/flowspec":
+	case "ipv4/unicast", "ipv6/unicast", "ipv4/flow", "ipv6/flow":
 		return true
 	default:
 		return false
@@ -23,7 +23,7 @@ func isSupportedFamily(family string) bool {
 // isFlowSpecFamily returns true if the family is a FlowSpec family.
 func isFlowSpecFamily(family string) bool {
 	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
-	return normalized == "ipv4/flowspec" || normalized == "ipv6/flowspec"
+	return normalized == "ipv4/flow" || normalized == "ipv6/flow"
 }
 
 // extractFamily extracts the address family from a ze bgp decode envelope.

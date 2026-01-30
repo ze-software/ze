@@ -721,12 +721,12 @@ func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
 			return 0, 0 // L2VPN doesn't use MPLS VPN SAFI.
 		}
 		safi = 128
-	case "flowspec":
+	case "flow", "flowspec":
 		if afi == 25 {
 			return 0, 0 // L2VPN doesn't use flowspec.
 		}
 		safi = 133
-	case "flowspec-vpn":
+	case "flow-vpn", "flowspec-vpn":
 		if afi == 25 {
 			return 0, 0 // L2VPN doesn't use flowspec-vpn.
 		}

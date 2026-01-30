@@ -21,14 +21,14 @@ func TestIsSupportedFamily(t *testing.T) {
 		{"ipv4_unicast", "ipv4/unicast", true},
 		{"ipv6_unicast", "ipv6/unicast", true},
 		{"ipv4_unicast_space", "ipv4 unicast", true},
-		{"ipv4_flowspec", "ipv4/flowspec", true},
-		{"ipv6_flowspec", "ipv6/flowspec", true},
-		{"ipv4_flowspec_space", "ipv4 flowspec", true},
+		{"ipv4_flowspec", "ipv4/flow", true},
+		{"ipv6_flowspec", "ipv6/flow", true},
+		{"ipv4_flowspec_space", "ipv4 flow", true},
 
 		// Unsupported families (deferred)
 		{"l2vpn_evpn", "l2vpn/evpn", false},
 		{"ipv4_mpls_vpn", "ipv4/mpls-vpn", false},
-		{"ipv4_flowspec_vpn", "ipv4/flowspec-vpn", false},
+		{"ipv4_flowspec_vpn", "ipv4/flow-vpn", false},
 		{"bgpls", "bgp-ls/bgp-ls", false},
 		{"empty", "", false},
 	}
@@ -328,7 +328,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 						},
 					},
 					"announce": map[string]any{
-						"ipv4/flowspec": map[string]any{
+						"ipv4/flow": map[string]any{
 							"no-nexthop": []any{
 								map[string]any{
 									"tcp-flags": []any{"=rst", "=fin+push"},
@@ -343,7 +343,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 	}
 
 	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flowspec", family)
+	assert.Equal(t, "ipv4/flow", family)
 
 	// Check transformed structure
 	msg, ok := result["message"].(map[string]any)
@@ -355,8 +355,8 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 	assert.Equal(t, float64(100), result["local-preference"])
 
 	// FlowSpec NLRI transformed to plugin format (operation level, same as other families)
-	nlriList, ok := result["ipv4/flowspec"].([]map[string]any)
-	require.True(t, ok, "missing ipv4/flowspec")
+	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
 	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop means no next-hop field
@@ -387,7 +387,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 						"local-preference": float64(100),
 					},
 					"announce": map[string]any{
-						"ipv4/flowspec": map[string]any{
+						"ipv4/flow": map[string]any{
 							"1.2.3.4": []any{
 								map[string]any{
 									"destination-ipv4": []any{"192.168.0.1/32"},
@@ -402,11 +402,11 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 	}
 
 	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flowspec", family)
+	assert.Equal(t, "ipv4/flow", family)
 
 	// FlowSpec NLRI with next-hop at operation level (same as other families)
-	nlriList, ok := result["ipv4/flowspec"].([]map[string]any)
-	require.True(t, ok, "missing ipv4/flowspec")
+	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
 	assert.Equal(t, "1.2.3.4", nlriList[0]["next-hop"]) // next-hop at operation level
@@ -437,7 +437,7 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 						"local-preference": float64(100),
 					},
 					"announce": map[string]any{
-						"ipv6/flowspec": map[string]any{
+						"ipv6/flow": map[string]any{
 							"no-nexthop": []any{
 								map[string]any{
 									"destination-ipv6": []any{"2a02:29b8:1925::2e69/128/0"},
@@ -455,11 +455,11 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 	}
 
 	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv6/flowspec", family)
+	assert.Equal(t, "ipv6/flow", family)
 
 	// IPv6 FlowSpec NLRI with no-nexthop (no next-hop at operation level)
-	nlriList, ok := result["ipv6/flowspec"].([]map[string]any)
-	require.True(t, ok, "missing ipv6/flowspec")
+	nlriList, ok := result["ipv6/flow"].([]map[string]any)
+	require.True(t, ok, "missing ipv6/flow")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
 	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop case
@@ -489,7 +489,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 			"message": map[string]any{
 				"update": map[string]any{
 					"withdraw": map[string]any{
-						"ipv4/flowspec": []any{
+						"ipv4/flow": []any{
 							map[string]any{
 								"destination": []any{"192.168.0.1/32"},
 								"source":      []any{"10.0.0.2/32"},
@@ -504,11 +504,11 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 	}
 
 	result, family := transformEnvelopeToPlugin(envelope)
-	assert.Equal(t, "ipv4/flowspec", family)
+	assert.Equal(t, "ipv4/flow", family)
 
 	// FlowSpec withdraw with action:del
-	nlriList, ok := result["ipv4/flowspec"].([]map[string]any)
-	require.True(t, ok, "missing ipv4/flowspec")
+	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "del", nlriList[0]["action"])
 

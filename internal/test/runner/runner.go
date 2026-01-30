@@ -1129,7 +1129,7 @@ func extractNLRIs(m map[string]any) []string {
 	var nlris []string
 	families := []string{
 		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
-		"ipv4/flowspec", "ipv6/flowspec", "ipv4 flowspec", "ipv6 flowspec",
+		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",
 	}
 	for _, fam := range families {
 		if arr, ok := m[fam].([]any); ok {
@@ -1153,7 +1153,7 @@ func extractNLRIs(m map[string]any) []string {
 func extractAction(m map[string]any) string {
 	families := []string{
 		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
-		"ipv4/flowspec", "ipv6/flowspec", "ipv4 flowspec", "ipv6 flowspec",
+		"ipv4/flow", "ipv6/flow", "ipv4 flow", "ipv6 flow",
 	}
 	for _, fam := range families {
 		if arr, ok := m[fam].([]any); ok {

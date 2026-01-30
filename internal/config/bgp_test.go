@@ -2654,7 +2654,7 @@ func TestParseNLRIEntriesValid(t *testing.T) {
 		{"multiple families", []string{"ipv4/unicast", "ipv6/unicast"}, 2, []string{"ipv4/unicast", "ipv6/unicast"}},
 		{"case insensitive", []string{"IPv4/Unicast", "IPV6/UNICAST"}, 2, []string{"ipv4/unicast", "ipv6/unicast"}},
 		{"l2vpn/evpn", []string{"l2vpn/evpn"}, 2, []string{"l2vpn/evpn"}},
-		{"ipv4/flowspec", []string{"ipv4/flowspec"}, 2, []string{"ipv4/flowspec"}},
+		{"ipv4/flow", []string{"ipv4/flow"}, 2, []string{"ipv4/flow"}},
 	}
 
 	for _, tt := range tests {

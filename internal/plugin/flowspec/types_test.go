@@ -570,7 +570,7 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 // PREVENTS: SAFI value mismatch causing capability negotiation failures.
 func TestFlowSpecVPNSAFI(t *testing.T) {
 	assert.Equal(t, SAFI(134), SAFIFlowSpecVPN)
-	assert.Equal(t, "flowspec-vpn", SAFIFlowSpecVPN.String())
+	assert.Equal(t, "flow-vpn", SAFIFlowSpecVPN.String())
 }
 
 // TestFlowSpecVPNFamily verifies FlowSpec VPN family constants.
@@ -670,7 +670,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
-			expected: "flowspec destination 10.0.0.0/24",
+			expected: "flow destination 10.0.0.0/24",
 		},
 		{
 			name: "source prefix only",
@@ -679,7 +679,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
 				return f
 			}(),
-			expected: "flowspec source 192.168.0.0/16",
+			expected: "flow source 192.168.0.0/16",
 		},
 		{
 			name: "destination port with multiple values",
@@ -688,7 +688,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowDestPortComponent(80, 443))
 				return f
 			}(),
-			expected: "flowspec destination-port =80 =443",
+			expected: "flow destination-port =80 =443",
 		},
 		{
 			name: "protocol single value",
@@ -697,7 +697,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowIPProtocolComponent(6))
 				return f
 			}(),
-			expected: "flowspec protocol 6",
+			expected: "flow protocol 6",
 		},
 		{
 			name: "complex rule with multiple components",
@@ -708,7 +708,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowIPProtocolComponent(6))
 				return f
 			}(),
-			expected: "flowspec destination 10.0.0.0/24 destination-port =80 =443 protocol 6",
+			expected: "flow destination 10.0.0.0/24 destination-port =80 =443 protocol 6",
 		},
 	}
 
@@ -722,7 +722,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 // TestFlowSpecVPNStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: FlowSpecVPN String() outputs command-style format for API round-trip.
-// Format: flowspec-vpn rd <rd> <components>.
+// Format: flow-vpn rd <rd> <components>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
@@ -732,17 +732,17 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "basic flowspec-vpn",
+			name: "basic flow-vpn",
 			fsv: func() *FlowSpecVPN {
 				rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
 				f := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
 				f.AddComponent(NewFlowDestPortComponent(80))
 				return f
 			}(),
-			expected: "flowspec-vpn rd 0:100:100 destination-port =80",
+			expected: "flow-vpn rd 0:100:100 destination-port =80",
 		},
 		{
-			name: "flowspec-vpn multiple components",
+			name: "flow-vpn multiple components",
 			fsv: func() *FlowSpecVPN {
 				rd := RouteDistinguisher{Type: RDType1}
 				copy(rd.Value[:4], []byte{10, 0, 0, 1})
@@ -752,7 +752,7 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowDestPortComponent(443))
 				return f
 			}(),
-			expected: "flowspec-vpn rd 1:10.0.0.1:200 destination 192.168.1.0/24 destination-port =443",
+			expected: "flow-vpn rd 1:10.0.0.1:200 destination 192.168.1.0/24 destination-port =443",
 		},
 	}
 
@@ -958,8 +958,8 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 				return f
 			}(),
-			// Parser expects: nlri ipv4/flowspec add destination 10.0.0.0/24
-			expected: "flowspec destination 10.0.0.0/24",
+			// Parser expects: nlri ipv4/flow add destination 10.0.0.0/24
+			expected: "flow destination 10.0.0.0/24",
 		},
 		{
 			name: "port range",
@@ -972,7 +972,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				return f
 			}(),
 			// Parser expects separate tokens; And is inferred from position
-			expected: "flowspec destination-port >=1024 <=65535",
+			expected: "flow destination-port >=1024 <=65535",
 		},
 		{
 			name: "tcp flags combined",
@@ -982,7 +982,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				return f
 			}(),
 			// Parser expects: tcp-flags syn&ack
-			expected: "flowspec tcp-flags syn&ack",
+			expected: "flow tcp-flags syn&ack",
 		},
 		{
 			name: "full rule",
@@ -994,7 +994,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 				return f
 			}(),
 			// Parser expects: destination 10.0.0.0/24 protocol =6 destination-port =80 =443
-			expected: "flowspec destination 10.0.0.0/24 protocol 6 destination-port =80 =443",
+			expected: "flow destination 10.0.0.0/24 protocol 6 destination-port =80 =443",
 		},
 	}
 

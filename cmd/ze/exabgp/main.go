@@ -89,7 +89,7 @@ Run an ExaBGP plugin with ze by translating between formats:
 Flags:
   --family <family>     Address family to support (repeatable)
                         Default: ipv4/unicast
-                        Examples: ipv4/unicast, ipv6/unicast, ipv4/flowspec
+                        Examples: ipv4/unicast, ipv6/unicast, ipv4/flow
   --route-refresh       Enable route-refresh capability (RFC 2918)
   --add-path <mode>     ADD-PATH mode: receive, send, both (RFC 7911)
 

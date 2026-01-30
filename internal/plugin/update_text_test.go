@@ -2244,7 +2244,7 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 // PREVENTS: FlowSpec family not being recognized.
 func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2275,7 +2275,7 @@ func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flowspec", "add", "protocol", tc.protocol,
+				"nlri", "ipv4/flow", "add", "protocol", tc.protocol,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2310,7 +2310,7 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flowspec", "add", "destination-port", tc.port,
+				"nlri", "ipv4/flow", "add", "destination-port", tc.port,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2328,7 +2328,7 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 // PREVENTS: Port range not being parsed as AND condition.
 func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "destination-port", ">=1", "<=1023",
+		"nlri", "ipv4/flow", "add", "destination-port", ">=1", "<=1023",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2344,7 +2344,7 @@ func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 // PREVENTS: Only first component being parsed.
 func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add",
+		"nlri", "ipv4/flow", "add",
 		"destination", "10.0.0.0/24",
 		"protocol", "tcp",
 		"destination-port", "=80",
@@ -2371,7 +2371,7 @@ func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 // PREVENTS: FlowSpec withdraw not working.
 func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "del", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "del", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2388,7 +2388,7 @@ func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 // PREVENTS: FlowSpec VPN not parsing RD.
 func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec-vpn", "rd", "65000:100", "add",
+		"nlri", "ipv4/flow-vpn", "rd", "65000:100", "add",
 		"destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2401,11 +2401,11 @@ func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecIPv6 verifies IPv6 FlowSpec.
 //
-// VALIDATES: ipv6/flowspec with IPv6 prefix works.
+// VALIDATES: ipv6/flow with IPv6 prefix works.
 // PREVENTS: IPv6 FlowSpec not being parsed.
 func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv6/flowspec", "add", "destination", "2001:db8::/32",
+		"nlri", "ipv6/flow", "add", "destination", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2420,7 +2420,7 @@ func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 // PREVENTS: TCP flags not parsed.
 func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "tcp-flags", "syn", "ack",
+		"nlri", "ipv4/flow", "add", "tcp-flags", "syn", "ack",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2436,7 +2436,7 @@ func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 // PREVENTS: Fragment component not parsed.
 func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "fragment", "dont-fragment",
+		"nlri", "ipv4/flow", "add", "fragment", "dont-fragment",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2467,7 +2467,7 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2496,7 +2496,7 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "fragment"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2514,7 +2514,7 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 // PREVENTS: Components parsed without mode.
 func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "destination", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrMissingAddDel)
@@ -2526,7 +2526,7 @@ func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 // PREVENTS: FlowSpec VPN created without RD.
 func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec-vpn", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow-vpn", "add", "destination", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrMissingRD)
@@ -2543,7 +2543,7 @@ func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "traffic-rate", "65000", "1000000",
-		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2557,7 +2557,7 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "discard",
-		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2571,7 +2571,7 @@ func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "redirect", "65000", "100",
-		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2585,7 +2585,7 @@ func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "traffic-marking", "46",
-		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2598,7 +2598,7 @@ func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 // PREVENTS: Only destination prefix working.
 func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "source", "192.168.1.0/24",
+		"nlri", "ipv4/flow", "add", "source", "192.168.1.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2614,7 +2614,7 @@ func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 // PREVENTS: ICMP type not recognized.
 func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "icmp-type", "8", // Echo request
+		"nlri", "ipv4/flow", "add", "icmp-type", "8", // Echo request
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2630,7 +2630,7 @@ func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 // PREVENTS: ICMP code not recognized.
 func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "icmp-code", "0",
+		"nlri", "ipv4/flow", "add", "icmp-code", "0",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2646,7 +2646,7 @@ func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 // PREVENTS: DSCP not recognized.
 func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "dscp", "46", // EF
+		"nlri", "ipv4/flow", "add", "dscp", "46", // EF
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2662,7 +2662,7 @@ func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 // PREVENTS: Packet length not recognized.
 func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "packet-length", ">=100", "<=1500",
+		"nlri", "ipv4/flow", "add", "packet-length", ">=100", "<=1500",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2678,7 +2678,7 @@ func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 // PREVENTS: Source port not recognized.
 func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "source-port", "=443",
+		"nlri", "ipv4/flow", "add", "source-port", "=443",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2694,7 +2694,7 @@ func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 // PREVENTS: Generic port component not recognized.
 func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "port", "=22",
+		"nlri", "ipv4/flow", "add", "port", "=22",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
@@ -2738,7 +2738,7 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.component...)
+			args := append([]string{"nlri", "ipv4/flow", "add"}, tc.component...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "component %s failed", tc.name)
 			require.Len(t, result.Groups, 1)
@@ -2763,7 +2763,7 @@ func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
 		for _, op := range operators {
 			t.Run(comp+"_"+op, func(t *testing.T) {
 				result, err := ParseUpdateText([]string{
-					"nlri", "ipv4/flowspec", "add", comp, op,
+					"nlri", "ipv4/flow", "add", comp, op,
 				})
 				require.NoError(t, err, "%s %s failed", comp, op)
 				require.Len(t, result.Groups, 1)
@@ -2855,7 +2855,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -2934,7 +2934,7 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -3003,7 +3003,7 @@ func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "tcp-flags %v failed", tc.flags)
 			require.Len(t, result.Groups, 1)
@@ -3049,7 +3049,7 @@ func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add", "fragment"}, tc.flags...)
+			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tc.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "fragment %v failed", tc.flags)
 			require.Len(t, result.Groups, 1)
@@ -3121,7 +3121,7 @@ func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.components...)
+			args := append([]string{"nlri", "ipv4/flow", "add"}, tc.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "components %v failed", tc.components)
 			require.Len(t, result.Groups, 1)
@@ -3143,11 +3143,11 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 		family     string
 		components []string
 	}{
-		{"ipv6_dest", "ipv6/flowspec", []string{"destination", "2001:db8::/32"}},
-		{"ipv6_src", "ipv6/flowspec", []string{"source", "2001:db8:1::/48"}},
-		{"ipv6_dest_proto", "ipv6/flowspec", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
-		{"ipv6_dest_proto_port", "ipv6/flowspec", []string{"destination", "2001:db8::/32", "protocol", "tcp", "destination-port", "=80"}},
-		{"ipv6_tcp_flags", "ipv6/flowspec", []string{"protocol", "tcp", "tcp-flags", "syn"}},
+		{"ipv6_dest", "ipv6/flow", []string{"destination", "2001:db8::/32"}},
+		{"ipv6_src", "ipv6/flow", []string{"source", "2001:db8:1::/48"}},
+		{"ipv6_dest_proto", "ipv6/flow", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
+		{"ipv6_dest_proto_port", "ipv6/flow", []string{"destination", "2001:db8::/32", "protocol", "tcp", "destination-port", "=80"}},
+		{"ipv6_tcp_flags", "ipv6/flow", []string{"protocol", "tcp", "tcp-flags", "syn"}},
 	}
 
 	for _, tc := range tests {
@@ -3176,10 +3176,10 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 		rdOutput   string // RD output format (with type prefix)
 		components []string
 	}{
-		{"ipv4_vpn_basic", "ipv4/flowspec-vpn", "65000:100", "0:65000:100", []string{"destination", "10.0.0.0/24"}},
-		{"ipv4_vpn_full", "ipv4/flowspec-vpn", "1.2.3.4:100", "1:1.2.3.4:100", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
-		{"ipv6_vpn_basic", "ipv6/flowspec-vpn", "65000:200", "0:65000:200", []string{"destination", "2001:db8::/32"}},
-		{"ipv6_vpn_full", "ipv6/flowspec-vpn", "65000:300", "0:65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
+		{"ipv4_vpn_basic", "ipv4/flow-vpn", "65000:100", "0:65000:100", []string{"destination", "10.0.0.0/24"}},
+		{"ipv4_vpn_full", "ipv4/flow-vpn", "1.2.3.4:100", "1:1.2.3.4:100", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
+		{"ipv6_vpn_basic", "ipv6/flow-vpn", "65000:200", "0:65000:200", []string{"destination", "2001:db8::/32"}},
+		{"ipv6_vpn_full", "ipv6/flow-vpn", "65000:300", "0:65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
 	}
 
 	for _, tc := range tests {
@@ -3213,7 +3213,7 @@ func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flowspec", "del"}, tc.components...)
+			args := append([]string{"nlri", "ipv4/flow", "del"}, tc.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "withdraw %s failed", tc.name)
 			require.Len(t, result.Groups, 1)
@@ -3238,92 +3238,92 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing_add_del",
-			args:    []string{"nlri", "ipv4/flowspec", "destination", "10.0.0.0/24"},
+			args:    []string{"nlri", "ipv4/flow", "destination", "10.0.0.0/24"},
 			wantErr: "add' or 'del",
 		},
 		{
 			name:    "vpn_missing_rd",
-			args:    []string{"nlri", "ipv4/flowspec-vpn", "add", "destination", "10.0.0.0/24"},
+			args:    []string{"nlri", "ipv4/flow-vpn", "add", "destination", "10.0.0.0/24"},
 			wantErr: "rd required",
 		},
 		{
 			name:    "invalid_prefix",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "destination", "not-a-prefix"},
+			args:    []string{"nlri", "ipv4/flow", "add", "destination", "not-a-prefix"},
 			wantErr: "invalid",
 		},
 		{
 			name:    "ipv4_prefix_for_ipv6",
-			args:    []string{"nlri", "ipv6/flowspec", "add", "destination", "10.0.0.0/24"},
+			args:    []string{"nlri", "ipv6/flow", "add", "destination", "10.0.0.0/24"},
 			wantErr: "IPv4",
 		},
 		{
 			name:    "ipv6_prefix_for_ipv4",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "destination", "2001:db8::/32"},
+			args:    []string{"nlri", "ipv4/flow", "add", "destination", "2001:db8::/32"},
 			wantErr: "IPv6",
 		},
 		{
 			name:    "unknown_protocol",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol", "unknown"},
+			args:    []string{"nlri", "ipv4/flow", "add", "protocol", "unknown"},
 			wantErr: "invalid protocol",
 		},
 		{
 			name:    "invalid_tcp_flag",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "tcp-flags", "unknown"},
+			args:    []string{"nlri", "ipv4/flow", "add", "tcp-flags", "unknown"},
 			wantErr: "unknown flag",
 		},
 		{
 			name:    "invalid_fragment_type",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "fragment", "unknown"},
+			args:    []string{"nlri", "ipv4/flow", "add", "fragment", "unknown"},
 			wantErr: "unknown flag",
 		},
 		{
 			name:    "missing_destination_value",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "destination"},
+			args:    []string{"nlri", "ipv4/flow", "add", "destination"},
 			wantErr: "requires prefix",
 		},
 		{
 			name:    "missing_protocol_value",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol"},
+			args:    []string{"nlri", "ipv4/flow", "add", "protocol"},
 			wantErr: "requires",
 		},
 		{
 			name:    "empty_flowspec",
-			args:    []string{"nlri", "ipv4/flowspec", "add"},
+			args:    []string{"nlri", "ipv4/flow", "add"},
 			wantErr: "no prefixes", // FlowSpec requires at least one component
 		},
 		{
 			name:    "port_value_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "destination-port", "99999"},
+			args:    []string{"nlri", "ipv4/flow", "add", "destination-port", "99999"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "dscp_value_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "dscp", "64"},
+			args:    []string{"nlri", "ipv4/flow", "add", "dscp", "64"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "protocol_value_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol", "256"},
+			args:    []string{"nlri", "ipv4/flow", "add", "protocol", "256"},
 			wantErr: "invalid protocol", // ParseUint with 8-bit limit catches this
 		},
 		{
 			name:    "icmp_type_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-type", "256"},
+			args:    []string{"nlri", "ipv4/flow", "add", "icmp-type", "256"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "icmp_code_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-code", "256"},
+			args:    []string{"nlri", "ipv4/flow", "add", "icmp-code", "256"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "source_port_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "source-port", "65536"},
+			args:    []string{"nlri", "ipv4/flow", "add", "source-port", "65536"},
 			wantErr: "exceeds max",
 		},
 		{
 			name:    "packet_length_overflow",
-			args:    []string{"nlri", "ipv4/flowspec", "add", "packet-length", "65536"},
+			args:    []string{"nlri", "ipv4/flow", "add", "packet-length", "65536"},
 			wantErr: "exceeds max",
 		},
 	}
@@ -3361,7 +3361,7 @@ func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flowspec", "add", tc.component, tc.value,
+				"nlri", "ipv4/flow", "add", tc.component, tc.value,
 			})
 			require.NoError(t, err, "%s=%s should be valid", tc.component, tc.value)
 			require.Len(t, result.Groups, 1)
@@ -3404,7 +3404,7 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			nlriPart := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.components...)
+			nlriPart := append([]string{"nlri", "ipv4/flow", "add"}, tc.components...)
 			args := append(tc.extcomm, nlriPart...) //nolint:gocritic // appendAssign: intentional
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "extcomm+flowspec %s failed", tc.name)

@@ -509,11 +509,11 @@ func convertFamilySyntax(family string) string {
 		"ipv4 unicast":   "ipv4/unicast",
 		"ipv4 multicast": "ipv4/multicast",
 		"ipv4 nlri-mpls": "ipv4/nlri-mpls",
-		"ipv4 flowspec":  "ipv4/flowspec",
+		"ipv4 flowspec":  "ipv4/flow",
 		"ipv6 unicast":   "ipv6/unicast",
 		"ipv6 multicast": "ipv6/multicast",
 		"ipv6 nlri-mpls": "ipv6/nlri-mpls",
-		"ipv6 flowspec":  "ipv6/flowspec",
+		"ipv6 flowspec":  "ipv6/flow",
 		"l2vpn vpls":     "l2vpn/vpls",
 		"l2vpn evpn":     "l2vpn/evpn",
 	}

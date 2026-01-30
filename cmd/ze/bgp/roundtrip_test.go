@@ -424,7 +424,7 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "ipv4/flowspec",
+		"-f", "ipv4/flow",
 		"match destination 10.0.0.0/24 then discard",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -448,8 +448,8 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 		t.Fatalf("%s", errStr)
 	}
 
-	// Deep verification: Check family (decoder uses "flow" not "flowspec")
-	_, ok := getAnnounceFamily(update, "ipv4/flowspec")
+	// Deep verification: Check family
+	_, ok := getAnnounceFamily(update, "ipv4/flow")
 	if !ok {
 		t.Fatalf("missing ipv4/flow in announce")
 	}
@@ -708,8 +708,8 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 	t.Skip("FlowSpec decoding delegated to plugin - format alignment pending")
 
 	testRoundTripIPv6Family(t,
-		[]string{"-f", "ipv6/flowspec", "match destination 2001:db8::/32 then discard"},
-		"ipv6/flowspec", // decoder uses "flow" not "flowspec"
+		[]string{"-f", "ipv6/flow", "match destination 2001:db8::/32 then discard"},
+		"ipv6/flow",
 		"2001:db8::",
 	)
 }

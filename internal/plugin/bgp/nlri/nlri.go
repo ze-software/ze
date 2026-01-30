@@ -98,9 +98,9 @@ func (s SAFI) String() string {
 	case SAFIRTC:
 		return "rtc"
 	case SAFIFlowSpec:
-		return "flowspec"
+		return "flow"
 	case SAFIFlowSpecVPN:
-		return "flowspec-vpn"
+		return "flow-vpn"
 	case SAFIBGPLinkState:
 		return familyBGPLS
 	default:
@@ -159,41 +159,33 @@ func (f Family) String() string {
 
 // familyStrings maps string representations to Family values.
 // Format: <afi>/<safi> (e.g., "ipv4/unicast").
-// Includes aliases for config compatibility.
 var familyStrings = map[string]Family{
-	// Primary names
-	"ipv4/unicast":      IPv4Unicast,
-	"ipv6/unicast":      IPv6Unicast,
-	"ipv4/multicast":    IPv4Multicast,
-	"ipv6/multicast":    IPv6Multicast,
-	"ipv4/mpls-label":   IPv4LabeledUnicast,
-	"ipv6/mpls-label":   IPv6LabeledUnicast,
-	"ipv4/vpn":          IPv4VPN,
-	"ipv6/vpn":          IPv6VPN,
-	"l2vpn/evpn":        L2VPNEVPN,
-	"ipv4/flowspec":     IPv4FlowSpec,
-	"ipv6/flowspec":     IPv6FlowSpec,
-	"ipv4/flowspec-vpn": IPv4FlowSpecVPN,
-	"ipv6/flowspec-vpn": IPv6FlowSpecVPN,
-	"ipv4/mvpn":         IPv4MVPN,
-	"ipv6/mvpn":         IPv6MVPN,
-	"l2vpn/vpls":        L2VPNVPLS,
-	"ipv4/rtc":          IPv4RTC,
-	"ipv4/mup":          IPv4MUP,
-	"ipv6/mup":          IPv6MUP,
-	// Config aliases
-	"ipv4/mpls-vpn":  IPv4VPN,
-	"ipv6/mpls-vpn":  IPv6VPN,
-	"ipv4/nlri-mpls": IPv4LabeledUnicast,
-	"ipv6/nlri-mpls": IPv6LabeledUnicast,
-	"ipv4/flow":      IPv4FlowSpec,
-	"ipv6/flow":      IPv6FlowSpec,
-	"ipv4/flow-vpn":  IPv4FlowSpecVPN,
-	"ipv6/flow-vpn":  IPv6FlowSpecVPN,
-	"ipv4/mcast-vpn": IPv4MVPN,
-	"ipv6/mcast-vpn": IPv6MVPN,
-	// BGP-LS
-	"bgp-ls/bgp-ls": {AFI: AFIBGPLS, SAFI: 71}, // SAFIBGPLinkState
+	"ipv4/unicast":    IPv4Unicast,
+	"ipv6/unicast":    IPv6Unicast,
+	"ipv4/multicast":  IPv4Multicast,
+	"ipv6/multicast":  IPv6Multicast,
+	"ipv4/mpls-label": IPv4LabeledUnicast,
+	"ipv6/mpls-label": IPv6LabeledUnicast,
+	"ipv4/vpn":        IPv4VPN,
+	"ipv6/vpn":        IPv6VPN,
+	"l2vpn/evpn":      L2VPNEVPN,
+	"ipv4/flow":       IPv4FlowSpec,
+	"ipv6/flow":       IPv6FlowSpec,
+	"ipv4/flow-vpn":   IPv4FlowSpecVPN,
+	"ipv6/flow-vpn":   IPv6FlowSpecVPN,
+	"ipv4/mvpn":       IPv4MVPN,
+	"ipv6/mvpn":       IPv6MVPN,
+	"l2vpn/vpls":      L2VPNVPLS,
+	"ipv4/rtc":        IPv4RTC,
+	"ipv4/mup":        IPv4MUP,
+	"ipv6/mup":        IPv6MUP,
+	"ipv4/mpls-vpn":   IPv4VPN,
+	"ipv6/mpls-vpn":   IPv6VPN,
+	"ipv4/nlri-mpls":  IPv4LabeledUnicast,
+	"ipv6/nlri-mpls":  IPv6LabeledUnicast,
+	"ipv4/mcast-vpn":  IPv4MVPN,
+	"ipv6/mcast-vpn":  IPv6MVPN,
+	"bgp-ls/bgp-ls":   {AFI: AFIBGPLS, SAFI: SAFIBGPLinkState},
 }
 
 // ParseFamily parses a family string like "ipv4/unicast".

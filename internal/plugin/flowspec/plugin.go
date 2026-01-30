@@ -67,14 +67,14 @@ func (p *FlowSpecPlugin) doStartupProtocol() {
 	// Stage 1: Declaration - claim FlowSpec family encode AND decode
 	// Encode: text components → wire bytes
 	// Decode: wire bytes → JSON
-	p.send("declare family ipv4 flowspec encode")
-	p.send("declare family ipv4 flowspec decode")
-	p.send("declare family ipv6 flowspec encode")
-	p.send("declare family ipv6 flowspec decode")
-	p.send("declare family ipv4 flowspec-vpn encode")
-	p.send("declare family ipv4 flowspec-vpn decode")
-	p.send("declare family ipv6 flowspec-vpn encode")
-	p.send("declare family ipv6 flowspec-vpn decode")
+	p.send("declare family ipv4 flow encode")
+	p.send("declare family ipv4 flow decode")
+	p.send("declare family ipv6 flow encode")
+	p.send("declare family ipv6 flow decode")
+	p.send("declare family ipv4 flow-vpn encode")
+	p.send("declare family ipv4 flow-vpn decode")
+	p.send("declare family ipv6 flow-vpn encode")
+	p.send("declare family ipv6 flow-vpn decode")
 	p.send("declare rfc 8955")
 	p.send("declare rfc 8956")
 	p.send("declare encoding hex")
@@ -248,10 +248,10 @@ func GetFlowSpecYANG() string {
 // FlowSpecFamilies returns the address families this plugin can decode.
 func FlowSpecFamilies() []string {
 	return []string{
-		"ipv4/flowspec",
-		"ipv6/flowspec",
-		"ipv4/flowspec-vpn",
-		"ipv6/flowspec-vpn",
+		"ipv4/flow",
+		"ipv6/flow",
+		"ipv4/flow-vpn",
+		"ipv6/flow-vpn",
 	}
 }
 
@@ -362,7 +362,7 @@ func handleEncodeNLRI(parts []string, output io.Writer, writeError func(string))
 // isValidFlowSpecFamily checks if family is a FlowSpec family.
 func isValidFlowSpecFamily(family string) bool {
 	switch family {
-	case "ipv4/flowspec", "ipv6/flowspec", "ipv4/flowspec-vpn", "ipv6/flowspec-vpn":
+	case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
 		return true
 	default:
 		return false

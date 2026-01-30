@@ -20,15 +20,15 @@ func TestFamilyRegistrationWithDecode(t *testing.T) {
 	}{
 		{
 			name:               "ipv4_flowspec_decode",
-			input:              "declare family ipv4 flowspec decode",
-			wantFamily:         "ipv4/flowspec",
-			wantDecodeFamilies: []string{"ipv4/flowspec"},
+			input:              "declare family ipv4 flow decode",
+			wantFamily:         "ipv4/flow",
+			wantDecodeFamilies: []string{"ipv4/flow"},
 		},
 		{
 			name:               "ipv6_flowspec_decode",
-			input:              "declare family ipv6 flowspec decode",
-			wantFamily:         "ipv6/flowspec",
-			wantDecodeFamilies: []string{"ipv6/flowspec"},
+			input:              "declare family ipv6 flow decode",
+			wantFamily:         "ipv6/flow",
+			wantDecodeFamilies: []string{"ipv6/flow"},
 		},
 		{
 			name:               "l2vpn_evpn_decode",
@@ -62,8 +62,8 @@ func TestFamilyRegistrationWithoutDecode(t *testing.T) {
 	}{
 		{
 			name:               "ipv4_flowspec_no_decode",
-			input:              "declare family ipv4 flowspec",
-			wantFamily:         "ipv4/flowspec",
+			input:              "declare family ipv4 flow",
+			wantFamily:         "ipv4/flow",
 			wantDecodeFamilies: nil, // Empty - no decode claim
 		},
 		{
@@ -106,7 +106,7 @@ func TestFamilyConflictDetection(t *testing.T) {
 	// First plugin registers flowspec family decode
 	plugin1 := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"ipv4/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow"},
 	}
 	err := registry.Register(plugin1)
 	require.NoError(t, err)
@@ -114,12 +114,12 @@ func TestFamilyConflictDetection(t *testing.T) {
 	// Second plugin tries same family - should fail
 	plugin2 := &PluginRegistration{
 		Name:           "flowspec2",
-		DecodeFamilies: []string{"ipv4/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow"},
 	}
 	err = registry.Register(plugin2)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "family conflict")
-	assert.Contains(t, err.Error(), "ipv4/flowspec")
+	assert.Contains(t, err.Error(), "ipv4/flow")
 	assert.Contains(t, err.Error(), "flowspec") // Original plugin name
 }
 
@@ -132,14 +132,14 @@ func TestFamilyLookup(t *testing.T) {
 
 	plugin := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"ipv4/flowspec", "ipv6/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow", "ipv6/flow"},
 	}
 	err := registry.Register(plugin)
 	require.NoError(t, err)
 
 	// Lookup registered families
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flowspec"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv6/flowspec"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv6/flow"))
 }
 
 // TestFamilyLookupUnknown verifies LookupFamily returns empty for unknown family.
@@ -150,7 +150,7 @@ func TestFamilyLookupUnknown(t *testing.T) {
 	registry := NewPluginRegistry()
 
 	// No plugins registered
-	assert.Equal(t, "", registry.LookupFamily("ipv4/flowspec"))
+	assert.Equal(t, "", registry.LookupFamily("ipv4/flow"))
 	assert.Equal(t, "", registry.LookupFamily(""))
 	assert.Equal(t, "", registry.LookupFamily("ipv4/unknown"))
 }
@@ -165,7 +165,7 @@ func TestFamilyLookupEmptyString(t *testing.T) {
 
 	plugin := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"ipv4/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow"},
 	}
 	err := registry.Register(plugin)
 	require.NoError(t, err)
@@ -182,14 +182,14 @@ func TestMultipleFamilyRegistration(t *testing.T) {
 
 	plugin := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"ipv4/flowspec", "ipv6/flowspec", "ipv4/flowspec-vpn"},
+		DecodeFamilies: []string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn"},
 	}
 	err := registry.Register(plugin)
 	require.NoError(t, err)
 
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flowspec"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv6/flowspec"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flowspec-vpn"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv6/flow"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow-vpn"))
 }
 
 // TestFamilyLookupCaseInsensitive verifies family lookup is case-insensitive.
@@ -201,13 +201,13 @@ func TestFamilyLookupCaseInsensitive(t *testing.T) {
 
 	plugin := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"ipv4/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow"},
 	}
 	err := registry.Register(plugin)
 	require.NoError(t, err)
 
 	// All case variations should work
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flowspec"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
 	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOWSPEC"))
 	assert.Equal(t, "flowspec", registry.LookupFamily("IPv4/FlowSpec"))
 }
@@ -228,7 +228,7 @@ func TestFamilyRegisterCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 
 	// Lookup should work with any case
-	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flowspec"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
 	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOWSPEC"))
 }
 
@@ -242,7 +242,7 @@ func TestFamilyConflictCaseInsensitive(t *testing.T) {
 	// First plugin registers lowercase
 	plugin1 := &PluginRegistration{
 		Name:           "plugin1",
-		DecodeFamilies: []string{"ipv4/flowspec"},
+		DecodeFamilies: []string{"ipv4/flow"},
 	}
 	err := registry.Register(plugin1)
 	require.NoError(t, err)
@@ -263,10 +263,10 @@ func TestFamilyConflictCaseInsensitive(t *testing.T) {
 // PREVENTS: Plugin unable to register flowspec-vpn decode.
 func TestFamilyDecodeFlowSpecVPN(t *testing.T) {
 	reg := &PluginRegistration{}
-	err := reg.ParseLine("declare family ipv4 flowspec-vpn decode")
+	err := reg.ParseLine("declare family ipv4 flow-vpn decode")
 	require.NoError(t, err)
-	assert.Contains(t, reg.Families, "ipv4/flowspec-vpn")
-	assert.Contains(t, reg.DecodeFamilies, "ipv4/flowspec-vpn")
+	assert.Contains(t, reg.Families, "ipv4/flow-vpn")
+	assert.Contains(t, reg.DecodeFamilies, "ipv4/flow-vpn")
 }
 
 // TestFamilyRegistrationWithEncode verifies "declare family <afi> <safi> encode" works.
@@ -282,15 +282,15 @@ func TestFamilyRegistrationWithEncode(t *testing.T) {
 	}{
 		{
 			name:               "ipv4_flowspec_encode",
-			input:              "declare family ipv4 flowspec encode",
-			wantFamily:         "ipv4/flowspec",
-			wantDecodeFamilies: []string{"ipv4/flowspec"},
+			input:              "declare family ipv4 flow encode",
+			wantFamily:         "ipv4/flow",
+			wantDecodeFamilies: []string{"ipv4/flow"},
 		},
 		{
 			name:               "ipv6_flowspec_encode",
-			input:              "declare family ipv6 flowspec encode",
-			wantFamily:         "ipv6/flowspec",
-			wantDecodeFamilies: []string{"ipv6/flowspec"},
+			input:              "declare family ipv6 flow encode",
+			wantFamily:         "ipv6/flow",
+			wantDecodeFamilies: []string{"ipv6/flow"},
 		},
 		{
 			name:               "l2vpn_evpn_encode",
@@ -319,17 +319,17 @@ func TestFamilyRegistrationBothEncodeAndDecode(t *testing.T) {
 	reg := &PluginRegistration{}
 
 	// Declare encode first
-	err := reg.ParseLine("declare family ipv4 flowspec encode")
+	err := reg.ParseLine("declare family ipv4 flow encode")
 	require.NoError(t, err)
 
 	// Then declare decode for same family
-	err = reg.ParseLine("declare family ipv4 flowspec decode")
+	err = reg.ParseLine("declare family ipv4 flow decode")
 	require.NoError(t, err)
 
 	// Should have family listed twice in Families (both declarations)
 	// but only once in DecodeFamilies (deduplication)
-	assert.Equal(t, []string{"ipv4/flowspec", "ipv4/flowspec"}, reg.Families)
-	assert.Equal(t, []string{"ipv4/flowspec"}, reg.DecodeFamilies) // No duplicate
+	assert.Equal(t, []string{"ipv4/flow", "ipv4/flow"}, reg.Families)
+	assert.Equal(t, []string{"ipv4/flow"}, reg.DecodeFamilies) // No duplicate
 }
 
 // TestFamilyAllCannotEncode verifies "declare family all encode" is rejected.

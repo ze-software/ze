@@ -43,8 +43,8 @@ const (
 	FamilyIPv6MPLS      = "ipv6/mpls"
 	FamilyIPv4MPLSVPN   = "ipv4/mpls-vpn"
 	FamilyIPv6MPLSVPN   = "ipv6/mpls-vpn"
-	FamilyIPv4FlowSpec  = "ipv4/flowspec"
-	FamilyIPv6FlowSpec  = "ipv6/flowspec"
+	FamilyIPv4FlowSpec  = "ipv4/flow"
+	FamilyIPv6FlowSpec  = "ipv6/flow"
 	FamilyL2VPNEVPN     = "l2vpn/evpn"
 	FamilyL2VPNVPLS     = "l2vpn/vpls"
 )
@@ -59,8 +59,8 @@ var FamilyConfigNames = map[string]string{
 	"ipv6/mpls":      FamilyIPv6MPLS,
 	"ipv4/mpls-vpn":  FamilyIPv4MPLSVPN,
 	"ipv6/mpls-vpn":  FamilyIPv6MPLSVPN,
-	"ipv4/flowspec":  FamilyIPv4FlowSpec,
-	"ipv6/flowspec":  FamilyIPv6FlowSpec,
+	"ipv4/flow":      FamilyIPv4FlowSpec,
+	"ipv6/flow":      FamilyIPv6FlowSpec,
 	"l2vpn/evpn":     FamilyL2VPNEVPN,
 	"l2vpn/vpls":     FamilyL2VPNVPLS,
 }
@@ -76,7 +76,7 @@ func ValidFamilyConfigNames() string {
 }
 
 // AFISAFIToFamily converts AFI/SAFI to canonical family string.
-// Returns strings like "ipv4/unicast", "ipv6/flowspec", "l2vpn/evpn".
+// Returns strings like "ipv4/unicast", "ipv6/flow", "l2vpn/evpn".
 func AFISAFIToFamily(afi AFI, safi SAFI) string {
 	return nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
 }

@@ -34,7 +34,7 @@ func cmdDecode(args []string) int {
 
 	openMsg := fs.Bool("open", false, "decode as OPEN message")
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
-	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flowspec')")
+	nlriFamily := fs.String("nlri", "", "decode as NLRI with family (e.g., 'ipv4/flow')")
 	family := fs.String("f", "", "address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
 	var plugins pluginFlags
 	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
@@ -53,7 +53,7 @@ Examples:
   ze bgp decode --update FFFF...     # Decode UPDATE message
   ze bgp decode --plugin ze.hostname --open FFFF...  # Decode with hostname plugin
   ze bgp decode --nlri l2vpn/evpn 02...  # Decode NLRI with family
-  ze bgp decode --plugin flowspec --nlri ipv4/flowspec 07...  # Decode NLRI via plugin
+  ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  # Decode NLRI via plugin
 
 The hex payload can include colons or spaces which will be stripped.
 `)
@@ -344,10 +344,10 @@ var pluginCapabilityMap = map[uint8]string{
 // Used by standalone `ze bgp decode` command which has no runtime registry.
 // When engine is running, PluginRegistry.LookupFamily is used instead.
 var pluginFamilyMap = map[string]string{
-	"ipv4/flowspec":     "flowspec",
-	"ipv6/flowspec":     "flowspec",
-	"ipv4/flowspec-vpn": "flowspec",
-	"ipv6/flowspec-vpn": "flowspec",
+	"ipv4/flow":     "flowspec",
+	"ipv6/flow":     "flowspec",
+	"ipv4/flow-vpn": "flowspec",
+	"ipv6/flow-vpn": "flowspec",
 }
 
 // unknownCapability returns JSON for an unrecognized/plugin-required capability.

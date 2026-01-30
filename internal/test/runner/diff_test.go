@@ -14,7 +14,7 @@ func TestColoredCharDiff(t *testing.T) {
 		{
 			name:     "single word change",
 			expected: `{"announce":{"ipv6 flow":{"value":1}}}`,
-			actual:   `{"announce":{"ipv6/flowspec":{"value":1}}}`,
+			actual:   `{"announce":{"ipv6/flow":{"value":1}}}`,
 		},
 		{
 			name:     "multiple field changes",
@@ -48,7 +48,7 @@ func TestColoredCharDiff(t *testing.T) {
 func ExampleColoredCharDiff() {
 	// Single change
 	exp := `{"ipv6 flow":1}`
-	act := `{"ipv6/flowspec":1}`
+	act := `{"ipv6/flow":1}`
 	fmt.Println("Single change:")
 	fmt.Println(ColoredCharDiff(exp, act))
 	fmt.Println()
