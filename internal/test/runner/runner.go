@@ -1301,7 +1301,7 @@ func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, r.zePath, "bgp", "decode", "--update", hexMsg) //nolint:gosec // test runner
+	cmd := exec.CommandContext(ctx, r.zePath, "bgp", "decode", "--json", "--update", hexMsg) //nolint:gosec // test runner
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("ze bgp decode: %w: %s", err, string(output))

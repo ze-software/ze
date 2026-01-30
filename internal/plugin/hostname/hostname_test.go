@@ -247,6 +247,108 @@ func TestHostnamePluginYANG(t *testing.T) {
 	assert.Contains(t, yang, "domain-name")
 }
 
+// TestRunDecodeModeJSON verifies JSON decode format (explicit and backward compat).
+//
+// VALIDATES: Plugin returns correct JSON for decode requests.
+// PREVENTS: Regression in existing JSON decode behavior.
+func TestRunDecodeModeJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		wantUnknown  bool
+	}{
+		{
+			name:         "json_explicit_format",
+			input:        "decode json capability 73 066d79686f737404646f6d31\n",
+			wantContains: []string{"decoded json", `"name":"fqdn"`, `"hostname":"myhost"`, `"domain":"dom1"`},
+		},
+		{
+			name:         "backward_compat_no_format",
+			input:        "decode capability 73 066d79686f737404646f6d31\n",
+			wantContains: []string{"decoded json", `"name":"fqdn"`, `"hostname":"myhost"`, `"domain":"dom1"`},
+		},
+		{
+			name:        "wrong_capability_code",
+			input:       "decode json capability 99 066d79686f737404646f6d31\n",
+			wantUnknown: true,
+		},
+		{
+			name:        "invalid_hex",
+			input:       "decode json capability 73 ZZZZ\n",
+			wantUnknown: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			RunDecodeMode(strings.NewReader(tt.input), output)
+			got := output.String()
+
+			if tt.wantUnknown {
+				assert.Contains(t, got, "decoded unknown")
+				return
+			}
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, got, want)
+			}
+		})
+	}
+}
+
+// TestRunDecodeModeText verifies text decode format.
+//
+// VALIDATES: Plugin returns human-readable text for decode text requests.
+// PREVENTS: Missing text format support in plugin protocol.
+func TestRunDecodeModeText(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		wantUnknown  bool
+	}{
+		{
+			name:         "text_format_both_values",
+			input:        "decode text capability 73 066d79686f737404646f6d31\n",
+			wantContains: []string{"decoded text", "fqdn", "myhost.dom1"},
+		},
+		{
+			name:         "text_format_host_only",
+			input:        "decode text capability 73 066d79686f737400\n",
+			wantContains: []string{"decoded text", "fqdn", "myhost"},
+		},
+		{
+			name:         "text_format_domain_only",
+			input:        "decode text capability 73 0004646f6d31\n",
+			wantContains: []string{"decoded text", "fqdn", "dom1"},
+		},
+		{
+			name:        "text_wrong_capability",
+			input:       "decode text capability 99 066d79686f737404646f6d31\n",
+			wantUnknown: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := &bytes.Buffer{}
+			RunDecodeMode(strings.NewReader(tt.input), output)
+			got := output.String()
+
+			if tt.wantUnknown {
+				assert.Contains(t, got, "decoded unknown")
+				return
+			}
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, got, want)
+			}
+		})
+	}
+}
+
 // TestHostnamePluginDeclarations verifies startup protocol.
 //
 // VALIDATES: Plugin sends correct declare lines.

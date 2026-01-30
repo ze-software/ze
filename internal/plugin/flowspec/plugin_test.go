@@ -385,3 +385,63 @@ func TestEventLoopSerialPrefix(t *testing.T) {
 		})
 	}
 }
+
+// TestRunFlowSpecDecodeTextFormat verifies text format support.
+//
+// VALIDATES: Plugin returns human-readable text for decode text requests.
+// PREVENTS: Missing text format support in plugin protocol.
+func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		wantUnknown  bool
+	}{
+		{
+			name:         "text_destination_prefix",
+			input:        "decode text nlri ipv4/flow 0501180a0000\n",
+			wantContains: []string{"decoded text", "destination", "10.0.0.0/24"},
+		},
+		{
+			name:         "text_destination_with_protocol",
+			input:        "decode text nlri ipv4/flow 0801180a0000038106\n",
+			wantContains: []string{"decoded text", "destination", "10.0.0.0/24", "protocol", "tcp"},
+		},
+		{
+			name:         "json_explicit_format",
+			input:        "decode json nlri ipv4/flow 0501180a0000\n",
+			wantContains: []string{"decoded json", "destination", "10.0.0.0/24"},
+		},
+		{
+			name:         "default_json_format",
+			input:        "decode nlri ipv4/flow 0501180a0000\n",
+			wantContains: []string{"decoded json", "destination", "10.0.0.0/24"},
+		},
+		{
+			name:        "text_invalid_family",
+			input:       "decode text nlri ipv4/unicast 180a0000\n",
+			wantUnknown: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := strings.NewReader(tt.input)
+			output := &bytes.Buffer{}
+
+			exitCode := RunFlowSpecDecode(input, output)
+			assert.Equal(t, 0, exitCode)
+
+			result := output.String()
+
+			if tt.wantUnknown {
+				assert.Contains(t, result, "decoded unknown")
+				return
+			}
+
+			for _, substr := range tt.wantContains {
+				assert.Contains(t, result, substr)
+			}
+		})
+	}
+}

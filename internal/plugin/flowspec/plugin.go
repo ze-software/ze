@@ -145,11 +145,16 @@ func parseSerialPrefix(line string) (string, string) {
 
 // Protocol constants for request/response handling.
 const (
+	cmdEncode       = "encode"
+	cmdDecode       = "decode"
 	objTypeNLRI     = "nlri"
+	fmtJSON         = "json"
+	fmtText         = "text"
 	respDecodedUnk  = "decoded unknown"
 	respEncodedErr  = "encoded error "
 	respEncodedHex  = "encoded hex "
 	respDecodedJSON = "decoded json "
+	respDecodedText = "decoded text "
 )
 
 // handleRequest processes a single request and returns the response.
@@ -163,9 +168,9 @@ func (p *FlowSpecPlugin) handleRequest(line string) string {
 	objType := parts[1]
 
 	switch {
-	case cmd == "encode" && objType == objTypeNLRI:
+	case cmd == cmdEncode && objType == objTypeNLRI:
 		return p.handleEncodeRequest(parts)
-	case cmd == "decode" && objType == objTypeNLRI:
+	case cmd == cmdDecode && objType == objTypeNLRI:
 		return p.handleDecodeRequest(parts)
 	}
 
@@ -264,11 +269,20 @@ func FlowSpecFamilies() []string {
 // RunFlowSpecDecode runs the plugin in decode/encode mode for ze bgp decode/encode.
 // Handles both decode and encode requests on stdin, writes responses to stdout.
 //
-// Decode format: "decode nlri <family> <hex>" → "decoded json <json>" or "decoded unknown"
+// Decode formats:
+//   - "decode nlri <family> <hex>" → JSON (default)
+//   - "decode json nlri <family> <hex>" → JSON (explicit)
+//   - "decode text nlri <family> <hex>" → human-readable text
+//
 // Encode format: "encode nlri <family> <components...>" → "encoded hex <hex>" or "encoded error <msg>".
 func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
-	writeUnknown := func() { _, _ = fmt.Fprintf(output, "decoded unknown\n") }
-	writeError := func(msg string) { _, _ = fmt.Fprintf(output, "encoded error %s\n", msg) }
+	// Response writers - use io.WriteString, errors discarded for protocol writes.
+	writeResponse := func(s string) {
+		_, err := io.WriteString(output, s)
+		_ = err // Protocol writes - pipe failure causes exit
+	}
+	writeUnknown := func() { writeResponse("decoded unknown\n") }
+	writeError := func(msg string) { writeResponse("encoded error " + msg + "\n") }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -286,12 +300,27 @@ func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 		cmd := parts[0]
 		objType := parts[1]
 
+		// Handle format specifier for decode
+		format := fmtJSON // default
+		if cmd == cmdDecode && (objType == fmtJSON || objType == fmtText) {
+			format = objType
+			// Shift parts: decode json nlri → decode nlri (with format stored)
+			if len(parts) < 4 {
+				writeUnknown()
+				continue
+			}
+			objType = parts[2]
+			parts = append([]string{cmd, objType}, parts[3:]...)
+		}
+
 		switch {
-		case cmd == "decode" && objType == "nlri":
-			handleDecodeNLRI(parts, output, writeUnknown)
-		case cmd == "encode" && objType == "nlri":
+		case cmd == cmdDecode && objType == objTypeNLRI:
+			handleDecodeNLRI(parts, format, output, writeUnknown)
+		case cmd == cmdEncode && objType == objTypeNLRI:
 			handleEncodeNLRI(parts, output, writeError)
-		default:
+		case cmd == cmdDecode:
+			writeUnknown()
+		case cmd == cmdEncode:
 			writeUnknown()
 		}
 	}
@@ -299,7 +328,8 @@ func RunFlowSpecDecode(input io.Reader, output io.Writer) int {
 }
 
 // handleDecodeNLRI handles: decode nlri <family> <hex>.
-func handleDecodeNLRI(parts []string, output io.Writer, writeUnknown func()) {
+// Format parameter determines output: "json" or "text".
+func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnknown func()) {
 	if len(parts) < 4 {
 		writeUnknown()
 		return
@@ -325,12 +355,111 @@ func handleDecodeNLRI(parts []string, output io.Writer, writeUnknown func()) {
 		return
 	}
 
+	// Response writers - use io.WriteString, errors discarded for protocol writes.
+	writeResponseLine := func(s string) {
+		_, err := io.WriteString(output, s)
+		_ = err // Protocol writes - pipe failure causes exit
+	}
+
+	if format == "text" {
+		text := formatFlowSpecText(result)
+		writeResponseLine("decoded text " + text + "\n")
+		return
+	}
+
+	// Default: JSON
 	jsonBytes, err := json.Marshal(result)
 	if err != nil {
 		writeUnknown()
 		return
 	}
-	_, _ = fmt.Fprintf(output, "decoded json %s\n", jsonBytes)
+	writeResponseLine("decoded json " + string(jsonBytes) + "\n")
+}
+
+// formatFlowSpecText formats FlowSpec components as human-readable text.
+// Output is single-line, space-separated component descriptions.
+func formatFlowSpecText(result map[string]any) string {
+	var parts []string
+
+	// Order components logically: destination, source, protocol, ports, etc.
+	componentOrder := []string{
+		"destination", "source", "protocol",
+		"port", "destination-port", "source-port",
+		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
+		"fragment", "flow-label", "rd",
+	}
+
+	for _, key := range componentOrder {
+		if val, ok := result[key]; ok {
+			formatted := formatComponentValue(key, val)
+			if formatted != "" {
+				parts = append(parts, key+" "+formatted)
+			}
+		}
+	}
+
+	// Add any remaining keys not in the order list
+	for key, val := range result {
+		if !contains(componentOrder, key) {
+			formatted := formatComponentValue(key, val)
+			if formatted != "" {
+				parts = append(parts, key+" "+formatted)
+			}
+		}
+	}
+
+	if len(parts) == 0 {
+		return "(empty)"
+	}
+	return strings.Join(parts, " ")
+}
+
+// formatComponentValue formats a single FlowSpec component value for text output.
+func formatComponentValue(_ string, val any) string {
+	switch v := val.(type) {
+	case string:
+		return v
+	case []any:
+		// FlowSpec uses nested arrays for OR/AND grouping
+		return formatNestedValues(v)
+	case []string:
+		return strings.Join(v, ",")
+	case float64:
+		return fmt.Sprintf("%.0f", v)
+	case int:
+		return fmt.Sprintf("%d", v)
+	}
+	return fmt.Sprintf("%v", val)
+}
+
+// formatNestedValues formats FlowSpec nested array values.
+// FlowSpec JSON uses [[a,b],[c]] for (a AND b) OR c.
+func formatNestedValues(vals []any) string {
+	parts := make([]string, 0, len(vals))
+	for _, v := range vals {
+		switch inner := v.(type) {
+		case []any:
+			// Inner array - AND group
+			andParts := make([]string, 0, len(inner))
+			for _, item := range inner {
+				andParts = append(andParts, fmt.Sprintf("%v", item))
+			}
+			parts = append(parts, strings.Join(andParts, "&"))
+		case string:
+			parts = append(parts, inner)
+		}
+	}
+	return strings.Join(parts, "|")
+}
+
+// contains checks if a string slice contains a value.
+func contains(slice []string, val string) bool {
+	for _, s := range slice {
+		if s == val {
+			return true
+		}
+	}
+	return false
 }
 
 // handleEncodeNLRI handles: encode nlri <family> <components...>

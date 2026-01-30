@@ -182,8 +182,8 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 			continue
 		}
 
-		// Parse cmd: line
-		if strings.HasPrefix(line, "cmd:") {
+		// Parse cmd= line (new format: cmd=foreground:seq=1:exec=...)
+		if strings.HasPrefix(line, "cmd=") {
 			cmdLine = line
 			continue
 		}

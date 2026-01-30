@@ -1270,12 +1270,49 @@ With plugin, capabilities are decoded:
 
 ### Protocol
 
-Plugin is spawned with `--decode` flag and communicates via stdin/stdout:
+Plugin is spawned with `--decode` flag and communicates via stdin/stdout.
+
+#### Request Formats
+
+| Request | Description |
+|---------|-------------|
+| `decode capability <code> <hex>` | JSON output (default) |
+| `decode json capability <code> <hex>` | JSON output (explicit) |
+| `decode text capability <code> <hex>` | Human-readable text output |
+| `decode nlri <family> <hex>` | JSON output (default) |
+| `decode json nlri <family> <hex>` | JSON output (explicit) |
+| `decode text nlri <family> <hex>` | Human-readable text output |
+
+#### Response Formats
+
+| Response | Description |
+|----------|-------------|
+| `decoded json <json>` | JSON-formatted result |
+| `decoded text <text>` | Human-readable single-line text |
+| `decoded unknown` | Plugin cannot decode this input |
+
+#### Examples
+
+**Capability decode (JSON):**
 
 | Direction | Message |
 |-----------|---------|
-| ze → plugin | `decode capability 73 0C6D792D686F73742D6E616D65...` |
-| plugin → ze | `decoded json {"name":"fqdn","hostname":"my-host-name","domain":"my-domain-name.com"}` |
+| ze → plugin | `decode json capability 73 0C6D792D686F7374...` |
+| plugin → ze | `decoded json {"name":"fqdn","hostname":"my-host","domain":"dom.com"}` |
+
+**Capability decode (text):**
+
+| Direction | Message |
+|-----------|---------|
+| ze → plugin | `decode text capability 73 0C6D792D686F7374...` |
+| plugin → ze | `decoded text fqdn                 my-host.dom.com` |
+
+**NLRI decode (text):**
+
+| Direction | Message |
+|-----------|---------|
+| ze → plugin | `decode text nlri ipv4/flow 0501180a0000` |
+| plugin → ze | `decoded text destination 10.0.0.0/24` |
 
 If plugin cannot decode:
 
@@ -1310,8 +1347,10 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 | File | Purpose |
 |------|---------|
 | `cmd/ze/bgp/decode.go` | Invokes plugin decode API |
-| `cmd/ze/bgp/plugin_hostname.go` | `--decode` flag handling |
-| `internal/plugin/hostname/hostname.go` | `RunDecodeMode()` implementation |
+| `cmd/ze/bgp/plugin_hostname.go` | `--decode` flag handling (hostname) |
+| `cmd/ze/bgp/plugin_flowspec.go` | `--decode` flag handling (flowspec) |
+| `internal/plugin/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
+| `internal/plugin/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
 
 ---
 

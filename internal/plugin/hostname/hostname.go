@@ -276,10 +276,27 @@ func DecodableCapabilities() []uint8 {
 }
 
 // RunDecodeMode runs the plugin in decode mode for ze bgp decode.
-// Reads decode requests from stdin, writes JSON responses to stdout.
-// Format: "decode capability <code> <hex>" → "decoded json <json>" or "decoded unknown".
+// Reads decode requests from stdin, writes responses to stdout.
+//
+// Request formats:
+//   - "decode capability <code> <hex>" → JSON (default)
+//   - "decode json capability <code> <hex>" → JSON (explicit)
+//   - "decode text capability <code> <hex>" → human-readable text
+//
+// Response formats:
+//   - "decoded json <json>" for JSON format
+//   - "decoded text <text>" for text format
+//   - "decoded unknown" on failure
 func RunDecodeMode(input io.Reader, output io.Writer) int {
-	writeUnknown := func() { _, _ = fmt.Fprintf(output, "decoded unknown\n") }
+	// Response writers - use io.WriteString which returns error we can ignore
+	// via the standard nolint pattern. Pipe errors cause plugin exit anyway.
+	writeResponse := func(s string) {
+		_, err := io.WriteString(output, s)
+		_ = err // Protocol writes - pipe failure causes exit
+	}
+	writeUnknown := func() { writeResponse("decoded unknown\n") }
+	writeJSON := func(j []byte) { writeResponse("decoded json " + string(j) + "\n") }
+	writeText := func(t string) { writeResponse("decoded text " + t + "\n") }
 
 	scanner := bufio.NewScanner(input)
 	for scanner.Scan() {
@@ -288,21 +305,41 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			continue
 		}
 
-		// Parse: "decode capability <code> <hex>"
+		// Parse request: "decode [json|text] capability <code> <hex>"
 		parts := strings.Fields(line)
-		if len(parts) < 4 || parts[0] != "decode" || parts[1] != "capability" {
+		if len(parts) < 4 || parts[0] != "decode" {
 			writeUnknown()
 			continue
 		}
 
-		// Check capability code
-		if parts[2] != "73" {
+		// Determine format and adjust parts index
+		format := "json" // default
+		capIdx := 1      // index of "capability" keyword
+		if parts[1] == "json" || parts[1] == "text" {
+			format = parts[1]
+			capIdx = 2
+			if len(parts) < 5 {
+				writeUnknown()
+				continue
+			}
+		}
+
+		// Validate "capability" keyword
+		if parts[capIdx] != "capability" {
+			writeUnknown()
+			continue
+		}
+
+		// Check capability code (73 = FQDN)
+		codeIdx := capIdx + 1
+		hexIdx := capIdx + 2
+		if parts[codeIdx] != "73" {
 			writeUnknown()
 			continue
 		}
 
 		// Decode hex payload
-		hexData := parts[3]
+		hexData := parts[hexIdx]
 		data, err := hex.DecodeString(hexData)
 		if err != nil {
 			writeUnknown()
@@ -310,49 +347,70 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 		}
 
 		// Parse FQDN capability value
-		result := decodeFQDN(data)
-		if result == nil {
+		hostname, domain := decodeFQDN(data)
+		if hostname == "" && domain == "" && len(data) < 2 {
 			writeUnknown()
 			continue
 		}
 
-		// Output JSON
-		jsonBytes, err := json.Marshal(result)
-		if err != nil {
-			writeUnknown()
-			continue
+		// Output based on format
+		if format == "text" {
+			writeText(formatFQDNText(hostname, domain))
+		} else {
+			result := map[string]any{
+				"name":     "fqdn",
+				"hostname": hostname,
+				"domain":   domain,
+			}
+			jsonBytes, err := json.Marshal(result)
+			if err != nil {
+				writeUnknown()
+				continue
+			}
+			writeJSON(jsonBytes)
 		}
-		_, _ = fmt.Fprintf(output, "decoded json %s\n", jsonBytes)
 	}
 	return 0
 }
 
-// decodeFQDN decodes FQDN capability wire bytes to JSON map.
+// formatFQDNText formats FQDN as human-readable text.
+// Output format: "fqdn                 hostname.domain".
+func formatFQDNText(hostname, domain string) string {
+	var fqdn string
+	switch {
+	case hostname != "" && domain != "":
+		fqdn = hostname + "." + domain
+	case hostname != "":
+		fqdn = hostname
+	case domain != "":
+		fqdn = domain
+	case hostname == "" && domain == "":
+		fqdn = "(empty)"
+	}
+	return fmt.Sprintf("%-20s %s", "fqdn", fqdn)
+}
+
+// decodeFQDN decodes FQDN capability wire bytes to hostname and domain strings.
 // Wire format: hostname-len (1) + hostname + domain-len (1) + domain.
-func decodeFQDN(data []byte) map[string]any {
+func decodeFQDN(data []byte) (hostname, domain string) {
 	if len(data) < 1 {
-		return nil
+		return "", ""
 	}
 
 	hostLen := int(data[0])
 	if len(data) < 1+hostLen+1 {
-		return nil
+		return "", ""
 	}
 
-	hostname := string(data[1 : 1+hostLen])
+	hostname = string(data[1 : 1+hostLen])
 
 	domainLen := int(data[1+hostLen])
 	if len(data) < 1+hostLen+1+domainLen {
-		return nil
+		return "", ""
 	}
 
-	domain := string(data[2+hostLen : 2+hostLen+domainLen])
-
-	return map[string]any{
-		"name":     "fqdn",
-		"hostname": hostname,
-		"domain":   domain,
-	}
+	domain = string(data[2+hostLen : 2+hostLen+domainLen])
+	return hostname, domain
 }
 
 // hostnameYANG is the embedded YANG schema.
