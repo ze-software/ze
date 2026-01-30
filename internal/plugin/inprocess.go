@@ -85,3 +85,35 @@ func CollectPluginYANG(plugins []string) map[string]string {
 func GetInternalPluginRunner(name string) InternalPluginRunner {
 	return internalPluginRunners[name]
 }
+
+// familyToPlugin maps address families to the internal plugin that handles them.
+// Used for auto-loading plugins when a family is configured but no plugin declared.
+// Key: family string (e.g., "ipv4/flow"), Value: plugin name (e.g., "flowspec").
+var familyToPlugin = map[string]string{
+	// FlowSpec families → flowspec plugin
+	"ipv4/flow":     "flowspec",
+	"ipv6/flow":     "flowspec",
+	"ipv4/flow-vpn": "flowspec",
+	"ipv6/flow-vpn": "flowspec",
+}
+
+// GetPluginForFamily returns the internal plugin name that handles a family.
+// Returns empty string if no plugin is known for the family.
+func GetPluginForFamily(family string) string {
+	return familyToPlugin[family]
+}
+
+// GetRequiredPlugins returns the list of internal plugins needed for the given families.
+// Only returns plugins that are in familyToPlugin (known internal plugins).
+// Deduplicates the result.
+func GetRequiredPlugins(families []string) []string {
+	seen := make(map[string]bool)
+	var plugins []string
+	for _, fam := range families {
+		if p := familyToPlugin[fam]; p != "" && !seen[p] {
+			seen[p] = true
+			plugins = append(plugins, p)
+		}
+	}
+	return plugins
+}

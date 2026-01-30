@@ -405,6 +405,21 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 	return caps
 }
 
+// getPluginFamilies returns families from plugins that declared decode capability.
+// Used as callback for Session.SetPluginFamiliesGetter().
+// Plugins that can decode a family should advertise it in OPEN Multiprotocol capabilities.
+func (p *Peer) getPluginFamilies() []string {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+
+	if r == nil || r.api == nil {
+		return nil
+	}
+
+	return r.api.GetDecodeFamilies()
+}
+
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // Returns false if session not established.
@@ -854,6 +869,7 @@ func (p *Peer) runOnce() error {
 	session.onMessageReceived = p.messageCallback
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
+	session.SetPluginFamiliesGetter(p.getPluginFamilies)
 
 	p.mu.Lock()
 	p.session = session

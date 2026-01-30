@@ -3,6 +3,7 @@ package runner
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -766,7 +767,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if cmd.Mode == "background" {
 			bgProcs = append(bgProcs, proc)
 			// Wait for ze-peer to be ready (listening) instead of fixed sleep
-			if strings.Contains(execStr, "ze-peer") {
+			// Skip waiting for peer if this is an exit code test (peer may not start)
+			if strings.Contains(execStr, "ze-peer") && rec.ExpectExitCode == nil {
 				waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
 				if !peerStdout.WaitFor(waitCtx) {
 					waitCancel()
@@ -774,7 +776,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					return false
 				}
 				waitCancel()
-			} else {
+			} else if !strings.Contains(execStr, "ze-peer") {
 				// Non-peer background process: brief sleep for startup
 				time.Sleep(100 * time.Millisecond)
 			}
@@ -868,6 +870,33 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		rec.State = StateTimeout
 		rec.FailureType = stateTimeout
 		return false
+	}
+
+	// If testing exit code, validate it
+	if rec.ExpectExitCode != nil {
+		expectedCode := *rec.ExpectExitCode
+		actualCode := 0
+		var exitErr *exec.ExitError
+		if err != nil && errors.As(err, &exitErr) {
+			actualCode = exitErr.ExitCode()
+		}
+
+		if actualCode != expectedCode {
+			rec.Error = fmt.Errorf("expected exit code %d, got %d", expectedCode, actualCode)
+			rec.FailureType = "exit_code_mismatch"
+			return false
+		}
+
+		// Check stderr match if specified
+		if rec.ExpectStderrMatch != "" {
+			if !strings.Contains(rec.ClientOutput, rec.ExpectStderrMatch) {
+				rec.Error = fmt.Errorf("stderr does not contain %q", rec.ExpectStderrMatch)
+				rec.FailureType = "stderr_mismatch"
+				return false
+			}
+		}
+
+		return true
 	}
 
 	// Check for success

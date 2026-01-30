@@ -753,27 +753,57 @@ capability done
 2. **Engine validates** advertised families have decoders
 3. **Document** the behavior clearly
 
-### Implementation Steps (Option B)
+### Implementation (Option B: Infer from Decode) ✅ DONE
 
-1. **Update FlowSpec plugin Stage 3** - inject capability lines
+**Design Decision:** Instead of explicit `capability hex 1` injection, the engine
+automatically adds Multiprotocol capabilities for families that have `decode` plugins.
 
-   | Capability | Hex Encoding | Meaning |
-   |------------|--------------|---------|
-   | `capability hex 1 00010085` | Code=1, AFI=0x0001, Res=0x00, SAFI=0x85 | IPv4 FlowSpec |
-   | `capability hex 1 00010086` | Code=1, AFI=0x0001, Res=0x00, SAFI=0x86 | IPv4 FlowSpec VPN |
-   | `capability hex 1 00020085` | Code=1, AFI=0x0002, Res=0x00, SAFI=0x85 | IPv6 FlowSpec |
-   | `capability hex 1 00020086` | Code=1, AFI=0x0002, Res=0x00, SAFI=0x86 | IPv6 FlowSpec VPN |
+**Rationale:**
+- Simpler: Plugin declares decode → Engine infers capability
+- No duplicate capability code issues (multiple cap code 1)
+- Less protocol overhead
+- If plugin can decode a family, peers should be able to send it
 
-2. **Update peer OPEN building** - merge plugin-injected capabilities
+**Implementation:**
 
-3. **Add validation** - warn if family advertised without decoder
+1. **Registry tracks decode families**
+   - `internal/plugin/registration.go:GetDecodeFamilies()` returns sorted list
+   - Families sorted alphabetically for deterministic OPEN ordering
 
-4. **Add functional test** - verify FlowSpec families appear in OPEN
+2. **Session injects capabilities in sendOpen()**
+   - `internal/plugin/bgp/reactor/session.go:sendOpen()` calls `pluginFamiliesGetter`
+   - Converts family strings to Multiprotocol capabilities
+   - Deduplicates: skips families already in config
+
+3. **FlowSpec plugin simplified**
+   - Removed `capability hex 1` lines from Stage 3
+   - Engine infers from `declare family ... decode` in Stage 1
+
+4. **Functional test added**
+   - `test/plugin/flowspec-open-capability.ci`
+   - Verifies OPEN contains flowspec Multiprotocol caps without explicit family config
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `internal/plugin/registration.go` | Added `GetDecodeFamilies()` with sorting |
+| `internal/plugin/server.go` | Added `GetDecodeFamilies()` wrapper |
+| `internal/plugin/bgp/reactor/session.go` | Added `pluginFamiliesGetter`, inject caps in `sendOpen()` |
+| `internal/plugin/bgp/reactor/peer.go` | Added `getPluginFamilies()`, wired up callback |
+| `internal/plugin/flowspec/plugin.go` | Removed `capability hex 1` lines |
+| `internal/plugin/flowspec/plugin_test.go` | Updated test expectations |
+| `docs/architecture/api/process-protocol.md` | Documented automatic capability injection |
 
 ### Phase 5 Checklist
 
-- [ ] FlowSpec plugin injects Multiprotocol capabilities (Stage 3)
-- [ ] Engine merges plugin capabilities into OPEN
-- [ ] Validation: advertised families have decoders
-- [ ] Functional test: OPEN includes FlowSpec families
-- [ ] Documentation updated
+- [x] Engine auto-adds Multiprotocol for decode families
+- [x] FlowSpec plugin no longer sends `capability hex 1` lines
+- [x] Deduplication: config families not duplicated by plugin
+- [x] Sorted ordering for deterministic OPEN
+- [x] Functional test: `test/plugin/flowspec-open-capability.ci` (auto-load for known family)
+- [x] Functional test: `test/plugin/family-no-plugin-failure.ci` (failure for unknown family)
+- [x] Functional test: `test/plugin/explicit-plugin-precedence.ci` (--plugin prevents auto-load)
+- [x] Functional test: `test/plugin/explicit-plugin-config.ci` (config plugin prevents auto-load)
+- [x] Documentation updated: `docs/architecture/api/process-protocol.md`
+- [x] Unit tests: `TestSessionSendOpenWithPluginFamilies`, `TestSessionSendOpenPluginFamiliesDedup`

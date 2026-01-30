@@ -135,6 +135,144 @@ func TestSessionSendOpen(t *testing.T) {
 	require.Equal(t, uint32(0x01020301), open.BGPIdentifier)
 }
 
+// extractCapabilitiesFromOptParams extracts capabilities from OPEN optional parameters.
+// Format: series of (Type=2, Length, CapabilityBytes) tuples.
+func extractCapabilitiesFromOptParams(optParams []byte) ([]capability.Capability, error) {
+	var allCapBytes []byte
+	offset := 0
+	for offset < len(optParams) {
+		if offset+2 > len(optParams) {
+			break
+		}
+		paramType := optParams[offset]
+		paramLen := int(optParams[offset+1])
+		offset += 2
+		if paramType == 2 { // Capabilities parameter
+			if offset+paramLen > len(optParams) {
+				break
+			}
+			allCapBytes = append(allCapBytes, optParams[offset:offset+paramLen]...)
+		}
+		offset += paramLen
+	}
+	return capability.Parse(allCapBytes)
+}
+
+// TestSessionSendOpenWithPluginFamilies verifies plugin decode families are advertised in OPEN.
+//
+// VALIDATES: Families from plugins with decode capability are added as Multiprotocol caps.
+// PREVENTS: Plugin families not being advertised, breaking family negotiation.
+func TestSessionSendOpenWithPluginFamilies(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.HoldTime = 90 * time.Second
+	settings.Passive = true
+
+	session := NewSession(settings)
+
+	// Set plugin families getter to return flowspec families
+	session.SetPluginFamiliesGetter(func() []string {
+		return []string{"ipv4/flow", "ipv6/flow"}
+	})
+
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	buf := acceptWithReader(t, session, server, client)
+	require.Greater(t, len(buf), message.HeaderLen)
+
+	// Parse header
+	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
+	require.NoError(t, err)
+	require.Equal(t, message.TypeOPEN, hdr.Type)
+
+	// Parse OPEN
+	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
+	require.NoError(t, err)
+
+	// Extract Multiprotocol capabilities from OPEN
+	caps, err := extractCapabilitiesFromOptParams(open.OptionalParams)
+	require.NoError(t, err)
+
+	// Find flowspec families in capabilities
+	var foundIPv4Flow, foundIPv6Flow bool
+	for _, c := range caps {
+		if mp, ok := c.(*capability.Multiprotocol); ok {
+			if mp.AFI == 1 && mp.SAFI == 133 { // IPv4 FlowSpec
+				foundIPv4Flow = true
+			}
+			if mp.AFI == 2 && mp.SAFI == 133 { // IPv6 FlowSpec
+				foundIPv6Flow = true
+			}
+		}
+	}
+
+	require.True(t, foundIPv4Flow, "OPEN should contain IPv4 FlowSpec Multiprotocol capability")
+	require.True(t, foundIPv6Flow, "OPEN should contain IPv6 FlowSpec Multiprotocol capability")
+}
+
+// TestSessionSendOpenConfigFamiliesOverridePlugin verifies config families take precedence.
+//
+// VALIDATES: If config has family block, ONLY config families are used (plugin families ignored).
+// PREVENTS: Plugin families being added when config explicitly specifies families.
+func TestSessionSendOpenConfigFamiliesOverridePlugin(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.HoldTime = 90 * time.Second
+	settings.Passive = true
+	// Add IPv4 FlowSpec via config - this means config has families, plugin families ignored
+	settings.Capabilities = []capability.Capability{
+		&capability.Multiprotocol{AFI: 1, SAFI: 133}, // IPv4 FlowSpec
+	}
+
+	session := NewSession(settings)
+
+	// Plugin returns IPv4 FlowSpec - should be IGNORED because config has families
+	session.SetPluginFamiliesGetter(func() []string {
+		return []string{"ipv4/flow"}
+	})
+
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	buf := acceptWithReader(t, session, server, client)
+	require.Greater(t, len(buf), message.HeaderLen)
+
+	// Parse header
+	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
+	require.NoError(t, err)
+
+	// Parse OPEN
+	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
+	require.NoError(t, err)
+
+	// Extract Multiprotocol capabilities from OPEN
+	caps, err := extractCapabilitiesFromOptParams(open.OptionalParams)
+	require.NoError(t, err)
+
+	// Count IPv4 FlowSpec capabilities - should be exactly 1 (from config only)
+	ipv4FlowCount := 0
+	for _, c := range caps {
+		if mp, ok := c.(*capability.Multiprotocol); ok {
+			if mp.AFI == 1 && mp.SAFI == 133 {
+				ipv4FlowCount++
+			}
+		}
+	}
+
+	require.Equal(t, 1, ipv4FlowCount, "IPv4 FlowSpec should appear exactly once (config only, plugin ignored)")
+}
+
 // TestSessionReceiveOpen verifies processing of received OPEN message.
 func TestSessionReceiveOpen(t *testing.T) {
 	settings := NewPeerSettings(

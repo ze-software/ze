@@ -4215,6 +4215,19 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// All processes must send "plugin session ready" before BGP sessions start.
 	r.WaitForAPIReady()
 
+	// Validate peer families against available plugin decoders.
+	// If a peer has explicit family config, all families must have decoders.
+	// If no family config, plugin decode families will be used (validated in sendOpen).
+	if err := r.validatePeerFamilies(peersToStart); err != nil {
+		r.mu.Lock()
+		r.stopAllListeners()
+		if r.listener != nil {
+			r.listener.Stop()
+		}
+		r.cancel()
+		return err
+	}
+
 	// Start all peers (passive peers wait for incoming connections).
 	// Uses captured slice - each peer has its own synchronization.
 	for _, peer := range peersToStart {
@@ -4280,6 +4293,91 @@ func (r *Reactor) stopAllListeners() {
 		cancel()
 		delete(r.listeners, addr)
 	}
+}
+
+// nativeFamilies are RFC families handled natively by the engine without plugins.
+// These don't require decoder plugins - the engine decodes them directly.
+//
+// TODO: Migrate non-RFC-4271 families to plugins as we implement family plugins.
+// Only ipv4/unicast is truly "native" per RFC 4271. Others are here temporarily
+// until we have plugins for them (like we do for flowspec).
+var nativeFamilies = map[string]bool{
+	// RFC 4271 - BGP-4 (IPv4 unicast) - truly native
+	"ipv4/unicast": true,
+	// RFC 4760 - Multiprotocol Extensions - TODO: migrate to plugin
+	"ipv6/unicast":   true,
+	"ipv4/multicast": true,
+	"ipv6/multicast": true,
+	// RFC 8277 - MPLS Labels (labeled unicast) - TODO: migrate to plugin
+	"ipv4/mpls-label": true,
+	"ipv6/mpls-label": true,
+	// RFC 4364/4659 - VPN (MPLS VPN) - TODO: migrate to plugin
+	"ipv4/vpn": true,
+	"ipv6/vpn": true,
+	// RFC 7752 - BGP-LS - TODO: migrate to plugin
+	"bgp-ls/bgp-ls":    true,
+	"bgp-ls/bgp-ls-sr": true,
+	// RFC 6514 - MVPN - TODO: migrate to plugin
+	"ipv4/mvpn": true,
+	"ipv6/mvpn": true,
+	// RFC 7432 - EVPN - TODO: migrate to plugin
+	"l2vpn/evpn": true,
+	// RFC 4761/4762 - VPLS - TODO: migrate to plugin
+	"l2vpn/vpls": true,
+	// draft-ietf-bess-mup - MUP - TODO: migrate to plugin
+	"ipv4/mup": true,
+	"ipv6/mup": true,
+}
+
+// validatePeerFamilies checks that all explicitly configured peer families have decoders.
+// If a peer has a family block, every family must have a plugin OR be a native family.
+// If no family block, validation passes (sendOpen will use all plugin decode families).
+//
+// Returns error if any configured family lacks a decoder, preventing startup.
+func (r *Reactor) validatePeerFamilies(peers map[string]*Peer) error {
+	// Get available decode families from plugins
+	var decodeFamilies []string
+	if r.api != nil {
+		decodeFamilies = r.api.GetDecodeFamilies()
+	}
+
+	// Build lookup set for O(1) checks - include native families
+	available := make(map[string]bool)
+	for f := range nativeFamilies {
+		available[f] = true
+	}
+	for _, f := range decodeFamilies {
+		available[f] = true
+	}
+
+	// Check each peer's configured families
+	for _, peer := range peers {
+		settings := peer.Settings()
+		var configuredFamilies []string
+
+		// Extract Multiprotocol capabilities (these are the configured families)
+		for _, cap := range settings.Capabilities {
+			if mp, ok := cap.(*capability.Multiprotocol); ok {
+				fam := nlri.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+				configuredFamilies = append(configuredFamilies, fam.String())
+			}
+		}
+
+		// If no families configured, skip validation (sendOpen uses plugin families)
+		if len(configuredFamilies) == 0 {
+			continue
+		}
+
+		// Validate each configured family has a decoder
+		for _, fam := range configuredFamilies {
+			if !available[fam] {
+				return fmt.Errorf("peer %s: family %s has no decoder plugin\n  available: %v",
+					settings.Address, fam, decodeFamilies)
+			}
+		}
+	}
+
+	return nil
 }
 
 // Wait waits for the reactor to stop.

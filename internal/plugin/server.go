@@ -611,6 +611,16 @@ func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []InjectedCapabil
 	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
 }
 
+// GetDecodeFamilies returns all families that have decode plugins registered.
+// Used by Session to auto-add Multiprotocol capabilities in OPEN.
+// Plugins that can decode a family should advertise that family to peers.
+func (s *Server) GetDecodeFamilies() []string {
+	if s.registry == nil {
+		return nil
+	}
+	return s.registry.GetDecodeFamilies()
+}
+
 // GetSchemaDeclarations returns all schema declarations from registered plugins.
 // Used for two-phase config parsing to extend the schema before parsing peer config.
 // Should be called after Stage 1 (Registration) completes for all plugins.

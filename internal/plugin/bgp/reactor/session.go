@@ -19,6 +19,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
@@ -136,6 +137,11 @@ type Session struct {
 	// Set by Peer to link to plugin.Server.GetPluginCapabilities().
 	// Called in sendOpen() to inject plugin capabilities into OPEN.
 	pluginCapGetter func() []capability.Capability
+
+	// pluginFamiliesGetter retrieves families from plugins that declared decode.
+	// Used to auto-add Multiprotocol capabilities for plugin-provided families.
+	// Set by Peer to link to plugin.Server registry.
+	pluginFamiliesGetter func() []string
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -225,6 +231,13 @@ func (s *Session) SetSourceID(id source.SourceID) {
 // Called by Peer at creation time to link to plugin.Server.GetPluginCapabilities().
 func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capability) {
 	s.pluginCapGetter = getter
+}
+
+// SetPluginFamiliesGetter sets the callback for retrieving plugin decode families.
+// Called by Peer at creation time to link to plugin.Server registry.
+// Used to auto-add Multiprotocol capabilities for families that plugins can decode.
+func (s *Session) SetPluginFamiliesGetter(getter func() []string) {
+	s.pluginFamiliesGetter = getter
 }
 
 // WriteBuf returns the session's write buffer for zero-allocation message building.
@@ -1222,19 +1235,42 @@ func (s *Session) negotiate() {
 // sendOpen sends an OPEN message.
 func (s *Session) sendOpen(conn net.Conn) error {
 	// Build capabilities in RFC-expected order:
-	// 1. Multiprotocol (from settings.Capabilities)
+	// 1. Multiprotocol (from config OR plugin decode families - not both)
 	// 2. ASN4
 	// 3. Other capabilities (FQDN, SoftwareVersion, etc.)
 	// 4. Plugin-declared capabilities
 	var caps []capability.Capability
 	var otherCaps []capability.Capability
+	var configHasFamilies bool
 
 	// Separate Multiprotocol capabilities from others.
+	// If config specifies families, use ONLY those (plugin families ignored).
 	for _, c := range s.settings.Capabilities {
 		if c.Code() == capability.CodeMultiprotocol {
 			caps = append(caps, c)
+			configHasFamilies = true
 		} else {
 			otherCaps = append(otherCaps, c)
+		}
+	}
+
+	// If config has NO family block, use ALL plugin decode families.
+	// This allows plugins to define what families are available.
+	if !configHasFamilies && s.pluginFamiliesGetter != nil {
+		seen := make(map[nlri.Family]bool)
+		for _, famStr := range s.pluginFamiliesGetter() {
+			fam, ok := nlri.ParseFamily(famStr)
+			if !ok {
+				continue // Invalid family string, skip
+			}
+			if seen[fam] {
+				continue // Avoid duplicates from multiple plugins
+			}
+			caps = append(caps, &capability.Multiprotocol{
+				AFI:  fam.AFI,
+				SAFI: fam.SAFI,
+			})
+			seen[fam] = true
 		}
 	}
 

@@ -292,13 +292,8 @@ func TestStartupCapabilityInjection(t *testing.T) {
 	assert.Contains(t, result, "declare family ipv6 flow-vpn decode")
 	assert.Contains(t, result, "declare done")
 
-	// Verify Stage 3 Multiprotocol capability injection.
-	// Format: capability hex <code> <AFI(2)><Reserved(1)><SAFI(1)>
-	// Code 1 = Multiprotocol Extensions (RFC 4760)
-	assert.Contains(t, result, "capability hex 1 00010085", "missing IPv4 FlowSpec (AFI=1, SAFI=133)")
-	assert.Contains(t, result, "capability hex 1 00010086", "missing IPv4 FlowSpec VPN (AFI=1, SAFI=134)")
-	assert.Contains(t, result, "capability hex 1 00020085", "missing IPv6 FlowSpec (AFI=2, SAFI=133)")
-	assert.Contains(t, result, "capability hex 1 00020086", "missing IPv6 FlowSpec VPN (AFI=2, SAFI=134)")
+	// Stage 3: No explicit capability hex lines needed.
+	// Multiprotocol capabilities are auto-added by engine based on decode declarations.
 	assert.Contains(t, result, "capability done")
 
 	// Verify Stage 5 ready

@@ -522,6 +522,68 @@ declare done
 # Then sends config/registry signals per normal startup protocol
 ```
 
+### Automatic OPEN Capability Injection
+
+**Key design:** When a plugin declares `decode` for a family, the engine automatically
+advertises that family in OPEN messages via Multiprotocol capability (Code 1).
+
+**Rationale:**
+- If a plugin can decode a family, peers should be able to send it
+- No explicit `capability hex 1` needed for Multiprotocol
+- Reduces protocol overhead and prevents duplicate capability issues
+
+**How it works:**
+
+```
+Plugin Stage 1: declare family ipv4 flowspec decode
+                     ↓
+Registry: families["ipv4/flow"] = "flowspec"
+                     ↓
+Session.sendOpen(): GetDecodeFamilies() → ["ipv4/flow", ...]
+                     ↓
+OPEN: Multiprotocol(AFI=1, SAFI=133)
+```
+
+**Override behavior:** Config families completely override plugin families:
+- Config has `family {}` block → ONLY config families used, plugin families ignored
+- Config has NO `family {}` block → plugin decode families used
+
+This is intentional: explicit config = full control. Plugin families provide defaults
+when config doesn't specify families.
+
+**Auto-loading plugins:** When a family is configured but no plugin is explicitly loaded,
+the engine automatically loads the internal plugin for that family (if one exists).
+
+Auto-loading is **prevented** when:
+1. `--plugin ze.<name>` is passed on command line (e.g., `--plugin ze.flowspec`)
+2. A plugin named `<name>` is configured in config file (e.g., `plugin { external flowspec { ... } }`)
+
+The check is based on **plugin NAME**, not what families the plugin claims.
+
+| Config | Plugin | Result |
+|--------|--------|--------|
+| `family { ipv4/flow; }` | None | ✅ Auto-loads `ze.flowspec` |
+| `family { ipv4/flow; }` | `--plugin ze.flowspec` | ✅ Uses explicit plugin (no auto-load) |
+| `family { ipv4/flow; }` | `plugin { external flowspec { ... } }` | ✅ Uses config plugin (no auto-load) |
+| `family { ipv4/flow; }` | `plugin { external my-flowspec { ... } }` | ⚠️ Both load, conflict if both claim family |
+| `family { ipv4/foo; }` | None | ❌ Startup fails (no plugin for family) |
+
+**Functional tests:**
+- `test/plugin/flowspec-open-capability.ci` - auto-load for known family
+- `test/plugin/family-no-plugin-failure.ci` - failure for unknown family
+- `test/plugin/explicit-plugin-precedence.ci` - explicit `--plugin` prevents auto-load
+- `test/plugin/explicit-plugin-config.ci` - config plugin prevents auto-load (sends marker UPDATE 99.99.99.0/24 to prove external plugin is active)
+
+**Ordering:** Plugin families are sorted alphabetically for deterministic OPEN messages.
+
+**What plugins should NOT do:**
+- ❌ Send `capability hex 1 <multiprotocol-bytes>` for their families
+- ❌ Assume plugin families will be used if config has a `family {}` block
+
+**What plugins SHOULD do:**
+- ✅ Declare `decode` for all families they can parse (provides defaults)
+- ✅ Use `capability hex` only for non-Multiprotocol capabilities (GR, hostname, etc.)
+
 ### Engine Routing
 
 **Generic NLRI routing available via Server methods:**
@@ -688,6 +750,12 @@ declare done
 **Registry conflict detection:**
 - Only ONE plugin can register for a family+mode combination
 - Conflict → startup error: `family conflict: ipv4/flowspec already registered by X`
+
+**OPEN capability injection (decode mode):**
+- Families declared with `decode` are automatically advertised in OPEN
+- Engine adds Multiprotocol capability (Code 1) for each decode family
+- No explicit `capability hex 1` needed from plugins
+- See "Automatic OPEN Capability Injection" section above
 
 ### Request/Response Protocol
 

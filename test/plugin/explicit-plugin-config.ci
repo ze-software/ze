@@ -1,0 +1,108 @@
+# Test: Explicit plugin via config file prevents auto-loading
+#
+# Scenario:
+# - Config has `family { ipv4/flow; }` which would normally auto-load ze.flowspec
+# - Config explicitly declares plugin named "flowspec" (external wrapper)
+# - Expected: Only explicit plugin runs, not the internal ze.flowspec
+#
+# Verification:
+# - External plugin sends a unique BGP UPDATE with marker prefix 99.99.99.0/24
+# - Internal flowspec plugin does NOT send this marker
+# - If test receives the marker UPDATE → external plugin is active
+# - If marker not received → internal plugin was used (test fails)
+#
+# Key: Auto-load checks plugin NAMES. If a plugin named "flowspec" exists in config,
+# the internal flowspec plugin is NOT auto-loaded.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option:open:value=inspect-open-message
+# Expect OPEN with ipv4/flow + ipv4/unicast capabilities
+# Config families in config order: ipv4/flow (85), ipv4/unicast (01)
+# Caps: Multiprotocol ipv4/flow (02 06 01 04 00 01 00 85)
+#       Multiprotocol ipv4/unicast (02 06 01 04 00 01 00 01)
+#       ASN4 (02 06 41 04 00 00 00 01)
+# Total opt params: 24 bytes (0x18)
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003501040001005A0102030418020601040001008502060104000100010206410400000001
+# Expect marker UPDATE from external plugin: 99.99.99.0/24 with nhop 1.2.3.4
+# This proves the external plugin is active (internal flowspec wouldn't send this)
+# Received: marker(16) + len=0x30(48) + type=02 + withdrawn=0000 + pathattr_len=0015(21)
+#   ORIGIN(40 01 01 00) + AS_PATH(40 02 00) + NEXT_HOP(40 03 04 01 02 03 04) + LOCAL_PREF(40 05 04 00 00 00 64)
+#   + NLRI(18 63 63 63) = /24 99.99.99.0
+expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304010203044005040000006418636363
+EOF_PEER
+
+# Python plugin that sends a marker UPDATE to prove it's active
+tmpfs=flowspec-wrapper.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""External flowspec wrapper that sends marker UPDATE to prove it's active."""
+
+import sys
+import time
+from ze_bgp_api import API
+
+def main() -> None:
+    api = API()
+
+    # Stage 1: Declare flowspec families + unicast for marker
+    api.send('declare family ipv4 flow decode')
+    api.send('declare family ipv6 flow decode')
+    api.send('declare family ipv4 flow-vpn decode')
+    api.send('declare family ipv6 flow-vpn decode')
+    api.declare_family('ipv4', 'unicast')  # For sending marker
+    api.declare_done()
+
+    # Stage 2: Receive config
+    api.wait_for_config(timeout=5.0)
+
+    # Stage 3: No capabilities
+    api.capability_done()
+
+    # Stage 4: Receive registry
+    api.wait_for_registry(timeout=5.0)
+
+    # Stage 5: Ready
+    api.ready()
+
+    # Send marker UPDATE to prove we're the active plugin
+    # This prefix (99.99.99.0/24) is unique to this external plugin
+    time.sleep(0.2)  # Wait for session to be established
+    api.send('bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24')
+    time.sleep(0.3)
+
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external flowspec {
+        run ./flowspec-wrapper.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4;
+        local-address 127.0.0.1;
+        local-as 1;
+        peer-as 1;
+
+        family {
+            ipv4/flow;
+            ipv4/unicast;
+        }
+
+        process flowspec {
+            send { update; }
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

@@ -1,0 +1,34 @@
+# Family with no plugin failure test
+# Verifies: Startup fails when a family is configured but no plugin exists for it
+#
+# This tests the runtime validation:
+# - Config specifies ipv4/rtc (Route Target Constraint, SAFI 132)
+# - This family is NOT in nativeFamilies and has no auto-load plugin
+# - Startup should fail with "no decoder plugin" error
+
+# ze-peer expectations (won't be reached - ze fails to start)
+stdin=peer:terminator=EOF_PEER
+EOF_PEER
+
+# ze bgp configuration with family that has no plugin
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+
+		family {
+			# Route Target Constraint (SAFI 132) - no native support, no plugin
+			ipv4/rtc;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration - expect startup failure
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=5s
+expect:exit:code=1
+expect:stderr:contains=no decoder plugin

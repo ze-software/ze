@@ -12,6 +12,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -210,6 +211,21 @@ func (r *PluginRegistry) LookupFamily(family string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.families[strings.ToLower(family)]
+}
+
+// GetDecodeFamilies returns all families that have decode plugins registered.
+// Used by Session to auto-add Multiprotocol capabilities in OPEN.
+// Returns a sorted copy of the family strings (lowercase normalized).
+// Sorted for deterministic OPEN message ordering.
+func (r *PluginRegistry) GetDecodeFamilies() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	families := make([]string, 0, len(r.families))
+	for family := range r.families {
+		families = append(families, family)
+	}
+	sort.Strings(families)
+	return families
 }
 
 // RegisterCapabilities adds capability declarations, checking for conflicts.

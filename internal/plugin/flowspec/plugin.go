@@ -67,6 +67,10 @@ func (p *FlowSpecPlugin) doStartupProtocol() {
 	// Stage 1: Declaration - claim FlowSpec family encode AND decode
 	// Encode: text components → wire bytes
 	// Decode: wire bytes → JSON
+	//
+	// NOTE: "decode" declarations automatically add Multiprotocol capabilities
+	// to OPEN messages. The engine infers that if a plugin can decode a family,
+	// it should be advertised to peers.
 	p.send("declare family ipv4 flow encode")
 	p.send("declare family ipv4 flow decode")
 	p.send("declare family ipv6 flow encode")
@@ -83,16 +87,9 @@ func (p *FlowSpecPlugin) doStartupProtocol() {
 	// Stage 2: Parse config (FlowSpec plugin doesn't need config)
 	p.waitForLine("config done")
 
-	// Stage 3: Inject Multiprotocol capabilities for FlowSpec families.
-	// RFC 4760 Section 8: Multiprotocol capability (Code 1) value is 4 bytes:
-	//   AFI (2 bytes) + Reserved (1 byte, 0x00) + SAFI (1 byte)
-	// RFC 8955 Section 7: FlowSpec uses SAFI 133 (0x85) and SAFI 134 (0x86 for VPN).
-	//
-	// This ensures OPEN advertises FlowSpec families when plugin is loaded.
-	p.send("capability hex 1 00010085") // IPv4 FlowSpec: AFI=1, SAFI=133
-	p.send("capability hex 1 00010086") // IPv4 FlowSpec VPN: AFI=1, SAFI=134
-	p.send("capability hex 1 00020085") // IPv6 FlowSpec: AFI=2, SAFI=133
-	p.send("capability hex 1 00020086") // IPv6 FlowSpec VPN: AFI=2, SAFI=134
+	// Stage 3: No explicit capability injection needed.
+	// Multiprotocol capabilities for FlowSpec families are auto-added by the engine
+	// based on the "decode" declarations in Stage 1.
 	p.send("capability done")
 
 	// Stage 4: Wait for registry
