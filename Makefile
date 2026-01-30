@@ -8,11 +8,28 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 all: lint test build
 
 # Build all binaries
-build:
-	@echo "Building binaries..."
+build: bin/ze bin/ze-peer bin/ze-test bin/ze-config-reader
+	@echo "All binaries built"
+
+# Individual binary targets
+bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
+	@echo "Building ze..."
+	@mkdir -p bin
 	go build -o bin/ze ./cmd/ze
+
+bin/ze-peer: $(shell find cmd/ze-peer internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-peer..."
+	@mkdir -p bin
 	go build -o bin/ze-peer ./cmd/ze-peer
+
+bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-test..."
+	@mkdir -p bin
 	go build -o bin/ze-test ./cmd/ze-test
+
+bin/ze-config-reader: $(shell find cmd/ze-config-reader internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-config-reader..."
+	@mkdir -p bin
 	go build -o bin/ze-config-reader ./cmd/ze-config-reader
 
 # Run tests with race detector
@@ -63,19 +80,19 @@ test-all: lint test functional-all
 	@echo "All tests passed"
 
 # Run functional tests (all types, continue on failure to show all results)
-functional:
+functional: bin/ze-test
 	@failed=0; \
 	echo "Running encode functional tests..."; \
-	go run ./cmd/ze-test bgp encode --all || failed=$$((failed + 1)); \
+	bin/ze-test bgp encode --all || failed=$$((failed + 1)); \
 	echo ""; \
 	echo "Running plugin functional tests..."; \
-	go run ./cmd/ze-test bgp plugin --all || failed=$$((failed + 1)); \
+	bin/ze-test bgp plugin --all || failed=$$((failed + 1)); \
 	echo ""; \
 	echo "Running parse functional tests..."; \
-	go run ./cmd/ze-test bgp parse --all || failed=$$((failed + 1)); \
+	bin/ze-test bgp parse --all || failed=$$((failed + 1)); \
 	echo ""; \
 	echo "Running decode functional tests..."; \
-	go run ./cmd/ze-test bgp decode --all || failed=$$((failed + 1)); \
+	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
 	echo ""; \
 	if [ $$failed -gt 0 ]; then \
 		echo "═══════════════════════════════════════════════════════════════════════════════"; \
@@ -92,24 +109,24 @@ functional:
 functional-all: functional functional-exabgp
 
 # Run encode functional tests
-functional-encode:
+functional-encode: bin/ze-test
 	@echo "Running encode functional tests..."
-	go run ./cmd/ze-test bgp encode --all
+	bin/ze-test bgp encode --all
 
 # Run plugin functional tests
-functional-plugin:
+functional-plugin: bin/ze-test
 	@echo "Running plugin functional tests..."
-	go run ./cmd/ze-test bgp plugin --all
+	bin/ze-test bgp plugin --all
 
 # Run decode functional tests
-functional-decode:
+functional-decode: bin/ze-test
 	@echo "Running decode functional tests..."
-	go run ./cmd/ze-test bgp decode --all
+	bin/ze-test bgp decode --all
 
 # Run parse functional tests
-functional-parse:
+functional-parse: bin/ze-test
 	@echo "Running parse functional tests..."
-	go run ./cmd/ze-test bgp parse --all
+	bin/ze-test bgp parse --all
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 functional-exabgp:
