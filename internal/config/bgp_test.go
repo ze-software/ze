@@ -1517,7 +1517,7 @@ bgp {
 
 	require.Equal(t, uint16(60), m["10.0.0.1"].HoldTime)
 	require.Equal(t, uint16(90), m["192.168.1.1"].HoldTime)
-	require.Equal(t, uint16(0), m["172.16.0.1"].HoldTime) // default
+	require.Equal(t, uint16(DefaultHoldTime), m["172.16.0.1"].HoldTime) // unset → default 90s
 }
 
 // =============================================================================

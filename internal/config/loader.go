@@ -269,6 +269,45 @@ func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
 	return nil
 }
 
+// autoLoadFamilyPlugins adds internal plugins for configured families that need them.
+// Only adds plugins if no explicit plugin is configured for the family.
+// This allows configs to specify families like ipv4/flow without explicitly loading ze.flowspec.
+func autoLoadFamilyPlugins(cfg *BGPConfig) {
+	// Build set of explicitly configured plugins
+	explicitPlugins := make(map[string]bool)
+	for _, p := range cfg.Plugins {
+		explicitPlugins[p.Name] = true
+		// Also check without "ze." prefix
+		if len(p.Name) > 3 && p.Name[:3] == "ze." {
+			explicitPlugins[p.Name[3:]] = true
+		}
+	}
+
+	// Collect all configured families from peers
+	totalFamilies := 0
+	for _, peer := range cfg.Peers {
+		totalFamilies += len(peer.Families)
+	}
+	configuredFamilies := make([]string, 0, totalFamilies)
+	for _, peer := range cfg.Peers {
+		configuredFamilies = append(configuredFamilies, peer.Families...)
+	}
+
+	// Get required plugins for configured families
+	for _, requiredPlugin := range plugin.GetRequiredPlugins(configuredFamilies) {
+		if !explicitPlugins[requiredPlugin] {
+			configLogger().Debug("auto-loading plugin for configured family",
+				"plugin", requiredPlugin)
+			cfg.Plugins = append(cfg.Plugins, PluginConfig{
+				Name:     requiredPlugin,
+				Encoder:  "json",
+				Internal: true, // Run in-process
+			})
+			explicitPlugins[requiredPlugin] = true // Prevent duplicates
+		}
+	}
+}
+
 // CreateReactor creates a Reactor from typed BGPConfig.
 func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 	return CreateReactorWithDir(cfg, "")
@@ -339,6 +378,9 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		return nil, fmt.Errorf("load environment: %w", err)
 	}
 
+	// Auto-load plugins for configured families (if not explicitly configured)
+	autoLoadFamilyPlugins(cfg)
+
 	// Build reactor config
 	reactorCfg := &reactor.Config{
 		ListenAddr:  cfg.Listen,
@@ -396,14 +438,9 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		routerID = global.RouterID
 	}
 
-	// Determine hold time (default 90s)
-	holdTime := time.Duration(nc.HoldTime) * time.Second
-	if holdTime == 0 {
-		holdTime = 90 * time.Second
-	}
-
 	n := reactor.NewPeerSettings(nc.Address, localAS, nc.PeerAS, routerID)
-	n.HoldTime = holdTime
+	// nc.HoldTime defaults to 90 in config; explicit 0 disables keepalives (RFC 4271).
+	n.HoldTime = time.Duration(nc.HoldTime) * time.Second
 	n.Passive = nc.Passive
 	n.GroupUpdates = nc.GroupUpdates
 	n.LocalAddress = nc.LocalAddress

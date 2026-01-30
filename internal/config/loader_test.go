@@ -982,3 +982,68 @@ bgp {
 	assert.Contains(t, peer.CapabilityConfigJSON, `"host":"my-host-name"`)
 	assert.Contains(t, peer.CapabilityConfigJSON, `"domain":"my-domain.com"`)
 }
+
+// TestHoldTimeZeroPreserved verifies hold-time 0 is preserved, not defaulted.
+//
+// VALIDATES: RFC 4271 allows hold-time 0 (disables keepalives).
+// PREVENTS: Explicit hold-time 0 being overwritten with default 90s.
+func TestHoldTimeZeroPreserved(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       string
+		wantHoldTime int // in seconds
+	}{
+		{
+			name: "explicit_zero_preserved",
+			config: `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        hold-time 0;
+    }
+}`,
+			wantHoldTime: 0,
+		},
+		{
+			name: "unset_defaults_to_90",
+			config: `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+    }
+}`,
+			wantHoldTime: 90,
+		},
+		{
+			name: "explicit_30_preserved",
+			config: `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        hold-time 30;
+    }
+}`,
+			wantHoldTime: 30,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := LoadReactor(tt.config)
+			require.NoError(t, err)
+
+			peers := r.Peers()
+			require.Len(t, peers, 1)
+
+			settings := peers[0].Settings()
+			gotSec := int(settings.HoldTime.Seconds())
+			assert.Equal(t, tt.wantHoldTime, gotSec, "hold-time mismatch")
+		})
+	}
+}

@@ -21,6 +21,9 @@ const (
 	configRequire = "require" // Config value for required state
 	configSelf    = "self"    // Config value for next-hop self
 
+	// DefaultHoldTime is the default hold time per RFC 4271 Section 10.
+	DefaultHoldTime = 90
+
 	// ADD-PATH mode strings.
 	addPathSend        = "send"
 	addPathReceive     = "receive"
@@ -133,7 +136,7 @@ type PeerConfig struct {
 	LocalAddressAuto     bool // true when local-address is "auto"
 	LocalAS              uint32
 	PeerAS               uint32
-	HoldTime             uint16
+	HoldTime             uint16 // RFC 4271: 0 (no keepalive) or >=3; default 90
 	Passive              bool
 	GroupUpdates         bool           // DEPRECATED: Use RIBOut.GroupUpdates
 	RIBOut               RIBOutConfig   // Per-neighbor outgoing RIB config
@@ -681,6 +684,9 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 
 func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templatePatterns map[string]string, peerGlobs []PeerGlob) (PeerConfig, error) {
 	nc := PeerConfig{}
+
+	// Set hold-time default (RFC 4271 Section 10).
+	nc.HoldTime = DefaultHoldTime
 
 	// Set default capability values (ASN4 enabled by default per RFC 6793).
 	nc.Capabilities.ASN4 = true
