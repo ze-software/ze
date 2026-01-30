@@ -353,3 +353,280 @@ func TestRun_BgpSubsystem(t *testing.T) {
 		t.Errorf("Run(bgp --run) output = %q, want to contain 'version'", output)
 	}
 }
+
+// TestRun_HelpFlags verifies all help flag variants work.
+//
+// VALIDATES: ze cli help, ze cli --help, ze cli -h all show usage.
+// PREVENTS: help flags being mishandled or causing errors.
+func TestRun_HelpFlags(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"help", []string{"help"}},
+		{"--help", []string{"--help"}},
+		{"-h", []string{"-h"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var code int
+			output := captureOutput(t, true, func() {
+				code = Run(tt.args)
+			})
+
+			if code != 0 {
+				t.Errorf("Run(%v) returned %d, want 0", tt.args, code)
+			}
+
+			if !strings.Contains(output, "Usage:") {
+				t.Errorf("Run(%v) output = %q, want to contain 'Usage:'", tt.args, output)
+			}
+
+			if !strings.Contains(output, "ze cli") {
+				t.Errorf("Run(%v) output = %q, want to contain 'ze cli'", tt.args, output)
+			}
+		})
+	}
+}
+
+// TestRun_ConnectionFailure verifies error handling when daemon not running.
+//
+// VALIDATES: Graceful error message when socket connection fails.
+// PREVENTS: Cryptic errors or panics on connection failure.
+func TestRun_ConnectionFailure(t *testing.T) {
+	var code int
+	output := captureOutput(t, true, func() {
+		code = Run([]string{"--socket", "/nonexistent/socket.sock", "--run", "test"})
+	})
+
+	if code != 1 {
+		t.Errorf("Run() with bad socket returned %d, want 1", code)
+	}
+
+	if !strings.Contains(output, "cannot connect") {
+		t.Errorf("Run() stderr = %q, want to contain 'cannot connect'", output)
+	}
+
+	if !strings.Contains(output, "hint:") {
+		t.Errorf("Run() stderr = %q, want to contain 'hint:'", output)
+	}
+}
+
+// TestRun_BgpSubsystemConnectionFailure verifies error with explicit subsystem.
+//
+// VALIDATES: ze cli bgp handles connection failure gracefully.
+// PREVENTS: Subsystem dispatch masking connection errors.
+func TestRun_BgpSubsystemConnectionFailure(t *testing.T) {
+	var code int
+	output := captureOutput(t, true, func() {
+		code = Run([]string{"bgp", "--socket", "/nonexistent/socket.sock", "--run", "test"})
+	})
+
+	if code != 1 {
+		t.Errorf("Run(bgp) with bad socket returned %d, want 1", code)
+	}
+
+	if !strings.Contains(output, "cannot connect") {
+		t.Errorf("Run(bgp) stderr = %q, want to contain 'cannot connect'", output)
+	}
+}
+
+// TestCLIClient_PrintResponse verifies response formatting.
+//
+// VALIDATES: Different response types format correctly.
+// PREVENTS: Formatting bugs causing garbled output.
+func TestCLIClient_PrintResponse(t *testing.T) {
+	server := newMockServer(t)
+	defer server.Close()
+
+	client, err := newCLIClient(server.path)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close() //nolint:errcheck // test cleanup
+
+	tests := []struct {
+		name     string
+		resp     *cliResponse
+		wantOut  string
+		wantErr  bool
+		contains []string
+	}{
+		{
+			name:     "ok_no_data",
+			resp:     &cliResponse{Status: "done"},
+			contains: []string{"OK"},
+		},
+		{
+			name: "with_data",
+			resp: &cliResponse{
+				Status: "done",
+				Data:   map[string]any{"version": "1.0"},
+			},
+			contains: []string{"version", "1.0"},
+		},
+		{
+			name: "error_response",
+			resp: &cliResponse{
+				Status: "error",
+				Error:  "something failed",
+			},
+			wantErr:  true,
+			contains: []string{"error", "something failed"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output string
+			if tt.wantErr {
+				output = captureOutput(t, true, func() {
+					client.PrintResponse(tt.resp)
+				})
+			} else {
+				output = captureOutput(t, false, func() {
+					client.PrintResponse(tt.resp)
+				})
+			}
+
+			for _, want := range tt.contains {
+				if !strings.Contains(output, want) {
+					t.Errorf("PrintResponse() output = %q, want to contain %q", output, want)
+				}
+			}
+		})
+	}
+}
+
+// TestCLIClient_PrintResponseNestedData verifies nested data formatting.
+//
+// VALIDATES: Nested maps and arrays format with proper indentation.
+// PREVENTS: Nested data being flattened or misformatted.
+func TestCLIClient_PrintResponseNestedData(t *testing.T) {
+	// Create a minimal client just for testing PrintResponse
+	// (doesn't need actual connection)
+	client := &cliClient{}
+
+	resp := &cliResponse{
+		Status: "done",
+		Data: map[string]any{
+			"peers": []any{
+				map[string]any{"Address": "10.0.0.1", "State": "established"},
+				map[string]any{"Address": "10.0.0.2", "State": "idle"},
+			},
+			"config": map[string]any{
+				"local_as": 65000,
+			},
+			"empty_list": []any{},
+		},
+	}
+
+	output := captureOutput(t, false, func() {
+		client.PrintResponse(resp)
+	})
+
+	// Check peer formatting (special case with Address)
+	if !strings.Contains(output, "10.0.0.1") {
+		t.Errorf("output missing peer address: %q", output)
+	}
+
+	// Check empty list handling
+	if !strings.Contains(output, "(none)") {
+		t.Errorf("output should show '(none)' for empty list: %q", output)
+	}
+
+	// Check nested map
+	if !strings.Contains(output, "local_as") {
+		t.Errorf("output missing nested config: %q", output)
+	}
+}
+
+// TestCommandTree verifies command tree structure.
+//
+// VALIDATES: Command tree has expected commands and hierarchy.
+// PREVENTS: Typos in command names or broken hierarchy.
+func TestCommandTree(t *testing.T) {
+	tree := buildCommandTree()
+
+	// Check top-level commands exist
+	topLevel := []string{"daemon", "peer", "rib", "system"}
+	for _, cmd := range topLevel {
+		if _, ok := tree.Children[cmd]; !ok {
+			t.Errorf("missing top-level command: %s", cmd)
+		}
+	}
+
+	// Check daemon subcommands
+	daemon := tree.Children["daemon"]
+	if daemon == nil {
+		t.Fatal("daemon command missing")
+	}
+	if _, ok := daemon.Children["shutdown"]; !ok {
+		t.Error("daemon missing shutdown subcommand")
+	}
+	if _, ok := daemon.Children["status"]; !ok {
+		t.Error("daemon missing status subcommand")
+	}
+
+	// Check peer subcommands
+	peer := tree.Children["peer"]
+	if peer == nil {
+		t.Fatal("peer command missing")
+	}
+	if _, ok := peer.Children["list"]; !ok {
+		t.Error("peer missing list subcommand")
+	}
+	if _, ok := peer.Children["show"]; !ok {
+		t.Error("peer missing show subcommand")
+	}
+
+	// Check rib hierarchy
+	rib := tree.Children["rib"]
+	if rib == nil {
+		t.Fatal("rib command missing")
+	}
+	ribShow := rib.Children["show"]
+	if ribShow == nil {
+		t.Fatal("rib show command missing")
+	}
+	if _, ok := ribShow.Children["in"]; !ok {
+		t.Error("rib show missing 'in' subcommand")
+	}
+	if _, ok := ribShow.Children["out"]; !ok {
+		t.Error("rib show missing 'out' subcommand")
+	}
+}
+
+// TestCLIClient_ResponseWithStringList verifies string list formatting.
+//
+// VALIDATES: String arrays format as bullet points.
+// PREVENTS: String lists being printed as Go slice syntax.
+func TestCLIClient_ResponseWithStringList(t *testing.T) {
+	// Create a minimal client just for testing PrintResponse
+	client := &cliClient{}
+
+	resp := &cliResponse{
+		Status: "done",
+		Data: map[string]any{
+			"commands": []any{
+				"daemon shutdown",
+				"peer list",
+				"system help",
+			},
+		},
+	}
+
+	output := captureOutput(t, false, func() {
+		client.PrintResponse(resp)
+	})
+
+	// Should contain list items formatted as "- item"
+	if !strings.Contains(output, "daemon shutdown") {
+		t.Errorf("output missing command in list: %q", output)
+	}
+
+	if !strings.Contains(output, "- ") {
+		t.Errorf("output should format list items with '- ': %q", output)
+	}
+}
