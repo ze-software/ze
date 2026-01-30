@@ -3,18 +3,18 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option=timeout:value=10s
+option:timeout:value=10s
 
 # NO env var override - we're testing config file support
 # The config file sets gr plugin to debug level
 
 # Static route UPDATE
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 # EOR
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # GR plugin DEBUG logs SHOULD appear (set via config file)
-expect=stderr:pattern=level=DEBUG.*subsystem=gr
+expect:stderr:pattern=level=DEBUG.*subsystem=gr
 EOF_PEER
 
 # ze bgp configuration
@@ -73,5 +73,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

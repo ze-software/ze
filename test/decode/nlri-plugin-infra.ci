@@ -2,5 +2,5 @@
 # Tests that --nlri <family> flag works for NLRI-only decode mode.
 # Plugin decode tested via fallback (no actual plugin in test environment).
 stdin=payload:hex=0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202
-cmd=foreground:seq=1:exec=ze-test decode --nlri bgp-ls/bgp-ls -:stdin=payload
-expect=json:json={ "ls-nlri-type": "bgpls-link", "l3-routing-topology": 0, "protocol-id": 3, "local-node-descriptors": [ { "autonomous-system": 1 }, { "bgp-ls-identifier": "3232266878" }, { "ospf-area-id": "0.0.0.0" }, { "router-id": "10.10.10.10" } ], "remote-node-descriptors": [ { "autonomous-system": 1 }, { "bgp-ls-identifier": "3232266878" }, { "ospf-area-id": "0.0.0.0" }, { "router-id": "10.2.2.2" } ], "interface-addresses": [  ], "neighbor-addresses": [  ], "multi-topology-ids": [  ], "link-identifiers": [  ] }
+cmd:foreground:seq=1:exec=ze-test decode --nlri bgp-ls/bgp-ls -:stdin=payload
+expect:json:json={ "ls-nlri-type": "bgpls-link", "l3-routing-topology": 0, "protocol-id": 3, "local-node-descriptors": [ { "autonomous-system": 1 }, { "bgp-ls-identifier": "3232266878" }, { "ospf-area-id": "0.0.0.0" }, { "router-id": "10.10.10.10" } ], "remote-node-descriptors": [ { "autonomous-system": 1 }, { "bgp-ls-identifier": "3232266878" }, { "ospf-area-id": "0.0.0.0" }, { "router-id": "10.2.2.2" } ], "interface-addresses": [  ], "neighbor-addresses": [  ], "multi-topology-ids": [  ], "link-identifiers": [  ] }

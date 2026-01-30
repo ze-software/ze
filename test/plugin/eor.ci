@@ -2,11 +2,11 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option=asn:value=1
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv6/unicast eor
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+option:asn:value=1
+cmd:api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd:api:conn=1:seq=2:text=bgp peer * update text nlri ipv6/unicast eor
+expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 EOF_PEER
 
 # Python plugin script
@@ -64,5 +64,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

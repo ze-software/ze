@@ -2,21 +2,21 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option=timeout:value=10s
+option:timeout:value=10s
 
 # Enable server subsystem logging (syslog backend set automatically by runner)
-option=env:var=ze.bgp.log.server:value=debug
+option:env:var=ze.bgp.log.server:value=debug
 
 # Test: Syslog backend
 # Verifies ze.bgp.log.backend=syslog sends logs to test-syslog server
 
 # Static route UPDATE
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 # EOR
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # Verify server subsystem logs arrive at syslog server
-expect=syslog:pattern=subsystem=server
+expect:syslog:pattern=subsystem=server
 EOF_PEER
 
 # ze bgp configuration
@@ -68,5 +68,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

@@ -2,17 +2,17 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-option=tcp_connections:value=2
-option=timeout:value=10s
+option:tcp_connections:value=2
+option:timeout:value=10s
 
 # Connection A: ZeBGP sends route, peer disconnects
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-action=notification:conn=1:seq=2:text=Peer Reset
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action:notification:conn=1:seq=2:text=Peer Reset
 
 # Connection B: Peer sends "done" route to ZeBGP (verifies ZeBGP reconnected)
 # Test completes when this send action is executed
-action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000017400101004002004003047F0000010405040000006410640A
+action:send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000017400101004002004003047F0000010405040000006410640A
 EOF_PEER
 
 # Python plugin script
@@ -91,5 +91,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=20s
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=20s

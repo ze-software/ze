@@ -2,7 +2,7 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-action=notification:conn=1:seq=1:text=closing session because we can
+action:notification:conn=1:seq=1:text=closing session because we can
 EOF_PEER
 
 # Python plugin script
@@ -55,5 +55,5 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
