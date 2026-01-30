@@ -1,0 +1,102 @@
+# Test: Family-based auto-load prevention (NOT name-based)
+#
+# CRITICAL TEST: Verifies auto-load uses FAMILY claims, not plugin names.
+#
+# Scenario:
+# - Config has `family { ipv4/flow; }` which would normally auto-load ze.flowspec
+# - Config has plugin named "acme-traffic-filter" (unrelated name)
+# - Plugin declares `declare family ipv4 flow decode` (claims the family)
+# - Expected: Only "acme-traffic-filter" runs, internal flowspec NOT loaded
+#
+# Why this matters:
+# - If name-based: "acme-traffic-filter" != "flowspec" → BOTH load → conflict error
+# - If family-based: family claimed → auto-load skipped → success
+#
+# The plugin name is INFORMATIONAL ONLY. Only family declarations matter.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option:open:value=inspect-open-message
+# Expect OPEN with ipv4/flow + ipv4/unicast capabilities
+expect:bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003501040001005A0102030418020601040001008502060104000100010206410400000001
+# Expect marker UPDATE from custom plugin: 77.77.77.0/24
+# This proves our custom plugin is active (internal flowspec wouldn't send this)
+expect:bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040102030440050400000064184d4d4d
+EOF_PEER
+
+# Custom plugin with UNRELATED name that claims flowspec families
+tmpfs=acme-traffic-filter.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Custom plugin with unrelated name - proves only family claims matter."""
+
+import sys
+import time
+from ze_bgp_api import API
+
+def main() -> None:
+    api = API()
+
+    # Stage 1: Claim flowspec families (this is what prevents auto-load)
+    api.send('declare family ipv4 flow decode')
+    api.send('declare family ipv6 flow decode')
+    api.send('declare family ipv4 flow-vpn decode')
+    api.send('declare family ipv6 flow-vpn decode')
+    api.declare_family('ipv4', 'unicast')  # For sending marker
+    api.declare_done()
+
+    # Stage 2: Receive config
+    api.wait_for_config(timeout=5.0)
+
+    # Stage 3: No capabilities
+    api.capability_done()
+
+    # Stage 4: Receive registry
+    api.wait_for_registry(timeout=5.0)
+
+    # Stage 5: Ready
+    api.ready()
+
+    # Send marker UPDATE to prove we're the active plugin
+    # Prefix 77.77.77.0/24 (0x4d4d4d) is unique to this plugin
+    time.sleep(0.2)
+    api.send('bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24')
+    time.sleep(0.3)
+
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+# Plugin name "acme-traffic-filter" has NO relation to "flowspec"
+# Only the family declaration matters for auto-load prevention
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external acme-traffic-filter {
+        run ./acme-traffic-filter.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4;
+        local-address 127.0.0.1;
+        local-as 1;
+        peer-as 1;
+
+        family {
+            ipv4/flow;
+            ipv4/unicast;
+        }
+
+        process acme-traffic-filter {
+            send { update; }
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd:background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd:foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

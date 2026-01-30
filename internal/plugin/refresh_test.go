@@ -98,6 +98,7 @@ func (m *mockReactorRefresh) GetPeerProcessBindings(_ netip.Addr) []PeerProcessB
 func (m *mockReactorRefresh) GetPeerCapabilityConfigs() []PeerCapabilityConfig { return nil }
 func (m *mockReactorRefresh) GetConfigTree() map[string]any                    { return nil }
 func (m *mockReactorRefresh) SignalAPIReady()                                  {}
+func (m *mockReactorRefresh) AddAPIProcessCount(_ int)                         {}
 func (m *mockReactorRefresh) SignalPeerAPIReady(_ string)                      {}
 func (m *mockReactorRefresh) AnnounceNLRIBatch(_ string, _ NLRIBatch) error    { return nil }
 func (m *mockReactorRefresh) WithdrawNLRIBatch(_ string, _ NLRIBatch) error    { return nil }

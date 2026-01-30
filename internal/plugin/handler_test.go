@@ -303,6 +303,8 @@ func (m *mockReactor) ListUpdates() []uint64 {
 
 func (m *mockReactor) SignalAPIReady() {}
 
+func (m *mockReactor) AddAPIProcessCount(_ int) {}
+
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 
 func (m *mockReactor) AnnounceNLRIBatch(selector string, batch NLRIBatch) error {

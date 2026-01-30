@@ -807,3 +807,127 @@ automatically adds Multiprotocol capabilities for families that have `decode` pl
 - [x] Functional test: `test/plugin/explicit-plugin-config.ci` (config plugin prevents auto-load)
 - [x] Documentation updated: `docs/architecture/api/process-protocol.md`
 - [x] Unit tests: `TestSessionSendOpenWithPluginFamilies`, `TestSessionSendOpenPluginFamiliesDedup`
+
+---
+
+## Phase 6: Family-Based Auto-Load Prevention
+
+### Problem Statement
+
+**Current (flawed) auto-load prevention:** Uses plugin NAME to detect conflicts.
+
+In `internal/config/loader.go:autoLoadFamilyPlugins()`, the check is `explicitPlugins["flowspec"]`
+which is name-based.
+
+**Bug:** If user configures a plugin with different name (e.g., `my-flowspec`) that handles
+the same families, the name check fails. Both `my-flowspec` and built-in `flowspec` are loaded.
+First to register wins, second fails with "family conflict: ipv4/flow already registered by ...".
+
+**Key insight:** Should check by FAMILY overlap, not plugin name. The family declaration
+(`declare family ipv4/flow decode`) is how we detect overlap.
+
+### Current Architecture (Flawed)
+
+| Stage | What Happens | Problem |
+|-------|--------------|---------|
+| 1. Config Load | Parse config, get explicit plugins list | |
+| 2. Config Load | `autoLoadFamilyPlugins()` runs | **TOO EARLY** |
+| 3. Config Load | Check `explicitPlugins[name]` | **NAME-BASED (wrong)** |
+| 4. Config Load | Add internal plugins to list | May add duplicate |
+| 5. Plugins Start | All plugins start in parallel | |
+| 6. Registration | Explicit plugin: `declare family ipv4/flow decode` | Registry claims family |
+| 7. Registration | Auto-loaded plugin: `declare family ipv4/flow decode` | **CONFLICT!** |
+
+### Target Architecture (Family-Based)
+
+| Stage | What Happens | Result |
+|-------|--------------|--------|
+| 1. Config Load | Parse config, explicit plugins list ONLY | No auto-load yet |
+| 2. Explicit Plugins Start | Each plugin registers families | Registry populated |
+| 3. All Explicit Ready | Wait for `StageReady` on all | |
+| 4. Auto-Load Check | For each peer family, check `registry.LookupFamily()` | |
+| 5. Auto-Load Decision | Family claimed? SKIP. Unclaimed? Load internal plugin | |
+| 6. Auto-loaded Start | Start only for unclaimed families | No conflicts |
+
+### Implementation Design
+
+| Component | Change |
+|-----------|--------|
+| `config/loader.go` | Remove `autoLoadFamilyPlugins()` call from config loading |
+| `reactor/reactor.go` | Add `autoLoadPluginsForFamilies()` after explicit plugins ready |
+| `plugin/server.go` | Add method to query unclaimed families |
+| `plugin/registration.go` | Already has `LookupFamily()` - no change needed |
+
+### Detailed Changes
+
+#### 1. Remove auto-load from config loading
+
+In `internal/config/loader.go`, remove call to `autoLoadFamilyPlugins()` from `TreeToConfig()` or `Load()`.
+Keep the function but don't call it at config time.
+
+#### 2. Add auto-load after explicit plugins ready
+
+In `internal/plugin/bgp/reactor/reactor.go` or `internal/plugin/server.go`, after all explicit
+plugins reach `StageReady`:
+
+| Step | Action |
+|------|--------|
+| 1 | Collect configured families from all peers |
+| 2 | For each family, call `registry.LookupFamily(family)` |
+| 3 | If empty (unclaimed), call `GetPluginForFamily()` to get internal plugin name |
+| 4 | Start internal plugins for unclaimed families only |
+
+#### 3. Server method for unclaimed families
+
+Add to `internal/plugin/server.go`:
+
+| Method | Parameters | Returns | Logic |
+|--------|------------|---------|-------|
+| `GetUnclaimedFamilies` | `configuredFamilies []string` | `[]string` | For each family, if `registry.LookupFamily(family) == ""`, add to result |
+
+### Functional Test
+
+`test/plugin/custom-flowspec-plugin.ci`:
+
+| Scenario | Expected |
+|----------|----------|
+| Config has `plugin acme-traffic-filter` (unrelated name) | Name is informational only |
+| Plugin declares `declare family ipv4 flow decode` | Family claimed in registry |
+| Peer has `family { ipv4/flow; }` | Auto-load checks registry |
+| Built-in flowspec NOT loaded | Family already claimed → skip |
+| Only custom plugin runs | Marker UPDATE proves it |
+
+**Key insight:** Plugin name is INFORMATIONAL ONLY. Only family declarations matter.
+
+### Phase 6 Implementation Summary
+
+**What Was Implemented:**
+- `server.go:getUnclaimedFamilyPlugins()` uses `registry.LookupFamily()` for family-based detection
+- Two-phase plugin startup: Phase 1 (explicit plugins) → Phase 2 (auto-load for unclaimed)
+- Auto-load removed from `config/loader.go`, now happens at runtime in `server.go`
+
+**Key Files:**
+| File | Change |
+|------|--------|
+| `internal/plugin/server.go:getUnclaimedFamilyPlugins()` | Family-based auto-load detection |
+| `internal/plugin/server.go:runPluginStartup()` | Two-phase plugin startup |
+| `internal/plugin/registration.go:LookupFamily()` | Family → plugin lookup |
+
+**Functional Tests:**
+| Test | Verifies |
+|------|----------|
+| `explicit-plugin-config.ci` | Config plugin prevents auto-load via family claim |
+| `explicit-plugin-precedence.ci` | --plugin flag prevents auto-load |
+| `flowspec-open-capability.ci` | Auto-load works for unclaimed families |
+| `family-no-plugin-failure.ci` | Unknown families fail gracefully |
+
+### Phase 6 Checklist
+
+- [x] Auto-load moved from config time to after explicit plugin registration
+- [x] Family-based check via `registry.LookupFamily()`
+- [x] Explicit plugins always take precedence (first to register)
+- [x] Internal plugins only loaded for unclaimed families
+- [x] Unit tests for unclaimed family detection (registration_family_test.go)
+- [x] Functional test: custom plugin prevents auto-load of built-in (custom-flowspec-plugin.ci)
+- [x] Functional test: --plugin flag prevents auto-load (explicit-plugin-precedence.ci)
+- [x] Documentation updated (test comments corrected)

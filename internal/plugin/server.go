@@ -180,24 +180,6 @@ func (s *Server) Start() error {
 func (s *Server) StartWithContext(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	// Start external plugins if configured
-	if len(s.config.Plugins) > 0 {
-		// Create coordinator for staged startup
-		s.coordinator = NewStartupCoordinator(len(s.config.Plugins))
-
-		s.procManager = NewProcessManager(s.config.Plugins)
-		if err := s.procManager.StartWithContext(s.ctx); err != nil {
-			return err
-		}
-
-		// Start command handlers for each process
-		s.wg.Add(1)
-		go s.handleProcessCommands()
-
-		// Generic NLRI encoding available via s.EncodeNLRI(family, args)
-		// Plugins register families via "declare family <afi> <safi> encode/decode"
-	}
-
 	// Only start socket listener if socket path is configured
 	if s.config.SocketPath != "" {
 		// Remove existing socket if present
@@ -222,7 +204,136 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 		s.running.Store(true)
 	}
 
+	// Start plugin phases asynchronously (non-blocking)
+	// Phase 1: Explicit plugins
+	// Phase 2: Auto-load plugins for unclaimed families (after Phase 1 registers)
+	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 {
+		s.wg.Add(1)
+		go s.runPluginStartup()
+	}
+
 	return nil
+}
+
+// runPluginStartup handles two-phase plugin startup:
+// Phase 1: Start explicit plugins, wait for registration
+// Phase 2: Check unclaimed families, start auto-load plugins.
+func (s *Server) runPluginStartup() {
+	defer s.wg.Done()
+
+	// Phase 1: Explicit plugins
+	if len(s.config.Plugins) > 0 {
+		logger().Debug("starting explicit plugins", "count", len(s.config.Plugins))
+		if err := s.runPluginPhase(s.config.Plugins); err != nil {
+			logger().Error("explicit plugin startup failed", "error", err)
+			return
+		}
+	}
+
+	// Phase 2: Auto-load plugins for unclaimed families
+	// Now registry has families from explicit plugins - use family-based check
+	autoLoadPlugins := s.getUnclaimedFamilyPlugins()
+	if len(autoLoadPlugins) > 0 {
+		logger().Debug("auto-loading plugins for unclaimed families",
+			"count", len(autoLoadPlugins))
+
+		// Tell reactor to wait for additional plugins
+		if s.reactor != nil {
+			s.reactor.AddAPIProcessCount(len(autoLoadPlugins))
+		}
+
+		if err := s.runPluginPhase(autoLoadPlugins); err != nil {
+			logger().Error("auto-load plugin startup failed", "error", err)
+			return
+		}
+	}
+}
+
+// runPluginPhase starts a batch of plugins and waits for them to complete startup.
+func (s *Server) runPluginPhase(plugins []PluginConfig) error {
+	if len(plugins) == 0 {
+		return nil
+	}
+
+	// Create coordinator for this phase
+	s.coordinator = NewStartupCoordinator(len(plugins))
+
+	// Create process manager for this phase
+	pm := NewProcessManager(plugins)
+	s.procManager = pm
+
+	if err := pm.StartWithContext(s.ctx); err != nil {
+		return err
+	}
+
+	// Handle commands synchronously (blocks until all plugins reach StageRunning)
+	s.handleProcessCommandsSync(pm)
+
+	return nil
+}
+
+// handleProcessCommandsSync handles commands from all processes and waits for completion.
+// Blocks until all plugins reach StageRunning or context is cancelled.
+func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
+	// Get all processes from the manager
+	pm.mu.RLock()
+	processes := make([]*Process, 0, len(pm.processes))
+	for _, p := range pm.processes {
+		processes = append(processes, p)
+	}
+	pm.mu.RUnlock()
+
+	// Start a goroutine to handle each process
+	var procWg sync.WaitGroup
+	for _, proc := range processes {
+		procWg.Add(1)
+		go func(p *Process) {
+			defer procWg.Done()
+			s.handleSingleProcessCommands(p)
+		}(proc)
+	}
+
+	procWg.Wait()
+}
+
+// getUnclaimedFamilyPlugins returns plugins to auto-load for configured families
+// that are NOT claimed by any explicit plugin.
+// Uses registry.LookupFamily for family-based detection (not name-based).
+func (s *Server) getUnclaimedFamilyPlugins() []PluginConfig {
+	seen := make(map[string]bool)
+	var plugins []PluginConfig
+
+	for _, family := range s.config.ConfiguredFamilies {
+		// Family-based check: skip if already claimed by explicit plugin
+		if s.registry.LookupFamily(family) != "" {
+			logger().Debug("family already claimed, skipping auto-load",
+				"family", family, "claimed_by", s.registry.LookupFamily(family))
+			continue
+		}
+
+		// Get internal plugin for this family
+		pluginName := GetPluginForFamily(family)
+		if pluginName == "" {
+			continue // No internal plugin for this family
+		}
+
+		// Avoid duplicates
+		if seen[pluginName] {
+			continue
+		}
+		seen[pluginName] = true
+
+		logger().Debug("auto-loading plugin for unclaimed family",
+			"plugin", pluginName, "family", family)
+
+		plugins = append(plugins, PluginConfig{
+			Name:     pluginName,
+			Encoder:  "json",
+			Internal: true,
+		})
+	}
+
+	return plugins
 }
 
 // Stop signals the server to stop.
@@ -310,31 +421,6 @@ func (s *Server) cleanup() {
 	if s.config.SocketPath != "" {
 		_ = os.Remove(s.config.SocketPath)
 	}
-}
-
-// handleProcessCommands reads and handles commands from all spawned processes.
-func (s *Server) handleProcessCommands() {
-	defer s.wg.Done()
-
-	// Get all processes from the manager
-	s.procManager.mu.RLock()
-	processes := make([]*Process, 0, len(s.procManager.processes))
-	for _, p := range s.procManager.processes {
-		processes = append(processes, p)
-	}
-	s.procManager.mu.RUnlock()
-
-	// Start a goroutine to handle each process
-	var procWg sync.WaitGroup
-	for _, proc := range processes {
-		procWg.Add(1)
-		go func(p *Process) {
-			defer procWg.Done()
-			s.handleSingleProcessCommands(p)
-		}(proc)
-	}
-
-	procWg.Wait()
 }
 
 // parseSerial extracts #N prefix from command line.

@@ -40,6 +40,14 @@ func (r *Reactor) SetAPIProcessCount(count int) {
 	}
 }
 
+// AddAPIProcessCount adds to the number of API processes to wait for.
+// Used for two-phase plugin startup: Phase 1 (explicit) + Phase 2 (auto-load).
+// Safe to call while WaitForAPIReady is blocking.
+func (r *Reactor) AddAPIProcessCount(count int) {
+	r.processCount += count
+	slog.Debug("added api process count", "added", count, "total", r.processCount)
+}
+
 // WaitForAPIReady blocks until all API processes signal readiness or timeout.
 // Called after spawning API processes but before starting peer connections.
 //

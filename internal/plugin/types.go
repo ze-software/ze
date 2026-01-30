@@ -422,6 +422,10 @@ type ReactorInterface interface {
 	// When all processes have signaled, WaitForAPIReady returns.
 	SignalAPIReady()
 
+	// AddAPIProcessCount adds to the number of API processes to wait for.
+	// Used for two-phase plugin startup: Phase 1 (explicit) + Phase 2 (auto-load).
+	AddAPIProcessCount(count int)
+
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	// Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 	SignalPeerAPIReady(peerAddr string)
@@ -534,8 +538,9 @@ type PluginConfig struct {
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	SocketPath string         // Path to Unix socket
-	Plugins    []PluginConfig // External plugins to spawn
+	SocketPath         string         // Path to Unix socket
+	Plugins            []PluginConfig // External plugins to spawn
+	ConfiguredFamilies []string       // Families configured on peers (for deferred auto-load)
 }
 
 // Format constants for process output formatting.

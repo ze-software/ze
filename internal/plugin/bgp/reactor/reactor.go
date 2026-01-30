@@ -100,6 +100,10 @@ type Config struct {
 	// When > 0, reactor stops after this many sessions end (useful for testing).
 	// Default: 0 (unlimited - run forever).
 	MaxSessions int
+
+	// ConfiguredFamilies lists all address families configured on peers.
+	// Used for deferred auto-loading of family plugins after explicit plugins register.
+	ConfiguredFamilies []string
 }
 
 // PluginConfig holds plugin configuration.
@@ -3588,6 +3592,11 @@ func (a *reactorAPIAdapter) SignalAPIReady() {
 	a.r.SignalAPIReady()
 }
 
+// AddAPIProcessCount adds to the number of API processes to wait for.
+func (a *reactorAPIAdapter) AddAPIProcessCount(count int) {
+	a.r.AddAPIProcessCount(count)
+}
+
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
 	a.r.SignalPeerAPIReady(peerAddr)
@@ -4154,7 +4163,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start API server if configured
 	if r.config.APISocketPath != "" {
 		apiConfig := &plugin.ServerConfig{
-			SocketPath: r.config.APISocketPath,
+			SocketPath:         r.config.APISocketPath,
+			ConfiguredFamilies: r.config.ConfiguredFamilies,
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

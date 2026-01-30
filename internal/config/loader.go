@@ -269,45 +269,6 @@ func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
 	return nil
 }
 
-// autoLoadFamilyPlugins adds internal plugins for configured families that need them.
-// Only adds plugins if no explicit plugin is configured for the family.
-// This allows configs to specify families like ipv4/flow without explicitly loading ze.flowspec.
-func autoLoadFamilyPlugins(cfg *BGPConfig) {
-	// Build set of explicitly configured plugins
-	explicitPlugins := make(map[string]bool)
-	for _, p := range cfg.Plugins {
-		explicitPlugins[p.Name] = true
-		// Also check without "ze." prefix
-		if len(p.Name) > 3 && p.Name[:3] == "ze." {
-			explicitPlugins[p.Name[3:]] = true
-		}
-	}
-
-	// Collect all configured families from peers
-	totalFamilies := 0
-	for _, peer := range cfg.Peers {
-		totalFamilies += len(peer.Families)
-	}
-	configuredFamilies := make([]string, 0, totalFamilies)
-	for _, peer := range cfg.Peers {
-		configuredFamilies = append(configuredFamilies, peer.Families...)
-	}
-
-	// Get required plugins for configured families
-	for _, requiredPlugin := range plugin.GetRequiredPlugins(configuredFamilies) {
-		if !explicitPlugins[requiredPlugin] {
-			configLogger().Debug("auto-loading plugin for configured family",
-				"plugin", requiredPlugin)
-			cfg.Plugins = append(cfg.Plugins, PluginConfig{
-				Name:     requiredPlugin,
-				Encoder:  "json",
-				Internal: true, // Run in-process
-			})
-			explicitPlugins[requiredPlugin] = true // Prevent duplicates
-		}
-	}
-}
-
 // CreateReactor creates a Reactor from typed BGPConfig.
 func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 	return CreateReactorWithDir(cfg, "")
@@ -378,21 +339,27 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		return nil, fmt.Errorf("load environment: %w", err)
 	}
 
-	// Auto-load plugins for configured families (if not explicitly configured)
-	autoLoadFamilyPlugins(cfg)
+	// Collect all families configured across all peers for deferred auto-load.
+	// Auto-load happens after explicit plugins register, based on which families
+	// remain unclaimed. Families are per-peer in config but aggregated here.
+	var configuredFamilies []string
+	for _, peer := range cfg.Peers {
+		configuredFamilies = append(configuredFamilies, peer.Families...)
+	}
 
 	// Build reactor config
 	reactorCfg := &reactor.Config{
-		ListenAddr:  cfg.Listen,
-		RouterID:    cfg.RouterID,
-		LocalAS:     cfg.LocalAS,
-		ConfigDir:   configDir,
-		ConfigTree:  cfg.ConfigTree,
-		MaxSessions: env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
+		ListenAddr:         cfg.Listen,
+		RouterID:           cfg.RouterID,
+		LocalAS:            cfg.LocalAS,
+		ConfigDir:          configDir,
+		ConfigTree:         cfg.ConfigTree,
+		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
+		ConfiguredFamilies: configuredFamilies,
 	}
 
-	// Set API socket path if plugins are configured
-	if len(cfg.Plugins) > 0 {
+	// Set API socket path if plugins are configured or families might need auto-load
+	if len(cfg.Plugins) > 0 || len(configuredFamilies) > 0 {
 		reactorCfg.APISocketPath = env.SocketPath()
 
 		// Convert plugin configs

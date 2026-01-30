@@ -11,8 +11,9 @@
 # - If test receives the marker UPDATE → external plugin is active
 # - If marker not received → internal plugin was used (test fails)
 #
-# Key: Auto-load checks plugin NAMES. If a plugin named "flowspec" exists in config,
-# the internal flowspec plugin is NOT auto-loaded.
+# Key: Auto-load uses FAMILY-based detection. If an explicit plugin declares
+# `declare family ipv4 flow decode`, that family is claimed in the registry.
+# Auto-load then skips internal plugins for claimed families.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
