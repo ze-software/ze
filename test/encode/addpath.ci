@@ -43,11 +43,9 @@ bgp {
 				local-preference 100;
 				extended-community [ target:0:0 target:1:1 ];
 				path-information 10;
-				rd 100:100;
-				label 20012;
 			}
 			nlri {
-				ipv4/mpls-vpn 10.0.0.0/24;
+				ipv4/mpls-vpn rd 100:100 label 20012 10.0.0.0/24;
 			}
 		}
 		add-path {

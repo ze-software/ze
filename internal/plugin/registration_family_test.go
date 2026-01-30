@@ -208,8 +208,8 @@ func TestFamilyLookupCaseInsensitive(t *testing.T) {
 
 	// All case variations should work
 	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOWSPEC"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("IPv4/FlowSpec"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOW"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("IPv4/Flow"))
 }
 
 // TestFamilyRegisterCaseInsensitive verifies registration normalizes family case.
@@ -222,14 +222,14 @@ func TestFamilyRegisterCaseInsensitive(t *testing.T) {
 	// Register with MIXED CASE
 	plugin := &PluginRegistration{
 		Name:           "flowspec",
-		DecodeFamilies: []string{"IPv4/FlowSpec"},
+		DecodeFamilies: []string{"IPv4/Flow"},
 	}
 	err := registry.Register(plugin)
 	require.NoError(t, err)
 
 	// Lookup should work with any case
 	assert.Equal(t, "flowspec", registry.LookupFamily("ipv4/flow"))
-	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOWSPEC"))
+	assert.Equal(t, "flowspec", registry.LookupFamily("IPV4/FLOW"))
 }
 
 // TestFamilyConflictCaseInsensitive verifies conflict detection is case-insensitive.
@@ -250,7 +250,7 @@ func TestFamilyConflictCaseInsensitive(t *testing.T) {
 	// Second plugin tries UPPERCASE - should still conflict
 	plugin2 := &PluginRegistration{
 		Name:           "plugin2",
-		DecodeFamilies: []string{"IPV4/FLOWSPEC"},
+		DecodeFamilies: []string{"IPV4/FLOW"},
 	}
 	err = registry.Register(plugin2)
 	require.Error(t, err)

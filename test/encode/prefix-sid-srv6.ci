@@ -30,13 +30,11 @@ bgp {
 			attribute {
 				origin igp;
 				next-hop cafe::1;
-				rd 4:100;
-				label 3;
 				extended-community [ target:4:100 ];
 				bgp-prefix-sid-srv6 ( l3-service 2001:1:: );
 			}
 			nlri {
-				ipv4/mpls-vpn 10.1.0.0/24;
+				ipv4/mpls-vpn rd 4:100 label 3 10.1.0.0/24;
 			}
 		}
 	}

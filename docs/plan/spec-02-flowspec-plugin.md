@@ -604,3 +604,176 @@ This is consistent with other VPN families and is the documented API.
 - [x] FlowSpec types removed from nlri/
 - [x] Engine uses plugin for FlowSpec (direct shortcut)
 - [ ] All files committed together
+
+---
+
+## Phase 5: FlowSpec Family Advertisement in OPEN
+
+### Problem Statement
+
+**Gap identified:** Plugin family declarations (Stage 1) are NOT linked to OPEN capability advertisement.
+
+| What plugin does | What engine does | Gap |
+|------------------|------------------|-----|
+| `declare family ipv4 flow decode` | Routes FlowSpec NLRIs to plugin | ✅ Works |
+| Plugin loads | Auto-add Multiprotocol(1,133) to OPEN | ❌ Not implemented |
+
+**Current requirement:** Config must explicitly specify FlowSpec families even when FlowSpec plugin is loaded:
+
+```
+peer 192.0.2.1 {
+    family {
+        ipv4/flow;      # Must be explicit
+        ipv6/flow;      # Must be explicit
+    }
+}
+```
+
+### Architecture Analysis
+
+**Current Flow:**
+
+```
+Config File                    PeerSettings                 OPEN Message
+────────────────              ────────────────              ─────────────
+family {                      Capabilities: []cap{         Multiprotocol
+  ipv4/flow;        ───►        &Multiprotocol{      ───►  AFI=1, SAFI=133
+}                               AFI:1, SAFI:133}}
+```
+
+**Missing Link:**
+
+```
+Plugin Stage 1                Plugin Registry              PeerSettings
+────────────────              ────────────────             ─────────────
+declare family                families["ipv4/flow"]        Capabilities: ???
+ipv4 flow decode    ───►      = "flowspec"                 (no auto-add)
+```
+
+### Key Source Files
+
+| File | Role |
+|------|------|
+| `internal/plugin/flowspec/plugin.go:66-81` | Stage 1 family declarations |
+| `internal/plugin/registration.go:156-157` | Registry stores family→plugin mapping |
+| `internal/plugin/bgp/reactor/peersettings.go:215` | `Capabilities []capability.Capability` |
+| `internal/plugin/bgp/capability/capability.go:247-272` | `Multiprotocol` struct |
+| `internal/config/bgp.go` | Config → PeerSettings conversion |
+
+### RFC Requirements
+
+| RFC | Requirement |
+|-----|-------------|
+| RFC 4760 Section 8 | Multiprotocol capability (Code 1) advertises AFI/SAFI support |
+| RFC 8955 Section 7 | FlowSpec uses AFI=1 (IPv4) or AFI=2 (IPv6), SAFI=133 or SAFI=134 |
+| RFC 5492 Section 4 | Capabilities must be advertised in OPEN for negotiation |
+
+### Implementation Options
+
+#### Option A: Explicit Config (Current Design - Document Only)
+
+**Keep current behavior.** Config explicitly lists families to advertise.
+
+**Pros:**
+- Explicit is better than implicit
+- No magic behavior
+- User controls exactly what's negotiated
+- Plugin loading doesn't change OPEN behavior
+
+**Cons:**
+- User must remember to add families when loading plugin
+- Error-prone: plugin loaded but families not configured
+
+**Action:** Document this requirement clearly.
+
+#### Option B: Auto-Inject Multiprotocol Capabilities (Recommended)
+
+**Plugin declares families → Engine auto-adds Multiprotocol capabilities to OPEN.**
+
+**Mechanism:**
+
+1. Plugin Stage 1: `declare family ipv4 flow decode` (existing)
+2. Plugin Stage 3: `capability multiprotocol ipv4 flow` (new - auto-generated)
+3. Engine merges plugin capabilities into `PeerSettings.Capabilities`
+
+**Changes Required:**
+
+| File | Change |
+|------|--------|
+| `internal/plugin/flowspec/plugin.go` | Add Stage 3 capability injection |
+| `internal/plugin/bgp/reactor/peer.go` | Merge plugin caps into OPEN |
+| `internal/plugin/registration.go` | Track families→Multiprotocol mapping |
+
+**Stage 3 Addition to FlowSpec Plugin:**
+
+```
+# In doStartupProtocol(), after Stage 2 config:
+
+# Stage 3: Inject Multiprotocol capabilities for declared families
+capability hex 1 00010085  # AFI=1, SAFI=133 (ipv4/flowspec)
+capability hex 1 00010086  # AFI=1, SAFI=134 (ipv4/flowspec-vpn)
+capability hex 1 00020085  # AFI=2, SAFI=133 (ipv6/flowspec)
+capability hex 1 00020086  # AFI=2, SAFI=134 (ipv6/flowspec-vpn)
+capability done
+```
+
+**Pros:**
+- Plugin self-describes its requirements
+- No config changes needed when loading plugin
+- Follows plugin protocol (Stage 3 is for this purpose)
+
+**Cons:**
+- Implicit behavior (plugin loading changes OPEN)
+- May conflict with explicit config families
+
+#### Option C: Validation Only
+
+**Validate that advertised families have a decoding plugin registered.**
+
+**Mechanism:**
+
+1. Config specifies families (as now)
+2. At peer startup, check: `registry.LookupFamily(family) != ""`
+3. Warn/error if family advertised but no plugin can decode it
+
+**Pros:**
+- Catches misconfiguration early
+- No behavior change, just validation
+- Works with any family, not just FlowSpec
+
+**Cons:**
+- Doesn't solve "plugin loaded but family not configured" case
+- Just validation, not auto-injection
+
+### Recommendation
+
+**Implement Option B + Option C:**
+
+1. **FlowSpec plugin injects Multiprotocol capabilities** in Stage 3
+2. **Engine validates** advertised families have decoders
+3. **Document** the behavior clearly
+
+### Implementation Steps (Option B)
+
+1. **Update FlowSpec plugin Stage 3** - inject capability lines
+
+   | Capability | Hex Encoding | Meaning |
+   |------------|--------------|---------|
+   | `capability hex 1 00010085` | Code=1, AFI=0x0001, Res=0x00, SAFI=0x85 | IPv4 FlowSpec |
+   | `capability hex 1 00010086` | Code=1, AFI=0x0001, Res=0x00, SAFI=0x86 | IPv4 FlowSpec VPN |
+   | `capability hex 1 00020085` | Code=1, AFI=0x0002, Res=0x00, SAFI=0x85 | IPv6 FlowSpec |
+   | `capability hex 1 00020086` | Code=1, AFI=0x0002, Res=0x00, SAFI=0x86 | IPv6 FlowSpec VPN |
+
+2. **Update peer OPEN building** - merge plugin-injected capabilities
+
+3. **Add validation** - warn if family advertised without decoder
+
+4. **Add functional test** - verify FlowSpec families appear in OPEN
+
+### Phase 5 Checklist
+
+- [ ] FlowSpec plugin injects Multiprotocol capabilities (Stage 3)
+- [ ] Engine merges plugin capabilities into OPEN
+- [ ] Validation: advertised families have decoders
+- [ ] Functional test: OPEN includes FlowSpec families
+- [ ] Documentation updated

@@ -264,6 +264,47 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 	}
 }
 
+// TestStartupCapabilityInjection verifies Stage 3 Multiprotocol capability injection.
+//
+// VALIDATES: Plugin injects Multiprotocol capabilities for all FlowSpec families.
+// PREVENTS: OPEN missing FlowSpec families when plugin is loaded.
+// RFC 4760 Section 8: Multiprotocol capability format.
+// RFC 8955 Section 7: FlowSpec uses SAFI 133 (0x85) and SAFI 134 (0x86 for VPN).
+func TestStartupCapabilityInjection(t *testing.T) {
+	// Provide startup handshake
+	startupInput := "config done\nregistry done\n"
+	input := strings.NewReader(startupInput)
+	output := &bytes.Buffer{}
+
+	plugin := NewFlowSpecPlugin(input, output)
+	plugin.Run()
+
+	result := output.String()
+
+	// Verify Stage 1 family declarations
+	assert.Contains(t, result, "declare family ipv4 flow encode")
+	assert.Contains(t, result, "declare family ipv4 flow decode")
+	assert.Contains(t, result, "declare family ipv6 flow encode")
+	assert.Contains(t, result, "declare family ipv6 flow decode")
+	assert.Contains(t, result, "declare family ipv4 flow-vpn encode")
+	assert.Contains(t, result, "declare family ipv4 flow-vpn decode")
+	assert.Contains(t, result, "declare family ipv6 flow-vpn encode")
+	assert.Contains(t, result, "declare family ipv6 flow-vpn decode")
+	assert.Contains(t, result, "declare done")
+
+	// Verify Stage 3 Multiprotocol capability injection.
+	// Format: capability hex <code> <AFI(2)><Reserved(1)><SAFI(1)>
+	// Code 1 = Multiprotocol Extensions (RFC 4760)
+	assert.Contains(t, result, "capability hex 1 00010085", "missing IPv4 FlowSpec (AFI=1, SAFI=133)")
+	assert.Contains(t, result, "capability hex 1 00010086", "missing IPv4 FlowSpec VPN (AFI=1, SAFI=134)")
+	assert.Contains(t, result, "capability hex 1 00020085", "missing IPv6 FlowSpec (AFI=2, SAFI=133)")
+	assert.Contains(t, result, "capability hex 1 00020086", "missing IPv6 FlowSpec VPN (AFI=2, SAFI=134)")
+	assert.Contains(t, result, "capability done")
+
+	// Verify Stage 5 ready
+	assert.Contains(t, result, "ready")
+}
+
 // TestEventLoopSerialPrefix verifies the eventLoop uses correct serial prefixes.
 // Request: #serial command → Response: @serial result
 //

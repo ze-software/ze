@@ -83,7 +83,16 @@ func (p *FlowSpecPlugin) doStartupProtocol() {
 	// Stage 2: Parse config (FlowSpec plugin doesn't need config)
 	p.waitForLine("config done")
 
-	// Stage 3: No capabilities to register
+	// Stage 3: Inject Multiprotocol capabilities for FlowSpec families.
+	// RFC 4760 Section 8: Multiprotocol capability (Code 1) value is 4 bytes:
+	//   AFI (2 bytes) + Reserved (1 byte, 0x00) + SAFI (1 byte)
+	// RFC 8955 Section 7: FlowSpec uses SAFI 133 (0x85) and SAFI 134 (0x86 for VPN).
+	//
+	// This ensures OPEN advertises FlowSpec families when plugin is loaded.
+	p.send("capability hex 1 00010085") // IPv4 FlowSpec: AFI=1, SAFI=133
+	p.send("capability hex 1 00010086") // IPv4 FlowSpec VPN: AFI=1, SAFI=134
+	p.send("capability hex 1 00020085") // IPv6 FlowSpec: AFI=2, SAFI=133
+	p.send("capability hex 1 00020086") // IPv6 FlowSpec VPN: AFI=2, SAFI=134
 	p.send("capability done")
 
 	// Stage 4: Wait for registry

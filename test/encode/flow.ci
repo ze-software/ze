@@ -66,11 +66,10 @@ bgp {
 		# Route 1: flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community discard
 		update {
 			attribute {
-				rd 65535:65536;
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv4/flow-vpn source-ipv4 10.0.0.1/32;
+				ipv4/flow-vpn rd 65535:65536 source-ipv4 10.0.0.1/32;
 			}
 		}
 
@@ -139,12 +138,11 @@ bgp {
 		# Route 8: flow-vpn with redirect-to-nexthop
 		update {
 			attribute {
-				rd 65535:65536;
 				next-hop 5.6.7.8;
 				extended-community [redirect-to-nexthop];
 			}
 			nlri {
-				ipv4/flow-vpn source-ipv4 10.0.0.3/32;
+				ipv4/flow-vpn rd 65535:65536 source-ipv4 10.0.0.3/32;
 			}
 		}
 
