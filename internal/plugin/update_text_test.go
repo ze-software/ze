@@ -2388,7 +2388,7 @@ func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 // PREVENTS: FlowSpec VPN not parsing RD.
 func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flow-vpn", "rd", "65000:100", "add",
+		"nlri", "ipv4/flow-vpn", "add", "rd", "65000:100",
 		"destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3184,7 +3184,7 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", tc.family, "rd", tc.rdInput, "add"}, tc.components...)
+			args := append([]string{"nlri", tc.family, "add", "rd", tc.rdInput}, tc.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "VPN %s failed", tc.name)
 			require.Len(t, result.Groups, 1)

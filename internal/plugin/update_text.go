@@ -1203,7 +1203,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 	// FlowSpec families use different parsing (components instead of prefixes)
 	// RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components
 	if family.SAFI == nlri.SAFIFlowSpec || family.SAFI == nlri.SAFIFlowSpecVPN {
-		return parseFlowSpecSection(args, family, accum)
+		return parseFlowSpecSection(args, family)
 	}
 
 	// VPLS families use different parsing (multi-field NLRI)
@@ -1443,37 +1443,23 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 	return nlri.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
 }
 
-// parseFlowSpecSection parses nlri <flowspec-family> [rd <value>] add <components>+ | del <components>+
+// isFlowSpecBoundary returns true if token ends FlowSpec section (next section starts).
+// rd is NOT a boundary since it's valid within flow-vpn rules.
+func isFlowSpecBoundary(token string) bool {
+	if token == kwRD {
+		return false // rd is valid within flowspec-vpn (after add/del)
+	}
+	return isBoundaryKeyword(token)
+}
+
+// parseFlowSpecSection parses nlri <flowspec-family> add [rd <value>] <components>+ | del <components>+
 // RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components.
+// For flow-vpn families, rd is required after add/del. For flow families, rd is invalid.
 // Returns family, announce list, withdraw list, watchdog name, consumed tokens, and error.
-func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
 	// args[0] = "nlri", args[1] = family string
 	consumed := 2
 	i := 2
-
-	// Parse in-NLRI modifiers: rd <value> (for flowspec-vpn)
-	for i < len(args) {
-		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
-
-		if token == kwRD {
-			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value (ASN:NN or IP:NN)")
-			}
-			next := args[i+1]
-			if next == kwSet {
-				break // Accumulator syntax, not in-NLRI modifier
-			}
-			rd, err := nlri.ParseRDString(next)
-			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
-			}
-			accum.RD = rd
-			i += 2
-			consumed += 2
-			continue
-		}
-		break
-	}
 
 	// Parse add/del + components
 	mode := "" // "", "add", or "del"
@@ -1482,8 +1468,8 @@ func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (n
 	for i < len(args) {
 		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
 
-		// Boundary keywords end this section
-		if isBoundaryKeyword(token) {
+		// Boundary keywords end this section (rd is valid within flowspec-vpn)
+		if isFlowSpecBoundary(token) {
 			break
 		}
 
@@ -1510,7 +1496,7 @@ func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (n
 		}
 
 		// Parse FlowSpec components for this rule
-		fs, extra, err := parseFlowSpecComponents(args[i:], family, accum)
+		fs, extra, err := parseFlowSpecComponents(args[i:], family)
 		if err != nil {
 			return nlri.Family{}, nil, nil, "", 0, err
 		}
@@ -1532,33 +1518,61 @@ func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (n
 }
 
 // parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
+// For flow-vpn: rd <value> is required after add/del.
+// For flow: rd is invalid.
 // Calls flowspec.EncodeFlowSpecComponents directly (in-process plugin).
-// For external family plugins, use server.EncodeNLRI() instead.
 // RFC 8955: Components are ANDed together.
-func parseFlowSpecComponents(args []string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
-	// Collect component tokens until boundary or mode switch
+func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int, error) {
 	consumed := 0
-	for i := 0; i < len(args); i++ {
+	i := 0
+
+	// Parse rd <value> if present (must be first after add/del)
+	var rd nlri.RouteDistinguisher
+	hasRD := false
+	if i < len(args) && args[i] == kwRD {
+		if i+1 >= len(args) {
+			return nil, 0, errors.New("rd requires value (ASN:NN or IP:NN)")
+		}
+		var err error
+		rd, err = nlri.ParseRDString(args[i+1])
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid rd: %w", err)
+		}
+		hasRD = true
+		i += 2
+		consumed += 2
+	}
+
+	// Validate rd presence based on family
+	isVPN := family.SAFI == nlri.SAFIFlowSpecVPN
+	if isVPN && !hasRD {
+		return nil, 0, fmt.Errorf("%w: rd required for %s", ErrMissingRD, family)
+	}
+	if !isVPN && hasRD {
+		return nil, 0, fmt.Errorf("rd not allowed for %s (use %s/flow-vpn)", family, family.AFI)
+	}
+
+	// Collect component tokens until boundary or mode switch
+	start := i
+	for i < len(args) {
 		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
 		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel {
 			break
 		}
+		i++
 		consumed++
 	}
 
-	if consumed == 0 {
+	if i == start {
 		return nil, 0, errors.New("flowspec requires at least one component")
 	}
 
 	// Build args for plugin: for VPN, prepend "rd <value>"
 	var pluginArgs []string
-	if family.SAFI == nlri.SAFIFlowSpecVPN {
-		if accum.RD.Type == 0 && accum.RD.Value == [6]byte{} {
-			return nil, 0, fmt.Errorf("%w: rd required for %s", ErrMissingRD, family)
-		}
-		pluginArgs = append(pluginArgs, "rd", accum.RD.String())
+	if isVPN {
+		pluginArgs = append(pluginArgs, "rd", rd.String())
 	}
-	pluginArgs = append(pluginArgs, args[:consumed]...)
+	pluginArgs = append(pluginArgs, args[start:i]...)
 
 	// Call flowspec encoder directly (in-process plugin)
 	wireBytes, err := flowspec.EncodeFlowSpecComponents(family, pluginArgs)

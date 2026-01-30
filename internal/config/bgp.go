@@ -1601,8 +1601,29 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 
 		// Standard families with simple prefixes
 		// Filter out action keywords (add/del) - config routes are always announcements
+		// Parse inline rd/label for VPN/labeled families (order doesn't matter):
+		//   ipv4/mpls-vpn rd 65000:100 label 100 10.0.0.0/24
+		//   ipv4/mpls-vpn label 100 rd 65000:100 10.0.0.0/24
+		remaining := parts[1:]
+		var inlineRD, inlineLabel string
+
+		// Parse rd/label in any order (both optional)
+		for len(remaining) >= 2 {
+			switch remaining[0] {
+			case "rd":
+				inlineRD = remaining[1]
+				remaining = remaining[2:]
+				continue
+			case "label":
+				inlineLabel = remaining[1]
+				remaining = remaining[2:]
+				continue
+			}
+			break
+		}
+
 		var prefixes []string
-		for _, p := range parts[1:] {
+		for _, p := range remaining {
 			if p == "add" || p == "del" || p == "eor" {
 				continue // Skip action keywords
 			}
@@ -1635,6 +1656,14 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 				p = netip.PrefixFrom(ip, bits)
 			}
 			sr.Prefix = p
+
+			// Apply inline rd/label (parsed from NLRI line)
+			if inlineRD != "" {
+				sr.RD = inlineRD
+			}
+			if inlineLabel != "" {
+				sr.Label = inlineLabel
+			}
 
 			// Apply attributes using shared helper
 			if err := applyAttributesFromTree(attr, &sr); err != nil {
@@ -1669,10 +1698,13 @@ func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error)
 		NLRI:   make(map[string][]string),
 	}
 
-	// Check for VPN variant
+	// Parse inline rd for VPN variant: ipv4/flow-vpn rd 65000:100 destination ...
+	// RD is part of NLRI (RFC 8955), not a path attribute
+	criteria := parts[1:]
 	if strings.HasSuffix(family, "-vpn") {
-		if v, ok := attr.Get("rd"); ok {
-			fr.RD = v
+		if len(criteria) >= 2 && criteria[0] == "rd" {
+			fr.RD = criteria[1]
+			criteria = criteria[2:] // consume rd <value>
 		}
 	}
 
@@ -1699,7 +1731,6 @@ func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error)
 	// Parse NLRI match criteria from remaining parts
 	// Format: <criterion> <value> [<criterion> <value>]...
 	// Values are stored as slices to support multi-value criteria like "protocol [ =tcp =udp ]"
-	criteria := parts[1:]
 	for i := 0; i < len(criteria); i++ {
 		criterion := normalizeFlowSpecCriterion(criteria[i])
 		// Handle bracketed lists like [ >200&<300 >400&<500 ]
@@ -1987,9 +2018,7 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 	if v, ok := tree.Get("labels"); ok {
 		sr.Labels = parseLabelsArray(v)
 	}
-	if v, ok := tree.Get("rd"); ok {
-		sr.RD = v
-	}
+	// Note: rd is parsed inline with NLRI, not from attributes
 	if v, ok := tree.Get("aggregator"); ok {
 		sr.Aggregator = v
 	}

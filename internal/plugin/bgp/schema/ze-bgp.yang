@@ -289,7 +289,6 @@ module ze-bgp {
                 leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
                 leaf large-community { ze:syntax "value-or-array"; type string; description "Large communities"; }
                 leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
-                leaf rd { type string; description "Route Distinguisher for VPN"; }
                 leaf label { type string; description "MPLS label"; }
                 leaf labels { ze:syntax "value-or-array"; type string; description "Multi-label stack (RFC 8277)"; }
                 leaf path-information { type string; description "ADD-PATH path-id"; }
