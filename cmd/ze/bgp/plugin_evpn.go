@@ -1,6 +1,8 @@
+//nolint:dupl // Plugin CLI files intentionally follow the same pattern
 package bgp
 
 import (
+	"flag"
 	"io"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
@@ -12,17 +14,19 @@ import (
 //
 // CLI Mode: Direct hex input for human use.
 //
-//	ze bgp plugin evpn --nlri 02210001252C...        # JSON output (default)
-//	ze bgp plugin evpn --nlri 02210001252C... --text # text output
-//	ze bgp plugin evpn --nlri -                      # read hex from stdin
-//	ze bgp plugin evpn --features                    # list supported features
+//	ze bgp plugin evpn --nlri 02210001252C...              # JSON output (default)
+//	ze bgp plugin evpn --nlri 02210001252C... --text       # text output
+//	ze bgp plugin evpn --nlri - --family l2vpn/evpn        # read hex from stdin
+//	ze bgp plugin evpn --features                          # list supported features
 //
 // Engine Decode Mode (--decode): Protocol commands on stdin.
 //
-//	ze bgp plugin evpn --decode                      # reads "decode nlri ..." from stdin
+//	ze bgp plugin evpn --decode                            # reads "decode nlri ..." from stdin
 //
 // Engine Mode (no flags, no args): Full plugin with startup protocol.
 func cmdPluginEVPN(args []string) int {
+	var family *string
+
 	return RunPlugin(PluginConfig{
 		Name:         "evpn",
 		Features:     "nlri",
@@ -32,8 +36,13 @@ func cmdPluginEVPN(args []string) int {
 		ConfigLogger: func(level string) {
 			evpn.SetEVPNLogger(slogutil.PluginLogger("evpn", level))
 		},
-		RunCLIDecode: evpn.RunCLIDecode,
-		RunDecode:    evpn.RunEVPNDecode,
+		ExtraFlags: func(fs *flag.FlagSet) {
+			family = fs.String("family", "l2vpn/evpn", "Address family (l2vpn/evpn)")
+		},
+		RunCLIWithCtx: func(hex string, text bool, out, errOut io.Writer, fs *flag.FlagSet) int {
+			return evpn.RunCLIDecode(hex, *family, text, out, errOut)
+		},
+		RunDecode: evpn.RunEVPNDecode,
 		RunEngine: func(in io.Reader, out io.Writer) int {
 			return evpn.NewEVPNPlugin(in, out).Run()
 		},

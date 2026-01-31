@@ -195,22 +195,36 @@ func GetEVPNYANG() string {
 // This is for direct CLI invocation: ze bgp plugin evpn --nlri <hex>
 // Output is plain JSON array or text (no "decoded json" prefix).
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
-func RunCLIDecode(hexData string, textOutput bool, output, errOut io.Writer) int {
+func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
+	writeErr := func(format string, args ...any) {
+		_, e := fmt.Fprintf(errOut, format, args...)
+		_ = e // CLI output - pipe failure is unrecoverable
+	}
+	writeOut := func(s string) {
+		_, e := fmt.Fprintln(output, s)
+		_ = e // CLI output - pipe failure is unrecoverable
+	}
+
+	if !isValidEVPNFamily(family) {
+		writeErr("error: invalid family: %s (expected l2vpn/evpn)\n", family)
+		return 1
+	}
+
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		_, _ = fmt.Fprintf(errOut, "error: invalid hex: %v\n", err)
+		writeErr("error: invalid hex: %v\n", err)
 		return 1
 	}
 
 	results := decodeEVPNNLRI(data)
 	if len(results) == 0 {
-		_, _ = fmt.Fprintln(errOut, "error: no valid EVPN routes decoded")
+		writeErr("error: no valid EVPN routes decoded\n")
 		return 1
 	}
 
 	if textOutput {
 		for _, r := range results {
-			_, _ = fmt.Fprintln(output, formatEVPNTextSingle(r))
+			writeOut(formatEVPNTextSingle(r))
 		}
 		return 0
 	}
@@ -218,10 +232,10 @@ func RunCLIDecode(hexData string, textOutput bool, output, errOut io.Writer) int
 	// JSON output (default)
 	jsonBytes, err := json.MarshalIndent(results, "", "  ")
 	if err != nil {
-		_, _ = fmt.Fprintf(errOut, "error: JSON encoding failed: %v\n", err)
+		writeErr("error: JSON encoding failed: %v\n", err)
 		return 1
 	}
-	_, _ = fmt.Fprintln(output, string(jsonBytes))
+	writeOut(string(jsonBytes))
 	return 0
 }
 

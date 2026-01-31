@@ -465,7 +465,7 @@ func TestRunCLIDecode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var out, errOut bytes.Buffer
-			code := RunCLIDecode(tt.hex, tt.textOutput, &out, &errOut)
+			code := RunCLIDecode(tt.hex, "l2vpn/evpn", tt.textOutput, &out, &errOut)
 			assert.Equal(t, tt.wantCode, code)
 			if tt.wantOut != "" {
 				assert.Contains(t, out.String(), tt.wantOut)
@@ -475,4 +475,15 @@ func TestRunCLIDecode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRunCLIDecodeInvalidFamily verifies error on invalid family.
+//
+// VALIDATES: Invalid family is rejected.
+// PREVENTS: Silent failure on bad input.
+func TestRunCLIDecodeInvalidFamily(t *testing.T) {
+	var out, errOut bytes.Buffer
+	code := RunCLIDecode("02", "invalid/family", false, &out, &errOut)
+	assert.Equal(t, 1, code)
+	assert.Contains(t, errOut.String(), "invalid family")
 }
