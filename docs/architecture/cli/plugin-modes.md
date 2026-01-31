@@ -234,7 +234,98 @@ func cmdPluginFoo(args []string) int {
 }
 ```
 
+## Decode Command Plugin Invocation
+
+The `ze bgp decode` command supports three plugin invocation modes based on naming syntax.
+
+### Syntax Overview
+
+| Syntax | Mode | Execution | Use Case |
+|--------|------|-----------|----------|
+| `name` | Fork | Subprocess (`ze bgp plugin <name> --decode`) | Default, with in-process fallback |
+| `ze.name` | Internal | Goroutine + io.Pipe | Engine-style API, no fallback |
+| `ze-name` | Direct | Synchronous in-process | CLI decode, tests, fastest |
+| `/path/to/bin` | Fork | External binary with `--decode` | Custom decoders |
+| `/path/to/bin --args` | Fork | External binary with args + `--decode` | Custom decoders with options |
+
+### Examples
+
+```bash
+# Fork mode: subprocess (default)
+ze bgp decode --plugin flowspec --nlri ipv4/flow 0501180a0000
+
+# Internal mode: goroutine + pipe
+ze bgp decode --plugin ze.flowspec --nlri ipv4/flow 0501180a0000
+
+# Direct mode: synchronous in-process (fastest)
+ze bgp decode --plugin ze-flowspec --nlri ipv4/flow 0501180a0000
+
+# Fork mode: external binary
+ze bgp decode --plugin /usr/local/bin/my-decoder --nlri ipv4/custom abc123
+
+# Fork mode: external binary with arguments
+ze bgp decode --plugin "/usr/local/bin/my-decoder --verbose --format yaml" --nlri ipv4/custom abc123
+```
+
+### Mode Comparison
+
+| Aspect | Fork | Internal | Direct |
+|--------|------|----------|--------|
+| Process | New process | Same process | Same process |
+| Concurrency | OS-level | Goroutine | None (blocking) |
+| Communication | stdin/stdout pipes | Go io.Pipe | Function return |
+| Isolation | Full | Memory shared | Memory shared |
+| Speed | Slowest | Medium | Fastest |
+| Fallback | In-process retry | None | None |
+
+### External Plugin API Contract
+
+External plugins (paths containing `/`) must:
+
+1. Accept `--decode` flag (appended after any user-provided arguments)
+2. Read protocol commands from stdin: `decode nlri <family> <hex>`
+3. Write responses to stdout: `decoded json <json>`
+
+**Example external decoder:**
+
+```bash
+#!/bin/bash
+# /usr/local/bin/my-decoder --decode
+# Receives: decode nlri ipv4/custom abc123
+# Returns: decoded json {"custom": "data"}
+
+while read -r line; do
+    if [[ "$line" == decode\ nlri\ * ]]; then
+        echo 'decoded json {"custom": "parsed"}'
+    fi
+done
+```
+
+### Path Arguments
+
+When specifying a path with arguments, use quotes:
+
+```bash
+# Arguments are passed before --decode
+ze bgp decode --plugin "/opt/decoder --verbose --format json" --nlri ...
+
+# Executes: /opt/decoder --verbose --format json --decode
+# Then sends: decode nlri <family> <hex>
+```
+
+Arguments are split by whitespace. The `--decode` flag is always appended last.
+
+### Error Handling
+
+| Syntax | On Unknown Plugin |
+|--------|-------------------|
+| `ze.unknown` | Error: "internal plugin 'unknown' not registered" |
+| `ze-unknown` | Error: "direct decoder 'unknown' not available" |
+| `unknown` | Try subprocess → fallback to direct → nil |
+| `/missing/path` | Process spawn fails, returns nil |
+
 ## Related
 
 - `docs/architecture/api/plugin-protocol.md` - Engine-plugin protocol
 - `docs/architecture/debugging/plugin-testing.md` - Testing plugins
+- `docs/plan/done/198-plugin-invocation.md` - Implementation spec
