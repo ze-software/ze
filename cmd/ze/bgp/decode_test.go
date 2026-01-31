@@ -6,9 +6,76 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
+
+// Shared test binary setup - built once, used by all tests that need it.
+var (
+	testZeBinaryPath string
+	testZeBuildOnce  sync.Once
+	testZeBuildErr   error
+	testZeTmpDir     string
+)
+
+// TestMain handles cleanup of shared test resources.
+func TestMain(m *testing.M) {
+	code := m.Run()
+
+	// Cleanup temp directory after all tests complete
+	if testZeTmpDir != "" {
+		_ = os.RemoveAll(testZeTmpDir)
+	}
+
+	os.Exit(code)
+}
+
+// setupTestZeBinary builds ze binary once for all tests that need it.
+// Uses sync.Once to ensure only one build happens even with parallel tests.
+func setupTestZeBinary(t *testing.T) string {
+	t.Helper()
+
+	testZeBuildOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		// Create temp directory for binary
+		testZeTmpDir, testZeBuildErr = os.MkdirTemp("", "ze-decode-test-*")
+		if testZeBuildErr != nil {
+			testZeBuildErr = fmt.Errorf("create temp dir: %w", testZeBuildErr)
+			return
+		}
+
+		testZeBinaryPath = filepath.Join(testZeTmpDir, "ze")
+
+		// Find project root via go list
+		listCmd := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{.Dir}}")
+		output, err := listCmd.Output()
+		if err != nil {
+			testZeBuildErr = fmt.Errorf("find project root: %w", err)
+			return
+		}
+		projectRoot := strings.TrimSpace(string(output))
+
+		// Build ze binary once
+		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", testZeBinaryPath, "./cmd/ze") //nolint:gosec // test code
+		buildCmd.Dir = projectRoot
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			testZeBuildErr = fmt.Errorf("build ze: %w\n%s", err, buildOutput)
+			return
+		}
+	})
+
+	if testZeBuildErr != nil {
+		t.Skipf("skipping test requiring ze binary: %v", testZeBuildErr)
+	}
+
+	return testZeBinaryPath
+}
 
 // Test data constants to avoid goconst lint warnings.
 const (
@@ -1408,13 +1475,8 @@ func TestInvokePluginFork(t *testing.T) {
 // VALIDATES: /path/to/binary invokes external program with --decode.
 // PREVENTS: Path-based invocation falling back to in-process.
 func TestInvokePluginForkPath(t *testing.T) {
-	// Build ze binary to a temp location.
-	binPath := t.TempDir() + "/ze-test"
-	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, "codeberg.org/thomas-mangin/ze/cmd/ze") //nolint:gosec // test code
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Skipf("failed to build test binary: %v\n%s", err, out)
-	}
+	// Use shared pre-built binary (built once via sync.Once).
+	binPath := setupTestZeBinary(t)
 
 	// Create a wrapper script that calls ze bgp plugin flowspec --decode.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"

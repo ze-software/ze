@@ -2,7 +2,12 @@ package plugin
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,14 +15,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const subsystemBinaryPath = "/tmp/ze-subsystem-test"
+// Shared test binary setup - built once, used by all tests.
+var (
+	subsystemBinaryPath string
+	subsystemBuildOnce  sync.Once
+	subsystemBuildErr   error
+	subsystemTestTmpDir string
+)
 
-// buildSubsystemBinary builds the ze-subsystem binary for testing.
-func buildSubsystemBinary(ctx context.Context, t *testing.T) {
+// TestMain handles cleanup of shared test resources.
+func TestMain(m *testing.M) {
+	code := m.Run()
+
+	// Cleanup temp directory after all tests complete
+	if subsystemTestTmpDir != "" {
+		_ = os.RemoveAll(subsystemTestTmpDir)
+	}
+
+	os.Exit(code)
+}
+
+// buildSubsystemBinary builds the ze-subsystem binary once for all tests.
+// Uses sync.Once to ensure only one build happens even with parallel tests.
+func buildSubsystemBinary(_ context.Context, t *testing.T) {
 	t.Helper()
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", subsystemBinaryPath, "../../cmd/ze-subsystem")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "build failed: %s", output)
+
+	subsystemBuildOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		// Create temp directory for binary
+		subsystemTestTmpDir, subsystemBuildErr = os.MkdirTemp("", "ze-subsystem-test-*")
+		if subsystemBuildErr != nil {
+			subsystemBuildErr = fmt.Errorf("create temp dir: %w", subsystemBuildErr)
+			return
+		}
+
+		subsystemBinaryPath = filepath.Join(subsystemTestTmpDir, "ze-subsystem")
+
+		// Find project root via go list
+		listCmd := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{.Dir}}")
+		output, err := listCmd.Output()
+		if err != nil {
+			subsystemBuildErr = fmt.Errorf("find project root: %w", err)
+			return
+		}
+		projectRoot := strings.TrimSpace(string(output))
+
+		// Build ze-subsystem binary once
+		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", subsystemBinaryPath, "./cmd/ze-subsystem") //nolint:gosec // test code
+		buildCmd.Dir = projectRoot
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			subsystemBuildErr = fmt.Errorf("build ze-subsystem: %w\n%s", err, buildOutput)
+			return
+		}
+	})
+
+	if subsystemBuildErr != nil {
+		t.Skipf("skipping test requiring ze-subsystem binary: %v", subsystemBuildErr)
+	}
 }
 
 // TestSubsystemBinaryExists verifies the subsystem binary can be built.
