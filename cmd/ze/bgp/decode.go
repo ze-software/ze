@@ -430,6 +430,13 @@ func hasPluginEnabled(plugins []string, name string) bool {
 // Returns decoded JSON map or nil if decoding failed.
 // The request format varies: "decode capability <code> <hex>" or "decode nlri <family> <hex>".
 func invokePluginDecodeRequest(pluginName, request string) map[string]any {
+	// Skip subprocess spawning during tests - os.Args[0] is the test binary
+	// which would cause recursive test execution (fork bomb).
+	if strings.HasSuffix(os.Args[0], ".test") {
+		slog.Debug("plugin subprocess skipped in test environment", "plugin", pluginName)
+		return nil
+	}
+
 	// Build plugin command - pluginName comes from fixed maps (pluginCapabilityMap, pluginFamilyMap)
 	args := []string{"bgp", "plugin", pluginName, "--decode"}
 
@@ -440,20 +447,27 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
+		slog.Debug("plugin stdin pipe failed", "plugin", pluginName, "err", err)
 		return nil
 	}
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
+		slog.Debug("plugin stdout pipe failed", "plugin", pluginName, "err", err)
 		return nil
 	}
 
 	if err := cmd.Start(); err != nil {
+		slog.Debug("plugin start failed", "plugin", pluginName, "err", err)
 		return nil
 	}
 
 	// Send decode request
-	_, _ = stdin.Write([]byte(request + "\n"))
-	_ = stdin.Close()
+	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+		slog.Debug("plugin write failed", "plugin", pluginName, "err", err)
+	}
+	if err := stdin.Close(); err != nil {
+		slog.Debug("plugin stdin close failed", "plugin", pluginName, "err", err)
+	}
 
 	// Read response
 	scanner := bufio.NewScanner(stdout)
@@ -586,6 +600,13 @@ func parseDecodedJSON(line string) any {
 
 // invokePluginSubprocess spawns a plugin subprocess for NLRI decode.
 func invokePluginSubprocess(pluginName, request string) any {
+	// Skip subprocess spawning during tests - os.Args[0] is the test binary
+	// which would cause recursive test execution (fork bomb).
+	if strings.HasSuffix(os.Args[0], ".test") {
+		slog.Debug("plugin subprocess skipped in test environment", "plugin", pluginName)
+		return nil // Fall back to in-process via invokePluginNLRIDecodeRequest
+	}
+
 	args := []string{"bgp", "plugin", pluginName, "--decode"}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
