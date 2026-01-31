@@ -180,14 +180,17 @@ Consumers (decode.go):
 ### Invocation
 
 ```bash
-# CLI Mode - JSON output
-ze bgp plugin bgpls --json 0001000000000001...
+# CLI Mode - JSON output (default)
+ze bgp plugin bgpls --nlri 0001000000000001...
 
 # CLI Mode - Text output
-ze bgp plugin bgpls --text 0001000000000001...
+ze bgp plugin bgpls --nlri 0001000000000001... --text
 
 # CLI Mode - From stdin
-echo "0001000000000001..." | ze bgp plugin bgpls --json -
+echo "0001000000000001..." | ze bgp plugin bgpls --nlri -
+
+# Query supported features
+ze bgp plugin bgpls --features
 
 # Engine Decode Mode - Protocol commands on stdin
 ze bgp plugin bgpls --decode
@@ -200,15 +203,16 @@ ze bgp plugin bgpls
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json <hex\|->` | string | Decode hex, output JSON (use `-` for stdin) |
-| `--text <hex\|->` | string | Decode hex, output text (use `-` for stdin) |
+| `--nlri <hex\|->` | string | Decode NLRI hex, output JSON (use `-` for stdin) |
+| `--text` | bool | Output human-readable text instead of JSON |
+| `--features` | bool | List supported decode features |
 | `--decode` | bool | Engine decode protocol mode |
 | `--log-level` | string | Log level (disabled, debug, info, warn, err) |
 | `--yang` | bool | Output YANG schema and exit |
 
 ### Output Formats
 
-**JSON (`--json`):**
+**JSON (default):**
 ```json
 [{"nlri-type":1,"protocol-id":2,"local-node":{"as-number":65001,"bgp-ls-id":0}}]
 ```
@@ -291,12 +295,13 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 9. **Create `cmd/ze/bgp/plugin_bgpls.go`** (per `plugin-modes.md`)
    - CLI entry point with three-mode support:
-     - `--json <hex|->` - decode hex, output JSON (use `-` for stdin)
-     - `--text <hex|->` - decode hex, output text (use `-` for stdin)
+     - `--nlri <hex|->` - decode NLRI hex (use `-` for stdin)
+     - `--text` - output text instead of JSON
+     - `--features` - list supported features (`nlri yang`)
      - `--decode` - engine decode protocol mode
      - `--log-level` - logger configuration
      - `--yang` - output YANG schema
-   - Mode detection: `--json`/`--text` → CLI mode, `--decode` → engine decode, else → engine mode
+   - Mode detection: `--nlri` → CLI mode, `--decode` → engine decode, else → engine mode
    - Test: `go build ./cmd/ze/bgp/...`
    → **Review:** Follows plugin-modes.md pattern? All three modes work?
 

@@ -257,7 +257,7 @@ func GetFlowSpecYANG() string {
 }
 
 // RunCLIDecode decodes FlowSpec NLRI from hex string for CLI mode.
-// This is for direct CLI invocation: ze bgp plugin flowspec --json <hex>
+// This is for direct CLI invocation: ze bgp plugin flowspec --nlri <hex>
 // Output is plain JSON or text (no "decoded json" prefix).
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {

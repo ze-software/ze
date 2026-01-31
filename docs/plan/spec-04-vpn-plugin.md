@@ -125,17 +125,20 @@ Consumers (decode.go, encode.go, etc.):
 ### Invocation
 
 ```bash
-# CLI Mode - JSON output
-ze bgp plugin vpn --json 0001000100000001...
+# CLI Mode - JSON output (default)
+ze bgp plugin vpn --nlri 0001000100000001...
 
 # CLI Mode - Text output
-ze bgp plugin vpn --text 0001000100000001...
+ze bgp plugin vpn --nlri 0001000100000001... --text
 
 # CLI Mode - From stdin
-echo "0001000100000001..." | ze bgp plugin vpn --json -
+echo "0001000100000001..." | ze bgp plugin vpn --nlri -
 
 # CLI Mode - With family context (VPNv4 vs VPNv6)
-ze bgp plugin vpn --json --family ipv4/vpn 0001000100000001...
+ze bgp plugin vpn --nlri 0001000100000001... --family ipv4/vpn
+
+# Query supported features
+ze bgp plugin vpn --features
 
 # Engine Decode Mode - Protocol commands on stdin
 ze bgp plugin vpn --decode
@@ -148,16 +151,17 @@ ze bgp plugin vpn
 
 | Flag | Type | Description |
 |------|------|-------------|
-| `--json <hex\|->` | string | Decode hex, output JSON (use `-` for stdin) |
-| `--text <hex\|->` | string | Decode hex, output text (use `-` for stdin) |
+| `--nlri <hex\|->` | string | Decode NLRI hex, output JSON (use `-` for stdin) |
+| `--text` | bool | Output human-readable text instead of JSON |
 | `--family <family>` | string | Address family context (`ipv4/vpn` or `ipv6/vpn`) |
+| `--features` | bool | List supported decode features |
 | `--decode` | bool | Engine decode protocol mode |
 | `--log-level` | string | Log level (disabled, debug, info, warn, err) |
 | `--yang` | bool | Output YANG schema and exit |
 
 ### Output Formats
 
-**JSON (`--json`):**
+**JSON (default):**
 ```json
 [{"rd":"1:1","prefix":"10.0.0.0/24","labels":[[100]]}]
 ```
@@ -206,13 +210,14 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 4. **Create `cmd/ze/bgp/plugin_vpn.go`** (per `plugin-modes.md`)
    - CLI entry point with three-mode support:
-     - `--json <hex|->` - decode hex, output JSON (use `-` for stdin)
-     - `--text <hex|->` - decode hex, output text (use `-` for stdin)
+     - `--nlri <hex|->` - decode NLRI hex (use `-` for stdin)
+     - `--text` - output text instead of JSON
+     - `--features` - list supported features (`nlri yang`)
      - `--decode` - engine decode protocol mode
      - `--family <family>` - address family context
      - `--log-level` - logger configuration
      - `--yang` - output YANG schema
-   - Mode detection: `--json`/`--text` → CLI mode, `--decode` → engine decode, else → engine mode
+   - Mode detection: `--nlri` → CLI mode, `--decode` → engine decode, else → engine mode
    - Test: `go build ./cmd/ze/bgp/...`
    → **Review:** Follows plugin-modes.md pattern? All three modes work?
 

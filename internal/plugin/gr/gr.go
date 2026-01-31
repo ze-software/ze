@@ -7,6 +7,8 @@ package gr
 
 import (
 	"bufio"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -192,4 +194,111 @@ func (g *GRPlugin) send(format string, args ...any) {
 	g.outputMu.Lock()
 	_, _ = fmt.Fprintf(g.output, format+"\n", args...)
 	g.outputMu.Unlock()
+}
+
+// RunCLIDecode decodes hex capability data directly from CLI arguments.
+// This is for human use: `ze bgp plugin gr --capa <hex>` or with `--text`.
+// Returns exit code (0 = success, 1 = error).
+func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+	// Decode hex
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err)
+		return 1
+	}
+
+	// Parse GR capability value
+	result, err := decodeGR(data)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+		return 1
+	}
+
+	// Output based on format
+	if textOutput {
+		_, _ = fmt.Fprintln(stdout, formatGRText(result))
+	} else {
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "error: JSON encoding: %v\n", err)
+			return 1
+		}
+		_, _ = fmt.Fprintln(stdout, string(jsonBytes))
+	}
+	return 0
+}
+
+// grFamily represents an AFI/SAFI entry in GR capability.
+type grFamily struct {
+	AFI          uint16 `json:"afi"`
+	SAFI         uint8  `json:"safi"`
+	ForwardState bool   `json:"forward-state"`
+}
+
+// grResult represents decoded GR capability.
+type grResult struct {
+	Name         string     `json:"name"`
+	RestartFlags uint8      `json:"restart-flags"`
+	RestartTime  uint16     `json:"restart-time"`
+	Restarting   bool       `json:"restarting"`
+	Notification bool       `json:"notification"`
+	Families     []grFamily `json:"families,omitempty"`
+}
+
+// decodeGR decodes GR capability wire bytes.
+// RFC 4724 Section 3: Wire format is:
+//   - Restart Flags (4 bits) + Restart Time (12 bits) = 2 bytes
+//   - Per-family: AFI (2 bytes) + SAFI (1 byte) + Flags (1 byte)
+func decodeGR(data []byte) (*grResult, error) {
+	if len(data) < 2 {
+		return nil, fmt.Errorf("GR capability too short: need 2 bytes, got %d", len(data))
+	}
+
+	// First 2 bytes: flags (4 bits) + restart-time (12 bits)
+	flags := (data[0] >> 4) & 0x0F
+	restartTime := (uint16(data[0]&0x0F) << 8) | uint16(data[1])
+
+	result := &grResult{
+		Name:         "graceful-restart",
+		RestartFlags: flags,
+		RestartTime:  restartTime,
+		Restarting:   (flags & 0x08) != 0, // R-bit (RFC 4724)
+		Notification: (flags & 0x04) != 0, // N-bit (RFC 8538)
+	}
+
+	// Parse AFI/SAFI tuples (4 bytes each)
+	remaining := data[2:]
+	for len(remaining) >= 4 {
+		afi := (uint16(remaining[0]) << 8) | uint16(remaining[1])
+		safi := remaining[2]
+		famFlags := remaining[3]
+
+		result.Families = append(result.Families, grFamily{
+			AFI:          afi,
+			SAFI:         safi,
+			ForwardState: (famFlags & 0x80) != 0, // F-bit
+		})
+		remaining = remaining[4:]
+	}
+
+	return result, nil
+}
+
+// formatGRText formats GR capability as human-readable text.
+func formatGRText(r *grResult) string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("%-20s restart-time=%d", "graceful-restart", r.RestartTime))
+	if r.Restarting {
+		sb.WriteString(" restarting")
+	}
+	if r.Notification {
+		sb.WriteString(" notification")
+	}
+	for _, f := range r.Families {
+		sb.WriteString(fmt.Sprintf(" afi=%d/safi=%d", f.AFI, f.SAFI))
+		if f.ForwardState {
+			sb.WriteString("(F)")
+		}
+	}
+	return sb.String()
 }

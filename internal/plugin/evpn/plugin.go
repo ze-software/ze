@@ -192,7 +192,7 @@ func GetEVPNYANG() string {
 }
 
 // RunCLIDecode decodes EVPN NLRI from hex string for CLI mode.
-// This is for direct CLI invocation: ze bgp plugin evpn --json <hex>
+// This is for direct CLI invocation: ze bgp plugin evpn --nlri <hex>
 // Output is plain JSON array or text (no "decoded json" prefix).
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunCLIDecode(hexData string, textOutput bool, output, errOut io.Writer) int {

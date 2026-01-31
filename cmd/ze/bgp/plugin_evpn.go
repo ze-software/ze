@@ -16,24 +16,33 @@ import (
 //
 // CLI Mode: Direct hex input for human use.
 //
-//	ze bgp plugin evpn --json 02210001252C...   # JSON output (default format)
-//	ze bgp plugin evpn --text 02210001252C...   # text output
-//	ze bgp plugin evpn --json -                 # read hex from stdin
+//	ze bgp plugin evpn --nlri 02210001252C...        # JSON output (default)
+//	ze bgp plugin evpn --nlri 02210001252C... --text # text output
+//	ze bgp plugin evpn --nlri -                      # read hex from stdin
+//	ze bgp plugin evpn --features                    # list supported features
 //
 // Engine Decode Mode (--decode): Protocol commands on stdin.
 //
-//	ze bgp plugin evpn --decode                 # reads "decode nlri ..." from stdin
+//	ze bgp plugin evpn --decode                      # reads "decode nlri ..." from stdin
 //
 // Engine Mode (no flags, no args): Full plugin with startup protocol.
 func cmdPluginEVPN(args []string) int {
 	fs := flag.NewFlagSet("plugin evpn", flag.ExitOnError)
 	logLevel := fs.String("log-level", "disabled", "Log level (disabled, debug, info, warn, err)")
 	showYang := fs.Bool("yang", false, "Output YANG schema and exit")
+	showFeatures := fs.Bool("features", false, "List supported decode features")
 	decodeMode := fs.Bool("decode", false, "Engine decode protocol mode (reads commands from stdin)")
-	textHex := fs.String("text", "", "Decode hex and output human-readable text (use - for stdin)")
-	jsonHex := fs.String("json", "", "Decode hex and output JSON (use - for stdin)")
+	nlriHex := fs.String("nlri", "", "Decode NLRI hex and output JSON (use - for stdin)")
+	capaHex := fs.String("capa", "", "Decode capability hex (not supported by this plugin)")
+	textOutput := fs.Bool("text", false, "Output human-readable text instead of JSON")
 	if err := fs.Parse(args); err != nil {
 		return 1
+	}
+
+	// Output features if requested
+	if *showFeatures {
+		fmt.Println("nlri")
+		return 0
 	}
 
 	// Output YANG schema if requested
@@ -45,18 +54,15 @@ func cmdPluginEVPN(args []string) int {
 	// Configure plugin logger (CLI flag takes precedence, then env var hierarchy)
 	evpn.SetEVPNLogger(slogutil.PluginLogger("evpn", *logLevel))
 
-	// CLI Mode: --text <hex> or --json <hex> (mutually exclusive)
-	if *textHex != "" && *jsonHex != "" {
-		_, _ = fmt.Fprintln(os.Stderr, "error: --json and --text are mutually exclusive")
+	// Unsupported feature: --capa
+	if *capaHex != "" {
+		_, _ = fmt.Fprintln(os.Stderr, "error: plugin 'evpn' does not support --capa (available: --nlri)")
 		return 1
 	}
-	if *textHex != "" || *jsonHex != "" {
-		hex := *jsonHex
-		textOutput := false
-		if *textHex != "" {
-			hex = *textHex
-			textOutput = true
-		}
+
+	// CLI Mode: --nlri <hex> [--text]
+	if *nlriHex != "" {
+		hex := *nlriHex
 		if hex == "-" {
 			// Read single line from stdin
 			scanner := bufio.NewScanner(os.Stdin)
@@ -67,7 +73,7 @@ func cmdPluginEVPN(args []string) int {
 				return 1
 			}
 		}
-		return evpn.RunCLIDecode(hex, textOutput, os.Stdout, os.Stderr)
+		return evpn.RunCLIDecode(hex, *textOutput, os.Stdout, os.Stderr)
 	}
 
 	// Engine Decode Mode: protocol commands on stdin (used by ze bgp decode)

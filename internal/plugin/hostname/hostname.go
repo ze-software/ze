@@ -413,6 +413,39 @@ func decodeFQDN(data []byte) (hostname, domain string) {
 	return hostname, domain
 }
 
+// RunCLIDecode decodes hex capability data directly from CLI arguments.
+// This is for human use: `ze bgp plugin hostname --capa <hex>` or with `--text`.
+// Returns exit code (0 = success, 1 = error).
+func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+	// Decode hex
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err)
+		return 1
+	}
+
+	// Parse FQDN capability value
+	hostname, domain := decodeFQDN(data)
+
+	// Output based on format
+	if textOutput {
+		_, _ = fmt.Fprintln(stdout, formatFQDNText(hostname, domain))
+	} else {
+		result := map[string]any{
+			"name":     "fqdn",
+			"hostname": hostname,
+			"domain":   domain,
+		}
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			_, _ = fmt.Fprintf(stderr, "error: JSON encoding: %v\n", err)
+			return 1
+		}
+		_, _ = fmt.Fprintln(stdout, string(jsonBytes))
+	}
+	return 0
+}
+
 // hostnameYANG is the embedded YANG schema.
 const hostnameYANG = `module ze-hostname {
     namespace "urn:ze:hostname";
