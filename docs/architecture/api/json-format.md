@@ -14,17 +14,21 @@ Ze outputs JSON messages to external processes via stdout. All messages follow I
 
 ## Message Structure
 
-All messages have a top-level `type` field:
+All messages have a top-level `type` field. Event data is nested under both the namespace and event type:
 
 ```json
 {
   "type": "<namespace>",
   "<namespace>": {
     "type": "<event-type>",
-    ...event-specific fields...
+    "<event-type>": {
+      ...event-specific fields...
+    }
   }
 }
 ```
+
+This double-nesting allows routing by namespace (bgp, rib, response) and then by event type (update, state, etc.).
 
 ### Namespaces
 
@@ -38,29 +42,33 @@ All messages have a top-level `type` field:
 
 ## BGP Events
 
-All BGP events use this structure:
+All BGP events have `peer` at the `bgp` level. Event-specific data is nested under the event type key:
 
 ```json
 {
   "type": "bgp",
   "bgp": {
     "type": "<event-type>",
-    "message": {"id": <n>, "direction": "<dir>"},
     "peer": {"address": "<ip>", "asn": <n>},
-    ...type-specific fields...
+    "<event-type>": {
+      "message": {"id": <n>, "direction": "<dir>"},
+      ...type-specific fields...
+    }
   }
 }
 ```
+
+**Exception:** State events use a simple string value instead of a container (see State Events below).
 
 ### Common Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
 | bgp.type | string | Event type (update, state, open, etc.) |
-| bgp.message.id | int | Message identifier (0 for locally-originated) |
-| bgp.message.direction | string | "received" or "sent" |
 | bgp.peer.address | string | Peer IP address |
 | bgp.peer.asn | int | Peer AS number |
+| bgp.\<type\>.message.id | int | Message identifier (0 for locally-originated) |
+| bgp.\<type\>.message.direction | string | "received" or "sent" |
 
 ### Event Types
 
@@ -78,6 +86,8 @@ All BGP events use this structure:
 
 ## State Events
 
+State events use a simple string value for `state` (not a container):
+
 ```json
 {
   "type": "bgp",
@@ -85,6 +95,22 @@ All BGP events use this structure:
     "type": "state",
     "peer": {"address": "192.0.2.1", "asn": 65001},
     "state": "up"
+  }
+}
+```
+
+State values: `"up"`, `"down"`, `"connected"`
+
+For `"down"` events, a `reason` field is included:
+
+```json
+{
+  "type": "bgp",
+  "bgp": {
+    "type": "state",
+    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "state": "down",
+    "reason": "hold timer expired"
   }
 }
 ```
@@ -100,17 +126,19 @@ All BGP events use this structure:
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 1, "direction": "received"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "attributes": {
-      "origin": "igp",
-      "as-path": [65001, 65002]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24", "10.0.1.0/24"]},
-        {"action": "del", "nlri": ["172.16.0.0/16"]}
-      ]
+    "update": {
+      "message": {"id": 1, "direction": "received"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001, 65002]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24", "10.0.1.0/24"]},
+          {"action": "del", "nlri": ["172.16.0.0/16"]}
+        ]
+      }
     }
   }
 }
@@ -123,21 +151,23 @@ All BGP events use this structure:
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 1, "direction": "received"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "attributes": {
-      "origin": "igp",
-      "as-path": [65001]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24"]}
-      ]
-    },
-    "raw": {
-      "attributes": "40010100400200040001fde8",
-      "nlri": {"ipv4/unicast": "180a0000"},
-      "withdrawn": {}
+    "update": {
+      "message": {"id": 1, "direction": "received"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24"]}
+        ]
+      },
+      "raw": {
+        "attr": "40010100400200040001fde8",
+        "nlri": {"ipv4/unicast": "180a0000"},
+        "withdrawn": {}
+      }
     }
   }
 }
@@ -162,7 +192,7 @@ Each address family has an array of operations under `nlri`:
 
 ### Attributes
 
-Attributes appear under the `attributes` object:
+Attributes appear under the `attr` object:
 
 | Attribute | Format |
 |-----------|--------|
@@ -258,15 +288,17 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "type": "open",
-    "message": {"id": 1, "direction": "received"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "asn": 65001,
-    "router-id": "1.1.1.1",
-    "hold-time": 90,
-    "capabilities": [
-      {"code": 1, "name": "multiprotocol", "value": "ipv4/unicast"},
-      {"code": 65, "name": "asn4", "value": "65001"}
-    ]
+    "open": {
+      "message": {"id": 1, "direction": "received"},
+      "asn": 65001,
+      "router-id": "1.1.1.1",
+      "hold-time": 90,
+      "capabilities": [
+        {"code": 1, "name": "multiprotocol", "value": "ipv4/unicast"},
+        {"code": 65, "name": "asn4", "value": "65001"}
+      ]
+    }
   }
 }
 ```
@@ -280,13 +312,15 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "type": "notification",
-    "message": {"id": 3, "direction": "sent"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "code": 6,
-    "subcode": 2,
-    "code-name": "Cease",
-    "subcode-name": "Administrative-Shutdown",
-    "data": ""
+    "notification": {
+      "message": {"id": 3, "direction": "sent"},
+      "code": 6,
+      "subcode": 2,
+      "code-name": "Cease",
+      "subcode-name": "Administrative-Shutdown",
+      "data": ""
+    }
   }
 }
 ```
@@ -300,8 +334,10 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "type": "keepalive",
-    "message": {"id": 42, "direction": "sent"},
-    "peer": {"address": "192.0.2.1", "asn": 65001}
+    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "keepalive": {
+      "message": {"id": 42, "direction": "sent"}
+    }
   }
 }
 ```
@@ -318,12 +354,14 @@ Sent after OPEN exchange:
   "bgp": {
     "type": "negotiated",
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "hold-time": 90,
-    "asn4": true,
-    "families": ["ipv4/unicast", "ipv6/unicast"],
-    "add-path": {
-      "send": ["ipv4/unicast"],
-      "receive": ["ipv4/unicast"]
+    "negotiated": {
+      "hold-time": 90,
+      "asn4": true,
+      "families": ["ipv4/unicast", "ipv6/unicast"],
+      "add-path": {
+        "send": ["ipv4/unicast"],
+        "receive": ["ipv4/unicast"]
+      }
     }
   }
 }
@@ -402,4 +440,4 @@ peer 192.0.2.1 asn 65001 sent notification 3 code 6 subcode 2 code-name Cease su
 
 ---
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-31

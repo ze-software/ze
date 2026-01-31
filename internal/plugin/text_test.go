@@ -48,14 +48,14 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json established",
 			state:    "established",
 			encoding: EncodingJSON,
-			// IPC 2.0: {"type":"bgp","bgp":{"type":"state",...}}
+			// IPC 2.0: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"..."}}
 			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down",
 			state:    "down",
 			encoding: EncodingJSON,
-			// IPC 2.0: {"type":"bgp","bgp":{"type":"state",...}}
+			// IPC 2.0: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"..."}}
 			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
 		},
 	}

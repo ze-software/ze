@@ -539,9 +539,13 @@ func TestFormatNotificationJSON(t *testing.T) {
 	// Check event type in payload
 	assert.Equal(t, "notification", payload["type"], "event type must be 'notification'")
 
+	// Get the nested notification object
+	notifPayload, ok := payload["notification"].(map[string]any)
+	require.True(t, ok, "notification object must exist in bgp payload")
+
 	// Check raw message is present (FormatRaw includes hex)
-	rawPart, ok := payload["raw"].(map[string]any)
-	require.True(t, ok, "raw part must exist in bgp payload")
+	rawPart, ok := notifPayload["raw"].(map[string]any)
+	require.True(t, ok, "raw part must exist in notification payload")
 	assert.NotEmpty(t, rawPart["message"], "raw message must be present")
 }
 

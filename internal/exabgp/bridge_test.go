@@ -12,26 +12,36 @@ import (
 
 // TestZebgpToExabgpJSON_UpdateAnnounce verifies UPDATE announce conversion.
 //
-// VALIDATES: ZeBGP JSON → ExaBGP JSON for IPv4 unicast announce.
+// VALIDATES: ZeBGP IPC 2.0 JSON → ExaBGP JSON for IPv4 unicast announce.
 // PREVENTS: Missing attributes, wrong family format, wrong direction mapping.
 func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
+	// IPC 2.0 format: peer at bgp level, update data in bgp.update
 	zebgp := map[string]any{
-		"message": map[string]any{
-			"type":      "update",
-			"id":        float64(1),
-			"direction": "received",
-		},
-		"peer": map[string]any{
-			"address": "10.0.0.1",
-			"asn":     float64(65001),
-		},
-		"origin":  "igp",
-		"as-path": []any{float64(65001)},
-		"ipv4/unicast": []any{
-			map[string]any{
-				"action":   "add",
-				"next-hop": "10.0.0.1",
-				"nlri":     []any{"192.168.1.0/24"},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"asn":     float64(65001),
+			},
+			"update": map[string]any{
+				"message": map[string]any{
+					"id":        float64(1),
+					"direction": "received",
+				},
+				"attr": map[string]any{
+					"origin":  "igp",
+					"as-path": []any{float64(65001)},
+				},
+				"nlri": map[string]any{
+					"ipv4/unicast": []any{
+						map[string]any{
+							"action":   "add",
+							"next-hop": "10.0.0.1",
+							"nlri":     []any{"192.168.1.0/24"},
+						},
+					},
+				},
 			},
 		},
 	}
@@ -74,14 +84,23 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 
 // TestZebgpToExabgpJSON_UpdateWithdraw verifies UPDATE withdraw conversion.
 //
-// VALIDATES: ZeBGP JSON → ExaBGP JSON for IPv4 unicast withdraw.
+// VALIDATES: ZeBGP IPC 2.0 JSON → ExaBGP JSON for IPv4 unicast withdraw.
 // PREVENTS: Missing withdraw section, wrong family format.
 func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
+	// IPC 2.0 format
 	zebgp := map[string]any{
-		"message": map[string]any{"type": "update", "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
-		"ipv4/unicast": []any{
-			map[string]any{"action": "del", "nlri": []any{"172.16.0.0/16"}},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"update": map[string]any{
+				"message": map[string]any{"direction": "received"},
+				"nlri": map[string]any{
+					"ipv4/unicast": []any{
+						map[string]any{"action": "del", "nlri": []any{"172.16.0.0/16"}},
+					},
+				},
+			},
 		},
 	}
 
@@ -105,10 +124,14 @@ func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
 // VALIDATES: State messages converted with correct structure.
 // PREVENTS: Missing state field, wrong type.
 func TestZebgpToExabgpJSON_StateUp(t *testing.T) {
+	// IPC 2.0 format: state is simple string at bgp level
 	zebgp := map[string]any{
-		"message": map[string]any{"type": "state"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
-		"state":   "up",
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type":  "state",
+			"peer":  map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"state": "up",
+		},
 	}
 
 	result := ZebgpToExabgpJSON(zebgp)
@@ -136,9 +159,16 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// IPC 2.0 format
 			zebgp := map[string]any{
-				"message": map[string]any{"type": "update", "direction": tt.direction},
-				"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+				"type": "bgp",
+				"bgp": map[string]any{
+					"type": "update",
+					"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+					"update": map[string]any{
+						"message": map[string]any{"direction": tt.direction},
+					},
+				},
 			}
 
 			result := ZebgpToExabgpJSON(zebgp)
@@ -320,13 +350,21 @@ func TestExabgpToZebgpCommand_NonNeighbor(t *testing.T) {
 // VALIDATES: Key fields preserved in both conversion directions.
 // PREVENTS: Information loss during translation.
 func TestRoundTrip(t *testing.T) {
-	// Test ZeBGP → ExaBGP preserves info
+	// Test ZeBGP IPC 2.0 → ExaBGP preserves info
 	zebgp := map[string]any{
-		"message": map[string]any{"type": "update", "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
-		"origin":  "igp",
-		"ipv4/unicast": []any{
-			map[string]any{"action": "add", "next-hop": "192.168.0.1", "nlri": []any{"10.0.0.0/24"}},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"update": map[string]any{
+				"message": map[string]any{"direction": "received"},
+				"attr":    map[string]any{"origin": "igp"},
+				"nlri": map[string]any{
+					"ipv4/unicast": []any{
+						map[string]any{"action": "add", "next-hop": "192.168.0.1", "nlri": []any{"10.0.0.0/24"}},
+					},
+				},
+			},
 		},
 	}
 
@@ -779,25 +817,27 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 
 // TestZebgpToExabgpJSON_Negotiated verifies negotiated capabilities conversion.
 //
-// VALIDATES: ZeBGP negotiated message (flat format) → ExaBGP negotiated JSON format.
+// VALIDATES: ZeBGP IPC 2.0 negotiated message → ExaBGP negotiated JSON format.
 // PREVENTS: ExaBGP plugins not receiving capability info after OPEN exchange.
 func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
-	// New ZeBGP format: fields at top level, hyphenated names
+	// IPC 2.0 format: peer at bgp level, negotiated data in bgp.negotiated
 	zebgp := map[string]any{
-		"message": map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
 			"type": "negotiated",
-		},
-		"peer": map[string]any{
-			"address": "10.0.0.1",
-			"asn":     float64(65001),
-		},
-		// Fields at top level (flat format with hyphens)
-		"hold-time": float64(90),
-		"asn4":      true,
-		"families":  []any{"ipv4/unicast", "ipv6/unicast"},
-		"add-path": map[string]any{
-			"send":    []any{"ipv4/unicast"},
-			"receive": []any{"ipv4/unicast"},
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"asn":     float64(65001),
+			},
+			"negotiated": map[string]any{
+				"hold-time": float64(90),
+				"asn4":      true,
+				"families":  []any{"ipv4/unicast", "ipv6/unicast"},
+				"add-path": map[string]any{
+					"send":    []any{"ipv4/unicast"},
+					"receive": []any{"ipv4/unicast"},
+				},
+			},
 		},
 	}
 
@@ -843,20 +883,23 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 
 // TestZebgpToExabgpJSON_NegotiatedMinimal verifies negotiated with minimal fields.
 //
-// VALIDATES: Handles negotiated message with only required fields (flat format).
+// VALIDATES: Handles negotiated message with only required fields.
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
-	// New ZeBGP format: fields at top level, hyphenated names
+	// IPC 2.0 format with minimal fields
 	zebgp := map[string]any{
-		"message": map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
 			"type": "negotiated",
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"asn":     float64(65001),
+			},
+			"negotiated": map[string]any{
+				"hold-time": float64(180),
+				"asn4":      false,
+			},
 		},
-		"peer": map[string]any{
-			"address": "10.0.0.1",
-			"asn":     float64(65001),
-		},
-		"hold-time": float64(180),
-		"asn4":      false,
 	}
 
 	result := ZebgpToExabgpJSON(zebgp)
@@ -874,15 +917,17 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 // VALIDATES: Returns empty negotiated section when field is missing.
 // PREVENTS: Nil pointer panic on malformed input.
 func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
+	// IPC 2.0 format with no negotiated object
 	zebgp := map[string]any{
-		"message": map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
 			"type": "negotiated",
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"asn":     float64(65001),
+			},
+			// No "negotiated" field
 		},
-		"peer": map[string]any{
-			"address": "10.0.0.1",
-			"asn":     float64(65001),
-		},
-		// No "negotiated" field
 	}
 
 	result := ZebgpToExabgpJSON(zebgp)

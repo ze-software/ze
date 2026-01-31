@@ -70,10 +70,10 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrid
 }
 
 // formatEmptyUpdate formats an empty UPDATE message.
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update",...}}.
+// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update","update":{...}}}.
 func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update","peer":{"address":"%s","asn":%d},"nlri":{}}}`+"\n",
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update","update":{"peer":{"address":"%s","asn":%d},"nlri":{}}}}`+"\n",
 			peer.Address, peer.PeerAS)
 	}
 	return fmt.Sprintf("peer %s update\n", peer.Address)
@@ -105,9 +105,10 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 
 	if content.Encoding == EncodingJSON {
-		// IPC 2.0 format: {"type":"bgp","bgp":{"type":"...","peer":{...},"raw":{...}}}
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"%s","peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}`+"\n",
-			strings.ToLower(msg.Type.String()), peer.Address, peer.PeerAS, rawHex)
+		// IPC 2.0 format: {"type":"bgp","bgp":{"type":"...","<type>":{...}}}
+		msgType := strings.ToLower(msg.Type.String())
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"%s","%s":{"peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}}`+"\n",
+			msgType, msgType, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s raw %s\n",
 		peer.Address, strings.ToLower(msg.Type.String()), rawHex)
@@ -128,15 +129,15 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 }
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update","message":{...},...,"raw":{...}}}.
+// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update","update":{...}}}.
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
 		var msgPart string
 		if direction != "" {
-			msgPart = fmt.Sprintf(`,"message":{"direction":"%s"}`, direction)
+			msgPart = fmt.Sprintf(`"message":{"direction":"%s"},`, direction)
 		}
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update"%s,"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}`+"\n",
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update","update":{%s"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}}`+"\n",
 			msgPart, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
@@ -174,7 +175,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 					if hasContent {
 						rawObj.WriteString(",")
 					}
-					rawObj.WriteString(fmt.Sprintf(`"attributes":"%x"`, rawComps.Attributes))
+					rawObj.WriteString(fmt.Sprintf(`"attr":"%x"`, rawComps.Attributes))
 					hasContent = true
 				}
 
@@ -224,10 +225,10 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 
 		rawObj.WriteString(`}`)
 
-		// IPC 2.0: inject raw into bgp object (ends with "}}\n")
-		// Replace trailing "}}\n" with ","raw":{...}}}\n"
-		if strings.HasSuffix(parsed, "}}\n") {
-			return parsed[:len(parsed)-3] + "," + rawObj.String() + "}}\n"
+		// IPC 2.0: inject raw into update object (ends with "}}}\n")
+		// Replace trailing "}}}\n" with ","raw":{...}}}}\n"
+		if strings.HasSuffix(parsed, "}}}\n") {
+			return parsed[:len(parsed)-4] + "," + rawObj.String() + "}}}\n"
 		}
 		return parsed
 	}
@@ -250,33 +251,37 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 //	  "type": "bgp",
 //	  "bgp": {
 //	    "type": "update",
-//	    "message": {"id": 123, "direction": "received"},
 //	    "peer": {"address": "...", "asn": ...},
-//	    "attributes": {"origin": "igp", ...},
-//	    "nlri": {
-//	      "ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]
+//	    "update": {
+//	      "message": {"id": 123, "direction": "received"},
+//	      "attr": {"origin": "igp", ...},
+//	      "nlri": {
+//	        "ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]
+//	      }
 //	    }
 //	  }
 //	}
 func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
-	// IPC 2.0 outer wrapper
-	sb.WriteString(`{"type":"bgp","bgp":{`)
-
-	// Event type
-	sb.WriteString(`"type":"update"`)
+	// IPC 2.0 outer wrapper with peer at bgp level, event data in "update"
+	sb.WriteString(`{"type":"bgp","bgp":{"type":"update","peer":{"address":"`)
+	sb.WriteString(peer.Address.String())
+	sb.WriteString(`","asn":`)
+	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
+	sb.WriteString(`},"update":{`)
 
 	// Message metadata (id, direction) - only if present
+	hasContent := false
 	if msgID > 0 || direction != "" {
-		sb.WriteString(`,"message":{`)
-		needComma := false
+		sb.WriteString(`"message":{`)
+		innerComma := false
 		if msgID > 0 {
 			sb.WriteString(fmt.Sprintf(`"id":%d`, msgID))
-			needComma = true
+			innerComma = true
 		}
 		if direction != "" {
-			if needComma {
+			if innerComma {
 				sb.WriteString(",")
 			}
 			sb.WriteString(`"direction":"`)
@@ -284,18 +289,16 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 			sb.WriteString(`"`)
 		}
 		sb.WriteString(`}`)
+		hasContent = true
 	}
 
-	// Peer info
-	sb.WriteString(`,"peer":{"address":"`)
-	sb.WriteString(peer.Address.String())
-	sb.WriteString(`","asn":`)
-	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
-	sb.WriteString(`}`)
-
-	// Attributes nested under "attributes"
+	// Attributes nested under "attr" (inside update)
 	if len(result.Attributes) > 0 {
-		sb.WriteString(`,"attributes":{`)
+		if hasContent {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"attr":{`)
+		hasContent = true
 		formatAttributesJSON(&sb, result)
 		sb.WriteString(`}`)
 	}
@@ -326,7 +329,10 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	}
 
 	// NLRIs nested under "nlri"
-	sb.WriteString(`,"nlri":{`)
+	if hasContent {
+		sb.WriteString(",")
+	}
+	sb.WriteString(`"nlri":{`)
 	first := true
 	for family, ops := range familyOps {
 		if !first {
@@ -362,8 +368,8 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	}
 	sb.WriteString(`}`)
 
-	// Close bgp object and outer wrapper
-	sb.WriteString("}}\n")
+	// Close update object, bgp object and outer wrapper
+	sb.WriteString("}}}\n")
 	return sb.String()
 }
 
@@ -898,7 +904,8 @@ func FormatStateChange(peer PeerInfo, state string, encoding string) string {
 }
 
 func formatStateChangeJSON(peer PeerInfo, state string) string {
-	// IPC 2.0 format: {"type":"bgp","bgp":{"type":"state",...}}
+	// IPC 2.0 format: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"up"}}
+	// State is a simple string value, not a container
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"state","peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
 		peer.Address, peer.PeerAS, state)
 }
@@ -922,12 +929,10 @@ func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) str
 	output := FormatMessage(peer, msg, content, "sent")
 
 	// Replace type indicator for JSON (text format uses direction field)
-	// IPC 2.0 format has type in bgp payload: {"type":"bgp","bgp":{"type":"update"...
-	// We want to change the inner type to "sent"
+	// IPC 2.0 format has type in bgp payload: {"type":"bgp","bgp":{"type":"update","update":{...}}}
+	// We want to change to: {"type":"bgp","bgp":{"type":"sent","sent":{...}}}
 	if content.Encoding == EncodingJSON {
-		// Replace the second occurrence of "type" (the one inside bgp payload)
-		// Pattern: {"type":"bgp","bgp":{"type":"update" -> {"type":"bgp","bgp":{"type":"sent"
-		output = strings.Replace(output, `"bgp":{"type":"update"`, `"bgp":{"type":"sent"`, 1)
+		output = strings.Replace(output, `"type":"update","update":{`, `"type":"sent","sent":{`, 1)
 	}
 
 	return output

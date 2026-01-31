@@ -403,7 +403,7 @@ type NLRIGroup struct {
 
 ### Key Semantics
 
-- **Attribute accumulation:** `attr` sections accumulate; each `nlri` section captures a snapshot
+- **Attribute accumulation:** Attribute sections accumulate; each `nlri` section captures a snapshot
 - **Deep copy:** Each group gets independent copies of attributes (slices AND pointers)
 - **Supported families:** `ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`
 - **Case-sensitive:** Family strings must be lowercase
@@ -411,10 +411,11 @@ type NLRIGroup struct {
 ### Example
 
 ```
-attr set origin igp next-hop 192.0.2.1
-attr set community [65000:100]
+origin set igp
+nhop set 192.0.2.1
+community set [65000:100]
 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 del 10.0.2.0/24
-attr add community [65000:200]
+community add [65000:200]
 nlri ipv6/unicast add 2001:db8::/32
 watchdog pool1
 ```

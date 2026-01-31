@@ -127,7 +127,7 @@ def main() -> None:
         except (json.JSONDecodeError, TypeError):
             continue
 
-        # Check for state=up
+        # Check for state=up (new JSON format: bgp.state = "up" as string)
         bgp = event.get('bgp', {})
         if bgp.get('type') == 'state' and bgp.get('state') == 'up':
             log("state=up received, sending route")

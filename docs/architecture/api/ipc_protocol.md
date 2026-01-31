@@ -114,19 +114,27 @@ JSON with `type` field indicating the payload key:
 
 ### Event Format (Engine → Plugin)
 
-JSON with `type` field indicating which key contains the payload:
+JSON with `type` field indicating which key contains the payload. The `peer` field is at the `bgp` level; event-specific data is nested under the event type key:
 
 ```json
 {
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 123, "direction": "received"},
     "peer": {"address": "10.0.0.1", "asn": 65001},
-    "attributes": {"origin": "igp", "as-path": [65001]},
-    "nlri": {"ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]}]}
+    "update": {
+      "message": {"id": 123, "direction": "received"},
+      "attr": {"origin": "igp", "as-path": [65001]},
+      "nlri": {"ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]}]}
+    }
   }
 }
+```
+
+**Exception:** State events use a simple string value for `state` instead of a container:
+
+```json
+{"type": "bgp", "bgp": {"type": "state", "peer": {...}, "state": "up"}}
 ```
 
 | Field | Type | Required | Description |
@@ -140,11 +148,19 @@ JSON with `type` field indicating which key contains the payload:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Always | `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated` |
+| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` - at bgp level |
+| `<type>` | object/string | Usually | Event data nested under event type key (string for state events) |
+
+**BGP event data fields (inside `bgp.<type>` object, except state):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
 | `message` | object | For wire messages | `{"id": <N>, "direction": "<dir>"}` |
-| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` |
-| `attributes` | object | For UPDATE | Path attributes (origin, as-path, etc.) |
+| `attr` | object | For UPDATE | Path attributes (origin, as-path, etc.) |
 | `nlri` | object | For UPDATE | `{"<family>": [operations...]}` |
 | `raw` | object | If format=full | Wire bytes (see Raw Format below) |
+
+**State events:** Use simple `"state": "up"` string at bgp level (no container). Down events include `"reason": "..."` field.
 
 **RIB event payload (`rib` key):**
 
@@ -439,17 +455,19 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 123, "direction": "received"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "attributes": {
-      "origin": "igp",
-      "as-path": [65001, 65002],
-      "local-preference": 100
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"action": "add", "next-hop": "192.0.2.1", "nlri": ["10.0.0.0/24"]}
-      ]
+    "update": {
+      "message": {"id": 123, "direction": "received"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001, 65002],
+        "local-preference": 100
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "192.0.2.1", "nlri": ["10.0.0.0/24"]}
+        ]
+      }
     }
   }
 }
@@ -461,22 +479,24 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 0, "direction": "sent"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "attributes": {
-      "origin": "igp",
-      "as-path": [65000]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"action": "add", "next-hop": "192.0.2.254", "nlri": ["172.16.0.0/16"]}
-      ]
+    "update": {
+      "message": {"id": 0, "direction": "sent"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65000]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "192.0.2.254", "nlri": ["172.16.0.0/16"]}
+        ]
+      }
     }
   }
 }
 ```
 
-**Note:** `bgp.message.id: 0` indicates locally-originated route (no cache entry for forwarding).
+**Note:** `bgp.update.message.id: 0` indicates locally-originated route (no cache entry for forwarding).
 
 **BGP UPDATE with raw wire bytes (format=full):**
 ```json
@@ -484,27 +504,29 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "message": {"id": 123, "direction": "received"},
     "peer": {"address": "192.0.2.1", "asn": 65001},
-    "attributes": {
-      "origin": "igp",
-      "as-path": [65001]
-    },
-    "nlri": {
-      "ipv4/unicast": [
-        {"action": "add", "next-hop": "192.0.2.1", "nlri": ["10.0.0.0/24"]}
-      ]
-    },
-    "raw": {
-      "attributes": "40010100400200040001fde8",
-      "nlri": {"ipv4/unicast": "180a0000"},
-      "withdrawn": {}
+    "update": {
+      "message": {"id": 123, "direction": "received"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "192.0.2.1", "nlri": ["10.0.0.0/24"]}
+        ]
+      },
+      "raw": {
+        "attr": "40010100400200040001fde8",
+        "nlri": {"ipv4/unicast": "180a0000"},
+        "withdrawn": {}
+      }
     }
   }
 }
 ```
 
-**Peer state change:**
+**Peer state change (up):**
 ```json
 {
   "type": "bgp",
@@ -512,6 +534,19 @@ RIB events include `peer` field indicating which peer caused the event.
     "type": "state",
     "peer": {"address": "192.0.2.1", "asn": 65001},
     "state": "up"
+  }
+}
+```
+
+**Peer state change (down with reason):**
+```json
+{
+  "type": "bgp",
+  "bgp": {
+    "type": "state",
+    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "state": "down",
+    "reason": "hold timer expired"
   }
 }
 ```

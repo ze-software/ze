@@ -19,12 +19,19 @@ var knownFields = map[string]bool{
 	"raw-attributes": true, "raw-nlri": true, "raw-withdrawn": true,
 	// IPC 2.0 wrapper keys
 	"bgp": true, "rib": true,
-	// IPC 2.0 nested keys
-	"attributes": true, "nlri": true, "action": true,
+	// IPC 2.0 nested keys (event data nested under event type)
+	"attributes": true, "nlri": true, "action": true, "attr": true,
+	// IPC 2.0 event type keys (events nested under their type name)
+	"update": true, "notification": true, "open": true, "keepalive": true,
+	"refresh": true, "borr": true, "eorr": true, "negotiated": true,
 }
 
 // parseEvent parses a JSON event from ze.
-// Handles both IPC 2.0 format (type/bgp or type/rib wrapper) and legacy flat format.
+// Handles IPC 2.0 format where events are nested under their event type:
+//
+//	{"type":"bgp","bgp":{"type":"update","update":{...}}}
+//	{"type":"bgp","bgp":{"type":"state","state":{...}}}
+//
 // Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
 func parseEvent(data []byte) (*Event, error) {
 	// First check if this is IPC 2.0 format (has "bgp" or "rib" wrapper)
@@ -55,10 +62,43 @@ func parseEvent(data []byte) (*Event, error) {
 		payloadData = data
 	}
 
-	// Parse the event from payload
+	// IPC 2.0: peer is at bgp level, event data nested under event type key
+	// Format: {"type":"update","peer":{...},"update":{...}} or {"type":"state","peer":{...},"state":"up"}
+	// First parse the bgp-level data (type, peer) then merge with event-specific data
+	var bgpPayload struct {
+		Type string          `json:"type"`
+		Peer json.RawMessage `json:"peer"`
+	}
+	_ = json.Unmarshal(payloadData, &bgpPayload)
+
+	// Start with the full bgp payload to get peer
 	var event Event
 	if err := json.Unmarshal(payloadData, &event); err != nil {
 		return nil, err
+	}
+
+	// For non-state events, merge in the nested event data
+	if bgpPayload.Type != "" && bgpPayload.Type != "state" {
+		var rawPayload map[string]json.RawMessage
+		if err := json.Unmarshal(payloadData, &rawPayload); err == nil {
+			if nestedData, ok := rawPayload[bgpPayload.Type]; ok && len(nestedData) > 0 {
+				// Only use nested data if it's an object (starts with '{'), not a string
+				if len(nestedData) > 0 && nestedData[0] == '{' {
+					// Merge nested data into event (this adds attr, nlri, message, etc.)
+					_ = json.Unmarshal(nestedData, &event)
+					payloadData = nestedData
+				}
+			}
+		}
+	}
+
+	// Preserve the event type from bgp.type
+	if bgpPayload.Type != "" {
+		event.Type = bgpPayload.Type
+	}
+	// Preserve peer from bgp level
+	if len(bgpPayload.Peer) > 0 {
+		event.Peer = bgpPayload.Peer
 	}
 
 	// Parse raw JSON to extract family operations and IPC 2.0 nested structures

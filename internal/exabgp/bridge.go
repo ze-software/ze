@@ -29,14 +29,24 @@ const (
 
 // ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
 //
-// ZeBGP format (flat, per docs/architecture/api/json-format.md):
+// ZeBGP IPC 2.0 format (per docs/architecture/api/json-format.md):
 //
 //	{
-//	  "message": {"type": "update", "id": 1, "direction": "received"},
-//	  "peer": {"address": "10.0.0.1", "asn": 65001},
-//	  "origin": "igp",
-//	  "ipv4/unicast": [{"next-hop": "10.0.0.1", "action": "add", "nlri": ["192.168.1.0/24"]}]
+//	  "type": "bgp",
+//	  "bgp": {
+//	    "type": "update",
+//	    "peer": {"address": "10.0.0.1", "asn": 65001},
+//	    "update": {
+//	      "message": {"id": 1, "direction": "received"},
+//	      "attr": {"origin": "igp"},
+//	      "nlri": {"ipv4/unicast": [...]}
+//	    }
+//	  }
 //	}
+//
+// State events use simple string (not container):
+//
+//	{"type": "bgp", "bgp": {"type": "state", "peer": {...}, "state": "up"}}
 //
 // ExaBGP format (nested):
 //
@@ -51,25 +61,44 @@ const (
 //	  }
 //	}
 func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
-	msg, _ := zebgp["message"].(map[string]any)
-	msgType, _ := msg["type"].(string)
+	// Extract from IPC 2.0 wrapper if present
+	bgpPayload := zebgp
+	if rootType, _ := zebgp["type"].(string); rootType == "bgp" {
+		if bgp, ok := zebgp["bgp"].(map[string]any); ok {
+			bgpPayload = bgp
+		}
+	}
+
+	// Get event type from bgp.type
+	msgType, _ := bgpPayload["type"].(string)
 	if msgType == "" {
 		msgType = "update"
 	}
 
-	peer, _ := zebgp["peer"].(map[string]any)
+	// Get peer from bgp level (IPC 2.0 format)
+	peer, _ := bgpPayload["peer"].(map[string]any)
 	peerAddr, _ := peer["address"].(string)
 	peerASN, _ := peer["asn"].(float64)
 
+	// Get event-specific data from nested key (except state which is a string)
+	eventData := bgpPayload
+	if msgType != "state" {
+		if nested, ok := bgpPayload[msgType].(map[string]any); ok {
+			eventData = nested
+		}
+	}
+
 	// Map direction: ZeBGP "received"/"sent" → ExaBGP "receive"/"send"
-	direction, _ := msg["direction"].(string)
-	switch direction {
-	case "received":
-		direction = modeReceive
-	case "sent":
-		direction = modeSend
-	case "":
-		direction = modeReceive
+	direction := modeReceive
+	if msg, ok := eventData["message"].(map[string]any); ok {
+		if dir, ok := msg["direction"].(string); ok {
+			switch dir {
+			case "received":
+				direction = modeReceive
+			case "sent":
+				direction = modeSend
+			}
+		}
 	}
 
 	// Build ExaBGP envelope
@@ -91,26 +120,27 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 
 	switch msgType {
 	case "state":
-		state, _ := zebgp["state"].(string)
+		// State is a simple string at bgp level (not a container)
+		state, _ := bgpPayload["state"].(string)
 		neighbor["state"] = state
 
 	case "update":
-		update := convertUpdate(zebgp)
+		update := convertUpdateIPC2(eventData)
 		if len(update) > 0 {
 			neighbor["message"] = map[string]any{"update": update}
 		}
 
 	case "notification":
-		// New format: fields at top level (code, subcode, data)
+		// Fields in notification object
 		neighbor["notification"] = map[string]any{
-			"code":    zebgp["code"],
-			"subcode": zebgp["subcode"],
-			"data":    zebgp["data"],
+			"code":    eventData["code"],
+			"subcode": eventData["subcode"],
+			"data":    eventData["data"],
 		}
 
 	case "negotiated":
-		// New format: fields at top level (hold-time, asn4, families, add-path)
-		result["negotiated"] = convertNegotiated(zebgp)
+		// Fields in negotiated object
+		result["negotiated"] = convertNegotiated(eventData)
 	}
 
 	result["neighbor"] = neighbor
@@ -180,75 +210,64 @@ func hostname() string {
 	return h
 }
 
-func convertUpdate(zebgp map[string]any) map[string]any {
+// convertUpdateIPC2 converts IPC 2.0 UPDATE event data to ExaBGP format.
+// IPC 2.0: attr in "attr" object, nlri in "nlri" object with family keys.
+func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	update := make(map[string]any)
 
-	// Extract attributes from top-level ZeBGP fields
-	attrs := make(map[string]any)
-	attrKeys := []string{
-		"origin", "as-path", "med", "local-preference", "community",
-		"large-community", "extended-community", "aggregator",
-		"originator-id", "cluster-list", "atomic-aggregate",
-	}
-	for _, key := range attrKeys {
-		if v, ok := zebgp[key]; ok {
-			attrs[key] = v
-		}
-	}
-	if len(attrs) > 0 {
-		update["attribute"] = attrs
+	// Extract attributes from "attr" object
+	if attrObj, ok := eventData["attr"].(map[string]any); ok && len(attrObj) > 0 {
+		update["attribute"] = attrObj
 	}
 
-	// Convert NLRI sections: "ipv4/unicast" → "ipv4 unicast"
+	// Convert NLRI sections from "nlri" object
 	announce := make(map[string]map[string][]any)
 	withdraw := make(map[string][]any)
 
-	for key, value := range zebgp {
-		if !strings.Contains(key, "/") || key == "as-path" {
-			continue
-		}
+	if nlriObj, ok := eventData["nlri"].(map[string]any); ok {
+		for family, value := range nlriObj {
+			// Convert family: "ipv4/unicast" → "ipv4 unicast"
+			exabgpFamily := strings.ReplaceAll(family, "/", " ")
 
-		// Convert family: "ipv4/unicast" → "ipv4 unicast"
-		family := strings.ReplaceAll(key, "/", " ")
-
-		entries, ok := value.([]any)
-		if !ok {
-			continue
-		}
-
-		for _, e := range entries {
-			entry, ok := e.(map[string]any)
+			entries, ok := value.([]any)
 			if !ok {
 				continue
 			}
 
-			action, _ := entry["action"].(string)
-			nlriList, _ := entry["nlri"].([]any)
-			nextHop, _ := entry["next-hop"].(string)
-
-			switch action {
-			case "add":
-				nhKey := nextHop
-				if nhKey == "" {
-					nhKey = "null"
-				}
-				if announce[family] == nil {
-					announce[family] = make(map[string][]any)
+			for _, e := range entries {
+				entry, ok := e.(map[string]any)
+				if !ok {
+					continue
 				}
 
-				for _, nlri := range nlriList {
-					if s, ok := nlri.(string); ok {
-						announce[family][nhKey] = append(announce[family][nhKey], map[string]any{"nlri": s})
-					} else {
-						announce[family][nhKey] = append(announce[family][nhKey], nlri)
+				action, _ := entry["action"].(string)
+				nlriList, _ := entry["nlri"].([]any)
+				nextHop, _ := entry["next-hop"].(string)
+
+				switch action {
+				case "add":
+					nhKey := nextHop
+					if nhKey == "" {
+						nhKey = "null"
 					}
-				}
-			case "del":
-				for _, nlri := range nlriList {
-					if s, ok := nlri.(string); ok {
-						withdraw[family] = append(withdraw[family], map[string]any{"nlri": s})
-					} else {
-						withdraw[family] = append(withdraw[family], nlri)
+					if announce[exabgpFamily] == nil {
+						announce[exabgpFamily] = make(map[string][]any)
+					}
+
+					for _, nlri := range nlriList {
+						if s, ok := nlri.(string); ok {
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{"nlri": s})
+						} else {
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], nlri)
+						}
+					}
+				case "del":
+					for _, nlri := range nlriList {
+						if s, ok := nlri.(string); ok {
+							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{"nlri": s})
+						} else {
+							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], nlri)
+						}
 					}
 				}
 			}

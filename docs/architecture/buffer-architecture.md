@@ -324,7 +324,7 @@ func FormatUpdateEventJSON(u *WireUpdate, addPath bool, w io.Writer) error {
     w.Write([]byte(`}`))
 
     // Attributes
-    w.Write([]byte(`,"attributes":{`))
+    w.Write([]byte(`,"attr":{`))
     iter, _ := u.AttrIterator()
     formatAttributesJSON(iter, w)
     w.Write([]byte(`}}`))
