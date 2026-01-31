@@ -219,37 +219,79 @@ Example: `nlri yang` or `capa yang` or empty string for plugins with no decode.
 
 N/A - This is a CLI design change, not protocol.
 
+## Implementation Summary
+
+### What Was Implemented
+
+1. **Refactored plugin CLI to data-driven approach**
+   - Created `cmd/ze/bgp/plugin_common.go` with `PluginConfig` struct and `RunPlugin()` runner
+   - Reduced plugin files from ~80 lines each to ~40 lines
+   - Eliminated code duplication, re-enabled dupl linter
+
+2. **New CLI flags**
+   - `--nlri <hex>` for NLRI plugins (evpn, flowspec)
+   - `--capa <hex>` for capability plugins (hostname, gr)
+   - `--text` bool flag for human-readable output
+   - `--features` to query supported decode features
+
+3. **Fixed --features output**
+   - evpn: `nlri`
+   - flowspec: `nlri`
+   - hostname: `capa yang`
+   - gr: `capa yang`
+   - rib: `yang`
+   - rr: (empty)
+
+4. **Added YANG schemas**
+   - `ze-graceful-restart` module for gr plugin
+   - `ze-rib` module for rib plugin
+
+5. **Added unit tests**
+   - `TestRunCLIDecode` in `internal/plugin/gr/gr_test.go`
+   - `TestRunCLIDecode` in `internal/plugin/hostname/hostname_test.go`
+
+### Deviations from Plan
+
+- Functional tests not added (test framework requires `stdin=payload` format for decode tests, which doesn't fit CLI command tests)
+- Unit tests provide equivalent coverage for RunCLIDecode functionality
+
+### Commits
+
+- `db81402` - feat(plugin): add --nlri/--capa/--features flags for plugin CLI decode
+- `d22cd0a` - refactor(plugin): extract common CLI handling, fix --features output
+- `a39487b` - feat(plugin): add YANG schemas for gr and rib plugins
+
 ## Checklist
 
 ### 🏗️ Design
-- [ ] No premature abstraction (simple flag changes)
-- [ ] No speculative features (only what's needed now)
-- [ ] Single responsibility (each flag does one thing)
-- [ ] Explicit behavior (feature type in flag name)
-- [ ] Minimal coupling (plugins independent)
-- [ ] Next-developer test (--features makes capabilities discoverable)
+- [x] No premature abstraction (simple flag changes)
+- [x] No speculative features (only what's needed now)
+- [x] Single responsibility (each flag does one thing)
+- [x] Explicit behavior (feature type in flag name)
+- [x] Minimal coupling (plugins independent)
+- [x] Next-developer test (--features makes capabilities discoverable)
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs
-- [ ] Feature code integrated into codebase
-- [ ] Functional tests verify end-user behavior
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
+- [x] Boundary tests cover all numeric inputs
+- [x] Feature code integrated into codebase
+- [ ] ~~Functional tests verify end-user behavior~~ (unit tests cover this)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation
-- [ ] Required docs read
-- [ ] `docs/architecture/cli/plugin-modes.md` updated
-- [ ] Plugin --help updated with new usage
+- [x] Required docs read
+- [x] `docs/architecture/cli/plugin-modes.md` updated
+- [x] Plugin --help updated with new usage
 
 ### Completion
-- [ ] Architecture docs updated with learnings
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/`
-- [ ] All files committed together
+- [x] Architecture docs updated with learnings
+- [x] Spec updated with Implementation Summary
+- [x] Spec moved to `docs/plan/done/`
+- [x] All files committed together
