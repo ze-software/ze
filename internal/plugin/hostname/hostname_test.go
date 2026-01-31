@@ -373,3 +373,87 @@ func TestHostnamePluginDeclarations(t *testing.T) {
 	assert.Contains(t, out, "capability done")
 	assert.Contains(t, out, "ready")
 }
+
+// TestRunCLIDecode verifies CLI decode mode for FQDN capability.
+//
+// VALIDATES: RunCLIDecode correctly parses FQDN capability hex and outputs JSON/text.
+// PREVENTS: CLI decode returning wrong format or failing on valid input.
+func TestRunCLIDecode(t *testing.T) {
+	tests := []struct {
+		name         string
+		hexInput     string
+		textOutput   bool
+		wantExitCode int
+		wantContains []string
+		wantErr      string
+	}{
+		{
+			name:         "json_both_values",
+			hexInput:     "066d79686f737404646f6d31", // "myhost" + "dom1"
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"name":"fqdn"`, `"hostname":"myhost"`, `"domain":"dom1"`},
+		},
+		{
+			name:         "json_host_only",
+			hexInput:     "066d79686f737400", // "myhost" + ""
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"hostname":"myhost"`, `"domain":""`},
+		},
+		{
+			name:         "json_domain_only",
+			hexInput:     "0004646f6d31", // "" + "dom1"
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"hostname":""`, `"domain":"dom1"`},
+		},
+		{
+			name:         "json_empty_both",
+			hexInput:     "0000", // "" + ""
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"hostname":""`, `"domain":""`},
+		},
+		{
+			name:         "text_both_values",
+			hexInput:     "066d79686f737404646f6d31",
+			textOutput:   true,
+			wantExitCode: 0,
+			wantContains: []string{"fqdn", "myhost.dom1"},
+		},
+		{
+			name:         "text_host_only",
+			hexInput:     "066d79686f737400",
+			textOutput:   true,
+			wantExitCode: 0,
+			wantContains: []string{"fqdn", "myhost"},
+		},
+		{
+			name:         "invalid_hex",
+			hexInput:     "ZZZZ",
+			textOutput:   false,
+			wantExitCode: 1,
+			wantErr:      "invalid hex",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			exitCode := RunCLIDecode(tt.hexInput, tt.textOutput, &stdout, &stderr)
+
+			assert.Equal(t, tt.wantExitCode, exitCode, "exit code mismatch")
+
+			if tt.wantErr != "" {
+				assert.Contains(t, stderr.String(), tt.wantErr, "stderr should contain error")
+				return
+			}
+
+			output := stdout.String()
+			for _, want := range tt.wantContains {
+				assert.Contains(t, output, want, "output should contain: %s", want)
+			}
+		})
+	}
+}

@@ -22,9 +22,7 @@ linters:
     - prealloc
     - noctx
     - bodyclose
-    # dupl disabled: plugin CLI entry points (cmd/ze/bgp/plugin_*.go)
-    # intentionally follow the same pattern for consistency
-    # - dupl
+    - dupl
     - errorlint
     - exhaustive
     - forcetypeassert
@@ -80,7 +78,8 @@ linters-settings:
     simple: true
     range-loops: true
 
-  # dupl: disabled (see linters section)
+  dupl:
+    threshold: 150
 
   goconst:
     min-len: 3

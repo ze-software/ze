@@ -226,3 +226,94 @@ registry done
 	// Verify config was parsed
 	assert.Equal(t, uint16(120), g.grConfig["192.168.1.1"])
 }
+
+// TestRunCLIDecode verifies CLI decode mode for GR capability.
+//
+// VALIDATES: RunCLIDecode correctly parses GR capability hex and outputs JSON/text.
+// PREVENTS: CLI decode returning wrong format or failing on valid input.
+func TestRunCLIDecode(t *testing.T) {
+	tests := []struct {
+		name         string
+		hexInput     string
+		textOutput   bool
+		wantExitCode int
+		wantContains []string
+		wantErr      string
+	}{
+		{
+			name:         "json_restart_time_120",
+			hexInput:     "0078", // restart-time=120, no flags, no families
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"name":"graceful-restart"`, `"restart-time":120`},
+		},
+		{
+			name:         "json_restart_time_max",
+			hexInput:     "0fff", // restart-time=4095
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"restart-time":4095`},
+		},
+		{
+			name:         "json_with_flags_restarting",
+			hexInput:     "8078", // R-bit set, restart-time=120
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"restarting":true`, `"restart-time":120`},
+		},
+		{
+			name:         "json_with_family",
+			hexInput:     "007800010180", // restart-time=120, AFI=1 SAFI=1 F-bit=1
+			textOutput:   false,
+			wantExitCode: 0,
+			wantContains: []string{`"families":[`, `"afi":1`, `"safi":1`, `"forward-state":true`},
+		},
+		{
+			name:         "text_restart_time_120",
+			hexInput:     "0078",
+			textOutput:   true,
+			wantExitCode: 0,
+			wantContains: []string{"graceful-restart", "restart-time=120"},
+		},
+		{
+			name:         "text_with_restarting",
+			hexInput:     "8078",
+			textOutput:   true,
+			wantExitCode: 0,
+			wantContains: []string{"restarting"},
+		},
+		{
+			name:         "invalid_hex",
+			hexInput:     "ZZZZ",
+			textOutput:   false,
+			wantExitCode: 1,
+			wantErr:      "invalid hex",
+		},
+		{
+			name:         "too_short",
+			hexInput:     "00", // Only 1 byte, need at least 2
+			textOutput:   false,
+			wantExitCode: 1,
+			wantErr:      "too short",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var stdout, stderr bytes.Buffer
+			exitCode := RunCLIDecode(tt.hexInput, tt.textOutput, &stdout, &stderr)
+
+			assert.Equal(t, tt.wantExitCode, exitCode, "exit code mismatch")
+
+			if tt.wantErr != "" {
+				assert.Contains(t, stderr.String(), tt.wantErr, "stderr should contain error")
+				return
+			}
+
+			output := stdout.String()
+			for _, want := range tt.wantContains {
+				assert.Contains(t, output, want, "output should contain: %s", want)
+			}
+		})
+	}
+}
