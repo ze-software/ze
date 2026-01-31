@@ -368,6 +368,8 @@ var pluginFamilyMap = map[string]string{
 	"ipv4/flow-vpn": "flowspec",
 	"ipv6/flow-vpn": "flowspec",
 	"l2vpn/evpn":    "evpn",
+	"ipv4/vpn":      "vpn",
+	"ipv6/vpn":      "vpn",
 }
 
 // unknownCapability returns JSON for an unrecognized/plugin-required capability.

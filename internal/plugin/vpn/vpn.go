@@ -161,7 +161,14 @@ func (p *VPNPlugin) handleDecodeRequest(parts []string) string {
 		return respDecodedUnk
 	}
 
-	jsonBytes, err := json.Marshal(results)
+	// Return single object for single NLRI (matches flowspec pattern),
+	// array for multiple NLRIs.
+	var jsonBytes []byte
+	if len(results) == 1 {
+		jsonBytes, err = json.Marshal(results[0])
+	} else {
+		jsonBytes, err = json.Marshal(results)
+	}
 	if err != nil {
 		return respDecodedUnk
 	}
@@ -234,8 +241,13 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 0
 	}
 
-	// JSON output (default)
-	jsonBytes, err := json.MarshalIndent(results, "", "  ")
+	// JSON output (default) - single object for single NLRI, array for multiple
+	var jsonBytes []byte
+	if len(results) == 1 {
+		jsonBytes, err = json.MarshalIndent(results[0], "", "  ")
+	} else {
+		jsonBytes, err = json.MarshalIndent(results, "", "  ")
+	}
 	if err != nil {
 		writeErr("error: JSON encoding failed: %v\n", err)
 		return 1
@@ -329,7 +341,13 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	jsonBytes, err := json.Marshal(results)
+	// Single object for single NLRI, array for multiple
+	var jsonBytes []byte
+	if len(results) == 1 {
+		jsonBytes, err = json.Marshal(results[0])
+	} else {
+		jsonBytes, err = json.Marshal(results)
+	}
 	if err != nil {
 		writeUnknown()
 		return
