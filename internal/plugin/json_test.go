@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1121,7 +1122,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 			assert.Equal(t, tc.wantRD, rd.String(), "RD should include type prefix")
 
 			// Create IPVPN NLRI and verify JSON output
-			vpn := nlri.NewIPVPN(
+			vpn := vpn.NewVPN(
 				nlri.IPv4VPN,
 				rd,
 				[]uint32{100}, // label
@@ -1425,7 +1426,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create IPVPN NLRI
 			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
-			vpn := nlri.NewIPVPN(
+			vpn := vpn.NewVPN(
 				nlri.IPv4VPN,
 				rd,
 				tc.labels,

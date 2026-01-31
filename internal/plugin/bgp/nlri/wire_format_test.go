@@ -80,48 +80,7 @@ func TestWireFormat_AddPath(t *testing.T) {
 	}
 }
 
-// TestWireFormat_IPVPN verifies IPVPN wire format with ADD-PATH.
-//
-// RFC 4364/4659: VPN NLRI = [length][labels][RD][prefix]
-// RFC 7911: ADD-PATH prepends 4-byte path ID.
-// Labels: 3 bytes each, label 16000 = 0x3E80 << 4 | BOS = 0x3E8001
-//
-// VALIDATES: VPN wire format is [pathID][length][labels][RD][prefix].
-// PREVENTS: Label/RD/prefix in wrong order.
-func TestWireFormat_IPVPN(t *testing.T) {
-	rd, _ := ParseRDString("0:1")
-
-	tests := []struct {
-		name    string
-		nlri    NLRI
-		addPath bool
-		wantHex string
-	}{
-		{
-			name:    "IPVPN_10.0.0.0/24_noAddPath",
-			nlri:    NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			addPath: false,
-			wantHex: "70" + "03e801" + "0000000000000001" + "0a0000", // [len=112][label 3B][RD 8B][prefix 3B]
-		},
-		{
-			name:    "IPVPN_10.0.0.0/24_withAddPath",
-			nlri:    NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 42),
-			addPath: true,
-			wantHex: "0000002a" + "70" + "03e801" + "0000000000000001" + "0a0000", // [pathID 4B][len][label][RD][prefix]
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
-			got := hex.EncodeToString(buf[:n])
-			if got != tt.wantHex {
-				t.Errorf("wire format:\n  got:  %s\n  want: %s", got, tt.wantHex)
-			}
-		})
-	}
-}
+// Note: TestWireFormat_IPVPN moved to internal/plugin/vpn/vpn_test.go
 
 // TestWireFormat_LabeledUnicast verifies labeled unicast wire format.
 //
@@ -222,54 +181,6 @@ func TestRoundTrip_INET(t *testing.T) {
 	}
 }
 
-// TestRoundTrip_IPVPN verifies IPVPN encode → decode → encode.
-//
-// VALIDATES: VPN routes preserve RD, labels, and prefix.
-// PREVENTS: Label or RD corruption during round-trip.
-func TestRoundTrip_IPVPN(t *testing.T) {
-	rd, _ := ParseRDString("65000:100")
-
-	tests := []struct {
-		name    string
-		nlri    *IPVPN
-		addPath bool
-	}{
-		{"VPNv4_noPath", NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 0), false},
-		{"VPNv4_withPath", NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 42), true},
-		{"VPNv4_twoLabels", NewIPVPN(IPv4VPN, rd, []uint32{16000, 17000}, netip.MustParsePrefix("10.0.0.0/24"), 1), true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// addPath is already a bool
-			family := tt.nlri.Family()
-
-			// Encode
-			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
-			wire := buf[:n]
-
-			// Decode - ParseIPVPN returns (NLRI, remaining, error)
-			parsed, remaining, err := ParseIPVPN(family.AFI, family.SAFI, wire, tt.addPath)
-			if err != nil {
-				t.Fatalf("parse failed: %v", err)
-			}
-			consumed := n - len(remaining)
-			if consumed != n {
-				t.Fatalf("consumed %d bytes, wrote %d", consumed, n)
-			}
-
-			// Re-encode
-			buf2 := make([]byte, 100)
-			n2 := WriteNLRI(parsed, buf2, 0, tt.addPath)
-			wire2 := buf2[:n2]
-
-			// Compare
-			if !bytes.Equal(wire, wire2) {
-				t.Errorf("round-trip mismatch:\n  orig: %x\n  trip: %x", wire, wire2)
-			}
-		})
-	}
-}
+// Note: TestRoundTrip_IPVPN moved to internal/plugin/vpn/vpn_test.go
 
 // Note: TestRoundTrip_EVPN moved to internal/plugin/evpn/types_test.go

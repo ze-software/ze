@@ -33,15 +33,7 @@ func TestLenWithContext_MatchesPack(t *testing.T) {
 			name: "INET_IPv6_withPath",
 			nlri: mustParseINET(t, "2001:db8::/32", true, 100),
 		},
-		// IPVPN (VPNv4/VPNv6)
-		{
-			name: "IPVPN_noPath",
-			nlri: mustParseIPVPN(t, "10.0.0.0/24", false, 0),
-		},
-		{
-			name: "IPVPN_withPath",
-			nlri: mustParseIPVPN(t, "10.0.0.0/24", true, 55),
-		},
+		// Note: VPN tests moved to internal/plugin/vpn/
 		// LabeledUnicast (RFC 8277)
 		{
 			name: "LabeledUnicast_noPath",
@@ -102,9 +94,7 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 		{"INET_IPv4_withPath", mustParseINET(t, "192.168.1.0/24", true, 1), true},
 		{"INET_IPv6_noPath", mustParseINET(t, "fe80::/10", false, 0), true},
 		{"INET_IPv6_withPath", mustParseINET(t, "fe80::/10", true, 2), true},
-		// IPVPN - supports ADD-PATH
-		{"IPVPN_noPath", mustParseIPVPN(t, "10.0.0.0/8", false, 0), true},
-		{"IPVPN_withPath", mustParseIPVPN(t, "10.0.0.0/8", true, 3), true},
+		// VPN - supports ADD-PATH (tests moved to internal/plugin/vpn)
 		// LabeledUnicast - supports ADD-PATH
 		{"LabeledUnicast_noPath", mustParseLabeledUnicast(t, "172.16.0.0/16", false, 0), true},
 		{"LabeledUnicast_withPath", mustParseLabeledUnicast(t, "172.16.0.0/16", true, 4), true},
@@ -155,19 +145,6 @@ func mustParseINET(t *testing.T, prefix string, _ bool, pathID uint32) *INET {
 			prefix: p,
 			pathID: pathID,
 		},
-	}
-}
-
-// mustParseIPVPN creates IPVPN NLRI for testing.
-// hasPath parameter is kept for API compatibility but ignored - pathID!=0 implies path exists.
-func mustParseIPVPN(t *testing.T, prefix string, _ bool, pathID uint32) *IPVPN {
-	t.Helper()
-	p := netip.MustParsePrefix(prefix)
-	return &IPVPN{
-		prefix: p,
-		pathID: pathID,
-		labels: []uint32{100}, // Single label
-		rd:     RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}},
 	}
 }
 

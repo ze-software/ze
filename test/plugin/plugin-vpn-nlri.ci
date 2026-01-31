@@ -1,0 +1,10 @@
+# plugin-vpn-nlri - verify vpn plugin --nlri decode
+# Tests: ze bgp plugin vpn --nlri <hex> outputs correct JSON
+# VPNv4: rd=0:1:1, label=100, prefix=10.0.0.0/24
+# Wire: len=0x70(112 bits), label=000641(100 with S-bit), rd=0000000100000001, prefix=0a0000
+cmd=foreground:seq=1:exec=ze bgp plugin vpn --nlri 7000064100000001000000010a0000 --family ipv4/vpn
+expect=exit:code=0
+expect=stdout:contains="rd"
+expect=stdout:contains="prefix"
+expect=stdout:contains=10.0.0.0/24
+expect=stdout:contains="labels"

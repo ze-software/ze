@@ -66,59 +66,7 @@ func TestLen_INET(t *testing.T) {
 	}
 }
 
-// TestLen_IPVPN verifies Len returns payload length without path ID.
-//
-// VALIDATES: Len() returns payload-only length for IPVPN.
-// PREVENTS: Size mismatch in VPN route encoding.
-func TestLen_IPVPN(t *testing.T) {
-	rd, _ := ParseRDString("65000:100")
-
-	tests := []struct {
-		name    string
-		prefix  netip.Prefix
-		labels  []uint32
-		pathID  uint32
-		wantLen int
-	}{
-		{
-			name:    "VPNv4/24 one label no path",
-			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-			labels:  []uint32{16000},
-			pathID:  0,
-			wantLen: 1 + 3 + 8 + 3, // length + labels + RD + prefix
-		},
-		{
-			name:    "VPNv4/24 one label with path",
-			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-			labels:  []uint32{16000},
-			pathID:  1,
-			wantLen: 1 + 3 + 8 + 3, // Same! Len() excludes path ID
-		},
-		{
-			name:    "VPNv4/32 two labels",
-			prefix:  netip.MustParsePrefix("192.168.1.1/32"),
-			labels:  []uint32{16000, 17000},
-			pathID:  0,
-			wantLen: 1 + 6 + 8 + 4, // length + 2*3 labels + RD + prefix
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			family := IPv4VPN
-			if tt.prefix.Addr().Is6() {
-				family = IPv6VPN
-			}
-
-			vpn := NewIPVPN(family, rd, tt.labels, tt.prefix, tt.pathID)
-
-			got := vpn.Len()
-			if got != tt.wantLen {
-				t.Errorf("Len() = %d, want %d", got, tt.wantLen)
-			}
-		})
-	}
-}
+// Note: TestLen_IPVPN moved to internal/plugin/vpn/vpn_test.go
 
 // TestLen_LabeledUnicast verifies Len returns payload length without path ID.
 //

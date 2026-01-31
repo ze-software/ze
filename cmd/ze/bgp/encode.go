@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.
@@ -498,7 +499,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _
 	if len(parsed.Labels) > 0 {
 		label = parsed.Labels[0]
 	}
-	vpnNLRI := nlri.NewIPVPN(family, rd, []uint32{label}, parsed.Prefix, 0)
+	vpnNLRI := vpn.NewVPN(family, rd, []uint32{label}, parsed.Prefix, 0)
 	nlriBytes := vpnNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil

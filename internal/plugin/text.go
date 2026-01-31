@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
 
 // Encoding constants for process output formatting.
@@ -384,7 +385,7 @@ type familyOperation struct {
 func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 	// Check for complex NLRI types that need structured output
 	switch v := n.(type) {
-	case *nlri.IPVPN:
+	case *vpn.VPN:
 		formatIPVPNJSON(sb, v)
 		return
 	case *nlri.LabeledUnicast:
@@ -416,7 +417,7 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 
 // formatIPVPNJSON formats an IPVPN NLRI as structured JSON.
 // RFC 4364: {"prefix":"10.0.0.0/24", "rd":"0:65000:1", "labels":[100]}.
-func formatIPVPNJSON(sb *strings.Builder, v *nlri.IPVPN) {
+func formatIPVPNJSON(sb *strings.Builder, v *vpn.VPN) {
 	sb.WriteString(`{"prefix":"`)
 	sb.WriteString(v.Prefix().String())
 	sb.WriteString(`","rd":"`)

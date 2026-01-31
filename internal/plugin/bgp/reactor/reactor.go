@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -1229,7 +1230,7 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VP
 		family.AFI = nlri.AFIIPv6
 	}
 
-	n := nlri.NewIPVPN(family, rd, labels[:1], route.Prefix, 0) // Single label for withdrawal
+	n := vpn.NewVPN(family, rd, labels[:1], route.Prefix, 0) // Single label for withdrawal
 
 	// Build StaticRoute for withdrawal
 	staticRoute := StaticRoute{
@@ -1354,7 +1355,7 @@ func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route plugin.L3VPNRoute, isIBGP b
 		family.AFI = nlri.AFIIPv6
 	}
 
-	n := nlri.NewIPVPN(family, rd, route.Labels, route.Prefix, 0)
+	n := vpn.NewVPN(family, rd, route.Labels, route.Prefix, 0)
 
 	// Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute

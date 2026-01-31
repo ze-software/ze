@@ -36,6 +36,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
 
 // UpdateText command keywords.
@@ -1415,7 +1416,7 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 		return nil, 0, fmt.Errorf("%w: label required for %s", ErrMissingLabel, family)
 	}
 
-	return nlri.NewIPVPN(family, accum.RD, accum.Labels, prefix, accum.PathID), 0, nil
+	return vpn.NewVPN(family, accum.RD, accum.Labels, prefix, accum.PathID), 0, nil
 }
 
 // parseLabeledNLRI parses a prefix for labeled unicast families (SAFI 4).

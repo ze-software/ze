@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rr"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -46,6 +47,11 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 		// Configure logger for in-process plugin (uses ze.log.evpn env var)
 		evpn.SetEVPNLogger(slogutil.Logger("evpn"))
 		return evpn.NewEVPNPlugin(in, out).Run()
+	},
+	"vpn": func(in io.Reader, out io.Writer) int {
+		// Configure logger for in-process plugin (uses ze.log.vpn env var)
+		vpn.SetVPNLogger(slogutil.Logger("vpn"))
+		return vpn.NewVPNPlugin(in, out).Run()
 	},
 }
 
@@ -103,6 +109,9 @@ var familyToPlugin = map[string]string{
 	"ipv6/flow-vpn": "flowspec",
 	// EVPN family → evpn plugin
 	"l2vpn/evpn": "evpn",
+	// VPN families → vpn plugin
+	"ipv4/vpn": "vpn",
+	"ipv6/vpn": "vpn",
 }
 
 // GetPluginForFamily returns the internal plugin name that handles a family.

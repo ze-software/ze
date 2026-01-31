@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
@@ -1706,7 +1707,7 @@ func TestParseUpdateText_RDSet(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 
 	// Get IPVPN NLRI and check RD
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok, "expected IPVPN NLRI")
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 }
@@ -1725,7 +1726,7 @@ func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "1:192.0.2.1:100", vpnNLRI.RD().String())
 }
@@ -1747,7 +1748,7 @@ func TestParseUpdateText_RDDel(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: VPN with RD
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 
@@ -1795,7 +1796,7 @@ func TestParseUpdateText_LabelSet(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	require.Len(t, vpnNLRI.Labels(), 1)
 	assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0])
@@ -1815,7 +1816,7 @@ func TestParseUpdateText_LabelSetZero(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	require.Len(t, vpnNLRI.Labels(), 1)
 	assert.Equal(t, uint32(0), vpnNLRI.Labels()[0])
@@ -1835,7 +1836,7 @@ func TestParseUpdateText_LabelSetMax(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, uint32(1048575), vpnNLRI.Labels()[0])
 }
@@ -1873,7 +1874,7 @@ func TestParseUpdateText_LabelDel(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: VPN with label
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	require.Len(t, vpnNLRI.Labels(), 1)
 	assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0])
@@ -1984,7 +1985,7 @@ func TestParseUpdateText_IPv6VPN(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	assert.Equal(t, "2001:db8:1::/48", vpnNLRI.Prefix().String())
@@ -2023,7 +2024,7 @@ func TestParseUpdateText_VPNWithPathInfo(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, uint32(42), vpnNLRI.PathID())
 }
@@ -2045,12 +2046,12 @@ func TestParseUpdateText_RDChangesBetweenSections(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: RD 65000:100
-	vpn1, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpn1, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:100", vpn1.RD().String())
 
 	// Second group: RD 65000:200
-	vpn2, ok := result.Groups[1].Announce[0].(*nlri.IPVPN)
+	vpn2, ok := result.Groups[1].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:200", vpn2.RD().String())
 }
@@ -2072,12 +2073,12 @@ func TestParseUpdateText_LabelChangesBetweenSections(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: label 1000
-	vpn1, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpn1, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, uint32(1000), vpn1.Labels()[0])
 
 	// Second group: label 2000
-	vpn2, ok := result.Groups[1].Announce[0].(*nlri.IPVPN)
+	vpn2, ok := result.Groups[1].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, uint32(2000), vpn2.Labels()[0])
 }
@@ -2099,7 +2100,7 @@ func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok, "expected IPVPN NLRI")
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	require.Len(t, vpnNLRI.Labels(), 1)
@@ -2123,7 +2124,7 @@ func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 
 	// All three prefixes should have same RD and label
 	for i, n := range result.Groups[0].Announce {
-		vpnNLRI, ok := n.(*nlri.IPVPN)
+		vpnNLRI, ok := n.(*vpn.VPN)
 		require.True(t, ok, "prefix %d: expected IPVPN NLRI", i)
 		assert.Equal(t, "0:65000:100", vpnNLRI.RD().String(), "prefix %d", i)
 		assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0], "prefix %d", i)
@@ -2145,7 +2146,7 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	// Should use in-NLRI values, not accumulated
 	assert.Equal(t, "0:65000:200", vpnNLRI.RD().String())
@@ -2164,7 +2165,7 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0])
@@ -2229,7 +2230,7 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: VPN with in-NLRI modifiers
-	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
+	vpnNLRI, ok := result.Groups[0].Announce[0].(*vpn.VPN)
 	require.True(t, ok)
 	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 
