@@ -896,6 +896,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
+		// Check stdout matches if specified
+		for _, expected := range rec.ExpectStdoutMatch {
+			if !strings.Contains(rec.ClientOutput, expected) {
+				rec.Error = fmt.Errorf("stdout does not contain %q", expected)
+				rec.FailureType = "stdout_mismatch"
+				return false
+			}
+		}
+
 		return true
 	}
 

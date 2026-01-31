@@ -131,8 +131,9 @@ type Record struct {
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 
 	// Exit code validation
-	ExpectExitCode    *int   // expect:exit:code=N - expected exit code (nil = don't check)
-	ExpectStderrMatch string // expect=stderr:contains=TEXT - substring match (not regex)
+	ExpectExitCode    *int     // expect:exit:code=N - expected exit code (nil = don't check)
+	ExpectStderrMatch string   // expect=stderr:contains=TEXT - substring match (not regex)
+	ExpectStdoutMatch []string // expect=stdout:contains=TEXT - substring match (not regex), multiple allowed
 
 	// Tmpfs embedded files
 	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks
@@ -767,6 +768,12 @@ func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]st
 		}
 		if contains := kv["contains"]; contains != "" {
 			r.ExpectStderrMatch = contains
+		}
+
+	case "stdout":
+		// Support contains= (substring match)
+		if contains := kv["contains"]; contains != "" {
+			r.ExpectStdoutMatch = append(r.ExpectStdoutMatch, contains)
 		}
 
 	case "syslog":

@@ -1,3 +1,4 @@
+//nolint:dupl // Plugin CLI files intentionally follow the same pattern
 package bgp
 
 import (
