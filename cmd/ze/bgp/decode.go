@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -19,6 +20,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
 
 // Message type constants.
@@ -363,13 +368,15 @@ var pluginCapabilityMap = map[uint8]string{
 // Used by standalone `ze bgp decode` command which has no runtime registry.
 // When engine is running, PluginRegistry.LookupFamily is used instead.
 var pluginFamilyMap = map[string]string{
-	"ipv4/flow":     "flowspec",
-	"ipv6/flow":     "flowspec",
-	"ipv4/flow-vpn": "flowspec",
-	"ipv6/flow-vpn": "flowspec",
-	"l2vpn/evpn":    "evpn",
-	"ipv4/vpn":      "vpn",
-	"ipv6/vpn":      "vpn",
+	"ipv4/flow":         "flowspec",
+	"ipv6/flow":         "flowspec",
+	"ipv4/flow-vpn":     "flowspec",
+	"ipv6/flow-vpn":     "flowspec",
+	"l2vpn/evpn":        "evpn",
+	"ipv4/vpn":          "vpn",
+	"ipv6/vpn":          "vpn",
+	"bgp-ls/bgp-ls":     "bgpls",
+	"bgp-ls/bgp-ls-vpn": "bgpls",
 }
 
 // unknownCapability returns JSON for an unrecognized/plugin-required capability.
@@ -475,8 +482,20 @@ func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 
 // invokePluginNLRIDecodeRequest spawns a plugin and sends an NLRI decode request.
 // Returns decoded JSON (can be array or map) or nil if decoding failed.
-// Unlike invokePluginDecodeRequest, this handles both array and map responses.
+// Falls back to in-process decode when subprocess fails (e.g., during tests).
 func invokePluginNLRIDecodeRequest(pluginName, request string) any {
+	// Try subprocess first
+	result := invokePluginSubprocess(pluginName, request)
+	if result != nil {
+		return result
+	}
+
+	// Fallback: in-process decode (for tests where subprocess can't run)
+	return invokePluginInProcess(pluginName, request)
+}
+
+// invokePluginSubprocess spawns a plugin subprocess for NLRI decode.
+func invokePluginSubprocess(pluginName, request string) any {
 	args := []string{"bgp", "plugin", pluginName, "--decode"}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
@@ -527,6 +546,43 @@ func invokePluginNLRIDecodeRequest(pluginName, request string) any {
 	}
 
 	_ = cmd.Wait()
+	return nil
+}
+
+// inProcessDecoders maps plugin names to their in-process decode functions.
+// Used as fallback when subprocess decode fails (e.g., during tests).
+var inProcessDecoders = map[string]func(input, output *bytes.Buffer) int{
+	"bgpls":    func(in, out *bytes.Buffer) int { return bgpls.RunBGPLSDecode(in, out) },
+	"flowspec": func(in, out *bytes.Buffer) int { return flowspec.RunFlowSpecDecode(in, out) },
+	"evpn":     func(in, out *bytes.Buffer) int { return evpn.RunEVPNDecode(in, out) },
+	"vpn":      func(in, out *bytes.Buffer) int { return vpn.RunVPNDecode(in, out) },
+}
+
+// invokePluginInProcess runs plugin decode in-process (fallback for tests).
+func invokePluginInProcess(pluginName, request string) any {
+	decoder, ok := inProcessDecoders[pluginName]
+	if !ok {
+		return nil
+	}
+
+	input := bytes.NewBufferString(request + "\n")
+	output := &bytes.Buffer{}
+
+	decoder(input, output)
+
+	line := strings.TrimSpace(output.String())
+	if strings.HasPrefix(line, "decoded json ") {
+		jsonStr := strings.TrimPrefix(line, "decoded json ")
+		var arrResult []any
+		if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
+			return arrResult
+		}
+		var mapResult map[string]any
+		if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
+			return mapResult
+		}
+	}
+
 	return nil
 }
 
@@ -1012,426 +1068,38 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
 		}
 	case afi == nlri.AFIBGPLS:
-		routes = parseBGPLSRoutes(data)
-	default:
-		// Generic prefix parsing
+		// BGP-LS decoding delegated to plugin
+		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		hexData := fmt.Sprintf("%X", data)
+		result := invokePluginNLRIDecode("bgpls", family, hexData)
+		if result != nil {
+			if arr, ok := result.([]any); ok {
+				routes = arr
+			} else {
+				routes = []any{result}
+			}
+		} else {
+			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+		}
+	case safi == nlri.SAFIVPN:
+		// VPN decoding delegated to plugin (RFC 4364, 4659)
+		family := nlri.Family{AFI: afi, SAFI: safi}.String()
+		hexData := fmt.Sprintf("%X", data)
+		result := invokePluginNLRIDecode("vpn", family, hexData)
+		if result != nil {
+			if arr, ok := result.([]any); ok {
+				routes = arr
+			} else {
+				routes = []any{result}
+			}
+		} else {
+			routes = []any{map[string]any{"parsed": false, "raw": hexData}}
+		}
+	default: // IPv4/IPv6 unicast/multicast - simple prefix format
 		routes = parseGenericNLRI(data, afi)
 	}
 
 	return routes
-}
-
-// parseBGPLSRoutes parses BGP-LS NLRI.
-func parseBGPLSRoutes(data []byte) []any {
-	var routes []any
-
-	// BGP-LS parser parses one NLRI at a time
-	parsed, err := nlri.ParseBGPLS(data)
-	if err != nil {
-		routes = append(routes, map[string]any{
-			"parsed": false,
-			"raw":    fmt.Sprintf("%X", data),
-		})
-		return routes
-	}
-
-	route := bgplsToJSON(parsed)
-	routes = append(routes, route)
-
-	return routes
-}
-
-// bgplsToJSON converts a BGP-LS NLRI to ExaBGP-compatible JSON format.
-// RFC 7752 defines the NLRI structure; ExaBGP uses specific field names.
-func bgplsToJSON(n nlri.BGPLSNLRI) map[string]any {
-	result := map[string]any{
-		"ls-nlri-type":        bgplsNLRITypeString(uint16(n.NLRIType())),
-		"l3-routing-topology": n.Identifier(),
-		"protocol-id":         int(n.ProtocolID()),
-	}
-
-	// Type-specific fields based on NLRI type
-	switch v := n.(type) {
-	case *nlri.BGPLSNode:
-		// Parse TLVs from wire bytes to include only TLVs actually present
-		result["node-descriptors"] = parseBGPLSNodeTLVs(v.Bytes())
-
-	case *nlri.BGPLSLink:
-		// Parse TLVs from wire bytes to extract all fields
-		localDescs, remoteDescs, linkInfo := parseBGPLSLinkTLVs(v.Bytes())
-		result["local-node-descriptors"] = localDescs
-		result["remote-node-descriptors"] = remoteDescs
-		result["interface-addresses"] = linkInfo.ifAddrs
-		result["neighbor-addresses"] = linkInfo.neighAddrs
-		result["multi-topology-ids"] = linkInfo.mtIDs
-		result["link-identifiers"] = linkInfo.linkIDs
-
-	case *nlri.BGPLSPrefix:
-		// Parse TLVs from wire bytes to include only TLVs actually present
-		nodeDescs, prefixInfo := parseBGPLSPrefixTLVs(v.Bytes(), v.NLRIType())
-		result["node-descriptors"] = nodeDescs
-		if prefixInfo.prefix != "" {
-			// RFC 7752 Section 3.2.3.2: TLV 265 contains prefix-length + prefix-bytes
-			// Both fields include /prefix-length since that's what the TLV contains.
-			// ExaBGP historically showed ip-reachability-tlv without /prefix but this
-			// is being corrected to match the actual TLV content.
-			result["ip-reachability-tlv"] = prefixInfo.prefix
-			result["ip-reach-prefix"] = prefixInfo.prefix
-		}
-		result["multi-topology-ids"] = prefixInfo.mtIDs
-
-	case *nlri.BGPLSSRv6SID:
-		// Parse TLVs from wire bytes to include only TLVs actually present
-		result["node-descriptors"] = parseBGPLSNodeTLVs(v.Bytes())
-		if len(v.SRv6SID.SRv6SID) > 0 {
-			result["srv6-sid"] = formatIPv6Compressed(v.SRv6SID.SRv6SID)
-		}
-	}
-
-	return result
-}
-
-// bgplsNLRITypeString returns the ExaBGP-style NLRI type string.
-// RFC 7752 Section 3.2, Table 1 defines NLRI types 1-4, RFC 9514 defines type 6.
-func bgplsNLRITypeString(nlriType uint16) string {
-	switch nlriType {
-	case 1:
-		return "bgpls-node"
-	case 2:
-		return "bgpls-link"
-	case 3:
-		return "bgpls-prefix-v4"
-	case 4:
-		return "bgpls-prefix-v6"
-	case 6:
-		return "bgpls-srv6-sid"
-	default:
-		return fmt.Sprintf("bgpls-type-%d", nlriType)
-	}
-}
-
-// formatNodeDescriptors converts a NodeDescriptor to ExaBGP array format.
-// Each sub-TLV becomes a separate object in the array per ExaBGP convention.
-// Note: Only includes fields that have non-zero values (TLVs actually present).
-func formatNodeDescriptors(nd *nlri.NodeDescriptor) []any {
-	var descs []any
-
-	// RFC 7752 Section 3.2.1.4 - Autonomous System (TLV 512)
-	if nd.ASN != 0 {
-		descs = append(descs, map[string]any{"autonomous-system": nd.ASN})
-	}
-
-	// RFC 7752 Section 3.2.1.4 - BGP-LS Identifier (TLV 513)
-	// Only add if non-zero (TLV was present)
-	if nd.BGPLSIdentifier != 0 {
-		descs = append(descs, map[string]any{"bgp-ls-identifier": fmt.Sprintf("%d", nd.BGPLSIdentifier)})
-	}
-
-	// RFC 7752 Section 3.2.1.4 - OSPF Area-ID (TLV 514)
-	// Only add if non-zero (TLV was present)
-	if nd.OSPFAreaID != 0 {
-		descs = append(descs, map[string]any{
-			"ospf-area-id": fmt.Sprintf("%d.%d.%d.%d",
-				(nd.OSPFAreaID>>24)&0xFF,
-				(nd.OSPFAreaID>>16)&0xFF,
-				(nd.OSPFAreaID>>8)&0xFF,
-				nd.OSPFAreaID&0xFF),
-		})
-	}
-
-	// RFC 7752 Section 3.2.1.4 - IGP Router-ID (TLV 515)
-	if len(nd.IGPRouterID) > 0 {
-		descs = append(descs, map[string]any{"router-id": formatRouterID(nd.IGPRouterID)})
-	}
-
-	return descs
-}
-
-// formatRouterID formats the IGP Router-ID based on its length.
-// - 4 bytes: OSPF Router-ID as dotted decimal
-// - 6 bytes: IS-IS System ID as hex
-// - 7 bytes: IS-IS pseudonode (6-byte System ID + 1-byte PSN)
-// - 8 bytes: OSPF pseudonode (4-byte Router-ID + 4-byte interface).
-func formatRouterID(id []byte) string {
-	switch len(id) {
-	case 4:
-		// OSPF Router-ID: dotted decimal
-		return fmt.Sprintf("%d.%d.%d.%d", id[0], id[1], id[2], id[3])
-	case 6:
-		// IS-IS System ID: hex digits (ExaBGP shows as decimal string)
-		return fmt.Sprintf("%02x%02x%02x%02x%02x%02x", id[0], id[1], id[2], id[3], id[4], id[5])
-	case 7:
-		// IS-IS pseudonode: System ID + PSN
-		return fmt.Sprintf("%02x%02x%02x%02x%02x%02x%02x", id[0], id[1], id[2], id[3], id[4], id[5], id[6])
-	case 8:
-		// OSPF pseudonode: Router-ID + interface address
-		routerID := fmt.Sprintf("%d.%d.%d.%d", id[0], id[1], id[2], id[3])
-		ifAddr := fmt.Sprintf("%d.%d.%d.%d", id[4], id[5], id[6], id[7])
-		return routerID + "," + ifAddr
-	default:
-		// Unknown format: hex
-		return fmt.Sprintf("%X", id)
-	}
-}
-
-// formatIPReachability formats the IP Reachability Information TLV.
-// RFC 7752 Section 3.2.3.2 defines the format: prefix-length + prefix-bytes.
-func formatIPReachability(data []byte, nlriType nlri.BGPLSNLRIType) string {
-	if len(data) < 1 {
-		return ""
-	}
-
-	prefixLen := int(data[0])
-	byteLen := (prefixLen + 7) / 8
-
-	if len(data) < 1+byteLen {
-		return ""
-	}
-
-	prefixBytes := data[1 : 1+byteLen]
-
-	if nlriType == nlri.BGPLSPrefixV6NLRI {
-		// IPv6 prefix
-		addr := make([]byte, 16)
-		copy(addr, prefixBytes)
-		return formatIPv6Compressed(addr) + "/" + fmt.Sprintf("%d", prefixLen)
-	}
-
-	// IPv4 prefix
-	addr := make([]byte, 4)
-	copy(addr, prefixBytes)
-	return fmt.Sprintf("%d.%d.%d.%d/%d", addr[0], addr[1], addr[2], addr[3], prefixLen)
-}
-
-// prefixDescriptorInfo holds parsed prefix descriptor information.
-type prefixDescriptorInfo struct {
-	prefix string
-	mtIDs  []any
-}
-
-// parseBGPLSPrefixTLVs parses a Prefix NLRI wire format to extract all fields.
-// RFC 7752 Section 3.2.3 defines the Prefix NLRI format.
-func parseBGPLSPrefixTLVs(data []byte, nlriType nlri.BGPLSNLRIType) (nodeDescs []any, info prefixDescriptorInfo) {
-	info.mtIDs = []any{}
-
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return nodeDescs, info
-	}
-
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 256: // Local Node Descriptors
-			nodeDescs = parseNodeDescriptorSubTLVs(value)
-		case 263: // Multi-Topology ID
-			for i := 0; i+2 <= len(value); i += 2 {
-				mtID := binary.BigEndian.Uint16(value[i:i+2]) & 0x0FFF
-				info.mtIDs = append(info.mtIDs, int(mtID))
-			}
-		case 265: // IP Reachability Information
-			info.prefix = formatIPReachability(value, nlriType)
-		}
-
-		offset += 4 + tlvLen
-	}
-
-	return nodeDescs, info
-}
-
-// parseBGPLSNodeTLVs parses a Node NLRI wire format to extract node descriptors.
-// RFC 7752 Section 3.2.1 defines the Node NLRI format:
-// - NLRI Type (2) + Length (2) + Protocol-ID (1) + Identifier (8)
-// - Local Node Descriptors TLV (256).
-func parseBGPLSNodeTLVs(data []byte) []any {
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return []any{}
-	}
-
-	// Skip NLRI header: Type(2) + Length(2) = 4 bytes
-	// Then Protocol-ID(1) + Identifier(8) = 9 bytes
-	// Total: 13 bytes before TLVs
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		if tlvType == 256 { // Local Node Descriptors
-			return parseNodeDescriptorSubTLVs(value)
-		}
-
-		offset += 4 + tlvLen
-	}
-
-	return []any{}
-}
-
-// linkDescriptorInfo holds parsed link descriptor information.
-type linkDescriptorInfo struct {
-	ifAddrs    []any // IPv4/IPv6 interface addresses
-	neighAddrs []any // IPv4/IPv6 neighbor addresses
-	mtIDs      []any // Multi-topology IDs
-	linkIDs    []any // Link local/remote identifiers
-}
-
-// parseBGPLSLinkTLVs parses a Link NLRI wire format to extract all TLVs.
-// RFC 7752 Section 3.2.2 defines the Link NLRI format:
-// - NLRI Type (2) + Length (2) + Protocol-ID (1) + Identifier (8)
-// - Local Node Descriptors TLV (256)
-// - Remote Node Descriptors TLV (257)
-// - Link Descriptor TLVs (258-263).
-func parseBGPLSLinkTLVs(data []byte) (localDescs, remoteDescs []any, info linkDescriptorInfo) {
-	info = linkDescriptorInfo{
-		ifAddrs:    []any{},
-		neighAddrs: []any{},
-		mtIDs:      []any{},
-		linkIDs:    []any{},
-	}
-
-	// Minimum: Type(2) + Len(2) + ProtoID(1) + Identifier(8) = 13 bytes
-	if len(data) < 13 {
-		return localDescs, remoteDescs, info
-	}
-
-	// Skip NLRI header: Type(2) + Length(2) = 4 bytes
-	// Then Protocol-ID(1) + Identifier(8) = 9 bytes
-	// Total: 13 bytes before TLVs
-	offset := 13
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 256: // Local Node Descriptors
-			localDescs = parseNodeDescriptorSubTLVs(value)
-		case 257: // Remote Node Descriptors
-			remoteDescs = parseNodeDescriptorSubTLVs(value)
-		case 258: // Link Local/Remote Identifiers (8 bytes: local(4) + remote(4))
-			if len(value) >= 8 {
-				localID := binary.BigEndian.Uint32(value[0:4])
-				remoteID := binary.BigEndian.Uint32(value[4:8])
-				info.linkIDs = append(info.linkIDs, map[string]any{
-					"link-local-id":  localID,
-					"link-remote-id": remoteID,
-				})
-			}
-		case 259: // IPv4 Interface Address
-			if len(value) == 4 {
-				info.ifAddrs = append(info.ifAddrs,
-					fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]))
-			}
-		case 260: // IPv4 Neighbor Address
-			if len(value) == 4 {
-				info.neighAddrs = append(info.neighAddrs,
-					fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]))
-			}
-		case 261: // IPv6 Interface Address
-			if len(value) == 16 {
-				info.ifAddrs = append(info.ifAddrs, formatIPv6Compressed(value))
-			}
-		case 262: // IPv6 Neighbor Address
-			if len(value) == 16 {
-				info.neighAddrs = append(info.neighAddrs, formatIPv6Compressed(value))
-			}
-		case 263: // Multi-Topology ID
-			// 2 bytes per MT-ID, high 4 bits reserved
-			for i := 0; i+2 <= len(value); i += 2 {
-				mtID := binary.BigEndian.Uint16(value[i:i+2]) & 0x0FFF
-				info.mtIDs = append(info.mtIDs, int(mtID))
-			}
-		}
-
-		offset += 4 + tlvLen
-	}
-
-	return localDescs, remoteDescs, info
-}
-
-// parseNodeDescriptorSubTLVs parses node descriptor sub-TLVs into ExaBGP format.
-// RFC 7752 Section 3.2.1.4 defines the sub-TLV types.
-func parseNodeDescriptorSubTLVs(data []byte) []any {
-	var descs []any
-	offset := 0
-
-	for offset+4 <= len(data) {
-		tlvType := binary.BigEndian.Uint16(data[offset : offset+2])
-		tlvLen := int(binary.BigEndian.Uint16(data[offset+2 : offset+4]))
-
-		if offset+4+tlvLen > len(data) {
-			break
-		}
-
-		value := data[offset+4 : offset+4+tlvLen]
-
-		switch tlvType {
-		case 512: // Autonomous System
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"autonomous-system": binary.BigEndian.Uint32(value),
-				})
-			}
-		case 513: // BGP-LS Identifier
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"bgp-ls-identifier": fmt.Sprintf("%d", binary.BigEndian.Uint32(value)),
-				})
-			}
-		case 514: // OSPF Area-ID
-			if len(value) >= 4 {
-				descs = append(descs, map[string]any{
-					"ospf-area-id": fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]),
-				})
-			}
-		case 515: // IGP Router-ID
-			routerID := formatRouterID(value)
-			// Check for pseudonode (7-8 bytes) and add designated-router-id
-			switch len(value) {
-			case 8:
-				// OSPF pseudonode: Router-ID + DR interface
-				descs = append(descs, map[string]any{
-					"router-id":            fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3]),
-					"designated-router-id": fmt.Sprintf("%d.%d.%d.%d", value[4], value[5], value[6], value[7]),
-				})
-			case 7:
-				// IS-IS pseudonode: System-ID + PSN
-				descs = append(descs, map[string]any{
-					"router-id": routerID,
-					"psn":       fmt.Sprintf("%d", value[6]),
-				})
-			default:
-				descs = append(descs, map[string]any{"router-id": routerID})
-			}
-		}
-
-		offset += 4 + tlvLen
-	}
-
-	return descs
 }
 
 // parseBGPLSAttribute parses BGP-LS attribute (type 29) TLVs.
@@ -1823,29 +1491,10 @@ func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON boo
 		// Plugin failed, fall through to built-in decode
 	}
 
-	afi, _ := parseFamily(family)
-
-	var result map[string]any
-	if afi == nlri.AFIBGPLS {
-		routes := parseBGPLSRoutes(data)
-		if len(routes) > 0 {
-			if r, ok := routes[0].(map[string]any); ok {
-				result = r
-			}
-		}
-	} else {
-		// Unknown family or plugin-handled family - return raw bytes
-		result = map[string]any{
-			"parsed": false,
-			"raw":    fmt.Sprintf("%X", data),
-		}
-	}
-
-	if result == nil {
-		result = map[string]any{
-			"parsed": false,
-			"raw":    fmt.Sprintf("%X", data),
-		}
+	// Plugin failed or unknown family - return raw bytes
+	result := map[string]any{
+		"parsed": false,
+		"raw":    fmt.Sprintf("%X", data),
 	}
 
 	// Human-readable output
@@ -1859,15 +1508,6 @@ func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON boo
 	}
 
 	return string(jsonData), nil
-}
-
-// parseFamily parses a family string like "ipv4/unicast" into AFI/SAFI.
-func parseFamily(family string) (nlri.AFI, nlri.SAFI) {
-	f, ok := nlri.ParseFamily(strings.ToLower(family))
-	if !ok {
-		return 0, 0
-	}
-	return f.AFI, f.SAFI
 }
 
 // hasValidMarker checks if data has the BGP marker (16 0xFF bytes).

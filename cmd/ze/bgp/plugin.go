@@ -27,6 +27,8 @@ func cmdPlugin(args []string) int {
 		return cmdPluginEVPN(args[1:])
 	case "vpn":
 		return cmdPluginVPN(args[1:])
+	case "bgpls":
+		return cmdPluginBGPLS(args[1:])
 	case "test":
 		return cmdPluginTest(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent with main.go, config.go
@@ -50,6 +52,7 @@ Plugin Subcommands:
   flowspec     Run as FlowSpec family plugin (RFC 8955, 8956)
   evpn         Run as EVPN family plugin (RFC 7432, 9136)
   vpn          Run as VPN family plugin (RFC 4364, 4659)
+  bgpls        Run as BGP-LS family plugin (RFC 7752, 9085, 9514)
   test         Test plugin YANG schema and config delivery (debugging)
   help         Show this help
 

@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // Test data constants to avoid goconst lint warnings.
@@ -486,91 +484,6 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 
 	if route["remote-node-descriptors"] == nil {
 		t.Error("missing remote-node-descriptors field")
-	}
-}
-
-// TestBGPLSNodeDescriptorFormat verifies node descriptor fields.
-//
-// VALIDATES: Node descriptors include autonomous-system, bgp-ls-identifier, ospf-area-id, router-id.
-//
-// PREVENTS: Missing or malformed node descriptor fields.
-func TestBGPLSNodeDescriptorFormat(t *testing.T) {
-	tests := []struct {
-		name     string
-		asn      uint32
-		bgplsID  string
-		areaID   string
-		routerID string
-	}{
-		{
-			name:     "ospf_router",
-			asn:      65001,
-			bgplsID:  "0",
-			areaID:   "0.0.0.0",
-			routerID: "10.1.1.1",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Test that formatNodeDescriptors produces correct structure
-			nd := &nlri.NodeDescriptor{
-				ASN:             tt.asn,
-				BGPLSIdentifier: 0,
-				OSPFAreaID:      0,
-				IGPRouterID:     []byte{10, 1, 1, 1},
-			}
-
-			result := formatNodeDescriptors(nd)
-			if len(result) == 0 {
-				t.Fatal("no descriptors returned")
-			}
-
-			// Check autonomous-system
-			var foundASN bool
-			for _, desc := range result {
-				descMap, ok := desc.(map[string]any)
-				if !ok {
-					continue
-				}
-				if asn, ok := descMap["autonomous-system"]; ok {
-					if asn != float64(tt.asn) && asn != tt.asn {
-						t.Errorf("expected autonomous-system %d, got %v", tt.asn, asn)
-					}
-					foundASN = true
-				}
-			}
-			if !foundASN {
-				t.Error("missing autonomous-system in descriptors")
-			}
-		})
-	}
-}
-
-// TestBGPLSNLRITypes verifies all BGP-LS NLRI types are formatted correctly.
-//
-// VALIDATES: Node (1), Link (2), Prefix-v4 (3), Prefix-v6 (4) types.
-//
-// PREVENTS: Unknown NLRI types showing as raw hex.
-func TestBGPLSNLRITypes(t *testing.T) {
-	tests := []struct {
-		nlriType uint16
-		want     string
-	}{
-		{1, "bgpls-node"},
-		{2, "bgpls-link"},
-		{3, "bgpls-prefix-v4"},
-		{4, "bgpls-prefix-v6"},
-		{6, "bgpls-srv6-sid"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.want, func(t *testing.T) {
-			got := bgplsNLRITypeString(tt.nlriType)
-			if got != tt.want {
-				t.Errorf("bgplsNLRITypeString(%d) = %q, want %q", tt.nlriType, got, tt.want)
-			}
-		})
 	}
 }
 

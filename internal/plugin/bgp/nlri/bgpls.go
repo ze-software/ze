@@ -434,9 +434,13 @@ func (pd *PrefixDescriptor) CheckedWriteTo(buf []byte, off int) (int, error) {
 	return pd.WriteTo(buf, off), nil
 }
 
-// BGP-LS SAFI.
+// BGP-LS SAFIs.
 // RFC 7752 Section 3.1: AFI 16388 with SAFI 71 carries non-VPN link-state information.
-const SAFIBGPLinkState SAFI = 71
+// SAFI 72 carries VPN link-state information (BGP-LS VPN).
+const (
+	SAFIBGPLinkState    SAFI = 71 // RFC 7752 - BGP-LS base
+	SAFIBGPLinkStateVPN SAFI = 72 // RFC 7752 - BGP-LS VPN
+)
 
 // bgplsBase contains common fields for all BGP-LS NLRI types.
 // RFC 7752 Section 3.2 defines the common NLRI header:

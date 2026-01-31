@@ -3,6 +3,7 @@ package plugin
 import (
 	"io"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
@@ -52,6 +53,11 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 		// Configure logger for in-process plugin (uses ze.log.vpn env var)
 		vpn.SetVPNLogger(slogutil.Logger("vpn"))
 		return vpn.NewVPNPlugin(in, out).Run()
+	},
+	"bgpls": func(in io.Reader, out io.Writer) int {
+		// Configure logger for in-process plugin (uses ze.log.bgpls env var)
+		bgpls.SetBGPLSLogger(slogutil.Logger("bgpls"))
+		return bgpls.NewBGPLSPlugin(in, out).Run()
 	},
 }
 
@@ -112,6 +118,9 @@ var familyToPlugin = map[string]string{
 	// VPN families → vpn plugin
 	"ipv4/vpn": "vpn",
 	"ipv6/vpn": "vpn",
+	// BGP-LS families → bgpls plugin
+	"bgp-ls/bgp-ls":     "bgpls",
+	"bgp-ls/bgp-ls-vpn": "bgpls",
 }
 
 // GetPluginForFamily returns the internal plugin name that handles a family.
