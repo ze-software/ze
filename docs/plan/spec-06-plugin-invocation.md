@@ -14,9 +14,9 @@ Implement three plugin invocation conventions based on naming syntax:
 
 | Syntax | Method | Cost | Use Case |
 |--------|--------|------|----------|
-| `name` | Auto | Variable | Default - subprocess with in-process fallback |
-| `ze.name` | In-process | Low | Direct function call, no IPC overhead |
-| `ze/name` | Subprocess | High | Explicit process isolation, like calling a program |
+| `name` or `path/name` | Fork | High | Spawn subprocess, process isolation |
+| `ze.<name>` | Internal | Medium | API call with goroutine, like engine calls plugins |
+| `ze-<name>` | Direct | Low | Direct function call, synchronous, no goroutine |
 
 ## Current Behavior (MANDATORY)
 
@@ -44,18 +44,29 @@ Implement three plugin invocation conventions based on naming syntax:
 ```
 parsePluginName(input) → (name, mode)
 
-"flowspec"    → ("flowspec", ModeAuto)
-"ze.flowspec" → ("flowspec", ModeInProcess)
-"ze/flowspec" → ("flowspec", ModeSubprocess)
+"flowspec"       → ("flowspec", ModeFork)
+"/path/to/prog"  → ("/path/to/prog", ModeFork)
+"ze.flowspec"    → ("flowspec", ModeInternal)
+"ze-flowspec"    → ("flowspec", ModeDirect)
 ```
 
 ### Invocation Logic
 
 ```
-ModeAuto:       subprocess() || inprocess()   # current behavior
-ModeInProcess:  inprocess() only              # fail if not available
-ModeSubprocess: subprocess() only             # fail if subprocess fails
+ModeFork:     spawn subprocess (exec)
+ModeInternal: goroutine + pipe (like engine's internal plugin API)
+ModeDirect:   direct function call, synchronous, blocking
 ```
+
+### Method Comparison
+
+| Aspect | Fork | Internal | Direct |
+|--------|------|----------|--------|
+| Process | New process | Same process | Same process |
+| Concurrency | OS-level | Goroutine | None (blocking) |
+| Communication | stdin/stdout pipes | Go channels/pipes | Function return |
+| Isolation | Full | Memory shared | Memory shared |
+| Use case | External plugins | Engine-style | CLI decode, tests |
 
 ### Affected Locations
 
@@ -64,13 +75,21 @@ ModeSubprocess: subprocess() only             # fail if subprocess fails
 | `pluginFamilyMap` values | `"flowspec"` | Support all three syntaxes |
 | `pluginCapabilityMap` values | `"hostname"` | Support all three syntaxes |
 | `--plugin` flag | Any string | Document three syntaxes |
-| Config `plugin` blocks | `ze.rib` | Clarify: `ze.rib` = in-process, `ze/rib` = subprocess |
+| Config `plugin` blocks | Various | `ze.rib` = internal, `ze-rib` = direct, `rib` = fork |
 
-### Config Migration
+### Examples
 
-Current config uses `ze.rib` which will now mean in-process. If users want subprocess:
-- Old: `run "ze bgp plugin rib"` or `plugin ze.rib`
-- New: `plugin ze/rib` for subprocess, `plugin ze.rib` for in-process
+```
+# Fork (subprocess)
+ze bgp decode --plugin flowspec --nlri ipv4/flow ...
+ze bgp decode --plugin /usr/local/bin/my-decoder --nlri ...
+
+# Internal (goroutine + API)
+ze bgp decode --plugin ze.flowspec --nlri ipv4/flow ...
+
+# Direct (synchronous function call)
+ze bgp decode --plugin ze-flowspec --nlri ipv4/flow ...
+```
 
 ## Required Reading
 
@@ -88,9 +107,9 @@ Current config uses `ze.rib` which will now mean in-process. If users want subpr
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestParsePluginName` | `cmd/ze/bgp/decode_test.go` | Syntax parsing for all three modes | |
-| `TestInvokeInProcessOnly` | `cmd/ze/bgp/decode_test.go` | `ze.name` uses in-process only | |
-| `TestInvokeSubprocessOnly` | `cmd/ze/bgp/decode_test.go` | `ze/name` uses subprocess only | |
-| `TestInvokeAutoFallback` | `cmd/ze/bgp/decode_test.go` | `name` falls back to in-process | |
+| `TestInvokeFork` | `cmd/ze/bgp/decode_test.go` | `name` spawns subprocess | |
+| `TestInvokeInternal` | `cmd/ze/bgp/decode_test.go` | `ze.name` uses goroutine+pipe | |
+| `TestInvokeDirect` | `cmd/ze/bgp/decode_test.go` | `ze-name` calls function directly | |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -100,8 +119,9 @@ Current config uses `ze.rib` which will now mean in-process. If users want subpr
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `plugin-invoke-inprocess` | `test/decode/*.ci` | `ze.bgpls` decodes via in-process | |
-| `plugin-invoke-subprocess` | `test/decode/*.ci` | `ze/bgpls` decodes via subprocess | |
+| `plugin-invoke-fork` | `test/decode/*.ci` | `bgpls` decodes via subprocess | |
+| `plugin-invoke-internal` | `test/decode/*.ci` | `ze.bgpls` decodes via goroutine | |
+| `plugin-invoke-direct` | `test/decode/*.ci` | `ze-bgpls` decodes via direct call | |
 
 ## Files to Modify
 
@@ -125,9 +145,10 @@ Current config uses `ze.rib` which will now mean in-process. If users want subpr
 
 ## Open Questions
 
-1. Should `internalPluginRunners` in `inprocess.go` also respect this syntax?
-2. What error should `ze.unknown` return if plugin not available in-process?
-3. Should we add `ze.` and `ze/` variants to `pluginFamilyMap` or handle dynamically?
+1. Should `internalPluginRunners` in `inprocess.go` be renamed/refactored to support internal vs direct distinction?
+2. What error should `ze.unknown` or `ze-unknown` return if plugin not available?
+3. For tests: which mode should be default in `pluginFamilyMap`? (`ze-` direct would be fastest)
+4. Should path detection (`/path/to/prog`) work for any path or only absolute paths?
 
 ## Checklist
 

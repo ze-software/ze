@@ -104,7 +104,9 @@
       "Bash(./ze-test:*)",
       "Bash(/tmp/ze-test:*)",
       "Bash(./ze:*)",
-      "Bash(/tmp/ze:*)"
+      "Bash(/tmp/ze:*)",
+      "Bash(./bin/ze-test:*)",
+      "Bash(./bin/ze:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
