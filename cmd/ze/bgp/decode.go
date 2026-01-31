@@ -171,20 +171,16 @@ func decodeHexPacket(hexStr, msgType, family string, plugins []string, outputJSO
 		}
 	}
 
-	// Merge result into envelope, preserving neighbor section fields
-	envelope := makeEnvelope(msgType)
-	if neighborResult, ok := result["neighbor"].(map[string]any); ok {
-		// Merge into existing neighbor section (preserving address, asn, direction)
-		if neighborEnv, ok := envelope["neighbor"].(map[string]any); ok {
-			for k, v := range neighborResult {
-				neighborEnv[k] = v
-			}
-		}
+	// Ze format: {"type": "bgp", "bgp": {"type": "<event>", "peer": {...}, "<event>": {...}}}.
+	envelope := makeZeEnvelope(msgType)
+	bgp, _ := envelope["bgp"].(map[string]any)
+
+	// Merge event-specific content into bgp.<event> section
+	if eventContent, ok := result[msgType].(map[string]any); ok {
+		bgp[msgType] = eventContent
 	} else {
-		// Non-neighbor keys go directly
-		for k, v := range result {
-			envelope[k] = v
-		}
+		// Fallback: use result directly as event content
+		bgp[msgType] = result
 	}
 
 	jsonData, err := json.Marshal(envelope)
@@ -210,32 +206,27 @@ func detectMessageType(data []byte) string {
 	}
 }
 
-// makeEnvelope creates the ExaBGP-compatible envelope structure.
-func makeEnvelope(msgType string) map[string]any {
-	hostname, _ := os.Hostname()
+// makeZeEnvelope creates the Ze IPC Protocol 2.0 envelope structure.
+// Ze format: {"type": "bgp", "bgp": {"peer": {...}, "message": {..., "type": "<event>"}, "<event>": {...}}}.
+// The message type can be determined either from message.type or by checking which key exists (open/update).
+func makeZeEnvelope(msgType string) map[string]any {
 	return map[string]any{
-		"exabgp":  "5.0.0",
-		"time":    float64(time.Now().UnixNano()) / 1e9,
-		"host":    hostname,
-		"pid":     os.Getpid(),
-		"ppid":    os.Getppid(),
-		"counter": 1,
-		"type":    msgType,
-		"neighbor": map[string]any{
-			"address": map[string]any{
-				"local": "127.0.0.1",
-				"peer":  "127.0.0.1",
+		"type": "bgp",
+		"bgp": map[string]any{
+			"peer": map[string]any{
+				"address": "127.0.0.1",
+				"asn":     65533,
 			},
-			"asn": map[string]any{
-				"local": 65533,
-				"peer":  65533,
+			"message": map[string]any{
+				"id":        0,
+				"direction": "received",
+				"type":      msgType,
 			},
-			"direction": "in",
 		},
 	}
 }
 
-// decodeOpenMessage decodes a BGP OPEN message.
+// decodeOpenMessage decodes a BGP OPEN message and returns Ze format.
 func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[string]any, error) {
 	body := data
 	if hasHeader {
@@ -262,23 +253,22 @@ func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[strin
 		}
 	}
 
-	// Build capabilities JSON - keyed by capability code
-	capsJSON := make(map[string]any)
+	// Ze format: capabilities as array of objects with code, name, value
+	capsArray := make([]map[string]any, 0, len(caps))
 	for _, c := range caps {
-		capsJSON[fmt.Sprintf("%d", c.Code())] = capabilityToJSON(c, plugins)
+		capJSON := capabilityToZeJSON(c, plugins)
+		capsArray = append(capsArray, capJSON)
 	}
 
-	neighbor := map[string]any{
-		"open": map[string]any{
-			"version":      open.Version,
-			"asn":          asn,
-			"hold_time":    open.HoldTime,
-			"router_id":    open.RouterID(),
-			"capabilities": capsJSON,
-		},
+	// Ze format: open event content
+	openContent := map[string]any{
+		"asn":          asn,
+		"router-id":    open.RouterID(),
+		"hold-time":    open.HoldTime,
+		"capabilities": capsArray,
 	}
 
-	return map[string]any{"neighbor": neighbor}, nil
+	return map[string]any{"open": openContent}, nil
 }
 
 // parseCapabilities parses optional parameters for capabilities.
@@ -312,52 +302,6 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 	return caps
 }
 
-// capabilityToJSON converts a capability to its JSON representation.
-// Plugin-provided capabilities are decoded only when the plugin is specified.
-func capabilityToJSON(c capability.Capability, plugins []string) map[string]any {
-	switch cap := c.(type) {
-	case *capability.Multiprotocol:
-		return map[string]any{
-			"name":     "multiprotocol",
-			"families": []string{cap.AFI.String() + "/" + cap.SAFI.String()},
-		}
-	case *capability.ASN4:
-		return map[string]any{
-			"name": "asn4",
-			"asn4": cap.ASN,
-		}
-	case *capability.RouteRefresh:
-		return map[string]any{
-			"name": "route-refresh",
-		}
-	case *capability.ExtendedMessage:
-		return map[string]any{
-			"name": "extended-message",
-		}
-	case *capability.AddPath:
-		families := make([]string, len(cap.Families))
-		for i, f := range cap.Families {
-			families[i] = fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
-		}
-		return map[string]any{
-			"name":     "add-path",
-			"families": families,
-		}
-	case *capability.GracefulRestart:
-		return map[string]any{
-			"name":         "graceful-restart",
-			"restart_time": cap.RestartTime,
-		}
-	case *capability.SoftwareVersion:
-		return map[string]any{
-			"name":     "software-version",
-			"software": cap.Version,
-		}
-	default:
-		return unknownCapability(c, plugins)
-	}
-}
-
 // pluginCapabilityMap maps capability codes to plugin names.
 // Plugins that can decode specific capabilities register here.
 var pluginCapabilityMap = map[uint8]string{
@@ -379,11 +323,39 @@ var pluginFamilyMap = map[string]string{
 	"bgp-ls/bgp-ls-vpn": "bgpls",
 }
 
-// unknownCapability returns JSON for an unrecognized/plugin-required capability.
-// If a plugin is specified that can decode this capability, it will be invoked.
-func unknownCapability(c capability.Capability, plugins []string) map[string]any {
+// capabilityToZeJSON converts a capability to Ze IPC Protocol 2.0 format.
+// Ze format: {"code": N, "name": "...", "value": "..."}.
+func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]any {
+	code := int(c.Code())
+
+	switch cap := c.(type) {
+	case *capability.Multiprotocol:
+		return map[string]any{"code": code, "name": "multiprotocol", "value": cap.AFI.String() + "/" + cap.SAFI.String()}
+	case *capability.ASN4:
+		return map[string]any{"code": code, "name": "asn4", "value": fmt.Sprintf("%d", cap.ASN)}
+	case *capability.RouteRefresh:
+		return map[string]any{"code": code, "name": "route-refresh"}
+	case *capability.ExtendedMessage:
+		return map[string]any{"code": code, "name": "extended-message"}
+	case *capability.AddPath:
+		families := make([]string, len(cap.Families))
+		for i, f := range cap.Families {
+			families[i] = fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
+		}
+		return map[string]any{"code": code, "name": "add-path", "value": families}
+	case *capability.GracefulRestart:
+		return map[string]any{"code": code, "name": "graceful-restart", "restart-time": cap.RestartTime}
+	case *capability.SoftwareVersion:
+		return map[string]any{"code": code, "name": "software-version", "value": cap.Version}
+	}
+	// Unknown capability type - try plugin decode or return raw
+	return unknownCapabilityZe(c, plugins)
+}
+
+// unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
+func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]any {
+	code := int(c.Code())
 	raw := c.Pack()
-	// Pack() returns full TLV (code + length + value), extract just the value
 	var rawHex string
 	if len(raw) >= 2 {
 		rawHex = fmt.Sprintf("%X", raw[2:])
@@ -392,19 +364,14 @@ func unknownCapability(c capability.Capability, plugins []string) map[string]any
 	// Check if a plugin can decode this capability
 	pluginName, hasPlugin := pluginCapabilityMap[uint8(c.Code())]
 	if hasPlugin && hasPluginEnabled(plugins, pluginName) {
-		// Try plugin decode
 		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
 		if result != nil {
+			result["code"] = code
 			return result
 		}
 	}
 
-	// Fallback: return unknown with raw data
-	return map[string]any{
-		"name": "unknown",
-		"code": int(c.Code()),
-		"raw":  rawHex,
-	}
+	return map[string]any{"code": code, "name": "unknown", "raw": rawHex}
 }
 
 // hasPluginEnabled checks if a plugin is in the enabled list.
@@ -596,7 +563,7 @@ func lookupFamilyPlugin(family string, _ []string) string {
 	return ""
 }
 
-// decodeUpdateMessage decodes a BGP UPDATE message.
+// decodeUpdateMessage decodes a BGP UPDATE message and returns Ze format.
 func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any, error) {
 	body := data
 	if hasHeader {
@@ -611,37 +578,41 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 		return nil, fmt.Errorf("unpack update: %w", err)
 	}
 
-	// Build message section
-	updateContent := make(map[string]any)
+	// Build Ze format update content
+	updateContent := map[string]any{}
 
-	// Parse path attributes
-	attrs, mpReach, mpUnreach := parsePathAttributes(update.PathAttributes)
+	// Parse path attributes - Ze format uses "attr" key
+	attrs, mpReach, mpUnreach := parsePathAttributesZe(update.PathAttributes)
 
-	// Extract and remove internal next-hop field (used for announce section key)
+	// Extract and remove internal next-hop field (used for NLRI operations)
 	nextHop := "0.0.0.0"
 	if nh, ok := attrs["_next-hop"].(string); ok {
 		nextHop = nh
 		delete(attrs, "_next-hop")
 	}
-	_ = nextHop // Used below for NLRI
 
 	if len(attrs) > 0 {
-		updateContent["attribute"] = attrs
+		updateContent["attr"] = attrs
 	}
 
+	// Ze format: family is direct key under update (no "nlri" wrapper)
 	// Handle MP_REACH_NLRI (announcements)
 	if mpReach != nil {
-		announceSection := buildMPReachSection(mpReach)
-		if len(announceSection) > 0 {
-			updateContent["announce"] = announceSection
+		family, ops := buildMPReachZe(mpReach)
+		if family != "" && len(ops) > 0 {
+			updateContent[family] = ops
 		}
 	}
 
 	// Handle MP_UNREACH_NLRI (withdrawals)
 	if mpUnreach != nil {
-		withdrawSection := buildMPUnreachSection(mpUnreach)
-		if len(withdrawSection) > 0 {
-			updateContent["withdraw"] = withdrawSection
+		family, ops := buildMPUnreachZe(mpUnreach)
+		if family != "" && len(ops) > 0 {
+			if existing, ok := updateContent[family].([]map[string]any); ok {
+				updateContent[family] = append(existing, ops...)
+			} else {
+				updateContent[family] = ops
+			}
 		}
 	}
 
@@ -649,11 +620,11 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	if len(update.WithdrawnRoutes) > 0 {
 		prefixes := parseIPv4Prefixes(update.WithdrawnRoutes)
 		if len(prefixes) > 0 {
-			if updateContent["withdraw"] == nil {
-				updateContent["withdraw"] = make(map[string]any)
-			}
-			if withdraw, ok := updateContent["withdraw"].(map[string]any); ok {
-				withdraw["ipv4/unicast"] = prefixes
+			withdrawOp := map[string]any{"action": "del", "nlri": prefixes}
+			if existing, ok := updateContent["ipv4/unicast"].([]map[string]any); ok {
+				updateContent["ipv4/unicast"] = append(existing, withdrawOp)
+			} else {
+				updateContent["ipv4/unicast"] = []map[string]any{withdrawOp}
 			}
 		}
 	}
@@ -661,31 +632,21 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 	// Handle IPv4 NLRI (announcements)
 	if len(update.NLRI) > 0 {
 		prefixes := parseIPv4Prefixes(update.NLRI)
-		nlriList := make([]map[string]any, len(prefixes))
-		for i, p := range prefixes {
-			nlriList[i] = map[string]any{"nlri": p}
-		}
-		if updateContent["announce"] == nil {
-			updateContent["announce"] = make(map[string]any)
-		}
-		if announce, ok := updateContent["announce"].(map[string]any); ok {
-			announce["ipv4/unicast"] = map[string]any{
-				nextHop: nlriList,
+		if len(prefixes) > 0 {
+			announceOp := map[string]any{"next-hop": nextHop, "action": "add", "nlri": prefixes}
+			if existing, ok := updateContent["ipv4/unicast"].([]map[string]any); ok {
+				updateContent["ipv4/unicast"] = append(existing, announceOp)
+			} else {
+				updateContent["ipv4/unicast"] = []map[string]any{announceOp}
 			}
 		}
 	}
 
-	neighbor := map[string]any{
-		"message": map[string]any{
-			"update": updateContent,
-		},
-	}
-
-	return map[string]any{"neighbor": neighbor}, nil
+	return map[string]any{"update": updateContent}, nil
 }
 
-// parsePathAttributes parses path attributes and extracts MP_REACH/MP_UNREACH.
-func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach []byte) {
+// parsePathAttributesZe parses path attributes for Ze format (uses simple AS_PATH array).
+func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreach []byte) {
 	attrs = make(map[string]any)
 	offset := 0
 
@@ -697,10 +658,9 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 		flags := data[offset]
 		code := data[offset+1]
 
-		// Determine header length and value length
 		hdrLen := 3
 		var valueLen int
-		if flags&0x10 != 0 { // Extended length
+		if flags&0x10 != 0 {
 			if offset+4 > len(data) {
 				break
 			}
@@ -727,12 +687,12 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 					attrs["origin"] = origins[value[0]]
 				}
 			}
-		case 2: // AS_PATH
-			asPath := parseASPath(value)
+		case 2: // AS_PATH - Ze format uses simple array
+			asPath := parseASPathZe(value)
 			if len(asPath) > 0 {
 				attrs["as-path"] = asPath
 			}
-		case 3: // NEXT_HOP - stored separately, not in attributes for ExaBGP format
+		case 3: // NEXT_HOP
 			if len(value) == 4 {
 				attrs["_next-hop"] = fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3])
 			}
@@ -748,12 +708,10 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 			attrs["atomic-aggregate"] = true
 		case 7: // AGGREGATOR
 			if len(value) == 6 {
-				// 2-byte ASN + 4-byte IP
 				asn := binary.BigEndian.Uint16(value[0:2])
 				ip := fmt.Sprintf("%d.%d.%d.%d", value[2], value[3], value[4], value[5])
 				attrs["aggregator"] = fmt.Sprintf("%d:%s", asn, ip)
 			} else if len(value) == 8 {
-				// 4-byte ASN + 4-byte IP
 				asn := binary.BigEndian.Uint32(value[0:4])
 				ip := fmt.Sprintf("%d.%d.%d.%d", value[4], value[5], value[6], value[7])
 				attrs["aggregator"] = fmt.Sprintf("%d:%s", asn, ip)
@@ -765,8 +723,7 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 		case 10: // CLUSTER_LIST
 			var clusters []string
 			for i := 0; i+4 <= len(value); i += 4 {
-				clusters = append(clusters, fmt.Sprintf("%d.%d.%d.%d",
-					value[i], value[i+1], value[i+2], value[i+3]))
+				clusters = append(clusters, fmt.Sprintf("%d.%d.%d.%d", value[i], value[i+1], value[i+2], value[i+3]))
 			}
 			if len(clusters) > 0 {
 				attrs["cluster-list"] = clusters
@@ -780,7 +737,7 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 			mpReach = value
 		case 15: // MP_UNREACH_NLRI
 			mpUnreach = value
-		case 29: // BGP-LS Attribute (RFC 7752 Section 3.3)
+		case 29: // BGP-LS Attribute
 			bgplsAttr := parseBGPLSAttribute(value)
 			if len(bgplsAttr) > 0 {
 				attrs["bgp-ls"] = bgplsAttr
@@ -791,6 +748,113 @@ func parsePathAttributes(data []byte) (attrs map[string]any, mpReach, mpUnreach 
 	}
 
 	return attrs, mpReach, mpUnreach
+}
+
+// parseASPathZe parses AS_PATH attribute value into Ze format (simple array).
+func parseASPathZe(data []byte) []uint32 {
+	var result []uint32
+	offset := 0
+
+	for offset < len(data) {
+		if offset+2 > len(data) {
+			break
+		}
+
+		segLen := int(data[offset+1])
+		offset += 2
+
+		// Try 4-byte ASNs first, then 2-byte
+		asnSize := 4
+		if offset+segLen*4 > len(data) {
+			asnSize = 2
+		}
+		if offset+segLen*asnSize > len(data) {
+			break
+		}
+
+		for i := 0; i < segLen; i++ {
+			var asn uint32
+			if asnSize == 4 {
+				asn = binary.BigEndian.Uint32(data[offset : offset+4])
+			} else {
+				asn = uint32(binary.BigEndian.Uint16(data[offset : offset+2]))
+			}
+			result = append(result, asn)
+			offset += asnSize
+		}
+	}
+
+	return result
+}
+
+// buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.
+func buildMPReachZe(mpReach []byte) (string, []map[string]any) {
+	if len(mpReach) < 5 {
+		return "", nil
+	}
+
+	afi := nlri.AFI(binary.BigEndian.Uint16(mpReach[0:2]))
+	safi := nlri.SAFI(mpReach[2])
+	nhLen := int(mpReach[3])
+
+	if len(mpReach) < 4+nhLen+1 {
+		return "", nil
+	}
+
+	nhData := mpReach[4 : 4+nhLen]
+	nextHop := parseNextHop(nhData, afi)
+
+	nlriOffset := 4 + nhLen + 1
+	if nlriOffset >= len(mpReach) {
+		return "", nil
+	}
+
+	nlriData := mpReach[nlriOffset:]
+	familyKey := formatFamily(afi, safi)
+
+	routes := parseNLRIByFamily(nlriData, afi, safi, false)
+	if len(routes) == 0 {
+		return "", nil
+	}
+
+	// Ze format: array of operations with action/next-hop/nlri
+	op := map[string]any{
+		"next-hop": nextHop,
+		"action":   "add",
+		"nlri":     routes,
+	}
+
+	return familyKey, []map[string]any{op}
+}
+
+// buildMPUnreachZe builds Ze format NLRI operations from MP_UNREACH_NLRI.
+func buildMPUnreachZe(mpUnreach []byte) (string, []map[string]any) {
+	if len(mpUnreach) < 3 {
+		return "", nil
+	}
+
+	afi := nlri.AFI(binary.BigEndian.Uint16(mpUnreach[0:2]))
+	safi := nlri.SAFI(mpUnreach[2])
+
+	if len(mpUnreach) <= 3 {
+		return "", nil
+	}
+
+	nlriData := mpUnreach[3:]
+	familyKey := formatFamily(afi, safi)
+
+	routes := parseNLRIByFamily(nlriData, afi, safi, true)
+	if len(routes) == 0 {
+		return "", nil
+	}
+
+	// Ze format: withdraw operation
+	op := map[string]any{
+		"action": "del",
+		"nlri":   routes,
+	}
+
+	return familyKey, []map[string]any{op}
 }
 
 // parseExtendedCommunities parses extended communities (type 16).
@@ -848,64 +912,6 @@ func parseExtendedCommunities(data []byte) []map[string]any {
 	return comms
 }
 
-// parseASPath parses AS_PATH attribute value into ExaBGP object format.
-// ExaBGP format: {"0": {"element": "as-sequence", "value": [asn1, asn2, ...]}, ...}.
-func parseASPath(data []byte) map[string]any {
-	result := make(map[string]any)
-	offset := 0
-	segIndex := 0
-
-	for offset < len(data) {
-		if offset+2 > len(data) {
-			break
-		}
-
-		segType := data[offset]
-		segLen := int(data[offset+1])
-		offset += 2
-
-		// Try 4-byte ASNs first, then 2-byte
-		asnSize := 4
-		if offset+segLen*4 > len(data) {
-			asnSize = 2
-		}
-		if offset+segLen*asnSize > len(data) {
-			break
-		}
-
-		var asns []uint32
-		for i := 0; i < segLen; i++ {
-			var asn uint32
-			if asnSize == 4 {
-				asn = binary.BigEndian.Uint32(data[offset : offset+4])
-			} else {
-				asn = uint32(binary.BigEndian.Uint16(data[offset : offset+2]))
-			}
-			asns = append(asns, asn)
-			offset += asnSize
-		}
-
-		// Determine segment type name
-		var elemType string
-		switch segType {
-		case 1:
-			elemType = "as-set"
-		case 2:
-			elemType = "as-sequence"
-		default:
-			elemType = fmt.Sprintf("as-type-%d", segType)
-		}
-
-		result[fmt.Sprintf("%d", segIndex)] = map[string]any{
-			"element": elemType,
-			"value":   asns,
-		}
-		segIndex++
-	}
-
-	return result
-}
-
 // parseIPv4Prefixes parses IPv4 NLRI prefixes.
 func parseIPv4Prefixes(data []byte) []string {
 	var prefixes []string
@@ -935,75 +941,6 @@ func parseIPv4Prefixes(data []byte) []string {
 	}
 
 	return prefixes
-}
-
-// buildMPReachSection builds the announce section from MP_REACH_NLRI.
-func buildMPReachSection(mpReach []byte) map[string]any {
-	if len(mpReach) < 5 {
-		return nil
-	}
-
-	afi := nlri.AFI(binary.BigEndian.Uint16(mpReach[0:2]))
-	safi := nlri.SAFI(mpReach[2])
-	nhLen := int(mpReach[3])
-
-	if len(mpReach) < 4+nhLen+1 {
-		return nil
-	}
-
-	// Parse next-hop
-	nhData := mpReach[4 : 4+nhLen]
-	nextHop := parseNextHop(nhData, afi)
-
-	// Skip reserved byte
-	nlriOffset := 4 + nhLen + 1
-	if nlriOffset >= len(mpReach) {
-		return nil
-	}
-
-	nlriData := mpReach[nlriOffset:]
-	familyKey := formatFamily(afi, safi)
-
-	// Parse NLRI based on family
-	routes := parseNLRIByFamily(nlriData, afi, safi, false)
-
-	if len(routes) == 0 {
-		return nil
-	}
-
-	return map[string]any{
-		familyKey: map[string]any{
-			nextHop: routes,
-		},
-	}
-}
-
-// buildMPUnreachSection builds the withdraw section from MP_UNREACH_NLRI.
-func buildMPUnreachSection(mpUnreach []byte) map[string]any {
-	if len(mpUnreach) < 3 {
-		return nil
-	}
-
-	afi := nlri.AFI(binary.BigEndian.Uint16(mpUnreach[0:2]))
-	safi := nlri.SAFI(mpUnreach[2])
-
-	if len(mpUnreach) <= 3 {
-		return nil
-	}
-
-	nlriData := mpUnreach[3:]
-	familyKey := formatFamily(afi, safi)
-
-	// Parse NLRI based on family
-	routes := parseNLRIByFamily(nlriData, afi, safi, true)
-
-	if len(routes) == 0 {
-		return nil
-	}
-
-	return map[string]any{
-		familyKey: routes,
-	}
 }
 
 // parseNextHop parses the next-hop from MP_REACH_NLRI.
@@ -1528,42 +1465,42 @@ func hasValidMarker(data []byte) bool {
 // =============================================================================
 
 // formatOpenHuman formats OPEN message data as human-readable text.
+// Works with Ze format: {"open": {...}}.
 func formatOpenHuman(result map[string]any) string {
 	var sb strings.Builder
 	sb.WriteString("BGP OPEN Message\n")
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	// Ze format: openSection is directly in result["open"]
+	openSection, ok := result["open"].(map[string]any)
 	if !ok {
 		return sb.String()
 	}
 
-	openSection, ok := neighbor["open"].(map[string]any)
-	if !ok {
-		return sb.String()
-	}
-
-	// Version
-	if v, ok := openSection["version"]; ok {
-		fmt.Fprintf(&sb, "  Version:     %v\n", v)
-	}
+	// Version (Ze format doesn't include version in decode, use 4)
+	sb.WriteString("  Version:     4\n")
 
 	// ASN
 	if asn, ok := openSection["asn"]; ok {
 		fmt.Fprintf(&sb, "  ASN:         %v\n", formatNumber(asn))
 	}
 
-	// Hold Time
-	if ht, ok := openSection["hold_time"]; ok {
+	// Hold Time (Ze format uses "hold-time")
+	if ht, ok := openSection["hold-time"]; ok {
 		fmt.Fprintf(&sb, "  Hold Time:   %v seconds\n", formatNumber(ht))
 	}
 
-	// Router ID
-	if rid, ok := openSection["router_id"]; ok {
+	// Router ID (Ze format uses "router-id")
+	if rid, ok := openSection["router-id"]; ok {
 		fmt.Fprintf(&sb, "  Router ID:   %v\n", rid)
 	}
 
-	// Capabilities
-	if caps, ok := openSection["capabilities"].(map[string]any); ok && len(caps) > 0 {
+	// Capabilities (Ze format uses array)
+	if caps, ok := openSection["capabilities"].([]map[string]any); ok && len(caps) > 0 {
+		sb.WriteString("  Capabilities:\n")
+		for _, capMap := range caps {
+			formatCapabilityHuman(&sb, capMap)
+		}
+	} else if caps, ok := openSection["capabilities"].([]any); ok && len(caps) > 0 {
 		sb.WriteString("  Capabilities:\n")
 		for _, cap := range caps {
 			if capMap, ok := cap.(map[string]any); ok {
@@ -1576,10 +1513,10 @@ func formatOpenHuman(result map[string]any) string {
 }
 
 // formatCapabilityHuman formats a single capability for human output.
+// Works with Ze format: {"code": N, "name": "...", "value": "..."}.
 func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 	name, _ := cap["name"].(string)
 	if name == "" || name == "unknown" {
-		// For unknown capabilities, use "code=N" as the label
 		if code, ok := cap["code"]; ok {
 			name = fmt.Sprintf("code=%v", formatNumber(code))
 		} else {
@@ -1589,48 +1526,27 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 
 	fmt.Fprintf(sb, "    %-20s ", name)
 
-	// Format capability-specific values
-	switch name {
-	case "multiprotocol":
-		if families, ok := cap["families"].([]string); ok && len(families) > 0 {
-			sb.WriteString(strings.Join(families, ", "))
-		} else if families, ok := cap["families"].([]any); ok && len(families) > 0 {
-			fams := make([]string, 0, len(families))
-			for _, f := range families {
+	// Ze format uses "value" for capability data
+	if value, ok := cap["value"]; ok {
+		switch v := value.(type) {
+		case string:
+			sb.WriteString(v)
+		case []string:
+			sb.WriteString(strings.Join(v, ", "))
+		case []any:
+			fams := make([]string, 0, len(v))
+			for _, f := range v {
 				fams = append(fams, fmt.Sprintf("%v", f))
 			}
 			sb.WriteString(strings.Join(fams, ", "))
 		}
-	case "asn4":
-		if asn, ok := cap["asn4"]; ok {
-			sb.WriteString(formatNumber(asn))
-		}
-	case "fqdn":
-		if hostname, ok := cap["hostname"].(string); ok {
-			sb.WriteString(hostname)
-			if domain, ok := cap["domain"].(string); ok && domain != "" {
-				sb.WriteString("." + domain)
-			}
-		}
-	case "graceful-restart":
-		if rt, ok := cap["restart_time"]; ok {
+	} else if name == "graceful-restart" {
+		// Ze format uses "restart-time"
+		if rt, ok := cap["restart-time"]; ok {
 			fmt.Fprintf(sb, "%v seconds", formatNumber(rt))
 		}
-	case "add-path":
-		if families, ok := cap["families"].([]any); ok {
-			fams := make([]string, 0, len(families))
-			for _, f := range families {
-				fams = append(fams, fmt.Sprintf("%v", f))
-			}
-			sb.WriteString(strings.Join(fams, ", "))
-		}
-	case "route-refresh", "extended-message": // No additional value needed
-		break
-	case "software-version":
-		if sw, ok := cap["software"].(string); ok {
-			sb.WriteString(sw)
-		}
 	}
+
 	// Unknown capabilities (name starts with "code=") show raw hex data
 	if raw, ok := cap["raw"].(string); ok && raw != "" {
 		sb.WriteString(raw)
@@ -1640,27 +1556,19 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 }
 
 // formatUpdateHuman formats UPDATE message data as human-readable text.
+// Works with Ze format: {"update": {...}}.
 func formatUpdateHuman(result map[string]any) string {
 	var sb strings.Builder
 	sb.WriteString("BGP UPDATE Message\n")
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	// Ze format: update is directly in result["update"]
+	update, ok := result["update"].(map[string]any)
 	if !ok {
 		return sb.String()
 	}
 
-	message, ok := neighbor["message"].(map[string]any)
-	if !ok {
-		return sb.String()
-	}
-
-	update, ok := message["update"].(map[string]any)
-	if !ok {
-		return sb.String()
-	}
-
-	// Attributes
-	if attrs, ok := update["attribute"].(map[string]any); ok && len(attrs) > 0 {
+	// Attributes (Ze format uses "attr")
+	if attrs, ok := update["attr"].(map[string]any); ok && len(attrs) > 0 {
 		sb.WriteString("  Attributes:\n")
 		formatAttributesHuman(&sb, attrs)
 	}

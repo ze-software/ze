@@ -1,4 +1,4 @@
-# IPv4 unicast decoding test
+# IPv4 unicast decoding test (Ze format)
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501800404000000C840050400000064000000002001010101
 cmd=foreground:seq=1:exec=ze-test decode --json --family ipv4/unicast -:stdin=payload
-expect=json:json={ "time": 1653384088.2516758, "host" : "MacBook-Pro-2.local", "pid" : 32060, "ppid" : 55846, "counter": 1, "type": "update", "neighbor": {     "address": { "local": "127.0.0.1", "peer": "127.0.0.1" },     "asn": { "local": 65533, "peer": 65533 }     , "direction": "in", "message": { "update": { "attribute": { "origin": "igp", "med": 200, "local-preference": 100 }, "announce": { "ipv4/unicast": { "101.1.101.1": [ { "nlri": "0.0.0.0/0" }, { "nlri": "0.0.0.0/0" }, { "nlri": "0.0.0.0/0" }, { "nlri": "0.0.0.0/0" }, { "nlri": "1.1.1.1/32" } ] } } } } } }
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"update":{"attr":{"local-preference":100,"med":200,"origin":"igp"},"ipv4/unicast":[{"action":"add","next-hop":"101.1.101.1","nlri":["0.0.0.0/0","0.0.0.0/0","0.0.0.0/0","0.0.0.0/0","1.1.1.1/32"]}]}},"type":"bgp"}

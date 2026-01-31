@@ -8,36 +8,49 @@ import (
 )
 
 // getUpdateSection extracts the update section from decoded JSON.
+// Ze format: {"type": "bgp", "bgp": {"type": "update", "update": {...}}}.
 // Returns (update map, error string).
 func getUpdateSection(decoded map[string]any) (map[string]any, string) {
-	neighbor, ok := decoded["neighbor"].(map[string]any)
+	bgp, ok := decoded["bgp"].(map[string]any)
 	if !ok {
-		return nil, "missing neighbor section"
+		return nil, "missing bgp section"
 	}
-	message, ok := neighbor["message"].(map[string]any)
-	if !ok {
-		return nil, "missing message section"
-	}
-	update, ok := message["update"].(map[string]any)
+	update, ok := bgp["update"].(map[string]any)
 	if !ok {
 		return nil, "missing update section"
 	}
 	return update, ""
 }
 
-// getAnnounceFamily extracts the announce family map from update.
+// getAnnounceFamily extracts the announce family data from update.
+// Ze format: update[family] contains array of {action, next-hop, nlri} objects.
 func getAnnounceFamily(update map[string]any, family string) (map[string]any, bool) {
-	announce, ok := update["announce"].(map[string]any)
-	if !ok {
+	familyOps, ok := update[family].([]any)
+	if !ok || len(familyOps) == 0 {
 		return nil, false
 	}
-	familyData, ok := announce[family].(map[string]any)
-	return familyData, ok
+	// Find "add" operation and build old-style map for compatibility
+	result := make(map[string]any)
+	for _, opAny := range familyOps {
+		op, ok := opAny.(map[string]any)
+		if !ok {
+			continue
+		}
+		if op["action"] == "add" {
+			nh, _ := op["next-hop"].(string)
+			nlriList, _ := op["nlri"].([]any)
+			if nh != "" && len(nlriList) > 0 {
+				result[nh] = nlriList
+			}
+		}
+	}
+	return result, len(result) > 0
 }
 
 // getAttributes extracts the attribute map from update.
+// Ze format uses "attr" key.
 func getAttributes(update map[string]any) (map[string]any, bool) {
-	attrs, ok := update["attribute"].(map[string]any)
+	attrs, ok := update["attr"].(map[string]any)
 	return attrs, ok
 }
 
@@ -86,13 +99,21 @@ func TestRoundTrip_BasicUnicast(t *testing.T) {
 	}
 
 	// Verify prefix is in the NLRI list
+	// Ze format: NLRI can be strings or maps depending on family
 	found := false
-	for _, nlri := range nhData {
-		if nlriMap, ok := nlri.(map[string]any); ok {
-			if nlriMap["nlri"] == "10.0.0.0/24" {
+	for _, nlriAny := range nhData {
+		switch nlri := nlriAny.(type) {
+		case string:
+			if nlri == "10.0.0.0/24" {
 				found = true
-				break
 			}
+		case map[string]any:
+			if nlri["nlri"] == "10.0.0.0/24" {
+				found = true
+			}
+		}
+		if found {
+			break
 		}
 	}
 	if !found {
@@ -635,21 +656,17 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 		t.Fatalf("%s", errStr)
 	}
 
-	announce, ok := update["announce"].(map[string]any)
-	if !ok {
-		t.Fatalf("missing announce section")
-	}
-
+	// Ze format: family keys are directly under update, not under announce
 	// Check for ipv6/nlri-mpls (decoder may use different name)
 	found := false
-	for family := range announce {
+	for family := range update {
 		if strings.Contains(family, "ipv6") && (strings.Contains(family, "mpls") || strings.Contains(family, "label")) {
 			found = true
 			break
 		}
 	}
 	if !found {
-		t.Errorf("expected ipv6 labeled unicast family in announce, got: %v", announce)
+		t.Errorf("expected ipv6 labeled unicast family in update, got: %v", update)
 	}
 
 	// Verify prefix appears in output
@@ -688,13 +705,9 @@ func testRoundTripIPv6Family(t *testing.T, encodeArgs []string, announceKey, exp
 		t.Fatalf("%s", errStr)
 	}
 
-	announce, ok := update["announce"].(map[string]any)
-	if !ok {
-		t.Fatalf("missing announce section")
-	}
-
-	if _, ok := announce[announceKey]; !ok {
-		t.Errorf("expected %s in announce, got: %v", announceKey, announce)
+	// Ze format: family keys are directly under update
+	if _, ok := update[announceKey]; !ok {
+		t.Errorf("expected %s in update, got: %v", announceKey, update)
 	}
 
 	if !strings.Contains(decodeOutput, expectedContent) {

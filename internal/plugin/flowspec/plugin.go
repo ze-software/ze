@@ -1009,34 +1009,21 @@ func formatBitmaskMatches(comp FlowComponent, flagMap map[uint8]string) [][]stri
 
 	matches := nc.Matches()
 	result := make([][]string, 0, len(matches))
-	var andGroup []string
 
+	// Each FlowMatch becomes its own inner array
+	// E.g., "=ack+cwr" and "!fin+ece" become [["=ack","cwr"],["!fin","ece"]]
 	for _, m := range matches {
-		valStr := formatBitmaskValue(m, flagMap)
-
-		if m.And && len(andGroup) > 0 {
-			// Continue AND group
-			andGroup = append(andGroup, valStr)
-		} else {
-			// Start new OR group
-			if len(andGroup) > 0 {
-				result = append(result, andGroup)
-			}
-			andGroup = []string{valStr}
-		}
-	}
-
-	// Flush final group
-	if len(andGroup) > 0 {
-		result = append(result, andGroup)
+		valStrs := formatBitmaskValue(m, flagMap)
+		result = append(result, valStrs)
 	}
 
 	return result
 }
 
-// formatBitmaskValue formats a bitmask value with operator prefix.
-// E.g., "=syn", "=rst", "!fin", "=syn+ack".
-func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
+// formatBitmaskValue formats a bitmask value as separate flag elements.
+// Returns ["=ack", "cwr"] for ack+cwr with match operator.
+// The operator prefix (= or !) is only on the first flag.
+func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) []string {
 	// Build prefix from operator
 	var prefix string
 	if m.Op&FlowOpNot != 0 {
@@ -1049,7 +1036,6 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
 		prefix = "=" // Default to match
 	}
 
-	// Build flag names joined with +
 	flags := uint8(m.Value) //nolint:gosec // Bitmask values are 8-bit
 	var names []string
 
@@ -1063,10 +1049,16 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
 	}
 
 	if len(names) == 0 {
-		return fmt.Sprintf("%s%d", prefix, flags)
+		return []string{fmt.Sprintf("%s%d", prefix, flags)}
 	}
 
-	return prefix + strings.Join(names, "+")
+	// Prefix only on first flag, rest are bare names
+	result := make([]string, len(names))
+	result[0] = prefix + names[0]
+	for i := 1; i < len(names); i++ {
+		result[i] = names[i]
+	}
+	return result
 }
 
 // ============================================================================

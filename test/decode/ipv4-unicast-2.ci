@@ -1,4 +1,4 @@
-# ipv4-unicast-2 decoding test
+# ipv4-unicast-2 decoding test (Ze format)
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004F02000000384001010040020E02030000AAAA0000AAAA0000AAAAC0070800AA00AA0A0A0A0A4006004003040A0A0A0A8004040000000040050400000064
 cmd=foreground:seq=1:exec=ze-test decode --json --family ipv4/unicast -:stdin=payload
-expect=json:json={ "time": 1653383995.997971, "host" : "MacBook-Pro-2.local", "pid" : 31843, "ppid" : 55846, "counter": 1, "type": "update", "neighbor": {     "address": { "local": "127.0.0.1", "peer": "127.0.0.1" },     "asn": { "local": 65533, "peer": 65533 }     , "direction": "in", "message": { "update": { "attribute": { "origin": "igp", "as-path": {"0": {"element": "as-sequence", "value": [43690, 43690, 43690]}}, "med": 0, "local-preference": 100, "atomic-aggregate": true, "aggregator": "11141290:10.10.10.10" } } } } }
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"update":{"attr":{"aggregator":"11141290:10.10.10.10","as-path":[43690,43690,43690],"atomic-aggregate":true,"local-preference":100,"med":0,"origin":"igp"}}},"type":"bgp"}

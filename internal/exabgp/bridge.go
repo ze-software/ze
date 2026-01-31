@@ -27,6 +27,13 @@ const (
 	modeBoth    = "both"
 )
 
+// Message type constants.
+const (
+	msgTypeOpen   = "open"
+	msgTypeUpdate = "update"
+	msgTypeState  = "state"
+)
+
 // ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
 //
 // ZeBGP IPC 2.0 format (per docs/architecture/api/json-format.md):
@@ -34,19 +41,18 @@ const (
 //	{
 //	  "type": "bgp",
 //	  "bgp": {
-//	    "type": "update",
 //	    "peer": {"address": "10.0.0.1", "asn": 65001},
+//	    "message": {"id": 1, "direction": "received", "type": "update"},
 //	    "update": {
-//	      "message": {"id": 1, "direction": "received"},
 //	      "attr": {"origin": "igp"},
-//	      "nlri": {"ipv4/unicast": [...]}
+//	      "ipv4/unicast": [...]
 //	    }
 //	  }
 //	}
 //
 // State events use simple string (not container):
 //
-//	{"type": "bgp", "bgp": {"type": "state", "peer": {...}, "state": "up"}}
+//	{"type": "bgp", "bgp": {"message": {"type": "state"}, "peer": {...}, "state": "up"}}
 //
 // ExaBGP format (nested):
 //
@@ -69,10 +75,31 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 		}
 	}
 
-	// Get event type from bgp.type
-	msgType, _ := bgpPayload["type"].(string)
+	// Get message metadata from bgp.message
+	var msgType string
+	direction := modeReceive
+	if msg, ok := bgpPayload["message"].(map[string]any); ok {
+		msgType, _ = msg["type"].(string)
+		if dir, ok := msg["direction"].(string); ok {
+			switch dir {
+			case "received":
+				direction = modeReceive
+			case "sent":
+				direction = modeSend
+			}
+		}
+	}
 	if msgType == "" {
-		msgType = "update"
+		// Fallback: detect type by presence of key
+		if _, ok := bgpPayload[msgTypeOpen]; ok {
+			msgType = msgTypeOpen
+		} else if _, ok := bgpPayload[msgTypeUpdate]; ok {
+			msgType = msgTypeUpdate
+		} else if _, ok := bgpPayload[msgTypeState]; ok {
+			msgType = msgTypeState
+		} else {
+			msgType = msgTypeUpdate
+		}
 	}
 
 	// Get peer from bgp level (IPC 2.0 format)
@@ -82,22 +109,9 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 
 	// Get event-specific data from nested key (except state which is a string)
 	eventData := bgpPayload
-	if msgType != "state" {
+	if msgType != msgTypeState {
 		if nested, ok := bgpPayload[msgType].(map[string]any); ok {
 			eventData = nested
-		}
-	}
-
-	// Map direction: ZeBGP "received"/"sent" → ExaBGP "receive"/"send"
-	direction := modeReceive
-	if msg, ok := eventData["message"].(map[string]any); ok {
-		if dir, ok := msg["direction"].(string); ok {
-			switch dir {
-			case "received":
-				direction = modeReceive
-			case "sent":
-				direction = modeSend
-			}
 		}
 	}
 

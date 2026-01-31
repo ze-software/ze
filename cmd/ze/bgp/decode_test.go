@@ -9,6 +9,9 @@ import (
 
 // Test data constants to avoid goconst lint warnings.
 const (
+	// testTypeBGP is the Ze format envelope type.
+	testTypeBGP = "bgp"
+
 	// testBGPLSLinkUpdate is hex data for a BGP-LS Link UPDATE message (from bgp-ls-2.test).
 	testBGPLSLinkUpdate = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00AA0200000093800E7240044704C0A8FF1D000002006503000000000000000001000020020000040000FDE902010004000000000202000400000000020300040A01010101010024020000040000FDE902010004000000000202000400000000020300080A0104010A010102010300040A010101010400040A0101024001010040020602010000FDE980040400000000801D0704470003000001"
 
@@ -28,9 +31,9 @@ const (
 	testCapNameUnknown = "unknown"
 )
 
-// TestDecodeOpen verifies OPEN message decoding produces ExaBGP-compatible JSON.
+// TestDecodeOpen verifies OPEN message decoding produces Ze JSON format (IPC Protocol 2.0).
 //
-// VALIDATES: OPEN message hex decodes to JSON with correct fields.
+// VALIDATES: OPEN message hex decodes to Ze JSON with correct fields.
 //
 // PREVENTS: Decode command producing malformed or incompatible output.
 func TestDecodeOpen(t *testing.T) {
@@ -49,38 +52,62 @@ func TestDecodeOpen(t *testing.T) {
 		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
 	}
 
-	// Check required fields exist
-	if _, ok := result["exabgp"]; !ok {
-		t.Error("missing 'exabgp' field")
-	}
-	if result["type"] != "open" {
-		t.Errorf("expected type 'open', got %v", result["type"])
+	// Ze format: top-level "type" should be "bgp"
+	if result["type"] != testTypeBGP {
+		t.Errorf("expected type 'bgp', got %v", result["type"])
 	}
 
-	// Check neighbor section exists
-	neighbor, ok := result["neighbor"].(map[string]any)
+	// Ze format: data under "bgp" key
+	bgp, ok := result["bgp"].(map[string]any)
 	if !ok {
-		t.Fatal("missing or invalid 'neighbor' field")
+		t.Fatal("missing or invalid 'bgp' field")
+	}
+
+	// Ze format: message.type should be "open"
+	msg, ok := bgp["message"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'message' field in bgp")
+	}
+	if msg["type"] != "open" {
+		t.Errorf("expected message.type 'open', got %v", msg["type"])
+	}
+
+	// Ze format: flat peer structure
+	peer, ok := bgp["peer"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'peer' field in bgp")
+	}
+	if peer["address"] != "127.0.0.1" {
+		t.Errorf("expected peer.address '127.0.0.1', got %v", peer["address"])
+	}
+	if peer["asn"] != float64(65533) {
+		t.Errorf("expected peer.asn 65533, got %v", peer["asn"])
 	}
 
 	// Check open section
-	openSection, ok := neighbor["open"].(map[string]any)
+	openSection, ok := bgp["open"].(map[string]any)
 	if !ok {
-		t.Fatal("missing or invalid 'open' section in neighbor")
+		t.Fatal("missing or invalid 'open' section in bgp")
 	}
 
 	// Verify key fields
-	if openSection["version"] != float64(4) {
-		t.Errorf("expected version 4, got %v", openSection["version"])
-	}
 	if openSection["asn"] != float64(65533) {
 		t.Errorf("expected asn 65533, got %v", openSection["asn"])
 	}
-	if openSection["hold_time"] != float64(180) {
-		t.Errorf("expected hold_time 180, got %v", openSection["hold_time"])
+	if openSection["hold-time"] != float64(180) {
+		t.Errorf("expected hold-time 180, got %v", openSection["hold-time"])
 	}
-	if openSection["router_id"] != "10.0.0.2" {
-		t.Errorf("expected router_id 10.0.0.2, got %v", openSection["router_id"])
+	if openSection["router-id"] != "10.0.0.2" {
+		t.Errorf("expected router-id 10.0.0.2, got %v", openSection["router-id"])
+	}
+
+	// Ze format: capabilities should be an array, not a map
+	caps, ok := openSection["capabilities"].([]any)
+	if !ok {
+		t.Fatal("missing or invalid 'capabilities' array in open")
+	}
+	if len(caps) == 0 {
+		t.Error("expected at least one capability")
 	}
 }
 
@@ -104,31 +131,40 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 		t.Fatalf("invalid JSON output: %v", err)
 	}
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	// Ze format: navigate through bgp.open.capabilities
+	bgp, ok := result["bgp"].(map[string]any)
 	if !ok {
-		t.Fatal("missing neighbor section")
+		t.Fatal("missing bgp section")
 	}
-	openSection, ok := neighbor["open"].(map[string]any)
+	openSection, ok := bgp["open"].(map[string]any)
 	if !ok {
 		t.Fatal("missing open section")
 	}
-	caps, ok := openSection["capabilities"].(map[string]any)
+	// Ze format: capabilities is an array
+	caps, ok := openSection["capabilities"].([]any)
 	if !ok {
-		t.Fatal("missing capabilities section")
+		t.Fatal("missing capabilities array (Ze format uses array, not map)")
 	}
 
-	// Capability 73 (FQDN) should be unknown
-	cap73, ok := caps["73"].(map[string]any)
-	if !ok {
-		t.Fatal("missing capability 73")
+	// Find capability with code 73 (FQDN) in the array
+	var cap73 map[string]any
+	for _, c := range caps {
+		capMap, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if code, ok := capMap["code"].(float64); ok && int(code) == 73 {
+			cap73 = capMap
+			break
+		}
+	}
+
+	if cap73 == nil {
+		t.Fatal("missing capability with code 73")
 	}
 
 	if cap73["name"] != testCapNameUnknown {
 		t.Errorf("expected name 'unknown', got %v", cap73["name"])
-	}
-	// JSON unmarshals numbers as float64 into map[string]any
-	if code, ok := cap73["code"].(float64); !ok || int(code) != 73 {
-		t.Errorf("expected code 73, got %v", cap73["code"])
 	}
 	if _, ok := cap73["raw"]; !ok {
 		t.Error("missing 'raw' field for unknown capability")
@@ -165,22 +201,36 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 		t.Fatalf("invalid JSON output: %v", err)
 	}
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	// Ze format: navigate through bgp.open.capabilities
+	bgp, ok := result["bgp"].(map[string]any)
 	if !ok {
-		t.Fatal("missing neighbor section")
+		t.Fatal("missing bgp section")
 	}
-	openSection, ok := neighbor["open"].(map[string]any)
+	openSection, ok := bgp["open"].(map[string]any)
 	if !ok {
 		t.Fatal("missing open section")
 	}
-	caps, ok := openSection["capabilities"].(map[string]any)
+	// Ze format: capabilities is an array
+	caps, ok := openSection["capabilities"].([]any)
 	if !ok {
-		t.Fatal("missing capabilities section")
+		t.Fatal("missing capabilities array")
 	}
 
-	cap73, ok := caps["73"].(map[string]any)
-	if !ok {
-		t.Fatal("missing capability 73")
+	// Find capability with code 73 in the array
+	var cap73 map[string]any
+	for _, c := range caps {
+		capMap, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if code, ok := capMap["code"].(float64); ok && int(code) == 73 {
+			cap73 = capMap
+			break
+		}
+	}
+
+	if cap73 == nil {
+		t.Fatal("missing capability with code 73")
 	}
 
 	// Accept either decoded (production) or unknown (test environment)
@@ -204,9 +254,9 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	}
 }
 
-// TestDecodeUpdate verifies UPDATE message decoding produces ExaBGP-compatible JSON.
+// TestDecodeUpdate verifies UPDATE message decoding produces Ze JSON format (IPC Protocol 2.0).
 //
-// VALIDATES: UPDATE message hex decodes to JSON with correct fields.
+// VALIDATES: UPDATE message hex decodes to Ze JSON with correct fields.
 //
 // PREVENTS: Decode command failing on UPDATE messages.
 func TestDecodeUpdate(t *testing.T) {
@@ -224,14 +274,47 @@ func TestDecodeUpdate(t *testing.T) {
 		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
 	}
 
-	// Check type
-	if result["type"] != "update" {
-		t.Errorf("expected type 'update', got %v", result["type"])
+	// Ze format: top-level "type" should be "bgp"
+	if result["type"] != testTypeBGP {
+		t.Errorf("expected type 'bgp', got %v", result["type"])
 	}
 
-	// Check neighbor exists
-	if _, ok := result["neighbor"]; !ok {
-		t.Error("missing 'neighbor' field")
+	// Ze format: data under "bgp" key
+	bgp, ok := result["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'bgp' field")
+	}
+
+	// Ze format: message.type should be "update"
+	msg, ok := bgp["message"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'message' field in bgp")
+	}
+	if msg["type"] != "update" {
+		t.Errorf("expected message.type 'update', got %v", msg["type"])
+	}
+
+	// Ze format: flat peer structure
+	peer, ok := bgp["peer"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'peer' field in bgp")
+	}
+	if peer["address"] == nil {
+		t.Error("missing peer.address")
+	}
+	if peer["asn"] == nil {
+		t.Error("missing peer.asn")
+	}
+
+	// Ze format: update section under bgp.update
+	update, ok := bgp["update"].(map[string]any)
+	if !ok {
+		t.Fatal("missing or invalid 'update' section in bgp")
+	}
+
+	// Ze format: attributes under "attr" (not "attribute")
+	if _, ok := update["attr"].(map[string]any); !ok {
+		t.Error("missing 'attr' field in update (Ze format uses 'attr', not 'attribute')")
 	}
 }
 
@@ -403,12 +486,11 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to extended-community (nolint for test code)
-	neighbor, _ := result["neighbor"].(map[string]any) //nolint:forcetypeassert // test
-	message, _ := neighbor["message"].(map[string]any) //nolint:forcetypeassert // test
-	update, _ := message["update"].(map[string]any)    //nolint:forcetypeassert // test
-	attrs, _ := update["attribute"].(map[string]any)   //nolint:forcetypeassert // test
-	extComm, _ := attrs["extended-community"].([]any)  //nolint:forcetypeassert // test
+	// Ze format: navigate through bgp.update.attr
+	bgp, _ := result["bgp"].(map[string]any)          //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any)       //nolint:forcetypeassert // test
+	attrs, _ := update["attr"].(map[string]any)       //nolint:forcetypeassert // test
+	extComm, _ := attrs["extended-community"].([]any) //nolint:forcetypeassert // test
 
 	if len(extComm) != 1 {
 		t.Errorf("expected 1 extended-community, got %d", len(extComm))
@@ -444,24 +526,19 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to BGP-LS NLRI
-	neighbor, _ := result["neighbor"].(map[string]any)     //nolint:forcetypeassert // test
-	message, _ := neighbor["message"].(map[string]any)     //nolint:forcetypeassert // test
-	update, _ := message["update"].(map[string]any)        //nolint:forcetypeassert // test
-	announce, _ := update["announce"].(map[string]any)     //nolint:forcetypeassert // test
-	bgpls, _ := announce["bgp-ls/bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
+	// Ze format: navigate through bgp.update.family
+	bgp, _ := result["bgp"].(map[string]any)       //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any)    //nolint:forcetypeassert // test
+	bgplsOps, _ := update["bgp-ls/bgp-ls"].([]any) //nolint:forcetypeassert // test
 
-	// Should have next-hop key
-	if len(bgpls) == 0 {
-		t.Fatal("no BGP-LS announcements found")
+	// Ze format: operations array with action/nlri
+	if len(bgplsOps) == 0 {
+		t.Fatal("no BGP-LS operations found")
 	}
 
-	// Get first next-hop's routes
-	var routes []any
-	for _, v := range bgpls {
-		routes, _ = v.([]any) //nolint:forcetypeassert // test
-		break
-	}
+	// Get first operation's nlri array
+	op, _ := bgplsOps[0].(map[string]any) //nolint:forcetypeassert // test
+	routes, _ := op["nlri"].([]any)       //nolint:forcetypeassert // test
 
 	if len(routes) == 0 {
 		t.Fatal("no BGP-LS routes found")
@@ -534,11 +611,10 @@ func TestBGPLSAttribute(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to attributes
-	neighbor, _ := result["neighbor"].(map[string]any) //nolint:forcetypeassert // test
-	message, _ := neighbor["message"].(map[string]any) //nolint:forcetypeassert // test
-	update, _ := message["update"].(map[string]any)    //nolint:forcetypeassert // test
-	attrs, _ := update["attribute"].(map[string]any)   //nolint:forcetypeassert // test
+	// Ze format: navigate through bgp.update.attr
+	bgp, _ := result["bgp"].(map[string]any)    //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any) //nolint:forcetypeassert // test
+	attrs, _ := update["attr"].(map[string]any) //nolint:forcetypeassert // test
 
 	// Check for bgp-ls attribute
 	bgplsAttr, ok := attrs["bgp-ls"].(map[string]any)
@@ -572,18 +648,17 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// Navigate to BGP-LS NLRI
-	neighbor, _ := result["neighbor"].(map[string]any)     //nolint:forcetypeassert // test
-	message, _ := neighbor["message"].(map[string]any)     //nolint:forcetypeassert // test
-	update, _ := message["update"].(map[string]any)        //nolint:forcetypeassert // test
-	announce, _ := update["announce"].(map[string]any)     //nolint:forcetypeassert // test
-	bgpls, _ := announce["bgp-ls/bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
+	// Ze format: navigate through bgp.update.family
+	bgp, _ := result["bgp"].(map[string]any)       //nolint:forcetypeassert // test
+	update, _ := bgp["update"].(map[string]any)    //nolint:forcetypeassert // test
+	bgplsOps, _ := update["bgp-ls/bgp-ls"].([]any) //nolint:forcetypeassert // test
 
-	var routes []any
-	for _, v := range bgpls {
-		routes, _ = v.([]any) //nolint:forcetypeassert // test
-		break
+	if len(bgplsOps) == 0 {
+		t.Fatal("no BGP-LS operations found")
 	}
+
+	op, _ := bgplsOps[0].(map[string]any) //nolint:forcetypeassert // test
+	routes, _ := op["nlri"].([]any)       //nolint:forcetypeassert // test
 
 	if len(routes) == 0 {
 		t.Fatal("no BGP-LS routes found")
@@ -783,9 +858,9 @@ func TestDecodeNLRIFlag(t *testing.T) {
 		t.Fatalf("invalid JSON: %v", err)
 	}
 
-	// NLRI mode should produce flat JSON (no exabgp wrapper)
-	if _, hasExabgp := result["exabgp"]; hasExabgp {
-		t.Error("NLRI mode should not have exabgp wrapper")
+	// NLRI mode should produce flat JSON (no bgp wrapper envelope)
+	if _, hasBgp := result["bgp"]; hasBgp {
+		t.Error("NLRI mode should not have bgp wrapper")
 	}
 
 	// Should have BGP-LS fields
@@ -948,9 +1023,9 @@ func TestDecodeOpenHuman(t *testing.T) {
 	}
 }
 
-// TestDecodeOpenJSON verifies OPEN message with --json flag produces JSON output.
+// TestDecodeOpenJSON verifies OPEN message with --json flag produces Ze JSON output.
 //
-// VALIDATES: JSON flag produces structured JSON output.
+// VALIDATES: JSON flag produces structured Ze JSON output.
 // PREVENTS: --json flag not working correctly.
 func TestDecodeOpenJSON(t *testing.T) {
 	hexInput := testOpenMsgHex
@@ -966,17 +1041,25 @@ func TestDecodeOpenJSON(t *testing.T) {
 		t.Fatalf("--json output should be valid JSON: %v", err)
 	}
 
-	// Check required JSON fields
-	if result["type"] != "open" {
-		t.Errorf("expected type 'open', got %v", result["type"])
+	// Ze format: check required JSON fields
+	if result["type"] != testTypeBGP {
+		t.Errorf("expected type 'bgp', got %v", result["type"])
 	}
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	bgp, ok := result["bgp"].(map[string]any)
 	if !ok {
-		t.Fatal("missing 'neighbor' field")
+		t.Fatal("missing 'bgp' field")
 	}
 
-	openSection, ok := neighbor["open"].(map[string]any)
+	msg, ok := bgp["message"].(map[string]any)
+	if !ok {
+		t.Fatal("missing 'message' field")
+	}
+	if msg["type"] != "open" {
+		t.Errorf("expected message.type 'open', got %v", msg["type"])
+	}
+
+	openSection, ok := bgp["open"].(map[string]any)
 	if !ok {
 		t.Fatal("missing 'open' section")
 	}
@@ -1020,9 +1103,9 @@ func TestDecodeUpdateHuman(t *testing.T) {
 	}
 }
 
-// TestDecodeUpdateJSON verifies UPDATE message with --json flag produces JSON output.
+// TestDecodeUpdateJSON verifies UPDATE message with --json flag produces Ze JSON output.
 //
-// VALIDATES: JSON flag produces structured UPDATE JSON.
+// VALIDATES: JSON flag produces structured Ze UPDATE JSON.
 // PREVENTS: --json flag not working for UPDATE messages.
 func TestDecodeUpdateJSON(t *testing.T) {
 	hexInput := testUpdateMsgHex
@@ -1037,8 +1120,22 @@ func TestDecodeUpdateJSON(t *testing.T) {
 		t.Fatalf("--json output should be valid JSON: %v", err)
 	}
 
-	if result["type"] != "update" {
-		t.Errorf("expected type 'update', got %v", result["type"])
+	// Ze format: type is "bgp", event type is in message.type
+	if result["type"] != testTypeBGP {
+		t.Errorf("expected type 'bgp', got %v", result["type"])
+	}
+
+	bgp, ok := result["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing 'bgp' field")
+	}
+
+	msg, ok := bgp["message"].(map[string]any)
+	if !ok {
+		t.Fatal("missing 'message' field")
+	}
+	if msg["type"] != "update" {
+		t.Errorf("expected message.type 'update', got %v", msg["type"])
 	}
 }
 

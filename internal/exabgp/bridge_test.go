@@ -159,15 +159,13 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// IPC 2.0 format
+			// IPC 2.0 format: message.type and message.direction at bgp level
 			zebgp := map[string]any{
 				"type": "bgp",
 				"bgp": map[string]any{
-					"type": "update",
-					"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
-					"update": map[string]any{
-						"message": map[string]any{"direction": tt.direction},
-					},
+					"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+					"message": map[string]any{"type": "update", "direction": tt.direction},
+					"update":  map[string]any{},
 				},
 			}
 
@@ -820,14 +818,16 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 // VALIDATES: ZeBGP IPC 2.0 negotiated message → ExaBGP negotiated JSON format.
 // PREVENTS: ExaBGP plugins not receiving capability info after OPEN exchange.
 func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
-	// IPC 2.0 format: peer at bgp level, negotiated data in bgp.negotiated
+	// IPC 2.0 format: message.type at bgp level, negotiated data in bgp.negotiated
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
-			"type": "negotiated",
 			"peer": map[string]any{
 				"address": "10.0.0.1",
 				"asn":     float64(65001),
+			},
+			"message": map[string]any{
+				"type": "negotiated",
 			},
 			"negotiated": map[string]any{
 				"hold-time": float64(90),
@@ -886,14 +886,16 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 // VALIDATES: Handles negotiated message with only required fields.
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
-	// IPC 2.0 format with minimal fields
+	// Ze format with minimal fields (type in message).
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
-			"type": "negotiated",
 			"peer": map[string]any{
 				"address": "10.0.0.1",
 				"asn":     float64(65001),
+			},
+			"message": map[string]any{
+				"type": "negotiated",
 			},
 			"negotiated": map[string]any{
 				"hold-time": float64(180),
@@ -921,10 +923,12 @@ func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
-			"type": "negotiated",
 			"peer": map[string]any{
 				"address": "10.0.0.1",
 				"asn":     float64(65001),
+			},
+			"message": map[string]any{
+				"type": "negotiated",
 			},
 			// No "negotiated" field
 		},

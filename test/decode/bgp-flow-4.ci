@@ -1,4 +1,4 @@
-# bgp-flow-4 decoding test
+# bgp-flow-4 decoding test (Ze format)
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020040050400000064C010088006000000000000800E0B000185000005090090C241
 cmd=foreground:seq=1:exec=ze-test decode --json --family ipv4/flow -:stdin=payload
-expect=json:json={ "time": 1681904638.920432, "host" : "MacBook-Pro-2.local", "pid" : 50775, "ppid" : 50442, "counter": 1, "type": "update", "neighbor": {     "address": { "local": "127.0.0.1", "peer": "127.0.0.1" },     "asn": { "local": 65533, "peer": 65533 }     , "direction": "in", "message": { "update": { "attribute": { "origin": "igp", "local-preference": 100, "extended-community": [ { "value": 9225060886715039744, "string": "rate-limit:0" } ] }, "announce": { "ipv4/flow": { "no-nexthop": [ { "tcp-flags": [ [ "=ack+cwr", "!fin+ece" ] ] } ] } } } } } }
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"update":{"attr":{"extended-community":[{"string":"rate-limit:0","value":9225060886715039744}],"local-preference":100,"origin":"igp"},"ipv4/flow":[{"action":"add","next-hop":"no-nexthop","nlri":[{"tcp-flags":[["=ack","cwr"],["!fin","ece"]]}]}]}},"type":"bgp"}
