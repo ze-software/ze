@@ -392,27 +392,33 @@ const (
 // Syntax:
 //   - "name" → (name, ModeFork, "") - subprocess
 //   - "ze.name" → (name, ModeInternal, "") - goroutine + pipe
-//   - "ze-name" → (name, ModeDirect, "") - sync in-process
-//   - "/path/to/prog" → ("", ModeFork, path) - execute path directly
-func parsePluginName(input string) (name string, mode PluginMode, path string) {
+//   - "ze-name" → (name, ModeDirect, "", nil) - sync in-process
+//   - "/path/to/prog" → ("", ModeFork, path, nil) - execute path directly
+//   - "/path/to/prog --arg" → ("", ModeFork, path, ["--arg"]) - path with args
+func parsePluginName(input string) (name string, mode PluginMode, path string, args []string) {
 	if strings.HasPrefix(input, "ze.") {
-		return strings.TrimPrefix(input, "ze."), ModeInternal, ""
+		return strings.TrimPrefix(input, "ze."), ModeInternal, "", nil
 	}
 	if strings.HasPrefix(input, "ze-") {
-		return strings.TrimPrefix(input, "ze-"), ModeDirect, ""
+		return strings.TrimPrefix(input, "ze-"), ModeDirect, "", nil
 	}
 	if strings.Contains(input, "/") {
-		return "", ModeFork, input
+		// Path mode: split into binary path and arguments.
+		parts := strings.Fields(input)
+		if len(parts) == 1 {
+			return "", ModeFork, input, nil
+		}
+		return "", ModeFork, parts[0], parts[1:]
 	}
 	// Plain name: fork subprocess.
-	return input, ModeFork, ""
+	return input, ModeFork, "", nil
 }
 
 // hasPluginEnabled checks if a plugin is in the enabled list.
 // Accepts "ze.name", "ze-name", and "name" formats.
 func hasPluginEnabled(plugins []string, name string) bool {
 	for _, p := range plugins {
-		pName, _, _ := parsePluginName(p)
+		pName, _, _, _ := parsePluginName(p)
 		if pName == name || p == name {
 			return true
 		}
@@ -483,7 +489,7 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 //   - "/path" → Fork external binary
 func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 	request := fmt.Sprintf("decode nlri %s %s", family, hexData)
-	name, mode, path := parsePluginName(pluginName)
+	name, mode, path, args := parsePluginName(pluginName)
 
 	switch mode {
 	case ModeInternal:
@@ -492,7 +498,7 @@ func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 		return invokePluginInProcess(name, request)
 	case ModeFork:
 		if path != "" {
-			return invokePluginPath(path, request)
+			return invokePluginPath(path, args, request)
 		}
 		return invokePluginNLRIDecodeRequest(name, request)
 	}
@@ -513,10 +519,13 @@ func invokePluginNLRIDecodeRequest(pluginName, request string) any {
 }
 
 // invokePluginPath executes an external plugin binary at the given path.
-func invokePluginPath(path, request string) any {
+// User-provided args are passed before the mandatory --decode flag.
+func invokePluginPath(path string, userArgs []string, request string) any {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, path, "--decode") //nolint:gosec // path from user input
+	// Build args: user args + --decode
+	cmdArgs := append(userArgs, "--decode")           //nolint:gocritic // intentional append to new slice
+	cmd := exec.CommandContext(ctx, path, cmdArgs...) //nolint:gosec // path from user input
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {

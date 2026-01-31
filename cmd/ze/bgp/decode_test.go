@@ -1224,32 +1224,38 @@ func TestParsePluginName(t *testing.T) {
 		wantName string
 		wantMode PluginMode
 		wantPath string
+		wantArgs []string
 	}{
 		// Plain names → Fork mode (subprocess)
-		{"flowspec", "flowspec", ModeFork, ""},
-		{"hostname", "hostname", ModeFork, ""},
-		{"bgpls", "bgpls", ModeFork, ""},
+		{"flowspec", "flowspec", ModeFork, "", nil},
+		{"hostname", "hostname", ModeFork, "", nil},
+		{"bgpls", "bgpls", ModeFork, "", nil},
 
 		// ze.name → Internal mode (goroutine + pipe)
-		{"ze.flowspec", "flowspec", ModeInternal, ""},
-		{"ze.hostname", "hostname", ModeInternal, ""},
-		{"ze.bgpls", "bgpls", ModeInternal, ""},
+		{"ze.flowspec", "flowspec", ModeInternal, "", nil},
+		{"ze.hostname", "hostname", ModeInternal, "", nil},
+		{"ze.bgpls", "bgpls", ModeInternal, "", nil},
 
 		// ze-name → Direct mode (sync in-process)
-		{"ze-flowspec", "flowspec", ModeDirect, ""},
-		{"ze-hostname", "hostname", ModeDirect, ""},
-		{"ze-bgpls", "bgpls", ModeDirect, ""},
+		{"ze-flowspec", "flowspec", ModeDirect, "", nil},
+		{"ze-hostname", "hostname", ModeDirect, "", nil},
+		{"ze-bgpls", "bgpls", ModeDirect, "", nil},
 
-		// Paths → Fork mode with path
-		{"/usr/bin/plugin", "", ModeFork, "/usr/bin/plugin"},
-		{"./local-plugin", "", ModeFork, "./local-plugin"},
-		{"../other/plugin", "", ModeFork, "../other/plugin"},
-		{"/path/to/ze-plugin", "", ModeFork, "/path/to/ze-plugin"},
+		// Paths → Fork mode with path (no args)
+		{"/usr/bin/plugin", "", ModeFork, "/usr/bin/plugin", nil},
+		{"./local-plugin", "", ModeFork, "./local-plugin", nil},
+		{"../other/plugin", "", ModeFork, "../other/plugin", nil},
+		{"/path/to/ze-plugin", "", ModeFork, "/path/to/ze-plugin", nil},
+
+		// Paths with arguments → Fork mode with path and args
+		{"/usr/bin/decoder --verbose", "", ModeFork, "/usr/bin/decoder", []string{"--verbose"}},
+		{"./my-plugin --format json", "", ModeFork, "./my-plugin", []string{"--format", "json"}},
+		{"/opt/decoder -v --output=yaml", "", ModeFork, "/opt/decoder", []string{"-v", "--output=yaml"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			name, mode, path := parsePluginName(tt.input)
+			name, mode, path, args := parsePluginName(tt.input)
 			if name != tt.wantName {
 				t.Errorf("name = %q, want %q", name, tt.wantName)
 			}
@@ -1259,8 +1265,24 @@ func TestParsePluginName(t *testing.T) {
 			if path != tt.wantPath {
 				t.Errorf("path = %q, want %q", path, tt.wantPath)
 			}
+			if !slicesEqual(args, tt.wantArgs) {
+				t.Errorf("args = %v, want %v", args, tt.wantArgs)
+			}
 		})
 	}
+}
+
+// slicesEqual compares two string slices for equality.
+func slicesEqual(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // TestParsePluginNameBoundary verifies edge cases in plugin name parsing.
@@ -1273,22 +1295,23 @@ func TestParsePluginNameBoundary(t *testing.T) {
 		wantName string
 		wantMode PluginMode
 		wantPath string
+		wantArgs []string
 	}{
 		// Empty string
-		{"", "", ModeFork, ""},
+		{"", "", ModeFork, "", nil},
 
 		// Just prefixes
-		{"ze.", "", ModeInternal, ""},
-		{"ze-", "", ModeDirect, ""},
+		{"ze.", "", ModeInternal, "", nil},
+		{"ze-", "", ModeDirect, "", nil},
 
 		// Prefix in middle (not at start) → treated as plain name
-		{"foo-ze.bar", "foo-ze.bar", ModeFork, ""},
-		{"foo.ze-bar", "foo.ze-bar", ModeFork, ""},
+		{"foo-ze.bar", "foo-ze.bar", ModeFork, "", nil},
+		{"foo.ze-bar", "foo.ze-bar", ModeFork, "", nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("input=%q", tt.input), func(t *testing.T) {
-			name, mode, path := parsePluginName(tt.input)
+			name, mode, path, args := parsePluginName(tt.input)
 			if name != tt.wantName {
 				t.Errorf("name = %q, want %q", name, tt.wantName)
 			}
@@ -1297,6 +1320,9 @@ func TestParsePluginNameBoundary(t *testing.T) {
 			}
 			if path != tt.wantPath {
 				t.Errorf("path = %q, want %q", path, tt.wantPath)
+			}
+			if !slicesEqual(args, tt.wantArgs) {
+				t.Errorf("args = %v, want %v", args, tt.wantArgs)
 			}
 		})
 	}
