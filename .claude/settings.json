@@ -288,6 +288,17 @@
             "blocking": true
           }
         ]
+      },
+      {
+        "matcher": "Edit|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-test-deletion.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
       }
     ],
     "PostToolUse": [
