@@ -1213,7 +1213,7 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, msg.Direction, peer.Address.String())
 	logger().Debug("OnMessageReceived matched", "count", len(procs))
 	for _, proc := range procs {
-		output := s.formatMessageForSubscription(peer, msg)
+		output := s.formatMessageForSubscription(peer, msg, proc.Format())
 		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
 		if err := proc.WriteEvent(output); err != nil {
 			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
@@ -1241,13 +1241,13 @@ func messageTypeToEventType(msgType message.MessageType) string {
 }
 
 // formatMessageForSubscription formats a BGP message for subscription-based delivery.
-// Uses JSON encoding with parsed format as the default.
-func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage) string {
+// Uses JSON encoding with the specified format (from process settings).
+func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage, format string) string {
 	switch msg.Type { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
 		content := ContentConfig{
 			Encoding: EncodingJSON,
-			Format:   FormatParsed,
+			Format:   format,
 		}
 		return FormatMessage(peer, msg, content, "")
 
@@ -1327,7 +1327,7 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, DirectionSent, peer.Address.String())
 	logger().Debug("OnMessageSent matched", "count", len(procs))
 	for _, proc := range procs {
-		output := s.formatSentMessageForSubscription(peer, msg)
+		output := s.formatSentMessageForSubscription(peer, msg, proc.Format())
 		logger().Debug("OnMessageSent writing", "proc", proc.Name())
 		if err := proc.WriteEvent(output); err != nil {
 			logger().Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
@@ -1337,10 +1337,11 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 
 // formatSentMessageForSubscription formats a sent BGP message for subscription delivery.
 // Uses FormatSentMessage which sets "type":"sent" to distinguish from received messages.
-func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage) string {
+// The format parameter is the process's configured format (hex, base64, parsed, full).
+func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage, format string) string {
 	content := ContentConfig{
 		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+		Format:   format,
 	}
 	return FormatSentMessage(peer, msg, content)
 }

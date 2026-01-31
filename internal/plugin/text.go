@@ -175,7 +175,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 					if hasContent {
 						rawObj.WriteString(",")
 					}
-					rawObj.WriteString(fmt.Sprintf(`"attr":"%x"`, rawComps.Attributes))
+					rawObj.WriteString(fmt.Sprintf(`"attributes":"%x"`, rawComps.Attributes))
 					hasContent = true
 				}
 
@@ -929,10 +929,19 @@ func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) str
 	output := FormatMessage(peer, msg, content, "sent")
 
 	// Replace type indicator for JSON (text format uses direction field)
-	// IPC 2.0 format has type in bgp payload: {"type":"bgp","bgp":{"type":"update","update":{...}}}
-	// We want to change to: {"type":"bgp","bgp":{"type":"sent","sent":{...}}}
+	// Two JSON formats depending on FormatRaw vs FormatParsed/FormatFull:
+	//
+	// FormatParsed/Full: {"type":"bgp","bgp":{"type":"update","peer":{...},"update":{...}}}
+	// FormatRaw:         {"type":"bgp","bgp":{"type":"update","update":{"message":{...},"peer":{...}}}}
+	//
+	// We want to change "type":"update" to "type":"sent" and "update":{} to "sent":{}
 	if content.Encoding == EncodingJSON {
+		// FormatParsed/Full: peer at bgp level, before update key
+		output = strings.Replace(output, `"type":"update","peer":`, `"type":"sent","peer":`, 1)
+		// FormatRaw: update key immediately after type (peer inside update)
 		output = strings.Replace(output, `"type":"update","update":{`, `"type":"sent","sent":{`, 1)
+		// Both formats: update key with comma prefix
+		output = strings.Replace(output, `,"update":{`, `,"sent":{`, 1)
 	}
 
 	return output

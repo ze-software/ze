@@ -148,6 +148,9 @@ func (r *RIBManager) doStartupProtocol() {
 	// Stage 4: Wait for registry (discard)
 	r.waitForLine("registry done")
 
+	// Request full format with raw fields (required for handleReceived)
+	r.send("bgp plugin format full")
+
 	// Subscribe to events via API (replaces config-driven receive { })
 	// Must be sent BEFORE "ready" so subscriptions are active when events start
 	r.send("subscribe bgp event update direction sent")

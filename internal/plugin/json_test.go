@@ -1992,6 +1992,6 @@ func TestEventJSONRawSection(t *testing.T) {
 	require.True(t, ok, "bgp.update.raw must be object for format=full: %s", output)
 
 	// Raw should have attributes and nlri fields
-	assert.Contains(t, raw, "attr", "raw should have attr")
+	assert.Contains(t, raw, "attributes", "raw should have attributes")
 	assert.Contains(t, raw, "nlri", "raw should have nlri")
 }
