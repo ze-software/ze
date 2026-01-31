@@ -36,5 +36,35 @@ func cmdPluginGR(args []string) int {
 }
 
 // grYANG is the YANG schema for the GR plugin.
-// TODO: Add actual YANG schema when plugin config schema is defined.
-const grYANG = ""
+const grYANG = `module ze-graceful-restart {
+    namespace "urn:ze:graceful-restart";
+    prefix gr;
+
+    import ze-bgp { prefix ze-bgp; }
+
+    description
+        "Graceful Restart capability plugin for Ze (RFC 4724, code 64).
+         Configures per-peer restart-time for BGP graceful restart.";
+
+    revision 2025-01-31 {
+        description "Initial revision.";
+    }
+
+    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
+        container graceful-restart {
+            description "Graceful Restart capability configuration.";
+
+            leaf restart-time {
+                type uint16 {
+                    range "0..4095";
+                }
+                units "seconds";
+                default "120";
+                description
+                    "Restart Time in seconds (RFC 4724 Section 3).
+                     Maximum value is 4095 (12-bit field).";
+            }
+        }
+    }
+}
+`
