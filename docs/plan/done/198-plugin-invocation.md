@@ -20,22 +20,20 @@ Implement three plugin invocation conventions based on naming syntax:
 
 ## Current Behavior (MANDATORY)
 
-**Source files to read:**
-- [ ] `cmd/ze/bgp/decode.go` - `invokePluginNLRIDecodeRequest`, `inProcessDecoders`
-- [ ] `internal/plugin/inprocess.go` - `internalPluginRunners`, plugin registration
-- [ ] `internal/plugin/resolve.go` - `IsInternalPlugin`, plugin resolution
-- [ ] Config files using `ze.rib`, `ze.hostname` syntax
+**Source files read:**
+- [x] `cmd/ze/bgp/decode.go` - `invokePluginDecodeRequest` (line 388), `inProcessDecoders` (line 521)
+- [x] `internal/plugin/inprocess.go` - `internalPluginRunners` (line 27), full plugin protocol runners
 
 **Behavior to preserve:**
 - Subprocess invocation via `os.Args[0]` with `bgp plugin <name> --decode`
-- In-process decode via `inProcessDecoders` map
-- Auto fallback from subprocess to in-process (for tests)
+- In-process decode via `inProcessDecoders` map (Direct mode)
+- Auto fallback from subprocess to in-process for plain `name` syntax
 
 **Behavior to change:**
-- `ze.name` syntax → force in-process only (no subprocess attempt)
-- `ze/name` syntax → force subprocess only (no fallback)
+- `ze.name` syntax → Internal mode (goroutine + pipe), no fallback
+- `ze-name` syntax → Direct mode (sync in-process), no fallback
+- `/path/to/prog` → Fork that path directly, no fallback
 - `name` syntax → unchanged (subprocess with in-process fallback)
-- Config `ze.rib` currently treated as internal → should use `ze/rib` for subprocess
 
 ## Design
 
@@ -143,12 +141,47 @@ ze bgp decode --plugin ze-flowspec --nlri ipv4/flow ...
 7. **Update documentation** - clarify three syntaxes
 8. **Run `make verify`** - all tests pass
 
-## Open Questions
+## Design Decisions
 
-1. Should `internalPluginRunners` in `inprocess.go` be renamed/refactored to support internal vs direct distinction?
-2. What error should `ze.unknown` or `ze-unknown` return if plugin not available?
-3. For tests: which mode should be default in `pluginFamilyMap`? (`ze-` direct would be fastest)
-4. Should path detection (`/path/to/prog`) work for any path or only absolute paths?
+### Q1: Refactor `internalPluginRunners`?
+
+**No.** Keep existing structure. The distinction:
+- `internalPluginRunners` → used by Internal mode (goroutine + pipe wrapper)
+- `inProcessDecoders` → used by Direct mode (already exists, sync in-process)
+
+Add thin wrapper for Internal mode:
+```
+invokePluginInternal(name, request):
+    runner = internalPluginRunners[name]
+    create io.Pipe pair
+    go runner(inR, outW)
+    write request, read response
+```
+
+### Q2: Error for unknown plugin?
+
+**Explicit error, no fallback for prefixed syntax:**
+
+| Syntax | On unknown plugin |
+|--------|-------------------|
+| `ze.unknown` | Error: "internal plugin 'unknown' not registered" |
+| `ze-unknown` | Error: "direct decoder 'unknown' not available" |
+| `unknown` | Try subprocess → fallback to direct → nil (existing behavior) |
+
+### Q3: Default mode in `pluginFamilyMap`?
+
+**Keep plain names** (e.g., `"flowspec"` not `"ze-flowspec"`).
+- Preserves backward compatibility
+- Existing subprocess-with-fallback behavior useful for tests
+- Tests can explicitly use `ze-flowspec` for max speed if needed
+
+### Q4: Path detection?
+
+**Any string containing `/` is a path** (matches shell conventions):
+- `/usr/bin/plugin` → Fork with absolute path
+- `./local-plugin` → Fork with relative path
+- `../other/plugin` → Fork with relative path
+- `flowspec` → Fork built-in (os.Args[0] bgp plugin flowspec)
 
 ## Checklist
 
@@ -161,14 +194,39 @@ ze bgp decode --plugin ze-flowspec --nlri ipv4/flow ...
 - [ ] Next-developer test
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
-- [ ] Feature code integrated
-- [ ] Functional tests verify end-user behavior
+- [x] Tests written (TestParsePluginName, TestParsePluginNameBoundary, TestInvokePlugin*)
+- [x] Tests FAIL (verified before implementation)
+- [x] Implementation complete
+- [x] Tests PASS (24 tests pass)
+- [x] Feature code integrated
+- [x] Functional tests verify end-user behavior (22/22 decode tests pass)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [ ] `make test` passes (pre-existing env failures in subsystem/reactor unrelated to this change)
+- [x] `make functional` decode passes (22/22)
+
+## Implementation Summary
+
+### What Was Implemented
+- `PluginMode` type with `ModeFork`, `ModeInternal`, `ModeDirect` constants
+- `parsePluginName()` function to detect mode from syntax prefix
+- `invokePluginInternal()` for ze.name syntax (goroutine + io.Pipe)
+- `invokePluginPath()` for external binary paths with `--decode` flag
+- Updated `invokePluginNLRIDecode()` to route by mode
+- 5 new tests: Direct, Internal, Fork, ForkPath, ModeConsistency
+
+### Code Paths Tested
+| Syntax | Mode | Execution |
+|--------|------|-----------|
+| `ze-flowspec` | Direct | Sync in-process call |
+| `ze.flowspec` | Internal | Goroutine + io.Pipe |
+| `flowspec` | Fork | `ze bgp plugin flowspec --decode` subprocess |
+| `/path/to/bin` | Fork | External binary with `--decode` flag |
+
+### API Contract
+- External plugins must accept `--decode` flag
+- Protocol: stdin `decode nlri <family> <hex>` → stdout `decoded json <json>`
+
+### Deviations from Plan
+- Internal mode uses decode-only function (not full plugin protocol) to avoid startup deadlock

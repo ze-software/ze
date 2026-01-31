@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"math"
 	"net/netip"
@@ -374,11 +375,45 @@ func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]a
 	return map[string]any{"code": code, "name": "unknown", "raw": rawHex}
 }
 
+// PluginMode represents how a plugin should be invoked.
+type PluginMode int
+
+const (
+	// ModeFork spawns a subprocess via exec.
+	ModeFork PluginMode = iota
+	// ModeInternal runs the plugin in a goroutine with pipes.
+	ModeInternal
+	// ModeDirect calls the decode function synchronously.
+	ModeDirect
+)
+
+// parsePluginName extracts the plugin name, invocation mode, and optional path from input.
+//
+// Syntax:
+//   - "name" → (name, ModeFork, "") - subprocess
+//   - "ze.name" → (name, ModeInternal, "") - goroutine + pipe
+//   - "ze-name" → (name, ModeDirect, "") - sync in-process
+//   - "/path/to/prog" → ("", ModeFork, path) - execute path directly
+func parsePluginName(input string) (name string, mode PluginMode, path string) {
+	if strings.HasPrefix(input, "ze.") {
+		return strings.TrimPrefix(input, "ze."), ModeInternal, ""
+	}
+	if strings.HasPrefix(input, "ze-") {
+		return strings.TrimPrefix(input, "ze-"), ModeDirect, ""
+	}
+	if strings.Contains(input, "/") {
+		return "", ModeFork, input
+	}
+	// Plain name: fork subprocess.
+	return input, ModeFork, ""
+}
+
 // hasPluginEnabled checks if a plugin is in the enabled list.
-// Accepts both "ze.name" and "name" formats.
+// Accepts "ze.name", "ze-name", and "name" formats.
 func hasPluginEnabled(plugins []string, name string) bool {
 	for _, p := range plugins {
-		if p == name || p == "ze."+name {
+		pName, _, _ := parsePluginName(p)
+		if pName == name || p == name {
 			return true
 		}
 	}
@@ -440,25 +475,104 @@ func invokePluginDecode(pluginName string, code uint8, hexData string) map[strin
 	return invokePluginDecodeRequest(pluginName, request)
 }
 
-// invokePluginNLRIDecode spawns a plugin in decode mode and requests NLRI decoding.
-// Returns decoded JSON (array or map) or nil if decoding failed.
+// invokePluginNLRIDecode invokes a plugin to decode NLRI.
+// Routes by mode based on plugin name syntax:
+//   - "name" → Fork subprocess (with in-process retry)
+//   - "ze.name" → Internal (goroutine + pipe)
+//   - "ze-name" → Direct (sync in-process)
+//   - "/path" → Fork external binary
 func invokePluginNLRIDecode(pluginName, family, hexData string) any {
 	request := fmt.Sprintf("decode nlri %s %s", family, hexData)
-	return invokePluginNLRIDecodeRequest(pluginName, request)
+	name, mode, path := parsePluginName(pluginName)
+
+	switch mode {
+	case ModeInternal:
+		return invokePluginInternal(name, request)
+	case ModeDirect:
+		return invokePluginInProcess(name, request)
+	case ModeFork:
+		if path != "" {
+			return invokePluginPath(path, request)
+		}
+		return invokePluginNLRIDecodeRequest(name, request)
+	}
+	return nil
 }
 
-// invokePluginNLRIDecodeRequest spawns a plugin and sends an NLRI decode request.
-// Returns decoded JSON (can be array or map) or nil if decoding failed.
-// Falls back to in-process decode when subprocess fails (e.g., during tests).
+// invokePluginNLRIDecodeRequest spawns a built-in plugin subprocess.
+// For plain names (ModeFork without path), retries with in-process on failure.
 func invokePluginNLRIDecodeRequest(pluginName, request string) any {
-	// Try subprocess first
+	// Try subprocess first.
 	result := invokePluginSubprocess(pluginName, request)
 	if result != nil {
 		return result
 	}
 
-	// Fallback: in-process decode (for tests where subprocess can't run)
+	// Retry: in-process decode (for tests where subprocess can't run).
 	return invokePluginInProcess(pluginName, request)
+}
+
+// invokePluginPath executes an external plugin binary at the given path.
+func invokePluginPath(path, request string) any {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, path, "--decode") //nolint:gosec // path from user input
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		slog.Debug("plugin path stdin failed", "path", path, "err", err)
+		return nil
+	}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		slog.Debug("plugin path stdout failed", "path", path, "err", err)
+		return nil
+	}
+
+	if err := cmd.Start(); err != nil {
+		slog.Debug("plugin path start failed", "path", path, "err", err)
+		return nil
+	}
+
+	if _, err := stdin.Write([]byte(request + "\n")); err != nil {
+		slog.Debug("plugin path write failed", "path", path, "err", err)
+	}
+	if err := stdin.Close(); err != nil {
+		slog.Debug("plugin path stdin close failed", "path", path, "err", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	if scanner.Scan() {
+		line := scanner.Text()
+		if result := parseDecodedJSON(line); result != nil {
+			if err := cmd.Wait(); err != nil {
+				slog.Debug("plugin path wait failed", "path", path, "err", err)
+			}
+			return result
+		}
+	}
+
+	if err := cmd.Wait(); err != nil {
+		slog.Debug("plugin path wait failed", "path", path, "err", err)
+	}
+	return nil
+}
+
+// parseDecodedJSON extracts JSON from "decoded json <json>" response.
+func parseDecodedJSON(line string) any {
+	if !strings.HasPrefix(line, "decoded json ") {
+		return nil
+	}
+	jsonStr := strings.TrimPrefix(line, "decoded json ")
+	var arrResult []any
+	if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
+		return arrResult
+	}
+	var mapResult map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &mapResult); err == nil {
+		return mapResult
+	}
+	return nil
 }
 
 // invokePluginSubprocess spawns a plugin subprocess for NLRI decode.
@@ -525,7 +639,8 @@ var inProcessDecoders = map[string]func(input, output *bytes.Buffer) int{
 	"vpn":      func(in, out *bytes.Buffer) int { return vpn.RunVPNDecode(in, out) },
 }
 
-// invokePluginInProcess runs plugin decode in-process (fallback for tests).
+// invokePluginInProcess runs plugin decode in-process (Direct mode: ze-name).
+// Synchronous, blocking - fastest invocation for CLI decode.
 func invokePluginInProcess(pluginName, request string) any {
 	decoder, ok := inProcessDecoders[pluginName]
 	if !ok {
@@ -537,7 +652,67 @@ func invokePluginInProcess(pluginName, request string) any {
 
 	decoder(input, output)
 
-	line := strings.TrimSpace(output.String())
+	return parsePluginResponse(output.String())
+}
+
+// invokePluginInternal runs decode via goroutine + pipes (Internal mode: ze.name).
+// Uses decode-only runners (same as Direct) but with async pipe I/O.
+func invokePluginInternal(pluginName, request string) any {
+	decoder, ok := inProcessDecoders[pluginName]
+	if !ok {
+		slog.Debug("internal plugin decoder not available", "plugin", pluginName)
+		return nil
+	}
+
+	// Create pipes for communication.
+	inR, inW := io.Pipe()
+	outR, outW := io.Pipe()
+
+	// Run decoder in goroutine.
+	done := make(chan int, 1)
+	go func() {
+		// Wrap pipes in buffers for decoder interface.
+		inBuf := &bytes.Buffer{}
+		if _, err := io.Copy(inBuf, inR); err != nil {
+			slog.Debug("internal plugin read input failed", "plugin", pluginName, "err", err)
+		}
+		outBuf := &bytes.Buffer{}
+		exitCode := decoder(inBuf, outBuf)
+		if _, err := outW.Write(outBuf.Bytes()); err != nil {
+			slog.Debug("internal plugin write output failed", "plugin", pluginName, "err", err)
+		}
+		if err := outW.Close(); err != nil {
+			slog.Debug("internal plugin outW close failed", "plugin", pluginName, "err", err)
+		}
+		done <- exitCode
+	}()
+
+	// Send request and close input.
+	if _, err := inW.Write([]byte(request + "\n")); err != nil {
+		slog.Debug("internal plugin write failed", "plugin", pluginName, "err", err)
+		if err := inW.Close(); err != nil {
+			slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)
+		}
+		return nil
+	}
+	if err := inW.Close(); err != nil {
+		slog.Debug("internal plugin inW close failed", "plugin", pluginName, "err", err)
+	}
+
+	// Read response.
+	var output bytes.Buffer
+	if _, err := io.Copy(&output, outR); err != nil {
+		slog.Debug("internal plugin read failed", "plugin", pluginName, "err", err)
+	}
+
+	<-done // Wait for decoder to finish.
+
+	return parsePluginResponse(output.String())
+}
+
+// parsePluginResponse parses the "decoded json ..." response from a plugin.
+func parsePluginResponse(output string) any {
+	line := strings.TrimSpace(output)
 	if strings.HasPrefix(line, "decoded json ") {
 		jsonStr := strings.TrimPrefix(line, "decoded json ")
 		var arrResult []any
@@ -549,7 +724,6 @@ func invokePluginInProcess(pluginName, request string) any {
 			return mapResult
 		}
 	}
-
 	return nil
 }
 

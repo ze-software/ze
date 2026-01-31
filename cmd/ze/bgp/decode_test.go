@@ -1,8 +1,11 @@
 package bgp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -29,6 +32,12 @@ const (
 
 	// testCapNameUnknown is the expected capability name for unknown capabilities.
 	testCapNameUnknown = "unknown"
+
+	// testFlowSpecNLRI is FlowSpec NLRI: destination 10.0.0.0/24.
+	testFlowSpecNLRI = "0501180a0000"
+
+	// testFlowSpecFamily is the FlowSpec family for IPv4.
+	testFlowSpecFamily = "ipv4/flow"
 )
 
 // TestDecodeOpen verifies OPEN message decoding produces Ze JSON format (IPC Protocol 2.0).
@@ -1202,5 +1211,247 @@ func TestDecodeErrorHuman(t *testing.T) {
 	// Error message should contain useful info
 	if !strings.Contains(err.Error(), "invalid hex") {
 		t.Errorf("expected 'invalid hex' in error, got: %v", err)
+	}
+}
+
+// TestParsePluginName verifies plugin name syntax parsing.
+//
+// VALIDATES: Three invocation modes are correctly detected from syntax.
+// PREVENTS: Wrong invocation mode for prefixed plugin names.
+func TestParsePluginName(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantName string
+		wantMode PluginMode
+		wantPath string
+	}{
+		// Plain names → Fork mode (subprocess)
+		{"flowspec", "flowspec", ModeFork, ""},
+		{"hostname", "hostname", ModeFork, ""},
+		{"bgpls", "bgpls", ModeFork, ""},
+
+		// ze.name → Internal mode (goroutine + pipe)
+		{"ze.flowspec", "flowspec", ModeInternal, ""},
+		{"ze.hostname", "hostname", ModeInternal, ""},
+		{"ze.bgpls", "bgpls", ModeInternal, ""},
+
+		// ze-name → Direct mode (sync in-process)
+		{"ze-flowspec", "flowspec", ModeDirect, ""},
+		{"ze-hostname", "hostname", ModeDirect, ""},
+		{"ze-bgpls", "bgpls", ModeDirect, ""},
+
+		// Paths → Fork mode with path
+		{"/usr/bin/plugin", "", ModeFork, "/usr/bin/plugin"},
+		{"./local-plugin", "", ModeFork, "./local-plugin"},
+		{"../other/plugin", "", ModeFork, "../other/plugin"},
+		{"/path/to/ze-plugin", "", ModeFork, "/path/to/ze-plugin"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			name, mode, path := parsePluginName(tt.input)
+			if name != tt.wantName {
+				t.Errorf("name = %q, want %q", name, tt.wantName)
+			}
+			if mode != tt.wantMode {
+				t.Errorf("mode = %v, want %v", mode, tt.wantMode)
+			}
+			if path != tt.wantPath {
+				t.Errorf("path = %q, want %q", path, tt.wantPath)
+			}
+		})
+	}
+}
+
+// TestParsePluginNameBoundary verifies edge cases in plugin name parsing.
+//
+// VALIDATES: Empty and unusual inputs handled correctly.
+// PREVENTS: Panic on empty input, wrong mode for edge cases.
+func TestParsePluginNameBoundary(t *testing.T) {
+	tests := []struct {
+		input    string
+		wantName string
+		wantMode PluginMode
+		wantPath string
+	}{
+		// Empty string
+		{"", "", ModeFork, ""},
+
+		// Just prefixes
+		{"ze.", "", ModeInternal, ""},
+		{"ze-", "", ModeDirect, ""},
+
+		// Prefix in middle (not at start) → treated as plain name
+		{"foo-ze.bar", "foo-ze.bar", ModeFork, ""},
+		{"foo.ze-bar", "foo.ze-bar", ModeFork, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("input=%q", tt.input), func(t *testing.T) {
+			name, mode, path := parsePluginName(tt.input)
+			if name != tt.wantName {
+				t.Errorf("name = %q, want %q", name, tt.wantName)
+			}
+			if mode != tt.wantMode {
+				t.Errorf("mode = %v, want %v", mode, tt.wantMode)
+			}
+			if path != tt.wantPath {
+				t.Errorf("path = %q, want %q", path, tt.wantPath)
+			}
+		})
+	}
+}
+
+// TestInvokePluginDirect verifies ze-name syntax uses direct in-process decode.
+//
+// VALIDATES: Direct mode (ze-flowspec) decodes NLRI without subprocess.
+// PREVENTS: Wrong invocation path for ze- prefix.
+func TestInvokePluginDirect(t *testing.T) {
+	result := invokePluginNLRIDecode("ze-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	if result == nil {
+		t.Fatal("ze-flowspec direct decode returned nil")
+	}
+
+	// Verify we got a decoded result (map or array).
+	switch v := result.(type) {
+	case map[string]any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result map")
+		}
+	case []any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result array")
+		}
+	default:
+		t.Fatalf("unexpected result type %T", result)
+	}
+}
+
+// TestInvokePluginInternal verifies ze.name syntax uses goroutine+pipe decode.
+//
+// VALIDATES: Internal mode (ze.flowspec) decodes NLRI via plugin protocol.
+// PREVENTS: Wrong invocation path for ze. prefix.
+func TestInvokePluginInternal(t *testing.T) {
+	result := invokePluginNLRIDecode("ze.flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	if result == nil {
+		t.Fatal("ze.flowspec internal decode returned nil")
+	}
+
+	// Verify we got a decoded result (map or array).
+	switch v := result.(type) {
+	case map[string]any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result map")
+		}
+	case []any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result array")
+		}
+	default:
+		t.Fatalf("unexpected result type %T", result)
+	}
+}
+
+// TestInvokePluginFork verifies plain name uses subprocess (with in-process retry).
+//
+// VALIDATES: Fork mode (flowspec) attempts subprocess, retries in-process.
+// PREVENTS: Plain names not being handled correctly.
+func TestInvokePluginFork(t *testing.T) {
+	result := invokePluginNLRIDecode("flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	if result == nil {
+		t.Fatal("flowspec fork decode returned nil")
+	}
+
+	// Verify we got a decoded result (map or array).
+	switch v := result.(type) {
+	case map[string]any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result map")
+		}
+	case []any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result array")
+		}
+	default:
+		t.Fatalf("unexpected result type %T", result)
+	}
+}
+
+// TestInvokePluginForkPath verifies path-based fork uses external binary.
+//
+// VALIDATES: /path/to/binary invokes external program with --decode.
+// PREVENTS: Path-based invocation falling back to in-process.
+func TestInvokePluginForkPath(t *testing.T) {
+	// Build ze binary to a temp location.
+	binPath := t.TempDir() + "/ze-test"
+	ctx := context.Background()
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", binPath, "codeberg.org/thomas-mangin/ze/cmd/ze") //nolint:gosec // test code
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Skipf("failed to build test binary: %v\n%s", err, out)
+	}
+
+	// Create a wrapper script that calls ze bgp plugin flowspec --decode.
+	wrapperPath := t.TempDir() + "/flowspec-wrapper"
+	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s bgp plugin flowspec \"$@\"\n", binPath)
+	if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755); err != nil { //nolint:gosec // executable script
+		t.Fatalf("failed to write wrapper: %v", err)
+	}
+
+	// Invoke via path - this should call the wrapper with --decode.
+	result := invokePluginNLRIDecode(wrapperPath, testFlowSpecFamily, testFlowSpecNLRI)
+	if result == nil {
+		t.Fatal("path-based fork decode returned nil")
+	}
+
+	// Verify we got a decoded result.
+	switch v := result.(type) {
+	case map[string]any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result map")
+		}
+	case []any:
+		if len(v) == 0 {
+			t.Fatal("expected non-empty result array")
+		}
+	default:
+		t.Fatalf("unexpected result type %T", result)
+	}
+}
+
+// TestInvokePluginModeConsistency verifies all three modes produce same result.
+//
+// VALIDATES: Fork, Internal, and Direct modes decode identically.
+// PREVENTS: Mode-dependent decode differences.
+func TestInvokePluginModeConsistency(t *testing.T) {
+	directResult := invokePluginNLRIDecode("ze-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	internalResult := invokePluginNLRIDecode("ze.flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	forkResult := invokePluginNLRIDecode("flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+
+	if directResult == nil || internalResult == nil || forkResult == nil {
+		t.Fatalf("one or more modes returned nil: direct=%v internal=%v fork=%v",
+			directResult != nil, internalResult != nil, forkResult != nil)
+	}
+
+	// Marshal to JSON for comparison.
+	directJSON, err := json.Marshal(directResult)
+	if err != nil {
+		t.Fatalf("marshal direct failed: %v", err)
+	}
+	internalJSON, err := json.Marshal(internalResult)
+	if err != nil {
+		t.Fatalf("marshal internal failed: %v", err)
+	}
+	forkJSON, err := json.Marshal(forkResult)
+	if err != nil {
+		t.Fatalf("marshal fork failed: %v", err)
+	}
+
+	if string(directJSON) != string(internalJSON) {
+		t.Errorf("direct vs internal mismatch:\n  direct: %s\n  internal: %s",
+			directJSON, internalJSON)
+	}
+	if string(directJSON) != string(forkJSON) {
+		t.Errorf("direct vs fork mismatch:\n  direct: %s\n  fork: %s",
+			directJSON, forkJSON)
 	}
 }
