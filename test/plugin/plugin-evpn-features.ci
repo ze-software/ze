@@ -1,0 +1,4 @@
+# plugin-evpn-features - verify evpn --features outputs nlri
+cmd=foreground:seq=1:exec=ze bgp plugin evpn --features
+expect=exit:code=0
+expect=stdout:contains=nlri

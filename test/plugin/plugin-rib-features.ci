@@ -1,0 +1,4 @@
+# plugin-rib-features - verify rib --features outputs yang
+cmd=foreground:seq=1:exec=ze bgp plugin rib --features
+expect=exit:code=0
+expect=stdout:contains=yang

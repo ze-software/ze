@@ -1,0 +1,9 @@
+# plugin-gr-capa - verify gr plugin --capa decode
+# Tests: ze bgp plugin gr --capa <hex> outputs correct JSON
+# GR capability (code 64): restart-time=120, no flags, no families
+# Wire: flags+restart-time = 0078 (120 seconds)
+cmd=foreground:seq=1:exec=ze bgp plugin gr --capa 0078
+expect=exit:code=0
+expect=stdout:contains="restart-time":120
+expect=stdout:contains="name":"graceful-restart"
+expect=stdout:contains="restarting":false

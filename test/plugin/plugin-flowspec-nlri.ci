@@ -1,0 +1,10 @@
+# plugin-flowspec-nlri - verify flowspec plugin --nlri decode
+# Tests: ze bgp plugin flowspec --nlri <hex> outputs correct JSON
+# IPv4 FlowSpec: destination 10.0.0.0/24, protocol TCP (6)
+# Wire: len=08, dest(type=01, len=18(24), prefix=0a0000), protocol(type=03, op=81, value=06)
+cmd=foreground:seq=1:exec=ze bgp plugin flowspec --nlri 0801180a0000038106
+expect=exit:code=0
+expect=stdout:contains="destination"
+expect=stdout:contains=10.0.0.0/24
+expect=stdout:contains="protocol"
+expect=stdout:contains=tcp

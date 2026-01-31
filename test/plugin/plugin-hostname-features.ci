@@ -1,0 +1,5 @@
+# plugin-hostname-features - verify hostname --features outputs capa and yang
+cmd=foreground:seq=1:exec=ze bgp plugin hostname --features
+expect=exit:code=0
+expect=stdout:contains=capa
+expect=stdout:contains=yang

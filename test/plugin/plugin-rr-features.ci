@@ -1,0 +1,3 @@
+# plugin-rr-features - verify rr --features outputs nothing (no special features)
+cmd=foreground:seq=1:exec=ze bgp plugin rr --features
+expect=exit:code=0

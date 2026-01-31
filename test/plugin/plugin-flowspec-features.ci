@@ -1,0 +1,4 @@
+# plugin-flowspec-features - verify flowspec --features outputs nlri
+cmd=foreground:seq=1:exec=ze bgp plugin flowspec --features
+expect=exit:code=0
+expect=stdout:contains=nlri
