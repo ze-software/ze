@@ -1,7 +1,10 @@
-# plugin-evpn-nlri - verify evpn plugin --nlri decode
-# Tests: ze bgp plugin evpn --nlri <hex> outputs correct JSON
-# EVPN Type 2 (MAC/IP): minimal valid structure
-# Wire: type=02, len=33, rd, esi, eth-tag, mac-len, mac, ip-len, ip, label
-cmd=foreground:seq=1:exec=ze bgp plugin evpn --nlri 02210001252C373700010001FC15B47878787800000000000000010804C0A80101
+# plugin-evpn-nlri - verify evpn plugin NLRI decode
+# Tests EVPN Type 2 (MAC/IP) NLRI decoding via plugin CLI
+# Type 2: RD 00:00:00:00:00:00:00:01, ESI all zeros, ETI 100,
+#         MAC 00:11:22:33:44:55, IP 10.0.0.1, labels [200]
+# Hex from RFC 7432 example format
+
+cmd=foreground:seq=1:exec=ze bgp plugin evpn --nlri 02250001000100010001000000000000000000006400112233445510000000020000c8
 expect=exit:code=0
 expect=stdout:contains="code":2
+expect=stdout:contains=raw

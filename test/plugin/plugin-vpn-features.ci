@@ -1,4 +1,6 @@
-# plugin-vpn-features - verify vpn --features outputs nlri
+# plugin-vpn-features - verify vpn plugin --features output
+# Tests that ze bgp plugin vpn --features lists supported features
+
 cmd=foreground:seq=1:exec=ze bgp plugin vpn --features
 expect=exit:code=0
 expect=stdout:contains=nlri

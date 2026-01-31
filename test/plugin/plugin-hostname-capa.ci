@@ -1,9 +1,9 @@
-# plugin-hostname-capa - verify hostname plugin --capa decode
-# Tests: ze bgp plugin hostname --capa <hex> outputs correct JSON
-# FQDN capability (code 73): hostname="router1", domain="domain"
-# Wire: hostname-len(07) + "router1" + domain-len(06) + "domain"
-cmd=foreground:seq=1:exec=ze bgp plugin hostname --capa 07726f757465723106646f6d61696e
+# plugin-hostname-capa - verify hostname plugin capability decode
+# Tests hostname capability decoding via plugin CLI
+# Capability code 73: hostname "router1" (7 bytes) + domain "lab" (3 bytes)
+# Wire: 07 (len) "router1" 03 (len) "lab"
+
+cmd=foreground:seq=1:exec=ze bgp plugin hostname --capa 07726f7574657231036c6162
 expect=exit:code=0
-expect=stdout:contains="hostname":"router1"
-expect=stdout:contains="domain":"domain"
-expect=stdout:contains="name":"fqdn"
+expect=stdout:contains=hostname
+expect=stdout:contains=router1

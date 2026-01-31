@@ -1,4 +1,6 @@
-# plugin-rib-features - verify rib --features outputs yang
+# plugin-rib-features - verify rib plugin --features output
+# Tests that ze bgp plugin rib --features lists supported features
+
 cmd=foreground:seq=1:exec=ze bgp plugin rib --features
 expect=exit:code=0
 expect=stdout:contains=yang

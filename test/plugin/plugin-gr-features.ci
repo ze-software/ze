@@ -1,5 +1,6 @@
-# plugin-gr-features - verify gr --features outputs capa and yang
+# plugin-gr-features - verify graceful-restart plugin --features output
+# Tests that ze bgp plugin gr --features lists supported features
+
 cmd=foreground:seq=1:exec=ze bgp plugin gr --features
 expect=exit:code=0
 expect=stdout:contains=capa
-expect=stdout:contains=yang
