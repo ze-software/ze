@@ -1,0 +1,91 @@
+{
+  "full_routing_daemons": [
+    {
+      "name": "BIRD",
+      "language": "C",
+      "url": "https://bird.network.cz/",
+      "description": "High-performance routing daemon, fastest in benchmarks"
+    },
+    {
+      "name": "FRRouting",
+      "language": "C",
+      "url": "https://frrouting.org/",
+      "description": "Quagga fork with active development, supports BGP/OSPF/RIP"
+    },
+    {
+      "name": "OpenBGPD",
+      "language": "C",
+      "url": "https://www.openbgpd.org/",
+      "description": "BSD-licensed, part of OpenBSD project"
+    },
+    {
+      "name": "Quagga",
+      "language": "C",
+      "url": "https://github.com/Quagga",
+      "description": "Legacy routing suite, superseded by FRRouting"
+    },
+    {
+      "name": "XORP",
+      "language": "C++",
+      "url": "https://github.com/greearb/xorp.ct",
+      "description": "Extensible routing platform"
+    }
+  ],
+  "programmatic_library": [
+    {
+      "name": "ExaBGP",
+      "language": "Python",
+      "url": "https://github.com/Exa-Networks/exabgp",
+      "description": "BGP Swiss Army Knife, script integration focused"
+    },
+    {
+      "name": "GoBGP",
+      "language": "Go",
+      "url": "https://github.com/osrg/gobgp",
+      "description": "Modern BGP implementation with REST API"
+    },
+    {
+      "name": "bio-routing",
+      "language": "Go",
+      "url": "https://github.com/bio-routing/bio-rd",
+      "description": "Routing daemon and library"
+    },
+    {
+      "name": "CoreBGP",
+      "language": "Go",
+      "url": "https://github.com/jwhited/corebgp",
+      "description": "Minimal BGP library"
+    },
+    {
+      "name": "RustyBGP",
+      "language": "Rust",
+      "url": "https://github.com/osrg/rustybgp",
+      "description": "BGP implementation in Rust"
+    },
+    {
+      "name": "bgp4r",
+      "language": "Ruby",
+      "url": "https://github.com/jesnault/bgp4r",
+      "description": "Ruby BGP library"
+    }
+  ],
+  "kubernetes_container": [
+    {
+      "name": "Kube-Router",
+      "language": "Go",
+      "url": "https://www.kube-router.io/",
+      "description": "Kubernetes networking with BGP"
+    },
+    {
+      "name": "MetalLB",
+      "language": "Go",
+      "url": "https://metallb.universe.tf/",
+      "description": "Bare metal Kubernetes load balancer with BGP"
+    }
+  ],
+  "sources": [
+    "https://bizety.com/bgp-tools-quagga-exabgp-bird-openbgpd-and-gobgp/",
+    "https://elegantnetwork.github.io/posts/comparing-open-source-bgp-stacks/",
+    "https://github.com/exa-networks/exabgp"
+  ]
+}
