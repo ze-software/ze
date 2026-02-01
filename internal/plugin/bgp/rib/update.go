@@ -29,7 +29,10 @@ func BuildGroupedUpdate(group *RouteGroup, addPath bool) (*message.Update, error
 
 	// Build NLRI bytes
 	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
-	nlriBytes := buildNLRIBytes(group, addPath)
+	nlriBytes, err := buildNLRIBytes(group, addPath)
+	if err != nil {
+		return nil, err
+	}
 
 	return &message.Update{
 		PathAttributes: pathAttrs,
@@ -68,9 +71,9 @@ func buildPathAttributes(group *RouteGroup) []byte {
 // buildNLRIBytes packs all NLRIs from the group into wire format.
 // RFC 7911: Uses WriteNLRI for centralized ADD-PATH handling.
 // Zero-allocation: calculates size then writes with copy.
-func buildNLRIBytes(group *RouteGroup, addPath bool) []byte {
+func buildNLRIBytes(group *RouteGroup, addPath bool) ([]byte, error) {
 	if len(group.Routes) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Calculate total size
@@ -92,10 +95,10 @@ func buildNLRIBytes(group *RouteGroup, addPath bool) []byte {
 			"predicted", totalLen,
 			"actual", off,
 			"routes", len(group.Routes))
-		panic(fmt.Sprintf("BUG: NLRI size mismatch: LenWithContext=%d WriteNLRI=%d", totalLen, off))
+		return nil, fmt.Errorf("BUG: NLRI size mismatch: LenWithContext=%d WriteNLRI=%d", totalLen, off)
 	}
 
-	return buf
+	return buf, nil
 }
 
 // BuildGroupedUpdates creates UPDATE messages from multiple RouteGroups.

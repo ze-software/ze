@@ -91,7 +91,10 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 
 		for _, attrGroup := range attrGroups {
 			for _, aspGroup := range attrGroup.ByASPath {
-				update := c.buildGroupedUpdateTwoLevel(&attrGroup, &aspGroup)
+				update, err := c.buildGroupedUpdateTwoLevel(&attrGroup, &aspGroup)
+				if err != nil {
+					return stats, fmt.Errorf("build update: %w", err)
+				}
 				if err := c.sender.SendUpdate(update); err != nil {
 					return stats, err
 				}
@@ -103,7 +106,10 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 	} else {
 		// One UPDATE per route
 		for _, route := range routes {
-			update := c.buildSingleUpdate(route)
+			update, err := c.buildSingleUpdate(route)
+			if err != nil {
+				return stats, fmt.Errorf("build update: %w", err)
+			}
 			if err := c.sender.SendUpdate(update); err != nil {
 				return stats, err
 			}
@@ -135,7 +141,7 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 
 // buildGroupedUpdateTwoLevel builds an UPDATE message for a two-level group.
 // Uses explicit AS_PATH from ASPathGroup instead of searching in attributes.
-func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, aspGroup *ASPathGroup) *message.Update {
+func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, aspGroup *ASPathGroup) (*message.Update, error) {
 	family := attrGroup.Family
 	nextHop := bytesToAddr(attrGroup.NextHop)
 
@@ -155,24 +161,27 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 	}
 
 	// Build path attributes with explicit AS_PATH
-	attrBytes := c.packAttributesWithASPath(attrGroup.Attributes, aspGroup.ASPath, nextHop, family, nlriBytes)
+	attrBytes, err := c.packAttributesWithASPath(attrGroup.Attributes, aspGroup.ASPath, nextHop, family, nlriBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	// Determine if NLRI goes in UPDATE.NLRI or MP_REACH_NLRI
 	if c.useTraditionalNLRI(family, nextHop) {
 		return &message.Update{
 			PathAttributes: attrBytes,
 			NLRI:           nlriBytes,
-		}
+		}, nil
 	}
 
 	return &message.Update{
 		PathAttributes: attrBytes,
 		NLRI:           nil, // NLRI is in MP_REACH_NLRI
-	}
+	}, nil
 }
 
 // buildSingleUpdate builds an UPDATE message for a single route.
-func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
+func (c *CommitService) buildSingleUpdate(route *Route) (*message.Update, error) {
 	family := route.NLRI().Family()
 	nextHop := route.NextHop()
 
@@ -184,19 +193,22 @@ func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
 
 	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
 	asPath := getRouteASPath(route)
-	attrBytes := c.packAttributesWithASPath(route.Attributes(), asPath, nextHop, family, nlriBytes)
+	attrBytes, err := c.packAttributesWithASPath(route.Attributes(), asPath, nextHop, family, nlriBytes)
+	if err != nil {
+		return nil, err
+	}
 
 	if c.useTraditionalNLRI(family, nextHop) {
 		return &message.Update{
 			PathAttributes: attrBytes,
 			NLRI:           nlriBytes,
-		}
+		}, nil
 	}
 
 	return &message.Update{
 		PathAttributes: attrBytes,
 		NLRI:           nil,
-	}
+	}, nil
 }
 
 // useTraditionalNLRI returns true if NLRI should go in UPDATE.NLRI field.
@@ -219,7 +231,7 @@ func (c *CommitService) addPathFor(family nlri.Family) bool {
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.
 // This is the preferred method for two-level grouping.
 // Zero-allocation: calculates size, pre-allocates, writes with copy.
-func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) []byte {
+func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) ([]byte, error) {
 	// Use the stored encoding context for ASN4-aware encoding
 	dstCtx := c.ctx
 
@@ -305,10 +317,10 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 			"predicted", totalLen,
 			"actual", off,
 			"attrCount", len(otherAttrs)+4) // origin, aspath, nh, localpref + others
-		panic(fmt.Sprintf("BUG: attribute size mismatch: predicted=%d actual=%d", totalLen, off))
+		return nil, fmt.Errorf("BUG: attribute size mismatch: predicted=%d actual=%d", totalLen, off)
 	}
 
-	return buf
+	return buf, nil
 }
 
 // attrSize returns the total wire size of an attribute (header + value).

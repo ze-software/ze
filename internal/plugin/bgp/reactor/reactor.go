@@ -36,6 +36,10 @@ var reactorLogger = slogutil.LazyLogger("bgp.reactor")
 // Controlled by ze.log.bgp.routes environment variable.
 var routesLogger = slogutil.LazyLogger("bgp.routes")
 
+// collisionResolutionTimeout is the maximum time to wait for an existing
+// session to close during connection collision resolution (RFC 4271 §6.8).
+const collisionResolutionTimeout = 5 * time.Second
+
 // Reactor errors.
 var (
 	ErrAlreadyRunning        = errors.New("reactor already running")
@@ -4671,7 +4675,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	}
 
 	// Resolve collision using BGP ID from OPEN
-	acceptPending, pendingConn, pendingOpen := peer.ResolvePendingCollision(open)
+	acceptPending, pendingConn, pendingOpen, waitSession := peer.ResolvePendingCollision(open)
 
 	if !acceptPending {
 		// Local wins: close pending with NOTIFICATION
@@ -4682,15 +4686,24 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// Remote wins: existing session is being closed, accept pending
 	// We need to wait a bit for the existing session to close, then
 	// start a new session with the pending connection
-	r.acceptPendingConnection(peer, pendingConn, pendingOpen)
+	r.acceptPendingConnection(peer, pendingConn, pendingOpen, waitSession)
 }
 
 // acceptPendingConnection accepts a pending connection after collision resolution.
-// The existing session has been closed, so we accept the pending connection with its pre-read OPEN.
-func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *message.Open) {
+// The existing session has been closed, so we accept the pending connection with its pre-received OPEN.
+func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *message.Open, waitSession <-chan struct{}) {
 	// Wait for existing session to fully close
 	// The CloseWithNotification was called in ResolvePendingCollision
-	time.Sleep(100 * time.Millisecond)
+	if waitSession != nil {
+		timer := time.NewTimer(collisionResolutionTimeout)
+		defer timer.Stop()
+		select {
+		case <-waitSession:
+			// Session closed
+		case <-timer.C:
+			reactorLogger().Warn("session teardown timed out during collision resolution", "peer", peer.Settings().Address)
+		}
+	}
 
 	// Accept connection with the pre-received OPEN
 	if err := peer.AcceptConnectionWithOpen(conn, open); err != nil {

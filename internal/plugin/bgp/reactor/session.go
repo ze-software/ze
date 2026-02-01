@@ -142,6 +142,9 @@ type Session struct {
 	// Used to auto-add Multiprotocol capabilities for plugin-provided families.
 	// Set by Peer to link to plugin.Server registry.
 	pluginFamiliesGetter func() []string
+
+	// done is closed when the Run loop exits.
+	done chan struct{}
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -152,6 +155,7 @@ func NewSession(settings *PeerSettings) *Session {
 		timers:   fsm.NewTimers(),
 		writeBuf: wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:  make(chan error, 2),          // Buffer 2: normal error + teardown
+		done:     make(chan struct{}),
 	}
 
 	// Configure FSM passive mode.
@@ -194,6 +198,11 @@ func (s *Session) Conn() net.Conn {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.conn
+}
+
+// Done returns a channel that is closed when the session Run loop exits.
+func (s *Session) Done() <-chan struct{} {
+	return s.done
 }
 
 // Negotiated returns the negotiated capabilities (nil until OPENCONFIRM).
@@ -636,6 +645,7 @@ func (s *Session) closeConn() {
 // Run is the main session loop. It processes messages until context is
 // cancelled or an error occurs.
 func (s *Session) Run(ctx context.Context) error {
+	defer close(s.done)
 	for {
 		select {
 		case <-ctx.Done():

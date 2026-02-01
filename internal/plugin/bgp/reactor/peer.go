@@ -1032,12 +1032,13 @@ func (p *Peer) HasPendingConnection() bool {
 //   - acceptPending: true if pending connection should be accepted
 //   - the pending connection (caller must handle it)
 //   - the pending OPEN message (if acceptPending is true)
-func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending bool, conn net.Conn, open *message.Open) {
+//   - wait: channel to wait for existing session teardown (if acceptPending is true)
+func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending bool, conn net.Conn, open *message.Open, wait <-chan struct{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if p.pendingConn == nil {
-		return false, nil, nil
+		return false, nil, nil, nil
 	}
 
 	conn = p.pendingConn
@@ -1047,7 +1048,7 @@ func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending
 		// Session gone, reject pending
 		p.pendingConn = nil
 		p.pendingOpen = nil
-		return false, conn, nil
+		return false, conn, nil, nil
 	}
 
 	shouldAccept, shouldCloseExisting := session.DetectCollision(pendingOpen.BGPIdentifier)
@@ -1057,6 +1058,7 @@ func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending
 		// Store the OPEN so we can replay it
 		p.pendingOpen = pendingOpen
 		p.pendingConn = nil
+		wait = session.Done()
 
 		// Close existing session with NOTIFICATION
 		// The session's Run loop will exit and we can accept pending
@@ -1064,13 +1066,13 @@ func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending
 			_ = session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)
 		}()
 
-		return true, conn, pendingOpen
+		return true, conn, pendingOpen, wait
 	}
 
 	// Local wins: reject pending, keep existing
 	p.pendingConn = nil
 	p.pendingOpen = nil
-	return false, conn, nil
+	return false, conn, nil, nil
 }
 
 // AcceptConnectionWithOpen accepts an incoming connection with a pre-received OPEN.

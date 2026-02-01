@@ -437,7 +437,7 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	}
 
 	// Resolve collision
-	acceptPending, conn, _ := peer.ResolvePendingCollision(pendingOpen)
+	acceptPending, conn, _, _ := peer.ResolvePendingCollision(pendingOpen)
 
 	assert.False(t, acceptPending, "local wins: should reject pending")
 	assert.NotNil(t, conn, "should return connection for cleanup")
@@ -505,11 +505,12 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 	}()
 
 	// Resolve collision
-	acceptPending, conn, open := peer.ResolvePendingCollision(pendingOpen)
+	acceptPending, conn, open, waitSession := peer.ResolvePendingCollision(pendingOpen)
 
 	assert.True(t, acceptPending, "remote wins: should accept pending")
 	assert.NotNil(t, conn, "should return pending connection")
 	assert.Equal(t, pendingOpen, open, "should return pending OPEN")
+	assert.NotNil(t, waitSession, "should return wait channel")
 	assert.False(t, peer.HasPendingConnection(), "pending should be cleared")
 }
 
