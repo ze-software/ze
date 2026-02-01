@@ -214,10 +214,11 @@ Not applicable - no new numeric inputs.
 3. ✅ All unit tests pass: `go test ./cmd/ze/bgp/... -run "TestDecode|TestBGPLS|TestFlowSpec"`
 
 ### In Progress
-4. 🔄 Functional tests (`test/decode/*.ci`) - need updating to Ze format
-   - Updated: `bgp-open-sofware-version.ci`, `ipv4-unicast-1.ci`, `ipv4-unicast-2.ci`
-   - Remaining: ~19 more tests need expected JSON updated
-   - Use: `go run ./cmd/ze bgp decode --json --update <hex>` to generate expected output
+~~4. 🔄 Functional tests (`test/decode/*.ci`) - need updating to Ze format~~
+   - ~~Updated: `bgp-open-sofware-version.ci`, `ipv4-unicast-1.ci`, `ipv4-unicast-2.ci`~~
+   - ~~Remaining: ~19 more tests need expected JSON updated~~
+
+**SUPERSEDED:** All 22 functional tests updated and passing (verified 2026-02-01)
 
 ### Key Decisions
 - `message` field IS included in decode output (id:0, direction:received) - per user feedback
@@ -230,6 +231,31 @@ Not applicable - no new numeric inputs.
 - `cmd/ze/bgp/decode.go` - main implementation
 - `cmd/ze/bgp/decode_test.go` - unit tests
 - `test/decode/*.ci` - functional tests (partial)
+
+## Implementation Summary
+
+### What Was Implemented
+- Converted `ze bgp decode` JSON output from ExaBGP format to Ze IPC Protocol 2.0 format
+- Key format changes:
+  - Envelope: `{"type": "bgp", "bgp": {...}}` instead of `{"exabgp": "5.0.0", ...}`
+  - Peer info: `"peer": {"address": "...", "asn": N}` (flat structure)
+  - AS_PATH: Simple array `[asn1, asn2]` instead of segment objects
+  - Attributes: `"attr"` key instead of `"attribute"`
+  - NLRI: Operation arrays `[{"action": "add", "next-hop": "...", "nlri": [...]}]`
+  - Capabilities: Array of `{code, name, value}` objects
+- Updated all 22 functional tests in `test/decode/*.ci` to expect Ze format
+- Human-readable output formatters updated to work with new structure
+
+### Bugs Found/Fixed
+- None
+
+### Design Insights
+- NLRI-only mode (`--nlri`) correctly produces flat JSON without envelope - no changes needed
+- Plugin decode infrastructure (FlowSpec, EVPN, BGP-LS, VPN) works unchanged
+- ExaBGP bridge (`internal/exabgp/`) converts Ze → ExaBGP and remains functional
+
+### Deviations from Plan
+- None - implementation followed plan exactly
 
 ## Checklist
 
@@ -247,12 +273,12 @@ Not applicable - no new numeric inputs.
 - [x] Implementation complete
 - [x] Tests PASS (unit tests)
 - [x] Feature code integrated
-- [ ] Functional tests updated (in progress - ~3/22 done)
+- [x] Functional tests updated (22/22 done - verified 2026-02-01)
 
 ### Verification
-- [ ] `make lint` passes
+- [x] `make lint` passes (0 issues - verified 2026-02-01)
 - [x] `make test` passes (unit tests)
-- [ ] `make functional` passes (blocked on functional test updates)
+- [x] `make functional` passes (22 decode tests pass - verified 2026-02-01)
 
 ### Documentation
 - [x] Required docs read
@@ -260,6 +286,6 @@ Not applicable - no new numeric inputs.
 - [x] Code comments updated
 
 ### Completion
-- [ ] Spec updated with Implementation Summary
+- [x] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/`
-- [ ] All files committed together
+- [x] All files committed together (already committed in prior session)
