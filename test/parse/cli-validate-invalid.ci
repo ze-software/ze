@@ -1,7 +1,7 @@
-# Parse test: config without bgp {} block fails validation
-# This verifies the validator rejects configs missing the required bgp block
+# Test: ze validate (new path) with invalid config
+# This tests error handling for the moved validate command
 stdin=config:terminator=EOF_CONF
-# Config with only environment block - no bgp block
+# Invalid: missing bgp block
 environment {
 	log {
 		level info;

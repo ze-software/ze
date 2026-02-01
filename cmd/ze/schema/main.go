@@ -1,4 +1,5 @@
-package bgp
+// Package schema provides the ze schema subcommand.
+package schema
 
 import (
 	"flag"
@@ -10,37 +11,38 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
-// cmdSchema handles the "schema" subcommand for schema discovery.
-func cmdSchema(args []string) int {
+// Run executes the schema subcommand with the given arguments.
+// Returns exit code.
+func Run(args []string) int {
 	if len(args) < 1 {
-		schemaUsage()
+		usage()
 		return 1
 	}
 
 	switch args[0] {
 	case "list":
-		return cmdSchemaList(args[1:])
+		return cmdList(args[1:])
 	case "show":
-		return cmdSchemaShow(args[1:])
+		return cmdShow(args[1:])
 	case "handlers":
-		return cmdSchemaHandlers(args[1:])
+		return cmdHandlers(args[1:])
 	case "protocol":
-		return cmdSchemaProtocol()
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
-		schemaUsage()
+		return cmdProtocol()
+	case "help", "-h", "--help":
+		usage()
 		return 0
-	default:
+	default: // unknown command - report error
 		fmt.Fprintf(os.Stderr, "unknown schema command: %s\n", args[0])
-		schemaUsage()
+		usage()
 		return 1
 	}
 }
 
-func schemaUsage() {
-	fmt.Fprintf(os.Stderr, `ze bgp schema - Schema discovery commands
+func usage() {
+	fmt.Fprintf(os.Stderr, `ze schema - Schema discovery commands
 
 Usage:
-  ze bgp schema <command> [options]
+  ze schema <command> [options]
 
 Commands:
   list              List all registered schemas
@@ -50,14 +52,14 @@ Commands:
   help              Show this help
 
 Examples:
-  ze bgp schema list
-  ze bgp schema show ze-bgp
-  ze bgp schema handlers
+  ze schema list
+  ze schema show ze-bgp
+  ze schema handlers
 `)
 }
 
-// cmdSchemaList lists all registered schemas.
-func cmdSchemaList(args []string) int {
+// cmdList lists all registered schemas.
+func cmdList(args []string) int {
 	fs := flag.NewFlagSet("schema list", flag.ExitOnError)
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -74,9 +76,9 @@ func cmdSchemaList(args []string) int {
 	sort.Strings(modules)
 	fmt.Println("Registered schemas:")
 	for _, name := range modules {
-		schema, _ := registry.GetByModule(name)
-		if schema != nil {
-			fmt.Printf("  %-20s %s (%s)\n", name, schema.Namespace, schema.Plugin)
+		s, _ := registry.GetByModule(name)
+		if s != nil {
+			fmt.Printf("  %-20s %s (%s)\n", name, s.Namespace, s.Plugin)
 		} else {
 			fmt.Printf("  %s\n", name)
 		}
@@ -85,36 +87,36 @@ func cmdSchemaList(args []string) int {
 	return 0
 }
 
-// cmdSchemaShow shows YANG content for a specific module.
-func cmdSchemaShow(args []string) int {
+// cmdShow shows YANG content for a specific module.
+func cmdShow(args []string) int {
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Usage: ze bgp schema show <module>\n")
+		fmt.Fprintf(os.Stderr, "Usage: ze schema show <module>\n")
 		return 1
 	}
 
 	moduleName := args[0]
 	registry := getSchemaRegistry()
 
-	schema, err := registry.GetByModule(moduleName)
+	s, err := registry.GetByModule(moduleName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		return 1
 	}
 
-	if schema.Yang == "" {
+	if s.Yang == "" {
 		fmt.Printf("# Module: %s (no YANG content available)\n", moduleName)
-		fmt.Printf("# Namespace: %s\n", schema.Namespace)
-		fmt.Printf("# Plugin: %s\n", schema.Plugin)
-		fmt.Printf("# Handlers: %s\n", strings.Join(schema.Handlers, ", "))
+		fmt.Printf("# Namespace: %s\n", s.Namespace)
+		fmt.Printf("# Plugin: %s\n", s.Plugin)
+		fmt.Printf("# Handlers: %s\n", strings.Join(s.Handlers, ", "))
 		return 0
 	}
 
-	fmt.Println(schema.Yang)
+	fmt.Println(s.Yang)
 	return 0
 }
 
-// cmdSchemaHandlers lists handler → module mapping.
-func cmdSchemaHandlers(args []string) int {
+// cmdHandlers lists handler → module mapping.
+func cmdHandlers(args []string) int {
 	_ = args // unused
 
 	registry := getSchemaRegistry()
@@ -140,8 +142,8 @@ func cmdSchemaHandlers(args []string) int {
 	return 0
 }
 
-// cmdSchemaProtocol shows protocol version and format info.
-func cmdSchemaProtocol() int {
+// cmdProtocol shows protocol version and format info.
+func cmdProtocol() int {
 	fmt.Println("Hub Architecture Protocol")
 	fmt.Println("=========================")
 	fmt.Println()
@@ -168,35 +170,41 @@ func cmdSchemaProtocol() int {
 }
 
 // getSchemaRegistry returns the global schema registry.
-// Currently returns an empty registry for demonstration.
+// Currently returns a demo registry.
 // In a running server, this would access the actual registry.
 func getSchemaRegistry() *plugin.SchemaRegistry {
 	// Create a demo registry with embedded YANG modules
 	registry := plugin.NewSchemaRegistry()
 
 	// Register ze-bgp schema (demo)
-	_ = registry.Register(&plugin.Schema{
+	if err := registry.Register(&plugin.Schema{
 		Module:    "ze-bgp",
 		Namespace: "urn:ze:bgp",
 		Handlers:  []string{"bgp", "bgp.peer"},
 		Plugin:    "core",
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to register ze-bgp schema: %v\n", err)
+	}
 
 	// Register ze-plugin schema (demo)
-	_ = registry.Register(&plugin.Schema{
+	if err := registry.Register(&plugin.Schema{
 		Module:    "ze-plugin",
 		Namespace: "urn:ze:plugin",
 		Handlers:  []string{"plugin", "plugin.external"},
 		Plugin:    "core",
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to register ze-plugin schema: %v\n", err)
+	}
 
 	// Register ze-types schema (demo)
-	_ = registry.Register(&plugin.Schema{
+	if err := registry.Register(&plugin.Schema{
 		Module:    "ze-types",
 		Namespace: "urn:ze:types",
 		Handlers:  []string{},
 		Plugin:    "core",
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to register ze-types schema: %v\n", err)
+	}
 
 	return registry
 }

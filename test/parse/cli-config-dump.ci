@@ -1,0 +1,28 @@
+# Test: ze config dump (new path, was ze bgp config-dump)
+# This tests the moved config-dump as a subcommand of config
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		peer-as 65534;
+	}
+}
+EOF_CONF
+
+tmpfs=test.conf:terminator=EOF_FILE
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		peer-as 65534;
+	}
+}
+EOF_FILE
+
+cmd=foreground:seq=1:exec=ze config dump test.conf
+expect=exit:code=0
+expect=stdout:contains=router-id
+expect=stdout:contains=local-as: 65533

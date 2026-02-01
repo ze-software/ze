@@ -1,0 +1,15 @@
+# Test: ze validate (new path) with valid config
+# This tests the moved validate command at root level
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

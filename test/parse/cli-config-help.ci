@@ -1,0 +1,21 @@
+# Test: ze config help shows all subcommands
+# This tests that the consolidated config command has all subcommands
+# Note: config help doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+# Minimal valid config for test framework
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config help
+expect=exit:code=0
+expect=stdout:contains=edit
+expect=stdout:contains=check
+expect=stdout:contains=migrate
+expect=stdout:contains=fmt
+expect=stdout:contains=dump

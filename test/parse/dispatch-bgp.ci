@@ -16,5 +16,5 @@ bgp {
 EOF_CONF
 
 # Use validate to test config parsing without starting daemon
-cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
 expect=exit:code=0

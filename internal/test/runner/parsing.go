@@ -171,7 +171,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 //	stdin=config:terminator=<TERM>
 //	<config content>
 //	<TERM>
-//	cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
+//	cmd=foreground:seq=1:exec=ze validate -:stdin=config
 //	expect=exit:code=<N>
 //	expect=stderr:contains=<error>  (optional, for negative tests)
 func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
@@ -399,13 +399,13 @@ func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
 		configPath = tmpFile.Name()
 	}
 
-	// Run ze bgp validate
+	// Run ze validate
 	// Use quiet mode for positive tests (faster), normal mode for negative tests (need error output)
 	var cmd *exec.Cmd
 	if test.ExpectError != "" {
-		cmd = exec.CommandContext(ctx, r.zePath, "bgp", "validate", configPath) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zePath, "validate", configPath) //nolint:gosec // Test runner
 	} else {
-		cmd = exec.CommandContext(ctx, r.zePath, "bgp", "validate", "-q", configPath) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zePath, "validate", "-q", configPath) //nolint:gosec // Test runner
 	}
 	output, err := cmd.CombinedOutput()
 	test.Output = string(output)

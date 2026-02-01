@@ -1,4 +1,5 @@
-package bgp
+// Package validate provides the ze validate subcommand.
+package validate
 
 import (
 	"flag"
@@ -9,14 +10,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
-func cmdValidate(args []string) int {
+// Run executes the validate subcommand with the given arguments.
+// Returns exit code.
+func Run(args []string) int {
 	fs := flag.NewFlagSet("validate", flag.ExitOnError)
 	verbose := fs.Bool("v", false, "verbose output")
 	quiet := fs.Bool("q", false, "quiet mode (exit code only)")
-	json := fs.Bool("json", false, "output as JSON")
+	jsonOut := fs.Bool("json", false, "output as JSON")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze bgp validate [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: ze validate [options] <config-file>
 
 Validate a ze configuration file.
 
@@ -30,9 +33,9 @@ Exit codes:
   2  File not found or unreadable
 
 Examples:
-  ze bgp validate config.conf
-  ze bgp validate -v config.conf    # verbose output
-  ze bgp validate -q config.conf    # quiet mode
+  ze validate config.conf
+  ze validate -v config.conf    # verbose output
+  ze validate -q config.conf    # quiet mode
 `)
 	}
 
@@ -61,7 +64,7 @@ Examples:
 	result := validateConfig(string(data), configPath)
 
 	// Output
-	if *json {
+	if *jsonOut {
 		return outputJSON(result, *quiet)
 	}
 	return outputText(result, *verbose, *quiet)
@@ -317,12 +320,16 @@ func outputJSON(result *ValidationResult, quiet bool) int {
 
 func extractLine(errMsg string) int {
 	// Extract line number from "line N:" format
-	if idx := strings.Index(errMsg, "line "); idx >= 0 {
-		var line int
-		_, _ = fmt.Sscanf(errMsg[idx:], "line %d", &line)
-		return line
+	idx := strings.Index(errMsg, "line ")
+	if idx < 0 {
+		return 0
 	}
-	return 0
+	var line int
+	// Best effort extraction - if it fails, return 0
+	if n, err := fmt.Sscanf(errMsg[idx:], "line %d", &line); n != 1 || err != nil {
+		return 0
+	}
+	return line
 }
 
 func uint32ToIP(n uint32) string {

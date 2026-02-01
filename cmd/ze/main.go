@@ -12,6 +12,8 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
@@ -51,6 +53,10 @@ func main() {
 		os.Exit(cli.Run(args[1:]))
 	case "config":
 		os.Exit(zeconfig.Run(args[1:]))
+	case "validate":
+		os.Exit(validate.Run(args[1:]))
+	case "schema":
+		os.Exit(schema.Run(args[1:]))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
 	case "version":
@@ -141,9 +147,12 @@ Options:
   --plugins         List available internal plugins
 
 Commands:
+  validate Validate configuration file
+  config   Configuration management
+  schema   Schema discovery
   cli      Interactive CLI for running daemons
-  bgp      BGP daemon and tools
-  exabgp   ExaBGP tools
+  bgp      BGP protocol tools (decode, encode, plugin)
+  exabgp   ExaBGP bridge tools
   version  Show version
   help     Show this help
 
