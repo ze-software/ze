@@ -161,7 +161,7 @@ template {
 	}
 
 	// Run check
-	result := configCheckFile(configPath)
+	result := configCheckData(configPath)
 
 	if result.err != nil {
 		t.Errorf("unexpected error: %v", result.err)
@@ -185,7 +185,7 @@ neighbor 192.0.2.1 {
 		t.Fatalf("write config: %v", err)
 	}
 
-	result := configCheckFile(configPath)
+	result := configCheckData(configPath)
 
 	// Old syntax should cause parse error
 	if result.err == nil {

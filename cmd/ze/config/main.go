@@ -204,10 +204,11 @@ func cmdCheck(args []string) int {
 	envOnly := fs.Bool("env", false, "validate environment variables only (no config file needed)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config check [options] [config-file]
+		fmt.Fprintf(os.Stderr, `Usage: ze config check [options] <config-file>
 
 Show config status and deprecated patterns that need migration.
 Use --env to validate environment variables without a config file.
+Use - to read from stdin.
 
 Options:
 `)
@@ -229,13 +230,13 @@ Exit codes:
 	}
 
 	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: missing config file\n")
+		fmt.Fprintf(os.Stderr, "error: missing config file (use - for stdin)\n")
 		fs.Usage()
 		return exitError
 	}
 
 	configPath := fs.Arg(0)
-	result := configCheckFile(configPath)
+	result := configCheckData(configPath)
 
 	if result.err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", result.err)
@@ -268,8 +269,14 @@ func checkEnvironment(jsonOutput bool) int {
 	return exitOK
 }
 
-func configCheckFile(path string) checkResult {
-	data, err := os.ReadFile(path) //nolint:gosec // Config path from user
+func configCheckData(path string) checkResult {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(path) //nolint:gosec // Config path from user
+	}
 	if err != nil {
 		return checkResult{err: err}
 	}
@@ -473,6 +480,7 @@ func cmdMigrate(args []string) int {
 		fmt.Fprintf(os.Stderr, `Usage: ze config migrate [options] <config-file>
 
 Convert configuration to current format.
+Use - to read from stdin.
 
 Options:
 `)
@@ -487,6 +495,7 @@ Examples:
   ze config migrate config.conf -o new.conf  # Output to file
   ze config migrate config.conf --dry-run    # Preview transformations
   ze config migrate --list                   # List available transformations
+  cat config.conf | ze config migrate -      # Read from stdin
 `)
 	}
 
@@ -500,7 +509,7 @@ Examples:
 	}
 
 	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: missing config file\n")
+		fmt.Fprintf(os.Stderr, "error: missing config file (use - for stdin)\n")
 		fs.Usage()
 		return exitError
 	}
@@ -564,7 +573,13 @@ func printMigrateResult(result *migration.MigrateResult) {
 }
 
 func cmdMigrateDryRun(configPath string) int {
-	data, err := os.ReadFile(configPath) //nolint:gosec // Config path from user
+	var data []byte
+	var err error
+	if configPath == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from user
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -635,7 +650,13 @@ func printMigrateWarnings(warnings []string) {
 }
 
 func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration.MigrateResult, []string, error) {
-	data, err := os.ReadFile(inputPath) //nolint:gosec // Config path from user
+	var data []byte
+	var err error
+	if inputPath == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(inputPath) //nolint:gosec // Config path from user
+	}
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -876,6 +897,7 @@ func cmdDump(args []string) int {
 
 Dump parsed configuration in human-readable or JSON format.
 Useful for debugging config parsing issues.
+Use - to read from stdin.
 
 Options:
 `)
@@ -887,13 +909,20 @@ Options:
 	}
 
 	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "error: missing config file (use - for stdin)\n")
 		fs.Usage()
 		return 1
 	}
 
 	configPath := fs.Arg(0)
 
-	data, err := os.ReadFile(configPath) //nolint:gosec // Path from CLI
+	var data []byte
+	var err error
+	if configPath == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(configPath) //nolint:gosec // Path from CLI
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 		return 1
