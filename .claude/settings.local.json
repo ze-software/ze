@@ -106,7 +106,9 @@
       "Bash(./ze:*)",
       "Bash(/tmp/ze:*)",
       "Bash(./bin/ze-test:*)",
-      "Bash(./bin/ze:*)"
+      "Bash(./bin/ze:*)",
+      "Bash(bin/ze-test:*)",
+      "Bash(ze bgp decode:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -124,7 +126,7 @@
     ]
   },
   "enableAllProjectMcpServers": false,
-  "outputStyle": "Ze Style",
+  "outputStyle": "Explanatory",
   "sandbox": {
     "enabled": false,
     "autoAllowBashIfSandboxed": false

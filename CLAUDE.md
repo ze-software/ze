@@ -1,5 +1,28 @@
 # Ze - Claude Instructions
 
+## ⛔ TOP 5 RULES (READ EVERY SESSION)
+
+**These rules are BLOCKING. Violating them wastes time and money.**
+
+| # | Rule | Why | Check |
+|---|------|-----|-------|
+| 1 | **Read selected spec FIRST** | Spec contains decisions already made | `cat .claude/selected-spec` → `docs/plan/<name>` |
+| 2 | **Read source before writing code** | You will invent conflicting designs without seeing existing code | Read ALL files in spec's "Files to Modify" |
+| 3 | **No code without understanding** | Duplicate code, wrong patterns, broken integrations | Can you name 3 related files? |
+| 4 | **TDD: Test must FAIL first** | Proves test actually validates something | `go test` shows RED before implementation |
+| 5 | **Preserve existing behavior** | Breaking changes waste debugging time | Document current output format BEFORE changing |
+
+**Session start checklist:**
+```
+1. [ ] Read .claude/selected-spec
+2. [ ] Read docs/plan/<spec-name> (if selected)
+3. [ ] Read .claude/session-state.md (if exists)
+4. [ ] Check git status for modified files
+5. [ ] ONLY THEN start working
+```
+
+---
+
 ## Naming Convention
 
 **"Ze" = "The" with a French accent.** It's a pun.
@@ -15,23 +38,9 @@
 
 **Rule:** Use "ze" where "the" would work grammatically.
 
-## ⛔ Post-Compaction Recovery (READ FIRST IF CONTEXT WAS COMPACTED)
+## ⛔ Post-Compaction Recovery
 
-**If you see "continued from a previous conversation" or don't remember recent context:**
-
-1. **STOP** - Do not write any code or make decisions
-2. **READ** `.claude/rules/post-compaction.md` - Full recovery procedure
-3. **READ** `.claude/selected-spec` - Get active spec name
-4. **READ** `docs/plan/<spec-name>` - Full spec details
-5. **READ** `.claude/session-state.md` - Session progress (if exists)
-6. **CHECK** `git status` - Current file state
-7. **ONLY THEN** continue work
-
-**Why:** Without recovery, you WILL:
-- Redesign already-decided architecture
-- Break working code with conflicting changes
-- Duplicate existing patterns
-- Waste time redoing completed work
+**If you see "continued from a previous conversation":** Follow the session start checklist in TOP 5 RULES above, then see `.claude/rules/post-compaction.md` for the full recovery procedure.
 
 ## Core Architecture (MUST UNDERSTAND)
 
@@ -200,28 +209,17 @@ If NO → READ THE CODE FIRST. Do not proceed.
 - **Verify before claiming** - Paste command output as proof
 - **Git safety** - Never commit/push without explicit request
 
-## Post-Compaction / Resuming Spec Work
+## Spec Selection
 
-**BLOCKING:** See `.claude/rules/post-compaction.md` for full procedure.
-
-Applies when: compaction, new session, resuming a spec, coming back after other work.
-
-Quick checklist:
-1. **Read selected spec** - `.claude/selected-spec` → `docs/plan/<spec-name>`
-2. **Read source files** - ALL files in "Current Behavior" and "Files to Modify"
-3. **Read spec's Required Reading** - ALL docs listed (ignore checkboxes)
-4. **Read session state** - `.claude/session-state.md` (decisions, progress)
-5. **Check git status** - What files are modified?
-
-**Checkboxes are lies.** `[x]` means read in PREVIOUS session. Re-read everything.
-
-**Spec selection:** Only ONE spec at a time.
+Only ONE spec at a time. Track in `.claude/selected-spec`:
 ```bash
 echo "spec-rfc9234-role.md" > .claude/selected-spec  # Select
 echo "" > .claude/selected-spec                       # Clear after done
 ```
 
 **Session state:** Track progress in `.claude/session-state.md` (copy from `.template`).
+
+**Checkboxes are lies.** `[x]` means read in PREVIOUS session. Re-read everything.
 
 ## Reference Paths
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
