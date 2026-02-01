@@ -147,9 +147,9 @@ Options:
   --plugins         List available internal plugins
 
 Commands:
-  validate Validate configuration file
-  config   Configuration management
-  schema   Schema discovery
+  validate  Validate configuration file
+  config    Configuration management
+  schema    Schema discovery
   cli      Interactive CLI for running daemons
   bgp      BGP protocol tools (decode, encode, plugin)
   exabgp   ExaBGP bridge tools

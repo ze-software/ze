@@ -4,6 +4,7 @@ package validate
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -51,8 +52,14 @@ Examples:
 
 	configPath := fs.Arg(0)
 
-	// Read file
-	data, err := os.ReadFile(configPath) //nolint:gosec // Config path from CLI args
+	// Read file (or stdin if "-")
+	var data []byte
+	var err error
+	if configPath == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from CLI args
+	}
 	if err != nil {
 		if !*quiet {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
