@@ -1,15 +1,148 @@
 # Ze - Agent Instructions
 
+## ⛔ TOP 5 RULES (BLOCKING)
+
+These rules are strict boundaries. Violating them leads to wasted effort.
+
+| # | Rule | Why | Check |
+|---|------|-----|-------|
+| 1 | **Read selected spec FIRST** | Spec contains decisions already made | Read `.claude/selected-spec` → `docs/plan/<name>` |
+| 2 | **Read source before writing code** | You will invent conflicting designs without seeing existing code | Read ALL files in spec's "Files to Modify" |
+| 3 | **No code without understanding** | Duplicate code, wrong patterns, broken integrations | Can you name 3 related files? |
+| 4 | **TDD: Test must FAIL first** | Proves test actually validates something | `go test` shows RED before implementation |
+| 5 | **Preserve existing behavior** | Breaking changes waste debugging time | Document current output format BEFORE changing |
+
+---
+
+## Naming Convention
+
+**"Ze" = "The" with a French accent.** It's a pun.
+
+| Context | Use | Example |
+|---------|-----|---------|
+| Application name | `ze` | "Start ze BGP daemon" |
+| CLI binary | `ze` | `ze bgp server config.conf` |
+| BGP plugin YANG | `ze-bgp` | `module ze-bgp { ... }` |
+| BGP JSON format | `ze-bgp` | `"format": "ze-bgp"` |
+| Go variables for BGP | `ZeBGP*` | `ZeBGPYANG` |
+| Prose/docs | `Ze` or `ze` | "Ze BGP running" |
+
+**Rule:** Use "ze" where "the" would work grammatically.
+
+---
+
+## Core Architecture (MUST UNDERSTAND)
+
+**READ `docs/architecture/core-design.md` for full details.**
+
+### System Components
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ZeBGP ENGINE                                   │
+│                                                                             │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                     │
+│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                    │
+│   │  FSM    │  │  FSM    │  │  FSM    │                                     │
+│   └────┬────┘  └────┬────┘  └────┬────┘                                     │
+│        │            │            │                                          │
+│        └────────────┼────────────┘                                          │
+│                     ▼                                                       │
+│              ┌─────────────┐                                                │
+│              │   Reactor   │  (event loop, BGP cache)                       │
+│              └─────────────┘                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │                 ▲
+          JSON events (down)  │                 │  commands (up)
+          + base64 wire bytes │                 │  update/forward/withdraw
+                              ▼                 │
+═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
+                              │                 ▲
+                              ▼                 │
+                      ┌───────────────┐
+                      │    Plugin     │  (Go/Python/Rust/etc.)
+                      │  (RIB / RR)   │
+                      └───────────────┘
+```
+
+**Key insight:** Engine passes wire bytes to plugins. Plugins implement RIB, deduplication, policy.
+
+### Peer Context & Negotiated Capabilities
+
+Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                    Negotiated (per-peer)                         │
+│     See internal/plugin/bgp/capability/negotiated.go             │
+├──────────────────────────────────────────────────────────────────┤
+│ ASN4            bool                 → 4-byte ASN support        │
+│ AddPath         map[Family]Mode      → Receive/Send/Both         │
+│ ExtendedMsg     bool                 → 65535 byte messages       │
+│ ExtendedNextHop map[Family]AFI       → Per-family NH mapping     │
+│ Families()      []Family             → Negotiated families       │
+│ GracefulRestart *GracefulRestart     → RFC 4724 GR state         │
+│ RouteRefresh    bool                 → RFC 2918 support          │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Why it matters:**
+- Same wire bytes parse differently based on negotiated caps
+- `AS_PATH [00 01 FD E8]` = ASN 65000 (ASN4) or two ASNs 1, 64488 (ASN2)
+- NLRI `[00 00 00 01 18 0a 00 00]` = path-id + prefix (ADD-PATH) or two prefixes (no ADD-PATH)
+
+**ContextID:** Identifies encoding context for zero-copy decisions. Same ContextID = same caps = can forward wire bytes unchanged.
+
+### BGP UPDATE = Container
+
+```
+UPDATE Message (wire bytes)
+├── Header (19 bytes)
+├── Withdrawn Routes (IPv4 unicast)
+├── Path Attributes
+│   ├── ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ...
+│   ├── MP_REACH_NLRI (NLRI for non-IPv4-unicast)
+│   └── MP_UNREACH_NLRI (withdrawals for non-IPv4-unicast)
+└── NLRI (IPv4 unicast only)
+```
+
+### WireUpdate vs RIB
+
+```
+WireUpdate (transport)              RIB (storage)
+┌─────────────────────┐             ┌────────────────────────────────────┐
+│ Attributes (shared) │             │ NLRI 10.0.0.0/24 → origin_ref ─────┼─→ Pool: IGP
+│ NLRI: 10.0.0.0/24   │   ────▶     │                    aspath_ref ─────┼─→ Pool: [65001]
+│ NLRI: 10.0.1.0/24   │             │                    localpref_ref ──┼─→ Pool: 100
+│ NLRI: 10.0.2.0/24   │             │ NLRI 10.0.1.0/24 → (same refs) ────┼─→ (shared)
+└─────────────────────┘             └────────────────────────────────────┘
+```
+
+**Key points:**
+- `WireUpdate` = transport (UPDATE bytes, lazy parse via iterators)
+- `RIB` = storage (NLRI → attribute refs, NOT WireUpdate)
+- Per-attribute-type pools (ORIGIN, AS_PATH, LOCAL_PREF, MED, COMMUNITY, etc.)
+
+### API Command Syntax
+
+```
+Text mode:   update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+Binary mode: update hex attr set 400101... nlri ipv4/unicast add 180a00
+```
+- Full syntax: `docs/architecture/api/update-syntax.md`
+
+---
+
 ## Commands
 - `make lint` - Run golangci-lint (26 linters)
-- `make test` - Run unit tests (`go test -race -v ./...`)
-- `make functional` - Run functional tests (37 tests)
+- `make test` - Run unit tests (`go test -race ./...`)
+- `make functional` - Run functional tests
 
 ## Workflow - Non-Trivial Features
 
 ### Pre-Implementation Checklist (MANDATORY)
 ```
-[ ] 1. Check existing spec: `docs/plan/spec-<task>.md`
+[ ] 1. Check existing spec: `.claude/selected-spec` or `docs/plan/spec-<task>.md`
 [ ] 2. Read `.claude/INDEX.md` for doc navigation
 [ ] 3. Scan `docs/plan/spec-*.md` for related specs
 [ ] 4. Match task keywords to docs (see table below)
@@ -19,9 +152,9 @@
      b. Check `rfc/short/rfcNNNN.md` exists
      c. If missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
      d. Read ALL relevant RFC summaries
-[ ] 7. Read source code for affected area
+[ ] 7. Read source code for affected area (BLOCKING: Do this BEFORE spec writing)
 [ ] 8. TDD Planning - identify tests BEFORE implementation
-[ ] 9. Present implementation plan to user
+[ ] 9. Present implementation plan to user (WAIT for approval)
 [ ] 10. Begin TDD cycle (test fails → implement → test passes)
 ```
 
@@ -108,12 +241,11 @@ func FuzzParseNLRI(f *testing.F) {
         _, _ = ParseNLRI(data)  // MUST NOT panic
     })
 }
-```
 
 ## Go Coding Standards
 
 ### Required
-- Go 1.21+ features (slog, generics)
+- Go 1.25+ features (slog, generics)
 - `golangci-lint` must pass
 - Error wrapping: `fmt.Errorf("context: %w", err)`
 - Context for cancellation: `context.Context` as first param
@@ -223,11 +355,11 @@ Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocriti
 
 ### Individual Commands
 ```bash
-go test -race ./internal/bgp/message/... -v       # Single package
+go test -race ./internal/plugin/bgp/message/... -v       # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
 go test -bench=. -benchmem ./internal/...          # Benchmarks
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...  # Fuzz
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/plugin/bgp/message/...  # Fuzz
 ```
 
 ## Config Design Rules
@@ -311,11 +443,3 @@ Read when working on specific areas:
 📁 Modified: header.go, open.go, header_test.go
 🧪 Tests: ✅ lint: clean, ✅ go test: 42 passed, ❌ integration: failed
 ```
-
-## Key Rules Summary
-- **Design before code** - Search codebase first. Reuse/extend existing code. Think deeply before implementing.
-- **TDD MANDATORY** - Test must exist and fail before implementation
-- **RFC compliance** - BGP code must follow RFCs, add `// RFC NNNN` comments
-- **Verify before claiming** - Paste command output as proof
-- **Git safety** - Never commit/push without explicit request
-- **Quality** - Fix lint issues, never disable linters to hide problems
