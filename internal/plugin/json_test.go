@@ -18,8 +18,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// getBGPPayload extracts the bgp payload from IPC 2.0 format.
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"<event>","<event>":{...}}}.
+// getBGPPayload extracts the bgp payload from ze-bgp JSON format.
+// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"<event>"},"peer":{...},...}}.
 func getBGPPayload(t *testing.T, result map[string]any) map[string]any {
 	t.Helper()
 	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
@@ -28,22 +28,33 @@ func getBGPPayload(t *testing.T, result map[string]any) map[string]any {
 	return payload
 }
 
-// getEventPayload extracts the event-specific payload from IPC 2.0 format.
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"<event>","peer":{...},"<event>":{...}}}.
+// getEventType extracts the event type from bgp.message.type in ze-bgp JSON format.
+func getEventType(t *testing.T, result map[string]any) string {
+	t.Helper()
+	bgpPayload := getBGPPayload(t, result)
+	msgObj, ok := bgpPayload["message"].(map[string]any)
+	require.True(t, ok, "bgp.message must be object")
+	eventType, ok := msgObj["type"].(string)
+	require.True(t, ok, "bgp.message.type must be string")
+	return eventType
+}
+
+// getEventPayload extracts the event-specific payload from ze-bgp JSON format.
+// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"<event>"},"peer":{...},"<event>":{...}}}.
 // For state events: data is at bgp level (state is a simple string, not container).
+// For UPDATE events: data is nested under "update" key (update container).
 // For other events: returns the inner payload nested under the event type key.
 func getEventPayload(t *testing.T, result map[string]any) map[string]any {
 	t.Helper()
 	bgpPayload := getBGPPayload(t, result)
-	eventType, ok := bgpPayload["type"].(string)
-	require.True(t, ok, "bgp.type must be string")
+	eventType := getEventType(t, result)
 
-	// State events don't have a nested container - data is at bgp level
+	// State events have data at bgp level (state is a simple string, not container)
 	if eventType == "state" {
 		return bgpPayload
 	}
 
-	// Other events have data nested under the event type key
+	// All other events (including update) have data nested under the event type key
 	eventPayload, ok := bgpPayload[eventType].(map[string]any)
 	require.True(t, ok, "bgp.%s must be object", eventType)
 	return eventPayload
@@ -59,8 +70,8 @@ func getNLRI(t *testing.T, payload map[string]any) map[string]any {
 
 // TestJSONEncoderStateUp verifies JSON output for peer state "up".
 //
-// VALIDATES: IPC 2.0 format for state messages.
-// PREVENTS: JSON format incompatibility with consumers expecting IPC protocol 2.0.
+// VALIDATES: ze-bgp JSON format for state messages.
+// PREVENTS: JSON format incompatibility with consumers expecting ze-bgp JSON.
 func TestJSONEncoderStateUp(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
@@ -78,9 +89,9 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid")
 
-	// IPC 2.0: get bgp payload and verify type
-	bgpPayload := getBGPPayload(t, result)
-	assert.Equal(t, "state", bgpPayload["type"])
+	// ze-bgp JSON: get bgp payload and verify type in message
+	eventType := getEventType(t, result)
+	assert.Equal(t, "state", eventType)
 
 	// Get event-specific payload
 	payload := getEventPayload(t, result)
@@ -97,7 +108,7 @@ func TestJSONEncoderStateUp(t *testing.T) {
 
 // TestJSONEncoderStateDown verifies JSON output for peer state "down".
 //
-// VALIDATES: IPC 2.0 format with reason field in event payload.
+// VALIDATES: ze-bgp JSON format with reason field in event payload.
 // PREVENTS: Missing reason in down notifications, making debugging harder.
 func TestJSONEncoderStateDown(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -115,7 +126,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	// State and reason in payload
@@ -125,7 +136,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 
 // TestJSONEncoderStateConnected verifies JSON output for "connected" state.
 //
-// VALIDATES: IPC 2.0 format with connected state in event payload.
+// VALIDATES: ze-bgp JSON format with connected state in event payload.
 // PREVENTS: Missing TCP connection events in event stream.
 func TestJSONEncoderStateConnected(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -143,7 +154,7 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	// State in payload
@@ -201,14 +212,14 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON with special chars must be valid")
 
-	// IPC 2.0: reason in event payload
+	// ze-bgp JSON: reason in event payload
 	payload := getEventPayload(t, result)
 	assert.Contains(t, payload["reason"], "peer closed")
 }
 
 // TestJSONEncoderIPv6 verifies IPv6 address formatting.
 //
-// VALIDATES: IPv6 addresses are formatted correctly in IPC 2.0 format.
+// VALIDATES: IPv6 addresses are formatted correctly in ze-bgp JSON format.
 // PREVENTS: IPv6 address parsing errors in consumers.
 func TestJSONEncoderIPv6(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -225,7 +236,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	peerMap, ok := payload["peer"].(map[string]any)
@@ -237,7 +248,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	assert.Contains(t, peerAddr, "2001:db8")
 }
 
-// TestAPIOutputIncludesMsgID verifies API JSON has message.id field in IPC 2.0 format.
+// TestAPIOutputIncludesMsgID verifies API JSON has message.id field in ze-bgp JSON format.
 //
 // VALIDATES: API output contains id in message wrapper for received UPDATEs.
 // PREVENTS: Controller can't reference updates for forwarding.
@@ -273,11 +284,9 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: event payload under "bgp.<type>"
-	payload := getEventPayload(t, result)
-
-	// Check message.id present in payload
-	msgWrapper, ok := payload["message"].(map[string]any)
+	// ze-bgp JSON: message is at bgp.message level
+	bgpPayload := getBGPPayload(t, result)
+	msgWrapper, ok := bgpPayload["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must be present in bgp payload")
 	msgID, ok := msgWrapper["id"]
 	require.True(t, ok, "message.id must be present")
@@ -286,7 +295,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 
 // TestJSONEncoderNotification verifies JSON output for NOTIFICATION message.
 //
-// VALIDATES: IPC 2.0 NOTIFICATION with code, subcode, data in bgp payload.
+// VALIDATES: ze-bgp JSON NOTIFICATION with code, subcode, data in bgp payload.
 // PREVENTS: Plugin can't parse notification events or missing error context.
 func TestJSONEncoderNotification(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -314,15 +323,16 @@ func TestJSONEncoderNotification(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid: %s", msg)
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
-	// Check event type in bgp payload
-	bgpPayload := getBGPPayload(t, result)
-	assert.Equal(t, "notification", bgpPayload["type"])
+	// Check event type in bgp.message
+	eventType := getEventType(t, result)
+	assert.Equal(t, "notification", eventType)
 
-	// Check message metadata (inside notification object)
-	msgMeta, ok := payload["message"].(map[string]any)
+	// Check message metadata (in bgp.message)
+	bgpPayload := getBGPPayload(t, result)
+	msgMeta, ok := bgpPayload["message"].(map[string]any)
 	require.True(t, ok, "message metadata must exist")
 	assert.Equal(t, float64(42), msgMeta["id"])
 	assert.Equal(t, "received", msgMeta["direction"])
@@ -345,7 +355,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 
 // TestJSONEncoderNotificationMinimal verifies minimal NOTIFICATION JSON.
 //
-// VALIDATES: IPC 2.0 NOTIFICATION without shutdown message still has required fields.
+// VALIDATES: ze-bgp JSON NOTIFICATION without shutdown message still has required fields.
 // PREVENTS: Crash or missing fields on minimal notifications.
 func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -371,7 +381,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	// Required fields in payload
@@ -382,17 +392,18 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	// Extensions present (hyphenated)
 	assert.Equal(t, "Hold Timer Expired", payload["code-name"])
 
-	// message metadata should NOT be present when no id/direction
-	// (direction is "received" but msgID is 0, so only direction should be present)
-	msgMeta, ok := payload["message"].(map[string]any)
-	require.True(t, ok, "message metadata should exist (has direction)")
+	// message metadata should exist (has type and direction)
+	bgpPayload := getBGPPayload(t, result)
+	msgMeta, ok := bgpPayload["message"].(map[string]any)
+	require.True(t, ok, "message metadata should exist")
+	assert.Equal(t, "notification", msgMeta["type"])
 	_, hasID := msgMeta["id"]
 	assert.False(t, hasID, "message.id should not be present when zero")
 }
 
 // TestJSONEncoderNotificationSent verifies NOTIFICATION with "sent" direction.
 //
-// VALIDATES: IPC 2.0 sent notifications include direction in message metadata.
+// VALIDATES: ze-bgp JSON sent notifications include direction in message metadata.
 // PREVENTS: Direction field missing or incorrect for outbound notifications.
 func TestJSONEncoderNotificationSent(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -416,14 +427,16 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	// Notification fields in payload
 	assert.Equal(t, float64(6), payload["code"])
 	assert.Equal(t, float64(3), payload["subcode"])
 
-	msgMeta, ok := payload["message"].(map[string]any)
+	// message metadata is at bgp.message level
+	bgpPayload := getBGPPayload(t, result)
+	msgMeta, ok := bgpPayload["message"].(map[string]any)
 	require.True(t, ok, "message metadata must exist")
 	assert.Equal(t, float64(100), msgMeta["id"])
 	assert.Equal(t, "sent", msgMeta["direction"])
@@ -514,7 +527,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		"Should NOT be JSON for parsed non-UPDATE")
 }
 
-// TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero in IPC 2.0 format.
+// TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero in ze-bgp JSON format.
 //
 // VALIDATES: Zero message.id is not included in output.
 // PREVENTS: Cluttering output with meaningless id:0.
@@ -542,7 +555,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err)
 
-	// IPC 2.0: payload under "bgp"
+	// ze-bgp JSON: payload under "bgp"
 	payload := getBGPPayload(t, result)
 
 	// message wrapper may or may not exist when id is zero
@@ -556,7 +569,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 // =============================================================================
 // New NLRI Format Tests (Command-Style)
 // =============================================================================
-// These tests validate the IPC 2.0 JSON format for UPDATE NLRI:
+// These tests validate the ze-bgp JSON JSON format for UPDATE NLRI:
 //   - Top-level "type":"bgp" with payload under "bgp" key
 //   - Family under "nlri" object (not at top level)
 //   - Attributes under "attr" object
@@ -569,7 +582,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 // RFC 4760 Section 3: Each MP_REACH_NLRI has its own next-hop field.
 // =============================================================================
 
-// TestJSONEncoderIPv4UnicastNewFormat verifies IPC 2.0 command-style JSON format.
+// TestJSONEncoderIPv4UnicastNewFormat verifies ze-bgp JSON command-style JSON format.
 //
 // VALIDATES: IPv4 unicast uses bgp.nlri.family → operations list with action/next-hop/nlri.
 // PREVENTS: Old format without type wrapper being emitted.
@@ -612,7 +625,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -636,7 +649,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 
 // TestJSONEncoderWithdrawNewFormat verifies withdrawal uses action: del.
 //
-// VALIDATES: IPC 2.0 withdrawals use action: del with no next-hop.
+// VALIDATES: ze-bgp JSON withdrawals use action: del with no next-hop.
 // PREVENTS: Withdraw still using old nested format.
 func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	peer := PeerInfo{
@@ -671,7 +684,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -693,7 +706,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 
 // TestJSONEncoderMultiFamilyNewFormat verifies multiple families in one UPDATE.
 //
-// VALIDATES: IPC 2.0 each family appears under nlri with own operations.
+// VALIDATES: ze-bgp JSON each family appears under nlri with own operations.
 // PREVENTS: Multi-family UPDATEs breaking JSON structure.
 func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -734,7 +747,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -762,7 +775,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 
 // TestJSONEncoderAnnounceAndWithdrawSameFamily verifies add + del in same family.
 //
-// VALIDATES: IPC 2.0 same family can have both add and del operations.
+// VALIDATES: ze-bgp JSON same family can have both add and del operations.
 // PREVENTS: Mixed announce/withdraw breaking JSON.
 func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -801,7 +814,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -831,7 +844,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 
 // TestJSONEncoderADDPATHNewFormat verifies path-id in NLRI objects.
 //
-// VALIDATES: IPC 2.0 ADD-PATH path-id appears in nlri objects.
+// VALIDATES: ze-bgp JSON ADD-PATH path-id appears in nlri objects.
 // PREVENTS: Path-id being lost with new format.
 func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	// Create encoding context with ADD-PATH for IPv4 unicast
@@ -872,7 +885,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -1022,7 +1035,7 @@ func testEncodingContextWithAddPath() bgpctx.ContextID {
 //
 // Both should appear as separate operation groups in the output.
 //
-// VALIDATES: IPC 2.0 two next-hops for same family produce two operations.
+// VALIDATES: ze-bgp JSON two next-hops for same family produce two operations.
 // PREVENTS: Merging different next-hops, losing route information.
 func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -1065,7 +1078,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload and nlri object
+	// ze-bgp JSON: get event payload and nlri object
 	payload := getEventPayload(t, result)
 	nlriObj := getNLRI(t, payload)
 
@@ -1575,7 +1588,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 // TestJSONEncoderNegotiated verifies negotiated capabilities JSON output.
 //
-// VALIDATES: Negotiated message contains capability fields in IPC 2.0 format.
+// VALIDATES: Negotiated message contains capability fields in ze-bgp JSON format.
 // PREVENTS: Plugins missing capability info after OPEN exchange.
 func TestJSONEncoderNegotiated(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
@@ -1606,9 +1619,9 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: check type in bgp payload
-	bgpPayload := getBGPPayload(t, result)
-	assert.Equal(t, "negotiated", bgpPayload["type"])
+	// ze-bgp JSON: check type in bgp.message
+	eventType := getEventType(t, result)
+	assert.Equal(t, "negotiated", eventType)
 
 	// Get event-specific payload
 	payload := getEventPayload(t, result)
@@ -1639,7 +1652,7 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 
 // TestJSONEncoderNegotiatedMinimal verifies negotiated with minimal fields.
 //
-// VALIDATES: Handles negotiated with only required fields in IPC 2.0 format.
+// VALIDATES: Handles negotiated with only required fields in ze-bgp JSON format.
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
@@ -1659,7 +1672,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: get event payload
+	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
 	// Fields in event payload (flat format with hyphenated names)
@@ -1677,7 +1690,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 }
 
 // =============================================================================
-// IPC Protocol 2.0 Event Format Tests
+// ze-bgp JSON Event Format Tests
 // =============================================================================
 // These tests validate the new JSON format per docs/architecture/api/ipc_protocol.md:
 //   - Top-level "type" field indicates payload key ("bgp" or "rib")
@@ -1690,7 +1703,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 // TestEventJSONHasTopLevelType verifies BGP event has wrapper structure.
 //
 // VALIDATES: BGP event has "type":"bgp" and "bgp":{...} at top level.
-// PREVENTS: Plugins expecting IPC protocol 2.0 format failing to parse.
+// PREVENTS: Plugins expecting ze-bgp JSON format failing to parse.
 func TestEventJSONHasTopLevelType(t *testing.T) {
 	ctxID := testEncodingContext()
 
@@ -1737,8 +1750,10 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 	bgpPayload, ok := result["bgp"].(map[string]any)
 	require.True(t, ok, "bgp field must be object: %s", output)
 
-	// BGP payload should have type field
-	assert.Equal(t, "update", bgpPayload["type"], "bgp.type must be 'update'")
+	// BGP payload should have message.type field
+	msgObj, ok := bgpPayload["message"].(map[string]any)
+	require.True(t, ok, "bgp.message must be object: %s", output)
+	assert.Equal(t, "update", msgObj["type"], "bgp.message.type must be 'update'")
 }
 
 // TestEventJSONBgpTypeField verifies event type is inside bgp payload.
@@ -1781,17 +1796,18 @@ func TestEventJSONBgpTypeField(t *testing.T) {
 			// Top-level type indicates payload key
 			assert.Equal(t, "bgp", result["type"])
 
-			// Nested type indicates event type
-			bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
-			assert.Equal(t, tt.wantType, bgpPayload["type"])
+			// Event type is in bgp.message.type
+			bgpPayload := result["bgp"].(map[string]any)     //nolint:forcetypeassert // test
+			msgObj := bgpPayload["message"].(map[string]any) //nolint:forcetypeassert // test
+			assert.Equal(t, tt.wantType, msgObj["type"])
 		})
 	}
 }
 
 // TestEventJSONMessageMetadata verifies message object structure.
 //
-// VALIDATES: message object has id and direction, but NOT type.
-// PREVENTS: Event type duplicated in both bgp.type and message.type.
+// VALIDATES: message object has type, id and direction.
+// PREVENTS: Missing type or metadata in message object.
 func TestEventJSONMessageMetadata(t *testing.T) {
 	ctxID := testEncodingContext()
 
@@ -1829,19 +1845,15 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Use getEventPayload to get the nested update object
-	updatePayload := getEventPayload(t, result)
+	// Get bgp payload and message object
+	bgpPayload := getBGPPayload(t, result)
+	msgObj, ok := bgpPayload["message"].(map[string]any)
+	require.True(t, ok, "bgp.message must be object: %s", output)
 
-	msgObj, ok := updatePayload["message"].(map[string]any)
-	require.True(t, ok, "bgp.update.message must be object: %s", output)
-
-	// message should have id and direction
+	// message should have type, id and direction
+	assert.Equal(t, "update", msgObj["type"])
 	assert.Equal(t, float64(456), msgObj["id"])
 	assert.Equal(t, "received", msgObj["direction"])
-
-	// message should NOT have type (type is in bgp.type now)
-	_, hasType := msgObj["type"]
-	assert.False(t, hasType, "message should NOT have type field")
 }
 
 // TestEventJSONPeerObject verifies peer object structure.
@@ -1874,7 +1886,7 @@ func TestEventJSONPeerObject(t *testing.T) {
 	assert.Equal(t, float64(65002), peerObj["asn"])
 }
 
-// TestEventJSONNestedStructure verifies IPC 2.0 nested structure for attributes and NLRIs.
+// TestEventJSONNestedStructure verifies ze-bgp JSON nested structure for attributes and NLRIs.
 //
 // VALIDATES: Attributes under "attr", NLRIs under "nlri" objects.
 // PREVENTS: Fields being at top level of bgp payload instead of nested.
@@ -1984,12 +1996,12 @@ func TestEventJSONRawSection(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Use getEventPayload to get the nested update object
-	updatePayload := getEventPayload(t, result)
+	// Raw is at bgp level (alongside update), not inside update
+	bgpPayload := getBGPPayload(t, result)
 
-	// Raw should exist
-	raw, ok := updatePayload["raw"].(map[string]any)
-	require.True(t, ok, "bgp.update.raw must be object for format=full: %s", output)
+	// Raw should exist at bgp level
+	raw, ok := bgpPayload["raw"].(map[string]any)
+	require.True(t, ok, "bgp.raw must be object for format=full: %s", output)
 
 	// Raw should have attributes and nlri fields
 	assert.Contains(t, raw, "attributes", "raw should have attributes")

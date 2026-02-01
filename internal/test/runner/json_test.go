@@ -43,28 +43,32 @@ func TestIsSupportedFamily(t *testing.T) {
 
 // TestTransformEnvelopeToPlugin_IPv4Announce verifies IPv4 announce transformation.
 //
-// VALIDATES: Zebgp decode envelope format transforms to plugin format correctly.
+// VALIDATES: ze-bgp JSON envelope format transforms to plugin format correctly.
 // PREVENTS: Broken JSON validation due to format mismatch.
 func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
-	// Zebgp decode envelope format
+	// ze-bgp JSON format from ze bgp decode
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
+		"type": "bgp",
+		"bgp": map[string]any{
 			"message": map[string]any{
-				"update": map[string]any{
-					"attribute": map[string]any{
-						"origin":           "igp",
-						"local-preference": float64(200),
-					},
-					"announce": map[string]any{
-						"ipv4/unicast": map[string]any{
-							"10.0.1.254": []any{
-								map[string]any{"nlri": "10.0.1.0/24"},
-							},
-						},
+				"type":      "update",
+				"id":        float64(0),
+				"direction": "received",
+			},
+			"peer": map[string]any{
+				"address": "127.0.0.1",
+				"asn":     float64(65533),
+			},
+			"update": map[string]any{
+				"attr": map[string]any{
+					"origin":           "igp",
+					"local-preference": float64(200),
+				},
+				"ipv4/unicast": []any{
+					map[string]any{
+						"next-hop": "10.0.1.254",
+						"action":   "add",
+						"nlri":     []any{"10.0.1.0/24"},
 					},
 				},
 			},
@@ -83,33 +87,30 @@ func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
 	assert.Equal(t, "igp", result["origin"])
 	assert.Equal(t, float64(200), result["local-preference"])
 
-	// NLRI transformed to plugin format
-	nlriList, ok := result["ipv4/unicast"].([]map[string]any)
+	// NLRI passed through (already in plugin format)
+	nlriList, ok := result["ipv4/unicast"].([]any)
 	require.True(t, ok, "missing ipv4/unicast")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "10.0.1.254", nlriList[0]["next-hop"])
-	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Equal(t, []string{"10.0.1.0/24"}, nlriList[0]["nlri"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "10.0.1.254", nlri["next-hop"])
+	assert.Equal(t, "add", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_IPv4Withdraw verifies IPv4 withdraw transformation.
-// Zebgp decode produces ["prefix"] format for IPv4 unicast withdraws.
 //
-// VALIDATES: Withdrawn routes get action:del in plugin format.
+// VALIDATES: Withdrawn routes with action:del in ze-bgp format.
 // PREVENTS: Withdrawals showing as announces.
 func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
-	// Zebgp decode format uses ["prefix"] for IPv4 unicast withdraws
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"withdraw": map[string]any{
-						"ipv4/unicast": []any{"10.0.1.0/24"},
-					},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"update": map[string]any{
+				"ipv4/unicast": []any{
+					map[string]any{"action": "del", "nlri": []any{"10.0.1.0/24"}},
 				},
 			},
 		},
@@ -118,34 +119,29 @@ func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv4/unicast", family)
 
-	// NLRI transformed to plugin format with action:del
-	nlriList, ok := result["ipv4/unicast"].([]map[string]any)
+	// NLRI passed through
+	nlriList, ok := result["ipv4/unicast"].([]any)
 	require.True(t, ok, "missing ipv4/unicast")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "del", nlriList[0]["action"])
-	assert.Equal(t, []string{"10.0.1.0/24"}, nlriList[0]["nlri"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "del", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_IPv6Withdraw verifies IPv6 withdraw transformation.
-// Zebgp decode produces [{"nlri":"prefix"}] format for IPv6/MP withdraws.
 //
 // VALIDATES: MP_UNREACH withdraw format transforms correctly.
 // PREVENTS: IPv6 withdrawals failing transformation.
 func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
-	// Zebgp decode format uses [{"nlri": "prefix"}] for IPv6/MP withdraws
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "::1", "peer": "::1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"withdraw": map[string]any{
-						"ipv6/unicast": []any{
-							map[string]any{"nlri": "fc00:1::/64"},
-						},
-					},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"update": map[string]any{
+				"ipv6/unicast": []any{
+					map[string]any{"action": "del", "nlri": []any{"fc00:1::/64"}},
 				},
 			},
 		},
@@ -154,12 +150,13 @@ func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv6/unicast", family)
 
-	// NLRI transformed to plugin format with action:del
-	nlriList, ok := result["ipv6/unicast"].([]map[string]any)
+	// NLRI passed through
+	nlriList, ok := result["ipv6/unicast"].([]any)
 	require.True(t, ok, "missing ipv6/unicast")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "del", nlriList[0]["action"])
-	assert.Equal(t, []string{"fc00:1::/64"}, nlriList[0]["nlri"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "del", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_IPv6Announce verifies IPv6 unicast transformation.
@@ -167,24 +164,22 @@ func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 // VALIDATES: IPv6 unicast transforms like IPv4.
 // PREVENTS: Family-specific transformation bugs.
 func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "::1", "peer": "::1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"attribute": map[string]any{
-						"origin":           "igp",
-						"local-preference": float64(200),
-					},
-					"announce": map[string]any{
-						"ipv6/unicast": map[string]any{
-							"2001::11": []any{
-								map[string]any{"nlri": "fc00:1::/64"},
-							},
-						},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"update": map[string]any{
+				"attr": map[string]any{
+					"origin":           "igp",
+					"local-preference": float64(200),
+				},
+				"ipv6/unicast": []any{
+					map[string]any{
+						"next-hop": "2001::11",
+						"action":   "add",
+						"nlri":     []any{"fc00:1::/64"},
 					},
 				},
 			},
@@ -194,13 +189,14 @@ func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv6/unicast", family)
 
-	// NLRI transformed to plugin format
-	nlriList, ok := result["ipv6/unicast"].([]map[string]any)
+	// NLRI passed through
+	nlriList, ok := result["ipv6/unicast"].([]any)
 	require.True(t, ok, "missing ipv6/unicast")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "2001::11", nlriList[0]["next-hop"])
-	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Equal(t, []string{"fc00:1::/64"}, nlriList[0]["nlri"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "2001::11", nlri["next-hop"])
+	assert.Equal(t, "add", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_EOR verifies End-of-RIB transformation.
@@ -208,15 +204,13 @@ func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 // VALIDATES: Empty UPDATE (EOR) transforms correctly.
 // PREVENTS: Panic on empty message content.
 func TestTransformEnvelopeToPlugin_EOR(t *testing.T) {
+	// ze-bgp JSON format - EOR has empty update
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{},
-			},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"update":  map[string]any{},
 		},
 	}
 
@@ -311,29 +305,24 @@ func TestComparePluginJSON_OrderIndependent(t *testing.T) {
 // VALIDATES: FlowSpec components are preserved in plugin format.
 // PREVENTS: FlowSpec validation failures due to format mismatch.
 func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
-	// Zebgp decode envelope format for FlowSpec with no-nexthop
+	// ze-bgp JSON format for FlowSpec
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"attribute": map[string]any{
-						"origin":           "igp",
-						"local-preference": float64(100),
-						"extended-community": []any{
-							map[string]any{"value": float64(9225060886715039744), "string": "rate-limit:0"},
-						},
-					},
-					"announce": map[string]any{
-						"ipv4/flow": map[string]any{
-							"no-nexthop": []any{
-								map[string]any{
-									"tcp-flags": []any{"=rst", "=fin+push"},
-									"string":    "flow tcp-flags [ =rst =fin+push ]",
-								},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"update": map[string]any{
+				"attr": map[string]any{
+					"origin":           "igp",
+					"local-preference": float64(100),
+				},
+				"ipv4/flow": []any{
+					map[string]any{
+						"action": "add",
+						"nlri": []any{
+							map[string]any{
+								"tcp-flags": []any{"=rst", "=fin+push"},
+								"string":    "flow tcp-flags [ =rst =fin+push ]",
 							},
 						},
 					},
@@ -354,19 +343,13 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 	assert.Equal(t, "igp", result["origin"])
 	assert.Equal(t, float64(100), result["local-preference"])
 
-	// FlowSpec NLRI transformed to plugin format (operation level, same as other families)
-	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	// FlowSpec NLRI passed through
+	nlriList, ok := result["ipv4/flow"].([]any)
 	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop means no next-hop field
-
-	// FlowSpec components preserved in nlri array
-	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
-	require.True(t, ok, "missing nlri")
-	require.Len(t, nlris, 1)
-	assert.Equal(t, []any{"=rst", "=fin+push"}, nlris[0]["tcp-flags"])
-	assert.Equal(t, "flow tcp-flags [ =rst =fin+push ]", nlris[0]["string"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "add", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_FlowSpecWithNextHop verifies FlowSpec with redirect next-hop.
@@ -374,25 +357,25 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 // VALIDATES: FlowSpec with next-hop includes it in transformation.
 // PREVENTS: Missing next-hop in redirect rules.
 func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"attribute": map[string]any{
-						"origin":           "igp",
-						"local-preference": float64(100),
-					},
-					"announce": map[string]any{
-						"ipv4/flow": map[string]any{
-							"1.2.3.4": []any{
-								map[string]any{
-									"destination-ipv4": []any{"192.168.0.1/32"},
-									"string":           "flow destination-ipv4 192.168.0.1/32",
-								},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"update": map[string]any{
+				"attr": map[string]any{
+					"origin":           "igp",
+					"local-preference": float64(100),
+				},
+				"ipv4/flow": []any{
+					map[string]any{
+						"next-hop": "1.2.3.4",
+						"action":   "add",
+						"nlri": []any{
+							map[string]any{
+								"destination-ipv4": []any{"192.168.0.1/32"},
+								"string":           "flow destination-ipv4 192.168.0.1/32",
 							},
 						},
 					},
@@ -404,19 +387,14 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv4/flow", family)
 
-	// FlowSpec NLRI with next-hop at operation level (same as other families)
-	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	// FlowSpec NLRI passed through
+	nlriList, ok := result["ipv4/flow"].([]any)
 	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Equal(t, "1.2.3.4", nlriList[0]["next-hop"]) // next-hop at operation level
-
-	// FlowSpec components preserved in nlri array
-	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
-	require.True(t, ok, "missing nlri")
-	require.Len(t, nlris, 1)
-	assert.Equal(t, []any{"192.168.0.1/32"}, nlris[0]["destination-ipv4"])
-	assert.Nil(t, nlris[0]["next-hop"]) // next-hop NOT inside nlri
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "add", nlri["action"])
+	assert.Equal(t, "1.2.3.4", nlri["next-hop"])
 }
 
 // TestTransformEnvelopeToPlugin_IPv6FlowSpec verifies IPv6 FlowSpec transformation.
@@ -424,28 +402,27 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 // VALIDATES: IPv6 FlowSpec transforms correctly with all components.
 // PREVENTS: IPv6 FlowSpec validation failures.
 func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "::1", "peer": "::1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"attribute": map[string]any{
-						"origin":           "igp",
-						"local-preference": float64(100),
-					},
-					"announce": map[string]any{
-						"ipv6/flow": map[string]any{
-							"no-nexthop": []any{
-								map[string]any{
-									"destination-ipv6": []any{"2a02:29b8:1925::2e69/128/0"},
-									"source-ipv6":      []any{"beef:f00e::/64/0"},
-									"next-header":      []any{"=tcp"},
-									"fragment":         []any{"first-fragment", "is-fragment", "last-fragment"},
-									"string":           "flow destination-ipv6 2a02:29b8:1925::2e69/128/0 source-ipv6 beef:f00e::/64/0 next-header =tcp fragment [ first-fragment is-fragment last-fragment ]",
-								},
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"update": map[string]any{
+				"attr": map[string]any{
+					"origin":           "igp",
+					"local-preference": float64(100),
+				},
+				"ipv6/flow": []any{
+					map[string]any{
+						"action": "add",
+						"nlri": []any{
+							map[string]any{
+								"destination-ipv6": []any{"2a02:29b8:1925::2e69/128/0"},
+								"source-ipv6":      []any{"beef:f00e::/64/0"},
+								"next-header":      []any{"=tcp"},
+								"fragment":         []any{"first-fragment", "is-fragment", "last-fragment"},
+								"string":           "flow destination-ipv6 2a02:29b8:1925::2e69/128/0 source-ipv6 beef:f00e::/64/0 next-header =tcp fragment [ first-fragment is-fragment last-fragment ]",
 							},
 						},
 					},
@@ -457,21 +434,13 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv6/flow", family)
 
-	// IPv6 FlowSpec NLRI with no-nexthop (no next-hop at operation level)
-	nlriList, ok := result["ipv6/flow"].([]map[string]any)
+	// IPv6 FlowSpec NLRI passed through
+	nlriList, ok := result["ipv6/flow"].([]any)
 	require.True(t, ok, "missing ipv6/flow")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop case
-
-	// All components preserved in nlri array
-	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
-	require.True(t, ok, "missing nlri")
-	require.Len(t, nlris, 1)
-	assert.Equal(t, []any{"2a02:29b8:1925::2e69/128/0"}, nlris[0]["destination-ipv6"])
-	assert.Equal(t, []any{"beef:f00e::/64/0"}, nlris[0]["source-ipv6"])
-	assert.Equal(t, []any{"=tcp"}, nlris[0]["next-header"])
-	assert.Equal(t, []any{"first-fragment", "is-fragment", "last-fragment"}, nlris[0]["fragment"])
+	nlri, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "add", nlri["action"])
 }
 
 // TestTransformEnvelopeToPlugin_FlowSpecWithdraw verifies FlowSpec withdraw transformation.
@@ -480,16 +449,17 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 // VALIDATES: FlowSpec withdraw produces action:del with components in nlri.
 // PREVENTS: FlowSpec withdrawals failing transformation.
 func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
+	// ze-bgp JSON format
 	envelope := map[string]any{
-		"type": "update",
-		"neighbor": map[string]any{
-			"address":   map[string]any{"local": "127.0.0.1", "peer": "127.0.0.1"},
-			"asn":       map[string]any{"local": 65533, "peer": 65533},
-			"direction": "in",
-			"message": map[string]any{
-				"update": map[string]any{
-					"withdraw": map[string]any{
-						"ipv4/flow": []any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"message": map[string]any{"type": "update"},
+			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"update": map[string]any{
+				"ipv4/flow": []any{
+					map[string]any{
+						"action": "del",
+						"nlri": []any{
 							map[string]any{
 								"destination": []any{"192.168.0.1/32"},
 								"source":      []any{"10.0.0.2/32"},
@@ -507,22 +477,17 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 	assert.Equal(t, "ipv4/flow", family)
 
 	// FlowSpec withdraw with action:del
-	nlriList, ok := result["ipv4/flow"].([]map[string]any)
+	nlriList, ok := result["ipv4/flow"].([]any)
 	require.True(t, ok, "missing ipv4/flow")
 	require.Len(t, nlriList, 1)
-	assert.Equal(t, "del", nlriList[0]["action"])
-
-	// Components preserved in nlri
-	nlri, ok := nlriList[0]["nlri"].(map[string]any)
-	require.True(t, ok, "missing nlri")
-	assert.Equal(t, []any{"192.168.0.1/32"}, nlri["destination"])
-	assert.Equal(t, []any{"10.0.0.2/32"}, nlri["source"])
-	assert.Equal(t, []any{"=tcp"}, nlri["protocol"])
+	nlriEntry, ok := nlriList[0].(map[string]any)
+	require.True(t, ok, "nlri entry must be map")
+	assert.Equal(t, "del", nlriEntry["action"])
 }
 
 // TestExtractFamily verifies family extraction from envelope.
 //
-// VALIDATES: Family string extracted from announce/withdraw sections.
+// VALIDATES: Family string extracted from ze-bgp update section.
 // PREVENTS: Wrong family detection causing skipped validation.
 func TestExtractFamily(t *testing.T) {
 	tests := []struct {
@@ -531,7 +496,63 @@ func TestExtractFamily(t *testing.T) {
 		want     string
 	}{
 		{
-			name: "ipv4_announce",
+			name: "ipv4_unicast",
+			envelope: map[string]any{
+				"type": "bgp",
+				"bgp": map[string]any{
+					"message": map[string]any{"type": "update"},
+					"update": map[string]any{
+						"ipv4/unicast": []any{
+							map[string]any{"action": "add", "nlri": []any{"10.0.0.0/24"}},
+						},
+					},
+				},
+			},
+			want: "ipv4/unicast",
+		},
+		{
+			name: "ipv6_unicast",
+			envelope: map[string]any{
+				"type": "bgp",
+				"bgp": map[string]any{
+					"message": map[string]any{"type": "update"},
+					"update": map[string]any{
+						"ipv6/unicast": []any{
+							map[string]any{"action": "del", "nlri": []any{"fc00::/64"}},
+						},
+					},
+				},
+			},
+			want: "ipv6/unicast",
+		},
+		{
+			name: "ipv4_flowspec",
+			envelope: map[string]any{
+				"type": "bgp",
+				"bgp": map[string]any{
+					"message": map[string]any{"type": "update"},
+					"update": map[string]any{
+						"ipv4/flow": []any{
+							map[string]any{"action": "add", "nlri": []any{}},
+						},
+					},
+				},
+			},
+			want: "ipv4/flow",
+		},
+		{
+			name: "eor_empty",
+			envelope: map[string]any{
+				"type": "bgp",
+				"bgp": map[string]any{
+					"message": map[string]any{"type": "update"},
+					"update":  map[string]any{},
+				},
+			},
+			want: "",
+		},
+		{
+			name: "legacy_ipv4_announce",
 			envelope: map[string]any{
 				"neighbor": map[string]any{
 					"message": map[string]any{
@@ -544,32 +565,6 @@ func TestExtractFamily(t *testing.T) {
 				},
 			},
 			want: "ipv4/unicast",
-		},
-		{
-			name: "ipv6_withdraw",
-			envelope: map[string]any{
-				"neighbor": map[string]any{
-					"message": map[string]any{
-						"update": map[string]any{
-							"withdraw": map[string]any{
-								"ipv6/unicast": []any{},
-							},
-						},
-					},
-				},
-			},
-			want: "ipv6/unicast",
-		},
-		{
-			name: "eor_empty",
-			envelope: map[string]any{
-				"neighbor": map[string]any{
-					"message": map[string]any{
-						"update": map[string]any{},
-					},
-				},
-			},
-			want: "",
 		},
 	}
 

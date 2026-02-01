@@ -496,14 +496,14 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
 }
 
-// ResponseWrapper wraps a Response with type field for IPC protocol 2.0.
+// ResponseWrapper wraps a Response with type field for ze-bgp JSON.
 // All responses are wrapped: {"type":"response","response":{...}}.
 type ResponseWrapper struct {
 	Type     string    `json:"type"`     // Always "response"
 	Response *Response `json:"response"` // Payload
 }
 
-// WrapResponse wraps a Response in a ResponseWrapper for IPC protocol 2.0.
+// WrapResponse wraps a Response in a ResponseWrapper for ze-bgp JSON.
 func WrapResponse(r *Response) *ResponseWrapper {
 	return &ResponseWrapper{
 		Type:     "response",

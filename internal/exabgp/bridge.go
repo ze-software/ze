@@ -36,7 +36,7 @@ const (
 
 // ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
 //
-// ZeBGP IPC 2.0 format (per docs/architecture/api/json-format.md):
+// ZeBGP ze-bgp JSON format (per docs/architecture/api/json-format.md):
 //
 //	{
 //	  "type": "bgp",
@@ -67,7 +67,7 @@ const (
 //	  }
 //	}
 func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
-	// Extract from IPC 2.0 wrapper if present
+	// Extract from ze-bgp JSON wrapper if present
 	bgpPayload := zebgp
 	if rootType, _ := zebgp["type"].(string); rootType == "bgp" {
 		if bgp, ok := zebgp["bgp"].(map[string]any); ok {
@@ -102,7 +102,7 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 		}
 	}
 
-	// Get peer from bgp level (IPC 2.0 format)
+	// Get peer from bgp level (ze-bgp JSON format)
 	peer, _ := bgpPayload["peer"].(map[string]any)
 	peerAddr, _ := peer["address"].(string)
 	peerASN, _ := peer["asn"].(float64)
@@ -224,8 +224,8 @@ func hostname() string {
 	return h
 }
 
-// convertUpdateIPC2 converts IPC 2.0 UPDATE event data to ExaBGP format.
-// IPC 2.0: attr in "attr" object, nlri in "nlri" object with family keys.
+// convertUpdateIPC2 converts ze-bgp JSON UPDATE event data to ExaBGP format.
+// ze-bgp JSON: attr in "attr" object, nlri in "nlri" object with family keys.
 func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	update := make(map[string]any)
 

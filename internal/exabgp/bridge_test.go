@@ -12,10 +12,10 @@ import (
 
 // TestZebgpToExabgpJSON_UpdateAnnounce verifies UPDATE announce conversion.
 //
-// VALIDATES: ZeBGP IPC 2.0 JSON → ExaBGP JSON for IPv4 unicast announce.
+// VALIDATES: ZeBGP ze-bgp JSON JSON → ExaBGP JSON for IPv4 unicast announce.
 // PREVENTS: Missing attributes, wrong family format, wrong direction mapping.
 func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
-	// IPC 2.0 format: peer at bgp level, update data in bgp.update
+	// ze-bgp JSON format: peer at bgp level, update data in bgp.update
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
@@ -84,10 +84,10 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 
 // TestZebgpToExabgpJSON_UpdateWithdraw verifies UPDATE withdraw conversion.
 //
-// VALIDATES: ZeBGP IPC 2.0 JSON → ExaBGP JSON for IPv4 unicast withdraw.
+// VALIDATES: ZeBGP ze-bgp JSON JSON → ExaBGP JSON for IPv4 unicast withdraw.
 // PREVENTS: Missing withdraw section, wrong family format.
 func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
-	// IPC 2.0 format
+	// ze-bgp JSON format
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
@@ -124,7 +124,7 @@ func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
 // VALIDATES: State messages converted with correct structure.
 // PREVENTS: Missing state field, wrong type.
 func TestZebgpToExabgpJSON_StateUp(t *testing.T) {
-	// IPC 2.0 format: state is simple string at bgp level
+	// ze-bgp JSON format: state is simple string at bgp level
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
@@ -159,7 +159,7 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// IPC 2.0 format: message.type and message.direction at bgp level
+			// ze-bgp JSON format: message.type and message.direction at bgp level
 			zebgp := map[string]any{
 				"type": "bgp",
 				"bgp": map[string]any{
@@ -348,7 +348,7 @@ func TestExabgpToZebgpCommand_NonNeighbor(t *testing.T) {
 // VALIDATES: Key fields preserved in both conversion directions.
 // PREVENTS: Information loss during translation.
 func TestRoundTrip(t *testing.T) {
-	// Test ZeBGP IPC 2.0 → ExaBGP preserves info
+	// Test ZeBGP ze-bgp JSON → ExaBGP preserves info
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
@@ -815,10 +815,10 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 
 // TestZebgpToExabgpJSON_Negotiated verifies negotiated capabilities conversion.
 //
-// VALIDATES: ZeBGP IPC 2.0 negotiated message → ExaBGP negotiated JSON format.
+// VALIDATES: ZeBGP ze-bgp JSON negotiated message → ExaBGP negotiated JSON format.
 // PREVENTS: ExaBGP plugins not receiving capability info after OPEN exchange.
 func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
-	// IPC 2.0 format: message.type at bgp level, negotiated data in bgp.negotiated
+	// ze-bgp JSON format: message.type at bgp level, negotiated data in bgp.negotiated
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{
@@ -919,7 +919,7 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 // VALIDATES: Returns empty negotiated section when field is missing.
 // PREVENTS: Nil pointer panic on malformed input.
 func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
-	// IPC 2.0 format with no negotiated object
+	// ze-bgp JSON format with no negotiated object
 	zebgp := map[string]any{
 		"type": "bgp",
 		"bgp": map[string]any{

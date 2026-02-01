@@ -17,24 +17,24 @@ var knownFields = map[string]bool{
 	"raw": true, // format=full includes raw bytes
 	// Pool storage raw fields (format=full)
 	"raw-attributes": true, "raw-nlri": true, "raw-withdrawn": true,
-	// IPC 2.0 wrapper keys
+	// ze-bgp JSON wrapper keys
 	"bgp": true, "rib": true,
-	// IPC 2.0 nested keys (event data nested under event type)
+	// ze-bgp JSON nested keys (event data nested under event type)
 	"attributes": true, "nlri": true, "action": true, "attr": true,
-	// IPC 2.0 event type keys (events nested under their type name)
+	// ze-bgp JSON event type keys (events nested under their type name)
 	"update": true, "notification": true, "open": true, "keepalive": true,
 	"refresh": true, "borr": true, "eorr": true, "negotiated": true,
 }
 
 // parseEvent parses a JSON event from ze.
-// Handles IPC 2.0 format where events are nested under their event type:
+// Handles ze-bgp JSON format where events are nested under their event type:
 //
 //	{"type":"bgp","bgp":{"type":"update","update":{...}}}
 //	{"type":"bgp","bgp":{"type":"state","state":{...}}}
 //
 // Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
 func parseEvent(data []byte) (*Event, error) {
-	// First check if this is IPC 2.0 format (has "bgp" or "rib" wrapper)
+	// First check if this is ze-bgp JSON format (has "bgp" or "rib" wrapper)
 	var wrapper struct {
 		Type string          `json:"type"`
 		BGP  json.RawMessage `json:"bgp"`
@@ -44,7 +44,7 @@ func parseEvent(data []byte) (*Event, error) {
 		return nil, err
 	}
 
-	// If IPC 2.0 format, parse the nested payload
+	// If ze-bgp JSON format, parse the nested payload
 	var payloadData []byte
 	switch wrapper.Type {
 	case "bgp":
@@ -62,7 +62,7 @@ func parseEvent(data []byte) (*Event, error) {
 		payloadData = data
 	}
 
-	// IPC 2.0: peer is at bgp level, event data nested under event type key
+	// ze-bgp JSON: peer is at bgp level, event data nested under event type key
 	// Format: {"type":"update","peer":{...},"update":{...}} or {"type":"state","peer":{...},"state":"up"}
 	// First parse the bgp-level data (type, peer) then merge with event-specific data
 	var bgpPayload struct {
@@ -101,13 +101,13 @@ func parseEvent(data []byte) (*Event, error) {
 		event.Peer = bgpPayload.Peer
 	}
 
-	// Parse raw JSON to extract family operations and IPC 2.0 nested structures
+	// Parse raw JSON to extract family operations and ze-bgp JSON nested structures
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(payloadData, &raw); err != nil {
 		return &event, nil //nolint:nilerr // Return event without family ops if parsing fails
 	}
 
-	// IPC 2.0: attributes nested under "attributes" key
+	// ze-bgp JSON: attributes nested under "attributes" key
 	if attrsData, ok := raw["attributes"]; ok {
 		var attrs struct {
 			Origin              string   `json:"origin,omitempty"`
@@ -143,12 +143,12 @@ func parseEvent(data []byte) (*Event, error) {
 		}
 	}
 
-	// IPC 2.0: NLRIs nested under "nlri" key
+	// ze-bgp JSON: NLRIs nested under "nlri" key
 	if nlriData, ok := raw["nlri"]; ok {
 		parseFamilyOps(&event, nlriData)
 	}
 
-	// IPC 2.0: raw bytes nested under "raw" key (format=full)
+	// ze-bgp JSON: raw bytes nested under "raw" key (format=full)
 	if rawData, ok := raw["raw"]; ok {
 		var rawFields struct {
 			Attributes string            `json:"attributes,omitempty"`

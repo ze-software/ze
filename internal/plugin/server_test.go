@@ -149,7 +149,7 @@ func TestServerCommandExecution(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// IPC 2.0: Response wrapped in {"type":"response","response":{...}}
+	// ze-bgp JSON: Response wrapped in {"type":"response","response":{...}}
 	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"done"`)
 	assert.Contains(t, response, `"peer_count":2`)
@@ -209,7 +209,7 @@ func TestServerUnknownCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// IPC 2.0: Response wrapped
+	// ze-bgp JSON: Response wrapped
 	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"error"`)
 }
@@ -275,7 +275,7 @@ func TestServerEmptyLine(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// IPC 2.0: Should get wrapped version response, not errors from empty lines
+	// ze-bgp JSON: Should get wrapped version response, not errors from empty lines
 	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"done"`)
 	assert.Contains(t, response, `"version"`)
@@ -449,7 +449,7 @@ func TestServerNoSerialCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// IPC 2.0: Wrapped response, should NOT have serial field (omitempty)
+	// ze-bgp JSON: Wrapped response, should NOT have serial field (omitempty)
 	assert.Contains(t, response, `"type":"response"`)
 	assert.NotContains(t, response, `"serial"`)
 	assert.Contains(t, response, `"status":"done"`)
@@ -481,7 +481,7 @@ func TestServerSerialCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// IPC 2.0: Should have serial in JSON body inside response wrapper
+	// ze-bgp JSON: Should have serial in JSON body inside response wrapper
 	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"serial":"42"`)
 	assert.Contains(t, response, `"status":"done"`)
@@ -529,23 +529,21 @@ func TestFormatNotificationJSON(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: top-level "type" should be "bgp"
+	// ze-bgp JSON: top-level "type" should be "bgp"
 	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
 
 	// Payload under "bgp"
 	payload, ok := result["bgp"].(map[string]any)
 	require.True(t, ok, "bgp payload must exist")
 
-	// Check event type in payload
-	assert.Equal(t, "notification", payload["type"], "event type must be 'notification'")
+	// Check event type in bgp.message.type
+	msgObj, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message object must exist in bgp payload")
+	assert.Equal(t, "notification", msgObj["type"], "message type must be 'notification'")
 
-	// Get the nested notification object
-	notifPayload, ok := payload["notification"].(map[string]any)
-	require.True(t, ok, "notification object must exist in bgp payload")
-
-	// Check raw message is present (FormatRaw includes hex)
-	rawPart, ok := notifPayload["raw"].(map[string]any)
-	require.True(t, ok, "raw part must exist in notification payload")
+	// Check raw message is present (FormatRaw includes hex in raw object)
+	rawPart, ok := payload["raw"].(map[string]any)
+	require.True(t, ok, "raw part must exist in bgp payload: %s", output)
 	assert.NotEmpty(t, rawPart["message"], "raw message must be present")
 }
 

@@ -8,6 +8,9 @@ import (
 	"strings"
 )
 
+// JSON envelope type constant.
+const typeBGP = "bgp"
+
 // isSupportedFamily returns true if the family is supported for JSON validation.
 // Supports IPv4/IPv6 unicast and FlowSpec families.
 func isSupportedFamily(family string) bool {
@@ -20,15 +23,29 @@ func isSupportedFamily(family string) bool {
 	}
 }
 
-// isFlowSpecFamily returns true if the family is a FlowSpec family.
-func isFlowSpecFamily(family string) bool {
-	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
-	return normalized == "ipv4/flow" || normalized == "ipv6/flow"
-}
-
 // extractFamily extracts the address family from a ze bgp decode envelope.
 // Returns empty string for EOR (empty update) messages.
 func extractFamily(envelope map[string]any) string {
+	// Handle new ze-bgp JSON format
+	if envelope["type"] == typeBGP {
+		bgp, ok := envelope["bgp"].(map[string]any)
+		if !ok {
+			return ""
+		}
+		update, ok := bgp["update"].(map[string]any)
+		if !ok {
+			return ""
+		}
+		// Family keys are directly in update (e.g., "ipv4/unicast")
+		for key := range update {
+			if key != "attr" && strings.Contains(key, "/") {
+				return key
+			}
+		}
+		return ""
+	}
+
+	// Legacy format fallback
 	neighbor, ok := envelope["neighbor"].(map[string]any)
 	if !ok {
 		return ""
@@ -64,23 +81,24 @@ func extractFamily(envelope map[string]any) string {
 // transformEnvelopeToPlugin converts ze bgp decode envelope format to plugin format.
 // Returns the transformed map and the detected family.
 //
-// Ze BGP decode format:
+// Ze BGP decode format (ze-bgp JSON):
 //
 //	{
-//	  "type": "update",
-//	  "neighbor": {
-//	    "message": {
-//	      "update": {
-//	        "attribute": {"origin": "igp", ...},
-//	        "announce": {"ipv4/unicast": {"10.0.1.254": [{"nlri": "10.0.0.0/24"}]}}
-//	      }
+//	  "type": "bgp",
+//	  "bgp": {
+//	    "message": {"type": "update", "id": 0, "direction": "received"},
+//	    "peer": {"address": "127.0.0.1", "asn": 65533},
+//	    "update": {
+//	      "attr": {"origin": "igp", "as-path": [65533]},
+//	      "ipv4/unicast": [{"next-hop": "10.0.1.254", "action": "add", "nlri": ["10.0.0.0/24"]}]
 //	    }
 //	  }
 //	}
 //
-// Plugin format:
+// Plugin format (for test comparison):
 //
 //	{
+//	  "meta": {"version": "1.0.0", "format": "ze-bgp"},
 //	  "message": {"type": "update"},
 //	  "origin": "igp",
 //	  "ipv4/unicast": [{"next-hop": "10.0.1.254", "action": "add", "nlri": ["10.0.0.0/24"]}]
@@ -94,29 +112,41 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 		"format":  "ze-bgp",
 	}
 
-	// Set message type
+	// Check for ze-bgp JSON format (has "bgp" wrapper with type="bgp")
+	if envelope["type"] == typeBGP {
+		return transformZeBGPFormat(envelope, result)
+	}
+
+	// Legacy format fallback (shouldn't happen with new decode)
 	if msgType, ok := envelope["type"].(string); ok {
 		result["message"] = map[string]any{"type": msgType}
 	}
 
-	// Navigate to update content
-	neighbor, ok := envelope["neighbor"].(map[string]any)
+	return result, ""
+}
+
+// transformZeBGPFormat handles the ze-bgp JSON format.
+func transformZeBGPFormat(envelope, result map[string]any) (map[string]any, string) {
+	bgp, ok := envelope["bgp"].(map[string]any)
 	if !ok {
 		return result, ""
 	}
 
-	message, ok := neighbor["message"].(map[string]any)
+	// Extract message type from bgp.message.type
+	if msg, ok := bgp["message"].(map[string]any); ok {
+		if msgType, ok := msg["type"].(string); ok {
+			result["message"] = map[string]any{"type": msgType}
+		}
+	}
+
+	// Get update container
+	update, ok := bgp["update"].(map[string]any)
 	if !ok {
 		return result, ""
 	}
 
-	update, ok := message["update"].(map[string]any)
-	if !ok {
-		return result, ""
-	}
-
-	// Copy attributes to top level
-	if attrs, ok := update["attribute"].(map[string]any); ok {
+	// Copy attributes to top level (from update.attr)
+	if attrs, ok := update["attr"].(map[string]any); ok {
 		for k, v := range attrs {
 			result[k] = v
 		}
@@ -125,159 +155,20 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 	// Track detected family
 	var detectedFamily string
 
-	// Transform announce section
-	if announce, ok := update["announce"].(map[string]any); ok {
-		for family, nhMap := range announce {
-			detectedFamily = family
-			if nhData, ok := nhMap.(map[string]any); ok {
-				if isFlowSpecFamily(family) {
-					result[family] = transformFlowspecAnnounce(nhData)
-				} else {
-					result[family] = transformAnnounce(nhData)
-				}
-			}
+	// Copy NLRI operations directly (they're already in plugin format)
+	// The ze-bgp format uses family keys directly in update: "ipv4/unicast", "ipv6/unicast", etc.
+	for key, value := range update {
+		if key == "attr" {
+			continue // Already handled
 		}
-	}
-
-	// Transform withdraw section
-	if withdraw, ok := update["withdraw"].(map[string]any); ok {
-		for family, prefixes := range withdraw {
-			detectedFamily = family
-			if isFlowSpecFamily(family) {
-				result[family] = transformFlowspecWithdraw(prefixes)
-			} else {
-				result[family] = transformWithdraw(prefixes)
-			}
+		// Check if this looks like a family key (contains /)
+		if strings.Contains(key, "/") {
+			detectedFamily = key
+			result[key] = value
 		}
 	}
 
 	return result, detectedFamily
-}
-
-// transformAnnounce transforms the announce section from ze bgp decode to plugin format.
-// Ze BGP decode: {"next-hop": [{"nlri": "prefix"}]}.
-// Plugin: [{"next-hop": "...", "action": "add", "nlri": ["prefix"]}].
-func transformAnnounce(nhMap map[string]any) []map[string]any {
-	var result []map[string]any
-
-	for nextHop, nlriList := range nhMap {
-		var nlris []string
-
-		if v, ok := nlriList.([]any); ok {
-			for _, item := range v {
-				if nlriMap, ok := item.(map[string]any); ok {
-					if nlri, ok := nlriMap["nlri"].(string); ok {
-						nlris = append(nlris, nlri)
-					}
-				}
-			}
-		}
-
-		if len(nlris) > 0 {
-			result = append(result, map[string]any{
-				"next-hop": nextHop,
-				"action":   "add",
-				"nlri":     nlris,
-			})
-		}
-	}
-
-	return result
-}
-
-// transformFlowspecAnnounce transforms FlowSpec announce section to plugin format.
-// FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, etc.) rather than simple prefixes.
-// Ze BGP decode: {"next-hop-or-no-nexthop": [{components}]}.
-// Plugin: [{"next-hop": "...", "action": "add", "nlri": [{components}]}] (next-hop at operation level).
-func transformFlowspecAnnounce(nhMap map[string]any) []map[string]any {
-	var result []map[string]any
-
-	for nextHop, nlriList := range nhMap {
-		if v, ok := nlriList.([]any); ok {
-			var nlris []map[string]any
-			for _, item := range v {
-				if nlriMap, ok := item.(map[string]any); ok {
-					// Copy nlri components (don't include next-hop in NLRI)
-					nlri := make(map[string]any)
-					for k, v := range nlriMap {
-						nlri[k] = v
-					}
-					nlris = append(nlris, nlri)
-				}
-			}
-
-			if len(nlris) > 0 {
-				op := map[string]any{
-					"action": "add",
-					"nlri":   nlris,
-				}
-				// Add next-hop at operation level (same as other families)
-				if nextHop != "no-nexthop" {
-					op["next-hop"] = nextHop
-				}
-				result = append(result, op)
-			}
-		}
-	}
-
-	return result
-}
-
-// transformFlowspecWithdraw transforms FlowSpec withdraw section to plugin format.
-// FlowSpec withdraws have component objects, same structure as announces but without next-hop.
-// Ze BGP decode: [{components}].
-// Plugin: [{"action": "del", "nlri": {components}}].
-func transformFlowspecWithdraw(prefixes any) []map[string]any {
-	var result []map[string]any
-
-	if v, ok := prefixes.([]any); ok {
-		for _, item := range v {
-			if nlriMap, ok := item.(map[string]any); ok {
-				result = append(result, map[string]any{
-					"action": "del",
-					"nlri":   nlriMap, // Keep all FlowSpec components as-is
-				})
-			}
-		}
-	}
-
-	return result
-}
-
-// transformWithdraw transforms the withdraw section from ze bgp decode to plugin format.
-// Ze BGP decode formats:
-// - IPv4 unicast: ["prefix1", "prefix2"]
-// - IPv6/MP: [{"nlri": "prefix1"}, {"nlri": "prefix2"}]
-// Plugin: [{"action": "del", "nlri": ["prefix1", "prefix2"]}].
-func transformWithdraw(prefixes any) []map[string]any {
-	var nlris []string
-
-	if v, ok := prefixes.([]any); ok {
-		for _, p := range v {
-			// Handle {"nlri": "prefix"} format (IPv6/MP withdraws)
-			if nlriMap, ok := p.(map[string]any); ok {
-				if nlri, ok := nlriMap["nlri"].(string); ok {
-					nlris = append(nlris, nlri)
-				}
-				continue
-			}
-			// Handle "prefix" format (IPv4 unicast withdraws)
-			if prefix, ok := p.(string); ok {
-				nlris = append(nlris, prefix)
-			}
-		}
-	}
-
-	if len(nlris) == 0 {
-		return nil
-	}
-
-	return []map[string]any{
-		{
-			"action": "del",
-			"nlri":   nlris,
-		},
-	}
 }
 
 // comparePluginJSON compares actual transformed JSON with expected JSON string.

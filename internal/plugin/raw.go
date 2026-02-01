@@ -112,7 +112,7 @@ func parseMessageType(s string) (uint8, bool) {
 	switch strings.ToLower(s) {
 	case "open":
 		return uint8(message.TypeOPEN), true
-	case "update":
+	case EventUpdate:
 		return uint8(message.TypeUPDATE), true
 	case "notification":
 		return uint8(message.TypeNOTIFICATION), true

@@ -1450,7 +1450,7 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 }
 
 // =============================================================================
-// IPC Protocol 2.0 New Event Format Tests
+// ze-bgp JSON New Event Format Tests
 // =============================================================================
 // These tests validate parsing of the new JSON format per ipc_protocol.md v2.0:
 //   - Top-level "type" field indicates payload key ("bgp" or "rib")
@@ -1460,12 +1460,12 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 //   - NLRIs nested under "nlri"
 // =============================================================================
 
-// TestParseEvent_NewBGPFormat verifies parsing of IPC 2.0 BGP event format.
+// TestParseEvent_NewBGPFormat verifies parsing of ze-bgp JSON BGP event format.
 //
 // VALIDATES: New wrapped BGP format with type/bgp structure parses correctly.
-// PREVENTS: Plugin breaking when engine updates to IPC 2.0 format.
+// PREVENTS: Plugin breaking when engine updates to ze-bgp JSON format.
 func TestParseEvent_NewBGPFormat(t *testing.T) {
-	// IPC 2.0 format: type at top, payload nested under "bgp"
+	// ze-bgp JSON format: type at top, payload nested under "bgp"
 	input := `{
 		"type": "bgp",
 		"bgp": {
@@ -1550,12 +1550,12 @@ func TestParseEvent_NewBGPFormatWithRaw(t *testing.T) {
 	assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
 }
 
-// TestParseEvent_NewRIBFormat verifies parsing of IPC 2.0 RIB event format.
+// TestParseEvent_NewRIBFormat verifies parsing of ze-bgp JSON RIB event format.
 //
 // VALIDATES: New wrapped RIB format with type/rib structure parses correctly.
 // PREVENTS: RIB cache events being ignored in new format.
 func TestParseEvent_NewRIBFormat(t *testing.T) {
-	// IPC 2.0 format: type at top, payload nested under "rib"
+	// ze-bgp JSON format: type at top, payload nested under "rib"
 	input := `{
 		"type": "rib",
 		"rib": {

@@ -71,18 +71,19 @@ def main() -> None:
             continue
 
         # Check for UPDATE event with expected content
-        # JSON format: {"type":"bgp","bgp":{"type":"update","peer":{...},"update":{...}}}
-        # peer is at bgp level, update data is in bgp.update
+        # JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},"update":{"attr":{...},"nlri":{...}}}}
+        # Type is in bgp.message.type, attr/nlri are inside update container
         bgp = event.get('bgp', {})
-        if bgp.get('type') != 'update':
+        msg = bgp.get('message', {})
+        if msg.get('type') != 'update':
             continue
         peer = bgp.get('peer', {})
         if peer.get('address') != '127.0.0.1':
             continue
-        update = bgp.get('update', {})
 
         # Check for default route (0.0.0.0/32) announcement
-        # Look in nlri -> ipv4/unicast -> operations -> nlri list
+        # Look in update.nlri -> ipv4/unicast -> operations -> nlri list
+        update = bgp.get('update', {})
         nlri_data = update.get('nlri', {})
         families = nlri_data.get('ipv4/unicast', [])
         nlris = []

@@ -107,7 +107,7 @@ const (
 	testFlowSpecFamily = "ipv4/flow"
 )
 
-// TestDecodeOpen verifies OPEN message decoding produces Ze JSON format (IPC Protocol 2.0).
+// TestDecodeOpen verifies OPEN message decoding produces Ze JSON format (ze-bgp JSON).
 //
 // VALIDATES: OPEN message hex decodes to Ze JSON with correct fields.
 //
@@ -330,7 +330,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	}
 }
 
-// TestDecodeUpdate verifies UPDATE message decoding produces Ze JSON format (IPC Protocol 2.0).
+// TestDecodeUpdate verifies UPDATE message decoding produces Ze JSON format (ze-bgp JSON).
 //
 // VALIDATES: UPDATE message hex decodes to Ze JSON with correct fields.
 //

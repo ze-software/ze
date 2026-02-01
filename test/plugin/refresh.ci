@@ -127,9 +127,10 @@ def main() -> None:
         except (json.JSONDecodeError, TypeError):
             continue
 
-        # Check for state=up (new JSON format: bgp.state = "up" as string)
+        # Check for state=up (bgp.message.type = "state", bgp.state = "up")
         bgp = event.get('bgp', {})
-        if bgp.get('type') == 'state' and bgp.get('state') == 'up':
+        msg = bgp.get('message', {})
+        if msg.get('type') == 'state' and bgp.get('state') == 'up':
             log("state=up received, sending route")
             # Send route with all required attributes matching expected hex
             # Expected: ORIGIN IGP, empty AS_PATH, NEXT_HOP 10.0.0.1, LOCAL_PREF 100, NLRI 192.168.1.0/24

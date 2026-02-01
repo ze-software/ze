@@ -11,7 +11,7 @@ import (
 // TestResponseJSONHasTypeWrapper verifies Response JSON includes type wrapper.
 //
 // VALIDATES: Response JSON has "type":"response" and "response":{...} structure.
-// PREVENTS: Plugins expecting new IPC protocol 2.0 format failing to parse responses.
+// PREVENTS: Plugins expecting new ze-bgp JSON format failing to parse responses.
 func TestResponseJSONHasTypeWrapper(t *testing.T) {
 	resp := &Response{
 		Serial: "123",

@@ -486,16 +486,16 @@ withdraw ipv4/flow \
 
 ## Response Format
 
-### Success (with ACK enabled)
+### Success (with serial prefix)
 
 ```json
-{ "type": "done" }
+{"type":"response","response":{"serial":"1","status":"done"}}
 ```
 
 ### Error
 
 ```json
-{ "type": "error", "error": "description" }
+{"type":"response","response":{"serial":"1","status":"error","data":"description"}}
 ```
 
 ### Show Neighbor

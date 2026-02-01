@@ -207,7 +207,7 @@ func detectMessageType(data []byte) string {
 	}
 }
 
-// makeZeEnvelope creates the Ze IPC Protocol 2.0 envelope structure.
+// makeZeEnvelope creates the Ze ze-bgp JSON envelope structure.
 // Ze format: {"type": "bgp", "bgp": {"peer": {...}, "message": {..., "type": "<event>"}, "<event>": {...}}}.
 // The message type can be determined either from message.type or by checking which key exists (open/update).
 func makeZeEnvelope(msgType string) map[string]any {
@@ -324,7 +324,7 @@ var pluginFamilyMap = map[string]string{
 	"bgp-ls/bgp-ls-vpn": "bgpls",
 }
 
-// capabilityToZeJSON converts a capability to Ze IPC Protocol 2.0 format.
+// capabilityToZeJSON converts a capability to Ze ze-bgp JSON format.
 // Ze format: {"code": N, "name": "...", "value": "..."}.
 func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]any {
 	code := int(c.Code())

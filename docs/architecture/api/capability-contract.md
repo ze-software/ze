@@ -170,12 +170,12 @@ peer 192.168.1.1 eorr ipv4/unicast
 
 ## JSON Format
 
-When `encoder json`:
+When `encoding json`:
 
 ```json
-{"type": "refresh", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-{"type": "borr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-{"type": "eorr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
+{"type":"bgp","bgp":{"type":"refresh","peer":{"address":"192.168.1.1","asn":65001},"refresh":{"message":{"direction":"received"},"afi":"ipv4","safi":"unicast"}}}
+{"type":"bgp","bgp":{"type":"borr","peer":{"address":"192.168.1.1","asn":65001},"borr":{"message":{"direction":"received"},"afi":"ipv4","safi":"unicast"}}}
+{"type":"bgp","bgp":{"type":"eorr","peer":{"address":"192.168.1.1","asn":65001},"eorr":{"message":{"direction":"received"},"afi":"ipv4","safi":"unicast"}}}
 ```
 
 ---

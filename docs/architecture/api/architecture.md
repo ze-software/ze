@@ -66,15 +66,25 @@
 
 ### Wire Bytes in Events
 
-Engine sends base64-encoded wire bytes to API:
+Engine sends wire bytes to API in IPC 2.0 format (when `format full` is configured):
 
 ```json
 {
-  "message": { "type": "update", "id": 123 },
-  "source-ctx-id": 42,
-  "raw-attributes": "AQEBAQECAQID...",
-  "raw-nlri": "GApAAA==",
-  "parsed": { ... }
+  "type": "bgp",
+  "bgp": {
+    "type": "update",
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "update": {
+      "message": {"id": 123, "direction": "received"},
+      "attr": {"origin": "igp", "as-path": [65001]},
+      "nlri": {"ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]}]},
+      "raw": {
+        "attr": "40010100400200040001fde8",
+        "nlri": {"ipv4/unicast": "180a0000"},
+        "withdrawn": {}
+      }
+    }
+  }
 }
 ```
 
@@ -568,65 +578,67 @@ type ReactorInterface interface {
 
 ### JSON Format (Command Style)
 
-UPDATE events use a command-style format where each address family contains a list of
-operations grouped by next-hop. This matches the command syntax and correctly handles
-multiple next-hops per family.
+UPDATE events use IPC Protocol 2.0 format with a top-level wrapper and nested structure.
+Each address family contains a list of operations grouped by next-hop.
 
 **Announcements:**
 ```json
 {
-  "message": {
+  "type": "bgp",
+  "bgp": {
     "type": "update",
-    "id": 1,
-    "direction": "received"
-  },
-  "peer": {
-    "address": "10.0.0.1",
-    "asn": 65001
-  },
-  "origin": "igp",
-  "as-path": [65001],
-  "ipv4/unicast": [
-    {
-      "action": "add",
-      "next-hop": "10.0.0.1",
-      "nlri": ["192.168.1.0/24", "192.168.2.0/24"]
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "update": {
+      "message": {"id": 1, "direction": "received"},
+      "attr": {
+        "origin": "igp",
+        "as-path": [65001]
+      },
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "10.0.0.1", "nlri": ["192.168.1.0/24", "192.168.2.0/24"]}
+        ]
+      }
     }
-  ]
+  }
 }
 ```
 
 **Withdrawals:**
 ```json
 {
-  "message": { "type": "update", "id": 2, "direction": "received" },
-  "peer": { "address": "10.0.0.1", "asn": 65001 },
-  "ipv4/unicast": [
-    {
-      "action": "del",
-      "nlri": ["192.168.1.0/24"]
+  "type": "bgp",
+  "bgp": {
+    "type": "update",
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "update": {
+      "message": {"id": 2, "direction": "received"},
+      "nlri": {
+        "ipv4/unicast": [{"action": "del", "nlri": ["192.168.1.0/24"]}]
+      }
     }
-  ]
+  }
 }
 ```
 
 **Mixed (announce + withdraw in same UPDATE):**
 ```json
 {
-  "message": { "type": "update", "id": 3 },
-  "peer": { "address": "10.0.0.1", "asn": 65001 },
-  "origin": "igp",
-  "ipv4/unicast": [
-    {
-      "action": "add",
-      "next-hop": "10.0.0.1",
-      "nlri": ["10.0.0.0/24"]
-    },
-    {
-      "action": "del",
-      "nlri": ["172.16.0.0/16"]
+  "type": "bgp",
+  "bgp": {
+    "type": "update",
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "update": {
+      "message": {"id": 3, "direction": "received"},
+      "attr": {"origin": "igp"},
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]},
+          {"action": "del", "nlri": ["172.16.0.0/16"]}
+        ]
+      }
     }
-  ]
+  }
 }
 ```
 
@@ -861,20 +873,20 @@ Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 
 ```json
 {
-  "message": {
+  "type": "bgp",
+  "bgp": {
     "type": "update",
-    "id": 12345,
-    "direction": "received"
-  },
-  "peer": { "address": "10.0.0.1" },
-  "as-path": [65001, 65002],
-  "ipv4/unicast": [
-    {
-      "action": "add",
-      "next-hop": "10.0.0.1",
-      "nlri": ["192.168.1.0/24"]
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "update": {
+      "message": {"id": 12345, "direction": "received"},
+      "attr": {"as-path": [65001, 65002]},
+      "nlri": {
+        "ipv4/unicast": [
+          {"action": "add", "next-hop": "10.0.0.1", "nlri": ["192.168.1.0/24"]}
+        ]
+      }
     }
-  ]
+  }
 }
 ```
 
@@ -989,8 +1001,8 @@ peer 192.0.2.1 asn 65001 state down
 
 **JSON format:**
 ```json
-{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
-{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
+{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}}
+{"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down","reason":"hold timer expired"}}
 ```
 
 ### Close Reasons

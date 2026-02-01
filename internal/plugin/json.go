@@ -9,14 +9,13 @@ import (
 // JSONEncoder produces ze-bgp JSON output.
 // Format follows docs/architecture/api/ipc_protocol.md v2.0.
 //
-// IPC Protocol 2.0 wraps all events:
+// ze-bgp JSON wraps all events:
 //
-//	{"type":"bgp","bgp":{"type":"update","peer":{...},"update":{...}}}
-//	{"type":"bgp","bgp":{"type":"state","peer":{...},"state":"up"}}
+//	{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},"attr":{...},"nlri":{...}}}
+//	{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}
 //
-// The "type" field at top level indicates the payload key.
-// Event type is in bgp.type, peer is at bgp level, event data in bgp.<type>.
-// Exception: state events use simple "state":"<value>" at bgp level.
+// The "type" field at top level indicates the payload key (always "bgp").
+// Event type is in bgp.message.type, peer is at bgp level, event data at bgp level.
 type JSONEncoder struct{}
 
 // NewJSONEncoder creates a new JSON encoder.
@@ -27,12 +26,14 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 
 // message creates the BGP payload for an event.
 // Returns the outer bgp payload and inner event payload.
-// Format: {"type":"<msgType>","peer":{...},"<msgType>":{...}}.
-// Peer is at bgp level, event-specific data goes in the inner map.
+// ze-bgp JSON Format: {"message":{"type":"<msgType>"},"peer":{...},"<msgType>":{...}}.
+// Type is in message object, peer is at bgp level, event-specific data in inner map.
 func (e *JSONEncoder) message(peer PeerInfo, msgType string) (outer map[string]any, inner map[string]any) {
 	inner = make(map[string]any)
 	outer = map[string]any{
-		"type": msgType,
+		"message": map[string]any{
+			"type": msgType,
+		},
 		"peer": map[string]any{
 			"address": peer.Address.String(),
 			"asn":     peer.PeerAS,
@@ -72,10 +73,12 @@ func getOrCreateMessage(payload map[string]any) map[string]any {
 }
 
 // StateUp returns JSON for a peer state "up" event.
-// State events use simple string value: {"type":"state","peer":{...},"state":"up"}.
+// ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"up"}.
 func (e *JSONEncoder) StateUp(peer PeerInfo) string {
 	payload := map[string]any{
-		"type": "state",
+		"message": map[string]any{
+			"type": "state",
+		},
 		"peer": map[string]any{
 			"address": peer.Address.String(),
 			"asn":     peer.PeerAS,
@@ -86,10 +89,12 @@ func (e *JSONEncoder) StateUp(peer PeerInfo) string {
 }
 
 // StateDown returns JSON for a peer state "down" event.
-// State events use simple string value: {"type":"state","peer":{...},"state":"down","reason":"..."}.
+// ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"down","reason":"..."}.
 func (e *JSONEncoder) StateDown(peer PeerInfo, reason string) string {
 	payload := map[string]any{
-		"type": "state",
+		"message": map[string]any{
+			"type": "state",
+		},
 		"peer": map[string]any{
 			"address": peer.Address.String(),
 			"asn":     peer.PeerAS,
@@ -101,10 +106,12 @@ func (e *JSONEncoder) StateDown(peer PeerInfo, reason string) string {
 }
 
 // StateConnected returns JSON for a peer "connected" event.
-// State events use simple string value: {"type":"state","peer":{...},"state":"connected"}.
+// ze-bgp JSON: {"message":{"type":"state"},"peer":{...},"state":"connected"}.
 func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 	payload := map[string]any{
-		"type": "state",
+		"message": map[string]any{
+			"type": "state",
+		},
 		"peer": map[string]any{
 			"address": peer.Address.String(),
 			"asn":     peer.PeerAS,
@@ -129,8 +136,8 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 // Fields in inner payload: code, subcode, data, code-name, subcode-name.
 func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "notification")
-	setMessageDirection(inner, direction)
-	setMessageID(inner, msgID)
+	setMessageDirection(outer, direction)
+	setMessageID(outer, msgID)
 
 	// Always include code, subcode, data fields
 	inner["code"] = notify.ErrorCode
@@ -157,8 +164,8 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, di
 // Fields in inner payload: asn, router-id, hold-time, capabilities.
 func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "open")
-	setMessageDirection(inner, direction)
-	setMessageID(inner, msgID)
+	setMessageDirection(outer, direction)
+	setMessageID(outer, msgID)
 
 	// Convert capabilities to structured JSON format
 	caps := make([]map[string]any, 0, len(open.Capabilities))
@@ -184,9 +191,9 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, ms
 
 // Keepalive returns JSON for a KEEPALIVE message.
 func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) string {
-	outer, inner := e.message(peer, "keepalive")
-	setMessageDirection(inner, direction)
-	setMessageID(inner, msgID)
+	outer, _ := e.message(peer, "keepalive")
+	setMessageDirection(outer, direction)
+	setMessageID(outer, msgID)
 	return e.marshal(outer)
 }
 
@@ -195,8 +202,8 @@ func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) s
 func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
 	// Use subtype name as event type for proper dispatch
 	outer, inner := e.message(peer, decoded.SubtypeName)
-	setMessageDirection(inner, direction)
-	setMessageID(inner, msgID)
+	setMessageDirection(outer, direction)
+	setMessageID(outer, msgID)
 
 	// Parse family "afi/safi" into separate fields
 	if idx := strings.Index(decoded.Family, "/"); idx >= 0 {
@@ -235,7 +242,7 @@ func (e *JSONEncoder) Negotiated(peer PeerInfo, neg DecodedNegotiated) string {
 	return e.marshal(outer)
 }
 
-// marshal wraps the payload in IPC 2.0 format and converts to JSON string.
+// marshal wraps the payload in ze-bgp JSON format and converts to JSON string.
 // Output: {"type":"bgp","bgp":{...payload...}}.
 func (e *JSONEncoder) marshal(payload map[string]any) string {
 	outer := map[string]any{

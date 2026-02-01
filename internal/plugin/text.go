@@ -70,10 +70,10 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrid
 }
 
 // formatEmptyUpdate formats an empty UPDATE message.
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update","update":{...}}}.
+// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
 func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update","update":{"peer":{"address":"%s","asn":%d},"nlri":{}}}}`+"\n",
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"address":"%s","asn":%d},"nlri":{}}}`+"\n",
 			peer.Address, peer.PeerAS)
 	}
 	return fmt.Sprintf("peer %s update\n", peer.Address)
@@ -105,10 +105,10 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 
 	if content.Encoding == EncodingJSON {
-		// IPC 2.0 format: {"type":"bgp","bgp":{"type":"...","<type>":{...}}}
+		// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"..."},...}}
 		msgType := strings.ToLower(msg.Type.String())
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"%s","%s":{"peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}}`+"\n",
-			msgType, msgType, peer.Address, peer.PeerAS, rawHex)
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"%s"},"peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}`+"\n",
+			msgType, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s raw %s\n",
 		peer.Address, strings.ToLower(msg.Type.String()), rawHex)
@@ -129,16 +129,16 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 }
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
-// IPC 2.0 format: {"type":"bgp","bgp":{"type":"update","update":{...}}}.
+// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
-		var msgPart string
+		var msgFields string
 		if direction != "" {
-			msgPart = fmt.Sprintf(`"message":{"direction":"%s"},`, direction)
+			msgFields = fmt.Sprintf(`,"direction":"%s"`, direction)
 		}
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"update","update":{%s"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}}`+"\n",
-			msgPart, peer.Address, peer.PeerAS, rawHex)
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"%s},"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}`+"\n",
+			msgFields, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
 }
@@ -152,7 +152,7 @@ func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig
 	return formatFilterResultText(peer, result, msg.MessageID, direction, ctx)
 }
 
-// formatFullFromResult formats both parsed content AND raw hex (IPC Protocol 2.0).
+// formatFullFromResult formats both parsed content AND raw hex (ze-bgp JSON).
 // ctx provides ADD-PATH state per family.
 // Includes raw bytes nested under "raw" object: attributes, nlri, withdrawn.
 func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
@@ -225,10 +225,10 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 
 		rawObj.WriteString(`}`)
 
-		// IPC 2.0: inject raw into update object (ends with "}}}\n")
-		// Replace trailing "}}}\n" with ","raw":{...}}}}\n"
-		if strings.HasSuffix(parsed, "}}}\n") {
-			return parsed[:len(parsed)-4] + "," + rawObj.String() + "}}}\n"
+		// ze-bgp JSON: inject raw into bgp object (ends with "}}\n")
+		// Replace trailing "}}\n" with ","raw":{...}}}\n"
+		if strings.HasSuffix(parsed, "}}\n") {
+			return parsed[:len(parsed)-3] + "," + rawObj.String() + "}}\n"
 		}
 		return parsed
 	}
@@ -237,7 +237,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 	return parsed + fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
 }
 
-// formatFilterResultJSON formats FilterResult as JSON (IPC Protocol 2.0).
+// formatFilterResultJSON formats FilterResult as JSON (ze-bgp JSON).
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
 //
@@ -245,15 +245,14 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 // that SHOULD be used as next hop to the destinations.
 // RFC 4760 Section 3: Each MP_REACH_NLRI has its own next-hop field.
 //
-// IPC 2.0 format:
+// ze-bgp JSON format:
 //
 //	{
 //	  "type": "bgp",
 //	  "bgp": {
-//	    "type": "update",
+//	    "message": {"type": "update", "id": 123, "direction": "received"},
 //	    "peer": {"address": "...", "asn": ...},
 //	    "update": {
-//	      "message": {"id": 123, "direction": "received"},
 //	      "attr": {"origin": "igp", ...},
 //	      "nlri": {
 //	        "ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]
@@ -264,43 +263,36 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
-	// IPC 2.0 outer wrapper with peer at bgp level, event data in "update"
-	sb.WriteString(`{"type":"bgp","bgp":{"type":"update","peer":{"address":"`)
+	// ze-bgp JSON outer wrapper
+	sb.WriteString(`{"type":"bgp","bgp":{`)
+
+	// Message metadata with type inside
+	sb.WriteString(`"message":{"type":"update"`)
+	if msgID > 0 {
+		sb.WriteString(fmt.Sprintf(`,"id":%d`, msgID))
+	}
+	if direction != "" {
+		sb.WriteString(`,"direction":"`)
+		sb.WriteString(direction)
+		sb.WriteString(`"`)
+	}
+	sb.WriteString(`}`)
+
+	// Peer at bgp level
+	sb.WriteString(`,"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
 	sb.WriteString(`","asn":`)
 	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
-	sb.WriteString(`},"update":{`)
+	sb.WriteString(`}`)
 
-	// Message metadata (id, direction) - only if present
-	hasContent := false
-	if msgID > 0 || direction != "" {
-		sb.WriteString(`"message":{`)
-		innerComma := false
-		if msgID > 0 {
-			sb.WriteString(fmt.Sprintf(`"id":%d`, msgID))
-			innerComma = true
-		}
-		if direction != "" {
-			if innerComma {
-				sb.WriteString(",")
-			}
-			sb.WriteString(`"direction":"`)
-			sb.WriteString(direction)
-			sb.WriteString(`"`)
-		}
-		sb.WriteString(`}`)
-		hasContent = true
-	}
+	// Update container with attr and nlri inside
+	sb.WriteString(`,"update":{`)
 
-	// Attributes nested under "attr" (inside update)
+	// Attributes inside update
 	if len(result.Attributes) > 0 {
-		if hasContent {
-			sb.WriteString(",")
-		}
 		sb.WriteString(`"attr":{`)
-		hasContent = true
 		formatAttributesJSON(&sb, result)
-		sb.WriteString(`}`)
+		sb.WriteString(`},`)
 	}
 
 	// Collect operations by family
@@ -328,10 +320,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 		familyOps[fam.Family] = append(familyOps[fam.Family], op)
 	}
 
-	// NLRIs nested under "nlri"
-	if hasContent {
-		sb.WriteString(",")
-	}
+	// NLRIs inside update
 	sb.WriteString(`"nlri":{`)
 	first := true
 	for family, ops := range familyOps {
@@ -368,7 +357,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	}
 	sb.WriteString(`}`)
 
-	// Close update object, bgp object and outer wrapper
+	// Close update, bgp, and outer wrapper
 	sb.WriteString("}}}\n")
 	return sb.String()
 }
@@ -904,9 +893,9 @@ func FormatStateChange(peer PeerInfo, state string, encoding string) string {
 }
 
 func formatStateChangeJSON(peer PeerInfo, state string) string {
-	// IPC 2.0 format: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"up"}}
-	// State is a simple string value, not a container
-	return fmt.Sprintf(`{"type":"bgp","bgp":{"type":"state","peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
+	// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}
+	// State is a simple string value at bgp level
+	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
 		peer.Address, peer.PeerAS, state)
 }
 
@@ -929,19 +918,11 @@ func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) str
 	output := FormatMessage(peer, msg, content, "sent")
 
 	// Replace type indicator for JSON (text format uses direction field)
-	// Two JSON formats depending on FormatRaw vs FormatParsed/FormatFull:
-	//
-	// FormatParsed/Full: {"type":"bgp","bgp":{"type":"update","peer":{...},"update":{...}}}
-	// FormatRaw:         {"type":"bgp","bgp":{"type":"update","update":{"message":{...},"peer":{...}}}}
-	//
-	// We want to change "type":"update" to "type":"sent" and "update":{} to "sent":{}
+	// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}
+	// We want to change "type":"update" to "type":"sent"
 	if content.Encoding == EncodingJSON {
-		// FormatParsed/Full: peer at bgp level, before update key
-		output = strings.Replace(output, `"type":"update","peer":`, `"type":"sent","peer":`, 1)
-		// FormatRaw: update key immediately after type (peer inside update)
-		output = strings.Replace(output, `"type":"update","update":{`, `"type":"sent","sent":{`, 1)
-		// Both formats: update key with comma prefix
-		output = strings.Replace(output, `,"update":{`, `,"sent":{`, 1)
+		// Change message type from update to sent
+		output = strings.Replace(output, `"message":{"type":"update"`, `"message":{"type":"sent"`, 1)
 	}
 
 	return output

@@ -735,7 +735,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		}
 
 		// Send response only if serial present (serial = ack)
-		// IPC 2.0: wrap response
+		// ze-bgp JSON: wrap response
 		if serial != "" && resp != nil {
 			resp.Serial = serial
 			respJSON, _ := json.Marshal(WrapResponse(resp))
@@ -1172,7 +1172,7 @@ func (s *Server) processCommand(client *Client, line string) {
 }
 
 // sendResponse sends a JSON response to the client.
-// IPC 2.0: wraps response in {"type":"response","response":{...}}.
+// ze-bgp JSON: wraps response in {"type":"response","response":{...}}.
 func (s *Server) sendResponse(client *Client, resp *Response) {
 	wrapped := WrapResponse(resp)
 	data, err := json.Marshal(wrapped)

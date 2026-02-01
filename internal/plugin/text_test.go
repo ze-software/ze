@@ -48,15 +48,15 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json established",
 			state:    "established",
 			encoding: EncodingJSON,
-			// IPC 2.0: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"..."}}
-			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
+			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down",
 			state:    "down",
 			encoding: EncodingJSON,
-			// IPC 2.0: {"type":"bgp","bgp":{"type":"state","peer":{...},"state":"..."}}
-			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
+			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
 		},
 	}
 
@@ -173,7 +173,7 @@ func TestFormatMessageJSON(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Check key parts of the IPC 2.0 JSON structure
+	// Check key parts of the ze-bgp JSON JSON structure
 	// Outer wrapper: {"type":"bgp","bgp":{...}}
 	if !strings.Contains(got, `"type":"bgp"`) {
 		t.Error("missing top-level type:bgp")

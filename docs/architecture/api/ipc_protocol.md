@@ -1,6 +1,5 @@
 # Ze IPC Protocol Specification
 
-**Version:** 2.0
 **Status:** Canonical reference for Ze inter-process communication
 
 ---
@@ -718,15 +717,6 @@ Plugins can register custom commands:
 |---------|-------------|
 | `register command "<name>" description "<help>" [args "<usage>"] [completable] [timeout <dur>]` | Register command |
 | `unregister command "<name>"` | Unregister command |
-
----
-
-## Version History
-
-| Version | Date | Changes |
-|---------|------|---------|
-| 1.0 | 2026-01 | Initial specification |
-| 2.0 | 2026-01 | Namespace restructure, event subscription model |
 
 ---
 
