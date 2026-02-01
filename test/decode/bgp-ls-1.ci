@@ -1,4 +1,4 @@
-# bgp-ls-1 decoding test (Ze IPC Protocol 2.0 format - NLRI only)
+# bgp-ls-1 decoding test (Ze format - NLRI only)
 stdin=payload:hex=0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202
 cmd=foreground:seq=1:exec=ze-test decode --json --nlri bgp-ls/bgp-ls -:stdin=payload
 expect=json:json={"interface-addresses":[],"l3-routing-topology":0,"link-identifiers":[],"local-node-descriptors":[{"autonomous-system":1},{"bgp-ls-identifier":"3232266878"},{"ospf-area-id":"0.0.0.0"},{"router-id":"10.10.10.10"}],"ls-nlri-type":"bgpls-link","multi-topology-ids":[],"neighbor-addresses":[],"protocol-id":3,"remote-node-descriptors":[{"autonomous-system":1},{"bgp-ls-identifier":"3232266878"},{"ospf-area-id":"0.0.0.0"},{"router-id":"10.2.2.2"}]}

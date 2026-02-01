@@ -66,7 +66,7 @@
 
 ### Wire Bytes in Events
 
-Engine sends wire bytes to API in IPC 2.0 format (when `format full` is configured):
+Engine sends wire bytes to API in IPC Protocol format (when `format full` is configured):
 
 ```json
 {
@@ -578,7 +578,7 @@ type ReactorInterface interface {
 
 ### JSON Format (Command Style)
 
-UPDATE events use IPC Protocol 2.0 format with a top-level wrapper and nested structure.
+UPDATE events use the IPC Protocol format with a top-level wrapper and nested structure.
 Each address family contains a list of operations grouped by next-hop.
 
 **Announcements:**

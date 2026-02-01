@@ -279,13 +279,13 @@ func NewErrorResponse(msg string) *Response {
   - `handleProcessCommand()` - process command forwarding
   - `handleRegisterCommand()` - 2 locations
   - `handleUnregisterCommand()` - 2 locations
-- **BGP event IPC 2.0 format** - Updated `json.go` marshal() to output `{"type":"bgp","bgp":{...}}`
+- **BGP event IPC Protocol format** - Updated `json.go` marshal() to output `{"type":"bgp","bgp":{...}}`
 - **Event structure changes**:
   - Path attributes nested under `"attributes"` key
   - NLRIs nested under `"nlri"` key
   - Message type moved to `bgp.type` (removed from `message` object)
   - `raw` section for wire bytes (format=full)
-- **RIB event parsing** - Updated `rib/event.go` to parse IPC 2.0 wrapper format
+- **RIB event parsing** - Updated `rib/event.go` to parse IPC Protocol wrapper format
 - **Test coverage** - All tests updated to verify new format
 
 ### Files Modified
@@ -294,9 +294,9 @@ func NewErrorResponse(msg string) *Response {
 |------|---------|
 | `internal/plugin/types.go` | ResponseWrapper, WrapResponse(), NewResponse(), NewErrorResponse() |
 | `internal/plugin/server.go` | All 6 response serialization points wrapped |
-| `internal/plugin/json.go` | marshal() outputs IPC 2.0 format with nested attributes/nlri |
+| `internal/plugin/json.go` | marshal() outputs IPC Protocol format with nested attributes/nlri |
 | `internal/plugin/text.go` | Text format unchanged (no JSON wrapper per spec) |
-| `internal/plugin/rib/event.go` | parseEvent handles IPC 2.0 wrapper |
+| `internal/plugin/rib/event.go` | parseEvent handles IPC Protocol wrapper |
 | `internal/plugin/types_test.go` | ResponseWrapper tests |
 | `internal/plugin/server_test.go` | 5 tests verify response wrapper |
 | `internal/plugin/json_test.go` | getBGPPayload helper, updated format tests |

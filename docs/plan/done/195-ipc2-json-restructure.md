@@ -1,4 +1,4 @@
-# Spec: IPC 2.0 JSON Restructure
+# Spec: IPC Protocol JSON Restructure
 
 ## Task
 
@@ -35,8 +35,8 @@ After (correct):
 | `internal/plugin/json_test.go` | Updated test helpers and expectations |
 | `internal/plugin/text_test.go` | Updated expected JSON format |
 | `internal/plugin/rib/event.go` | Updated `parseEvent` to preserve peer from bgp level |
-| `internal/exabgp/bridge.go` | Updated `ZebgpToExabgpJSON` for IPC 2.0 format |
-| `internal/exabgp/bridge_test.go` | Updated tests for IPC 2.0 format |
+| `internal/exabgp/bridge.go` | Updated `ZebgpToExabgpJSON` for IPC Protocol format |
+| `internal/exabgp/bridge_test.go` | Updated tests for IPC Protocol format |
 | `test/plugin/check.ci` | Updated Python script for new format |
 | `test/plugin/refresh.ci` | Updated Python script for state events |
 | `docs/architecture/api/json-format.md` | Updated all JSON examples |
@@ -46,7 +46,7 @@ After (correct):
 
 1. **Peer at bgp level:** Consistent location for peer info across all event types
 2. **State as simple string:** `"state": "up"` is more concise than `"state": {"state": "up"}`
-3. **ExaBGP bridge updated:** Handles new IPC 2.0 wrapper format
+3. **ExaBGP bridge updated:** Handles new IPC Protocol wrapper format
 
 ### Verification
 

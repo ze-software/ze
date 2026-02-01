@@ -6,7 +6,7 @@
 
 ## Overview
 
-Ze outputs JSON messages to external processes via stdout. All messages follow IPC Protocol 2.0 format with a top-level `type` field indicating which key contains the payload.
+Ze outputs JSON messages to external processes via stdout. All messages follow the IPC Protocol format with a top-level `type` field indicating which key contains the payload.
 
 ---
 

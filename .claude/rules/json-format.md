@@ -18,7 +18,7 @@ All JSON keys use **lowercase kebab-case**. Never camelCase or snake_case.
 | `"as-path"` | `"asPath"`, `"as_path"` |
 | `"local-preference"` | `"localPreference"`, `"local_pref"` |
 
-## Ze IPC Protocol 2.0 Envelope
+## Ze IPC Protocol Envelope
 
 All BGP JSON messages use this structure:
 
@@ -239,7 +239,7 @@ Before outputting JSON:
 
 ```
 [ ] All keys are kebab-case (not camelCase or snake_case)
-[ ] Envelope structure matches Ze IPC Protocol 2.0
+[ ] Envelope structure matches Ze IPC Protocol
 [ ] Family keys use "afi/safi" format
 [ ] Numbers are proper JSON numbers (not strings unless necessary)
 [ ] Raw hex is uppercase without 0x prefix

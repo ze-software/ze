@@ -11,7 +11,7 @@
 
 ## Task
 
-Convert `ze bgp decode` output from ExaBGP-compatible JSON format to Ze native JSON format (IPC Protocol 2.0). Update ExaBGP migration tools as needed.
+Convert `ze bgp decode` output from ExaBGP-compatible JSON format to Ze native JSON format. Update ExaBGP migration tools as needed.
 
 ## Required Reading
 
@@ -204,7 +204,7 @@ Not applicable - no new numeric inputs.
 ### Completed
 1. ✅ Unit tests updated in `cmd/ze/bgp/decode_test.go` - expect Ze format
 2. ✅ `decode.go` implementation complete:
-   - `makeZeEnvelope()` - creates Ze IPC 2.0 envelope
+   - `makeZeEnvelope()` - creates Ze IPC Protocol envelope
    - `decodeOpenMessage()` - returns Ze format with capabilities array
    - `decodeUpdateMessage()` - returns Ze format with `attr` key, simple AS_PATH array
    - `capabilityToZeJSON()` - converts caps to `{code, name, value}` format
@@ -235,7 +235,7 @@ Not applicable - no new numeric inputs.
 ## Implementation Summary
 
 ### What Was Implemented
-- Converted `ze bgp decode` JSON output from ExaBGP format to Ze IPC Protocol 2.0 format
+- Converted `ze bgp decode` JSON output from ExaBGP format to Ze JSON format
 - Key format changes:
   - Envelope: `{"type": "bgp", "bgp": {...}}` instead of `{"exabgp": "5.0.0", ...}`
   - Peer info: `"peer": {"address": "...", "asn": N}` (flat structure)

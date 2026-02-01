@@ -120,7 +120,7 @@ None - documentation fixes only.
 - Fix: All BGP event JSON examples
 
 **2. docs/architecture/api/json-format.md**
-- Remove: Line 5 `Version: IPC Protocol 2.0`
+- Remove: Version line (already done)
 - Fix: Message structure section (lines 17-29)
 
 **3. docs/architecture/api/architecture.md**
@@ -154,16 +154,16 @@ State events use the same structure but without id/direction since they're not w
 
 1. **Removed version references:**
    - `ipc_protocol.md`: Removed "Version: 2.0" line and Version History section
-   - `json-format.md`: Removed "Version: IPC Protocol 2.0" line
+   - `json-format.md`: Removed version line
 
 2. **Fixed JSON examples in `architecture.md`:**
-   - Updated "Wire Bytes in Events" section with IPC 2.0 wrapped format
+   - Updated "Wire Bytes in Events" section with IPC Protocol wrapped format
    - Fixed "JSON Format (Command Style)" announcements/withdrawals/mixed examples
    - Fixed "API Output with Message ID and Direction" example
    - Fixed state event JSON format (now wrapped with `{"type":"bgp","bgp":{...}}`)
 
 3. **Fixed `capability-contract.md`:**
-   - Updated refresh/borr/eorr JSON examples to IPC 2.0 format with proper peer object
+   - Updated refresh/borr/eorr JSON examples to IPC Protocol format with proper peer object
 
 4. **Fixed `commands.md`:**
    - Updated response format examples to use proper `{"type":"response","response":{...}}` wrapper
