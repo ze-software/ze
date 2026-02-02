@@ -63,13 +63,25 @@ func parseEvent(data []byte) (*Event, error) {
 	}
 
 	// ze-bgp JSON: peer is at bgp level, event data nested under event type key
-	// Format: {"type":"update","peer":{...},"update":{...}} or {"type":"state","peer":{...},"state":"up"}
-	// First parse the bgp-level data (type, peer) then merge with event-specific data
+	// Format: {"message":{"type":"sent"},"peer":{...},"update":{...}}
+	//     or: {"type":"state","peer":{...},"state":"up"}
+	// First parse the bgp-level data (type, peer, message) then merge with event-specific data
 	var bgpPayload struct {
-		Type string          `json:"type"`
-		Peer json.RawMessage `json:"peer"`
+		Type    string          `json:"type"`
+		Peer    json.RawMessage `json:"peer"`
+		Message *MessageInfo    `json:"message"`
 	}
 	_ = json.Unmarshal(payloadData, &bgpPayload)
+
+	// Determine event type: use message.type for ze-bgp JSON format if top-level type is missing
+	eventType := bgpPayload.Type
+	if eventType == "" && bgpPayload.Message != nil && bgpPayload.Message.Type != "" {
+		eventType = bgpPayload.Message.Type
+		// For "sent" type, we know the nested data is under "update"
+		if eventType == "sent" {
+			eventType = "update"
+		}
+	}
 
 	// Start with the full bgp payload to get peer
 	var event Event
@@ -78,10 +90,10 @@ func parseEvent(data []byte) (*Event, error) {
 	}
 
 	// For non-state events, merge in the nested event data
-	if bgpPayload.Type != "" && bgpPayload.Type != "state" {
+	if eventType != "" && eventType != "state" {
 		var rawPayload map[string]json.RawMessage
 		if err := json.Unmarshal(payloadData, &rawPayload); err == nil {
-			if nestedData, ok := rawPayload[bgpPayload.Type]; ok && len(nestedData) > 0 {
+			if nestedData, ok := rawPayload[eventType]; ok && len(nestedData) > 0 {
 				// Only use nested data if it's an object (starts with '{'), not a string
 				if len(nestedData) > 0 && nestedData[0] == '{' {
 					// Merge nested data into event (this adds attr, nlri, message, etc.)
@@ -92,13 +104,17 @@ func parseEvent(data []byte) (*Event, error) {
 		}
 	}
 
-	// Preserve the event type from bgp.type
-	if bgpPayload.Type != "" {
-		event.Type = bgpPayload.Type
+	// Preserve the event type
+	if eventType != "" {
+		event.Type = eventType
 	}
 	// Preserve peer from bgp level
 	if len(bgpPayload.Peer) > 0 {
 		event.Peer = bgpPayload.Peer
+	}
+	// Preserve message info
+	if bgpPayload.Message != nil {
+		event.Message = bgpPayload.Message
 	}
 
 	// Parse raw JSON to extract family operations and ze-bgp JSON nested structures

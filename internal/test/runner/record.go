@@ -563,6 +563,26 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		for name, content := range v.StdinBlocks {
 			recordLogger().Debug("stdin block loaded", "name", name, "size", len(content), "preview", string(content[:min(100, len(content))]))
 		}
+
+		// Also parse "peer" stdin block for expectations (for reporting purposes).
+		// The peer block content is passed to ze-peer which parses it, but the
+		// test runner also needs to know about expectations for progress/failure reporting.
+		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
+			lines := strings.Split(string(peerBlock), "\n")
+			for _, line := range lines {
+				trimmed := strings.TrimSpace(line)
+				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+					continue
+				}
+				// Parse expect= and action= lines for reporting purposes
+				if strings.HasPrefix(trimmed, "expect=") || strings.HasPrefix(trimmed, "action=") {
+					if err := et.parseLine(r, ciFile, trimmed); err != nil {
+						// Log but don't fail - these are primarily for ze-peer
+						recordLogger().Debug("parsing peer block line", "line", trimmed, "error", err)
+					}
+				}
+			}
+		}
 	}
 
 	// Parse the non-Tmpfs lines (option:, expect:, cmd:, run=, etc.)
