@@ -39,7 +39,7 @@ During Stage 1, plugins declare their capabilities to the Hub.
 |---------|-------------|
 | `declare cmd <name>` | Register a runtime command (e.g., `bgp peer list`) |
 | `declare encoding <type>` | Set event encoding: `json` or `text` |
-| `declare conf <pattern>` | Register config pattern interest |
+| `declare wants config <root>` | Request config subtree delivery (e.g., `bgp`) |
 | `declare receive <type>` | Register event interest |
 | `declare done` | End of declarations (barrier) |
 
@@ -622,4 +622,4 @@ subscribe rib event cache
 
 ---
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-02-02

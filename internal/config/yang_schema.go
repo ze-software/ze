@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -51,9 +52,10 @@ func PluginOnlySchema() *Schema {
 }
 
 // YANGSchema loads YANG and creates a schema from it.
+// Includes all internal plugin YANG schemas (GR, hostname, etc.).
 // Returns nil if YANG loading fails.
 func YANGSchema() *Schema {
-	return YANGSchemaWithPlugins(nil)
+	return YANGSchemaWithPlugins(plugin.GetAllInternalPluginYANG())
 }
 
 // YANGSchemaWithPlugins loads YANG with additional plugin modules.

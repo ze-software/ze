@@ -62,22 +62,22 @@ plugin {                 →      1. Parse plugin blocks ONLY
   external gr { ... }           2. Start plugin processes  →    Started
   external rib { ... }
 }
-                                3. Wait for schema hooks   ←    declare conf schema capability
-                                                                  graceful-restart { restart-time <\d+>; }
+                                3. Wait for declarations   ←    declare wants config bgp
                                                            ←    declare done
                                 ─── CONFIG PARSING BARRIER ───
-peer 127.0.0.1 {         →      4. Parse rest of config
-  capability {                     (using plugin-extended schema)
+peer 127.0.0.1 {         →      4. Parse config (internal plugin
+  capability {                     YANG auto-loaded by YANGSchema())
     graceful-restart {
-      restart-time 120;         5. Deliver matching config →    config peer 127.0.0.1
-    }                                                             graceful-restart restart-time 120
+      restart-time 120;         5. Deliver JSON config     →    config json bgp {"bgp":{...}}
+    }
   }
 }
                                 6. Continue normal stages  →    (capability injection, ready)
 ```
 
-**Key principle:** Ze engine has NO hardcoded knowledge of capability-specific config
-(like `graceful-restart`). Plugins define their own config schema via `declare conf schema`.
+**Key principle:** Internal plugins (GR, hostname, etc.) have their YANG schemas
+automatically loaded via `YANGSchema()`. Plugins request config subtrees via
+`declare wants config <root>` and receive JSON format.
 
 **Benefits:**
 - Polyglot plugins: Any language can implement capability plugins
@@ -99,7 +99,7 @@ All plugins must complete each stage before any can proceed to the next.
 │                                                                          │
 │        STAGE 1: REGISTRATION                                             │
 │        declare cmd ...        │                 declare cmd ...          │
-│        declare conf ...       │                 declare conf ...         │
+│        declare wants config bgp│                 declare wants config bgp│
 │        declare done ──────────┼────────────────► declare done            │
 │             │                 │                      │                   │
 │             ▼                 │                      ▼                   │
@@ -110,10 +110,10 @@ All plugins must complete each stage before any can proceed to the next.
 │             │ ◄───────────────┼── BARRIER ──────────►│                   │
 │             │         (all plugins complete Reg)     │                   │
 │                                                                          │
-│        STAGE 2: CONFIG DELIVERY                                          │
+│        STAGE 2: CONFIG DELIVERY (JSON)                                   │
 │             │                 │                      │                   │
 │             ▼                 │                      ▼                   │
-│        ◄── config peer ...    │             config peer ... ──►          │
+│        ◄── config json bgp ...│             config json bgp ... ──►      │
 │        ◄── config done        │                   config done ──►        │
 │             │                 │                      │                   │
 │             ▼                 │                      ▼                   │
@@ -169,8 +169,8 @@ All plugins must complete each stage before any can proceed to the next.
 
 | Stage | Plugin → Ze | Ze → Plugin |
 |-------|----------------|----------------|
-| 1. Registration | `declare cmd/conf/receive/...`, `declare done` | - |
-| 2. Config | - | `config peer <addr> <key> <value>`, `config done` |
+| 1. Registration | `declare wants config <root>`, `declare cmd/receive/...`, `declare done` | - |
+| 2. Config | - | `config json <root> <json>`, `config done` |
 | 3. Capability | `capability hex <code> <value> [peer <addr>]`, `capability done` | - |
 | 4. Registry | - | `registry cmd <name>`, `registry done` |
 | 5. Ready | `ready` | - |
@@ -1034,17 +1034,17 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
 │                                                                             │
-│                              ◄───── declare conf peer * capability          │
-│                                      graceful-restart:restart-time          │
-│                                      <restart-time:\d+>                     │
+│                              ◄───── declare wants config bgp                │
 │                              ◄───── declare done                            │
 │                                                                             │
-│   STAGE 2: CONFIG DELIVERY                                                  │
+│   STAGE 2: CONFIG DELIVERY (JSON format)                                    │
 │                                                                             │
-│   config peer 192.168.1.1    ─────►                                         │
-│     restart-time 120                 (capture NAME, not full key)           │
-│   config peer 10.0.0.1       ─────►                                         │
-│     restart-time 90                                                         │
+│   config json bgp {"bgp":   ─────►                                         │
+│     {"peer":{"192.168.1.1":          (full config tree as JSON)             │
+│       {"capability":{                                                       │
+│         "graceful-restart":                                                 │
+│           {"restart-time":120}       (plugin extracts what it needs)        │
+│     }}}}}                                                                   │
 │   config done                ─────►                                         │
 │                                        (plugin parses, stores in grConfig)  │
 │                                                                             │
@@ -1082,13 +1082,13 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 - Example: `0078` = restart-time 120 (0x78 = 120)
 
 **Config delivery format:**
-- Pattern key: `graceful-restart:restart-time` (matches against server path)
-- Config delivery: `config peer <addr> restart-time <value>` (capture NAME only)
-- Plugin parses the capture name, not the full pattern key
+- Declaration: `declare wants config bgp` (request config subtree)
+- Config delivery: `config json bgp {"bgp":{"peer":{...}}}` (full JSON tree)
+- Plugin parses JSON and extracts `capability.graceful-restart.restart-time` per peer
 
-**Key insight:** GR plugin receives config for ALL peers with GR capability configured,
-regardless of explicit `process gr {}` bindings. This is because `deliverConfig()` in
-`internal/plugin/server.go` iterates all peers and matches against declared patterns.
+**Key insight:** GR plugin receives the entire BGP config tree as JSON, extracting what
+it needs (graceful-restart settings per peer). This pattern aligns with the hostname
+plugin and replaces the deprecated pattern-based `declare conf` approach.
 
 ### RIB Plugin (Full Lifecycle)
 
@@ -1376,4 +1376,4 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 
 ---
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-02

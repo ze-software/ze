@@ -7,7 +7,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 )
+
+// serializeSchemaWithGR returns schema with GR plugin YANG for serialize tests.
+func serializeSchemaWithGR() *Schema {
+	return YANGSchemaWithPlugins(map[string]string{
+		"ze-graceful-restart.yang": gr.GetYANG(),
+	})
+}
 
 // TestSerializeSimple verifies basic serialization.
 //
@@ -141,7 +150,7 @@ func TestSerializeCapability(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema := serializeSchemaWithGR() // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

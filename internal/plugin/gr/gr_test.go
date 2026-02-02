@@ -9,71 +9,73 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGRPlugin_ParseConfigLine verifies config line parsing.
+// TestGRPlugin_ParseBGPConfig verifies JSON config parsing.
 //
-// VALIDATES: Config lines in format "config peer <addr> restart-time <value>" are parsed.
+// VALIDATES: JSON config in format "config json bgp {...}" is parsed correctly.
 // PREVENTS: Config being silently ignored, causing missing GR capability.
-func TestGRPlugin_ParseConfigLine(t *testing.T) {
+func TestGRPlugin_ParseBGPConfig(t *testing.T) {
 	tests := []struct {
 		name       string
-		line       string
+		json       string
 		wantPeer   string
 		wantTime   uint16
 		wantParsed bool
 	}{
 		{
 			name:       "valid_restart_time_120",
-			line:       "config peer 192.168.1.1 restart-time 120",
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}`,
 			wantPeer:   "192.168.1.1",
 			wantTime:   120,
 			wantParsed: true,
 		},
 		{
 			name:       "valid_restart_time_zero",
-			line:       "config peer 10.0.0.1 restart-time 0",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":0}}}}}}`,
 			wantPeer:   "10.0.0.1",
 			wantTime:   0,
 			wantParsed: true,
 		},
 		{
 			name:       "valid_restart_time_max_4095",
-			line:       "config peer 127.0.0.1 restart-time 4095",
+			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}`,
 			wantPeer:   "127.0.0.1",
 			wantTime:   4095,
 			wantParsed: true,
 		},
 		{
 			name:       "clamped_above_max_4096",
-			line:       "config peer 127.0.0.1 restart-time 4096",
+			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4096}}}}}}`,
 			wantPeer:   "127.0.0.1",
 			wantTime:   4095, // Clamped to max
 			wantParsed: true,
 		},
 		{
 			name:       "clamped_above_max_65535",
-			line:       "config peer 127.0.0.1 restart-time 65535",
+			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":65535}}}}}}`,
 			wantPeer:   "127.0.0.1",
 			wantTime:   4095, // Clamped to max
 			wantParsed: true,
 		},
 		{
-			name:       "ignore_non_peer_config",
-			line:       "config global some-setting value",
+			name:       "default_restart_time_when_missing",
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{}}}}}}`,
+			wantPeer:   "192.168.1.1",
+			wantTime:   120, // Default per RFC 4724
+			wantParsed: true,
+		},
+		{
+			name:       "no_graceful_restart_capability",
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"route-refresh":{}}}}}}`,
 			wantParsed: false,
 		},
 		{
-			name:       "ignore_other_capability",
-			line:       "config peer 192.168.1.1 some-other-cap value",
+			name:       "no_capability_section",
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"peer-as":65001}}}}`,
 			wantParsed: false,
 		},
 		{
-			name:       "malformed_too_few_parts",
-			line:       "config peer 192.168.1.1",
-			wantParsed: false,
-		},
-		{
-			name:       "invalid_value_not_a_number",
-			line:       "config peer 192.168.1.1 restart-time abc",
+			name:       "no_peer_section",
+			json:       `{"bgp":{"router-id":"1.2.3.4"}}`,
 			wantParsed: false,
 		},
 	}
@@ -81,7 +83,7 @@ func TestGRPlugin_ParseConfigLine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := &GRPlugin{grConfig: make(map[string]uint16)}
-			g.parseConfigLine(tt.line)
+			g.parseConfigLine("config json bgp " + tt.json)
 
 			if tt.wantParsed {
 				require.Contains(t, g.grConfig, tt.wantPeer, "peer should be in grConfig")
@@ -198,8 +200,8 @@ func TestGRPlugin_CapabilityWireFormat(t *testing.T) {
 // VALIDATES: Plugin sends correct declarations and waits for expected markers.
 // PREVENTS: Protocol handshake failures blocking plugin startup.
 func TestGRPlugin_StartupProtocol(t *testing.T) {
-	// Simulate engine input
-	input := strings.NewReader(`config peer 192.168.1.1 restart-time 120
+	// Simulate engine input with JSON config format
+	input := strings.NewReader(`config json bgp {"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}
 config done
 registry done
 `)
@@ -213,7 +215,7 @@ registry done
 	out := output.String()
 
 	// Stage 1: Declaration
-	assert.Contains(t, out, "declare conf peer * capability graceful-restart:restart-time <restart-time:\\d+>")
+	assert.Contains(t, out, "declare wants config bgp")
 	assert.Contains(t, out, "declare done")
 
 	// Stage 3: Capability registration

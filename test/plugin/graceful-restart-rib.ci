@@ -1,9 +1,12 @@
-# Test: Graceful restart capability with route preservation
+# Test: Graceful Restart + RIB plugins combined
 #
-# This test verifies:
-# 1. GR capability parses correctly from config
-# 2. Static routes are sent on connection
-# 3. Routes are resent after reconnection
+# This test verifies GR and RIB plugins work together:
+# 1. GR capability parses from config (restart-time 120)
+# 2. Static routes sent on connection A
+# 3. RIB stores routes
+# 4. After reconnect, RIB replays stored routes
+#
+# This is the original graceful-restart test behavior with both plugins.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -15,7 +18,9 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 action=notification:conn=1:seq=2:text=Peer Reset
 
-# Connection B: Static route resent + EOR
+# Connection B: Static route + RIB replay + EOR
+# NOTE: Both static route (from config) and RIB replay (stored from conn A) are sent
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
@@ -25,6 +30,10 @@ stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gr {
 		run "ze bgp plugin gr";
+		encoder json;
+	}
+	external rib {
+		run "ze bgp plugin rib";
 		encoder json;
 	}
 }
@@ -66,10 +75,13 @@ bgp {
 		process gr {
 			send { update; }
 		}
+		process rib {
+			send { update; }
+		}
 	}
 }
 EOF_CONF
 
 # Process orchestration
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

@@ -31,13 +31,29 @@ Implement RFC 9234 BGP Role as a **plugin** with its own YANG schema.
 - [ ] `rfc/short/rfc9234.md` - Role capability, validation rules
 
 ### Code References
-- [ ] `internal/plugin/gr/gr.go` - plugin implementation pattern
-- [ ] `yang/ze-gr.yang` - YANG augment pattern
+- [ ] `internal/plugin/gr/gr.go` - plugin implementation pattern (uses `declare wants config bgp` + JSON)
+- [ ] `internal/plugin/hostname/hostname.go` - reference plugin for config parsing
 
 **Key insights:**
 - Role capability code 9, length 1, value 0-4
 - Plugin validates role pairs per RFC 9234 Table 2
 - Plugin controls accept/reject, engine just delivers events
+- **Config pattern:** All plugins use `declare wants config bgp` + JSON parsing (not deprecated `declare conf`)
+
+## Current Behavior
+
+**Source files to read before implementation:**
+- [ ] `internal/plugin/gr/gr.go` - Reference for plugin config pattern
+- [ ] `internal/plugin/hostname/hostname.go` - Reference for JSON config parsing
+- [ ] `internal/plugin/registration.go` - Plugin protocol (deprecated patterns removed)
+
+**Behavior to preserve:**
+- Plugin protocol stages (1-5) remain unchanged
+- Capability hex format for Stage 3 declarations
+- JSON event format for peer events
+
+**Behavior to change:**
+- New plugin (Role) to be created following current patterns
 
 ## Design
 
@@ -85,18 +101,19 @@ internal/plugin/role/
 declare rfc 9234
 declare receive open
 declare receive negotiated
-declare conf schema capability role { role <role:[a-z-]+>; }
+declare wants config bgp
+declare done
 ```
 
 ### Plugin Config Delivery (Stage 2)
 
-Engine delivers per-peer config:
+Engine delivers JSON config (like hostname/GR plugins):
 ```
-config peer 10.0.0.1 capability role role customer
+config json bgp {"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer"}}}}}}
 config done
 ```
 
-Plugin stores: peer 10.0.0.1 → local-role = customer
+Plugin parses JSON and stores: peer 10.0.0.1 → local-role = customer
 
 ### Plugin Capability Declaration (Stage 3)
 
@@ -307,7 +324,8 @@ bgp {
    - Augments ze-bgp peer config
 
 3. **Implement config handling (Stage 2)**
-   - Parse `config peer X capability role role Y`
+   - Parse `config json bgp {...}` (same pattern as GR/hostname plugins)
+   - Extract role config from JSON peer tree
    - Store local-role per peer
 
 4. **Implement capability declaration (Stage 3)**

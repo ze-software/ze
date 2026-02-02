@@ -65,6 +65,7 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 // Only plugins that augment the config schema need entries here.
 var internalPluginYANG = map[string]func() string{
 	"hostname": hostname.GetYANG,
+	"gr":       gr.GetYANG,
 }
 
 // GetInternalPluginYANG returns the YANG schema for an internal plugin.
@@ -74,6 +75,17 @@ func GetInternalPluginYANG(name string) string {
 		return getter()
 	}
 	return ""
+}
+
+// GetAllInternalPluginYANG returns all internal plugin YANG schemas.
+// Used to load all plugin YANG schemas before config parsing.
+func GetAllInternalPluginYANG() map[string]string {
+	result := make(map[string]string, len(internalPluginYANG))
+	for name, getter := range internalPluginYANG {
+		moduleName := "ze-" + name + ".yang"
+		result[moduleName] = getter()
+	}
+	return result
 }
 
 // CollectPluginYANG returns YANG schemas for the specified plugins.

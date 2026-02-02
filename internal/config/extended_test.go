@@ -4,7 +4,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 )
+
+// extendedSchemaWithGR returns schema with GR plugin YANG for extended tests.
+func extendedSchemaWithGR() *Schema {
+	return YANGSchemaWithPlugins(map[string]string{
+		"ze-graceful-restart.yang": gr.GetYANG(),
+	})
+}
 
 // TestFlagSyntax verifies flag-only capability syntax.
 //
@@ -24,7 +33,7 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -64,7 +73,7 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -99,7 +108,7 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

@@ -43,7 +43,12 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 // This is used when config data is already read (e.g., from stdin) and plugins
 // need to be merged in.
 func LoadReactorWithPlugins(input string, cliPlugins []string) (*reactor.Reactor, error) {
-	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
+	// Start with all internal plugin YANG (GR, hostname, etc.)
+	pluginYANG := plugin.GetAllInternalPluginYANG()
+	// Add CLI-specified plugins (may override internal)
+	for name, yang := range plugin.CollectPluginYANG(cliPlugins) {
+		pluginYANG[name] = yang
+	}
 	cfg, err := parseConfigWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err
@@ -154,7 +159,12 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	}
 
 	// Collect plugin YANG before parsing (plugins may augment schema)
-	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
+	// Start with all internal plugin YANG (GR, hostname, etc.)
+	pluginYANG := plugin.GetAllInternalPluginYANG()
+	// Add CLI-specified plugins (may override internal)
+	for name, yang := range plugin.CollectPluginYANG(cliPlugins) {
+		pluginYANG[name] = yang
+	}
 
 	// Parse config with plugin YANG schemas merged
 	cfg, err := parseConfigWithYANG(string(data), pluginYANG)

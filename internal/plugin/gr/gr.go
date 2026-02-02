@@ -69,12 +69,11 @@ func (g *GRPlugin) Run() int {
 // doStartupProtocol performs the 5-stage plugin registration protocol.
 func (g *GRPlugin) doStartupProtocol() {
 	// Stage 1: Declaration
-	// Register for Graceful Restart config (RFC 4724).
-	// Uses scoped key "graceful-restart:restart-time" matching RawCapabilityConfig format.
-	g.send("declare conf peer * capability graceful-restart:restart-time <restart-time:\\d+>")
+	// Request bgp config subtree as JSON - plugin extracts graceful-restart settings.
+	g.send("declare wants config bgp")
 	g.send("declare done")
 
-	// Stage 2: Parse config
+	// Stage 2: Parse config (JSON format)
 	g.parseConfig()
 
 	// Stage 3: Register GR capabilities per peer
@@ -88,7 +87,7 @@ func (g *GRPlugin) doStartupProtocol() {
 }
 
 // parseConfig reads and parses config lines until "config done".
-// Expected format: "config peer <addr> restart-time <value>".
+// Handles JSON config format: "config json bgp <json>".
 func (g *GRPlugin) parseConfig() {
 	for g.input.Scan() {
 		line := g.input.Text()
@@ -100,48 +99,92 @@ func (g *GRPlugin) parseConfig() {
 }
 
 // parseConfigLine parses a single config line.
-// Format: "config peer <addr> restart-time <value>".
-// Note: Config delivery sends capture NAME ("restart-time"), not full pattern key.
+// Format: "config json bgp <json>" where json contains full bgp config tree.
 func (g *GRPlugin) parseConfigLine(line string) {
-	// Expected: "config peer 192.168.1.1 restart-time 120"
-	if !strings.HasPrefix(line, "config peer ") {
-		logger.Debug("ignoring non-peer config", "line", line)
+	// Handle JSON config format: "config json bgp <json>"
+	if strings.HasPrefix(line, "config json bgp ") {
+		g.parseBGPConfig(line)
 		return
 	}
 
-	// Parse: config peer <addr> restart-time <value>
-	parts := strings.Fields(line)
-	if len(parts) < 5 {
-		logger.Warn("malformed config line", "line", line)
+	logger.Debug("ignoring non-bgp config line", "line", line)
+}
+
+// parseBGPConfig parses JSON config format: "config json bgp <json>".
+// Extracts graceful-restart config from each peer in the bgp tree.
+func (g *GRPlugin) parseBGPConfig(line string) {
+	// Format: config json bgp <json>
+	const prefix = "config json bgp "
+	if len(line) <= len(prefix) {
+		logger.Warn("empty bgp config JSON")
+		return
+	}
+	jsonStr := line[len(prefix):]
+
+	// Parse JSON bgp config tree
+	var bgpConfig map[string]any
+	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
+		logger.Warn("invalid JSON in bgp config", "err", err)
 		return
 	}
 
-	peerAddr := parts[2]
-	key := parts[3]
-	valueStr := parts[4]
-
-	if key != "restart-time" {
-		logger.Debug("ignoring non-GR config", "key", key)
-		return
+	// The config tree is wrapped: {"bgp": {"peer": {...}}}
+	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
+	if !ok {
+		// Try using bgpConfig directly in case it's not wrapped
+		bgpSubtree = bgpConfig
 	}
 
-	value, err := strconv.ParseUint(valueStr, 10, 16)
-	if err != nil {
-		logger.Warn("invalid restart-time value", "peer", peerAddr, "value", valueStr, "error", err)
+	// Extract peer map: {"peer": {"192.168.1.1": {...}, ...}}
+	peersMap, ok := bgpSubtree["peer"].(map[string]any)
+	if !ok {
+		logger.Debug("no peer config in bgp tree")
 		return
-	}
-
-	// RFC 4724: restart-time is 12 bits (0-4095)
-	if value > 4095 {
-		logger.Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", value)
-		value = 4095
 	}
 
 	g.mu.Lock()
-	g.grConfig[peerAddr] = uint16(value)
-	g.mu.Unlock()
+	defer g.mu.Unlock()
 
-	logger.Debug("parsed config", "peer", peerAddr, "restart-time", value)
+	// Iterate peers and extract graceful-restart config
+	for peerAddr, peerData := range peersMap {
+		peerMap, ok := peerData.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Look for capability.graceful-restart
+		capMap, ok := peerMap["capability"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		grData, ok := capMap["graceful-restart"].(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Extract restart-time (default 120 per RFC 4724)
+		restartTime := uint16(120)
+		if rtVal, ok := grData["restart-time"]; ok {
+			switch v := rtVal.(type) {
+			case float64:
+				restartTime = uint16(v)
+			case string:
+				if parsed, err := strconv.ParseUint(v, 10, 16); err == nil {
+					restartTime = uint16(parsed)
+				}
+			}
+		}
+
+		// RFC 4724: restart-time is 12 bits (0-4095)
+		if restartTime > 4095 {
+			logger.Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
+			restartTime = 4095
+		}
+
+		g.grConfig[peerAddr] = restartTime
+		logger.Debug("parsed config", "peer", peerAddr, "restart-time", restartTime)
+	}
 }
 
 // registerCapabilities sends Stage 3 capability declarations.
@@ -302,3 +345,66 @@ func formatGRText(r *grResult) string {
 	}
 	return sb.String()
 }
+
+// GetYANG returns the embedded YANG schema for the GR plugin.
+func GetYANG() string {
+	return grYANG
+}
+
+// grYANG is the YANG schema for the GR plugin.
+// Note: We augment all paths where capability container appears to support templates.
+const grYANG = `module ze-graceful-restart {
+    namespace "urn:ze:graceful-restart";
+    prefix gr;
+
+    import ze-bgp { prefix ze-bgp; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "Graceful Restart capability plugin for Ze (RFC 4724, code 64).
+         Configures per-peer restart-time for BGP graceful restart.";
+
+    revision 2025-01-31 {
+        description "Initial revision.";
+    }
+
+    // Grouping for reuse across all augment paths
+    grouping graceful-restart-config {
+        container graceful-restart {
+            ze:syntax "flex";
+            description "Graceful Restart capability configuration.";
+
+            leaf restart-time {
+                type uint16 {
+                    range "0..4095";
+                }
+                units "seconds";
+                default "120";
+                description
+                    "Restart Time in seconds (RFC 4724 Section 3).
+                     Maximum value is 4095 (12-bit field).";
+            }
+        }
+    }
+
+    // Main bgp block
+    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: bgp peer pattern
+    augment "/ze-bgp:template/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: legacy group
+    augment "/ze-bgp:template/ze-bgp:group/ze-bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: legacy match
+    augment "/ze-bgp:template/ze-bgp:match/ze-bgp:capability" {
+        uses graceful-restart-config;
+    }
+}
+`

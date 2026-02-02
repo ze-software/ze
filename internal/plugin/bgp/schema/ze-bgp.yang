@@ -164,15 +164,7 @@ module ze-bgp {
                 description "Route Refresh capability";
             }
 
-            container graceful-restart {
-                ze:syntax "flex";
-                description "Graceful Restart capability";
-                leaf restart-time {
-                    type uint16;
-                    default 120;
-                    description "Restart time in seconds";
-                }
-            }
+            // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
 
             container add-path {
                 ze:syntax "flex";

@@ -6,7 +6,17 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 )
+
+// schemaWithGR returns a YANG schema with the GR plugin YANG loaded.
+// Use this for tests that need graceful-restart config.
+func schemaWithGR() *Schema {
+	return YANGSchemaWithPlugins(map[string]string{
+		"ze-graceful-restart.yang": gr.GetYANG(),
+	})
+}
 
 // TestBGPSchemaNeighbor verifies group configuration parsing.
 //
@@ -484,7 +494,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := NewParser(schemaWithGR()) // Use schema with GR plugin YANG
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -500,10 +510,10 @@ bgp {
 	val, _ := cap.Get("asn4")
 	require.Equal(t, "true", val)
 
-	gr := cap.GetContainer("graceful-restart")
-	require.NotNil(t, gr)
+	grCap := cap.GetContainer("graceful-restart")
+	require.NotNil(t, grCap)
 
-	val, _ = gr.Get("restart-time")
+	val, _ = grCap.Get("restart-time")
 	require.Equal(t, "120", val)
 
 	addPath := cap.GetContainer("add-path")
@@ -989,6 +999,17 @@ bgp {
 func parseConfig(t *testing.T, input string) *BGPConfig {
 	t.Helper()
 	p := NewParser(YANGSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+	return cfg
+}
+
+// parseConfigWithGR parses config using schema with GR plugin YANG.
+func parseConfigWithGR(t *testing.T, input string) *BGPConfig {
+	t.Helper()
+	p := NewParser(schemaWithGR())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	cfg, err := TreeToConfig(tree)
@@ -2842,7 +2863,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := NewParser(schemaWithGR()) // Use schema with GR plugin YANG
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	_, err = TreeToConfig(tree)
@@ -2890,7 +2911,7 @@ bgp {
     }
 }
 `
-	cfg := parseConfig(t, input)
+	cfg := parseConfigWithGR(t, input) // Use schema with GR plugin YANG
 	require.Len(t, cfg.Peers, 1)
 	require.True(t, cfg.Peers[0].Capabilities.GracefulRestart)
 }
@@ -2942,7 +2963,7 @@ bgp {
     }
 }
 `
-	cfg := parseConfig(t, input)
+	cfg := parseConfigWithGR(t, input) // Use schema with GR plugin YANG
 	require.Len(t, cfg.Peers, 1)
 	require.True(t, cfg.Peers[0].Capabilities.RouteRefresh)
 	require.True(t, cfg.Peers[0].Capabilities.GracefulRestart)

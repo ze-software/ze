@@ -857,11 +857,11 @@ func TestMergeCliPluginsInternal(t *testing.T) {
 	assert.Equal(t, "./custom-plugin", cfg2.Plugins[0].Run)
 }
 
-// TestHostnameRequiresPlugin verifies hostname/domain-name require plugin.
+// TestHostnameAlwaysAvailable verifies hostname/domain-name are always parseable.
 //
-// VALIDATES: Parsing fails for host-name/domain-name without hostname plugin.
-// PREVENTS: Silent ignore of hostname config when plugin not loaded.
-func TestHostnameRequiresPlugin(t *testing.T) {
+// VALIDATES: host-name/domain-name parse with default schema (internal plugin YANG always loaded).
+// PREVENTS: Regression in internal plugin YANG loading.
+func TestHostnameAlwaysAvailable(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
@@ -870,13 +870,13 @@ bgp {
     }
 }
 `
-	// Without hostname plugin, YANG schema doesn't include host-name leaf
+	// YANGSchema() now includes all internal plugin YANG (hostname, gr, etc.)
 	p := NewParser(YANGSchema())
-	_, err := p.Parse(input)
+	tree, err := p.Parse(input)
 
-	// Parsing should fail - host-name is not in base schema
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "host-name")
+	// Parsing should succeed - internal plugin YANG is always loaded
+	require.NoError(t, err)
+	require.NotNil(t, tree)
 }
 
 // TestHostnameWithPluginYANG verifies hostname plugin YANG enables parsing.
