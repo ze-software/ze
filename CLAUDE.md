@@ -226,6 +226,16 @@ echo "" > .claude/selected-spec                       # Clear after done
 - RFCs: `rfc/` directory
 - RFC summaries: `rfc/short/`
 
+## Codeberg CLI
+
+Use `tea` for Codeberg interactions (PRs, issues):
+```bash
+tea pr list                      # List PRs
+tea pr create --title "..." --description "..."
+tea issue list
+tea issue create --title "..."
+```
+
 ## Architecture Docs
 Read when working on specific areas:
 - **Core design: `docs/architecture/core-design.md` (START HERE)**
