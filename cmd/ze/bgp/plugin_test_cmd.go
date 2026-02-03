@@ -31,7 +31,7 @@ func cmdPluginTest(args []string) int {
 	showJSON := fs.Bool("json", false, "show JSON that would be sent to each plugin")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin-test [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin test [options] <config-file>
 
 Test plugin configuration and protocol behavior.
 Useful for debugging plugin YANG schema loading and config delivery.
@@ -41,11 +41,11 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze bgp plugin-test --plugin ze.hostname --schema config.conf
-  ze bgp plugin-test --plugin ze.hostname --tree config.conf
-  ze bgp plugin-test --plugin ze.hostname --json config.conf
-  ze bgp plugin-test --plugin ze.hostname --json --root bgp --root rib config.conf
-  ze bgp plugin-test --json --root bgp/peer config.conf
+  ze bgp plugin test --plugin ze.hostname --schema config.conf
+  ze bgp plugin test --plugin ze.hostname --tree config.conf
+  ze bgp plugin test --plugin ze.hostname --json config.conf
+  ze bgp plugin test --plugin ze.hostname --json --root bgp --root rib config.conf
+  ze bgp plugin test --json --root bgp/peer config.conf
 `)
 	}
 
