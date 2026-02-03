@@ -1569,6 +1569,7 @@ func formatIPv6Compressed(addr []byte) string {
 }
 
 // parseGenericNLRI parses generic NLRI (IPv4/IPv6 prefixes).
+// Returns a slice of prefix strings (e.g., ["10.0.0.0/24", "2001::1/128"]).
 func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 	var routes []any
 	offset := 0
@@ -1595,7 +1596,8 @@ func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 				prefixBytes[0], prefixBytes[1], prefixBytes[2], prefixBytes[3], prefixLen)
 		}
 
-		routes = append(routes, map[string]any{"nlri": prefix})
+		// Return plain prefix string (consistent with IPv4 unicast format)
+		routes = append(routes, prefix)
 		offset += byteLen
 	}
 
