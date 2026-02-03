@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/parse"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 )
 
@@ -185,21 +186,23 @@ func TestParseOrigin(t *testing.T) {
 		{"INCOMPLETE uppercase", "INCOMPLETE", 2, false},
 		{"? alias", "?", 2, false},
 
+		// Empty string = IGP (unified with config behavior)
+		{"empty string is IGP", "", 0, false},
+
 		// Invalid origins
-		{"empty string", "", 0, true},
 		{"invalid value", "invalid", 0, true},
 		{"numeric", "0", 0, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseOrigin(tt.input)
+			got, err := parse.Origin(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseOrigin(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("parse.Origin(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && got != tt.want {
-				t.Errorf("parseOrigin(%q) = %v, want %v", tt.input, got, tt.want)
+				t.Errorf("parse.Origin(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -340,13 +343,13 @@ func TestParseCommunity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseCommunity(tt.input)
+			got, err := attribute.ParseCommunity(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseCommunity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("attribute.ParseCommunity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && got != tt.want {
-				t.Errorf("parseCommunity(%q) = 0x%08X, want 0x%08X", tt.input, got, tt.want)
+				t.Errorf("attribute.ParseCommunity(%q) = 0x%08X, want 0x%08X", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -423,13 +426,13 @@ func TestParseLargeCommunity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := parseLargeCommunity(tt.input)
+			got, err := attribute.ParseLargeCommunity(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseLargeCommunity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("attribute.ParseLargeCommunity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && got != tt.want {
-				t.Errorf("parseLargeCommunity(%q) = %+v, want %+v", tt.input, got, tt.want)
+				t.Errorf("attribute.ParseLargeCommunity(%q) = %+v, want %+v", tt.input, got, tt.want)
 			}
 		})
 	}

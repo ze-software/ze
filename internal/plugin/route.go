@@ -195,20 +195,6 @@ func init() {
 	RegisterBuiltin("bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
 }
 
-// parseOrigin parses origin value: igp, egp, or incomplete.
-func parseOrigin(s string) (uint8, error) {
-	switch strings.ToLower(s) {
-	case "igp":
-		return 0, nil
-	case "egp":
-		return 1, nil
-	case "incomplete", "?":
-		return 2, nil
-	default:
-		return 0, fmt.Errorf("invalid origin: %s (expected igp, egp, or incomplete)", s)
-	}
-}
-
 // ErrInvalidKeyword is returned when a keyword is not valid for the route family.
 var ErrInvalidKeyword = errors.New("invalid keyword for route family")
 
@@ -510,7 +496,7 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 	tokens, consumed := parseBracketedList(args)
 	comms := make([]uint32, 0, len(tokens))
 	for _, tok := range tokens {
-		comm, err := parseCommunity(tok)
+		comm, err := attribute.ParseCommunity(tok)
 		if err != nil {
 			return nil, consumed, err
 		}
@@ -518,12 +504,6 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 	}
 
 	return comms, consumed, nil
-}
-
-// parseCommunity parses a single community value.
-// Delegates to attribute.ParseCommunity for shared parsing logic.
-func parseCommunity(s string) (uint32, error) {
-	return attribute.ParseCommunity(s)
 }
 
 // parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
@@ -535,7 +515,7 @@ func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
 	tokens, consumed := parseBracketedList(args)
 	lcomms := make([]LargeCommunity, 0, len(tokens))
 	for _, tok := range tokens {
-		lc, err := parseLargeCommunity(tok)
+		lc, err := attribute.ParseLargeCommunity(tok)
 		if err != nil {
 			return nil, consumed, err
 		}
@@ -543,12 +523,6 @@ func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
 	}
 
 	return lcomms, consumed, nil
-}
-
-// parseLargeCommunity parses a single large community GA:LD1:LD2.
-// Delegates to attribute.ParseLargeCommunity for shared parsing logic.
-func parseLargeCommunity(s string) (LargeCommunity, error) {
-	return attribute.ParseLargeCommunity(s)
 }
 
 // parseExtendedCommunities parses extended communities in format [type:value:value ...].

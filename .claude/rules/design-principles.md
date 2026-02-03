@@ -27,6 +27,40 @@
 
 **Test:** Can a new developer understand this in 30 seconds?
 
+## No Identity Wrappers
+
+**A wrapper is justified only if it transforms the interface.**
+
+Valid wrapper reasons:
+- Type conversion (e.g., `uint8` → domain type)
+- Error wrapping or enrichment
+- Default value injection
+- Logging/metrics instrumentation
+
+**Identity wrappers add indirection without value:**
+
+```go
+// ❌ Bad: Just delegates, adds nothing
+func parseOrigin(s string) (uint8, error) {
+    return parse.Origin(s)
+}
+
+// Call parse.Origin() directly instead
+```
+
+```go
+// ✅ Good: Transforms the interface (type conversion)
+func ParseOrigin(s string) (config.Origin, error) {
+    v, err := parse.Origin(s)
+    if err != nil {
+        return 0, err
+    }
+    return config.Origin(v), nil  // Type conversion justifies wrapper
+}
+```
+
+**When you find an identity wrapper:** Delete it, call the underlying function directly.
+
 ## Single Responsibility
 
 Each component (function, struct, package) does ONE thing.

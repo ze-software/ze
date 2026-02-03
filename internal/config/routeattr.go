@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/parse"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 )
 
@@ -22,30 +23,17 @@ const (
 )
 
 // ParseOrigin parses an origin string (igp, egp, incomplete).
+// Delegates to parse.Origin() for the actual parsing logic.
 func ParseOrigin(s string) (Origin, error) {
-	switch strings.ToLower(s) {
-	case "", "igp":
-		return OriginIGP, nil
-	case "egp":
-		return OriginEGP, nil
-	case "incomplete":
-		return OriginIncomplete, nil
-	default:
-		return 0, fmt.Errorf("invalid origin %q: valid values are igp, egp, incomplete", s)
+	v, err := parse.Origin(s)
+	if err != nil {
+		return 0, err
 	}
+	return Origin(v), nil
 }
 
 func (o Origin) String() string {
-	switch o {
-	case OriginIGP:
-		return "igp"
-	case OriginEGP:
-		return "egp"
-	case OriginIncomplete:
-		return "incomplete"
-	default:
-		return fmt.Sprintf("unknown(%d)", o)
-	}
+	return parse.OriginString(uint8(o))
 }
 
 // Community represents standard BGP communities (RFC 1997).
