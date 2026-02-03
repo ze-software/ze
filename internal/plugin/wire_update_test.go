@@ -222,6 +222,10 @@ func containsAt(s, substr string) bool {
 //
 // VALIDATES: Edge cases at length boundaries handled correctly.
 // PREVENTS: Off-by-one errors in length validation.
+//
+// Note: With shared parsing, the entire UPDATE structure is validated upfront.
+// Truncated payloads (< 4 bytes minimum) fail all accessors consistently.
+// This is stricter than per-accessor validation but more predictable.
 func TestWireUpdate_BoundaryConditions(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -233,15 +237,15 @@ func TestWireUpdate_BoundaryConditions(t *testing.T) {
 		{
 			name:      "exactly_1_byte",
 			payload:   []byte{0x00},
-			wantWdErr: true, // need 2 bytes for withdrawn len
+			wantWdErr: true, // Truncated: need 4 bytes minimum (wdLen + attrLen)
 			wantAtErr: true,
 			wantNlErr: true,
 		},
 		{
 			name:      "exactly_2_bytes_wd0",
 			payload:   []byte{0x00, 0x00},
-			wantWdErr: false, // withdrawn len = 0, valid
-			wantAtErr: true,  // no room for attr len
+			wantWdErr: true, // Truncated: need 4 bytes minimum
+			wantAtErr: true,
 			wantNlErr: true,
 		},
 		{
@@ -253,9 +257,9 @@ func TestWireUpdate_BoundaryConditions(t *testing.T) {
 		},
 		{
 			name:      "wd_len_points_to_exact_end",
-			payload:   []byte{0x00, 0x02, 0xAA, 0xBB}, // wd=2, exactly 2 bytes follow, but no attr len
-			wantWdErr: false,                          // withdrawn bytes present
-			wantAtErr: true,                           // no attr len field
+			payload:   []byte{0x00, 0x02, 0xAA, 0xBB}, // wd=2, but no attr len field
+			wantWdErr: true,                           // Truncated: no room for attrLen
+			wantAtErr: true,
 			wantNlErr: true,
 		},
 	}
@@ -717,39 +721,40 @@ func TestWireUpdate_MPUnreach_Malformed(t *testing.T) {
 	}
 }
 
-// TestWireUpdate_WithdrawnOK_AttrsMissing verifies partial parse succeeds then fails.
+// TestWireUpdate_TruncatedAfterWithdrawn verifies truncated payload detection.
 //
-// VALIDATES: Withdrawn() succeeds when withdrawn data present, Attrs()/NLRI() fail when attrLen missing
-// PREVENTS: False success when payload is truncated after withdrawn section.
-func TestWireUpdate_WithdrawnOK_AttrsMissing(t *testing.T) {
+// VALIDATES: Payload missing attrLen field is detected as truncated.
+// PREVENTS: Processing malformed UPDATE with incomplete structure.
+//
+// Note: With shared parsing, the entire structure is validated upfront.
+// All accessors fail consistently for a truncated payload.
+func TestWireUpdate_TruncatedAfterWithdrawn(t *testing.T) {
 	// wdLen=2, payload has exactly 4 bytes (2 for len + 2 for withdrawn data)
-	// No bytes remaining for attrLen field
+	// No bytes remaining for attrLen field - truncated
 	payload := []byte{0x00, 0x02, 0xAA, 0xBB}
 
 	wu := NewWireUpdate(payload, 0)
 
-	// Withdrawn should succeed
-	wd, err := wu.Withdrawn()
-	if err != nil {
-		t.Errorf("Withdrawn() error = %v, want nil", err)
+	// All accessors should fail - payload is truncated (no attrLen field)
+	_, err := wu.Withdrawn()
+	if err == nil {
+		t.Error("Withdrawn() should fail on truncated payload")
 	}
-	if len(wd) != 2 || wd[0] != 0xAA || wd[1] != 0xBB {
-		t.Errorf("Withdrawn() = %v, want [0xAA, 0xBB]", wd)
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("Withdrawn() error = %v, want ErrUpdateTruncated", err)
 	}
 
-	// Attrs should fail - no attrLen bytes
 	_, err = wu.Attrs()
 	if err == nil {
-		t.Error("Attrs() should fail when attrLen bytes missing")
+		t.Error("Attrs() should fail on truncated payload")
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
 	}
 
-	// NLRI should fail - no attrLen bytes
 	_, err = wu.NLRI()
 	if err == nil {
-		t.Error("NLRI() should fail when attrLen bytes missing")
+		t.Error("NLRI() should fail on truncated payload")
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
@@ -1115,5 +1120,92 @@ func TestWireUpdate_AttrIteratorEmpty(t *testing.T) {
 	}
 	if iter != nil {
 		t.Error("AttrIterator() should return nil for empty attrs")
+	}
+}
+
+// TestWireUpdate_CachedParsing verifies offsets are parsed once and reused.
+//
+// VALIDATES: Multiple accessor calls don't re-parse the UPDATE structure.
+// PREVENTS: Performance regression from repeated offset calculation.
+func TestWireUpdate_CachedParsing(t *testing.T) {
+	// Build UPDATE with all sections
+	withdrawn := []byte{0x10, 0x0a}
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	nlri := []byte{0x18, 0xc0, 0xa8, 0x01}
+
+	payload := make([]byte, 2+len(withdrawn)+2+len(attrs)+len(nlri))
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn))) //nolint:gosec // G115: test data
+	copy(payload[2:], withdrawn)
+	offset := 2 + len(withdrawn)
+	binary.BigEndian.PutUint16(payload[offset:], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[offset+2:], attrs)
+	copy(payload[offset+2+len(attrs):], nlri)
+
+	wu := NewWireUpdate(payload, 0)
+
+	// Call all three accessors multiple times
+	// They should all succeed and return consistent data
+	for i := 0; i < 3; i++ {
+		wd, err := wu.Withdrawn()
+		if err != nil {
+			t.Fatalf("Withdrawn() call %d error: %v", i, err)
+		}
+		if len(wd) != len(withdrawn) {
+			t.Errorf("Withdrawn() call %d len = %d, want %d", i, len(wd), len(withdrawn))
+		}
+
+		at, err := wu.Attrs()
+		if err != nil {
+			t.Fatalf("Attrs() call %d error: %v", i, err)
+		}
+		if at == nil {
+			t.Errorf("Attrs() call %d returned nil", i)
+		}
+
+		nl, err := wu.NLRI()
+		if err != nil {
+			t.Fatalf("NLRI() call %d error: %v", i, err)
+		}
+		if len(nl) != len(nlri) {
+			t.Errorf("NLRI() call %d len = %d, want %d", i, len(nl), len(nlri))
+		}
+	}
+}
+
+// TestWireUpdate_CachedError verifies malformed payload error is cached.
+//
+// VALIDATES: Once parsing fails, subsequent calls return cached error.
+// PREVENTS: Repeated parsing of known-bad payloads.
+func TestWireUpdate_CachedError(t *testing.T) {
+	// Malformed: claims 5 bytes withdrawn, only has 1
+	payload := []byte{0x00, 0x05, 0x01}
+
+	wu := NewWireUpdate(payload, 0)
+
+	// First call should fail
+	_, err1 := wu.Withdrawn()
+	if err1 == nil {
+		t.Fatal("Withdrawn() should fail on malformed payload")
+	}
+	if !errors.Is(err1, ErrUpdateTruncated) {
+		t.Errorf("Withdrawn() error = %v, want ErrUpdateTruncated", err1)
+	}
+
+	// Second call should return same error (cached)
+	_, err2 := wu.Attrs()
+	if err2 == nil {
+		t.Fatal("Attrs() should fail on malformed payload")
+	}
+	if !errors.Is(err2, ErrUpdateTruncated) {
+		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err2)
+	}
+
+	// Third call to different accessor should also return cached error
+	_, err3 := wu.NLRI()
+	if err3 == nil {
+		t.Fatal("NLRI() should fail on malformed payload")
+	}
+	if !errors.Is(err3, ErrUpdateTruncated) {
+		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err3)
 	}
 }

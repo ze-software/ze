@@ -1,8 +1,6 @@
 package message
 
 import (
-	"encoding/binary"
-
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
 )
 
@@ -59,48 +57,22 @@ func (u *Update) Type() MessageType {
 //
 // This performs minimal parsing - just extracts the three sections.
 // Detailed attribute and NLRI parsing is done lazily.
+// Uses wire.ParseUpdateSections for shared parsing logic with WireUpdate.
 func UnpackUpdate(data []byte) (*Update, error) {
-	// RFC 4271 Section 4.3 - Minimum UPDATE body is 4 octets:
-	// 2 octets Withdrawn Routes Length + 2 octets Total Path Attribute Length.
-	if len(data) < 4 {
+	// Use shared parser for consistent validation
+	sections, err := wire.ParseUpdateSections(data)
+	if err != nil {
 		return nil, ErrShortRead
 	}
-
-	// RFC 4271 Section 4.3 - Withdrawn Routes Length: 2-octet unsigned integer
-	// indicating total length of Withdrawn Routes field in octets.
-	withdrawnLen := int(binary.BigEndian.Uint16(data[0:2]))
-	if len(data) < 2+withdrawnLen+2 {
-		return nil, ErrShortRead
-	}
-
-	// RFC 4271 Section 4.3 - Total Path Attribute Length: 2-octet unsigned integer
-	// indicating total length of Path Attributes field in octets.
-	attrOffset := 2 + withdrawnLen
-	attrLen := int(binary.BigEndian.Uint16(data[attrOffset : attrOffset+2]))
-	if len(data) < attrOffset+2+attrLen {
-		return nil, ErrShortRead
-	}
-
-	// RFC 4271 Section 4.3 - NLRI length is not encoded explicitly but calculated as:
-	// UPDATE message Length - 23 - Total Path Attributes Length - Withdrawn Routes Length
-	// (Here we calculate from remaining bytes since header already stripped.)
-	nlriOffset := attrOffset + 2 + attrLen
-	nlriLen := len(data) - nlriOffset
 
 	u := &Update{
 		rawData: data, // Keep reference for passthrough
 	}
 
-	// Extract sections (still references original data - zero-copy)
-	if withdrawnLen > 0 {
-		u.WithdrawnRoutes = data[2 : 2+withdrawnLen]
-	}
-	if attrLen > 0 {
-		u.PathAttributes = data[attrOffset+2 : attrOffset+2+attrLen]
-	}
-	if nlriLen > 0 {
-		u.NLRI = data[nlriOffset:]
-	}
+	// Extract sections using shared parser (zero-copy)
+	u.WithdrawnRoutes = sections.Withdrawn(data)
+	u.PathAttributes = sections.Attrs(data)
+	u.NLRI = sections.NLRI(data)
 
 	return u, nil
 }

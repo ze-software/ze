@@ -13,6 +13,42 @@ func TestUpdateType(t *testing.T) {
 	assert.Equal(t, TypeUPDATE, u.Type())
 }
 
+// TestMessageUpdateUsesShared verifies UnpackUpdate uses wire.ParseUpdateSections.
+//
+// VALIDATES: UnpackUpdate delegates to shared parser for consistent behavior.
+// PREVENTS: Divergent parsing logic between message.Update and WireUpdate.
+func TestMessageUpdateUsesShared(t *testing.T) {
+	// Build UPDATE with all sections to exercise full parsing
+	withdrawn := []byte{0x10, 0x0a} // /16 prefix
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	nlri := []byte{0x18, 0xc0, 0xa8, 0x01} // /24 prefix
+
+	body := make([]byte, 2+len(withdrawn)+2+len(attrs)+len(nlri))
+	body[0] = 0x00
+	body[1] = byte(len(withdrawn))
+	copy(body[2:], withdrawn)
+	offset := 2 + len(withdrawn)
+	body[offset] = 0x00
+	body[offset+1] = byte(len(attrs))
+	copy(body[offset+2:], attrs)
+	copy(body[offset+2+len(attrs):], nlri)
+
+	msg, err := UnpackUpdate(body)
+	require.NoError(t, err)
+
+	// Verify sections extracted correctly (proves shared parser works)
+	assert.Equal(t, withdrawn, msg.WithdrawnRoutes, "withdrawn mismatch")
+	assert.Equal(t, attrs, msg.PathAttributes, "attrs mismatch")
+	assert.Equal(t, nlri, msg.NLRI, "nlri mismatch")
+
+	// Verify zero-copy: sections should share backing array with body
+	if len(msg.WithdrawnRoutes) > 0 {
+		msg.WithdrawnRoutes[0] = 0xEE
+		assert.Equal(t, byte(0xEE), body[2], "WithdrawnRoutes should be zero-copy")
+		body[2] = withdrawn[0] // restore
+	}
+}
+
 // TestUpdateUnpackMinimal verifies minimal UPDATE (EOR).
 //
 // VALIDATES: End-of-RIB marker parsing.

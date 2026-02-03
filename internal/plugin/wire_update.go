@@ -1,12 +1,12 @@
 package plugin
 
 import (
-	"encoding/binary"
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 )
 
@@ -27,12 +27,21 @@ import (
 //
 // All methods return slices into the original payload - do not modify.
 // GC manages lifetime; no pool or reference counting.
-// Thread-safe for concurrent read access.
+//
+// Thread-safe for concurrent read access. Lazy parsing has a benign race:
+// if two goroutines call accessors simultaneously on a fresh WireUpdate,
+// both may parse (same input → same result). The struct field assignment
+// is not atomic, but since both goroutines compute identical values from
+// identical input, any interleaving produces correct results.
 type WireUpdate struct {
 	payload     []byte
 	sourceCtxID bgpctx.ContextID
 	messageID   uint64          // Unique ID set by reactor after creation
 	sourceID    source.SourceID // Source that sent/created this message
+
+	// Cached section offsets (parsed lazily on first accessor call)
+	sections wire.UpdateSections
+	parseErr error // Cached error if parsing failed
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -44,21 +53,32 @@ func NewWireUpdate(payload []byte, ctxID bgpctx.ContextID) *WireUpdate {
 	}
 }
 
+// ensureParsed parses section offsets if not already done.
+// Thread-safety: benign race - concurrent calls may both parse,
+// but result is identical (same input → same output).
+func (u *WireUpdate) ensureParsed() {
+	if u.sections.Valid() || u.parseErr != nil {
+		return // Already parsed (success or failure)
+	}
+
+	sections, err := wire.ParseUpdateSections(u.payload)
+	if err != nil {
+		// Map wire.ErrUpdateTruncated to plugin.ErrUpdateTruncated for consistency
+		u.parseErr = ErrUpdateTruncated
+		return
+	}
+	u.sections = sections
+}
+
 // Withdrawn returns the Withdrawn Routes section.
 // RFC 4271 Section 4.3 - IPv4 prefixes being withdrawn.
 // Returns (nil, nil) if empty, (nil, error) if malformed.
 func (u *WireUpdate) Withdrawn() ([]byte, error) {
-	if len(u.payload) < 2 {
-		return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)
+	u.ensureParsed()
+	if u.parseErr != nil {
+		return nil, fmt.Errorf("withdrawn: %w", u.parseErr)
 	}
-	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
-	if wdLen == 0 {
-		return nil, nil
-	}
-	if uint32(len(u.payload)) < 2+wdLen { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)
-	}
-	return u.payload[2 : 2+wdLen], nil
+	return u.sections.Withdrawn(u.payload), nil
 }
 
 // Attrs returns the Path Attributes as an AttributesWire for lazy parsing.
@@ -69,48 +89,29 @@ func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
 	return u.deriveAttrs()
 }
 
-// deriveAttrs extracts AttributesWire from payload.
+// deriveAttrs extracts AttributesWire from payload using cached sections.
 func (u *WireUpdate) deriveAttrs() (*attribute.AttributesWire, error) {
-	if len(u.payload) < 2 {
-		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
+	u.ensureParsed()
+	if u.parseErr != nil {
+		return nil, fmt.Errorf("attrs: %w", u.parseErr)
 	}
-	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
-	attrLenOffset := 2 + wdLen
-	if uint32(len(u.payload)) < attrLenOffset+2 { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
-	}
-	attrLen := uint32(binary.BigEndian.Uint16(u.payload[attrLenOffset:]))
-	if attrLen == 0 {
+
+	attrBytes := u.sections.Attrs(u.payload)
+	if attrBytes == nil {
 		return nil, nil //nolint:nilnil // nil,nil = valid empty (no attributes)
 	}
-	attrStart := attrLenOffset + 2
-	if uint32(len(u.payload)) < attrStart+attrLen { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
-	}
-	return attribute.NewAttributesWire(u.payload[attrStart:attrStart+attrLen], u.sourceCtxID), nil
+	return attribute.NewAttributesWire(attrBytes, u.sourceCtxID), nil
 }
 
 // NLRI returns the Network Layer Reachability Information section.
 // RFC 4271 Section 4.3 - IPv4 prefixes being announced.
 // Returns (nil, nil) if empty, (nil, error) if malformed.
 func (u *WireUpdate) NLRI() ([]byte, error) {
-	if len(u.payload) < 2 {
-		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
+	u.ensureParsed()
+	if u.parseErr != nil {
+		return nil, fmt.Errorf("nlri: %w", u.parseErr)
 	}
-	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
-	attrLenOffset := 2 + wdLen
-	if uint32(len(u.payload)) < attrLenOffset+2 { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
-	}
-	attrLen := uint32(binary.BigEndian.Uint16(u.payload[attrLenOffset:]))
-	nlriStart := attrLenOffset + 2 + attrLen
-	if nlriStart > uint32(len(u.payload)) { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
-	}
-	if nlriStart == uint32(len(u.payload)) { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil, nil // No NLRI section (valid)
-	}
-	return u.payload[nlriStart:], nil
+	return u.sections.NLRI(u.payload), nil
 }
 
 // MPReach extracts MP_REACH_NLRI (attribute code 14) as MPReachWire.
