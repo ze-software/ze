@@ -87,31 +87,6 @@ func (c *Colors) Reset() string {
 	return colorReset
 }
 
-// Header formats a section header line.
-func (c *Colors) Header(s string) string {
-	return c.Cyan(s)
-}
-
-// Label formats a field label.
-func (c *Colors) Label(s string) string {
-	return c.Yellow(s)
-}
-
-// Success formats success text.
-func (c *Colors) Success(s string) string {
-	return c.Green(s)
-}
-
-// Failure formats failure text.
-func (c *Colors) Failure(s string) string {
-	return c.Red(s)
-}
-
-// Dim formats de-emphasized text.
-func (c *Colors) Dim(s string) string {
-	return c.Gray(s)
-}
-
 // LineSeparator returns a colored line separator.
 func (c *Colors) LineSeparator() string {
 	return c.Cyan("───────────────────────────────────────────────────────────────────────────────")
