@@ -490,11 +490,11 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 ## 10. What Gets Eliminated
 
-> **Note:** These are planned refactorings. See `docs/plan/spec-message-update-removal.md` for `message.Update` removal tracking.
+> **Note:** These are planned refactorings.
 
-| Current Type | Status | Replacement |
-|--------------|--------|-------------|
-| `message.Update` | Planned (see spec) | `WireUpdate` |
+| Current Type | Status | Action |
+|--------------|--------|--------|
+| `message.Update` | Keep | Share parsing with WireUpdate via `wire.UpdateSections` (see `docs/plan/spec-update-shared-parsing.md`) |
 | `rib.Route` with parsed attrs | Refactor | `RouteEntry` with pool refs |
 | `plugin/rib.Route` (strings) | Remove | Use core RIB |
 | `plugin/rr.Route` | Remove | Use core RIB |
@@ -509,7 +509,7 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 1. **Merge Attributes types** - Single type for read + write
 2. **Implement RIB with pools** - Per-attribute-type deduplication
 3. **Unified parser** - Family-specific NLRI builders
-4. **Remove duplicates** - plugin/rib, plugin/rr, message.Update
+4. **Remove duplicates** - plugin/rib, plugin/rr; share UPDATE parsing between message.Update and WireUpdate
 
 ---
 
