@@ -42,6 +42,7 @@ REQUIRED_SECTIONS=(
     "## Task"
     "## Required Reading"
     "## Current Behavior"
+    "## Data Flow"
     "## 🧪 TDD Test Plan"
     "### Unit Tests"
     "## Files to Modify"
@@ -73,6 +74,46 @@ if [[ -n "$CURRENT_BEHAVIOR_SECTION" ]]; then
     elif echo "$CURRENT_BEHAVIOR_SECTION" | grep -qE 'Behavior to preserve.*:\s*$'; then
         # Empty behavior to preserve
         ERRORS+=("Current Behavior: 'Behavior to preserve' section is empty. Document existing behavior!")
+    fi
+fi
+
+# === DATA FLOW CHECK ===
+# Ensure Data Flow section has required subsections and isn't placeholder
+DATA_FLOW_SECTION=$(sed -n '/^## Data Flow/,/^## /p' "$FILE_PATH" | head -50)
+if [[ -n "$DATA_FLOW_SECTION" ]]; then
+    # Check for required subsections
+    if ! echo "$DATA_FLOW_SECTION" | grep -q "### Entry Point"; then
+        ERRORS+=("Data Flow section missing '### Entry Point' subsection")
+    fi
+    if ! echo "$DATA_FLOW_SECTION" | grep -q "### Transformation Path"; then
+        ERRORS+=("Data Flow section missing '### Transformation Path' subsection")
+    fi
+    if ! echo "$DATA_FLOW_SECTION" | grep -q "### Boundaries Crossed"; then
+        ERRORS+=("Data Flow section missing '### Boundaries Crossed' subsection")
+    fi
+    if ! echo "$DATA_FLOW_SECTION" | grep -q "### Integration Points"; then
+        ERRORS+=("Data Flow section missing '### Integration Points' subsection")
+    fi
+
+    # Check Entry Point isn't just placeholder
+    ENTRY_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Entry Point/,/### /p' | grep -v '^#' | head -5)
+    if echo "$ENTRY_CONTENT" | grep -qE '\[Where data enters\]|\[Format at entry\]'; then
+        ERRORS+=("Data Flow: Entry Point contains placeholder text. Document actual entry points!")
+    fi
+
+    # Check Transformation Path has actual stages (numbered list)
+    TRANSFORM_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Transformation Path/,/### /p' | grep -v '^#' | head -10)
+    if ! echo "$TRANSFORM_CONTENT" | grep -qE '^[0-9]+\.\s+'; then
+        WARNINGS+=("Data Flow: Transformation Path should have numbered stages (1. ... 2. ...)")
+    fi
+    if echo "$TRANSFORM_CONTENT" | grep -qE '\[Stage [0-9N]+'; then
+        ERRORS+=("Data Flow: Transformation Path contains placeholder text. Document actual stages!")
+    fi
+
+    # Check Boundaries Crossed has table with content
+    BOUNDARY_CONTENT=$(echo "$DATA_FLOW_SECTION" | sed -n '/### Boundaries Crossed/,/### /p' | grep -v '^#' | head -10)
+    if ! echo "$BOUNDARY_CONTENT" | grep -q '|.*|.*|'; then
+        ERRORS+=("Data Flow: Boundaries Crossed must use table format")
     fi
 fi
 

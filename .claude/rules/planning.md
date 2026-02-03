@@ -107,31 +107,38 @@ Complete IN ORDER. Do not skip steps.
       → **BLOCKING:** Cannot write spec until you can answer:
         "What does the existing code do? What must be preserved?"
 
-[ ] 9. Document existing behavior in spec
+[ ] 9. Trace data flow (see `rules/data-flow-tracing.md`)
+      → Identify entry points (wire bytes, API, config, plugin)
+      → Trace each transformation (parse → validate → store → process → encode)
+      → Verify boundary crossings (Engine↔Plugin, FSM↔Reactor, Wire↔RIB)
+      → Check for architectural violations (bypassed layers, coupling, duplication)
+      → **BLOCKING:** Cannot write spec until data flow is understood
+
+[ ] 10. Document existing behavior in spec
       → Add "Current Behavior" section to spec
       → List exact output formats, function signatures, test expectations
       → These are preserved unless user explicitly says to change
 
-[ ] 10. TDD Planning - identify tests BEFORE implementation
-       → Unit tests needed (write BEFORE implementation - strict TDD)
-       → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
-       → Functional tests needed (write AFTER feature works - end of plan)
-       → Test file locations
+[ ] 11. TDD Planning - identify tests BEFORE implementation
+      → Unit tests needed (write BEFORE implementation - strict TDD)
+      → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
+      → Functional tests needed (write AFTER feature works - end of plan)
+      → Test file locations
 
-[ ] 11. Present implementation plan to user
-       → WAIT for approval before continuing
+[ ] 12. Present implementation plan to user
+      → WAIT for approval before continuing
 
-[ ] 12. Write spec to `docs/plan/spec-<task>.md`
-       → FIRST complete "Pre-Spec Verification" checklist below
-       → Match template format EXACTLY (not approximately)
+[ ] 13. Write spec to `docs/plan/spec-<task>.md`
+      → FIRST complete "Pre-Spec Verification" checklist below
+      → Match template format EXACTLY (not approximately)
 
-[ ] 13. Track spec with git
-       → `git add docs/plan/spec-<task>.md`
-       → Ensures spec is not lost if session ends
+[ ] 14. Track spec with git
+      → `git add docs/plan/spec-<task>.md`
+      → Ensures spec is not lost if session ends
 
-[ ] 14. Begin TDD cycle (test fails → implement → test passes)
+[ ] 15. Begin TDD cycle (test fails → implement → test passes)
 
-[ ] 15. Post-implementation completion (see "Completion Checklist" below)
+[ ] 16. Post-implementation completion (see "Completion Checklist" below)
 ```
 
 ## Keyword → Documentation Mapping
@@ -231,6 +238,12 @@ Present to user BEFORE writing code:
 
 ### Files Affected
 - `internal/...` - [what changes]
+
+### Data Flow (see `rules/data-flow-tracing.md`)
+1. **Entry:** [where data enters - wire, API, config, plugin]
+2. **Transformations:** [parse → validate → store → process → encode]
+3. **Boundaries crossed:** [Engine↔Plugin, FSM↔Reactor, Wire↔RIB]
+4. **Integration points:** [existing functions/types this connects to]
 
 ### Design Decisions
 - [decision]: [rationale from docs]
@@ -338,6 +351,7 @@ Instead of function implementations, use prose or steps:
 [ ] 12. Functional Tests section includes .ci files for end-user verification
 [ ] 13. Current Behavior section completed (source files read, behavior documented)
 [ ] 14. "Behavior to change" is empty OR user explicitly requested the change
+[ ] 15. Data Flow section completed (see `rules/data-flow-tracing.md`)
 ```
 
 **Common mistakes:**
@@ -352,6 +366,8 @@ Instead of function implementations, use prose or steps:
 - Missing functional tests → every feature needs `.ci` tests for end-user verification
 - Missing "Current Behavior" section → MUST document what existing code does BEFORE writing spec
 - Inventing new formats → preserve existing behavior unless user explicitly asked to change it
+- Missing "Data Flow" section → MUST trace data through system before implementation
+- Skipping boundary verification → changes may violate architectural layers
 
 ## Spec File Template
 
@@ -394,6 +410,34 @@ Write to `docs/plan/spec-<task-name>.md`:
 
 **Behavior to change:** (only if user explicitly requested)
 - [list changes user asked for, or "None - preserve all existing behavior"]
+
+## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
+
+### Entry Point
+- [Where data enters: wire bytes, API command, config, plugin message]
+- [Format at entry]
+
+### Transformation Path
+1. [Stage 1: e.g., "Wire parsing in internal/bgp/message/"]
+2. [Stage 2: e.g., "Attribute extraction via iterators"]
+3. [Stage 3: e.g., "Pool storage with dedup"]
+4. [Stage N: ...]
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Engine ↔ Plugin | [JSON format, command syntax] | [ ] |
+| Wire ↔ Storage | [via iterators/pools] | [ ] |
+| [other boundaries] | [mechanism] | [ ] |
+
+### Integration Points
+- [Existing function/type this connects to] - [how it integrates]
+
+### Architectural Verification
+- [ ] No bypassed layers (data flows through intended path)
+- [ ] No unintended coupling (components remain isolated)
+- [ ] No duplicated functionality (extends existing, doesn't recreate)
+- [ ] Zero-copy preserved where applicable (uses refs, not copies)
 
 ## 🧪 TDD Test Plan
 
@@ -639,6 +683,7 @@ Reading architecture docs BEFORE implementation prevents:
 ## Integration with Other Rules
 
 This rule works with:
+- `data-flow-tracing.md` - Verify changes fit architecture via data flow analysis
 - `design-principles.md` - Scalability, maintainability, YAGNI
 - `tdd.md` - TDD cycle enforcement
 - `rfc-compliance.md` - RFC reading and comments
