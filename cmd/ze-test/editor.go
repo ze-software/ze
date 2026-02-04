@@ -119,11 +119,28 @@ Examples:
 }
 
 // runEditorTests executes tests in parallel with real-time progress display.
-func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
-	// Create progress tracker
-	progress := runner.NewProgress(len(tests))
-	progress.SetQuiet(quiet)
-	progress.Start()
+func runEditorTests(testPaths []string, baseDir string, verbose, quiet bool) error {
+	// Create Tests container and populate with Records for display
+	tests := runner.NewTests()
+	colors := runner.NewColors()
+	testMap := make(map[string]*runner.Record) // Map relative path -> Record
+
+	for _, path := range testPaths {
+		rel, _ := filepath.Rel(baseDir, path)
+		if rel == "" {
+			rel = path
+		}
+		rec := tests.Add(rel)
+		rec.Active = true
+		testMap[path] = rec
+	}
+
+	// Create display
+	display := runner.NewDisplay(tests, colors)
+	display.SetQuiet(quiet)
+	display.SetTimeout(30 * time.Second)
+	display.SetParallel(10, len(testPaths))
+	display.Start()
 
 	// Channel for collecting results
 	type result struct {
@@ -133,32 +150,39 @@ func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
 		errMsg  string
 		tempDir string
 	}
-	results := make(chan result, len(tests))
+	results := make(chan result, len(testPaths))
 	done := make(chan struct{})
 
 	// Run tests in parallel with semaphore
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 10) // Max 10 concurrent tests
 
-	for _, testPath := range tests {
+	for _, testPath := range testPaths {
 		wg.Add(1)
 		go func(path string) {
 			defer wg.Done()
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
+			rec := testMap[path]
 			rel, _ := filepath.Rel(baseDir, path)
 			if rel == "" {
 				rel = path
 			}
 
-			progress.StartTest(rel)
-			start := time.Now()
+			rec.State = runner.StateRunning
+			rec.StartTime = time.Now()
 
 			testResult := editortesting.RunETFile(path)
-			duration := time.Since(start)
+			rec.Duration = time.Since(rec.StartTime)
 
-			progress.EndTest(rel, testResult.Passed, duration)
+			if testResult.Passed {
+				rec.State = runner.StateSuccess
+			} else {
+				rec.State = runner.StateFail
+				rec.Error = fmt.Errorf("%s", testResult.Error)
+			}
+
 			results <- result{
 				path:    path,
 				rel:     rel,
@@ -184,7 +208,7 @@ func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
 			case <-done:
 				return
 			case <-ticker.C:
-				progress.Status()
+				display.Status()
 			}
 		}
 	}()
@@ -195,12 +219,12 @@ func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
 		if !res.passed {
 			failures = append(failures, res)
 		}
-		progress.Status()
+		display.Status()
 	}
 
 	close(done)
-	progress.Newline()
-	progress.Summary("Editor tests")
+	display.Newline()
+	display.Summary()
 
 	// Print failure details if verbose
 	if verbose && len(failures) > 0 {
@@ -214,7 +238,8 @@ func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
 		}
 	}
 
-	if progress.Failed() > 0 {
+	_, failed, _, _ := tests.Summary()
+	if failed > 0 {
 		return fmt.Errorf("tests failed")
 	}
 

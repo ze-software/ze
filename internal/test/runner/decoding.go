@@ -404,10 +404,22 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		return true
 	}
 
-	// Create progress tracker
-	progress := NewProgress(len(selected))
-	progress.SetQuiet(quiet)
-	progress.Start()
+	// Create Tests container and populate with Records for display
+	tests := NewTests()
+	testMap := make(map[string]*Record) // Map DecodingTest.Nick -> Record
+	for _, t := range selected {
+		rec := tests.Add(t.Name)
+		rec.Nick = t.Nick
+		rec.Active = true
+		testMap[t.Nick] = rec
+	}
+
+	// Create display
+	display := NewDisplay(tests, r.colors)
+	display.SetQuiet(quiet)
+	display.SetTimeout(30 * time.Second) // Default timeout for display
+	display.SetParallel(10, len(selected))
+	display.Start()
 
 	// Channel for collecting results
 	type result struct {
@@ -428,20 +440,25 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 			sem <- struct{}{}        // Acquire
 			defer func() { <-sem }() // Release
 
+			// Update both DecodingTest and Record states
+			rec := testMap[t.Nick]
 			t.State = StateRunning
-			progress.StartTest(t.Name)
-			start := time.Now()
+			rec.State = StateRunning
+			rec.StartTime = time.Now()
 
 			success := r.runTest(ctx, t)
-			t.Duration = time.Since(start)
+			t.Duration = time.Since(rec.StartTime)
+			rec.Duration = t.Duration
 
 			if success {
 				t.State = StateSuccess
+				rec.State = StateSuccess
 			} else {
 				t.State = StateFail
+				rec.State = StateFail
+				rec.Error = t.Error
 			}
 
-			progress.EndTest(t.Name, success, t.Duration)
 			results <- result{test: t, success: success}
 		}(test)
 	}
@@ -461,7 +478,7 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 			case <-done:
 				return
 			case <-ticker.C:
-				progress.Status()
+				display.Status()
 			}
 		}
 	}()
@@ -472,12 +489,12 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		if !res.success {
 			failures = append(failures, res.test)
 		}
-		progress.Status()
+		display.Status()
 	}
 
 	close(done)
-	progress.Newline()
-	progress.Summary("Decoding tests")
+	display.Newline()
+	display.Summary()
 
 	// Print failure details if verbose
 	if verbose && len(failures) > 0 {
@@ -490,7 +507,8 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		}
 	}
 
-	return progress.Failed() == 0
+	passed, failed, _, _ := tests.Summary()
+	return failed == 0 && passed > 0
 }
 
 // runTest executes a single decoding test.
