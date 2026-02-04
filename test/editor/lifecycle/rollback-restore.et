@@ -1,0 +1,47 @@
+# Test: Rollback restores backup
+# VALIDATES: Rollback command restores from backup
+# VALIDATES: Content returns to pre-commit state
+# VALIDATES: History shows backup available
+# PREVENTS: Rollback broken or corrupting config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify original content before any changes
+expect=content:contains=router-id 1.2.3.4
+expect=content:contains=local-as 65000
+
+# Make a change and commit to create backup
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=status:contains=committed
+expect=error:none
+
+# Check history exists and shows backup
+input=type:text=history
+input=enter
+expect=viewport:contains=test
+expect=error:none
+
+# Now rollback to backup 1 (the original)
+input=type:text=rollback 1
+input=enter
+expect=status:contains=Rolled back
+expect=error:none
+
+# Verify content was restored - show to refresh viewport
+input=type:text=show
+input=enter
+expect=viewport:contains=router-id 1.2.3.4
+expect=viewport:contains=local-as 65000

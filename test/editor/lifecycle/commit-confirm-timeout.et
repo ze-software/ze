@@ -1,0 +1,29 @@
+# Test: Commit confirm sets timer active
+# VALIDATES: "commit confirm N" activates timer state
+# VALIDATES: Status message shows confirm requirement
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Make a change
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+
+# Commit with confirm
+input=type:text=commit confirm 60
+input=enter
+expect=timer:active
+expect=status:contains=confirm
+expect=error:none

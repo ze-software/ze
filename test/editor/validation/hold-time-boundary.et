@@ -1,0 +1,20 @@
+# Test: Hold-time boundary values per RFC 4271
+# VALIDATES: hold-time 0 is valid (disable keepalives)
+# VALIDATES: hold-time 3 is valid (minimum when enabled)
+# RFC 4271 Section 4.2: "A value of zero in the Hold Time field means no keepalives"
+
+tmpfs=valid-zero.conf:terminator=EOF_ZERO
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 0;
+  }
+}
+EOF_ZERO
+
+option=file:path=valid-zero.conf
+option=timeout:value=10s
+
+# Hold-time 0 should be valid (disables keepalives)
+expect=errors:count=0

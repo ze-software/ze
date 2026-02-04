@@ -8,10 +8,12 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/config/editor"
+	editortesting "codeberg.org/thomas-mangin/ze/internal/config/editor/testing"
 	"codeberg.org/thomas-mangin/ze/internal/config/migration"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -32,6 +34,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"migrate": cmdMigrate,
 	"fmt":     cmdFmt,
 	"dump":    cmdDump,
+	"test":    cmdTest,
 }
 
 // Run executes the config subcommand with the given arguments.
@@ -73,6 +76,7 @@ Commands:
   migrate <file> Convert configuration to current format
   fmt <file>     Format and normalize configuration file
   dump <file>    Dump parsed configuration
+  test [dir]     Run editor functional tests (.et files)
 
 Examples:
   ze config edit config.conf
@@ -80,6 +84,7 @@ Examples:
   ze config migrate config.conf -o new.conf
   ze config fmt config.conf
   ze config dump config.conf
+  ze config test test/editor/
 `)
 }
 
@@ -1072,4 +1077,124 @@ func printConfig(cfg *config.BGPConfig) {
 func uint32ToIP(n uint32) string {
 	return fmt.Sprintf("%d.%d.%d.%d",
 		(n>>24)&0xFF, (n>>16)&0xFF, (n>>8)&0xFF, n&0xFF)
+}
+
+// ============================================================================
+// test command
+// ============================================================================
+
+func cmdTest(args []string) int {
+	fs := flag.NewFlagSet("config test", flag.ExitOnError)
+	pattern := fs.String("pattern", "", "run only tests matching pattern")
+	verbose := fs.Bool("v", false, "verbose output")
+	listOnly := fs.Bool("list", false, "list tests without running")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: ze config test [options] [test-dir]
+
+Run editor functional tests (.et files).
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Examples:
+  ze config test                           # Run all tests in test/editor/
+  ze config test test/editor/navigation/   # Run navigation tests only
+  ze config test -pattern commit           # Run tests matching "commit"
+  ze config test -v                        # Verbose output
+  ze config test -list                     # List tests without running
+`)
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	testDir := "test/editor"
+	if fs.NArg() > 0 {
+		testDir = fs.Arg(0)
+	}
+
+	// Find all .et files
+	tests, err := findETFiles(testDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	if len(tests) == 0 {
+		fmt.Fprintf(os.Stderr, "no .et files found in %s\n", testDir)
+		return 1
+	}
+
+	// Filter by pattern
+	if *pattern != "" {
+		var filtered []string
+		for _, t := range tests {
+			if strings.Contains(t, *pattern) {
+				filtered = append(filtered, t)
+			}
+		}
+		tests = filtered
+	}
+
+	if *listOnly {
+		fmt.Printf("Found %d tests:\n", len(tests))
+		for _, t := range tests {
+			fmt.Printf("  %s\n", t)
+		}
+		return 0
+	}
+
+	// Run tests
+	passed := 0
+	failed := 0
+	for _, testPath := range tests {
+		result := runETTest(testPath, *verbose)
+		if result {
+			passed++
+			if *verbose {
+				fmt.Printf("✓ %s\n", testPath)
+			}
+		} else {
+			failed++
+			fmt.Printf("✗ %s\n", testPath)
+		}
+	}
+
+	fmt.Printf("\n%d passed, %d failed\n", passed, failed)
+	if failed > 0 {
+		return 1
+	}
+	return 0
+}
+
+func findETFiles(dir string) ([]string, error) {
+	var files []string
+
+	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if !d.IsDir() && strings.HasSuffix(path, ".et") {
+			files = append(files, path)
+		}
+		return nil
+	})
+
+	return files, err
+}
+
+func runETTest(testPath string, verbose bool) bool {
+	// Use the testing framework runner
+	result := editortesting.RunETFile(testPath)
+
+	if !result.Passed {
+		fmt.Fprintf(os.Stderr, "  %s\n", result.Error)
+	} else if verbose {
+		fmt.Fprintf(os.Stderr, "  passed in %v\n", result.Duration)
+	}
+
+	return result.Passed
 }

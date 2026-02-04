@@ -1,0 +1,29 @@
+# Test: Up from template context
+# VALIDATES: Up command from template mode goes to parent
+# PREVENTS: Template mode trapping user in broken context
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter template mode for peers
+input=type:text=edit peer *
+input=enter
+expect=template:true
+expect=context:path=bgp.peer.*
+
+# Go up should exit template and go to bgp
+input=type:text=up
+input=enter
+expect=context:path=bgp
+expect=template:false
+expect=error:none

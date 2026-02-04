@@ -1,0 +1,33 @@
+# Test: BGP peer RIB block completion
+# VALIDATES: Completion shows RIB configuration options
+# PREVENTS: RIB settings not discoverable
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    rib {
+      out {
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate to rib.out context
+input=type:text=edit peer 1.1.1.1
+input=enter
+input=type:text=edit rib
+input=enter
+input=type:text=edit out
+input=enter
+expect=context:path=bgp.peer.1.1.1.1.rib.out
+
+# Completions should show RIB out settings
+input=type:text=set
+input=space
+expect=completion:contains=group-updates,auto-commit-delay,max-batch-size

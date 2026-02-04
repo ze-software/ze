@@ -1,0 +1,36 @@
+# Test: Commit succeeds with valid config
+# VALIDATES: Commit saves changes when config is valid
+# VALIDATES: Status message confirms commit
+# VALIDATES: Dirty flag cleared after commit
+# VALIDATES: No errors on valid config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify initial clean state
+expect=errors:count=0
+expect=dirty:false
+
+# Make a change to mark dirty
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+expect=status:contains=Set
+
+# Commit should succeed
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none

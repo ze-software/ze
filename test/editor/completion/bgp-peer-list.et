@@ -1,0 +1,31 @@
+# Test: BGP peer list shows existing keys and wildcard
+# VALIDATES: "edit peer " shows existing peer addresses
+# VALIDATES: Wildcard (*) option shown for template
+# PREVENTS: User can't find existing peers
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter bgp context first
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# "edit peer " should show existing peers and wildcard
+input=type:text=edit peer
+input=space
+expect=completion:contains=1.1.1.1,2.2.2.2,*
+expect=error:none

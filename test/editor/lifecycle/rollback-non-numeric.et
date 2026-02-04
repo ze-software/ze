@@ -1,0 +1,17 @@
+# Test: Rollback with non-numeric argument
+# VALIDATES: rollback with non-number shows error
+# PREVENTS: Crash or undefined behavior for bad input
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Rollback with non-numeric argument
+input=type:text=rollback abc
+input=enter
+expect=error:contains=invalid

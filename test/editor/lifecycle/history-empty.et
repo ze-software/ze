@@ -1,0 +1,19 @@
+# Test: History command with no backups
+# VALIDATES: History shows "no backups" when none exist
+# PREVENTS: Confusing output when no history
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Check history (no prior commits)
+input=type:text=history
+input=enter
+expect=viewport:contains=No backups
+expect=error:none

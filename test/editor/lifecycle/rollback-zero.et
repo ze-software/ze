@@ -1,0 +1,18 @@
+# Test: Rollback with zero index
+# VALIDATES: Rollback 0 is invalid (indices are 1-based)
+# BOUNDARY: First invalid below valid range
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Rollback 0 should fail
+input=type:text=rollback 0
+input=enter
+expect=error:contains=not found

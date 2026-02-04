@@ -1,0 +1,33 @@
+# Test: BGP peer update.attribute block completion
+# VALIDATES: Completion shows path attribute options
+# PREVENTS: Route attribute configuration not discoverable
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    update {
+      attribute {
+      }
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate to update.attribute context
+input=type:text=edit peer 1.1.1.1
+input=enter
+input=type:text=edit update
+input=enter
+input=type:text=edit attribute
+input=enter
+expect=context:path=bgp.peer.1.1.1.1.update.attribute
+
+# Completions should show path attributes
+input=type:text=set
+input=space
+expect=completion:contains=origin,next-hop,med,local-preference,as-path,community

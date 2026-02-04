@@ -1,0 +1,20 @@
+# Test: Hold-time maximum valid value (65535)
+# VALIDATES: hold-time 65535 is valid (max uint16)
+# BOUNDARY: Last valid value at upper range
+# RFC 4271: Hold Time is a 2-octet unsigned integer
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 65535;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Hold-time 65535 should be valid (max uint16)
+expect=errors:count=0

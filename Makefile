@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-exabgp verify help
+.PHONY: all build test lint clean fmt vet tidy functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-editor functional-exabgp verify help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -80,7 +80,7 @@ test-all: lint test functional-all
 	@echo "All tests passed"
 
 # Run functional tests (all types, continue on failure to show all results)
-functional: bin/ze-test
+functional: bin/ze bin/ze-test
 	@failed=0; \
 	echo "Running encode functional tests..."; \
 	bin/ze-test bgp encode --all || failed=$$((failed + 1)); \
@@ -93,6 +93,9 @@ functional: bin/ze-test
 	echo ""; \
 	echo "Running decode functional tests..."; \
 	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
+	echo ""; \
+	echo "Running editor functional tests..."; \
+	bin/ze config test || failed=$$((failed + 1)); \
 	echo ""; \
 	if [ $$failed -gt 0 ]; then \
 		echo "═══════════════════════════════════════════════════════════════════════════════"; \
@@ -128,6 +131,11 @@ functional-parse: bin/ze-test
 	@echo "Running parse functional tests..."
 	bin/ze-test bgp parse --all
 
+# Run editor functional tests
+functional-editor: bin/ze
+	@echo "Running editor functional tests..."
+	bin/ze config test
+
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 functional-exabgp:
 	@echo "Running ExaBGP compatibility tests..."
@@ -157,6 +165,7 @@ help:
 	@echo "  functional-plugin    - Run plugin functional tests only"
 	@echo "  functional-decode    - Run decode functional tests only"
 	@echo "  functional-parse     - Run parse functional tests only"
+	@echo "  functional-editor    - Run editor functional tests only"
 	@echo "  functional-exabgp    - Run ExaBGP compatibility tests only"
 	@echo "  lint                 - Run golangci-lint"
 	@echo "  fmt                  - Format code (gofmt + goimports)"

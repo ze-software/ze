@@ -26,6 +26,14 @@ const (
     hold-time 90;
   }
 }`
+	// testValidBGPConfigSimplePeer is for tests that don't need hold-time.
+	testValidBGPConfigSimplePeer = `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}`
 )
 
 // TestModelValidationOnLoad verifies validation runs when editor loads.
@@ -991,4 +999,424 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 		header := lines[0]
 		assert.NotContains(t, header, "⚠️", "status bar should not show error icon for valid config")
 	}
+}
+
+// =============================================================================
+// Phase 2: New Editor Features - commit confirm, load, pipe
+// =============================================================================
+
+// TestModelCommitConfirmStartsTimer verifies commit confirm starts auto-rollback timer.
+//
+// VALIDATES: "commit confirm N" commits and sets up timer.
+// PREVENTS: Timer not started, no auto-rollback.
+func TestModelCommitConfirmStartsTimer(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// Execute commit confirm with 60 second timeout
+	result, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+
+	// Apply result to model (simulating what Update handler does)
+	model.ApplyResult(result)
+
+	// Should have status message about confirm
+	assert.Contains(t, result.statusMessage, "confirm", "status should mention confirm")
+
+	// Timer should be active
+	assert.True(t, model.ConfirmTimerActive(), "confirm timer should be active")
+}
+
+// TestModelCommitConfirmBoundaryLow verifies boundary: seconds must be >= 1.
+//
+// VALIDATES: commit confirm 0 is rejected.
+// PREVENTS: Invalid zero timeout.
+func TestModelCommitConfirmBoundaryLow(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// 0 seconds should fail
+	_, err = model.cmdCommitConfirm(0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "1", "error should mention minimum")
+}
+
+// TestModelCommitConfirmBoundaryHigh verifies boundary: seconds must be <= 3600.
+//
+// VALIDATES: commit confirm 3601 is rejected.
+// PREVENTS: Excessively long timeout.
+func TestModelCommitConfirmBoundaryHigh(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// 3601 seconds should fail
+	_, err = model.cmdCommitConfirm(3601)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "3600", "error should mention maximum")
+}
+
+// TestModelConfirmCancelsTimer verifies "confirm" command cancels the timer.
+//
+// VALIDATES: "confirm" after "commit confirm" makes changes permanent.
+// PREVENTS: Auto-rollback happening after user confirmed.
+func TestModelConfirmCancelsTimer(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// Start commit confirm
+	commitResult, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+	model.ApplyResult(commitResult)
+	require.True(t, model.ConfirmTimerActive(), "timer should be active")
+
+	// Confirm
+	result, err := model.cmdConfirm()
+	require.NoError(t, err)
+	model.ApplyResult(result)
+
+	// Timer should be cancelled
+	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled after confirm")
+	assert.Contains(t, result.statusMessage, "confirmed", "status should mention confirmed")
+}
+
+// TestModelAbortRollsBack verifies "abort" command cancels timer and rolls back.
+//
+// VALIDATES: "abort" after "commit confirm" reverts to backup.
+// PREVENTS: Abort not reverting changes.
+func TestModelAbortRollsBack(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	originalContent := `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}`
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Modify content
+	ed.SetWorkingContent(originalContent + "\n  # added line")
+	ed.MarkDirty()
+
+	// Start commit confirm (this saves with backup)
+	commitResult, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+	model.ApplyResult(commitResult)
+
+	// Abort - should rollback
+	result, err := model.cmdAbort()
+	require.NoError(t, err)
+	model.ApplyResult(result)
+
+	// Timer should be cancelled
+	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled after abort")
+	assert.Contains(t, result.statusMessage, "rolled back", "status should mention rollback")
+
+	// Content should be restored to original
+	assert.NotContains(t, ed.WorkingContent(), "added line", "changes should be reverted")
+}
+
+// TestModelLoadFile verifies "load <file>" replaces content.
+//
+// VALIDATES: load command replaces working content with file.
+// PREVENTS: Load not working or merging instead of replacing.
+func TestModelLoadFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	loadPath := filepath.Join(tmpDir, "load.conf")
+
+	originalContent := `bgp { router-id 1.2.3.4; }`
+	loadContent := `bgp { router-id 5.6.7.8; local-as 65000; }`
+
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+	err = os.WriteFile(loadPath, []byte(loadContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Load the file
+	result, err := model.cmdLoad([]string{loadPath})
+	require.NoError(t, err)
+
+	// Content should be replaced
+	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "content should have new router-id")
+	assert.Contains(t, ed.WorkingContent(), "local-as", "content should have local-as")
+	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old content should be gone")
+
+	// Should be marked dirty
+	assert.True(t, ed.Dirty(), "should be marked dirty after load")
+	assert.Contains(t, result.statusMessage, "loaded", "status should mention loaded")
+}
+
+// TestModelLoadMerge verifies "load merge <file>" merges configs.
+//
+// VALIDATES: load merge combines configurations.
+// PREVENTS: Merge overwriting existing values.
+func TestModelLoadMerge(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	mergePath := filepath.Join(tmpDir, "merge.conf")
+
+	originalContent := `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}`
+	mergeContent := `bgp {
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}`
+
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+	err = os.WriteFile(mergePath, []byte(mergeContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Load merge
+	result, err := model.cmdLoadMerge([]string{mergePath})
+	require.NoError(t, err)
+
+	// Original content should be preserved
+	assert.Contains(t, ed.WorkingContent(), "router-id", "original router-id should be preserved")
+	assert.Contains(t, ed.WorkingContent(), "local-as", "original local-as should be preserved")
+
+	// New content should be added
+	assert.Contains(t, ed.WorkingContent(), "peer 1.1.1.1", "new peer should be added")
+	assert.Contains(t, ed.WorkingContent(), "peer-as", "peer-as should be added")
+
+	assert.True(t, ed.Dirty(), "should be marked dirty after merge")
+	assert.Contains(t, result.statusMessage, "merged", "status should mention merged")
+}
+
+// TestModelLoadNotFound verifies load with missing file returns error.
+//
+// VALIDATES: load with nonexistent file fails with clear error.
+// PREVENTS: Silent failure or panic.
+func TestModelLoadNotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Load nonexistent file
+	_, err = model.cmdLoad([]string{"/nonexistent/file.conf"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot read", "error should mention cannot read")
+}
+
+// TestModelLoadRelativePath verifies load resolves relative paths.
+//
+// VALIDATES: Relative paths resolved from config file directory.
+// PREVENTS: Relative paths resolved from cwd instead of config dir.
+func TestModelLoadRelativePath(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "subdir")
+	err := os.MkdirAll(subDir, 0750)
+	require.NoError(t, err)
+
+	configPath := filepath.Join(tmpDir, "test.conf")
+	loadPath := filepath.Join(tmpDir, "load.conf")
+
+	err = os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+	err = os.WriteFile(loadPath, []byte(`bgp { router-id 9.9.9.9; }`), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Load with relative path (relative to config file)
+	_, err = model.cmdLoad([]string{"load.conf"})
+	require.NoError(t, err)
+
+	assert.Contains(t, ed.WorkingContent(), "9.9.9.9", "content should be loaded")
+}
+
+// TestModelPipeShowGrep verifies "show | grep pattern" filters output.
+//
+// VALIDATES: Pipe with grep filters show output.
+// PREVENTS: Pipe not working or returning unfiltered output.
+func TestModelPipeShowGrep(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Show with grep for specific peer
+	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "grep", Arg: "1.1.1.1"}})
+	require.NoError(t, err)
+
+	// Should contain matched content
+	assert.Contains(t, result.output, "1.1.1.1", "should contain matched peer")
+
+	// Should not contain unmatched content
+	assert.NotContains(t, result.output, "2.2.2.2", "should not contain other peer")
+}
+
+// TestModelPipeShowHead verifies "show | head N" limits output.
+//
+// VALIDATES: Pipe with head limits to N lines.
+// PREVENTS: Head not limiting or wrong count.
+func TestModelPipeShowHead(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Show with head 2
+	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "head", Arg: "2"}})
+	require.NoError(t, err)
+
+	// Should have only 2 non-empty lines
+	lines := strings.Split(strings.TrimSpace(result.output), "\n")
+	assert.LessOrEqual(t, len(lines), 2, "should have at most 2 lines")
+}
+
+// TestModelPipeChain verifies chained pipes work.
+//
+// VALIDATES: "show | grep foo | head 5" chains correctly.
+// PREVENTS: Pipe chain breaking or wrong order.
+func TestModelPipeChain(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	content := `bgp {
+  peer 1.1.1.1 { peer-as 65001; }
+  peer 1.1.1.2 { peer-as 65002; }
+  peer 1.1.1.3 { peer-as 65003; }
+  peer 2.2.2.1 { peer-as 65004; }
+}`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Grep for 1.1.1.* then head 2
+	result, err := model.cmdShowPipe(nil, []PipeFilter{
+		{Type: "grep", Arg: "1.1.1"},
+		{Type: "head", Arg: "2"},
+	})
+	require.NoError(t, err)
+
+	// Should contain 1.1.1.* peers only
+	assert.Contains(t, result.output, "1.1.1", "should contain 1.1.1.* peers")
+	assert.NotContains(t, result.output, "2.2.2", "should not contain 2.2.2.* peers")
+
+	// Should have at most 2 lines
+	lines := strings.Split(strings.TrimSpace(result.output), "\n")
+	assert.LessOrEqual(t, len(lines), 2, "should have at most 2 lines from head")
 }

@@ -1,0 +1,22 @@
+# Test: Set command marks config as dirty
+# VALIDATES: Set command acknowledges the change
+# VALIDATES: Dirty flag is set after set
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Initial state not dirty
+expect=dirty:false
+
+# Set a value
+input=type:text=set bgp local-as 65000
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+expect=error:none

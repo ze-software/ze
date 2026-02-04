@@ -1,0 +1,17 @@
+# Test: Rollback command requires index
+# VALIDATES: rollback without arguments shows error
+# PREVENTS: Incomplete rollback command being accepted
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Rollback without index
+input=type:text=rollback
+input=enter
+expect=error:contains=usage

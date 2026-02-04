@@ -1,0 +1,26 @@
+# Test: Delete command removes block reference
+# VALIDATES: Delete marks config as dirty
+# VALIDATES: Status message shows path deleted
+# PREVENTS: Delete silently failing
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Delete a peer block
+input=type:text=delete bgp peer 1.1.1.1
+input=enter
+expect=dirty:true
+expect=status:contains=Deleted
+expect=status:contains=bgp
+expect=status:contains=peer
+expect=error:none

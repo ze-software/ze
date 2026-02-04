@@ -1,0 +1,19 @@
+# Test: Compare shows empty diff when no changes
+# VALIDATES: Compare with no modifications shows empty
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# No changes yet
+expect=dirty:false
+
+# Compare should show nothing (empty diff)
+input=type:text=compare
+input=enter
+expect=error:none

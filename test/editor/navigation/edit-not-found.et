@@ -1,0 +1,20 @@
+# Test: Edit nonexistent block shows error
+# VALIDATES: Edit command fails gracefully for missing block
+# VALIDATES: Error message mentions "not found"
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Try to edit nonexistent block
+input=type:text=edit nonexistent
+input=enter
+expect=error:contains=not found
+
+# Context should remain at root
+expect=context:root

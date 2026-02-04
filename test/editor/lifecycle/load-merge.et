@@ -1,0 +1,46 @@
+# Test: Load merge combines configurations
+# VALIDATES: Load merge preserves existing values
+# VALIDATES: Load merge adds new content
+# VALIDATES: Existing values not overwritten
+# PREVENTS: Merge overwriting all content
+
+tmpfs=original.conf:terminator=EOF_ORIG
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_ORIG
+
+tmpfs=merge.conf:terminator=EOF_MERGE
+bgp {
+  router-id 5.6.7.8;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_MERGE
+
+option=file:path=original.conf
+option=timeout:value=10s
+
+# Initial content - verify exact values
+expect=content:contains=1.2.3.4
+expect=content:contains=65000
+
+# Load and merge
+input=type:text=load merge merge.conf
+input=enter
+
+# Original values should be preserved (1.2.3.4, not overwritten by 5.6.7.8)
+expect=content:contains=1.2.3.4
+expect=content:contains=65000
+
+# Merged content should be added
+expect=content:contains=peer 1.1.1.1
+expect=content:contains=peer-as 65001
+
+# Merge file's router-id should NOT overwrite original
+expect=content:not-contains=5.6.7.8
+
+expect=dirty:true
+expect=error:none

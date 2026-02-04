@@ -1,0 +1,34 @@
+# Test: Show with tail filter
+# VALIDATES: Pipe to tail shows last N lines
+# VALIDATES: Earlier content is excluded
+# PREVENTS: Tail filter broken
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+    hold-time 180;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show with tail 3 - should show last 3 lines only
+input=type:text=show | tail 3
+input=enter
+expect=error:none
+
+# Last line content (closing braces or peer 2.2.2.2 block) should be present
+expect=viewport:contains=}
+
+# Earlier content should be excluded (router-id is early in file)
+expect=viewport:not-contains=router-id
+expect=viewport:not-contains=local-as

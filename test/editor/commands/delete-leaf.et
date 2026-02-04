@@ -1,0 +1,24 @@
+# Test: Delete leaf value command
+# VALIDATES: Delete command removes configuration value
+# PREVENTS: Delete command broken
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  listen 0.0.0.0 179;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Initially not dirty
+expect=dirty:false
+
+# Delete a value
+input=type:text=delete bgp listen
+input=enter
+expect=dirty:true
+expect=error:none
+expect=status:contains=Deleted

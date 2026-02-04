@@ -1,0 +1,28 @@
+# Test: Edit single-level block
+# VALIDATES: Edit command enters single-level context (e.g., "bgp")
+# VALIDATES: Context path is set correctly
+# VALIDATES: Viewport shows block content
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Initial state at root
+expect=context:root
+expect=dirty:false
+
+# Enter bgp context
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+expect=error:none
+
+# Viewport should show bgp block content
+expect=viewport:contains=router-id
+expect=viewport:contains=local-as

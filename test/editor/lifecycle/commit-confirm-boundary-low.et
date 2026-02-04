@@ -1,0 +1,27 @@
+# Test: Commit confirm rejects invalid seconds (0)
+# VALIDATES: commit confirm 0 is invalid (must be >= 1)
+# BOUNDARY: First invalid below valid range
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Make a change
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+
+# Commit confirm 0 should fail
+input=type:text=commit confirm 0
+input=enter
+expect=error:contains=second

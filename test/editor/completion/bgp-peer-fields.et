@@ -1,0 +1,24 @@
+# Test: BGP peer field completions
+# VALIDATES: Tab completion shows peer-level fields
+# PREVENTS: Missing completion for peer configuration
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Check set completions - use partial prefix to trigger path completion
+input=type:text=set p
+expect=completion:contains=peer-as

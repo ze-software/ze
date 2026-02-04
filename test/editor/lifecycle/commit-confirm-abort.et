@@ -1,0 +1,34 @@
+# Test: Commit confirm with abort
+# VALIDATES: Abort after commit confirm rolls back changes
+# PREVENTS: Abort not working correctly
+# NOTE: Timer state not tracked in headless mode - check status messages instead
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Make a change
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+
+# Commit with confirm
+input=type:text=commit confirm 60
+input=enter
+expect=status:contains=Confirm within
+
+# Abort the commit
+input=type:text=abort
+input=enter
+expect=status:contains=rolled back
+expect=error:none

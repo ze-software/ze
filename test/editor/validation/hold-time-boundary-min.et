@@ -1,0 +1,19 @@
+# Test: Hold-time minimum valid value when enabled
+# VALIDATES: hold-time 3 is the minimum valid value (when not 0)
+# RFC 4271 Section 4.2: "If non-zero, must be at least 3 seconds"
+
+tmpfs=valid-three.conf:terminator=EOF_THREE
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 3;
+  }
+}
+EOF_THREE
+
+option=file:path=valid-three.conf
+option=timeout:value=10s
+
+# Hold-time 3 should be valid (minimum when enabled)
+expect=errors:count=0

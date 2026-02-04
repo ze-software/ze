@@ -1,0 +1,16 @@
+# Test: Set command completion targets
+# VALIDATES: After "set " shows YANG schema children
+# PREVENTS: Set command missing path completion
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Type "set b" - partial path triggers path completion with prefix
+input=type:text=set b
+expect=completion:contains=bgp

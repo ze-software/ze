@@ -1,0 +1,33 @@
+# Test: BGP global level completion
+# VALIDATES: Completion shows BGP schema children
+# VALIDATES: Key BGP keywords are present
+# PREVENTS: BGP keywords not suggested
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify starting at root
+expect=context:root
+
+# Enter bgp context
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+expect=error:none
+
+# Completions in bgp context - space after set triggers set targets
+input=type:text=set
+input=space
+expect=completion:contains=router-id,local-as,peer
+
+# Clear and try edit completions (should show containers/lists only)
+input=ctrl:key=u
+input=type:text=edit
+input=space
+expect=completion:contains=peer

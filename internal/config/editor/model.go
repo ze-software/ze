@@ -2,6 +2,9 @@ package editor
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -71,10 +74,23 @@ type Model struct {
 	width           int
 	height          int
 	quitting        bool
+
+	// Commit confirm state
+	confirmTimerActive bool   // True if waiting for confirm/abort
+	confirmBackupPath  string // Path to backup for rollback on timeout/abort
+}
+
+// PipeFilter represents a filter in a pipe chain.
+type PipeFilter struct {
+	Type string // "grep", "head", "tail"
+	Arg  string // Pattern or count
 }
 
 // Debounce delay for validation after keystroke.
 const validationDebounce = 100 * time.Millisecond
+
+// Command names (used in multiple switch statements).
+const cmdShow = "show"
 
 // commandResult carries state changes from a command back to Update.
 // This allows commands to run in a tea.Cmd closure without losing state changes.
@@ -87,6 +103,11 @@ type commandResult struct {
 	isTemplate    bool          // Template mode flag (used with newContext)
 	showHelp      bool          // Show help overlay
 	revalidate    bool          // Trigger re-validation after command
+
+	// Commit confirm state (must be propagated through result, not set directly on model)
+	setConfirmTimer   bool   // True to set confirmTimerActive
+	confirmTimerValue bool   // Value to set confirmTimerActive to
+	confirmBackupPath string // Backup path for rollback (empty to clear)
 }
 
 // Message types for the editor.
@@ -281,6 +302,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if r.revalidate {
 			m.runValidation()
+		}
+
+		// Apply confirm timer state (must be propagated through result)
+		if r.setConfirmTimer {
+			m.confirmTimerActive = r.confirmTimerValue
+			m.confirmBackupPath = r.confirmBackupPath
 		}
 
 		m.err = nil
@@ -737,10 +764,7 @@ func skipWidth(s string, width int) string {
 // renderDropdownBox renders the dropdown with a simple format.
 // Uses plain text (no ANSI) for consistent width calculations.
 func (m Model) renderDropdownBox() string {
-	maxShow := 6
-	if len(m.completions) < maxShow {
-		maxShow = len(m.completions)
-	}
+	maxShow := min(6, len(m.completions))
 
 	// Calculate scroll offset
 	start := 0
@@ -750,10 +774,7 @@ func (m Model) renderDropdownBox() string {
 	end := start + maxShow
 	if end > len(m.completions) {
 		end = len(m.completions)
-		start = end - maxShow
-		if start < 0 {
-			start = 0
-		}
+		start = max(0, end-maxShow)
 	}
 
 	// Fixed inner width (between │ and │)
@@ -928,6 +949,11 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	cmd := tokens[0]
 	args := tokens[1:]
 
+	// Check for pipe in command
+	if pipeIdx := findPipeIndex(tokens); pipeIdx > 0 {
+		return m.dispatchWithPipe(tokens[:pipeIdx], tokens[pipeIdx+1:])
+	}
+
 	switch cmd {
 	case "exit", "quit":
 		return commandResult{}, nil // Will be handled by quit logic
@@ -944,14 +970,31 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	case "edit":
 		return m.cmdEdit(args)
 
-	case "show":
+	case cmdShow:
 		return m.cmdShow(args)
 
 	case "compare":
 		return commandResult{output: m.editor.Diff()}, nil
 
 	case "commit":
+		// Check for "commit confirm <N>"
+		if len(args) >= 1 && args[0] == "confirm" {
+			if len(args) < 2 {
+				return commandResult{}, fmt.Errorf("usage: commit confirm <seconds>")
+			}
+			seconds, err := strconv.Atoi(args[1])
+			if err != nil {
+				return commandResult{}, fmt.Errorf("invalid seconds: %s", args[1])
+			}
+			return m.cmdCommitConfirm(seconds)
+		}
 		return m.cmdCommit()
+
+	case "confirm":
+		return m.cmdConfirm()
+
+	case "abort":
+		return m.cmdAbort()
 
 	case "discard":
 		return m.cmdDiscard()
@@ -962,6 +1005,13 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	case "rollback":
 		return m.cmdRollback(args)
 
+	case "load":
+		// Check for "load merge <file>"
+		if len(args) >= 2 && args[0] == "merge" {
+			return m.cmdLoadMerge(args[1:])
+		}
+		return m.cmdLoad(args)
+
 	case "set":
 		return m.cmdSet(args)
 
@@ -970,10 +1020,9 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	case "errors":
 		return m.cmdErrors()
-
-	default:
-		return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
 	}
+
+	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
 }
 
 // Command implementations
@@ -1141,8 +1190,8 @@ func findParentOfKeyword(content string, keyword string) []string {
 		// Process closing braces first
 		if strings.Contains(trimmed, "}") {
 			beforeOpen := trimmed
-			if idx := strings.Index(trimmed, "{"); idx >= 0 {
-				beforeOpen = trimmed[:idx]
+			if before, _, found := strings.Cut(trimmed, "{"); found {
+				beforeOpen = before
 			}
 			closeBraces := strings.Count(beforeOpen, "}")
 			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
@@ -1165,11 +1214,15 @@ func findParentOfKeyword(content string, keyword string) []string {
 					if len(blockStack) == 0 {
 						return nil // At root level
 					}
-					result := make([]string, len(blockStack))
-					copy(result, blockStack)
+					// Split each stack element into path parts
+					var result []string
+					for _, elem := range blockStack {
+						result = append(result, strings.Fields(elem)...)
+					}
 					return result
 				}
 
+				// Push this block onto the stack (keep as single element for correct } tracking)
 				blockStack = append(blockStack, blockPart)
 			}
 		}
@@ -1205,8 +1258,8 @@ func findFullContextPath(content string, target []string) []string {
 		if strings.Contains(trimmed, "}") {
 			// Count closes before any opening brace
 			beforeOpen := trimmed
-			if idx := strings.Index(trimmed, "{"); idx >= 0 {
-				beforeOpen = trimmed[:idx]
+			if before, _, found := strings.Cut(trimmed, "{"); found {
+				beforeOpen = before
 			}
 			closeBraces := strings.Count(beforeOpen, "}")
 			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
@@ -1228,14 +1281,17 @@ func findFullContextPath(content string, target []string) []string {
 				// Check if this is our target (exact match, not prefix)
 				if blockPart == targetPattern {
 					// Found it! Return full path
-					result := make([]string, len(blockStack), len(blockStack)+len(target))
-					copy(result, blockStack)
+					// Split each stack element into path parts (e.g., "peer 1.1.1.1" -> ["peer", "1.1.1.1"])
+					var result []string
+					for _, elem := range blockStack {
+						result = append(result, strings.Fields(elem)...)
+					}
 					// Add the target components
 					result = append(result, target...)
 					return result
 				}
 
-				// Push this block onto the stack
+				// Push this block onto the stack (keep as single element for correct } tracking)
 				blockStack = append(blockStack, blockPart)
 			}
 		}
@@ -1343,10 +1399,10 @@ func (m *Model) cmdHistory() (commandResult, error) {
 
 	var b strings.Builder
 	for i, backup := range backups {
-		b.WriteString(fmt.Sprintf("%d. %s (%s)\n",
+		fmt.Fprintf(&b, "%d. %s (%s)\n",
 			i+1,
 			backup.Path,
-			backup.Timestamp.Format("2006-01-02")))
+			backup.Timestamp.Format("2006-01-02"))
 	}
 	return commandResult{output: b.String()}, nil
 }
@@ -1474,12 +1530,12 @@ func (m *Model) cmdErrors() (commandResult, error) {
 	var b strings.Builder
 
 	if len(m.validationErrors) > 0 {
-		b.WriteString(fmt.Sprintf("Errors (%d):\n", len(m.validationErrors)))
+		fmt.Fprintf(&b, "Errors (%d):\n", len(m.validationErrors))
 		for _, e := range m.validationErrors {
 			if e.Line > 0 {
-				b.WriteString(fmt.Sprintf("  Line %d: %s\n", e.Line, e.Message))
+				fmt.Fprintf(&b, "  Line %d: %s\n", e.Line, e.Message)
 			} else {
-				b.WriteString(fmt.Sprintf("  %s\n", e.Message))
+				fmt.Fprintf(&b, "  %s\n", e.Message)
 			}
 		}
 	}
@@ -1488,15 +1544,565 @@ func (m *Model) cmdErrors() (commandResult, error) {
 		if len(m.validationErrors) > 0 {
 			b.WriteString("\n")
 		}
-		b.WriteString(fmt.Sprintf("Warnings (%d):\n", len(m.validationWarnings)))
+		fmt.Fprintf(&b, "Warnings (%d):\n", len(m.validationWarnings))
 		for _, w := range m.validationWarnings {
 			if w.Line > 0 {
-				b.WriteString(fmt.Sprintf("  Line %d: %s\n", w.Line, w.Message))
+				fmt.Fprintf(&b, "  Line %d: %s\n", w.Line, w.Message)
 			} else {
-				b.WriteString(fmt.Sprintf("  %s\n", w.Message))
+				fmt.Fprintf(&b, "  %s\n", w.Message)
 			}
 		}
 	}
 
 	return commandResult{output: b.String()}, nil
+}
+
+// --- Public Accessor Methods for Testing ---
+
+// InputValue returns the current text input value.
+func (m Model) InputValue() string {
+	return m.textInput.Value()
+}
+
+// ContextPath returns the current context path.
+func (m Model) ContextPath() []string {
+	return m.contextPath
+}
+
+// Completions returns the current completion list.
+func (m Model) Completions() []Completion {
+	return m.completions
+}
+
+// GhostText returns the current ghost text suggestion.
+func (m Model) GhostText() string {
+	return m.ghostText
+}
+
+// ValidationErrors returns the current validation errors.
+func (m Model) ValidationErrors() []ConfigValidationError {
+	return m.validationErrors
+}
+
+// ValidationWarnings returns the current validation warnings.
+func (m Model) ValidationWarnings() []ConfigValidationError {
+	return m.validationWarnings
+}
+
+// Dirty returns true if there are unsaved changes.
+func (m Model) Dirty() bool {
+	return m.editor.Dirty()
+}
+
+// StatusMessage returns the current status message.
+func (m Model) StatusMessage() string {
+	return m.statusMessage
+}
+
+// Error returns the current command error.
+func (m Model) Error() error {
+	return m.err
+}
+
+// IsTemplate returns true if in template editing mode.
+func (m Model) IsTemplate() bool {
+	return m.isTemplate
+}
+
+// ShowDropdown returns true if the completion dropdown is visible.
+func (m Model) ShowDropdown() bool {
+	return m.showDropdown
+}
+
+// SelectedIndex returns the currently selected dropdown index.
+func (m Model) SelectedIndex() int {
+	return m.selected
+}
+
+// ConfirmTimerActive returns true if a commit confirm timer is active.
+func (m Model) ConfirmTimerActive() bool {
+	return m.confirmTimerActive
+}
+
+// ViewportContent returns the content currently displayed in the viewport.
+func (m Model) ViewportContent() string {
+	return m.viewportContent
+}
+
+// UpdateCompletions refreshes the completion list based on current input.
+// Useful for testing to ensure completions are populated.
+func (m *Model) UpdateCompletions() {
+	m.updateCompletions()
+}
+
+// ApplyResult applies a commandResult to the model.
+// Useful for testing to simulate what the Update handler does.
+func (m *Model) ApplyResult(r commandResult) {
+	if r.clearContext {
+		m.contextPath = nil
+		m.isTemplate = false
+	} else if r.newContext != nil {
+		m.contextPath = r.newContext
+		m.isTemplate = r.isTemplate
+	}
+	if r.configView != nil {
+		m.setViewportData(*r.configView)
+	} else if r.output != "" {
+		m.setViewportText(r.output)
+	}
+	m.statusMessage = r.statusMessage
+	if r.showHelp {
+		m.showHelp = true
+	}
+	if r.revalidate {
+		m.runValidation()
+	}
+	if r.setConfirmTimer {
+		m.confirmTimerActive = r.confirmTimerValue
+		m.confirmBackupPath = r.confirmBackupPath
+	}
+}
+
+// --- Phase 2: New Editor Features ---
+
+// cmdCommitConfirm commits with auto-rollback if not confirmed within timeout.
+// RFC 4271 Section 4.2 doesn't specify this, but it's a standard network CLI feature.
+func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
+	// Boundary validation: 1-3600 seconds
+	if seconds < 1 {
+		return commandResult{}, fmt.Errorf("timeout must be at least 1 second")
+	}
+	if seconds > 3600 {
+		return commandResult{}, fmt.Errorf("timeout must be at most 3600 seconds (1 hour)")
+	}
+
+	// Validate before commit
+	result := m.validator.Validate(m.editor.WorkingContent())
+	if len(result.Errors) > 0 {
+		return commandResult{}, fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(result.Errors))
+	}
+
+	// Save changes (this creates a backup)
+	if err := m.editor.Save(); err != nil {
+		return commandResult{}, err
+	}
+
+	// Get the most recent backup path for potential rollback
+	backups, err := m.editor.ListBackups()
+	if err != nil || len(backups) == 0 {
+		return commandResult{}, fmt.Errorf("commit succeeded but no backup found for rollback")
+	}
+
+	return commandResult{
+		statusMessage:     fmt.Sprintf("Committed. Confirm within %d seconds or changes will be rolled back. Use 'confirm' or 'abort'.", seconds),
+		setConfirmTimer:   true,
+		confirmTimerValue: true,
+		confirmBackupPath: backups[0].Path,
+	}, nil
+}
+
+// cmdConfirm confirms a pending commit, making changes permanent.
+func (m *Model) cmdConfirm() (commandResult, error) {
+	if !m.confirmTimerActive {
+		return commandResult{}, fmt.Errorf("no pending commit to confirm")
+	}
+
+	return commandResult{
+		statusMessage:     "Configuration confirmed and saved permanently.",
+		setConfirmTimer:   true,
+		confirmTimerValue: false,
+		confirmBackupPath: "",
+	}, nil
+}
+
+// cmdAbort aborts a pending commit and rolls back to previous state.
+func (m *Model) cmdAbort() (commandResult, error) {
+	if !m.confirmTimerActive {
+		return commandResult{}, fmt.Errorf("no pending commit to abort")
+	}
+
+	// Rollback to backup
+	if m.confirmBackupPath != "" {
+		if err := m.editor.Rollback(m.confirmBackupPath); err != nil {
+			return commandResult{
+				setConfirmTimer:   true,
+				confirmTimerValue: false,
+				confirmBackupPath: "",
+			}, fmt.Errorf("rollback failed: %w", err)
+		}
+	}
+
+	content := m.editor.WorkingContent()
+	return commandResult{
+		statusMessage:     "Changes rolled back to previous state.",
+		configView:        &viewportData{content: content, lineMapping: nil},
+		revalidate:        true,
+		setConfirmTimer:   true,
+		confirmTimerValue: false,
+		confirmBackupPath: "",
+	}, nil
+}
+
+// cmdLoad loads configuration from a file, replacing current content.
+func (m *Model) cmdLoad(args []string) (commandResult, error) {
+	if len(args) < 1 {
+		return commandResult{}, fmt.Errorf("usage: load <file>")
+	}
+
+	loadPath := m.resolveConfigPath(args[0])
+
+	data, err := readFile(loadPath)
+	if err != nil {
+		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
+	}
+
+	m.editor.SetWorkingContent(string(data))
+	m.editor.MarkDirty()
+
+	content := m.editor.WorkingContent()
+	return commandResult{
+		statusMessage: fmt.Sprintf("Configuration loaded from %s", args[0]),
+		configView:    &viewportData{content: content, lineMapping: nil},
+		revalidate:    true,
+	}, nil
+}
+
+// cmdLoadMerge loads configuration from a file and merges with current content.
+func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
+	if len(args) < 1 {
+		return commandResult{}, fmt.Errorf("usage: load merge <file>")
+	}
+
+	loadPath := m.resolveConfigPath(args[0])
+
+	data, err := readFile(loadPath)
+	if err != nil {
+		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
+	}
+
+	// Simple merge: append the loaded content after the current content
+	// A more sophisticated merge would parse both and combine trees
+	// For now, we do line-based merge avoiding duplicates
+	currentContent := m.editor.WorkingContent()
+	mergeContent := string(data)
+
+	merged := mergeConfigs(currentContent, mergeContent)
+
+	m.editor.SetWorkingContent(merged)
+	m.editor.MarkDirty()
+
+	content := m.editor.WorkingContent()
+	return commandResult{
+		statusMessage: fmt.Sprintf("Configuration merged from %s", args[0]),
+		configView:    &viewportData{content: content, lineMapping: nil},
+		revalidate:    true,
+	}, nil
+}
+
+// resolveConfigPath resolves a path relative to the config file directory.
+func (m *Model) resolveConfigPath(path string) string {
+	if isAbsPath(path) {
+		return path
+	}
+	configDir := getDir(m.editor.OriginalPath())
+	return joinPath(configDir, path)
+}
+
+// cmdShowPipe executes show with pipe filters.
+func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
+	content := m.editor.WorkingContent()
+	if content == "" {
+		return commandResult{output: "(empty configuration)"}, nil
+	}
+
+	// If we have a context path, filter to that section first
+	if len(m.contextPath) > 0 {
+		data := m.filterContentByContext(content)
+		if data.content != "" {
+			content = data.content
+		}
+	}
+
+	// Apply pipe filters
+	output := content
+	for _, filter := range filters {
+		var err error
+		output, err = applyPipeFilter(output, filter)
+		if err != nil {
+			return commandResult{}, err
+		}
+	}
+
+	return commandResult{output: output}, nil
+}
+
+// applyPipeFilter applies a single pipe filter to content.
+// Returns error for unknown filter types.
+func applyPipeFilter(content string, filter PipeFilter) (string, error) {
+	lines := strings.Split(content, "\n")
+
+	switch filter.Type {
+	case "grep":
+		var matched []string
+		for _, line := range lines {
+			if strings.Contains(line, filter.Arg) {
+				matched = append(matched, line)
+			}
+		}
+		return strings.Join(matched, "\n"), nil
+
+	case "head":
+		n := 10 // default
+		if filter.Arg != "" {
+			if parsed, err := parseIntArg(filter.Arg); err == nil && parsed > 0 {
+				n = parsed
+			}
+		}
+		if n > len(lines) {
+			n = len(lines)
+		}
+		return strings.Join(lines[:n], "\n"), nil
+
+	case "tail":
+		n := 10 // default
+		if filter.Arg != "" {
+			if parsed, err := parseIntArg(filter.Arg); err == nil && parsed > 0 {
+				n = parsed
+			}
+		}
+		if n > len(lines) {
+			n = len(lines)
+		}
+		return strings.Join(lines[len(lines)-n:], "\n"), nil
+
+	case "compare":
+		// Compare filter marks each line with + or - based on content
+		// This is a simplified version - it just prefixes lines to indicate changes
+		// A proper implementation would need the original content to compute a real diff
+		var result []string
+		for _, line := range lines {
+			if strings.TrimSpace(line) != "" {
+				result = append(result, "+ "+line)
+			}
+		}
+		if len(result) == 0 {
+			return "(no changes)", nil
+		}
+		return strings.Join(result, "\n"), nil
+	}
+
+	return "", fmt.Errorf("unknown pipe filter: %s", filter.Type)
+}
+
+// mergeConfigs merges two configuration strings.
+// Simple strategy: use current as base, add non-duplicate blocks/keys from merge.
+// Existing keys in current are preserved (merge file's duplicates are skipped).
+func mergeConfigs(current, merge string) string {
+	currentLines := strings.Split(current, "\n")
+	mergeLines := strings.Split(merge, "\n")
+
+	// Extract existing keys from current config at depth 1 (inside main block)
+	existingKeys := make(map[string]bool)
+	depth := 0
+	for _, line := range currentLines {
+		trimmed := strings.TrimSpace(line)
+		openBraces := strings.Count(trimmed, "{")
+		closeBraces := strings.Count(trimmed, "}")
+
+		// At depth 1, extract keys
+		if depth == 1 && trimmed != "" && trimmed != "}" {
+			key := extractConfigKey(trimmed)
+			if key != "" {
+				existingKeys[key] = true
+			}
+		}
+
+		depth += openBraces - closeBraces
+	}
+
+	// Find the closing brace of the main block in current and insert merge content before it
+	result := make([]string, 0, len(currentLines)+len(mergeLines))
+	depth = 0
+	inserted := false
+	mergeDepth := 0
+	skipUntilClose := false
+
+	for i, line := range currentLines {
+		trimmed := strings.TrimSpace(line)
+		depth += strings.Count(trimmed, "{")
+		depth -= strings.Count(trimmed, "}")
+
+		// If we're about to close the main block and haven't inserted yet
+		if depth == 0 && strings.Contains(trimmed, "}") && !inserted {
+			// Insert merge content, skipping duplicates
+			for _, mergeLine := range mergeLines {
+				mergeTrimmed := strings.TrimSpace(mergeLine)
+
+				// Track depth in merge content
+				mergeOpenBraces := strings.Count(mergeTrimmed, "{")
+				mergeCloseBraces := strings.Count(mergeTrimmed, "}")
+
+				// Skip top-level block markers
+				if mergeTrimmed == "" || mergeTrimmed == "bgp {" || mergeTrimmed == "}" {
+					mergeDepth += mergeOpenBraces - mergeCloseBraces
+					continue
+				}
+
+				// If we're skipping a duplicate block, continue until it closes
+				if skipUntilClose {
+					mergeDepth += mergeOpenBraces - mergeCloseBraces
+					if mergeDepth <= 1 {
+						skipUntilClose = false
+					}
+					continue
+				}
+
+				// At depth 1 in merge, check if key already exists
+				if mergeDepth == 1 {
+					key := extractConfigKey(mergeTrimmed)
+					if key != "" && existingKeys[key] {
+						// Skip this key/block - it already exists in current
+						if mergeOpenBraces > 0 {
+							skipUntilClose = true
+						}
+						mergeDepth += mergeOpenBraces - mergeCloseBraces
+						continue
+					}
+				}
+
+				mergeDepth += mergeOpenBraces - mergeCloseBraces
+				result = append(result, mergeLine)
+			}
+			inserted = true
+		}
+
+		result = append(result, currentLines[i])
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// extractConfigKey extracts the key from a config line.
+// For "router-id 1.2.3.4;" returns "router-id".
+// For "peer 1.1.1.1 {" returns "peer 1.1.1.1".
+// For "local-as 65000;" returns "local-as".
+func extractConfigKey(line string) string {
+	line = strings.TrimSpace(line)
+	line = strings.TrimSuffix(line, "{")
+	line = strings.TrimSuffix(line, ";")
+	line = strings.TrimSpace(line)
+
+	// Split into words
+	parts := strings.Fields(line)
+	if len(parts) == 0 {
+		return ""
+	}
+
+	// For leaf values like "router-id 1.2.3.4", the key is "router-id"
+	// For blocks like "peer 1.1.1.1", the key is "peer 1.1.1.1"
+	// Heuristic: if there are 2 parts and first is a known block keyword, use both
+	if len(parts) >= 2 {
+		first := parts[0]
+		// Known block keywords that take a key value
+		blockKeywords := map[string]bool{
+			"peer": true, "template": true, "plugin": true, "process": true, "group": true,
+		}
+		if blockKeywords[first] {
+			return first + " " + parts[1]
+		}
+	}
+
+	// Default: just use the first word as the key
+	return parts[0]
+}
+
+// findPipeIndex returns the index of "|" in tokens, or -1 if not found.
+func findPipeIndex(tokens []string) int {
+	for i, t := range tokens {
+		if t == "|" {
+			return i
+		}
+	}
+	return -1
+}
+
+// dispatchWithPipe handles commands with pipe filters.
+func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult, error) {
+	if len(cmdTokens) == 0 {
+		return commandResult{}, fmt.Errorf("no command before pipe")
+	}
+
+	// Parse pipe filters
+	filters := parsePipeFilters(pipeTokens)
+
+	// Only show supports piping currently
+	cmd := cmdTokens[0]
+	switch cmd {
+	case "show":
+		return m.cmdShowPipe(cmdTokens[1:], filters)
+	case "errors":
+		result, err := m.cmdErrors()
+		if err != nil {
+			return result, err
+		}
+		// Apply filters to errors output
+		for _, f := range filters {
+			result.output, err = applyPipeFilter(result.output, f)
+			if err != nil {
+				return commandResult{}, err
+			}
+		}
+		return result, nil
+	}
+
+	return commandResult{}, fmt.Errorf("command '%s' does not support piping", cmd)
+}
+
+// parsePipeFilters parses pipe filter tokens into PipeFilter structs.
+func parsePipeFilters(tokens []string) []PipeFilter {
+	var filters []PipeFilter
+	i := 0
+
+	for i < len(tokens) {
+		if tokens[i] == "|" {
+			i++
+			continue
+		}
+
+		filter := PipeFilter{Type: tokens[i]}
+		i++
+
+		// Get argument if present
+		if i < len(tokens) && tokens[i] != "|" {
+			filter.Arg = tokens[i]
+			i++
+		}
+
+		filters = append(filters, filter)
+	}
+
+	return filters
+}
+
+// Helper functions wrapping standard library calls
+// These use os, filepath, strconv packages.
+
+func readFile(path string) ([]byte, error) {
+	return os.ReadFile(path) //nolint:gosec // Path comes from user input in editor context
+}
+
+func isAbsPath(path string) bool {
+	return filepath.IsAbs(path)
+}
+
+func getDir(path string) string {
+	return filepath.Dir(path)
+}
+
+func joinPath(base, path string) string {
+	return filepath.Join(base, path)
+}
+
+func parseIntArg(s string) (int, error) {
+	return strconv.Atoi(s)
 }

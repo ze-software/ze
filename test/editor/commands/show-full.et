@@ -1,0 +1,24 @@
+# Test: Show displays full configuration
+# VALIDATES: Show command shows config content
+# VALIDATES: All config sections visible
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show full config
+input=type:text=show
+input=enter
+expect=viewport:contains=router-id
+expect=viewport:contains=local-as
+expect=viewport:contains=peer
+expect=error:none

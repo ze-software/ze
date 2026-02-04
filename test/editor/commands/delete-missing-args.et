@@ -1,0 +1,17 @@
+# Test: Delete command requires path
+# VALIDATES: delete without arguments shows error
+# PREVENTS: Incomplete delete command being accepted
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Delete without arguments
+input=type:text=delete
+input=enter
+expect=error:contains=usage

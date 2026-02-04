@@ -1,0 +1,21 @@
+# Test: Ghost text with multiple matching completions
+# VALIDATES: Common prefix shown when multiple matches
+# VALIDATES: Ghost text is "m" (common prefix "com" minus typed "co")
+# PREVENTS: Wrong completion shown with multiple options
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Type "co" which matches both "commit" and "compare"
+input=type:text=co
+expect=completion:contains=commit,compare
+
+# Ghost text should be common prefix extension ("m" since both start with "com")
+# Typed: "co", common prefix: "com", ghost: "m"
+expect=ghost:text=m

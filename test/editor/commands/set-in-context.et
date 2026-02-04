@@ -1,0 +1,31 @@
+# Test: Set command works from context
+# VALIDATES: Set uses current context as prefix
+# VALIDATES: Status message shows full path
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Set relative path - should be prefixed with context
+input=type:text=set hold-time 90
+input=enter
+expect=dirty:true
+expect=status:contains=Set
+expect=status:contains=bgp
+expect=status:contains=peer
+expect=status:contains=hold-time
+expect=error:none

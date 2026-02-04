@@ -198,7 +198,7 @@ func (c *Completer) completeEditPath(tokens []string, contextPath []string, ends
 	if len(tokens) == 1 && endsWithSpace {
 		listPath := append(append([]string{}, contextPath...), tokens[0])
 		if c.isList(listPath) {
-			return c.listKeyCompletions(tokens[0], "")
+			return c.listKeyCompletions(tokens[0], "", contextPath)
 		}
 	}
 
@@ -206,7 +206,7 @@ func (c *Completer) completeEditPath(tokens []string, contextPath []string, ends
 	if len(tokens) == 2 && !endsWithSpace {
 		listPath := append(append([]string{}, contextPath...), tokens[0])
 		if c.isList(listPath) {
-			return c.listKeyCompletions(tokens[0], tokens[1])
+			return c.listKeyCompletions(tokens[0], tokens[1], contextPath)
 		}
 	}
 
@@ -226,7 +226,7 @@ func (c *Completer) completeShowPath(tokens []string, contextPath []string, ends
 	if len(tokens) == 1 && endsWithSpace {
 		listPath := append(append([]string{}, contextPath...), tokens[0])
 		if c.isList(listPath) {
-			return c.listKeyCompletions(tokens[0], "")
+			return c.listKeyCompletions(tokens[0], "", contextPath)
 		}
 	}
 
@@ -234,7 +234,8 @@ func (c *Completer) completeShowPath(tokens []string, contextPath []string, ends
 }
 
 // listKeyCompletions returns completions for list keys.
-func (c *Completer) listKeyCompletions(listName, prefix string) []Completion {
+// contextPath is used to navigate to the correct container in the config tree.
+func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []string) []Completion {
 	var completions []Completion
 
 	// Add wildcard template option
@@ -248,7 +249,16 @@ func (c *Completer) listKeyCompletions(listName, prefix string) []Completion {
 
 	// Add existing keys from config tree
 	if c.tree != nil {
-		keys := c.tree.ListKeys(listName)
+		// Navigate to the correct container based on context path
+		tree := c.tree
+		for _, part := range contextPath {
+			container := tree.GetContainer(part)
+			if container == nil {
+				break
+			}
+			tree = container
+		}
+		keys := tree.ListKeys(listName)
 		for _, key := range keys {
 			if prefix == "" || strings.HasPrefix(key, prefix) {
 				completions = append(completions, Completion{
@@ -403,6 +413,7 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 }
 
 // getEntry returns the YANG entry at the given path.
+// Handles list keys by skipping key values (e.g., "peer", "1.1.1.1" → navigate to peer list children).
 func (c *Completer) getEntry(path []string) *gyang.Entry {
 	if c.loader == nil {
 		return nil
@@ -414,8 +425,9 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 		return nil
 	}
 
-	// Navigate through path
-	for _, part := range path {
+	// Navigate through path, handling list keys
+	for i := 0; i < len(path); i++ {
+		part := path[i]
 		if entry.Dir == nil {
 			return nil
 		}
@@ -424,6 +436,15 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 			return nil
 		}
 		entry = child
+
+		// If this is a list and there's a next element that's not in Dir, skip the key
+		if entry.IsList() && i+1 < len(path) {
+			nextPart := path[i+1]
+			if _, hasChild := entry.Dir[nextPart]; !hasChild {
+				// Next element is a key value, skip it
+				i++
+			}
+		}
 	}
 
 	return entry

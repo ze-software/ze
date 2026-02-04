@@ -1,0 +1,16 @@
+# Test: Ghost text for partial keyword match
+# VALIDATES: Partial keyword shows completion suffix as ghost text
+# VALIDATES: Single match produces ghost text
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Type partial command - "disc" uniquely matches "discard"
+input=type:text=disc
+expect=ghost:text=ard

@@ -1,0 +1,21 @@
+# Test: Unknown command shows error
+# VALIDATES: Unrecognized commands fail gracefully
+# VALIDATES: Error message mentions "unknown"
+# PREVENTS: Silent failure or crash for typos
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Unknown command
+input=type:text=foobar
+input=enter
+expect=error:contains=unknown
+
+# Context should remain unchanged
+expect=context:root

@@ -1,0 +1,33 @@
+# Test: Chained pipe filters
+# VALIDATES: Multiple pipes work together
+# VALIDATES: grep filters content, head limits lines
+# PREVENTS: Pipe chain broken
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+  }
+  peer 3.3.3.3 {
+    peer-as 65003;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show with chained filters: grep for peer, limit to 2 lines
+input=type:text=show | grep peer | head 2
+input=enter
+
+# Should apply both filters
+expect=viewport:contains=peer
+expect=viewport:not-contains=router-id
+expect=viewport:not-contains=local-as
+expect=error:none

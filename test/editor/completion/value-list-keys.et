@@ -1,0 +1,31 @@
+# Test: List key completion with multiple entries
+# VALIDATES: Completion shows all existing list keys
+# PREVENTS: List keys not enumerated
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 10.0.0.1 {
+    peer-as 65001;
+  }
+  peer 10.0.0.2 {
+    peer-as 65002;
+  }
+  peer 10.0.0.3 {
+    peer-as 65003;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter bgp context
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# Edit peer should show all three existing keys
+input=type:text=edit peer
+input=space
+expect=completion:contains=10.0.0.1,10.0.0.2,10.0.0.3,*

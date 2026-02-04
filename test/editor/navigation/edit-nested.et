@@ -1,0 +1,34 @@
+# Test: Edit nested block (peer inside bgp)
+# VALIDATES: Edit finds nested blocks with hierarchical path
+# VALIDATES: Context path includes parent (bgp.peer.1.1.1.1)
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Start at root
+expect=context:root
+
+# Edit peer - should find it inside bgp
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+expect=error:none
+
+# Viewport shows peer content
+expect=viewport:contains=peer-as
+expect=viewport:contains=hold-time
+
+# Should NOT show parent-level content
+expect=viewport:not-contains=router-id
+expect=viewport:not-contains=local-as

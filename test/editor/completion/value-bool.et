@@ -1,0 +1,25 @@
+# Test: Boolean value completion
+# VALIDATES: Boolean fields show true/false options
+# PREVENTS: User guessing boolean syntax
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Set passive should show boolean completions - need space after passive
+input=type:text=set passive
+input=space
+expect=completion:contains=true,false

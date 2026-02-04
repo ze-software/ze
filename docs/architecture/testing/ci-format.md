@@ -381,3 +381,84 @@ Key changes:
 - Explicit `conn=` and `seq=` for message ordering
 - `hex=` prefix for wire bytes
 - `json=` prefix for JSON data
+
+## Editor Test Format (.et)
+
+The `.et` format extends `.ci` for interactive editor testing. Tests are located in `test/editor/`.
+
+### Overview
+
+Editor tests simulate user input sequences against the headless configuration editor and verify state changes.
+
+### Input Actions
+
+| Action | Purpose | Example |
+|--------|---------|---------|
+| `input=type:text=<text>` | Type text | `input=type:text=edit bgp` |
+| `input=key:name=<key>` | Send special key | `input=key:name=tab` |
+| `input=tab` | Tab key (shorthand) | `input=tab` |
+| `input=enter` | Enter key (shorthand) | `input=enter` |
+| `input=ctrl:key=<c>` | Ctrl+key | `input=ctrl:key=u` |
+| `input=space` | Space key | `input=space` |
+
+### Expectations
+
+| Expectation | Purpose | Example |
+|-------------|---------|---------|
+| `expect=context:path=<p>` | Context equals path | `expect=context:path=bgp.peer.1.1.1.1` |
+| `expect=context:root` | Context is root | `expect=context:root` |
+| `expect=completion:contains=<list>` | Completions include all | `expect=completion:contains=set,delete,edit` |
+| `expect=completion:count=<N>` | Number of completions | `expect=completion:count=5` |
+| `expect=ghost:text=<suffix>` | Ghost text suggestion | `expect=ghost:text=-id` |
+| `expect=dirty:true` | Has unsaved changes | `expect=dirty:true` |
+| `expect=errors:count=<N>` | Validation error count | `expect=errors:count=0` |
+| `expect=status:contains=<text>` | Status message | `expect=status:contains=committed` |
+| `expect=error:none` | No command error | `expect=error:none` |
+| `expect=timer:active` | Confirm timer running | `expect=timer:active` |
+
+### Wait Actions
+
+| Action | Purpose | Example |
+|--------|---------|---------|
+| `wait=ms:<N>` | Wait N milliseconds | `wait=ms:200` |
+| `wait=validation` | Wait for validation | `wait=validation` |
+| `wait=timer:expire` | Wait for timer expiry | `wait=timer:expire` |
+
+### Example
+
+```
+# Test: Edit navigation
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+
+expect=context:root
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+expect=error:none
+
+input=type:text=set
+input=space
+expect=completion:contains=router-id,local-as,peer
+```
+
+### Test Categories
+
+| Category | Location | Tests |
+|----------|----------|-------|
+| Navigation | `test/editor/navigation/` | edit, up, top, context |
+| Completion | `test/editor/completion/` | commands, YANG paths, values |
+| Commands | `test/editor/commands/` | set, delete, show, compare |
+| Lifecycle | `test/editor/lifecycle/` | commit, rollback, load, history |
+| Validation | `test/editor/validation/` | hold-time, peer-as |
+| Pipe | `test/editor/pipe/` | grep, head, tail |
+
+Full format specification: `docs/plan/spec-editor-testing-framework.md`

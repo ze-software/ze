@@ -1,0 +1,42 @@
+# Test: Show with compare filter (show | compare)
+# VALIDATES: Pipe to compare shows diff of current section
+# VALIDATES: Works like compare command but for specific section
+# PREVENTS: Pipe compare broken
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  listen 0.0.0.0 179;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Load modified config to create actual content change
+input=type:text=load modified.conf
+input=enter
+expect=dirty:true
+
+# Show with compare - should show the diff
+input=type:text=show | compare
+input=enter
+expect=error:none
+
+# Should show diff with added content
+expect=viewport:contains=+
+expect=viewport:contains=listen

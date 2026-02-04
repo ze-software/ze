@@ -1,0 +1,17 @@
+# Test: Load shows error for missing file
+# VALIDATES: Load fails gracefully for nonexistent file
+# VALIDATES: Error message mentions file not found
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Try to load nonexistent file
+input=type:text=load nonexistent.conf
+input=enter
+expect=error:contains=no such file

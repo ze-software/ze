@@ -1,0 +1,35 @@
+# Test: Discard reverts changes
+# VALIDATES: Discard resets working content to original
+# VALIDATES: Dirty flag cleared after discard
+# VALIDATES: Content returns to pre-change state
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify initial state
+expect=content:contains=router-id 1.2.3.4
+expect=dirty:false
+
+# Make a change that would add new content
+input=type:text=set bgp local-as 65000
+input=enter
+expect=dirty:true
+expect=status:contains=Set
+
+# Discard changes
+input=type:text=discard
+input=enter
+expect=dirty:false
+expect=status:contains=discarded
+expect=error:none
+
+# Verify content reverted - show to refresh viewport
+input=type:text=show
+input=enter
+expect=viewport:contains=router-id 1.2.3.4

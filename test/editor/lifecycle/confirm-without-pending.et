@@ -1,0 +1,22 @@
+# Test: Confirm without pending commit confirm
+# VALIDATES: confirm command when no timer is active shows message
+# PREVENTS: Unexpected behavior for out-of-sequence command
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Confirm without prior commit confirm
+input=type:text=confirm
+input=enter
+expect=error:contains=pending

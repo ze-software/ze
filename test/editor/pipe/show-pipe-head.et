@@ -1,0 +1,35 @@
+# Test: Show with head filter
+# VALIDATES: Pipe head limits output to first N lines
+# VALIDATES: Content from beginning is shown
+# VALIDATES: Content beyond limit is excluded
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+  }
+  peer 3.3.3.3 {
+    peer-as 65003;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show with head 3 - should show first 3 lines only
+input=type:text=show | head 3
+input=enter
+expect=error:none
+
+# First line content (bgp {) should be present
+expect=viewport:contains=bgp
+
+# Later content should be excluded (peer 3.3.3.3 is line 11+)
+expect=viewport:not-contains=3.3.3.3
+expect=viewport:not-contains=65003

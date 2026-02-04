@@ -1,0 +1,22 @@
+# Test: Up at root shows message
+# VALIDATES: Up at root level shows "already at top" message
+# VALIDATES: No error, context remains at root
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Already at root
+expect=context:root
+
+# Try to go up
+input=type:text=up
+input=enter
+expect=viewport:contains=Already at top level
+expect=context:root
+expect=error:none

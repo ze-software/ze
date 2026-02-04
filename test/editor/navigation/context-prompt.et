@@ -1,0 +1,28 @@
+# Test: Context prompt display
+# VALIDATES: Prompt shows current context path correctly
+# PREVENTS: User confused about current location
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# At root, prompt should be simple
+expect=context:root
+
+# Enter bgp context
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# Enter deeper context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1

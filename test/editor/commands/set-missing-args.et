@@ -1,0 +1,23 @@
+# Test: Set command requires path and value
+# VALIDATES: set without arguments shows error
+# VALIDATES: set with only path shows error
+# PREVENTS: Incomplete set command being accepted
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Set without any arguments
+input=type:text=set
+input=enter
+expect=error:contains=usage
+
+# Set with only one arg (path without value) - "set bgp" has 1 arg
+input=type:text=set bgp
+input=enter
+expect=error:contains=usage

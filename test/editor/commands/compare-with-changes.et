@@ -1,0 +1,39 @@
+# Test: Compare shows diff when content modified
+# VALIDATES: Compare command shows actual differences
+# VALIDATES: Added content shows with + prefix
+# VALIDATES: Compare works after load command modifies content
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+tmpfs=modified.conf:terminator=EOF_MODIFIED
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  listen 0.0.0.0 179;
+}
+EOF_MODIFIED
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Initially no changes
+expect=dirty:false
+
+# Load modified config to actually change content
+input=type:text=load modified.conf
+input=enter
+expect=dirty:true
+expect=viewport:contains=listen
+expect=error:none
+
+# Compare should show the difference
+input=type:text=compare
+input=enter
+expect=viewport:contains=+
+expect=viewport:contains=listen
+expect=error:none

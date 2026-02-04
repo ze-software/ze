@@ -1,0 +1,21 @@
+# Test: Hold-time validation follows RFC 4271
+# VALIDATES: Hold-time 0 is valid (disable keepalives)
+# VALIDATES: Hold-time 1-2 is invalid
+# VALIDATES: Hold-time >= 3 is valid
+
+tmpfs=invalid.conf:terminator=EOF_INVALID
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 2;
+  }
+}
+EOF_INVALID
+
+option=file:path=invalid.conf
+option=timeout:value=10s
+
+# Hold-time 2 should trigger error
+expect=errors:count=1
+expect=errors:contains=hold-time

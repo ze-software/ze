@@ -1,0 +1,20 @@
+# Test: Valid configuration passes
+# VALIDATES: Correct config has no errors
+# PREVENTS: False positive validation errors
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Should have no validation errors
+expect=errors:count=0

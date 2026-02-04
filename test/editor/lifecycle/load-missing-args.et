@@ -1,0 +1,17 @@
+# Test: Load command requires filename
+# VALIDATES: load without arguments shows error
+# PREVENTS: Incomplete load command being accepted
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Load without filename
+input=type:text=load
+input=enter
+expect=error:contains=usage

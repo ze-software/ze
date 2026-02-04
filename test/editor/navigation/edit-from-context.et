@@ -1,0 +1,33 @@
+# Test: Edit from within a context
+# VALIDATES: Edit finds blocks from current context level
+# VALIDATES: Full hierarchical path still constructed
+# PREVENTS: Navigation broken when not at root
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# First enter bgp context
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# Now edit peer from within bgp context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+expect=error:none
+
+# Should show peer content
+expect=content:contains=peer-as
+expect=content:contains=hold-time

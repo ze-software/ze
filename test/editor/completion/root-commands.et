@@ -1,0 +1,17 @@
+# Test: Root level shows editor commands
+# VALIDATES: Empty input shows all editor commands
+# VALIDATES: Commands include set, delete, edit, show, commit, etc.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# At root, tab should show commands
+expect=context:root
+input=tab
+expect=completion:contains=set,delete,edit,show,commit,discard,top,up

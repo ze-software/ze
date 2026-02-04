@@ -1,0 +1,24 @@
+# Test: Validation errors display
+# VALIDATES: Errors command shows validation issues
+# PREVENTS: User unable to see validation problems
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 1;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Should have validation error for hold-time 1 (RFC 4271)
+expect=errors:count=1
+
+# Errors command should show the issue
+input=type:text=errors
+input=enter
+expect=content:contains=hold-time

@@ -1,0 +1,27 @@
+# Test: Show with grep filter
+# VALIDATES: Pipe grep filters output to matching lines
+# VALIDATES: Non-matching content excluded
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show with grep to filter for specific peer
+input=type:text=show | grep 1.1.1.1
+input=enter
+expect=viewport:contains=1.1.1.1
+expect=viewport:not-contains=2.2.2.2
+expect=viewport:not-contains=router-id
+expect=error:none

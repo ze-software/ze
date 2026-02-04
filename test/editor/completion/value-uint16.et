@@ -1,0 +1,25 @@
+# Test: uint16 value hint completion
+# VALIDATES: uint16 fields show appropriate range hint
+# PREVENTS: User guessing valid ranges
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate to peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Set hold-time should show uint16 hint (0-65535)
+input=type:text=set hold-time
+input=space
+expect=completion:contains=<0-65535>

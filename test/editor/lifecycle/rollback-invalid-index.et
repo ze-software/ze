@@ -1,0 +1,18 @@
+# Test: Rollback with invalid index
+# VALIDATES: Rollback fails gracefully for nonexistent backup
+# PREVENTS: Crash or undefined behavior for invalid index
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Try to rollback to nonexistent backup
+input=type:text=rollback 999
+input=enter
+expect=error:contains=not found

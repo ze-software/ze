@@ -1,0 +1,20 @@
+# Test: Errors command with syntax error
+# VALIDATES: Errors displays syntax errors
+# PREVENTS: Syntax errors not visible to user
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id invalid-value;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Check errors - should have validation errors from load
+input=type:text=errors
+input=enter
+
+# Should show errors
+expect=content:contains=Errors
+expect=error:none

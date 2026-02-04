@@ -1,0 +1,39 @@
+# Test: Commit creates backup file
+# VALIDATES: Commit saves backup before overwriting
+# VALIDATES: History shows backup after commit
+# PREVENTS: Lost data from accidental commit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify no backups initially
+input=type:text=history
+input=enter
+expect=viewport:contains=No backups
+expect=error:none
+
+# Make a change
+input=type:text=set bgp listen 0.0.0.0 179
+input=enter
+expect=dirty:true
+
+# Commit
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=status:contains=committed
+expect=error:none
+
+# Verify backup was created - history should now show a backup
+input=type:text=history
+input=enter
+expect=viewport:contains=test
+expect=viewport:not-contains=No backups
+expect=error:none

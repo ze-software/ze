@@ -1,0 +1,35 @@
+# Test: Errors with grep filter
+# VALIDATES: Pipe grep filters error output
+# VALIDATES: Can search for specific error messages
+# PREVENTS: Pipe with errors command broken
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 1;
+  }
+  peer 2.2.2.2 {
+    peer-as 65002;
+    hold-time 2;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Should have validation errors for both peers
+expect=errors:count=2
+
+# Errors with grep for specific peer
+input=type:text=errors | grep 1.1.1.1
+input=enter
+expect=error:none
+
+# Should show error for 1.1.1.1
+expect=viewport:contains=1.1.1.1
+
+# Should NOT show error for 2.2.2.2
+expect=viewport:not-contains=2.2.2.2

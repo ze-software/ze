@@ -1,0 +1,41 @@
+# Test: Multiple up commands in sequence
+# VALIDATES: Each up goes one level higher
+# VALIDATES: Eventually reaches root
+# PREVENTS: Navigation getting stuck
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    capability {
+      route-refresh;
+    }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate deep into the config
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# First up: peer -> bgp
+input=type:text=up
+input=enter
+expect=context:path=bgp
+
+# Second up: bgp -> root
+input=type:text=up
+input=enter
+expect=context:root
+
+# Third up at root: should stay at root with message
+input=type:text=up
+input=enter
+expect=context:root
+expect=viewport:contains=Already at top level

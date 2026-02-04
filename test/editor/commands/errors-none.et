@@ -1,0 +1,26 @@
+# Test: Errors command with valid config
+# VALIDATES: Errors shows "no issues" for valid config
+# PREVENTS: Confusing output for valid config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Check errors
+input=type:text=errors
+input=enter
+
+# Should show no issues
+expect=content:contains=No validation issues
+expect=errors:count=0
+expect=error:none

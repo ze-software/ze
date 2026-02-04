@@ -1,0 +1,25 @@
+# Test: IPv4 address value completion
+# VALIDATES: IPv4 fields show type hint
+# PREVENTS: User doesn't know expected format
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# At bgp context, set router-id should show value hint
+input=type:text=edit bgp
+input=enter
+expect=context:path=bgp
+
+# After "set router-id " should show value type hint
+# Router-id is a string type in YANG schema
+input=type:text=set router-id
+input=space
+expect=completion:contains=<string>
+expect=error:none

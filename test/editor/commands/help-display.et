@@ -1,0 +1,18 @@
+# Test: Help command shows help overlay
+# VALIDATES: Help command activates help display
+# VALIDATES: No error on help command
+# NOTE: Help is rendered as overlay, not viewport content
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Help command should succeed
+input=type:text=help
+input=enter
+expect=error:none
