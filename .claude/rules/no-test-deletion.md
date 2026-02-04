@@ -1,29 +1,22 @@
-# Test Deletion Requires Approval
+# Test Deletion Guidelines
 
-**BLOCKING:** Test deletion requires explicit user approval.
+Before deleting tests, ask for user approval unless the user has already explicitly requested the deletion.
 
 ## Why This Rule Exists
 
 When tests fail, the temptation is to delete them and move on. This hides bugs instead of fixing them. But sometimes there are legitimate reasons to remove tests.
 
-## What Triggers Approval Request
+## When to Ask for Approval
 
-| Action | Triggers |
-|--------|----------|
-| Delete test files (`rm *_test.go`, `*.ci`) | ✅ |
-| Delete `func Test*` / `func Fuzz*` / `func Benchmark*` | ✅ |
-| Remove `t.Run()` subtests | ✅ |
-| Remove table-driven test entries (`{name: "..."}`) | ✅ |
-| Remove all assertions from a test | ✅ |
-| Remove lines from `.ci` functional tests | ✅ |
-| `git checkout --` to discard test changes | ✅ |
+Ask before:
+- Deleting test files (`*_test.go`, `*.ci`)
+- Removing `func Test*` / `func Fuzz*` / `func Benchmark*`
+- Removing `t.Run()` subtests
+- Removing table-driven test entries
+- Removing assertions from a test
+- Removing lines from `.ci` functional tests
 
-## Workflow
-
-1. Claude attempts test deletion
-2. Hook blocks and asks: "Allow this test deletion?"
-3. User approves or denies
-4. If approved, deletion proceeds
+**Exception:** If the user explicitly requested the deletion, proceed without asking again.
 
 ## Legitimate Reasons to Delete Tests
 
