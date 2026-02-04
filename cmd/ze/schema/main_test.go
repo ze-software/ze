@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -251,6 +252,39 @@ func TestDependencyAutoLoad(t *testing.T) {
 	}
 	if !foundBGP {
 		t.Error("ze-bgp should be loaded (ze-graceful-restart imports it)")
+	}
+}
+
+// TestSchemaImportsPopulated verifies Imports field is populated for all modules.
+//
+// VALIDATES: All modules (including auto-loaded) have their Imports populated.
+// PREVENTS: Regression where registerInternalYANG forgets to set Imports.
+func TestSchemaImportsPopulated(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	// ze-graceful-restart should import ze-bgp (shown as ze.bgp in display)
+	grSchema, err := registry.GetByModule("ze-graceful-restart")
+	if err != nil {
+		t.Fatalf("failed to get ze-graceful-restart schema: %v", err)
+	}
+
+	if len(grSchema.Imports) == 0 {
+		t.Error("ze-graceful-restart should have Imports populated (imports ze-bgp)")
+	} else if !slices.Contains(grSchema.Imports, "ze-bgp") {
+		t.Errorf("ze-graceful-restart Imports should contain ze-bgp, got %v", grSchema.Imports)
+	}
+
+	// ze-hostname should also import ze-bgp
+	hostnameSchema, err := registry.GetByModule("ze-hostname")
+	if err != nil {
+		t.Fatalf("failed to get ze-hostname schema: %v", err)
+	}
+
+	if len(hostnameSchema.Imports) == 0 {
+		t.Error("ze-hostname should have Imports populated (imports ze-bgp)")
 	}
 }
 

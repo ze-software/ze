@@ -14,13 +14,17 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze schema list
 expect=exit:code=0
-# Header line
+# Header line (all columns)
 expect=stdout:contains=Module
 expect=stdout:contains=Namespace
+expect=stdout:contains=Wants Config
 expect=stdout:contains=Imports
-# Core BGP schema (no imports)
+# Core BGP schema (no imports, no wants config)
 expect=stdout:contains=ze-bgp
 expect=stdout:contains=ze.bgp
-# Internal plugins with YANG (import ze-bgp)
+# Internal plugins with YANG (import ze-bgp, want bgp config)
 expect=stdout:contains=ze-graceful-restart
 expect=stdout:contains=ze-hostname
+# Verify plugins show their config dependencies
+expect=stdout:regex=ze-graceful-restart.*bgp
+expect=stdout:regex=ze-hostname.*bgp

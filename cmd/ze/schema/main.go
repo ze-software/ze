@@ -344,6 +344,14 @@ func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, h
 		handlers = []string{}
 	}
 
+	// Filter core modules from displayed imports (same as registerYANG)
+	var displayImports []string
+	for _, imp := range meta.Imports {
+		if !coreModules[imp] {
+			displayImports = append(displayImports, imp)
+		}
+	}
+
 	// Get WantsConfig from static metadata (pluginID is "ze.name", extract "name")
 	var wantsConfig []string
 	if strings.HasPrefix(pluginID, "ze.") {
@@ -351,14 +359,17 @@ func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, h
 		wantsConfig = plugin.GetInternalPluginWantsConfig(pluginName)
 	}
 
-	_ = registry.Register(&plugin.Schema{
+	if err := registry.Register(&plugin.Schema{
 		Module:      meta.Module,
 		Namespace:   yang.FormatNamespace(meta.Namespace),
 		Yang:        yangContent,
+		Imports:     displayImports,
 		Handlers:    handlers,
 		Plugin:      pluginID,
 		WantsConfig: wantsConfig,
-	})
+	}); err != nil {
+		return err
+	}
 	loaded[meta.Module] = true
 	return nil
 }
