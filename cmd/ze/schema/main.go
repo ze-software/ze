@@ -17,6 +17,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
+// Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").
+const internalPluginPrefix = "ze."
+
+// Module name prefix for Ze modules (e.g., "ze-bgp", "ze-types").
+const moduleNamePrefix = "ze-"
+
+// Timeout for external plugin YANG queries.
+const externalPluginTimeout = 10 * time.Second
+
 // Core YANG modules that are always available (not shown as imports).
 var coreModules = map[string]bool{
 	"ze-types":      true,
@@ -213,15 +222,15 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, schema.ZeBGPYANG, "ze.bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
+	if err := registerYANG(registry, schema.ZeBGPYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
 	// Register internal plugin schemas
 	for name, yangContent := range plugin.GetAllInternalPluginYANG() {
-		pluginName := strings.TrimSuffix(strings.TrimPrefix(name, "ze-"), ".yang")
+		pluginName := strings.TrimSuffix(strings.TrimPrefix(name, moduleNamePrefix), ".yang")
 		wantsConfig := plugin.GetInternalPluginWantsConfig(pluginName)
-		if err := registerYANG(registry, yangContent, "ze."+pluginName, nil, wantsConfig, loaded); err != nil {
+		if err := registerYANG(registry, yangContent, internalPluginPrefix+pluginName, nil, wantsConfig, loaded); err != nil {
 			return nil, fmt.Errorf("register %s: %w", name, err)
 		}
 	}
@@ -299,7 +308,7 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 	}
 
 	// Module names are "ze-bgp", plugin names are "bgp"
-	pluginName := strings.TrimPrefix(moduleName, "ze-")
+	pluginName := strings.TrimPrefix(moduleName, moduleNamePrefix)
 
 	// Try to get YANG content for this module
 	yangContent, handlers, pluginID := getInternalYANG(moduleName, pluginName)
@@ -319,7 +328,7 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
 	if moduleName == "ze-bgp" {
-		return schema.ZeBGPYANG, []string{"bgp", "bgp.peer"}, "ze.bgp"
+		return schema.ZeBGPYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
 	}
 
 	// Internal plugins
@@ -354,7 +363,7 @@ func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, h
 
 	// Get WantsConfig from static metadata (pluginID is "ze.name", extract "name")
 	var wantsConfig []string
-	if strings.HasPrefix(pluginID, "ze.") {
+	if strings.HasPrefix(pluginID, internalPluginPrefix) {
 		pluginName := pluginID[3:]
 		wantsConfig = plugin.GetInternalPluginWantsConfig(pluginName)
 	}
@@ -376,8 +385,8 @@ func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, h
 
 // formatModuleAsNamespace converts a module name to namespace display format.
 func formatModuleAsNamespace(module string) string {
-	if strings.HasPrefix(module, "ze-") {
-		return "ze." + module[3:]
+	if strings.HasPrefix(module, moduleNamePrefix) {
+		return internalPluginPrefix + module[len(moduleNamePrefix):]
 	}
 	return module
 }
@@ -391,8 +400,8 @@ func formatModuleAsNamespace(module string) string {
 func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, error) {
 	// Internal plugin "ze.name" or "ze-name" - both have 3-char prefix
 	// Both modes use the same YANG content; mode only affects runtime execution.
-	if strings.HasPrefix(pluginSpec, "ze.") || strings.HasPrefix(pluginSpec, "ze-") {
-		name := pluginSpec[3:] // Strip "ze." or "ze-"
+	if strings.HasPrefix(pluginSpec, internalPluginPrefix) || strings.HasPrefix(pluginSpec, moduleNamePrefix) {
+		name := pluginSpec[len(internalPluginPrefix):] // Strip prefix (both are same length)
 
 		yangContent := plugin.GetInternalPluginYANG(name)
 		if yangContent == "" {
@@ -440,7 +449,7 @@ func getExternalPluginYANG(pluginSpec string) (string, error) {
 	// Append --yang to get YANG output
 	args = append(args, "--yang")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), externalPluginTimeout)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // Plugin command from user

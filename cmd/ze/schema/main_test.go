@@ -367,3 +367,28 @@ func TestSchemaWantsConfigPopulated(t *testing.T) {
 		t.Errorf("ze-bgp should not have WantsConfig, got %v", bgpSchema.WantsConfig)
 	}
 }
+
+// TestExternalPluginEmptySpec verifies empty plugin spec handling.
+//
+// VALIDATES: Empty plugin spec returns error.
+// PREVENTS: Panic on empty plugin command.
+func TestExternalPluginEmptySpec(t *testing.T) {
+	_, err := getExternalPluginYANG("")
+	if err == nil {
+		t.Error("expected error for empty plugin spec, got nil")
+	}
+	if !strings.Contains(err.Error(), "no plugin command specified") {
+		t.Errorf("expected 'no plugin command specified' error, got: %v", err)
+	}
+}
+
+// TestExternalPluginNonexistent verifies handling of nonexistent plugins.
+//
+// VALIDATES: Nonexistent plugin returns error.
+// PREVENTS: Silent failure on missing plugins.
+func TestExternalPluginNonexistent(t *testing.T) {
+	_, err := getExternalPluginYANG("/nonexistent/plugin/path")
+	if err == nil {
+		t.Error("expected error for nonexistent plugin, got nil")
+	}
+}
