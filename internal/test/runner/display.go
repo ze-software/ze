@@ -128,6 +128,9 @@ func (d *Display) Status() {
 		parts = append(parts, fmt.Sprintf("[%d/%ds]", elapsed, timeout))
 	}
 
+	// Passed count
+	parts = append(parts, fmt.Sprintf("%s %d", d.colors.Green("passed"), passed))
+
 	// Running count with test names when <= 5
 	if running > 0 {
 		runningStr := fmt.Sprintf("%s %d", d.colors.Cyan("running"), running)
@@ -136,9 +139,6 @@ func (d *Display) Status() {
 		}
 		parts = append(parts, runningStr)
 	}
-
-	// Passed count
-	parts = append(parts, fmt.Sprintf("%s %d", d.colors.Green("passed"), passed))
 
 	// Failed tests with nick:name
 	if failed > 0 {
