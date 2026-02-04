@@ -159,7 +159,7 @@ type RunCommand struct {
 func NewRecord(name string) *Record {
 	return &Record{
 		Name:   name,
-		Nick:   generateNick(name),
+		Nick:   GenerateNick(name),
 		Extra:  make(map[string]string),
 		Conf:   make(map[string]any),
 		Active: false,
@@ -173,7 +173,8 @@ var (
 	nickMu    sync.Mutex
 )
 
-func generateNick(_ string) string {
+// GenerateNick generates a unique short nick for a test.
+func GenerateNick(_ string) string {
 	nickMu.Lock()
 	defer nickMu.Unlock()
 

@@ -16,9 +16,8 @@ import (
 
 // ParsingTest holds a single parsing test case.
 type ParsingTest struct {
-	Name string
-	Nick string
-	File string
+	BaseTest // Embeds Name, Nick, Active, Error
+	File     string
 
 	// For .ci files: inline config content (nil for .conf files)
 	InlineConfig []byte
@@ -30,22 +29,19 @@ type ParsingTest struct {
 	IsRegexMatch bool           // True if using regex matching
 
 	// Results
-	Active bool
 	Output string
-	Error  error
 }
 
 // ParsingTests manages parsing test discovery and execution.
 type ParsingTests struct {
-	tests   []*ParsingTest
-	byNick  map[string]*ParsingTest
+	*TestSet[*ParsingTest]
 	baseDir string
 }
 
 // NewParsingTests creates a new parsing test manager.
 func NewParsingTests(baseDir string) *ParsingTests {
 	return &ParsingTests{
-		byNick:  make(map[string]*ParsingTest),
+		TestSet: NewTestSet[*ParsingTest](),
 		baseDir: baseDir,
 	}
 }
@@ -67,12 +63,11 @@ func (pt *ParsingTests) Discover(dir string) error {
 		if err != nil {
 			return fmt.Errorf("parse %s: %w", ciFile, err)
 		}
-		pt.tests = append(pt.tests, test)
-		pt.byNick[test.Nick] = test
+		pt.Add(test)
 	}
 
 	// If .ci files found, we're done
-	if len(pt.tests) > 0 {
+	if pt.Count() > 0 {
 		return nil
 	}
 
@@ -91,15 +86,16 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 		for _, confFile := range files {
 			name := filepath.Base(confFile)
-			nick := generateNick(name)
+			nick := GenerateNick(name)
 
 			test := &ParsingTest{
-				Name: "valid/" + name,
-				Nick: nick,
+				BaseTest: BaseTest{
+					Name: "valid/" + name,
+					Nick: nick,
+				},
 				File: confFile,
 			}
-			pt.tests = append(pt.tests, test)
-			pt.byNick[nick] = test
+			pt.Add(test)
 		}
 	}
 
@@ -128,11 +124,13 @@ func (pt *ParsingTests) Discover(dir string) error {
 				return fmt.Errorf("negative test %s has empty .expect file", name)
 			}
 
-			nick := generateNick(name)
+			nick := GenerateNick(name)
 
 			test := &ParsingTest{
-				Name:        "invalid/" + name,
-				Nick:        nick,
+				BaseTest: BaseTest{
+					Name: "invalid/" + name,
+					Nick: nick,
+				},
 				File:        confFile,
 				ExpectError: expectError,
 			}
@@ -149,13 +147,12 @@ func (pt *ParsingTests) Discover(dir string) error {
 				test.IsRegexMatch = true
 			}
 
-			pt.tests = append(pt.tests, test)
-			pt.byNick[nick] = test
+			pt.Add(test)
 		}
 	}
 
 	// Error if no tests found
-	if len(pt.tests) == 0 {
+	if pt.Count() == 0 {
 		return fmt.Errorf("no parsing tests found in %s (expected *.ci or valid/*.conf)", dir)
 	}
 
@@ -178,11 +175,13 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 	}
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
-	nick := generateNick(name)
+	nick := GenerateNick(name)
 
 	test := &ParsingTest{
-		Name: name,
-		Nick: nick,
+		BaseTest: BaseTest{
+			Name: name,
+			Nick: nick,
+		},
 		File: filePath,
 	}
 
@@ -253,58 +252,21 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 	return test, nil
 }
 
-// Registered returns all tests in order.
-func (pt *ParsingTests) Registered() []*ParsingTest {
-	return pt.tests
-}
-
-// Selected returns active tests.
-func (pt *ParsingTests) Selected() []*ParsingTest {
-	var result []*ParsingTest
-	for _, t := range pt.tests {
-		if t.Active {
-			result = append(result, t)
-		}
-	}
-	return result
-}
-
-// Count returns the number of tests.
-func (pt *ParsingTests) Count() int {
-	return len(pt.tests)
-}
-
-// EnableAll activates all tests.
-func (pt *ParsingTests) EnableAll() {
-	for _, t := range pt.tests {
-		t.Active = true
-	}
-}
-
-// EnableByNick activates a test by nick.
-func (pt *ParsingTests) EnableByNick(nick string) bool {
-	if t, ok := pt.byNick[nick]; ok {
-		t.Active = true
-		return true
-	}
-	return false
-}
-
-// List prints available tests.
+// List prints available tests with type-specific formatting.
 func (pt *ParsingTests) List() {
-	fmt.Println("\nAvailable parsing tests:")
-	fmt.Println()
-	for _, t := range pt.tests {
+	fmt.Fprintln(os.Stdout, "\nAvailable parsing tests:") //nolint:errcheck // user output
+	fmt.Fprintln(os.Stdout)                               //nolint:errcheck // user output
+	for _, t := range pt.Registered() {
 		switch {
 		case t.IsRegexMatch:
-			fmt.Printf("  %s  %s (expect failure, regex)\n", t.Nick, t.Name)
+			fmt.Fprintf(os.Stdout, "  %s  %s (expect failure, regex)\n", t.Nick, t.Name) //nolint:errcheck // user output
 		case t.ExpectError != "":
-			fmt.Printf("  %s  %s (expect failure)\n", t.Nick, t.Name)
+			fmt.Fprintf(os.Stdout, "  %s  %s (expect failure)\n", t.Nick, t.Name) //nolint:errcheck // user output
 		default:
-			fmt.Printf("  %s  %s\n", t.Nick, t.Name)
+			fmt.Fprintf(os.Stdout, "  %s  %s\n", t.Nick, t.Name) //nolint:errcheck // user output
 		}
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
 }
 
 // ParsingRunner executes parsing tests.

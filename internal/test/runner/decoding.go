@@ -21,8 +21,7 @@ const (
 
 // DecodingTest holds a single decoding test case.
 type DecodingTest struct {
-	Name         string
-	Nick         string
+	BaseTest     // Embeds Name, Nick, Active, Error
 	File         string
 	Type         string // "open", "update"
 	Family       string // e.g., "l2vpn/evpn"
@@ -31,22 +30,19 @@ type DecodingTest struct {
 	OutputJSON   bool // true if --json flag specified in test
 
 	// Results
-	Active     bool
 	ActualJSON string
-	Error      error
 }
 
 // DecodingTests manages decoding test discovery and execution.
 type DecodingTests struct {
-	tests   []*DecodingTest
-	byNick  map[string]*DecodingTest
+	*TestSet[*DecodingTest]
 	baseDir string
 }
 
 // NewDecodingTests creates a new decoding test manager.
 func NewDecodingTests(baseDir string) *DecodingTests {
 	return &DecodingTests{
-		byNick:  make(map[string]*DecodingTest),
+		TestSet: NewTestSet[*DecodingTest](),
 		baseDir: baseDir,
 	}
 }
@@ -80,8 +76,7 @@ func (dt *DecodingTests) Discover(dir string) error {
 			// Skip malformed test files
 			continue
 		}
-		dt.tests = append(dt.tests, test)
-		dt.byNick[test.Nick] = test
+		dt.Add(test)
 	}
 
 	return nil
@@ -119,11 +114,13 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	msgType, family := parseTypeLine(typeLine)
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
-	nick := generateNick(name)
+	nick := GenerateNick(name)
 
 	return &DecodingTest{
-		Name:         name,
-		Nick:         nick,
+		BaseTest: BaseTest{
+			Name: name,
+			Nick: nick,
+		},
 		File:         filePath,
 		Type:         msgType,
 		Family:       family,
@@ -237,11 +234,13 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 	}
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
-	nick := generateNick(name)
+	nick := GenerateNick(name)
 
 	return &DecodingTest{
-		Name:         name,
-		Nick:         nick,
+		BaseTest: BaseTest{
+			Name: name,
+			Nick: nick,
+		},
 		File:         filePath,
 		Type:         msgType,
 		Family:       family,
@@ -327,51 +326,14 @@ func parseTypeLine(line string) (msgType, family string) {
 	return msgType, family
 }
 
-// Registered returns all tests in order.
-func (dt *DecodingTests) Registered() []*DecodingTest {
-	return dt.tests
-}
-
-// Selected returns active tests.
-func (dt *DecodingTests) Selected() []*DecodingTest {
-	var result []*DecodingTest
-	for _, t := range dt.tests {
-		if t.Active {
-			result = append(result, t)
-		}
-	}
-	return result
-}
-
-// Count returns the number of tests.
-func (dt *DecodingTests) Count() int {
-	return len(dt.tests)
-}
-
-// EnableAll activates all tests.
-func (dt *DecodingTests) EnableAll() {
-	for _, t := range dt.tests {
-		t.Active = true
-	}
-}
-
-// EnableByNick activates a test by nick.
-func (dt *DecodingTests) EnableByNick(nick string) bool {
-	if t, ok := dt.byNick[nick]; ok {
-		t.Active = true
-		return true
-	}
-	return false
-}
-
-// List prints available tests.
+// List prints available tests (overrides TestSet.List to show Type).
 func (dt *DecodingTests) List() {
-	fmt.Println("\nAvailable decoding tests:")
-	fmt.Println()
-	for _, t := range dt.tests {
-		fmt.Printf("  %s  %s (%s)\n", t.Nick, t.Name, t.Type)
+	fmt.Fprintln(os.Stdout, "\nAvailable decoding tests:") //nolint:errcheck // user output
+	fmt.Fprintln(os.Stdout)                                //nolint:errcheck // user output
+	for _, t := range dt.Registered() {
+		fmt.Fprintf(os.Stdout, "  %s  %s (%s)\n", t.Nick, t.Name, t.Type) //nolint:errcheck // user output
 	}
-	fmt.Println()
+	fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
 }
 
 // DecodingRunner executes decoding tests.

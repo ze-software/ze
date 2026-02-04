@@ -76,94 +76,99 @@ Examples:
 		}
 	}
 
-	// Find all .et files
-	tests, err := findETFiles(testDir)
-	if err != nil {
-		return fmt.Errorf("finding tests: %w", err)
+	// Discover and create editor tests
+	tests := runner.NewEditorTests()
+	if err := discoverEditorTests(tests, testDir, baseDir); err != nil {
+		return err
 	}
 
-	if len(tests) == 0 {
+	if tests.Count() == 0 {
 		return fmt.Errorf("no .et files found in %s", testDir)
 	}
 
 	// Filter by pattern
 	if *pattern != "" {
-		var filtered []string
-		for _, t := range tests {
-			if strings.Contains(t, *pattern) {
-				filtered = append(filtered, t)
+		matched := false
+		for _, t := range tests.Registered() {
+			if strings.Contains(t.Path, *pattern) || strings.Contains(t.Name, *pattern) {
+				t.SetActive(true)
+				matched = true
 			}
 		}
-		tests = filtered
-		if len(tests) == 0 {
+		if !matched {
 			return fmt.Errorf("no tests matching pattern %q", *pattern)
 		}
+	} else {
+		tests.EnableAll()
 	}
 
 	// List mode
 	if *listOnly {
-		fmt.Printf("Found %d tests:\n", len(tests)) //nolint:errcheck // terminal output
-		for _, t := range tests {
-			rel, _ := filepath.Rel(baseDir, t)
-			if rel == "" {
-				rel = t
-			}
-			fmt.Printf("  %s\n", rel) //nolint:errcheck // terminal output
+		fmt.Fprintf(os.Stdout, "Found %d tests:\n", tests.Count()) //nolint:errcheck // terminal output
+		for _, t := range tests.Registered() {
+			fmt.Fprintf(os.Stdout, "  %s  %s\n", t.Nick, t.Name) //nolint:errcheck // terminal output
 		}
 		return nil
 	}
 
 	// Run tests in parallel with progress display
-	return runEditorTests(tests, baseDir, *verbose, *quiet)
+	return runEditorTests(tests, *verbose, *quiet)
 }
 
-// editorTestResult holds failure details for verbose output.
-type editorTestResult struct {
-	rel     string
-	errMsg  string
-	tempDir string
+// discoverEditorTests finds all .et files and adds them to the test set.
+func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) error {
+	runner.ResetNickCounter()
+
+	return filepath.WalkDir(testDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".et") {
+			return nil
+		}
+
+		rel, _ := filepath.Rel(baseDir, path)
+		if rel == "" {
+			rel = path
+		}
+		nick := runner.GenerateNick(rel)
+		tests.Add(rel, nick, path)
+		return nil
+	})
 }
 
 // runEditorTests executes tests in parallel with real-time progress display.
-func runEditorTests(testPaths []string, baseDir string, verbose, quiet bool) error {
+func runEditorTests(tests *runner.EditorTests, verbose, quiet bool) error {
 	colors := runner.NewColors()
 
 	// Create parallel runner with generic type for direct test access
-	pr := runner.NewParallelRunner[*editorTestResult](colors)
+	pr := runner.NewParallelRunner[*runner.EditorTest](colors)
 	pr.SetQuiet(quiet)
 	pr.SetVerbose(verbose)
 
-	// Add tests to runner
-	for _, path := range testPaths {
-		testPath := path // Capture for closure
-		rel, _ := filepath.Rel(baseDir, testPath)
-		if rel == "" {
-			rel = testPath
-		}
+	// Add selected tests to runner
+	for _, test := range tests.Selected() {
+		pr.AddTest(test.Name, test, func(_ context.Context, t *runner.EditorTest) (bool, error) {
+			testResult := editortesting.RunETFile(t.Path)
 
-		// Create test result placeholder
-		result := &editorTestResult{rel: rel}
-
-		pr.AddTest(rel, result, func(_ context.Context, res *editorTestResult) (bool, error) {
-			testResult := editortesting.RunETFile(testPath)
-
-			// Update result for verbose output
-			res.errMsg = testResult.Error
-			res.tempDir = testResult.TempDir
+			// Update test with results
+			t.ErrMsg = testResult.Error
+			t.TempDir = testResult.TempDir
 
 			if !testResult.Passed {
-				return false, fmt.Errorf("%s", testResult.Error)
+				t.SetError(fmt.Errorf("%s", testResult.Error))
+				return false, t.GetError()
 			}
 			return true, nil
 		})
 	}
 
 	// Set failure callback for verbose output
-	pr.SetOnFail(func(res *editorTestResult, _ error) {
-		fmt.Fprintf(os.Stdout, "✗ %s\n", res.rel)    //nolint:errcheck // terminal output
-		fmt.Fprintf(os.Stdout, "  %s\n", res.errMsg) //nolint:errcheck // terminal output
-		if res.tempDir != "" {
-			fmt.Fprintf(os.Stdout, "  temp dir: %s\n", res.tempDir) //nolint:errcheck // terminal output
+	pr.SetOnFail(func(t *runner.EditorTest, _ error) {
+		fmt.Fprintf(os.Stdout, "✗ %s\n", t.Name)   //nolint:errcheck // terminal output
+		fmt.Fprintf(os.Stdout, "  %s\n", t.ErrMsg) //nolint:errcheck // terminal output
+		if t.TempDir != "" {
+			fmt.Fprintf(os.Stdout, "  temp dir: %s\n", t.TempDir) //nolint:errcheck // terminal output
 		}
 	})
 
@@ -172,20 +177,4 @@ func runEditorTests(testPaths []string, baseDir string, verbose, quiet bool) err
 	}
 
 	return nil
-}
-
-func findETFiles(dir string) ([]string, error) {
-	var files []string
-
-	err := filepath.WalkDir(dir, func(path string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() && strings.HasSuffix(path, ".et") {
-			files = append(files, path)
-		}
-		return nil
-	})
-
-	return files, err
 }
