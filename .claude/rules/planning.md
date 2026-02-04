@@ -560,6 +560,35 @@ If you had to investigate/debug something, ask:
 ### Deviations from Plan
 - [Any differences from original plan and why]
 
+## Implementation Audit
+
+<!-- BLOCKING: Complete BEFORE moving spec to done. See rules/implementation-audit.md -->
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| [Feature 1 from Task section] | | | |
+| [Feature 2 from Task section] | | | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| [Test from Unit Tests table] | | | |
+| [Test from Functional Tests table] | | | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| [File from Files to Modify] | | |
+| [File from Files to Create] | | |
+
+### Audit Summary
+- **Total items:**
+- **Done:**
+- **Partial:** (all require user approval)
+- **Skipped:** (all require user approval)
+- **Changed:** (documented in Deviations)
+
 ## Checklist
 
 ### 🏗️ Design (see `rules/design-principles.md`)
@@ -592,6 +621,8 @@ If you had to investigate/debug something, ask:
 
 ### Completion (after tests pass - see Completion Checklist)
 - [ ] Architecture docs updated with learnings
+- [ ] Implementation Audit completed (all items have status + location)
+- [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
 - [ ] All files committed together
@@ -616,22 +647,32 @@ If you had to investigate/debug something, ask:
       → Don't just delete redundant tests - integrate their coverage into new tests
       → Ensure edge cases from old tests are preserved in refactored tests
 
-[ ] 3. Update spec to reflect reality
+[ ] 3. Complete Implementation Audit (BLOCKING - see rules/implementation-audit.md)
+      → Go through EVERY requirement in spec's Task section
+      → Go through EVERY test in TDD Test Plan (unit + functional)
+      → Go through EVERY file in Files to Modify/Create
+      → Fill Implementation Audit table with status + location for each
+      → Status must be: ✅ Done, ⚠️ Partial, ❌ Skipped, or 🔄 Changed
+      → Any ⚠️ Partial or ❌ Skipped requires explicit user approval
+      → Complete Audit Summary with accurate totals
+      → CANNOT proceed until ALL items are accounted for
+
+[ ] 4. Update spec to reflect reality
       → Mark all checklist items with actual status
       → Add "Implementation Summary" section if missing
       → Document any bugs found/fixed
       → Document any deviations from original plan
 
-[ ] 4. Move spec to done folder
+[ ] 5. Move spec to done folder
       → Use the "Moving Completed Specs" script below
       → Spec number determined at move time
 
-[ ] 5. Verify all changes
+[ ] 6. Verify all changes
       → `git status` to see all modified files
       → `git diff` to review changes
       → Ensure no unintended modifications
 
-[ ] 6. Commit (when user approves)
+[ ] 7. Commit (when user approves)
       → Include ALL modified files in ONE commit:
         - Code changes
         - Test files
@@ -683,6 +724,7 @@ Reading architecture docs BEFORE implementation prevents:
 ## Integration with Other Rules
 
 This rule works with:
+- `implementation-audit.md` - Line-by-line verification that spec was fully implemented
 - `data-flow-tracing.md` - Verify changes fit architecture via data flow analysis
 - `design-principles.md` - Scalability, maintainability, YAGNI
 - `tdd.md` - TDD cycle enforcement
