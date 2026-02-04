@@ -1,7 +1,7 @@
 # Ze Architecture Overview
 
 **Status:** Implementation Reference
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-04
 **Canonical Reference:** See `core-design.md` for detailed design
 
 ---
@@ -67,6 +67,7 @@ ze/
 │   │   ├── main.go
 │   │   ├── bgp/                # ze bgp subcommands
 │   │   ├── config/             # ze config subcommands
+│   │   ├── schema/             # ze schema subcommands
 │   │   ├── hub/                # ze hub subcommands
 │   │   └── exabgp/             # ze exabgp subcommands
 │   ├── ze-peer/                # BGP test peer tool
@@ -214,6 +215,11 @@ Memory-efficient deduplication:
 # Main daemon
 ze bgp server <config>        # Run BGP server
 ze bgp validate <config>      # Validate config
+
+# Schema discovery
+ze schema list                # List YANG schemas with namespaces
+ze schema show <module>       # Show YANG content for a module
+ze schema handlers            # Show handler → module mapping
 
 # Testing
 ze-peer --sink --port 1790    # Run test peer (sink mode)
