@@ -1,0 +1,30 @@
+# Test: ze schema show ze-bgp
+# Verifies schema show outputs actual YANG content (not placeholder)
+# Note: schema show doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+# Minimal valid config for test framework
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema show ze-bgp
+expect=exit:code=0
+# Should contain actual YANG module declaration
+expect=stdout:contains=module ze-bgp
+expect=stdout:contains=namespace
+expect=stdout:contains=container bgp
+# Should NOT contain placeholder text
+expect=stdout:not:contains=no YANG content available
+
+cmd=foreground:seq=2:exec=ze schema show ze-graceful-restart
+expect=exit:code=0
+expect=stdout:contains=module ze-graceful-restart
+expect=stdout:contains=graceful-restart
+
+cmd=foreground:seq=3:exec=ze schema show nonexistent-module
+expect=exit:code=1

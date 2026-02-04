@@ -2,18 +2,31 @@
 package schema
 
 import (
+	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"sort"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
+// Core YANG modules that are always available (not shown as imports).
+var coreModules = map[string]bool{
+	"ze-types":      true,
+	"ze-extensions": true,
+}
+
 // Run executes the schema subcommand with the given arguments.
+// plugins is an optional list of external plugin commands to query for YANG.
 // Returns exit code.
-func Run(args []string) int {
+func Run(args []string, plugins []string) int {
 	if len(args) < 1 {
 		usage()
 		return 1
@@ -21,17 +34,17 @@ func Run(args []string) int {
 
 	switch args[0] {
 	case "list":
-		return cmdList(args[1:])
+		return cmdList(args[1:], plugins)
 	case "show":
-		return cmdShow(args[1:])
+		return cmdShow(args[1:], plugins)
 	case "handlers":
-		return cmdHandlers(args[1:])
+		return cmdHandlers(args[1:], plugins)
 	case "protocol":
 		return cmdProtocol()
 	case "help", "-h", "--help":
 		usage()
 		return 0
-	default: // unknown command - report error
+	default:
 		fmt.Fprintf(os.Stderr, "unknown schema command: %s\n", args[0])
 		usage()
 		return 1
@@ -59,28 +72,41 @@ Examples:
 }
 
 // cmdList lists all registered schemas.
-func cmdList(args []string) int {
+func cmdList(args []string, plugins []string) int {
 	fs := flag.NewFlagSet("schema list", flag.ExitOnError)
 	if err := fs.Parse(args); err != nil {
 		return 1
 	}
 
-	registry := getSchemaRegistry()
-	modules := registry.ListModules()
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
+	modules := registry.ListModules()
 	if len(modules) == 0 {
 		fmt.Println("No schemas registered")
 		return 0
 	}
 
 	sort.Strings(modules)
-	fmt.Println("Registered schemas:")
+
+	// Print header
+	fmt.Printf("%-24s %-20s %s\n", "Module", "Namespace", "Imports")
+
 	for _, name := range modules {
 		s, _ := registry.GetByModule(name)
 		if s != nil {
-			fmt.Printf("  %-20s %s (%s)\n", name, s.Namespace, s.Plugin)
-		} else {
-			fmt.Printf("  %s\n", name)
+			imports := "-"
+			if len(s.Imports) > 0 {
+				formattedImports := make([]string, len(s.Imports))
+				for i, imp := range s.Imports {
+					formattedImports[i] = formatModuleAsNamespace(imp)
+				}
+				imports = strings.Join(formattedImports, ", ")
+			}
+			fmt.Printf("%-24s %-20s %s\n", name, s.Namespace, imports)
 		}
 	}
 
@@ -88,14 +114,18 @@ func cmdList(args []string) int {
 }
 
 // cmdShow shows YANG content for a specific module.
-func cmdShow(args []string) int {
+func cmdShow(args []string, plugins []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Usage: ze schema show <module>\n")
 		return 1
 	}
 
 	moduleName := args[0]
-	registry := getSchemaRegistry()
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
 	s, err := registry.GetByModule(moduleName)
 	if err != nil {
@@ -116,18 +146,21 @@ func cmdShow(args []string) int {
 }
 
 // cmdHandlers lists handler → module mapping.
-func cmdHandlers(args []string) int {
+func cmdHandlers(args []string, plugins []string) int {
 	_ = args // unused
 
-	registry := getSchemaRegistry()
-	handlers := registry.ListHandlers()
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
+	handlers := registry.ListHandlers()
 	if len(handlers) == 0 {
 		fmt.Println("No handlers registered")
 		return 0
 	}
 
-	// Sort handlers for consistent output
 	paths := make([]string, 0, len(handlers))
 	for path := range handlers {
 		paths = append(paths, path)
@@ -169,42 +202,207 @@ func cmdProtocol() int {
 	return 0
 }
 
-// getSchemaRegistry returns the global schema registry.
-// Currently returns a demo registry.
-// In a running server, this would access the actual registry.
-func getSchemaRegistry() *plugin.SchemaRegistry {
-	// Create a demo registry with embedded YANG modules
+// buildSchemaRegistry builds a registry with all available YANG schemas.
+// Loads ze-bgp, internal plugins, and optionally external plugins.
+func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	registry := plugin.NewSchemaRegistry()
+	loaded := make(map[string]bool)
 
-	// Register ze-bgp schema (demo)
-	if err := registry.Register(&plugin.Schema{
-		Module:    "ze-bgp",
-		Namespace: "urn:ze:bgp",
-		Handlers:  []string{"bgp", "bgp.peer"},
-		Plugin:    "core",
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to register ze-bgp schema: %v\n", err)
+	// Register ze-bgp schema first (base module)
+	if err := registerYANG(registry, schema.ZeBGPYANG, "core", []string{"bgp", "bgp.peer"}, loaded); err != nil {
+		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
-	// Register ze-plugin schema (demo)
-	if err := registry.Register(&plugin.Schema{
-		Module:    "ze-plugin",
-		Namespace: "urn:ze:plugin",
-		Handlers:  []string{"plugin", "plugin.external"},
-		Plugin:    "core",
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to register ze-plugin schema: %v\n", err)
+	// Register internal plugin schemas
+	for name, yangContent := range plugin.GetAllInternalPluginYANG() {
+		pluginName := strings.TrimSuffix(strings.TrimPrefix(name, "ze-"), ".yang")
+		if err := registerYANG(registry, yangContent, "ze."+pluginName, nil, loaded); err != nil {
+			return nil, fmt.Errorf("register %s: %w", name, err)
+		}
 	}
 
-	// Register ze-types schema (demo)
-	if err := registry.Register(&plugin.Schema{
-		Module:    "ze-types",
-		Namespace: "urn:ze:types",
-		Handlers:  []string{},
-		Plugin:    "core",
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: failed to register ze-types schema: %v\n", err)
+	// Register external plugin schemas
+	for _, pluginSpec := range extPlugins {
+		yangContent, pluginName, err := getPluginYANG(pluginSpec, loaded)
+		if err != nil {
+			return nil, fmt.Errorf("get YANG from %s: %w", pluginSpec, err)
+		}
+		if yangContent == "" {
+			continue // Plugin doesn't provide YANG or already loaded
+		}
+
+		if err := registerYANG(registry, yangContent, pluginName, nil, loaded); err != nil {
+			return nil, fmt.Errorf("register %s: %w", pluginSpec, err)
+		}
 	}
 
-	return registry
+	return registry, nil
+}
+
+// registerYANG registers YANG content and verifies dependencies are available.
+func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName string, handlers []string, loaded map[string]bool) error {
+	meta, err := yang.ParseYANGMetadata(yangContent)
+	if err != nil {
+		return fmt.Errorf("parse YANG: %w", err)
+	}
+
+	// Check dependencies
+	for _, imp := range meta.Imports {
+		if loaded[imp] || coreModules[imp] {
+			continue
+		}
+
+		// Try to auto-load internal dependency
+		if autoLoaded := tryAutoLoadInternal(registry, imp, loaded); autoLoaded {
+			continue
+		}
+
+		return fmt.Errorf("module %s imports %s but it is not available", meta.Module, imp)
+	}
+
+	if handlers == nil {
+		handlers = []string{}
+	}
+
+	loaded[meta.Module] = true
+
+	// Filter core modules from displayed imports
+	var displayImports []string
+	for _, imp := range meta.Imports {
+		if !coreModules[imp] {
+			displayImports = append(displayImports, imp)
+		}
+	}
+
+	return registry.Register(&plugin.Schema{
+		Module:    meta.Module,
+		Namespace: yang.FormatNamespace(meta.Namespace),
+		Yang:      yangContent,
+		Imports:   displayImports,
+		Handlers:  handlers,
+		Plugin:    pluginName,
+	})
+}
+
+// tryAutoLoadInternal attempts to auto-load an internal plugin by module name.
+func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loaded map[string]bool) bool {
+	if _, err := registry.GetByModule(moduleName); err == nil {
+		loaded[moduleName] = true
+		return true
+	}
+
+	// Module names are "ze-bgp", plugin names are "bgp"
+	pluginName := strings.TrimPrefix(moduleName, "ze-")
+
+	// Check if it's the core BGP module
+	if moduleName == "ze-bgp" {
+		meta, err := yang.ParseYANGMetadata(schema.ZeBGPYANG)
+		if err != nil {
+			return false
+		}
+		_ = registry.Register(&plugin.Schema{
+			Module:    meta.Module,
+			Namespace: yang.FormatNamespace(meta.Namespace),
+			Yang:      schema.ZeBGPYANG,
+			Handlers:  []string{"bgp", "bgp.peer"},
+			Plugin:    "core",
+		})
+		loaded[moduleName] = true
+		return true
+	}
+
+	// Check internal plugins
+	yangContent := plugin.GetInternalPluginYANG(pluginName)
+	if yangContent != "" {
+		meta, err := yang.ParseYANGMetadata(yangContent)
+		if err != nil {
+			return false
+		}
+		_ = registry.Register(&plugin.Schema{
+			Module:    meta.Module,
+			Namespace: yang.FormatNamespace(meta.Namespace),
+			Yang:      yangContent,
+			Plugin:    "ze." + pluginName,
+		})
+		loaded[moduleName] = true
+		return true
+	}
+
+	return false
+}
+
+// formatModuleAsNamespace converts a module name to namespace display format.
+func formatModuleAsNamespace(module string) string {
+	if strings.HasPrefix(module, "ze-") {
+		return "ze." + module[3:]
+	}
+	return module
+}
+
+// getPluginYANG gets YANG from a plugin based on its specification.
+// Handles: "ze.name" (internal), "ze-name" (internal), or path (external).
+func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, error) {
+	// Internal plugin "ze.name" or "ze-name" - both have 3-char prefix
+	if strings.HasPrefix(pluginSpec, "ze.") || strings.HasPrefix(pluginSpec, "ze-") {
+		name := pluginSpec[3:] // Strip "ze." or "ze-"
+
+		yangContent := plugin.GetInternalPluginYANG(name)
+		if yangContent == "" {
+			return "", "", fmt.Errorf("internal plugin %q has no YANG", name)
+		}
+
+		meta, err := yang.ParseYANGMetadata(yangContent)
+		if err != nil {
+			return "", "", fmt.Errorf("parse internal plugin YANG: %w", err)
+		}
+		if loaded[meta.Module] {
+			return "", "", nil
+		}
+
+		return yangContent, "ze." + name, nil
+	}
+
+	// External plugin - execute with --yang flag
+	yangContent, err := getExternalPluginYANG(pluginSpec)
+	if err != nil {
+		return "", "", err
+	}
+	if yangContent == "" {
+		return "", "", nil
+	}
+
+	meta, err := yang.ParseYANGMetadata(yangContent)
+	if err != nil {
+		return "", "", fmt.Errorf("parse external plugin YANG: %w", err)
+	}
+	if loaded[meta.Module] {
+		return "", "", nil
+	}
+
+	return yangContent, pluginSpec, nil
+}
+
+// getExternalPluginYANG executes an external plugin with --yang and returns its YANG.
+func getExternalPluginYANG(pluginSpec string) (string, error) {
+	args := strings.Fields(pluginSpec)
+	if len(args) == 0 {
+		return "", fmt.Errorf("no plugin command specified")
+	}
+
+	// Append --yang to get YANG output
+	args = append(args, "--yang")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, args[0], args[1:]...) //nolint:gosec // Plugin command from user
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("execute %v: %w (stderr: %s)", args, err, stderr.String())
+	}
+
+	return strings.TrimSpace(stdout.String()), nil
 }

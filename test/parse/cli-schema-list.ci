@@ -1,5 +1,5 @@
-# Test: ze schema list (new path, was ze bgp schema list)
-# This tests the moved schema command at root level
+# Test: ze schema list
+# Verifies schema discovery shows all modules with formatted namespaces
 # Note: schema list doesn't need config input, but test runner requires stdin
 stdin=config:terminator=EOF_CONF
 # Minimal valid config for test framework
@@ -14,5 +14,13 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze schema list
 expect=exit:code=0
-expect=stdout:contains=Registered schemas
+# Header line
+expect=stdout:contains=Module
+expect=stdout:contains=Namespace
+expect=stdout:contains=Imports
+# Core BGP schema (no imports)
 expect=stdout:contains=ze-bgp
+expect=stdout:contains=ze.bgp
+# Internal plugins with YANG (import ze-bgp)
+expect=stdout:contains=ze-graceful-restart
+expect=stdout:contains=ze-hostname

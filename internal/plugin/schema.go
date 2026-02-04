@@ -12,6 +12,7 @@ type Schema struct {
 	Module    string   // YANG module name
 	Namespace string   // YANG namespace URI
 	Yang      string   // Full YANG module text
+	Imports   []string // Imported module names (from YANG import statements)
 	Handlers  []string // Handler paths (e.g., "bgp", "bgp.peer")
 	Plugin    string   // Plugin that registered this schema
 	Priority  int      // Config ordering (lower = processed first, default 1000)

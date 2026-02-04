@@ -56,7 +56,7 @@ func main() {
 	case "validate":
 		os.Exit(validate.Run(args[1:]))
 	case "schema":
-		os.Exit(schema.Run(args[1:]))
+		os.Exit(schema.Run(args[1:], plugins))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
 	case "version":
