@@ -12,8 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 )
 
 // ParsingTest holds a single parsing test case.
@@ -32,11 +30,9 @@ type ParsingTest struct {
 	IsRegexMatch bool           // True if using regex matching
 
 	// Results
-	Active   bool
-	State    State
-	Output   string
-	Error    error
-	Duration time.Duration
+	Active bool
+	Output string
+	Error  error
 }
 
 // ParsingTests manages parsing test discovery and execution.
@@ -337,111 +333,31 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		return true
 	}
 
-	// Create Tests container and populate with Records for display
-	tests := NewTests()
-	testMap := make(map[string]*Record) // Map ParsingTest.Nick -> Record
-	for _, t := range selected {
-		rec := tests.Add(t.Name)
-		rec.Nick = t.Nick
-		rec.Active = true
-		testMap[t.Nick] = rec
-	}
+	// Create parallel runner with generic type for direct test access
+	runner := NewParallelRunner[*ParsingTest](r.colors)
+	runner.SetQuiet(quiet)
+	runner.SetVerbose(verbose)
 
-	// Create display
-	display := NewDisplay(tests, r.colors)
-	display.SetQuiet(quiet)
-	display.SetTimeout(30 * time.Second) // Default timeout for display
-	display.SetParallel(10, len(selected))
-	display.Start()
-
-	// Channel for collecting results
-	type result struct {
-		test    *ParsingTest
-		success bool
-	}
-	results := make(chan result, len(selected))
-	done := make(chan struct{})
-
-	// Run tests in parallel with semaphore
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) // Max 10 concurrent tests
-
+	// Add tests to runner
 	for _, test := range selected {
-		wg.Add(1)
-		go func(t *ParsingTest) {
-			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
-
-			// Update both ParsingTest and Record states
-			rec := testMap[t.Nick]
-			t.State = StateRunning
-			rec.State = StateRunning
-			rec.StartTime = time.Now()
-
-			success := r.runTest(ctx, t)
-			t.Duration = time.Since(rec.StartTime)
-			rec.Duration = t.Duration
-
-			if success {
-				t.State = StateSuccess
-				rec.State = StateSuccess
-			} else {
-				t.State = StateFail
-				rec.State = StateFail
-				rec.Error = t.Error
+		runner.AddTest(test.Name, test, func(runCtx context.Context, t *ParsingTest) (bool, error) {
+			success := r.runTest(runCtx, t)
+			if !success {
+				return false, t.Error
 			}
-
-			results <- result{test: t, success: success}
-		}(test)
+			return true, nil
+		})
 	}
 
-	// Close results when all done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// Periodic status update
-	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				display.Status()
-			}
+	// Set failure callback for verbose output
+	runner.SetOnFail(func(test *ParsingTest, _ error) {
+		fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error) //nolint:errcheck // user output
+		if test.Output != "" {
+			fmt.Fprintf(os.Stdout, "  Output: %s\n", test.Output) //nolint:errcheck // user output
 		}
-	}()
+	})
 
-	// Collect results and track failures for verbose output
-	var failures []*ParsingTest
-	for res := range results {
-		if !res.success {
-			failures = append(failures, res.test)
-		}
-		display.Status()
-	}
-
-	close(done)
-	display.Newline()
-	display.Summary()
-
-	// Print failure details if verbose
-	if verbose && len(failures) > 0 {
-		fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
-		for _, t := range failures {
-			fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), t.Name, t.Error) //nolint:errcheck // user output
-			if t.Output != "" {
-				fmt.Fprintf(os.Stdout, "  Output: %s\n", t.Output) //nolint:errcheck // user output
-			}
-		}
-	}
-
-	passed, failed, _, _ := tests.Summary()
-	return failed == 0 && passed > 0
+	return runner.Run(ctx)
 }
 
 // runTest executes a single parsing test.
@@ -517,19 +433,6 @@ func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
 	}
 
 	return true
-}
-
-// Summary returns counts by state.
-func (pt *ParsingTests) Summary() (passed, failed int) {
-	for _, t := range pt.tests {
-		switch t.State { //nolint:exhaustive // only count terminal states
-		case StateSuccess:
-			passed++
-		case StateFail:
-			failed++
-		}
-	}
-	return
 }
 
 // Build compiles ze for parsing tests.

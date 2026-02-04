@@ -1,13 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
-	"time"
 
 	editortesting "codeberg.org/thomas-mangin/ze/internal/config/editor/testing"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
@@ -118,128 +117,57 @@ Examples:
 	return runEditorTests(tests, baseDir, *verbose, *quiet)
 }
 
+// editorTestResult holds failure details for verbose output.
+type editorTestResult struct {
+	rel     string
+	errMsg  string
+	tempDir string
+}
+
 // runEditorTests executes tests in parallel with real-time progress display.
 func runEditorTests(testPaths []string, baseDir string, verbose, quiet bool) error {
-	// Create Tests container and populate with Records for display
-	tests := runner.NewTests()
 	colors := runner.NewColors()
-	testMap := make(map[string]*runner.Record) // Map relative path -> Record
 
+	// Create parallel runner with generic type for direct test access
+	pr := runner.NewParallelRunner[*editorTestResult](colors)
+	pr.SetQuiet(quiet)
+	pr.SetVerbose(verbose)
+
+	// Add tests to runner
 	for _, path := range testPaths {
-		rel, _ := filepath.Rel(baseDir, path)
+		testPath := path // Capture for closure
+		rel, _ := filepath.Rel(baseDir, testPath)
 		if rel == "" {
-			rel = path
+			rel = testPath
 		}
-		rec := tests.Add(rel)
-		rec.Active = true
-		testMap[path] = rec
+
+		// Create test result placeholder
+		result := &editorTestResult{rel: rel}
+
+		pr.AddTest(rel, result, func(_ context.Context, res *editorTestResult) (bool, error) {
+			testResult := editortesting.RunETFile(testPath)
+
+			// Update result for verbose output
+			res.errMsg = testResult.Error
+			res.tempDir = testResult.TempDir
+
+			if !testResult.Passed {
+				return false, fmt.Errorf("%s", testResult.Error)
+			}
+			return true, nil
+		})
 	}
 
-	// Create display
-	display := runner.NewDisplay(tests, colors)
-	display.SetQuiet(quiet)
-	display.SetTimeout(30 * time.Second)
-	display.SetParallel(10, len(testPaths))
-	display.Start()
-
-	// Channel for collecting results
-	type result struct {
-		path    string
-		rel     string
-		passed  bool
-		errMsg  string
-		tempDir string
-	}
-	results := make(chan result, len(testPaths))
-	done := make(chan struct{})
-
-	// Run tests in parallel with semaphore
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) // Max 10 concurrent tests
-
-	for _, testPath := range testPaths {
-		wg.Add(1)
-		go func(path string) {
-			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
-
-			rec := testMap[path]
-			rel, _ := filepath.Rel(baseDir, path)
-			if rel == "" {
-				rel = path
-			}
-
-			rec.State = runner.StateRunning
-			rec.StartTime = time.Now()
-
-			testResult := editortesting.RunETFile(path)
-			rec.Duration = time.Since(rec.StartTime)
-
-			if testResult.Passed {
-				rec.State = runner.StateSuccess
-			} else {
-				rec.State = runner.StateFail
-				rec.Error = fmt.Errorf("%s", testResult.Error)
-			}
-
-			results <- result{
-				path:    path,
-				rel:     rel,
-				passed:  testResult.Passed,
-				errMsg:  testResult.Error,
-				tempDir: testResult.TempDir,
-			}
-		}(testPath)
-	}
-
-	// Close results when all done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// Periodic status update
-	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				display.Status()
-			}
+	// Set failure callback for verbose output
+	pr.SetOnFail(func(res *editorTestResult, _ error) {
+		fmt.Fprintf(os.Stdout, "✗ %s\n", res.rel)    //nolint:errcheck // terminal output
+		fmt.Fprintf(os.Stdout, "  %s\n", res.errMsg) //nolint:errcheck // terminal output
+		if res.tempDir != "" {
+			fmt.Fprintf(os.Stdout, "  temp dir: %s\n", res.tempDir) //nolint:errcheck // terminal output
 		}
-	}()
+	})
 
-	// Collect results and track failures for verbose output
-	var failures []result
-	for res := range results {
-		if !res.passed {
-			failures = append(failures, res)
-		}
-		display.Status()
-	}
-
-	close(done)
-	display.Newline()
-	display.Summary()
-
-	// Print failure details if verbose
-	if verbose && len(failures) > 0 {
-		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
-		for _, f := range failures {
-			fmt.Fprintf(os.Stdout, "✗ %s\n", f.rel)    //nolint:errcheck // terminal output
-			fmt.Fprintf(os.Stdout, "  %s\n", f.errMsg) //nolint:errcheck // terminal output
-			if f.tempDir != "" {
-				fmt.Fprintf(os.Stdout, "  temp dir: %s\n", f.tempDir) //nolint:errcheck // terminal output
-			}
-		}
-	}
-
-	_, failed, _, _ := tests.Summary()
-	if failed > 0 {
+	if !pr.Run(context.Background()) {
 		return fmt.Errorf("tests failed")
 	}
 

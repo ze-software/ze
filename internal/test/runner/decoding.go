@@ -10,8 +10,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-	"sync"
-	"time"
 )
 
 // Message type constants.
@@ -34,10 +32,8 @@ type DecodingTest struct {
 
 	// Results
 	Active     bool
-	State      State
 	ActualJSON string
 	Error      error
-	Duration   time.Duration
 }
 
 // DecodingTests manages decoding test discovery and execution.
@@ -404,111 +400,31 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		return true
 	}
 
-	// Create Tests container and populate with Records for display
-	tests := NewTests()
-	testMap := make(map[string]*Record) // Map DecodingTest.Nick -> Record
-	for _, t := range selected {
-		rec := tests.Add(t.Name)
-		rec.Nick = t.Nick
-		rec.Active = true
-		testMap[t.Nick] = rec
-	}
+	// Create parallel runner with generic type for direct test access
+	runner := NewParallelRunner[*DecodingTest](r.colors)
+	runner.SetQuiet(quiet)
+	runner.SetVerbose(verbose)
 
-	// Create display
-	display := NewDisplay(tests, r.colors)
-	display.SetQuiet(quiet)
-	display.SetTimeout(30 * time.Second) // Default timeout for display
-	display.SetParallel(10, len(selected))
-	display.Start()
-
-	// Channel for collecting results
-	type result struct {
-		test    *DecodingTest
-		success bool
-	}
-	results := make(chan result, len(selected))
-	done := make(chan struct{})
-
-	// Run tests in parallel with semaphore
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, 10) // Max 10 concurrent tests
-
+	// Add tests to runner
 	for _, test := range selected {
-		wg.Add(1)
-		go func(t *DecodingTest) {
-			defer wg.Done()
-			sem <- struct{}{}        // Acquire
-			defer func() { <-sem }() // Release
-
-			// Update both DecodingTest and Record states
-			rec := testMap[t.Nick]
-			t.State = StateRunning
-			rec.State = StateRunning
-			rec.StartTime = time.Now()
-
-			success := r.runTest(ctx, t)
-			t.Duration = time.Since(rec.StartTime)
-			rec.Duration = t.Duration
-
-			if success {
-				t.State = StateSuccess
-				rec.State = StateSuccess
-			} else {
-				t.State = StateFail
-				rec.State = StateFail
-				rec.Error = t.Error
+		runner.AddTest(test.Name, test, func(runCtx context.Context, t *DecodingTest) (bool, error) {
+			success := r.runTest(runCtx, t)
+			if !success {
+				return false, t.Error
 			}
-
-			results <- result{test: t, success: success}
-		}(test)
+			return true, nil
+		})
 	}
 
-	// Close results when all done
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	// Periodic status update
-	go func() {
-		ticker := time.NewTicker(200 * time.Millisecond)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-done:
-				return
-			case <-ticker.C:
-				display.Status()
-			}
+	// Set failure callback for verbose output
+	runner.SetOnFail(func(test *DecodingTest, _ error) {
+		fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error) //nolint:errcheck // user output
+		if test.ActualJSON != "" {
+			r.printJSONDiff(test)
 		}
-	}()
+	})
 
-	// Collect results and track failures for verbose output
-	var failures []*DecodingTest
-	for res := range results {
-		if !res.success {
-			failures = append(failures, res.test)
-		}
-		display.Status()
-	}
-
-	close(done)
-	display.Newline()
-	display.Summary()
-
-	// Print failure details if verbose
-	if verbose && len(failures) > 0 {
-		fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
-		for _, t := range failures {
-			fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), t.Name, t.Error) //nolint:errcheck // user output
-			if t.ActualJSON != "" {
-				r.printJSONDiff(t)
-			}
-		}
-	}
-
-	passed, failed, _, _ := tests.Summary()
-	return failed == 0 && passed > 0
+	return runner.Run(ctx)
 }
 
 // runTest executes a single decoding test.
@@ -635,17 +551,4 @@ func (r *DecodingRunner) printJSONDiff(test *DecodingTest) {
 		prettyActual, _ := json.MarshalIndent(actual, "    ", "  ")
 		fmt.Printf("    %s\n", prettyActual)
 	}
-}
-
-// Summary returns counts by state.
-func (dt *DecodingTests) Summary() (passed, failed int) {
-	for _, t := range dt.tests {
-		switch t.State { //nolint:exhaustive // only count terminal states
-		case StateSuccess:
-			passed++
-		case StateFail:
-			failed++
-		}
-	}
-	return
 }
