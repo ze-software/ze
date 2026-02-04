@@ -530,15 +530,21 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 // applyCompletion applies a completion to the input.
 func (m *Model) applyCompletion(comp Completion) {
 	input := m.textInput.Value()
-	words := strings.Fields(input)
+	words := tokenizeCommand(input)
 
 	if len(words) > 0 && !strings.HasSuffix(input, " ") {
 		// Replace last partial word
 		words[len(words)-1] = comp.Text
-		m.textInput.SetValue(strings.Join(words, " ") + " ")
+		m.textInput.SetValue(joinTokensWithQuotes(words) + " ")
 	} else {
-		// Append completion
-		m.textInput.SetValue(input + comp.Text + " ")
+		// Append completion (quote and escape if needed)
+		if strings.ContainsAny(comp.Text, " \t\"") {
+			escaped := strings.ReplaceAll(comp.Text, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+			m.textInput.SetValue(input + "\"" + escaped + "\" ")
+		} else {
+			m.textInput.SetValue(input + comp.Text + " ")
+		}
 	}
 	m.textInput.CursorEnd()
 }
@@ -1335,7 +1341,7 @@ func findParentOfKeyword(content string, keyword string) []string {
 					// Split each stack element into path parts
 					var result []string
 					for _, elem := range blockStack {
-						result = append(result, strings.Fields(elem)...)
+						result = append(result, tokenizeCommand(elem)...)
 					}
 					return result
 				}
@@ -1360,10 +1366,17 @@ func findFullContextPath(content string, target []string) []string {
 		return nil
 	}
 
-	// Build the pattern to match (e.g., "peer 1.1.1.1")
+	// Build the pattern to match (e.g., "peer 1.1.1.1" or "peer \"my peer\"")
 	targetPattern := target[0]
 	if len(target) > 1 && target[1] != "*" {
-		targetPattern += " " + target[1]
+		// Keys with spaces, tabs, or quotes need quoting with escapes
+		if strings.ContainsAny(target[1], " \t\"") {
+			escaped := strings.ReplaceAll(target[1], `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+			targetPattern += " \"" + escaped + "\""
+		} else {
+			targetPattern += " " + target[1]
+		}
 	}
 
 	lines := strings.Split(content, "\n")
@@ -1402,7 +1415,7 @@ func findFullContextPath(content string, target []string) []string {
 					// Split each stack element into path parts (e.g., "peer 1.1.1.1" -> ["peer", "1.1.1.1"])
 					var result []string
 					for _, elem := range blockStack {
-						result = append(result, strings.Fields(elem)...)
+						result = append(result, tokenizeCommand(elem)...)
 					}
 					// Add the target components
 					result = append(result, target...)
@@ -1457,7 +1470,15 @@ func filterContentByContextPath(content string, contextPath []string) viewportDa
 				// Check if next element is a value (keyword + value style like "peer 1.1.1.1")
 				if targetLevel+1 < len(contextPath) && contextPath[targetLevel+1] != "*" {
 					nextPart := contextPath[targetLevel+1]
-					fullPattern := pattern + " " + nextPart
+					// Keys with spaces, tabs, or quotes need quoting with escapes
+					var fullPattern string
+					if strings.ContainsAny(nextPart, " \t\"") {
+						escaped := strings.ReplaceAll(nextPart, `\`, `\\`)
+						escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+						fullPattern = pattern + " \"" + escaped + "\""
+					} else {
+						fullPattern = pattern + " " + nextPart
+					}
 					if blockPart == fullPattern {
 						// Exact match for multi-part (e.g., "peer 1.1.1.1")
 						targetLevel += 2
@@ -1561,42 +1582,21 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
 	}
 
-	// Detect if we have a quoted value (tokens contain quotes)
-	// If so, key is args[0] and value is the rest joined
-	// Otherwise, use path-style: last token is value, rest is path
-	hasQuotedValue := false
-	for _, arg := range args[1:] {
-		if strings.Contains(arg, "\"") {
-			hasQuotedValue = true
-			break
-		}
+	// tokenizeCommand already handles quotes, so args are clean tokens.
+	// Last token is value, everything before (with context) is the path.
+	fullPath := make([]string, 0, len(m.contextPath)+len(args))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, args...)
+
+	value := fullPath[len(fullPath)-1]
+	path := fullPath[:len(fullPath)-1]
+
+	if len(path) < 1 {
+		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
 	}
 
-	var key, value string
-	var containerPath []string
-
-	if hasQuotedValue {
-		// Quoted value: key is first arg, value is rest joined
-		key = args[0]
-		value = strings.Join(args[1:], " ")
-		value = stripQuotes(value)
-		containerPath = append([]string{}, m.contextPath...)
-	} else {
-		// Path-style: build full path, last token is value
-		fullPath := make([]string, 0, len(m.contextPath)+len(args))
-		fullPath = append(fullPath, m.contextPath...)
-		fullPath = append(fullPath, args...)
-
-		value = fullPath[len(fullPath)-1]
-		path := fullPath[:len(fullPath)-1]
-
-		if len(path) < 1 {
-			return commandResult{}, fmt.Errorf("usage: set <path> <value>")
-		}
-
-		key = path[len(path)-1]
-		containerPath = path[:len(path)-1]
-	}
+	key := path[len(path)-1]
+	containerPath := path[:len(path)-1]
 
 	// Modify the config content
 	content := m.editor.WorkingContent()
@@ -1613,15 +1613,8 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	}, nil
 }
 
-// stripQuotes removes surrounding double quotes from a string.
-func stripQuotes(s string) string {
-	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
-		return s[1 : len(s)-1]
-	}
-	return s
-}
-
 // tokenizeCommand splits a command string into tokens, respecting quoted strings.
+// Supports backslash escapes inside quotes: \" for literal quote, \\ for literal backslash.
 // Example: `set peer "my peer" description "test"` → ["set", "peer", "my peer", "description", "test"].
 func tokenizeCommand(input string) []string {
 	var tokens []string
@@ -1630,6 +1623,18 @@ func tokenizeCommand(input string) []string {
 
 	for i := 0; i < len(input); i++ {
 		c := input[i]
+
+		// Handle escape sequences inside quotes
+		if inQuote && c == '\\' && i+1 < len(input) {
+			next := input[i+1]
+			if next == '"' || next == '\\' {
+				current.WriteByte(next)
+				i++ // Skip the escaped character
+				continue
+			}
+			// Unrecognized escape - treat backslash as literal
+		}
+
 		isQuote := c == '"'
 		isSpace := c == ' ' || c == '\t'
 
@@ -1674,6 +1679,24 @@ func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([
 		current.Reset()
 	}
 	return tokens, true
+}
+
+// joinTokensWithQuotes joins tokens into a command string, quoting tokens that need it.
+// Tokens containing spaces, tabs, quotes, or empty strings are quoted.
+// Embedded backslashes and quotes are escaped for round-trip compatibility with tokenizeCommand.
+func joinTokensWithQuotes(tokens []string) string {
+	var parts []string
+	for _, t := range tokens {
+		if t == "" || strings.ContainsAny(t, " \t\"") {
+			// Escape backslashes first, then quotes (order matters!)
+			escaped := strings.ReplaceAll(t, `\`, `\\`)
+			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+			parts = append(parts, "\""+escaped+"\"")
+		} else {
+			parts = append(parts, t)
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 func (m *Model) cmdDelete(args []string) (commandResult, error) {
@@ -2311,10 +2334,8 @@ func setValueInConfig(fullConfig string, containerPath []string, key, value stri
 	// Build the target pattern for the container block
 	// For single element path: just use the element (e.g., "bgp")
 	// For multi-element path: combine last two for list entries (e.g., "peer 1.1.1.1")
-	targetPattern := containerPath[len(containerPath)-1]
-	if len(containerPath) >= 2 {
-		targetPattern = containerPath[len(containerPath)-2] + " " + containerPath[len(containerPath)-1]
-	}
+	// Keys with spaces need quotes in the config (e.g., "peer \"my peer\"")
+	targetPattern := formatBlockPattern(containerPath)
 
 	inTarget := false
 	targetDepth := 0
@@ -2435,6 +2456,29 @@ func extractKeyFromLine(line string) string {
 		return ""
 	}
 	return parts[0]
+}
+
+// formatBlockPattern builds a pattern to match a block header in config.
+// For path ["bgp"], returns "bgp".
+// For path ["bgp", "peer", "1.1.1.1"], returns "peer 1.1.1.1".
+// For path ["bgp", "peer", "my peer"], returns "peer \"my peer\"" (quotes for spaces).
+func formatBlockPattern(containerPath []string) string {
+	if len(containerPath) == 0 {
+		return ""
+	}
+	if len(containerPath) == 1 {
+		return containerPath[0]
+	}
+	// Combine last two elements for list entries
+	keyword := containerPath[len(containerPath)-2]
+	key := containerPath[len(containerPath)-1]
+	// If key contains spaces, tabs, or quotes, it needs quoting with escapes
+	if strings.ContainsAny(key, " \t\"") {
+		escaped := strings.ReplaceAll(key, `\`, `\\`)
+		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
+		return keyword + " \"" + escaped + "\""
+	}
+	return keyword + " " + key
 }
 
 // formatKeyValue formats a key-value pair for config output.

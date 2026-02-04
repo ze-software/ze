@@ -2039,6 +2039,26 @@ func TestTokenizeCommandQuotedStrings(t *testing.T) {
 			input:  "",
 			expect: nil,
 		},
+		{
+			name:   "escaped quote in value",
+			input:  `set description "value with \" quote"`,
+			expect: []string{"set", "description", `value with " quote`},
+		},
+		{
+			name:   "escaped backslash",
+			input:  `set path "C:\\Users\\test"`,
+			expect: []string{"set", "path", `C:\Users\test`},
+		},
+		{
+			name:   "quote only token",
+			input:  `set value "\""`,
+			expect: []string{"set", "value", `"`},
+		},
+		{
+			name:   "backslash at end (not escape)",
+			input:  `set path C:\Users`,
+			expect: []string{"set", "path", `C:\Users`},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2090,4 +2110,176 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	// Count occurrences of "description" key - should be exactly 1
 	count := strings.Count(content, "description")
 	assert.Equal(t, 1, count, "should have exactly one description entry")
+}
+
+// TestJoinTokensWithQuotes verifies quote handling in token rejoining.
+//
+// VALIDATES: Tokens with spaces, embedded quotes, and empty strings are properly quoted.
+// PREVENTS: Malformed command strings from completion.
+func TestJoinTokensWithQuotes(t *testing.T) {
+	tests := []struct {
+		name   string
+		tokens []string
+		expect string
+	}{
+		{
+			name:   "simple tokens",
+			tokens: []string{"set", "key", "value"},
+			expect: "set key value",
+		},
+		{
+			name:   "token with space",
+			tokens: []string{"set", "peer", "my peer"},
+			expect: `set peer "my peer"`,
+		},
+		{
+			name:   "embedded quote escaped",
+			tokens: []string{"set", "description", `my "special" peer`},
+			expect: `set description "my \"special\" peer"`,
+		},
+		{
+			name:   "empty string quoted",
+			tokens: []string{"set", "description", ""},
+			expect: `set description ""`,
+		},
+		{
+			name:   "multiple spaces preserved",
+			tokens: []string{"set", "value", "a    b"},
+			expect: `set value "a    b"`,
+		},
+		{
+			name:   "tab in token",
+			tokens: []string{"set", "value", "a\tb"},
+			expect: "set value \"a\tb\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := joinTokensWithQuotes(tt.tokens)
+			assert.Equal(t, tt.expect, result)
+		})
+	}
+}
+
+// TestEditQuotedPeerName verifies edit command works with quoted peer names.
+//
+// VALIDATES: "edit peer \"my peer\"" correctly navigates to the block.
+// PREVENTS: Pattern matching failure for peers with spaces in names.
+func TestEditQuotedPeerName(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	originalContent := `bgp {
+	peer "my peer" {
+		peer-as 65001;
+		description "test";
+	}
+}`
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Edit peer with quoted name - simulates tokenized input from "edit peer \"my peer\""
+	editResult, err := model.cmdEdit([]string{"peer", "my peer"})
+	require.NoError(t, err, "edit should find quoted peer")
+
+	// Verify we entered the correct context
+	assert.Equal(t, []string{"bgp", "peer", "my peer"}, editResult.newContext)
+
+	// Verify filtered content shows the peer block
+	assert.NotNil(t, editResult.configView)
+	assert.Contains(t, editResult.configView.content, "peer-as 65001")
+	assert.Contains(t, editResult.configView.content, `description "test"`)
+}
+
+// TestSetInQuotedPeerBlock verifies set command works inside quoted peer blocks.
+//
+// VALIDATES: Full flow: edit quoted peer → set value → config updated correctly.
+// PREVENTS: Pattern matching failure when setting values in quoted blocks.
+func TestSetInQuotedPeerBlock(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	originalContent := `bgp {
+	peer "my peer" {
+		peer-as 65001;
+	}
+}`
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter the quoted peer context
+	editResult, err := model.cmdEdit([]string{"peer", "my peer"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Set a value inside the quoted peer block
+	setResult, err := model.cmdSet([]string{"description", "new description"})
+	require.NoError(t, err)
+
+	// Verify the content was modified correctly
+	assert.Contains(t, setResult.statusMessage, "Set")
+	content := ed.WorkingContent()
+	assert.Contains(t, content, `description "new description"`)
+	// Verify the peer block structure is preserved
+	assert.Contains(t, content, `peer "my peer" {`)
+}
+
+// TestFormatBlockPattern verifies block pattern generation for config matching.
+//
+// VALIDATES: Patterns correctly quote keys with spaces.
+// PREVENTS: Pattern mismatch for blocks with special characters.
+func TestFormatBlockPattern(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   []string
+		expect string
+	}{
+		{
+			name:   "single element",
+			path:   []string{"bgp"},
+			expect: "bgp",
+		},
+		{
+			name:   "simple peer",
+			path:   []string{"bgp", "peer", "1.1.1.1"},
+			expect: "peer 1.1.1.1",
+		},
+		{
+			name:   "peer with spaces",
+			path:   []string{"bgp", "peer", "my peer"},
+			expect: `peer "my peer"`,
+		},
+		{
+			name:   "peer with tab",
+			path:   []string{"bgp", "peer", "my\tpeer"},
+			expect: "peer \"my\tpeer\"",
+		},
+		{
+			name:   "empty path",
+			path:   []string{},
+			expect: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatBlockPattern(tt.path)
+			assert.Equal(t, tt.expect, result)
+		})
+	}
 }
