@@ -107,7 +107,7 @@ type Runner struct {
 	baseDir  string
 	tmpDir   string
 	zePath   string
-	peerPath string
+	testPath string // ze-test binary (used for peer subcommand)
 	display  *Display
 	report   *Report
 	colors   *Colors
@@ -126,7 +126,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		baseDir:  baseDir,
 		tmpDir:   tmpDir,
 		zePath:   filepath.Join(tmpDir, "ze"),
-		peerPath: filepath.Join(tmpDir, "ze-peer"),
+		testPath: filepath.Join(tmpDir, "ze-test"),
 		colors:   colors,
 		display:  NewDisplay(tests.Tests, colors),
 		report:   NewReport(colors),
@@ -153,13 +153,13 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build ze-peer
-	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.peerPath, "./cmd/ze-peer") //nolint:gosec // paths from internal runner
+	// Build ze-test (provides peer subcommand)
+	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.testPath, "./cmd/ze-test") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
-		return fmt.Errorf("build ze-peer: %w", err)
+		return fmt.Errorf("build ze-test: %w", err)
 	}
 
 	r.display.BuildStatus(false, nil)
@@ -380,8 +380,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	defer func() { _ = os.Remove(expectFile) }()
 
-	// Build peer args
-	peerArgs := []string{"--port", fmt.Sprintf("%d", rec.Port)}
+	// Build peer args (ze-test peer ...)
+	peerArgs := []string{"peer", "--port", fmt.Sprintf("%d", rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
 		peerArgs = append(peerArgs, "--asn", asn)
 	}
@@ -394,7 +394,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	peerEnv := append(os.Environ(),
 		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
 	)
-	peerCmd := exec.CommandContext(testCtx, r.peerPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
+	peerCmd := exec.CommandContext(testCtx, r.testPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
 
 	// Use syncWriter to wait for "listening on" before starting client
@@ -639,16 +639,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Resolve binary path
 		binName := cmdParts[0]
 		var binPath string
+		var extraArgs []string
 		switch binName {
 		case "ze-peer":
-			binPath = r.peerPath
+			// ze-peer is now ze-test peer
+			binPath = r.testPath
+			extraArgs = []string{"peer"}
 		case "ze":
 			binPath = r.zePath
 		default:
 			binPath = binName // Use as-is for other commands
 		}
 
-		args := cmdParts[1:]
+		args := make([]string, 0, len(extraArgs)+len(cmdParts)-1)
+		args = append(args, extraArgs...)
+		args = append(args, cmdParts[1:]...)
 
 		// Handle stdin block content
 		var stdinContent []byte

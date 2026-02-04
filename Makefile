@@ -8,7 +8,7 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 all: lint test build
 
 # Build all binaries
-build: bin/ze bin/ze-peer bin/ze-test bin/ze-config-reader
+build: bin/ze bin/ze-test bin/ze-config-reader
 	@echo "All binaries built"
 
 # Individual binary targets
@@ -16,11 +16,6 @@ bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
 	go build -o bin/ze ./cmd/ze
-
-bin/ze-peer: $(shell find cmd/ze-peer internal -name '*.go' 2>/dev/null)
-	@echo "Building ze-peer..."
-	@mkdir -p bin
-	go build -o bin/ze-peer ./cmd/ze-peer
 
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
@@ -95,7 +90,7 @@ functional: bin/ze bin/ze-test
 	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
 	echo ""; \
 	echo "Running editor functional tests..."; \
-	bin/ze config test || failed=$$((failed + 1)); \
+	bin/ze-test editor || failed=$$((failed + 1)); \
 	echo ""; \
 	if [ $$failed -gt 0 ]; then \
 		echo "═══════════════════════════════════════════════════════════════════════════════"; \
@@ -132,9 +127,9 @@ functional-parse: bin/ze-test
 	bin/ze-test bgp parse --all
 
 # Run editor functional tests
-functional-editor: bin/ze
+functional-editor: bin/ze-test
 	@echo "Running editor functional tests..."
-	bin/ze config test
+	bin/ze-test editor
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 functional-exabgp:

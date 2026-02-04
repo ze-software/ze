@@ -9,9 +9,11 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
@@ -371,8 +373,9 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	return nil
 }
 
-// runServerOnly runs only the ze-peer (server) for manual debugging.
-func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.EncodingTests, baseDir string) error {
+// runServerOnly runs only the peer (server) for manual debugging.
+// Uses the peer library directly instead of subprocess for faster startup.
+func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.EncodingTests, _ string) error {
 	rec := tests.GetByNick(cli.server)
 	if rec == nil {
 		// Try by name
@@ -387,40 +390,36 @@ func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 		return fmt.Errorf("test not found: %s", cli.server)
 	}
 
-	// Build ze-peer
-	tmpDir, err := os.MkdirTemp("", "ze-functional-*")
-	if err != nil {
-		return fmt.Errorf("create temp dir: %w", err)
-	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	// Build expect rules from test record
+	expects := make([]string, 0, len(rec.Options)+len(rec.Expects))
+	expects = append(expects, rec.Options...)
+	expects = append(expects, rec.Expects...)
 
-	peerPath := filepath.Join(tmpDir, "ze-peer")
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./cmd/ze-peer") //nolint:gosec // test runner, paths from temp dir
-	cmd.Dir = baseDir
-	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
-	if output, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("build ze-peer: %w: %s", err, output)
-	}
-
-	// Write expects to temp file
-	expectFile := filepath.Join(tmpDir, "expects.msg")
-	f, err := os.Create(expectFile) //nolint:gosec // test runner, path from temp dir
-	if err != nil {
-		return fmt.Errorf("create expect file: %w", err)
-	}
-	for _, opt := range rec.Options {
-		_, _ = fmt.Fprintln(f, opt)
-	}
-	for _, exp := range rec.Expects {
-		_, _ = fmt.Fprintln(f, exp)
-	}
-	_ = f.Close()
-
-	// Print info
+	// Determine port
 	port := cli.port
 	if rec.Port != 0 {
 		port = rec.Port
 	}
+
+	// Build peer config
+	config := &peer.Config{
+		Port:   port,
+		Mode:   peer.ModeCheck,
+		Expect: expects,
+		Output: os.Stdout,
+	}
+
+	// Apply extra options from test record
+	if asn, ok := rec.Extra["asn"]; ok {
+		if v, err := strconv.Atoi(asn); err == nil {
+			config.ASN = v
+		}
+	}
+	if rec.Extra["bind"] == "ipv6" {
+		config.IPv6 = true
+	}
+
+	// Print info
 	fmt.Printf("Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
 	fmt.Printf("Config: %s\n", rec.ConfigFile)
 	fmt.Printf("Port: %d\n", port)
@@ -428,23 +427,24 @@ func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	fmt.Printf("\nRun client in another terminal:\n")
 	fmt.Printf("   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port)
 
-	// Build peer args
-	peerArgs := []string{"--port", fmt.Sprintf("%d", port)}
-	if asn, ok := rec.Extra["asn"]; ok {
-		peerArgs = append(peerArgs, "--asn", asn)
+	// Run peer directly (no subprocess needed)
+	p, err := peer.New(config)
+	if err != nil {
+		return fmt.Errorf("create peer: %w", err)
 	}
-	if rec.Extra["bind"] == "ipv6" {
-		peerArgs = append(peerArgs, "--ipv6")
+	result := p.Run(ctx)
+
+	fmt.Println()
+
+	if result.Error != nil {
+		return result.Error
 	}
-	peerArgs = append(peerArgs, expectFile)
+	if !result.Success {
+		return fmt.Errorf("peer check failed")
+	}
 
-	// Run peer (blocks until client connects and test completes or Ctrl+C)
-	peerCmd := exec.CommandContext(ctx, peerPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
-	peerCmd.Env = append(os.Environ(), fmt.Sprintf("ze_bgp_tcp_port=%d", port))
-	peerCmd.Stdout = os.Stdout
-	peerCmd.Stderr = os.Stderr
-
-	return peerCmd.Run()
+	fmt.Println("successful")
+	return nil
 }
 
 // runClientOnly runs only ze bgp (client) for manual debugging.
@@ -550,7 +550,7 @@ func parseRunCLI() *runCLIFlags {
 	}
 
 	command := os.Args[1]
-	if command == "-h" || command == "--help" || command == "help" {
+	if isHelpArg(command) {
 		printRunUsage()
 		return nil
 	}

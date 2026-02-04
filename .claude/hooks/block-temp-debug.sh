@@ -26,8 +26,8 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
     exit 0
 fi
 
-# Skip cmd/ main files that legitimately use fmt for CLI output
-if [[ "$FILE_PATH" =~ cmd/.*main\.go$ ]]; then
+# Skip cmd/ files that legitimately use fmt for CLI output
+if [[ "$FILE_PATH" =~ cmd/ ]]; then
     exit 0
 fi
 

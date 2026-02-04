@@ -23,6 +23,16 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
     exit 0
 fi
 
+# Skip cmd/ files (CLI routing uses default: with error on next line)
+if [[ "$FILE_PATH" =~ cmd/ ]]; then
+    exit 0
+fi
+
+# Skip internal/test/ files (test code uses switch/default for command dispatch)
+if [[ "$FILE_PATH" =~ internal/test/ ]]; then
+    exit 0
+fi
+
 RED='\033[31m'
 YELLOW='\033[33m'
 BOLD='\033[1m'

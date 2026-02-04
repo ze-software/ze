@@ -3,6 +3,8 @@
 // Subcommands:
 //
 //	ze-test bgp [type] [flags]     Run BGP functional tests
+//	ze-test editor [flags]         Run editor functional tests (.et files)
+//	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
 //	ze-test syslog [flags]         Run syslog server for testing
 package main
 
@@ -18,7 +20,7 @@ func main() {
 	}
 
 	cmd := os.Args[1]
-	if cmd == "-h" || cmd == "--help" || cmd == "help" {
+	if isHelpArg(cmd) {
 		printUsage()
 		return
 	}
@@ -29,6 +31,10 @@ func main() {
 	switch cmd {
 	case "bgp":
 		os.Exit(bgpCmd())
+	case "editor":
+		os.Exit(editorCmd())
+	case "peer":
+		os.Exit(peerCmd())
 	case "syslog":
 		os.Exit(syslogCmd())
 	default:
@@ -38,11 +44,18 @@ func main() {
 	}
 }
 
+// isHelpArg checks if the argument is a help flag.
+func isHelpArg(arg string) bool {
+	return arg == "-h" || arg == "--help" || arg == "help"
+}
+
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: ze-test <command> [options]
 
 Commands:
   bgp       Run BGP functional tests (encoding, plugin, decoding, parsing)
+  editor    Run editor functional tests (.et files)
+  peer      BGP test peer (sink/echo/check modes)
   syslog    Run syslog server for testing
 
 Run 'ze-test <command> --help' for command-specific help.
