@@ -1,0 +1,42 @@
+# Test: Load file relative replace - replaces at current context
+# VALIDATES: Relative replace only affects current context subtree
+# VALIDATES: Root config preserved when in nested context
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+tmpfs=peer-content.conf:terminator=EOF_PEER
+peer-as 65002;
+description "replaced peer";
+EOF_PEER
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Load relative replace - should replace peer block content only
+input=type:text=load file relative replace peer-content.conf
+input=enter
+
+# Root config should be preserved
+expect=content:contains=router-id
+expect=content:contains=local-as
+
+# Peer content should be replaced
+expect=content:contains=65002
+expect=content:contains=replaced peer
+
+expect=dirty:true
+expect=error:none

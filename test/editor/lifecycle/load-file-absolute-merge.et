@@ -1,4 +1,4 @@
-# Test: Load merge combines configurations
+# Test: Load file absolute merge - merges at root
 # VALIDATES: Load merge preserves existing values
 # VALIDATES: Load merge adds new content
 # VALIDATES: Existing values not overwritten
@@ -27,8 +27,8 @@ option=timeout:value=10s
 expect=content:contains=1.2.3.4
 expect=content:contains=65000
 
-# Load and merge
-input=type:text=load merge merge.conf
+# Load and merge with new syntax
+input=type:text=load file absolute merge merge.conf
 input=enter
 
 # Original values should be preserved (1.2.3.4, not overwritten by 5.6.7.8)

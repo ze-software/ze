@@ -78,6 +78,12 @@ type Model struct {
 	// Commit confirm state
 	confirmTimerActive bool   // True if waiting for confirm/abort
 	confirmBackupPath  string // Path to backup for rollback on timeout/abort
+
+	// Paste mode state (for load terminal ...)
+	pasteMode         bool            // True if accumulating paste input
+	pasteBuffer       strings.Builder // Accumulates pasted lines
+	pasteModeLocation string          // "absolute" or "relative"
+	pasteModeAction   string          // "replace" or "merge"
 }
 
 // PipeFilter represents a filter in a pipe chain.
@@ -91,6 +97,14 @@ const validationDebounce = 100 * time.Millisecond
 
 // Command names (used in multiple switch statements).
 const cmdShow = "show"
+
+// Load command keywords.
+const (
+	loadLocationAbsolute = "absolute"
+	loadLocationRelative = "relative"
+	loadActionReplace    = "replace"
+	loadActionMerge      = "merge"
+)
 
 // commandResult carries state changes from a command back to Update.
 // This allows commands to run in a tea.Cmd closure without losing state changes.
@@ -108,6 +122,11 @@ type commandResult struct {
 	setConfirmTimer   bool   // True to set confirmTimerActive
 	confirmTimerValue bool   // Value to set confirmTimerActive to
 	confirmBackupPath string // Backup path for rollback (empty to clear)
+
+	// Paste mode state (for load terminal ...)
+	enterPasteMode    bool   // True to enter paste mode
+	pasteModeLocation string // "absolute" or "relative"
+	pasteModeAction   string // "replace" or "merge"
 }
 
 // Message types for the editor.
@@ -210,6 +229,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil // Ignore other keys when help is shown
 		}
 
+		// Handle paste mode (for load terminal ...)
+		if m.pasteMode {
+			return m.handlePasteModeKey(msg)
+		}
+
 		// Handle viewport scrolling (when no dropdown)
 		if m.showViewport && !m.showDropdown {
 			switch msg.Type { //nolint:exhaustive // only handle specific keys
@@ -308,6 +332,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if r.setConfirmTimer {
 			m.confirmTimerActive = r.confirmTimerValue
 			m.confirmBackupPath = r.confirmBackupPath
+		}
+
+		// Apply paste mode state
+		if r.enterPasteMode {
+			m.pasteMode = true
+			m.pasteBuffer.Reset()
+			m.pasteModeLocation = r.pasteModeLocation
+			m.pasteModeAction = r.pasteModeAction
 		}
 
 		m.err = nil
@@ -415,6 +447,84 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 	// Execute command
 	return m, m.executeCommand(input)
+}
+
+// handlePasteModeKey handles key input during paste mode.
+// Ctrl-D ends paste mode and processes the buffer.
+// Enter adds a newline to the buffer.
+// Other characters are accumulated.
+func (m Model) handlePasteModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.Type { //nolint:exhaustive // only specific keys handled in paste mode
+	case tea.KeyCtrlD:
+		// End paste mode and process buffer
+		return m.finishPasteMode()
+
+	case tea.KeyCtrlC, tea.KeyEsc:
+		// Cancel paste mode
+		m.pasteMode = false
+		m.pasteBuffer.Reset()
+		m.statusMessage = "Paste mode cancelled"
+		return m, nil
+
+	case tea.KeyEnter:
+		// Add newline to buffer
+		m.pasteBuffer.WriteString("\n")
+		return m, nil
+
+	case tea.KeyRunes:
+		// Accumulate characters
+		for _, r := range msg.Runes {
+			m.pasteBuffer.WriteRune(r)
+		}
+		return m, nil
+
+	case tea.KeySpace:
+		m.pasteBuffer.WriteString(" ")
+		return m, nil
+
+	case tea.KeyBackspace:
+		// Remove last character from buffer
+		s := m.pasteBuffer.String()
+		if len(s) > 0 {
+			m.pasteBuffer.Reset()
+			m.pasteBuffer.WriteString(s[:len(s)-1])
+		}
+		return m, nil
+	}
+
+	// Keyboard input: unhandled keys are intentionally ignored (no action needed)
+	return m, nil
+}
+
+// finishPasteMode ends paste mode and applies the buffered content.
+func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
+	content := m.pasteBuffer.String()
+	m.pasteMode = false
+	m.pasteBuffer.Reset()
+
+	if strings.TrimSpace(content) == "" {
+		m.statusMessage = "Paste mode: no content to apply"
+		return m, nil
+	}
+
+	// Apply content based on location and action
+	var result commandResult
+	var err error
+
+	if m.pasteModeLocation == loadLocationAbsolute {
+		result, err = m.applyLoadAbsolute(m.pasteModeAction, content, "terminal")
+	} else {
+		result, err = m.applyLoadRelative(m.pasteModeAction, content, "terminal")
+	}
+
+	if err != nil {
+		m.err = err
+		return m, nil
+	}
+
+	// Apply the result
+	m.ApplyResult(result)
+	return m, nil
 }
 
 // applyCompletion applies a completion to the input.
@@ -861,6 +971,17 @@ func (m Model) renderHelpOverlay(base string) string {
   rollback <N>         Restore backup N
   exit                 Exit editor
 
+Load:
+  load file absolute replace <path>    Replace entire config from file
+  load file absolute merge <path>      Merge file at root
+  load file relative replace <path>    Replace context subtree from file
+  load file relative merge <path>      Merge file at current context
+  load terminal absolute replace       Paste mode - replace entire config
+  load terminal absolute merge         Paste mode - merge at root
+  load terminal relative replace       Paste mode - replace context subtree
+  load terminal relative merge         Paste mode - merge at context
+  (Paste mode: type content, then Ctrl-D to apply)
+
 Keys:
   Tab                  Complete / cycle suggestions
   ↑↓                   Navigate dropdown / scroll output
@@ -1006,11 +1127,8 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdRollback(args)
 
 	case "load":
-		// Check for "load merge <file>"
-		if len(args) >= 2 && args[0] == "merge" {
-			return m.cmdLoadMerge(args[1:])
-		}
-		return m.cmdLoad(args)
+		// New syntax: load <source> <location> <action> [file]
+		return m.cmdLoadNew(args)
 
 	case "set":
 		return m.cmdSet(args)
@@ -1806,6 +1924,273 @@ func (m *Model) resolveConfigPath(path string) string {
 	}
 	configDir := getDir(m.editor.OriginalPath())
 	return joinPath(configDir, path)
+}
+
+// parseLoadArgs parses the new load command syntax: load <source> <location> <action> [file]
+// Returns (source, location, action, path, error).
+// source: "file" or "terminal"
+// location: "absolute" or "relative"
+// action: "replace" or "merge"
+// path: required when source="file", empty for "terminal"
+func parseLoadArgs(args []string) (source, location, action, path string, err error) {
+	const usage = "usage: load file|terminal absolute|relative replace|merge [path]"
+
+	if len(args) < 1 {
+		return "", "", "", "", fmt.Errorf("missing source (file|terminal). %s", usage)
+	}
+
+	source = args[0]
+	if source != "file" && source != "terminal" {
+		return "", "", "", "", fmt.Errorf("invalid source %q (must be file|terminal). %s", source, usage)
+	}
+
+	if len(args) < 2 {
+		return "", "", "", "", fmt.Errorf("missing location (absolute|relative). %s", usage)
+	}
+
+	location = args[1]
+	if location != loadLocationAbsolute && location != loadLocationRelative {
+		return "", "", "", "", fmt.Errorf("invalid location %q (must be absolute|relative). %s", location, usage)
+	}
+
+	if len(args) < 3 {
+		return "", "", "", "", fmt.Errorf("missing action (replace|merge). %s", usage)
+	}
+
+	action = args[2]
+	if action != loadActionReplace && action != loadActionMerge {
+		return "", "", "", "", fmt.Errorf("invalid action %q (must be replace|merge). %s", action, usage)
+	}
+
+	if source == "file" {
+		if len(args) < 4 {
+			return "", "", "", "", fmt.Errorf("missing path for 'load file'. %s", usage)
+		}
+		path = args[3]
+	}
+
+	return source, location, action, path, nil
+}
+
+// cmdLoadNew handles the redesigned load command syntax.
+// Syntax: load <source> <location> <action> [file].
+func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
+	source, location, action, path, err := parseLoadArgs(args)
+	if err != nil {
+		return commandResult{}, err
+	}
+
+	// Terminal source enters paste mode
+	if source == "terminal" {
+		return commandResult{
+			statusMessage:     "[Paste mode - Ctrl-D to finish]",
+			enterPasteMode:    true,
+			pasteModeLocation: location,
+			pasteModeAction:   action,
+		}, nil
+	}
+
+	// File source - read and apply
+	loadPath := m.resolveConfigPath(path)
+	data, err := readFile(loadPath)
+	if err != nil {
+		return commandResult{}, fmt.Errorf("cannot read %s: %w", path, err)
+	}
+
+	if location == loadLocationAbsolute {
+		return m.applyLoadAbsolute(action, string(data), path)
+	}
+	return m.applyLoadRelative(action, string(data), path)
+}
+
+// applyLoadAbsolute applies loaded content at root level.
+func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, error) {
+	if action == loadActionReplace {
+		m.editor.SetWorkingContent(content)
+		m.editor.MarkDirty()
+		return commandResult{
+			statusMessage: fmt.Sprintf("Configuration loaded from %s", path),
+			configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+			revalidate:    true,
+		}, nil
+	}
+
+	// action == "merge"
+	currentContent := m.editor.WorkingContent()
+	merged := mergeConfigs(currentContent, content)
+	m.editor.SetWorkingContent(merged)
+	m.editor.MarkDirty()
+	return commandResult{
+		statusMessage: fmt.Sprintf("Configuration merged from %s", path),
+		configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+		revalidate:    true,
+	}, nil
+}
+
+// applyLoadRelative applies loaded content at current context position.
+func (m *Model) applyLoadRelative(action, content, path string) (commandResult, error) {
+	if len(m.contextPath) == 0 {
+		// At root level, relative == absolute
+		return m.applyLoadAbsolute(action, content, path)
+	}
+
+	// Apply at context position
+	currentContent := m.editor.WorkingContent()
+	var newContent string
+
+	if action == loadActionReplace {
+		newContent = replaceAtContext(currentContent, m.contextPath, content)
+	} else {
+		newContent = mergeAtContext(currentContent, m.contextPath, content)
+	}
+
+	m.editor.SetWorkingContent(newContent)
+	m.editor.MarkDirty()
+
+	verb := "loaded"
+	if action == loadActionMerge {
+		verb = "merged"
+	}
+
+	return commandResult{
+		statusMessage: fmt.Sprintf("Configuration %s from %s at %s", verb, path, strings.Join(m.contextPath, " ")),
+		configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+		revalidate:    true,
+	}, nil
+}
+
+// replaceAtContext replaces the content at the given context path with new content.
+func replaceAtContext(fullConfig string, contextPath []string, newContent string) string {
+	if len(contextPath) == 0 {
+		return fullConfig // nothing to replace
+	}
+
+	lines := strings.Split(fullConfig, "\n")
+	var result strings.Builder
+
+	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
+	var targetPattern string
+	if len(contextPath) == 1 {
+		targetPattern = contextPath[0]
+	} else {
+		// len >= 2: combine last two elements (e.g., "peer" + "1.1.1.1")
+		targetPattern = contextPath[len(contextPath)-2] + " " + contextPath[len(contextPath)-1]
+	}
+
+	inTarget := false
+	targetDepth := 0
+	currentDepth := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		openBraces := strings.Count(trimmed, "{")
+		closeBraces := strings.Count(trimmed, "}")
+
+		if !inTarget {
+			// Looking for target block
+			if strings.Contains(trimmed, "{") {
+				blockPart := strings.TrimSuffix(trimmed, "{")
+				blockPart = strings.TrimSpace(blockPart)
+
+				if blockPart == targetPattern {
+					// Found target - write opening line and new content
+					result.WriteString(line)
+					result.WriteString("\n")
+					inTarget = true
+					targetDepth = currentDepth + openBraces
+
+					// Write indented new content
+					indent := strings.Repeat("  ", targetDepth)
+					for _, newLine := range strings.Split(strings.TrimSpace(newContent), "\n") {
+						result.WriteString(indent)
+						result.WriteString(newLine)
+						result.WriteString("\n")
+					}
+					currentDepth += openBraces - closeBraces
+					continue
+				}
+			}
+			result.WriteString(line)
+			result.WriteString("\n")
+		} else {
+			// Inside target - skip old content until closing brace
+			newDepth := currentDepth + openBraces - closeBraces
+			if newDepth < targetDepth {
+				// Found closing brace - write it
+				result.WriteString(line)
+				result.WriteString("\n")
+				inTarget = false
+			}
+			// Skip old content lines
+		}
+
+		currentDepth += openBraces - closeBraces
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// mergeAtContext merges new content into the block at the given context path.
+func mergeAtContext(fullConfig string, contextPath []string, newContent string) string {
+	if len(contextPath) == 0 {
+		return fullConfig // nothing to merge into
+	}
+
+	lines := strings.Split(fullConfig, "\n")
+	var result strings.Builder
+
+	// Build the pattern to match (e.g., "peer 1.1.1.1" or just "bgp")
+	var targetPattern string
+	if len(contextPath) == 1 {
+		targetPattern = contextPath[0]
+	} else {
+		// len >= 2: combine last two elements (e.g., "peer" + "1.1.1.1")
+		targetPattern = contextPath[len(contextPath)-2] + " " + contextPath[len(contextPath)-1]
+	}
+
+	inTarget := false
+	targetDepth := 0
+	currentDepth := 0
+	contentInserted := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		openBraces := strings.Count(trimmed, "{")
+		closeBraces := strings.Count(trimmed, "}")
+
+		if !inTarget {
+			if strings.Contains(trimmed, "{") {
+				blockPart := strings.TrimSuffix(trimmed, "{")
+				blockPart = strings.TrimSpace(blockPart)
+
+				if blockPart == targetPattern {
+					inTarget = true
+					targetDepth = currentDepth + openBraces
+				}
+			}
+			result.WriteString(line)
+			result.WriteString("\n")
+		} else {
+			newDepth := currentDepth + openBraces - closeBraces
+			if newDepth < targetDepth && !contentInserted {
+				// Insert merged content before closing brace
+				indent := strings.Repeat("  ", targetDepth)
+				for _, newLine := range strings.Split(strings.TrimSpace(newContent), "\n") {
+					result.WriteString(indent)
+					result.WriteString(newLine)
+					result.WriteString("\n")
+				}
+				contentInserted = true
+				inTarget = false
+			}
+			result.WriteString(line)
+			result.WriteString("\n")
+		}
+
+		currentDepth += openBraces - closeBraces
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
 }
 
 // cmdShowPipe executes show with pipe filters.

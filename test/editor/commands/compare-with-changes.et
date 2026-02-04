@@ -25,7 +25,7 @@ option=timeout:value=10s
 expect=dirty:false
 
 # Load modified config to actually change content
-input=type:text=load modified.conf
+input=type:text=load file absolute replace modified.conf
 input=enter
 expect=dirty:true
 expect=viewport:contains=listen

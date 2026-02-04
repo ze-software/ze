@@ -1,5 +1,5 @@
-# Test: Load command requires filename
-# VALIDATES: load without arguments shows error
+# Test: Load command requires proper keywords
+# VALIDATES: load without keywords shows usage error
 # PREVENTS: Incomplete load command being accepted
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -11,7 +11,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Load without filename
+# Load without keywords - should show usage
 input=type:text=load
 input=enter
-expect=error:contains=usage
+expect=error:contains=source

@@ -28,7 +28,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Load modified config to create actual content change
-input=type:text=load modified.conf
+input=type:text=load file absolute replace modified.conf
 input=enter
 expect=dirty:true
 

@@ -1,5 +1,6 @@
-# Test: Load replaces config content
-# VALIDATES: Load command reads file and replaces content
+# Test: Load file absolute replace - replaces entire config
+# VALIDATES: Load command with file absolute replace syntax works
+# VALIDATES: Content is completely replaced
 # VALIDATES: Marks config as dirty after load
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -18,8 +19,8 @@ EOF_OTHER
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Load different config
-input=type:text=load other.conf
+# Load with new syntax
+input=type:text=load file absolute replace other.conf
 input=enter
 expect=dirty:true
 expect=viewport:contains=5.6.7.8

@@ -1,0 +1,39 @@
+# Test: Load file relative merge - merges at current context
+# VALIDATES: Relative merge adds content at context position
+# VALIDATES: Original context content preserved
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+tmpfs=extra.conf:terminator=EOF_EXTRA
+description "merged peer";
+hold-time 180;
+EOF_EXTRA
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enter peer context
+input=type:text=edit peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Load relative merge
+input=type:text=load file relative merge extra.conf
+input=enter
+
+# Original peer content preserved
+expect=content:contains=peer-as 65001
+
+# Merged content added
+expect=content:contains=description
+expect=content:contains=hold-time
+
+expect=dirty:true
+expect=error:none

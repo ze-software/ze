@@ -1,0 +1,27 @@
+# Test: Old load syntax is rejected
+# VALIDATES: Old "load <file>" syntax shows clear error
+# VALIDATES: Old "load merge <file>" syntax shows clear error
+# PREVENTS: Confusing silent behavior change
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Old syntax should fail with helpful error
+input=type:text=load other.conf
+input=enter
+expect=error:contains=source
+
+# Clear error for next test
+input=type:text=show
+input=enter
+
+# Old merge syntax should also fail
+input=type:text=load merge other.conf
+input=enter
+expect=error:contains=source

@@ -1,6 +1,6 @@
 # Test: Load shows error for missing file
 # VALIDATES: Load fails gracefully for nonexistent file
-# VALIDATES: Error message mentions file not found
+# VALIDATES: Error message mentions cannot read
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -11,7 +11,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Try to load nonexistent file
-input=type:text=load nonexistent.conf
+# Try to load nonexistent file with new syntax
+input=type:text=load file absolute replace nonexistent.conf
 input=enter
-expect=error:contains=no such file
+expect=error:contains=cannot read
