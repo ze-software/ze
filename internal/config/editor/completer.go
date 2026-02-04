@@ -165,21 +165,34 @@ func (c *Completer) GhostText(input string, contextPath []string) string {
 // completeSetPath completes paths for set/delete commands.
 func (c *Completer) completeSetPath(tokens []string, contextPath []string, endsWithSpace bool) []Completion {
 	currentPath := append([]string{}, contextPath...)
+	// Track how many path elements came from tokens (vs context)
+	tokensAdded := 0
 
-	// Navigate through tokens
+	// Navigate through tokens, handling list keys
 	for i, token := range tokens {
 		isLast := i == len(tokens)-1
 
 		if isLast && !endsWithSpace {
 			// Partial match on this token
+			// Check if we're at a list (and we navigated there via tokens) - show existing keys
+			if tokensAdded > 0 && c.isList(currentPath) {
+				return c.listKeyCompletions(currentPath[len(currentPath)-1], token, currentPath[:len(currentPath)-1])
+			}
 			return c.matchChildren(currentPath, token)
 		}
 
-		// Navigate deeper
+		// Navigate deeper (token is either a schema child or a list key value)
 		currentPath = append(currentPath, token)
+		tokensAdded++
 	}
 
 	// If we ended with space, show next level
+	// Check if current path points to a list (and we navigated there via tokens) - show existing keys
+	if tokensAdded > 0 && c.isList(currentPath) && len(currentPath) > 0 {
+		listName := currentPath[len(currentPath)-1]
+		parentPath := currentPath[:len(currentPath)-1]
+		return c.listKeyCompletions(listName, "", parentPath)
+	}
 	return c.matchChildren(currentPath, "")
 }
 

@@ -1062,7 +1062,7 @@ func (m Model) executeCommand(input string) tea.Cmd {
 // dispatchCommand parses and executes a command.
 // Returns commandResult with all state changes for the Update handler to apply.
 func (m *Model) dispatchCommand(input string) (commandResult, error) {
-	tokens := strings.Fields(input)
+	tokens := tokenizeCommand(input)
 	if len(tokens) == 0 {
 		return commandResult{}, nil
 	}
@@ -1561,17 +1561,119 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
 	}
 
-	// Build full path with context
-	fullPath := make([]string, 0, len(m.contextPath)+len(args))
-	fullPath = append(fullPath, m.contextPath...)
-	fullPath = append(fullPath, args...)
+	// Detect if we have a quoted value (tokens contain quotes)
+	// If so, key is args[0] and value is the rest joined
+	// Otherwise, use path-style: last token is value, rest is path
+	hasQuotedValue := false
+	for _, arg := range args[1:] {
+		if strings.Contains(arg, "\"") {
+			hasQuotedValue = true
+			break
+		}
+	}
 
-	// For now, just acknowledge - actual tree modification needs SetParser integration
+	var key, value string
+	var containerPath []string
+
+	if hasQuotedValue {
+		// Quoted value: key is first arg, value is rest joined
+		key = args[0]
+		value = strings.Join(args[1:], " ")
+		value = stripQuotes(value)
+		containerPath = append([]string{}, m.contextPath...)
+	} else {
+		// Path-style: build full path, last token is value
+		fullPath := make([]string, 0, len(m.contextPath)+len(args))
+		fullPath = append(fullPath, m.contextPath...)
+		fullPath = append(fullPath, args...)
+
+		value = fullPath[len(fullPath)-1]
+		path := fullPath[:len(fullPath)-1]
+
+		if len(path) < 1 {
+			return commandResult{}, fmt.Errorf("usage: set <path> <value>")
+		}
+
+		key = path[len(path)-1]
+		containerPath = path[:len(path)-1]
+	}
+
+	// Modify the config content
+	content := m.editor.WorkingContent()
+	newContent := setValueInConfig(content, containerPath, key, value)
+
+	m.editor.SetWorkingContent(newContent)
 	m.editor.MarkDirty()
+
+	displayPath := append(append([]string{}, containerPath...), key)
 	return commandResult{
-		statusMessage: fmt.Sprintf("Set %s", strings.Join(fullPath, " ")),
+		statusMessage: fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value),
+		configView:    &viewportData{content: newContent, lineMapping: nil},
 		revalidate:    true,
 	}, nil
+}
+
+// stripQuotes removes surrounding double quotes from a string.
+func stripQuotes(s string) string {
+	if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+		return s[1 : len(s)-1]
+	}
+	return s
+}
+
+// tokenizeCommand splits a command string into tokens, respecting quoted strings.
+// Example: `set peer "my peer" description "test"` → ["set", "peer", "my peer", "description", "test"].
+func tokenizeCommand(input string) []string {
+	var tokens []string
+	var current strings.Builder
+	inQuote := false
+
+	for i := 0; i < len(input); i++ {
+		c := input[i]
+		isQuote := c == '"'
+		isSpace := c == ' ' || c == '\t'
+
+		// Handle quote toggle
+		if isQuote {
+			tokens, inQuote = handleQuoteChar(&current, tokens, inQuote)
+			continue
+		}
+
+		// Handle whitespace (token separator when not in quotes)
+		if isSpace && !inQuote {
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			continue
+		}
+
+		// Regular character (or space inside quotes)
+		current.WriteByte(c)
+	}
+
+	// Add final token if any
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
+
+// handleQuoteChar processes a quote character during tokenization.
+func handleQuoteChar(current *strings.Builder, tokens []string, inQuote bool) ([]string, bool) {
+	if inQuote {
+		// End of quoted string - add token without quotes
+		tokens = append(tokens, current.String())
+		current.Reset()
+		return tokens, false
+	}
+	// Start of quoted string - save any accumulated content first
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+		current.Reset()
+	}
+	return tokens, true
 }
 
 func (m *Model) cmdDelete(args []string) (commandResult, error) {
@@ -2191,6 +2293,160 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 	}
 
 	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// setValueInConfig sets a leaf value at the specified path in the config.
+// containerPath is the path to the containing block (e.g., ["bgp", "peer", "1.1.1.1"]).
+// key is the leaf name (e.g., "description").
+// value is the new value (e.g., "test peer").
+func setValueInConfig(fullConfig string, containerPath []string, key, value string) string {
+	lines := strings.Split(fullConfig, "\n")
+	var result strings.Builder
+
+	// Setting at root level - just find/replace the key
+	if len(containerPath) == 0 {
+		return setRootLevelValue(fullConfig, key, value)
+	}
+
+	// Build the target pattern for the container block
+	// For single element path: just use the element (e.g., "bgp")
+	// For multi-element path: combine last two for list entries (e.g., "peer 1.1.1.1")
+	targetPattern := containerPath[len(containerPath)-1]
+	if len(containerPath) >= 2 {
+		targetPattern = containerPath[len(containerPath)-2] + " " + containerPath[len(containerPath)-1]
+	}
+
+	inTarget := false
+	targetDepth := 0
+	currentDepth := 0
+	keyFound := false
+	keyWritten := false
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		openBraces := strings.Count(trimmed, "{")
+		closeBraces := strings.Count(trimmed, "}")
+
+		if !inTarget {
+			// Looking for target block
+			if strings.Contains(trimmed, "{") {
+				blockPart := strings.TrimSuffix(trimmed, "{")
+				blockPart = strings.TrimSpace(blockPart)
+
+				if blockPart == targetPattern {
+					inTarget = true
+					targetDepth = currentDepth + openBraces
+				}
+			}
+			result.WriteString(line)
+			result.WriteString("\n")
+		} else {
+			// Inside target block
+			newDepth := currentDepth + openBraces - closeBraces
+
+			// Check if this line sets the key we're looking for
+			if newDepth == targetDepth && !keyFound {
+				lineKey := extractKeyFromLine(trimmed)
+				if lineKey == key {
+					// Replace this line with new value
+					indent := strings.Repeat("\t", targetDepth)
+					result.WriteString(indent)
+					result.WriteString(formatKeyValue(key, value))
+					result.WriteString("\n")
+					keyFound = true
+					keyWritten = true
+					currentDepth += openBraces - closeBraces
+					continue
+				}
+			}
+
+			// If we're about to exit the target block and haven't written the key yet
+			if newDepth < targetDepth && !keyWritten {
+				indent := strings.Repeat("\t", targetDepth)
+				result.WriteString(indent)
+				result.WriteString(formatKeyValue(key, value))
+				result.WriteString("\n")
+				keyWritten = true
+				inTarget = false
+			}
+
+			result.WriteString(line)
+			result.WriteString("\n")
+
+			if newDepth < targetDepth {
+				inTarget = false
+			}
+		}
+
+		currentDepth += openBraces - closeBraces
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// setRootLevelValue sets a value at the root level of the config.
+func setRootLevelValue(fullConfig string, key, value string) string {
+	lines := strings.Split(fullConfig, "\n")
+	var result strings.Builder
+	keyFound := false
+	depth := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		openBraces := strings.Count(trimmed, "{")
+		closeBraces := strings.Count(trimmed, "}")
+
+		// Only look for key at depth 0 (root level)
+		if depth == 0 && !keyFound {
+			lineKey := extractKeyFromLine(trimmed)
+			if lineKey == key {
+				result.WriteString(formatKeyValue(key, value))
+				result.WriteString("\n")
+				keyFound = true
+				depth += openBraces - closeBraces
+				continue
+			}
+		}
+
+		result.WriteString(line)
+		result.WriteString("\n")
+		depth += openBraces - closeBraces
+	}
+
+	// If key wasn't found, add it at the end
+	if !keyFound {
+		result.WriteString(formatKeyValue(key, value))
+		result.WriteString("\n")
+	}
+
+	return strings.TrimSuffix(result.String(), "\n")
+}
+
+// extractKeyFromLine extracts the key name from a config line.
+// Examples: "description \"test\";" -> "description", "local-as 65000;" -> "local-as".
+func extractKeyFromLine(line string) string {
+	line = strings.TrimSpace(line)
+	if line == "" || line == "}" || strings.HasSuffix(line, "{") {
+		return ""
+	}
+	// Get first word
+	parts := strings.Fields(line)
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[0]
+}
+
+// formatKeyValue formats a key-value pair for config output.
+func formatKeyValue(key, value string) string {
+	// If value contains spaces or special chars, quote it
+	needsQuote := strings.ContainsAny(value, " \t\"';{}") || value == ""
+	if needsQuote {
+		// Escape existing quotes in value
+		escaped := strings.ReplaceAll(value, "\"", "\\\"")
+		return key + " \"" + escaped + "\";"
+	}
+	return key + " " + value + ";"
 }
 
 // cmdShowPipe executes show with pipe filters.

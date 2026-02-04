@@ -151,6 +151,27 @@ func TestCompleterEnumValues(t *testing.T) {
 	assert.Contains(t, texts, "send")
 }
 
+// TestCompleterSetListKeys verifies that "set bgp peer " shows list key completions.
+//
+// VALIDATES: Navigating to a list via tokens shows list keys, not schema children.
+// PREVENTS: "set bgp peer <tab>" showing peer-as instead of peer IPs.
+func TestCompleterSetListKeys(t *testing.T) {
+	c := NewCompleter()
+
+	// "set bgp peer " should show list key hints (* for template, <value> for new)
+	// NOT schema children like peer-as, address, etc.
+	completions := c.Complete("set bgp peer ", nil)
+	require.NotEmpty(t, completions)
+
+	texts := completionTexts(completions)
+	// Should show wildcard and value hint for list keys
+	assert.Contains(t, texts, "*", "should show wildcard for template")
+	assert.Contains(t, texts, "<value>", "should show value hint for new key")
+	// Should NOT show schema children (those are for inside a peer)
+	assert.NotContains(t, texts, "peer-as", "should not show peer-as (that's inside peer)")
+	assert.NotContains(t, texts, "address", "should not show address (that's inside peer)")
+}
+
 func completionTexts(completions []Completion) []string {
 	texts := make([]string, len(completions))
 	for i, c := range completions {

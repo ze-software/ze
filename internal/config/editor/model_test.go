@@ -1963,3 +1963,131 @@ description "merged content";`
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")
 }
+
+// TestSetCommandModifiesConfig verifies that "set" actually modifies the config content.
+//
+// VALIDATES: Set command updates working content with new value.
+// PREVENTS: Set command only showing status without modifying content.
+func TestSetCommandModifiesConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	originalContent := `bgp {
+	router-id 1.2.3.4;
+	peer 1.1.1.1 {
+		peer-as 65001;
+	}
+}`
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter peer context
+	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Set description
+	result, err := model.dispatchCommand(`set description "test peer"`)
+	require.NoError(t, err)
+
+	// Verify content was modified
+	content := ed.WorkingContent()
+	assert.Contains(t, content, `description "test peer"`, "description should be added")
+	assert.True(t, ed.Dirty(), "should be marked dirty")
+	assert.Contains(t, result.statusMessage, "Set", "status should mention Set")
+}
+
+// TestTokenizeCommandQuotedStrings verifies tokenizer handles quoted strings.
+//
+// VALIDATES: Quoted strings are kept together as single tokens.
+// PREVENTS: Splitting "my peer" into ["my", "peer"].
+func TestTokenizeCommandQuotedStrings(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect []string
+	}{
+		{
+			name:   "simple",
+			input:  "set key value",
+			expect: []string{"set", "key", "value"},
+		},
+		{
+			name:   "quoted value",
+			input:  `set description "my description"`,
+			expect: []string{"set", "description", "my description"},
+		},
+		{
+			name:   "quoted key (list entry)",
+			input:  `set peer "my peer" description "test"`,
+			expect: []string{"set", "peer", "my peer", "description", "test"},
+		},
+		{
+			name:   "multiple quoted",
+			input:  `edit "block name" "sub block"`,
+			expect: []string{"edit", "block name", "sub block"},
+		},
+		{
+			name:   "empty string",
+			input:  "",
+			expect: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tokenizeCommand(tt.input)
+			assert.Equal(t, tt.expect, result)
+		})
+	}
+}
+
+// TestSetCommandUpdatesExistingValue verifies set replaces existing values.
+//
+// VALIDATES: Existing key values are replaced, not duplicated.
+// PREVENTS: Multiple entries for same key after set.
+func TestSetCommandUpdatesExistingValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	originalContent := `bgp {
+	router-id 1.2.3.4;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		description "old value";
+	}
+}`
+	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter peer context
+	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Set new description (should replace existing)
+	_, err = model.dispatchCommand(`set description "new value"`)
+	require.NoError(t, err)
+
+	// Verify content was updated (not duplicated)
+	content := ed.WorkingContent()
+	assert.Contains(t, content, `description "new value"`, "new value should be present")
+	assert.NotContains(t, content, "old value", "old value should be replaced")
+	// Count occurrences of "description" key - should be exactly 1
+	count := strings.Count(content, "description")
+	assert.Equal(t, 1, count, "should have exactly one description entry")
+}
