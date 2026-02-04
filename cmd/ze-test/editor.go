@@ -6,13 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	editortesting "codeberg.org/thomas-mangin/ze/internal/config/editor/testing"
+	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
 func editorCmd() int {
 	if err := editorMain(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output
 		return 1
 	}
 	return 0
@@ -24,6 +27,8 @@ func editorMain() error {
 	fs.StringVar(pattern, "pattern", "", "run only tests matching pattern")
 	verbose := fs.Bool("v", false, "verbose output")
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
+	quiet := fs.Bool("q", false, "minimal output")
+	fs.BoolVar(quiet, "quiet", false, "minimal output")
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
 
@@ -33,7 +38,7 @@ func editorMain() error {
 Run editor functional tests (.et files).
 
 Options:
-`)
+`) //nolint:errcheck // terminal output
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
@@ -42,7 +47,7 @@ Examples:
   ze-test editor -p commit                 # Run tests matching "commit"
   ze-test editor -v                        # Verbose output
   ze-test editor -l                        # List tests without running
-`)
+`) //nolint:errcheck // terminal output
 	}
 
 	// Handle help before parsing (os.Args shifted by main: ["editor", ...])
@@ -98,45 +103,118 @@ Examples:
 
 	// List mode
 	if *listOnly {
-		fmt.Printf("Found %d tests:\n", len(tests))
+		fmt.Printf("Found %d tests:\n", len(tests)) //nolint:errcheck // terminal output
 		for _, t := range tests {
 			rel, _ := filepath.Rel(baseDir, t)
 			if rel == "" {
 				rel = t
 			}
-			fmt.Printf("  %s\n", rel)
+			fmt.Printf("  %s\n", rel) //nolint:errcheck // terminal output
 		}
 		return nil
 	}
 
-	// Run tests
-	passed := 0
-	failed := 0
+	// Run tests in parallel with progress display
+	return runEditorTests(tests, baseDir, *verbose, *quiet)
+}
+
+// runEditorTests executes tests in parallel with real-time progress display.
+func runEditorTests(tests []string, baseDir string, verbose, quiet bool) error {
+	// Create progress tracker
+	progress := runner.NewProgress(len(tests))
+	progress.SetQuiet(quiet)
+	progress.Start()
+
+	// Channel for collecting results
+	type result struct {
+		path    string
+		rel     string
+		passed  bool
+		errMsg  string
+		tempDir string
+	}
+	results := make(chan result, len(tests))
+	done := make(chan struct{})
+
+	// Run tests in parallel with semaphore
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10) // Max 10 concurrent tests
 
 	for _, testPath := range tests {
-		result := editortesting.RunETFile(testPath)
-		rel, _ := filepath.Rel(baseDir, testPath)
-		if rel == "" {
-			rel = testPath
-		}
+		wg.Add(1)
+		go func(path string) {
+			defer wg.Done()
+			sem <- struct{}{}        // Acquire
+			defer func() { <-sem }() // Release
 
-		if result.Passed {
-			passed++
-			if *verbose {
-				fmt.Printf("✓ %s (%v)\n", rel, result.Duration)
+			rel, _ := filepath.Rel(baseDir, path)
+			if rel == "" {
+				rel = path
 			}
-		} else {
-			failed++
-			fmt.Printf("✗ %s\n", rel)
-			if result.Error != "" {
-				fmt.Printf("  %s\n", result.Error)
+
+			progress.StartTest(rel)
+			start := time.Now()
+
+			testResult := editortesting.RunETFile(path)
+			duration := time.Since(start)
+
+			progress.EndTest(rel, testResult.Passed, duration)
+			results <- result{
+				path:    path,
+				rel:     rel,
+				passed:  testResult.Passed,
+				errMsg:  testResult.Error,
+				tempDir: testResult.TempDir,
+			}
+		}(testPath)
+	}
+
+	// Close results when all done
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Periodic status update
+	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				progress.Status()
+			}
+		}
+	}()
+
+	// Collect results and track failures for verbose output
+	var failures []result
+	for res := range results {
+		if !res.passed {
+			failures = append(failures, res)
+		}
+		progress.Status()
+	}
+
+	close(done)
+	progress.Newline()
+	progress.Summary("Editor tests")
+
+	// Print failure details if verbose
+	if verbose && len(failures) > 0 {
+		fmt.Fprintln(os.Stdout) //nolint:errcheck // terminal output
+		for _, f := range failures {
+			fmt.Fprintf(os.Stdout, "✗ %s\n", f.rel)    //nolint:errcheck // terminal output
+			fmt.Fprintf(os.Stdout, "  %s\n", f.errMsg) //nolint:errcheck // terminal output
+			if f.tempDir != "" {
+				fmt.Fprintf(os.Stdout, "  temp dir: %s\n", f.tempDir) //nolint:errcheck // terminal output
 			}
 		}
 	}
 
-	fmt.Printf("\n%d passed, %d failed\n", passed, failed)
-
-	if failed > 0 {
+	if progress.Failed() > 0 {
 		return fmt.Errorf("tests failed")
 	}
 

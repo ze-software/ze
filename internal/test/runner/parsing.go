@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -328,47 +329,101 @@ func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *ParsingRunne
 	}
 }
 
-// Run executes selected tests.
+// Run executes selected tests in parallel with real-time progress display.
 func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	selected := r.tests.Selected()
 	if len(selected) == 0 {
-		fmt.Println("No tests selected")
+		fmt.Fprintln(os.Stdout, "No tests selected") //nolint:errcheck // user output
 		return true
 	}
 
-	passed, failed := 0, 0
+	// Create progress tracker
+	progress := NewProgress(len(selected))
+	progress.SetQuiet(quiet)
+	progress.Start()
+
+	// Channel for collecting results
+	type result struct {
+		test    *ParsingTest
+		success bool
+	}
+	results := make(chan result, len(selected))
+	done := make(chan struct{})
+
+	// Run tests in parallel with semaphore
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, 10) // Max 10 concurrent tests
 
 	for _, test := range selected {
-		test.State = StateRunning
-		start := time.Now()
+		wg.Add(1)
+		go func(t *ParsingTest) {
+			defer wg.Done()
+			sem <- struct{}{}        // Acquire
+			defer func() { <-sem }() // Release
 
-		success := r.runTest(ctx, test)
-		test.Duration = time.Since(start)
+			t.State = StateRunning
+			progress.StartTest(t.Name)
+			start := time.Now()
 
-		if success {
-			test.State = StateSuccess
-			passed++
-			if !quiet {
-				fmt.Printf("%s %s (%s)\n", r.colors.Green("✓"), test.Name, test.Duration.Truncate(time.Millisecond))
+			success := r.runTest(ctx, t)
+			t.Duration = time.Since(start)
+
+			if success {
+				t.State = StateSuccess
+			} else {
+				t.State = StateFail
 			}
-		} else {
-			test.State = StateFail
-			failed++
-			if !quiet {
-				fmt.Printf("%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error)
-				if verbose && test.Output != "" {
-					fmt.Printf("  Output: %s\n", test.Output)
-				}
+
+			progress.EndTest(t.Name, success, t.Duration)
+			results <- result{test: t, success: success}
+		}(test)
+	}
+
+	// Close results when all done
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	// Periodic status update
+	go func() {
+		ticker := time.NewTicker(200 * time.Millisecond)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				progress.Status()
+			}
+		}
+	}()
+
+	// Collect results and track failures for verbose output
+	var failures []*ParsingTest
+	for res := range results {
+		if !res.success {
+			failures = append(failures, res.test)
+		}
+		progress.Status()
+	}
+
+	close(done)
+	progress.Newline()
+	progress.Summary("Parsing tests")
+
+	// Print failure details if verbose
+	if verbose && len(failures) > 0 {
+		fmt.Fprintln(os.Stdout) //nolint:errcheck // user output
+		for _, t := range failures {
+			fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), t.Name, t.Error) //nolint:errcheck // user output
+			if t.Output != "" {
+				fmt.Fprintf(os.Stdout, "  Output: %s\n", t.Output) //nolint:errcheck // user output
 			}
 		}
 	}
 
-	// Summary
-	if !quiet {
-		fmt.Printf("\nParsing tests: %d passed, %d failed\n", passed, failed)
-	}
-
-	return failed == 0
+	return progress.Failed() == 0
 }
 
 // runTest executes a single parsing test.
