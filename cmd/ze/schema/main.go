@@ -238,12 +238,12 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	// Register external plugin schemas
 	// Note: External plugins don't have static WantsConfig metadata - they declare it at runtime
 	for _, pluginSpec := range extPlugins {
-		yangContent, pluginName, err := getPluginYANG(pluginSpec, loaded)
+		yangContent, pluginName, err := getPluginYANG(pluginSpec)
 		if err != nil {
 			return nil, fmt.Errorf("get YANG from %s: %w", pluginSpec, err)
 		}
 		if yangContent == "" {
-			continue // Plugin doesn't provide YANG or already loaded
+			continue // Plugin doesn't provide YANG
 		}
 
 		if err := registerYANG(registry, yangContent, pluginName, nil, nil, loaded); err != nil {
@@ -259,6 +259,11 @@ func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName strin
 	meta, err := yang.ParseYANGMetadata(yangContent)
 	if err != nil {
 		return fmt.Errorf("parse YANG: %w", err)
+	}
+
+	// Skip if already loaded (deduplication by module name)
+	if loaded[meta.Module] {
+		return nil
 	}
 
 	// Check dependencies
@@ -397,7 +402,7 @@ func formatModuleAsNamespace(module string) string {
 // Note: ze.X (goroutine mode) and ze-X (direct call mode) are treated identically
 // for schema discovery because both just need the YANG content. The execution mode
 // distinction only matters at runtime when actually running plugin commands.
-func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, error) {
+func getPluginYANG(pluginSpec string) (string, string, error) {
 	// Internal plugin "ze.name" or "ze-name" - both have 3-char prefix
 	// Both modes use the same YANG content; mode only affects runtime execution.
 	if strings.HasPrefix(pluginSpec, internalPluginPrefix) || strings.HasPrefix(pluginSpec, moduleNamePrefix) {
@@ -406,14 +411,6 @@ func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, e
 		yangContent := plugin.GetInternalPluginYANG(name)
 		if yangContent == "" {
 			return "", "", fmt.Errorf("internal plugin %q has no YANG", name)
-		}
-
-		meta, err := yang.ParseYANGMetadata(yangContent)
-		if err != nil {
-			return "", "", fmt.Errorf("parse internal plugin YANG: %w", err)
-		}
-		if loaded[meta.Module] {
-			return "", "", nil
 		}
 
 		return yangContent, "ze." + name, nil
@@ -425,14 +422,6 @@ func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, e
 		return "", "", err
 	}
 	if yangContent == "" {
-		return "", "", nil
-	}
-
-	meta, err := yang.ParseYANGMetadata(yangContent)
-	if err != nil {
-		return "", "", fmt.Errorf("parse external plugin YANG: %w", err)
-	}
-	if loaded[meta.Module] {
 		return "", "", nil
 	}
 
