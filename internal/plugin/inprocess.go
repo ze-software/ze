@@ -68,6 +68,20 @@ var internalPluginYANG = map[string]func() string{
 	"gr":       gr.GetYANG,
 }
 
+// internalPluginWantsConfig maps plugin names to their config roots.
+// This is static metadata matching what plugins declare at runtime via "declare wants config <root>".
+// Used for schema discovery without running the plugins.
+var internalPluginWantsConfig = map[string][]string{
+	"hostname": {"bgp"},
+	"gr":       {"bgp"},
+}
+
+// GetInternalPluginWantsConfig returns the config roots an internal plugin wants.
+// Returns nil if the plugin doesn't declare any config roots.
+func GetInternalPluginWantsConfig(name string) []string {
+	return internalPluginWantsConfig[name]
+}
+
 // GetInternalPluginYANG returns the YANG schema for an internal plugin.
 // Returns empty string if the plugin doesn't provide YANG.
 func GetInternalPluginYANG(name string) string {

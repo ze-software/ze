@@ -93,7 +93,7 @@ func cmdList(args []string, plugins []string) int {
 	sort.Strings(modules)
 
 	// Print header
-	fmt.Printf("%-24s %-20s %s\n", "Module", "Namespace", "Imports")
+	fmt.Printf("%-24s %-20s %-16s %s\n", "Module", "Namespace", "Wants Config", "Imports")
 
 	for _, name := range modules {
 		s, _ := registry.GetByModule(name)
@@ -106,7 +106,11 @@ func cmdList(args []string, plugins []string) int {
 				}
 				imports = strings.Join(formattedImports, ", ")
 			}
-			fmt.Printf("%-24s %-20s %s\n", name, s.Namespace, imports)
+			wantsConfig := "-"
+			if len(s.WantsConfig) > 0 {
+				wantsConfig = strings.Join(s.WantsConfig, ", ")
+			}
+			fmt.Printf("%-24s %-20s %-16s %s\n", name, s.Namespace, wantsConfig, imports)
 		}
 	}
 
@@ -208,20 +212,22 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	registry := plugin.NewSchemaRegistry()
 	loaded := make(map[string]bool)
 
-	// Register ze-bgp schema first (base module)
-	if err := registerYANG(registry, schema.ZeBGPYANG, "core", []string{"bgp", "bgp.peer"}, loaded); err != nil {
+	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
+	if err := registerYANG(registry, schema.ZeBGPYANG, "ze.bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
 	// Register internal plugin schemas
 	for name, yangContent := range plugin.GetAllInternalPluginYANG() {
 		pluginName := strings.TrimSuffix(strings.TrimPrefix(name, "ze-"), ".yang")
-		if err := registerYANG(registry, yangContent, "ze."+pluginName, nil, loaded); err != nil {
+		wantsConfig := plugin.GetInternalPluginWantsConfig(pluginName)
+		if err := registerYANG(registry, yangContent, "ze."+pluginName, nil, wantsConfig, loaded); err != nil {
 			return nil, fmt.Errorf("register %s: %w", name, err)
 		}
 	}
 
 	// Register external plugin schemas
+	// Note: External plugins don't have static WantsConfig metadata - they declare it at runtime
 	for _, pluginSpec := range extPlugins {
 		yangContent, pluginName, err := getPluginYANG(pluginSpec, loaded)
 		if err != nil {
@@ -231,7 +237,7 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 			continue // Plugin doesn't provide YANG or already loaded
 		}
 
-		if err := registerYANG(registry, yangContent, pluginName, nil, loaded); err != nil {
+		if err := registerYANG(registry, yangContent, pluginName, nil, nil, loaded); err != nil {
 			return nil, fmt.Errorf("register %s: %w", pluginSpec, err)
 		}
 	}
@@ -240,7 +246,7 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 }
 
 // registerYANG registers YANG content and verifies dependencies are available.
-func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName string, handlers []string, loaded map[string]bool) error {
+func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName string, handlers, wantsConfig []string, loaded map[string]bool) error {
 	meta, err := yang.ParseYANGMetadata(yangContent)
 	if err != nil {
 		return fmt.Errorf("parse YANG: %w", err)
@@ -275,12 +281,13 @@ func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName strin
 	}
 
 	return registry.Register(&plugin.Schema{
-		Module:    meta.Module,
-		Namespace: yang.FormatNamespace(meta.Namespace),
-		Yang:      yangContent,
-		Imports:   displayImports,
-		Handlers:  handlers,
-		Plugin:    pluginName,
+		Module:      meta.Module,
+		Namespace:   yang.FormatNamespace(meta.Namespace),
+		Yang:        yangContent,
+		Imports:     displayImports,
+		Handlers:    handlers,
+		Plugin:      pluginName,
+		WantsConfig: wantsConfig,
 	})
 }
 
@@ -294,41 +301,66 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 	// Module names are "ze-bgp", plugin names are "bgp"
 	pluginName := strings.TrimPrefix(moduleName, "ze-")
 
-	// Check if it's the core BGP module
+	// Try to get YANG content for this module
+	yangContent, handlers, pluginID := getInternalYANG(moduleName, pluginName)
+	if yangContent == "" {
+		return false
+	}
+
+	// Register using common helper
+	if err := registerInternalYANG(registry, yangContent, handlers, pluginID, loaded); err != nil {
+		return false
+	}
+	return true
+}
+
+// getInternalYANG returns YANG content, handlers, and plugin ID for an internal module.
+// Returns empty yangContent if module is not found.
+func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
+	// Core BGP module
 	if moduleName == "ze-bgp" {
-		meta, err := yang.ParseYANGMetadata(schema.ZeBGPYANG)
-		if err != nil {
-			return false
-		}
-		_ = registry.Register(&plugin.Schema{
-			Module:    meta.Module,
-			Namespace: yang.FormatNamespace(meta.Namespace),
-			Yang:      schema.ZeBGPYANG,
-			Handlers:  []string{"bgp", "bgp.peer"},
-			Plugin:    "core",
-		})
-		loaded[moduleName] = true
-		return true
+		return schema.ZeBGPYANG, []string{"bgp", "bgp.peer"}, "ze.bgp"
 	}
 
-	// Check internal plugins
-	yangContent := plugin.GetInternalPluginYANG(pluginName)
+	// Internal plugins
+	yangContent = plugin.GetInternalPluginYANG(pluginName)
 	if yangContent != "" {
-		meta, err := yang.ParseYANGMetadata(yangContent)
-		if err != nil {
-			return false
-		}
-		_ = registry.Register(&plugin.Schema{
-			Module:    meta.Module,
-			Namespace: yang.FormatNamespace(meta.Namespace),
-			Yang:      yangContent,
-			Plugin:    "ze." + pluginName,
-		})
-		loaded[moduleName] = true
-		return true
+		return yangContent, nil, "ze." + pluginName
 	}
 
-	return false
+	return "", nil, ""
+}
+
+// registerInternalYANG registers YANG content from an internal source.
+// Extracts metadata from YANG and registers with the given handlers and plugin ID.
+// Automatically populates WantsConfig from static metadata.
+func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, handlers []string, pluginID string, loaded map[string]bool) error {
+	meta, err := yang.ParseYANGMetadata(yangContent)
+	if err != nil {
+		return err
+	}
+
+	if handlers == nil {
+		handlers = []string{}
+	}
+
+	// Get WantsConfig from static metadata (pluginID is "ze.name", extract "name")
+	var wantsConfig []string
+	if strings.HasPrefix(pluginID, "ze.") {
+		pluginName := pluginID[3:]
+		wantsConfig = plugin.GetInternalPluginWantsConfig(pluginName)
+	}
+
+	_ = registry.Register(&plugin.Schema{
+		Module:      meta.Module,
+		Namespace:   yang.FormatNamespace(meta.Namespace),
+		Yang:        yangContent,
+		Handlers:    handlers,
+		Plugin:      pluginID,
+		WantsConfig: wantsConfig,
+	})
+	loaded[meta.Module] = true
+	return nil
 }
 
 // formatModuleAsNamespace converts a module name to namespace display format.
@@ -341,8 +373,13 @@ func formatModuleAsNamespace(module string) string {
 
 // getPluginYANG gets YANG from a plugin based on its specification.
 // Handles: "ze.name" (internal), "ze-name" (internal), or path (external).
+//
+// Note: ze.X (goroutine mode) and ze-X (direct call mode) are treated identically
+// for schema discovery because both just need the YANG content. The execution mode
+// distinction only matters at runtime when actually running plugin commands.
 func getPluginYANG(pluginSpec string, loaded map[string]bool) (string, string, error) {
 	// Internal plugin "ze.name" or "ze-name" - both have 3-char prefix
+	// Both modes use the same YANG content; mode only affects runtime execution.
 	if strings.HasPrefix(pluginSpec, "ze.") || strings.HasPrefix(pluginSpec, "ze-") {
 		name := pluginSpec[3:] // Strip "ze." or "ze-"
 

@@ -288,3 +288,48 @@ func TestRunWithPlugins(t *testing.T) {
 		t.Errorf("Run with empty plugins should succeed, got code %d", code)
 	}
 }
+
+// TestSchemaWantsConfigPopulated verifies WantsConfig is populated for plugins.
+//
+// VALIDATES: Plugins show their "declare wants config" roots in schema.
+// PREVENTS: WantsConfig being empty when it should show config dependencies.
+func TestSchemaWantsConfigPopulated(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	// ze-graceful-restart should want "bgp" config
+	grSchema, err := registry.GetByModule("ze-graceful-restart")
+	if err != nil {
+		t.Fatalf("failed to get ze-graceful-restart schema: %v", err)
+	}
+
+	if len(grSchema.WantsConfig) == 0 {
+		t.Error("ze-graceful-restart should have WantsConfig populated")
+	} else if grSchema.WantsConfig[0] != "bgp" {
+		t.Errorf("ze-graceful-restart WantsConfig should be [bgp], got %v", grSchema.WantsConfig)
+	}
+
+	// ze-hostname should also want "bgp" config
+	hostnameSchema, err := registry.GetByModule("ze-hostname")
+	if err != nil {
+		t.Fatalf("failed to get ze-hostname schema: %v", err)
+	}
+
+	if len(hostnameSchema.WantsConfig) == 0 {
+		t.Error("ze-hostname should have WantsConfig populated")
+	} else if hostnameSchema.WantsConfig[0] != "bgp" {
+		t.Errorf("ze-hostname WantsConfig should be [bgp], got %v", hostnameSchema.WantsConfig)
+	}
+
+	// ze-bgp should NOT want any config (it provides config, doesn't consume it)
+	bgpSchema, err := registry.GetByModule("ze-bgp")
+	if err != nil {
+		t.Fatalf("failed to get ze-bgp schema: %v", err)
+	}
+
+	if len(bgpSchema.WantsConfig) != 0 {
+		t.Errorf("ze-bgp should not have WantsConfig, got %v", bgpSchema.WantsConfig)
+	}
+}
