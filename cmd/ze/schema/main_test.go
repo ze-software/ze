@@ -4,6 +4,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
 )
 
 // TestRunNoArgs verifies missing args returns exit code 1.
@@ -285,6 +288,44 @@ func TestSchemaImportsPopulated(t *testing.T) {
 
 	if len(hostnameSchema.Imports) == 0 {
 		t.Error("ze-hostname should have Imports populated (imports ze-bgp)")
+	}
+}
+
+// TestRegisterYANGDeduplication verifies duplicate module registration is skipped.
+//
+// VALIDATES: Registering the same module twice returns nil (no error) and module appears once.
+// PREVENTS: Duplicate registration causing errors or duplicate entries.
+func TestRegisterYANGDeduplication(t *testing.T) {
+	registry := plugin.NewSchemaRegistry()
+	loaded := make(map[string]bool)
+
+	// Register ze-bgp first time
+	err := registerYANG(registry, bgpschema.ZeBGPYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	if err != nil {
+		t.Fatalf("first registerYANG failed: %v", err)
+	}
+
+	// Verify it's in the loaded map
+	if !loaded["ze-bgp"] {
+		t.Error("ze-bgp should be marked as loaded after first registration")
+	}
+
+	// Register ze-bgp second time - should return nil (skip), not error
+	err = registerYANG(registry, bgpschema.ZeBGPYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	if err != nil {
+		t.Errorf("second registerYANG should return nil (skip), got error: %v", err)
+	}
+
+	// Verify module only appears once in registry
+	modules := registry.ListModules()
+	count := 0
+	for _, m := range modules {
+		if m == "ze-bgp" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("ze-bgp should appear exactly once, found %d times", count)
 	}
 }
 
