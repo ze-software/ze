@@ -7,14 +7,14 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
+	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 )
 
 // schemaWithGR returns a YANG schema with the GR plugin YANG loaded.
 // Use this for tests that need graceful-restart config.
 func schemaWithGR() *Schema {
 	return YANGSchemaWithPlugins(map[string]string{
-		"ze-graceful-restart.yang": gr.GetYANG(),
+		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
 	})
 }
 

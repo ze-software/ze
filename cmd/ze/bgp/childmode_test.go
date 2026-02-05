@@ -68,7 +68,7 @@ func TestChildModeDeclare(t *testing.T) {
 	output := buf.String()
 
 	// Must contain required declarations
-	assert.Contains(t, output, "declare module ze-bgp")
+	assert.Contains(t, output, "declare module ze-bgp-conf")
 	assert.Contains(t, output, "declare handler bgp")
 	assert.Contains(t, output, "declare priority 100")
 	assert.Contains(t, output, "declare done")

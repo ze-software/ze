@@ -1,5 +1,5 @@
-module ze-hub {
-    namespace "urn:ze:hub";
+module ze-hub-conf {
+    namespace "urn:ze:hub:conf";
     prefix hub;
 
     import ze-extensions { prefix ze; }

@@ -1,5 +1,5 @@
-module ze-plugin {
-    namespace "urn:ze:plugin";
+module ze-plugin-conf {
+    namespace "urn:ze:plugin:conf";
     prefix plug;
 
     import ze-extensions { prefix ze; }

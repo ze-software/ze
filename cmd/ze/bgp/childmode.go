@@ -49,8 +49,8 @@ func parseChildArgs(args []string) string {
 // This declares the BGP schema and handlers to the hub.
 func writeDeclare(w io.Writer) error {
 	declarations := []string{
-		"declare module ze-bgp",
-		"declare namespace urn:ze:bgp",
+		"declare module ze-bgp-conf",
+		"declare namespace urn:ze:bgp:conf",
 		"declare handler bgp",
 		"declare handler bgp.peer",
 		"declare priority 100",

@@ -7,8 +7,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
+	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
+	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rr"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -61,11 +64,12 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 	},
 }
 
-// internalPluginYANG maps plugin names to their YANG schema getters.
-// Only plugins that augment the config schema need entries here.
-var internalPluginYANG = map[string]func() string{
-	"hostname": hostname.GetYANG,
-	"gr":       gr.GetYANG,
+// internalPluginYANG maps plugin names to their YANG schema content.
+// Plugins that provide YANG (config augments or operational state) are listed here.
+var internalPluginYANG = map[string]string{
+	"hostname": hostnameschema.ZeHostnameYANG,
+	"gr":       grschema.ZeGracefulRestartYANG,
+	"rib":      ribschema.ZeRibYANG,
 }
 
 // internalPluginWantsConfig maps plugin names to their config roots.
@@ -85,19 +89,16 @@ func GetInternalPluginWantsConfig(name string) []string {
 // GetInternalPluginYANG returns the YANG schema for an internal plugin.
 // Returns empty string if the plugin doesn't provide YANG.
 func GetInternalPluginYANG(name string) string {
-	if getter, ok := internalPluginYANG[name]; ok {
-		return getter()
-	}
-	return ""
+	return internalPluginYANG[name]
 }
 
 // GetAllInternalPluginYANG returns all internal plugin YANG schemas.
 // Used to load all plugin YANG schemas before config parsing.
 func GetAllInternalPluginYANG() map[string]string {
 	result := make(map[string]string, len(internalPluginYANG))
-	for name, getter := range internalPluginYANG {
+	for name, yang := range internalPluginYANG {
 		moduleName := "ze-" + name + ".yang"
-		result[moduleName] = getter()
+		result[moduleName] = yang
 	}
 	return result
 }

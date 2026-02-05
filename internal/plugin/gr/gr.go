@@ -16,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -348,63 +349,5 @@ func formatGRText(r *grResult) string {
 
 // GetYANG returns the embedded YANG schema for the GR plugin.
 func GetYANG() string {
-	return grYANG
+	return schema.ZeGracefulRestartYANG
 }
-
-// grYANG is the YANG schema for the GR plugin.
-// Note: We augment all paths where capability container appears to support templates.
-const grYANG = `module ze-graceful-restart {
-    namespace "urn:ze:graceful-restart";
-    prefix gr;
-
-    import ze-bgp { prefix ze-bgp; }
-    import ze-extensions { prefix ze; }
-
-    description
-        "Graceful Restart capability plugin for Ze (RFC 4724, code 64).
-         Configures per-peer restart-time for BGP graceful restart.";
-
-    revision 2025-01-31 {
-        description "Initial revision.";
-    }
-
-    // Grouping for reuse across all augment paths
-    grouping graceful-restart-config {
-        container graceful-restart {
-            ze:syntax "flex";
-            description "Graceful Restart capability configuration.";
-
-            leaf restart-time {
-                type uint16 {
-                    range "0..4095";
-                }
-                units "seconds";
-                default "120";
-                description
-                    "Restart Time in seconds (RFC 4724 Section 3).
-                     Maximum value is 4095 (12-bit field).";
-            }
-        }
-    }
-
-    // Main bgp block
-    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
-        uses graceful-restart-config;
-    }
-
-    // Template: bgp peer pattern
-    augment "/ze-bgp:template/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
-        uses graceful-restart-config;
-    }
-
-    // Template: legacy group
-    augment "/ze-bgp:template/ze-bgp:group/ze-bgp:capability" {
-        uses graceful-restart-config;
-    }
-
-    // Template: legacy match
-    augment "/ze-bgp:template/ze-bgp:match/ze-bgp:capability" {
-        uses graceful-restart-config;
-    }
-}
-`

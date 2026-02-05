@@ -898,9 +898,9 @@ bgp {
 		"ze-hostname.yang": `module ze-hostname {
     namespace "urn:ze:hostname";
     prefix hostname;
-    import ze-bgp { prefix ze-bgp; }
+    import ze-bgp-conf { prefix bgp; }
     revision 2025-01-29 { description "Test"; }
-    augment "/ze-bgp:bgp/ze-bgp:peer" {
+    augment "/bgp:bgp/bgp:peer" {
         leaf host-name { type string; }
         leaf domain-name { type string; }
     }
@@ -951,9 +951,9 @@ bgp {
 		"ze-hostname.yang": `module ze-hostname {
     namespace "urn:ze:hostname";
     prefix hostname;
-    import ze-bgp { prefix ze-bgp; }
+    import ze-bgp-conf { prefix bgp; }
     revision 2025-01-29 { description "Test"; }
-    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
         container hostname {
             leaf host { type string; }
             leaf domain { type string; }

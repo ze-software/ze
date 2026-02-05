@@ -57,10 +57,10 @@ func NewConfigValidator() (*ConfigValidator, error) {
 		return nil, fmt.Errorf("failed to load YANG: %w", err)
 	}
 	// Load module-specific YANG from their packages
-	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
 		return nil, fmt.Errorf("failed to load hub YANG: %w", err)
 	}
-	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return nil, fmt.Errorf("failed to load BGP YANG: %w", err)
 	}
 	if err := loader.Resolve(); err != nil {

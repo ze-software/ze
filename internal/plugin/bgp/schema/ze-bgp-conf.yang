@@ -1,5 +1,5 @@
-module ze-bgp {
-    namespace "urn:ze:bgp";
+module ze-bgp-conf {
+    namespace "urn:ze:bgp:conf";
     prefix bgp;
 
     import ze-types { prefix zt; }

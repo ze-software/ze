@@ -24,7 +24,7 @@ func sortedKeys(m map[string]*gyang.Entry) []string {
 
 // PluginOnlySchema returns a schema that only accepts plugin blocks.
 // Used for two-phase config parsing: first extract plugins, then parse full config.
-// This loads only the ze-plugin.yang module.
+// This loads only the ze-plugin-conf.yang module.
 func PluginOnlySchema() *Schema {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
@@ -37,7 +37,7 @@ func PluginOnlySchema() *Schema {
 	schema := NewSchema()
 
 	// Load only ze-plugin module
-	pluginEntry := loader.GetEntry("ze-plugin")
+	pluginEntry := loader.GetEntry("ze-plugin-conf")
 	if pluginEntry != nil {
 		for _, name := range sortedKeys(pluginEntry.Dir) {
 			child := pluginEntry.Dir[name]
@@ -67,10 +67,10 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		return nil
 	}
 	// Load module-specific YANG from their packages (module-specific YANG lives with its code)
-	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
 		return nil
 	}
-	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return nil
 	}
 	// Load plugin YANG modules
@@ -86,7 +86,7 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 	schema := NewSchema()
 
 	// Load ze-hub module (environment)
-	hubEntry := loader.GetEntry("ze-hub")
+	hubEntry := loader.GetEntry("ze-hub-conf")
 	if hubEntry != nil {
 		for _, name := range sortedKeys(hubEntry.Dir) {
 			child := hubEntry.Dir[name]
@@ -97,8 +97,8 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
-	// Load ze-plugin module
-	pluginEntry := loader.GetEntry("ze-plugin")
+	// Load ze-plugin-conf module
+	pluginEntry := loader.GetEntry("ze-plugin-conf")
 	if pluginEntry != nil {
 		for _, name := range sortedKeys(pluginEntry.Dir) {
 			child := pluginEntry.Dir[name]
@@ -109,8 +109,8 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
-	// Load ze-bgp module (bgp, template)
-	bgpEntry := loader.GetEntry("ze-bgp")
+	// Load ze-bgp-conf module (bgp, template)
+	bgpEntry := loader.GetEntry("ze-bgp-conf")
 	if bgpEntry != nil {
 		for _, name := range sortedKeys(bgpEntry.Dir) {
 			child := bgpEntry.Dir[name]

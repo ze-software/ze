@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -267,7 +268,7 @@ func (h *HostnamePlugin) send(format string, args ...any) {
 
 // GetYANG returns the embedded YANG schema for the hostname plugin.
 func GetYANG() string {
-	return hostnameYANG
+	return schema.ZeHostnameYANG
 }
 
 // DecodableCapabilities returns the capability codes this plugin can decode.
@@ -445,58 +446,3 @@ func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int
 	}
 	return 0
 }
-
-// hostnameYANG is the embedded YANG schema.
-const hostnameYANG = `module ze-hostname {
-    namespace "urn:ze:hostname";
-    prefix hostname;
-
-    import ze-bgp { prefix ze-bgp; }
-
-    description
-        "FQDN capability plugin for ZeBGP (draft-walton-bgp-hostname, code 73).
-         Advertises hostname and domain name of the BGP speaker.";
-
-    revision 2025-01-29 {
-        description "Initial revision.";
-    }
-
-    // New syntax: augment capability container
-    augment "/ze-bgp:bgp/ze-bgp:peer/ze-bgp:capability" {
-        container hostname {
-            description "FQDN capability configuration.";
-
-            leaf host {
-                type string {
-                    length "0..255";
-                }
-                description "System hostname (max 255 bytes).";
-            }
-
-            leaf domain {
-                type string {
-                    length "0..255";
-                }
-                description "Domain name (max 255 bytes).";
-            }
-        }
-    }
-
-    // Legacy syntax: augment peer level for backwards compatibility
-    augment "/ze-bgp:bgp/ze-bgp:peer" {
-        leaf host-name {
-            type string {
-                length "0..255";
-            }
-            description "Legacy: Host name for FQDN capability.";
-        }
-
-        leaf domain-name {
-            type string {
-                length "0..255";
-            }
-            description "Legacy: Domain name for FQDN capability.";
-        }
-    }
-}
-`

@@ -95,7 +95,7 @@ env {
 
 ### Section 2: Plugin Declarations
 
-Which processes to fork. Uses YANG schema from `ze-plugin.yang`.
+Which processes to fork. Uses YANG schema from `ze-plugin-conf.yang`.
 
 ```
 plugin {
@@ -124,7 +124,7 @@ plugin {
 Configuration for each plugin. Routed by the hub to the appropriate process.
 
 ```
-# Routed to ze bgp (handles "bgp" container per ze-bgp.yang)
+# Routed to ze bgp (handles "bgp" container per ze-bgp-conf.yang)
 bgp {
     local-as 65001;
     router-id 1.1.1.1;
@@ -386,7 +386,7 @@ ze bgp                        ze (hub)                      ze rib
 
 ```
 1. Hub parses env { }              → Set global settings (api-socket, log-level, etc.)
-2. Hub parses plugin { } block     → Build process list from ze-plugin.yang
+2. Hub parses plugin { } block     → Build process list from ze-plugin-conf.yang
 3. Hub forks each plugin           → ze bgp, ze rib, ze gr, third-party, ...
 4. Each plugin: Stage 1            → Declare YANG module + handlers
 5. Hub registers schemas           → Build handler routing table (SchemaRegistry)
@@ -535,12 +535,13 @@ declare done
 | Module | Location | Defines |
 |--------|----------|---------|
 | `ze-types` | `yang/ze-types.yang` | Common types (asn, ip-address, etc.) |
-| `ze-bgp` | `yang/ze-bgp.yang` | `container bgp` with peers, families |
-| `ze-plugin` | `yang/ze-plugin.yang` | `container plugin` for process declarations |
-| `ze-rib` | (to create) | `container rib` for adj-rib config |
-| `ze-gr` | (to create) | Augments `ze-bgp` for graceful-restart under capability |
+| `ze-bgp-conf` | `internal/plugin/bgp/schema/ze-bgp-conf.yang` | `container bgp` with peers, families |
+| `ze-plugin-conf` | `internal/yang/modules/ze-plugin-conf.yang` | `container plugin` for process declarations |
+| `ze-rib` | `internal/plugin/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
+| `ze-graceful-restart` | `internal/plugin/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
+| `ze-hostname` | `internal/plugin/hostname/schema/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
 
-**Note:** `graceful-restart` will be removed from `ze-bgp.yang` and moved to `ze-gr.yang` as an augment. The GR plugin owns this configuration.
+**Note:** Plugin YANG schemas augment `ze-bgp-conf` to extend the configuration tree. Each plugin owns its YANG in a `schema/` subdirectory.
 
 ### YANG Augment Merging
 

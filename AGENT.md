@@ -22,9 +22,9 @@ These rules are strict boundaries. Violating them leads to wasted effort.
 |---------|-----|---------|
 | Application name | `ze` | "Start ze BGP daemon" |
 | CLI binary | `ze` | `ze bgp server config.conf` |
-| BGP plugin YANG | `ze-bgp` | `module ze-bgp { ... }` |
+| BGP config YANG | `ze-bgp-conf` | `module ze-bgp-conf { ... }` |
 | BGP JSON format | `ze-bgp` | `"format": "ze-bgp"` |
-| Go variables for BGP | `ZeBGP*` | `ZeBGPYANG` |
+| Go variables for BGP | `ZeBGPConf*` | `ZeBGPConfYANG` |
 | Prose/docs | `Ze` or `ze` | "Ze BGP running" |
 
 **Rule:** Use "ze" where "the" would work grammatically.

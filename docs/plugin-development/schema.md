@@ -149,7 +149,7 @@ leaf optional-field {
 Reference values from other parts of config:
 
 ```yang
-// In ze-bgp module
+// In ze-bgp-conf module
 list peer-group {
     key "name";
     leaf name { type string; }

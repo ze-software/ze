@@ -1,0 +1,54 @@
+module ze-graceful-restart {
+    namespace "urn:ze:graceful-restart";
+    prefix gr;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "Graceful Restart capability plugin for Ze (RFC 4724, code 64).
+         Configures per-peer restart-time for BGP graceful restart.";
+
+    revision 2025-01-31 {
+        description "Initial revision.";
+    }
+
+    // Grouping for reuse across all augment paths
+    grouping graceful-restart-config {
+        container graceful-restart {
+            ze:syntax "flex";
+            description "Graceful Restart capability configuration.";
+
+            leaf restart-time {
+                type uint16 {
+                    range "0..4095";
+                }
+                units "seconds";
+                default "120";
+                description
+                    "Restart Time in seconds (RFC 4724 Section 3).
+                     Maximum value is 4095 (12-bit field).";
+            }
+        }
+    }
+
+    // Main bgp block
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: bgp peer pattern
+    augment "/bgp:template/bgp:bgp/bgp:peer/bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: legacy group
+    augment "/bgp:template/bgp:group/bgp:capability" {
+        uses graceful-restart-config;
+    }
+
+    // Template: legacy match
+    augment "/bgp:template/bgp:match/bgp:capability" {
+        uses graceful-restart-config;
+    }
+}

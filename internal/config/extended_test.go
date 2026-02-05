@@ -5,13 +5,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
+	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 )
 
 // extendedSchemaWithGR returns schema with GR plugin YANG for extended tests.
 func extendedSchemaWithGR() *Schema {
 	return YANGSchemaWithPlugins(map[string]string{
-		"ze-graceful-restart.yang": gr.GetYANG(),
+		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
 	})
 }
 

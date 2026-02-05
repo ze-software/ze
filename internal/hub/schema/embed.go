@@ -3,5 +3,5 @@ package schema
 
 import _ "embed"
 
-//go:embed ze-hub.yang
-var ZeHubYANG string
+//go:embed ze-hub-conf.yang
+var ZeHubConfYANG string

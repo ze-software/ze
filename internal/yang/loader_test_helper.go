@@ -16,10 +16,10 @@ func (l *Loader) LoadAllForTesting() error {
 	}
 
 	// Load module-specific YANG from their packages
-	if err := l.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+	if err := l.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
 		return err
 	}
-	if err := l.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
+	if err := l.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return err
 	}
 

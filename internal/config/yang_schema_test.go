@@ -11,7 +11,7 @@ func TestYANGSchemaLoads(t *testing.T) {
 	schema := YANGSchema()
 	require.NotNil(t, schema, "YANGSchema should load")
 
-	// Should have bgp from ze-bgp.yang
+	// Should have bgp from ze-bgp-conf.yang
 	bgp := schema.Get("bgp")
 	require.NotNil(t, bgp, "should have bgp node")
 

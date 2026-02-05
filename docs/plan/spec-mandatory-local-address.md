@@ -5,7 +5,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `.claude/rules/planning.md` - workflow rules
-3. `internal/plugin/bgp/schema/ze-bgp.yang` - YANG peer-fields grouping
+3. `internal/plugin/bgp/schema/ze-bgp-conf.yang` - YANG peer-fields grouping
 4. `internal/config/bgp.go` - PeerConfig parsing
 
 ## Task
@@ -21,7 +21,7 @@ Make `local-address` mandatory for all peers. Without explicit local address, TC
 - [ ] `docs/architecture/config/syntax.md` - config validation patterns
 
 ### Source Files
-- [ ] `internal/plugin/bgp/schema/ze-bgp.yang` - YANG schema (line 110-113: local-address leaf)
+- [ ] `internal/plugin/bgp/schema/ze-bgp-conf.yang` - YANG schema (line 110-113: local-address leaf)
 - [ ] `internal/config/bgp.go` - Go parsing (lines 917-927: local-address parsing)
 - [ ] `internal/config/bgp_test.go` - existing tests with local-address
 
@@ -66,7 +66,7 @@ N/A - this is presence validation, not numeric range.
 
 ## Files to Modify
 
-- `internal/plugin/bgp/schema/ze-bgp.yang` - Add `mandatory true;` to local-address leaf
+- `internal/plugin/bgp/schema/ze-bgp-conf.yang` - Add `mandatory true;` to local-address leaf
 - `internal/config/bgp.go` - Add validation after parsing peer config
 - `internal/config/bgp_test.go` - Add rejection test
 

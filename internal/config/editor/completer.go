@@ -31,10 +31,10 @@ func NewCompleter() *Completer {
 		return &Completer{}
 	}
 	// Load module-specific YANG from their packages
-	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
 		return &Completer{}
 	}
-	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
+	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return &Completer{}
 	}
 	if err := loader.Resolve(); err != nil {
@@ -433,7 +433,7 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 	}
 
 	// Start with bgp module
-	entry := c.loader.GetEntry("ze-bgp")
+	entry := c.loader.GetEntry("ze-bgp-conf")
 	if entry == nil {
 		return nil
 	}

@@ -3,5 +3,5 @@ package schema
 
 import _ "embed"
 
-//go:embed ze-bgp.yang
-var ZeBGPYANG string
+//go:embed ze-bgp-conf.yang
+var ZeBGPConfYANG string

@@ -264,8 +264,8 @@ module ze-interfaces-ethernet {
 ## 4. Schema Example: BGP
 
 ```yang
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   prefix bgp;
 
   import ietf-inet-types { prefix inet; }
@@ -906,7 +906,7 @@ When validating, libyang checks if value exists in populated state.
 │   ├── ze-interfaces.yang          # Interface container
 │   ├── ze-interfaces-ethernet.yang # Ethernet specifics
 │   ├── ze-interfaces-loopback.yang
-│   ├── ze-bgp.yang                 # BGP configuration
+│   ├── ze-bgp-conf.yang             # BGP configuration
 │   ├── ze-policy.yang              # Routing policy
 │   └── ietf/                          # Standard IETF modules
 │       ├── ietf-inet-types.yang

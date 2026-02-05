@@ -71,7 +71,7 @@ func TestCmdShowMissing(t *testing.T) {
 // VALIDATES: Show returns content for registered module.
 // PREVENTS: Error on valid module lookup.
 func TestCmdShowKnownModule(t *testing.T) {
-	code := cmdShow([]string{"ze-bgp"}, nil)
+	code := cmdShow([]string{"ze-bgp-conf"}, nil)
 	if code != 0 {
 		t.Errorf("expected exit code 0 for known module, got %d", code)
 	}
@@ -126,7 +126,7 @@ func TestBuildSchemaRegistry(t *testing.T) {
 	}
 
 	// Check for expected modules
-	expected := []string{"ze-bgp"}
+	expected := []string{"ze-bgp-conf"}
 	for _, name := range expected {
 		found := false
 		for _, m := range modules {
@@ -151,24 +151,24 @@ func TestSchemaShowZeBGPContent(t *testing.T) {
 		t.Fatalf("failed to build registry: %v", err)
 	}
 
-	schema, err := registry.GetByModule("ze-bgp")
+	schema, err := registry.GetByModule("ze-bgp-conf")
 	if err != nil {
-		t.Fatalf("failed to get ze-bgp schema: %v", err)
+		t.Fatalf("failed to get ze-bgp-conf schema: %v", err)
 	}
 
 	// Should have actual YANG content
 	if schema.Yang == "" {
-		t.Error("ze-bgp schema should have YANG content, got empty string")
+		t.Error("ze-bgp-conf schema should have YANG content, got empty string")
 	}
 
 	// Should contain module declaration
-	if !strings.Contains(schema.Yang, "module ze-bgp") {
-		t.Error("ze-bgp YANG should contain 'module ze-bgp'")
+	if !strings.Contains(schema.Yang, "module ze-bgp-conf") {
+		t.Error("ze-bgp-conf YANG should contain 'module ze-bgp-conf'")
 	}
 
 	// Should contain namespace
 	if !strings.Contains(schema.Yang, "namespace") {
-		t.Error("ze-bgp YANG should contain 'namespace'")
+		t.Error("ze-bgp-conf YANG should contain 'namespace'")
 	}
 }
 
@@ -211,19 +211,19 @@ func TestSchemaNamespaceFormatted(t *testing.T) {
 		t.Fatalf("failed to build registry: %v", err)
 	}
 
-	schema, err := registry.GetByModule("ze-bgp")
+	schema, err := registry.GetByModule("ze-bgp-conf")
 	if err != nil {
-		t.Fatalf("failed to get ze-bgp schema: %v", err)
+		t.Fatalf("failed to get ze-bgp-conf schema: %v", err)
 	}
 
-	// Namespace should be formatted (ze.bgp not urn:ze:bgp)
+	// Namespace should be formatted (ze.bgp.conf not urn:ze:bgp:conf)
 	if strings.Contains(schema.Namespace, "urn:") {
 		t.Errorf("namespace should be formatted for display, got %q", schema.Namespace)
 	}
 
-	// Should be ze.bgp
-	if schema.Namespace != "ze.bgp" {
-		t.Errorf("expected namespace 'ze.bgp', got %q", schema.Namespace)
+	// Should be ze.bgp.conf
+	if schema.Namespace != "ze.bgp.conf" {
+		t.Errorf("expected namespace 'ze.bgp.conf', got %q", schema.Namespace)
 	}
 }
 
@@ -237,12 +237,12 @@ func TestDependencyAutoLoad(t *testing.T) {
 		t.Fatalf("failed to build registry: %v", err)
 	}
 
-	// ze-bgp should be loaded because ze-graceful-restart imports it
+	// ze-bgp-conf should be loaded because ze-graceful-restart imports it
 	modules := registry.ListModules()
 	foundBGP := false
 	foundGR := false
 	for _, m := range modules {
-		if m == "ze-bgp" {
+		if m == "ze-bgp-conf" {
 			foundBGP = true
 		}
 		if m == "ze-graceful-restart" {
@@ -254,7 +254,7 @@ func TestDependencyAutoLoad(t *testing.T) {
 		t.Error("ze-graceful-restart should be in registry")
 	}
 	if !foundBGP {
-		t.Error("ze-bgp should be loaded (ze-graceful-restart imports it)")
+		t.Error("ze-bgp-conf should be loaded (ze-graceful-restart imports it)")
 	}
 }
 
@@ -275,19 +275,19 @@ func TestSchemaImportsPopulated(t *testing.T) {
 	}
 
 	if len(grSchema.Imports) == 0 {
-		t.Error("ze-graceful-restart should have Imports populated (imports ze-bgp)")
-	} else if !slices.Contains(grSchema.Imports, "ze-bgp") {
-		t.Errorf("ze-graceful-restart Imports should contain ze-bgp, got %v", grSchema.Imports)
+		t.Error("ze-graceful-restart should have Imports populated (imports ze-bgp-conf)")
+	} else if !slices.Contains(grSchema.Imports, "ze-bgp-conf") {
+		t.Errorf("ze-graceful-restart Imports should contain ze-bgp-conf, got %v", grSchema.Imports)
 	}
 
-	// ze-hostname should also import ze-bgp
+	// ze-hostname should also import ze-bgp-conf
 	hostnameSchema, err := registry.GetByModule("ze-hostname")
 	if err != nil {
 		t.Fatalf("failed to get ze-hostname schema: %v", err)
 	}
 
 	if len(hostnameSchema.Imports) == 0 {
-		t.Error("ze-hostname should have Imports populated (imports ze-bgp)")
+		t.Error("ze-hostname should have Imports populated (imports ze-bgp-conf)")
 	}
 }
 
@@ -300,18 +300,18 @@ func TestRegisterYANGDeduplication(t *testing.T) {
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp first time
-	err := registerYANG(registry, bgpschema.ZeBGPYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	err := registerYANG(registry, bgpschema.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
 	if err != nil {
 		t.Fatalf("first registerYANG failed: %v", err)
 	}
 
 	// Verify it's in the loaded map
-	if !loaded["ze-bgp"] {
-		t.Error("ze-bgp should be marked as loaded after first registration")
+	if !loaded["ze-bgp-conf"] {
+		t.Error("ze-bgp-conf should be marked as loaded after first registration")
 	}
 
-	// Register ze-bgp second time - should return nil (skip), not error
-	err = registerYANG(registry, bgpschema.ZeBGPYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
+	// Register ze-bgp-conf second time - should return nil (skip), not error
+	err = registerYANG(registry, bgpschema.ZeBGPConfYANG, "ze.bgp", []string{"bgp"}, nil, loaded)
 	if err != nil {
 		t.Errorf("second registerYANG should return nil (skip), got error: %v", err)
 	}
@@ -320,12 +320,12 @@ func TestRegisterYANGDeduplication(t *testing.T) {
 	modules := registry.ListModules()
 	count := 0
 	for _, m := range modules {
-		if m == "ze-bgp" {
+		if m == "ze-bgp-conf" {
 			count++
 		}
 	}
 	if count != 1 {
-		t.Errorf("ze-bgp should appear exactly once, found %d times", count)
+		t.Errorf("ze-bgp-conf should appear exactly once, found %d times", count)
 	}
 }
 
@@ -398,10 +398,10 @@ func TestSchemaWantsConfigPopulated(t *testing.T) {
 		t.Errorf("ze-hostname WantsConfig should be [bgp], got %v", hostnameSchema.WantsConfig)
 	}
 
-	// ze-bgp should NOT want any config (it provides config, doesn't consume it)
-	bgpSchema, err := registry.GetByModule("ze-bgp")
+	// ze-bgp-conf should NOT want any config (it provides config, doesn't consume it)
+	bgpSchema, err := registry.GetByModule("ze-bgp-conf")
 	if err != nil {
-		t.Fatalf("failed to get ze-bgp schema: %v", err)
+		t.Fatalf("failed to get ze-bgp-conf schema: %v", err)
 	}
 
 	if len(bgpSchema.WantsConfig) != 0 {

@@ -155,10 +155,10 @@ func (v *Validator) mapPrefixToModule(prefix string) string {
 func MapPrefixToModule(prefix string) string {
 	switch prefix {
 	case "bgp":
-		return "ze-bgp"
+		return "ze-bgp-conf"
 	case "plugin":
-		return "ze-plugin"
-	default:
+		return "ze-plugin-conf"
+	default: // Pass-through for module names that don't need mapping
 		return prefix
 	}
 }

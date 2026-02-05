@@ -228,8 +228,8 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 3. STAGE 1: DECLARATION (extended)                                       │
 │    Each plugin sends:                                                   │
-│      declare schema module ze-bgp namespace urn:ze:bgp                  │
-│      declare schema yang "module ze-bgp { ... }"                        │
+│      declare schema module ze-bgp-conf namespace urn:ze:bgp:conf                  │
+│      declare schema yang "module ze-bgp-conf { ... }"                        │
 │      declare schema handler bgp                                         │
 │      declare schema handler bgp.peer                                    │
 │      declare priority 100                                               │
@@ -277,13 +277,13 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 Schema declarations use `declare schema` prefix (consistent with `declare cmd`):
 
 ```
-declare schema module ze-bgp
-declare schema namespace urn:ze:bgp
+declare schema module ze-bgp-conf
+declare schema namespace urn:ze:bgp:conf
 declare schema handler bgp
 declare schema handler bgp.peer
 declare schema yang <<EOF
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   prefix bgp;
   ...
 }
@@ -308,8 +308,8 @@ declare done
 **Schema debugging (CLI):**
 ```bash
 $ ze bgp schema show
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   prefix bgp;
   ...
 }
@@ -642,13 +642,13 @@ transport: stdio
 
 # List registered schemas
 $ ze system schema list
-ze-bgp: bgp, bgp.peer
+ze-bgp-conf: bgp, bgp.peer
 ze-rib: rib
 
 # Show specific schema
-$ ze system schema show ze-bgp
-module ze-bgp {
-  namespace "urn:ze:bgp";
+$ ze system schema show ze-bgp-conf
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   ...
 }
 

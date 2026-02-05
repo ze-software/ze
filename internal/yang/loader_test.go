@@ -25,7 +25,7 @@ func TestLoader_EmbeddedModules(t *testing.T) {
 	names := loader.ModuleNames()
 	assert.Contains(t, names, "ze-extensions", "ze-extensions module should be loaded")
 	assert.Contains(t, names, "ze-types", "ze-types module should be loaded")
-	assert.Contains(t, names, "ze-plugin", "ze-plugin module should be loaded")
+	assert.Contains(t, names, "ze-plugin-conf", "ze-plugin-conf module should be loaded")
 }
 
 // TestLoader_ZeTypesModule verifies ze-types.yang content.
@@ -61,11 +61,11 @@ func TestLoader_ZeTypesModule(t *testing.T) {
 	assert.True(t, typedefNames["community"], "community typedef should exist")
 }
 
-// TestLoader_ZeBgpModule verifies ze-bgp.yang content.
+// TestLoader_ZeBgpModule verifies ze-bgp-conf.yang content.
 //
-// VALIDATES: ze-bgp module defines expected containers and lists.
+// VALIDATES: ze-bgp-conf module defines expected containers and lists.
 // PREVENTS: Missing BGP configuration elements.
-// NOTE: Uses LoadAllForTesting since ze-bgp is now in internal/plugin/bgp/schema.
+// NOTE: Uses LoadAllForTesting since ze-bgp-conf is now in internal/plugin/bgp/schema.
 func TestLoader_ZeBgpModule(t *testing.T) {
 	loader := NewLoader()
 
@@ -74,14 +74,14 @@ func TestLoader_ZeBgpModule(t *testing.T) {
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-bgp")
-	require.NotNil(t, mod, "ze-bgp module should exist")
+	mod := loader.GetModule("ze-bgp-conf")
+	require.NotNil(t, mod, "ze-bgp-conf module should exist")
 
 	// Check namespace
-	assert.Equal(t, "urn:ze:bgp", mod.Namespace.Name)
+	assert.Equal(t, "urn:ze:bgp:conf", mod.Namespace.Name)
 
 	// Check import of ze-types
-	assert.NotEmpty(t, mod.Import, "ze-bgp should import ze-types")
+	assert.NotEmpty(t, mod.Import, "ze-bgp-conf should import ze-types")
 
 	// Find bgp container
 	var bgpContainer bool
@@ -94,11 +94,11 @@ func TestLoader_ZeBgpModule(t *testing.T) {
 	assert.True(t, bgpContainer, "bgp container should exist")
 }
 
-// TestLoader_ZeHubModule verifies ze-hub.yang content.
+// TestLoader_ZeHubModule verifies ze-hub-conf.yang content.
 //
-// VALIDATES: ze-hub module defines expected containers.
+// VALIDATES: ze-hub-conf module defines expected containers.
 // PREVENTS: Missing hub/environment configuration elements.
-// NOTE: Uses LoadAllForTesting since ze-hub is now in internal/hub/schema.
+// NOTE: Uses LoadAllForTesting since ze-hub-conf is now in internal/hub/schema.
 func TestLoader_ZeHubModule(t *testing.T) {
 	loader := NewLoader()
 
@@ -107,11 +107,11 @@ func TestLoader_ZeHubModule(t *testing.T) {
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-hub")
-	require.NotNil(t, mod, "ze-hub module should exist")
+	mod := loader.GetModule("ze-hub-conf")
+	require.NotNil(t, mod, "ze-hub-conf module should exist")
 
 	// Check namespace
-	assert.Equal(t, "urn:ze:hub", mod.Namespace.Name)
+	assert.Equal(t, "urn:ze:hub:conf", mod.Namespace.Name)
 
 	// Find environment container
 	var envContainer bool
@@ -124,9 +124,9 @@ func TestLoader_ZeHubModule(t *testing.T) {
 	assert.True(t, envContainer, "environment container should exist")
 }
 
-// TestLoader_ZePluginModule verifies ze-plugin.yang content.
+// TestLoader_ZePluginModule verifies ze-plugin-conf.yang content.
 //
-// VALIDATES: ze-plugin module defines plugin configuration.
+// VALIDATES: ze-plugin-conf module defines plugin configuration.
 // PREVENTS: Missing plugin configuration schema.
 func TestLoader_ZePluginModule(t *testing.T) {
 	loader := NewLoader()
@@ -136,11 +136,11 @@ func TestLoader_ZePluginModule(t *testing.T) {
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	mod := loader.GetModule("ze-plugin")
-	require.NotNil(t, mod, "ze-plugin module should exist")
+	mod := loader.GetModule("ze-plugin-conf")
+	require.NotNil(t, mod, "ze-plugin-conf module should exist")
 
 	// Check namespace
-	assert.Equal(t, "urn:ze:plugin", mod.Namespace.Name)
+	assert.Equal(t, "urn:ze:plugin:conf", mod.Namespace.Name)
 
 	// Find plugin container
 	var pluginContainer bool

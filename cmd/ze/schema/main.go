@@ -222,7 +222,7 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, schema.ZeBGPYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
+	if err := registerYANG(registry, schema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
@@ -332,8 +332,8 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 // Returns empty yangContent if module is not found.
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
-	if moduleName == "ze-bgp" {
-		return schema.ZeBGPYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
+	if moduleName == "ze-bgp-conf" {
+		return schema.ZeBGPConfYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
 	}
 
 	// Internal plugins

@@ -94,7 +94,7 @@ func TestFormatNamespace(t *testing.T) {
 		ns   string
 		want string
 	}{
-		{"urn:ze:bgp", "ze.bgp"},
+		{"urn:ze:bgp:conf", "ze.bgp.conf"},
 		{"urn:ze:graceful-restart", "ze.graceful-restart"},
 		{"urn:ze:hostname", "ze.hostname"},
 		{"urn:ietf:params:xml:ns:yang:ietf-inet-types", "ietf.params.xml.ns.yang.ietf-inet-types"},

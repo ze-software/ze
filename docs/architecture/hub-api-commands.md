@@ -45,14 +45,14 @@ During Stage 1, plugins declare their capabilities to the Hub.
 
 **Example - BGP subsystem:**
 ```
-declare schema module ze-bgp
+declare schema module ze-bgp-conf
 declare schema namespace urn:ze:bgp
 declare schema handler bgp
 declare schema handler bgp.peer
 declare schema handler bgp.peer-group
 declare schema yang <<EOF
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   ...
 }
 EOF
@@ -103,8 +103,8 @@ Plugins declare schema CLI commands during Stage 1 like any other command:
 ```bash
 # View schema for debugging
 $ ze bgp schema show
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   prefix bgp;
   ...
 }
@@ -173,8 +173,8 @@ ze <subsystem> schema <action> [args...]
 ```bash
 # Show YANG schema for BGP subsystem
 $ ze bgp schema show
-module ze-bgp {
-  namespace "urn:ze:bgp";
+module ze-bgp-conf {
+  namespace "urn:ze:bgp:conf";
   ...
 }
 
@@ -215,7 +215,7 @@ lo
 When BGP references system interfaces (leafref to another subsystem):
 
 ```yang
-# In ze-bgp.yang
+# In ze-bgp-conf.yang
 leaf update-source {
   type leafref {
     path "/system/interface/name";
@@ -260,11 +260,11 @@ internal
 Plugins declare schema during Stage 1:
 
 ```
-declare schema module ze-bgp
+declare schema module ze-bgp-conf
 declare schema handler bgp
 declare schema handler bgp.peer-group
 declare schema yang <<EOF
-module ze-bgp { ... }
+module ze-bgp-conf { ... }
 EOF
 declare done
 ```
@@ -566,7 +566,7 @@ subscribe rib event cache
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
 │  Stage 1: DECLARATION                                                      │
-│    Plugin → Hub: declare schema module ze-bgp                              │
+│    Plugin → Hub: declare schema module ze-bgp-conf                              │
 │    Plugin → Hub: declare schema handler bgp                                │
 │    Plugin → Hub: declare schema handler bgp.peer                           │
 │    Plugin → Hub: declare priority 100                                      │

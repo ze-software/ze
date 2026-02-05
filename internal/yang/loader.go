@@ -30,7 +30,7 @@ func (l *Loader) LoadEmbedded() error {
 	files := []string{
 		"modules/ze-extensions.yang", // Must be first - defines extensions used by other modules
 		"modules/ze-types.yang",
-		"modules/ze-plugin.yang",
+		"modules/ze-plugin-conf.yang",
 	}
 
 	for _, path := range files {

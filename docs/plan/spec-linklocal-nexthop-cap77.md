@@ -112,7 +112,7 @@ When link-local capability is negotiated:
 - `internal/plugin/bgp/capability/capability.go` - Add LinkLocalNextHop type
 - `internal/plugin/bgp/capability/encoding.go` - Encode cap 77
 - `internal/plugin/bgp/capability/negotiated.go` - Negotiate link-local
-- `internal/plugin/bgp/schema/ze-bgp.yang` - Config syntax
+- `internal/plugin/bgp/schema/ze-bgp-conf.yang` - Config syntax
 - `internal/config/bgp.go` - Parse config
 
 ## Files to Create

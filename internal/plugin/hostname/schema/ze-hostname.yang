@@ -1,0 +1,52 @@
+module ze-hostname {
+    namespace "urn:ze:hostname";
+    prefix hostname;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description
+        "FQDN capability plugin for ZeBGP (draft-walton-bgp-hostname, code 73).
+         Advertises hostname and domain name of the BGP speaker.";
+
+    revision 2025-01-29 {
+        description "Initial revision.";
+    }
+
+    // New syntax: augment capability container
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        container hostname {
+            description "FQDN capability configuration.";
+
+            leaf host {
+                type string {
+                    length "0..255";
+                }
+                description "System hostname (max 255 bytes).";
+            }
+
+            leaf domain {
+                type string {
+                    length "0..255";
+                }
+                description "Domain name (max 255 bytes).";
+            }
+        }
+    }
+
+    // Legacy syntax: augment peer level for backwards compatibility
+    augment "/bgp:bgp/bgp:peer" {
+        leaf host-name {
+            type string {
+                length "0..255";
+            }
+            description "Legacy: Host name for FQDN capability.";
+        }
+
+        leaf domain-name {
+            type string {
+                length "0..255";
+            }
+            description "Legacy: Domain name for FQDN capability.";
+        }
+    }
+}
