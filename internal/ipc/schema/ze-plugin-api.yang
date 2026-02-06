@@ -10,18 +10,63 @@ module ze-plugin-api {
         description "Initial revision";
     }
 
-    rpc session-ready {
-        description "Signal that plugin session is ready for commands";
+    // Introspection
+
+    rpc help {
+        description "List plugin subcommands";
+        output {
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
     }
 
-    rpc ping {
-        description "Health check ping";
+    rpc command-list {
+        description "List plugin commands";
+        output {
+            list command {
+                leaf name { type string; description "Command name"; }
+                leaf description { type string; description "Command description"; }
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Show command details";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Complete command/args";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+
+    // Session lifecycle
+
+    rpc session-ready {
+        description "Signal plugin init complete";
+    }
+
+    rpc peer-session-ready {
+        description "Signal peer-specific plugin init complete";
+    }
+
+    rpc session-ping {
+        description "Health check (returns PID)";
         output {
             leaf pong { type boolean; description "Always true when alive"; }
         }
     }
 
-    rpc bye {
-        description "Graceful plugin disconnection";
+    rpc session-bye {
+        description "Disconnect";
     }
 }

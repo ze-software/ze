@@ -6,12 +6,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
-// RFC 7313: Enhanced Route Refresh Capability for BGP-4.
-func init() {
-	RegisterBuiltin("bgp peer borr", handleBoRR,
-		"Send Beginning of Route Refresh: bgp peer <selector> borr <family>")
-	RegisterBuiltin("bgp peer eorr", handleEoRR,
-		"Send End of Route Refresh: bgp peer <selector> eorr <family>")
+// refreshRPCs returns RPC registrations for handlers defined in this file.
+func refreshRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:peer-borr", "bgp peer borr", handleBoRR, "Send Beginning of Route Refresh"},
+		{"ze-bgp:peer-eorr", "bgp peer eorr", handleEoRR, "Send End of Route Refresh"},
+	}
 }
 
 // handleBoRR sends a Beginning of Route Refresh marker.

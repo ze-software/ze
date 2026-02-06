@@ -6,12 +6,16 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Ensure ipc import is used (referenced by TestRPCRegistrationTable).
+var _ = ipc.ParseMethod
 
 // ErrPeerNotFound is a test error matching reactor.ErrPeerNotFound.
 // Cannot import reactor due to import cycle (reactor imports api).
@@ -554,7 +558,7 @@ func TestHandlerSystemHelp(t *testing.T) {
 func TestBuiltinCount(t *testing.T) {
 	// This count should be updated when adding/removing handlers.
 	// If this test fails, verify the change was intentional.
-	const expectedCount = 49
+	const expectedCount = 51
 
 	actual := BuiltinCount()
 	assert.Equal(t, expectedCount, actual,

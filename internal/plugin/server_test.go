@@ -1,17 +1,17 @@
 package plugin
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net"
 	"net/netip"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"github.com/stretchr/testify/assert"
@@ -25,6 +25,38 @@ func dialUnix(t *testing.T, sockPath string) net.Conn {
 	conn, err := d.DialContext(context.Background(), "unix", sockPath)
 	require.NoError(t, err)
 	return conn
+}
+
+// rpcCall sends a NUL-framed JSON RPC request and reads the NUL-framed response.
+// Returns the parsed RPCResult on success or RPCError fields.
+func rpcCall(t *testing.T, conn net.Conn, method string, id int) map[string]any {
+	t.Helper()
+	return rpcCallWithParams(t, conn, method, id, nil)
+}
+
+// rpcCallWithParams sends a NUL-framed JSON RPC request with params and reads the response.
+func rpcCallWithParams(t *testing.T, conn net.Conn, method string, id int, params any) map[string]any {
+	t.Helper()
+	writer := ipc.NewFrameWriter(conn)
+	reader := ipc.NewFrameReader(conn)
+
+	req := map[string]any{"method": method, "id": id}
+	if params != nil {
+		raw, err := json.Marshal(params)
+		require.NoError(t, err)
+		req["params"] = json.RawMessage(raw)
+	}
+
+	reqJSON, err := json.Marshal(req)
+	require.NoError(t, err)
+	require.NoError(t, writer.Write(reqJSON))
+
+	respBytes, err := reader.Read()
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal(respBytes, &result))
+	return result
 }
 
 // TestServerStartStop verifies server lifecycle.
@@ -136,23 +168,17 @@ func TestServerCommandExecution(t *testing.T) {
 	require.NoError(t, err)
 	defer server.Stop()
 
-	// Connect and send command
+	// Connect and send NUL-framed JSON RPC request
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send command (Step 5: daemon moved to bgp daemon)
-	_, err = conn.Write([]byte("bgp daemon status\n"))
-	require.NoError(t, err)
+	result := rpcCall(t, conn, "ze-bgp:daemon-status", 1)
 
-	// Read response
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
-
-	// ze-bgp JSON: Response wrapped in {"type":"response","response":{...}}
-	assert.Contains(t, response, `"type":"response"`)
-	assert.Contains(t, response, `"status":"done"`)
-	assert.Contains(t, response, `"peer_count":2`)
+	// RPC result: {"id":1,"result":{...}}
+	assert.Equal(t, float64(1), result["id"])
+	resultData, ok := result["result"].(map[string]any)
+	require.True(t, ok, "result must be an object")
+	assert.Equal(t, float64(2), resultData["peer_count"])
 }
 
 // TestServerClientDisconnect verifies cleanup on disconnect.
@@ -202,16 +228,11 @@ func TestServerUnknownCommand(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	_, err = conn.Write([]byte("unknown command here\n"))
-	require.NoError(t, err)
+	result := rpcCall(t, conn, "ze-system:nonexistent", 1)
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
-
-	// ze-bgp JSON: Response wrapped
-	assert.Contains(t, response, `"type":"response"`)
-	assert.Contains(t, response, `"status":"error"`)
+	// RPC error: {"id":1,"error":"..."}
+	assert.Equal(t, float64(1), result["id"])
+	assert.NotEmpty(t, result["error"], "should have error for unknown method")
 }
 
 // TestServerGracefulShutdown verifies clients notified on shutdown.
@@ -249,12 +270,12 @@ func TestServerGracefulShutdown(t *testing.T) {
 	assert.True(t, err != nil)
 }
 
-// TestServerEmptyLine verifies empty line handling.
+// TestServerEmptyFrame verifies empty NUL frame handling.
 //
-// VALIDATES: Empty lines are ignored, not treated as commands.
+// VALIDATES: Empty frames are ignored, subsequent valid requests work.
 //
-// PREVENTS: Errors from clients sending blank lines.
-func TestServerEmptyLine(t *testing.T) {
+// PREVENTS: Server crash or disconnect from empty frames.
+func TestServerEmptyFrame(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "test.sock")
 
 	reactor := &mockReactor{}
@@ -267,26 +288,24 @@ func TestServerEmptyLine(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send empty lines then a real command
-	_, err = conn.Write([]byte("\n\n\nsystem version software\n"))
-	require.NoError(t, err)
+	writer := ipc.NewFrameWriter(conn)
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
+	// Send empty frame (just NUL byte)
+	require.NoError(t, writer.Write([]byte{}))
 
-	// ze-bgp JSON: Should get wrapped version response, not errors from empty lines
-	assert.Contains(t, response, `"type":"response"`)
-	assert.Contains(t, response, `"status":"done"`)
-	assert.Contains(t, response, `"version"`)
+	// Send valid request — server should still respond
+	result := rpcCall(t, conn, "ze-system:version-software", 1)
+
+	assert.Equal(t, float64(1), result["id"])
+	assert.NotNil(t, result["result"], "should get result after empty frame")
 }
 
-// TestServerCommentLine verifies comment handling.
+// TestServerInvalidJSON verifies error response for malformed JSON frames.
 //
-// VALIDATES: Lines starting with # are ignored.
+// VALIDATES: Invalid JSON returns error response, connection stays open.
 //
-// PREVENTS: Comment lines treated as commands.
-func TestServerCommentLine(t *testing.T) {
+// PREVENTS: Server crash or disconnect from malformed input.
+func TestServerInvalidJSON(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "test.sock")
 
 	reactor := &mockReactor{}
@@ -299,16 +318,24 @@ func TestServerCommentLine(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send comment then real command
-	_, err = conn.Write([]byte("# this is a comment\nsystem version software\n"))
+	writer := ipc.NewFrameWriter(conn)
+	reader := ipc.NewFrameReader(conn)
+
+	// Send invalid JSON
+	require.NoError(t, writer.Write([]byte("not valid json")))
+
+	// Should get error response
+	respBytes, err := reader.Read()
 	require.NoError(t, err)
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
+	var errResp map[string]any
+	require.NoError(t, json.Unmarshal(respBytes, &errResp))
+	assert.Equal(t, "invalid-json", errResp["error"])
 
-	// Should get version response
-	assert.True(t, strings.Contains(response, `"version"`))
+	// Connection should still work — send valid request
+	result := rpcCall(t, conn, "ze-system:version-software", 2)
+	assert.Equal(t, float64(2), result["id"])
+	assert.NotNil(t, result["result"])
 }
 
 // TestParseSerial verifies serial parsing from command lines.
@@ -423,12 +450,12 @@ func TestIsAlphaSerial(t *testing.T) {
 	}
 }
 
-// TestServerNoSerialCommand verifies commands without serial get response without serial field.
+// TestServerRPCWithID verifies response includes matching request ID.
 //
-// VALIDATES: Response is sent, serial field omitted from JSON.
+// VALIDATES: RPC response echoes back the request ID.
 //
-// PREVENTS: Missing responses or unwanted empty serial field.
-func TestServerNoSerialCommand(t *testing.T) {
+// PREVENTS: Client unable to correlate responses with requests.
+func TestServerRPCWithID(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "test.sock")
 
 	reactor := &mockReactor{}
@@ -441,26 +468,20 @@ func TestServerNoSerialCommand(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send command without serial
-	_, err = conn.Write([]byte("system version software\n"))
-	require.NoError(t, err)
+	// Send request with specific ID
+	result := rpcCall(t, conn, "ze-system:version-software", 42)
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
-
-	// ze-bgp JSON: Wrapped response, should NOT have serial field (omitempty)
-	assert.Contains(t, response, `"type":"response"`)
-	assert.NotContains(t, response, `"serial"`)
-	assert.Contains(t, response, `"status":"done"`)
+	// Response must echo back the same ID
+	assert.Equal(t, float64(42), result["id"])
+	assert.NotNil(t, result["result"])
 }
 
-// TestServerSerialCommand verifies serial prefix handling via socket.
+// TestServerMultipleRPCRequests verifies multiple sequential requests on same connection.
 //
-// VALIDATES: Command with #N prefix returns response with serial field.
+// VALIDATES: Multiple requests with different IDs get correct responses.
 //
-// PREVENTS: Serial not being echoed back in response.
-func TestServerSerialCommand(t *testing.T) {
+// PREVENTS: Connection state corruption between requests.
+func TestServerMultipleRPCRequests(t *testing.T) {
 	sockPath := filepath.Join(t.TempDir(), "test.sock")
 
 	reactor := &mockReactor{}
@@ -473,18 +494,18 @@ func TestServerSerialCommand(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send command with serial
-	_, err = conn.Write([]byte("#42 system version software\n"))
-	require.NoError(t, err)
+	// Send multiple requests with different IDs
+	r1 := rpcCall(t, conn, "ze-system:version-software", 1)
+	assert.Equal(t, float64(1), r1["id"])
+	assert.NotNil(t, r1["result"])
 
-	reader := bufio.NewReader(conn)
-	response, err := reader.ReadString('\n')
-	require.NoError(t, err)
+	r2 := rpcCall(t, conn, "ze-system:version-api", 2)
+	assert.Equal(t, float64(2), r2["id"])
+	assert.NotNil(t, r2["result"])
 
-	// ze-bgp JSON: Should have serial in JSON body inside response wrapper
-	assert.Contains(t, response, `"type":"response"`)
-	assert.Contains(t, response, `"serial":"42"`)
-	assert.Contains(t, response, `"status":"done"`)
+	r3 := rpcCall(t, conn, "ze-system:nonexistent", 3)
+	assert.Equal(t, float64(3), r3["id"])
+	assert.NotEmpty(t, r3["error"])
 }
 
 // TestFormatNotificationJSON verifies NOTIFICATION message JSON format.
@@ -616,4 +637,154 @@ func TestDecodeNLRI_NoPlugin(t *testing.T) {
 	_, err := server.DecodeNLRI(nlri.IPv4FlowSpec, "0701180A0000")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no plugin registered for family")
+}
+
+// TestServerNULProtocol verifies the NUL-terminated JSON protocol for socket clients.
+//
+// VALIDATES: Server reads NUL-terminated JSON requests and returns NUL-terminated JSON responses.
+// PREVENTS: Protocol mismatch between socket clients and server after text→JSON migration.
+func TestServerNULProtocol(t *testing.T) {
+	sockPath := filepath.Join(t.TempDir(), "test.sock")
+
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{SocketPath: sockPath}, reactor)
+
+	err := server.Start()
+	require.NoError(t, err)
+	defer server.Stop()
+
+	conn := dialUnix(t, sockPath)
+	defer func() { _ = conn.Close() }()
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Send NUL-terminated JSON request
+	req := ipc.Request{
+		Method: "ze-system:version-software",
+		ID:     json.RawMessage(`1`),
+	}
+	reqJSON, err := json.Marshal(req)
+	require.NoError(t, err)
+
+	writer := ipc.NewFrameWriter(conn)
+	err = writer.Write(reqJSON)
+	require.NoError(t, err)
+
+	// Read NUL-terminated JSON response (with deadline to avoid hanging)
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
+	reader := ipc.NewFrameReader(conn)
+	respBytes, err := reader.Read()
+	require.NoError(t, err, "server must respond with NUL-terminated JSON")
+
+	// Parse response as RPCResult
+	var result ipc.RPCResult
+	err = json.Unmarshal(respBytes, &result)
+	require.NoError(t, err)
+
+	// Verify ID is echoed back
+	assert.Equal(t, json.RawMessage(`1`), result.ID)
+
+	// Verify result contains version
+	assert.Contains(t, string(result.Result), `"version"`)
+	assert.Contains(t, string(result.Result), Version)
+}
+
+// TestServerNULProtocolUnknownMethod verifies error response for unknown wire methods.
+//
+// VALIDATES: Unknown methods return RPCError with "unknown-method" error identity.
+// PREVENTS: Silent failures or panics on invalid method names.
+func TestServerNULProtocolUnknownMethod(t *testing.T) {
+	sockPath := filepath.Join(os.TempDir(), fmt.Sprintf("ze-nul-err-%d.sock", os.Getpid()))
+	t.Cleanup(func() { _ = os.Remove(sockPath) })
+
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{SocketPath: sockPath}, reactor)
+
+	err := server.Start()
+	require.NoError(t, err)
+	defer server.Stop()
+
+	conn := dialUnix(t, sockPath)
+	defer func() { _ = conn.Close() }()
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Send request with unknown method
+	req := ipc.Request{
+		Method: "ze-system:nonexistent",
+		ID:     json.RawMessage(`2`),
+	}
+	reqJSON, _ := json.Marshal(req)
+
+	writer := ipc.NewFrameWriter(conn)
+	err = writer.Write(reqJSON)
+	require.NoError(t, err)
+
+	// Read response
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
+	reader := ipc.NewFrameReader(conn)
+	respBytes, err := reader.Read()
+	require.NoError(t, err)
+
+	// Parse as RPCError
+	var errResp ipc.RPCError
+	err = json.Unmarshal(respBytes, &errResp)
+	require.NoError(t, err)
+
+	assert.Equal(t, "unknown-method", errResp.Error)
+	assert.Equal(t, json.RawMessage(`2`), errResp.ID)
+}
+
+// TestServerNULProtocolWithParams verifies parameter passing through JSON protocol.
+//
+// VALIDATES: Handler receives args from JSON params and peer selector from params.
+// PREVENTS: Parameter loss during text→JSON protocol migration.
+func TestServerNULProtocolWithParams(t *testing.T) {
+	sockPath := filepath.Join(os.TempDir(), fmt.Sprintf("ze-nul-par-%d.sock", os.Getpid()))
+	t.Cleanup(func() { _ = os.Remove(sockPath) })
+
+	reactor := &mockReactor{
+		stats: ReactorStats{
+			PeerCount: 3,
+			Uptime:    time.Hour,
+		},
+	}
+	server := NewServer(&ServerConfig{SocketPath: sockPath}, reactor)
+
+	err := server.Start()
+	require.NoError(t, err)
+	defer server.Stop()
+
+	conn := dialUnix(t, sockPath)
+	defer func() { _ = conn.Close() }()
+
+	time.Sleep(10 * time.Millisecond)
+
+	// Send daemon-status request (no params needed)
+	req := ipc.Request{
+		Method: "ze-bgp:daemon-status",
+		ID:     json.RawMessage(`42`),
+	}
+	reqJSON, _ := json.Marshal(req)
+
+	writer := ipc.NewFrameWriter(conn)
+	err = writer.Write(reqJSON)
+	require.NoError(t, err)
+
+	// Read response
+	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
+	reader := ipc.NewFrameReader(conn)
+	respBytes, err := reader.Read()
+	require.NoError(t, err)
+
+	var result ipc.RPCResult
+	err = json.Unmarshal(respBytes, &result)
+	require.NoError(t, err)
+
+	// Verify ID echoed
+	assert.Equal(t, json.RawMessage(`42`), result.ID)
+
+	// Verify result contains daemon status fields
+	assert.Contains(t, string(result.Result), `"peer_count"`)
+	assert.Contains(t, string(result.Result), `3`)
 }

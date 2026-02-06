@@ -12,8 +12,10 @@ import (
 	"strings"
 	"time"
 
+	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
@@ -48,6 +50,10 @@ func Run(args []string, plugins []string) int {
 		return cmdShow(args[1:], plugins)
 	case "handlers":
 		return cmdHandlers(args[1:], plugins)
+	case "methods":
+		return cmdMethods(args[1:], plugins)
+	case "events":
+		return cmdEvents(args[1:], plugins)
 	case "protocol":
 		return cmdProtocol()
 	case "help", "-h", "--help":
@@ -70,6 +76,8 @@ Commands:
   list              List all registered schemas
   show <module>     Show YANG content for a module
   handlers          List handler → module mapping
+  methods [module]  List RPCs from YANG (all or specific module)
+  events [module]   List notifications from YANG
   protocol          Show protocol version and format info
   help              Show this help
 
@@ -77,6 +85,9 @@ Examples:
   ze schema list
   ze schema show ze-bgp
   ze schema handlers
+  ze schema methods
+  ze schema methods ze-bgp-api
+  ze schema events
 `)
 }
 
@@ -215,14 +226,160 @@ func cmdProtocol() int {
 	return 0
 }
 
+// schemaEntry holds display data for an RPC or notification row.
+type schemaEntry struct {
+	wire   string
+	module string
+	desc   string
+}
+
+// printSchemaTable prints a sorted table of schema entries with the given header.
+func printSchemaTable(header string, kind string, entries []schemaEntry) {
+	if len(entries) == 0 {
+		fmt.Printf("No %ss registered\n", kind)
+		return
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].wire < entries[j].wire
+	})
+
+	fmt.Printf("%-36s %-16s %s\n", header, "Module", "Description")
+	for _, e := range entries {
+		desc := e.desc
+		if len(desc) > 50 {
+			desc = desc[:47] + "..."
+		}
+		fmt.Printf("%-36s %-16s %s\n", e.wire, e.module, desc)
+	}
+}
+
+// cmdMethods lists RPCs from YANG API modules.
+func cmdMethods(args []string, plugins []string) int {
+	var module string
+	if len(args) > 0 {
+		module = args[0]
+	}
+
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	rpcs := registry.ListRPCs(module)
+	if len(rpcs) == 0 && module != "" {
+		fmt.Fprintf(os.Stderr, "no RPCs found for module %s\n", module)
+		return 1
+	}
+
+	entries := make([]schemaEntry, len(rpcs))
+	for i, rpc := range rpcs {
+		entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.Description}
+	}
+	printSchemaTable("Method", "RPC", entries)
+	return 0
+}
+
+// cmdEvents lists notifications from YANG API modules.
+func cmdEvents(args []string, plugins []string) int {
+	var module string
+	if len(args) > 0 {
+		module = args[0]
+	}
+
+	registry, err := buildSchemaRegistry(plugins)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+
+	notifs := registry.ListNotifications(module)
+	if len(notifs) == 0 && module != "" {
+		fmt.Fprintf(os.Stderr, "no notifications found for module %s\n", module)
+		return 1
+	}
+
+	entries := make([]schemaEntry, len(notifs))
+	for i, notif := range notifs {
+		entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.Description}
+	}
+	printSchemaTable("Event", "notification", entries)
+	return 0
+}
+
+// apiYANGModules returns the API YANG modules that define RPCs and notifications.
+// These are separate from the -conf modules (which define config containers).
+func apiYANGModules() []struct {
+	name    string
+	content string
+} {
+	return []struct {
+		name    string
+		content string
+	}{
+		{"ze-bgp-api.yang", bgpschema.ZeBGPAPIYANG},
+		{"ze-system-api.yang", ipcschema.ZeSystemAPIYANG},
+		{"ze-plugin-api.yang", ipcschema.ZePluginAPIYANG},
+		{"ze-rib-api.yang", ribschema.ZeRibAPIYANG},
+	}
+}
+
+// loadAPIRPCs loads API YANG modules and registers their RPCs and notifications.
+func loadAPIRPCs(registry *plugin.SchemaRegistry) error {
+	loader := yang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		return fmt.Errorf("load core modules: %w", err)
+	}
+
+	// Load conf modules first (API modules may import them)
+	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
+		return fmt.Errorf("load ze-bgp-conf: %w", err)
+	}
+
+	// Load all API YANG modules
+	apiModules := apiYANGModules()
+	for _, mod := range apiModules {
+		if err := loader.AddModuleFromText(mod.name, mod.content); err != nil {
+			return fmt.Errorf("load %s: %w", mod.name, err)
+		}
+	}
+
+	if err := loader.Resolve(); err != nil {
+		return fmt.Errorf("resolve YANG: %w", err)
+	}
+
+	// Extract and register RPCs and notifications from each API module
+	for _, mod := range apiModules {
+		moduleName := strings.TrimSuffix(mod.name, ".yang")
+
+		rpcs := yang.ExtractRPCs(loader, moduleName)
+		if len(rpcs) > 0 {
+			if err := registry.RegisterRPCs(moduleName, rpcs); err != nil {
+				return fmt.Errorf("register RPCs from %s: %w", moduleName, err)
+			}
+		}
+
+		notifs := yang.ExtractNotifications(loader, moduleName)
+		if len(notifs) > 0 {
+			if err := registry.RegisterNotifications(moduleName, notifs); err != nil {
+				return fmt.Errorf("register notifications from %s: %w", moduleName, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // buildSchemaRegistry builds a registry with all available YANG schemas.
 // Loads ze-bgp, internal plugins, and optionally external plugins.
+// Also loads API YANG modules for RPC/notification indexing.
 func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 	registry := plugin.NewSchemaRegistry()
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
-	if err := registerYANG(registry, schema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
+	if err := registerYANG(registry, bgpschema.ZeBGPConfYANG, internalPluginPrefix+"bgp", []string{"bgp", "bgp.peer"}, nil, loaded); err != nil {
 		return nil, fmt.Errorf("register ze-bgp: %w", err)
 	}
 
@@ -249,6 +406,11 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 		if err := registerYANG(registry, yangContent, pluginName, nil, nil, loaded); err != nil {
 			return nil, fmt.Errorf("register %s: %w", pluginSpec, err)
 		}
+	}
+
+	// Load API YANG modules and extract RPCs/notifications
+	if err := loadAPIRPCs(registry); err != nil {
+		return nil, fmt.Errorf("load API RPCs: %w", err)
 	}
 
 	return registry, nil
@@ -333,7 +495,7 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
 	if moduleName == "ze-bgp-conf" {
-		return schema.ZeBGPConfYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
+		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
 	}
 
 	// Internal plugins

@@ -1,0 +1,35 @@
+# Test: ze schema events
+# Verifies schema events lists notifications from YANG API modules
+# Note: schema events doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+# Minimal valid config for test framework
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema events
+expect=exit:code=0
+# Header line
+expect=stdout:contains=Event
+expect=stdout:contains=Module
+expect=stdout:contains=Description
+# BGP notifications
+expect=stdout:contains=ze-bgp:peer-state-change
+expect=stdout:contains=ze-bgp:session-established
+expect=stdout:contains=ze-bgp:route-received
+# RIB notifications
+expect=stdout:contains=ze-rib:rib-change
+
+cmd=foreground:seq=2:exec=ze schema events ze-bgp-api
+expect=exit:code=0
+expect=stdout:contains=ze-bgp:peer-state-change
+# Should NOT contain notifications from other modules
+expect=stdout:not:contains=ze-rib:
+
+cmd=foreground:seq=3:exec=ze schema events ze-bogus-api
+expect=exit:code=1

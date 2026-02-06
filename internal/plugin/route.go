@@ -183,18 +183,6 @@ func parseSAFI(args []string) (safi string, rest []string, err error) {
 	}
 }
 
-func init() {
-	// Update command (multi-family batch with attr accumulation)
-	// This is the primary route announcement/withdrawal interface.
-	// Syntax: bgp peer <sel> update text <attrs>... nlri <family> add/del <prefix>...
-	// Syntax: bgp peer <sel> update text nlri <family> eor
-	RegisterBuiltin("bgp peer update", handleUpdate, "Batch UPDATE with text/hex/b64 encoding")
-
-	// Watchdog commands - control routes by watchdog group
-	RegisterBuiltin("bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group")
-	RegisterBuiltin("bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
-}
-
 // ErrInvalidKeyword is returned when a keyword is not valid for the route family.
 var ErrInvalidKeyword = errors.New("invalid keyword for route family")
 
@@ -1425,6 +1413,15 @@ func ParseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 // Format: <prefix> next-hop <addr> label <label> [attributes...].
 func ParseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 	return parseLabeledUnicastAttributes(args)
+}
+
+// routeRPCs returns RPC registrations for handlers defined in this file.
+// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
+func routeRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:watchdog-announce", "bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group"},
+		{"ze-bgp:watchdog-withdraw", "bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group"},
+	}
 }
 
 // handleWatchdogAnnounce handles: watchdog announce <name>

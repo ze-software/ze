@@ -1614,6 +1614,14 @@ func isSupportedFamily(f nlri.Family) bool {
 	}
 }
 
+// updateRPCs returns RPC registrations for handlers defined in this file.
+// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
+func updateRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:peer-update", "bgp peer update", handleUpdate, "Batch UPDATE with text/hex/b64 encoding"},
+	}
+}
+
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: peer <addr> update <encoding> ...
 func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {

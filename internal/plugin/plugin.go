@@ -7,6 +7,17 @@ import (
 	"time"
 )
 
+// pluginRPCs returns RPC registrations for handlers defined in this file.
+// Part of the ze-plugin module — aggregated by PluginLifecycleRPCs().
+func pluginRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-plugin:help", "plugin help", handlePluginHelp, "List plugin subcommands"},
+		{"ze-plugin:command-list", "plugin command list", handlePluginCommandList, "List plugin commands"},
+		{"ze-plugin:command-help", "plugin command help", handlePluginCommandHelp, "Show command details"},
+		{"ze-plugin:command-complete", "plugin command complete", handlePluginCommandComplete, "Complete command/args"},
+	}
+}
+
 // parseRegisterCommand parses a register command from tokens after "register".
 func parseRegisterCommand(tokens []string) (*CommandDef, error) {
 	if len(tokens) < 4 {
@@ -204,25 +215,10 @@ func parsePluginResponse(line string) (serial, respType, data string, ok bool) {
 		if len(data) >= 2 && data[0] == '"' && data[len(data)-1] == '"' {
 			data = data[1 : len(data)-1]
 		}
-		return serial, "error", data, true
+		return serial, statusError, data, true
 	}
 
 	return "", "", "", false
-}
-
-func init() {
-	// Plugin lifecycle (moved from session namespace)
-	RegisterBuiltin("plugin session ready", handlePluginSessionReady, "Signal plugin init complete")
-	// Also register with bgp peer prefix for per-peer ready signals (e.g., after route replay)
-	RegisterBuiltin("bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete")
-	RegisterBuiltin("plugin session ping", handlePluginSessionPing, "Health check (returns PID)")
-	RegisterBuiltin("plugin session bye", handlePluginSessionBye, "Disconnect")
-
-	// Plugin introspection
-	RegisterBuiltin("plugin help", handlePluginHelp, "List plugin subcommands")
-	RegisterBuiltin("plugin command list", handlePluginCommandList, "List plugin commands")
-	RegisterBuiltin("plugin command help", handlePluginCommandHelp, "Show command details")
-	RegisterBuiltin("plugin command complete", handlePluginCommandComplete, "Complete command/args")
 }
 
 // handlePluginHelp returns list of plugin subcommands.

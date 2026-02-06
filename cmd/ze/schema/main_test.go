@@ -433,3 +433,211 @@ func TestExternalPluginNonexistent(t *testing.T) {
 		t.Error("expected error for nonexistent plugin, got nil")
 	}
 }
+
+// TestCmdMethods verifies ze schema methods lists RPCs from all YANG API modules.
+//
+// VALIDATES: Methods command loads API YANG modules and lists RPCs with correct wire methods.
+// PREVENTS: Empty output or missing modules when YANG modules define RPCs.
+func TestCmdMethods(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	rpcs := registry.ListRPCs("")
+
+	// Verify RPCs from all 4 modules are present
+	modules := make(map[string]int)
+	for _, rpc := range rpcs {
+		modules[rpc.Module]++
+	}
+
+	if modules["ze-bgp-api"] != 26 {
+		t.Errorf("expected 26 BGP RPCs, got %d", modules["ze-bgp-api"])
+	}
+	if modules["ze-system-api"] != 8 {
+		t.Errorf("expected 8 system RPCs, got %d", modules["ze-system-api"])
+	}
+	if modules["ze-plugin-api"] != 8 {
+		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
+	}
+	if modules["ze-rib-api"] != 9 {
+		t.Errorf("expected 9 RIB RPCs, got %d", modules["ze-rib-api"])
+	}
+}
+
+// TestCmdMethodsWithModule verifies ze schema methods filters by module.
+//
+// VALIDATES: Module filter restricts output to one module's RPCs only.
+// PREVENTS: Module filter being ignored or including other modules.
+func TestCmdMethodsWithModule(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	rpcs := registry.ListRPCs("ze-system-api")
+	for _, rpc := range rpcs {
+		if rpc.Module != "ze-system-api" {
+			t.Errorf("filtered by ze-system-api but got RPC from %s: %s", rpc.Module, rpc.WireMethod)
+		}
+	}
+	if len(rpcs) == 0 {
+		t.Error("expected RPCs for ze-system-api, got none")
+	}
+}
+
+// TestCmdMethodsUnknownModule verifies ze schema methods returns error for unknown module.
+//
+// VALIDATES: Unknown module returns exit code 1.
+// PREVENTS: Typos silently returning empty results.
+func TestCmdMethodsUnknownModule(t *testing.T) {
+	code := cmdMethods([]string{"ze-bogus-api"}, nil)
+	if code != 1 {
+		t.Errorf("expected exit code 1 for unknown module, got %d", code)
+	}
+}
+
+// TestCmdEvents verifies ze schema events lists notifications from YANG API modules.
+//
+// VALIDATES: Events command loads API YANG modules and lists notifications from multiple modules.
+// PREVENTS: Empty output when YANG modules define notifications.
+func TestCmdEvents(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	notifs := registry.ListNotifications("")
+	if len(notifs) != 8 {
+		t.Errorf("expected 8 notifications, got %d", len(notifs))
+	}
+
+	// Verify we have notifications from both BGP and RIB modules
+	modules := make(map[string]bool)
+	for _, notif := range notifs {
+		modules[notif.Module] = true
+	}
+	if !modules["ze-bgp-api"] {
+		t.Error("expected notifications from ze-bgp-api")
+	}
+	if !modules["ze-rib-api"] {
+		t.Error("expected notifications from ze-rib-api")
+	}
+}
+
+// TestCmdEventsWithModule verifies ze schema events filters by module.
+//
+// VALIDATES: Module filter restricts output to one module's notifications only.
+// PREVENTS: Module filter being ignored.
+func TestCmdEventsWithModule(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	notifs := registry.ListNotifications("ze-bgp-api")
+	for _, notif := range notifs {
+		if notif.Module != "ze-bgp-api" {
+			t.Errorf("filtered by ze-bgp-api but got notification from %s", notif.Module)
+		}
+	}
+	if len(notifs) != 7 {
+		t.Errorf("expected 7 BGP notifications, got %d", len(notifs))
+	}
+}
+
+// TestCmdEventsUnknownModule verifies ze schema events returns error for unknown module.
+//
+// VALIDATES: Unknown module returns exit code 1.
+// PREVENTS: Typos silently returning empty results.
+func TestCmdEventsUnknownModule(t *testing.T) {
+	code := cmdEvents([]string{"ze-bogus-api"}, nil)
+	if code != 1 {
+		t.Errorf("expected exit code 1 for unknown module, got %d", code)
+	}
+}
+
+// TestBuildSchemaRegistryRPCs verifies that buildSchemaRegistry populates RPCs.
+//
+// VALIDATES: Registry contains RPCs from all 4 API modules with correct wire methods.
+// PREVENTS: Methods command returning empty or missing modules.
+func TestBuildSchemaRegistryRPCs(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	rpcs := registry.ListRPCs("")
+
+	// Build wire method set for quick lookup
+	wireSet := make(map[string]bool, len(rpcs))
+	for _, rpc := range rpcs {
+		wireSet[rpc.WireMethod] = true
+	}
+
+	// Verify key RPCs from each module
+	expected := []string{
+		"ze-bgp:peer-list", "ze-bgp:daemon-status", "ze-bgp:help",
+		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
+		"ze-system:help", "ze-system:version-software", "ze-system:shutdown",
+		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
+		"ze-rib:help", "ze-rib:show-in", "ze-rib:event-list",
+	}
+	for _, method := range expected {
+		if !wireSet[method] {
+			t.Errorf("expected %s in registry", method)
+		}
+	}
+}
+
+// TestBuildSchemaRegistryNotifications verifies that buildSchemaRegistry populates notifications.
+//
+// VALIDATES: Registry contains notifications from API YANG modules.
+// PREVENTS: Events command returning empty when YANG defines notifications.
+func TestBuildSchemaRegistryNotifications(t *testing.T) {
+	registry, err := buildSchemaRegistry(nil)
+	if err != nil {
+		t.Fatalf("failed to build registry: %v", err)
+	}
+
+	notifs := registry.ListNotifications("")
+
+	wireSet := make(map[string]bool, len(notifs))
+	for _, notif := range notifs {
+		wireSet[notif.WireMethod] = true
+	}
+
+	expected := []string{
+		"ze-bgp:peer-state-change",
+		"ze-bgp:session-established",
+		"ze-rib:rib-change",
+	}
+	for _, method := range expected {
+		if !wireSet[method] {
+			t.Errorf("expected %s notification in registry", method)
+		}
+	}
+}
+
+// TestRunMethods verifies ze schema methods via the Run dispatch.
+//
+// VALIDATES: "methods" dispatches to the correct handler.
+// PREVENTS: Missing dispatch entry for new command.
+func TestRunMethods(t *testing.T) {
+	code := Run([]string{"methods"}, nil)
+	if code != 0 {
+		t.Errorf("Run(methods) = %d, want 0", code)
+	}
+}
+
+// TestRunEvents verifies ze schema events via the Run dispatch.
+//
+// VALIDATES: "events" dispatches to the correct handler.
+// PREVENTS: Missing dispatch entry for new command.
+func TestRunEvents(t *testing.T) {
+	code := Run([]string{"events"}, nil)
+	if code != 0 {
+		t.Errorf("Run(events) = %d, want 0", code)
+	}
+}

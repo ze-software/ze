@@ -12,11 +12,24 @@ module ze-system-api {
         description "Initial revision";
     }
 
-    rpc version {
-        description "Query software and API version";
+    rpc help {
+        description "Show available commands";
         output {
-            leaf software { type string; description "Software version string"; }
-            leaf api { type string; description "API protocol version"; }
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
+    }
+
+    rpc version-software {
+        description "Show ze version";
+        output {
+            leaf version { type string; description "Software version string"; }
+        }
+    }
+
+    rpc version-api {
+        description "Show IPC protocol version";
+        output {
+            leaf version { type string; description "API protocol version"; }
         }
     }
 

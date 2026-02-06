@@ -14,50 +14,84 @@ var ErrUnknownCommand = errors.New("unknown command")
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
 
-// builtinRegistry holds handlers registered via init() for self-registration.
-// This eliminates the need for a central RegisterDefaultHandlers() function.
-var builtinRegistry = &handlerRegistry{handlers: make(map[string]*handlerDef)}
-
-// handlerDef describes a builtin command handler.
-type handlerDef struct {
-	Name    string
-	Handler Handler
-	Help    string
+// BgpPluginRPCs returns all RPCs owned by the BGP plugin (ze-bgp namespace).
+// The BGP plugin registers all bgp-prefixed commands as one unit.
+func BgpPluginRPCs() []RPCRegistration {
+	sources := [][]RPCRegistration{
+		handlerBgpRPCs(), // daemon, peer ops (handler.go)
+		bgpRPCs(),        // help, introspection, plugin config (bgp.go)
+		subscribeRPCs(),  // subscribe/unsubscribe (subscribe.go)
+		rawRPCs(),        // raw send (raw.go)
+		refreshRPCs(),    // borr/eorr (refresh.go)
+		cacheRPCs(),      // cache ops (cache.go)
+		commitRPCs(),     // commit ops (commit.go)
+		routeRPCs(),      // watchdog (route.go)
+		updateRPCs(),     // update (update_text.go)
+	}
+	n := 0
+	for _, s := range sources {
+		n += len(s)
+	}
+	rpcs := make([]RPCRegistration, 0, n)
+	for _, s := range sources {
+		rpcs = append(rpcs, s...)
+	}
+	return rpcs
 }
 
-// handlerRegistry collects builtin handlers via init().
-type handlerRegistry struct {
-	handlers map[string]*handlerDef
+// SystemPluginRPCs returns all RPCs owned by the system module (ze-system namespace).
+func SystemPluginRPCs() []RPCRegistration {
+	return systemRPCs()
 }
 
-// RegisterBuiltin registers a builtin handler (called from init()).
-// Panics if a handler with the same name is already registered (catches bugs early).
-func RegisterBuiltin(name string, handler Handler, help string) {
-	if _, exists := builtinRegistry.handlers[name]; exists {
-		panic("duplicate handler registration: " + name)
+// RibPluginRPCs returns all RPCs owned by the RIB module (ze-rib namespace).
+func RibPluginRPCs() []RPCRegistration {
+	return ribRPCs()
+}
+
+// PluginLifecycleRPCs returns all RPCs for plugin lifecycle (ze-plugin namespace).
+func PluginLifecycleRPCs() []RPCRegistration {
+	sess := sessionRPCs() // session ready/ping/bye (session.go)
+	plug := pluginRPCs()  // plugin help/command (plugin.go)
+	rpcs := make([]RPCRegistration, 0, len(sess)+len(plug))
+	rpcs = append(rpcs, sess...)
+	rpcs = append(rpcs, plug...)
+	return rpcs
+}
+
+// AllBuiltinRPCs returns all builtin RPCs from all modules.
+// Each module registers its own commands; this aggregates them.
+func AllBuiltinRPCs() []RPCRegistration {
+	sources := [][]RPCRegistration{
+		BgpPluginRPCs(),
+		SystemPluginRPCs(),
+		RibPluginRPCs(),
+		PluginLifecycleRPCs(),
 	}
-	builtinRegistry.handlers[name] = &handlerDef{
-		Name:    name,
-		Handler: handler,
-		Help:    help,
+	n := 0
+	for _, s := range sources {
+		n += len(s)
 	}
+	all := make([]RPCRegistration, 0, n)
+	for _, s := range sources {
+		all = append(all, s...)
+	}
+	return all
 }
 
 // BuiltinCount returns the number of registered builtin handlers.
 func BuiltinCount() int {
-	return len(builtinRegistry.handlers)
+	return len(AllBuiltinRPCs())
 }
 
 // LoadBuiltins registers all builtin handlers with the dispatcher.
-// Called by NewServer to load handlers from the init() registry.
 func LoadBuiltins(d *Dispatcher) {
-	for _, h := range builtinRegistry.handlers {
-		d.Register(h.Name, h.Handler, h.Help)
+	for _, reg := range AllBuiltinRPCs() {
+		d.Register(reg.CLICommand, reg.Handler, reg.Help)
 	}
 }
 
 // RegisterDefaultHandlers registers all builtin handlers with the dispatcher.
-// This is an alias for LoadBuiltins() for backward compatibility with tests.
 func RegisterDefaultHandlers(d *Dispatcher) {
 	LoadBuiltins(d)
 }

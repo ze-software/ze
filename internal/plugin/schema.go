@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // Schema represents a YANG schema registered by a plugin.
@@ -19,6 +22,27 @@ type Schema struct {
 	WantsConfig []string // Config roots plugin wants (from "declare wants config <root>")
 }
 
+// RegisteredRPC represents an RPC indexed in the schema registry.
+type RegisteredRPC struct {
+	Module      string          // YANG module name (e.g., "ze-bgp-api")
+	Name        string          // RPC name in kebab-case (e.g., "peer-list")
+	WireMethod  string          // Wire format "module:rpc-name" (e.g., "ze-bgp:peer-list")
+	CLICommand  string          // CLI text command (e.g., "bgp peer list")
+	Description string          // From YANG description
+	Input       []yang.LeafMeta // Input parameter leaves
+	Output      []yang.LeafMeta // Output parameter leaves
+	Handler     Handler         // Handler function (set during registration)
+}
+
+// RegisteredNotification represents a notification indexed in the schema registry.
+type RegisteredNotification struct {
+	Module      string          // YANG module name
+	Name        string          // Notification name in kebab-case
+	WireMethod  string          // Wire format "module:notification-name"
+	Description string          // From YANG description
+	Leaves      []yang.LeafMeta // Notification data leaves
+}
+
 // SchemaRegistry stores and manages schemas from all plugins.
 type SchemaRegistry struct {
 	// Schemas indexed by module name
@@ -26,6 +50,15 @@ type SchemaRegistry struct {
 
 	// Handler path → module name mapping
 	handlers map[string]string
+
+	// RPCs indexed by wire method (e.g., "ze-bgp:peer-list")
+	rpcs map[string]*RegisteredRPC
+
+	// CLI command → wire method mapping
+	commands map[string]string
+
+	// Notifications indexed by wire method
+	notifications map[string]*RegisteredNotification
 
 	mu sync.RWMutex
 }
@@ -36,13 +69,19 @@ var (
 	ErrSchemaModuleDuplicate  = errors.New("schema module already registered")
 	ErrSchemaHandlerDuplicate = errors.New("schema handler already registered")
 	ErrSchemaNotFound         = errors.New("schema not found")
+	ErrRPCNotFound            = errors.New("RPC not found")
+	ErrRPCDuplicate           = errors.New("RPC wire method already registered")
+	ErrNotificationDuplicate  = errors.New("notification wire method already registered")
 )
 
 // NewSchemaRegistry creates a new schema registry.
 func NewSchemaRegistry() *SchemaRegistry {
 	return &SchemaRegistry{
-		modules:  make(map[string]*Schema),
-		handlers: make(map[string]string),
+		modules:       make(map[string]*Schema),
+		handlers:      make(map[string]string),
+		rpcs:          make(map[string]*RegisteredRPC),
+		commands:      make(map[string]string),
+		notifications: make(map[string]*RegisteredNotification),
 	}
 }
 
@@ -77,6 +116,124 @@ func (r *SchemaRegistry) Register(schema *Schema) error {
 	}
 
 	return nil
+}
+
+// RegisterRPCs indexes RPCs extracted from a YANG module.
+// Wire methods use the stripped module prefix (e.g., "ze-bgp-api" → "ze-bgp:peer-list").
+func (r *SchemaRegistry) RegisterRPCs(module string, rpcs []yang.RPCMeta) error {
+	wireModule := yang.WireModule(module)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, meta := range rpcs {
+		wireMethod := ipc.FormatMethod(wireModule, meta.Name)
+		if _, exists := r.rpcs[wireMethod]; exists {
+			return fmt.Errorf("%w: %s", ErrRPCDuplicate, wireMethod)
+		}
+		r.rpcs[wireMethod] = &RegisteredRPC{
+			Module:      module,
+			Name:        meta.Name,
+			WireMethod:  wireMethod,
+			Description: meta.Description,
+			Input:       meta.Input,
+			Output:      meta.Output,
+		}
+	}
+	return nil
+}
+
+// RegisterNotifications indexes notifications extracted from a YANG module.
+func (r *SchemaRegistry) RegisterNotifications(module string, notifs []yang.NotificationMeta) error {
+	wireModule := yang.WireModule(module)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, meta := range notifs {
+		wireMethod := ipc.FormatMethod(wireModule, meta.Name)
+		if _, exists := r.notifications[wireMethod]; exists {
+			return fmt.Errorf("%w: %s", ErrNotificationDuplicate, wireMethod)
+		}
+		r.notifications[wireMethod] = &RegisteredNotification{
+			Module:      module,
+			Name:        meta.Name,
+			WireMethod:  wireMethod,
+			Description: meta.Description,
+			Leaves:      meta.Leaves,
+		}
+	}
+	return nil
+}
+
+// RegisterCLICommand associates a CLI text command with a wire method.
+// The wire method must already be registered via RegisterRPCs.
+func (r *SchemaRegistry) RegisterCLICommand(cliCommand, wireMethod string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rpc, exists := r.rpcs[wireMethod]
+	if !exists {
+		return fmt.Errorf("%w: %s", ErrRPCNotFound, wireMethod)
+	}
+
+	r.commands[cliCommand] = wireMethod
+	rpc.CLICommand = cliCommand
+	return nil
+}
+
+// FindRPC returns the registered RPC for an exact wire method match.
+func (r *SchemaRegistry) FindRPC(wireMethod string) (*RegisteredRPC, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	rpc, exists := r.rpcs[wireMethod]
+	if !exists {
+		return nil, fmt.Errorf("%w: %s", ErrRPCNotFound, wireMethod)
+	}
+	return rpc, nil
+}
+
+// FindRPCByCommand returns the registered RPC for a CLI text command.
+func (r *SchemaRegistry) FindRPCByCommand(cliCommand string) (*RegisteredRPC, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	wireMethod, exists := r.commands[cliCommand]
+	if !exists {
+		return nil, fmt.Errorf("%w for command: %s", ErrRPCNotFound, cliCommand)
+	}
+	return r.rpcs[wireMethod], nil
+}
+
+// ListRPCs returns all registered RPCs, optionally filtered by YANG module name.
+// Pass empty string to list all RPCs.
+func (r *SchemaRegistry) ListRPCs(module string) []*RegisteredRPC {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*RegisteredRPC, 0, len(r.rpcs))
+	for _, rpc := range r.rpcs {
+		if module == "" || rpc.Module == module {
+			result = append(result, rpc)
+		}
+	}
+	return result
+}
+
+// ListNotifications returns all registered notifications, optionally filtered by YANG module name.
+// Pass empty string to list all notifications.
+func (r *SchemaRegistry) ListNotifications(module string) []*RegisteredNotification {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make([]*RegisteredNotification, 0, len(r.notifications))
+	for _, notif := range r.notifications {
+		if module == "" || notif.Module == module {
+			result = append(result, notif)
+		}
+	}
+	return result
 }
 
 // GetByModule returns a schema by module name.

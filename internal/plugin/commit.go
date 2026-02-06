@@ -8,15 +8,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
+// commitRPCs returns RPC registrations for handlers defined in this file.
+func commitRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:commit", "bgp commit", handleCommit, "Named commit operations"},
+	}
+}
+
 // Commit action constants.
 const (
 	actionEnd = "end"
 	actionEOR = "eor"
 )
-
-func init() {
-	RegisterBuiltin("bgp commit", handleCommit, "Named commit operations (bgp commit <name> start|end|eor|rollback|show, bgp commit list)")
-}
 
 // handleCommit dispatches commit subcommands.
 //

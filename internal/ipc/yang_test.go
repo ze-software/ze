@@ -127,27 +127,14 @@ func TestYANGBGPAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"daemon-status",
-		"daemon-shutdown",
-		"daemon-reload",
-		"peer-list",
-		"peer-show",
-		"peer-add",
-		"peer-remove",
-		"peer-teardown",
-		"update",
-		"watchdog-announce",
-		"watchdog-withdraw",
-		"borr",
-		"eorr",
-		"raw",
-		"cache-list",
-		"cache-retain",
-		"cache-release",
-		"cache-expire",
-		"cache-forward",
-		"subscribe",
-		"event-list",
+		"help", "command-list", "command-help", "command-complete",
+		"plugin-encoding", "plugin-format", "plugin-ack",
+		"daemon-status", "daemon-shutdown", "daemon-reload",
+		"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
+		"peer-update", "watchdog-announce", "watchdog-withdraw",
+		"peer-borr", "peer-eorr", "peer-raw",
+		"cache", "commit",
+		"subscribe", "unsubscribe", "event-list",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -205,12 +192,9 @@ func TestYANGSystemAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"version",
-		"shutdown",
-		"subsystem-list",
-		"command-list",
-		"command-help",
-		"command-complete",
+		"help", "version-software", "version-api",
+		"shutdown", "subsystem-list",
+		"command-list", "command-help", "command-complete",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -236,10 +220,8 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"show-in",
-		"clear-in",
-		"show-out",
-		"clear-out",
+		"help", "command-list", "command-help", "command-complete", "event-list",
+		"show-in", "clear-in", "show-out", "clear-out",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -291,9 +273,8 @@ func TestYANGPluginAPIRPCs(t *testing.T) {
 	require.NotNil(t, mod)
 
 	expectedRPCs := []string{
-		"session-ready",
-		"ping",
-		"bye",
+		"help", "command-list", "command-help", "command-complete",
+		"session-ready", "peer-session-ready", "session-ping", "session-bye",
 	}
 
 	rpcNames := make(map[string]bool)

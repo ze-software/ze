@@ -1,0 +1,41 @@
+# Test: ze schema methods
+# Verifies schema methods lists RPCs from all YANG API modules
+# Note: schema methods doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+# Minimal valid config for test framework
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema methods
+expect=exit:code=0
+# Header line
+expect=stdout:contains=Method
+expect=stdout:contains=Module
+expect=stdout:contains=Description
+# RPCs from ze-bgp-api
+expect=stdout:contains=ze-bgp:peer-list
+expect=stdout:contains=ze-bgp:daemon-status
+expect=stdout:contains=ze-bgp:subscribe
+# RPCs from ze-system-api
+expect=stdout:contains=ze-system:help
+expect=stdout:contains=ze-system:shutdown
+# RPCs from ze-plugin-api
+expect=stdout:contains=ze-plugin:session-ping
+# RPCs from ze-rib-api
+expect=stdout:contains=ze-rib:show-in
+expect=stdout:contains=ze-rib:show-out
+
+cmd=foreground:seq=2:exec=ze schema methods ze-system-api
+expect=exit:code=0
+expect=stdout:contains=ze-system:help
+# Should NOT contain RPCs from other modules
+expect=stdout:not:contains=ze-bgp:
+
+cmd=foreground:seq=3:exec=ze schema methods ze-bogus-api
+expect=exit:code=1

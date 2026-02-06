@@ -13,6 +13,67 @@ module ze-bgp-api {
         description "Initial revision";
     }
 
+    // Introspection
+
+    rpc help {
+        description "List BGP subcommands";
+        output {
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
+    }
+
+    rpc command-list {
+        description "List BGP commands";
+        output {
+            list command {
+                uses zt:command-info;
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Show BGP command details";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Complete BGP command/args";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+
+    // Plugin configuration
+
+    rpc plugin-encoding {
+        description "Set event encoding (json|text)";
+        input {
+            leaf encoding { type zt:encoding-mode; mandatory true; description "Encoding format"; }
+        }
+    }
+
+    rpc plugin-format {
+        description "Set wire format (hex|base64|parsed|full)";
+        input {
+            leaf format { type zt:wire-format; mandatory true; description "Wire format"; }
+        }
+    }
+
+    rpc plugin-ack {
+        description "Set ACK timing (sync|async)";
+        input {
+            leaf mode { type zt:ack-mode; mandatory true; description "ACK mode"; }
+        }
+    }
+
     // Daemon control
 
     rpc daemon-status {
@@ -88,8 +149,8 @@ module ze-bgp-api {
 
     // Route operations
 
-    rpc update {
-        description "Send route update using DSL command string";
+    rpc peer-update {
+        description "Batch UPDATE with text/hex/b64 encoding";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf encoding { type zt:encoding-mode; mandatory true; description "Command encoding"; }
@@ -117,7 +178,7 @@ module ze-bgp-api {
 
     // Route refresh (RFC 7313)
 
-    rpc borr {
+    rpc peer-borr {
         description "Send Beginning of Route Refresh";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
@@ -125,7 +186,7 @@ module ze-bgp-api {
         }
     }
 
-    rpc eorr {
+    rpc peer-eorr {
         description "Send End of Route Refresh";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
@@ -135,8 +196,8 @@ module ze-bgp-api {
 
     // Raw message
 
-    rpc raw {
-        description "Send raw bytes to peers";
+    rpc peer-raw {
+        description "Send raw bytes to peer (no validation)";
         input {
             leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
             leaf type { type string; description "Message type hint"; }
@@ -147,41 +208,21 @@ module ze-bgp-api {
 
     // Cache operations
 
-    rpc cache-list {
-        description "List cached BGP messages";
-        output {
-            list entry {
-                uses zt:cache-entry;
-            }
+    rpc cache {
+        description "BGP message cache operations";
+        input {
+            leaf action { type string; mandatory true; description "Cache action (list|retain|release|expire|forward)"; }
+            leaf message-id { type uint64; description "Cache message ID"; }
+            leaf peer-selector { type zt:peer-selector; description "Target peers (for forward)"; }
         }
     }
 
-    rpc cache-retain {
-        description "Mark cached message for retention";
-        input {
-            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
-        }
-    }
+    // Commit operations
 
-    rpc cache-release {
-        description "Release retained cache message";
+    rpc commit {
+        description "Named commit operations";
         input {
-            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
-        }
-    }
-
-    rpc cache-expire {
-        description "Immediately expire cached message";
-        input {
-            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
-        }
-    }
-
-    rpc cache-forward {
-        description "Forward cached message to peers";
-        input {
-            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
-            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+            leaf name { type string; description "Commit name"; }
         }
     }
 
@@ -192,6 +233,10 @@ module ze-bgp-api {
         input {
             leaf-list events { type string; description "Event types to subscribe to"; }
         }
+    }
+
+    rpc unsubscribe {
+        description "Unsubscribe from BGP events";
     }
 
     rpc event-list {

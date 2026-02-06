@@ -330,6 +330,15 @@ func validateEventType(namespace, eventType string) error {
 	return nil
 }
 
+// subscribeRPCs returns RPC registrations for handlers defined in this file.
+// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
+func subscribeRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:subscribe", "subscribe", handleSubscribe, "Subscribe to events"},
+		{"ze-bgp:unsubscribe", "unsubscribe", handleUnsubscribe, "Unsubscribe from events"},
+	}
+}
+
 // handleSubscribe handles the "subscribe" command.
 func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 	sub, err := parseSubscription(args)
@@ -364,11 +373,6 @@ func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 			"direction": sub.Direction,
 		},
 	}, nil
-}
-
-func init() {
-	RegisterBuiltin("subscribe", handleSubscribe, "Subscribe to events")
-	RegisterBuiltin("unsubscribe", handleUnsubscribe, "Unsubscribe from events")
 }
 
 // handleUnsubscribe handles the "unsubscribe" command.

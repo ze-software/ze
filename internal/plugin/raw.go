@@ -10,8 +10,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 )
 
-func init() {
-	RegisterBuiltin("bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)")
+// rawRPCs returns RPC registrations for handlers defined in this file.
+func rawRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:peer-raw", "bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)"},
+	}
 }
 
 // handleRaw sends raw bytes to a peer without validation.

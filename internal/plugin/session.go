@@ -8,11 +8,21 @@ import (
 // ErrSilent is returned when a command should produce no response.
 var ErrSilent = errors.New("silent")
 
+// sessionRPCs returns RPC registrations for handlers defined in this file.
+func sessionRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-plugin:session-ready", "plugin session ready", handlePluginSessionReady, "Signal plugin init complete"},
+		{"ze-plugin:peer-session-ready", "bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete"},
+		{"ze-plugin:session-ping", "plugin session ping", handlePluginSessionPing, "Health check (returns PID)"},
+		{"ze-plugin:session-bye", "plugin session bye", handlePluginSessionBye, "Disconnect"},
+	}
+}
+
 // handlePluginSessionPing returns a pong response for health checking.
 // Returns daemon PID for identification.
 func handlePluginSessionPing(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: "done",
+		Status: statusDone,
 		Data: map[string]any{
 			"pong": os.Getpid(),
 		},
@@ -25,7 +35,7 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*Response, error) {
 	// Currently just acknowledges the disconnect.
 	// Future: could clean up client-specific state.
 	return &Response{
-		Status: "done",
+		Status: statusDone,
 		Data: map[string]any{
 			"status": "goodbye",
 		},
@@ -47,7 +57,7 @@ func handlePluginSessionReady(ctx *CommandContext, _ []string) (*Response, error
 		}
 	}
 	return &Response{
-		Status: "done",
+		Status: statusDone,
 		Data: map[string]any{
 			"api": "ready acknowledged",
 		},

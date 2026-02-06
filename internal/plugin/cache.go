@@ -7,9 +7,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
-func init() {
-	RegisterBuiltin("bgp cache", handleBgpCache,
-		"BGP message cache operations: bgp cache <id> retain|release|expire|forward <sel>, bgp cache list")
+// cacheRPCs returns RPC registrations for handlers defined in this file.
+func cacheRPCs() []RPCRegistration {
+	return []RPCRegistration{
+		{"ze-bgp:cache", "bgp cache", handleBgpCache, "BGP message cache operations"},
+	}
 }
 
 // handleBgpCache handles all bgp cache subcommands.

@@ -11,7 +11,8 @@
 | Process management | ✅ Done | `internal/plugin/process.go` |
 | Backpressure (1000/100) | ✅ Done | `internal/plugin/process.go` |
 | Respawn limits (5/60s) | ✅ Done | `internal/plugin/process.go` |
-| Command dispatch | ✅ Done | `internal/plugin/command.go` |
+| Command dispatch | ✅ Done | `internal/plugin/command.go`, `internal/ipc/dispatch.go` |
+| YANG API schema | ✅ Done | `internal/plugin/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
 | Plugin commands | ✅ Done | `internal/plugin/registry.go`, `internal/plugin/plugin.go` |
 | Route injection | ✅ Done | `internal/plugin/rib/` |
 | BGP cache commands | ✅ Done | `internal/plugin/cache.go` |
@@ -196,18 +197,60 @@ The Ze API system enables external route injection and daemon control via:
 internal/plugin/
 ├── server.go         # Server, Client, socket listener, plugin response handling
 ├── process.go        # Process, subprocess management
-├── command.go        # Dispatcher, CommandContext, plugin routing
+├── command.go        # Dispatcher, CommandContext, AllBuiltinRPCs()
+├── handler.go        # RPCRegistration struct, constants
+├── bgp.go            # BGP handlers (daemon, peer, introspection)
+├── system.go         # System handlers (help, version, command, complete)
+├── rib_handler.go    # RIB handlers (show/clear in/out, introspection)
+├── session.go        # Session handlers (ready, ping, bye)
+├── plugin.go         # Plugin handlers (register/unregister/response)
+├── schema.go         # SchemaRegistry (RPC/notification indexing)
 ├── registry.go       # CommandRegistry for plugin commands
 ├── pending.go        # PendingRequests tracker (timeout, streaming)
-├── plugin.go         # Parse register/unregister/response
 ├── route.go          # Route handlers (announce, withdraw)
 ├── commit.go         # Transaction handlers
 ├── commit_manager.go # Transaction management
 ├── types.go          # ReactorInterface, RouteSpec, Response
-├── session.go        # Session commands (ack, sync)
-├── handler.go        # System command handlers (help, version, command)
+├── subscribe.go      # Event subscription handlers
 └── text.go           # ExaBGP-style text encoding
+
+internal/ipc/
+├── dispatch.go       # RPCDispatcher (wire-method exact-match dispatch)
+├── framing.go        # NUL-byte framing (Spec 1)
+├── message.go        # Request/Response/Error types (Spec 1)
+└── schema/           # ze-system-api.yang, ze-plugin-api.yang
+
+internal/yang/
+├── rpc.go            # Extract RPCs/notifications from YANG Entry tree
+└── loader.go         # YANG module loader
 ```
+
+### YANG API Modules
+
+Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1 to a handler function via `RPCRegistration`:
+
+| Module | Location | RPCs | Notifications |
+|--------|----------|------|---------------|
+| `ze-bgp-api` | `internal/plugin/bgp/schema/` | 26 | 7 |
+| `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
+| `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
+| `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
+
+Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/yang/rpc.go`.
+
+### Handler Registration
+
+Handlers are organized by domain, each file providing a `*RPCs()` function:
+
+| File | Function | Module |
+|------|----------|--------|
+| `bgp.go` | `handlerBgpRPCs()` + `bgpRPCs()` | ze-bgp |
+| `system.go` | `systemRPCs()` | ze-system |
+| `rib_handler.go` | `ribRPCs()` | ze-rib |
+| `session.go` | `sessionRPCs()` | ze-plugin |
+| `plugin.go` | `pluginRPCs()` | ze-plugin |
+
+`AllBuiltinRPCs()` in `command.go` aggregates all 51 handlers into a flat `[]RPCRegistration` slice.
 
 ## Connection Types
 
@@ -1097,10 +1140,19 @@ if needsAPIWait {
 |------|---------|
 | `internal/plugin/server.go` | Server, Client, socket handling |
 | `internal/plugin/process.go` | Subprocess management |
+| `internal/plugin/command.go` | Dispatcher, AllBuiltinRPCs() |
+| `internal/plugin/handler.go` | RPCRegistration struct, constants |
+| `internal/plugin/bgp.go` | BGP handlers (daemon, peer, introspection) |
+| `internal/plugin/system.go` | System handlers (help, version, command) |
+| `internal/plugin/rib_handler.go` | RIB handlers (show/clear, introspection) |
+| `internal/plugin/session.go` | Session handlers (ready, ping, bye) |
+| `internal/plugin/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
 | `internal/plugin/route.go` | Route announce/withdraw handlers |
 | `internal/plugin/types.go` | ReactorInterface, RouteSpec |
 | `internal/plugin/text.go` | Text/JSON formatting including FormatStateChange |
 | `internal/plugin/commit_manager.go` | Transaction management |
+| `internal/ipc/dispatch.go` | RPCDispatcher (wire-method exact-match) |
+| `internal/yang/rpc.go` | YANG RPC/notification extraction |
 | `internal/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
 | `internal/plugin/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
 | `internal/plugin/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |

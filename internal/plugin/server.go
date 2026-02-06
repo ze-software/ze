@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -26,6 +26,51 @@ var logger = slogutil.LazyLogger("server")
 // Default stage timeout for plugin registration protocol.
 // Each stage must complete within this duration.
 const defaultStageTimeout = 5 * time.Second
+
+// RPCParams is the standard params format for JSON RPC requests from socket clients.
+// Handlers receive Args as positional arguments and Selector as the peer filter.
+type RPCParams struct {
+	Selector string   `json:"selector,omitempty"` // Peer selector (optional)
+	Args     []string `json:"args,omitempty"`     // Command arguments (optional)
+}
+
+// wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.
+// Creates a CommandContext from the server state and extracts args from JSON params.
+func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
+	return func(_ string, params json.RawMessage) (any, error) {
+		ctx := &CommandContext{
+			Reactor:       s.reactor,
+			Encoder:       s.encoder,
+			CommitManager: s.commitManager,
+			Dispatcher:    s.dispatcher,
+			Subscriptions: s.subscriptions,
+			Peer:          "*",
+		}
+
+		var rpcParams RPCParams
+		if len(params) > 0 {
+			if err := json.Unmarshal(params, &rpcParams); err != nil {
+				return nil, fmt.Errorf("invalid params: %w", err)
+			}
+		}
+
+		if rpcParams.Selector != "" {
+			ctx.Peer = rpcParams.Selector
+		}
+
+		resp, err := handler(ctx, rpcParams.Args)
+		if err != nil {
+			return nil, err
+		}
+		if resp == nil {
+			return nil, nil
+		}
+		if resp.Status == statusError || resp.Status == "error" {
+			return nil, fmt.Errorf("%v", resp.Data)
+		}
+		return resp.Data, nil
+	}
+}
 
 // stageTransition handles coordinator stage completion and waiting.
 // Returns true if transition succeeded, false if failed (caller should return true to stop processing).
@@ -107,6 +152,7 @@ type Server struct {
 	config        *ServerConfig
 	reactor       ReactorInterface
 	dispatcher    *Dispatcher
+	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
 	encoder       *JSONEncoder
 	commitManager *CommitManager
 	procManager   *ProcessManager
@@ -145,6 +191,7 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 		config:        config,
 		reactor:       reactor,
 		dispatcher:    NewDispatcher(),
+		rpcDispatcher: ipc.NewRPCDispatcher(),
 		encoder:       NewJSONEncoder("6.0.0"),
 		commitManager: NewCommitManager(),
 		subscriptions: NewSubscriptionManager(),
@@ -153,8 +200,13 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 		clients:       make(map[string]*Client),
 	}
 
-	// Register default handlers
+	// Register default handlers (text dispatcher for plugin protocol)
 	RegisterDefaultHandlers(s.dispatcher)
+
+	// Register all builtin RPCs with wire method dispatcher (for socket clients)
+	for _, reg := range AllBuiltinRPCs() {
+		_ = s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler))
+	}
 
 	return s
 }
@@ -1098,91 +1150,56 @@ func (s *Server) handleClient(conn net.Conn) {
 	go s.clientLoop(client)
 }
 
-// clientLoop reads and processes commands from a client.
+// clientLoop reads NUL-framed JSON RPC requests and dispatches them.
 func (s *Server) clientLoop(client *Client) {
 	defer s.wg.Done()
 	defer s.removeClient(client)
-	defer func() { _ = client.conn.Close() }()
+	defer client.conn.Close() //nolint:errcheck // best-effort cleanup on defer
 
-	reader := bufio.NewReader(client.conn)
+	reader := ipc.NewFrameReader(client.conn)
+	writer := ipc.NewFrameWriter(client.conn)
 
 	for {
 		select {
 		case <-client.ctx.Done():
 			return
-		default:
+		default: // proceed to read next frame
 		}
 
-		// Read line
-		line, err := reader.ReadString('\n')
+		msg, err := reader.Read()
 		if err != nil {
-			return // Client disconnected
+			return // Client disconnected or read error
 		}
 
-		line = strings.TrimSpace(line)
-
-		// Skip empty lines
-		if line == "" {
+		if len(msg) == 0 {
 			continue
 		}
 
-		// Skip comments (lines starting with "# ")
-		if isComment(line) {
+		var req ipc.Request
+		if err := json.Unmarshal(msg, &req); err != nil {
+			errResp := &ipc.RPCError{Error: "invalid-json"}
+			if writeErr := s.writeRPCResponse(writer, errResp); writeErr != nil {
+				return
+			}
 			continue
 		}
 
-		// Process command (handles #N serial prefix)
-		s.processCommand(client, line)
-	}
-}
-
-// processCommand dispatches a command and sends response.
-func (s *Server) processCommand(client *Client, line string) {
-	// Parse #N serial prefix
-	serial, command := parseSerial(line)
-
-	ctx := &CommandContext{
-		Reactor:       s.reactor,
-		Encoder:       s.encoder,
-		CommitManager: s.commitManager,
-		Dispatcher:    s.dispatcher,
-		Subscriptions: s.subscriptions,
-		Serial:        serial,
-		// Note: Process is nil for socket clients - session commands are no-ops
-	}
-
-	resp, err := s.dispatcher.Dispatch(ctx, command)
-	if err != nil {
-		// ErrSilent means suppress response entirely
-		if errors.Is(err, ErrSilent) {
+		result := s.rpcDispatcher.Dispatch(&req)
+		if writeErr := s.writeRPCResponse(writer, result); writeErr != nil {
 			return
 		}
-		// Send error response
-		resp = &Response{
-			Status: "error",
-			Data:   err.Error(),
-		}
-	}
-
-	// Socket clients always get responses, serial in JSON body
-	if resp != nil {
-		resp.Serial = serial
-		s.sendResponse(client, resp)
 	}
 }
 
-// sendResponse sends a JSON response to the client.
-// ze-bgp JSON: wraps response in {"type":"response","response":{...}}.
-func (s *Server) sendResponse(client *Client, resp *Response) {
-	wrapped := WrapResponse(resp)
-	data, err := json.Marshal(wrapped)
+// writeRPCResponse marshals and writes an RPC response via NUL-framed writer.
+// Returns error if the write fails (caller should close connection).
+func (s *Server) writeRPCResponse(writer *ipc.FrameWriter, result any) error {
+	respJSON, err := json.Marshal(result)
 	if err != nil {
-		// Fallback error response (also wrapped)
-		data = []byte(`{"type":"response","response":{"status":"error","data":"json marshal failed"}}`)
+		logger().Warn("failed to marshal RPC response", "error", err)
+		return err
 	}
-
-	data = append(data, '\n')
-	_, _ = client.conn.Write(data)
+	return writer.Write(respJSON)
 }
 
 // removeClient removes a client from tracking.

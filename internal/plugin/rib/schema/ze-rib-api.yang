@@ -13,6 +13,57 @@ module ze-rib-api {
         description "Initial revision";
     }
 
+    // Introspection
+
+    rpc help {
+        description "Show RIB subcommands";
+        output {
+            leaf-list subcommands { type string; description "Available subcommands"; }
+        }
+    }
+
+    rpc command-list {
+        description "List RIB commands";
+        output {
+            list command {
+                leaf name { type string; description "Command name"; }
+                leaf description { type string; description "Command description"; }
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Show RIB command details";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Complete RIB command/args";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+
+    rpc event-list {
+        description "List RIB event types";
+        output {
+            list event {
+                leaf name { type string; description "Event type name"; }
+                leaf description { type string; description "Event description"; }
+            }
+        }
+    }
+
+    // RIB operations
+
     rpc show-in {
         description "Show Adj-RIB-In entries";
         input {
