@@ -235,6 +235,8 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
+| `ze-plugin-engine` | `internal/yang/modules/` | 6 | 0 |
+| `ze-plugin-callback` | `internal/yang/modules/` | 8 | 0 |
 
 Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/yang/rpc.go`.
 
@@ -291,6 +293,41 @@ Features:
 - Write queue with backpressure (high: 1000, low: 100)
 - Respawn limits (max 5 per 60 seconds)
 - **ACK controlled by serial prefix** (`#N` in command)
+
+### Plugin IPC Protocol (YANG RPC)
+
+The plugin IPC layer replaces stdin/stdout text pipes with YANG RPC calls over two Unix socket pairs per plugin. Infrastructure is in place; individual plugin migration is incremental.
+
+```
+pkg/plugin/rpc/
+├── conn.go           # rpc.Conn — shared NUL-framed JSON RPC connection
+└── types.go          # Canonical wire-format types (DeclareRegistrationInput, etc.)
+
+pkg/plugin/sdk/
+└── sdk.go            # Plugin SDK — callback-based API for plugin authors
+
+internal/plugin/
+├── socketpair.go     # DualSocketPair (internal: net.Pipe, external: socketpair)
+└── rpc_plugin.go     # PluginConn (embeds *rpc.Conn, typed stage methods)
+
+internal/yang/modules/
+├── ze-plugin-engine.yang    # RPCs engine serves (6: declare-registration, ready, etc.)
+└── ze-plugin-callback.yang  # RPCs plugin serves (8: configure, deliver-event, bye, etc.)
+```
+
+**Two-socket architecture:**
+
+| Socket | Engine Role | Plugin Role | RPCs |
+|--------|-------------|-------------|------|
+| A | Server | Client | declare-registration, declare-capabilities, ready, update-route, subscribe/unsubscribe |
+| B | Client | Server | configure, share-registry, deliver-event, encode/decode-nlri, decode-capability, execute-command, bye |
+
+**5-stage startup preserved as typed RPCs:**
+1. Plugin calls `declare-registration` (Socket A)
+2. Engine calls `configure` (Socket B)
+3. Plugin calls `declare-capabilities` (Socket A)
+4. Engine calls `share-registry` (Socket B)
+5. Plugin calls `ready` (Socket A)
 
 ## Route Injection Flow
 

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // logger is the plugin server subsystem logger (lazy initialization).
@@ -353,7 +354,11 @@ func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 		procWg.Add(1)
 		go func(p *Process) {
 			defer procWg.Done()
-			s.handleProcessStartup(p)
+			if p.config.UseRPC {
+				s.handleProcessStartupRPC(p)
+			} else {
+				s.handleProcessStartup(p)
+			}
 		}(proc)
 	}
 
@@ -361,7 +366,11 @@ func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 
 	// After startup, start async handlers for continued operation
 	for _, proc := range processes {
-		go s.handleSingleProcessCommands(proc)
+		if proc.config.UseRPC {
+			go s.handleSingleProcessCommandsRPC(proc)
+		} else {
+			go s.handleSingleProcessCommands(proc)
+		}
 	}
 }
 
@@ -1002,6 +1011,244 @@ func (s *Server) deliverRegistry(proc *Process) {
 	for _, line := range lines {
 		_ = proc.WriteEvent(line)
 	}
+}
+
+// handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.
+// Reads plugin→engine RPCs from engineConnA, sends engine→plugin callbacks via engineConnB.
+// Returns when startup is complete (StageRunning) or on error.
+func (s *Server) handleProcessStartupRPC(proc *Process) {
+	proc.SetStage(StageRegistration)
+
+	connA := proc.engineConnA
+
+	// Stage 1: Read declare-registration from plugin (Socket A)
+	req, err := connA.ReadRequest(s.ctx)
+	if err != nil {
+		logger().Error("rpc startup: read registration failed", "plugin", proc.Name(), "error", err)
+		return
+	}
+	if req.Method != "ze-plugin-engine:declare-registration" {
+		_ = connA.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method)
+		return
+	}
+
+	var regInput rpc.DeclareRegistrationInput
+	if err := json.Unmarshal(req.Params, &regInput); err != nil {
+		_ = connA.SendError(s.ctx, req.ID, "invalid registration: "+err.Error())
+		return
+	}
+
+	// Convert RPC input to engine registration type
+	reg := registrationFromRPC(&regInput)
+	reg.Name = proc.config.Name
+	proc.registration = reg
+
+	// Register with registry
+	if err := s.registry.Register(reg); err != nil {
+		_ = connA.SendError(s.ctx, req.ID, "registration conflict: "+err.Error())
+		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
+		return
+	}
+
+	// Send OK response
+	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+		return
+	}
+
+	// Progress: Registration → Config (deliver config) → Capability
+	s.progressThroughStages(proc, reg.Name, stageProgression{
+		from: StageRegistration, mid: StageConfig, to: StageCapability,
+		deliver: func(p *Process) { s.deliverConfigRPC(p) },
+	})
+
+	if proc.Stage() < StageCapability {
+		return // Stage transition failed
+	}
+
+	// Stage 3: Read declare-capabilities from plugin (Socket A)
+	req, err = connA.ReadRequest(s.ctx)
+	if err != nil {
+		logger().Error("rpc startup: read capabilities failed", "plugin", proc.Name(), "error", err)
+		return
+	}
+	if req.Method != "ze-plugin-engine:declare-capabilities" {
+		_ = connA.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method)
+		return
+	}
+
+	var capsInput rpc.DeclareCapabilitiesInput
+	if req.Params != nil {
+		if err := json.Unmarshal(req.Params, &capsInput); err != nil {
+			_ = connA.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error())
+			return
+		}
+	}
+
+	// Convert and register capabilities
+	caps := capabilitiesFromRPC(&capsInput)
+	caps.PluginName = proc.config.Name
+	proc.capabilities = caps
+
+	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
+		_ = connA.SendError(s.ctx, req.ID, "capability conflict: "+err.Error())
+		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
+		return
+	}
+
+	// Send OK response
+	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+		return
+	}
+
+	// Progress: Capability → Registry (deliver registry) → Ready
+	s.progressThroughStages(proc, caps.PluginName, stageProgression{
+		from: StageCapability, mid: StageRegistry, to: StageReady,
+		deliver: func(p *Process) { s.deliverRegistryRPC(p) },
+	})
+
+	if proc.Stage() < StageReady {
+		return // Stage transition failed
+	}
+
+	// Stage 5: Read ready from plugin (Socket A)
+	req, err = connA.ReadRequest(s.ctx)
+	if err != nil {
+		logger().Error("rpc startup: read ready failed", "plugin", proc.Name(), "error", err)
+		return
+	}
+	if req.Method != "ze-plugin-engine:ready" {
+		_ = connA.SendError(s.ctx, req.ID, "expected ready, got "+req.Method)
+		return
+	}
+
+	// Send OK response
+	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+		return
+	}
+
+	// Final stage transition: Ready → Running
+	if !s.stageTransition(proc, proc.Name(), StageReady, StageRunning) {
+		return
+	}
+	proc.SetStage(StageRunning)
+	if s.reactor != nil {
+		s.reactor.SignalAPIReady()
+	}
+}
+
+// deliverConfigRPC sends configuration to a plugin via RPC (Stage 2).
+// Uses engineConnB to send ze-plugin-callback:configure RPC.
+func (s *Server) deliverConfigRPC(proc *Process) {
+	reg := proc.Registration()
+	connB := proc.engineConnB
+
+	var sections []rpc.ConfigSection
+
+	if len(reg.WantsConfigRoots) > 0 && s.reactor != nil {
+		configTree := s.reactor.GetConfigTree()
+		if configTree != nil {
+			for _, root := range reg.WantsConfigRoots {
+				subtree := extractConfigSubtree(configTree, root)
+				if subtree == nil {
+					continue
+				}
+				jsonBytes, err := json.Marshal(subtree)
+				if err != nil {
+					continue
+				}
+				sections = append(sections, rpc.ConfigSection{Root: root, Data: string(jsonBytes)})
+			}
+		}
+	}
+
+	if err := connB.SendConfigure(s.ctx, sections); err != nil {
+		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
+	}
+}
+
+// deliverRegistryRPC sends the command registry to a plugin via RPC (Stage 4).
+// Uses engineConnB to send ze-plugin-callback:share-registry RPC.
+func (s *Server) deliverRegistryRPC(proc *Process) {
+	allCommands := s.registry.BuildCommandInfo()
+
+	totalCmds := 0
+	for _, cmds := range allCommands {
+		totalCmds += len(cmds)
+	}
+	commands := make([]rpc.RegistryCommand, 0, totalCmds)
+	for pluginName, cmds := range allCommands {
+		for _, cmd := range cmds {
+			commands = append(commands, rpc.RegistryCommand{
+				Name:     cmd.Command,
+				Plugin:   pluginName,
+				Encoding: cmd.Encoding,
+			})
+		}
+	}
+
+	connB := proc.engineConnB
+	if err := connB.SendShareRegistry(s.ctx, commands); err != nil {
+		logger().Error("deliverRegistryRPC failed", "plugin", proc.Name(), "error", err)
+	}
+}
+
+// handleSingleProcessCommandsRPC handles runtime commands for an RPC-mode plugin.
+// Runtime event delivery and plugin command handling will be activated when
+// individual plugins are converted to the RPC protocol (separate specs).
+func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
+	defer s.cleanupProcess(proc)
+
+	// Wait for shutdown — runtime RPC event delivery is activated per-plugin
+	// when each plugin is converted from text to RPC protocol.
+	<-s.ctx.Done()
+}
+
+// registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).
+func registrationFromRPC(input *rpc.DeclareRegistrationInput) *PluginRegistration {
+	reg := &PluginRegistration{
+		WantsConfigRoots: input.WantsConfig,
+		Done:             true,
+	}
+
+	for _, fam := range input.Families {
+		switch fam.Mode {
+		case familyModeBoth:
+			reg.Families = append(reg.Families, fam.Name)
+			reg.DecodeFamilies = append(reg.DecodeFamilies, fam.Name)
+		case familyModeDecode:
+			reg.DecodeFamilies = append(reg.DecodeFamilies, fam.Name)
+		default: // "encode" or unspecified
+			reg.Families = append(reg.Families, fam.Name)
+		}
+	}
+
+	for _, cmd := range input.Commands {
+		reg.Commands = append(reg.Commands, cmd.Name)
+	}
+
+	if input.Schema != nil {
+		reg.PluginSchema = &PluginSchemaDecl{
+			Module:    input.Schema.Module,
+			Namespace: input.Schema.Namespace,
+			Handlers:  input.Schema.Handlers,
+			Yang:      input.Schema.YANGText,
+		}
+	}
+
+	return reg
+}
+
+// capabilitiesFromRPC converts DeclareCapabilitiesInput (RPC types) to PluginCapabilities (engine types).
+func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *PluginCapabilities {
+	caps := &PluginCapabilities{
+		Done: true,
+	}
+
+	for _, cap := range input.Capabilities {
+		caps.Capabilities = append(caps.Capabilities, PluginCapability(cap))
+	}
+
+	return caps
 }
 
 // handlePluginFailed handles a "ready failed" message from a plugin.

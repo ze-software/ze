@@ -1,0 +1,214 @@
+module ze-plugin-callback {
+    namespace "urn:ze:plugin:callback";
+    prefix callback;
+
+    import ze-types { prefix zt; }
+
+    description
+        "RPCs served by the plugin for the engine to call (Socket B).
+         The engine uses these RPCs during startup to deliver config and
+         registry, and at runtime to deliver events and request encoding.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    // Stage 2: Engine delivers configuration.
+
+    rpc configure {
+        description
+            "Engine delivers configuration sections to the plugin.
+             Called during Stage 2 of the 5-stage startup protocol.";
+        input {
+            list section {
+                key "root";
+                leaf root {
+                    type string;
+                    description "Config root name (e.g., bgp, environment)";
+                }
+                leaf data {
+                    type string;
+                    description "JSON-encoded config data for this root";
+                }
+            }
+        }
+    }
+
+    // Stage 4: Engine shares command registry.
+
+    rpc share-registry {
+        description
+            "Engine shares the full command registry with the plugin.
+             Called during Stage 4 of the 5-stage startup protocol.";
+        input {
+            list command {
+                key "name";
+                leaf name {
+                    type string;
+                    description "Command name";
+                }
+                leaf plugin {
+                    type string;
+                    description "Plugin that registered this command";
+                }
+                leaf encoding {
+                    type string;
+                    description "Command encoding (text, hex, b64)";
+                }
+            }
+        }
+    }
+
+    // Runtime: Event delivery.
+
+    rpc deliver-event {
+        description
+            "Engine delivers a BGP event to the plugin.
+             Timeout on delivery is FATAL (program terminates).";
+        input {
+            leaf event {
+                type string;
+                mandatory true;
+                description "JSON-encoded BGP event";
+            }
+        }
+    }
+
+    // Runtime: NLRI encoding/decoding callbacks.
+
+    rpc encode-nlri {
+        description "Engine requests NLRI encoding from the plugin.";
+        input {
+            leaf family {
+                type string;
+                mandatory true;
+                description "Address family (e.g., ipv4/flow, l2vpn/evpn)";
+            }
+            leaf-list args {
+                type string;
+                description "Encoding arguments";
+            }
+        }
+        output {
+            leaf hex {
+                type string;
+                description "Hex-encoded NLRI wire bytes";
+            }
+        }
+    }
+
+    rpc decode-nlri {
+        description "Engine requests NLRI decoding from the plugin.";
+        input {
+            leaf family {
+                type string;
+                mandatory true;
+                description "Address family";
+            }
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded NLRI wire bytes";
+            }
+        }
+        output {
+            leaf json {
+                type string;
+                description "JSON-encoded decoded NLRI";
+            }
+        }
+    }
+
+    rpc decode-capability {
+        description "Engine requests capability decoding from the plugin.";
+        input {
+            leaf code {
+                type uint8;
+                mandatory true;
+                description "BGP capability code";
+            }
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded capability bytes";
+            }
+        }
+        output {
+            leaf json {
+                type string;
+                description "JSON-encoded decoded capability";
+            }
+        }
+    }
+
+    // Runtime: Command execution.
+
+    rpc execute-command {
+        description "Engine requests the plugin to execute a command.";
+        input {
+            leaf serial {
+                type string;
+                mandatory true;
+                description "Correlation serial for response tracking";
+            }
+            leaf command {
+                type string;
+                mandatory true;
+                description "Command to execute";
+            }
+            leaf-list args {
+                type string;
+                description "Command arguments";
+            }
+            leaf peer {
+                type string;
+                description "Peer context for the command";
+            }
+        }
+        output {
+            leaf status {
+                type enumeration {
+                    enum done { description "Command completed successfully"; }
+                    enum error { description "Command failed"; }
+                }
+                description "Execution result status";
+            }
+            leaf data {
+                type string;
+                description "JSON result data or error message";
+            }
+        }
+    }
+
+    // Shutdown: Clean termination.
+
+    rpc bye {
+        description
+            "Engine requests the plugin to shut down cleanly.
+             Plugin should respond, then cleanup and exit with code 0.";
+        input {
+            leaf reason {
+                type string;
+                description "Shutdown reason (e.g., shutdown, restart)";
+            }
+        }
+    }
+
+    // Error identities.
+
+    identity configuration-failed {
+        description "Configuration parsing or application failed";
+    }
+
+    identity encode-error {
+        description "NLRI encoding failed";
+    }
+
+    identity decode-error {
+        description "NLRI or capability decoding failed";
+    }
+
+    identity command-error {
+        description "Command execution failed";
+    }
+}

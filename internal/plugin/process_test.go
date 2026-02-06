@@ -705,3 +705,33 @@ func TestProcessInternalPluginStop(t *testing.T) {
 	require.NoError(t, err, "internal plugin should exit after Stop()")
 	assert.False(t, proc.Running())
 }
+
+// TestProcessInternalPluginSocketPairs verifies internal plugins use socket pairs.
+//
+// VALIDATES: Internal plugin transport uses DualSocketPair instead of io.Pipe.
+// PREVENTS: Regression to io.Pipe transport after socket pair migration.
+func TestProcessInternalPluginSocketPairs(t *testing.T) {
+	proc := NewProcess(PluginConfig{
+		Name:     "rib",
+		Internal: true,
+		Encoder:  "json",
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := proc.StartWithContext(ctx)
+	require.NoError(t, err)
+	assert.True(t, proc.Running())
+
+	// Socket pairs should be allocated for internal plugins
+	assert.NotNil(t, proc.sockets, "internal plugin should use socket pairs")
+
+	proc.Stop()
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer waitCancel()
+
+	err = proc.Wait(waitCtx)
+	require.NoError(t, err)
+}

@@ -63,6 +63,13 @@ var validEncodings = map[string]bool{
 	"hex":  true,
 }
 
+// Family mode constants for declare family commands.
+const (
+	familyModeEncode = "encode"
+	familyModeDecode = "decode"
+	familyModeBoth   = "both"
+)
+
 // Valid AFI names for family registration.
 var validAFIs = map[string]bool{
 	"ipv4":  true,
@@ -338,7 +345,7 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 		// Check for invalid "all encode/decode" - cannot claim for all families
 		if len(args) >= 2 {
 			kw := strings.ToLower(args[1])
-			if kw == "decode" || kw == "encode" {
+			if kw == familyModeDecode || kw == familyModeEncode {
 				return fmt.Errorf("cannot claim %s for 'all' families", kw)
 			}
 		}
@@ -368,7 +375,7 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 	// Both register the family for NLRI routing via server.EncodeNLRI/DecodeNLRI
 	if len(args) >= 3 {
 		kw := strings.ToLower(args[2])
-		if kw == "decode" || kw == "encode" {
+		if kw == familyModeDecode || kw == familyModeEncode {
 			// Avoid duplicates if plugin declares both encode and decode
 			found := false
 			for _, f := range reg.DecodeFamilies {

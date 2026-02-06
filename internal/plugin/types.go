@@ -538,6 +538,7 @@ type PluginConfig struct {
 	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
 	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
+	UseRPC         bool          // If true, use YANG RPC protocol instead of text
 }
 
 // ServerConfig holds API server configuration.

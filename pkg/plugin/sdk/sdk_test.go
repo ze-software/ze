@@ -1,0 +1,843 @@
+package sdk
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net"
+	"os"
+	"syscall"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+// engineSide wraps two rpc.Conns for the engine's perspective:
+//   - server: reads requests from Socket A (plugin→engine), responds on Socket A
+//   - client: sends requests on Socket B (engine→plugin), reads responses from Socket B
+type engineSide struct {
+	server *rpc.Conn // Socket A: engine is server
+	client *rpc.Conn // Socket B: engine is client
+}
+
+// newTestPair creates a connected plugin SDK + engine side using net.Pipe.
+// Returns the SDK plugin and the engine-side helper.
+func newTestPair(t *testing.T) (*Plugin, *engineSide) {
+	t.Helper()
+
+	// Socket A: Plugin → Engine
+	aPlugin, aEngine := net.Pipe()
+	// Socket B: Engine → Plugin
+	bPlugin, bEngine := net.Pipe()
+
+	t.Cleanup(func() {
+		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
+			if err := c.Close(); err != nil {
+				t.Logf("cleanup close: %v", err)
+			}
+		}
+	})
+
+	p := NewWithConn("test-plugin", aPlugin, bPlugin)
+
+	engine := &engineSide{
+		server: rpc.NewConn(aEngine, aEngine),
+		client: rpc.NewConn(bEngine, bEngine),
+	}
+
+	return p, engine
+}
+
+// callAndExpectOK sends an RPC request and expects a successful response.
+// This is a test-only helper that wraps CallRPC + CheckResponse.
+func callAndExpectOK(ctx context.Context, c *rpc.Conn, method string, params any) error {
+	raw, err := c.CallRPC(ctx, method, params)
+	if err != nil {
+		return err
+	}
+	return rpc.CheckResponse(raw)
+}
+
+// TestSDKStartup verifies the full 5-stage startup protocol via SDK.
+//
+// VALIDATES: SDK handles all 5 startup stages correctly.
+// PREVENTS: Protocol violation during startup sequence.
+func TestSDKStartup(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	// Configure SDK
+	reg := Registration{
+		Families: []FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+		},
+		Commands: []CommandDecl{
+			{Name: "show-routes", Description: "Show routes"},
+		},
+		WantsConfig: []string{"bgp"},
+	}
+
+	configReceived := make(chan []ConfigSection, 1)
+	registryReceived := make(chan []RegistryCommand, 1)
+
+	p.OnConfigure(func(sections []ConfigSection) error {
+		configReceived <- sections
+		return nil
+	})
+	p.OnShareRegistry(func(commands []RegistryCommand) {
+		registryReceived <- commands
+	})
+
+	// Run plugin in background
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, reg)
+	}()
+
+	// === Stage 1: Engine reads declare-registration ===
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput Registration
+	require.NoError(t, json.Unmarshal(req.Params, &regInput))
+	assert.Equal(t, 1, len(regInput.Families))
+	assert.Equal(t, "ipv4/unicast", regInput.Families[0].Name)
+	assert.Equal(t, 1, len(regInput.Commands))
+	assert.Equal(t, []string{"bgp"}, regInput.WantsConfig)
+
+	// Respond
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// === Stage 2: Engine sends configure ===
+	sections := []ConfigSection{
+		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
+	}
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{Sections: sections}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+
+	// Verify callback was called
+	select {
+	case got := <-configReceived:
+		assert.Equal(t, 1, len(got))
+		assert.Equal(t, "bgp", got[0].Root)
+	case <-time.After(time.Second):
+		t.Fatal("configure callback not called")
+	}
+
+	// === Stage 3: Engine reads declare-capabilities ===
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// === Stage 4: Engine sends share-registry ===
+	commands := []RegistryCommand{
+		{Name: "show-routes", Plugin: "test-plugin", Encoding: "text"},
+	}
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{Commands: commands}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+
+	select {
+	case got := <-registryReceived:
+		assert.Equal(t, 1, len(got))
+		assert.Equal(t, "show-routes", got[0].Name)
+	case <-time.After(time.Second):
+		t.Fatal("share-registry callback not called")
+	}
+
+	// === Stage 5: Engine reads ready ===
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// === Shutdown: Engine sends bye ===
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "test-complete"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	// Plugin should exit cleanly
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit after bye")
+	}
+}
+
+// TestSDKEventDelivery verifies event delivery via SDK callbacks.
+//
+// VALIDATES: Events delivered via callback are forwarded to handler.
+// PREVENTS: Events lost during runtime.
+func TestSDKEventDelivery(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	eventReceived := make(chan string, 1)
+	p.OnEvent(func(event string) error {
+		eventReceived <- event
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	// Complete startup (stages 1-5)
+	completeStartup(t, ctx, engine)
+
+	// === Runtime: deliver event ===
+	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`
+	eventInput := struct {
+		Event string `json:"event"`
+	}{Event: eventJSON}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", eventInput))
+
+	select {
+	case got := <-eventReceived:
+		assert.Equal(t, eventJSON, got)
+	case <-time.After(time.Second):
+		t.Fatal("event callback not called")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKByeCallback verifies bye callback is invoked.
+//
+// VALIDATES: Bye reason is forwarded to handler.
+// PREVENTS: Shutdown reason lost.
+func TestSDKByeCallback(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	byeReason := make(chan string, 1)
+	p.OnBye(func(reason string) {
+		byeReason <- reason
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send bye
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "shutdown"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case reason := <-byeReason:
+		assert.Equal(t, "shutdown", reason)
+	case <-time.After(time.Second):
+		t.Fatal("bye callback not called")
+	}
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// completeStartup runs through all 5 startup stages from the engine side.
+func completeStartup(t *testing.T, ctx context.Context, engine *engineSide) {
+	t.Helper()
+
+	// Stage 1: read and respond to declare-registration
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Stage 2: send configure
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+
+	// Stage 3: read and respond to declare-capabilities
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Stage 4: send share-registry
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+
+	// Stage 5: read and respond to ready
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+}
+
+// TestSDKEncodeNLRI verifies encode-nlri dispatch in the event loop.
+//
+// VALIDATES: Engine can request NLRI encoding and receive hex result.
+// PREVENTS: encode-nlri rejected as unknown method during runtime.
+func TestSDKEncodeNLRI(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnEncodeNLRI(func(family string, args []string) (string, error) {
+		return "180a0000", nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send encode-nlri request
+	encInput := struct {
+		Family string   `json:"family"`
+		Args   []string `json:"args,omitempty"`
+	}{Family: "ipv4/unicast", Args: []string{"10.0.0.0/24"}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:encode-nlri", encInput)
+	require.NoError(t, err)
+
+	// Parse response — should contain hex result
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		Hex string `json:"hex"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "180a0000", result.Hex)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDecodeNLRI verifies decode-nlri dispatch in the event loop.
+//
+// VALIDATES: Engine can request NLRI decoding and receive JSON result.
+// PREVENTS: decode-nlri rejected as unknown method during runtime.
+func TestSDKDecodeNLRI(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnDecodeNLRI(func(family string, hex string) (string, error) {
+		return `["10.0.0.0/24"]`, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send decode-nlri request
+	decInput := struct {
+		Family string `json:"family"`
+		Hex    string `json:"hex"`
+	}{Family: "ipv4/unicast", Hex: "180a0000"}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-nlri", decInput)
+	require.NoError(t, err)
+
+	// Parse response — should contain json result
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		JSON string `json:"json"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, `["10.0.0.0/24"]`, result.JSON)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKCapabilities verifies that capabilities declared via Registration are sent in Stage 3.
+//
+// VALIDATES: Capabilities from Registration are sent in declare-capabilities.
+// PREVENTS: Stage 3 always sending empty capabilities.
+func TestSDKCapabilities(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	reg := Registration{
+		Families: []FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+		},
+	}
+
+	caps := []CapabilityDecl{
+		{Code: 64, Encoding: "hex", Payload: "0001"},
+	}
+	p.SetCapabilities(caps)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, reg)
+	}()
+
+	// Stage 1: read declare-registration
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Stage 2: send configure
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+
+	// Stage 3: read declare-capabilities — should contain our caps
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+
+	var capsInput DeclareCapabilitiesInput
+	require.NoError(t, json.Unmarshal(req.Params, &capsInput))
+	require.Len(t, capsInput.Capabilities, 1)
+	assert.Equal(t, uint8(64), capsInput.Capabilities[0].Code)
+	assert.Equal(t, "hex", capsInput.Capabilities[0].Encoding)
+	assert.Equal(t, "0001", capsInput.Capabilities[0].Payload)
+
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Stage 4: send share-registry
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+
+	// Stage 5: read ready
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDecodeCapability verifies decode-capability dispatch in the event loop.
+//
+// VALIDATES: Engine can request capability decoding and receive JSON result.
+// PREVENTS: decode-capability rejected as unknown method during runtime.
+func TestSDKDecodeCapability(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnDecodeCapability(func(code uint8, hex string) (string, error) {
+		return `{"hostname":"router1"}`, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send decode-capability request
+	decCapInput := struct {
+		Code uint8  `json:"code"`
+		Hex  string `json:"hex"`
+	}{Code: 73, Hex: "07686f73746e616d65"}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-capability", decCapInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		JSON string `json:"json"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, `{"hostname":"router1"}`, result.JSON)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKExecuteCommand verifies execute-command dispatch in the event loop.
+//
+// VALIDATES: Engine can request command execution and receive status + data.
+// PREVENTS: execute-command rejected as unknown method during runtime.
+func TestSDKExecuteCommand(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+		return "done", `{"routes":[]}`, nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send execute-command request
+	execInput := struct {
+		Serial  string   `json:"serial"`
+		Command string   `json:"command"`
+		Args    []string `json:"args,omitempty"`
+		Peer    string   `json:"peer,omitempty"`
+	}{Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1"}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:execute-command", execInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		Status string `json:"status"`
+		Data   string `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "done", result.Status)
+	assert.Equal(t, `{"routes":[]}`, result.Data)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKUpdateRoute verifies the plugin can call update-route on the engine.
+//
+// VALIDATES: SDK UpdateRoute sends RPC to engine and parses response.
+// PREVENTS: Plugin unable to inject routes at runtime.
+func TestSDKUpdateRoute(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: send a no-op event to confirm the event loop is running.
+	// This ensures the Stage 5 ready callRPC goroutine on engineConn has
+	// completed before we call UpdateRoute on the same connection.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls UpdateRoute in background (during event loop, we need
+	// to handle the engine's response while also keeping the event loop alive)
+	routeDone := make(chan error, 1)
+	go func() {
+		affected, sent, err := p.UpdateRoute(ctx, "*", "announce route 10.0.0.0/24 next-hop 1.1.1.1")
+		if err != nil {
+			routeDone <- err
+			return
+		}
+		if affected != 3 || sent != 1 {
+			routeDone <- fmt.Errorf("unexpected: affected=%d sent=%d", affected, sent)
+			return
+		}
+		routeDone <- nil
+	}()
+
+	// Engine reads update-route request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:update-route", req.Method)
+
+	// Respond with result
+	routeResult := struct {
+		PeersAffected uint32 `json:"peers-affected"`
+		RoutesSent    uint32 `json:"routes-sent"`
+	}{PeersAffected: 3, RoutesSent: 1}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, routeResult))
+
+	require.NoError(t, <-routeDone)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestNewFromFDs verifies plugin creation from file descriptors.
+//
+// VALIDATES: NewFromFDs creates a working plugin from socketpair FDs.
+// PREVENTS: External plugin SDK constructor not working.
+func TestNewFromFDs(t *testing.T) {
+	t.Parallel()
+
+	// Create real socketpairs
+	pairs, err := newExternalTestPairs(t)
+	require.NoError(t, err)
+
+	engineFD := pairs.engineFD
+	callbackFD := pairs.callbackFD
+
+	p, err := NewFromFDs("test-plugin", engineFD, callbackFD)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if closeErr := p.Close(); closeErr != nil {
+			t.Logf("close plugin: %v", closeErr)
+		}
+	})
+
+	// Verify we can communicate — send a frame from engine side, read from plugin
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Engine writes a request on callback socket (Socket B)
+	go func() {
+		if writeErr := pairs.callbackEngine.WriteFrame(map[string]any{
+			"method": "ze-plugin-callback:bye",
+			"params": map[string]string{"reason": "test"},
+			"id":     1,
+		}); writeErr != nil {
+			t.Logf("WriteFrame: %v", writeErr)
+		}
+	}()
+
+	// Plugin reads it
+	req, err := p.callbackConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:bye", req.Method)
+}
+
+// TestSDKCloseUnblocksRead verifies that Close() unblocks goroutines waiting on Read().
+//
+// VALIDATES: Close() causes blocked ReadRequest to return an error promptly.
+// PREVENTS: Goroutine leaks when plugin is shut down via Close().
+func TestSDKCloseUnblocksRead(t *testing.T) {
+	t.Parallel()
+
+	p, _ := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Start a goroutine that blocks on ReadRequest (no data will ever arrive).
+	readDone := make(chan error, 1)
+	go func() {
+		_, err := p.callbackConn.ReadRequest(ctx)
+		readDone <- err
+	}()
+
+	// Give the goroutine time to block on Read().
+	time.Sleep(50 * time.Millisecond)
+
+	// Close should unblock the read.
+	require.NoError(t, p.Close())
+
+	select {
+	case err := <-readDone:
+		// We expect an error (io.EOF or "use of closed network connection").
+		require.Error(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("Close() did not unblock ReadRequest")
+	}
+}
+
+// externalTestPairs holds real socketpair FDs for testing NewFromFDs.
+type externalTestPairs struct {
+	engineFD       int       // Plugin's end of Socket A (FD for plugin→engine)
+	callbackFD     int       // Plugin's end of Socket B (FD for engine→plugin)
+	callbackEngine *rpc.Conn // Engine's end of Socket B (for writing requests)
+}
+
+// newExternalTestPairs creates real Unix socketpairs for testing external plugin FD passing.
+func newExternalTestPairs(t *testing.T) (*externalTestPairs, error) {
+	t.Helper()
+
+	// Socket A: Plugin→Engine
+	aFDs, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		return nil, fmt.Errorf("socketpair A: %w", err)
+	}
+
+	// Socket B: Engine→Plugin
+	bFDs, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	if err != nil {
+		closeFDs(t, aFDs[0], aFDs[1])
+		return nil, fmt.Errorf("socketpair B: %w", err)
+	}
+
+	// Engine's end of Socket B → wrap as net.Conn for writing
+	bEngineFile := os.NewFile(uintptr(bFDs[0]), "callback-engine")
+	bEngineConn, err := net.FileConn(bEngineFile)
+	if closeErr := bEngineFile.Close(); closeErr != nil {
+		t.Logf("close bEngineFile: %v", closeErr)
+	}
+	if err != nil {
+		closeFDs(t, aFDs[0], aFDs[1], bFDs[1])
+		return nil, fmt.Errorf("fileconn B engine: %w", err)
+	}
+
+	t.Cleanup(func() {
+		closeFDs(t, aFDs[0])
+		if closeErr := bEngineConn.Close(); closeErr != nil {
+			t.Logf("close bEngineConn: %v", closeErr)
+		}
+	})
+
+	return &externalTestPairs{
+		engineFD:       aFDs[1],
+		callbackFD:     bFDs[1],
+		callbackEngine: rpc.NewConn(bEngineConn, bEngineConn),
+	}, nil
+}
+
+// closeFDs closes file descriptors, logging any errors.
+func closeFDs(t *testing.T, fds ...int) {
+	t.Helper()
+	for _, fd := range fds {
+		if err := syscall.Close(fd); err != nil {
+			t.Logf("close fd %d: %v", fd, err)
+		}
+	}
+}

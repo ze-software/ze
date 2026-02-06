@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -787,4 +788,169 @@ func TestServerNULProtocolWithParams(t *testing.T) {
 	// Verify result contains daemon status fields
 	assert.Contains(t, string(result.Result), `"peer_count"`)
 	assert.Contains(t, string(result.Result), `3`)
+}
+
+// TestHandleProcessStartupRPC verifies the engine-side RPC handling of the 5-stage
+// plugin startup protocol using per-socket PluginConns.
+//
+// VALIDATES: Engine correctly handles all 5 stages via YANG RPC protocol.
+// PREVENTS: RPC infrastructure broken when plugins are converted from text protocol.
+func TestHandleProcessStartupRPC(t *testing.T) {
+	t.Parallel()
+
+	// Create socket pairs
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	defer pairs.Close()
+
+	// Set up process with RPC connections (per-socket wiring)
+	proc := NewProcess(PluginConfig{
+		Name:     "test-rpc",
+		Internal: true,
+		UseRPC:   true,
+		Encoder:  "json",
+	})
+	proc.sockets = pairs
+	proc.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	proc.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+	proc.running.Store(true)
+
+	// Set up server with mock reactor
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{}, reactor)
+	server.ctx, server.cancel = context.WithCancel(ctx)
+	server.coordinator = NewStartupCoordinator(1)
+
+	// Plugin side: per-socket PluginConns (simulates SDK pattern)
+	pluginConnA := NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
+	pluginConnB := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+
+	// Run plugin protocol in goroutine (simulates SDK 5-stage startup)
+	pluginDone := make(chan struct{})
+	go func() {
+		defer close(pluginDone)
+
+		// Stage 1: Send declare-registration on Socket A
+		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
+			WantsConfig: []string{"bgp"},
+		})
+
+		// Stage 2: Receive configure on Socket B, respond OK
+		req, err := pluginConnB.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		_ = pluginConnB.SendResult(ctx, req.ID, nil)
+
+		// Stage 3: Send declare-capabilities on Socket A
+		_ = pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{})
+
+		// Stage 4: Receive share-registry on Socket B, respond OK
+		req, err = pluginConnB.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		_ = pluginConnB.SendResult(ctx, req.ID, nil)
+
+		// Stage 5: Send ready on Socket A
+		_ = pluginConnA.SendReady(ctx)
+	}()
+
+	// Run engine-side RPC startup handler
+	server.handleProcessStartupRPC(proc)
+
+	// Verify process reached StageRunning
+	assert.Equal(t, StageRunning, proc.Stage())
+
+	// Verify registration was recorded
+	reg := proc.Registration()
+	assert.True(t, reg.Done, "registration should be marked done")
+	assert.Contains(t, reg.Families, "ipv4/unicast")
+	assert.Contains(t, reg.DecodeFamilies, "ipv4/unicast")
+	assert.Equal(t, []string{"bgp"}, reg.WantsConfigRoots)
+	assert.Equal(t, "test-rpc", reg.Name)
+
+	// Clean up
+	cancel()
+	<-pluginDone
+}
+
+// TestRegistrationFromRPC verifies conversion from RPC types to engine types.
+//
+// VALIDATES: DeclareRegistrationInput correctly maps to PluginRegistration.
+// PREVENTS: Lost fields or incorrect family mode mapping during conversion.
+func TestRegistrationFromRPC(t *testing.T) {
+	t.Parallel()
+
+	input := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+			{Name: "ipv4/flow", Mode: "decode"},
+			{Name: "ipv6/unicast", Mode: "encode"},
+		},
+		Commands:    []rpc.CommandDecl{{Name: "show-routes"}},
+		WantsConfig: []string{"bgp", "environment"},
+		Schema: &rpc.SchemaDecl{
+			Module:    "ze-test",
+			Namespace: "urn:ze:test",
+			YANGText:  "module ze-test { }",
+			Handlers:  []string{"test", "test.sub"},
+		},
+	}
+
+	reg := registrationFromRPC(input)
+
+	assert.True(t, reg.Done)
+	// "both" → appears in both lists
+	assert.Contains(t, reg.Families, "ipv4/unicast")
+	assert.Contains(t, reg.DecodeFamilies, "ipv4/unicast")
+	// "decode" → only in DecodeFamilies
+	assert.NotContains(t, reg.Families, "ipv4/flow")
+	assert.Contains(t, reg.DecodeFamilies, "ipv4/flow")
+	// "encode" → only in Families
+	assert.Contains(t, reg.Families, "ipv6/unicast")
+	assert.NotContains(t, reg.DecodeFamilies, "ipv6/unicast")
+
+	assert.Equal(t, []string{"show-routes"}, reg.Commands)
+	assert.Equal(t, []string{"bgp", "environment"}, reg.WantsConfigRoots)
+
+	require.NotNil(t, reg.PluginSchema)
+	assert.Equal(t, "ze-test", reg.PluginSchema.Module)
+	assert.Equal(t, "urn:ze:test", reg.PluginSchema.Namespace)
+	assert.Equal(t, "module ze-test { }", reg.PluginSchema.Yang)
+	assert.Equal(t, []string{"test", "test.sub"}, reg.PluginSchema.Handlers)
+}
+
+// TestCapabilitiesFromRPC verifies conversion of capability declarations.
+//
+// VALIDATES: DeclareCapabilitiesInput correctly maps to PluginCapabilities.
+// PREVENTS: Lost capability fields during conversion.
+func TestCapabilitiesFromRPC(t *testing.T) {
+	t.Parallel()
+
+	input := &rpc.DeclareCapabilitiesInput{
+		Capabilities: []rpc.CapabilityDecl{
+			{Code: 73, Encoding: "text", Payload: "router.example.com"},
+			{Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"192.168.1.1"}},
+		},
+	}
+
+	caps := capabilitiesFromRPC(input)
+
+	assert.True(t, caps.Done)
+	require.Len(t, caps.Capabilities, 2)
+
+	assert.Equal(t, uint8(73), caps.Capabilities[0].Code)
+	assert.Equal(t, "text", caps.Capabilities[0].Encoding)
+	assert.Equal(t, "router.example.com", caps.Capabilities[0].Payload)
+	assert.Empty(t, caps.Capabilities[0].Peers)
+
+	assert.Equal(t, uint8(64), caps.Capabilities[1].Code)
+	assert.Equal(t, "hex", caps.Capabilities[1].Encoding)
+	assert.Equal(t, "0078", caps.Capabilities[1].Payload)
+	assert.Equal(t, []string{"192.168.1.1"}, caps.Capabilities[1].Peers)
 }

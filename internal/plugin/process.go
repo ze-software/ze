@@ -63,6 +63,14 @@ type Process struct {
 	// Channel for lines read from stdout (single reader goroutine)
 	lines chan string
 
+	// Socket pairs for IPC (internal plugins use net.Pipe, external use socketpair)
+	sockets *DualSocketPair
+
+	// RPC connections for YANG RPC protocol (per-socket wiring).
+	// Only set when config.UseRPC is true.
+	engineConnA *PluginConn // Socket A: reads/writes plugin→engine RPCs
+	engineConnB *PluginConn // Socket B: reads/writes engine→plugin callbacks
+
 	// Write queue for backpressure management
 	writeQueue chan []byte
 
@@ -310,45 +318,52 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	return p.startExternal()
 }
 
-// startInternal starts an internal plugin as a goroutine with io.Pipe.
+// startInternal starts an internal plugin as a goroutine with socket pairs.
+// Uses NewInternalSocketPairs() for in-memory bidirectional connections.
+// When config.UseRPC is true, creates per-socket PluginConns for YANG RPC protocol.
+// When false, uses text-based readLines/writeLoop for legacy protocol.
 func (p *Process) startInternal() error {
 	runner := GetInternalPluginRunner(p.config.Name)
 	if runner == nil {
 		return fmt.Errorf("unknown internal plugin: %s", p.config.Name)
 	}
 
-	// Create pipes for stdin/stdout
-	stdinReader, stdinWriter := io.Pipe()
-	stdoutReader, stdoutWriter := io.Pipe()
-
-	p.stdin = stdinWriter
-	p.stdout = stdoutReader
-	p.reader = bufio.NewReader(stdoutReader)
+	// Create socket pairs for bidirectional IPC
+	pairs, err := NewInternalSocketPairs()
+	if err != nil {
+		return fmt.Errorf("creating socket pairs: %w", err)
+	}
+	p.sockets = pairs
 	p.stderr = nil // Internal plugins don't have stderr
-
 	p.running.Store(true)
 
-	// Create channel for stdout lines
-	p.lines = make(chan string, 100)
-
-	// Create write queue for backpressure management
-	p.writeQueue = make(chan []byte, WriteQueueHighWater)
-
-	// Start single reader goroutine for stdout
-	go p.readLines()
-
-	// Start write loop goroutine for backpressure management
-	go p.writeLoop()
+	if p.config.UseRPC {
+		// RPC mode: create per-socket PluginConns for YANG RPC protocol.
+		// Per-socket wiring: each PluginConn reads+writes on the same socket,
+		// which is compatible with the SDK's bidirectional per-socket pattern.
+		p.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+		p.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+	} else {
+		// Text mode: use newline-delimited text protocol via readLines/writeLoop.
+		p.stdin = pairs.Callback.EngineSide // Engine writes events/callbacks to plugin
+		p.stdout = pairs.Engine.EngineSide  // Engine reads calls/commands from plugin
+		p.reader = bufio.NewReader(pairs.Engine.EngineSide)
+		p.lines = make(chan string, 100)
+		p.writeQueue = make(chan []byte, WriteQueueHighWater)
+		go p.readLines()
+		go p.writeLoop()
+	}
 
 	// Start the plugin in a goroutine
+	// Plugin side: read from callback socket, write to engine socket
 	p.wg.Add(1)
 	go func() {
 		defer p.wg.Done()
 		defer p.running.Store(false)
-		defer func() { _ = stdoutWriter.Close() }()
-		defer func() { _ = stdinReader.Close() }()
+		defer func() { _ = pairs.Engine.PluginSide.Close() }()
+		defer func() { _ = pairs.Callback.PluginSide.Close() }()
 
-		_ = runner(stdinReader, stdoutWriter)
+		_ = runner(pairs.Callback.PluginSide, pairs.Engine.PluginSide)
 	}()
 
 	return nil
@@ -517,12 +532,18 @@ func (p *Process) Stop() {
 		p.cancel()
 	}
 
-	// For internal plugins, close stdin to unblock the plugin's read.
+	// For internal plugins, close connections to unblock the plugin's read.
 	// External plugins are killed by context cancellation.
 	if p.config.Internal {
 		p.mu.Lock()
 		if p.stdin != nil {
 			_ = p.stdin.Close()
+		}
+		if p.engineConnA != nil {
+			_ = p.engineConnA.Close()
+		}
+		if p.engineConnB != nil {
+			_ = p.engineConnB.Close()
 		}
 		p.mu.Unlock()
 	}
@@ -694,7 +715,7 @@ func (p *Process) monitor() {
 		p.cancel()
 	}
 
-	// Close pipes
+	// Close pipes and RPC connections
 	p.mu.Lock()
 	if p.stdin != nil {
 		_ = p.stdin.Close()
@@ -704,6 +725,12 @@ func (p *Process) monitor() {
 	}
 	if p.stderr != nil {
 		_ = p.stderr.Close()
+	}
+	if p.engineConnA != nil {
+		_ = p.engineConnA.Close()
+	}
+	if p.engineConnB != nil {
+		_ = p.engineConnB.Close()
 	}
 	p.mu.Unlock()
 }

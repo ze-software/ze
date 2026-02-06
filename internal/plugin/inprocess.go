@@ -18,7 +18,9 @@ import (
 )
 
 // InternalPluginRunner is a function that runs a plugin in-process.
-// It reads from in, writes to out, and returns an exit code.
+// Accepts io.Reader/io.Writer (satisfied by net.Conn from socket pairs).
+// in = callback socket plugin side (plugin reads engine events/callbacks).
+// out = engine socket plugin side (plugin writes engine calls).
 type InternalPluginRunner func(in io.Reader, out io.Writer) int
 
 // internalPluginRunners maps plugin names to their runner functions.

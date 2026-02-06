@@ -1,0 +1,672 @@
+package plugin
+
+import (
+	"context"
+	"encoding/json"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+// helper: create a connected PluginConn pair (engine side + plugin side)
+// using internal socket pairs (net.Pipe).
+func newTestPluginConn(t *testing.T) (engineConn *PluginConn, pluginConn *PluginConn) {
+	t.Helper()
+
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+
+	t.Cleanup(func() { pairs.Close() })
+
+	// Engine side: reads from Engine.EngineSide (Socket A server),
+	// writes to Callback.EngineSide (Socket B client)
+	engineConn = NewPluginConn(pairs.Engine.EngineSide, pairs.Callback.EngineSide)
+
+	// Plugin side: reads from Callback.PluginSide (Socket B server),
+	// writes to Engine.PluginSide (Socket A client)
+	pluginConn = NewPluginConn(pairs.Callback.PluginSide, pairs.Engine.PluginSide)
+
+	return engineConn, pluginConn
+}
+
+// TestRPCDeclareRegistration verifies Stage 1: plugin declares registration via RPC.
+//
+// VALIDATES: Plugin sends declare-registration RPC, engine receives and parses it.
+// PREVENTS: Registration data lost in transit or mis-parsed.
+func TestRPCDeclareRegistration(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	regInput := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+			{Name: "ipv4/flow", Mode: "decode"},
+		},
+		Commands: []rpc.CommandDecl{
+			{Name: "show-routes", Description: "Show routes"},
+		},
+		WantsConfig: []string{"bgp"},
+		Schema: &rpc.SchemaDecl{
+			Module:    "ze-test",
+			Namespace: "urn:ze:test",
+			Handlers:  []string{"test"},
+		},
+	}
+
+	// Plugin sends declare-registration on Socket A (write side)
+	done := make(chan error, 1)
+	go func() {
+		done <- pluginConn.SendDeclareRegistration(context.Background(), regInput)
+	}()
+
+	// Engine receives on Socket A (read side)
+	req, err := engineConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	// Parse the params
+	var received rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &received))
+	assert.Equal(t, 2, len(received.Families))
+	assert.Equal(t, "ipv4/unicast", received.Families[0].Name)
+	assert.Equal(t, "both", received.Families[0].Mode)
+	assert.Equal(t, 1, len(received.Commands))
+	assert.Equal(t, "show-routes", received.Commands[0].Name)
+	assert.Equal(t, []string{"bgp"}, received.WantsConfig)
+	assert.Equal(t, "ze-test", received.Schema.Module)
+
+	// Engine sends response
+	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))
+
+	// Plugin should complete without error
+	require.NoError(t, <-done)
+}
+
+// TestRPCConfigure verifies Stage 2: engine delivers config to plugin via RPC.
+//
+// VALIDATES: Engine sends configure RPC on callback socket, plugin receives config sections.
+// PREVENTS: Config delivery failing or sections being lost.
+func TestRPCConfigure(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	sections := []rpc.ConfigSection{
+		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
+	}
+
+	// Engine sends configure on Socket B (callback write side)
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendConfigure(context.Background(), sections)
+	}()
+
+	// Plugin receives on Socket B (callback read side)
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:configure", req.Method)
+
+	var input rpc.ConfigureInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, 1, len(input.Sections))
+	assert.Equal(t, "bgp", input.Sections[0].Root)
+	assert.Equal(t, `{"router-id":"1.2.3.4"}`, input.Sections[0].Data)
+
+	// Plugin sends response
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+
+	require.NoError(t, <-done)
+}
+
+// TestRPCDeclareCapabilities verifies Stage 3: plugin declares capabilities via RPC.
+//
+// VALIDATES: Plugin sends declare-capabilities RPC with capability list.
+// PREVENTS: Capability codes or payloads being corrupted.
+func TestRPCDeclareCapabilities(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	caps := &rpc.DeclareCapabilitiesInput{
+		Capabilities: []rpc.CapabilityDecl{
+			{Code: 64, Encoding: "hex", Payload: "40780078"},
+			{Code: 2}, // route-refresh, no payload
+		},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- pluginConn.SendDeclareCapabilities(context.Background(), caps)
+	}()
+
+	req, err := engineConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+
+	var received rpc.DeclareCapabilitiesInput
+	require.NoError(t, json.Unmarshal(req.Params, &received))
+	assert.Equal(t, 2, len(received.Capabilities))
+	assert.Equal(t, uint8(64), received.Capabilities[0].Code)
+	assert.Equal(t, "40780078", received.Capabilities[0].Payload)
+	assert.Equal(t, uint8(2), received.Capabilities[1].Code)
+
+	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCShareRegistry verifies Stage 4: engine shares command registry via RPC.
+//
+// VALIDATES: Engine sends share-registry RPC with command list.
+// PREVENTS: Registry data being lost during Stage 4.
+func TestRPCShareRegistry(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	commands := []rpc.RegistryCommand{
+		{Name: "show-routes", Plugin: "flowspec", Encoding: "text"},
+		{Name: "clear-rib", Plugin: "rib", Encoding: "text"},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendShareRegistry(context.Background(), commands)
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:share-registry", req.Method)
+
+	var input rpc.ShareRegistryInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, 2, len(input.Commands))
+	assert.Equal(t, "show-routes", input.Commands[0].Name)
+	assert.Equal(t, "flowspec", input.Commands[0].Plugin)
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCReady verifies Stage 5: plugin signals readiness via RPC.
+//
+// VALIDATES: Plugin sends ready RPC, engine acknowledges.
+// PREVENTS: Ready signal not reaching engine.
+func TestRPCReady(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- pluginConn.SendReady(context.Background())
+	}()
+
+	req, err := engineConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+
+	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCDeliverEvent verifies runtime event delivery via callback RPC.
+//
+// VALIDATES: Engine delivers BGP event to plugin via deliver-event RPC.
+// PREVENTS: Events being lost or malformed during delivery.
+func TestRPCDeliverEvent(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendDeliverEvent(context.Background(), eventJSON)
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:deliver-event", req.Method)
+
+	var input rpc.DeliverEventInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, eventJSON, input.Event)
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCEncodeNLRI verifies encode-nlri callback RPC.
+//
+// VALIDATES: Engine sends encode request, plugin returns hex result.
+// PREVENTS: Encode request/response corruption.
+func TestRPCEncodeNLRI(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		hex string
+		err error
+	}, 1)
+	go func() {
+		hex, err := engineConn.SendEncodeNLRI(context.Background(), "ipv4/flow", []string{"match", "source", "10.0.0.0/24"})
+		done <- struct {
+			hex string
+			err error
+		}{hex, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:encode-nlri", req.Method)
+
+	// Plugin responds with hex
+	result := map[string]string{"hex": "180a0000"}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "180a0000", r.hex)
+}
+
+// TestRPCDecodeNLRI verifies decode-nlri callback RPC.
+//
+// VALIDATES: Engine sends decode request, plugin returns JSON result.
+// PREVENTS: Decode request/response corruption.
+func TestRPCDecodeNLRI(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		json string
+		err  error
+	}, 1)
+	go func() {
+		j, err := engineConn.SendDecodeNLRI(context.Background(), "ipv4/flow", "180a0000")
+		done <- struct {
+			json string
+			err  error
+		}{j, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:decode-nlri", req.Method)
+
+	result := map[string]string{"json": `[{"source":"10.0.0.0/24"}]`}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, `[{"source":"10.0.0.0/24"}]`, r.json)
+}
+
+// TestRPCBye verifies clean shutdown via bye RPC.
+//
+// VALIDATES: Engine sends bye, plugin receives and acknowledges.
+// PREVENTS: Shutdown not being communicated to plugin.
+func TestRPCBye(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendBye(context.Background(), "shutdown")
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:bye", req.Method)
+
+	var input rpc.ByeInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "shutdown", input.Reason)
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestSlowPluginFatal verifies that slow event delivery causes a timeout error.
+//
+// VALIDATES: deliver-event with timeout returns error if plugin doesn't respond.
+// PREVENTS: Engine hanging indefinitely on slow plugin.
+func TestSlowPluginFatal(t *testing.T) {
+	t.Parallel()
+
+	engineConn, _ := newTestPluginConn(t)
+
+	// Use a very short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Send event but plugin never reads — should timeout.
+	// With net.Pipe, writes block when reader isn't reading,
+	// so writeWithContext will return context.DeadlineExceeded.
+	err := engineConn.SendDeliverEvent(ctx, `{"type":"bgp"}`)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// TestRPCRequestIDRoundTrip verifies that request IDs survive the round trip.
+//
+// VALIDATES: ID set on request is echoed in response.
+// PREVENTS: ID correlation breaking.
+func TestRPCRequestIDRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- pluginConn.SendReady(context.Background())
+	}()
+
+	req, err := engineConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+
+	// Verify request has an ID
+	assert.NotNil(t, req.ID)
+	assert.True(t, len(req.ID) > 0)
+
+	// Send response with same ID
+	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCErrorResponse verifies that error responses are propagated.
+//
+// VALIDATES: RPC error from engine is returned as Go error to plugin.
+// PREVENTS: Errors being silently swallowed.
+func TestRPCErrorResponse(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan error, 1)
+	go func() {
+		done <- pluginConn.SendReady(context.Background())
+	}()
+
+	req, err := engineConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+
+	// Send error response
+	require.NoError(t, engineConn.SendError(context.Background(), req.ID, "stage-timeout"))
+
+	err = <-done
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "stage-timeout")
+}
+
+// TestRPCFullStartupCycle verifies the complete 5-stage startup + bye via PluginConn.
+//
+// VALIDATES: All 5 stages execute in order using typed RPC methods.
+// PREVENTS: Protocol violations when stages are chained together.
+func TestRPCFullStartupCycle(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Run plugin side in background (simulates a real plugin)
+	errCh := make(chan error, 1)
+	go func() {
+		// Stage 1: plugin sends declare-registration
+		if err := pluginConn.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
+			Commands:    []rpc.CommandDecl{{Name: "show-routes", Description: "Show routes"}},
+			WantsConfig: []string{"bgp"},
+		}); err != nil {
+			errCh <- err
+			return
+		}
+
+		// Stage 2: plugin receives configure
+		req, err := pluginConn.ReadRequest(ctx)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if err := pluginConn.SendResult(ctx, req.ID, nil); err != nil {
+			errCh <- err
+			return
+		}
+
+		// Stage 3: plugin sends declare-capabilities
+		if err := pluginConn.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{}); err != nil {
+			errCh <- err
+			return
+		}
+
+		// Stage 4: plugin receives share-registry
+		req, err = pluginConn.ReadRequest(ctx)
+		if err != nil {
+			errCh <- err
+			return
+		}
+		if err := pluginConn.SendResult(ctx, req.ID, nil); err != nil {
+			errCh <- err
+			return
+		}
+
+		// Stage 5: plugin sends ready
+		if err := pluginConn.SendReady(ctx); err != nil {
+			errCh <- err
+			return
+		}
+
+		// Runtime: plugin receives bye
+		req, err = pluginConn.ReadRequest(ctx)
+		if err != nil {
+			errCh <- err
+			return
+		}
+
+		var bye rpc.ByeInput
+		if err := json.Unmarshal(req.Params, &bye); err != nil {
+			errCh <- err
+			return
+		}
+		if err := pluginConn.SendResult(ctx, req.ID, nil); err != nil {
+			errCh <- err
+			return
+		}
+
+		errCh <- nil
+	}()
+
+	// Engine side: orchestrate the 5-stage protocol
+
+	// Stage 1: engine reads declare-registration
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &regInput))
+	assert.Equal(t, 1, len(regInput.Families))
+	assert.Equal(t, []string{"bgp"}, regInput.WantsConfig)
+	require.NoError(t, engineConn.SendResult(ctx, req.ID, nil))
+
+	// Stage 2: engine sends configure
+	require.NoError(t, engineConn.SendConfigure(ctx, []rpc.ConfigSection{
+		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
+	}))
+
+	// Stage 3: engine reads declare-capabilities
+	req, err = engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engineConn.SendResult(ctx, req.ID, nil))
+
+	// Stage 4: engine sends share-registry
+	require.NoError(t, engineConn.SendShareRegistry(ctx, []rpc.RegistryCommand{
+		{Name: "show-routes", Plugin: "test-plugin", Encoding: "text"},
+	}))
+
+	// Stage 5: engine reads ready
+	req, err = engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engineConn.SendResult(ctx, req.ID, nil))
+
+	// Shutdown: engine sends bye
+	require.NoError(t, engineConn.SendBye(ctx, "test-complete"))
+
+	// Plugin should exit cleanly
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit after bye")
+	}
+}
+
+// TestEngineCallRPCIDVerification verifies that engine-side callRPC rejects
+// responses with mismatched IDs.
+//
+// VALIDATES: Engine detects response ID mismatch (same safety as SDK).
+// PREVENTS: Buggy plugin sending wrong response ID going undetected.
+func TestEngineCallRPCIDVerification(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	// Engine sends an RPC via callRPC
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendReady(ctx)
+	}()
+
+	// Plugin reads request
+	req, err := pluginConn.ReadRequest(ctx)
+	require.NoError(t, err)
+
+	// Plugin responds with WRONG ID (original ID + 999)
+	wrongID := json.RawMessage(`999`)
+	_ = req.ID // suppress unused
+	require.NoError(t, pluginConn.SendResult(ctx, wrongID, nil))
+
+	// Engine should detect the mismatch
+	err = <-done
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "id mismatch")
+}
+
+// TestEngineDecodeCapability verifies decode-capability RPC from engine to plugin.
+//
+// VALIDATES: Engine sends decode-capability, plugin returns decoded JSON.
+// PREVENTS: decode-capability not being available on engine side.
+func TestEngineDecodeCapability(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		json string
+		err  error
+	}, 1)
+	go func() {
+		j, err := engineConn.SendDecodeCapability(context.Background(), 73, "07686f73746e616d65")
+		done <- struct {
+			json string
+			err  error
+		}{j, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:decode-capability", req.Method)
+
+	var input rpc.DecodeCapabilityInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, uint8(73), input.Code)
+	assert.Equal(t, "07686f73746e616d65", input.Hex)
+
+	result := map[string]string{"json": `{"hostname":"router1"}`}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, `{"hostname":"router1"}`, r.json)
+}
+
+// TestEngineExecuteCommand verifies execute-command RPC from engine to plugin.
+//
+// VALIDATES: Engine sends execute-command, plugin returns status + data.
+// PREVENTS: execute-command not being available on engine side.
+func TestEngineExecuteCommand(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ExecuteCommandOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendExecuteCommand(context.Background(), "abc123", "show-routes", []string{"ipv4"}, "10.0.0.1")
+		done <- struct {
+			output *rpc.ExecuteCommandOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:execute-command", req.Method)
+
+	var input rpc.ExecuteCommandInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "abc123", input.Serial)
+	assert.Equal(t, "show-routes", input.Command)
+	assert.Equal(t, []string{"ipv4"}, input.Args)
+	assert.Equal(t, "10.0.0.1", input.Peer)
+
+	result := &rpc.ExecuteCommandOutput{Status: "done", Data: `{"routes":[]}`}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "done", r.output.Status)
+	assert.Equal(t, `{"routes":[]}`, r.output.Data)
+}
+
+// TestCapabilityCodeBoundary verifies boundary values for capability codes.
+//
+// VALIDATES: Capability code 0 and 255 are valid, no overflow.
+// PREVENTS: Off-by-one errors in capability code handling.
+// BOUNDARY: 0 (valid min), 255 (valid max uint8).
+func TestCapabilityCodeBoundary(t *testing.T) {
+	t.Parallel()
+
+	// Test boundary values in a DeclareCapabilitiesInput
+	caps := &rpc.DeclareCapabilitiesInput{
+		Capabilities: []rpc.CapabilityDecl{
+			{Code: 0, Encoding: "hex", Payload: ""},
+			{Code: 255, Encoding: "hex", Payload: "FF"},
+		},
+	}
+
+	data, err := json.Marshal(caps)
+	require.NoError(t, err)
+
+	var decoded rpc.DeclareCapabilitiesInput
+	require.NoError(t, json.Unmarshal(data, &decoded))
+	assert.Equal(t, uint8(0), decoded.Capabilities[0].Code)
+	assert.Equal(t, uint8(255), decoded.Capabilities[1].Code)
+}

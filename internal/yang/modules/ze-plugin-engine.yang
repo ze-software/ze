@@ -1,0 +1,194 @@
+module ze-plugin-engine {
+    namespace "urn:ze:plugin:engine";
+    prefix engine;
+
+    import ze-types { prefix zt; }
+
+    description
+        "RPCs served by the engine for plugins to call (Socket A).
+         Plugins use these RPCs during startup and runtime to register,
+         declare capabilities, signal readiness, and inject routes.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    // Stage 1: Plugin declares itself to the engine.
+
+    rpc declare-registration {
+        description
+            "Plugin declares families, commands, config wants, and YANG schema.
+             Called during Stage 1 of the 5-stage startup protocol.";
+        input {
+            list family {
+                key "name";
+                leaf name {
+                    type string;
+                    description "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
+                }
+                leaf mode {
+                    type enumeration {
+                        enum encode { description "Encode text to wire"; }
+                        enum decode { description "Decode wire to JSON"; }
+                        enum both { description "Encode and decode"; }
+                    }
+                    description "Family handling mode";
+                }
+            }
+            list command {
+                key "name";
+                leaf name {
+                    type string;
+                    description "Command name";
+                }
+                leaf description {
+                    type string;
+                    description "Command description";
+                }
+                leaf-list args {
+                    type string;
+                    description "Argument names";
+                }
+                leaf completable {
+                    type boolean;
+                    default false;
+                    description "Supports tab completion";
+                }
+            }
+            leaf-list wants-config {
+                type string;
+                description "Config roots to receive (e.g., bgp, environment, *)";
+            }
+            container schema {
+                description "YANG schema declaration";
+                leaf module {
+                    type string;
+                    description "YANG module name";
+                }
+                leaf namespace {
+                    type string;
+                    description "YANG namespace URI";
+                }
+                leaf yang-text {
+                    type string;
+                    description "Full YANG module text";
+                }
+                leaf-list handlers {
+                    type string;
+                    description "Handler paths (e.g., bgp, bgp.peer)";
+                }
+            }
+        }
+    }
+
+    // Stage 3: Plugin declares OPEN capabilities.
+
+    rpc declare-capabilities {
+        description
+            "Plugin declares capabilities for BGP OPEN injection.
+             Called during Stage 3 of the 5-stage startup protocol.";
+        input {
+            list capability {
+                key "code";
+                leaf code {
+                    type uint8;
+                    description "BGP capability code (RFC 5492)";
+                }
+                leaf encoding {
+                    type enumeration {
+                        enum hex { description "Hex-encoded payload"; }
+                        enum b64 { description "Base64-encoded payload"; }
+                        enum text { description "Text payload"; }
+                    }
+                    default hex;
+                    description "Payload encoding";
+                }
+                leaf payload {
+                    type string;
+                    description "Encoded capability value (empty for zero-length)";
+                }
+                leaf-list peers {
+                    type string;
+                    description "Peer addresses (empty = global/all peers)";
+                }
+            }
+        }
+    }
+
+    // Stage 5: Plugin signals readiness.
+
+    rpc ready {
+        description
+            "Plugin signals it is operational and ready to process events.
+             Called during Stage 5 of the 5-stage startup protocol.";
+    }
+
+    // Runtime: Route injection.
+
+    rpc update-route {
+        description
+            "Plugin injects a route update to matching peers.";
+        input {
+            leaf peer-selector {
+                type string;
+                default "*";
+                description "Peer selector (* for all, or specific IP)";
+            }
+            leaf command {
+                type string;
+                mandatory true;
+                description "Route command (e.g., announce/withdraw text)";
+            }
+        }
+        output {
+            leaf peers-affected {
+                type uint32;
+                description "Number of peers that received the route";
+            }
+            leaf routes-sent {
+                type uint32;
+                description "Number of routes sent";
+            }
+        }
+    }
+
+    // Runtime: Event subscription management.
+
+    rpc subscribe-events {
+        description
+            "Request event delivery from the engine.";
+        input {
+            leaf-list events {
+                type string;
+                description "Event types (update, open, notification, keepalive, state, all)";
+            }
+            leaf-list peers {
+                type string;
+                description "Peer filter (empty = all peers)";
+            }
+            leaf format {
+                type string;
+                default "parsed";
+                description "Event format (hex, base64, parsed, full)";
+            }
+        }
+    }
+
+    rpc unsubscribe-events {
+        description "Stop event delivery.";
+    }
+
+    // Error identities.
+
+    identity registration-conflict {
+        description "Family or command already claimed by another plugin";
+    }
+
+    identity stage-timeout {
+        description "Barrier timeout exceeded during startup";
+    }
+
+    identity invalid-route {
+        description "Route parsing failed";
+    }
+}
