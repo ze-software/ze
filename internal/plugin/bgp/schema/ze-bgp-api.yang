@@ -1,0 +1,251 @@
+module ze-bgp-api {
+    namespace "urn:ze:bgp:api";
+    prefix bgpapi;
+
+    import ze-types { prefix zt; }
+
+    description
+        "BGP API operations for Ze.
+         RPCs for peer management, route operations, cache control,
+         and event subscriptions. Notifications for BGP events.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    // Daemon control
+
+    rpc daemon-status {
+        description "Query daemon status";
+        output {
+            leaf uptime-seconds { type uint32; description "Seconds since start"; }
+            leaf peer-count { type uint32; description "Number of configured peers"; }
+            leaf start-time { type string; description "ISO 8601 start timestamp"; }
+        }
+    }
+
+    rpc daemon-shutdown {
+        description "Graceful daemon shutdown";
+    }
+
+    rpc daemon-reload {
+        description "Reload configuration";
+    }
+
+    // Peer operations
+
+    rpc peer-list {
+        description "List configured peers";
+        input {
+            leaf selector { type zt:peer-selector; description "Peer filter"; }
+        }
+        output {
+            list peer {
+                uses zt:peer-info;
+            }
+        }
+    }
+
+    rpc peer-show {
+        description "Show detailed peer information";
+        input {
+            leaf selector { type zt:peer-selector; description "Peer filter"; }
+        }
+        output {
+            list peer {
+                uses zt:peer-info;
+            }
+        }
+    }
+
+    rpc peer-add {
+        description "Add a new peer";
+        input {
+            leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
+            leaf asn { type zt:asn; mandatory true; description "Peer ASN"; }
+            leaf local-as { type zt:asn; description "Local ASN override"; }
+            leaf local-address { type zt:ip-address; description "Local bind address"; }
+            leaf router-id { type zt:ipv4-address; description "Router ID override"; }
+            leaf hold-time { type uint16; description "Hold time"; }
+            leaf passive { type boolean; description "Passive mode"; }
+        }
+    }
+
+    rpc peer-remove {
+        description "Remove a peer";
+        input {
+            leaf address { type zt:ip-address; mandatory true; description "Peer address"; }
+        }
+    }
+
+    rpc peer-teardown {
+        description "Teardown peer session with CEASE notification";
+        input {
+            leaf selector { type zt:peer-selector; mandatory true; description "Peer filter"; }
+            leaf subcode { type uint8; description "CEASE subcode"; }
+        }
+    }
+
+    // Route operations
+
+    rpc update {
+        description "Send route update using DSL command string";
+        input {
+            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+            leaf encoding { type zt:encoding-mode; mandatory true; description "Command encoding"; }
+            leaf command { type string; mandatory true; description "Route DSL command"; }
+        }
+        output {
+            leaf peers-affected { type uint32; description "Number of peers affected"; }
+            leaf routes-sent { type uint32; description "Number of routes sent"; }
+        }
+    }
+
+    rpc watchdog-announce {
+        description "Announce watchdog group routes";
+        input {
+            leaf group { type string; mandatory true; description "Watchdog group name"; }
+        }
+    }
+
+    rpc watchdog-withdraw {
+        description "Withdraw watchdog group routes";
+        input {
+            leaf group { type string; mandatory true; description "Watchdog group name"; }
+        }
+    }
+
+    // Route refresh (RFC 7313)
+
+    rpc borr {
+        description "Send Beginning of Route Refresh";
+        input {
+            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family"; }
+        }
+    }
+
+    rpc eorr {
+        description "Send End of Route Refresh";
+        input {
+            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+            leaf family { type zt:address-family; mandatory true; description "Address family"; }
+        }
+    }
+
+    // Raw message
+
+    rpc raw {
+        description "Send raw bytes to peers";
+        input {
+            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+            leaf type { type string; description "Message type hint"; }
+            leaf encoding { type zt:encoding-mode; mandatory true; description "Data encoding"; }
+            leaf data { type string; mandatory true; description "Raw data"; }
+        }
+    }
+
+    // Cache operations
+
+    rpc cache-list {
+        description "List cached BGP messages";
+        output {
+            list entry {
+                uses zt:cache-entry;
+            }
+        }
+    }
+
+    rpc cache-retain {
+        description "Mark cached message for retention";
+        input {
+            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
+        }
+    }
+
+    rpc cache-release {
+        description "Release retained cache message";
+        input {
+            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
+        }
+    }
+
+    rpc cache-expire {
+        description "Immediately expire cached message";
+        input {
+            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
+        }
+    }
+
+    rpc cache-forward {
+        description "Forward cached message to peers";
+        input {
+            leaf message-id { type uint64; mandatory true; description "Cache message ID"; }
+            leaf peer-selector { type zt:peer-selector; mandatory true; description "Target peers"; }
+        }
+    }
+
+    // Subscription
+
+    rpc subscribe {
+        description "Subscribe to BGP events (streaming)";
+        input {
+            leaf-list events { type string; description "Event types to subscribe to"; }
+        }
+    }
+
+    rpc event-list {
+        description "List available event types";
+        output {
+            list event {
+                uses zt:event-type-info;
+            }
+        }
+    }
+
+    // Notifications
+
+    notification peer-state-change {
+        description "Peer FSM state changed";
+        leaf address { type zt:ip-address; description "Peer address"; }
+        leaf old-state { type string; description "Previous FSM state"; }
+        leaf new-state { type string; description "New FSM state"; }
+    }
+
+    notification route-received {
+        description "BGP UPDATE received from peer";
+        leaf peer { type zt:ip-address; description "Source peer"; }
+        leaf family { type zt:address-family; description "Address family"; }
+        leaf count { type uint32; description "Number of NLRI in update"; }
+    }
+
+    notification route-update-sent {
+        description "BGP UPDATE sent to peer";
+        leaf peer { type zt:ip-address; description "Target peer"; }
+        leaf family { type zt:address-family; description "Address family"; }
+    }
+
+    notification eor-received {
+        description "End-of-RIB marker received";
+        leaf peer { type zt:ip-address; description "Source peer"; }
+        leaf family { type zt:address-family; description "Address family"; }
+    }
+
+    notification graceful-restart-state {
+        description "Graceful restart state changed";
+        leaf peer { type zt:ip-address; description "Peer address"; }
+        leaf state { type string; description "GR state"; }
+    }
+
+    notification session-established {
+        description "BGP session established";
+        leaf peer { type zt:ip-address; description "Peer address"; }
+        leaf asn { type zt:asn; description "Peer ASN"; }
+    }
+
+    notification session-closed {
+        description "BGP session closed";
+        leaf peer { type zt:ip-address; description "Peer address"; }
+        leaf reason { type string; description "Close reason"; }
+    }
+}

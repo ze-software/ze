@@ -1,0 +1,66 @@
+module ze-system-api {
+    namespace "urn:ze:system:api";
+    prefix sys;
+
+    import ze-types { prefix zt; }
+
+    description
+        "System-level API operations for Ze.
+         RPCs for version queries, shutdown, and command introspection.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    rpc version {
+        description "Query software and API version";
+        output {
+            leaf software { type string; description "Software version string"; }
+            leaf api { type string; description "API protocol version"; }
+        }
+    }
+
+    rpc shutdown {
+        description "Graceful application shutdown";
+    }
+
+    rpc subsystem-list {
+        description "List available subsystems";
+        output {
+            list subsystem {
+                leaf name { type string; description "Subsystem name"; }
+                leaf description { type string; description "Subsystem description"; }
+            }
+        }
+    }
+
+    rpc command-list {
+        description "List all available commands";
+        output {
+            list command {
+                uses zt:command-info;
+            }
+        }
+    }
+
+    rpc command-help {
+        description "Get detailed help for a command";
+        input {
+            leaf name { type string; mandatory true; description "Command name"; }
+        }
+        output {
+            leaf help { type string; description "Detailed help text"; }
+        }
+    }
+
+    rpc command-complete {
+        description "Tab completion for partial commands";
+        input {
+            leaf partial { type string; mandatory true; description "Partial command string"; }
+            leaf arg { type string; description "Current argument being completed"; }
+        }
+        output {
+            leaf-list completions { type string; description "Completion candidates"; }
+        }
+    }
+}

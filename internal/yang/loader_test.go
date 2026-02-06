@@ -3,6 +3,7 @@ package yang
 import (
 	"testing"
 
+	gyang "github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -254,4 +255,307 @@ func TestLoader_TypeBoundaries(t *testing.T) {
 			assert.NotNil(t, td.Type, "port should have a type")
 		}
 	}
+}
+
+// TestYANGRPCParsing verifies that the YANG loader parses rpc nodes.
+//
+// VALIDATES: goyang extracts rpc definitions from YANG modules.
+// PREVENTS: RPC definitions being silently ignored by the loader.
+func TestYANGRPCParsing(t *testing.T) {
+	loader := NewLoader()
+
+	yangText := `
+module test-rpc {
+    namespace "urn:test:rpc";
+    prefix tr;
+
+    rpc peer-list {
+        description "List all peers";
+        input {
+            leaf selector {
+                type string;
+                description "Peer selector pattern";
+            }
+        }
+        output {
+            list peer {
+                leaf address {
+                    type string;
+                }
+                leaf state {
+                    type string;
+                }
+            }
+        }
+    }
+
+    rpc shutdown {
+        description "Shutdown the daemon";
+    }
+}
+`
+
+	err := loader.AddModuleFromText("test-rpc.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	mod := loader.GetModule("test-rpc")
+	require.NotNil(t, mod)
+
+	// Verify RPCs are parsed at module level
+	require.Len(t, mod.RPC, 2, "module should have 2 RPCs")
+
+	rpcNames := make(map[string]bool)
+	for _, rpc := range mod.RPC {
+		rpcNames[rpc.Name] = true
+	}
+	assert.True(t, rpcNames["peer-list"], "peer-list RPC should exist")
+	assert.True(t, rpcNames["shutdown"], "shutdown RPC should exist")
+
+	// Verify RPCs appear in entry tree
+	entry := gyang.ToEntry(mod)
+	require.NotNil(t, entry)
+
+	peerListEntry := entry.Dir["peer-list"]
+	require.NotNil(t, peerListEntry, "peer-list should be in entry tree")
+
+	shutdownEntry := entry.Dir["shutdown"]
+	require.NotNil(t, shutdownEntry, "shutdown should be in entry tree")
+}
+
+// TestYANGNotificationParsing verifies that the YANG loader parses notification nodes.
+//
+// VALIDATES: goyang extracts notification definitions from YANG modules.
+// PREVENTS: Notification definitions being silently ignored.
+func TestYANGNotificationParsing(t *testing.T) {
+	loader := NewLoader()
+
+	yangText := `
+module test-notif {
+    namespace "urn:test:notif";
+    prefix tn;
+
+    notification update-event {
+        description "BGP UPDATE received or sent";
+        leaf peer-address {
+            type string;
+        }
+        leaf direction {
+            type enumeration {
+                enum received;
+                enum sent;
+            }
+        }
+    }
+
+    notification state-event {
+        description "Peer state change";
+        leaf peer-address {
+            type string;
+        }
+        leaf state {
+            type string;
+        }
+    }
+}
+`
+
+	err := loader.AddModuleFromText("test-notif.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	mod := loader.GetModule("test-notif")
+	require.NotNil(t, mod)
+
+	// Verify notifications are parsed at module level
+	require.Len(t, mod.Notification, 2, "module should have 2 notifications")
+
+	notifNames := make(map[string]bool)
+	for _, n := range mod.Notification {
+		notifNames[n.Name] = true
+	}
+	assert.True(t, notifNames["update-event"], "update-event notification should exist")
+	assert.True(t, notifNames["state-event"], "state-event notification should exist")
+
+	// Verify notifications appear in entry tree
+	entry := gyang.ToEntry(mod)
+	require.NotNil(t, entry)
+
+	updateEntry := entry.Dir["update-event"]
+	require.NotNil(t, updateEntry, "update-event should be in entry tree")
+	assert.Equal(t, gyang.NotificationEntry, updateEntry.Kind, "should be NotificationEntry kind")
+
+	// Verify notification children are accessible
+	require.NotNil(t, updateEntry.Dir["peer-address"], "peer-address leaf should exist")
+	require.NotNil(t, updateEntry.Dir["direction"], "direction leaf should exist")
+}
+
+// TestYANGRPCInputOutput verifies RPC input/output leaves are accessible.
+//
+// VALIDATES: RPC input and output parameters can be traversed via entry tree.
+// PREVENTS: IPC parameter validation failing due to inaccessible YANG definitions.
+func TestYANGRPCInputOutput(t *testing.T) {
+	loader := NewLoader()
+
+	yangText := `
+module test-rpc-io {
+    namespace "urn:test:rpc-io";
+    prefix trio;
+
+    rpc peer-teardown {
+        description "Teardown peer session";
+        input {
+            leaf selector {
+                type string;
+                mandatory true;
+                description "Peer address or wildcard";
+            }
+            leaf subcode {
+                type uint8;
+                default 2;
+                description "CEASE subcode";
+            }
+        }
+        output {
+            leaf peers-affected {
+                type uint32;
+            }
+        }
+    }
+}
+`
+
+	err := loader.AddModuleFromText("test-rpc-io.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	mod := loader.GetModule("test-rpc-io")
+	require.NotNil(t, mod)
+
+	entry := gyang.ToEntry(mod)
+	require.NotNil(t, entry)
+
+	rpcEntry := entry.Dir["peer-teardown"]
+	require.NotNil(t, rpcEntry, "peer-teardown RPC should exist in entry tree")
+	require.NotNil(t, rpcEntry.RPC, "entry should have RPC field set")
+
+	// Verify input parameters
+	input := rpcEntry.RPC.Input
+	require.NotNil(t, input, "RPC should have input")
+	assert.Equal(t, gyang.InputEntry, input.Kind, "input should be InputEntry kind")
+
+	selectorLeaf := input.Dir["selector"]
+	require.NotNil(t, selectorLeaf, "selector input parameter should exist")
+	assert.NotNil(t, selectorLeaf.Type, "selector should have type")
+
+	subcodeLeaf := input.Dir["subcode"]
+	require.NotNil(t, subcodeLeaf, "subcode input parameter should exist")
+
+	// Verify output parameters
+	output := rpcEntry.RPC.Output
+	require.NotNil(t, output, "RPC should have output")
+	assert.Equal(t, gyang.OutputEntry, output.Kind, "output should be OutputEntry kind")
+
+	peersLeaf := output.Dir["peers-affected"]
+	require.NotNil(t, peersLeaf, "peers-affected output parameter should exist")
+}
+
+// TestYANGModuleWithRPCAndConfig verifies modules with both containers and RPCs.
+//
+// VALIDATES: A single YANG module can contain both config containers and RPCs.
+// PREVENTS: Config-only assumptions breaking when IPC RPCs are added to modules.
+func TestYANGModuleWithRPCAndConfig(t *testing.T) {
+	loader := NewLoader()
+
+	// Load core modules for imports
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+
+	yangText := `
+module test-mixed {
+    namespace "urn:test:mixed";
+    prefix tmx;
+
+    import ze-types { prefix zt; }
+
+    container bgp {
+        leaf router-id {
+            type zt:ipv4-address;
+        }
+        leaf local-as {
+            type zt:asn;
+        }
+    }
+
+    rpc peer-list {
+        description "List peers";
+        output {
+            leaf count {
+                type uint32;
+            }
+        }
+    }
+
+    rpc daemon-status {
+        description "Get daemon status";
+        output {
+            leaf uptime {
+                type string;
+            }
+        }
+    }
+
+    notification state-change {
+        description "Peer state changed";
+        leaf peer {
+            type string;
+        }
+        leaf new-state {
+            type string;
+        }
+    }
+}
+`
+
+	err = loader.AddModuleFromText("test-mixed.yang", yangText)
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	mod := loader.GetModule("test-mixed")
+	require.NotNil(t, mod)
+
+	// Verify containers coexist with RPCs and notifications
+	assert.Len(t, mod.Container, 1, "should have 1 container")
+	assert.Equal(t, "bgp", mod.Container[0].Name)
+	assert.Len(t, mod.RPC, 2, "should have 2 RPCs")
+	assert.Len(t, mod.Notification, 1, "should have 1 notification")
+
+	// Verify entry tree has all three types
+	entry := gyang.ToEntry(mod)
+	require.NotNil(t, entry)
+
+	// Container
+	bgpEntry := entry.Dir["bgp"]
+	require.NotNil(t, bgpEntry, "bgp container should be in entry tree")
+	assert.NotNil(t, bgpEntry.Dir["router-id"], "router-id should exist")
+	assert.NotNil(t, bgpEntry.Dir["local-as"], "local-as should exist")
+
+	// RPCs
+	peerListEntry := entry.Dir["peer-list"]
+	require.NotNil(t, peerListEntry, "peer-list RPC should be in entry tree")
+	require.NotNil(t, peerListEntry.RPC, "should have RPC field")
+
+	statusEntry := entry.Dir["daemon-status"]
+	require.NotNil(t, statusEntry, "daemon-status RPC should be in entry tree")
+
+	// Notification
+	stateEntry := entry.Dir["state-change"]
+	require.NotNil(t, stateEntry, "state-change notification should be in entry tree")
+	assert.Equal(t, gyang.NotificationEntry, stateEntry.Kind)
+	assert.NotNil(t, stateEntry.Dir["peer"], "peer leaf should exist in notification")
+	assert.NotNil(t, stateEntry.Dir["new-state"], "new-state leaf should exist in notification")
 }

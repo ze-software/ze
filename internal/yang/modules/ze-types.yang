@@ -129,6 +129,89 @@ module ze-types {
         description "Route Distinguisher (Type 0 or Type 1)";
     }
 
+    // IPC types
+
+    typedef address-family {
+        type string;
+        description "AFI/SAFI string (e.g., ipv4/unicast, ipv6/unicast)";
+    }
+
+    typedef peer-selector {
+        type string;
+        description "Peer address, '*' for all, or comma-separated list";
+    }
+
+    typedef encoding-mode {
+        type enumeration {
+            enum text { description "Human-readable text encoding"; }
+            enum hex { description "Hexadecimal encoding"; }
+            enum b64 { description "Base64 encoding"; }
+        }
+        description "Encoding mode for route data";
+    }
+
+    typedef wire-format {
+        type enumeration {
+            enum hex { description "Hex bytes"; }
+            enum base64 { description "Base64 bytes"; }
+            enum parsed { description "Parsed JSON"; }
+            enum full { description "Full detail JSON"; }
+        }
+        description "Wire format for message output";
+    }
+
+    typedef ack-mode {
+        type enumeration {
+            enum sync { description "Synchronous acknowledgment"; }
+            enum async { description "Asynchronous acknowledgment"; }
+        }
+        description "Acknowledgment mode for commands";
+    }
+
+    // IPC groupings
+
+    grouping peer-info {
+        description "Peer information returned by peer-list and peer-show";
+        leaf address { type ip-address; description "Peer IP address"; }
+        leaf asn { type asn; description "Peer ASN"; }
+        leaf local-as { type asn; description "Local ASN for this peer"; }
+        leaf state { type string; description "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
+        leaf router-id { type ipv4-address; description "Peer router ID"; }
+        leaf hold-time { type uint16; description "Negotiated hold time"; }
+        leaf uptime { type uint32; description "Seconds since established"; }
+    }
+
+    grouping command-info {
+        description "Command descriptor for introspection";
+        leaf name { type string; description "Command name"; }
+        leaf description { type string; description "Command help text"; }
+        leaf args { type string; description "Argument specification"; }
+        leaf source { type string; description "Source (builtin or plugin name)"; }
+        leaf completable { type boolean; description "Supports tab completion"; }
+    }
+
+    grouping event-type-info {
+        description "Event type descriptor for subscribe";
+        leaf name { type string; description "Event type name"; }
+        leaf description { type string; description "Event description"; }
+    }
+
+    grouping transaction-result {
+        description "Result of a route transaction (commit-end)";
+        leaf routes-announced { type uint32; description "Routes announced"; }
+        leaf routes-withdrawn { type uint32; description "Routes withdrawn"; }
+        leaf updates-sent { type uint32; description "UPDATE messages sent"; }
+        leaf-list families { type address-family; description "Affected address families"; }
+    }
+
+    grouping cache-entry {
+        description "Cached BGP message descriptor";
+        leaf message-id { type uint64; description "Cache message ID"; }
+        leaf peer { type ip-address; description "Source peer address"; }
+        leaf age-ms { type uint32; description "Age in milliseconds"; }
+        leaf size { type uint32; description "Message size in bytes"; }
+    }
+
     typedef afi {
         type enumeration {
             enum ipv4 { value 1; description "IPv4 (AFI 1)"; }

@@ -1,0 +1,27 @@
+module ze-plugin-api {
+    namespace "urn:ze:plugin:api";
+    prefix plug;
+
+    description
+        "Plugin lifecycle API operations for Ze.
+         RPCs for plugin session management and health checking.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    rpc session-ready {
+        description "Signal that plugin session is ready for commands";
+    }
+
+    rpc ping {
+        description "Health check ping";
+        output {
+            leaf pong { type boolean; description "Always true when alive"; }
+        }
+    }
+
+    rpc bye {
+        description "Graceful plugin disconnection";
+    }
+}

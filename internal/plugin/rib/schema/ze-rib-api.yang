@@ -1,0 +1,63 @@
+module ze-rib-api {
+    namespace "urn:ze:rib:api";
+    prefix ribapi;
+
+    import ze-types { prefix zt; }
+
+    description
+        "RIB API operations for Ze.
+         RPCs for querying and clearing RIB state.
+         Notifications for RIB changes.";
+
+    revision 2026-02-01 {
+        description "Initial revision";
+    }
+
+    rpc show-in {
+        description "Show Adj-RIB-In entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+        output {
+            leaf route-count { type uint32; description "Number of routes"; }
+        }
+    }
+
+    rpc clear-in {
+        description "Clear Adj-RIB-In entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+    }
+
+    rpc show-out {
+        description "Show Adj-RIB-Out entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+        output {
+            leaf route-count { type uint32; description "Number of routes"; }
+        }
+    }
+
+    rpc clear-out {
+        description "Clear Adj-RIB-Out entries";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+    }
+
+    // Notifications
+
+    notification rib-change {
+        description "RIB content changed";
+        leaf peer { type zt:ip-address; description "Affected peer"; }
+        leaf family { type zt:address-family; description "Address family"; }
+        leaf added { type uint32; description "Routes added"; }
+        leaf removed { type uint32; description "Routes removed"; }
+    }
+}
