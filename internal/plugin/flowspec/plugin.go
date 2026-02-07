@@ -7,17 +7,20 @@ package flowspec
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // flowLogger is the package-level logger, disabled by default.
@@ -31,116 +34,70 @@ func SetFlowSpecLogger(l *slog.Logger) {
 	}
 }
 
-// FlowSpecPlugin implements a FlowSpec family plugin.
-// For now, it only supports decode mode (started with --decode).
-// Full plugin mode (receiving UPDATE events) is not yet implemented.
-type FlowSpecPlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
-}
+// RunFlowSpecPlugin runs the FlowSpec plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunFlowSpecPlugin(engineConn, callbackConn net.Conn) int {
+	flowLogger.Debug("flowspec plugin starting (RPC)")
 
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
+	p := sdk.NewWithConn("flowspec", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-// NewFlowSpecPlugin creates a new FlowSpec Plugin.
-func NewFlowSpecPlugin(input io.Reader, output io.Writer) *FlowSpecPlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &FlowSpecPlugin{
-		input:  scanner,
-		output: output,
+	p.OnEncodeNLRI(func(family string, args []string) (string, error) {
+		if !isValidFlowSpecFamily(family) {
+			return "", fmt.Errorf("invalid family: %s", family)
+		}
+
+		fam, ok := nlri.ParseFamily(family)
+		if !ok {
+			return "", fmt.Errorf("unknown family: %s", family)
+		}
+
+		wireBytes, err := EncodeFlowSpecComponents(fam, args)
+		if err != nil {
+			return "", err
+		}
+
+		return strings.ToUpper(hex.EncodeToString(wireBytes)), nil
+	})
+
+	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {
+		if !isValidFlowSpecFamily(family) {
+			return "", fmt.Errorf("unsupported family: %s", family)
+		}
+
+		data, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid hex: %w", err)
+		}
+
+		result := decodeFlowSpecNLRI(family, data)
+		if result == nil {
+			return "", fmt.Errorf("no valid FlowSpec decoded")
+		}
+
+		jsonBytes, err := json.Marshal(result)
+		if err != nil {
+			return "", fmt.Errorf("JSON encoding failed: %w", err)
+		}
+
+		return string(jsonBytes), nil
+	})
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Families: []sdk.FamilyDecl{
+			{Name: "ipv4/flow", Mode: "both"},
+			{Name: "ipv6/flow", Mode: "both"},
+			{Name: "ipv4/flow-vpn", Mode: "both"},
+			{Name: "ipv6/flow-vpn", Mode: "both"},
+		},
+	})
+	if err != nil {
+		flowLogger.Error("flowspec plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the flowspec plugin in normal mode.
-// Currently only performs startup protocol - full event handling not yet implemented.
-func (p *FlowSpecPlugin) Run() int {
-	flowLogger.Debug("flowspec plugin starting")
-	p.doStartupProtocol()
-	flowLogger.Debug("flowspec plugin startup complete, entering event loop")
-	p.eventLoop()
 	return 0
-}
-
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (p *FlowSpecPlugin) doStartupProtocol() {
-	// Stage 1: Declaration - claim FlowSpec family encode AND decode
-	// Encode: text components → wire bytes
-	// Decode: wire bytes → JSON
-	//
-	// NOTE: "decode" declarations automatically add Multiprotocol capabilities
-	// to OPEN messages. The engine infers that if a plugin can decode a family,
-	// it should be advertised to peers.
-	p.send("declare family ipv4 flow encode")
-	p.send("declare family ipv4 flow decode")
-	p.send("declare family ipv6 flow encode")
-	p.send("declare family ipv6 flow decode")
-	p.send("declare family ipv4 flow-vpn encode")
-	p.send("declare family ipv4 flow-vpn decode")
-	p.send("declare family ipv6 flow-vpn encode")
-	p.send("declare family ipv6 flow-vpn decode")
-	p.send("declare rfc 8955")
-	p.send("declare rfc 8956")
-	p.send("declare encoding hex")
-	p.send("declare done")
-
-	// Stage 2: Parse config (FlowSpec plugin doesn't need config)
-	p.waitForLine("config done")
-
-	// Stage 3: No explicit capability injection needed.
-	// Multiprotocol capabilities for FlowSpec families are auto-added by the engine
-	// based on the "decode" declarations in Stage 1.
-	p.send("capability done")
-
-	// Stage 4: Wait for registry
-	p.waitForLine("registry done")
-
-	// Stage 5: Ready
-	p.send("ready")
-}
-
-// eventLoop handles encode/decode requests from the engine.
-// Request formats:
-//   - "#serial encode nlri <family> <args...>" → "@serial encoded hex <hex>"
-//   - "#serial decode nlri <family> <hex>"     → "@serial decoded json <json>"
-//
-// Note: Requests use # prefix, responses use @ prefix (standard plugin protocol).
-func (p *FlowSpecPlugin) eventLoop() {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-
-		flowLogger.Debug("received", "line", line[:min(80, len(line))])
-
-		// Parse serial prefix: "#serial command..."
-		serial, command := parseSerialPrefix(line)
-
-		// Handle encode/decode requests
-		response := p.handleRequest(command)
-		if response != "" {
-			if serial != "" {
-				// Response uses @ prefix (not # which is for requests)
-				p.send(fmt.Sprintf("@%s %s", serial, response))
-			} else {
-				p.send(response)
-			}
-		}
-	}
-}
-
-// parseSerialPrefix extracts "#serial" prefix from a line.
-// Returns (serial, rest) where serial is empty if no prefix.
-func parseSerialPrefix(line string) (string, string) {
-	if len(line) > 0 && line[0] == '#' {
-		// Find space after serial
-		idx := strings.IndexByte(line, ' ')
-		if idx > 1 {
-			return line[1:idx], line[idx+1:]
-		}
-	}
-	return "", line
 }
 
 // Protocol constants for request/response handling.
@@ -156,99 +113,6 @@ const (
 	respDecodedJSON = "decoded json "
 	respDecodedText = "decoded text "
 )
-
-// handleRequest processes a single request and returns the response.
-func (p *FlowSpecPlugin) handleRequest(line string) string {
-	parts := strings.Fields(line)
-	if len(parts) < 3 {
-		return ""
-	}
-
-	cmd := parts[0]
-	objType := parts[1]
-
-	switch {
-	case cmd == cmdEncode && objType == objTypeNLRI:
-		return p.handleEncodeRequest(parts)
-	case cmd == cmdDecode && objType == objTypeNLRI:
-		return p.handleDecodeRequest(parts)
-	}
-
-	return ""
-}
-
-// handleEncodeRequest handles: encode nlri <family> <args...>.
-// Returns "encoded hex <hex>" or "encoded error <msg>".
-func (p *FlowSpecPlugin) handleEncodeRequest(parts []string) string {
-	if len(parts) < 4 {
-		return respEncodedErr + "missing family or components"
-	}
-
-	family := strings.ToLower(parts[2])
-	if !isValidFlowSpecFamily(family) {
-		return respEncodedErr + "invalid family: " + family
-	}
-
-	fam, ok := nlri.ParseFamily(family)
-	if !ok {
-		return respEncodedErr + "unknown family: " + family
-	}
-
-	args := parts[3:]
-	wireBytes, err := EncodeFlowSpecComponents(fam, args)
-	if err != nil {
-		return respEncodedErr + err.Error()
-	}
-
-	return respEncodedHex + strings.ToUpper(hex.EncodeToString(wireBytes))
-}
-
-// handleDecodeRequest handles: decode nlri <family> <hex>.
-// Returns "decoded json <json>" or "decoded unknown".
-func (p *FlowSpecPlugin) handleDecodeRequest(parts []string) string {
-	if len(parts) < 4 {
-		return respDecodedUnk
-	}
-
-	family := strings.ToLower(parts[2])
-	hexData := parts[3]
-
-	if !isValidFlowSpecFamily(family) {
-		return respDecodedUnk
-	}
-
-	data, err := hex.DecodeString(hexData)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	result := decodeFlowSpecNLRI(family, data)
-	if result == nil {
-		return respDecodedUnk
-	}
-
-	jsonBytes, err := json.Marshal(result)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	return respDecodedJSON + string(jsonBytes)
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (p *FlowSpecPlugin) waitForLine(expected string) {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-func (p *FlowSpecPlugin) send(msg string) {
-	_, _ = fmt.Fprintf(p.output, "%s\n", msg)
-}
 
 // GetFlowSpecYANG returns the embedded YANG schema for the flowspec plugin.
 // FlowSpec plugin doesn't augment config schema, returns empty.

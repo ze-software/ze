@@ -2,66 +2,67 @@ package gr
 
 import (
 	"bytes"
-	"strings"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// TestGRPlugin_ParseBGPConfig verifies JSON config parsing.
+// TestExtractGRCapabilities_ParseBGPConfig verifies JSON config parsing.
 //
-// VALIDATES: JSON config in format "config json bgp {...}" is parsed correctly.
+// VALIDATES: extractGRCapabilities correctly parses BGP config JSON and returns
+// CapabilityDecl with correct code, encoding, payload, and peer.
 // PREVENTS: Config being silently ignored, causing missing GR capability.
-func TestGRPlugin_ParseBGPConfig(t *testing.T) {
+func TestExtractGRCapabilities_ParseBGPConfig(t *testing.T) {
 	tests := []struct {
-		name       string
-		json       string
-		wantPeer   string
-		wantTime   uint16
-		wantParsed bool
+		name        string
+		json        string
+		wantPeer    string
+		wantPayload string
+		wantParsed  bool
 	}{
 		{
-			name:       "valid_restart_time_120",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}`,
-			wantPeer:   "192.168.1.1",
-			wantTime:   120,
-			wantParsed: true,
+			name:        "valid_restart_time_120",
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}`,
+			wantPeer:    "192.168.1.1",
+			wantPayload: "0078",
+			wantParsed:  true,
 		},
 		{
-			name:       "valid_restart_time_zero",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":0}}}}}}`,
-			wantPeer:   "10.0.0.1",
-			wantTime:   0,
-			wantParsed: true,
+			name:        "valid_restart_time_zero",
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":0}}}}}}`,
+			wantPeer:    "10.0.0.1",
+			wantPayload: "0000",
+			wantParsed:  true,
 		},
 		{
-			name:       "valid_restart_time_max_4095",
-			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}`,
-			wantPeer:   "127.0.0.1",
-			wantTime:   4095,
-			wantParsed: true,
+			name:        "valid_restart_time_max_4095",
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}`,
+			wantPeer:    "127.0.0.1",
+			wantPayload: "0fff",
+			wantParsed:  true,
 		},
 		{
-			name:       "clamped_above_max_4096",
-			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4096}}}}}}`,
-			wantPeer:   "127.0.0.1",
-			wantTime:   4095, // Clamped to max
-			wantParsed: true,
+			name:        "clamped_above_max_4096",
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":4096}}}}}}`,
+			wantPeer:    "127.0.0.1",
+			wantPayload: "0fff", // Clamped to max 12-bit value
+			wantParsed:  true,
 		},
 		{
-			name:       "clamped_above_max_65535",
-			json:       `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":65535}}}}}}`,
-			wantPeer:   "127.0.0.1",
-			wantTime:   4095, // Clamped to max
-			wantParsed: true,
+			name:        "clamped_above_max_65535",
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":65535}}}}}}`,
+			wantPeer:    "127.0.0.1",
+			wantPayload: "0fff", // Clamped to max 12-bit value
+			wantParsed:  true,
 		},
 		{
-			name:       "default_restart_time_when_missing",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{}}}}}}`,
-			wantPeer:   "192.168.1.1",
-			wantTime:   120, // Default per RFC 4724
-			wantParsed: true,
+			name:        "default_restart_time_when_missing",
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{}}}}}}`,
+			wantPeer:    "192.168.1.1",
+			wantPayload: "0078", // Default 120 per RFC 4724
+			wantParsed:  true,
 		},
 		{
 			name:       "no_graceful_restart_capability",
@@ -82,88 +83,90 @@ func TestGRPlugin_ParseBGPConfig(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			g := &GRPlugin{grConfig: make(map[string]uint16)}
-			g.parseConfigLine("config json bgp " + tt.json)
+			caps := extractGRCapabilities(tt.json)
 
 			if tt.wantParsed {
-				require.Contains(t, g.grConfig, tt.wantPeer, "peer should be in grConfig")
-				assert.Equal(t, tt.wantTime, g.grConfig[tt.wantPeer], "restart-time mismatch")
+				require.Len(t, caps, 1, "should return exactly one capability")
+				cap := caps[0]
+				assert.Equal(t, uint8(64), cap.Code, "capability code must be 64 (GR)")
+				assert.Equal(t, "hex", cap.Encoding, "encoding must be hex")
+				assert.Equal(t, tt.wantPayload, cap.Payload, "payload hex mismatch")
+				require.Len(t, cap.Peers, 1, "should have exactly one peer")
+				assert.Equal(t, tt.wantPeer, cap.Peers[0], "peer address mismatch")
 			} else {
-				assert.Empty(t, g.grConfig, "grConfig should be empty for ignored/invalid lines")
+				assert.Empty(t, caps, "should return no capabilities for ignored/invalid config")
 			}
 		})
 	}
 }
 
-// TestGRPlugin_RegisterCapabilities verifies capability registration output.
+// TestExtractGRCapabilities_CapabilityDecl verifies capability declaration structure.
 //
-// VALIDATES: Capability hex output matches RFC 4724 wire format.
+// VALIDATES: Returned CapabilityDecl has correct Code, Encoding, Payload, and Peers.
 // PREVENTS: Malformed GR capability causing OPEN rejection.
-func TestGRPlugin_RegisterCapabilities(t *testing.T) {
+func TestExtractGRCapabilities_CapabilityDecl(t *testing.T) {
 	tests := []struct {
-		name         string
-		grConfig     map[string]uint16
-		wantContains []string
+		name        string
+		json        string
+		wantLen     int
+		wantPayload string
+		wantPeer    string
 	}{
 		{
-			name: "single_peer_120",
-			grConfig: map[string]uint16{
-				"192.168.1.1": 120,
-			},
-			// RFC 4724: restart-time 120 = 0x0078
-			wantContains: []string{"capability hex 64 0078 peer 192.168.1.1"},
+			name:        "single_peer_120",
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}`,
+			wantLen:     1,
+			wantPayload: "0078",
+			wantPeer:    "192.168.1.1",
 		},
 		{
-			name: "single_peer_max_4095",
-			grConfig: map[string]uint16{
-				"10.0.0.1": 4095,
-			},
-			// RFC 4724: restart-time 4095 = 0x0FFF
-			wantContains: []string{"capability hex 64 0fff peer 10.0.0.1"},
+			name:        "single_peer_max_4095",
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}`,
+			wantLen:     1,
+			wantPayload: "0fff",
+			wantPeer:    "10.0.0.1",
 		},
 		{
-			name: "single_peer_zero",
-			grConfig: map[string]uint16{
-				"127.0.0.1": 0,
-			},
-			// RFC 4724: restart-time 0 = 0x0000
-			wantContains: []string{"capability hex 64 0000 peer 127.0.0.1"},
+			name:        "single_peer_zero",
+			json:        `{"bgp":{"peer":{"127.0.0.1":{"capability":{"graceful-restart":{"restart-time":0}}}}}}`,
+			wantLen:     1,
+			wantPayload: "0000",
+			wantPeer:    "127.0.0.1",
 		},
 		{
-			name:         "empty_config",
-			grConfig:     map[string]uint16{},
-			wantContains: []string{"capability done"},
+			name:    "empty_config_no_peers",
+			json:    `{"bgp":{"router-id":"1.2.3.4"}}`,
+			wantLen: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			g := &GRPlugin{
-				output:   &buf,
-				grConfig: tt.grConfig,
-			}
+			caps := extractGRCapabilities(tt.json)
 
-			g.registerCapabilities()
-			output := buf.String()
+			assert.Len(t, caps, tt.wantLen, "unexpected number of capabilities")
 
-			for _, want := range tt.wantContains {
-				assert.Contains(t, output, want, "output should contain: %s", want)
+			if tt.wantLen > 0 {
+				cap := caps[0]
+				assert.Equal(t, uint8(64), cap.Code, "capability code must be 64 (GR)")
+				assert.Equal(t, "hex", cap.Encoding, "encoding must be hex")
+				assert.Equal(t, tt.wantPayload, cap.Payload, "payload mismatch")
+				require.Len(t, cap.Peers, 1, "should target exactly one peer")
+				assert.Equal(t, tt.wantPeer, cap.Peers[0], "peer mismatch")
 			}
-			assert.Contains(t, output, "capability done", "output must end with capability done")
 		})
 	}
 }
 
-// TestGRPlugin_CapabilityWireFormat verifies RFC 4724 wire encoding.
+// TestExtractGRCapabilities_WireFormat verifies RFC 4724 wire encoding.
 //
-// VALIDATES: Restart-time value is correctly encoded as 12-bit big-endian.
+// VALIDATES: Restart-time value is correctly encoded as 12-bit big-endian hex in Payload.
 // PREVENTS: Byte order errors or bit-shift mistakes in capability encoding.
 // BOUNDARY: Tests 0 (min), 4095 (max 12-bit), intermediate values.
-func TestGRPlugin_CapabilityWireFormat(t *testing.T) {
+func TestExtractGRCapabilities_WireFormat(t *testing.T) {
 	tests := []struct {
 		name        string
-		restartTime uint16
+		restartTime int
 		wantHex     string
 	}{
 		// RFC 4724: [Restart Flags:4 bits][Restart Time:12 bits] = 2 bytes
@@ -178,55 +181,52 @@ func TestGRPlugin_CapabilityWireFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			g := &GRPlugin{
-				output: &buf,
-				grConfig: map[string]uint16{
-					"192.168.1.1": tt.restartTime,
-				},
-			}
+			json := fmt.Sprintf(
+				`{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":%d}}}}}}`,
+				tt.restartTime,
+			)
+			caps := extractGRCapabilities(json)
 
-			g.registerCapabilities()
-			output := buf.String()
-
-			wantLine := "capability hex 64 " + tt.wantHex + " peer 192.168.1.1"
-			assert.Contains(t, output, wantLine, "wire format mismatch")
+			require.Len(t, caps, 1, "should return exactly one capability")
+			assert.Equal(t, tt.wantHex, caps[0].Payload, "wire format mismatch")
 		})
 	}
 }
 
-// TestGRPlugin_StartupProtocol verifies the 5-stage startup sequence.
+// TestExtractGRCapabilities_MultiplePeers verifies multiple peer config extraction.
 //
-// VALIDATES: Plugin sends correct declarations and waits for expected markers.
-// PREVENTS: Protocol handshake failures blocking plugin startup.
-func TestGRPlugin_StartupProtocol(t *testing.T) {
-	// Simulate engine input with JSON config format
-	input := strings.NewReader(`config json bgp {"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}
-config done
-registry done
-`)
+// VALIDATES: Each peer with GR config produces a separate CapabilityDecl.
+// PREVENTS: Only first peer being extracted when multiple peers have GR config.
+func TestExtractGRCapabilities_MultiplePeers(t *testing.T) {
+	json := `{"bgp":{"peer":{
+		"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}},
+		"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":60}}}
+	}}}`
 
-	var output bytes.Buffer
-	g := NewGRPlugin(input, &output)
+	caps := extractGRCapabilities(json)
 
-	// Run startup protocol only (not event loop - that would block)
-	g.doStartupProtocol()
+	require.Len(t, caps, 2, "should return one capability per peer")
 
-	out := output.String()
+	// Build a map of peer -> payload for order-independent checking
+	peerPayload := make(map[string]string)
+	for _, cap := range caps {
+		assert.Equal(t, uint8(64), cap.Code)
+		assert.Equal(t, "hex", cap.Encoding)
+		require.Len(t, cap.Peers, 1)
+		peerPayload[cap.Peers[0]] = cap.Payload
+	}
 
-	// Stage 1: Declaration
-	assert.Contains(t, out, "declare wants config bgp")
-	assert.Contains(t, out, "declare done")
+	assert.Equal(t, "0078", peerPayload["192.168.1.1"], "192.168.1.1 restart-time=120")
+	assert.Equal(t, "003c", peerPayload["10.0.0.1"], "10.0.0.1 restart-time=60")
+}
 
-	// Stage 3: Capability registration
-	assert.Contains(t, out, "capability hex 64 0078 peer 192.168.1.1")
-	assert.Contains(t, out, "capability done")
-
-	// Stage 5: Ready
-	assert.Contains(t, out, "ready")
-
-	// Verify config was parsed
-	assert.Equal(t, uint16(120), g.grConfig["192.168.1.1"])
+// TestExtractGRCapabilities_InvalidJSON verifies graceful handling of bad input.
+//
+// VALIDATES: Invalid JSON does not panic, returns empty slice.
+// PREVENTS: Crash on malformed config data.
+func TestExtractGRCapabilities_InvalidJSON(t *testing.T) {
+	caps := extractGRCapabilities(`not valid json`)
+	assert.Empty(t, caps, "invalid JSON should return no capabilities")
 }
 
 // TestRunCLIDecode verifies CLI decode mode for GR capability.

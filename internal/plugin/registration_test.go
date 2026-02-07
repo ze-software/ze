@@ -3,360 +3,10 @@ package plugin
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// TestParseRFCAdd verifies parsing of "declare rfc <number>" command.
-//
-// VALIDATES: RFC numbers are parsed correctly for human-readable feature tracking.
-// PREVENTS: Plugin registration failures due to RFC command parsing errors.
-func TestParseRFCAdd(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantRFC uint16
-		wantErr bool
-	}{
-		{
-			name:    "basic_rfc_4271",
-			input:   "declare rfc 4271",
-			wantRFC: 4271,
-		},
-		{
-			name:    "rfc_9234",
-			input:   "declare rfc 9234",
-			wantRFC: 9234,
-		},
-		{
-			name:    "missing_number",
-			input:   "declare rfc",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_number",
-			input:   "declare rfc notanumber",
-			wantErr: true,
-		},
-		{
-			name:    "negative_number",
-			input:   "declare rfc -1",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Contains(t, reg.RFCs, tt.wantRFC)
-		})
-	}
-}
-
-// TestParseEncodingAdd verifies parsing of "declare encoding <enc>" command.
-//
-// VALIDATES: Supported encodings (text, b64, hex) are tracked per plugin.
-// PREVENTS: Invalid encoding names being accepted.
-func TestParseEncodingAdd(t *testing.T) {
-	tests := []struct {
-		name         string
-		input        string
-		wantEncoding string
-		wantErr      bool
-	}{
-		{
-			name:         "text_encoding",
-			input:        "declare encoding text",
-			wantEncoding: "text",
-		},
-		{
-			name:         "b64_encoding",
-			input:        "declare encoding b64",
-			wantEncoding: "b64",
-		},
-		{
-			name:         "hex_encoding",
-			input:        "declare encoding hex",
-			wantEncoding: "hex",
-		},
-		{
-			name:    "missing_encoding",
-			input:   "declare encoding",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_encoding",
-			input:   "declare encoding xml",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Contains(t, reg.Encodings, tt.wantEncoding)
-		})
-	}
-}
-
-// TestParseFamilyAdd verifies parsing of "declare family <afi> <safi>" command.
-//
-// VALIDATES: Address families are parsed and tracked for update delivery.
-// PREVENTS: Plugin missing updates due to family registration errors.
-func TestParseFamilyAdd(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantFamily string
-		wantErr    bool
-	}{
-		{
-			name:       "ipv4_unicast",
-			input:      "declare family ipv4 unicast",
-			wantFamily: "ipv4/unicast",
-		},
-		{
-			name:       "ipv6_unicast",
-			input:      "declare family ipv6 unicast",
-			wantFamily: "ipv6/unicast",
-		},
-		{
-			name:       "all_families",
-			input:      "declare family all",
-			wantFamily: "all",
-		},
-		{
-			name:    "missing_safi",
-			input:   "declare family ipv4",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_afi",
-			input:   "declare family ipv12 unicast",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Contains(t, reg.Families, tt.wantFamily)
-		})
-	}
-}
-
-// TestParseConfigPatternRejected verifies pattern-based config is rejected.
-//
-// VALIDATES: Pattern syntax returns helpful error message.
-// PREVENTS: Confusion when using deprecated pattern syntax.
-func TestParseConfigPatternRejected(t *testing.T) {
-	reg := &PluginRegistration{}
-
-	// Pattern-based config was removed - should return error with hint
-	err := reg.ParseLine("declare conf peer * capability hostname <hostname:.*>")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "declare wants config")
-}
-
-// TestParseCommandAdd verifies parsing of "declare cmd <command>" command.
-//
-// VALIDATES: Commands are registered for routing to plugins.
-// PREVENTS: Command conflict detection failures.
-func TestParseCommandAdd(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		wantCmd string
-		wantErr bool
-	}{
-		{
-			name:    "rib_show_command",
-			input:   "declare cmd rib adjacent in show",
-			wantCmd: "rib adjacent in show",
-		},
-		{
-			name:    "peer_refresh_command",
-			input:   "declare cmd peer * refresh",
-			wantCmd: "peer * refresh",
-		},
-		{
-			name:    "missing_command",
-			input:   "declare cmd",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Contains(t, reg.Commands, tt.wantCmd)
-		})
-	}
-}
-
-// TestParseRegistrationDone verifies "declare done" signals completion.
-//
-// VALIDATES: Stage 1 completion is signaled correctly.
-// PREVENTS: Startup hangs waiting for registration.
-func TestParseRegistrationDone(t *testing.T) {
-	reg := &PluginRegistration{}
-
-	// Add some registrations first
-	require.NoError(t, reg.ParseLine("declare rfc 4271"))
-	require.NoError(t, reg.ParseLine("declare encoding text"))
-	require.NoError(t, reg.ParseLine("declare family ipv4 unicast"))
-
-	// Then signal done
-	err := reg.ParseLine("declare done")
-	require.NoError(t, err)
-	assert.True(t, reg.Done)
-}
-
-// TestParseReceive verifies parsing of "declare receive <type>" command.
-//
-// VALIDATES: Plugin can declare which message types it wants to receive.
-// PREVENTS: Plugins missing events due to receive declaration errors.
-func TestParseReceive(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		wantType string
-		wantErr  bool
-	}{
-		{
-			name:     "negotiated",
-			input:    "declare receive negotiated",
-			wantType: "negotiated",
-		},
-		{
-			name:     "update",
-			input:    "declare receive update",
-			wantType: "update",
-		},
-		{
-			name:     "state",
-			input:    "declare receive state",
-			wantType: "state",
-		},
-		{
-			name:     "all",
-			input:    "declare receive all",
-			wantType: "all",
-		},
-		{
-			name:    "missing_type",
-			input:   "declare receive",
-			wantErr: true,
-		},
-		{
-			name:    "invalid_type",
-			input:   "declare receive foobar",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Contains(t, reg.Receive, tt.wantType)
-		})
-	}
-}
-
-// TestParseCapabilitySet verifies "capability <enc> <code> <payload>" command.
-//
-// VALIDATES: Plugin capability bytes are captured for OPEN message injection.
-// PREVENTS: Malformed capability declarations.
-func TestParseCapabilitySet(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		wantCode    uint8
-		wantPayload string
-		wantErr     bool
-	}{
-		{
-			name:        "hostname_capability",
-			input:       "capability b64 73 cm91dGVyMS5leGFtcGxlLmNvbQ==",
-			wantCode:    73,
-			wantPayload: "cm91dGVyMS5leGFtcGxlLmNvbQ==",
-		},
-		{
-			name:        "gr_capability",
-			input:       "capability b64 64 AAAA",
-			wantCode:    64,
-			wantPayload: "AAAA",
-		},
-		{
-			name:        "empty_payload",
-			input:       "capability b64 64",
-			wantCode:    64,
-			wantPayload: "", // Empty payload is valid (RFC 2918 route-refresh).
-		},
-		{
-			name:    "invalid_code",
-			input:   "capability b64 abc AAAA",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			caps := &PluginCapabilities{}
-			err := caps.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Len(t, caps.Capabilities, 1)
-			assert.Equal(t, tt.wantCode, caps.Capabilities[0].Code)
-			assert.Equal(t, tt.wantPayload, caps.Capabilities[0].Payload)
-		})
-	}
-}
-
-// TestParseCapabilityDone verifies "capability done" signals capability stage completion.
-//
-// VALIDATES: Stage 3 completion is signaled correctly.
-// PREVENTS: Startup hangs waiting for capabilities.
-func TestParseCapabilityDone(t *testing.T) {
-	caps := &PluginCapabilities{}
-
-	err := caps.ParseLine("capability done")
-	require.NoError(t, err)
-	assert.True(t, caps.Done)
-}
 
 // TestConflictDetection verifies command/capability conflict detection.
 //
@@ -412,152 +62,52 @@ func TestCapabilityConflictDetection(t *testing.T) {
 	assert.Contains(t, err.Error(), "73")
 }
 
-// TestParseSchemaDeclaration verifies parsing of "declare conf schema" command.
+// TestPluginRegistrationStructConstruction verifies direct struct construction works.
 //
-// VALIDATES: Schema declarations are parsed correctly for dynamic schema extension.
-// PREVENTS: Plugin config schema extension failures.
-func TestParseSchemaDeclaration(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantName   string
-		wantFields map[string]string
-		wantErr    bool
-	}{
-		{
-			name:     "graceful_restart_schema",
-			input:    `declare conf schema capability graceful-restart { restart-time <restart-time:\d+>; }`,
-			wantName: "graceful-restart",
-			wantFields: map[string]string{
-				"restart-time": "uint16",
-			},
-		},
-		{
-			name:     "multi_field_schema",
-			input:    `declare conf schema capability custom { field1 <f1:\d+>; field2 <f2:.*>; }`,
-			wantName: "custom",
-			wantFields: map[string]string{
-				"field1": "uint16",
-				"field2": "string",
-			},
-		},
-		{
-			name:    "missing_block",
-			input:   "declare conf schema capability test",
-			wantErr: true,
-		},
-		{
-			name:    "unsupported_path",
-			input:   "declare conf schema peer test { field <f:.*>; }",
-			wantErr: true,
-		},
-		{
-			name:    "missing_type_spec",
-			input:   "declare conf schema capability test { field; }",
-			wantErr: true,
-		},
+// VALIDATES: PluginRegistration fields are correctly used by Register().
+// PREVENTS: Regression when registration data comes from RPC instead of text parsing.
+func TestPluginRegistrationStructConstruction(t *testing.T) {
+	registry := NewPluginRegistry()
+
+	reg := &PluginRegistration{
+		Name:             "test-plugin",
+		RFCs:             []uint16{4271, 9234},
+		Encodings:        []string{"text", "b64"},
+		Families:         []string{"ipv4/unicast", "ipv6/unicast"},
+		DecodeFamilies:   []string{"ipv4/flow"},
+		Commands:         []string{"rib show", "rib clear"},
+		Receive:          []string{"update", "negotiated"},
+		WantsConfigRoots: []string{"bgp"},
+		Done:             true,
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.Len(t, reg.SchemaDeclarations, 1)
+	err := registry.Register(reg)
+	require.NoError(t, err)
 
-			decl := reg.SchemaDeclarations[0]
-			assert.Equal(t, tt.wantName, decl.Name)
-			assert.Equal(t, "capability."+tt.wantName, decl.Path)
-			assert.Equal(t, tt.wantFields, decl.Fields)
-		})
-	}
+	// Verify registration was stored
+	assert.Equal(t, "test-plugin", registry.LookupCommand("rib show"))
+	assert.Equal(t, "test-plugin", registry.LookupFamily("ipv4/flow"))
+
+	// Build command info
+	info := registry.BuildCommandInfo()
+	require.Contains(t, info, "test-plugin")
+	assert.Len(t, info["test-plugin"], 2)
 }
 
-// TestParseHubSchemaDeclaration verifies parsing of "declare schema" Hub Architecture messages.
+// TestPluginSchemaDecl verifies PluginSchemaDecl can be constructed and used.
 //
-// VALIDATES: Schema module, namespace, handler declarations are parsed correctly.
-// PREVENTS: Plugin schema registration failures.
-func TestParseHubSchemaDeclaration(t *testing.T) {
-	tests := []struct {
-		name          string
-		input         string
-		wantModule    string
-		wantNamespace string
-		wantHandlers  []string
-		wantErr       bool
-	}{
-		{
-			name:       "schema_module",
-			input:      "declare schema module ze-bgp",
-			wantModule: "ze-bgp",
+// VALIDATES: Schema declaration struct holds YANG module info.
+// PREVENTS: Schema data loss during RPC registration.
+func TestPluginSchemaDecl(t *testing.T) {
+	reg := &PluginRegistration{
+		Name: "bgp-plugin",
+		PluginSchema: &PluginSchemaDecl{
+			Module:    "ze-bgp",
+			Namespace: "urn:ze:bgp",
+			Handlers:  []string{"bgp", "bgp.peer"},
+			Yang:      "module ze-bgp { namespace \"urn:ze:bgp\"; }",
+			Priority:  500,
 		},
-		{
-			name:          "schema_namespace",
-			input:         "declare schema namespace urn:ze:bgp",
-			wantNamespace: "urn:ze:bgp",
-		},
-		{
-			name:         "schema_handler",
-			input:        "declare schema handler bgp",
-			wantHandlers: []string{"bgp"},
-		},
-		{
-			name:    "schema_missing_value",
-			input:   "declare schema module",
-			wantErr: true,
-		},
-		{
-			name:    "schema_unknown_type",
-			input:   "declare schema unknown value",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, reg.PluginSchema)
-
-			if tt.wantModule != "" {
-				assert.Equal(t, tt.wantModule, reg.PluginSchema.Module)
-			}
-			if tt.wantNamespace != "" {
-				assert.Equal(t, tt.wantNamespace, reg.PluginSchema.Namespace)
-			}
-			if len(tt.wantHandlers) > 0 {
-				assert.Equal(t, tt.wantHandlers, reg.PluginSchema.Handlers)
-			}
-		})
-	}
-}
-
-// TestParseSchemaMultipleDeclarations verifies multiple schema declarations build up schema.
-//
-// VALIDATES: Multiple declare schema lines build complete schema.
-// PREVENTS: Schema parts overwriting each other.
-func TestParseSchemaMultipleDeclarations(t *testing.T) {
-	reg := &PluginRegistration{}
-
-	lines := []string{
-		"declare schema module ze-bgp",
-		"declare schema namespace urn:ze:bgp",
-		"declare schema handler bgp",
-		"declare schema handler bgp.peer",
-	}
-
-	for _, line := range lines {
-		err := reg.ParseLine(line)
-		require.NoError(t, err)
 	}
 
 	require.NotNil(t, reg.PluginSchema)
@@ -566,123 +116,140 @@ func TestParseSchemaMultipleDeclarations(t *testing.T) {
 	assert.Len(t, reg.PluginSchema.Handlers, 2)
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp")
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer")
+	assert.Equal(t, 500, reg.PluginSchema.Priority)
 }
 
-// TestParseSchemaYangHeredoc verifies heredoc parsing for YANG content.
+// TestRPCRegistrationToRegistry verifies the full RPC→conversion→registry integration path.
 //
-// VALIDATES: Multi-line YANG can be collected via heredoc.
-// PREVENTS: YANG content truncation or corruption.
-func TestParseSchemaYangHeredoc(t *testing.T) {
-	// Test heredoc detection
-	line := "declare schema yang <<EOF"
-	delimiter, ok := StartHeredoc(line)
-	assert.True(t, ok)
-	assert.Equal(t, "EOF", delimiter)
+// VALIDATES: DeclareRegistrationInput fields flow through registrationFromRPC() into
+// PluginRegistry, with correct command routing and family decode lookups.
+// PREVENTS: Regression where RPC fields are converted but never reach the registry.
+func TestRPCRegistrationToRegistry(t *testing.T) {
+	t.Parallel()
+	registry := NewPluginRegistry()
 
-	// Test heredoc end detection
-	assert.True(t, IsHeredocEnd("EOF", "EOF"))
-	assert.True(t, IsHeredocEnd("  EOF  ", "EOF"))
-	assert.False(t, IsHeredocEnd("not EOF", "EOF"))
-
-	// Test heredoc content collection
-	reg := &PluginRegistration{}
-	reg.AppendHeredocLine("module ze-bgp {")
-	reg.AppendHeredocLine("  namespace \"urn:ze:bgp\";")
-	reg.AppendHeredocLine("}")
-
-	require.NotNil(t, reg.PluginSchema)
-	assert.Equal(t, "module ze-bgp {\n  namespace \"urn:ze:bgp\";\n}", reg.PluginSchema.Yang)
-}
-
-// TestStartHeredoc verifies heredoc start detection.
-//
-// VALIDATES: Heredoc start lines are correctly detected.
-// PREVENTS: Missing or incorrect heredoc delimiter extraction.
-func TestStartHeredoc(t *testing.T) {
-	tests := []struct {
-		line      string
-		wantDelim string
-		wantOK    bool
-	}{
-		{"declare schema yang <<EOF", "EOF", true},
-		{"declare schema yang <<YANG", "YANG", true},
-		{"declare schema yang << END", "END", true},
-		{"declare schema yang", "", false},
-		{"no heredoc here", "", false},
-		{"declare schema yang <<", "", false}, // empty delimiter
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.line, func(t *testing.T) {
-			delim, ok := StartHeredoc(tt.line)
-			assert.Equal(t, tt.wantOK, ok)
-			if ok {
-				assert.Equal(t, tt.wantDelim, delim)
-			}
-		})
-	}
-}
-
-// TestParseWantsConfigRoot verifies parsing of "declare wants config <root>" command.
-//
-// VALIDATES: Plugin can request specific config subtrees by root name.
-// PREVENTS: Missing config delivery to plugins that need specific roots.
-func TestParseWantsConfigRoot(t *testing.T) {
-	tests := []struct {
-		name      string
-		input     string
-		wantRoots []string
-		wantErr   bool
-	}{
-		{
-			name:      "single_root_bgp",
-			input:     "declare wants config bgp",
-			wantRoots: []string{"bgp"},
+	input := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+			{Name: "ipv4/flow", Mode: "decode"},
+			{Name: "l2vpn/evpn", Mode: "decode"},
+			{Name: "ipv6/unicast", Mode: "encode"},
 		},
-		{
-			name:      "single_root_environment",
-			input:     "declare wants config environment",
-			wantRoots: []string{"environment"},
+		Commands: []rpc.CommandDecl{
+			{Name: "rib adjacent in show", Description: "Show adjacent RIB"},
+			{Name: "peer * refresh", Description: "Refresh peer"},
 		},
-		{
-			name:      "wildcard_all",
-			input:     "declare wants config *",
-			wantRoots: []string{"*"},
-		},
-		{
-			name:    "missing_root",
-			input:   "declare wants config",
-			wantErr: true,
+		WantsConfig: []string{"bgp"},
+		Schema: &rpc.SchemaDecl{
+			Module:    "ze-rib-conf",
+			Namespace: "urn:ze:rib:conf",
+			YANGText:  "module ze-rib-conf { }",
+			Handlers:  []string{"rib"},
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			reg := &PluginRegistration{}
-			err := reg.ParseLine(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantRoots, reg.WantsConfigRoots)
-		})
-	}
+	reg := registrationFromRPC(input)
+	reg.Name = "rib"
+	require.NoError(t, registry.Register(reg))
+
+	// Verify multi-word commands are routable
+	assert.Equal(t, "rib", registry.LookupCommand("rib adjacent in show"))
+	assert.Equal(t, "rib", registry.LookupCommand("peer * refresh"))
+	assert.Empty(t, registry.LookupCommand("unknown cmd"))
+
+	// Verify decode families registered
+	assert.Equal(t, "rib", registry.LookupFamily("ipv4/flow"))
+	assert.Equal(t, "rib", registry.LookupFamily("l2vpn/evpn"))
+	assert.Equal(t, "rib", registry.LookupFamily("ipv4/unicast")) // "both" → also in decode
+
+	// Verify encode-only family is NOT in decode lookup
+	assert.Empty(t, registry.LookupFamily("ipv6/unicast"))
+
+	// Verify GetDecodeFamilies returns all decode-registered families
+	decodeFamilies := registry.GetDecodeFamilies()
+	assert.Contains(t, decodeFamilies, "ipv4/flow")
+	assert.Contains(t, decodeFamilies, "l2vpn/evpn")
+	assert.Contains(t, decodeFamilies, "ipv4/unicast")
+	assert.NotContains(t, decodeFamilies, "ipv6/unicast")
+
+	// Verify command info includes encoding default
+	info := registry.BuildCommandInfo()
+	require.Contains(t, info, "rib")
+	assert.Len(t, info["rib"], 2)
 }
 
-// TestParseWantsConfigMultiple verifies multiple config root declarations.
+// TestRPCCapabilityToInjector verifies the full RPC→conversion→injector integration path.
 //
-// VALIDATES: Plugin can request multiple config subtrees.
-// PREVENTS: Only last root being stored instead of all.
-func TestParseWantsConfigMultiple(t *testing.T) {
-	reg := &PluginRegistration{}
+// VALIDATES: DeclareCapabilitiesInput fields flow through capabilitiesFromRPC() into
+// CapabilityInjector with correct payload decoding and per-peer scoping.
+// PREVENTS: Capability bytes lost or corrupted between RPC and OPEN injection.
+func TestRPCCapabilityToInjector(t *testing.T) {
+	t.Parallel()
+	injector := NewCapabilityInjector()
 
-	err := reg.ParseLine("declare wants config bgp")
-	require.NoError(t, err)
-	err = reg.ParseLine("declare wants config environment")
-	require.NoError(t, err)
+	input := &rpc.DeclareCapabilitiesInput{
+		Capabilities: []rpc.CapabilityDecl{
+			{Code: 73, Encoding: "b64", Payload: "dGVzdA=="},                          // global
+			{Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"10.0.0.1"}}, // per-peer
+		},
+	}
 
-	assert.Len(t, reg.WantsConfigRoots, 2)
-	assert.Contains(t, reg.WantsConfigRoots, "bgp")
-	assert.Contains(t, reg.WantsConfigRoots, "environment")
+	caps := capabilitiesFromRPC(input)
+	caps.PluginName = "hostname"
+	require.NoError(t, injector.AddPluginCapabilities(caps))
+
+	// Global capability available for any peer
+	allCaps := injector.GetCapabilitiesForPeer("10.0.0.2")
+	require.Len(t, allCaps, 1)
+	assert.Equal(t, uint8(73), allCaps[0].Code)
+	assert.Equal(t, []byte("test"), allCaps[0].Value) // b64 "dGVzdA==" → "test"
+
+	// Specific peer gets both global and per-peer
+	peerCaps := injector.GetCapabilitiesForPeer("10.0.0.1")
+	require.Len(t, peerCaps, 2)
+
+	// Per-peer comes first (takes precedence)
+	assert.Equal(t, uint8(64), peerCaps[0].Code)
+	assert.Equal(t, []byte{0x00, 0x78}, peerCaps[0].Value) // hex "0078"
+	// Global second
+	assert.Equal(t, uint8(73), peerCaps[1].Code)
+}
+
+// TestRPCRegistrationConflictThroughConversion verifies conflicts are detected
+// when two plugins register via the RPC path.
+//
+// VALIDATES: Command/family conflicts detected even when registration comes from RPC input.
+// PREVENTS: Silent command overwrites when multiple plugins register via YANG RPC.
+func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
+	t.Parallel()
+	registry := NewPluginRegistry()
+
+	// First plugin registers via RPC
+	input1 := &rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+	}
+	reg1 := registrationFromRPC(input1)
+	reg1.Name = "rib"
+	require.NoError(t, registry.Register(reg1))
+
+	// Second plugin tries same command
+	input2 := &rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+	}
+	reg2 := registrationFromRPC(input2)
+	reg2.Name = "rib2"
+	err := registry.Register(reg2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "command conflict")
+
+	// Third plugin tries same decode family
+	input3 := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+	}
+	reg3 := registrationFromRPC(input3)
+	reg3.Name = "flowspec"
+	err = registry.Register(reg3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "family conflict")
 }

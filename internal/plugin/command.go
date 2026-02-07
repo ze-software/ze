@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -320,78 +319,29 @@ func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector strin
 	return d.routeToProcess(matchedPlugin, args, peerSelector)
 }
 
-// routeToProcess sends a command request to a plugin process.
+// routeToProcess sends a command request to a plugin process via synchronous RPC.
 func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerSelector string) (*Response, error) {
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
 		return nil, errors.New("plugin process not running")
 	}
 
-	// Create response channel
-	respCh := make(chan *Response, 1)
-
-	// Add pending request
-	serial := d.pending.Add(&PendingRequest{
-		Command:  cmd.Name,
-		Process:  proc,
-		Timeout:  cmd.Timeout,
-		RespChan: respCh,
-	})
-
-	if serial == "" {
-		// Limit exceeded - error already sent to respCh
-		select {
-		case resp := <-respCh:
-			return resp, nil
-		default:
-			return &Response{Status: statusError, Data: "too many pending requests"}, nil
-		}
+	connB := proc.ConnB()
+	if connB == nil {
+		return nil, errors.New("plugin connection closed")
 	}
 
-	// Build request JSON
-	request := map[string]any{
-		"serial":  serial,
-		"type":    "request",
-		"command": cmd.Name,
-		"args":    args,
-		"peer":    peerSelector,
+	ctx, cancel := context.WithTimeout(context.Background(), cmd.Timeout)
+	defer cancel()
+
+	rpcOut, err := connB.SendExecuteCommand(ctx, "", cmd.Name, args, peerSelector)
+	if err != nil {
+		return &Response{Status: statusError, Data: "failed to send request: " + err.Error()}, nil
 	}
-	reqJSON, _ := json.Marshal(request)
-
-	// Send to process
-	if writeErr := proc.WriteEvent(string(reqJSON)); writeErr != nil {
-		d.pending.Complete(serial, &Response{Status: statusError, Data: "failed to send request"})
+	if rpcOut != nil {
+		return &Response{Status: rpcOut.Status, Data: rpcOut.Data}, nil
 	}
-
-	// Collect responses (may be streaming with multiple partials)
-	var partials []any
-	for {
-		resp := <-respCh
-		if resp == nil {
-			// Channel closed unexpectedly
-			if len(partials) > 0 {
-				return &Response{Status: statusDone, Data: partials}, nil
-			}
-			return &Response{Status: statusError, Data: "no response received"}, nil
-		}
-
-		if !resp.Partial {
-			// Final response - combine with any partials
-			if len(partials) > 0 {
-				// Had streaming data, append final data if present
-				if resp.Data != nil {
-					partials = append(partials, resp.Data)
-				}
-				return &Response{Status: resp.Status, Data: partials}, nil
-			}
-			return resp, nil
-		}
-
-		// Partial response - collect and continue
-		if resp.Data != nil {
-			partials = append(partials, resp.Data)
-		}
-	}
+	return &Response{Status: statusDone}, nil
 }
 
 // tokenize splits a command string into tokens.

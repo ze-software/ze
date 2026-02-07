@@ -2,12 +2,75 @@ package hub
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Shared test binary setup - built once, used by all tests.
+var (
+	hubBinaryPath string
+	hubBuildOnce  sync.Once
+	hubBuildErr   error
+	hubTestTmpDir string
+)
+
+// TestMain handles cleanup of shared test resources.
+func TestMain(m *testing.M) {
+	code := m.Run()
+
+	if hubTestTmpDir != "" {
+		_ = os.RemoveAll(hubTestTmpDir)
+	}
+
+	os.Exit(code)
+}
+
+// buildHubBinary builds the ze-subsystem binary once for all tests.
+func buildHubBinary(t *testing.T) {
+	t.Helper()
+
+	hubBuildOnce.Do(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+
+		hubTestTmpDir, hubBuildErr = os.MkdirTemp("", "ze-hub-test-*")
+		if hubBuildErr != nil {
+			hubBuildErr = fmt.Errorf("create temp dir: %w", hubBuildErr)
+			return
+		}
+
+		hubBinaryPath = filepath.Join(hubTestTmpDir, "ze-subsystem")
+
+		listCmd := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{.Dir}}")
+		output, err := listCmd.Output()
+		if err != nil {
+			hubBuildErr = fmt.Errorf("find project root: %w", err)
+			return
+		}
+		projectRoot := strings.TrimSpace(string(output))
+
+		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", hubBinaryPath, "./cmd/ze-subsystem") //nolint:gosec // test code
+		buildCmd.Dir = projectRoot
+		buildOutput, err := buildCmd.CombinedOutput()
+		if err != nil {
+			hubBuildErr = fmt.Errorf("build ze-subsystem: %w\n%s", err, buildOutput)
+			return
+		}
+	})
+
+	if hubBuildErr != nil {
+		t.Skipf("skipping test requiring ze-subsystem binary: %v", hubBuildErr)
+	}
+}
 
 // TestOrchestratorNew verifies Orchestrator creates with config.
 //
@@ -47,15 +110,16 @@ func TestOrchestratorNewNil(t *testing.T) {
 
 // TestOrchestratorStartStop verifies Orchestrator starts and stops cleanly.
 //
-// VALIDATES: Orchestrator lifecycle works with mock plugins.
+// VALIDATES: Orchestrator lifecycle works with ze-subsystem binary.
 // PREVENTS: Hang on shutdown, leaked goroutines.
 func TestOrchestratorStartStop(t *testing.T) {
-	// Use a simple shell command that completes 5-stage protocol
+	buildHubBinary(t)
+
 	cfg := &HubConfig{
 		Plugins: []PluginDef{
 			{
 				Name: "echo-test",
-				Run:  "echo 'declare done' && echo 'capability done' && echo 'ready' && sleep 1",
+				Run:  hubBinaryPath + " --mode=session",
 			},
 		},
 	}

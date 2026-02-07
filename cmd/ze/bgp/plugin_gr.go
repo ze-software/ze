@@ -1,8 +1,6 @@
 package bgp
 
 import (
-	"io"
-
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -29,8 +27,6 @@ func cmdPluginGR(args []string) int {
 			gr.SetLogger(slogutil.PluginLogger("gr", level))
 		},
 		RunCLIDecode: gr.RunCLIDecode,
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return gr.NewGRPlugin(in, out).Run()
-		},
+		RunEngine:    gr.RunGRPlugin,
 	}, args)
 }

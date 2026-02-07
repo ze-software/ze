@@ -2,16 +2,19 @@ package bgpls
 
 import (
 	"bufio"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // bgplsLogger is the package-level logger, disabled by default.
@@ -25,90 +28,56 @@ func SetBGPLSLogger(l *slog.Logger) {
 	}
 }
 
-// BGPLSPlugin implements a BGP-LS family plugin.
-// For now, it only supports decode mode (started with --decode).
-type BGPLSPlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
-}
+// RunBGPLSPlugin runs the BGP-LS plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunBGPLSPlugin(engineConn, callbackConn net.Conn) int {
+	bgplsLogger.Debug("bgpls plugin starting (RPC)")
 
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
+	p := sdk.NewWithConn("bgpls", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-// NewBGPLSPlugin creates a new BGP-LS Plugin.
-func NewBGPLSPlugin(input io.Reader, output io.Writer) *BGPLSPlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &BGPLSPlugin{
-		input:  scanner,
-		output: output,
+	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {
+		if !isValidBGPLSFamily(family) {
+			return "", fmt.Errorf("unsupported family: %s", family)
+		}
+
+		data, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid hex: %w", err)
+		}
+
+		results := decodeBGPLSNLRI(data)
+		if len(results) == 0 {
+			return "", fmt.Errorf("no valid BGP-LS NLRIs decoded")
+		}
+
+		// Single object for single NLRI, array for multiple.
+		var jsonBytes []byte
+		if len(results) == 1 {
+			jsonBytes, err = json.Marshal(results[0])
+		} else {
+			jsonBytes, err = json.Marshal(results)
+		}
+		if err != nil {
+			return "", fmt.Errorf("JSON encoding failed: %w", err)
+		}
+
+		return string(jsonBytes), nil
+	})
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Families: []sdk.FamilyDecl{
+			{Name: "bgp-ls/bgp-ls", Mode: "decode"},
+			{Name: "bgp-ls/bgp-ls-vpn", Mode: "decode"},
+		},
+	})
+	if err != nil {
+		bgplsLogger.Error("bgpls plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the bgpls plugin in normal mode.
-func (p *BGPLSPlugin) Run() int {
-	bgplsLogger.Debug("bgpls plugin starting")
-	p.doStartupProtocol()
-	bgplsLogger.Debug("bgpls plugin startup complete, entering event loop")
-	p.eventLoop()
 	return 0
-}
-
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (p *BGPLSPlugin) doStartupProtocol() {
-	// Stage 1: Declaration - claim BGP-LS family decode
-	p.send("declare family bgp-ls bgp-ls decode")
-	p.send("declare family bgp-ls bgp-ls-vpn decode")
-	p.send("declare rfc 7752")
-	p.send("declare rfc 9085")
-	p.send("declare rfc 9514")
-	p.send("declare encoding hex")
-	p.send("declare done")
-
-	// Stage 2: Parse config (BGP-LS plugin doesn't need config)
-	p.waitForLine("config done")
-
-	// Stage 3: No explicit capability injection needed.
-	p.send("capability done")
-
-	// Stage 4: Wait for registry
-	p.waitForLine("registry done")
-
-	// Stage 5: Ready
-	p.send("ready")
-}
-
-// eventLoop handles decode requests from the engine.
-func (p *BGPLSPlugin) eventLoop() {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-
-		bgplsLogger.Debug("received", "line", line[:min(80, len(line))])
-
-		serial, command := parseSerialPrefix(line)
-		response := p.handleRequest(command)
-		if response != "" {
-			if serial != "" {
-				p.send(fmt.Sprintf("@%s %s", serial, response))
-			} else {
-				p.send(response)
-			}
-		}
-	}
-}
-
-// parseSerialPrefix extracts "#serial" prefix from a line.
-func parseSerialPrefix(line string) (string, string) {
-	if len(line) > 0 && line[0] == '#' {
-		idx := strings.IndexByte(line, ' ')
-		if idx > 1 {
-			return line[1:idx], line[idx+1:]
-		}
-	}
-	return "", line
 }
 
 // Protocol constants.
@@ -120,78 +89,6 @@ const (
 	respDecodedUnk  = "decoded unknown"
 	respDecodedJSON = "decoded json "
 )
-
-// handleRequest processes a single request and returns the response.
-func (p *BGPLSPlugin) handleRequest(line string) string {
-	parts := strings.Fields(line)
-	if len(parts) < 3 {
-		return ""
-	}
-
-	cmd := parts[0]
-	objType := parts[1]
-
-	if cmd == cmdDecode && objType == objTypeNLRI {
-		return p.handleDecodeRequest(parts)
-	}
-
-	return ""
-}
-
-// handleDecodeRequest handles: decode nlri <family> <hex>.
-func (p *BGPLSPlugin) handleDecodeRequest(parts []string) string {
-	if len(parts) < 4 {
-		return respDecodedUnk
-	}
-
-	family := strings.ToLower(parts[2])
-	hexData := parts[3]
-
-	if !isValidBGPLSFamily(family) {
-		return respDecodedUnk
-	}
-
-	data, err := hex.DecodeString(hexData)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	results := decodeBGPLSNLRI(data)
-	if len(results) == 0 {
-		return respDecodedUnk
-	}
-
-	// Return single object for single NLRI, array for multiple (matches VPN pattern)
-	var jsonBytes []byte
-	if len(results) == 1 {
-		jsonBytes, err = json.Marshal(results[0])
-	} else {
-		jsonBytes, err = json.Marshal(results)
-	}
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	return respDecodedJSON + string(jsonBytes)
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (p *BGPLSPlugin) waitForLine(expected string) {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-// Write errors are logged but not propagated - if the pipe is broken, the plugin exits anyway.
-func (p *BGPLSPlugin) send(msg string) {
-	if _, err := fmt.Fprintf(p.output, "%s\n", msg); err != nil {
-		bgplsLogger.Debug("write error", "err", err)
-	}
-}
 
 // GetBGPLSYANG returns the embedded YANG schema for the bgpls plugin.
 // BGP-LS plugin doesn't augment config schema, returns empty.

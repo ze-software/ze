@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -23,7 +25,7 @@ type PluginConfig struct {
 	ConfigLogger  func(level string)                                                    // Configures plugin logger
 	RunCLIDecode  func(hex string, text bool, out, err io.Writer) int                   // CLI decode handler
 	RunDecode     func(in io.Reader, out io.Writer) int                                 // Engine decode handler (optional)
-	RunEngine     func(in io.Reader, out io.Writer) int                                 // Engine mode handler
+	RunEngine     func(engineConn, callbackConn net.Conn) int                           // Engine mode handler (RPC)
 	ExtraFlags    func(fs *flag.FlagSet)                                                // Register extra flags (optional)
 	RunCLIWithCtx func(hex string, text bool, out, err io.Writer, fs *flag.FlagSet) int // CLI decode with flag context (optional)
 }
@@ -117,8 +119,13 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		return cfg.RunDecode(os.Stdin, os.Stdout)
 	}
 
-	// Engine Mode
-	return cfg.RunEngine(os.Stdin, os.Stdout)
+	// Engine Mode (RPC over inherited socket pairs)
+	engineConn, callbackConn, err := connsFromEnv()
+	if err != nil {
+		cliError(os.Stderr, "error: %v", err)
+		return 1
+	}
+	return cfg.RunEngine(engineConn, callbackConn)
 }
 
 // readHexFromStdin reads a single line of hex from stdin.
@@ -179,4 +186,57 @@ func availableFeatures(cfg PluginConfig) string {
 		return "none"
 	}
 	return strings.Join(parts, ", ")
+}
+
+// connsFromEnv reads ZE_ENGINE_FD and ZE_CALLBACK_FD environment variables
+// and returns net.Conn connections for the RPC protocol.
+func connsFromEnv() (net.Conn, net.Conn, error) {
+	engineFD, err := envFDInt("ZE_ENGINE_FD")
+	if err != nil {
+		return nil, nil, err
+	}
+	callbackFD, err := envFDInt("ZE_CALLBACK_FD")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	engineConn, err := fdToConn(engineFD, "ze-engine")
+	if err != nil {
+		return nil, nil, fmt.Errorf("engine conn: %w", err)
+	}
+
+	callbackConn, err := fdToConn(callbackFD, "ze-callback")
+	if err != nil {
+		engineConn.Close() //nolint:errcheck,gosec // cleanup on error
+		return nil, nil, fmt.Errorf("callback conn: %w", err)
+	}
+
+	return engineConn, callbackConn, nil
+}
+
+// envFDInt reads an environment variable as a file descriptor number.
+func envFDInt(name string) (int, error) {
+	s := os.Getenv(name)
+	if s == "" {
+		return 0, fmt.Errorf("%s not set", name)
+	}
+	fd, err := strconv.Atoi(s)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", name, err)
+	}
+	return fd, nil
+}
+
+// fdToConn wraps a file descriptor as a net.Conn.
+func fdToConn(fd int, name string) (net.Conn, error) {
+	f := os.NewFile(uintptr(fd), name)
+	if f == nil {
+		return nil, fmt.Errorf("invalid fd %d", fd)
+	}
+	conn, err := net.FileConn(f)
+	f.Close() //nolint:errcheck,gosec // FD ownership transferred
+	if err != nil {
+		return nil, err
+	}
+	return conn, nil
 }

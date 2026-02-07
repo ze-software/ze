@@ -43,8 +43,6 @@ func cmdPluginBGPLS(args []string) int {
 			return bgpls.RunBGPLSCLIDecode(hex, *family, text, out, errOut)
 		},
 		RunDecode: bgpls.RunBGPLSDecode,
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return bgpls.NewBGPLSPlugin(in, out).Run()
-		},
+		RunEngine: bgpls.RunBGPLSPlugin,
 	}, args)
 }

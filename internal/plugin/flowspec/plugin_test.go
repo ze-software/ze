@@ -265,48 +265,12 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 	}
 }
 
-// TestStartupCapabilityInjection verifies Stage 3 Multiprotocol capability injection.
+// TestEncodeDecodeViaRunFlowSpecDecode verifies encode and decode commands
+// through the RunFlowSpecDecode protocol handler.
 //
-// VALIDATES: Plugin injects Multiprotocol capabilities for all FlowSpec families.
-// PREVENTS: OPEN missing FlowSpec families when plugin is loaded.
-// RFC 4760 Section 8: Multiprotocol capability format.
-// RFC 8955 Section 7: FlowSpec uses SAFI 133 (0x85) and SAFI 134 (0x86 for VPN).
-func TestStartupCapabilityInjection(t *testing.T) {
-	// Provide startup handshake
-	startupInput := "config done\nregistry done\n"
-	input := strings.NewReader(startupInput)
-	output := &bytes.Buffer{}
-
-	plugin := NewFlowSpecPlugin(input, output)
-	plugin.Run()
-
-	result := output.String()
-
-	// Verify Stage 1 family declarations
-	assert.Contains(t, result, "declare family ipv4 flow encode")
-	assert.Contains(t, result, "declare family ipv4 flow decode")
-	assert.Contains(t, result, "declare family ipv6 flow encode")
-	assert.Contains(t, result, "declare family ipv6 flow decode")
-	assert.Contains(t, result, "declare family ipv4 flow-vpn encode")
-	assert.Contains(t, result, "declare family ipv4 flow-vpn decode")
-	assert.Contains(t, result, "declare family ipv6 flow-vpn encode")
-	assert.Contains(t, result, "declare family ipv6 flow-vpn decode")
-	assert.Contains(t, result, "declare done")
-
-	// Stage 3: No explicit capability hex lines needed.
-	// Multiprotocol capabilities are auto-added by engine based on decode declarations.
-	assert.Contains(t, result, "capability done")
-
-	// Verify Stage 5 ready
-	assert.Contains(t, result, "ready")
-}
-
-// TestEventLoopSerialPrefix verifies the eventLoop uses correct serial prefixes.
-// Request: #serial command → Response: @serial result
-//
-// VALIDATES: Response uses @ prefix (not # which is for requests).
-// PREVENTS: Protocol mismatch where plugin echoes # instead of @.
-func TestEventLoopSerialPrefix(t *testing.T) {
+// VALIDATES: RunFlowSpecDecode handles encode and decode requests correctly.
+// PREVENTS: Regression in the stdin/stdout decode protocol used by ze bgp decode.
+func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 	tests := []struct {
 		name         string
 		input        string
@@ -314,74 +278,46 @@ func TestEventLoopSerialPrefix(t *testing.T) {
 		wantContains string
 	}{
 		{
-			name:         "encode_with_serial",
-			input:        "#42 encode nlri ipv4/flow destination 10.0.0.0/24\n",
-			wantPrefix:   "@42 encoded hex ",
-			wantContains: "0A0000", // 10.0.0.0 in hex
-		},
-		{
-			name:         "decode_with_serial",
-			input:        "#abc decode nlri ipv4/flow 0501180a0000\n",
-			wantPrefix:   "@abc decoded json ",
-			wantContains: "10.0.0.0/24",
-		},
-		{
-			name:         "encode_error_with_serial",
-			input:        "#99 encode nlri ipv4/unicast destination 10.0.0.0/24\n",
-			wantPrefix:   "@99 encoded error ",
-			wantContains: "invalid family",
-		},
-		{
-			name:         "decode_unknown_with_serial",
-			input:        "#xyz decode nlri ipv4/unicast 180a0000\n",
-			wantPrefix:   "@xyz decoded unknown",
-			wantContains: "",
-		},
-		{
-			name:         "no_serial_encode",
+			name:         "encode_destination",
 			input:        "encode nlri ipv4/flow destination 10.0.0.0/24\n",
 			wantPrefix:   "encoded hex ",
 			wantContains: "0A0000",
 		},
 		{
-			name:         "no_serial_decode",
+			name:         "decode_destination",
 			input:        "decode nlri ipv4/flow 0501180a0000\n",
 			wantPrefix:   "decoded json ",
 			wantContains: "10.0.0.0/24",
+		},
+		{
+			name:         "encode_invalid_family",
+			input:        "encode nlri ipv4/unicast destination 10.0.0.0/24\n",
+			wantPrefix:   "encoded error ",
+			wantContains: "invalid family",
+		},
+		{
+			name:         "decode_invalid_family",
+			input:        "decode nlri ipv4/unicast 180a0000\n",
+			wantPrefix:   "decoded unknown",
+			wantContains: "",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Provide startup handshake + test request
-			startupInput := "config done\nregistry done\n" + tt.input
-			input := strings.NewReader(startupInput)
+			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
-			plugin := NewFlowSpecPlugin(input, output)
-			plugin.Run()
+			exitCode := RunFlowSpecDecode(input, output)
+			assert.Equal(t, 0, exitCode)
 
-			result := output.String()
-
-			// Skip startup output (declare lines, capability done, ready)
-			lines := strings.Split(result, "\n")
-			var responseLine string
-			for _, line := range lines {
-				// Find the response line (not startup protocol)
-				if strings.HasPrefix(line, "@") ||
-					strings.HasPrefix(line, "encoded") ||
-					strings.HasPrefix(line, "decoded") {
-					responseLine = line
-					break
-				}
-			}
-
-			require.NotEmpty(t, responseLine, "no response found in output: %s", result)
-			assert.True(t, strings.HasPrefix(responseLine, tt.wantPrefix),
-				"expected prefix %q, got: %s", tt.wantPrefix, responseLine)
+			result := strings.TrimSpace(output.String())
+			require.NotEmpty(t, result, "no response from RunFlowSpecDecode")
+			assert.True(t, strings.HasPrefix(result, tt.wantPrefix),
+				"expected prefix %q, got: %s", tt.wantPrefix, result)
 
 			if tt.wantContains != "" {
-				assert.Contains(t, responseLine, tt.wantContains)
+				assert.Contains(t, result, tt.wantContains)
 			}
 		})
 	}

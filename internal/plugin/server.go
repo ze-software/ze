@@ -66,7 +66,7 @@ func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
 		if resp == nil {
 			return nil, nil
 		}
-		if resp.Status == statusError || resp.Status == "error" {
+		if resp.Status == statusError {
 			return nil, fmt.Errorf("%v", resp.Data)
 		}
 		return resp.Data, nil
@@ -206,7 +206,9 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
-		_ = s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler))
+		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler)); err != nil {
+			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
+		}
 	}
 
 	return s
@@ -348,131 +350,21 @@ func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 	}
 	pm.mu.RUnlock()
 
-	// Start a goroutine to handle startup for each process
+	// Start a goroutine to handle startup for each process via YANG RPC protocol.
 	var procWg sync.WaitGroup
 	for _, proc := range processes {
 		procWg.Add(1)
 		go func(p *Process) {
 			defer procWg.Done()
-			if p.config.UseRPC {
-				s.handleProcessStartupRPC(p)
-			} else {
-				s.handleProcessStartup(p)
-			}
+			s.handleProcessStartupRPC(p)
 		}(proc)
 	}
 
 	procWg.Wait()
 
-	// After startup, start async handlers for continued operation
+	// After startup, start async handlers for continued operation.
 	for _, proc := range processes {
-		if proc.config.UseRPC {
-			go s.handleSingleProcessCommandsRPC(proc)
-		} else {
-			go s.handleSingleProcessCommands(proc)
-		}
-	}
-}
-
-// handleProcessStartup handles a process until it reaches StageRunning.
-// Returns when startup is complete, allowing the sync phase to finish.
-func (s *Server) handleProcessStartup(proc *Process) {
-	// Initialize process to registration stage
-	proc.SetStage(StageRegistration)
-
-	cmdCtx := &CommandContext{
-		Reactor:       s.reactor,
-		Encoder:       s.encoder,
-		CommitManager: s.commitManager,
-		Dispatcher:    s.dispatcher,
-		Subscriptions: s.subscriptions,
-		Process:       proc,
-		Peer:          "*",
-	}
-
-	for proc.Running() && s.ctx.Err() == nil {
-		// Read command from process stdout with timeout
-		readCtx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
-		line, err := proc.ReadCommand(readCtx)
-		cancel()
-
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				continue
-			}
-			return
-		}
-
-		if line == "" {
-			continue
-		}
-
-		// Parse #N serial prefix
-		serial, cmd := parseSerial(line)
-		cmdCtx.Serial = serial
-
-		// Handle based on current stage
-		stage := proc.Stage()
-		switch stage {
-		case StageRegistration:
-			if s.handleRegistrationLine(proc, line) {
-				continue
-			}
-		case StageCapability:
-			if s.handleCapabilityLine(proc, line) {
-				continue
-			}
-		case StageRunning:
-			// Startup complete - return from sync handler
-			// Commands will be handled by async handler started after
-			return
-		case StageInit, StageConfig, StageRegistry, StageReady:
-			// Other stages: fall through to dispatch
-		}
-
-		// Handle "ready" command (Stage 5)
-		if cmd == "ready" {
-			if s.coordinator != nil {
-				s.coordinator.StageComplete(proc.Index(), StageReady)
-
-				timeout := proc.config.StageTimeout
-				if timeout == 0 {
-					timeout = defaultStageTimeout
-				}
-
-				stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
-				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
-				cancel()
-				if err != nil {
-					logger().Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
-					s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-					return
-				}
-			}
-
-			proc.SetStage(StageRunning)
-			if s.reactor != nil {
-				s.reactor.SignalAPIReady()
-			}
-			// Startup complete - return
-			return
-		}
-
-		// Dispatch command (handles subscribe, etc. during startup)
-		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
-		if err != nil {
-			if errors.Is(err, ErrSilent) {
-				continue
-			}
-			resp = &Response{Status: "error", Data: err.Error()}
-		}
-
-		// Send response only if serial present
-		if serial != "" && resp != nil {
-			resp.Serial = serial
-			respJSON, _ := json.Marshal(WrapResponse(resp))
-			_ = proc.WriteEvent(string(respJSON))
-		}
+		go s.handleSingleProcessCommandsRPC(proc)
 	}
 }
 
@@ -603,36 +495,9 @@ func (s *Server) cleanup() {
 	}
 }
 
-// parseSerial extracts #N prefix from command line.
-// Returns (serial, command) where serial is empty if no prefix.
-// Only recognizes numeric serials: "#1 cmd", "#123 cmd", not "# comment".
-func parseSerial(line string) (string, string) {
-	if !strings.HasPrefix(line, "#") {
-		return "", line
-	}
-	// Find first space
-	idx := strings.Index(line, " ")
-	if idx <= 1 {
-		return "", line // No space after # or just "#"
-	}
-	// Check if characters between # and space are all digits
-	serial := line[1:idx]
-	for _, c := range serial {
-		if c < '0' || c > '9' {
-			return "", line // Not a numeric serial
-		}
-	}
-	return serial, line[idx+1:]
-}
-
-// isComment returns true if line is a comment (starts with "# ").
-func isComment(line string) bool {
-	return strings.HasPrefix(line, "# ")
-}
-
 // encodeAlphaSerial converts a number to alpha serial by shifting digits.
 // 0->a, 1->b, ..., 9->j. Example: 123 -> "bcd", 0 -> "a", 99 -> "jj".
-// Used for ze-initiated requests to avoid collision with numeric process serials.
+// Used by PendingRequests for engine-initiated request serials.
 func encodeAlphaSerial(n uint64) string {
 	if n == 0 {
 		return "a"
@@ -656,205 +521,6 @@ func isAlphaSerial(serial string) bool {
 			return false
 		}
 	}
-	return true
-}
-
-// handleSingleProcessCommands handles commands from a single process.
-func (s *Server) handleSingleProcessCommands(proc *Process) {
-	// Cleanup on exit
-	defer s.cleanupProcess(proc)
-
-	// Initialize process to registration stage
-	proc.SetStage(StageRegistration)
-
-	cmdCtx := &CommandContext{
-		Reactor:       s.reactor,
-		Encoder:       s.encoder,
-		CommitManager: s.commitManager,
-		Dispatcher:    s.dispatcher,
-		Subscriptions: s.subscriptions,
-		Process:       proc, // For session state (ack, sync)
-		Peer:          "*",  // Default to all peers
-	}
-
-	for proc.Running() {
-		// Check for shutdown
-		select {
-		case <-s.ctx.Done():
-			return
-		default:
-		}
-
-		// Read command from process stdout with timeout
-		readCtx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
-		line, err := proc.ReadCommand(readCtx)
-		cancel()
-
-		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
-				// Timeout, check if process is still running and try again
-				continue
-			}
-			// Process probably exited
-			return
-		}
-
-		if line == "" {
-			continue
-		}
-
-		// Check for @serial response (plugin command response)
-		if serial, respType, data, ok := parsePluginResponse(line); ok {
-			s.handlePluginResponse(proc, serial, respType, data)
-			continue
-		}
-
-		// Handle "ready failed" at any stage - plugin is signaling startup failure
-		if strings.HasPrefix(line, "ready failed ") {
-			s.handlePluginFailed(proc, line)
-			return
-		}
-
-		// Parse #N serial prefix
-		serial, cmd := parseSerial(line)
-		cmdCtx.Serial = serial
-
-		// Handle based on current stage
-		stage := proc.Stage()
-		switch stage {
-		case StageRegistration:
-			// Stage 1: Parse registration commands
-			if s.handleRegistrationLine(proc, line) {
-				continue
-			}
-			// Fall through to normal dispatch if not a registration command
-
-		case StageCapability:
-			// Stage 3: Parse capability commands
-			if s.handleCapabilityLine(proc, line) {
-				continue
-			}
-			// Fall through to normal dispatch if not a capability command
-
-		case StageInit, StageConfig, StageRegistry, StageReady, StageRunning:
-			// Other stages: fall through to normal dispatch
-		}
-
-		// Check for register/unregister before normal dispatch (legacy/runtime)
-		tokens := tokenize(cmd)
-		if len(tokens) > 0 {
-			switch strings.ToLower(tokens[0]) {
-			case "register":
-				s.handleRegisterCommand(proc, serial, tokens[1:])
-				continue
-			case "unregister":
-				s.handleUnregisterCommand(proc, serial, tokens[1:])
-				continue
-			}
-		}
-
-		// Handle "ready" command (Stage 5)
-		if cmd == "ready" {
-			// Signal Stage 5 complete
-			if s.coordinator != nil {
-				s.coordinator.StageComplete(proc.Index(), StageReady)
-
-				// Use per-plugin timeout if configured, else default
-				timeout := proc.config.StageTimeout
-				if timeout == 0 {
-					timeout = defaultStageTimeout
-				}
-
-				// Wait for all plugins to be ready before signaling reactor
-				stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
-				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
-				cancel()
-				if err != nil {
-					logger().Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
-					s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-					return
-				}
-			}
-
-			proc.SetStage(StageRunning)
-			if s.reactor != nil {
-				s.reactor.SignalAPIReady()
-			}
-			continue
-		}
-
-		// Dispatch command
-		logger().Debug("Dispatch", "plugin", proc.Name(), "cmd", cmd)
-		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
-		logger().Debug("Dispatch result", "plugin", proc.Name(), "err", err, "resp", resp)
-		if err != nil {
-			// ErrSilent means suppress response entirely
-			if errors.Is(err, ErrSilent) {
-				continue
-			}
-			resp = &Response{Status: "error", Data: err.Error()}
-		}
-
-		// Send response only if serial present (serial = ack)
-		// ze-bgp JSON: wrap response
-		if serial != "" && resp != nil {
-			resp.Serial = serial
-			respJSON, _ := json.Marshal(WrapResponse(resp))
-			_ = proc.WriteEvent(string(respJSON))
-		}
-	}
-}
-
-// handleRegistrationLine handles Stage 1 registration commands.
-// Returns true if line was handled, false if should fall through to normal dispatch.
-func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
-	reg := proc.Registration()
-	if err := reg.ParseLine(line); err != nil {
-		logger().Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
-		return false
-	}
-	if !reg.Done {
-		logger().Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
-		return true
-	}
-
-	logger().Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "config_roots", reg.WantsConfigRoots)
-	reg.Name = proc.config.Name
-	if err := s.registry.Register(reg); err != nil {
-		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
-		return true
-	}
-
-	logger().Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
-	s.progressThroughStages(proc, reg.Name, stageProgression{
-		from: StageRegistration, mid: StageConfig, to: StageCapability,
-		deliver: s.deliverConfig,
-	})
-	logger().Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
-	return true
-}
-
-// handleCapabilityLine handles Stage 3 capability commands.
-// Returns true if line was handled, false if should fall through to normal dispatch.
-func (s *Server) handleCapabilityLine(proc *Process, line string) bool {
-	caps := proc.Capabilities()
-	if err := caps.ParseLine(line); err != nil {
-		return false
-	}
-	if !caps.Done {
-		return true
-	}
-
-	caps.PluginName = proc.config.Name
-	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
-		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
-		return true
-	}
-
-	s.progressThroughStages(proc, caps.PluginName, stageProgression{
-		from: StageCapability, mid: StageRegistry, to: StageReady,
-		deliver: s.deliverRegistry,
-	})
 	return true
 }
 
@@ -903,60 +569,6 @@ func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
 	return declarations
 }
 
-// deliverConfig sends configuration to a plugin (Stage 2).
-// Plugins declare which config roots they want via "declare wants config <root>".
-// Format: "config json <root> <json>" for each declared root.
-// Supports path-based scopes: "bgp/peer" extracts configTree["bgp"]["peer"].
-func (s *Server) deliverConfig(proc *Process) {
-	logger().Debug("server: deliverConfig START", "plugin", proc.Name())
-	reg := proc.Registration()
-
-	// Fast path: plugin doesn't want any config
-	if len(reg.WantsConfigRoots) == 0 {
-		logger().Debug("server: deliverConfig FAST PATH (no config roots)", "plugin", proc.Name())
-		_ = proc.WriteEvent("config done")
-		return
-	}
-
-	if s.reactor == nil {
-		logger().Debug("server: deliverConfig FAST PATH (no reactor)", "plugin", proc.Name())
-		_ = proc.WriteEvent("config done")
-		return
-	}
-
-	// Get full config tree from reactor
-	configTree := s.reactor.GetConfigTree()
-	if configTree == nil {
-		logger().Debug("server: deliverConfig FAST PATH (no config tree)", "plugin", proc.Name())
-		_ = proc.WriteEvent("config done")
-		return
-	}
-
-	// Send each requested root as JSON
-	for _, root := range reg.WantsConfigRoots {
-		subtree := extractConfigSubtree(configTree, root)
-		if subtree == nil {
-			logger().Debug("server: deliverConfig root not found", "plugin", proc.Name(), "root", root)
-			continue
-		}
-
-		// Serialize to JSON
-		jsonBytes, err := json.Marshal(subtree)
-		if err != nil {
-			logger().Warn("server: deliverConfig JSON marshal failed", "plugin", proc.Name(), "root", root, "err", err)
-			continue
-		}
-
-		// Format: config json <root> <json>
-		line := fmt.Sprintf("config json %s %s", root, string(jsonBytes))
-		_ = proc.WriteEvent(line)
-		logger().Debug("server: deliverConfig sent", "plugin", proc.Name(), "root", root)
-	}
-
-	logger().Debug("server: deliverConfig DONE", "plugin", proc.Name())
-	_ = proc.WriteEvent("config done")
-}
-
 // extractConfigSubtree extracts a subtree from the config based on path.
 // Always returns data wrapped in its full path structure from root.
 // Supports:
@@ -1002,22 +614,19 @@ func extractConfigSubtree(configTree map[string]any, path string) any {
 	return result
 }
 
-// deliverRegistry sends the command registry to a plugin (Stage 4).
-func (s *Server) deliverRegistry(proc *Process) {
-	reg := proc.Registration()
-	allCommands := s.registry.BuildCommandInfo()
-	lines := FormatRegistrySharing(reg.Name, allCommands)
-
-	for _, line := range lines {
-		_ = proc.WriteEvent(line)
-	}
-}
-
 // handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.
 // Reads plugin→engine RPCs from engineConnA, sends engine→plugin callbacks via engineConnB.
 // Returns when startup is complete (StageRunning) or on error.
 func (s *Server) handleProcessStartupRPC(proc *Process) {
 	proc.SetStage(StageRegistration)
+
+	// Signal coordinator on early exit if startup didn't complete.
+	// Without this, other plugins hang at WaitForStage until timeout.
+	defer func() {
+		if proc.Stage() < StageRunning && s.coordinator != nil {
+			s.coordinator.PluginFailed(proc.Index(), "startup incomplete")
+		}
+	}()
 
 	connA := proc.engineConnA
 
@@ -1028,13 +637,17 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		return
 	}
 	if req.Method != "ze-plugin-engine:declare-registration" {
-		_ = connA.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method)
+		if err := connA.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method); err != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
+		}
 		return
 	}
 
 	var regInput rpc.DeclareRegistrationInput
 	if err := json.Unmarshal(req.Params, &regInput); err != nil {
-		_ = connA.SendError(s.ctx, req.ID, "invalid registration: "+err.Error())
+		if sendErr := connA.SendError(s.ctx, req.ID, "invalid registration: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
 		return
 	}
 
@@ -1045,7 +658,9 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 
 	// Register with registry
 	if err := s.registry.Register(reg); err != nil {
-		_ = connA.SendError(s.ctx, req.ID, "registration conflict: "+err.Error())
+		if sendErr := connA.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
 		return
 	}
@@ -1072,14 +687,18 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		return
 	}
 	if req.Method != "ze-plugin-engine:declare-capabilities" {
-		_ = connA.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method)
+		if err := connA.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method); err != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
+		}
 		return
 	}
 
 	var capsInput rpc.DeclareCapabilitiesInput
 	if req.Params != nil {
 		if err := json.Unmarshal(req.Params, &capsInput); err != nil {
-			_ = connA.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error())
+			if sendErr := connA.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error()); sendErr != nil {
+				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+			}
 			return
 		}
 	}
@@ -1090,7 +709,9 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 	proc.capabilities = caps
 
 	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
-		_ = connA.SendError(s.ctx, req.ID, "capability conflict: "+err.Error())
+		if sendErr := connA.SendError(s.ctx, req.ID, "capability conflict: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
 		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
 		return
 	}
@@ -1117,8 +738,26 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		return
 	}
 	if req.Method != "ze-plugin-engine:ready" {
-		_ = connA.SendError(s.ctx, req.ID, "expected ready, got "+req.Method)
+		if err := connA.SendError(s.ctx, req.ID, "expected ready, got "+req.Method); err != nil {
+			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
+		}
 		return
+	}
+
+	// Parse optional startup subscriptions from "ready" params.
+	// Registering subscriptions here (before SignalAPIReady) ensures the plugin
+	// receives events from the very first route send — no race with the reactor.
+	var readyInput rpc.ReadyInput
+	if req.Params != nil {
+		if parseErr := json.Unmarshal(req.Params, &readyInput); parseErr != nil {
+			logger().Warn("rpc startup: invalid ready params", "plugin", proc.Name(), "error", parseErr)
+		}
+	}
+
+	if readyInput.Subscribe != nil && s.subscriptions != nil {
+		s.registerSubscriptions(proc, readyInput.Subscribe)
+		logger().Debug("rpc startup: registered startup subscriptions",
+			"plugin", proc.Name(), "events", readyInput.Subscribe.Events)
 	}
 
 	// Send OK response
@@ -1140,7 +779,11 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 // Uses engineConnB to send ze-plugin-callback:configure RPC.
 func (s *Server) deliverConfigRPC(proc *Process) {
 	reg := proc.Registration()
-	connB := proc.engineConnB
+	connB := proc.ConnB()
+	if connB == nil {
+		logger().Error("deliverConfigRPC: connection closed", "plugin", proc.Name())
+		return
+	}
 
 	var sections []rpc.ConfigSection
 
@@ -1186,21 +829,195 @@ func (s *Server) deliverRegistryRPC(proc *Process) {
 		}
 	}
 
-	connB := proc.engineConnB
+	connB := proc.ConnB()
+	if connB == nil {
+		logger().Error("deliverRegistryRPC: connection closed", "plugin", proc.Name())
+		return
+	}
 	if err := connB.SendShareRegistry(s.ctx, commands); err != nil {
 		logger().Error("deliverRegistryRPC failed", "plugin", proc.Name(), "error", err)
 	}
 }
 
 // handleSingleProcessCommandsRPC handles runtime commands for an RPC-mode plugin.
-// Runtime event delivery and plugin command handling will be activated when
-// individual plugins are converted to the RPC protocol (separate specs).
+// Reads from engineConnA and dispatches plugin→engine RPCs (update-route, subscribe, etc.).
+// Event delivery to plugins is handled directly via engineConnB.SendDeliverEvent
+// in OnMessageReceived, OnPeerStateChange, etc.
 func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 	defer s.cleanupProcess(proc)
 
-	// Wait for shutdown — runtime RPC event delivery is activated per-plugin
-	// when each plugin is converted from text to RPC protocol.
-	<-s.ctx.Done()
+	connA := proc.engineConnA
+
+	// Plugin→engine RPC loop: read from engineConnA, dispatch.
+	for {
+		req, err := connA.ReadRequest(s.ctx)
+		if err != nil {
+			if s.ctx.Err() != nil {
+				return // Server shutting down
+			}
+			logger().Debug("rpc runtime: read failed", "plugin", proc.Name(), "error", err)
+			return // Connection closed (plugin exited)
+		}
+
+		s.dispatchPluginRPC(proc, connA, req)
+	}
+}
+
+// dispatchPluginRPC handles a single plugin→engine RPC request.
+// Unknown or empty methods get an explicit error per ze's fail-on-unknown rule.
+func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	switch req.Method {
+	case "ze-plugin-engine:update-route":
+		s.handleUpdateRouteRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:subscribe-events":
+		s.handleSubscribeEventsRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:unsubscribe-events":
+		s.handleUnsubscribeEventsRPC(proc, connA, req)
+		return
+	}
+	if err := connA.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
+		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
+	}
+}
+
+// handleUpdateRouteRPC handles ze-plugin-engine:update-route from a plugin.
+// Dispatches the command string through the standard command dispatcher.
+func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	var input rpc.UpdateRouteInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, "invalid update-route params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	cmdCtx := &CommandContext{
+		Reactor:       s.reactor,
+		Encoder:       s.encoder,
+		CommitManager: s.commitManager,
+		Dispatcher:    s.dispatcher,
+		Subscriptions: s.subscriptions,
+		Process:       proc,
+		Peer:          input.PeerSelector,
+	}
+	if cmdCtx.Peer == "" {
+		cmdCtx.Peer = "*"
+	}
+
+	// Reconstruct the full command for the dispatcher.
+	// The dispatcher matches commands like "bgp peer update", "bgp peer cache", etc.
+	// The RPC protocol separates peer selector from command, so we prepend "bgp peer"
+	// to let the dispatcher do its prefix matching. The peer selector is already set
+	// on cmdCtx.Peer; the dispatcher won't extract one from tokens[2] because command
+	// tokens like "update", "cache", "plugin" don't look like IPs (no dots/colons).
+	dispatchCmd := "bgp peer " + input.Command
+
+	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			if sendErr := connA.SendResult(s.ctx, req.ID, &rpc.UpdateRouteOutput{}); sendErr != nil {
+				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+			}
+			return
+		}
+		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	// Extract route counts from response if available
+	output := &rpc.UpdateRouteOutput{}
+	if resp != nil && resp.Data != nil {
+		if m, ok := resp.Data.(map[string]any); ok {
+			if v, ok := m["peers-affected"]; ok {
+				if n, ok := v.(float64); ok {
+					output.PeersAffected = uint32(n)
+				}
+			}
+			if v, ok := m["routes-sent"]; ok {
+				if n, ok := v.(float64); ok {
+					output.RoutesSent = uint32(n)
+				}
+			}
+		}
+	}
+
+	if sendErr := connA.SendResult(s.ctx, req.ID, output); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// parseEventString splits an event string like "update direction sent" into
+// (eventType, direction). If no "direction" keyword is present, returns DirectionBoth.
+// This mirrors the text protocol's parseSubscription logic for RPC event strings.
+func parseEventString(event string) (string, string) {
+	parts := strings.Fields(event)
+	if len(parts) >= 3 && parts[1] == "direction" {
+		return parts[0], parts[2]
+	}
+	return event, DirectionBoth
+}
+
+// registerSubscriptions registers event subscriptions for a process.
+// Parses event strings (e.g. "update direction sent") into EventType + Direction.
+func (s *Server) registerSubscriptions(proc *Process, input *rpc.SubscribeEventsInput) {
+	if input.Format != "" {
+		proc.SetFormat(input.Format)
+	}
+
+	for _, event := range input.Events {
+		eventType, direction := parseEventString(event)
+		sub := &Subscription{
+			Namespace: NamespaceBGP,
+			EventType: eventType,
+			Direction: direction,
+		}
+		if len(input.Peers) > 0 {
+			sub.PeerFilter = &PeerFilter{Selector: input.Peers[0]}
+		}
+		s.subscriptions.Add(proc, sub)
+	}
+}
+
+// handleSubscribeEventsRPC handles ze-plugin-engine:subscribe-events from a plugin.
+func (s *Server) handleSubscribeEventsRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	var input rpc.SubscribeEventsInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, "invalid subscribe params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	if s.subscriptions == nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	s.registerSubscriptions(proc, &input)
+	if sendErr := connA.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// handleUnsubscribeEventsRPC handles ze-plugin-engine:unsubscribe-events from a plugin.
+func (s *Server) handleUnsubscribeEventsRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	if s.subscriptions == nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	s.subscriptions.ClearProcess(proc)
+	if sendErr := connA.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
 }
 
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).
@@ -1252,114 +1069,6 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *PluginCapabilitie
 }
 
 // handlePluginFailed handles a "ready failed" message from a plugin.
-// This can occur at any stage and indicates startup failure.
-// Signals the coordinator to abort startup for all plugins.
-func (s *Server) handlePluginFailed(proc *Process, line string) {
-	// Parse: "ready failed text <message>" or "ready failed b64 <message>"
-	parts := strings.SplitN(line, " ", 4)
-	errMsg := "plugin startup failed"
-	if len(parts) >= 4 {
-		errMsg = parts[3]
-	}
-
-	// Log the failure with structured logging
-	logger().Error("plugin startup failed",
-		"plugin", proc.Name(),
-		"stage", proc.Stage().String(),
-		"error", errMsg,
-	)
-
-	// Signal coordinator to abort startup
-	if s.coordinator != nil {
-		s.coordinator.PluginFailed(proc.Index(), errMsg)
-	}
-
-	// Stop the process
-	proc.Stop()
-}
-
-// handleRegisterCommand processes a register command from a process.
-func (s *Server) handleRegisterCommand(proc *Process, serial string, tokens []string) {
-	def, err := parseRegisterCommand(tokens)
-	if err != nil {
-		if serial != "" {
-			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
-			respJSON, _ := json.Marshal(WrapResponse(resp))
-			_ = proc.WriteEvent(string(respJSON))
-		}
-		return
-	}
-
-	results := s.dispatcher.Registry().Register(proc, []CommandDef{*def})
-	result := results[0]
-
-	if result.OK {
-		proc.AddRegisteredCommand(def.Name)
-	}
-
-	if serial != "" {
-		var resp *Response
-		if result.OK {
-			resp = &Response{Serial: serial, Status: "done"}
-		} else {
-			resp = &Response{Serial: serial, Status: "error", Data: result.Error}
-		}
-		respJSON, _ := json.Marshal(WrapResponse(resp))
-		_ = proc.WriteEvent(string(respJSON))
-	}
-}
-
-// handleUnregisterCommand processes an unregister command from a process.
-func (s *Server) handleUnregisterCommand(proc *Process, serial string, tokens []string) {
-	name, err := parseUnregisterCommand(tokens)
-	if err != nil {
-		if serial != "" {
-			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
-			respJSON, _ := json.Marshal(WrapResponse(resp))
-			_ = proc.WriteEvent(string(respJSON))
-		}
-		return
-	}
-
-	s.dispatcher.Registry().Unregister(proc, []string{name})
-	proc.RemoveRegisteredCommand(name)
-
-	if serial != "" {
-		resp := &Response{Serial: serial, Status: "done"}
-		respJSON, _ := json.Marshal(WrapResponse(resp))
-		_ = proc.WriteEvent(string(respJSON))
-	}
-}
-
-// handlePluginResponse handles a response from a plugin process.
-func (s *Server) handlePluginResponse(_ *Process, serial, respType, data string) {
-	pending := s.dispatcher.Pending()
-
-	switch respType {
-	case statusDone:
-		var respData any
-		if data != "" {
-			// Try to parse as JSON
-			if err := json.Unmarshal([]byte(data), &respData); err != nil {
-				respData = data // Use as string if not valid JSON
-			}
-		}
-		pending.Complete(serial, &Response{Status: statusDone, Data: respData})
-
-	case statusError:
-		pending.Complete(serial, &Response{Status: statusError, Data: data})
-
-	case "partial":
-		var respData any
-		if data != "" {
-			if err := json.Unmarshal([]byte(data), &respData); err != nil {
-				respData = data
-			}
-		}
-		pending.Partial(serial, &Response{Status: statusDone, Partial: true, Data: respData})
-	}
-}
-
 // cleanupProcess handles cleanup when a process exits.
 func (s *Server) cleanupProcess(proc *Process) {
 	// Unregister all commands from this process
@@ -1479,7 +1188,14 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	for _, proc := range procs {
 		output := s.formatMessageForSubscription(peer, msg, proc.Format())
 		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
-		if err := proc.WriteEvent(output); err != nil {
+		connB := proc.ConnB()
+		if connB == nil {
+			continue
+		}
+		deliverCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+		err := connB.SendDeliverEvent(deliverCtx, output)
+		cancel()
+		if err != nil {
 			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -1550,7 +1266,14 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 	for _, proc := range procs {
 		output := FormatStateChange(peer, state, EncodingJSON)
 		logger().Debug("OnPeerStateChange writing", "proc", proc.Name())
-		if err := proc.WriteEvent(output); err != nil {
+		connB := proc.ConnB()
+		if connB == nil {
+			continue
+		}
+		deliverCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+		err := connB.SendDeliverEvent(deliverCtx, output)
+		cancel()
+		if err != nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -1567,7 +1290,14 @@ func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
 	procs := s.subscriptions.GetMatching(NamespaceBGP, EventNegotiated, "", peer.Address.String())
 	for _, proc := range procs {
 		output := FormatNegotiated(peer, neg, s.encoder)
-		if err := proc.WriteEvent(output); err != nil {
+		connB := proc.ConnB()
+		if connB == nil {
+			continue
+		}
+		deliverCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+		err := connB.SendDeliverEvent(deliverCtx, output)
+		cancel()
+		if err != nil {
 			logger().Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -1593,7 +1323,14 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 	for _, proc := range procs {
 		output := s.formatSentMessageForSubscription(peer, msg, proc.Format())
 		logger().Debug("OnMessageSent writing", "proc", proc.Name())
-		if err := proc.WriteEvent(output); err != nil {
+		connB := proc.ConnB()
+		if connB == nil {
+			continue
+		}
+		deliverCtx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+		err := connB.SendDeliverEvent(deliverCtx, output)
+		cancel()
+		if err != nil {
 			logger().Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -1610,7 +1347,7 @@ func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage,
 	return FormatSentMessage(peer, msg, content)
 }
 
-// EncodeNLRI encodes NLRI by routing to the appropriate family plugin.
+// EncodeNLRI encodes NLRI by routing to the appropriate family plugin via RPC.
 // This is the public API for external callers (CLI tools, external plugins, tests).
 // Internal code paths use direct function calls for performance (e.g., update_text.go
 // calls flowspec.Encode directly). This method exists for callers that don't know
@@ -1633,35 +1370,27 @@ func (s *Server) EncodeNLRI(family nlri.Family, args []string) ([]byte, error) {
 		return nil, fmt.Errorf("plugin %s not running", pluginName)
 	}
 
-	// Build request: "encode nlri <family> <args...>"
-	command := fmt.Sprintf("encode nlri %s %s", familyStr, strings.Join(args, " "))
-
-	// Send request and wait for response
+	// Send RPC request and wait for response
+	connB := proc.ConnB()
+	if connB == nil {
+		return nil, fmt.Errorf("plugin %s connection closed", pluginName)
+	}
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	response, err := proc.SendRequest(ctx, command)
+	hexStr, err := connB.SendEncodeNLRI(ctx, familyStr, args)
 	if err != nil {
 		return nil, fmt.Errorf("plugin request failed: %w", err)
 	}
 
-	// Parse response: "encoded hex <hex>" or "encoded error <msg>"
-	if strings.HasPrefix(response, "encoded hex ") {
-		hexStr := strings.TrimPrefix(response, "encoded hex ")
-		data, err := hex.DecodeString(hexStr)
-		if err != nil {
-			return nil, fmt.Errorf("decode plugin hex response: %w", err)
-		}
-		return data, nil
+	data, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, fmt.Errorf("decode plugin hex response: %w", err)
 	}
-	if strings.HasPrefix(response, "encoded error ") {
-		return nil, errors.New(strings.TrimPrefix(response, "encoded error "))
-	}
-
-	return nil, fmt.Errorf("unexpected plugin response: %s", response)
+	return data, nil
 }
 
-// DecodeNLRI decodes NLRI by routing to the appropriate family plugin.
+// DecodeNLRI decodes NLRI by routing to the appropriate family plugin via RPC.
 // This is the public API for external callers (CLI tools, external plugins, tests).
 // Internal code paths use direct function calls for performance. This method exists
 // for callers that don't know which plugin handles a family at compile time.
@@ -1684,25 +1413,18 @@ func (s *Server) DecodeNLRI(family nlri.Family, hexData string) (string, error) 
 		return "", fmt.Errorf("plugin %s not running", pluginName)
 	}
 
-	// Build request: "decode nlri <family> <hex>"
-	command := fmt.Sprintf("decode nlri %s %s", familyStr, hexData)
-
-	// Send request and wait for response
+	// Send RPC request and wait for response
+	connB := proc.ConnB()
+	if connB == nil {
+		return "", fmt.Errorf("plugin %s connection closed", pluginName)
+	}
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	response, err := proc.SendRequest(ctx, command)
+	jsonResult, err := connB.SendDecodeNLRI(ctx, familyStr, hexData)
 	if err != nil {
 		return "", fmt.Errorf("plugin request failed: %w", err)
 	}
 
-	// Parse response: "decoded json <json>" or "decoded unknown"
-	if strings.HasPrefix(response, "decoded json ") {
-		return strings.TrimPrefix(response, "decoded json "), nil
-	}
-	if response == "decoded unknown" {
-		return "", fmt.Errorf("plugin could not decode NLRI")
-	}
-
-	return "", fmt.Errorf("unexpected plugin response: %s", response)
+	return jsonResult, nil
 }

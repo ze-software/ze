@@ -6,18 +6,19 @@
 package gr
 
 import (
-	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // logger is the package-level logger, disabled by default.
@@ -32,128 +33,70 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// GRPlugin implements a Graceful Restart capability plugin.
-// It receives per-peer restart-time config and registers GR capabilities.
-type GRPlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
+// RunGRPlugin runs the GR plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+// It receives per-peer GR config during Stage 2 and registers per-peer
+// GR capabilities (code 64) during Stage 3.
+func RunGRPlugin(engineConn, callbackConn net.Conn) int {
+	p := sdk.NewWithConn("gr", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-	// grConfig stores per-peer restart-time configuration.
-	// RFC 4724: restart-time is 0-4095 seconds (12-bit field).
-	grConfig map[string]uint16 // peerAddr → restart-time
+	// OnConfigure callback: parse bgp config, extract per-peer restart-time,
+	// then set capabilities for Stage 3.
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		var caps []sdk.CapabilityDecl
+		for _, section := range sections {
+			if section.Root != "bgp" {
+				continue
+			}
+			caps = append(caps, extractGRCapabilities(section.Data)...)
+		}
+		p.SetCapabilities(caps)
+		return nil
+	})
 
-	mu       sync.Mutex
-	outputMu sync.Mutex
-}
-
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
-
-// NewGRPlugin creates a new GRPlugin.
-func NewGRPlugin(input io.Reader, output io.Writer) *GRPlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &GRPlugin{
-		input:    scanner,
-		output:   output,
-		grConfig: make(map[string]uint16),
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		WantsConfig: []string{"bgp"},
+	})
+	if err != nil {
+		logger.Error("gr plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the GR plugin.
-func (g *GRPlugin) Run() int {
-	g.doStartupProtocol()
-	g.eventLoop()
 	return 0
 }
 
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (g *GRPlugin) doStartupProtocol() {
-	// Stage 1: Declaration
-	// Request bgp config subtree as JSON - plugin extracts graceful-restart settings.
-	g.send("declare wants config bgp")
-	g.send("declare done")
-
-	// Stage 2: Parse config (JSON format)
-	g.parseConfig()
-
-	// Stage 3: Register GR capabilities per peer
-	g.registerCapabilities()
-
-	// Stage 4: Wait for registry
-	g.waitForLine("registry done")
-
-	// Stage 5: Ready
-	g.send("ready")
-}
-
-// parseConfig reads and parses config lines until "config done".
-// Handles JSON config format: "config json bgp <json>".
-func (g *GRPlugin) parseConfig() {
-	for g.input.Scan() {
-		line := g.input.Text()
-		if line == "config done" {
-			return
-		}
-		g.parseConfigLine(line)
-	}
-}
-
-// parseConfigLine parses a single config line.
-// Format: "config json bgp <json>" where json contains full bgp config tree.
-func (g *GRPlugin) parseConfigLine(line string) {
-	// Handle JSON config format: "config json bgp <json>"
-	if strings.HasPrefix(line, "config json bgp ") {
-		g.parseBGPConfig(line)
-		return
-	}
-
-	logger.Debug("ignoring non-bgp config line", "line", line)
-}
-
-// parseBGPConfig parses JSON config format: "config json bgp <json>".
-// Extracts graceful-restart config from each peer in the bgp tree.
-func (g *GRPlugin) parseBGPConfig(line string) {
-	// Format: config json bgp <json>
-	const prefix = "config json bgp "
-	if len(line) <= len(prefix) {
-		logger.Warn("empty bgp config JSON")
-		return
-	}
-	jsonStr := line[len(prefix):]
-
-	// Parse JSON bgp config tree
+// extractGRCapabilities parses bgp config JSON and returns per-peer GR capabilities.
+// RFC 4724: Graceful Restart capability code is 64.
+func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var bgpConfig map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
 		logger.Warn("invalid JSON in bgp config", "err", err)
-		return
+		return nil
 	}
 
 	// The config tree is wrapped: {"bgp": {"peer": {...}}}
 	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
 	if !ok {
-		// Try using bgpConfig directly in case it's not wrapped
 		bgpSubtree = bgpConfig
 	}
 
-	// Extract peer map: {"peer": {"192.168.1.1": {...}, ...}}
 	peersMap, ok := bgpSubtree["peer"].(map[string]any)
 	if !ok {
 		logger.Debug("no peer config in bgp tree")
-		return
+		return nil
 	}
 
-	g.mu.Lock()
-	defer g.mu.Unlock()
+	const grCapCode = 64
+	var caps []sdk.CapabilityDecl
 
-	// Iterate peers and extract graceful-restart config
 	for peerAddr, peerData := range peersMap {
 		peerMap, ok := peerData.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		// Look for capability.graceful-restart
 		capMap, ok := peerMap["capability"].(map[string]any)
 		if !ok {
 			continue
@@ -183,61 +126,18 @@ func (g *GRPlugin) parseBGPConfig(line string) {
 			restartTime = 4095
 		}
 
-		g.grConfig[peerAddr] = restartTime
-		logger.Debug("parsed config", "peer", peerAddr, "restart-time", restartTime)
-	}
-}
-
-// registerCapabilities sends Stage 3 capability declarations.
-// Registers GR capability (code 64) per peer with configured restart-time.
-func (g *GRPlugin) registerCapabilities() {
-	// RFC 4724: Graceful Restart capability code is 64.
-	// Wire format: [flags+restart-time:2 bytes] [AFI:2][SAFI:1][F-bit:1] per family.
-	// For simplicity, we send restart-time only (no families - peer advertises those).
-	const grCapCode = 64
-
-	g.mu.Lock()
-	defer g.mu.Unlock()
-
-	for peerAddr, restartTime := range g.grConfig {
-		// Build GR capability value: 2 bytes (flags=0, restart-time in lower 12 bits)
 		// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
 		capValue := fmt.Sprintf("%04x", restartTime&0x0FFF)
-		g.send("capability hex %d %s peer %s", grCapCode, capValue, peerAddr)
-		logger.Debug("registered capability", "peer", peerAddr, "restart-time", restartTime)
+		caps = append(caps, sdk.CapabilityDecl{
+			Code:     grCapCode,
+			Encoding: "hex",
+			Payload:  capValue,
+			Peers:    []string{peerAddr},
+		})
+		logger.Debug("gr capability", "peer", peerAddr, "restart-time", restartTime)
 	}
-	g.send("capability done")
-}
 
-// eventLoop runs the minimal event loop.
-// GR plugin is mostly stateless after startup - just handles shutdown.
-func (g *GRPlugin) eventLoop() {
-	for g.input.Scan() {
-		line := g.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-		// GR plugin doesn't need to handle events - it's capability-only.
-		// Just consume input until EOF (shutdown).
-		logger.Debug("event (ignored)", "line", line[:min(50, len(line))])
-	}
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (g *GRPlugin) waitForLine(expected string) {
-	for g.input.Scan() {
-		line := g.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-func (g *GRPlugin) send(format string, args ...any) {
-	g.outputMu.Lock()
-	_, _ = fmt.Fprintf(g.output, format+"\n", args...)
-	g.outputMu.Unlock()
+	return caps
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.

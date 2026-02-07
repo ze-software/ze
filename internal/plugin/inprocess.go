@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"io"
+	"net"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
@@ -17,11 +17,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// InternalPluginRunner is a function that runs a plugin in-process.
-// Accepts io.Reader/io.Writer (satisfied by net.Conn from socket pairs).
-// in = callback socket plugin side (plugin reads engine events/callbacks).
-// out = engine socket plugin side (plugin writes engine calls).
-type InternalPluginRunner func(in io.Reader, out io.Writer) int
+// InternalPluginRunner is a function that runs a plugin in-process using SDK RPC.
+// engineConn = Socket A plugin side (plugin → engine RPCs).
+// callbackConn = Socket B plugin side (engine → plugin callbacks).
+type InternalPluginRunner func(engineConn, callbackConn net.Conn) int
 
 // internalPluginRunners maps plugin names to their runner functions.
 // This is the single source of truth for available internal plugins.
@@ -30,39 +29,33 @@ type InternalPluginRunner func(in io.Reader, out io.Writer) int
 //   - AvailableInternalPlugins() in resolve.go
 //   - startInternal() in process.go
 var internalPluginRunners = map[string]InternalPluginRunner{
-	"rib": func(in io.Reader, out io.Writer) int {
-		return rib.NewRIBManager(in, out).Run()
-	},
-	"gr": func(in io.Reader, out io.Writer) int {
-		return gr.NewGRPlugin(in, out).Run()
-	},
-	"rr": func(in io.Reader, out io.Writer) int {
-		return rr.NewRouteServer(in, out).Run()
-	},
-	"hostname": func(in io.Reader, out io.Writer) int {
+	"rib": rib.RunRIBPlugin,
+	"gr":  gr.RunGRPlugin,
+	"rr":  rr.RunRouteServer,
+	"hostname": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.hostname env var)
 		hostname.ConfigureLogger(slogutil.Logger("hostname"))
-		return hostname.NewHostnamePlugin(in, out).Run()
+		return hostname.RunHostnamePlugin(engineConn, callbackConn)
 	},
-	"flowspec": func(in io.Reader, out io.Writer) int {
+	"flowspec": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.flowspec env var)
 		flowspec.SetFlowSpecLogger(slogutil.Logger("flowspec"))
-		return flowspec.NewFlowSpecPlugin(in, out).Run()
+		return flowspec.RunFlowSpecPlugin(engineConn, callbackConn)
 	},
-	"evpn": func(in io.Reader, out io.Writer) int {
+	"evpn": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.evpn env var)
 		evpn.SetEVPNLogger(slogutil.Logger("evpn"))
-		return evpn.NewEVPNPlugin(in, out).Run()
+		return evpn.RunEVPNPlugin(engineConn, callbackConn)
 	},
-	"vpn": func(in io.Reader, out io.Writer) int {
+	"vpn": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.vpn env var)
 		vpn.SetVPNLogger(slogutil.Logger("vpn"))
-		return vpn.NewVPNPlugin(in, out).Run()
+		return vpn.RunVPNPlugin(engineConn, callbackConn)
 	},
-	"bgpls": func(in io.Reader, out io.Writer) int {
+	"bgpls": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.bgpls env var)
 		bgpls.SetBGPLSLogger(slogutil.Logger("bgpls"))
-		return bgpls.NewBGPLSPlugin(in, out).Run()
+		return bgpls.RunBGPLSPlugin(engineConn, callbackConn)
 	},
 }
 

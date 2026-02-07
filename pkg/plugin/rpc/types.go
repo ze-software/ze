@@ -130,6 +130,14 @@ type SubscribeEventsInput struct {
 	Format string   `json:"format,omitempty"`
 }
 
+// ReadyInput is the input for ze-plugin-engine:ready (Stage 5).
+// The Subscribe field allows plugins to register event subscriptions atomically
+// with startup completion, avoiding the race between SignalAPIReady and a
+// separate subscribe-events RPC that would arrive after routes are already sent.
+type ReadyInput struct {
+	Subscribe *SubscribeEventsInput `json:"subscribe,omitempty"`
+}
+
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).
 type ByeInput struct {
 	Reason string `json:"reason,omitempty"`

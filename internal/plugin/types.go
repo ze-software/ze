@@ -538,7 +538,6 @@ type PluginConfig struct {
 	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
 	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
-	UseRPC         bool          // If true, use YANG RPC protocol instead of text
 }
 
 // ServerConfig holds API server configuration.
@@ -608,6 +607,9 @@ const (
 	statusDone  = "done"
 	statusError = "error"
 )
+
+// cmdPlugin is the "plugin" token in command strings like "ze bgp plugin <name>".
+const cmdPlugin = "plugin"
 
 // ContentConfig controls HOW messages are formatted (encoding + format).
 // Separated from message type subscriptions (WHAT) per new API design.

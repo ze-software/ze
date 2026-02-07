@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"strings"
 )
@@ -282,19 +282,19 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 		return emptyResult, nil
 	}
 
-	// Build completion request JSON
-	request := map[string]any{
-		"serial":  serial,
-		"type":    "complete",
-		"command": cmd.Name,
-		"args":    completedArgs,
-		"partial": partial,
-	}
-	reqJSON, _ := json.Marshal(request)
-
-	// Send to process
-	if err := proc.WriteEvent(string(reqJSON)); err != nil {
+	// Send completion request via RPC
+	connB := proc.ConnB()
+	if connB == nil {
 		ctx.Dispatcher.Pending().Complete(serial, emptyResult)
+		return <-respCh, nil
+	}
+	rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
+	defer cancel()
+	rpcOut, rpcErr := connB.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
+	if rpcErr != nil {
+		ctx.Dispatcher.Pending().Complete(serial, emptyResult)
+	} else if rpcOut != nil {
+		ctx.Dispatcher.Pending().Complete(serial, &Response{Status: rpcOut.Status, Data: rpcOut.Data})
 	}
 
 	// Wait for response

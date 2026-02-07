@@ -6,10 +6,9 @@
 package rib
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log/slog"
 	"net"
 	"sort"
@@ -23,7 +22,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+const statusDone = "done"
 
 // logger is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
@@ -40,8 +42,8 @@ func SetLogger(l *slog.Logger) {
 // RIBManager implements a BGP RIB plugin.
 // It tracks routes received from and sent to peers.
 type RIBManager struct {
-	input  *bufio.Scanner
-	output io.Writer
+	// plugin is the SDK plugin handle for engine RPCs (update-route, subscribe-events).
+	plugin *sdk.Plugin
 
 	// ribInPool stores routes received FROM peers (Adj-RIB-In)
 	// Uses pool storage for memory efficiency (attributes deduplicated)
@@ -53,9 +55,7 @@ type RIBManager struct {
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
 
-	mu       sync.RWMutex // protects ribInPool, ribOut, peerUp
-	outputMu sync.Mutex   // protects output writes and serial
-	serial   int
+	mu sync.RWMutex // protects ribInPool, ribOut, peerUp
 }
 
 // Route represents a stored route with full path attributes.
@@ -87,104 +87,68 @@ func routeKey(family, prefix string, pathID uint32) string {
 	return fmt.Sprintf("%s:%s:%d", family, prefix, pathID)
 }
 
-// MaxLineSize is the maximum size of a single JSON event line (1MB).
-const MaxLineSize = 1024 * 1024
+// RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
+	logger.Debug("rib plugin starting (RPC)")
 
-// NewRIBManager creates a new RIBManager.
-func NewRIBManager(input io.Reader, output io.Writer) *RIBManager {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &RIBManager{
-		input:     scanner,
-		output:    output,
+	p := sdk.NewWithConn("rib", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
+
+	r := &RIBManager{
+		plugin:    p,
 		ribInPool: make(map[string]*storage.PeerRIB),
 		ribOut:    make(map[string]map[string]*Route),
 		peerUp:    make(map[string]bool),
 	}
-}
 
-// Run starts the RIB manager event loop.
-func (r *RIBManager) Run() int {
-	// 5-stage plugin registration protocol
-	r.doStartupProtocol()
-
-	for r.input.Scan() {
-		line := r.input.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
-		event, err := parseEvent(line)
+	// Register event handler: dispatches BGP events (update, sent, state, refresh)
+	p.OnEvent(func(jsonStr string) error {
+		event, err := parseEvent([]byte(jsonStr))
 		if err != nil {
-			logger.Warn("parse error", "error", err, "line", string(line[:min(100, len(line))]))
-			continue
+			logger.Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
+			return nil // Don't fail on parse errors
 		}
-
 		r.dispatch(event)
-	}
+		return nil
+	})
 
-	if err := r.input.Err(); err != nil {
+	// Register command handler: responds to "rib adjacent ..." commands
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+		return r.handleCommand(command, peer)
+	})
+
+	// Register event subscriptions atomically with startup completion.
+	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
+	// ensuring the rib sees every "sent" event from the very first route.
+	p.SetStartupSubscriptions([]string{"update direction sent", "state", "refresh"}, nil, "full")
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "rib adjacent status"},
+			{Name: "rib adjacent inbound show"},
+			{Name: "rib adjacent inbound empty"},
+			{Name: "rib adjacent outbound show"},
+			{Name: "rib adjacent outbound resend"},
+		},
+	})
+	if err != nil {
+		logger.Error("rib plugin failed", "error", err)
 		return 1
 	}
 
 	return 0
 }
 
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (r *RIBManager) doStartupProtocol() {
-	// Stage 1: Declaration
-	r.send("declare cmd rib adjacent status")
-	r.send("declare cmd rib adjacent inbound show")
-	r.send("declare cmd rib adjacent inbound empty")
-	r.send("declare cmd rib adjacent outbound show")
-	r.send("declare cmd rib adjacent outbound resend")
-	r.send("declare done")
-
-	// Stage 2: Wait for config (RIB plugin doesn't register config patterns)
-	r.waitForLine("config done")
-
-	// Stage 3: No capabilities to register
-	r.send("capability done")
-
-	// Stage 4: Wait for registry (discard)
-	r.waitForLine("registry done")
-
-	// Request full format with raw fields (required for handleReceived)
-	r.send("bgp plugin format full")
-
-	// Subscribe to events via API (replaces config-driven receive { })
-	// Must be sent BEFORE "ready" so subscriptions are active when events start
-	r.send("subscribe bgp event update direction sent")
-	r.send("subscribe bgp event state")
-	r.send("subscribe bgp event refresh")
-
-	// Stage 5: Ready
-	r.send("ready")
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (r *RIBManager) waitForLine(expected string) {
-	for r.input.Scan() {
-		line := r.input.Text()
-		if line == expected {
-			return
-		}
+// updateRoute sends a route update command to matching peers via the engine.
+func (r *RIBManager) updateRoute(peerSelector, command string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
+	if err != nil {
+		logger.Warn("update-route failed", "peer", peerSelector, "error", err)
 	}
-}
-
-// sendCommand sends a numbered command to ze.
-func (r *RIBManager) sendCommand(cmd string) {
-	r.outputMu.Lock()
-	r.serial++
-	_, _ = fmt.Fprintf(r.output, "#%d %s\n", r.serial, cmd)
-	r.outputMu.Unlock()
-}
-
-// send sends raw output to ze.
-func (r *RIBManager) send(format string, args ...any) {
-	r.outputMu.Lock()
-	_, _ = fmt.Fprintf(r.output, format+"\n", args...)
-	r.outputMu.Unlock()
 }
 
 // dispatch routes an event to the appropriate handler.
@@ -200,8 +164,6 @@ func (r *RIBManager) dispatch(event *Event) {
 		r.handleReceived(event)
 	case "state":
 		r.handleState(event)
-	case "request":
-		r.handleRequest(event)
 	case "refresh":
 		// RFC 7313: Normal route refresh request - resend Adj-RIB-Out with markers
 		r.handleRefresh(event)
@@ -737,10 +699,9 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.mu.RUnlock()
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
-	// Use send() not sendCommand() - consistent with route sending, no serial overhead
-	r.send("bgp peer %s borr %s", peerAddr, family)
+	r.updateRoute(peerAddr, "borr "+family)
 	r.sendRoutes(peerAddr, routesToSend)
-	r.send("bgp peer %s eorr %s", peerAddr, family)
+	r.updateRoute(peerAddr, "eorr "+family)
 
 	logger.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
 }
@@ -791,38 +752,30 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 	// Replay all stored routes using update text syntax
 	// RFC 7911: Include path-information when present
 	for _, route := range routes {
-		if route.PathID != 0 {
-			r.send("bgp peer %s update text path-information set %d nhop set %s nlri %s add %s",
-				peerAddr, route.PathID, route.NextHop, route.Family, route.Prefix)
-		} else {
-			r.send("bgp peer %s update text nhop set %s nlri %s add %s",
-				peerAddr, route.NextHop, route.Family, route.Prefix)
-		}
+		cmd := formatRouteCommand(route)
+		r.updateRoute(peerAddr, cmd)
 	}
 
 	// Signal done with peer-specific ready - ze can now send EOR for this peer
-	r.sendCommand("bgp peer " + peerAddr + " plugin session ready")
+	r.updateRoute(peerAddr, "plugin session ready")
 }
 
-// handleRequest processes command requests from ze.
-func (r *RIBManager) handleRequest(event *Event) {
-	serial := event.Serial
-	command := event.Command
-	selector := event.GetPeerSelector()
-
+// handleCommand processes command requests via SDK execute-command callback.
+// Returns (status, data, error) for the SDK to send back to the engine.
+func (r *RIBManager) handleCommand(command, selector string) (string, string, error) {
 	switch command {
 	case "rib adjacent status":
-		r.respondDone(serial, r.statusJSON())
+		return statusDone, r.statusJSON(), nil
 	case "rib adjacent inbound show":
-		r.handleInboundShow(serial, selector)
+		return statusDone, r.inboundShowJSON(selector), nil
 	case "rib adjacent inbound empty":
-		r.handleInboundEmpty(serial, selector)
+		return statusDone, r.inboundEmptyJSON(selector), nil
 	case "rib adjacent outbound show":
-		r.handleOutboundShow(serial, selector)
+		return statusDone, r.outboundShowJSON(selector), nil
 	case "rib adjacent outbound resend":
-		r.handleOutboundResend(serial, selector)
-	default:
-		r.respondError(serial, "unknown command: "+command)
+		return statusDone, r.outboundResendJSON(selector), nil
+	default: // fail on unknown command
+		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}
 }
 
@@ -855,8 +808,8 @@ func matchesPeer(peerAddr, selector string) bool {
 	return peerAddr == selector
 }
 
-// handleInboundShow returns Adj-RIB-In routes filtered by selector.
-func (r *RIBManager) handleInboundShow(serial, selector string) {
+// inboundShowJSON returns Adj-RIB-In routes filtered by selector as JSON.
+func (r *RIBManager) inboundShowJSON(selector string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -887,11 +840,11 @@ func (r *RIBManager) handleInboundShow(serial, selector string) {
 	}
 
 	data, _ := json.Marshal(map[string]any{"adj_rib_in": result})
-	r.respondDone(serial, string(data))
+	return string(data)
 }
 
-// handleInboundEmpty clears Adj-RIB-In routes for matching peers.
-func (r *RIBManager) handleInboundEmpty(serial, selector string) {
+// inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
+func (r *RIBManager) inboundEmptyJSON(selector string) string {
 	r.mu.Lock()
 	cleared := 0
 
@@ -906,11 +859,11 @@ func (r *RIBManager) handleInboundEmpty(serial, selector string) {
 	r.mu.Unlock()
 
 	data, _ := json.Marshal(map[string]any{"cleared": cleared})
-	r.respondDone(serial, string(data))
+	return string(data)
 }
 
-// handleOutboundShow returns Adj-RIB-Out routes filtered by selector.
-func (r *RIBManager) handleOutboundShow(serial, selector string) {
+// outboundShowJSON returns Adj-RIB-Out routes filtered by selector as JSON.
+func (r *RIBManager) outboundShowJSON(selector string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -935,15 +888,15 @@ func (r *RIBManager) handleOutboundShow(serial, selector string) {
 	}
 
 	data, _ := json.Marshal(map[string]any{"adj_rib_out": result})
-	r.respondDone(serial, string(data))
+	return string(data)
 }
 
-// handleOutboundResend replays Adj-RIB-Out routes for matching peers.
+// outboundResendJSON replays Adj-RIB-Out routes for matching peers, returns JSON result.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
-func (r *RIBManager) handleOutboundResend(serial, selector string) {
+func (r *RIBManager) outboundResendJSON(selector string) string {
 	r.mu.RLock()
 	var peersToResend []string
-	var routesToResend = make(map[string][]*Route)
+	routesToResend := make(map[string][]*Route)
 
 	for peer, routes := range r.ribOut {
 		if !matchesPeer(peer, selector) {
@@ -970,7 +923,7 @@ func (r *RIBManager) handleOutboundResend(serial, selector string) {
 	}
 
 	data, _ := json.Marshal(map[string]any{"resent": resent, "peers": len(peersToResend)})
-	r.respondDone(serial, string(data))
+	return string(data)
 }
 
 // sendRoutes sends routes to a peer without the "plugin session ready" signal.
@@ -982,20 +935,19 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	})
 
 	for _, route := range routes {
-		cmd := r.formatRouteCommand(peerAddr, route)
-		r.send(cmd)
+		cmd := formatRouteCommand(route)
+		r.updateRoute(peerAddr, cmd)
 	}
 }
 
 // formatRouteCommand builds the update text command with full attributes.
-// Format: bgp peer <addr> update text [attrs...] nhop set <nh> nlri <family> add <prefix>.
-func (r *RIBManager) formatRouteCommand(peerAddr string, route *Route) string {
+// Format: update text [attrs...] nhop set <nh> nlri <family> add <prefix>.
+// The peer selector is passed separately to updateRoute.
+func formatRouteCommand(route *Route) string {
 	var sb strings.Builder
 
-	// Base command
-	sb.WriteString("bgp peer ")
-	sb.WriteString(peerAddr)
-	sb.WriteString(" update text")
+	// Base command (peer selector is handled by updateRoute)
+	sb.WriteString("update text")
 
 	// Path-ID (RFC 7911) - must come before nlri
 	if route.PathID != 0 {
@@ -1056,20 +1008,6 @@ func (r *RIBManager) formatRouteCommand(peerAddr string, route *Route) string {
 	sb.WriteString(route.Prefix)
 
 	return sb.String()
-}
-
-// respondDone sends a successful response.
-func (r *RIBManager) respondDone(serial, data string) {
-	r.outputMu.Lock()
-	_, _ = fmt.Fprintf(r.output, "@%s done %s\n", serial, data)
-	r.outputMu.Unlock()
-}
-
-// respondError sends an error response.
-func (r *RIBManager) respondError(serial, message string) {
-	r.outputMu.Lock()
-	_, _ = fmt.Fprintf(r.output, "@%s error %q\n", serial, message)
-	r.outputMu.Unlock()
 }
 
 // statusJSON returns status as JSON.

@@ -2,21 +2,14 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
-)
 
-// Protocol stage markers.
-const (
-	markerDeclareDone    = "declare done"
-	markerConfigDone     = "config done"
-	markerCapabilityDone = "capability done"
-	markerRegistryDone   = "registry done"
-	markerReady          = "ready"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // SubsystemConfig describes a forked subsystem process.
@@ -69,56 +62,6 @@ func (h *SubsystemHandler) Schema() *PluginSchemaDecl {
 	return h.schema
 }
 
-// parsePriorityLine parses a "declare priority <number>" line.
-func (h *SubsystemHandler) parsePriorityLine(line string) {
-	parts := strings.Fields(line)
-	if len(parts) < 3 { // declare priority <number>
-		return
-	}
-
-	n, err := strconv.Atoi(parts[2])
-	if err != nil {
-		return // Invalid priority, ignore
-	}
-
-	if h.schema == nil {
-		h.schema = &PluginSchemaDecl{Priority: 1000}
-	}
-	h.schema.Priority = n
-}
-
-// parseSchemaLine parses a "declare schema <type> <value>" line.
-func (h *SubsystemHandler) parseSchemaLine(line string) {
-	parts := strings.Fields(line)
-	if len(parts) < 4 { // declare schema <type> <value>
-		return // Not enough parts, might be heredoc start
-	}
-
-	schemaType := parts[2]
-	value := parts[3]
-
-	if h.schema == nil {
-		h.schema = &PluginSchemaDecl{}
-	}
-
-	switch schemaType {
-	case "module":
-		h.schema.Module = value
-	case "namespace":
-		h.schema.Namespace = value
-	case "handler":
-		h.schema.Handlers = append(h.schema.Handlers, value)
-	case "yang":
-		// Single-line YANG or heredoc start - heredoc handled separately
-		if !strings.Contains(line, "<<") {
-			idx := strings.Index(line, "declare schema yang ")
-			if idx >= 0 {
-				h.schema.Yang = strings.TrimSpace(line[idx+len("declare schema yang "):])
-			}
-		}
-	}
-}
-
 // Start spawns the subsystem process and completes the 5-stage protocol.
 func (h *SubsystemHandler) Start(ctx context.Context) error {
 	h.mu.Lock()
@@ -160,87 +103,85 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	return nil
 }
 
-// completeProtocol runs through the 5-stage startup protocol.
+// completeProtocol runs through the 5-stage startup protocol via RPC.
 func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
-	// Stage 1: Read declarations until "declare done"
-	var heredocDelimiter string
-	for {
-		line, err := h.proc.ReadCommand(ctx)
-		if err != nil {
-			return fmt.Errorf("stage 1 read: %w", err)
-		}
-
-		// Handle heredoc continuation
-		if heredocDelimiter != "" {
-			if IsHeredocEnd(line, heredocDelimiter) {
-				heredocDelimiter = ""
-				continue
-			}
-			// Append to YANG content
-			if h.schema == nil {
-				h.schema = &PluginSchemaDecl{}
-			}
-			if h.schema.Yang != "" {
-				h.schema.Yang += "\n"
-			}
-			h.schema.Yang += line
-			continue
-		}
-
-		// Check for declare done
-		if line == markerDeclareDone {
-			break
-		}
-
-		// Parse "declare cmd <name>"
-		if strings.HasPrefix(line, "declare cmd ") {
-			cmdName := strings.TrimPrefix(line, "declare cmd ")
-			h.commands = append(h.commands, cmdName)
-			continue
-		}
-
-		// Parse "declare schema <type> <value>"
-		if strings.HasPrefix(line, "declare schema ") {
-			h.parseSchemaLine(line)
-			// Check for heredoc start
-			if delim, ok := StartHeredoc(line); ok {
-				heredocDelimiter = delim
-			}
-			continue
-		}
-
-		// Parse "declare priority <number>"
-		if strings.HasPrefix(line, "declare priority ") {
-			h.parsePriorityLine(line)
-		}
+	connA := h.proc.engineConnA
+	connB := h.proc.ConnB()
+	if connB == nil {
+		return fmt.Errorf("subsystem connection closed before protocol")
 	}
 
-	// Stage 2: Send config done (no config for now)
-	if err := h.proc.WriteEvent(markerConfigDone); err != nil {
-		return fmt.Errorf("stage 2 write: %w", err)
+	// Stage 1: Read declare-registration from plugin (Socket A)
+	req, err := connA.ReadRequest(ctx)
+	if err != nil {
+		return fmt.Errorf("stage 1 read: %w", err)
+	}
+	if req.Method != "ze-plugin-engine:declare-registration" {
+		_ = connA.SendError(ctx, req.ID, "expected declare-registration, got "+req.Method)
+		return fmt.Errorf("stage 1: expected declare-registration, got %s", req.Method)
 	}
 
-	// Stage 3: Read capability done
-	line, err := h.proc.ReadCommand(ctx)
+	var regInput rpc.DeclareRegistrationInput
+	if err := json.Unmarshal(req.Params, &regInput); err != nil {
+		_ = connA.SendError(ctx, req.ID, "invalid registration: "+err.Error())
+		return fmt.Errorf("stage 1 parse: %w", err)
+	}
+
+	// Extract commands from registration
+	for _, cmd := range regInput.Commands {
+		h.commands = append(h.commands, cmd.Name)
+	}
+
+	// Extract schema from registration
+	if regInput.Schema != nil {
+		if h.schema == nil {
+			h.schema = &PluginSchemaDecl{}
+		}
+		h.schema.Yang = regInput.Schema.YANGText
+		h.schema.Module = regInput.Schema.Module
+		h.schema.Namespace = regInput.Schema.Namespace
+		h.schema.Handlers = regInput.Schema.Handlers
+	}
+
+	// Send OK response
+	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+		return fmt.Errorf("stage 1 respond: %w", err)
+	}
+
+	// Stage 2: Send configure to plugin (Socket B)
+	if err := connB.SendConfigure(ctx, nil); err != nil {
+		return fmt.Errorf("stage 2 configure: %w", err)
+	}
+
+	// Stage 3: Read declare-capabilities from plugin (Socket A)
+	req, err = connA.ReadRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("stage 3 read: %w", err)
 	}
-	if line != markerCapabilityDone {
-		return fmt.Errorf("stage 3: expected '%s', got: %s", markerCapabilityDone, line)
+	if req.Method != "ze-plugin-engine:declare-capabilities" {
+		_ = connA.SendError(ctx, req.ID, "expected declare-capabilities, got "+req.Method)
+		return fmt.Errorf("stage 3: expected declare-capabilities, got %s", req.Method)
+	}
+	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+		return fmt.Errorf("stage 3 respond: %w", err)
 	}
 
-	// Stage 4: Send registry done
-	if err := h.proc.WriteEvent(markerRegistryDone); err != nil {
-		return fmt.Errorf("stage 4 write: %w", err)
+	// Stage 4: Send share-registry to plugin (Socket B)
+	if err := connB.SendShareRegistry(ctx, nil); err != nil {
+		return fmt.Errorf("stage 4 share-registry: %w", err)
 	}
 
-	// Stage 5: Read ready
-	line, err = h.proc.ReadCommand(ctx)
+	// Stage 5: Read ready from plugin (Socket A)
+	req, err = connA.ReadRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("stage 5 read: %w", err)
 	}
-	if line != markerReady {
-		return fmt.Errorf("stage 5: expected '%s', got: %s", markerReady, line)
+	if req.Method != "ze-plugin-engine:ready" {
+		_ = connA.SendError(ctx, req.ID, "expected ready, got "+req.Method)
+		return fmt.Errorf("stage 5: expected ready, got %s", req.Method)
+	}
+	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+		return fmt.Errorf("stage 5 respond: %w", err)
 	}
 
 	return nil
@@ -264,7 +205,7 @@ func (h *SubsystemHandler) Running() bool {
 	return h.proc != nil && h.proc.Running()
 }
 
-// Handle sends a command to the subsystem and returns the response.
+// Handle sends a command to the subsystem via RPC and returns the response.
 func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*Response, error) {
 	h.mu.RLock()
 	proc := h.proc
@@ -274,39 +215,17 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*Respons
 		return nil, errors.New("subsystem not running")
 	}
 
-	// Send command via pipe and wait for response
-	resp, err := proc.SendRequest(ctx, command)
+	// Send command via RPC execute-command
+	connB := proc.ConnB()
+	if connB == nil {
+		return nil, errors.New("subsystem connection closed")
+	}
+	out, err := connB.SendExecuteCommand(ctx, "", command, nil, "")
 	if err != nil {
 		return &Response{Status: statusError, Data: err.Error()}, err
 	}
 
-	// Parse response: "ok {json}" or "error message"
-	return parseSubsystemResponse(resp)
-}
-
-// parseSubsystemResponse parses "@serial ok data" or "@serial error msg" format.
-// The serial has already been stripped by Process.SendRequest, so we get "ok data".
-func parseSubsystemResponse(resp string) (*Response, error) {
-	// Split into status and data
-	parts := strings.SplitN(resp, " ", 2)
-	if len(parts) == 0 {
-		return &Response{Status: statusError, Data: "empty response"}, nil
-	}
-
-	status := parts[0]
-	var data any
-	if len(parts) > 1 {
-		data = parts[1]
-	}
-
-	switch status {
-	case "ok":
-		return &Response{Status: statusDone, Data: data}, nil
-	case "error":
-		return &Response{Status: statusError, Data: data}, errors.New(fmt.Sprint(data))
-	default:
-		return &Response{Status: statusDone, Data: resp}, nil
-	}
+	return &Response{Status: out.Status, Data: out.Data}, nil
 }
 
 // SubsystemManager manages multiple subsystem handlers.

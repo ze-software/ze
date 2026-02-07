@@ -337,47 +337,6 @@ func TestParseVPNShortData(t *testing.T) {
 	}
 }
 
-// TestNewVPNPlugin verifies plugin creation.
-//
-// VALIDATES: NewVPNPlugin creates a working plugin instance.
-// PREVENTS: Nil pointer dereference on plugin use.
-func TestNewVPNPlugin(t *testing.T) {
-	input := strings.NewReader("")
-	output := &bytes.Buffer{}
-
-	p := NewVPNPlugin(input, output)
-	require.NotNil(t, p)
-	require.NotNil(t, p.input)
-	require.NotNil(t, p.output)
-}
-
-// TestParseSerialPrefix verifies serial prefix extraction.
-//
-// VALIDATES: Serial prefixes are correctly extracted from lines.
-// PREVENTS: Request correlation failures.
-func TestParseSerialPrefix(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantSerial string
-		wantCmd    string
-	}{
-		{"no_prefix", "decode nlri ipv4/vpn abc123", "", "decode nlri ipv4/vpn abc123"},
-		{"with_prefix", "#42 decode nlri ipv4/vpn abc123", "42", "decode nlri ipv4/vpn abc123"},
-		{"prefix_no_space", "#42", "", "#42"},
-		{"hash_only", "#", "", "#"},
-		{"empty", "", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			serial, cmd := parseSerialPrefix(tt.input)
-			assert.Equal(t, tt.wantSerial, serial)
-			assert.Equal(t, tt.wantCmd, cmd)
-		})
-	}
-}
-
 // TestSetVPNLogger verifies logger configuration.
 //
 // VALIDATES: SetVPNLogger accepts logger without panic.

@@ -11,80 +11,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestNewEVPNPlugin verifies plugin creation.
+// TestDecodeNLRIViaRunEVPNDecode verifies NLRI decode handling through RunEVPNDecode.
 //
-// VALIDATES: NewEVPNPlugin creates a working plugin instance.
-// PREVENTS: Nil pointer dereference on plugin use.
-func TestNewEVPNPlugin(t *testing.T) {
-	input := strings.NewReader("")
-	output := &bytes.Buffer{}
-
-	p := NewEVPNPlugin(input, output)
-	require.NotNil(t, p)
-	require.NotNil(t, p.input)
-	require.NotNil(t, p.output)
-}
-
-// TestParseSerialPrefix verifies serial prefix extraction.
-//
-// VALIDATES: Serial prefixes are correctly extracted from lines.
-// PREVENTS: Request correlation failures.
-func TestParseSerialPrefix(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantSerial string
-		wantCmd    string
-	}{
-		{"no_prefix", "decode nlri l2vpn/evpn abc123", "", "decode nlri l2vpn/evpn abc123"},
-		{"with_prefix", "#42 decode nlri l2vpn/evpn abc123", "42", "decode nlri l2vpn/evpn abc123"},
-		{"prefix_no_space", "#42", "", "#42"},
-		{"hash_only", "#", "", "#"},
-		{"empty", "", "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			serial, cmd := parseSerialPrefix(tt.input)
-			assert.Equal(t, tt.wantSerial, serial)
-			assert.Equal(t, tt.wantCmd, cmd)
-		})
-	}
-}
-
-// TestHandleRequest verifies request routing.
-//
-// VALIDATES: Requests are routed to correct handlers.
-// PREVENTS: Decode requests being silently dropped.
-func TestHandleRequest(t *testing.T) {
-	p := NewEVPNPlugin(strings.NewReader(""), &bytes.Buffer{})
-
-	tests := []struct {
-		name     string
-		input    string
-		wantResp string
-	}{
-		{"too_short", "decode", ""},
-		{"two_parts", "decode nlri", ""},
-		{"unknown_cmd", "foo nlri l2vpn/evpn abc", ""},
-		{"unknown_obj", "decode foo l2vpn/evpn abc", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp := p.handleRequest(tt.input)
-			assert.Equal(t, tt.wantResp, resp)
-		})
-	}
-}
-
-// TestHandleDecodeRequest verifies NLRI decode handling.
-//
-// VALIDATES: Valid EVPN NLRI is decoded to JSON.
-// PREVENTS: Decode failures for valid input.
-func TestHandleDecodeRequest(t *testing.T) {
-	p := NewEVPNPlugin(strings.NewReader(""), &bytes.Buffer{})
-
+// VALIDATES: Valid EVPN NLRI is decoded to JSON via the decode protocol.
+// PREVENTS: Decode failures for valid input, wrong family silently accepted.
+func TestDecodeNLRIViaRunEVPNDecode(t *testing.T) {
 	// Valid Type 2 MAC-only: RD(8) + ESI(10) + EthTag(4) + MACLen(1) + MAC(6) + IPLen(1) + Label(3) = 33 = 0x21
 	validType2 := "0221" + // type=2, len=33
 		"0000FDE800000064" + // RD: 65000:100
@@ -96,25 +27,30 @@ func TestHandleDecodeRequest(t *testing.T) {
 		"000101" // Label
 
 	tests := []struct {
-		name    string
-		parts   []string
-		wantPfx string
-		wantUnk bool
+		name   string
+		input  string
+		expect string
 	}{
-		{"valid", []string{"decode", "nlri", "l2vpn/evpn", validType2}, "decoded json ", false},
-		{"too_few_parts", []string{"decode", "nlri", "l2vpn/evpn"}, "", true},
-		{"wrong_family", []string{"decode", "nlri", "ipv4/unicast", validType2}, "", true},
-		{"invalid_hex", []string{"decode", "nlri", "l2vpn/evpn", "not-hex"}, "", true},
-		{"truncated", []string{"decode", "nlri", "l2vpn/evpn", "02"}, "", true},
+		{"valid", "decode nlri l2vpn/evpn " + validType2 + "\n", "decoded json "},
+		{"too_few_parts", "decode nlri l2vpn/evpn\n", "decoded unknown"},
+		{"wrong_family", "decode nlri ipv4/unicast " + validType2 + "\n", "decoded unknown"},
+		{"invalid_hex", "decode nlri l2vpn/evpn not-hex\n", "decoded unknown"},
+		{"truncated", "decode nlri l2vpn/evpn 02\n", "decoded unknown"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resp := p.handleDecodeRequest(tt.parts)
-			if tt.wantUnk {
-				assert.Equal(t, respDecodedUnk, resp)
+			input := strings.NewReader(tt.input)
+			output := &bytes.Buffer{}
+
+			code := RunEVPNDecode(input, output)
+			assert.Equal(t, 0, code)
+
+			out := output.String()
+			if tt.expect == "" {
+				assert.Empty(t, out)
 			} else {
-				assert.True(t, strings.HasPrefix(resp, tt.wantPfx), "got: %s", resp)
+				assert.True(t, strings.HasPrefix(out, tt.expect), "got: %s", out)
 			}
 		})
 	}
@@ -164,46 +100,6 @@ func TestRunEVPNDecode(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestEVPNPluginRun verifies full plugin lifecycle.
-//
-// VALIDATES: Plugin completes startup protocol and handles requests.
-// PREVENTS: Plugin hanging on startup or ignoring requests.
-func TestEVPNPluginRun(t *testing.T) {
-	// Valid Type 2 for decode request: RD(8) + ESI(10) + EthTag(4) + MACLen(1) + MAC(6) + IPLen(1) + Label(3) = 33 = 0x21
-	validType2 := "0221" +
-		"0000FDE800000064" +
-		"00000000000000000000" +
-		"00000000" +
-		"30" +
-		"001122334455" +
-		"00" +
-		"000101"
-
-	// Simulate engine sending startup sequence + decode request
-	input := "config done\n" +
-		"registry done\n" +
-		"#123 decode nlri l2vpn/evpn " + validType2 + "\n"
-
-	inputReader := strings.NewReader(input)
-	output := &bytes.Buffer{}
-
-	p := NewEVPNPlugin(inputReader, output)
-	code := p.Run()
-	assert.Equal(t, 0, code)
-
-	out := output.String()
-	// Check startup protocol output
-	assert.Contains(t, out, "declare family l2vpn evpn decode")
-	assert.Contains(t, out, "declare rfc 7432")
-	assert.Contains(t, out, "declare rfc 9136")
-	assert.Contains(t, out, "declare encoding hex")
-	assert.Contains(t, out, "declare done")
-	assert.Contains(t, out, "capability done")
-	assert.Contains(t, out, "ready")
-	// Check response with serial prefix
-	assert.Contains(t, out, "@123 decoded json ")
 }
 
 // TestFormatEVPNText verifies text formatting.

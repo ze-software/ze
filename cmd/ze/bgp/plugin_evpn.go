@@ -43,8 +43,6 @@ func cmdPluginEVPN(args []string) int {
 			return evpn.RunCLIDecode(hex, *family, text, out, errOut)
 		},
 		RunDecode: evpn.RunEVPNDecode,
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return evpn.NewEVPNPlugin(in, out).Run()
-		},
+		RunEngine: evpn.RunEVPNPlugin,
 	}, args)
 }

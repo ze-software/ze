@@ -48,6 +48,15 @@ type Plugin struct {
 	onExecuteCommand   func(serial, command string, args []string, peer string) (status, data string, err error)
 	onBye              func(string)
 
+	// Post-startup callback (runs after Stage 5, before event loop).
+	// Safe to make engine calls (Socket A) here — startup is complete.
+	onStarted func(context.Context) error
+
+	// Startup subscriptions: included in the "ready" RPC so the engine
+	// registers them atomically before SignalAPIReady, avoiding the race
+	// between reactor sending routes and the plugin subscribing.
+	startupSubscription *rpc.SubscribeEventsInput
+
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
 
@@ -200,6 +209,35 @@ func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string,
 	p.onExecuteCommand = fn
 }
 
+// OnStarted sets a callback that runs after the 5-stage startup completes
+// but before the event loop begins. This is the safe place to make engine
+// calls (e.g., SubscribeEvents) because Socket A is no longer blocked by
+// the startup coordinator. Do NOT make engine calls inside OnShareRegistry
+// or OnConfigure — those run while the engine is waiting on Socket B,
+// causing a cross-socket deadlock.
+func (p *Plugin) OnStarted(fn func(ctx context.Context) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onStarted = fn
+}
+
+// SetStartupSubscriptions sets event subscriptions to include in the "ready" RPC.
+// The engine registers these atomically before SignalAPIReady, ensuring the plugin
+// receives events from the very first route send. Must be called before Run().
+//
+// This replaces the pattern of calling SubscribeEvents in OnStarted, which had a
+// race condition: SignalAPIReady triggered route sends before the subscription RPC
+// could be processed.
+func (p *Plugin) SetStartupSubscriptions(events, peers []string, format string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.startupSubscription = &rpc.SubscribeEventsInput{
+		Events: events,
+		Peers:  peers,
+		Format: format,
+	}
+}
+
 // SetCapabilities sets the capabilities to declare during Stage 3.
 // Must be called before Run().
 func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
@@ -235,9 +273,29 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		return fmt.Errorf("stage 4 (share-registry): %w", err)
 	}
 
-	// Stage 5: ready
-	if err := p.callEngine(ctx, "ze-plugin-engine:ready", nil); err != nil {
+	// Stage 5: ready (with optional startup subscriptions)
+	p.mu.Lock()
+	var readyInput *rpc.ReadyInput
+	if p.startupSubscription != nil {
+		readyInput = &rpc.ReadyInput{Subscribe: p.startupSubscription}
+	}
+	p.mu.Unlock()
+
+	if err := p.callEngine(ctx, "ze-plugin-engine:ready", readyInput); err != nil {
 		return fmt.Errorf("stage 5 (ready): %w", err)
+	}
+
+	// Post-startup: safe to make engine calls (Socket A is free).
+	// The engine's runtime handler starts reading Socket A after all
+	// plugins complete startup, so writes are buffered briefly then handled.
+	p.mu.Lock()
+	startedFn := p.onStarted
+	p.mu.Unlock()
+
+	if startedFn != nil {
+		if err := startedFn(ctx); err != nil {
+			return fmt.Errorf("post-startup: %w", err)
+		}
 	}
 
 	// Enter event loop

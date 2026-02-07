@@ -4,14 +4,17 @@ package evpn
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // evpnLogger is the package-level logger, disabled by default.
@@ -25,88 +28,49 @@ func SetEVPNLogger(l *slog.Logger) {
 	}
 }
 
-// EVPNPlugin implements an EVPN family plugin.
-// For now, it only supports decode mode (started with --decode).
-type EVPNPlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
-}
+// RunEVPNPlugin runs the EVPN plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunEVPNPlugin(engineConn, callbackConn net.Conn) int {
+	evpnLogger.Debug("evpn plugin starting (RPC)")
 
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
+	p := sdk.NewWithConn("evpn", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-// NewEVPNPlugin creates a new EVPN Plugin.
-func NewEVPNPlugin(input io.Reader, output io.Writer) *EVPNPlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &EVPNPlugin{
-		input:  scanner,
-		output: output,
+	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {
+		if !isValidEVPNFamily(family) {
+			return "", fmt.Errorf("unsupported family: %s", family)
+		}
+
+		data, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid hex: %w", err)
+		}
+
+		results := decodeEVPNNLRI(data)
+		if len(results) == 0 {
+			return "", fmt.Errorf("no valid EVPN routes decoded")
+		}
+
+		jsonBytes, err := json.Marshal(results)
+		if err != nil {
+			return "", fmt.Errorf("JSON encoding failed: %w", err)
+		}
+
+		return string(jsonBytes), nil
+	})
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Families: []sdk.FamilyDecl{
+			{Name: "l2vpn/evpn", Mode: "decode"},
+		},
+	})
+	if err != nil {
+		evpnLogger.Error("evpn plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the evpn plugin in normal mode.
-func (p *EVPNPlugin) Run() int {
-	evpnLogger.Debug("evpn plugin starting")
-	p.doStartupProtocol()
-	evpnLogger.Debug("evpn plugin startup complete, entering event loop")
-	p.eventLoop()
 	return 0
-}
-
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (p *EVPNPlugin) doStartupProtocol() {
-	// Stage 1: Declaration - claim EVPN family decode
-	p.send("declare family l2vpn evpn decode")
-	p.send("declare rfc 7432")
-	p.send("declare rfc 9136")
-	p.send("declare encoding hex")
-	p.send("declare done")
-
-	// Stage 2: Parse config (EVPN plugin doesn't need config)
-	p.waitForLine("config done")
-
-	// Stage 3: No explicit capability injection needed.
-	p.send("capability done")
-
-	// Stage 4: Wait for registry
-	p.waitForLine("registry done")
-
-	// Stage 5: Ready
-	p.send("ready")
-}
-
-// eventLoop handles decode requests from the engine.
-func (p *EVPNPlugin) eventLoop() {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-
-		evpnLogger.Debug("received", "line", line[:min(80, len(line))])
-
-		serial, command := parseSerialPrefix(line)
-		response := p.handleRequest(command)
-		if response != "" {
-			if serial != "" {
-				p.send(fmt.Sprintf("@%s %s", serial, response))
-			} else {
-				p.send(response)
-			}
-		}
-	}
-}
-
-// parseSerialPrefix extracts "#serial" prefix from a line.
-func parseSerialPrefix(line string) (string, string) {
-	if len(line) > 0 && line[0] == '#' {
-		idx := strings.IndexByte(line, ' ')
-		if idx > 1 {
-			return line[1:idx], line[idx+1:]
-		}
-	}
-	return "", line
 }
 
 // Protocol constants.
@@ -118,72 +82,6 @@ const (
 	respDecodedUnk  = "decoded unknown"
 	respDecodedJSON = "decoded json "
 )
-
-// handleRequest processes a single request and returns the response.
-func (p *EVPNPlugin) handleRequest(line string) string {
-	parts := strings.Fields(line)
-	if len(parts) < 3 {
-		return ""
-	}
-
-	cmd := parts[0]
-	objType := parts[1]
-
-	if cmd == cmdDecode && objType == objTypeNLRI {
-		return p.handleDecodeRequest(parts)
-	}
-
-	return ""
-}
-
-// handleDecodeRequest handles: decode nlri <family> <hex>.
-func (p *EVPNPlugin) handleDecodeRequest(parts []string) string {
-	if len(parts) < 4 {
-		return respDecodedUnk
-	}
-
-	family := strings.ToLower(parts[2])
-	hexData := parts[3]
-
-	if !isValidEVPNFamily(family) {
-		return respDecodedUnk
-	}
-
-	data, err := hex.DecodeString(hexData)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	results := decodeEVPNNLRI(data)
-	if len(results) == 0 {
-		return respDecodedUnk
-	}
-
-	jsonBytes, err := json.Marshal(results)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	return respDecodedJSON + string(jsonBytes)
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (p *EVPNPlugin) waitForLine(expected string) {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-// Write errors are logged but not propagated - if the pipe is broken, the plugin exits anyway.
-func (p *EVPNPlugin) send(msg string) {
-	if _, err := fmt.Fprintf(p.output, "%s\n", msg); err != nil {
-		evpnLogger.Debug("write error", "err", err)
-	}
-}
 
 // GetEVPNYANG returns the embedded YANG schema for the evpn plugin.
 // EVPN plugin doesn't augment config schema, returns empty.

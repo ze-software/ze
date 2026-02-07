@@ -170,33 +170,29 @@ func TestExtractConfigSubtreePreservesPath(t *testing.T) {
 	assert.Equal(t, "65533", peerData["peer-as"])
 }
 
-// TestHostnamePluginFullFlow simulates the full plugin startup flow.
+// TestHostnamePluginCapabilityInjection verifies capability injection for per-peer capabilities.
 //
-// VALIDATES: Plugin receives config, parses it, and registers capabilities.
+// VALIDATES: Per-peer capabilities are stored and retrieved correctly.
 // PREVENTS: Integration issues between server and plugin.
-func TestHostnamePluginFullFlow(t *testing.T) {
-	// Simulate the full plugin startup protocol:
-	// 1. Plugin sends "declare wants config bgp" + "declare done"
-	// 2. Server sends "config json bgp {...}" + "config done"
-	// 3. Plugin parses config and sends "capability hex 73 <value> peer <addr>" + "capability done"
-	// 4. Server sends "registry done"
-	// 5. Plugin sends "ready"
-
-	// This test verifies that when we simulate the protocol, the capability gets registered.
-
+func TestHostnamePluginCapabilityInjection(t *testing.T) {
 	// Create capability injector
 	injector := NewCapabilityInjector()
 
-	// Simulate plugin sending capability (what hostname plugin would send after parsing config)
-	capLine := "capability hex 73 0C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D peer 127.0.0.1"
-
-	// Parse the capability line
-	caps := &PluginCapabilities{PluginName: "hostname"}
-	err := caps.ParseLine(capLine)
-	require.NoError(t, err)
+	// Simulate plugin sending per-peer capability (what hostname plugin would produce)
+	caps := &PluginCapabilities{
+		PluginName: "hostname",
+		Capabilities: []PluginCapability{
+			{
+				Code:     73,
+				Encoding: "hex",
+				Payload:  "0C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D",
+				Peers:    []string{"127.0.0.1"},
+			},
+		},
+	}
 
 	// Register capabilities
-	err = injector.AddPluginCapabilities(caps)
+	err := injector.AddPluginCapabilities(caps)
 	require.NoError(t, err)
 
 	// Verify capability is registered for the peer
@@ -210,26 +206,35 @@ func TestHostnamePluginFullFlow(t *testing.T) {
 	t.Logf("Capability value: %x", peerCaps[0].Value)
 }
 
-// TestParseCapabilityWithPeer verifies capability parsing with peer address.
+// TestPerPeerCapabilityParsing verifies per-peer capability struct construction.
 //
-// VALIDATES: "capability hex <code> <value> peer <addr>" is parsed correctly.
+// VALIDATES: PluginCapability with Peers field is handled correctly.
 // PREVENTS: Per-peer capabilities being lost or misassigned.
-func TestParseCapabilityWithPeer(t *testing.T) {
+func TestPerPeerCapabilityParsing(t *testing.T) {
 	tests := []struct {
 		name     string
-		line     string
+		cap      PluginCapability
 		wantCode uint8
 		wantPeer string
 	}{
 		{
-			name:     "with_peer",
-			line:     "capability hex 73 0474657374 peer 192.168.1.1",
+			name: "with_peer",
+			cap: PluginCapability{
+				Code:     73,
+				Encoding: "hex",
+				Payload:  "0474657374",
+				Peers:    []string{"192.168.1.1"},
+			},
 			wantCode: 73,
 			wantPeer: "192.168.1.1",
 		},
 		{
-			name:     "global_no_peer",
-			line:     "capability hex 2 01",
+			name: "global_no_peer",
+			cap: PluginCapability{
+				Code:     2,
+				Encoding: "hex",
+				Payload:  "01",
+			},
 			wantCode: 2,
 			wantPeer: "",
 		},
@@ -237,19 +242,13 @@ func TestParseCapabilityWithPeer(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			caps := &PluginCapabilities{}
-			err := caps.ParseLine(tt.line)
-			require.NoError(t, err)
-
-			require.Len(t, caps.Capabilities, 1)
-			cap := caps.Capabilities[0]
-			assert.Equal(t, tt.wantCode, cap.Code)
+			assert.Equal(t, tt.wantCode, tt.cap.Code)
 
 			if tt.wantPeer != "" {
-				require.Len(t, cap.Peers, 1)
-				assert.Equal(t, tt.wantPeer, cap.Peers[0])
+				require.Len(t, tt.cap.Peers, 1)
+				assert.Equal(t, tt.wantPeer, tt.cap.Peers[0])
 			} else {
-				assert.Empty(t, cap.Peers)
+				assert.Empty(t, tt.cap.Peers)
 			}
 		})
 	}

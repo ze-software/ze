@@ -4,15 +4,18 @@ package vpn
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // vpnLogger is the package-level logger, disabled by default.
@@ -26,89 +29,56 @@ func SetVPNLogger(l *slog.Logger) {
 	}
 }
 
-// VPNPlugin implements a VPN family plugin.
-// For now, it only supports decode mode (started with --decode).
-type VPNPlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
-}
+// RunVPNPlugin runs the VPN plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunVPNPlugin(engineConn, callbackConn net.Conn) int {
+	vpnLogger.Debug("vpn plugin starting (RPC)")
 
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
+	p := sdk.NewWithConn("vpn", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-// NewVPNPlugin creates a new VPN Plugin.
-func NewVPNPlugin(input io.Reader, output io.Writer) *VPNPlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &VPNPlugin{
-		input:  scanner,
-		output: output,
+	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {
+		if !isValidVPNFamily(family) {
+			return "", fmt.Errorf("unsupported family: %s", family)
+		}
+
+		data, err := hex.DecodeString(hexStr)
+		if err != nil {
+			return "", fmt.Errorf("invalid hex: %w", err)
+		}
+
+		results := decodeVPNNLRI(family, data)
+		if len(results) == 0 {
+			return "", fmt.Errorf("no valid VPN routes decoded")
+		}
+
+		// Single object for single NLRI, array for multiple.
+		var jsonBytes []byte
+		if len(results) == 1 {
+			jsonBytes, err = json.Marshal(results[0])
+		} else {
+			jsonBytes, err = json.Marshal(results)
+		}
+		if err != nil {
+			return "", fmt.Errorf("JSON encoding failed: %w", err)
+		}
+
+		return string(jsonBytes), nil
+	})
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Families: []sdk.FamilyDecl{
+			{Name: "ipv4/vpn", Mode: "decode"},
+			{Name: "ipv6/vpn", Mode: "decode"},
+		},
+	})
+	if err != nil {
+		vpnLogger.Error("vpn plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the vpn plugin in normal mode.
-func (p *VPNPlugin) Run() int {
-	vpnLogger.Debug("vpn plugin starting")
-	p.doStartupProtocol()
-	vpnLogger.Debug("vpn plugin startup complete, entering event loop")
-	p.eventLoop()
 	return 0
-}
-
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (p *VPNPlugin) doStartupProtocol() {
-	// Stage 1: Declaration - claim VPN family decode
-	p.send("declare family ipv4 vpn decode")
-	p.send("declare family ipv6 vpn decode")
-	p.send("declare rfc 4364")
-	p.send("declare rfc 4659")
-	p.send("declare encoding hex")
-	p.send("declare done")
-
-	// Stage 2: Parse config (VPN plugin doesn't need config)
-	p.waitForLine("config done")
-
-	// Stage 3: No explicit capability injection needed.
-	p.send("capability done")
-
-	// Stage 4: Wait for registry
-	p.waitForLine("registry done")
-
-	// Stage 5: Ready
-	p.send("ready")
-}
-
-// eventLoop handles decode requests from the engine.
-func (p *VPNPlugin) eventLoop() {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-
-		vpnLogger.Debug("received", "line", line[:min(80, len(line))])
-
-		serial, command := parseSerialPrefix(line)
-		response := p.handleRequest(command)
-		if response != "" {
-			if serial != "" {
-				p.send(fmt.Sprintf("@%s %s", serial, response))
-			} else {
-				p.send(response)
-			}
-		}
-	}
-}
-
-// parseSerialPrefix extracts "#serial" prefix from a line.
-func parseSerialPrefix(line string) (string, string) {
-	if len(line) > 0 && line[0] == '#' {
-		idx := strings.IndexByte(line, ' ')
-		if idx > 1 {
-			return line[1:idx], line[idx+1:]
-		}
-	}
-	return "", line
 }
 
 // Protocol constants.
@@ -120,80 +90,6 @@ const (
 	respDecodedUnk  = "decoded unknown"
 	respDecodedJSON = "decoded json "
 )
-
-// handleRequest processes a single request and returns the response.
-func (p *VPNPlugin) handleRequest(line string) string {
-	parts := strings.Fields(line)
-	if len(parts) < 3 {
-		return ""
-	}
-
-	cmd := parts[0]
-	objType := parts[1]
-
-	if cmd == cmdDecode && objType == objTypeNLRI {
-		return p.handleDecodeRequest(parts)
-	}
-
-	return ""
-}
-
-// handleDecodeRequest handles: decode nlri <family> <hex>.
-func (p *VPNPlugin) handleDecodeRequest(parts []string) string {
-	if len(parts) < 4 {
-		return respDecodedUnk
-	}
-
-	family := strings.ToLower(parts[2])
-	hexData := parts[3]
-
-	if !isValidVPNFamily(family) {
-		return respDecodedUnk
-	}
-
-	data, err := hex.DecodeString(hexData)
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	results := decodeVPNNLRI(family, data)
-	if len(results) == 0 {
-		return respDecodedUnk
-	}
-
-	// Return single object for single NLRI (matches flowspec pattern),
-	// array for multiple NLRIs.
-	var jsonBytes []byte
-	if len(results) == 1 {
-		jsonBytes, err = json.Marshal(results[0])
-	} else {
-		jsonBytes, err = json.Marshal(results)
-	}
-	if err != nil {
-		return respDecodedUnk
-	}
-
-	return respDecodedJSON + string(jsonBytes)
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (p *VPNPlugin) waitForLine(expected string) {
-	for p.input.Scan() {
-		line := p.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-// Write errors are logged but not propagated - if the pipe is broken, the plugin exits anyway.
-func (p *VPNPlugin) send(msg string) {
-	_, err := fmt.Fprintf(p.output, "%s\n", msg)
-	if err != nil {
-		vpnLogger.Debug("write error", "err", err)
-	}
-}
 
 // GetVPNYANG returns the embedded YANG schema for the vpn plugin.
 // VPN plugin doesn't augment config schema, returns empty.
@@ -207,14 +103,16 @@ func GetVPNYANG() string {
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		n, e := io.WriteString(errOut, fmt.Sprintf(format, args...))
-		_ = n
-		_ = e
+		_, err := io.WriteString(errOut, fmt.Sprintf(format, args...))
+		if err != nil {
+			return
+		}
 	}
 	writeOut := func(s string) {
-		n, e := io.WriteString(output, s+"\n")
-		_ = n
-		_ = e
+		_, err := io.WriteString(output, s+"\n")
+		if err != nil {
+			return
+		}
 	}
 
 	data, err := hex.DecodeString(hexData)

@@ -43,8 +43,6 @@ func cmdPluginFlowSpec(args []string) int {
 			return flowspec.RunCLIDecode(hex, *family, text, out, errOut)
 		},
 		RunDecode: flowspec.RunFlowSpecDecode,
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return flowspec.NewFlowSpecPlugin(in, out).Run()
-		},
+		RunEngine: flowspec.RunFlowSpecPlugin,
 	}, args)
 }

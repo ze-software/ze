@@ -1,11 +1,6 @@
 // ze-subsystem is a forked process that handles a subset of commands.
-// It communicates with ze engine via stdin/stdout pipes using the
-// same 5-stage protocol as external plugins.
-//
-// Bidirectional communication:
-//   - Engine → Subsystem: #alpha command (alpha serial a-j)
-//   - Subsystem → Engine: #N command (numeric serial)
-//   - Responses use @serial format
+// It communicates with ze engine via the YANG RPC protocol over dual socket pairs
+// (ZE_ENGINE_FD=3, ZE_CALLBACK_FD=4).
 //
 // Usage:
 //
@@ -13,29 +8,18 @@
 package main
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
-	"sync"
-	"sync/atomic"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// Protocol stage markers.
 const (
-	markerConfigDone   = "config done"
-	markerRegistryDone = "registry done"
-)
-
-// Global state for bidirectional communication.
-var (
-	nextSerial      atomic.Uint64
-	pendingRequests = make(map[string]chan string)
-	pendingMu       sync.Mutex
-	stdinScanner    *bufio.Scanner
-	scannerMu       sync.Mutex
+	statusDone  = "done"
+	statusError = "error"
 )
 
 func main() {
@@ -47,306 +31,99 @@ func main() {
 		os.Exit(1)
 	}
 
-	stdinScanner = bufio.NewScanner(os.Stdin)
+	p, err := sdk.NewFromEnv("subsystem-" + *mode)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ze-subsystem: %v\n", err)
+		os.Exit(1)
+	}
 
-	var err error
+	var reg sdk.Registration
+
 	switch *mode {
 	case "cache":
-		err = runCacheSubsystem()
+		reg = cacheRegistration()
+		p.OnExecuteCommand(handleCacheCommand)
 	case "route":
-		err = runRouteSubsystem()
+		reg = routeRegistration()
+		p.OnExecuteCommand(handleRouteCommand)
 	case "session":
-		err = runSessionSubsystem()
+		reg = sessionRegistration()
+		p.OnExecuteCommand(handleSessionCommand)
 	default:
 		fmt.Fprintf(os.Stderr, "ze-subsystem: unknown mode: %s\n", *mode)
 		os.Exit(1)
 	}
 
-	if err != nil {
+	ctx := context.Background()
+	if err := p.Run(ctx, reg); err != nil {
 		fmt.Fprintf(os.Stderr, "ze-subsystem: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-// callEngine sends a command to the engine and waits for response.
-// Uses numeric serial to differentiate from engine-initiated (alpha) requests.
-func callEngine(command string) (string, error) {
-	serial := nextSerial.Add(1)
-	serialStr := fmt.Sprintf("%d", serial)
-
-	// Create response channel
-	respCh := make(chan string, 1)
-
-	pendingMu.Lock()
-	pendingRequests[serialStr] = respCh
-	pendingMu.Unlock()
-
-	defer func() {
-		pendingMu.Lock()
-		delete(pendingRequests, serialStr)
-		pendingMu.Unlock()
-	}()
-
-	// Send command to engine (stdout)
-	fmt.Printf("#%s %s\n", serialStr, command)
-
-	// Wait for response (will be delivered by readLine loop)
-	// The response comes as JSON: {"answer":{"serial":"N","status":"done",...}}
-	resp := <-respCh
-	return resp, nil
+func cacheRegistration() sdk.Registration {
+	return sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "bgp cache list", Description: "List cache entries"},
+			{Name: "bgp cache retain", Description: "Retain cache entry"},
+			{Name: "bgp cache release", Description: "Release cache entry"},
+			{Name: "bgp cache expire", Description: "Expire cache entry"},
+			{Name: "bgp cache forward", Description: "Forward cache entry"},
+		},
+	}
 }
 
-// mainLoop reads commands and dispatches to handler.
-// Also handles responses to our engine callbacks.
-func mainLoop(handler commandHandler) error {
-	for readLine() {
-		line := currentLine()
-
-		// Check for shutdown
-		if strings.Contains(line, `"shutdown"`) || strings.Contains(line, `"answer": "shutdown"`) {
-			return nil
-		}
-
-		// Check for JSON response to our engine callback
-		if strings.HasPrefix(line, "{") {
-			handleEngineResponse(line)
-			continue
-		}
-
-		// Parse #serial command format (engine-initiated request)
-		serial, command, args := parseCommand(line)
-		if serial == "" {
-			continue
-		}
-
-		response := handler(serial, command, args)
-		fmt.Println(response)
+func routeRegistration() sdk.Registration {
+	return sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "bgp route announce", Description: "Announce route"},
+			{Name: "bgp route withdraw", Description: "Withdraw route"},
+		},
 	}
-
-	return scannerError()
 }
 
-// handleEngineResponse parses JSON response and delivers to waiting callback.
-func handleEngineResponse(line string) {
-	// Parse: {"answer":{"serial":"N","status":"done","data":...}}
-	var wrapper struct {
-		Answer struct {
-			Serial string `json:"serial"`
-			Status string `json:"status"`
-			Data   any    `json:"data"`
-		} `json:"answer"`
+func sessionRegistration() sdk.Registration {
+	return sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "bgp session ping", Description: "Ping session"},
+			{Name: "bgp session bye", Description: "Session goodbye"},
+			{Name: "bgp session ready", Description: "Session ready"},
+		},
 	}
+}
 
-	if err := json.Unmarshal([]byte(line), &wrapper); err != nil {
-		return
-	}
-
-	serial := wrapper.Answer.Serial
-	if serial == "" {
-		return
-	}
-
-	pendingMu.Lock()
-	ch, found := pendingRequests[serial]
-	pendingMu.Unlock()
-
-	if !found {
-		return
-	}
-
-	// Build response string
-	var resp string
-	if wrapper.Answer.Data != nil {
-		data, _ := json.Marshal(wrapper.Answer.Data)
-		resp = string(data)
-	}
-
-	select {
-	case ch <- resp:
+func handleCacheCommand(_, command string, _ []string, _ string) (string, string, error) {
+	switch command {
+	case "bgp cache list":
+		return statusDone, "[]", nil
+	case "bgp cache retain", "bgp cache release", "bgp cache expire", "bgp cache forward":
+		return statusDone, "", nil
 	default:
+		return statusError, fmt.Sprintf("unknown command: %s", command), nil
 	}
 }
 
-// Scanner helpers for thread-safe reading.
-var currentLineValue string
-
-func readLine() bool {
-	scannerMu.Lock()
-	defer scannerMu.Unlock()
-	if stdinScanner.Scan() {
-		currentLineValue = stdinScanner.Text()
-		return true
-	}
-	return false
-}
-
-func currentLine() string {
-	scannerMu.Lock()
-	defer scannerMu.Unlock()
-	return currentLineValue
-}
-
-func scannerError() error {
-	scannerMu.Lock()
-	defer scannerMu.Unlock()
-	return stdinScanner.Err()
-}
-
-// runCacheSubsystem implements the cache subsystem protocol.
-func runCacheSubsystem() error {
-	fmt.Println("declare encoding text")
-	fmt.Println("declare cmd bgp cache list")
-	fmt.Println("declare cmd bgp cache retain")
-	fmt.Println("declare cmd bgp cache release")
-	fmt.Println("declare cmd bgp cache expire")
-	fmt.Println("declare cmd bgp cache forward")
-	fmt.Println("declare done")
-
-	for readLine() {
-		if currentLine() == markerConfigDone {
-			break
-		}
-	}
-	fmt.Println("capability done")
-	for readLine() {
-		if currentLine() == markerRegistryDone {
-			break
-		}
-	}
-	fmt.Println("ready")
-
-	return mainLoop(handleCacheCommand)
-}
-
-// runRouteSubsystem implements the route subsystem protocol.
-func runRouteSubsystem() error {
-	fmt.Println("declare encoding text")
-	fmt.Println("declare cmd bgp route announce")
-	fmt.Println("declare cmd bgp route withdraw")
-	fmt.Println("declare done")
-
-	for readLine() {
-		if currentLine() == markerConfigDone {
-			break
-		}
-	}
-	fmt.Println("capability done")
-	for readLine() {
-		if currentLine() == markerRegistryDone {
-			break
-		}
-	}
-	fmt.Println("ready")
-
-	return mainLoop(handleRouteCommand)
-}
-
-// runSessionSubsystem implements the session subsystem protocol.
-func runSessionSubsystem() error {
-	fmt.Println("declare encoding text")
-	fmt.Println("declare cmd bgp session ping")
-	fmt.Println("declare cmd bgp session bye")
-	fmt.Println("declare cmd bgp session ready")
-	fmt.Println("declare done")
-
-	for readLine() {
-		if currentLine() == markerConfigDone {
-			break
-		}
-	}
-	fmt.Println("capability done")
-	for readLine() {
-		if currentLine() == markerRegistryDone {
-			break
-		}
-	}
-	fmt.Println("ready")
-
-	return mainLoop(handleSessionCommand)
-}
-
-// commandHandler is a function that handles a command and returns a response.
-type commandHandler func(serial, command string, args []string) string
-
-// parseCommand extracts serial, command, and args from "#serial command args...".
-func parseCommand(line string) (serial string, command string, args []string) {
-	if !strings.HasPrefix(line, "#") {
-		return "", "", nil
-	}
-
-	idx := strings.Index(line, " ")
-	if idx <= 1 {
-		return "", "", nil
-	}
-
-	serial = line[1:idx]
-	rest := strings.TrimSpace(line[idx+1:])
-	parts := strings.Fields(rest)
-	if len(parts) == 0 {
-		return serial, "", nil
-	}
-
-	return serial, rest, parts
-}
-
-// handleCacheCommand handles cache subsystem commands.
-func handleCacheCommand(serial, command string, _ []string) string {
-	switch {
-	case strings.HasPrefix(command, "bgp cache list"):
-		// Call back to engine for actual cache list
-		resp, err := callEngine("bgp cache list")
-		if err != nil {
-			return fmt.Sprintf("@%s error %v", serial, err)
-		}
-		return fmt.Sprintf("@%s ok %s", serial, resp)
-
-	case strings.HasPrefix(command, "bgp cache retain"):
-		return fmt.Sprintf("@%s ok", serial)
-
-	case strings.HasPrefix(command, "bgp cache release"):
-		return fmt.Sprintf("@%s ok", serial)
-
-	case strings.HasPrefix(command, "bgp cache expire"):
-		return fmt.Sprintf("@%s ok", serial)
-
-	case strings.HasPrefix(command, "bgp cache forward"):
-		return fmt.Sprintf("@%s ok", serial)
-
+func handleRouteCommand(_, command string, _ []string, _ string) (string, string, error) {
+	switch command {
+	case "bgp route announce", "bgp route withdraw":
+		return statusDone, "", nil
 	default:
-		return fmt.Sprintf("@%s error unknown command: %s", serial, command)
+		return statusError, fmt.Sprintf("unknown command: %s", command), nil
 	}
 }
 
-// handleRouteCommand handles route subsystem commands.
-func handleRouteCommand(serial, command string, _ []string) string {
-	switch {
-	case strings.HasPrefix(command, "bgp route announce"):
-		return fmt.Sprintf("@%s ok", serial)
-
-	case strings.HasPrefix(command, "bgp route withdraw"):
-		return fmt.Sprintf("@%s ok", serial)
-
-	default:
-		return fmt.Sprintf("@%s error unknown command: %s", serial, command)
-	}
-}
-
-// handleSessionCommand handles session subsystem commands.
-func handleSessionCommand(serial, command string, _ []string) string {
-	switch {
-	case strings.HasPrefix(command, "bgp session ping"):
+func handleSessionCommand(_, command string, _ []string, _ string) (string, string, error) {
+	switch command {
+	case "bgp session ping":
 		data, _ := json.Marshal(map[string]any{"pong": os.Getpid()})
-		return fmt.Sprintf("@%s ok %s", serial, data)
-
-	case strings.HasPrefix(command, "bgp session bye"):
+		return statusDone, string(data), nil
+	case "bgp session bye":
 		data, _ := json.Marshal(map[string]any{"status": "goodbye"})
-		return fmt.Sprintf("@%s ok %s", serial, data)
-
-	case strings.HasPrefix(command, "bgp session ready"):
+		return statusDone, string(data), nil
+	case "bgp session ready":
 		data, _ := json.Marshal(map[string]any{"api": "ready acknowledged"})
-		return fmt.Sprintf("@%s ok %s", serial, data)
-
+		return statusDone, string(data), nil
 	default:
-		return fmt.Sprintf("@%s error unknown command: %s", serial, command)
+		return statusError, fmt.Sprintf("unknown command: %s", command), nil
 	}
 }

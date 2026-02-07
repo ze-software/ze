@@ -21,17 +21,7 @@ import (
 // Level controlled by ze.log.relay env var.
 var stderrLogger = slogutil.LazyLogger("relay")
 
-// Backpressure constants matching ExaBGP behavior.
-// ExaBGP: WRITE_QUEUE_HIGH_WATER=1000, WRITE_QUEUE_LOW_WATER=100.
 const (
-	// WriteQueueHighWater is the maximum items before dropping events.
-	WriteQueueHighWater = 1000
-
-	// WriteQueueLowWater is the threshold to resume after backpressure.
-	// Reserved for future hysteresis support (pause at high, resume at low).
-	// Currently unused - we use simple drop-when-full semantics.
-	WriteQueueLowWater = 100 //nolint:unused // Reserved for future hysteresis
-
 	// RespawnLimit is max respawns per RespawnWindow before disabling.
 	// ExaBGP: respawn_number=5 per ~63 seconds.
 	RespawnLimit = 5
@@ -53,30 +43,15 @@ type Process struct {
 	index  int // Plugin index for coordinator (0-based)
 	cmd    *exec.Cmd
 
-	stdin  io.WriteCloser
-	stdout io.ReadCloser
 	stderr io.ReadCloser
-
-	// Buffered reader for stdout
-	reader *bufio.Reader
-
-	// Channel for lines read from stdout (single reader goroutine)
-	lines chan string
 
 	// Socket pairs for IPC (internal plugins use net.Pipe, external use socketpair)
 	sockets *DualSocketPair
 
 	// RPC connections for YANG RPC protocol (per-socket wiring).
-	// Only set when config.UseRPC is true.
+	// Set for internal plugins (socket pairs) and external RPC plugins.
 	engineConnA *PluginConn // Socket A: reads/writes plugin→engine RPCs
 	engineConnB *PluginConn // Socket B: reads/writes engine→plugin callbacks
-
-	// Write queue for backpressure management
-	writeQueue chan []byte
-
-	// Backpressure stats
-	queueDropped atomic.Uint64 // Total events dropped due to full queue
-	warnedOnce   atomic.Bool   // Whether we've warned about backpressure
 
 	running atomic.Bool
 
@@ -91,11 +66,6 @@ type Process struct {
 	// High-level encoding and format (bgp plugin encoding/format commands)
 	encoding atomic.Value // string: "json" or "text" (default: "json")
 	format   atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
-
-	// ze→Process request tracking
-	nextSerial      atomic.Uint64          // Counter for alpha serial generation
-	pendingRequests map[string]chan string // serial -> response channel
-	pendingMu       sync.Mutex             // Protects pendingRequests
 
 	// Registered plugin commands (tracked for cleanup on death)
 	registeredCommands []string
@@ -117,11 +87,10 @@ type Process struct {
 // NewProcess creates a new process with the given configuration.
 func NewProcess(config PluginConfig) *Process {
 	return &Process{
-		config:          config,
-		pendingRequests: make(map[string]chan string),
-		registration:    &PluginRegistration{},
-		capabilities:    &PluginCapabilities{},
-		stageCh:         make(chan struct{}),
+		config:       config,
+		registration: &PluginRegistration{},
+		capabilities: &PluginCapabilities{},
+		stageCh:      make(chan struct{}),
 	}
 }
 
@@ -174,6 +143,15 @@ func (p *Process) Capabilities() *PluginCapabilities {
 // Running returns true if the process is running.
 func (p *Process) Running() bool {
 	return p.running.Load()
+}
+
+// ConnB returns the engine→plugin callback connection under the mutex.
+// Returns nil if the connection has been closed (e.g. by Stop() or monitor()).
+// Callers must check for nil before use to avoid racing with shutdown.
+func (p *Process) ConnB() *PluginConn {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.engineConnB
 }
 
 // SyncEnabled returns true if sync mode is enabled for this process.
@@ -283,19 +261,6 @@ func (p *Process) Index() int {
 	return p.index
 }
 
-// QueueSize returns the current number of items in the write queue.
-func (p *Process) QueueSize() int {
-	if p.writeQueue == nil {
-		return 0
-	}
-	return len(p.writeQueue)
-}
-
-// QueueDropped returns the total number of events dropped due to backpressure.
-func (p *Process) QueueDropped() uint64 {
-	return p.queueDropped.Load()
-}
-
 // Start spawns the process.
 func (p *Process) Start() error {
 	return p.StartWithContext(context.Background())
@@ -320,8 +285,7 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 
 // startInternal starts an internal plugin as a goroutine with socket pairs.
 // Uses NewInternalSocketPairs() for in-memory bidirectional connections.
-// When config.UseRPC is true, creates per-socket PluginConns for YANG RPC protocol.
-// When false, uses text-based readLines/writeLoop for legacy protocol.
+// Creates per-socket PluginConns for YANG RPC protocol.
 func (p *Process) startInternal() error {
 	runner := GetInternalPluginRunner(p.config.Name)
 	if runner == nil {
@@ -337,22 +301,11 @@ func (p *Process) startInternal() error {
 	p.stderr = nil // Internal plugins don't have stderr
 	p.running.Store(true)
 
-	if p.config.UseRPC {
-		// RPC mode: create per-socket PluginConns for YANG RPC protocol.
-		// Per-socket wiring: each PluginConn reads+writes on the same socket,
-		// which is compatible with the SDK's bidirectional per-socket pattern.
-		p.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
-		p.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
-	} else {
-		// Text mode: use newline-delimited text protocol via readLines/writeLoop.
-		p.stdin = pairs.Callback.EngineSide // Engine writes events/callbacks to plugin
-		p.stdout = pairs.Engine.EngineSide  // Engine reads calls/commands from plugin
-		p.reader = bufio.NewReader(pairs.Engine.EngineSide)
-		p.lines = make(chan string, 100)
-		p.writeQueue = make(chan []byte, WriteQueueHighWater)
-		go p.readLines()
-		go p.writeLoop()
-	}
+	// Create per-socket PluginConns for YANG RPC protocol.
+	// Per-socket wiring: each PluginConn reads+writes on the same socket,
+	// which is compatible with the SDK's bidirectional per-socket pattern.
+	p.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	p.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
 
 	// Start the plugin in a goroutine
 	// Plugin side: read from callback socket, write to engine socket
@@ -363,14 +316,28 @@ func (p *Process) startInternal() error {
 		defer func() { _ = pairs.Engine.PluginSide.Close() }()
 		defer func() { _ = pairs.Callback.PluginSide.Close() }()
 
-		_ = runner(pairs.Callback.PluginSide, pairs.Engine.PluginSide)
+		_ = runner(pairs.Engine.PluginSide, pairs.Callback.PluginSide)
 	}()
 
 	return nil
 }
 
 // startExternal starts an external plugin via exec.Command.
+// All external plugins use YANG RPC protocol via inherited socket pair FDs
+// (ZE_ENGINE_FD/ZE_CALLBACK_FD env vars).
 func (p *Process) startExternal() error {
+	// Create Unix socketpairs before starting the process.
+	// These have real FDs that can be inherited by the subprocess via ExtraFiles.
+	pairs, err := NewExternalSocketPairs()
+	if err != nil {
+		return fmt.Errorf("creating socket pairs: %w", err)
+	}
+	pluginEngineFile, pluginCallbackFile, err := pairs.PluginFiles()
+	if err != nil {
+		pairs.Close()
+		return fmt.Errorf("getting plugin files: %w", err)
+	}
+
 	// Create command
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
@@ -380,24 +347,15 @@ func (p *Process) startExternal() error {
 		p.cmd.Dir = p.config.WorkDir
 	}
 
-	// Set up pipes
-	var err error
-	p.stdin, err = p.cmd.StdinPipe()
-	if err != nil {
-		return err
-	}
-
-	p.stdout, err = p.cmd.StdoutPipe()
-	if err != nil {
-		_ = p.stdin.Close()
-		return err
-	}
-	p.reader = bufio.NewReader(p.stdout)
+	// Pass socket FDs via ExtraFiles and env vars.
+	// ExtraFiles[0] = FD 3 (engine socket), ExtraFiles[1] = FD 4 (callback socket).
+	p.cmd.ExtraFiles = []*os.File{pluginEngineFile, pluginCallbackFile}
+	p.cmd.Env = append(os.Environ(), "ZE_ENGINE_FD=3", "ZE_CALLBACK_FD=4")
 
 	p.stderr, err = p.cmd.StderrPipe()
 	if err != nil {
-		_ = p.stdin.Close()
-		_ = p.stdout.Close()
+		closeFiles(pluginEngineFile, pluginCallbackFile)
+		pairs.Close()
 		return err
 	}
 
@@ -406,27 +364,25 @@ func (p *Process) startExternal() error {
 
 	// Start process
 	if err := p.cmd.Start(); err != nil {
-		_ = p.stdin.Close()
-		_ = p.stdout.Close()
-		_ = p.stderr.Close()
+		p.stderr.Close() //nolint:errcheck,gosec // cleanup on error
+		closeFiles(pluginEngineFile, pluginCallbackFile)
+		pairs.Close()
 		return err
 	}
 
+	// After Start(), close plugin-side FD handles (subprocess inherited copies via ExtraFiles).
+	closeFiles(pluginEngineFile, pluginCallbackFile)
+	pairs.Engine.PluginSide.Close()   //nolint:errcheck,gosec // subprocess owns these now
+	pairs.Callback.PluginSide.Close() //nolint:errcheck,gosec // subprocess owns these now
+
+	// Create PluginConns on engine side for YANG RPC protocol.
+	p.sockets = pairs
+	p.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	p.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+
 	p.running.Store(true)
 
-	// Create channel for stdout lines
-	p.lines = make(chan string, 100)
-
-	// Create write queue for backpressure management
-	p.writeQueue = make(chan []byte, WriteQueueHighWater)
-
-	// Start single reader goroutine for stdout
-	go p.readLines()
-
-	// Start write loop goroutine for backpressure management
-	go p.writeLoop()
-
-	// Relay plugin stderr based on ze.log.bgp.plugin setting
+	// Relay plugin stderr based on ze.log.relay setting
 	go p.relayStderr()
 
 	// Monitor process
@@ -436,58 +392,13 @@ func (p *Process) startExternal() error {
 	return nil
 }
 
-// readLines continuously reads lines from stdout and sends to channel.
-// Lines starting with @N are routed to pending request handlers.
-func (p *Process) readLines() {
-	for {
-		line, err := p.reader.ReadString('\n')
-		if err != nil {
-			close(p.lines)
-			return
+// closeFiles closes os.File handles, ignoring nil values.
+func closeFiles(files ...*os.File) {
+	for _, f := range files {
+		if f != nil {
+			f.Close() //nolint:errcheck,gosec // best-effort cleanup
 		}
-		// Trim newline
-		if len(line) > 0 && line[len(line)-1] == '\n' {
-			line = line[:len(line)-1]
-		}
-
-		// Check for @N response prefix (ze→Process request response)
-		if serial, response, ok := parseResponseSerial(line); ok {
-			p.pendingMu.Lock()
-			if ch, found := p.pendingRequests[serial]; found {
-				select {
-				case ch <- response:
-				default:
-					// Channel full or closed, ignore
-				}
-			}
-			p.pendingMu.Unlock()
-			continue // Don't send to normal command channel
-		}
-
-		p.lines <- line
 	}
-}
-
-// parseResponseSerial extracts @N prefix from response line.
-// Returns (serial, rest, true) if @N prefix found, ("", "", false) otherwise.
-func parseResponseSerial(line string) (string, string, bool) {
-	if len(line) < 2 || line[0] != '@' {
-		return "", "", false
-	}
-	// Find space after @serial
-	idx := 1
-	for idx < len(line) && line[idx] != ' ' {
-		idx++
-	}
-	if idx == 1 {
-		return "", "", false // Just "@" with no serial
-	}
-	serial := line[1:idx]
-	rest := ""
-	if idx < len(line) {
-		rest = line[idx+1:] // Skip the space
-	}
-	return serial, rest, true
 }
 
 // relayStderr reads plugin stderr and relays to engine logs.
@@ -526,47 +437,43 @@ func (p *Process) relayStderr() {
 
 // Stop terminates the process.
 // For external plugins, cancelling context kills the process via exec.CommandContext.
-// For internal plugins, closing stdin unblocks the plugin's read and causes it to exit.
+// For internal plugins, closing RPC connections unblocks the plugin's reads and causes it to exit.
 func (p *Process) Stop() {
 	if p.cancel != nil {
 		p.cancel()
 	}
 
-	// For internal plugins, close connections to unblock the plugin's read.
-	// External plugins are killed by context cancellation.
-	if p.config.Internal {
-		p.mu.Lock()
-		if p.stdin != nil {
-			_ = p.stdin.Close()
-		}
-		if p.engineConnA != nil {
-			_ = p.engineConnA.Close()
-		}
-		if p.engineConnB != nil {
-			_ = p.engineConnB.Close()
-		}
-		p.mu.Unlock()
+	// Close connections to unblock pending reads and writes.
+	// Internal plugins: closing connections is the primary stop mechanism.
+	// External RPC plugins: context cancellation kills the process via exec.CommandContext;
+	// closing connections unblocks any goroutines waiting on socket I/O.
+	p.mu.Lock()
+	if p.engineConnA != nil {
+		p.engineConnA.Close() //nolint:errcheck,gosec // best-effort shutdown
+		p.engineConnA = nil
 	}
+	if p.engineConnB != nil {
+		p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
+		p.engineConnB = nil
+	}
+	p.mu.Unlock()
 }
 
-// SendShutdown sends a shutdown signal to the process via stdin.
-// This allows the process to exit gracefully before being killed.
-// Uses synchronous write to ensure delivery before process termination.
-// The message is written directly to stdin, bypassing the async write queue.
-// Returns true if the shutdown signal was sent successfully.
+// SendShutdown sends a graceful shutdown signal (bye RPC) to the plugin.
+// Returns true if the process was running. The bye RPC gives the plugin a
+// chance to clean up before Stop() closes connections and kills the process.
 func (p *Process) SendShutdown() bool {
 	if !p.running.Load() {
 		return false
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.stdin == nil || !p.running.Load() {
-		return false
+	connB := p.ConnB()
+	if connB == nil {
+		return true
 	}
-	// Write synchronously - shutdown is critical and must be delivered
-	// JSON format: {"answer": "shutdown"}
-	_, err := p.stdin.Write([]byte("{\"answer\": \"shutdown\"}\n"))
-	return err == nil
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = connB.SendBye(ctx, "shutdown") //nolint:errcheck // best-effort graceful signal
+	return true
 }
 
 // Wait waits for the process to exit.
@@ -585,121 +492,6 @@ func (p *Process) Wait(ctx context.Context) error {
 	}
 }
 
-// WriteEvent writes an event to the process stdin via the write queue.
-// Uses non-blocking send with backpressure - events are dropped if queue is full.
-func (p *Process) WriteEvent(event string) error {
-	// Check if process is running and context is valid
-	if !p.running.Load() || p.writeQueue == nil || p.ctx == nil {
-		return os.ErrClosed
-	}
-
-	data := []byte(event + "\n")
-
-	// Non-blocking send with backpressure.
-	// Use context to detect shutdown instead of relying on channel close.
-	select {
-	case p.writeQueue <- data:
-		return nil
-	case <-p.ctx.Done():
-		// Process shutting down
-		return os.ErrClosed
-	default:
-		// Queue full - drop event and increment counter
-		if p.queueDropped.Add(1) == 1 {
-			// First drop - log warning once
-			if p.warnedOnce.CompareAndSwap(false, true) {
-				fmt.Fprintf(os.Stderr, "PROCESS %s: backpressure active, dropping events (queue full)\n", p.config.Name)
-			}
-		}
-		return nil // Don't return error to avoid blocking caller
-	}
-}
-
-// SendRequest sends a request to the process and waits for response.
-// Uses alpha serial encoding to avoid collision with process numeric serials.
-// Returns the response text (after @serial prefix) or error on timeout.
-func (p *Process) SendRequest(ctx context.Context, command string) (string, error) {
-	if !p.running.Load() {
-		return "", os.ErrClosed
-	}
-
-	// Generate alpha serial
-	n := p.nextSerial.Add(1) - 1
-	serial := encodeAlphaSerial(n)
-
-	// Create response channel
-	respCh := make(chan string, 1)
-
-	// Register pending request
-	p.pendingMu.Lock()
-	p.pendingRequests[serial] = respCh
-	p.pendingMu.Unlock()
-
-	// Cleanup on exit
-	defer func() {
-		p.pendingMu.Lock()
-		delete(p.pendingRequests, serial)
-		p.pendingMu.Unlock()
-	}()
-
-	// Send request: #serial command
-	request := fmt.Sprintf("#%s %s", serial, command)
-	if err := p.WriteEvent(request); err != nil {
-		return "", err
-	}
-
-	// Wait for response
-	select {
-	case resp := <-respCh:
-		return resp, nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case <-p.ctx.Done():
-		return "", os.ErrClosed
-	}
-}
-
-// writeLoop drains the write queue and writes to stdin.
-// Stops on context cancellation or write error (EPIPE indicates process died).
-func (p *Process) writeLoop() {
-	for {
-		select {
-		case data := <-p.writeQueue:
-			p.mu.Lock()
-			if p.stdin == nil || !p.running.Load() {
-				p.mu.Unlock()
-				continue
-			}
-			_, err := p.stdin.Write(data)
-			p.mu.Unlock()
-
-			if err != nil {
-				// Write failed (EPIPE, closed pipe, etc.) - process likely dead
-				// Stop processing queue; monitor() will handle cleanup
-				p.running.Store(false)
-				return
-			}
-		case <-p.ctx.Done():
-			// Process shutting down
-			return
-		}
-	}
-}
-
-// ReadCommand reads a command from the process stdout.
-// Returns context.DeadlineExceeded on timeout, io.EOF when process exits.
-func (p *Process) ReadCommand(ctx context.Context) (string, error) {
-	select {
-	case line, ok := <-p.lines:
-		if !ok {
-			return "", io.EOF
-		}
-		return line, nil
-	case <-ctx.Done():
-		return "", ctx.Err()
-	}
-}
-
 // monitor waits for the process to exit.
 func (p *Process) monitor() {
 	defer p.wg.Done()
@@ -709,28 +501,25 @@ func (p *Process) monitor() {
 
 	p.running.Store(false)
 
-	// Cancel context to stop writeLoop goroutine.
-	// This is safe even if Stop() already cancelled it (cancel is idempotent).
+	// Cancel context. Safe even if Stop() already cancelled it (cancel is idempotent).
 	if p.cancel != nil {
 		p.cancel()
 	}
 
-	// Close pipes and RPC connections
+	// Close stderr pipe and RPC connections.
+	// Nil after close to prevent double-close if Stop() races with monitor().
 	p.mu.Lock()
-	if p.stdin != nil {
-		_ = p.stdin.Close()
-	}
-	if p.stdout != nil {
-		_ = p.stdout.Close()
-	}
 	if p.stderr != nil {
 		_ = p.stderr.Close()
+		p.stderr = nil
 	}
 	if p.engineConnA != nil {
 		_ = p.engineConnA.Close()
+		p.engineConnA = nil
 	}
 	if p.engineConnB != nil {
 		_ = p.engineConnB.Close()
+		p.engineConnB = nil
 	}
 	p.mu.Unlock()
 }
@@ -750,15 +539,6 @@ type ProcessManager struct {
 	cancel context.CancelFunc
 	mu     sync.RWMutex
 }
-
-// ProcessWriter is the interface for writing events to a process.
-// Used for testing with mock implementations.
-type ProcessWriter interface {
-	WriteEvent(data string) error
-}
-
-// Ensure Process implements ProcessWriter.
-var _ ProcessWriter = (*Process)(nil)
 
 // NewProcessManager creates a new process manager.
 func NewProcessManager(configs []PluginConfig) *ProcessManager {
@@ -804,11 +584,9 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 }
 
 // Stop stops all processes.
-// Sends shutdown signal to each process before termination to allow graceful exit.
+// Signals shutdown to each process before termination to allow graceful exit.
 func (pm *ProcessManager) Stop() {
-	// Send shutdown signal synchronously to all processes.
-	// SendShutdown writes directly to stdin (bypassing async queue),
-	// so the message is in the pipe buffer before we proceed.
+	// Signal shutdown to all processes before cancelling context.
 	pm.mu.RLock()
 	for _, proc := range pm.processes {
 		proc.SendShutdown()

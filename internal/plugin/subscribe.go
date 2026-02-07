@@ -229,7 +229,7 @@ func parseSubscription(args []string) (*Subscription, error) {
 		}
 		sub.PeerFilter = &PeerFilter{Selector: selector}
 		i += 2
-	} else if len(args) > i && args[i] == "plugin" {
+	} else if len(args) > i && args[i] == cmdPlugin {
 		if len(args) < i+2 {
 			return nil, fmt.Errorf("missing plugin name")
 		}

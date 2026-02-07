@@ -6,16 +6,18 @@ package hostname
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"strings"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // Logger is the package-level logger, disabled by default.
@@ -62,130 +64,73 @@ func (c *fqdnConfig) encodeValue() string {
 	return hex.EncodeToString(data)
 }
 
-// HostnamePlugin implements a hostname (FQDN) capability plugin.
-// It receives per-peer hostname/domain config and registers FQDN capabilities.
-type HostnamePlugin struct {
-	input  *bufio.Scanner
-	output io.Writer
+// RunHostnamePlugin runs the hostname plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+// It receives per-peer hostname/domain config during Stage 2 and registers
+// per-peer FQDN capabilities (code 73) during Stage 3.
+func RunHostnamePlugin(engineConn, callbackConn net.Conn) int {
+	Logger.Debug("hostname plugin starting (RPC)")
 
-	// hostConfig stores per-peer FQDN configuration.
-	hostConfig map[string]*fqdnConfig // peerAddr → config
+	p := sdk.NewWithConn("hostname", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-	mu       sync.Mutex
-	outputMu sync.Mutex
-}
+	// OnConfigure callback: parse bgp config, extract per-peer hostname/domain,
+	// then set capabilities for Stage 3.
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		var caps []sdk.CapabilityDecl
+		for _, section := range sections {
+			if section.Root != "bgp" {
+				continue
+			}
+			caps = append(caps, extractHostnameCapabilities(section.Data)...)
+		}
+		p.SetCapabilities(caps)
+		return nil
+	})
 
-// MaxLineSize is the maximum size of a single input line (1MB).
-const MaxLineSize = 1024 * 1024
-
-// NewHostnamePlugin creates a new HostnamePlugin.
-func NewHostnamePlugin(input io.Reader, output io.Writer) *HostnamePlugin {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &HostnamePlugin{
-		input:      scanner,
-		output:     output,
-		hostConfig: make(map[string]*fqdnConfig),
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		WantsConfig: []string{"bgp"},
+	})
+	if err != nil {
+		Logger.Error("hostname plugin failed", "error", err)
+		return 1
 	}
-}
 
-// Run starts the hostname plugin.
-func (h *HostnamePlugin) Run() int {
-	Logger.Debug("hostname plugin starting")
-	h.doStartupProtocol()
-	Logger.Debug("hostname plugin startup complete, entering event loop")
-	h.eventLoop()
 	return 0
 }
 
-// doStartupProtocol performs the 5-stage plugin registration protocol.
-func (h *HostnamePlugin) doStartupProtocol() {
-	// Stage 1: Declaration
-	// Request bgp config subtree as JSON - plugin extracts what it needs based on YANG knowledge.
-	// This avoids needing per-plugin extraction code in the config loader.
-	h.send("declare wants config bgp")
-	h.send("declare done")
+// extractHostnameCapabilities parses bgp config JSON and returns per-peer FQDN capabilities.
+// draft-walton-bgp-hostname: FQDN capability code is 73.
+func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
+	const fqdnCapCode = 73
 
-	// Stage 2: Parse config (JSON format)
-	h.parseConfig()
-
-	// Stage 3: Register FQDN capabilities per peer
-	h.registerCapabilities()
-
-	// Stage 4: Wait for registry
-	h.waitForLine("registry done")
-
-	// Stage 5: Ready
-	h.send("ready")
-}
-
-// parseConfig reads and parses config lines until "config done".
-// Handles JSON config format: "config json bgp <json>".
-func (h *HostnamePlugin) parseConfig() {
-	for h.input.Scan() {
-		line := h.input.Text()
-		if line == "config done" {
-			return
-		}
-		h.parseConfigLine(line)
-	}
-}
-
-// parseConfigLine parses a single config line.
-// Format: "config json bgp <json>" where json contains full bgp config tree.
-func (h *HostnamePlugin) parseConfigLine(line string) {
-	// Handle JSON config format: "config json bgp <json>"
-	if strings.HasPrefix(line, "config json bgp ") {
-		h.parseBGPConfig(line)
-		return
-	}
-
-	Logger.Debug("ignoring non-bgp config line", "line", line)
-}
-
-// parseBGPConfig parses JSON config format: "config json bgp <json>".
-// Extracts hostname config from each peer in the bgp tree.
-func (h *HostnamePlugin) parseBGPConfig(line string) {
-	// Format: config json bgp <json>
-	const prefix = "config json bgp "
-	if len(line) <= len(prefix) {
-		Logger.Warn("empty bgp config JSON")
-		return
-	}
-	jsonStr := line[len(prefix):]
-
-	// Parse JSON bgp config tree
 	var bgpConfig map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
 		Logger.Warn("invalid JSON in bgp config", "err", err)
-		return
+		return nil
 	}
 
 	// The config tree is wrapped: {"bgp": {"peer": {...}}}
 	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
 	if !ok {
-		// Try using bgpConfig directly in case it's not wrapped
 		bgpSubtree = bgpConfig
 	}
 
-	// Extract peer map: {"peer": {"192.168.1.1": {...}, ...}}
 	peersMap, ok := bgpSubtree["peer"].(map[string]any)
 	if !ok {
 		Logger.Debug("no peer config in bgp tree")
-		return
+		return nil
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	var caps []sdk.CapabilityDecl
 
-	// Iterate peers and extract hostname config
 	for peerAddr, peerData := range peersMap {
 		peerMap, ok := peerData.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		// Look for capability.hostname
 		capMap, ok := peerMap["capability"].(map[string]any)
 		if !ok {
 			continue
@@ -196,74 +141,29 @@ func (h *HostnamePlugin) parseBGPConfig(line string) {
 			continue
 		}
 
-		cfg, exists := h.hostConfig[peerAddr]
-		if !exists {
-			cfg = &fqdnConfig{}
-			h.hostConfig[peerAddr] = cfg
-		}
-
+		cfg := &fqdnConfig{}
 		if host, ok := hostnameData["host"].(string); ok {
 			cfg.hostname = host
-			Logger.Debug("parsed hostname from JSON", "peer", peerAddr, "hostname", host)
 		}
 		if domain, ok := hostnameData["domain"].(string); ok {
 			cfg.domain = domain
-			Logger.Debug("parsed domain from JSON", "peer", peerAddr, "domain", domain)
 		}
-	}
-}
 
-// registerCapabilities sends Stage 3 capability declarations.
-// Registers FQDN capability (code 73) per peer with configured hostname/domain.
-func (h *HostnamePlugin) registerCapabilities() {
-	// draft-walton-bgp-hostname: FQDN capability code is 73.
-	const fqdnCapCode = 73
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for peerAddr, cfg := range h.hostConfig {
 		// Skip if both hostname and domain are empty
 		if cfg.hostname == "" && cfg.domain == "" {
 			continue
 		}
 
-		capValue := cfg.encodeValue()
-		h.send("capability hex %d %s peer %s", fqdnCapCode, capValue, peerAddr)
-		Logger.Debug("registered capability", "peer", peerAddr, "hostname", cfg.hostname, "domain", cfg.domain)
+		caps = append(caps, sdk.CapabilityDecl{
+			Code:     fqdnCapCode,
+			Encoding: "hex",
+			Payload:  cfg.encodeValue(),
+			Peers:    []string{peerAddr},
+		})
+		Logger.Debug("hostname capability", "peer", peerAddr, "hostname", cfg.hostname, "domain", cfg.domain)
 	}
-	h.send("capability done")
-}
 
-// eventLoop runs the minimal event loop.
-// Hostname plugin is mostly stateless after startup - just handles shutdown.
-func (h *HostnamePlugin) eventLoop() {
-	for h.input.Scan() {
-		line := h.input.Text()
-		if len(line) == 0 {
-			continue
-		}
-		// Hostname plugin doesn't need to handle events - it's capability-only.
-		// Just consume input until EOF (shutdown).
-		Logger.Debug("event (ignored)", "line", line[:min(50, len(line))])
-	}
-}
-
-// waitForLine reads lines until one matches the expected line.
-func (h *HostnamePlugin) waitForLine(expected string) {
-	for h.input.Scan() {
-		line := h.input.Text()
-		if line == expected {
-			return
-		}
-	}
-}
-
-// send sends raw output to ze.
-func (h *HostnamePlugin) send(format string, args ...any) {
-	h.outputMu.Lock()
-	_, _ = fmt.Fprintf(h.output, format+"\n", args...)
-	h.outputMu.Unlock()
+	return caps
 }
 
 // GetYANG returns the embedded YANG schema for the hostname plugin.

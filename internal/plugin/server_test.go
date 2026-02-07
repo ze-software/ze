@@ -339,61 +339,6 @@ func TestServerInvalidJSON(t *testing.T) {
 	assert.NotNil(t, result["result"])
 }
 
-// TestParseSerial verifies serial parsing from command lines.
-//
-// VALIDATES: #N prefix is correctly parsed as serial.
-//
-// PREVENTS: Incorrect serial extraction, comments confused with serials.
-func TestParseSerial(t *testing.T) {
-	tests := []struct {
-		name       string
-		line       string
-		wantSerial string
-		wantCmd    string
-	}{
-		{"no prefix", "system version software", "", "system version software"},
-		{"numeric serial", "#1 system version software", "1", "system version software"},
-		{"multi-digit serial", "#123 update text", "123", "update text"},
-		{"comment not serial", "# this is a comment", "", "# this is a comment"},
-		{"alpha not serial", "#abc command", "", "#abc command"},
-		{"hash only", "#", "", "#"},
-		{"hash space", "# ", "", "# "},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			serial, cmd := parseSerial(tt.line)
-			assert.Equal(t, tt.wantSerial, serial, "serial mismatch")
-			assert.Equal(t, tt.wantCmd, cmd, "command mismatch")
-		})
-	}
-}
-
-// TestIsComment verifies comment detection.
-//
-// VALIDATES: Lines starting with "# " are detected as comments.
-//
-// PREVENTS: Commands mistakenly treated as comments.
-func TestIsComment(t *testing.T) {
-	tests := []struct {
-		line   string
-		isComm bool
-	}{
-		{"# this is a comment", true},
-		{"#  indented comment", true},
-		{"#1 command with serial", false},
-		{"system version software", false},
-		{"#", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.line, func(t *testing.T) {
-			assert.Equal(t, tt.isComm, isComment(tt.line))
-		})
-	}
-}
-
 // TestEncodeAlphaSerial verifies alpha serial encoding.
 //
 // VALIDATES: Numbers are encoded as shifted digits (0->a, 1->b, ..., 9->j).
@@ -807,7 +752,6 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 	proc := NewProcess(PluginConfig{
 		Name:     "test-rpc",
 		Internal: true,
-		UseRPC:   true,
 		Encoder:  "json",
 	})
 	proc.sockets = pairs
@@ -953,4 +897,102 @@ func TestCapabilitiesFromRPC(t *testing.T) {
 	assert.Equal(t, "hex", caps.Capabilities[1].Encoding)
 	assert.Equal(t, "0078", caps.Capabilities[1].Payload)
 	assert.Equal(t, []string{"192.168.1.1"}, caps.Capabilities[1].Peers)
+}
+
+// TestRegistrationFromRPCEdgeCases verifies edge cases in RPC-to-engine conversion.
+//
+// VALIDATES: Nil/empty inputs and unknown modes are handled gracefully.
+// PREVENTS: Nil pointer dereference on empty input; silent misrouting on unknown mode.
+func TestRegistrationFromRPCEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil_schema", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareRegistrationInput{
+			Commands: []rpc.CommandDecl{{Name: "status"}},
+		}
+		reg := registrationFromRPC(input)
+		assert.Nil(t, reg.PluginSchema)
+		assert.Equal(t, []string{"status"}, reg.Commands)
+		assert.True(t, reg.Done)
+	})
+
+	t.Run("empty_input", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareRegistrationInput{}
+		reg := registrationFromRPC(input)
+		assert.True(t, reg.Done)
+		assert.Empty(t, reg.Families)
+		assert.Empty(t, reg.DecodeFamilies)
+		assert.Empty(t, reg.Commands)
+		assert.Empty(t, reg.WantsConfigRoots)
+		assert.Nil(t, reg.PluginSchema)
+	})
+
+	t.Run("unknown_mode_defaults_to_encode", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareRegistrationInput{
+			Families: []rpc.FamilyDecl{
+				{Name: "ipv4/unicast", Mode: "unknown-mode"},
+			},
+		}
+		reg := registrationFromRPC(input)
+		// Unknown mode falls into default case, treated as encode-only
+		assert.Contains(t, reg.Families, "ipv4/unicast")
+		assert.NotContains(t, reg.DecodeFamilies, "ipv4/unicast")
+	})
+
+	t.Run("empty_mode_defaults_to_encode", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareRegistrationInput{
+			Families: []rpc.FamilyDecl{
+				{Name: "ipv6/unicast", Mode: ""},
+			},
+		}
+		reg := registrationFromRPC(input)
+		assert.Contains(t, reg.Families, "ipv6/unicast")
+		assert.NotContains(t, reg.DecodeFamilies, "ipv6/unicast")
+	})
+
+	t.Run("multi_word_commands", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareRegistrationInput{
+			Commands: []rpc.CommandDecl{
+				{Name: "rib adjacent in show"},
+				{Name: "peer * refresh"},
+			},
+		}
+		reg := registrationFromRPC(input)
+		assert.Equal(t, []string{"rib adjacent in show", "peer * refresh"}, reg.Commands)
+	})
+}
+
+// TestCapabilitiesFromRPCEdgeCases verifies edge cases in capability conversion.
+//
+// VALIDATES: Empty capability list and empty payload are handled.
+// PREVENTS: Nil slice issues when plugin declares no capabilities.
+func TestCapabilitiesFromRPCEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty_capabilities", func(t *testing.T) {
+		t.Parallel()
+		input := &rpc.DeclareCapabilitiesInput{}
+		caps := capabilitiesFromRPC(input)
+		assert.True(t, caps.Done)
+		assert.Empty(t, caps.Capabilities)
+	})
+
+	t.Run("empty_payload", func(t *testing.T) {
+		t.Parallel()
+		// Empty payload is valid (e.g., RFC 2918 route-refresh)
+		input := &rpc.DeclareCapabilitiesInput{
+			Capabilities: []rpc.CapabilityDecl{
+				{Code: 2, Encoding: "text", Payload: ""},
+			},
+		}
+		caps := capabilitiesFromRPC(input)
+		require.Len(t, caps.Capabilities, 1)
+		assert.Equal(t, uint8(2), caps.Capabilities[0].Code)
+		assert.Empty(t, caps.Capabilities[0].Payload)
+	})
 }

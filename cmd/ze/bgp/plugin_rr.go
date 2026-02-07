@@ -1,9 +1,8 @@
 package bgp
 
 import (
-	"io"
-
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rr"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // cmdPluginRR runs the Route Server plugin.
@@ -20,9 +19,10 @@ func cmdPluginRR(args []string) int {
 		SupportsNLRI: false,
 		SupportsCapa: false,
 		GetYANG:      func() string { return rrYANG },
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return rr.NewRouteServer(in, out).Run()
+		ConfigLogger: func(level string) {
+			rr.SetLogger(slogutil.PluginLogger("rr", level))
 		},
+		RunEngine: rr.RunRouteServer,
 	}, args)
 }
 

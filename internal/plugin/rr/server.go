@@ -1,84 +1,93 @@
 package rr
 
 import (
-	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
+	"log/slog"
+	"net"
 	"strings"
 	"sync"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+var logger = slogutil.DiscardLogger()
+
+// SetLogger configures the package-level logger for the RR plugin.
+func SetLogger(l *slog.Logger) {
+	if l != nil {
+		logger = l
+	}
+}
 
 // RouteServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
 type RouteServer struct {
-	input  *bufio.Scanner
-	output io.Writer
+	plugin *sdk.Plugin
 	peers  map[string]*PeerState
 	rib    *RIB
 	mu     sync.RWMutex
-	serial int // Command serial number
 }
 
-// MaxLineSize is the maximum size of a single JSON event line (1MB).
-// Large UPDATEs with many NLRIs can exceed the default 64KB scanner limit.
-const MaxLineSize = 1024 * 1024
+// RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
+// This is the in-process entry point called via InternalPluginRunner.
+func RunRouteServer(engineConn, callbackConn net.Conn) int {
+	p := sdk.NewWithConn("rr", engineConn, callbackConn)
+	defer func() { _ = p.Close() }()
 
-// NewRouteServer creates a new Route Server.
-func NewRouteServer(input io.Reader, output io.Writer) *RouteServer {
-	scanner := bufio.NewScanner(input)
-	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
-	return &RouteServer{
-		input:  scanner,
-		output: output,
+	rs := &RouteServer{
+		plugin: p,
 		peers:  make(map[string]*PeerState),
 		rib:    NewRIB(),
 	}
-}
 
-// Run starts the Route Server event loop.
-func (rs *RouteServer) Run() int {
-	rs.registerCommands()
-
-	for rs.input.Scan() {
-		line := rs.input.Bytes()
-		if len(line) == 0 {
-			continue
-		}
-
-		event, err := rs.parseEvent(line)
+	// Register event handler: dispatches BGP events (update, state, open, refresh)
+	p.OnEvent(func(jsonStr string) error {
+		event, err := parseEvent([]byte(jsonStr))
 		if err != nil {
-			// Log error but continue
-			continue
+			logger.Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
+			return nil // Don't fail on parse errors
 		}
-
 		rs.dispatch(event)
-	}
+		return nil
+	})
 
-	// Check for scanner errors (not EOF)
-	if err := rs.input.Err(); err != nil {
+	// Register command handler: responds to "rr status" and "rr peers"
+	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
+		return rs.handleCommand(command)
+	})
+
+	// Register event subscriptions atomically with startup completion.
+	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
+	// ensuring the rr sees every event from the very first route.
+	p.SetStartupSubscriptions([]string{"update", "state", "open", "refresh"}, nil, "")
+
+	ctx := context.Background()
+	err := p.Run(ctx, sdk.Registration{
+		Commands: []sdk.CommandDecl{
+			{Name: "rr status", Description: "Show RS status"},
+			{Name: "rr peers", Description: "Show peer states"},
+		},
+	})
+	if err != nil {
+		logger.Error("rr plugin failed", "error", err)
 		return 1
 	}
 
 	return 0
 }
 
-// registerCommands outputs startup commands.
-func (rs *RouteServer) registerCommands() {
-	rs.sendCommand("capability route-refresh")
-	rs.sendCommand(`register command "rr status" description "Show RS status"`)
-	rs.sendCommand(`register command "rr peers" description "Show peer states"`)
-}
-
-// sendCommand sends a numbered command to ze.
-func (rs *RouteServer) sendCommand(cmd string) {
-	rs.serial++
-	_, _ = fmt.Fprintf(rs.output, "#%d %s\n", rs.serial, cmd)
-}
-
-// send sends raw output to ze.
-func (rs *RouteServer) send(format string, args ...any) {
-	_, _ = fmt.Fprintf(rs.output, format+"\n", args...)
+// updateRoute sends a route update command to matching peers via the engine.
+func (rs *RouteServer) updateRoute(peerSelector, command string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
+	if err != nil {
+		logger.Debug("update-route failed", "peer", peerSelector, "error", err)
+	}
 }
 
 // dispatch routes an event to the appropriate handler.
@@ -90,8 +99,6 @@ func (rs *RouteServer) dispatch(event *Event) {
 		rs.handleState(event)
 	case "refresh":
 		rs.handleRefresh(event)
-	case "request":
-		rs.handleRequest(event)
 	case "open":
 		rs.handleOpen(event)
 	}
@@ -173,7 +180,7 @@ func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families m
 			}
 		}
 
-		rs.send("bgp cache %d forward %s", msgID, addr)
+		rs.updateRoute(addr, fmt.Sprintf("cache %d forward", msgID))
 	}
 }
 
@@ -204,7 +211,7 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 
 	// Send withdrawals for each route to other peers using update text syntax
 	for _, route := range routes {
-		rs.send("peer !%s update text nlri %s del %s", peerAddr, route.Family, route.Prefix)
+		rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
 	}
 }
 
@@ -227,7 +234,7 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 			if peer != nil && peer.Families != nil && !peer.SupportsFamily(route.Family) {
 				continue
 			}
-			rs.send("bgp cache %d forward %s", route.MsgID, peerAddr)
+			rs.updateRoute(peerAddr, fmt.Sprintf("cache %d forward", route.MsgID))
 		}
 	}
 }
@@ -299,33 +306,21 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 			continue // Skip peers that don't support this family
 		}
 
-		rs.send("peer %s refresh %s", addr, family)
+		rs.updateRoute(addr, "refresh "+family)
 	}
 }
 
-// handleRequest processes command requests from ze.
-func (rs *RouteServer) handleRequest(event *Event) {
-	serial := event.Serial
-	command := event.Command
-
+// handleCommand processes command requests via SDK execute-command callback.
+// Returns (status, data, error) for the SDK to send back to the engine.
+func (rs *RouteServer) handleCommand(command string) (string, string, error) {
 	switch command {
 	case "rr status":
-		rs.respondDone(serial, `{"running":true}`)
+		return "done", `{"running":true}`, nil
 	case "rr peers":
-		rs.respondDone(serial, rs.peersJSON())
-	default:
-		rs.respondError(serial, "unknown command: "+command)
+		return "done", rs.peersJSON(), nil
+	default: // fail on unknown command
+		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}
-}
-
-// respondDone sends a successful response.
-func (rs *RouteServer) respondDone(serial, data string) {
-	_, _ = fmt.Fprintf(rs.output, "@%s done %s\n", serial, data)
-}
-
-// respondError sends an error response.
-func (rs *RouteServer) respondError(serial, message string) {
-	_, _ = fmt.Fprintf(rs.output, "@%s error %q\n", serial, message)
 }
 
 // peersJSON returns peer state as JSON.
@@ -347,7 +342,7 @@ func (rs *RouteServer) peersJSON() string {
 }
 
 // parseEvent parses a JSON event from ze.
-func (rs *RouteServer) parseEvent(data []byte) (*Event, error) {
+func parseEvent(data []byte) (*Event, error) {
 	var event Event
 	if err := json.Unmarshal(data, &event); err != nil {
 		return nil, err

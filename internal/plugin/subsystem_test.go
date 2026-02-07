@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // Shared test binary setup - built once, used by all tests.
@@ -87,162 +90,135 @@ func TestSubsystemBinaryExists(t *testing.T) {
 	buildSubsystemBinary(ctx, t)
 }
 
-// TestSubsystemProtocol verifies the 5-stage protocol completes.
+// TestSubsystemRPCProtocol verifies the 5-stage RPC protocol at the Process level.
 //
-// VALIDATES: Subsystem completes declaration, config, capability, registry, ready.
-// PREVENTS: Protocol deadlock or missing stage markers.
-func TestSubsystemProtocol(t *testing.T) {
+// VALIDATES: ze-subsystem binary sends correct YANG RPC methods in stage order
+// and declares expected commands via DeclareRegistrationInput.
+// PREVENTS: Protocol regression when SDK or subsystem changes.
+func TestSubsystemRPCProtocol(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	buildSubsystemBinary(ctx, t)
 
-	// Create process config
 	config := PluginConfig{
 		Name: "test-cache",
 		Run:  subsystemBinaryPath + " --mode=cache",
 	}
 
 	proc := NewProcess(config)
-
-	// Start the process
 	err := proc.StartWithContext(ctx)
 	require.NoError(t, err)
 	defer proc.Stop()
 
-	// Read Stage 1: Declaration
-	var declareDone bool
-	var commands []string
+	connA := proc.engineConnA
+	connB := proc.engineConnB
 
-	for i := 0; i < 10 && !declareDone; i++ {
-		line, err := proc.ReadCommand(ctx)
-		if err != nil {
-			break
-		}
-		if line == markerDeclareDone {
-			declareDone = true
-		} else if len(line) > 12 && line[:12] == "declare cmd " {
-			commands = append(commands, line[12:])
-		}
+	// Stage 1: Read declare-registration from plugin (Socket A)
+	req, err := connA.ReadRequest(ctx)
+	require.NoError(t, err, "stage 1: read registration")
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &regInput), "stage 1: unmarshal registration")
+
+	// Verify cache mode declared expected commands
+	commands := make([]string, 0, len(regInput.Commands))
+	for _, cmd := range regInput.Commands {
+		commands = append(commands, cmd.Name)
 	}
-
-	assert.True(t, declareDone, "expected declare done")
 	assert.Contains(t, commands, "bgp cache list")
+	assert.Contains(t, commands, "bgp cache retain")
+	assert.Contains(t, commands, "bgp cache release")
 
-	// Send Stage 2: Config done
-	err = proc.WriteEvent(markerConfigDone)
-	require.NoError(t, err)
+	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 1: send OK")
 
-	// Read Stage 3: Capability done
-	line, err := proc.ReadCommand(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, markerCapabilityDone, line)
+	// Stage 2: Send configure to plugin (Socket B)
+	require.NoError(t, connB.SendConfigure(ctx, nil), "stage 2: send configure")
 
-	// Send Stage 4: Registry done
-	err = proc.WriteEvent(markerRegistryDone)
-	require.NoError(t, err)
+	// Stage 3: Read declare-capabilities from plugin (Socket A)
+	req, err = connA.ReadRequest(ctx)
+	require.NoError(t, err, "stage 3: read capabilities")
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 3: send OK")
 
-	// Read Stage 5: Ready
-	line, err = proc.ReadCommand(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, markerReady, line)
+	// Stage 4: Send share-registry to plugin (Socket B)
+	require.NoError(t, connB.SendShareRegistry(ctx, nil), "stage 4: send registry")
+
+	// Stage 5: Read ready from plugin (Socket A)
+	req, err = connA.ReadRequest(ctx)
+	require.NoError(t, err, "stage 5: read ready")
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 5: send OK")
 }
 
-// TestSubsystemCommand verifies commands are routed to subprocess.
+// TestSubsystemRPCCommand verifies command execution through the RPC protocol.
 //
-// VALIDATES: Commands sent to subprocess receive responses.
-// PREVENTS: Command routing failures.
-func TestSubsystemCommand(t *testing.T) {
+// VALIDATES: After completing 5-stage protocol, commands are routed and return responses.
+// PREVENTS: Command routing failures after protocol migration to RPC.
+func TestSubsystemRPCCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	buildSubsystemBinary(ctx, t)
 
-	// Create process config
-	config := PluginConfig{
-		Name: "test-session",
-		Run:  subsystemBinaryPath + " --mode=session",
+	config := SubsystemConfig{
+		Name:   "session",
+		Binary: subsystemBinaryPath,
 	}
 
-	proc := NewProcess(config)
-
-	// Start the process
-	err := proc.StartWithContext(ctx)
+	handler := NewSubsystemHandler(config)
+	err := handler.Start(ctx)
 	require.NoError(t, err)
-	defer proc.Stop()
+	defer handler.Stop()
 
-	// Complete 5-stage protocol
-	for {
-		line, err := proc.ReadCommand(ctx)
-		require.NoError(t, err)
-		if line == markerDeclareDone {
-			break
-		}
-	}
-	err = proc.WriteEvent(markerConfigDone)
+	// Send command and verify response content (not just status)
+	resp, err := handler.Handle(ctx, "bgp session ping")
 	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
 
-	line, err := proc.ReadCommand(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, markerCapabilityDone, line)
-
-	err = proc.WriteEvent(markerRegistryDone)
-	require.NoError(t, err)
-
-	line, err = proc.ReadCommand(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, markerReady, line)
-
-	// Now send a command
-	resp, err := proc.SendRequest(ctx, "bgp session ping")
-	require.NoError(t, err)
-
-	// Response should be "ok {...}" with pong PID
-	assert.True(t, len(resp) > 3 && resp[:2] == "ok", "expected 'ok' response, got: %s", resp)
-	assert.Contains(t, resp, "pong")
+	// Verify response contains pong with PID (matches ze-subsystem handleSessionCommand)
+	data, ok := resp.Data.(string)
+	require.True(t, ok, "expected string data")
+	assert.Contains(t, data, "pong")
 }
 
-// TestSubsystemShutdown verifies graceful shutdown.
+// TestSubsystemShutdown verifies graceful shutdown via RPC bye.
 //
 // VALIDATES: Subprocess exits cleanly on shutdown signal.
-// PREVENTS: Zombie processes.
+// PREVENTS: Zombie processes after subsystem shutdown.
 func TestSubsystemShutdown(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	buildSubsystemBinary(ctx, t)
 
-	config := PluginConfig{
-		Name: "test-shutdown",
-		Run:  subsystemBinaryPath + " --mode=cache",
+	config := SubsystemConfig{
+		Name:   "cache",
+		Binary: subsystemBinaryPath,
 	}
 
-	proc := NewProcess(config)
-
-	err := proc.StartWithContext(ctx)
+	handler := NewSubsystemHandler(config)
+	err := handler.Start(ctx)
 	require.NoError(t, err)
 
-	// Complete 5-stage protocol
-	for {
-		line, err := proc.ReadCommand(ctx)
-		require.NoError(t, err)
-		if line == markerDeclareDone {
-			break
-		}
-	}
-	_ = proc.WriteEvent(markerConfigDone)
-	_, _ = proc.ReadCommand(ctx) // capability done
-	_ = proc.WriteEvent(markerRegistryDone)
-	_, _ = proc.ReadCommand(ctx) // ready
+	// Verify running before shutdown
+	assert.True(t, handler.Running())
 
-	// Send shutdown
-	sent := proc.SendShutdown()
-	assert.True(t, sent)
+	// Stop sends shutdown signal
+	handler.Stop()
 
-	// Wait for process to exit
+	// Wait briefly for process to exit
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer waitCancel()
 
-	err = proc.Wait(waitCtx)
-	assert.NoError(t, err)
-	assert.False(t, proc.Running())
+	// Poll until not running or timeout
+	for handler.Running() {
+		select {
+		case <-waitCtx.Done():
+			t.Fatal("subsystem did not exit within timeout")
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+
+	assert.False(t, handler.Running())
 }
 
 // TestSubsystemHandler verifies the SubsystemHandler wrapper.

@@ -8,95 +8,100 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// TestHostnamePluginParseConfig verifies config parsing.
+// TestExtractHostnameCapabilities verifies config parsing via extractHostnameCapabilities.
 //
-// VALIDATES: Plugin parses "config json bgp <json>" correctly.
+// VALIDATES: Plugin parses BGP config JSON and produces correct CapabilityDecl values.
 // PREVENTS: Config values being ignored or misassigned.
-func TestHostnamePluginParseConfig(t *testing.T) {
+func TestExtractHostnameCapabilities(t *testing.T) {
 	tests := []struct {
-		name          string
-		lines         []string
-		wantHost      string
-		wantDomain    string
-		wantPeerCount int
+		name       string
+		jsonStr    string
+		wantCount  int
+		wantHost   string
+		wantDomain string
 	}{
 		{
-			name: "bgp_json_both",
-			lines: []string{
-				`config json bgp {"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}`,
-				"config done",
-			},
-			wantHost:      "router1",
-			wantDomain:    "example.com",
-			wantPeerCount: 1,
+			name:       "bgp_json_both",
+			jsonStr:    `{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}`,
+			wantCount:  1,
+			wantHost:   "router1",
+			wantDomain: "example.com",
 		},
 		{
-			name: "bgp_json_host_only",
-			lines: []string{
-				`config json bgp {"peer":{"10.0.0.1":{"capability":{"hostname":{"host":"myhost"}}}}}`,
-				"config done",
-			},
-			wantHost:      "myhost",
-			wantDomain:    "",
-			wantPeerCount: 1,
+			name:       "bgp_json_host_only",
+			jsonStr:    `{"peer":{"10.0.0.1":{"capability":{"hostname":{"host":"myhost"}}}}}`,
+			wantCount:  1,
+			wantHost:   "myhost",
+			wantDomain: "",
 		},
 		{
-			name: "bgp_json_domain_only",
-			lines: []string{
-				`config json bgp {"peer":{"10.0.0.1":{"capability":{"hostname":{"domain":"mydomain.net"}}}}}`,
-				"config done",
-			},
-			wantHost:      "",
-			wantDomain:    "mydomain.net",
-			wantPeerCount: 1,
+			name:       "bgp_json_domain_only",
+			jsonStr:    `{"peer":{"10.0.0.1":{"capability":{"hostname":{"domain":"mydomain.net"}}}}}`,
+			wantCount:  1,
+			wantHost:   "",
+			wantDomain: "mydomain.net",
 		},
 		{
-			name: "bgp_json_no_hostname",
-			lines: []string{
-				`config json bgp {"peer":{"10.0.0.1":{"capability":{}}}}`,
-				"config done",
-			},
-			wantHost:      "",
-			wantDomain:    "",
-			wantPeerCount: 0,
+			name:      "bgp_json_no_hostname",
+			jsonStr:   `{"peer":{"10.0.0.1":{"capability":{}}}}`,
+			wantCount: 0,
 		},
 		{
-			name: "bgp_json_no_peers",
-			lines: []string{
-				`config json bgp {"router-id":"1.2.3.4"}`,
-				"config done",
-			},
-			wantHost:      "",
-			wantDomain:    "",
-			wantPeerCount: 0,
+			name:      "bgp_json_no_peers",
+			jsonStr:   `{"router-id":"1.2.3.4"}`,
+			wantCount: 0,
+		},
+		{
+			name:      "bgp_json_empty_both_values",
+			jsonStr:   `{"peer":{"10.0.0.1":{"capability":{"hostname":{"host":"","domain":""}}}}}`,
+			wantCount: 0,
+		},
+		{
+			name:      "invalid_json",
+			jsonStr:   `{not valid json`,
+			wantCount: 0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := strings.Join(tt.lines, "\n") + "\n"
-			output := &bytes.Buffer{}
+			caps := extractHostnameCapabilities(tt.jsonStr)
 
-			plugin := NewHostnamePlugin(strings.NewReader(input), output)
-			plugin.parseConfig()
+			assert.Len(t, caps, tt.wantCount)
 
-			assert.Len(t, plugin.hostConfig, tt.wantPeerCount)
+			if tt.wantCount > 0 {
+				cap := caps[0]
+				assert.Equal(t, uint8(73), cap.Code)
+				assert.Equal(t, "hex", cap.Encoding)
+				assert.NotEmpty(t, cap.Payload)
+				assert.Len(t, cap.Peers, 1)
 
-			if tt.wantPeerCount > 0 {
-				// Get first peer (we know which one from the test)
-				var peerAddr string
-				for addr := range plugin.hostConfig {
-					peerAddr = addr
-					break
-				}
-				cfg := plugin.hostConfig[peerAddr]
-				assert.Equal(t, tt.wantHost, cfg.hostname)
-				assert.Equal(t, tt.wantDomain, cfg.domain)
+				// Verify round-trip: decode the hex payload to check hostname/domain
+				data, err := hexDecode(cap.Payload)
+				require.NoError(t, err)
+				gotHost, gotDomain := decodeFQDN(data)
+				assert.Equal(t, tt.wantHost, gotHost)
+				assert.Equal(t, tt.wantDomain, gotDomain)
 			}
 		})
 	}
+}
+
+// TestExtractHostnameCapabilitiesWrapped verifies config parsing with bgp wrapper.
+//
+// VALIDATES: extractHostnameCapabilities handles {"bgp": {...}} wrapper.
+// PREVENTS: Double-nesting issue when config is delivered with root wrapper.
+func TestExtractHostnameCapabilitiesWrapped(t *testing.T) {
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}}`
+	caps := extractHostnameCapabilities(jsonStr)
+
+	require.Len(t, caps, 1)
+	assert.Equal(t, uint8(73), caps[0].Code)
+	assert.Equal(t, []string{"192.168.1.1"}, caps[0].Peers)
 }
 
 // TestHostnamePluginEncode verifies wire encoding.
@@ -149,46 +154,54 @@ func TestHostnamePluginEncode(t *testing.T) {
 	}
 }
 
-// TestHostnamePluginMultiplePeers verifies per-peer config handling.
+// TestExtractHostnameCapabilitiesMultiplePeers verifies per-peer config handling.
 //
 // VALIDATES: Different peers get different hostname/domain values.
 // PREVENTS: Config values leaking between peers.
-func TestHostnamePluginMultiplePeers(t *testing.T) {
-	input := strings.Join([]string{
-		`config json bgp {"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}},"10.0.0.1":{"capability":{"hostname":{"host":"router2","domain":"test.org"}}}}}`,
-		"config done",
-	}, "\n") + "\n"
-	output := &bytes.Buffer{}
+func TestExtractHostnameCapabilitiesMultiplePeers(t *testing.T) {
+	jsonStr := `{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}},"10.0.0.1":{"capability":{"hostname":{"host":"router2","domain":"test.org"}}}}}`
 
-	plugin := NewHostnamePlugin(strings.NewReader(input), output)
-	plugin.parseConfig()
+	caps := extractHostnameCapabilities(jsonStr)
+	require.Len(t, caps, 2)
 
-	require.Len(t, plugin.hostConfig, 2)
+	// Build a map from peer address to capability for order-independent assertions
+	capByPeer := make(map[string]sdk.CapabilityDecl)
+	for _, c := range caps {
+		require.Len(t, c.Peers, 1)
+		capByPeer[c.Peers[0]] = c
+	}
 
-	cfg1 := plugin.hostConfig["192.168.1.1"]
-	require.NotNil(t, cfg1)
-	assert.Equal(t, "router1", cfg1.hostname)
-	assert.Equal(t, "example.com", cfg1.domain)
+	// Verify peer 192.168.1.1
+	cap1, ok := capByPeer["192.168.1.1"]
+	require.True(t, ok, "missing capability for 192.168.1.1")
+	data1, err := hexDecode(cap1.Payload)
+	require.NoError(t, err)
+	host1, domain1 := decodeFQDN(data1)
+	assert.Equal(t, "router1", host1)
+	assert.Equal(t, "example.com", domain1)
 
-	cfg2 := plugin.hostConfig["10.0.0.1"]
-	require.NotNil(t, cfg2)
-	assert.Equal(t, "router2", cfg2.hostname)
-	assert.Equal(t, "test.org", cfg2.domain)
+	// Verify peer 10.0.0.1
+	cap2, ok := capByPeer["10.0.0.1"]
+	require.True(t, ok, "missing capability for 10.0.0.1")
+	data2, err := hexDecode(cap2.Payload)
+	require.NoError(t, err)
+	host2, domain2 := decodeFQDN(data2)
+	assert.Equal(t, "router2", host2)
+	assert.Equal(t, "test.org", domain2)
 }
 
-// TestHostnamePluginEmptyValues verifies handling of missing values.
+// TestExtractHostnameCapabilitiesEmpty verifies handling of missing values.
 //
-// VALIDATES: Plugin handles peers with no hostname/domain gracefully.
+// VALIDATES: Plugin handles empty config gracefully.
 // PREVENTS: Panic or invalid capability when config is incomplete.
-func TestHostnamePluginEmptyValues(t *testing.T) {
-	// No config for any peer
-	input := "config done\n"
-	output := &bytes.Buffer{}
+func TestExtractHostnameCapabilitiesEmpty(t *testing.T) {
+	// No peer config
+	caps := extractHostnameCapabilities(`{}`)
+	assert.Empty(t, caps)
 
-	plugin := NewHostnamePlugin(strings.NewReader(input), output)
-	plugin.parseConfig()
-
-	assert.Empty(t, plugin.hostConfig)
+	// Empty peer config
+	caps = extractHostnameCapabilities(`{"peer":{}}`)
+	assert.Empty(t, caps)
 }
 
 // TestHostnamePluginBoundary verifies boundary conditions.
@@ -349,31 +362,6 @@ func TestRunDecodeModeText(t *testing.T) {
 	}
 }
 
-// TestHostnamePluginDeclarations verifies startup protocol.
-//
-// VALIDATES: Plugin sends correct declare lines.
-// PREVENTS: Config not being delivered to plugin.
-func TestHostnamePluginDeclarations(t *testing.T) {
-	// Simulate startup with immediate config done and registry done
-	input := strings.Join([]string{
-		"config done",
-		"registry done",
-	}, "\n") + "\n"
-	output := &bytes.Buffer{}
-
-	plugin := NewHostnamePlugin(strings.NewReader(input), output)
-	plugin.doStartupProtocol()
-
-	out := output.String()
-
-	// Check new JSON config declaration (root-based delivery)
-	assert.Contains(t, out, "declare wants config bgp")
-
-	assert.Contains(t, out, "declare done")
-	assert.Contains(t, out, "capability done")
-	assert.Contains(t, out, "ready")
-}
-
 // TestRunCLIDecode verifies CLI decode mode for FQDN capability.
 //
 // VALIDATES: RunCLIDecode correctly parses FQDN capability hex and outputs JSON/text.
@@ -455,5 +443,101 @@ func TestRunCLIDecode(t *testing.T) {
 				assert.Contains(t, output, want, "output should contain: %s", want)
 			}
 		})
+	}
+}
+
+// TestDecodeFQDN verifies wire decoding of FQDN capability bytes.
+//
+// VALIDATES: decodeFQDN correctly parses wire bytes to hostname/domain.
+// PREVENTS: Off-by-one errors in wire format parsing.
+func TestDecodeFQDN(t *testing.T) {
+	tests := []struct {
+		name       string
+		data       []byte
+		wantHost   string
+		wantDomain string
+	}{
+		{
+			name:       "both_values",
+			data:       []byte{6, 'm', 'y', 'h', 'o', 's', 't', 4, 'd', 'o', 'm', '1'},
+			wantHost:   "myhost",
+			wantDomain: "dom1",
+		},
+		{
+			name:       "host_only",
+			data:       []byte{6, 'm', 'y', 'h', 'o', 's', 't', 0},
+			wantHost:   "myhost",
+			wantDomain: "",
+		},
+		{
+			name:       "domain_only",
+			data:       []byte{0, 4, 'd', 'o', 'm', '1'},
+			wantHost:   "",
+			wantDomain: "dom1",
+		},
+		{
+			name:       "empty_both",
+			data:       []byte{0, 0},
+			wantHost:   "",
+			wantDomain: "",
+		},
+		{
+			name:       "empty_input",
+			data:       []byte{},
+			wantHost:   "",
+			wantDomain: "",
+		},
+		{
+			name:       "truncated_host",
+			data:       []byte{10, 'a', 'b'}, // claims 10 bytes but only 2
+			wantHost:   "",
+			wantDomain: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotHost, gotDomain := decodeFQDN(tt.data)
+			assert.Equal(t, tt.wantHost, gotHost)
+			assert.Equal(t, tt.wantDomain, gotDomain)
+		})
+	}
+}
+
+// hexDecode is a test helper that decodes hex strings.
+func hexDecode(s string) ([]byte, error) {
+	import_hex := make([]byte, len(s)/2)
+	for i := 0; i < len(s); i += 2 {
+		b, err := hexByte(s[i], s[i+1])
+		if err != nil {
+			return nil, err
+		}
+		import_hex[i/2] = b
+	}
+	return import_hex, nil
+}
+
+func hexByte(hi, lo byte) (byte, error) {
+	h, err := hexNibble(hi)
+	if err != nil {
+		return 0, err
+	}
+	l, err := hexNibble(lo)
+	if err != nil {
+		return 0, err
+	}
+	return h<<4 | l, nil
+}
+
+func hexNibble(b byte) (byte, error) {
+	switch {
+	case b >= '0' && b <= '9':
+		return b - '0', nil
+	case b >= 'a' && b <= 'f':
+		return b - 'a' + 10, nil
+	case b >= 'A' && b <= 'F':
+		return b - 'A' + 10, nil
+	default:
+		return 0, assert.AnError
 	}
 }

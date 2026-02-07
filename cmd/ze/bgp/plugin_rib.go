@@ -1,8 +1,6 @@
 package bgp
 
 import (
-	"io"
-
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -24,8 +22,6 @@ func cmdPluginRib(args []string) int {
 		ConfigLogger: func(level string) {
 			rib.SetLogger(slogutil.PluginLogger("rib", level))
 		},
-		RunEngine: func(in io.Reader, out io.Writer) int {
-			return rib.NewRIBManager(in, out).Run()
-		},
+		RunEngine: rib.RunRIBPlugin,
 	}, args)
 }
