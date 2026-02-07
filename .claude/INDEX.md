@@ -31,7 +31,7 @@ Read when working on specific areas:
 | Rule | Applies To |
 |------|------------|
 | `rules/post-compaction.md` | `*` (BLOCKING - after compaction, read FIRST) |
-| `rules/understand-first.md` | `*` (BLOCKING - before any code) |
+| `rules/before-writing-code.md` | `*` (BLOCKING - before any code) |
 | `rules/design-principles.md` | `*` (scalability, maintainability) |
 | `rules/planning.md` | `*` (non-trivial features) |
 | `rules/spec-no-code.md` | `docs/plan/spec-*.md` (BLOCKING - NO CODE IN SPECS) |

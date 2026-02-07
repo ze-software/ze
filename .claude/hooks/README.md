@@ -15,7 +15,7 @@ Automated enforcement of `.claude/rules/` requirements.
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
 | `block-claude-plans.sh` | PreToolUse:Write | documentation.md | **Blocking** |
 | `pre-write-go.sh` | PreToolUse:Write\|Edit | post-compaction.md | **Blocking** |
-| `check-existing-patterns.sh` | PreToolUse:Write | understand-first.md | **Blocking** |
+| `check-existing-patterns.sh` | PreToolUse:Write | before-writing-code.md | **Blocking** |
 | `block-legacy-log.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
 | `block-panic-error.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
 | `block-ignored-errors.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
@@ -73,7 +73,7 @@ Automated enforcement of `.claude/rules/` requirements.
 | `block-utils-package.sh` | `utils/`, `helpers/`, `common/` packages |
 | `block-vague-names.sh` | `Data`, `Info`, `Result`, `Item`, `Thing` names |
 
-### Architecture (no-layering.md, understand-first.md, compatibility.md)
+### Architecture (no-layering.md, before-writing-code.md, compatibility.md)
 | Hook | What it blocks |
 |------|----------------|
 | `block-layering.sh` | "backwards compat", "hybrid", "fallback" |

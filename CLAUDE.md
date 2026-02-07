@@ -1,6 +1,6 @@
 # Ze - Claude Instructions
 
-## ⛔ TOP 5 RULES (READ EVERY SESSION)
+## ⛔ TOP 6 RULES (READ EVERY SESSION)
 
 **These rules are BLOCKING. Violating them wastes time and money.**
 
@@ -11,6 +11,7 @@
 | 3 | **No code without understanding** | Duplicate code, wrong patterns, broken integrations | Can you name 3 related files? |
 | 4 | **TDD: Test must FAIL first** | Proves test actually validates something | `go test` shows RED before implementation |
 | 5 | **Preserve existing behavior** | Breaking changes waste debugging time | Document current output format BEFORE changing |
+| 6 | **Confirm file paths before editing** | Wrong-file edits waste correction cycles | Use Glob/Grep to verify target exists and is correct |
 
 **Session start checklist:**
 ```
@@ -20,6 +21,27 @@
 4. [ ] Check git status for modified files
 5. [ ] ONLY THEN start working
 ```
+
+---
+
+## File Editing Rules
+
+Before editing any file, READ the repository structure and confirm you have the correct file path. Never assume file locations from context — use Glob/Grep to find the actual target file first. If the user references a specific file type (e.g., 'article guidelines'), search for it rather than guessing it's CLAUDE.md or MEMORY.md.
+
+## Commits
+
+When committing, only include files related to the current task unless explicitly told otherwise. Always confirm the scope of the commit with a `git diff --stat` before running `git commit`. Never include unrelated changes (e.g., spec files when fixing editor bugs).
+
+## Spec Workflow
+
+1. Before implementing, run an implementation audit to check what's already done
+2. Trace data flow through the actual code — don't assume from spec descriptions
+3. After implementation, request a critical review that checks spec conformance
+4. Never mark items as deferred/external without confirming with the user
+
+## Critical Reviews
+
+When asked for a critical review, validate your understanding of the existing architecture BEFORE agreeing with or proposing changes. Read the actual code/specs first — never assume from memory. Check git history for recent changes to avoid proposing work that's already done.
 
 ---
 

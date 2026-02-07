@@ -2,55 +2,51 @@
 
 **BLOCKING:** Complete these checks BEFORE writing any code, tests, or documentation.
 
-## 1. Check for Existing Implementation
+## Core Principle
 
-Before writing anything new:
+**You are NOT ALLOWED to write any code until you understand the existing code structure.**
 
-```bash
-# Search for similar tests
-grep -r "TestYourFeature\|your_pattern" internal/ test/
+## Pre-Code Checklist
 
-# Search for similar functional tests
-grep -r "your_pattern" test/
+```
+[ ] 1. Search for existing implementations
+      - Use Grep/Glob to find similar patterns, tests, and functionality
+      - If found: STOP. Use it, extend it, or document why new code is needed.
 
-# Search for similar functionality
-grep -r "FunctionName\|pattern" internal/
+[ ] 2. Read the relevant source files
+      - Understand current implementation and patterns
+      - Identify extension points
+
+[ ] 3. Check architecture docs
+      - Read docs matching task keywords (see planning.md keyword table)
+
+[ ] 4. Understand data flow
+      - Entry points, transformations, exit points
+
+[ ] 5. Verify file paths
+      - Use Glob/Grep to confirm the target file exists and is correct
+      - Never guess file locations from context
 ```
 
-**Ask yourself:**
-- Does a test for this already exist?
-- Does code doing this already exist?
-- Can I extend existing code instead of writing new?
+## Verification
 
-**If you find existing code:** STOP. Use it, extend it, or document why new code is needed.
+Before writing code, you MUST be able to answer:
 
-## 2. Check for Duplication
+1. **What existing code relates to this task?** (file paths and function names)
+2. **What patterns does the codebase use?** (naming, error handling, testing)
+3. **How will your changes integrate?** (callers, callees, shared data structures)
 
-Before writing new code:
+## Red Flags
 
-```bash
-# Find similar patterns
-grep -r "similar_function\|similar_pattern" internal/
-
-# Find similar test patterns
-grep -r "similar_test" internal/ test/
-```
-
-**Ask yourself:**
-- Will this duplicate existing functionality?
-- Is there a shared utility I should use?
-- Should this be a refactor instead of new code?
-
-**Red flags:**
-- Writing a new function that does what an existing one does
+Stop and investigate if:
+- Creating a new file without checking for similar existing files
+- Writing a function that might duplicate existing functionality
+- You can't name 3 existing files your code relates to
 - Creating a new test file when a test case could be added to an existing file
-- Adding a new functional test that tests the same flow as an existing one
 
-## 3. Document New Understanding
+## Document New Understanding
 
-Before ending work, if you learned something new about the codebase:
-
-**Update relevant docs:**
+After work, if you learned something new about the codebase:
 
 | What you learned | Where to document |
 |------------------|-------------------|
@@ -59,53 +55,3 @@ Before ending work, if you learned something new about the codebase:
 | FSM/session behavior | `docs/architecture/behavior/` |
 | Test patterns | `docs/functional-tests.md` |
 | RFC interpretation | `rfc/short/` |
-
-**Format:**
-```markdown
-## [Topic]
-
-[Brief explanation of the behavior or pattern discovered]
-
-### Example
-[Code or wire bytes demonstrating the behavior]
-```
-
-## Checklist
-
-Before writing ANY code:
-
-```
-[ ] Searched for existing tests covering this functionality
-[ ] Searched for existing code doing similar things
-[ ] Verified no duplication with functional tests
-[ ] Identified if extension is better than new code
-```
-
-Before ending work:
-
-```
-[ ] New understanding documented in appropriate docs/
-[ ] No orphaned or duplicate test files created
-```
-
-## Why This Matters
-
-- **Duplicate tests** waste CI time and create maintenance burden
-- **Duplicate code** leads to divergent behavior and bugs
-- **Undocumented understanding** is lost knowledge
-
-## Examples of Violations
-
-❌ Created `malformed-notification.ci` when `unknown-message.ci` already tests the same flow
-
-❌ Wrote new `ParseFoo()` when `ParseBar()` with minor changes would work
-
-❌ Learned that EOR is sent automatically but didn't document it
-
-## Correct Approach
-
-✅ Search first: `grep -r "send-unknown-message" test/`
-
-✅ Found existing: "unknown-message.ci already tests this"
-
-✅ Decision: "No new test needed" or "Extend existing test"
