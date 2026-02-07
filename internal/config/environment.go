@@ -201,7 +201,7 @@ func parseBoolStrict(value string) (bool, error) {
 	switch v {
 	case "1", "true", "yes", "on", "enable":
 		return true, nil
-	case "0", "false", "no", "off", "disable":
+	case "0", configFalse, "no", "off", "disable":
 		return false, nil
 	default:
 		return false, fmt.Errorf("invalid boolean %q: must be true/false/yes/no/on/off/enable/disable/1/0", value)

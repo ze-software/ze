@@ -72,7 +72,6 @@ ze/
 │   │   └── exabgp/             # ze exabgp subcommands
 │   ├── ze-peer/                # BGP test peer tool
 │   ├── ze-test/                # Functional test runner
-│   ├── ze-config-reader/       # Config reader utility
 │   └── ze-subsystem/           # Subsystem utility
 │
 ├── internal/

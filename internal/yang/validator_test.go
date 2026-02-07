@@ -117,6 +117,94 @@ func TestValidator_ValidateUint32Range(t *testing.T) {
 	}
 }
 
+// TestValidator_ValidateUint32_WrongType verifies uint32 fields reject wrong types.
+//
+// VALIDATES: String, bool, nil, and negative int64 are rejected for uint32 fields.
+// PREVENTS: Silent acceptance of wrong-type values that would produce zero or garbage.
+func TestValidator_ValidateUint32_WrongType(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadAllForTesting()
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	validator := NewValidator(loader)
+
+	tests := []struct {
+		name    string
+		value   any
+		wantErr bool
+		errType ErrorType
+	}{
+		{"string_value", "65001", true, ErrTypeType},
+		{"bool_true", true, true, ErrTypeType},
+		{"bool_false", false, true, ErrTypeType},
+		{"nil_value", nil, true, ErrTypeType},
+		{"negative_int", int(-1), true, ErrTypeType},
+		{"negative_int64", int64(-1), true, ErrTypeType},
+		{"negative_float64", float64(-1), true, ErrTypeType},
+		{"float64_fractional", float64(65001.5), true, ErrTypeType},
+		// Valid types for coverage contrast.
+		{"valid_uint32", uint32(65001), false, ErrTypeUnknown},
+		{"valid_int", int(65001), false, ErrTypeUnknown},
+		{"valid_int64", int64(65001), false, ErrTypeUnknown},
+		{"valid_float64", float64(65001), false, ErrTypeUnknown},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.Validate("bgp.local-as", tt.value)
+			if tt.wantErr {
+				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
+				var valErr *ValidationError
+				if errors.As(err, &valErr) {
+					assert.Equal(t, tt.errType, valErr.Type)
+				}
+			} else {
+				assert.NoError(t, err, "expected no error for %T(%v)", tt.value, tt.value)
+			}
+		})
+	}
+}
+
+// TestValidator_ValidateString_WrongType verifies string fields reject wrong types.
+//
+// VALIDATES: Integer and bool values are rejected for string (ipv4-address) fields.
+// PREVENTS: Silent type coercion of non-string values to strings.
+func TestValidator_ValidateString_WrongType(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadAllForTesting()
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	validator := NewValidator(loader)
+
+	tests := []struct {
+		name    string
+		value   any
+		wantErr bool
+	}{
+		{"int_value", int(42), true},
+		{"float64_value", float64(42.0), true},
+		{"bool_value", true, true},
+		{"nil_value", nil, true},
+		// Valid for contrast.
+		{"valid_string", "192.0.2.1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.Validate("bgp.router-id", tt.value)
+			if tt.wantErr {
+				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 // TestValidator_ValidatePattern verifies pattern constraint validation.
 //
 // VALIDATES: String patterns are enforced.

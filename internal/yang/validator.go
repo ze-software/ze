@@ -271,7 +271,29 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			}
 		}
 		num = uint64(n)
-	default:
+	case int64:
+		if n < 0 {
+			return &ValidationError{
+				Path:     path,
+				Type:     ErrTypeType,
+				Message:  "expected unsigned integer",
+				Expected: yangType.Name,
+				Got:      fmt.Sprintf("%d", n),
+			}
+		}
+		num = uint64(n)
+	case float64:
+		if n < 0 || n != float64(uint64(n)) {
+			return &ValidationError{
+				Path:     path,
+				Type:     ErrTypeType,
+				Message:  "expected unsigned integer",
+				Expected: yangType.Name,
+				Got:      fmt.Sprintf("%v", n),
+			}
+		}
+		num = uint64(n)
+	default: // reject unhandled types (string, bool, slice, map, nil)
 		return &ValidationError{
 			Path:     path,
 			Type:     ErrTypeType,
@@ -310,6 +332,17 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 	case int64:
 		num = n
 	case int:
+		num = int64(n)
+	case float64:
+		if n != float64(int64(n)) {
+			return &ValidationError{
+				Path:     path,
+				Type:     ErrTypeType,
+				Message:  "expected signed integer",
+				Expected: yangType.Name,
+				Got:      fmt.Sprintf("%v", n),
+			}
+		}
 		num = int64(n)
 	default:
 		return &ValidationError{

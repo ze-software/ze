@@ -8,7 +8,7 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 all: lint test build
 
 # Build all binaries
-build: bin/ze bin/ze-test bin/ze-config-reader
+build: bin/ze bin/ze-test
 	@echo "All binaries built"
 
 # Individual binary targets
@@ -21,11 +21,6 @@ bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
 	go build -o bin/ze-test ./cmd/ze-test
-
-bin/ze-config-reader: $(shell find cmd/ze-config-reader internal -name '*.go' 2>/dev/null)
-	@echo "Building ze-config-reader..."
-	@mkdir -p bin
-	go build -o bin/ze-config-reader ./cmd/ze-config-reader
 
 # Run tests with race detector
 test:
