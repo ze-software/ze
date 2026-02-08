@@ -273,7 +273,14 @@ module ze-bgp-conf {
 
             container attribute {
                 description "Path attributes for routes in this block";
-                leaf origin { type string; description "ORIGIN attribute (igp|egp|incomplete)"; }
+                leaf origin {
+                    type enumeration {
+                        enum igp { description "Interior Gateway Protocol"; }
+                        enum egp { description "Exterior Gateway Protocol"; }
+                        enum incomplete { description "Incomplete origin"; }
+                    }
+                    description "ORIGIN attribute (RFC 4271 Section 4.3)";
+                }
                 leaf next-hop { type string; description "Next hop address or 'self'"; }
                 leaf med { type uint32; description "Multi-Exit Discriminator"; }
                 leaf local-preference { type uint32; description "Local preference"; }

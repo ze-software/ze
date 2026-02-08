@@ -14,7 +14,14 @@ module ze-types {
     grouping route-attributes {
         description "Common BGP route attributes";
         leaf next-hop { type string; description "Next hop address"; }
-        leaf origin { type string; description "Origin attribute (igp, egp, incomplete)"; }
+        leaf origin {
+            type enumeration {
+                enum igp { description "Interior Gateway Protocol"; }
+                enum egp { description "Exterior Gateway Protocol"; }
+                enum incomplete { description "Incomplete origin"; }
+            }
+            description "Origin attribute (RFC 4271 Section 4.3)";
+        }
         leaf local-preference { type uint32; description "Local preference"; }
         leaf med { type uint32; description "Multi-Exit Discriminator"; }
         leaf community { ze:syntax "value-or-array"; type string; description "BGP communities"; }

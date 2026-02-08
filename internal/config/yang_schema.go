@@ -58,10 +58,9 @@ func YANGSchema() *Schema {
 	return YANGSchemaWithPlugins(plugin.GetAllInternalPluginYANG())
 }
 
-// YANGSchemaWithPlugins loads YANG with additional plugin modules.
-// pluginYANG maps module filename to YANG content.
-// Returns nil if YANG loading fails.
-func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
+// loadYANGModules creates a resolved YANG loader with all modules.
+// Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.
+func loadYANGModules(pluginYANG map[string]string) *yang.Loader {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil
@@ -80,6 +79,27 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 	if err := loader.Resolve(); err != nil {
+		return nil
+	}
+	return loader
+}
+
+// YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
+// Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).
+func YANGValidatorWithPlugins(pluginYANG map[string]string) *yang.Validator {
+	loader := loadYANGModules(pluginYANG)
+	if loader == nil {
+		return nil
+	}
+	return yang.NewValidator(loader)
+}
+
+// YANGSchemaWithPlugins loads YANG with additional plugin modules.
+// pluginYANG maps module filename to YANG content.
+// Returns nil if YANG loading fails.
+func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
+	loader := loadYANGModules(pluginYANG)
+	if loader == nil {
 		return nil
 	}
 

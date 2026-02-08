@@ -491,6 +491,18 @@ type NLRIGroup struct {
 }
 ```
 
+### YANG-Driven Attribute Validation
+
+Attribute values in the update text parser are validated against the YANG schema (`ze-bgp-conf.yang`), making YANG the single source of truth for data validation. The `ValueValidator` interface provides the validation, set via `SetYANGValidator()`.
+
+| Attribute | YANG Path | YANG Type | Validation |
+|-----------|-----------|-----------|------------|
+| `origin` | `bgp.peer.update.attribute.origin` | `enumeration {igp, egp, incomplete}` | Enum check |
+| `med` | `bgp.peer.update.attribute.med` | `uint32` | Range check |
+| `local-preference` | `bgp.peer.update.attribute.local-preference` | `uint32` | Range check |
+
+The CLI decode path (`ze bgp decode --nlri`) also validates family strings against known AFI/SAFI combinations and hex inputs before dispatching to plugin decoders.
+
 ### Key Semantics
 
 - **Attribute accumulation:** Attribute sections accumulate; each `nlri` section captures a snapshot

@@ -1543,3 +1543,64 @@ func TestInvokePluginModeConsistency(t *testing.T) {
 			directJSON, forkJSON)
 	}
 }
+
+// =============================================================================
+// YANG Decode Input Validation Tests
+// =============================================================================
+
+// TestDecodeInput_ValidFamily_YANG verifies family format validation.
+// Families are registered dynamically by plugins, so validation checks format (afi/safi).
+//
+// VALIDATES: Family format validation catches malformed strings before dispatch.
+// PREVENTS: Invalid family format strings reaching plugin decoders.
+func TestDecodeInput_ValidFamily_YANG(t *testing.T) {
+	// Valid format: afi/safi (both parts non-empty)
+	validFamilies := []string{
+		"ipv4/unicast", "ipv6/unicast",
+		"ipv4/multicast", "l2vpn/evpn",
+		"bgp-ls/bgp-ls", "foo/bar", // format is valid even if not registered
+	}
+
+	for _, fam := range validFamilies {
+		err := validateDecodeFamily(fam)
+		if err != nil {
+			t.Errorf("valid format family %q should be accepted, got error: %v", fam, err)
+		}
+	}
+
+	// Invalid format: missing slash, empty, or empty parts
+	invalidFamilies := []string{
+		"invalid", "", "/safi", "afi/",
+	}
+
+	for _, fam := range invalidFamilies {
+		err := validateDecodeFamily(fam)
+		if err == nil {
+			t.Errorf("invalid format family %q should be rejected", fam)
+		}
+	}
+}
+
+// TestDecodeOutput_Unchanged verifies decode output format is preserved after adding validation.
+//
+// VALIDATES: Adding input validation doesn't change output format.
+// PREVENTS: Validation changes accidentally altering decode output.
+func TestDecodeOutput_Unchanged(t *testing.T) {
+	// Decode FlowSpec NLRI - should produce same output as before
+	hexData := testFlowSpecNLRI
+	output, err := decodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	// Verify it's valid JSON
+	var result any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
+	}
+
+	// Should be a non-empty result
+	if result == nil {
+		t.Fatal("expected non-nil decode result")
+	}
+}

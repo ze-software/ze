@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"errors"
 	"net/netip"
 	"strings"
 	"testing"
@@ -3728,4 +3729,143 @@ func TestParseUpdateText_EVPNType5GatewayFamilyMismatch(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "same IP family")
+}
+
+// =============================================================================
+// YANG Validation Tests
+// =============================================================================
+
+// testValidator is a mock ValueValidator that records calls and optionally returns errors.
+type testValidator struct {
+	calls []testValidatorCall
+	errs  map[string]error // path → error to return
+}
+
+type testValidatorCall struct {
+	Path  string
+	Value any
+}
+
+func newTestValidator() *testValidator {
+	return &testValidator{errs: make(map[string]error)}
+}
+
+func (v *testValidator) Validate(path string, value any) error {
+	v.calls = append(v.calls, testValidatorCall{Path: path, Value: value})
+	if err, ok := v.errs[path]; ok {
+		return err
+	}
+	return nil
+}
+
+func (v *testValidator) callsFor(path string) []testValidatorCall {
+	var result []testValidatorCall
+	for _, c := range v.calls {
+		if c.Path == path {
+			result = append(result, c)
+		}
+	}
+	return result
+}
+
+// TestUpdateText_OriginValidation_YANG verifies origin values are validated against YANG.
+//
+// VALIDATES: YANG validator is called with correct path and value for origin.
+// PREVENTS: Origin values bypassing YANG schema validation.
+func TestUpdateText_OriginValidation_YANG(t *testing.T) {
+	v := newTestValidator()
+	SetYANGValidator(v)
+	defer SetYANGValidator(nil)
+
+	// Parse valid origin
+	_, err := ParseUpdateText([]string{
+		"origin", "set", "igp",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+
+	// Verify YANG validator was called with correct path and value
+	originCalls := v.callsFor(yangPathOrigin)
+	require.Len(t, originCalls, 1, "YANG validator should be called once for origin")
+	assert.Equal(t, "igp", originCalls[0].Value)
+
+	// Test that YANG rejection is propagated
+	v2 := newTestValidator()
+	v2.errs[yangPathOrigin] = errors.New("enum error: value \"bad\" is not valid")
+	SetYANGValidator(v2)
+
+	_, err = ParseUpdateText([]string{
+		"origin", "set", "bad",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "origin")
+}
+
+// TestUpdateText_MEDRange_YANG verifies MED values are validated against YANG uint32.
+//
+// VALIDATES: YANG validator is called with correct path and value for MED.
+// PREVENTS: MED values bypassing YANG schema validation.
+func TestUpdateText_MEDRange_YANG(t *testing.T) {
+	v := newTestValidator()
+	SetYANGValidator(v)
+	defer SetYANGValidator(nil)
+
+	// Parse valid MED
+	_, err := ParseUpdateText([]string{
+		"med", "set", "50",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+
+	// Verify YANG validator was called with correct path and parsed uint32 value
+	medCalls := v.callsFor(yangPathMED)
+	require.Len(t, medCalls, 1, "YANG validator should be called once for MED")
+	assert.Equal(t, uint32(50), medCalls[0].Value)
+
+	// Test YANG rejection propagation
+	v2 := newTestValidator()
+	v2.errs[yangPathMED] = errors.New("range error: value outside range")
+	SetYANGValidator(v2)
+
+	_, err = ParseUpdateText([]string{
+		"med", "set", "100",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "med")
+}
+
+// TestUpdateText_LocalPrefRange_YANG verifies local-preference values are validated against YANG uint32.
+//
+// VALIDATES: YANG validator is called with correct path and value for local-preference.
+// PREVENTS: Local-preference values bypassing YANG schema validation.
+func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
+	v := newTestValidator()
+	SetYANGValidator(v)
+	defer SetYANGValidator(nil)
+
+	// Parse valid local-preference
+	_, err := ParseUpdateText([]string{
+		"local-preference", "set", "100",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+
+	// Verify YANG validator was called with correct path and parsed uint32 value
+	lpCalls := v.callsFor(yangPathLocalPref)
+	require.Len(t, lpCalls, 1, "YANG validator should be called once for local-preference")
+	assert.Equal(t, uint32(100), lpCalls[0].Value)
+
+	// Test YANG rejection propagation
+	v2 := newTestValidator()
+	v2.errs[yangPathLocalPref] = errors.New("range error: value outside range")
+	SetYANGValidator(v2)
+
+	_, err = ParseUpdateText([]string{
+		"local-preference", "set", "200",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "local-preference")
 }

@@ -193,6 +193,11 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
+	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
+	if v := YANGValidatorWithPlugins(pluginYANG); v != nil {
+		plugin.SetYANGValidator(v)
+	}
+
 	// Create reactor with config path for reload support
 	r, err := CreateReactorWithPath(cfg, absPath)
 	if err != nil {

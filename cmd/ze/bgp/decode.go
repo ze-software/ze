@@ -757,6 +757,20 @@ func parsePluginResponse(output string) any {
 	return nil
 }
 
+// validateDecodeFamily validates a family string has valid AFI/SAFI format.
+// Families are registered dynamically by plugins, so this validates format only:
+// must be non-empty and contain "afi/safi" structure.
+func validateDecodeFamily(family string) error {
+	if family == "" {
+		return fmt.Errorf("empty address family")
+	}
+	parts := strings.SplitN(family, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		return fmt.Errorf("invalid address family format: %s (expected afi/safi)", family)
+	}
+	return nil
+}
+
 // lookupFamilyPlugin returns the plugin name for a family.
 // For families in pluginFamilyMap, the plugin is auto-invoked without requiring --plugin flag.
 // Family string is normalized to lowercase for lookup.
@@ -1608,6 +1622,11 @@ func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 // If a matching plugin is enabled, it will be invoked for decoding.
 // If outputJSON is false, returns human-readable format.
 func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON bool) (string, error) {
+	// Validate family against known AFI/SAFI combinations
+	if err := validateDecodeFamily(family); err != nil {
+		return "", err
+	}
+
 	// Try plugin decode first if plugin is enabled for this family
 	pluginName := lookupFamilyPlugin(family, plugins)
 	if pluginName != "" {

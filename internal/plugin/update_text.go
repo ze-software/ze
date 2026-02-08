@@ -39,6 +39,29 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
 
+// ValueValidator validates individual values against a schema (e.g., YANG).
+// When set via SetYANGValidator, attribute values are validated against YANG types.
+type ValueValidator interface {
+	Validate(path string, value any) error
+}
+
+// yangValidator is the package-level YANG validator for attribute values.
+// Nil by default; set during engine startup via SetYANGValidator.
+var yangValidator ValueValidator //nolint:gochecknoglobals // follows logger pattern
+
+// SetYANGValidator sets the YANG validator for attribute value validation.
+// Pass nil to clear the validator.
+func SetYANGValidator(v ValueValidator) {
+	yangValidator = v
+}
+
+// YANG schema paths for attribute validation.
+const (
+	yangPathOrigin    = "bgp.peer.update.attribute.origin"
+	yangPathMED       = "bgp.peer.update.attribute.med"
+	yangPathLocalPref = "bgp.peer.update.attribute.local-preference"
+)
+
 // UpdateText command keywords.
 const (
 	kwAttr     = "attr"
@@ -451,6 +474,12 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing origin value")
 		}
+		// YANG validation for origin enum (single source of truth)
+		if yangValidator != nil {
+			if err := yangValidator.Validate(yangPathOrigin, args[idx+1]); err != nil {
+				return 0, fmt.Errorf("invalid origin: %w", err)
+			}
+		}
 		origin, err := parseOriginText(args[idx+1])
 		if err != nil {
 			return 0, err
@@ -467,6 +496,12 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 			return 0, fmt.Errorf("invalid local-preference: %w", err)
 		}
 		lpVal := uint32(lp)
+		// YANG validation for local-preference uint32 (single source of truth)
+		if yangValidator != nil {
+			if err := yangValidator.Validate(yangPathLocalPref, lpVal); err != nil {
+				return 0, fmt.Errorf("invalid local-preference: %w", err)
+			}
+		}
 		attrs.LocalPreference = &lpVal
 		return 1, nil
 
@@ -479,6 +514,12 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 			return 0, fmt.Errorf("invalid med: %w", err)
 		}
 		medVal := uint32(med)
+		// YANG validation for MED uint32 (single source of truth)
+		if yangValidator != nil {
+			if err := yangValidator.Validate(yangPathMED, medVal); err != nil {
+				return 0, fmt.Errorf("invalid med: %w", err)
+			}
+		}
 		attrs.MED = &medVal
 		return 1, nil
 
