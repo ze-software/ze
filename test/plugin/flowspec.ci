@@ -17,7 +17,7 @@ tmpfs=flowspec.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
 import time
-from ze_bgp_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:

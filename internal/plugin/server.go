@@ -847,6 +847,10 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 	defer s.cleanupProcess(proc)
 
 	connA := proc.engineConnA
+	if connA == nil {
+		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
+		return
+	}
 
 	// Plugin→engine RPC loop: read from engineConnA, dispatch.
 	for {

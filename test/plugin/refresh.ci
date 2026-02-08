@@ -26,102 +26,45 @@ tmpfs=refresh.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """
 Plugin that waits for peer UP, then sends a route.
-Uses buffered line reader to avoid losing data.
+Uses ze_api library for YANG RPC communication.
 """
 
 import json
 import sys
-import os
-import select
 import time
 
-
-# Global line buffer for proper multi-line handling
-line_buffer = []
-
-
-def flush_write(msg: str) -> None:
-    """Write message to stdout and flush."""
-    sys.stdout.write(msg + '\n')
-    sys.stdout.flush()
-
-
-def read_line_with_timeout(fd: int, timeout: float) -> str | None:
-    """Read a line from fd with timeout, using buffer for multi-line reads."""
-    global line_buffer
-
-    # Return buffered line if available
-    if line_buffer:
-        return line_buffer.pop(0)
-
-    # Read new data
-    ready, _, _ = select.select([fd], [], [], timeout)
-    if ready:
-        data = os.read(fd, 4096).decode('utf-8', errors='replace')
-        if data:
-            lines = data.strip().split('\n')
-            if lines:
-                # Return first line, buffer the rest
-                result = lines[0]
-                line_buffer.extend(lines[1:])
-                return result
-    return None
-
-
-def wait_for(fd: int, expected: str, timeout: float = 5.0) -> bool:
-    """Wait for a specific line from fd."""
-    start = time.time()
-    while time.time() - start < timeout:
-        line = read_line_with_timeout(fd, 0.1)
-        if line and expected in line:
-            return True
-    return False
-
-
-def log(msg: str) -> None:
-    """Write to debug file."""
-    with open('/tmp/refresh-debug.log', 'a') as f:
-        f.write(msg + '\n')
+from ze_api import API
 
 
 def main() -> None:
-    stdin_fd = sys.stdin.fileno()
+    api = API()
 
-    log("main started")
+    # Stage 1: Empty declaration
+    api.declare_done()
 
-    # Stage 1: declare done
-    flush_write('declare done')
-    log("declare done sent")
+    # Stage 2: Receive config
+    api.wait_for_config(timeout=10.0)
 
-    # Stage 2: wait for config done
-    found = wait_for(stdin_fd, 'config done')
-    log(f"config done found={found}")
+    # Stage 3: No capabilities
+    api.capability_done()
 
-    # Stage 3: capability done
-    flush_write('capability done')
-    log("capability done sent")
+    # Stage 4: Receive registry
+    api.wait_for_registry(timeout=10.0)
 
-    # Stage 4: wait for registry done
-    found = wait_for(stdin_fd, 'registry done')
-    log(f"registry done found={found}")
+    # Subscribe to state events atomically with ready
+    api.subscribe(['state'])
 
-    # Subscribe BEFORE ready
-    flush_write('subscribe bgp event state')
-    log("subscribe sent")
-
-    # Stage 5: ready
-    flush_write('ready')
-    log("ready sent")
+    # Stage 5: Ready (includes subscription)
+    api.ready()
 
     # Wait for state=up event
     start = time.time()
     while time.time() - start < 5:
-        line = read_line_with_timeout(stdin_fd, 0.5)
+        line = api.read_line(0.5)
         if line is None:
             continue
-        log(f"received: {line[:100]}")
 
-        # Parse JSON
+        # Parse JSON event
         try:
             event = json.loads(line)
         except (json.JSONDecodeError, TypeError):
@@ -131,20 +74,12 @@ def main() -> None:
         bgp = event.get('bgp', {})
         msg = bgp.get('message', {})
         if msg.get('type') == 'state' and bgp.get('state') == 'up':
-            log("state=up received, sending route")
             # Send route with all required attributes matching expected hex
-            # Expected: ORIGIN IGP, empty AS_PATH, NEXT_HOP 10.0.0.1, LOCAL_PREF 100, NLRI 192.168.1.0/24
-            flush_write('bgp peer * update text origin set igp local-preference set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+            api.send('bgp peer * update text origin set igp local-preference set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
             break
 
-    log("waiting for shutdown")
-    # Wait for shutdown or parent death
-    start = time.time()
-    while os.getppid() != 1 and time.time() - start < 5:
-        line = read_line_with_timeout(stdin_fd, 0.5)
-        if line and 'shutdown' in line:
-            break
-    log("exiting")
+    # Wait for shutdown
+    api.wait_for_shutdown()
 
 
 if __name__ == '__main__':

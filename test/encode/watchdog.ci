@@ -5,7 +5,7 @@ tmpfs=watchdog.run:terminator=EOF_RUN
 import os
 import time
 
-from ze_bgp_api import ready, send
+from ze_api import ready, send
 
 
 def main() -> None:

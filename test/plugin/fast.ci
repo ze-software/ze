@@ -27,7 +27,7 @@ the final expected routes.
 
 import sys
 import time
-from ze_bgp_api import flush, ready, wait_for_shutdown
+from ze_api import flush, ready, wait_for_shutdown
 
 print("DEBUG: fast.run starting", file=sys.stderr)
 

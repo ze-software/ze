@@ -16,16 +16,18 @@ type LimitCheck struct {
 }
 
 // CheckUlimit ensures sufficient file descriptors for parallel tests.
-// Each test spawns: ze bgp (may fork) + ze-peer = ~20 FDs per concurrent test.
-// With parallel=4: need 4 × 20 = 80 FDs minimum, recommend 256+.
+// Each test spawns: ze bgp (may fork plugins with socket pairs) + ze-peer.
+// YANG RPC uses socket pairs per plugin (~4 FDs each) instead of stdin/stdout pipes.
+// With 2 plugins per test: ~50 FDs per concurrent test.
 func CheckUlimit(parallel int) (*LimitCheck, error) {
 	var limit syscall.Rlimit
 	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {
 		return nil, fmt.Errorf("getrlimit: %w", err)
 	}
 
-	const fdsPerTest = 20 // Conservative: sockets, pipes, files
-	const minRecommended = 256
+	// twenty times what we should need
+	const fdsPerTest = 1000 // Socket pairs for YANG RPC + pipes + files
+	const minRecommended = 81920
 
 	needed := uint64(parallel) * fdsPerTest //nolint:gosec // parallel is always small (1-16)
 	if needed < minRecommended {

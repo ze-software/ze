@@ -28,9 +28,9 @@ Subscription events are delivered in JSON format (not text).
 import json
 import time
 
-from ze_bgp_api import (
+from ze_api import (
     declare_done, wait_for_config, capability_done, wait_for_registry,
-    send, wait_for_ack, wait_for_shutdown, _get_api
+    subscribe, send, wait_for_ack, wait_for_shutdown, _get_api
 )
 
 
@@ -49,11 +49,11 @@ def main() -> None:
     # Stage 4: Registry
     wait_for_registry()
 
-    # Subscribe to UPDATE events BEFORE signaling ready
-    # This ensures subscription is active when BGP peers start
-    send('subscribe bgp event update')
+    # Subscribe to UPDATE events atomically with ready
+    # Included in ready RPC to avoid race with event delivery
+    subscribe(['update'])
 
-    # Stage 5: Ready
+    # Stage 5: Ready (includes subscription)
     api.ready()
 
     # Wait for UPDATE event from peer (default route)
