@@ -1,9 +1,9 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -23,7 +23,7 @@ func TestSchemaInfo_HandlerMap(t *testing.T) {
 		{Module: "ze-rib", Handlers: []string{"rib"}},
 	}
 
-	r := NewReader(schemas, "", nil)
+	r := NewReader(schemas, "", nil, nil)
 
 	// Each handler path should map to its schema.
 	assert.NotNil(t, r.findHandler("bgp"))
@@ -45,7 +45,7 @@ func TestReader_FindHandler(t *testing.T) {
 		{Module: "ze-rib", Handlers: []string{"rib"}},
 	}
 
-	r := NewReader(schemas, "", nil)
+	r := NewReader(schemas, "", nil, nil)
 
 	tests := []struct {
 		path       string
@@ -77,79 +77,11 @@ func TestReader_FindHandler_Unknown(t *testing.T) {
 		{Module: "ze-bgp", Handlers: []string{"bgp"}},
 	}
 
-	r := NewReader(schemas, "", nil)
+	r := NewReader(schemas, "", nil, nil)
 
 	assert.Nil(t, r.findHandler("unknown"))
 	assert.Nil(t, r.findHandler("rib"))
 	assert.Nil(t, r.findHandler(""))
-}
-
-// TestTokensToJSON_TypePreservation verifies numeric types preserved in JSON.
-//
-// VALIDATES: Integer, float, bool, string types preserved during conversion.
-// PREVENTS: Type mismatch with YANG schema.
-func TestTokensToJSON_TypePreservation(t *testing.T) {
-	tests := []struct {
-		name   string
-		tokens []Token
-		want   map[string]any
-	}{
-		{
-			name: "integer",
-			tokens: []Token{
-				{Type: TokenWord, Value: "peer-as"},
-				{Type: TokenWord, Value: "65001"},
-				{Type: TokenSemicolon},
-			},
-			want: map[string]any{"peer-as": float64(65001)}, // JSON unmarshal → float64
-		},
-		{
-			name: "float",
-			tokens: []Token{
-				{Type: TokenWord, Value: "weight"},
-				{Type: TokenWord, Value: "1.5"},
-				{Type: TokenSemicolon},
-			},
-			want: map[string]any{"weight": 1.5},
-		},
-		{
-			name: "boolean_true",
-			tokens: []Token{
-				{Type: TokenWord, Value: "enabled"},
-				{Type: TokenWord, Value: "true"},
-				{Type: TokenSemicolon},
-			},
-			want: map[string]any{"enabled": true},
-		},
-		{
-			name: "boolean_false",
-			tokens: []Token{
-				{Type: TokenWord, Value: "disabled"},
-				{Type: TokenWord, Value: "false"},
-				{Type: TokenSemicolon},
-			},
-			want: map[string]any{"disabled": false},
-		},
-		{
-			name: "string",
-			tokens: []Token{
-				{Type: TokenWord, Value: "address"},
-				{Type: TokenWord, Value: "192.0.2.1"},
-				{Type: TokenSemicolon},
-			},
-			want: map[string]any{"address": "192.0.2.1"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := TokensToJSON(tt.tokens)
-			var got map[string]any
-			err := json.Unmarshal([]byte(result), &got)
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-		})
-	}
 }
 
 // TestReader_ParseBlocks verifies config file tokenization and block extraction.
@@ -173,7 +105,7 @@ bgp {
 	confPath := filepath.Join(dir, "test.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, nil)
+	r := NewReader(schemas, confPath, nil, nil)
 	state, err := r.Load()
 	require.NoError(t, err)
 
@@ -318,7 +250,7 @@ func TestReader_HandlerPathBoundary(t *testing.T) {
 		{Module: "test", Handlers: []string{longPath}},
 	}
 
-	r := NewReader(schemas, "", nil)
+	r := NewReader(schemas, "", nil, nil)
 
 	handler := r.findHandler(longPath)
 	require.NotNil(t, handler)
@@ -348,7 +280,7 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
 
-	r := NewReader(schemas, confPath, nil)
+	r := NewReader(schemas, confPath, nil, nil)
 	_, err := r.Load()
 	require.NoError(t, err)
 
@@ -369,17 +301,18 @@ bgp {
 	changes, err := r.Reload()
 	require.NoError(t, err)
 
-	// Expect 3 changes:
-	// - bgp._default modified (flat key-value "peer" value changes)
+	// Expect 2 changes:
 	// - bgp.peer[key=192.0.2.1] modified (peer-as changed)
 	// - bgp.peer[key=192.0.2.2] created (new peer)
-	require.Len(t, changes, 3)
+	// Note: bgp._default is NOT modified because walkMap stores only flat
+	// fields (local-as) which didn't change between initial and modified configs.
+	require.Len(t, changes, 2)
 
 	actions := make(map[string]int)
 	for _, c := range changes {
 		actions[c.Action]++
 	}
-	assert.Equal(t, 2, actions["modify"])
+	assert.Equal(t, 1, actions["modify"])
 	assert.Equal(t, 1, actions["create"])
 
 	// Verify the new peer was created.
@@ -398,7 +331,7 @@ bgp {
 // VALIDATES: Missing config file produces a clear error.
 // PREVENTS: Panic or nil state on missing file.
 func TestReader_Load_MissingFile(t *testing.T) {
-	r := NewReader(nil, "/nonexistent/path/config.conf", nil)
+	r := NewReader(nil, "/nonexistent/path/config.conf", nil, nil)
 	state, err := r.Load()
 	assert.Error(t, err)
 	assert.Nil(t, state)
@@ -410,7 +343,7 @@ func TestReader_Load_MissingFile(t *testing.T) {
 // VALIDATES: Empty string path produces a clear error.
 // PREVENTS: Panic or confusing error from os.ReadFile("").
 func TestReader_Load_EmptyPath(t *testing.T) {
-	r := NewReader(nil, "", nil)
+	r := NewReader(nil, "", nil, nil)
 	state, err := r.Load()
 	assert.Error(t, err)
 	assert.Nil(t, state)
@@ -450,7 +383,7 @@ bgp {
 	confPath := filepath.Join(dir, "valid.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator)
+	r := NewReader(schemas, confPath, validator, nil)
 	state, err := r.Load()
 	require.NoError(t, err)
 	require.NotNil(t, state)
@@ -481,7 +414,7 @@ bgp {
 	confPath := filepath.Join(dir, "invalid-range.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator)
+	r := NewReader(schemas, confPath, validator, nil)
 	_, err := r.Load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "range")
@@ -507,7 +440,7 @@ bgp {
 	confPath := filepath.Join(dir, "invalid-pattern.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator)
+	r := NewReader(schemas, confPath, validator, nil)
 	_, err := r.Load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pattern")
@@ -532,7 +465,7 @@ bgp {
 	confPath := filepath.Join(dir, "missing-mandatory.conf")
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
-	r := NewReader(schemas, confPath, validator)
+	r := NewReader(schemas, confPath, validator, nil)
 	_, err := r.Load()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "mandatory")
@@ -558,7 +491,7 @@ bgp {
 	require.NoError(t, os.WriteFile(confPath, []byte(configContent), 0o644))
 
 	// nil validator — should skip all validation.
-	r := NewReader(schemas, confPath, nil)
+	r := NewReader(schemas, confPath, nil, nil)
 	state, err := r.Load()
 	require.NoError(t, err)
 	require.NotNil(t, state)
@@ -586,7 +519,7 @@ bgp {
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
 
-	r := NewReader(schemas, confPath, validator)
+	r := NewReader(schemas, confPath, validator, nil)
 	_, err := r.Load()
 	require.NoError(t, err)
 
@@ -616,4 +549,160 @@ func extractKeyFromPath(path string) string {
 		return path[start:]
 	}
 	return path[start : start+end]
+}
+
+// frontendTestSchema returns a Schema usable by both Parser and SetParser,
+// matching the config structure used in frontend tests.
+func frontendTestSchema() *Schema {
+	schema := NewSchema()
+	schema.Define("router-id", Leaf(TypeIPv4))
+	schema.Define("local-as", Leaf(TypeUint32))
+	schema.Define("neighbor", List(TypeIP,
+		Field("peer-as", Leaf(TypeUint32)),
+		Field("description", Leaf(TypeString)),
+	))
+	return schema
+}
+
+// TestFrontend_Tokenizer_ProducesMap verifies the tokenizer frontend produces
+// correct map[string]any from Ze/Junos-style config.
+//
+// VALIDATES: TokenizerFrontend.ParseConfig returns nested map with correct keys and values.
+// PREVENTS: Tokenizer frontend producing wrong structure or losing data.
+func TestFrontend_Tokenizer_ProducesMap(t *testing.T) {
+	content := `
+router-id 1.2.3.4;
+local-as 65000;
+neighbor 192.0.2.1 {
+    peer-as 65001;
+}
+`
+	fe := &TokenizerFrontend{}
+	result, err := fe.ParseConfig(content)
+	require.NoError(t, err)
+
+	// Top-level leaves.
+	assert.Equal(t, "1.2.3.4", result["router-id"])
+	assert.Equal(t, int64(65000), result["local-as"])
+
+	// Nested list entry.
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok, "neighbor should be a map")
+
+	entry, ok := neighbor["192.0.2.1"].(map[string]any)
+	require.True(t, ok, "neighbor entry should be a map")
+	assert.Equal(t, int64(65001), entry["peer-as"])
+}
+
+// TestFrontend_SetParser_ProducesMap verifies the SetParser frontend produces
+// correct map[string]any from set-style config.
+//
+// VALIDATES: SetParserFrontend.ParseConfig returns nested map with correct keys.
+// PREVENTS: SetParser frontend producing wrong structure or losing data.
+func TestFrontend_SetParser_ProducesMap(t *testing.T) {
+	content := `
+set router-id 1.2.3.4
+set local-as 65000
+set neighbor 192.0.2.1 peer-as 65001
+`
+	fe := &SetParserFrontend{Schema: frontendTestSchema()}
+	result, err := fe.ParseConfig(content)
+	require.NoError(t, err)
+
+	// Top-level leaves (convertStringValues converts to typed values).
+	assert.Equal(t, "1.2.3.4", result["router-id"])
+	assert.Equal(t, int64(65000), result["local-as"])
+
+	// Nested list entry.
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok, "neighbor should be a map")
+
+	entry, ok := neighbor["192.0.2.1"].(map[string]any)
+	require.True(t, ok, "neighbor entry should be a map")
+	assert.Equal(t, int64(65001), entry["peer-as"])
+}
+
+// TestFrontend_BothProduceSameShape verifies both frontends produce the same
+// structural shape (same keys and nesting) for equivalent config.
+//
+// VALIDATES: Same config in both formats yields same key structure.
+// PREVENTS: Frontend-dependent behavior in handler routing.
+func TestFrontend_BothProduceSameShape(t *testing.T) {
+	tokenizerContent := `
+router-id 1.2.3.4;
+local-as 65000;
+neighbor 192.0.2.1 {
+    peer-as 65001;
+}
+`
+	setContent := `
+set router-id 1.2.3.4
+set local-as 65000
+set neighbor 192.0.2.1 peer-as 65001
+`
+	tokFE := &TokenizerFrontend{}
+	tokResult, err := tokFE.ParseConfig(tokenizerContent)
+	require.NoError(t, err)
+
+	setFE := &SetParserFrontend{Schema: frontendTestSchema()}
+	setResult, err := setFE.ParseConfig(setContent)
+	require.NoError(t, err)
+
+	// Both must have the same top-level keys.
+	assert.ElementsMatch(t, mapKeys(tokResult), mapKeys(setResult))
+
+	// Both must have the same neighbor keys.
+	tokNeighbor, _ := tokResult["neighbor"].(map[string]any)
+	setNeighbor, _ := setResult["neighbor"].(map[string]any)
+	assert.ElementsMatch(t, mapKeys(tokNeighbor), mapKeys(setNeighbor))
+
+	// Both must have the same fields in the neighbor entry.
+	tokEntry, _ := tokNeighbor["192.0.2.1"].(map[string]any)
+	setEntry, _ := setNeighbor["192.0.2.1"].(map[string]any)
+	assert.ElementsMatch(t, mapKeys(tokEntry), mapKeys(setEntry))
+}
+
+// TestFrontend_SetParser_YANGValidation verifies that the SetParser path
+// triggers YANG validation when wired through the Reader.
+//
+// VALIDATES: Invalid values in set-style config are rejected by YANG validator.
+// PREVENTS: Validation bypass when using SetParser frontend.
+func TestFrontend_SetParser_YANGValidation(t *testing.T) {
+	validator := newTestValidator(t)
+	schemas := []SchemaInfo{
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+	}
+
+	// Set-style config with invalid ASN (0 violates range 1..max).
+	// Must be nested under "bgp" to match handler routing.
+	content := `
+set bgp router-id 192.0.2.1
+set bgp local-as 0
+`
+	// Build a schema that matches the YANG module structure for SetParser.
+	setSchema := NewSchema()
+	setSchema.Define("bgp", Container(
+		Field("router-id", Leaf(TypeString)),
+		Field("local-as", Leaf(TypeString)), // String type — YANG validates range.
+	))
+
+	dir := t.TempDir()
+	confPath := filepath.Join(dir, "set-yang.conf")
+	require.NoError(t, os.WriteFile(confPath, []byte(content), 0o644))
+
+	fe := &SetParserFrontend{Schema: setSchema}
+	r := NewReader(schemas, confPath, validator, fe)
+	_, err := r.Load()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "range")
+}
+
+// mapKeys returns sorted keys of a map.
+func mapKeys(m map[string]any) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }

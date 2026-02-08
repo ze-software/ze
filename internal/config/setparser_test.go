@@ -3,6 +3,7 @@ package config
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -211,19 +212,28 @@ set local-as 65000
 	require.Equal(t, "65000", val)
 }
 
-// TestSetParserValidationError verifies type validation.
+// TestSetParser_NoValidateValue verifies SetParser accepts values without type checking.
+// YANG validates types later in the pipeline — SetParser only does structural navigation.
 //
-// VALIDATES: Invalid values are rejected.
-//
-// PREVENTS: Invalid config being accepted.
-func TestSetParserValidationError(t *testing.T) {
+// VALIDATES: SetParser accepts any string value for leaves (no own type checking).
+// PREVENTS: SetParser rejecting values that YANG should validate.
+func TestSetParser_NoValidateValue(t *testing.T) {
 	input := `set neighbor 192.0.2.1 local-as not-a-number`
 
 	p := NewSetParser(testSchema())
-	_, err := p.Parse(input)
+	tree, err := p.Parse(input)
 
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "invalid")
+	// SetParser no longer calls ValidateValue — it accepts any value.
+	// Type validation is deferred to YANG.
+	require.NoError(t, err)
+
+	entries := tree.GetList("neighbor")
+	require.NotNil(t, entries)
+	entry := entries["192.0.2.1"]
+	require.NotNil(t, entry)
+	val, ok := entry.Get("local-as")
+	require.True(t, ok)
+	assert.Equal(t, "not-a-number", val)
 }
 
 // TestSetParserUnknownPath verifies unknown path rejection.

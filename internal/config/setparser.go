@@ -163,10 +163,6 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		}
 		value := tokens[0]
 
-		if err := ValidateValue(n.Type, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
-		}
-
 		tree.Set(name, value)
 		return nil
 
@@ -187,10 +183,6 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 
 		key := tokens[0]
 		tokens = tokens[1:]
-
-		if err := ValidateValue(n.KeyType, key); err != nil {
-			return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
-		}
 
 		// Get or create the list entry
 		entries := tree.GetList(name)
