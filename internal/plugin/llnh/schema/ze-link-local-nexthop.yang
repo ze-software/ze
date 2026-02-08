@@ -1,0 +1,46 @@
+module ze-link-local-nexthop {
+    namespace "urn:ze:link-local-nexthop";
+    prefix llnh;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description
+        "Link-local next-hop capability plugin for Ze
+         (draft-ietf-idr-linklocal-capability, code 77).
+         Signals peer support for IPv6 link-local addresses as BGP next-hops.";
+
+    revision 2025-02-08 {
+        description "Initial revision.";
+    }
+
+    grouping link-local-nexthop-config {
+        container link-local-nexthop {
+            ze:syntax "flex";
+            description
+                "Link-local next-hop capability.
+                 Advertises willingness to receive IPv6 link-local next-hops
+                 in MP_REACH_NLRI (RFC 2545 Section 3).";
+        }
+    }
+
+    // Main bgp block
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        uses link-local-nexthop-config;
+    }
+
+    // Template: bgp peer pattern
+    augment "/bgp:template/bgp:bgp/bgp:peer/bgp:capability" {
+        uses link-local-nexthop-config;
+    }
+
+    // Template: legacy group
+    augment "/bgp:template/bgp:group/bgp:capability" {
+        uses link-local-nexthop-config;
+    }
+
+    // Template: legacy match
+    augment "/bgp:template/bgp:match/bgp:capability" {
+        uses link-local-nexthop-config;
+    }
+}

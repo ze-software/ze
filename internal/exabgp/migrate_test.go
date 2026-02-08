@@ -109,10 +109,9 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// link-local-nexthop is intentionally dropped until the plugin exists.
-	// The plugin will augment the YANG schema to make this field valid.
-	if strings.Contains(output, "link-local-nexthop") {
-		t.Errorf("link-local-nexthop should be dropped (no plugin yet):\n%s", output)
+	// link-local-nexthop should be preserved now that the llnh plugin exists.
+	if !strings.Contains(output, "link-local-nexthop enable") {
+		t.Errorf("expected 'link-local-nexthop enable' in output:\n%s", output)
 	}
 	// extended-message should still be present.
 	if !strings.Contains(output, "extended-message enable") {

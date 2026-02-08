@@ -286,9 +286,7 @@ func migrateCapability(src, dst *config.Tree) {
 
 	if srcCap != nil {
 		// Fields that need "enable" suffix (Flex type in schema).
-		// link-local-nexthop is intentionally excluded here — it requires a plugin
-		// that provides the YANG augmentation. Will be added with the plugin.
-		enableFields := []string{"route-refresh", "asn4", "multi-session", "operational", "aigp", "extended-message"}
+		enableFields := []string{"route-refresh", "asn4", "multi-session", "operational", "aigp", "extended-message", "link-local-nexthop"}
 		for _, field := range enableFields {
 			if _, ok := srcCap.GetFlex(field); ok {
 				dstCap.Set(field, "enable")

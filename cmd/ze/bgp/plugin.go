@@ -21,6 +21,8 @@ func cmdPlugin(args []string) int {
 		return cmdPluginGR(args[1:])
 	case "hostname":
 		return cmdPluginHostname(args[1:])
+	case "llnh":
+		return cmdPluginLLNH(args[1:])
 	case "flowspec":
 		return cmdPluginFlowSpec(args[1:])
 	case "evpn":
@@ -49,6 +51,7 @@ Plugin Subcommands:
   rib          Run as RIB plugin (tracks Adj-RIB-In/Out, replays on reconnect)
   gr           Run as Graceful Restart capability plugin
   hostname     Run as Hostname (FQDN) capability plugin
+  llnh         Run as Link-Local Next-Hop capability plugin
   flowspec     Run as FlowSpec family plugin (RFC 8955, 8956)
   evpn         Run as EVPN family plugin (RFC 7432, 9136)
   vpn          Run as VPN family plugin (RFC 4364, 4659)

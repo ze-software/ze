@@ -10,6 +10,8 @@ import (
 	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
 	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/llnh"
+	llnhschema "codeberg.org/thomas-mangin/ze/internal/plugin/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rr"
@@ -36,6 +38,11 @@ var internalPluginRunners = map[string]InternalPluginRunner{
 		// Configure logger for in-process plugin (uses ze.log.hostname env var)
 		hostname.ConfigureLogger(slogutil.Logger("hostname"))
 		return hostname.RunHostnamePlugin(engineConn, callbackConn)
+	},
+	"llnh": func(engineConn, callbackConn net.Conn) int {
+		// Configure logger for in-process plugin (uses ze.log.llnh env var)
+		llnh.SetLLNHLogger(slogutil.Logger("llnh"))
+		return llnh.RunLLNHPlugin(engineConn, callbackConn)
 	},
 	"flowspec": func(engineConn, callbackConn net.Conn) int {
 		// Configure logger for in-process plugin (uses ze.log.flowspec env var)
@@ -65,6 +72,7 @@ var internalPluginYANG = map[string]string{
 	"hostname": hostnameschema.ZeHostnameYANG,
 	"gr":       grschema.ZeGracefulRestartYANG,
 	"rib":      ribschema.ZeRibYANG,
+	"llnh":     llnhschema.ZeLinkLocalNexthopYANG,
 }
 
 // internalPluginWantsConfig maps plugin names to their config roots.
@@ -73,6 +81,7 @@ var internalPluginYANG = map[string]string{
 var internalPluginWantsConfig = map[string][]string{
 	"hostname": {"bgp"},
 	"gr":       {"bgp"},
+	"llnh":     {"bgp"},
 }
 
 // GetInternalPluginWantsConfig returns the config roots an internal plugin wants.

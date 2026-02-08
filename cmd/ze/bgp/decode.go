@@ -307,6 +307,7 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 // Plugins that can decode specific capabilities register here.
 var pluginCapabilityMap = map[uint8]string{
 	73: "hostname", // FQDN capability
+	77: "llnh",     // Link-local next-hop capability
 }
 
 // pluginFamilyMap maps address families to plugin names for CLI decode.
