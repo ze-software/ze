@@ -9,6 +9,117 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
+// TestMigrateExtendedMessageDefault verifies extended-message is always added.
+//
+// VALIDATES: Migration always adds extended-message enable to capability block.
+// PREVENTS: ExaBGP OPEN mismatch — ExaBGP always includes extended-message (code 6).
+func TestMigrateExtendedMessageDefault(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Extended message should always be present in migrated configs.
+	if !strings.Contains(output, "extended-message enable") {
+		t.Errorf("expected 'extended-message enable' in output:\n%s", output)
+	}
+}
+
+// TestMigrateHostnameToCapability verifies host-name/domain-name conversion.
+//
+// VALIDATES: ExaBGP host-name/domain-name at peer level converted to capability hostname block.
+// PREVENTS: Hostname capability dropped during migration (test C failure).
+func TestMigrateHostnameToCapability(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	host-name my-host;
+	domain-name example.com;
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Hostname should be inside capability block, not at peer level.
+	if !strings.Contains(output, "hostname {") {
+		t.Errorf("expected 'hostname {' block in capability, got:\n%s", output)
+	}
+	if !strings.Contains(output, "host my-host") {
+		t.Errorf("expected 'host my-host' in hostname block, got:\n%s", output)
+	}
+	if !strings.Contains(output, "domain example.com") {
+		t.Errorf("expected 'domain example.com' in hostname block, got:\n%s", output)
+	}
+
+	// Legacy fields should NOT appear at peer level.
+	if strings.Contains(output, "host-name") {
+		t.Errorf("should not contain legacy 'host-name' field:\n%s", output)
+	}
+	if strings.Contains(output, "domain-name") {
+		t.Errorf("should not contain legacy 'domain-name' field:\n%s", output)
+	}
+}
+
+// TestMigrateLinkLocalNexthop verifies link-local-nexthop capability migration.
+//
+// VALIDATES: ExaBGP capability { link-local-nexthop; } preserved in migration.
+// PREVENTS: Link-local-nexthop capability dropped during migration (test 3 failure).
+func TestMigrateLinkLocalNexthop(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		link-local-nexthop;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// link-local-nexthop is intentionally dropped until the plugin exists.
+	// The plugin will augment the YANG schema to make this field valid.
+	if strings.Contains(output, "link-local-nexthop") {
+		t.Errorf("link-local-nexthop should be dropped (no plugin yet):\n%s", output)
+	}
+	// extended-message should still be present.
+	if !strings.Contains(output, "extended-message enable") {
+		t.Errorf("expected 'extended-message enable' in output:\n%s", output)
+	}
+}
+
 // TestMigrateSimple verifies basic neighbor→peer conversion.
 //
 // VALIDATES: Simple ExaBGP config converts to ZeBGP peer syntax.

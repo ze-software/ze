@@ -286,6 +286,8 @@ func migrateCapability(src, dst *config.Tree) {
 
 	if srcCap != nil {
 		// Fields that need "enable" suffix (Flex type in schema).
+		// link-local-nexthop is intentionally excluded here — it requires a plugin
+		// that provides the YANG augmentation. Will be added with the plugin.
 		enableFields := []string{"route-refresh", "asn4", "multi-session", "operational", "aigp", "extended-message"}
 		for _, field := range enableFields {
 			if _, ok := srcCap.GetFlex(field); ok {
@@ -326,9 +328,42 @@ func migrateCapability(src, dst *config.Tree) {
 		hasCapabilities = true
 	}
 
+	// ExaBGP always includes extended-message (RFC 8654) in OPEN.
+	// Ensure it's present in migrated config even if not explicitly configured.
+	if _, ok := dstCap.Get("extended-message"); !ok {
+		dstCap.Set("extended-message", "enable")
+		hasCapabilities = true
+	}
+
+	// Convert host-name/domain-name from peer level to capability hostname block.
+	// ExaBGP: host-name foo; domain-name bar; (at neighbor level)
+	// ZeBGP: capability { hostname { host foo; domain bar; } }
+	migrateHostnameToCapability(src, dstCap, &hasCapabilities)
+
 	if hasCapabilities {
 		dst.SetContainer("capability", dstCap)
 	}
+}
+
+// migrateHostnameToCapability converts peer-level host-name/domain-name
+// to capability { hostname { host ...; domain ...; } } format.
+func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool) {
+	hostName, hasHost := src.Get("host-name")
+	domainName, hasDomain := src.Get("domain-name")
+
+	if !hasHost && !hasDomain {
+		return
+	}
+
+	hostnameBlock := config.NewTree()
+	if hasHost {
+		hostnameBlock.Set("host", hostName)
+	}
+	if hasDomain {
+		hostnameBlock.Set("domain", domainName)
+	}
+	dstCap.SetContainer("hostname", hostnameBlock)
+	*hasCapabilities = true
 }
 
 // copyContainers copies container blocks from neighbor to peer.
@@ -789,6 +824,15 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%sfamily {\n", indent)
 		serializeTreeIndent(family, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	}
+
+	// Write hostname block (FQDN capability).
+	if hostname := tree.GetContainer("hostname"); hostname != nil {
+		buf.WriteString(indent)
+		buf.WriteString("hostname {\n")
+		serializeTreeIndent(hostname, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
 	}
 
 	// Write nexthop block (RFC 8950).

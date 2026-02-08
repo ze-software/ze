@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -118,6 +119,16 @@ func (t *Tree) GetContainer(name string) *Tree {
 // SetContainer sets a nested container.
 func (t *Tree) SetContainer(name string, child *Tree) {
 	t.containers[name] = child
+}
+
+// ContainerNames returns the names of all nested containers.
+func (t *Tree) ContainerNames() []string {
+	names := make([]string, 0, len(t.containers))
+	for k := range t.containers {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return names
 }
 
 // RemoveContainer removes a nested container and returns it.

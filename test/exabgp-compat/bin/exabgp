@@ -24,16 +24,16 @@ from pathlib import Path
 
 def find_ze_binary() -> str:
     """Find the ze binary."""
-    # Check if ze is in PATH
-    result = subprocess.run(['which', 'ze'], capture_output=True, text=True)
-    if result.returncode == 0:
-        return result.stdout.strip()
-
-    # Check relative to this script (development mode)
+    # Check relative to this script first (development mode - local build takes priority)
     script_dir = Path(__file__).parent.parent.parent.parent
     ze_path = script_dir / 'ze'
     if ze_path.exists():
         return str(ze_path)
+
+    # Fallback: check if ze is in PATH
+    result = subprocess.run(['which', 'ze'], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip()
 
     # Try to build it
     print("Building ze...", file=sys.stderr)
@@ -123,7 +123,8 @@ def main():
 
     try:
         # Build ze command
-        cmd = [ze_binary, temp_config]
+        # Always load hostname plugin - ExaBGP supports FQDN capability (code 73)
+        cmd = [ze_binary, '--plugin', 'ze.hostname', temp_config]
 
         # Add environment-based options
         env_vars = get_exabgp_env_vars()

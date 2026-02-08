@@ -498,6 +498,11 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 	// NOTE: FQDN capability (host-name/domain-name) is now handled by hostname plugin.
 	// Load with: ze bgp server --plugin ze.hostname config.conf
 
+	// RFC 8654: Extended Message Support - allows messages up to 65,535 octets.
+	if nc.Capabilities.ExtendedMessage {
+		n.Capabilities = append(n.Capabilities, &capability.ExtendedMessage{})
+	}
+
 	if nc.Capabilities.SoftwareVersion {
 		n.Capabilities = append(n.Capabilities, &capability.SoftwareVersion{
 			Version: "ExaBGP/5.0.0-0+test",
