@@ -11,6 +11,12 @@ from ze_api import ready, send
 def main() -> None:
     ready()
 
+    # Wait for BGP session to establish and config routes to be sent.
+    # Without this, watchdog commands may arrive before the session is up,
+    # setting state to "announced" prematurely — causing the route to be
+    # sent with the initial config batch instead of as a separate UPDATE.
+    time.sleep(1)
+
     while os.getppid() != 1:
         send('bgp watchdog announce dnsr')
         time.sleep(0.2)

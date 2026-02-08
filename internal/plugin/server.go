@@ -911,12 +911,20 @@ func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc
 	}
 
 	// Reconstruct the full command for the dispatcher.
-	// The dispatcher matches commands like "bgp peer update", "bgp peer cache", etc.
-	// The RPC protocol separates peer selector from command, so we prepend "bgp peer"
-	// to let the dispatcher do its prefix matching. The peer selector is already set
-	// on cmdCtx.Peer; the dispatcher won't extract one from tokens[2] because command
-	// tokens like "update", "cache", "plugin" don't look like IPs (no dots/colons).
-	dispatchCmd := "bgp peer " + input.Command
+	// Commands from "bgp peer <sel> <cmd>" arrive with the peer selector stripped
+	// and command as just "<cmd>" (e.g., "update text ..."). These need "bgp peer "
+	// prepended for the dispatcher to match "bgp peer update", "bgp peer teardown", etc.
+	//
+	// Commands that aren't peer-targeted (e.g., "bgp watchdog announce dnsr",
+	// "bgp cache list") arrive with the full "bgp ..." prefix intact and must be
+	// passed through directly — prepending "bgp peer " would create an unmatchable
+	// "bgp peer bgp watchdog ..." command.
+	var dispatchCmd string
+	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
+		dispatchCmd = input.Command
+	} else {
+		dispatchCmd = "bgp peer " + input.Command
+	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
