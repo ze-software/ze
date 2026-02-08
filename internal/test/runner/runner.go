@@ -95,7 +95,7 @@ type RunOptions struct {
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
 		Timeout:  15 * time.Second,
-		Parallel: 0, // 0 = all tests in parallel
+		Parallel: DefaultParallelConcurrent,
 		Verbose:  false,
 		Quiet:    false,
 	}

@@ -578,8 +578,8 @@ func parseRunCLI() *runCLIFlags {
 	fs.BoolVar(&cli.shortList, "short-list", false, "list test codes only")
 	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
 	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
-	fs.IntVar(&cli.parallel, "p", 0, "max concurrent tests (0 = all)")
-	fs.IntVar(&cli.parallel, "parallel", 0, "max concurrent tests (0 = all)")
+	fs.IntVar(&cli.parallel, "p", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
+	fs.IntVar(&cli.parallel, "parallel", runner.DefaultParallelConcurrent, "max concurrent tests (0 = all)")
 	fs.BoolVar(&cli.verbose, "v", false, "verbose output")
 	fs.BoolVar(&cli.verbose, "verbose", false, "verbose output")
 	fs.BoolVar(&cli.quiet, "q", false, "minimal output")
@@ -617,7 +617,7 @@ Modes:
 
 Options:
   -t, --timeout N     Timeout per test (default: 15s)
-  -p, --parallel N    Max concurrent tests (0 = all, default: 0)
+  -p, --parallel N    Max concurrent tests (0 = all, default: 20)
   -v, --verbose       Show output for each test
   -q, --quiet         Minimal output
   -s, --save DIR      Save logs to directory

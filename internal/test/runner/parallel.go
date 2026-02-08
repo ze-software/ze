@@ -9,7 +9,7 @@ import (
 // Parallel execution constants.
 const (
 	DefaultParallelTimeout    = 30 * time.Second
-	DefaultParallelConcurrent = 10
+	DefaultParallelConcurrent = 20
 	StatusUpdateInterval      = 200 * time.Millisecond
 )
 
