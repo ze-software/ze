@@ -85,6 +85,20 @@ func TestCapabilityDecoding(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, decoded, "route-refresh should have empty payload")
 	})
+
+	t.Run("no_encoding_no_payload_flag_capability", func(t *testing.T) {
+		// draft-ietf-idr-linklocal-capability: code 77, zero-length payload.
+		// VALIDATES: Capability with no encoding and no payload decodes to nil.
+		// PREVENTS: "unknown encoding" error for flag-only capabilities (e.g., LLNH code 77).
+		cap := PluginCapability{
+			Code: 77,
+			// Encoding and Payload both empty — flag capability, no data
+		}
+
+		decoded, err := DecodeCapabilityPayload(cap)
+		require.NoError(t, err)
+		assert.Nil(t, decoded, "flag capability should have nil payload")
+	})
 }
 
 // TestCapabilityInjection verifies plugin capabilities are added to OPEN.

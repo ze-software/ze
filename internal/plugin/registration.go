@@ -359,7 +359,13 @@ func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []Injected
 }
 
 // DecodeCapabilityPayload decodes a plugin capability payload.
+// Flag-only capabilities (e.g., link-local-nexthop code 77) have no encoding
+// and no payload — they return nil, nil.
 func DecodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
+	if cap.Encoding == "" && cap.Payload == "" {
+		return nil, nil
+	}
+
 	switch cap.Encoding {
 	case wireEncB64:
 		return base64.StdEncoding.DecodeString(cap.Payload)
@@ -367,7 +373,7 @@ func DecodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
 		return hex.DecodeString(cap.Payload)
 	case EncodingText:
 		return []byte(cap.Payload), nil
-	default:
-		return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)
 	}
+
+	return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)
 }
