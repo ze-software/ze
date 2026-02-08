@@ -1134,7 +1134,7 @@ class Tests:
             with open(msg_file, 'r') as f:
                 for line in f:
                     line = line.strip()
-                    if line and not line.startswith('#') and not line.startswith('option:'):
+                    if line and not line.startswith('#') and not line.startswith('option='):
                         # Extract the hex part: "1:raw:FFFF...:0017:02:..." -> full hex
                         parts = line.split(':', 2)
                         if len(parts) >= 3 and parts[1] == 'raw':
@@ -1525,9 +1525,9 @@ def parse_ci_file(ci_file: str) -> tuple[list[str], int]:
     """Parse .ci file for config files and options.
 
     The .ci file format:
-        option:file:config1.conf
-        option:file:config2.conf
-        option:tcp_connections:2
+        option=file:config1.conf
+        option=file:config2.conf
+        option=tcp_connections:2
         # comments
         1:raw:FFFF...  (message expectations)
 
@@ -1540,9 +1540,9 @@ def parse_ci_file(ci_file: str) -> tuple[list[str], int]:
         with open(ci_file, 'r') as f:
             for line in f:
                 line = line.strip()
-                if line.startswith('option:file:'):
-                    config_files.append(line.split(':', 2)[2])
-                elif line.startswith('option:tcp_connections:'):
+                if line.startswith('option=file:'):
+                    config_files.append(line.split(':', 1)[1])
+                elif line.startswith('option=tcp_connections:'):
                     tcp_connections = int(line.split(':')[-1])
     except Exception:
         pass
@@ -1611,7 +1611,7 @@ class EncodingTests(Tests):
         for filename in self.path_config.all_ci_files:
             name = os.path.basename(filename)[:-3]
             test = self.new(name)
-            # Parse merged .ci file format (option:file:... lines for config files)
+            # Parse merged .ci file format (option=file:... lines for config files)
             config_files, _ = parse_ci_file(filename)
             test.conf['confs'] = [Path.etc(_) for _ in config_files]
             test.conf['ci'] = self.path_config.ci_path(name, 'ci')
@@ -2546,7 +2546,7 @@ class CLITests(Tests):
         for filename in self.path_config.all_ci_files:
             name = os.path.basename(filename)[:-3]
             test = self.new(name)
-            # Parse merged .ci file format (option:file:... lines for config files)
+            # Parse merged .ci file format (option=file:... lines for config files)
             config_files, _ = parse_ci_file(filename)
             test.conf['confs'] = [Path.etc(_) for _ in config_files]
             test.conf['ci'] = self.path_config.ci_path(name, 'ci')

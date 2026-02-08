@@ -291,6 +291,7 @@ module ze-bgp-conf {
                 leaf label { type string; description "MPLS label"; }
                 leaf labels { ze:syntax "value-or-array"; type string; description "Multi-label stack (RFC 8277)"; }
                 leaf path-information { type string; description "ADD-PATH path-id"; }
+                leaf rd { type string; description "Route Distinguisher (RFC 4364)"; }
                 leaf aggregator { type string; description "Aggregator AS:IP"; }
                 leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
                 leaf originator-id { type zt:ipv4-address; description "Originator ID"; }

@@ -3,7 +3,7 @@
 ExaBGP compatibility wrapper for ZeBGP.
 
 This script pretends to be ExaBGP but actually:
-1. Converts ExaBGP config to Ze format using `ze bgp config migrate`
+1. Converts ExaBGP config to Ze format using `ze exabgp migrate`
 2. Runs `ze` with the migrated config
 
 Usage:
@@ -56,7 +56,7 @@ def find_ze_binary() -> str:
 def migrate_config(ze_binary: str, config_path: str) -> str:
     """Migrate ExaBGP config to Ze format."""
     result = subprocess.run(
-        [ze_binary, 'bgp', 'config', 'migrate', config_path],
+        [ze_binary, 'exabgp', 'migrate', config_path],
         capture_output=True,
         text=True
     )
@@ -130,6 +130,11 @@ def main():
         if env_vars.get('port'):
             # Ze reads ze_bgp_tcp_port to override peer port (see loader.go:388)
             os.environ['ze_bgp_tcp_port'] = env_vars['port']
+
+        # For tests: use a unique socket path per test instance to avoid
+        # requiring root (default /var/run/ze-bgp.sock) and prevent collisions
+        port = env_vars.get('port', '0')
+        os.environ['ze_bgp_api_socketpath'] = f'/tmp/ze-exabgp-test-{port}.sock'
 
         # For tests: exit after first session so test can complete
         # (Ze doesn't know it's in a test and would otherwise keep running)

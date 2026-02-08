@@ -1479,33 +1479,33 @@ def parse_cmdline():
     expect = []
     for message in content:
         # Skip config file declarations (handled by functional test runner)
-        if message.strip().startswith('option:file:'):
+        if message.strip().startswith('option=file:'):
             continue
-        if message.strip() == 'option:bind:ipv6':
+        if message.strip() == 'option=bind:ipv6':
             options['ipv6'] = True
             continue
-        if message.strip() == 'option:open:send-unknown-capability':
+        if message.strip() == 'option=open:send-unknown-capability':
             options['send-unknown-capability'] = True
             continue
-        if message.strip() == 'option:open:inspect-open-message':
+        if message.strip() == 'option=open:inspect-open-message':
             options['inspect-open-message'] = True
             continue
-        if message.strip() == 'option:update:send-default-route':
+        if message.strip() == 'option=update:send-default-route':
             options['send-default-route'] = True
             continue
-        if message.strip().startswith('option:asn:'):
+        if message.strip().startswith('option=asn:'):
             options['asn'] = int(message.strip().split(':')[-1])
             continue
-        if message.strip() == 'option:open:send-unknown-message':
+        if message.strip() == 'option=open:send-unknown-message':
             options['send-unknown-message'] = True
             continue
-        if message.strip().startswith('option:tcp_connections:'):
+        if message.strip().startswith('option=tcp_connections:'):
             options['tcp_connections'] = int(message.strip().split(':')[-1])
             continue
-        if message.strip().startswith('option:timeout:'):
+        if message.strip().startswith('option=timeout:'):
             options['timeout'] = float(message.strip().split(':')[-1])
             continue
-        if message.strip().startswith('option:SIGUSR1:'):
+        if message.strip().startswith('option=SIGUSR1:'):
             delay = int(message.split(':')[-1])
             myself = os.getpid()
 
