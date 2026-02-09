@@ -426,14 +426,13 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 		resolvedRoute := route
 		resolvedRoute.NextHop = plugin.NewNextHopExplicit(nextHopAddr)
 
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
 			if err := peer.SendAnnounce(resolvedRoute, a.r.config.LocalAS); err != nil {
 				lastErr = err
 			}
 		} else {
-			// Session not established: queue to peer's operation queue
-			// This maintains order with any pending teardowns
+			// Session not established or queue draining: queue to preserve order
 			peer.QueueAnnounce(ribRoute)
 		}
 	}
@@ -457,14 +456,13 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 
 	var lastErr error
 	for _, peer := range peers {
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
 			if err := peer.SendWithdraw(prefix); err != nil {
 				lastErr = err
 			}
 		} else {
-			// Session not established: queue to peer's operation queue
-			// This maintains order with any pending announces/teardowns
+			// Session not established or queue draining: queue to preserve order
 			peer.QueueWithdraw(n)
 		}
 	}
@@ -1170,7 +1168,7 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VP
 	for _, peer := range peers {
 		isIBGP := peer.Settings().IsIBGP()
 
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Send immediately
 			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN} // RFC 4364
 			if route.Prefix.Addr().Is6() {
@@ -1187,7 +1185,7 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VP
 				lastErr = err
 			}
 		} else {
-			// Session not established: queue to peer's operation queue
+			// Session not established or queue draining: queue to preserve order
 			ribRoute, err := a.buildL3VPNRIBRoute(route, isIBGP)
 			if err != nil {
 				lastErr = err
@@ -1246,14 +1244,14 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VP
 
 	var lastErr error
 	for _, peer := range peers {
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Build MP_UNREACH_NLRI for VPN
 			update := buildMPUnreachVPN(staticRoute)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			}
 		} else {
-			// Queue withdrawal
+			// Session not established or queue draining: queue to preserve order
 			peer.QueueWithdraw(n)
 		}
 	}
@@ -1516,7 +1514,7 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route pl
 			continue
 		}
 
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Send immediately
 			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 			if route.Prefix.Addr().Is6() {
@@ -1534,8 +1532,7 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route pl
 				lastErr = err
 			}
 		} else {
-			// Session not established: queue to peer's operation queue
-			// This maintains order with any pending teardowns
+			// Session not established or queue draining: queue to preserve order
 			peer.QueueAnnounce(ribRoute)
 		}
 	}
@@ -1702,7 +1699,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 
 	var lastErr error
 	for _, peer := range peers {
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Send immediately
 			addPath := peer.addPathFor(family)
 
@@ -1717,8 +1714,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 				lastErr = err
 			}
 		} else {
-			// Session not established: queue to peer's operation queue
-			// This maintains order with any pending announces/teardowns
+			// Session not established or queue draining: queue to preserve order
 			peer.QueueWithdraw(n)
 		}
 	}
@@ -1846,7 +1842,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 		// Build AS_PATH per peer (iBGP vs eBGP)
 		asPath := a.buildBatchASPath(userASPath, isIBGP)
 
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -1870,8 +1866,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 				acceptedCount++
 			}
 		} else {
-			// Session not established: queue routes for replay on connect
-			// Build rib.Route for each NLRI to maintain order with pending ops
+			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
 				peer.QueueAnnounce(ribRoute)
@@ -1900,7 +1895,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 	var acceptedCount int
 
 	for _, peer := range peers {
-		if peer.State() == PeerStateEstablished {
+		if !peer.ShouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -1921,7 +1916,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 				acceptedCount++
 			}
 		} else {
-			// Session not established: queue withdrawals for replay
+			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
 				peer.QueueWithdraw(n)
 			}

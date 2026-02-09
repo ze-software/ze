@@ -508,7 +508,7 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 
 // convertFlowToUpdate converts ExaBGP flow blocks to Ze update blocks.
 // ExaBGP: flow { route NAME { rd RD; next-hop NH; match { criteria; } then { actions; } } }
-// Ze: update { attribute { extended-community ...; } nlri { ipv4/flow criterion value ...; } }
+// Ze: update { attribute { extended-community ...; } nlri { ipv4/flow criterion value ...; } }.
 func convertFlowToUpdate(flow, dst *config.Tree) {
 	for _, entry := range flow.GetListOrdered("route") {
 		route := entry.Value
@@ -574,9 +574,7 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 				case "extended-community":
 					// Inline extended communities: "[ origin:... origin:... ]"
 					inner := strings.Trim(value, "[] ")
-					for _, ec := range strings.Fields(inner) {
-						extComms = append(extComms, ec)
-					}
+					extComms = append(extComms, strings.Fields(inner)...)
 				case "redirect-to-nexthop-ietf":
 					// ExaBGP name → Ze canonical name (RFC 7674)
 					ip := net.ParseIP(value)
@@ -1026,11 +1024,12 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 	sort.Strings(keys)
 	for _, key := range keys {
 		v, _ := tree.Get(key)
-		if v == "" {
+		switch {
+		case v == "":
 			buf.WriteString(indent + key + ";\n")
-		} else if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\"") {
+		case strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\""):
 			buf.WriteString(indent + key + " \"" + v + "\";\n")
-		} else {
+		default:
 			buf.WriteString(indent + key + " " + v + ";\n")
 		}
 	}

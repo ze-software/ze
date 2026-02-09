@@ -766,6 +766,23 @@ func (p *Peer) Teardown(subcode uint8) {
 	}
 }
 
+// ShouldQueue returns true if routes should be queued rather than sent directly.
+// Routes must be queued when:
+//   - Session is not established
+//   - Initial route sending is in progress (sendInitialRoutes running)
+//   - There are pending queued operations (preserves insertion order)
+//
+// This prevents a race where routes sent directly during sendInitialRoutes
+// processing arrive at the peer before older queued routes.
+func (p *Peer) ShouldQueue() bool {
+	if p.State() != PeerStateEstablished {
+		return true
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.sendingInitialRoutes.Load() != 0 || len(p.opQueue) > 0
+}
+
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
 // If queue is full (MaxOpQueueSize), the operation is dropped with a warning.
@@ -1218,7 +1235,10 @@ func (p *Peer) sendInitialRoutes() {
 		peerLogger().Debug("sendInitialRoutes skipped (concurrent)", "peer", addr)
 		return
 	}
-	defer p.sendingInitialRoutes.Store(0)
+	// Flag is cleared inside the mutex after the opQueue drain loop completes,
+	// NOT via defer. This ensures ShouldQueue() sees a consistent state:
+	// either the flag is set (routes will be queued and drained by us),
+	// or the flag is cleared and the queue is empty (routes can be sent directly).
 
 	peerLogger().Debug("sendInitialRoutes started", "peer", addr)
 
@@ -1391,10 +1411,12 @@ func (p *Peer) sendInitialRoutes() {
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
 	//
-	// CONCURRENCY NOTE: opQueue is append-only from other goroutines (QueueAnnounce,
-	// QueueWithdraw, Teardown). We capture the slice at loop start via range; new items
-	// appended while unlocked go to the end. The processed count remains valid because
-	// the first N items in current opQueue match what we processed from the captured slice.
+	// CONCURRENCY NOTE: Uses index-based loop (not range) so that items appended
+	// by concurrent QueueAnnounce/QueueWithdraw calls during unlocked sends are
+	// picked up by the next iteration's len(p.opQueue) check. This, combined with
+	// ShouldQueue() in the announce/withdraw paths, ensures strict insertion order:
+	// routes arriving while this loop runs are queued (not sent directly) and
+	// processed here in FIFO order.
 	var teardownSubcode uint8
 	hasTeardown := false
 
@@ -1404,12 +1426,14 @@ func (p *Peer) sendInitialRoutes() {
 	p.mu.Lock()
 	queueLen := len(p.opQueue)
 	processed := 0
-	for i, op := range p.opQueue {
+	connError := false
+	for processed < len(p.opQueue) && !connError {
+		op := p.opQueue[processed]
 		switch op.Type {
 		case PeerOpTeardown:
 			teardownSubcode = op.Subcode
 			hasTeardown = true
-			processed = i + 1 // Include the teardown in processed count
+			processed++
 
 		case PeerOpAnnounce:
 			// Send route, splitting if needed.
@@ -1420,21 +1444,19 @@ func (p *Peer) sendInitialRoutes() {
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", err)
 				p.mu.Lock()
-				// Split errors: skip route
-				// Connection errors: stop processing
-				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
-					processed = i + 1
-					continue
+				processed++
+				// Split errors: skip route. Connection errors: stop processing.
+				if !errors.Is(err, message.ErrAttributesTooLarge) && !errors.Is(err, message.ErrNLRITooLarge) {
+					connError = true
 				}
-				break
+				continue
 			}
 			p.mu.Lock()
-			processed = i + 1
+			processed++
 			continue
 
 		case PeerOpWithdraw:
 			// Send withdrawal.
-			// Use sendUpdateWithSplit for consistency, though single withdrawals rarely need splitting
 			family := op.NLRI.Family()
 			addPath := p.addPathFor(family)
 			update := buildWithdrawNLRI(op.NLRI, addPath)
@@ -1442,29 +1464,34 @@ func (p *Peer) sendInitialRoutes() {
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", err)
 				p.mu.Lock()
-				// Split errors are unlikely for single withdrawals, but handle consistently
-				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
-					processed = i + 1
-					continue // Skip this withdrawal, try next
+				processed++
+				if !errors.Is(err, message.ErrAttributesTooLarge) && !errors.Is(err, message.ErrNLRITooLarge) {
+					connError = true
 				}
-				break // Connection error, stop processing
+				continue
 			}
 			p.mu.Lock()
-			processed = i + 1
+			processed++
 			continue
 		}
 
 		// If we get here, it was a teardown - break out of loop
 		break
 	}
-	// Remove processed items from queue
+	// Remove processed items and clear the sendingInitialRoutes flag atomically.
+	// This ensures ShouldQueue() sees a consistent state: either the flag is set
+	// (new routes will be queued and drained by our loop), or the flag is cleared
+	// and the queue is empty (new routes can be sent directly).
 	if processed > 0 {
 		p.opQueue = p.opQueue[processed:]
+	}
+	if !hasTeardown {
+		p.sendingInitialRoutes.Store(0)
 	}
 	p.mu.Unlock()
 
 	if queueLen > 0 {
-		routesLogger().Debug("processed queue ops", "peer", addr, "processed", processed, "remaining", queueLen-processed, "teardown", hasTeardown)
+		routesLogger().Debug("processed queue ops", "peer", addr, "processed", processed, "remaining", len(p.opQueue), "teardown", hasTeardown)
 	}
 
 	// If teardown was in queue, send EOR first, then execute teardown.
@@ -1497,11 +1524,9 @@ func (p *Peer) sendInitialRoutes() {
 			routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
 			p.opQueue = p.opQueue[:0]
 		}
-		p.mu.Unlock()
-		// Reset flag BEFORE return so new session's sendInitialRoutes can run.
-		// Teardown triggers reconnection; new session may call sendInitialRoutes
-		// before this defer runs, causing the new call to be skipped.
+		// Clear flag under mutex for teardown path too
 		p.sendingInitialRoutes.Store(0)
+		p.mu.Unlock()
 		return // Don't send family-specific routes after teardown
 	}
 
