@@ -208,7 +208,9 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 		return []DecodedCapability{{Code: code, Name: "software-version", Value: c.Version}}
 	default:
 		// Unknown capability: use "unknown-<code>" as name, hex data as value
-		return []DecodedCapability{{Code: code, Name: fmt.Sprintf("unknown-%d", code), Value: fmt.Sprintf("%x", cap.Pack())}}
+		buf := make([]byte, cap.Len())
+		cap.WriteTo(buf, 0)
+		return []DecodedCapability{{Code: code, Name: fmt.Sprintf("unknown-%d", code), Value: fmt.Sprintf("%x", buf)}}
 	}
 }
 

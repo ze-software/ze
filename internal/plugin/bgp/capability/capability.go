@@ -87,6 +87,8 @@ func (c Code) String() string {
 type Capability interface {
 	Code() Code
 	Pack() []byte
+	Len() int
+	WriteTo(buf []byte, off int) int
 }
 
 // ConfigProvider is an optional interface for capabilities that provide
@@ -230,6 +232,14 @@ func (u *Unknown) Pack() []byte {
 	return packCapability(u.code, u.Data)
 }
 
+func (u *Unknown) Len() int { return 2 + len(u.Data) }
+
+func (u *Unknown) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, u.code, len(u.Data))
+	copy(buf[off+2:], u.Data)
+	return u.Len()
+}
+
 // packCapability creates a capability TLV.
 //
 // RFC 5492 Section 4: Each capability is encoded as:
@@ -242,6 +252,13 @@ func packCapability(code Code, data []byte) []byte {
 	result[1] = byte(len(data))
 	copy(result[2:], data)
 	return result
+}
+
+// writeCapabilityTo writes a capability TLV header into buf at offset.
+// Returns 2 (the header size). Caller writes value bytes after.
+func writeCapabilityTo(buf []byte, off int, code Code, valueLen int) {
+	buf[off] = byte(code)
+	buf[off+1] = byte(valueLen) //nolint:gosec // Capability values are always <256 bytes
 }
 
 // Multiprotocol represents Multiprotocol Extensions capability (RFC 4760).
@@ -269,6 +286,16 @@ func (m *Multiprotocol) Pack() []byte {
 	data[2] = 0 // RFC 4760 Section 8: Reserved, SHOULD be set to 0
 	data[3] = byte(m.SAFI)
 	return packCapability(CodeMultiprotocol, data)
+}
+
+func (m *Multiprotocol) Len() int { return 6 } // 2 header + 4 value
+
+func (m *Multiprotocol) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeMultiprotocol, 4)
+	binary.BigEndian.PutUint16(buf[off+2:], uint16(m.AFI))
+	buf[off+4] = 0 // RFC 4760 Section 8: Reserved
+	buf[off+5] = byte(m.SAFI)
+	return 6
 }
 
 // parseMultiprotocol parses a Multiprotocol Extensions capability.
@@ -307,6 +334,14 @@ func (a *ASN4) Pack() []byte {
 	return packCapability(CodeASN4, data)
 }
 
+func (a *ASN4) Len() int { return 6 } // 2 header + 4 value
+
+func (a *ASN4) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeASN4, 4)
+	binary.BigEndian.PutUint32(buf[off+2:], a.ASN)
+	return 6
+}
+
 // parseASN4 parses a 4-Byte AS Number capability.
 //
 // RFC 6793 Section 3: Capability Length is 4 bytes.
@@ -335,6 +370,13 @@ func (r *RouteRefresh) Pack() []byte {
 	return packCapability(CodeRouteRefresh, nil)
 }
 
+func (r *RouteRefresh) Len() int { return 2 } // 2 header + 0 value
+
+func (r *RouteRefresh) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeRouteRefresh, 0)
+	return 2
+}
+
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (r *RouteRefresh) ConfigValues() map[string]string {
 	return map[string]string{"rfc2918:enabled": "true"}
@@ -355,6 +397,13 @@ func (e *ExtendedMessage) Pack() []byte {
 	return packCapability(CodeExtendedMessage, nil)
 }
 
+func (e *ExtendedMessage) Len() int { return 2 } // 2 header + 0 value
+
+func (e *ExtendedMessage) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeExtendedMessage, 0)
+	return 2
+}
+
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (e *ExtendedMessage) ConfigValues() map[string]string {
 	return map[string]string{"rfc8654:enabled": "true"}
@@ -373,6 +422,13 @@ func (e *EnhancedRouteRefresh) Code() Code { return CodeEnhancedRouteRefresh }
 // RFC 7313 Section 3.1: Capability length is 0 (no value field).
 func (e *EnhancedRouteRefresh) Pack() []byte {
 	return packCapability(CodeEnhancedRouteRefresh, nil)
+}
+
+func (e *EnhancedRouteRefresh) Len() int { return 2 } // 2 header + 0 value
+
+func (e *EnhancedRouteRefresh) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, CodeEnhancedRouteRefresh, 0)
+	return 2
 }
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
@@ -426,6 +482,20 @@ func (a *AddPath) Pack() []byte {
 		data[offset+3] = byte(f.Mode)
 	}
 	return packCapability(CodeAddPath, data)
+}
+
+func (a *AddPath) Len() int { return 2 + len(a.Families)*4 }
+
+func (a *AddPath) WriteTo(buf []byte, off int) int {
+	dataLen := len(a.Families) * 4
+	writeCapabilityTo(buf, off, CodeAddPath, dataLen)
+	for i, f := range a.Families {
+		o := off + 2 + i*4
+		binary.BigEndian.PutUint16(buf[o:], uint16(f.AFI))
+		buf[o+2] = byte(f.SAFI)
+		buf[o+3] = byte(f.Mode)
+	}
+	return 2 + dataLen
 }
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
@@ -518,6 +588,31 @@ func (g *GracefulRestart) Pack() []byte {
 	return packCapability(CodeGracefulRestart, data)
 }
 
+func (g *GracefulRestart) Len() int { return 2 + 2 + len(g.Families)*4 }
+
+func (g *GracefulRestart) WriteTo(buf []byte, off int) int {
+	dataLen := 2 + len(g.Families)*4
+	writeCapabilityTo(buf, off, CodeGracefulRestart, dataLen)
+
+	val := g.RestartTime & 0x0FFF
+	if g.RestartState {
+		val |= 0x8000
+	}
+	binary.BigEndian.PutUint16(buf[off+2:], val)
+
+	for i, f := range g.Families {
+		o := off + 4 + i*4
+		binary.BigEndian.PutUint16(buf[o:], uint16(f.AFI))
+		buf[o+2] = byte(f.SAFI)
+		if f.ForwardingState {
+			buf[o+3] = 0x80
+		} else {
+			buf[o+3] = 0
+		}
+	}
+	return 2 + dataLen
+}
+
 // ConfigValues implements ConfigProvider for plugin config delivery.
 // Returns scoped keys per RFC 4724.
 func (g *GracefulRestart) ConfigValues() map[string]string {
@@ -598,6 +693,20 @@ func (e *ExtendedNextHop) Pack() []byte {
 	return packCapability(CodeExtendedNextHop, data)
 }
 
+func (e *ExtendedNextHop) Len() int { return 2 + len(e.Families)*6 }
+
+func (e *ExtendedNextHop) WriteTo(buf []byte, off int) int {
+	dataLen := len(e.Families) * 6
+	writeCapabilityTo(buf, off, CodeExtendedNextHop, dataLen)
+	for i, f := range e.Families {
+		o := off + 2 + i*6
+		binary.BigEndian.PutUint16(buf[o:], uint16(f.NLRIAFI))
+		binary.BigEndian.PutUint16(buf[o+2:], uint16(f.NLRISAFI))
+		binary.BigEndian.PutUint16(buf[o+4:], uint16(f.NextHopAFI))
+	}
+	return 2 + dataLen
+}
+
 // ConfigValues implements ConfigProvider for plugin config delivery.
 func (e *ExtendedNextHop) ConfigValues() map[string]string {
 	if len(e.Families) == 0 {
@@ -663,6 +772,22 @@ func (f *FQDN) Pack() []byte {
 	copy(data[2+hostLen:], f.DomainName[:domainLen])
 
 	return packCapability(CodeFQDN, data)
+}
+
+func (f *FQDN) Len() int {
+	return 2 + 1 + min(len(f.Hostname), 255) + 1 + min(len(f.DomainName), 255)
+}
+
+func (f *FQDN) WriteTo(buf []byte, off int) int {
+	hostLen := min(len(f.Hostname), 255)
+	domainLen := min(len(f.DomainName), 255)
+	dataLen := 1 + hostLen + 1 + domainLen
+	writeCapabilityTo(buf, off, CodeFQDN, dataLen)
+	buf[off+2] = byte(hostLen)
+	copy(buf[off+3:], f.Hostname[:hostLen])
+	buf[off+3+hostLen] = byte(domainLen)
+	copy(buf[off+4+hostLen:], f.DomainName[:domainLen])
+	return 2 + dataLen
 }
 
 // ConfigValues implements ConfigProvider for plugin config delivery.
@@ -733,6 +858,17 @@ func (s *SoftwareVersion) Pack() []byte {
 	copy(data[1:], s.Version[:verLen])
 
 	return packCapability(CodeSoftwareVersion, data)
+}
+
+func (s *SoftwareVersion) Len() int { return 2 + 1 + min(len(s.Version), 255) }
+
+func (s *SoftwareVersion) WriteTo(buf []byte, off int) int {
+	verLen := min(len(s.Version), 255)
+	dataLen := 1 + verLen
+	writeCapabilityTo(buf, off, CodeSoftwareVersion, dataLen)
+	buf[off+2] = byte(verLen)
+	copy(buf[off+3:], s.Version[:verLen])
+	return 2 + dataLen
 }
 
 // ConfigValues implements ConfigProvider for plugin config delivery.

@@ -1424,23 +1424,29 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 
 // buildOptionalParams builds optional parameters from capabilities.
 // Each capability is wrapped in its own parameter (type 2) per RFC 5492.
+// Single allocation: calculates total size upfront, then writes all TLVs.
 func buildOptionalParams(caps []capability.Capability) []byte {
 	if len(caps) == 0 {
 		return nil
 	}
 
-	var optParams []byte
+	// Calculate total size: each cap gets a 2-byte param wrapper + TLV bytes.
+	total := 0
 	for _, c := range caps {
-		capBytes := c.Pack()
-		// Wrap each capability in its own parameter type 2.
-		param := make([]byte, 2+len(capBytes))
-		param[0] = 2 // Parameter type: Capabilities
-		param[1] = byte(len(capBytes))
-		copy(param[2:], capBytes)
-		optParams = append(optParams, param...)
+		total += 2 + c.Len() // param type (1) + param length (1) + cap TLV
 	}
 
-	return optParams
+	buf := make([]byte, total)
+	off := 0
+	for _, c := range caps {
+		capLen := c.Len()
+		buf[off] = 2              // Parameter type: Capabilities
+		buf[off+1] = byte(capLen) //nolint:gosec // Capability TLVs are always <256 bytes
+		off += 2
+		off += c.WriteTo(buf, off)
+	}
+
+	return buf
 }
 
 // SendUpdate sends a BGP UPDATE message.

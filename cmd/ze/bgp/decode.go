@@ -340,7 +340,8 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 // unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
 func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]any {
 	code := int(c.Code())
-	raw := c.Pack()
+	raw := make([]byte, c.Len())
+	c.WriteTo(raw, 0)
 	var rawHex string
 	if len(raw) >= 2 {
 		rawHex = fmt.Sprintf("%X", raw[2:])

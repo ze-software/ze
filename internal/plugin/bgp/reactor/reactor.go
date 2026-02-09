@@ -1328,7 +1328,9 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 		// Extract EXTENDED_COMMUNITIES
 		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
 			if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
-				params.ExtCommunityBytes = append(params.ExtCommunityBytes, ecs.Pack()...)
+				start := len(params.ExtCommunityBytes)
+				params.ExtCommunityBytes = append(params.ExtCommunityBytes, make([]byte, ecs.Len())...)
+				ecs.WriteTo(params.ExtCommunityBytes, start)
 			}
 		}
 	}
@@ -1599,7 +1601,9 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicas
 		// Extract EXTENDED_COMMUNITIES
 		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
 			if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
-				params.ExtCommunityBytes = ecs.Pack()
+				buf := make([]byte, ecs.Len())
+				ecs.WriteTo(buf, 0)
+				params.ExtCommunityBytes = buf
 			}
 		}
 	}
@@ -3444,7 +3448,9 @@ func toRIBRouteUnicastParams(route *rib.Route) message.UnicastParams {
 				params.Communities[i] = uint32(c)
 			}
 		case attribute.ExtendedCommunities:
-			params.ExtCommunityBytes = a.Pack()
+			buf := make([]byte, a.Len())
+			a.WriteTo(buf, 0)
+			params.ExtCommunityBytes = buf
 		case attribute.LargeCommunities:
 			params.LargeCommunities = make([][3]uint32, len(a))
 			for i, lc := range a {

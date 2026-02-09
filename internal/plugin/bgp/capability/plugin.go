@@ -40,3 +40,11 @@ func (p *Plugin) Pack() []byte {
 	copy(result[2:], p.value)
 	return result
 }
+
+func (p *Plugin) Len() int { return 2 + len(p.value) }
+
+func (p *Plugin) WriteTo(buf []byte, off int) int {
+	writeCapabilityTo(buf, off, p.code, len(p.value))
+	copy(buf[off+2:], p.value)
+	return p.Len()
+}

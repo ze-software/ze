@@ -1,6 +1,7 @@
 package capability
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -403,4 +404,99 @@ func TestSoftwareVersionRoundTrip(t *testing.T) {
 	sv, ok := parsed[0].(*SoftwareVersion)
 	require.True(t, ok)
 	assert.Equal(t, original.Version, sv.Version)
+}
+
+// TestCapabilityWriteToMatchesPack verifies WriteTo produces identical bytes to Pack
+// for all 12 capability types (11 standard + Plugin).
+//
+// VALIDATES: WriteTo(buf, off) writes the same TLV bytes as Pack() returns.
+// PREVENTS: Encoding divergence between legacy Pack and buffer-first WriteTo paths.
+func TestCapabilityWriteToMatchesPack(t *testing.T) {
+	caps := []Capability{
+		&Unknown{code: 99, Data: []byte{0x01, 0x02, 0x03}},
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIEVPN},
+		&ASN4{ASN: 65533},
+		&ASN4{ASN: 4200000000},
+		&RouteRefresh{},
+		&ExtendedMessage{},
+		&EnhancedRouteRefresh{},
+		&AddPath{Families: []AddPathFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
+			{AFI: AFIIPv6, SAFI: SAFIUnicast, Mode: AddPathReceive},
+		}},
+		&GracefulRestart{
+			RestartState: true, RestartTime: 120,
+			Families: []GracefulRestartFamily{
+				{AFI: AFIIPv4, SAFI: SAFIUnicast, ForwardingState: true},
+				{AFI: AFIIPv6, SAFI: SAFIUnicast, ForwardingState: false},
+			},
+		},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+		}},
+		&FQDN{Hostname: "router1", DomainName: "example.com"},
+		&FQDN{Hostname: "", DomainName: ""},
+		&SoftwareVersion{Version: "ze-1.0"},
+		&SoftwareVersion{Version: ""},
+		NewPlugin(99, []byte{0xDE, 0xAD}),
+	}
+
+	for _, c := range caps {
+		name := fmt.Sprintf("%T/code=%d", c, c.Code())
+		t.Run(name, func(t *testing.T) {
+			packed := c.Pack()
+
+			// Len must match Pack output size
+			assert.Equal(t, len(packed), c.Len(), "Len() mismatch")
+
+			// WriteTo at offset 0
+			buf := make([]byte, c.Len())
+			n := c.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo returned wrong count")
+			assert.Equal(t, packed, buf[:n], "WriteTo bytes differ from Pack")
+		})
+	}
+}
+
+// TestCapabilityWriteToAtOffset verifies WriteTo respects the offset parameter
+// and doesn't corrupt surrounding bytes.
+//
+// VALIDATES: WriteTo writes at the specified offset, not at position 0.
+// PREVENTS: Off-by-one or ignored offset in WriteTo implementations.
+func TestCapabilityWriteToAtOffset(t *testing.T) {
+	caps := []Capability{
+		&ASN4{ASN: 65533},
+		&FQDN{Hostname: "test", DomainName: "example.com"},
+		&AddPath{Families: []AddPathFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
+		}},
+		NewPlugin(42, []byte{0x01, 0x02, 0x03}),
+	}
+
+	for _, c := range caps {
+		name := fmt.Sprintf("%T/offset", c)
+		t.Run(name, func(t *testing.T) {
+			packed := c.Pack()
+			offset := 10
+
+			buf := make([]byte, offset+c.Len()+5)
+			// Fill with sentinel
+			for i := range buf {
+				buf[i] = 0xFF
+			}
+
+			n := c.WriteTo(buf, offset)
+			assert.Equal(t, len(packed), n)
+			assert.Equal(t, packed, buf[offset:offset+n])
+
+			// Sentinels before and after must be preserved
+			for i := range offset {
+				assert.Equal(t, byte(0xFF), buf[i], "byte before offset corrupted at %d", i)
+			}
+			for i := offset + n; i < len(buf); i++ {
+				assert.Equal(t, byte(0xFF), buf[i], "byte after data corrupted at %d", i)
+			}
+		})
+	}
 }

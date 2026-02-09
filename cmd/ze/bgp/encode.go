@@ -321,7 +321,9 @@ func extractAttrsFromWire(wire *attribute.AttributesWire) commonAttrs {
 	// Extract EXTENDED_COMMUNITIES
 	if ecAttr, err := wire.Get(attribute.AttrExtCommunity); err == nil {
 		if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
-			attrs.ExtCommunityBytes = ecs.Pack()
+			buf := make([]byte, ecs.Len())
+			ecs.WriteTo(buf, 0)
+			attrs.ExtCommunityBytes = buf
 		}
 	}
 

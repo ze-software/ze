@@ -323,6 +323,7 @@ func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
 }
 
 // packWithContext re-encodes all attributes with destination context.
+// Single allocation: calculates total size, then writes all attributes via WriteAttrToWithContext.
 func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byte, error) {
 	attrs, err := a.All()
 	if err != nil {
@@ -334,17 +335,25 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
 		return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
 	}
 
-	// Estimate size
-	buf := make([]byte, 0, len(a.packed))
-
+	// Pass 1: calculate total size
+	total := 0
 	for _, attr := range attrs {
-		packed := attr.PackWithContext(srcCtx, destCtx)
-		hdr := PackHeader(attr.Flags(), attr.Code(), uint16(len(packed))) //nolint:gosec // G115: attr value max 65535
-		buf = append(buf, hdr...)
-		buf = append(buf, packed...)
+		valueLen := attrLenWithContext(attr, destCtx)
+		if valueLen > 255 {
+			total += 4 + valueLen // extended length header
+		} else {
+			total += 3 + valueLen // normal header
+		}
 	}
 
-	return buf, nil
+	// Pass 2: write all attributes
+	buf := make([]byte, total)
+	off := 0
+	for _, attr := range attrs {
+		off += WriteAttrToWithContext(attr, buf, off, srcCtx, destCtx)
+	}
+
+	return buf[:off], nil
 }
 
 // parseKnownAttribute parses a known attribute value by code.
