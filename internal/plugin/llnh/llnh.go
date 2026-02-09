@@ -14,6 +14,7 @@ import (
 	"log/slog"
 	"net"
 	"strings"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -24,13 +25,22 @@ import (
 // draft-ietf-idr-linklocal-capability: code 77, empty payload.
 const llnhCapCode = 77
 
-// logger is the package-level logger, disabled by default.
-var logger = slogutil.DiscardLogger()
+// loggerPtr is the package-level logger, disabled by default.
+// Stored as atomic.Pointer to avoid data races when tests start
+// multiple in-process plugin instances concurrently.
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	d := slogutil.DiscardLogger()
+	loggerPtr.Store(d)
+}
+
+func logger() *slog.Logger { return loggerPtr.Load() }
 
 // SetLLNHLogger sets the package-level logger.
 func SetLLNHLogger(l *slog.Logger) {
 	if l != nil {
-		logger = l
+		loggerPtr.Store(l)
 	}
 }
 
@@ -38,7 +48,7 @@ func SetLLNHLogger(l *slog.Logger) {
 // It receives per-peer config during Stage 2 and registers capability 77
 // for peers that have link-local-nexthop enabled during Stage 3.
 func RunLLNHPlugin(engineConn, callbackConn net.Conn) int {
-	logger.Debug("llnh plugin starting (RPC)")
+	logger().Debug("llnh plugin starting (RPC)")
 
 	p := sdk.NewWithConn("llnh", engineConn, callbackConn)
 	defer func() { _ = p.Close() }()
@@ -62,7 +72,7 @@ func RunLLNHPlugin(engineConn, callbackConn net.Conn) int {
 		WantsConfig: []string{"bgp"},
 	})
 	if err != nil {
-		logger.Error("llnh plugin failed", "error", err)
+		logger().Error("llnh plugin failed", "error", err)
 		return 1
 	}
 
@@ -74,7 +84,7 @@ func RunLLNHPlugin(engineConn, callbackConn net.Conn) int {
 func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var bgpConfig map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		logger.Warn("invalid JSON in bgp config", "err", err)
+		logger().Warn("invalid JSON in bgp config", "err", err)
 		return nil
 	}
 
@@ -86,7 +96,7 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 	peersMap, ok := bgpSubtree["peer"].(map[string]any)
 	if !ok {
-		logger.Debug("no peer config in bgp tree")
+		logger().Debug("no peer config in bgp tree")
 		return nil
 	}
 
@@ -119,7 +129,7 @@ func extractLLNHCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Code:  llnhCapCode,
 			Peers: []string{peerAddr},
 		})
-		logger.Debug("link-local-nexthop capability", "peer", peerAddr)
+		logger().Debug("link-local-nexthop capability", "peer", peerAddr)
 	}
 
 	return caps

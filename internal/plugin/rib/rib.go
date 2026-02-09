@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
@@ -27,15 +28,24 @@ import (
 
 const statusDone = "done"
 
-// logger is the package-level logger, disabled by default.
+// loggerPtr is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
-var logger = slogutil.DiscardLogger()
+// Stored as atomic.Pointer to avoid data races when tests start
+// multiple in-process plugin instances concurrently.
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	d := slogutil.DiscardLogger()
+	loggerPtr.Store(d)
+}
+
+func logger() *slog.Logger { return loggerPtr.Load() }
 
 // SetLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_rib.go with slogutil.PluginLogger().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
-		logger = l
+		loggerPtr.Store(l)
 	}
 }
 
@@ -90,7 +100,7 @@ func routeKey(family, prefix string, pathID uint32) string {
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
-	logger.Debug("rib plugin starting (RPC)")
+	logger().Debug("rib plugin starting (RPC)")
 
 	p := sdk.NewWithConn("rib", engineConn, callbackConn)
 	defer func() { _ = p.Close() }()
@@ -106,7 +116,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	p.OnEvent(func(jsonStr string) error {
 		event, err := parseEvent([]byte(jsonStr))
 		if err != nil {
-			logger.Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
+			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
 			return nil // Don't fail on parse errors
 		}
 		r.dispatch(event)
@@ -134,7 +144,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 		},
 	})
 	if err != nil {
-		logger.Error("rib plugin failed", "error", err)
+		logger().Error("rib plugin failed", "error", err)
 		return 1
 	}
 
@@ -147,14 +157,14 @@ func (r *RIBManager) updateRoute(peerSelector, command string) {
 	defer cancel()
 	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
-		logger.Warn("update-route failed", "peer", peerSelector, "error", err)
+		logger().Warn("update-route failed", "peer", peerSelector, "error", err)
 	}
 }
 
 // dispatch routes an event to the appropriate handler.
 func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()
-	logger.Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
+	logger().Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
 
 	switch eventType {
 	case "sent":
@@ -169,10 +179,10 @@ func (r *RIBManager) dispatch(event *Event) {
 		r.handleRefresh(event)
 	case "borr":
 		// RFC 7313: Beginning of Route Refresh from peer - log only
-		logger.Debug("received BoRR marker", "peer", event.GetPeerAddress())
+		logger().Debug("received BoRR marker", "peer", event.GetPeerAddress())
 	case "eorr":
 		// RFC 7313: End of Route Refresh from peer - log only
-		logger.Debug("received EoRR marker", "peer", event.GetPeerAddress())
+		logger().Debug("received EoRR marker", "peer", event.GetPeerAddress())
 	}
 }
 
@@ -181,15 +191,15 @@ func (r *RIBManager) dispatch(event *Event) {
 func (r *RIBManager) handleSent(event *Event) {
 	peerAddr := event.GetPeerAddress()
 	msgID := event.GetMsgID()
-	logger.Debug("handleSent", "peer", peerAddr, "msgID", msgID, "familyOps", len(event.FamilyOps))
+	logger().Debug("handleSent", "peer", peerAddr, "msgID", msgID, "familyOps", len(event.FamilyOps))
 
 	if peerAddr == "" {
-		logger.Debug("handleSent: empty peer address, skipping")
+		logger().Debug("handleSent: empty peer address, skipping")
 		return
 	}
 
 	if len(event.FamilyOps) == 0 {
-		logger.Debug("handleSent: no family ops, skipping")
+		logger().Debug("handleSent: no family ops, skipping")
 		return
 	}
 
@@ -211,7 +221,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
-						logger.Warn("sent: invalid nlri value",
+						logger().Warn("sent: invalid nlri value",
 							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
 						continue
 					}
@@ -426,7 +436,7 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 
 		// Validate prefix length bounds
 		if prefixLen > maxPrefixLen {
-			logger.Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
+			logger().Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
 			return nil
 		}
 
@@ -575,7 +585,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	peerAddr := event.GetPeerAddress()
 
 	if peerAddr == "" {
-		logger.Warn("received event: empty peer address")
+		logger().Warn("received event: empty peer address")
 		return
 	}
 
@@ -586,7 +596,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	// Require raw fields (format=full)
 	hasRawFields := event.RawAttributes != "" || len(event.RawNLRI) > 0 || len(event.RawWithdrawn) > 0
 	if !hasRawFields {
-		logger.Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
+		logger().Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
 		return
 	}
 
@@ -612,14 +622,14 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 	for familyStr, hexNLRI := range event.RawNLRI {
 		family, ok := parseFamily(familyStr)
 		if !ok {
-			logger.Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
+			logger().Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
 
 		// LIMITATION: splitNLRIs() only works for simple prefix formats (IPv4/IPv6 unicast).
 		// EVPN, VPN, FlowSpec have different wire formats and would be corrupted.
 		if !isSimplePrefixFamily(family) {
-			logger.Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
+			logger().Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
 
@@ -636,7 +646,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.Insert(family, attrBytes, wirePrefix)
 		}
 
-		logger.Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
+		logger().Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
 			"count", len(prefixes), "hex", hexNLRI[:min(16, len(hexNLRI))])
 	}
 
@@ -664,7 +674,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.Remove(family, wd)
 		}
 
-		logger.Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))
+		logger().Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))
 	}
 }
 
@@ -676,14 +686,14 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	family := event.AFI + "/" + event.SAFI
 
 	if peerAddr == "" {
-		logger.Warn("refresh event: empty peer address")
+		logger().Warn("refresh event: empty peer address")
 		return
 	}
 
 	r.mu.RLock()
 	if !r.peerUp[peerAddr] {
 		r.mu.RUnlock()
-		logger.Debug("refresh request for down peer", "peer", peerAddr)
+		logger().Debug("refresh request for down peer", "peer", peerAddr)
 		return
 	}
 
@@ -703,7 +713,7 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.sendRoutes(peerAddr, routesToSend)
 	r.updateRoute(peerAddr, "eorr "+family)
 
-	logger.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
+	logger().Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
 }
 
 // handleState processes peer state changes.

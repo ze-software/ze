@@ -15,21 +15,31 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// logger is the package-level logger, disabled by default.
+// loggerPtr is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
-var logger = slogutil.DiscardLogger()
+// Stored as atomic.Pointer to avoid data races when tests start
+// multiple in-process plugin instances concurrently.
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	d := slogutil.DiscardLogger()
+	loggerPtr.Store(d)
+}
+
+func logger() *slog.Logger { return loggerPtr.Load() }
 
 // SetLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_gr.go with slogutil.PluginLogger().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
-		logger = l
+		loggerPtr.Store(l)
 	}
 }
 
@@ -60,7 +70,7 @@ func RunGRPlugin(engineConn, callbackConn net.Conn) int {
 		WantsConfig: []string{"bgp"},
 	})
 	if err != nil {
-		logger.Error("gr plugin failed", "error", err)
+		logger().Error("gr plugin failed", "error", err)
 		return 1
 	}
 
@@ -72,7 +82,7 @@ func RunGRPlugin(engineConn, callbackConn net.Conn) int {
 func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	var bgpConfig map[string]any
 	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		logger.Warn("invalid JSON in bgp config", "err", err)
+		logger().Warn("invalid JSON in bgp config", "err", err)
 		return nil
 	}
 
@@ -84,7 +94,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 	peersMap, ok := bgpSubtree["peer"].(map[string]any)
 	if !ok {
-		logger.Debug("no peer config in bgp tree")
+		logger().Debug("no peer config in bgp tree")
 		return nil
 	}
 
@@ -122,7 +132,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 		// RFC 4724: restart-time is 12 bits (0-4095)
 		if restartTime > 4095 {
-			logger.Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
+			logger().Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
 			restartTime = 4095
 		}
 
@@ -134,7 +144,7 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Payload:  capValue,
 			Peers:    []string{peerAddr},
 		})
-		logger.Debug("gr capability", "peer", peerAddr, "restart-time", restartTime)
+		logger().Debug("gr capability", "peer", peerAddr, "restart-time", restartTime)
 	}
 
 	return caps

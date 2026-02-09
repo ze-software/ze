@@ -8,18 +8,29 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-var logger = slogutil.DiscardLogger()
+// loggerPtr is the package-level logger, disabled by default.
+// Stored as atomic.Pointer to avoid data races when tests start
+// multiple in-process plugin instances concurrently.
+var loggerPtr atomic.Pointer[slog.Logger]
+
+func init() {
+	d := slogutil.DiscardLogger()
+	loggerPtr.Store(d)
+}
+
+func logger() *slog.Logger { return loggerPtr.Load() }
 
 // SetLogger configures the package-level logger for the RR plugin.
 func SetLogger(l *slog.Logger) {
 	if l != nil {
-		logger = l
+		loggerPtr.Store(l)
 	}
 }
 
@@ -48,7 +59,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	p.OnEvent(func(jsonStr string) error {
 		event, err := parseEvent([]byte(jsonStr))
 		if err != nil {
-			logger.Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
+			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
 			return nil // Don't fail on parse errors
 		}
 		rs.dispatch(event)
@@ -73,7 +84,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		},
 	})
 	if err != nil {
-		logger.Error("rr plugin failed", "error", err)
+		logger().Error("rr plugin failed", "error", err)
 		return 1
 	}
 
@@ -86,7 +97,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
-		logger.Debug("update-route failed", "peer", peerSelector, "error", err)
+		logger().Debug("update-route failed", "peer", peerSelector, "error", err)
 	}
 }
 
