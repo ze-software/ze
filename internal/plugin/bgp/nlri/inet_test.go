@@ -160,7 +160,7 @@ func TestINETBytes(t *testing.T) {
 // TestINETBytesWithPathID verifies encoding with stored path ID.
 //
 // Phase 3: Bytes() returns payload only (no path ID).
-// Use Pack(ctx.AddPath=true) to encode with path ID.
+// Use WriteTo with ADD-PATH context to encode with path ID.
 func TestINETBytesWithPathID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	inet := NewINET(IPv4Unicast, prefix, 42)

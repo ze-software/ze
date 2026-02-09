@@ -437,7 +437,7 @@ func (c *CommitService) buildVPNMPReachNLRI(family nlri.Family, nextHop netip.Ad
 		copy(nhBytes[8:], nextHop.AsSlice())
 	}
 
-	// Build the value manually since MPReachNLRI.Pack() doesn't handle RD prefix
+	// Build the value manually since MPReachNLRI.WriteTo() doesn't handle RD prefix
 	// Format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(with RD) + Reserved(1) + NLRI
 	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(nlriBytes)
 	value := make([]byte, valueLen)
@@ -457,7 +457,7 @@ func (c *CommitService) buildVPNMPReachNLRI(family nlri.Family, nextHop netip.Ad
 	copy(value[4+len(nhBytes)+1:], nlriBytes)
 
 	// Return a custom MPReachNLRI that will pack correctly
-	// We need to use the raw bytes approach since the standard Pack() doesn't handle RD
+	// We need to use the raw bytes approach since the standard WriteTo doesn't handle RD
 	return &vpnMPReachNLRI{
 		afi:   attribute.AFI(family.AFI),
 		safi:  attribute.SAFI(family.SAFI),

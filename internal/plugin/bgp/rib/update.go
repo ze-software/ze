@@ -28,7 +28,7 @@ func BuildGroupedUpdate(group *RouteGroup, addPath bool) (*message.Update, error
 	pathAttrs := buildPathAttributes(group)
 
 	// Build NLRI bytes
-	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+	// RFC 7911: WriteTo uses ADD-PATH encoding when negotiated
 	nlriBytes, err := buildNLRIBytes(group, addPath)
 	if err != nil {
 		return nil, err
@@ -62,7 +62,7 @@ func buildPathAttributes(group *RouteGroup) []byte {
 		}
 	}
 
-	// Pack attributes in order (RFC 4271 Appendix F.3 recommends ordering by code)
+	// Write attributes in order (RFC 4271 Appendix F.3 recommends ordering by code)
 	attrBytes := make([]byte, attribute.AttributesSize(attrs))
 	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 	return attrBytes

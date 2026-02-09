@@ -265,9 +265,9 @@ func TestChunkNLRI_Empty(t *testing.T) {
 
 // TestUpdateWriteTo verifies zero-allocation buffer writing.
 //
-// VALIDATES: WriteTo produces identical bytes to Pack.
+// VALIDATES: WriteTo produces identical bytes to PackTo.
 //
-// PREVENTS: Allocation overhead from Pack(); wire format mismatch.
+// PREVENTS: Wire format mismatch between WriteTo and PackTo paths.
 func TestUpdateWriteTo(t *testing.T) {
 	tests := []struct {
 		name   string

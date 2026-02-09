@@ -107,8 +107,8 @@ func TestParseHeader(t *testing.T) {
 	}
 }
 
-// TestPackHeader verifies attribute header packing.
-func TestPackHeader(t *testing.T) {
+// TestWriteHeaderToBasic verifies attribute header encoding.
+func TestWriteHeaderToBasic(t *testing.T) {
 	tests := []struct {
 		name   string
 		flags  AttributeFlags

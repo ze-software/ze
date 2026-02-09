@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestAS4Path_Pack(t *testing.T) {
+func TestAS4Path_WriteTo(t *testing.T) {
 	tests := []struct {
 		name     string
 		path     *AS4Path
@@ -239,7 +239,7 @@ func TestAS4Path_RoundTrip(t *testing.T) {
 	}
 }
 
-func TestAS4Aggregator_Pack(t *testing.T) {
+func TestAS4Aggregator_WriteTo(t *testing.T) {
 	agg := &AS4Aggregator{
 		ASN:     4200000001,
 		Address: netip.MustParseAddr("10.0.0.1"),
@@ -254,7 +254,7 @@ func TestAS4Aggregator_Pack(t *testing.T) {
 	}
 
 	if !bytes.Equal(got, expected) {
-		t.Errorf("Pack() = %v, want %v", got, expected)
+		t.Errorf("WriteTo() = %v, want %v", got, expected)
 	}
 }
 
@@ -488,10 +488,10 @@ func TestMergeAS4PathWithConfed(t *testing.T) {
 //	 AS4_PATH attribute and MUST NOT be included in the AS4_PATH attribute
 //	 of an UPDATE message."
 //
-// VALIDATES: Pack() excludes confed segments from output.
+// VALIDATES: WriteTo excludes confed segments from output.
 //
 // PREVENTS: Leaking confederation segments in AS4_PATH to peers.
-func TestAS4PathPackExcludesConfed(t *testing.T) {
+func TestAS4PathWriteToExcludesConfed(t *testing.T) {
 	// AS4_PATH with confed segments that should be filtered
 	path := &AS4Path{
 		Segments: []ASPathSegment{

@@ -123,7 +123,7 @@ func buildGroupKey(route *Route) string {
 			return sorted[i].Code() < sorted[j].Code()
 		})
 
-		// Pack each attribute (excluding AS_PATH)
+		// Write each attribute (excluding AS_PATH)
 		for _, attr := range sorted {
 			if attr.Code() == attribute.AttrASPath {
 				continue // AS_PATH is handled at level 2

@@ -33,7 +33,7 @@ func writeHeader(buf []byte, off int, msgType MessageType, totalLen int) {
 }
 
 // PackTo allocates a buffer and writes the message using WriteTo.
-// This is a convenience function for callers migrating from Pack().
+// This is a convenience wrapper around WriteTo for callers that need a []byte.
 // For zero-allocation, use WriteTo with a pre-allocated buffer instead.
 func PackTo(msg Message, ctx *EncodingContext) []byte {
 	size := msg.Len(ctx)

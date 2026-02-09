@@ -121,7 +121,7 @@ func TestParseHeaderLengthBounds(t *testing.T) {
 	}
 }
 
-// TestHeaderPack verifies header serialization.
+// TestHeaderWriteTo verifies header serialization.
 //
 // VALIDATES: Correct wire format output.
 //

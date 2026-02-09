@@ -135,8 +135,9 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 	return totalLen
 }
 
-// Pack serializes the OPEN to wire format.
-// RFC 4271 Section 4.2 - OPEN message encoding follows the wire format:
+// UnpackOpen parses an OPEN message body.
+//
+// RFC 4271 Section 4.2 - OPEN message wire format:
 //
 //	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 //	|Version |    My AS (2)    |   Hold Time (2) |       BGP Identifier (4)        |Opt Len |
@@ -144,7 +145,7 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 //	|                      Optional Parameters (variable)                                    |
 //	+----------------------------------------------------------------------------------------+
 //
-// RFC 9072 Section 2 - If Optional Parameters exceed 255 bytes, use extended format:
+// RFC 9072 Section 2 - Extended format when Optional Parameters exceed 255 bytes:
 //
 //	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 //	|Version |    My AS (2)    |   Hold Time (2) |       BGP Identifier (4)        |Non-Ext |
@@ -152,7 +153,6 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 //	|Non-Ext |   Extended Opt. Parm. Length (2)  |      Optional Parameters (var)            |
 //	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 //
-// UnpackOpen parses an OPEN message body.
 // RFC 4271 Section 4.2 - Decodes the OPEN message wire format fields:
 // Version (1) + My AS (2) + Hold Time (2) + BGP Identifier (4) + Opt Parm Len (1) = 10 octets minimum
 //

@@ -12,7 +12,7 @@ import (
 //
 // VALIDATES: Immediate send and queued replay produce identical NLRI bytes.
 // - Path 1: BuildLabeledUnicast → buildLabeledUnicastNLRIBytes (immediate send)
-// - Path 2: buildRIBRouteUpdate → nlri.LabeledUnicast.Pack (queued replay)
+// - Path 2: buildRIBRouteUpdate → nlri.LabeledUnicast.WriteTo (queued replay)
 //
 // PREVENTS: Route replay producing different wire encoding than original announcement.
 func TestLabeledUnicastWireConsistency(t *testing.T) {

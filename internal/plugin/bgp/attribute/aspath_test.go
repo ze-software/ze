@@ -204,14 +204,14 @@ func TestASPathPrependOverflow(t *testing.T) {
 	assert.Len(t, path.Segments[1].ASNs, MaxASPathSegmentLength, "original segment unchanged")
 }
 
-// TestASPathPackAutoSplit verifies segments are split during encoding.
+// TestASPathWriteToAutoSplit verifies segments are split during encoding.
 //
 // RFC 4271 Section 4.3: Segment length is a 1-octet field, meaning max 255 ASNs.
 //
-// VALIDATES: Segments with >255 ASNs are split during Pack.
+// VALIDATES: Segments with >255 ASNs are split during WriteTo.
 //
 // PREVENTS: Encoding invalid segments with length > 255.
-func TestASPathPackAutoSplit(t *testing.T) {
+func TestASPathWriteToAutoSplit(t *testing.T) {
 	// Create a segment with 300 ASNs (exceeds 255)
 	asns := make([]uint32, 300)
 	for i := range asns {
@@ -240,12 +240,12 @@ func TestASPathPackAutoSplit(t *testing.T) {
 	assert.Equal(t, 300, total)
 }
 
-// TestASPathPackAutoSplitLarge verifies multiple splits for very large segments.
+// TestASPathWriteToAutoSplitLarge verifies multiple splits for very large segments.
 //
 // VALIDATES: Segments that need 3+ splits work correctly.
 //
 // PREVENTS: Edge case bugs in recursive/iterative splitting.
-func TestASPathPackAutoSplitLarge(t *testing.T) {
+func TestASPathWriteToAutoSplitLarge(t *testing.T) {
 	// Create a segment with 600 ASNs (needs 3 segments: 255+255+90)
 	asns := make([]uint32, 600)
 	for i := range asns {

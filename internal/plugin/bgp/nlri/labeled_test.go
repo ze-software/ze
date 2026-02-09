@@ -94,7 +94,7 @@ func TestLabeledUnicastBytes(t *testing.T) {
 //
 // VALIDATES: Phase 3 - Bytes() returns payload only (no path ID).
 // Path ID is stored but NOT encoded by Bytes().
-// Use Pack(ctx) with ctx.AddPath=true to encode with path ID.
+// Use WriteTo with ctx.AddPath=true to encode with path ID.
 //
 // PREVENTS: Confusion about Bytes() behavior after Phase 3.
 func TestLabeledUnicastBytesWithPathID(t *testing.T) {
@@ -254,11 +254,11 @@ func TestLabeledUnicastLabelStack(t *testing.T) {
 	assert.Equal(t, expected, lu.Bytes())
 }
 
-// TestLabeledUnicastWireConsistency verifies Pack output matches expected format.
+// TestLabeledUnicastWireConsistency verifies WriteTo output matches expected format.
 //
-// VALIDATES: Phase 3 - Bytes() is payload only, Pack(ctx.AddPath) includes path ID.
+// VALIDATES: Phase 3 - Bytes() is payload only, WriteTo with ADD-PATH includes path ID.
 // Path 1: Bytes() = payload only (no path ID)
-// Path 2: Pack(ctx.AddPath=true) = path ID + payload
+// Path 2: WriteTo with ADD-PATH context = path ID + payload
 //
 // PREVENTS: Route replay producing different wire encoding than original announcement.
 func TestLabeledUnicastWireConsistency(t *testing.T) {

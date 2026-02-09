@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestMPReachNLRI_Pack(t *testing.T) {
+func TestMPReachNLRI_WriteTo(t *testing.T) {
 	tests := []struct {
 		name     string
 		attr     *MPReachNLRI
@@ -159,7 +159,7 @@ func TestParseMPReachNLRI(t *testing.T) {
 	}
 }
 
-func TestMPUnreachNLRI_Pack(t *testing.T) {
+func TestMPUnreachNLRI_WriteTo(t *testing.T) {
 	tests := []struct {
 		name     string
 		attr     *MPUnreachNLRI
