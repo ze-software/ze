@@ -1295,3 +1295,224 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 	// Log output for debugging.
 	t.Logf("Migration output:\n%s", got)
 }
+
+// TestTokenizeFlexValue verifies tokenization of flex value strings.
+//
+// VALIDATES: Brackets and parens are grouped as atomic tokens.
+// PREVENTS: Splitting compound values (extended-community, bgp-prefix-sid-srv6) into parts.
+func TestTokenizeFlexValue(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{
+			name:  "simple_words",
+			input: "shared-join rp 10.99.199.1 group 239.251.255.228",
+			want:  []string{"shared-join", "rp", "10.99.199.1", "group", "239.251.255.228"},
+		},
+		{
+			name:  "single_bracket_value",
+			input: "extended-community [target:10:10]",
+			want:  []string{"extended-community", "[target:10:10]"},
+		},
+		{
+			name:  "multi_bracket_value",
+			input: "extended-community [target:10:10 mup:10:10]",
+			want:  []string{"extended-community", "[target:10:10 mup:10:10]"},
+		},
+		{
+			name:  "paren_with_nested_bracket",
+			input: "bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])",
+			want:  []string{"bgp-prefix-sid-srv6", "(l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])"},
+		},
+		{
+			name:  "full_mup_line",
+			input: "mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])",
+			want: []string{
+				"mup-isd", "10.0.1.0/24", "rd", "100:100",
+				"next-hop", "2001::1",
+				"extended-community", "[target:10:10]",
+				"bgp-prefix-sid-srv6", "(l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])",
+			},
+		},
+		{
+			name:  "full_mvpn_line",
+			input: "shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]",
+			want: []string{
+				"shared-join", "rp", "10.99.199.1", "group", "239.251.255.228",
+				"rd", "65000:99999", "source-as", "65000",
+				"next-hop", "10.10.6.3",
+				"extended-community", "[target:192.168.94.12:5]",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tokenizeFlexValue(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("tokenizeFlexValue(%q)\ngot  %d tokens: %v\nwant %d tokens: %v", tt.input, len(got), got, len(tt.want), tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("token[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+// TestSplitFlexAttrs verifies separation of path attributes from NLRI fields.
+//
+// VALIDATES: Known attribute keywords extracted with values; remaining tokens form NLRI.
+// PREVENTS: Attribute keywords leaking into NLRI line or NLRI fields going into attributes.
+func TestSplitFlexAttrs(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantAttrs map[string]string
+		wantNLRI  []string
+	}{
+		{
+			name:  "mvpn_shared_join",
+			input: "shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]",
+			wantAttrs: map[string]string{
+				"next-hop":           "10.10.6.3",
+				"extended-community": "target:192.168.94.12:5",
+			},
+			wantNLRI: []string{"shared-join", "rp", "10.99.199.1", "group", "239.251.255.228", "rd", "65000:99999", "source-as", "65000"},
+		},
+		{
+			name:  "mup_isd_with_srv6",
+			input: "mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])",
+			wantAttrs: map[string]string{
+				"next-hop":            "2001::1",
+				"extended-community":  "target:10:10",
+				"bgp-prefix-sid-srv6": "l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0]",
+			},
+			wantNLRI: []string{"mup-isd", "10.0.1.0/24", "rd", "100:100"},
+		},
+		{
+			name:  "mup_t1st_with_source",
+			input: "mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 source 10.0.1.1 next-hop 10.0.0.2 extended-community [target:10:10]",
+			wantAttrs: map[string]string{
+				"next-hop":           "10.0.0.2",
+				"extended-community": "target:10:10",
+			},
+			wantNLRI: []string{"mup-t1st", "192.168.0.2/32", "rd", "100:100", "teid", "12345", "qfi", "9", "endpoint", "10.0.0.1", "source", "10.0.1.1"},
+		},
+		{
+			name:  "multi_extended_community",
+			input: "mup-dsd 10.0.0.1 rd 100:100 next-hop 2001::2 extended-community [target:10:10 mup:10:10]",
+			wantAttrs: map[string]string{
+				"next-hop":           "2001::2",
+				"extended-community": "[target:10:10 mup:10:10]",
+			},
+			wantNLRI: []string{"mup-dsd", "10.0.0.1", "rd", "100:100"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotAttrs, gotNLRI := splitFlexAttrs(tt.input)
+
+			// Check attributes
+			if len(gotAttrs) != len(tt.wantAttrs) {
+				t.Errorf("attrs count: got %d, want %d\ngot:  %v\nwant: %v", len(gotAttrs), len(tt.wantAttrs), gotAttrs, tt.wantAttrs)
+			}
+			for k, want := range tt.wantAttrs {
+				if got, ok := gotAttrs[k]; !ok {
+					t.Errorf("missing attr %q", k)
+				} else if got != want {
+					t.Errorf("attr[%q] = %q, want %q", k, got, want)
+				}
+			}
+
+			// Check NLRI parts
+			if len(gotNLRI) != len(tt.wantNLRI) {
+				t.Fatalf("nlri count: got %d, want %d\ngot:  %v\nwant: %v", len(gotNLRI), len(tt.wantNLRI), gotNLRI, tt.wantNLRI)
+			}
+			for i := range gotNLRI {
+				if gotNLRI[i] != tt.wantNLRI[i] {
+					t.Errorf("nlri[%d] = %q, want %q", i, gotNLRI[i], tt.wantNLRI[i])
+				}
+			}
+		})
+	}
+}
+
+// TestConvertFlexToUpdate verifies full flex-to-update conversion.
+//
+// VALIDATES: Flex values produce correct update blocks with attribute and nlri sub-blocks.
+// PREVENTS: Missing routes in migrated config for mcast-vpn and mup families.
+func TestConvertFlexToUpdate(t *testing.T) {
+	tests := []struct {
+		name       string
+		afi        string
+		safi       string
+		values     []string
+		wantFamily string
+		wantNHop   string
+		wantNLRI   string
+	}{
+		{
+			name:       "mvpn_ipv4",
+			afi:        "ipv4",
+			safi:       "mcast-vpn",
+			values:     []string{"shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]"},
+			wantFamily: "ipv4/mcast-vpn",
+			wantNHop:   "10.10.6.3",
+			wantNLRI:   "shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000",
+		},
+		{
+			name:       "mup_ipv4_isd",
+			afi:        "ipv4",
+			safi:       "mup",
+			values:     []string{"mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])"},
+			wantFamily: "ipv4/mup",
+			wantNHop:   "2001::1",
+			wantNLRI:   "mup-isd 10.0.1.0/24 rd 100:100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dst := config.NewTree()
+			convertFlexToUpdate(tt.afi, tt.safi, tt.values, dst)
+
+			updates := dst.GetListOrdered("update")
+			if len(updates) != len(tt.values) {
+				t.Fatalf("got %d updates, want %d", len(updates), len(tt.values))
+			}
+
+			update := updates[0].Value
+
+			// Check attribute block
+			attr := update.GetContainer("attribute")
+			if attr == nil {
+				t.Fatal("missing attribute block")
+			}
+			if nh, ok := attr.Get("next-hop"); !ok || nh != tt.wantNHop {
+				t.Errorf("next-hop = %q, want %q", nh, tt.wantNHop)
+			}
+			if origin, ok := attr.Get("origin"); !ok || origin != "igp" {
+				t.Errorf("origin = %q, want %q", origin, "igp")
+			}
+
+			// Check nlri block — stored as "family nlri-parts" key with empty value
+			nlri := update.GetContainer("nlri")
+			if nlri == nil {
+				t.Fatal("missing nlri block")
+			}
+			wantKey := tt.wantFamily + " " + tt.wantNLRI
+			nlriVal, ok := nlri.Get(wantKey)
+			if !ok {
+				t.Fatalf("missing nlri key %q, got keys: %v", wantKey, nlri.Values())
+			}
+			if nlriVal != "" {
+				t.Errorf("nlri value = %q, want empty (freeform key-only format)", nlriVal)
+			}
+		})
+	}
+}

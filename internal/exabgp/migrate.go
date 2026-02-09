@@ -467,6 +467,17 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				dst.AddListEntry("update", "", update)
 			}
 		}
+
+		// Handle flex SAFIs (mcast-vpn, mup) which store values via AppendValue.
+		// These use ze:syntax "flex" in the ExaBGP YANG schema, so GetListOrdered returns nothing.
+		flexSafis := []string{"mcast-vpn", "mup"}
+		for _, safi := range flexSafis {
+			values := afiBlock.GetMultiValues(safi)
+			if len(values) == 0 {
+				continue
+			}
+			convertFlexToUpdate(afi, safi, values, dst)
+		}
 	}
 
 	// Handle announce { route PREFIX ... } (generic route syntax)
@@ -835,10 +846,6 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		if v == "" {
 			_, _ = fmt.Fprintf(buf, "%s%s;\n", indent, key)
 		} else {
-			// Quote values containing spaces unless already quoted
-			if strings.Contains(v, " ") && !strings.HasPrefix(v, `"`) && !strings.HasPrefix(v, `[`) {
-				v = `"` + v + `"`
-			}
 			_, _ = fmt.Fprintf(buf, "%s%s %s;\n", indent, key, v)
 		}
 	}
@@ -943,4 +950,147 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 	}
 
 	// Templates are expanded via inherit, not serialized.
+}
+
+// flexAttrKeywords lists path attribute keywords that go in the attribute block
+// when converting flex container entries (mcast-vpn, mup) to update blocks.
+// Everything else is treated as NLRI fields.
+var flexAttrKeywords = map[string]bool{
+	"next-hop":            true,
+	"origin":              true,
+	"local-preference":    true,
+	"med":                 true,
+	"extended-community":  true,
+	"large-community":     true,
+	"community":           true,
+	"originator-id":       true,
+	"cluster-list":        true,
+	"as-path":             true,
+	"bgp-prefix-sid-srv6": true,
+}
+
+// convertFlexToUpdate converts flex container entries to update blocks.
+// Flex SAFIs (mcast-vpn, mup) store entire route lines as strings via AppendValue().
+// Each string contains both NLRI fields and path attributes intermixed.
+// This function separates them into attribute { } and nlri { } blocks.
+func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
+	family := afi + "/" + safi
+
+	for _, value := range values {
+		attrs, nlriParts := splitFlexAttrs(value)
+
+		update := config.NewTree()
+
+		// Build attribute block
+		attrBlock := config.NewTree()
+		if _, ok := attrs["origin"]; !ok {
+			attrBlock.Set("origin", "igp")
+		}
+		for k, v := range attrs {
+			attrBlock.Set(k, v)
+		}
+		update.SetContainer("attribute", attrBlock)
+
+		// Build nlri block
+		nlriBlock := config.NewTree()
+		nlriBlock.Set(family+" "+strings.Join(nlriParts, " "), "")
+		update.SetContainer("nlri", nlriBlock)
+
+		dst.AddListEntry("update", "", update)
+	}
+}
+
+// splitFlexAttrs separates a flex value string into path attributes and NLRI fields.
+// Returns a map of attribute key→value and a slice of NLRI tokens.
+// Attribute values with brackets [..] or parens (..) have the delimiters stripped.
+func splitFlexAttrs(value string) (map[string]string, []string) {
+	tokens := tokenizeFlexValue(value)
+	attrs := make(map[string]string)
+	var nlriParts []string
+
+	i := 0
+	for i < len(tokens) {
+		token := tokens[i]
+		// Skip backslash continuations — artifacts from multiline ExaBGP config parsing
+		if token == `\` {
+			i++
+			continue
+		}
+		if flexAttrKeywords[token] {
+			// Path attribute — next token is its value
+			i++
+			if i < len(tokens) {
+				attrValue := tokens[i]
+				// Bracket values [val1 val2]: keep brackets for multi-value (Ze value-or-array syntax),
+				// strip for single-value (no spaces inside brackets).
+				if strings.HasPrefix(attrValue, "[") && strings.HasSuffix(attrValue, "]") {
+					inner := attrValue[1 : len(attrValue)-1]
+					if !strings.Contains(inner, " ") {
+						// Single value inside brackets — strip them
+						attrValue = inner
+					}
+					// Multi-value: keep brackets as-is for Ze "[ val1 val2 ]" syntax
+				}
+				// Paren values (val1 val2): ExaBGP grouping — strip parens, content is the value.
+				// Flex syntax handles "key value key value" natively without outer brackets.
+				if strings.HasPrefix(attrValue, "(") && strings.HasSuffix(attrValue, ")") {
+					attrValue = attrValue[1 : len(attrValue)-1]
+				}
+				attrs[token] = strings.TrimSpace(attrValue)
+			}
+			i++
+		} else {
+			nlriParts = append(nlriParts, token)
+			i++
+		}
+	}
+	return attrs, nlriParts
+}
+
+// tokenizeFlexValue splits a flex value string into tokens, grouping bracketed [...]
+// and parenthesized (...) sequences as single atomic tokens.
+// The flex parser (parseFlex value mode) joins brackets/parens with their content,
+// so "[target:10:10 mup:10:10]" may split into ["[target:10:10", "mup:10:10]"]
+// after strings.Fields. This function regroups them.
+func tokenizeFlexValue(s string) []string {
+	fields := strings.Fields(s)
+	var tokens []string
+
+	i := 0
+	for i < len(fields) {
+		f := fields[i]
+
+		switch {
+		case strings.HasPrefix(f, "["):
+			// Collect until matching ]
+			var parts []string
+			for i < len(fields) {
+				parts = append(parts, fields[i])
+				if strings.HasSuffix(fields[i], "]") {
+					i++
+					break
+				}
+				i++
+			}
+			tokens = append(tokens, strings.Join(parts, " "))
+		case strings.HasPrefix(f, "("):
+			// Collect until paren depth returns to 0
+			var parts []string
+			depth := 0
+			for i < len(fields) {
+				part := fields[i]
+				parts = append(parts, part)
+				depth += strings.Count(part, "(") - strings.Count(part, ")")
+				i++
+				if depth <= 0 {
+					break
+				}
+			}
+			tokens = append(tokens, strings.Join(parts, " "))
+		default: // plain token — no grouping
+			tokens = append(tokens, f)
+			i++
+		}
+	}
+	return tokens
 }

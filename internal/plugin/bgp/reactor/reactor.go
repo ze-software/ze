@@ -4872,9 +4872,10 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 			return nil, fmt.Errorf("address %q is not %s", spec.Address, expected)
 		}
 		epBytes := ep.AsSlice()
-		data = append(data, byte(len(epBytes)*8))
+		teid, bits := parseTEIDFieldWithBits(spec.TEID)
+		data = append(data, byte(len(epBytes)*8+bits)) // combined: endpoint bits + TEID bits
 		data = append(data, epBytes...)
-		// TODO: Add TEID encoding
+		data = append(data, encodeTEIDFieldWithBits(teid, bits)...)
 	}
 
 	// Determine AFI
@@ -4898,6 +4899,35 @@ func buildMUPPrefix(prefix netip.Prefix) []byte {
 	result := make([]byte, 1+prefixBytes)
 	result[0] = byte(bits)
 	copy(result[1:], addrBytes[:prefixBytes])
+	return result
+}
+
+// parseTEIDFieldWithBits parses a TEID string "value/bits" into numeric TEID and bit length.
+func parseTEIDFieldWithBits(s string) (uint32, int) {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		v, _ := strconv.ParseUint(s, 10, 32)
+		return uint32(v), 32
+	}
+	v, _ := strconv.ParseUint(parts[0], 10, 32)
+	bits, err := strconv.Atoi(parts[1])
+	if err != nil {
+		bits = 32
+	}
+	return uint32(v), bits
+}
+
+// encodeTEIDFieldWithBits encodes TEID with the specified bit length.
+func encodeTEIDFieldWithBits(teid uint32, bits int) []byte {
+	if bits <= 0 {
+		return nil
+	}
+	byteLen := (bits + 7) / 8
+	result := make([]byte, byteLen)
+	for i := range byteLen {
+		shift := (byteLen - 1 - i) * 8
+		result[i] = byte(teid >> shift)
+	}
 	return result
 }
 

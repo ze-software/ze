@@ -1837,7 +1837,9 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		}
 
 	case nlri.MUPT2ST:
-		// T2ST: endpoint-len + endpoint + TEID (variable based on teid/bits)
+		// T2ST: combined-len + endpoint + TEID (variable based on teid/bits)
+		// The "Endpoint Address Length" field is the COMBINED bit length of
+		// endpoint IP address + TEID prefix bits (per draft-ietf-idr-mup-safi).
 		if mr.Address == "" {
 			return nil, fmt.Errorf("MUP T2ST requires address")
 		}
@@ -1846,10 +1848,9 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", mr.Address, err)
 		}
 		epBytes := ep.AsSlice()
-		data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
-		data = append(data, epBytes...)
-		// Add TEID with bit-encoded length
 		teid, bits := parseTEIDWithBits(mr.TEID)
+		data = append(data, byte(len(epBytes)*8+bits)) // combined length: endpoint bits + TEID bits
+		data = append(data, epBytes...)
 		teidBytes := encodeTEIDWithBits(teid, bits)
 		data = append(data, teidBytes...)
 	}
