@@ -257,7 +257,7 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	update := buildStaticRouteUpdateNew(route, nextHop, 65000, true, true, false, nil) // iBGP, ASN4, no ADD-PATH, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, netip.Addr{}, 65000, true, true, false, nil) // iBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -314,7 +314,7 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
-	update := buildStaticRouteUpdateNew(route, nextHop, 65000, false, true, false, nil) // eBGP, ASN4, no ADD-PATH, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, netip.Addr{}, 65000, false, true, false, nil) // eBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -1174,7 +1174,7 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	params := toStaticRouteUnicastParams(route, nextHop, nil) // nil sendCtx - no ExtNH needed
+	params := toStaticRouteUnicastParams(route, nextHop, netip.Addr{}, nil) // no link-local, nil sendCtx - no ExtNH needed
 
 	require.Equal(t, route.OriginatorID, params.OriginatorID,
 		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)

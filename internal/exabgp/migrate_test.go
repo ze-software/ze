@@ -119,6 +119,103 @@ neighbor 10.0.0.1 {
 	}
 }
 
+// TestMigrateASN4Disable verifies asn4 disable is preserved, not converted to enable.
+//
+// VALIDATES: ExaBGP "asn4 disable" stays "asn4 disable" after migration.
+// PREVENTS: asn4 disable silently becoming asn4 enable (test Q failure).
+func TestMigrateASN4Disable(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 65533;
+	peer-as 65533;
+	capability {
+		asn4 disable;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	if !strings.Contains(output, "asn4 disable") {
+		t.Errorf("expected 'asn4 disable' in output:\n%s", output)
+	}
+	if strings.Contains(output, "asn4 enable") {
+		t.Errorf("should not contain 'asn4 enable':\n%s", output)
+	}
+}
+
+// TestMigrateSplitRoute verifies split directive is preserved during migration.
+//
+// VALIDATES: ExaBGP "route ... split /24" generates split field in update.
+// PREVENTS: split directive dropped during migration (test U failure).
+func TestMigrateSplitRoute(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 65533;
+	peer-as 65533;
+	static {
+		route 172.10.0.0/22 next-hop 192.0.2.1 split /24;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	if !strings.Contains(output, "split /24") {
+		t.Errorf("expected 'split /24' in output:\n%s", output)
+	}
+}
+
+// TestMigrateLinkLocal verifies local-link-local field is renamed to link-local during migration.
+//
+// VALIDATES: ExaBGP "local-link-local fe80::1" migrates to Ze "link-local fe80::1".
+// PREVENTS: link-local address dropped during migration (test L failure).
+func TestMigrateLinkLocal(t *testing.T) {
+	input := `
+neighbor ::1 {
+	local-as 65533;
+	peer-as 65533;
+	local-link-local fe80::1;
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	if !strings.Contains(output, "link-local fe80::1") {
+		t.Errorf("expected 'link-local fe80::1' in output:\n%s", output)
+	}
+	if strings.Contains(output, "local-link-local") {
+		t.Errorf("should not contain 'local-link-local' (ExaBGP name), should be 'link-local':\n%s", output)
+	}
+}
+
 // TestMigrateSimple verifies basic neighbor→peer conversion.
 //
 // VALIDATES: Simple ExaBGP config converts to ZeBGP peer syntax.

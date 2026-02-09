@@ -181,6 +181,10 @@ type PeerSettings struct {
 	// LocalAddress is our local IP for this session.
 	LocalAddress netip.Addr
 
+	// LinkLocal is the IPv6 link-local address for MP_REACH next-hop (RFC 2545 Section 3).
+	// When set, IPv6 unicast MP_REACH_NLRI includes 32-byte next-hop (global + link-local).
+	LinkLocal netip.Addr
+
 	// Port is the peer's BGP port (default 179).
 	Port uint16
 

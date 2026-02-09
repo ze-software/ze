@@ -111,6 +111,177 @@ func TestUpdateBuilder_BuildUnicast_IPv6(t *testing.T) {
 	}
 }
 
+// TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal verifies 32-byte MP_REACH next-hop
+// when LinkLocalNextHop is set.
+//
+// VALIDATES: IPv6 unicast with link-local produces 32-byte next-hop (global + link-local)
+// per RFC 2545 Section 3.
+// PREVENTS: Link-local address dropped from MP_REACH_NLRI, producing 16-byte next-hop
+// instead of 32-byte (test L regression).
+func TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal(t *testing.T) {
+	ub := NewUpdateBuilder(65533, true, true, false) // iBGP, ASN4, no ADD-PATH
+
+	params := UnicastParams{
+		Prefix:           netip.MustParsePrefix("2001:db8:1::1/128"),
+		NextHop:          netip.MustParseAddr("2001:db8::ffff"),
+		LinkLocalNextHop: netip.MustParseAddr("fe80::1"),
+		Origin:           attribute.OriginIGP,
+		LocalPreference:  100,
+	}
+
+	update := ub.BuildUnicast(params)
+	if update == nil {
+		t.Fatal("BuildUnicast returned nil")
+	}
+
+	// IPv6 should use MP_REACH_NLRI, not inline NLRI
+	if len(update.NLRI) != 0 {
+		t.Error("IPv6 unicast should not have inline NLRI")
+	}
+
+	// RFC 2545 Section 3: MP_REACH_NLRI must have 32-byte next-hop (NH_LEN=0x20)
+	// Format: AFI(0002) SAFI(01) NH_LEN(20) [16-byte global] [16-byte link-local] ...
+	expectedNHLen := byte(0x20) // 32 bytes
+
+	// Find MP_REACH_NLRI (code 14) in PathAttributes
+	found := false
+	offset := 0
+	for offset < len(update.PathAttributes) {
+		if len(update.PathAttributes[offset:]) < 3 {
+			break
+		}
+		flags, code, length, hdrLen, err := attribute.ParseHeader(update.PathAttributes[offset:])
+		if err != nil {
+			t.Fatalf("ParseHeader at offset %d: %v", offset, err)
+		}
+		_ = flags
+		if code == attribute.AttrMPReachNLRI {
+			found = true
+			attrData := update.PathAttributes[offset+hdrLen : offset+hdrLen+int(length)]
+
+			// attrData[0:2] = AFI (0002 = IPv6)
+			// attrData[2]   = SAFI (01 = unicast)
+			// attrData[3]   = NH_LEN
+			if len(attrData) < 4 {
+				t.Fatalf("MP_REACH_NLRI too short: %d bytes", len(attrData))
+			}
+
+			if attrData[3] != expectedNHLen {
+				t.Errorf("NH_LEN = %d, want %d (32 bytes for global + link-local)",
+					attrData[3], expectedNHLen)
+			}
+
+			// Verify global next-hop bytes (2001:db8::ffff)
+			if len(attrData) < 4+32 {
+				t.Fatalf("MP_REACH_NLRI too short for 32-byte next-hop: %d bytes", len(attrData))
+			}
+			globalNH := attrData[4:20]
+			expectedGlobal := netip.MustParseAddr("2001:db8::ffff").AsSlice()
+			if !bytes.Equal(globalNH, expectedGlobal) {
+				t.Errorf("global next-hop = %x, want %x", globalNH, expectedGlobal)
+			}
+
+			// Verify link-local next-hop bytes (fe80::1)
+			linkLocalNH := attrData[20:36]
+			expectedLinkLocal := netip.MustParseAddr("fe80::1").AsSlice()
+			if !bytes.Equal(linkLocalNH, expectedLinkLocal) {
+				t.Errorf("link-local next-hop = %x, want %x", linkLocalNH, expectedLinkLocal)
+			}
+			break
+		}
+		offset += hdrLen + int(length)
+	}
+	if !found {
+		t.Errorf("MP_REACH_NLRI not found in PathAttributes: %x", update.PathAttributes)
+	}
+}
+
+// TestUpdateBuilder_BuildUnicast_IPv6_NoLinkLocal verifies 16-byte MP_REACH next-hop
+// when LinkLocalNextHop is NOT set.
+//
+// VALIDATES: IPv6 unicast without link-local produces 16-byte next-hop (global only).
+// PREVENTS: Zero-value link-local accidentally added to next-hop.
+func TestUpdateBuilder_BuildUnicast_IPv6_NoLinkLocal(t *testing.T) {
+	ub := NewUpdateBuilder(65533, true, true, false)
+
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001:db8::1"),
+		Origin:  attribute.OriginIGP,
+	}
+
+	update := ub.BuildUnicast(params)
+	if update == nil {
+		t.Fatal("BuildUnicast returned nil")
+	}
+
+	// Find MP_REACH_NLRI and check NH_LEN = 16 (global only)
+	offset := 0
+	for offset < len(update.PathAttributes) {
+		if len(update.PathAttributes[offset:]) < 3 {
+			break
+		}
+		_, code, length, hdrLen, err := attribute.ParseHeader(update.PathAttributes[offset:])
+		if err != nil {
+			t.Fatalf("ParseHeader at offset %d: %v", offset, err)
+		}
+		if code == attribute.AttrMPReachNLRI {
+			attrData := update.PathAttributes[offset+hdrLen : offset+hdrLen+int(length)]
+			if len(attrData) < 4 {
+				t.Fatalf("MP_REACH_NLRI too short: %d bytes", len(attrData))
+			}
+			if attrData[3] != 16 {
+				t.Errorf("NH_LEN = %d, want 16 (global only, no link-local)", attrData[3])
+			}
+			return
+		}
+		offset += hdrLen + int(length)
+	}
+	t.Error("MP_REACH_NLRI not found in PathAttributes")
+}
+
+// TestUpdateBuilder_BuildUnicast_IPv4_IgnoresLinkLocal verifies link-local is ignored
+// for IPv4 unicast routes.
+//
+// VALIDATES: IPv4 routes use inline NLRI + NEXT_HOP attribute, ignoring LinkLocalNextHop.
+// PREVENTS: Link-local accidentally applied to IPv4 routes.
+func TestUpdateBuilder_BuildUnicast_IPv4_IgnoresLinkLocal(t *testing.T) {
+	ub := NewUpdateBuilder(65533, true, true, false)
+
+	params := UnicastParams{
+		Prefix:           netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:          netip.MustParseAddr("192.168.1.1"),
+		LinkLocalNextHop: netip.MustParseAddr("fe80::1"), // Should be ignored
+		Origin:           attribute.OriginIGP,
+	}
+
+	update := ub.BuildUnicast(params)
+	if update == nil {
+		t.Fatal("BuildUnicast returned nil")
+	}
+
+	// IPv4 should use inline NLRI, not MP_REACH_NLRI
+	if len(update.NLRI) == 0 {
+		t.Error("IPv4 unicast should have inline NLRI")
+	}
+
+	// Verify no MP_REACH_NLRI in PathAttributes
+	offset := 0
+	for offset < len(update.PathAttributes) {
+		if len(update.PathAttributes[offset:]) < 3 {
+			break
+		}
+		_, code, length, hdrLen, err := attribute.ParseHeader(update.PathAttributes[offset:])
+		if err != nil {
+			break
+		}
+		if code == attribute.AttrMPReachNLRI {
+			t.Error("IPv4 unicast should not have MP_REACH_NLRI")
+		}
+		offset += hdrLen + int(length)
+	}
+}
+
 // extractAttributeCodes parses raw attribute bytes and returns type codes in order.
 // Used for testing attribute ordering.
 func extractAttributeCodes(data []byte) ([]attribute.AttributeCode, error) {

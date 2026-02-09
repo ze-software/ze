@@ -545,7 +545,8 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
 // Used for IPv4/IPv6 unicast routes (not VPN).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
+// linkLocal is the peer's IPv6 link-local address for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
+func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
 	var useExtNH bool
 	if sendCtx != nil {
@@ -566,6 +567,7 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, sendCtx *bgpc
 		Prefix:             r.Prefix,
 		PathID:             r.PathID,
 		NextHop:            nextHop,
+		LinkLocalNextHop:   linkLocal,
 		Origin:             attribute.Origin(r.Origin),
 		ASPath:             r.ASPath,
 		MED:                r.MED,
@@ -647,7 +649,8 @@ func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams
 // buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
 // This is the new implementation that will replace buildStaticRouteUpdate.
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, localAS uint32, isIBGP bool, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
+// linkLocal is the peer's IPv6 link-local for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
+func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, linkLocal netip.Addr, localAS uint32, isIBGP bool, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
 	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
 	if route.IsVPN() {
 		return ub.BuildVPN(toStaticRouteVPNParams(route, nextHop))
@@ -655,7 +658,7 @@ func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, localAS ui
 	if route.IsLabeledUnicast() {
 		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route, nextHop))
 	}
-	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nextHop, sendCtx))
+	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx))
 }
 
 // State returns the current peer state.
@@ -1246,7 +1249,7 @@ func (p *Peer) sendInitialRoutes() {
 					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 					continue
 				}
-				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
@@ -1262,7 +1265,7 @@ func (p *Peer) sendInitialRoutes() {
 						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
 						continue
 					}
-					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.sendCtx))
+					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.settings.LinkLocal, p.sendCtx))
 				}
 				if len(params) == 0 {
 					continue
@@ -1293,7 +1296,7 @@ func (p *Peer) sendInitialRoutes() {
 				continue
 			}
 			addPath := p.addPathFor(routeFamily(route))
-			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 				routesLogger().Debug("send error", "peer", addr, "error", err)
 				break
@@ -1327,7 +1330,7 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 				addPath := p.addPathFor(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
@@ -1363,7 +1366,7 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 				addPath := p.addPathFor(routeFamily(route))
-				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
@@ -2393,7 +2396,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		}
 		// RFC 7911: Get ADD-PATH encoding state
 		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

@@ -133,7 +133,8 @@ type PeerConfig struct {
 	Description          string
 	RouterID             uint32
 	LocalAddress         netip.Addr
-	LocalAddressAuto     bool // true when local-address is "auto"
+	LocalAddressAuto     bool       // true when local-address is "auto"
+	LinkLocal            netip.Addr // IPv6 link-local for MP_REACH next-hop (RFC 2545 Section 3)
 	LocalAS              uint32
 	PeerAS               uint32
 	HoldTime             uint16 // RFC 4271: 0 (no keepalive) or >=3; default 90
@@ -603,6 +604,15 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 		}
 	}
 
+	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop
+	if v, ok := tree.Get("link-local"); ok {
+		ip, err := netip.ParseAddr(v)
+		if err != nil {
+			return fmt.Errorf("invalid link-local: %w", err)
+		}
+		nc.LinkLocal = ip
+	}
+
 	// Passive
 	if v, ok := tree.Get("passive"); ok {
 		nc.Passive = v == configTrue
@@ -819,6 +829,15 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templa
 			}
 			nc.LocalAddress = ip
 		}
+	}
+
+	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop
+	if v, ok := getValue("link-local"); ok {
+		ip, err := netip.ParseAddr(v)
+		if err != nil {
+			return nc, fmt.Errorf("invalid link-local: %w", err)
+		}
+		nc.LinkLocal = ip
 	}
 
 	if v, ok := getValue("local-as"); ok {

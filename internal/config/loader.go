@@ -452,6 +452,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 	n.Passive = nc.Passive
 	n.GroupUpdates = nc.GroupUpdates
 	n.LocalAddress = nc.LocalAddress
+	n.LinkLocal = nc.LinkLocal
 	n.IgnoreFamilyMismatch = nc.IgnoreFamilyMismatch
 
 	// Build capabilities.

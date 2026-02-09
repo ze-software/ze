@@ -100,6 +100,10 @@ type UnicastParams struct {
 	AggregatorASN uint32
 	AggregatorIP  [4]byte
 
+	// LinkLocalNextHop is the IPv6 link-local next-hop address (RFC 2545 Section 3).
+	// When set for IPv6 routes, MP_REACH_NLRI includes 32-byte next-hop (global + link-local).
+	LinkLocalNextHop netip.Addr
+
 	// UseExtendedNextHop enables RFC 8950 extended next-hop encoding.
 	// When true and prefix is IPv4 with IPv6 next-hop, uses MP_REACH_NLRI.
 	UseExtendedNextHop bool
@@ -373,10 +377,16 @@ func (ub *UpdateBuilder) buildMPReachUnicast(p UnicastParams) *attribute.MPReach
 	nlriBytes := make([]byte, nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
+	// RFC 2545 Section 3: IPv6 MP_REACH_NLRI may include link-local as second next-hop.
+	nextHops := []netip.Addr{p.NextHop}
+	if p.LinkLocalNextHop.IsValid() && p.Prefix.Addr().Is6() {
+		nextHops = append(nextHops, p.LinkLocalNextHop)
+	}
+
 	return &attribute.MPReachNLRI{
 		AFI:      afi,
 		SAFI:     attribute.SAFIUnicast,
-		NextHops: []netip.Addr{p.NextHop},
+		NextHops: nextHops,
 		NLRI:     nlriBytes,
 	}
 }

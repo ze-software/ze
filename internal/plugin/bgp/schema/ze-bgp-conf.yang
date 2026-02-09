@@ -112,6 +112,11 @@ module ze-bgp-conf {
             description "Local address for connection";
         }
 
+        leaf link-local {
+            type string;
+            description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
+        }
+
         leaf local-as {
             type zt:asn;
             description "Local AS for this peer";

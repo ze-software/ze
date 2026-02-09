@@ -217,13 +217,18 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	// Merge simple values (neighbor overrides template).
 	// These are the known leaf fields in ExaBGP neighbor config.
 	leafFields := []string{
-		"description", "router-id", "local-address", "local-as", "peer-as",
+		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "auto-flush",
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
-			merged.Set(key, v)
+			// ExaBGP "local-link-local" → Ze "link-local"
+			outKey := key
+			if key == "local-link-local" {
+				outKey = "link-local"
+			}
+			merged.Set(outKey, v)
 		}
 	}
 
@@ -262,14 +267,19 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 // copySimpleFields copies simple leaf values from neighbor to peer.
 func copySimpleFields(src, dst *config.Tree) {
 	fields := []string{
-		"description", "router-id", "local-address", "local-as", "peer-as",
+		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
 		"hold-time", "passive", "listen", "connect", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "auto-flush",
 	}
 
 	for _, field := range fields {
 		if v, ok := src.Get(field); ok {
-			dst.Set(field, v)
+			// ExaBGP "local-link-local" → Ze "link-local"
+			outField := field
+			if field == "local-link-local" {
+				outField = "link-local"
+			}
+			dst.Set(outField, v)
 		}
 	}
 }
@@ -286,12 +296,22 @@ func migrateCapability(src, dst *config.Tree) {
 
 	if srcCap != nil {
 		// Fields that need "enable" suffix (Flex type in schema).
-		enableFields := []string{"route-refresh", "asn4", "multi-session", "operational", "aigp", "extended-message", "link-local-nexthop"}
+		enableFields := []string{"route-refresh", "multi-session", "operational", "aigp", "extended-message", "link-local-nexthop"}
 		for _, field := range enableFields {
 			if _, ok := srcCap.GetFlex(field); ok {
 				dstCap.Set(field, "enable")
 				hasCapabilities = true
 			}
+		}
+
+		// asn4 preserves disable value (ExaBGP allows "asn4 disable;").
+		if v, ok := srcCap.GetFlex("asn4"); ok {
+			if v == "disable" || v == "false" {
+				dstCap.Set("asn4", "disable")
+			} else {
+				dstCap.Set("asn4", "enable")
+			}
+			hasCapabilities = true
 		}
 
 		// Fields that keep their values (Flex type in schema).
@@ -480,7 +500,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
 		"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
-		"path-information", "rd", "label", "labels"}
+		"path-information", "rd", "label", "labels", "split"}
 	for _, field := range attrFields {
 		if v, ok := attrTree.Get(field); ok {
 			attrBlock.Set(field, v)
