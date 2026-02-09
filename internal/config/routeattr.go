@@ -165,7 +165,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 	parts := strings.Fields(s)
 	var allBytes []byte
 
-	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop-ietf).
+	// Process parts, looking ahead for two-word formats (action, mark, redirect-to-nexthop).
 	for i := 0; i < len(parts); i++ {
 		p := parts[i]
 
@@ -184,9 +184,9 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 				allBytes = append(allBytes, b...)
 				i++ // skip next part
 				continue
-			case "redirect-to-nexthop-ietf":
-				// "redirect-to-nexthop-ietf IP" - RFC 7674
-				b := parseFlowSpecRedirectNextHopIETF(parts[i+1])
+			case "redirect-to-nexthop":
+				// "redirect-to-nexthop IP" - RFC 7674 Section 3.1
+				b := parseFlowSpecRedirectNextHop(parts[i+1])
 				if b != nil {
 					allBytes = append(allBytes, b...)
 					i++ // skip next part
@@ -211,7 +211,7 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 // Supports formats:
 //   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
 //   - Named format: target:ASN:NN, origin:ASN:NN
-//   - FlowSpec actions: rate-limit:N, redirect-to-nexthop, copy-to-nexthop, mark N
+//   - FlowSpec actions: rate-limit:N, redirect-to-nexthop-draft, copy-to-nexthop, mark N
 //   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
 	// Check for hex format (0x prefix, no colons) - ExaBGP compatible
@@ -221,8 +221,8 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 
 	// FlowSpec single-word actions (no colons).
 	switch s {
-	case "redirect-to-nexthop":
-		// RFC 5575bis: Redirect to next-hop (type 0x08, subtype 0x00).
+	case "redirect-to-nexthop-draft":
+		// Pre-IETF draft: Redirect to next-hop (type 0x08, subtype 0x00).
 		return []byte{0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, nil
 	case "copy-to-nexthop":
 		// RFC 5575bis: Copy and redirect to next-hop (type 0x08, subtype 0x00, value 1).
@@ -543,9 +543,9 @@ func parseFlowSpecMark(dscpStr string) []byte {
 	return []byte{0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, byte(dscp)}
 }
 
-// parseFlowSpecRedirectNextHopIETF parses redirect-to-nexthop-ietf with IPv4 (RFC 7674 Section 3.1).
+// parseFlowSpecRedirectNextHop parses redirect-to-nexthop with IPv4 (RFC 7674 Section 3.1).
 // Returns nil if the IP is invalid or IPv6 (IPv6 handled separately via attribute 25).
-func parseFlowSpecRedirectNextHopIETF(ipStr string) []byte {
+func parseFlowSpecRedirectNextHop(ipStr string) []byte {
 	ip, err := netip.ParseAddr(ipStr)
 	if err != nil || !ip.Is4() {
 		return nil // Invalid or IPv6 - handled elsewhere

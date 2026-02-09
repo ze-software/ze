@@ -31,7 +31,7 @@ const (
 )
 
 // FlowSpec action names.
-const flowSpecRedirectNextHopIETF = "redirect-to-nexthop-ietf"
+const flowSpecRedirectNextHop = "redirect-to-nexthop"
 
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
@@ -1012,7 +1012,7 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 		}
 		route.ExtCommunityBytes = append(route.ExtCommunityBytes, extComm.Bytes...)
 
-		// Build IPv6 Extended Communities (attribute 25) for redirect-to-nexthop-ietf with IPv6
+		// Build IPv6 Extended Communities (attribute 25) for redirect-to-nexthop with IPv6
 		route.IPv6ExtCommunityBytes = buildIPv6ExtCommunityFromString(ec)
 	}
 
@@ -1082,14 +1082,14 @@ func sortExtCommunities(data []byte) []byte {
 }
 
 // buildIPv6ExtCommunityFromString builds IPv6 Extended Communities (attribute 25, RFC 5701)
-// from an extended community string. Only extracts redirect-to-nexthop-ietf with IPv6 addresses.
+// from an extended community string. Only extracts redirect-to-nexthop with IPv6 addresses.
 // RFC 7674 Section 3.2 defines the Redirect to IPv6 action (subtype 0x000c).
 func buildIPv6ExtCommunityFromString(ec string) []byte {
 	var result []byte
 	parts := strings.Fields(ec)
 
 	for i := 0; i < len(parts); i++ {
-		if parts[i] == flowSpecRedirectNextHopIETF && i+1 < len(parts) {
+		if parts[i] == flowSpecRedirectNextHop && i+1 < len(parts) {
 			// Check if next part is an IPv6 address
 			if ip, err := netip.ParseAddr(parts[i+1]); err == nil && ip.Is6() {
 				// RFC 5701: IPv6 Extended Community = subtype(2) + IPv6(16) + copy_flag(2) = 20 bytes

@@ -381,6 +381,19 @@ module ze-bgp-conf {
             }
         }
 
+        // FlowSpec routes (RFC 8955)
+        container flow {
+            description "FlowSpec route definitions";
+            list route {
+                key "name";
+                leaf name { type string; description "Route name"; }
+                leaf rd { type string; description "Route Distinguisher"; }
+                leaf next-hop { type string; description "Next hop address"; }
+                container match { ze:syntax "freeform"; description "Match criteria"; }
+                container then { ze:syntax "freeform"; description "Actions"; }
+            }
+        }
+
         // RIB configuration
         container rib {
             description "RIB configuration";

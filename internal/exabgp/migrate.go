@@ -1,8 +1,10 @@
 package exabgp
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"net"
 	"sort"
 	"strings"
 
@@ -402,6 +404,11 @@ func copyContainers(src, dst *config.Tree) {
 		convertStaticToUpdate(static, dst)
 	}
 
+	// Convert flow block to update blocks.
+	if flow := src.GetContainer("flow"); flow != nil {
+		convertFlowToUpdate(flow, dst)
+	}
+
 	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.
 }
 
@@ -496,6 +503,185 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 	routeList := static.GetListOrdered("route")
 	for _, routeEntry := range routeList {
 		convertRouteToUpdate(routeEntry.Key, routeEntry.Value, dst)
+	}
+}
+
+// convertFlowToUpdate converts ExaBGP flow blocks to Ze update blocks.
+// ExaBGP: flow { route NAME { rd RD; next-hop NH; match { criteria; } then { actions; } } }
+// Ze: update { attribute { extended-community ...; } nlri { ipv4/flow criterion value ...; } }
+func convertFlowToUpdate(flow, dst *config.Tree) {
+	for _, entry := range flow.GetListOrdered("route") {
+		route := entry.Value
+
+		rd, _ := route.Get("rd")
+		nextHop, _ := route.Get("next-hop")
+
+		// Parse match criteria and detect IPv6.
+		isIPv6 := false
+		var nlriCriteria []string
+		if match := route.GetContainer("match"); match != nil {
+			for _, key := range match.Values() {
+				val, _ := match.Get(key)
+				criterion, value := parseFlowMatchEntry(key, val)
+				if criterion == "" {
+					continue
+				}
+				// Detect IPv6 by address content.
+				if (criterion == "source" || criterion == "destination") && strings.Contains(value, ":") {
+					isIPv6 = true
+				}
+				// Add AFI suffix to source/destination.
+				nlriCriteria = append(nlriCriteria, flowCriterionWithValues(criterion, value, isIPv6))
+			}
+		}
+
+		// Parse then block → attributes.
+		var extComms []string
+		var community string
+		var rawAttr string
+		if then := route.GetContainer("then"); then != nil {
+			for _, key := range then.Values() {
+				val, _ := then.Get(key)
+				action, value := parseFlowMatchEntry(key, val)
+				switch action {
+				case "discard":
+					extComms = append(extComms, "rate-limit:0")
+				case "rate-limit":
+					extComms = append(extComms, "rate-limit:"+value)
+				case "redirect":
+					// redirect <IP> = set next-hop + redirect-to-nexthop-draft
+					// redirect <AS:VAL> = redirect extended community
+					if net.ParseIP(value) != nil {
+						nextHop = value
+						extComms = append(extComms, "redirect-to-nexthop-draft")
+					} else {
+						extComms = append(extComms, "redirect:"+value)
+					}
+				case "redirect-to-nexthop":
+					extComms = append(extComms, "redirect-to-nexthop-draft")
+				case "copy":
+					// copy <IP> = set next-hop + copy-to-nexthop
+					if net.ParseIP(value) != nil {
+						nextHop = value
+					}
+					extComms = append(extComms, "copy-to-nexthop")
+				case "mark":
+					extComms = append(extComms, "mark "+value)
+				case "action":
+					extComms = append(extComms, "action "+value)
+				case "community":
+					community = strings.Trim(value, "[] ")
+				case "extended-community":
+					// Inline extended communities: "[ origin:... origin:... ]"
+					inner := strings.Trim(value, "[] ")
+					for _, ec := range strings.Fields(inner) {
+						extComms = append(extComms, ec)
+					}
+				case "redirect-to-nexthop-ietf":
+					// ExaBGP name → Ze canonical name (RFC 7674)
+					ip := net.ParseIP(value)
+					if ip != nil && ip.To4() != nil {
+						// IPv4: extended-community
+						extComms = append(extComms, "redirect-to-nexthop "+value)
+					} else if ip != nil {
+						// IPv6: raw attribute (type 25=IPv6 ExtComm, flags 0xC0)
+						// Format: sub-type 0x000c + IPv6 (16 bytes) + local-admin 0x0000
+						ipHex := hex.EncodeToString(ip.To16())
+						rawAttr = "[0x19 0xc0 0x000c" + ipHex + "0000]"
+					}
+				case "attribute":
+					rawAttr = value
+				}
+			}
+		}
+
+		// Determine family.
+		family := "ipv4/flow"
+		if isIPv6 {
+			family = "ipv6/flow"
+		}
+		if rd != "" {
+			if isIPv6 {
+				family = "ipv6/flow-vpn"
+			} else {
+				family = "ipv4/flow-vpn"
+			}
+		}
+
+		// Build NLRI line: <family> [rd <rd>] <criteria...>
+		nlriLine := family
+		if rd != "" {
+			nlriLine += " rd " + rd
+		}
+		for _, c := range nlriCriteria {
+			nlriLine += " " + c
+		}
+
+		// Build update block.
+		update := config.NewTree()
+
+		attrBlock := config.NewTree()
+		if nextHop != "" {
+			attrBlock.Set("next-hop", nextHop)
+		}
+		if len(extComms) > 0 {
+			attrBlock.Set("extended-community", "["+strings.Join(extComms, " ")+"]")
+		}
+		if community != "" {
+			attrBlock.Set("community", "["+community+"]")
+		}
+		if rawAttr != "" {
+			attrBlock.Set("attribute", rawAttr)
+		}
+		update.SetContainer("attribute", attrBlock)
+
+		nlriBlock := config.NewTree()
+		nlriBlock.Set(nlriLine, "")
+		update.SetContainer("nlri", nlriBlock)
+
+		dst.AddListEntry("update", "", update)
+	}
+}
+
+// parseFlowMatchEntry splits a freeform entry into criterion and value.
+// Freeform stores "keyword value" as key→"true", or "keyword" as key→"[ values ]".
+func parseFlowMatchEntry(key, val string) (string, string) {
+	if val == "true" || val == "" {
+		parts := strings.SplitN(key, " ", 2)
+		if len(parts) == 2 {
+			return parts[0], parts[1]
+		}
+		return key, ""
+	}
+	return key, val
+}
+
+// flowCriterionWithValues formats a FlowSpec criterion for the NLRI line.
+// Adds -ipv4/-ipv6 suffix to source/destination, normalizes operators.
+func flowCriterionWithValues(criterion, value string, isIPv6 bool) string {
+	switch criterion {
+	case "source":
+		if isIPv6 {
+			return "source-ipv6 " + value
+		}
+		return "source-ipv4 " + value
+	case "destination":
+		if isIPv6 {
+			return "destination-ipv6 " + value
+		}
+		return "destination-ipv4 " + value
+	default: // pass through other criteria unchanged
+		if value == "" {
+			return criterion
+		}
+		// Unwrap single-element bracket lists: "[ !=0 ]" → "!=0"
+		if strings.HasPrefix(value, "[ ") && strings.HasSuffix(value, " ]") {
+			inner := strings.Fields(value[2 : len(value)-2])
+			if len(inner) == 1 {
+				return criterion + " " + inner[0]
+			}
+		}
+		return criterion + " " + value
 	}
 }
 
@@ -793,10 +979,7 @@ func checkUnsupported(src *config.Tree, result *MigrateResult) {
 		result.Warnings = append(result.Warnings, "l2vpn block found - may need manual review")
 	}
 
-	// Flow rules may need manual attention
-	if src.GetContainer("flow") != nil {
-		result.Warnings = append(result.Warnings, "flow block found - may need manual review")
-	}
+	// Flow blocks are now copied through in copyContainers (Ze parses them natively).
 }
 
 // copyOtherItems copies non-neighbor, non-process items.
@@ -844,9 +1027,11 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 	for _, key := range keys {
 		v, _ := tree.Get(key)
 		if v == "" {
-			_, _ = fmt.Fprintf(buf, "%s%s;\n", indent, key)
+			buf.WriteString(indent + key + ";\n")
+		} else if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\"") {
+			buf.WriteString(indent + key + " \"" + v + "\";\n")
 		} else {
-			_, _ = fmt.Fprintf(buf, "%s%s %s;\n", indent, key, v)
+			buf.WriteString(indent + key + " " + v + ";\n")
 		}
 	}
 
@@ -942,7 +1127,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	// Write update blocks (converted from announce/static).
+	// Write update blocks (converted from announce/static/flow).
 	for _, entry := range tree.GetListOrdered("update") {
 		_, _ = fmt.Fprintf(buf, "%supdate {\n", indent)
 		serializeTreeIndent(entry.Value, buf, indent+"\t", false)

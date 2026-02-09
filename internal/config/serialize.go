@@ -311,10 +311,16 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 		b.WriteString(prefix)
 		b.WriteString(k)
 		if v != configTrue {
-			// Has a value - always output as "key [ value ];" to preserve roundtrip
-			b.WriteString(" [ ")
-			b.WriteString(v)
-			b.WriteString(" ]")
+			if strings.HasPrefix(v, "[ ") && strings.HasSuffix(v, " ]") {
+				// Already bracketed — output as-is
+				b.WriteString(" ")
+				b.WriteString(v)
+			} else {
+				// Wrap in brackets to preserve roundtrip
+				b.WriteString(" [ ")
+				b.WriteString(v)
+				b.WriteString(" ]")
+			}
 		}
 		b.WriteString(";\n")
 	}

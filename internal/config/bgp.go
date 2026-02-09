@@ -2573,8 +2573,8 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 				extComms = append(extComms, "rate-limit:"+value)
 			case "redirect":
 				extComms = append(extComms, "redirect:"+value)
-			case "redirect-to-nexthop":
-				extComms = append(extComms, "redirect-to-nexthop")
+			case "redirect-to-nexthop-draft":
+				extComms = append(extComms, "redirect-to-nexthop-draft")
 			case "copy-to-nexthop":
 				extComms = append(extComms, "copy-to-nexthop")
 			case "mark":

@@ -202,8 +202,17 @@ module exabgp {
         // L2VPN
         container l2vpn { ze:syntax "freeform"; }
 
-        // Flow
-        container flow { ze:syntax "freeform"; }
+        // Flow (FlowSpec routes)
+        container flow {
+            list route {
+                key "name";
+                leaf name { type string; }
+                leaf rd { type string; }
+                leaf next-hop { type string; }
+                container match { ze:syntax "freeform"; }
+                container then { ze:syntax "freeform"; }
+            }
+        }
 
         // Nexthop encoding (RFC 8950)
         container nexthop { ze:syntax "freeform"; }
