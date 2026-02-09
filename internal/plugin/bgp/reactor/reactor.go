@@ -1246,9 +1246,12 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VP
 	for _, peer := range peers {
 		if !peer.ShouldQueue() {
 			// Build MP_UNREACH_NLRI for VPN
-			update := buildMPUnreachVPN(staticRoute)
-			if err := peer.SendUpdate(update); err != nil {
-				lastErr = err
+			attrBuf := getBuildBuf()
+			update := buildMPUnreachVPN(attrBuf, staticRoute)
+			sendErr := peer.SendUpdate(update)
+			putBuildBuf(attrBuf)
+			if sendErr != nil {
+				lastErr = sendErr
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
@@ -1709,9 +1712,12 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 				Labels: labels,
 			}
 
-			update := buildMPUnreachLabeledUnicast(staticRoute, addPath)
-			if err := peer.SendUpdate(update); err != nil {
-				lastErr = err
+			attrBuf := getBuildBuf()
+			update := buildMPUnreachLabeledUnicast(attrBuf, staticRoute, addPath)
+			sendErr := peer.SendUpdate(update)
+			putBuildBuf(attrBuf)
+			if sendErr != nil {
+				lastErr = sendErr
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
@@ -1856,8 +1862,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 			asn4 := peer.asn4()
 
 			// Build UPDATE message for this batch using pooled buffers
-			attrBuf := buildBufPool.Get().([]byte)
-			nlriBuf := buildBufPool.Get().([]byte)
+			attrBuf := getBuildBuf()
+			nlriBuf := getBuildBuf()
 			update := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop, isIBGP, asn4, addPath)
 
 			// Send with splitting for large batches
@@ -1867,8 +1873,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 			} else {
 				acceptedCount++
 			}
-			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			putBuildBuf(attrBuf)
+			putBuildBuf(nlriBuf)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -1911,8 +1917,8 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 			addPath := peer.addPathFor(batch.Family)
 
 			// Build withdraw UPDATE for this batch using pooled buffers
-			attrBuf := buildBufPool.Get().([]byte)
-			nlriBuf := buildBufPool.Get().([]byte)
+			attrBuf := getBuildBuf()
+			nlriBuf := getBuildBuf()
 			update := a.buildBatchWithdrawUpdate(attrBuf, nlriBuf, batch, addPath)
 
 			// Send with splitting for large batches
@@ -1921,8 +1927,8 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 			} else {
 				acceptedCount++
 			}
-			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			putBuildBuf(attrBuf)
+			putBuildBuf(nlriBuf)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -2913,7 +2919,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		var update *message.Update
 
 		// Pack NLRIs into pooled buffer
-		nlriBuf := buildBufPool.Get().([]byte)
+		nlriBuf := getBuildBuf()
 		off := 0
 		for _, n := range nlris {
 			off += nlri.WriteNLRI(n, nlriBuf, off, addPath)
@@ -2932,7 +2938,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				SAFI: attribute.SAFI(family.SAFI),
 				NLRI: nlriBytes,
 			}
-			attrBuf := buildBufPool.Get().([]byte)
+			attrBuf := getBuildBuf()
 			attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 			update = &message.Update{
 				PathAttributes: attrBuf[:attrLen],
@@ -2941,15 +2947,15 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 			if err := peer.SendUpdate(update); err == nil {
 				updatesSent++
 			}
-			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			putBuildBuf(attrBuf)
+			putBuildBuf(nlriBuf)
 			continue
 		}
 
 		if err := peer.SendUpdate(update); err == nil {
 			updatesSent++
 		}
-		buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+		putBuildBuf(nlriBuf)
 	}
 
 	return updatesSent
@@ -3140,10 +3146,10 @@ func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Rou
 		family := route.NLRI().Family()
 		addPath := peer.addPathFor(family)
 		asn4 := peer.asn4()
-		attrBuf := buildBufPool.Get().([]byte)
+		attrBuf := getBuildBuf()
 		update := buildRIBRouteUpdate(attrBuf, route, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
 		sendErr := peer.sendUpdateWithSplit(update, maxMsgSize, family)
-		buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+		putBuildBuf(attrBuf)
 		if sendErr != nil {
 			errs = append(errs, fmt.Errorf("route %s: %w", route.NLRI(), sendErr))
 		}
@@ -3246,8 +3252,8 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	}
 
 	// Pack all NLRIs into pooled buffer
-	nlriBuf := buildBufPool.Get().([]byte)
-	defer buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	nlriBuf := getBuildBuf()
+	defer putBuildBuf(nlriBuf)
 	off := 0
 	for _, route := range routes {
 		off += nlri.WriteNLRI(route.NLRI(), nlriBuf, off, addPath)
@@ -3256,8 +3262,8 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 
 	// Build grouped UPDATE with all NLRIs
 	firstRoute := routes[0]
-	attrBuf := buildBufPool.Get().([]byte)
-	defer buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	attrBuf := getBuildBuf()
+	defer putBuildBuf(attrBuf)
 	groupedUpdate := a.buildGroupedMPUpdate(attrBuf, firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
 
 	// Check actual size of grouped update
@@ -4837,15 +4843,14 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 	return buf, nil
 }
 
-// writeMUPPrefix writes a MUP prefix into buf at off. Returns bytes written.
-func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) int {
+// writeMUPPrefix writes a MUP prefix into buf at off.
+func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) {
 	bits := prefix.Bits()
 	addr := prefix.Addr()
 	addrBytes := addr.AsSlice()
 	prefixBytes := (bits + 7) / 8
 	buf[off] = byte(bits)
 	copy(buf[off+1:], addrBytes[:prefixBytes])
-	return 1 + prefixBytes
 }
 
 // mupPrefixLen returns the encoded byte length of a MUP prefix.

@@ -1868,15 +1868,14 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 	return mup.Bytes(), nil
 }
 
-// writeMUPPrefix writes a MUP prefix into buf at off. Returns bytes written.
-func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) int {
+// writeMUPPrefix writes a MUP prefix into buf at off.
+func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) {
 	bits := prefix.Bits()
 	addr := prefix.Addr()
 	addrBytes := addr.AsSlice()
 	prefixBytes := (bits + 7) / 8
 	buf[off] = byte(bits)
 	copy(buf[off+1:], addrBytes[:prefixBytes])
-	return 1 + prefixBytes
 }
 
 // mupPrefixLen returns the encoded byte length of a MUP prefix.

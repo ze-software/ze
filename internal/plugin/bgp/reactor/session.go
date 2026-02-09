@@ -53,6 +53,18 @@ var buildBufPool = sync.Pool{
 	},
 }
 
+// getBuildBuf returns a reusable 4K buffer from buildBufPool.
+//
+//nolint:forcetypeassert // pool New always returns []byte
+func getBuildBuf() []byte {
+	return buildBufPool.Get().([]byte)
+}
+
+// putBuildBuf returns a buffer to the build pool.
+func putBuildBuf(buf []byte) {
+	buildBufPool.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+}
+
 // ReturnReadBuffer returns a buffer to the appropriate pool based on capacity.
 // Used by cache to return buffers when entries are evicted.
 func ReturnReadBuffer(buf []byte) {

@@ -1439,11 +1439,11 @@ func (p *Peer) sendInitialRoutes() {
 			// Send route, splitting if needed.
 			family := op.Route.NLRI().Family()
 			addPath := p.addPathFor(family)
-			attrBuf := buildBufPool.Get().([]byte)
+			attrBuf := getBuildBuf()
 			update := buildRIBRouteUpdate(attrBuf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
-			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			putBuildBuf(attrBuf)
 			if sendErr != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
 				p.mu.Lock()
@@ -1462,11 +1462,11 @@ func (p *Peer) sendInitialRoutes() {
 			// Send withdrawal using pooled buffer.
 			family := op.NLRI.Family()
 			addPath := p.addPathFor(family)
-			wdBuf := buildBufPool.Get().([]byte)
+			wdBuf := getBuildBuf()
 			update := buildWithdrawNLRI(wdBuf, op.NLRI, addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
-			buildBufPool.Put(wdBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			putBuildBuf(wdBuf)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
@@ -1628,15 +1628,18 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 
 		// IPv4 unicast: use inline NLRI field
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
+		// Write NLRI into tail of attrBuf (no overlap with attrs growing from offset 0)
 		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
-		nlriBytes = make([]byte, nlriLen)
-		nlri.WriteNLRI(routeNLRI, nlriBytes, 0, addPath)
-	default:
+		nlriOff := len(attrBuf) - nlriLen
+		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
+		nlriBytes = attrBuf[nlriOff : nlriOff+nlriLen]
+	default: // non-IPv4-unicast families
 		// Other families: MP_REACH_NLRI goes at end (after all other attributes)
-		// Build NLRI bytes first
+		// Write NLRI into tail of attrBuf; WriteAttrTo copies it into attrs region
 		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
-		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(routeNLRI, nlriData, 0, addPath)
+		nlriOff := len(attrBuf) - nlriLen
+		nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
+		nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
 		mpReach := &attribute.MPReachNLRI{
 			AFI:      attribute.AFI(family.AFI),
@@ -1756,51 +1759,51 @@ func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 
 // buildStaticRouteWithdraw builds a withdrawal UPDATE for a static route.
 // Handles VPN, labeled-unicast, IPv4 unicast, and IPv6 unicast correctly.
+// buf is a caller-provided buffer (from buildBufPool) for zero-allocation encoding.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
-func buildStaticRouteWithdraw(route StaticRoute, addPath bool) *message.Update {
+func buildStaticRouteWithdraw(buf []byte, route StaticRoute, addPath bool) *message.Update {
 	switch {
 	case route.IsVPN():
 		// VPN route: use MP_UNREACH_NLRI with RD + prefix
-		// VPN doesn't use Pack() - manual NLRI construction
-		return buildMPUnreachVPN(route)
+		return buildMPUnreachVPN(buf, route)
 	case route.IsLabeledUnicast():
 		// Labeled unicast: use MP_UNREACH_NLRI with label + prefix
-		return buildMPUnreachLabeledUnicast(route, addPath)
+		return buildMPUnreachLabeledUnicast(buf, route, addPath)
 	case route.Prefix.Addr().Is4():
 		// IPv4 unicast: use WithdrawnRoutes field
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriLen := nlri.LenWithContext(inet, addPath)
-		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(inet, nlriData, 0, addPath)
+		nlri.WriteNLRI(inet, buf, 0, addPath)
 		return &message.Update{
-			WithdrawnRoutes: nlriData,
+			WithdrawnRoutes: buf[:nlriLen],
 		}
-	default:
+	default: // IPv6 unicast
 		// IPv6 unicast: use MP_UNREACH_NLRI
-		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
+		// Write NLRI into tail of buf; WriteAttrTo copies it into attr region
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriLen := nlri.LenWithContext(inet, addPath)
-		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(inet, nlriData, 0, addPath)
+		nlriOff := len(buf) / 2
+		nlri.WriteNLRI(inet, buf, nlriOff, addPath)
 
 		mpUnreach := &attribute.MPUnreachNLRI{
 			AFI:  attribute.AFI(nlri.AFIIPv6),
 			SAFI: attribute.SAFI(nlri.SAFIUnicast),
-			NLRI: nlriData,
+			NLRI: buf[nlriOff : nlriOff+nlriLen],
 		}
 
-		// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
-		attrBuf := make([]byte, 8+len(nlriData))
-		attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+		attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)
 		return &message.Update{
-			PathAttributes: attrBuf[:attrLen],
+			PathAttributes: buf[:attrLen],
 		}
 	}
 }
 
 // buildMPUnreachVPN builds MP_UNREACH_NLRI for VPN route withdrawal.
-func buildMPUnreachVPN(route StaticRoute) *message.Update {
+// buf is a caller-provided buffer for zero-allocation encoding.
+// NLRI is written into buf[nlriRegion:] (second half), then WriteAttrTo copies
+// it into buf[0:] as part of the MP_UNREACH_NLRI attribute.
+func buildMPUnreachVPN(buf []byte, route StaticRoute) *message.Update {
 	// Determine AFI from prefix
 	var afi nlri.AFI
 	if route.Prefix.Addr().Is4() {
@@ -1809,8 +1812,13 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 		afi = nlri.AFIIPv6
 	}
 
-	// Build labeled VPN NLRI: label (3 bytes) + RD (8 bytes) + prefix
-	var nlriBytes []byte
+	// Write labeled VPN NLRI into second half of buf: length(1) + label(3) + RD(8) + prefix
+	nlriRegion := len(buf) / 2
+	off := nlriRegion
+
+	// Length byte (filled after computing total)
+	lengthPos := off
+	off++
 
 	// Label: use route.SingleLabel() or withdraw label (0x800000)
 	// RFC 8277: Withdrawal uses single label regardless of original stack
@@ -1818,10 +1826,14 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}
-	nlriBytes = append(nlriBytes, byte(label>>16), byte(label>>8), byte(label)|0x01) // Bottom of stack
+	buf[off] = byte(label >> 16)
+	buf[off+1] = byte(label >> 8)
+	buf[off+2] = byte(label) | 0x01 // Bottom of stack
+	off += 3
 
-	// RD (convert [8]byte to slice)
-	nlriBytes = append(nlriBytes, route.RDBytes[:]...)
+	// RD (8 bytes)
+	copy(buf[off:], route.RDBytes[:])
+	off += 8
 
 	// Prefix
 	prefixBits := route.Prefix.Bits()
@@ -1829,33 +1841,32 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 	addr := route.Prefix.Addr()
 	if addr.Is4() {
 		a4 := addr.As4()
-		nlriBytes = append(nlriBytes, a4[:prefixBytes]...)
+		copy(buf[off:], a4[:prefixBytes])
 	} else {
 		a16 := addr.As16()
-		nlriBytes = append(nlriBytes, a16[:prefixBytes]...)
+		copy(buf[off:], a16[:prefixBytes])
 	}
+	off += prefixBytes
 
-	// Prepend length (label + RD + prefix bits)
-	totalBits := 24 + 64 + prefixBits // 3 bytes label + 8 bytes RD + prefix
-	nlriWithLen := append([]byte{byte(totalBits)}, nlriBytes...)
+	// Fill length byte: label(24) + RD(64) + prefix bits
+	buf[lengthPos] = byte(24 + 64 + prefixBits)
 
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFI(afi),
 		SAFI: attribute.SAFI(nlri.SAFIVPN), // RFC 4364: SAFI 128
-		NLRI: nlriWithLen,
+		NLRI: buf[nlriRegion:off],
 	}
 
-	// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
-	attrBuf := make([]byte, 8+len(nlriWithLen))
-	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+	attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)
 	return &message.Update{
-		PathAttributes: attrBuf[:attrLen],
+		PathAttributes: buf[:attrLen],
 	}
 }
 
 // buildMPUnreachLabeledUnicast builds MP_UNREACH_NLRI for labeled unicast withdrawal.
+// buf is a caller-provided buffer for zero-allocation encoding.
 // RFC 8277: Labeled unicast uses SAFI 4 with label + prefix.
-func buildMPUnreachLabeledUnicast(route StaticRoute, addPath bool) *message.Update {
+func buildMPUnreachLabeledUnicast(buf []byte, route StaticRoute, addPath bool) *message.Update {
 	// Determine AFI from prefix
 	var afi nlri.AFI
 	if route.Prefix.Addr().Is4() {
@@ -1864,8 +1875,24 @@ func buildMPUnreachLabeledUnicast(route StaticRoute, addPath bool) *message.Upda
 		afi = nlri.AFIIPv6
 	}
 
-	// Build labeled unicast NLRI: label (3 bytes) + prefix
-	var nlriBytes []byte
+	// Write labeled unicast NLRI into second half of buf
+	nlriRegion := len(buf) / 2
+	off := nlriRegion
+
+	// Handle ADD-PATH: path-id (4 bytes) before length byte
+	if addPath && route.PathID != 0 {
+		buf[off] = byte(route.PathID >> 24)
+		buf[off+1] = byte(route.PathID >> 16)
+		buf[off+2] = byte(route.PathID >> 8)
+		buf[off+3] = byte(route.PathID)
+		off += 4
+	}
+
+	// Length byte (label + prefix bits)
+	prefixBits := route.Prefix.Bits()
+	totalBits := 24 + prefixBits // 3 bytes label + prefix
+	buf[off] = byte(totalBits)
+	off++
 
 	// Label: use route.SingleLabel() or withdraw label (0x800000)
 	// RFC 8277: Withdrawal uses single label regardless of original stack
@@ -1873,48 +1900,32 @@ func buildMPUnreachLabeledUnicast(route StaticRoute, addPath bool) *message.Upda
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}
-	nlriBytes = append(nlriBytes, byte(label>>12), byte(label>>4), byte(label<<4)|0x01) // BOS=1
+	buf[off] = byte(label >> 12)
+	buf[off+1] = byte(label >> 4)
+	buf[off+2] = byte(label<<4) | 0x01 // BOS=1
+	off += 3
 
 	// Prefix
-	prefixBits := route.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	addr := route.Prefix.Addr()
 	if addr.Is4() {
 		a4 := addr.As4()
-		nlriBytes = append(nlriBytes, a4[:prefixBytes]...)
+		copy(buf[off:], a4[:prefixBytes])
 	} else {
 		a16 := addr.As16()
-		nlriBytes = append(nlriBytes, a16[:prefixBytes]...)
+		copy(buf[off:], a16[:prefixBytes])
 	}
-
-	// Prepend length (label + prefix bits)
-	totalBits := 24 + prefixBits // 3 bytes label + prefix
-	var nlriWithLen []byte
-
-	// Handle ADD-PATH if enabled
-	if addPath && route.PathID != 0 {
-		nlriWithLen = make([]byte, 4+1+len(nlriBytes))
-		nlriWithLen[0] = byte(route.PathID >> 24)
-		nlriWithLen[1] = byte(route.PathID >> 16)
-		nlriWithLen[2] = byte(route.PathID >> 8)
-		nlriWithLen[3] = byte(route.PathID)
-		nlriWithLen[4] = byte(totalBits)
-		copy(nlriWithLen[5:], nlriBytes)
-	} else {
-		nlriWithLen = append([]byte{byte(totalBits)}, nlriBytes...)
-	}
+	off += prefixBytes
 
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFI(afi),
 		SAFI: 4, // RFC 8277: Labeled Unicast
-		NLRI: nlriWithLen,
+		NLRI: buf[nlriRegion:off],
 	}
 
-	// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
-	attrBuf := make([]byte, 8+len(nlriWithLen))
-	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+	attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)
 	return &message.Update{
-		PathAttributes: attrBuf[:attrLen],
+		PathAttributes: buf[:attrLen],
 	}
 }
 
@@ -2506,9 +2517,12 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 		// Build withdrawal - handles VPN, IPv4 unicast, IPv6 unicast correctly
 		// RFC 7911: Get ADD-PATH encoding state
 		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteWithdraw(wr.StaticRoute, addPath)
-		if err := p.SendUpdate(update); err != nil {
-			return err
+		attrBuf := getBuildBuf()
+		update := buildStaticRouteWithdraw(attrBuf, wr.StaticRoute, addPath)
+		sendErr := p.SendUpdate(update)
+		putBuildBuf(attrBuf)
+		if sendErr != nil {
+			return sendErr
 		}
 
 		// Update state
