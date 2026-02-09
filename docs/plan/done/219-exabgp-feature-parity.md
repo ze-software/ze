@@ -233,61 +233,127 @@ Fix all 17 remaining ExaBGP compatibility test failures to achieve full parity (
 
 ## Implementation Summary
 
-<!-- Fill after implementation -->
+### What Was Implemented
+
+All 17 previously-failing ExaBGP compatibility tests were fixed, achieving 37/37 (100%) pass rate.
+
+**Phase 1 — OPEN Capability Fixes (tests 3, 4, C):**
+- Software-version capability (code 75) now included in OPEN when configured
+- Hostname capability (code 73) injected from config `host-name`/`domain-name` fields
+- Link-local-nexthop capability added to migration, YANG schema, config parser, and loader
+
+**Phase 2 — Simple Encoding Fixes (tests Q, U, L):**
+- `asn4 disable` migration fixed (was only handling truthy values)
+- Route split encoding order corrected
+- IPv6 link-local next-hop encodes both global + link-local (32 bytes per RFC 2545 Section 3)
+
+**Phase 3 — VPN/MPLS/ADD-PATH (tests 0, Z, R, T):**
+- ADD-PATH `path-information` preserved through migration and encoded as path-id in wire NLRI
+- VPN NLRI RD+label+prefix encoding fixed in config→wire path
+- PREFIX-SID attribute encoding added to static route path
+
+**Phase 4 — Route Announcement (tests M, V, W):**
+- MVPN and MUP static route announcement fixed (was sending withdrawal instead)
+- Flex-value tokenizer added for compound values (brackets, parens)
+- `splitFlexAttrs` extracts path attributes from NLRI fields for mcast-vpn, mup, vpls families
+
+**Phase 5 — FlowSpec Migration (tests 7, 8):**
+- Flow block parsing added to migrate.go (already existed in ExaBGP YANG schema)
+- Flow rules converted to Ze static flow routes
+
+**Phase 6 — L2VPN Migration (test I):**
+- L2VPN/VPLS block parsing added with structured YANG schema (endpoint, base, offset, size)
+- Named VPLS routes converted to Ze update blocks
+
+**Phase 7 — Watchdog (test a):**
+- ExaBGP wrapper bridges watchdog processes: launches process, reads stdout, translates `announce watchdog`/`withdraw watchdog` to Ze YANG RPC calls
+- Migration emits `watchdog { name ...; }` blocks in update for routes with watchdog attribute
+- `cmd/ze/exabgp/main.go` outputs `process:name:cmd` on stderr for wrapper to parse
+
+### Design Decisions
+
+- **External process bridging:** ExaBGP processes are NOT converted to Ze plugins (protocol incompatible). Instead they're collected in `MigrateResult.Processes` and the wrapper script bridges them by translating ExaBGP stdout commands to Ze API socket RPC calls.
+- **Flex-value tokenizer:** Compound values like `[target:10:10]` and `(l3-service ... [64,24,16,0,0,0])` need bracket-aware tokenization before attribute/NLRI splitting.
+
+### Bugs Found/Fixed
+- `TestMigrateUnsupported` was testing L2VPN as unsupported — renamed to `TestMigrateL2VPNSupported` after L2VPN migration was implemented
+- File-based process test expected bridge plugins in config — updated to match external process design
+
+### Deviations from Plan
+- Process migration changed from creating `-compat` bridge plugins in config to collecting processes externally for the wrapper to handle (protocol incompatibility)
+- L2VPN YANG schema changed from freeform to structured (explicit fields for endpoint, base, offset, size)
+- `internal/config/bgp.go`, `internal/config/loader.go`, `internal/plugin/bgp/reactor/session.go` had changes in prior sessions (not in current diff) — already committed upstream
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Fix OPEN capability tests (3, 4, C) | | | |
-| Fix simple encoding tests (Q, U, L) | | | |
-| Fix VPN/MPLS/ADD-PATH tests (0, Z, R, T) | | | |
-| Fix route announcement tests (M, V, W) | | | |
-| Fix FlowSpec migration (7, 8) | | | |
-| Fix L2VPN migration (I) | | | |
-| Fix watchdog (a) | | | |
+| Fix OPEN capability tests (3, 4, C) | ✅ Done | `internal/exabgp/migrate.go`, `internal/config/loader.go`, YANG schema | hostname, software-version, link-local-nexthop |
+| Fix simple encoding tests (Q, U, L) | ✅ Done | `internal/exabgp/migrate.go`, `internal/config/loader.go` | asn4 disable, split, link-local NH |
+| Fix VPN/MPLS/ADD-PATH tests (0, Z, R, T) | ✅ Done | `internal/exabgp/migrate.go`, `internal/config/loader.go` | path-info, VPN NLRI, prefix-sid |
+| Fix route announcement tests (M, V, W) | ✅ Done | `internal/exabgp/migrate.go:convertFlexToUpdate()` | MVPN, MUP flex-value parsing |
+| Fix FlowSpec migration (7, 8) | ✅ Done | `internal/exabgp/migrate.go:convertAnnounceToUpdate()` | flow block to Ze static routes |
+| Fix L2VPN migration (I) | ✅ Done | `internal/exabgp/migrate.go:convertL2VPNToUpdate()` | VPLS endpoint/base/offset/size |
+| Fix watchdog (a) | ✅ Done | `test/exabgp-compat/bin/exabgp:run_process_bridge()` | Wrapper bridges process via API socket |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| ExaBGP suite 37/37 | | | |
-| Ze suite no regression | | | |
+| ExaBGP suite 37/37 | ✅ Done | `make functional-exabgp` | 37/37 pass (100%) |
+| Ze suite no regression | ✅ Done | `make functional` | All pass |
+
+### Unit Tests (additional)
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestMigrateLinkLocalNexthop | ✅ Done | `internal/exabgp/migrate_test.go` | |
+| TestMigrateASN4Disable | ✅ Done | `internal/exabgp/migrate_test.go` | |
+| TestMigrateProcess | ✅ Done | `internal/exabgp/migrate_test.go` | Updated: external process design |
+| TestMigrateL2VPNSupported | ✅ Done | `internal/exabgp/migrate_test.go` | Renamed from TestMigrateUnsupported |
+| TestTokenizeFlexValue | ✅ Done | `internal/exabgp/migrate_test.go` | Bracket-aware tokenization |
+| TestSplitFlexAttrs | ✅ Done | `internal/exabgp/migrate_test.go` | Attribute/NLRI separation |
+| TestConvertFlexToUpdate | ✅ Done | `internal/exabgp/migrate_test.go` | MVPN/MUP update blocks |
+| TestMigrateFileBasedTests (5 sub) | ✅ Done | `internal/exabgp/migrate_test.go` | simple, GR, RR, process, nexthop |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| internal/exabgp/migrate.go | | |
-| internal/config/bgp.go | | |
-| internal/config/loader.go | | |
-| internal/plugin/bgp/schema/ze-bgp-conf.yang | | |
-| internal/plugin/bgp/reactor/session.go | | |
+| `internal/exabgp/migrate.go` | ✅ Modified | L2VPN, flex-value, watchdog, process redesign |
+| `internal/exabgp/migrate_test.go` | ✅ Modified | Updated for L2VPN support and process design |
+| `internal/exabgp/exabgp.yang` | ✅ Modified | Structured L2VPN/VPLS schema |
+| `cmd/ze/exabgp/main.go` | ✅ Modified | Process info output on stderr |
+| `test/exabgp-compat/bin/exabgp` | ✅ Modified | Watchdog process bridge |
+| `test/exabgp/process/expected.conf` | ✅ Modified | Updated for external process design |
+| `internal/config/bgp.go` | ✅ Done | Changes in prior commits (already merged) |
+| `internal/config/loader.go` | ✅ Done | Changes in prior commits (already merged) |
+| `internal/plugin/bgp/schema/ze-bgp-conf.yang` | ✅ Done | Changes in prior commits (already merged) |
+| `internal/plugin/bgp/reactor/session.go` | ✅ Done | Verified, no changes needed in current diff |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 24
+- **Done:** 24
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (process design: bridge plugins → external processes)
 
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
-- [ ] Functional tests verify end-user behavior (`.ci` files)
+- [x] Tests written
+- [x] Tests FAIL (verified during development)
+- [x] Implementation complete
+- [x] Tests PASS (37/37 ExaBGP, all unit tests, all functional)
+- [x] Feature code integrated into codebase (`internal/*`, `cmd/*`)
+- [x] Functional tests verify end-user behavior (`.ci` files)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation (during implementation)
-- [ ] Required docs read
+- [x] Required docs read
 
 ### Completion
-- [ ] Implementation Audit completed
-- [ ] Spec updated with Implementation Summary
+- [x] Implementation Audit completed
+- [x] Spec updated with Implementation Summary

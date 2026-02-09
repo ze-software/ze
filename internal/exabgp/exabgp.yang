@@ -199,8 +199,20 @@ module exabgp {
             }
         }
 
-        // L2VPN
-        container l2vpn { ze:syntax "freeform"; }
+        // L2VPN (structured to support inline + named blocks)
+        container l2vpn {
+            container vpls {
+                ze:syntax "flex";
+                uses route-attributes;
+                leaf endpoint { type uint16; }
+                leaf ve-id { type uint16; }
+                leaf base { type uint32; }
+                leaf offset { type uint16; }
+                leaf ve-block-offset { type uint16; }
+                leaf size { type uint16; }
+                leaf ve-block-size { type uint16; }
+            }
+        }
 
         // Flow (FlowSpec routes)
         container flow {

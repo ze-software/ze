@@ -392,12 +392,11 @@ neighbor 10.0.0.1 {
 	}
 }
 
-// TestMigrateProcess verifies process wrapping with bridge.
+// TestMigrateProcess verifies processes are collected for wrapper handling.
 //
-// VALIDATES: ExaBGP process wrapped with ze exabgp plugin bridge.
-// PREVENTS: Direct ExaBGP plugin usage (needs JSON translation).
+// VALIDATES: ExaBGP processes stored in MigrateResult.Processes (not as Ze plugins).
+// PREVENTS: Creating bridge plugins with incompatible protocol.
 func TestMigrateProcess(t *testing.T) {
-	// Uses actual ExaBGP 'api { processes [...] }' syntax.
 	input := `
 process my-plugin {
 	run /path/to/plugin.py;
@@ -423,41 +422,31 @@ neighbor 10.0.0.1 {
 		t.Fatalf("migrate: %v", err)
 	}
 
-	// Check plugin renamed and wrapped
+	// Processes should NOT be converted to plugins (protocol incompatible).
 	plugins := result.Tree.GetList("plugin")
-	var foundPlugin *config.Tree
-	for name, plugin := range plugins {
+	for name := range plugins {
 		if strings.Contains(name, "compat") {
-			foundPlugin = plugin
-			break
+			t.Errorf("should not create bridge plugin, found: %s", name)
 		}
 	}
-	if foundPlugin == nil {
-		t.Fatal("expected compat plugin")
-	}
 
-	// Check run command wrapped with bridge
-	runStr, ok := foundPlugin.Get("run")
-	if !ok {
-		t.Fatal("expected run in plugin")
+	// Processes should be stored in result for wrapper to handle.
+	if len(result.Processes) != 1 {
+		t.Fatalf("expected 1 external process, got %d", len(result.Processes))
 	}
-	if !strings.Contains(runStr, "ze exabgp plugin") {
-		t.Errorf("expected run to use bridge, got: %s", runStr)
+	if result.Processes[0].Name != "my-plugin" {
+		t.Errorf("expected process name 'my-plugin', got %q", result.Processes[0].Name)
 	}
-
-	// Check process removed from top level
-	processes := result.Tree.GetList("process")
-	if len(processes) != 0 {
-		t.Errorf("process should be removed from top level")
+	if result.Processes[0].RunCmd != "/path/to/plugin.py" {
+		t.Errorf("expected run cmd '/path/to/plugin.py', got %q", result.Processes[0].RunCmd)
 	}
 }
 
-// TestMigrateUnsupported verifies error on unsupported features.
+// TestMigrateL2VPNSupported verifies L2VPN/VPLS configs are now migrated successfully.
 //
-// VALIDATES: Unsupported ExaBGP features return clear error.
-// PREVENTS: Silent failure on incompatible configs.
-func TestMigrateUnsupported(t *testing.T) {
-	// L2VPN is complex and may require manual migration
+// VALIDATES: L2VPN VPLS routes are migrated (no longer unsupported).
+// PREVENTS: Regression of L2VPN migration (test I).
+func TestMigrateL2VPNSupported(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
 	l2vpn {
@@ -473,10 +462,13 @@ neighbor 10.0.0.1 {
 	}
 
 	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate should succeed for L2VPN: %v", err)
+	}
 
-	// Should either error or warn in result
-	if err == nil && len(result.Warnings) == 0 {
-		t.Error("expected error or warning for complex L2VPN config")
+	output := SerializeTree(result.Tree)
+	if !strings.Contains(output, "update {") {
+		t.Errorf("expected update block for L2VPN route, got:\n%s", output)
 	}
 }
 
@@ -1263,12 +1255,14 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		}
 
 	case "process":
-		// Should have compat plugin wrapped with bridge.
-		if !strings.Contains(got, "ze exabgp plugin") {
-			t.Error("expected bridge wrapper in plugin run command")
+		// ExaBGP processes are stored in result.Processes for the wrapper to handle
+		// (protocol incompatible — ExaBGP uses stdout text, Ze uses YANG RPC sockets).
+		if len(result.Processes) != 1 {
+			t.Errorf("expected 1 external process, got %d", len(result.Processes))
 		}
-		if !strings.Contains(got, "-compat") {
-			t.Error("expected '-compat' suffix in plugin name")
+		// No bridge plugins should be created in the migrated config.
+		if strings.Contains(got, "-compat") {
+			t.Error("should not create bridge plugin in config (handled by wrapper)")
 		}
 
 	case "nexthop":

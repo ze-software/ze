@@ -235,6 +235,11 @@ Example:
 		fmt.Fprintf(os.Stderr, "info: RIB plugin injected (required for GR/route-refresh)\n")
 	}
 
+	// Output external process info for the wrapper to handle.
+	for _, proc := range result.Processes {
+		fmt.Fprintf(os.Stderr, "process:%s:%s\n", proc.Name, proc.RunCmd)
+	}
+
 	if *dryRun {
 		fmt.Fprintf(os.Stderr, "dry-run: would migrate %s\n", configFile)
 		return exitOK

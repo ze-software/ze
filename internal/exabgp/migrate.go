@@ -14,17 +14,29 @@ import (
 // ErrNilTree is returned when a nil tree is passed.
 var ErrNilTree = errors.New("nil tree")
 
+// familyIPv4Unicast is the default family for IPv4 routes.
+const familyIPv4Unicast = "ipv4/unicast"
+
 // familyIPv6Unicast is used for IPv6 routes when family detection is needed.
 const familyIPv6Unicast = "ipv6/unicast"
 
 // configTrue represents the string value "true" used in config trees.
 const configTrue = "true"
 
+// ExternalProcess describes an ExaBGP process that must be handled
+// by the exabgp wrapper (not convertible to a Ze plugin because
+// ExaBGP uses stdout text API, Ze uses YANG RPC over socket pairs).
+type ExternalProcess struct {
+	Name   string // Original process name (e.g., "service-watchdog")
+	RunCmd string // Run command (e.g., "./run/watchdog.run")
+}
+
 // MigrateResult holds the outcome of ExaBGP→ZeBGP migration.
 type MigrateResult struct {
-	Tree        *config.Tree // Transformed tree
-	RIBInjected bool         // True if RIB plugin was auto-injected
-	Warnings    []string     // Non-fatal issues found
+	Tree        *config.Tree      // Transformed tree
+	RIBInjected bool              // True if RIB plugin was auto-injected
+	Warnings    []string          // Non-fatal issues found
+	Processes   []ExternalProcess // ExaBGP processes (handled by wrapper, not Ze)
 }
 
 // MigrateFromExaBGP converts an ExaBGP config tree to ZeBGP format.
@@ -139,37 +151,25 @@ func injectRIBPlugin(tree *config.Tree) {
 	tree.AddListEntry("plugin", "rib", ribPlugin)
 }
 
-// migrateProcesses converts ExaBGP processes to ZeBGP plugins.
-// Returns a map of old process name → new plugin name.
+// migrateProcesses collects ExaBGP process definitions for the wrapper to handle.
+// ExaBGP processes cannot run as Ze plugins because the protocols are incompatible
+// (ExaBGP uses stdout text API, Ze uses YANG RPC over socket pairs).
+// Returns an empty map — no process bindings are created since there are no plugins.
 func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
-	processMap := make(map[string]string)
-
-	// Use ordered iteration for deterministic output.
 	for _, entry := range tree.GetListOrdered("process") {
-		name := entry.Key
 		processTree := entry.Value
-		newName := name + "-compat"
-		processMap[name] = newName
-
-		plugin := config.NewTree()
-
-		// Wrap run command with bridge.
 		if runCmd, ok := processTree.Get("run"); ok {
-			// Strip quotes if present.
 			runCmd = strings.Trim(runCmd, `"'`)
-			wrappedCmd := fmt.Sprintf(`"ze exabgp plugin %s"`, runCmd)
-			plugin.Set("run", wrappedCmd)
+			result.Processes = append(result.Processes, ExternalProcess{
+				Name:   entry.Key,
+				RunCmd: runCmd,
+			})
 		}
-
-		// Copy encoder.
-		if enc, ok := processTree.Get("encoder"); ok {
-			plugin.Set("encoder", enc)
-		}
-
-		result.Tree.AddListEntry("plugin", newName, plugin)
 	}
 
-	return processMap
+	// Return empty map: no plugins created, so no process bindings should reference them.
+	// Ze validates that process bindings reference defined plugins — undefined refs are fatal.
+	return make(map[string]string)
 }
 
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers.
@@ -409,6 +409,12 @@ func copyContainers(src, dst *config.Tree) {
 		convertFlowToUpdate(flow, dst)
 	}
 
+	// Convert neighbor-level l2vpn block to update blocks.
+	// ExaBGP has l2vpn { vpls ... } at the neighbor level for VPLS routes.
+	if l2vpn := src.GetContainer("l2vpn"); l2vpn != nil {
+		convertL2VPNToUpdate(l2vpn, dst)
+	}
+
 	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.
 }
 
@@ -475,9 +481,9 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 			}
 		}
 
-		// Handle flex SAFIs (mcast-vpn, mup) which store values via AppendValue.
+		// Handle flex SAFIs (mcast-vpn, mup, vpls) which store values via AppendValue.
 		// These use ze:syntax "flex" in the ExaBGP YANG schema, so GetListOrdered returns nothing.
-		flexSafis := []string{"mcast-vpn", "mup"}
+		flexSafis := []string{"mcast-vpn", "mup", "vpls"}
 		for _, safi := range flexSafis {
 			values := afiBlock.GetMultiValues(safi)
 			if len(values) == 0 {
@@ -641,6 +647,68 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 	}
 }
 
+// convertL2VPNToUpdate converts neighbor-level l2vpn blocks to Ze update blocks.
+// Handles both inline VPLS routes (flex multi-values) and named VPLS blocks (list entries).
+func convertL2VPNToUpdate(l2vpn, dst *config.Tree) {
+	// Handle inline VPLS routes (stored via AppendValue by the flex parser).
+	vplsValues := l2vpn.GetMultiValues("vpls")
+	if len(vplsValues) > 0 {
+		convertFlexToUpdate("l2vpn", "vpls", vplsValues, dst)
+	}
+
+	// Handle named VPLS routes (stored via AddListEntry by the flex parser).
+	for _, entry := range l2vpn.GetListOrdered("vpls") {
+		convertNamedVPLSToUpdate(entry.Value, dst)
+	}
+}
+
+// convertNamedVPLSToUpdate converts a named VPLS block (e.g., vpls site5 { ... })
+// to a Ze update block. The block's Tree has parsed fields like endpoint, base, rd, etc.
+func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
+	update := config.NewTree()
+
+	attrBlock := config.NewTree()
+
+	// Extract path attributes from the VPLS block.
+	// Simple values (single word) are stored as-is.
+	simpleFields := []string{"next-hop", "origin", "local-preference", "med", "originator-id"}
+	for _, field := range simpleFields {
+		if v, ok := vpls.Get(field); ok {
+			attrBlock.Set(field, v)
+		}
+	}
+	// Array fields: value-or-array strips brackets, so re-wrap multi-word values.
+	arrayFields := []string{"as-path", "community", "extended-community", "large-community", "cluster-list"}
+	for _, field := range arrayFields {
+		if v, ok := vpls.Get(field); ok {
+			if strings.Contains(v, " ") && !strings.HasPrefix(v, "[") {
+				v = "[" + v + "]"
+			}
+			attrBlock.Set(field, v)
+		}
+	}
+	if _, ok := attrBlock.Get("origin"); !ok {
+		attrBlock.Set("origin", "igp")
+	}
+	update.SetContainer("attribute", attrBlock)
+
+	// Build NLRI line from VPLS-specific fields.
+	// Format: "l2vpn/vpls rd X endpoint Y base Z offset A size B"
+	nlriFields := []string{"rd", "endpoint", "ve-id", "base", "offset", "ve-block-offset", "size", "ve-block-size"}
+	var nlriParts []string
+	for _, field := range nlriFields {
+		if v, ok := vpls.Get(field); ok {
+			nlriParts = append(nlriParts, field, v)
+		}
+	}
+
+	nlriBlock := config.NewTree()
+	nlriBlock.Set("l2vpn/vpls "+strings.Join(nlriParts, " "), "")
+	update.SetContainer("nlri", nlriBlock)
+
+	dst.AddListEntry("update", "", update)
+}
+
 // parseFlowMatchEntry splits a freeform entry into criterion and value.
 // Freeform stores "keyword value" as key→"true", or "keyword" as key→"[ values ]".
 func parseFlowMatchEntry(key, val string) (string, string) {
@@ -747,6 +815,18 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	nlriBlock.Set(family, nlriValue)
 	update.SetContainer("nlri", nlriBlock)
 
+	// Handle watchdog attribute.
+	// ExaBGP: "route PREFIX ... watchdog NAME withdraw;" stores watchdog=NAME, withdraw=true.
+	// Ze: "update { watchdog { name NAME; } ... }"
+	// Note: we omit "withdraw true" because in ExaBGP the watchdog process announces
+	// before session establishment, so the route is effectively announced at session start.
+	// The exabgp wrapper handles the process lifecycle via the API socket.
+	if wdName, ok := attrTree.Get("watchdog"); ok {
+		wdBlock := config.NewTree()
+		wdBlock.Set("name", wdName)
+		update.SetContainer("watchdog", wdBlock)
+	}
+
 	dst.AddListEntry("update", "", update)
 }
 
@@ -768,7 +848,7 @@ func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 	if isIPv6 {
 		return familyIPv6Unicast
 	}
-	return defaultFamily
+	return familyIPv4Unicast
 }
 
 // convertFamilyBlock converts ExaBGP family syntax to ZeBGP.
@@ -904,7 +984,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 		for _, name := range processNames {
 			newName, ok := processMap[name]
 			if !ok {
-				newName = name + "-compat"
+				continue // No plugin created for this process — skip binding.
 			}
 			addProcessBinding(dst, newName)
 		}
@@ -923,7 +1003,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			for _, name := range processNames {
 				newName, ok := processMap[name]
 				if !ok {
-					newName = name + "-compat"
+					continue // No plugin created — skip binding.
 				}
 				addProcessBinding(dst, newName)
 			}
@@ -931,7 +1011,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			// New-style named binding - copy with name mapping.
 			newName, ok := processMap[key]
 			if !ok {
-				newName = key + "-compat"
+				continue // No plugin created — skip binding.
 			}
 			dst.AddListEntry("process", newName, procTree.Clone())
 		}
@@ -971,13 +1051,9 @@ func addProcessBinding(dst *config.Tree, name string) {
 }
 
 // checkUnsupported adds warnings for features that need manual migration.
-func checkUnsupported(src *config.Tree, result *MigrateResult) {
-	// L2VPN/VPLS may need manual attention
-	if src.GetContainer("l2vpn") != nil {
-		result.Warnings = append(result.Warnings, "l2vpn block found - may need manual review")
-	}
-
-	// Flow blocks are now copied through in copyContainers (Ze parses them natively).
+func checkUnsupported(_ *config.Tree, _ *MigrateResult) {
+	// L2VPN/VPLS: handled by convertL2VPNToUpdate.
+	// Flow blocks: handled by convertFlowToUpdate.
 }
 
 // copyOtherItems copies non-neighbor, non-process items.
@@ -1105,6 +1181,13 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%snlri {\n", indent)
 		serializeTreeIndent(nlri, buf, indent+"\t", false)
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	}
+
+	// Watchdog block (routes controlled via "bgp watchdog announce/withdraw").
+	if wdog := tree.GetContainer("watchdog"); wdog != nil {
+		buf.WriteString(indent + "watchdog {\n")
+		serializeTreeIndent(wdog, buf, indent+"\t", false)
+		buf.WriteString(indent + "}\n")
 	}
 
 	// Write process bindings.
