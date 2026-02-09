@@ -98,7 +98,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 			}()
 
 			assert.Equal(t, expected, actual,
-				"Wire format mismatch: buildLabeledUnicastNLRIBytes vs nlri.LabeledUnicast.Pack")
+				"Wire format mismatch: buildLabeledUnicastNLRIBytes vs nlri.LabeledUnicast.WriteTo")
 		})
 	}
 }

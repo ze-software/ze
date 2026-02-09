@@ -557,7 +557,7 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal net
 		}
 	}
 
-	// Pack raw attributes into a single contiguous buffer
+	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
 
 	return message.UnicastParams{
@@ -587,7 +587,7 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal net
 // Used for labeled unicast routes (SAFI 4).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
 func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
-	// Pack raw attributes into a single contiguous buffer
+	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
 
 	return message.LabeledUnicastParams{

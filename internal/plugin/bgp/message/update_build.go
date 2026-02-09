@@ -242,7 +242,7 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 
 	// 16. EXTENDED_COMMUNITIES (type 16) - RFC 4360
 	if len(p.ExtCommunityBytes) > 0 {
-		// Pack as raw attribute bytes (already in wire format)
+		// Write as raw attribute bytes (already in wire format)
 		// We need a wrapper that implements Attribute interface
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
@@ -269,7 +269,7 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	// Pack sorted attributes
+	// Write sorted attributes
 	attrSize := attribute.AttributesSize(attrs)
 	// Calculate raw attributes size
 	rawSize := 0

@@ -954,7 +954,7 @@ func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 		NLRI:     mpNLRI,
 	}
 
-	// Pack MP_REACH_NLRI as attribute
+	// Write MP_REACH_NLRI as attribute
 	pathAttrs := make([]byte, 3+mpReach.Len())
 	if mpReach.Len() > 255 {
 		pathAttrs = make([]byte, 4+mpReach.Len())

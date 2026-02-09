@@ -1975,7 +1975,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
-	// Pack NLRIs into caller-provided buffer
+	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
 		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
@@ -2223,7 +2223,7 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
 func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, addPath bool) *message.Update {
-	// Pack NLRIs into caller-provided buffer
+	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
 		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
@@ -2922,7 +2922,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		addPath := peer.addPathFor(family)
 		var update *message.Update
 
-		// Pack NLRIs into pooled buffer
+		// Write NLRIs into pooled buffer
 		nlriBuf := getBuildBuf()
 		off := 0
 		for _, n := range nlris {
@@ -3247,7 +3247,7 @@ func hasComplexASPath(route *rib.Route) bool {
 }
 
 // sendGroupedMPFamily sends grouped MP family routes (IPv6, VPN, etc.).
-// Packs multiple NLRIs into MP_REACH_NLRI attribute.
+// Writes multiple NLRIs into MP_REACH_NLRI attribute.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route, family nlri.Family, asn4, addPath bool, maxMsgSize int) error {
@@ -3255,7 +3255,7 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 		return nil
 	}
 
-	// Pack all NLRIs into pooled buffer
+	// Write all NLRIs into pooled buffer
 	nlriBuf := getBuildBuf()
 	defer putBuildBuf(nlriBuf)
 	off := 0

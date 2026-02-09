@@ -768,10 +768,10 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 5, "should create multiple chunks")
 
-	// Pack each chunk, then unpack and verify
+	// Write each chunk, then unpack and verify
 	reassembledNLRI := make([]byte, 0, len(nlri))
 	for i, chunk := range chunks {
-		// Pack to wire format
+		// Write to wire format
 		packed := PackTo(chunk, nil)
 
 		// Verify header
@@ -882,7 +882,7 @@ func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 5)
 
-	// Pack, unpack, reassemble
+	// Write, unpack, reassemble
 	reassembledWithdrawn := make([]byte, 0, len(withdrawn))
 	for i, chunk := range chunks {
 		packed := PackTo(chunk, nil)

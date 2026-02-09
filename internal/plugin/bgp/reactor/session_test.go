@@ -633,7 +633,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 	update = append(update, pathAttrs...)
 	// No IPv4 NLRI
 
-	// Pack as BGP message
+	// Write as BGP message
 	hdr := make([]byte, 19)
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff // Marker
@@ -1167,7 +1167,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
-	// Pack as BGP message
+	// Write as BGP message
 	hdr := make([]byte, 19, 19+len(update))
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff

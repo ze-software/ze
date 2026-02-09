@@ -52,7 +52,7 @@ func TestUpdateBuilder_BuildEVPN_Type2(t *testing.T) {
 	// Verify path attributes contain MP_REACH_NLRI
 	assert.Greater(t, len(update.PathAttributes), 0, "PathAttributes should not be empty")
 
-	// Pack and verify structure
+	// Write and verify structure
 	data := PackTo(update, nil)
 	assert.Greater(t, len(data), HeaderLen, "packed data should include header")
 }

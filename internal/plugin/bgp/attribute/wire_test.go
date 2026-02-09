@@ -532,7 +532,7 @@ func TestAttributesWireExtendedLength(t *testing.T) {
 		bigData[i] = byte(i % 256)
 	}
 
-	// Pack with extended length
+	// Write with extended length
 	largeCommunity := packAttr(FlagOptional|FlagTransitive, AttrLargeCommunity, bigData)
 	packed := packAttrs(largeCommunity)
 	aw := NewAttributesWire(packed, ctxID)
