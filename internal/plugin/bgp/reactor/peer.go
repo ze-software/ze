@@ -1439,14 +1439,17 @@ func (p *Peer) sendInitialRoutes() {
 			// Send route, splitting if needed.
 			family := op.Route.NLRI().Family()
 			addPath := p.addPathFor(family)
-			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			attrBuf := buildBufPool.Get().([]byte)
+			update := buildRIBRouteUpdate(attrBuf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
-			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
-				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", err)
+			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
+			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			if sendErr != nil {
+				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
 				p.mu.Lock()
 				processed++
 				// Split errors: skip route. Connection errors: stop processing.
-				if !errors.Is(err, message.ErrAttributesTooLarge) && !errors.Is(err, message.ErrNLRITooLarge) {
+				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
 					connError = true
 				}
 				continue
@@ -1456,16 +1459,19 @@ func (p *Peer) sendInitialRoutes() {
 			continue
 
 		case PeerOpWithdraw:
-			// Send withdrawal.
+			// Send withdrawal using pooled buffer.
 			family := op.NLRI.Family()
 			addPath := p.addPathFor(family)
-			update := buildWithdrawNLRI(op.NLRI, addPath)
+			wdBuf := buildBufPool.Get().([]byte)
+			update := buildWithdrawNLRI(wdBuf, op.NLRI, addPath)
 			p.mu.Unlock()
-			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
-				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", err)
+			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
+			buildBufPool.Put(wdBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			if sendErr != nil {
+				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
 				processed++
-				if !errors.Is(err, message.ErrAttributesTooLarge) && !errors.Is(err, message.ErrNLRITooLarge) {
+				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
 					connError = true
 				}
 				continue
@@ -1551,9 +1557,7 @@ func (p *Peer) sendInitialRoutes() {
 // Rebuilds the full set of required attributes since rib.Route may not store all.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, asn4, addPath bool) *message.Update {
-	// Pre-allocate buffer for attributes (4KB typical BGP max)
-	attrBuf := make([]byte, 4096)
+func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP bool, asn4, addPath bool) *message.Update {
 	off := 0
 
 	// Create encoding context for ASPath encoding
@@ -1715,36 +1719,38 @@ func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family n
 }
 
 // buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
+// buf is a caller-provided buffer (from buildBufPool).
+// For IPv4 unicast, NLRI is written at buf[0:]. For MP families, NLRI is
+// written at a high offset to avoid overlap with the MP_UNREACH_NLRI header.
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
-func buildWithdrawNLRI(n nlri.NLRI, addPath bool) *message.Update {
+func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 	family := n.Family()
-
-	// Pre-allocate NLRI buffer
 	nlriLen := nlri.LenWithContext(n, addPath)
-	nlriData := make([]byte, nlriLen)
-	nlri.WriteNLRI(n, nlriData, 0, addPath)
 
 	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
-		// IPv4 unicast: use WithdrawnRoutes field
+		// IPv4 unicast: write NLRI at start, use WithdrawnRoutes field
+		nlri.WriteNLRI(n, buf, 0, addPath)
 		return &message.Update{
-			WithdrawnRoutes: nlriData,
+			WithdrawnRoutes: buf[:nlriLen],
 		}
 	}
 
-	// Other families: use MP_UNREACH_NLRI attribute
+	// MP families: write NLRI at high offset so WriteAttrTo can build
+	// the MP_UNREACH_NLRI attribute from buf[0:] without overlapping.
+	const nlriRegion = 2048
+	nlri.WriteNLRI(n, buf, nlriRegion, addPath)
+	nlriData := buf[nlriRegion : nlriRegion+nlriLen]
+
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFI(family.AFI),
 		SAFI: attribute.SAFI(family.SAFI),
 		NLRI: nlriData,
 	}
-
-	// Pre-allocate buffer for attribute: header(4) + AFI(2) + SAFI(1) + NLRI
-	attrBuf := make([]byte, 8+len(nlriData))
-	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+	attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)
 
 	return &message.Update{
-		PathAttributes: attrBuf[:attrLen],
+		PathAttributes: buf[:attrLen],
 	}
 }
 

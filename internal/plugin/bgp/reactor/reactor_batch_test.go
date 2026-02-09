@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
@@ -287,7 +288,9 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	}
 
 	// Use nil context (default ASN4=true, no ADD-PATH)
-	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("10.0.0.1"), false, true, false)
+	attrBuf := make([]byte, message.MaxMsgLen)
+	nlriBuf := make([]byte, message.MaxMsgLen)
+	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, true, false)
 
 	require.NotNil(t, update)
 
@@ -320,7 +323,9 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 		Wire:    attrsWire,
 	}
 
-	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, true, false)
+	attrBuf := make([]byte, message.MaxMsgLen)
+	nlriBuf := make([]byte, message.MaxMsgLen)
+	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, true, false)
 
 	require.NotNil(t, update)
 
@@ -347,7 +352,9 @@ func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
 		NLRIs:  []nlri.NLRI{wn},
 	}
 
-	update := adapter.buildBatchWithdrawUpdate(batch, false)
+	attrBuf := make([]byte, message.MaxMsgLen)
+	nlriBuf := make([]byte, message.MaxMsgLen)
+	update := adapter.buildBatchWithdrawUpdate(attrBuf, nlriBuf, batch, false)
 
 	require.NotNil(t, update)
 	// IPv4 unicast: withdrawals go in WithdrawnRoutes field

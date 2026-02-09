@@ -45,6 +45,14 @@ var readBufPool64K = sync.Pool{
 	},
 }
 
+// buildBufPool provides reusable 4K buffers for building UPDATE path attributes.
+// Get before buildRIBRouteUpdate / buildWithdrawNLRI, put after SendUpdate returns.
+var buildBufPool = sync.Pool{
+	New: func() any {
+		return make([]byte, message.MaxMsgLen) // 4096
+	},
+}
+
 // ReturnReadBuffer returns a buffer to the appropriate pool based on capacity.
 // Used by cache to return buffers when entries are evicted.
 func ReturnReadBuffer(buf []byte) {
@@ -1337,26 +1345,27 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 	return s.writeMessage(conn, notif)
 }
 
-// writeMessage packs and sends a BGP message.
+// writeMessage writes a BGP message directly into the session buffer.
 func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
 
-	// Use WriteTo via PackTo helper. Message types don't use context for
-	// basic encoding (KEEPALIVE, OPEN, NOTIFICATION have fixed formats).
-	// UPDATE messages have wire bytes pre-built.
-	data := message.PackTo(msg, nil)
+	// Zero-allocation: write directly into session buffer.
+	// Message types don't use context for basic encoding
+	// (KEEPALIVE, OPEN, NOTIFICATION have fixed formats).
+	s.writeBuf.Reset()
+	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
-	_, err := conn.Write(data)
+	_, err := conn.Write(s.writeBuf.Buffer()[:n])
 	if err != nil {
 		return err
 	}
 
 	// Notify callback after successful send.
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
-	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
-		body := data[message.HeaderLen:]
+	if s.onMessageReceived != nil && n >= message.HeaderLen {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, "sent", nil)
 	}
 
@@ -1562,25 +1571,25 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 		return ErrNotConnected
 	}
 
-	// Build BGP header + body
-	// RFC 4271 Section 4.1 - Length includes header (19 bytes) + body
+	// RFC 4271 Section 4.1 - Zero-allocation: write header + body into session buffer
 	totalLen := message.HeaderLen + len(body)
-	data := make([]byte, totalLen)
+	s.writeBuf.Reset()
+	buf := s.writeBuf.Buffer()
 
 	// Marker (16 bytes of 0xFF)
-	copy(data[:message.MarkerLen], message.Marker[:])
+	copy(buf[:message.MarkerLen], message.Marker[:])
 
 	// Length (2 bytes, big-endian)
-	data[16] = byte(totalLen >> 8)
-	data[17] = byte(totalLen)
+	buf[16] = byte(totalLen >> 8)
+	buf[17] = byte(totalLen)
 
 	// Type (1 byte) - UPDATE = 2
-	data[18] = byte(message.TypeUPDATE)
+	buf[18] = byte(message.TypeUPDATE)
 
 	// Body
-	copy(data[message.HeaderLen:], body)
+	copy(buf[message.HeaderLen:], body)
 
-	_, err := conn.Write(data)
+	_, err := conn.Write(buf[:totalLen])
 	return err
 }
 
@@ -1597,30 +1606,31 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		return ErrNotConnected
 	}
 
-	var data []byte
 	if msgType == 0 {
 		// Full packet mode - send as-is
-		data = payload
-	} else {
-		// Message body mode - add BGP header
-		totalLen := message.HeaderLen + len(payload)
-		data = make([]byte, totalLen)
-
-		// Marker (16 bytes of 0xFF)
-		copy(data[:message.MarkerLen], message.Marker[:])
-
-		// Length (2 bytes, big-endian)
-		data[16] = byte(totalLen >> 8)
-		data[17] = byte(totalLen)
-
-		// Type (1 byte)
-		data[18] = msgType
-
-		// Body
-		copy(data[message.HeaderLen:], payload)
+		_, err := conn.Write(payload)
+		return err
 	}
 
-	_, err := conn.Write(data)
+	// Message body mode - write header + body into session buffer
+	totalLen := message.HeaderLen + len(payload)
+	s.writeBuf.Reset()
+	buf := s.writeBuf.Buffer()
+
+	// Marker (16 bytes of 0xFF)
+	copy(buf[:message.MarkerLen], message.Marker[:])
+
+	// Length (2 bytes, big-endian)
+	buf[16] = byte(totalLen >> 8)
+	buf[17] = byte(totalLen)
+
+	// Type (1 byte)
+	buf[18] = msgType
+
+	// Body
+	copy(buf[message.HeaderLen:], payload)
+
+	_, err := conn.Write(buf[:totalLen])
 	return err
 }
 

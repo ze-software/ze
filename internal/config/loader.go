@@ -1787,7 +1787,8 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid ISD prefix %q: %w", mr.Prefix, err)
 		}
-		data = buildMUPPrefix(prefix)
+		data = make([]byte, mupPrefixLen(prefix))
+		writeMUPPrefix(data, 0, prefix)
 
 	case nlri.MUPDSD:
 		// DSD: address (4 or 16 bytes)
@@ -1809,7 +1810,8 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", mr.Prefix, err)
 		}
-		data = buildMUPPrefix(prefix)
+		data = make([]byte, mupPrefixLen(prefix))
+		writeMUPPrefix(data, 0, prefix)
 		// Add TEID (4 bytes)
 		teid := parseTEID(mr.TEID)
 		data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid))
@@ -1849,10 +1851,11 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		}
 		epBytes := ep.AsSlice()
 		teid, bits := parseTEIDWithBits(mr.TEID)
-		data = append(data, byte(len(epBytes)*8+bits)) // combined length: endpoint bits + TEID bits
-		data = append(data, epBytes...)
-		teidBytes := encodeTEIDWithBits(teid, bits)
-		data = append(data, teidBytes...)
+		teidLen := teidFieldLen(bits)
+		data = make([]byte, 1+len(epBytes)+teidLen)
+		data[0] = byte(len(epBytes)*8 + bits) // combined length: endpoint bits + TEID bits
+		copy(data[1:], epBytes)
+		writeTEIDWithBits(data, 1+len(epBytes), teid, bits)
 	}
 
 	// Determine AFI
@@ -1865,16 +1868,20 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 	return mup.Bytes(), nil
 }
 
-// buildMUPPrefix encodes a prefix for MUP NLRI.
-func buildMUPPrefix(prefix netip.Prefix) []byte {
+// writeMUPPrefix writes a MUP prefix into buf at off. Returns bytes written.
+func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) int {
 	bits := prefix.Bits()
 	addr := prefix.Addr()
 	addrBytes := addr.AsSlice()
 	prefixBytes := (bits + 7) / 8
-	result := make([]byte, 1+prefixBytes)
-	result[0] = byte(bits)
-	copy(result[1:], addrBytes[:prefixBytes])
-	return result
+	buf[off] = byte(bits)
+	copy(buf[off+1:], addrBytes[:prefixBytes])
+	return 1 + prefixBytes
+}
+
+// mupPrefixLen returns the encoded byte length of a MUP prefix.
+func mupPrefixLen(prefix netip.Prefix) int {
+	return 1 + (prefix.Bits()+7)/8
 }
 
 // parseTEID parses TEID from string, handling "12345" format.
@@ -1903,18 +1910,26 @@ func parseTEIDWithBits(s string) (uint32, int) {
 	return teid, bits
 }
 
-// encodeTEIDWithBits encodes TEID with the specified bit length.
-func encodeTEIDWithBits(teid uint32, bits int) []byte {
+// writeTEIDWithBits writes TEID with the specified bit length into buf at off.
+// Returns bytes written.
+func writeTEIDWithBits(buf []byte, off int, teid uint32, bits int) int {
 	if bits <= 0 {
-		return nil
+		return 0
 	}
 	byteLen := (bits + 7) / 8
-	result := make([]byte, byteLen)
 	for i := 0; i < byteLen; i++ {
 		shift := (byteLen - 1 - i) * 8
-		result[i] = byte(teid >> shift)
+		buf[off+i] = byte(teid >> shift)
 	}
-	return result
+	return byteLen
+}
+
+// teidFieldLen returns the encoded byte length for a TEID field.
+func teidFieldLen(bits int) int {
+	if bits <= 0 {
+		return 0
+	}
+	return (bits + 7) / 8
 }
 
 // parseOrigin converts origin string to code.

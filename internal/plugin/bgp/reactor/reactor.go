@@ -1855,8 +1855,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 			addPath := peer.addPathFor(batch.Family)
 			asn4 := peer.asn4()
 
-			// Build UPDATE message for this batch
-			update := a.buildBatchAnnounceUpdate(batch, nextHop, isIBGP, asn4, addPath)
+			// Build UPDATE message for this batch using pooled buffers
+			attrBuf := buildBufPool.Get().([]byte)
+			nlriBuf := buildBufPool.Get().([]byte)
+			update := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop, isIBGP, asn4, addPath)
 
 			// Send with splitting for large batches
 			// RFC 4271: Each split UPDATE is self-contained with full attributes
@@ -1865,6 +1867,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 			} else {
 				acceptedCount++
 			}
+			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -1906,8 +1910,10 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 			addPath := peer.addPathFor(batch.Family)
 
-			// Build withdraw UPDATE for this batch
-			update := a.buildBatchWithdrawUpdate(batch, addPath)
+			// Build withdraw UPDATE for this batch using pooled buffers
+			attrBuf := buildBufPool.Get().([]byte)
+			nlriBuf := buildBufPool.Get().([]byte)
+			update := a.buildBatchWithdrawUpdate(attrBuf, nlriBuf, batch, addPath)
 
 			// Send with splitting for large batches
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
@@ -1915,6 +1921,8 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 			} else {
 				acceptedCount++
 			}
+			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -1953,131 +1961,95 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 }
 
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
+// attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
-	// Pack NLRIs first (used by both paths)
-	// Calculate total NLRI size
-	totalNLRILen := 0
-	for _, n := range batch.NLRIs {
-		totalNLRILen += nlri.LenWithContext(n, addPath)
-	}
-	nlriBytes := make([]byte, totalNLRILen)
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
+	// Pack NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, addPath)
+		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
 	}
+	nlriBytes := nlriBuf[:nlriOff]
 
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
-		wireAttrs := a.ensureMandatoryAttrs(batch.Wire, isIBGP, asn4)
-		return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop, isIBGP)
+		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4)
+		return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 	}
 
 	// Builder mode or default: build attributes from Builder or defaults
-	var attrBytes []byte
+	var builtBytes []byte
 	if batch.Attrs != nil {
-		attrBytes = batch.Attrs.Build()
+		builtBytes = batch.Attrs.Build()
 	} else {
 		// Default: just ORIGIN=IGP
 		b := attribute.NewBuilder()
 		b.SetOrigin(uint8(attribute.OriginIGP))
-		attrBytes = b.Build()
+		builtBytes = b.Build()
 	}
 
 	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
-	wire := attribute.NewAttributesWire(attrBytes, 0)
-	wireAttrs := a.ensureMandatoryAttrs(wire, isIBGP, asn4)
+	wire := attribute.NewAttributesWire(builtBytes, 0)
+	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4)
 
 	// Add NEXT_HOP or MP_REACH_NLRI
-	return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop, isIBGP)
+	return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 }
 
-// buildWireModeUpdate builds UPDATE using raw wire attribute bytes.
-// Adds NEXT_HOP (IPv4 unicast) or MP_REACH_NLRI (other families) to wire attrs.
-// Wire attrs are assumed to NOT contain NEXT_HOP or MP_REACH_NLRI.
+// buildWireModeUpdate builds UPDATE using pre-written attribute bytes in attrBuf[:attrOff].
+// Inserts NEXT_HOP (IPv4 unicast) or appends MP_REACH_NLRI (other families).
+// attrBuf[:attrOff] must contain mandatory attrs from writeMandatoryAttrs.
 // RFC 4271: NEXT_HOP (type 3) must come after AS_PATH (type 2) but before other attrs.
 // RFC 4271 §5.1.5: LOCAL_PREF is well-known mandatory for iBGP sessions.
-func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, family nlri.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
+func (a *reactorAPIAdapter) buildWireModeUpdate(attrBuf []byte, attrOff int, nlriBytes []byte, family nlri.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
 	isIPv4Unicast := family == nlri.IPv4Unicast
 
 	if isIPv4Unicast {
 		// IPv4 unicast: insert NEXT_HOP after AS_PATH for correct type code order
-		// Wire attrs from ensureMandatoryAttrs: ORIGIN (4) + AS_PATH (variable) + rest
+		wireAttrs := attrBuf[:attrOff]
 		insertPos := a.findNextHopInsertPosition(wireAttrs)
-
-		// Check if LOCAL_PREF is already present in wireAttrs
 		hasLocalPref := a.hasAttribute(wireAttrs, attribute.AttrLocalPref)
 
-		nh := &attribute.NextHop{Addr: nextHop}
 		nhSize := 7 // NEXT_HOP is 7 bytes (3 header + 4 IP)
 
-		// For iBGP without LOCAL_PREF, add default LOCAL_PREF=100
-		lpSize := 0
-		if isIBGP && !hasLocalPref {
-			lpSize = 7 // LOCAL_PREF is 7 bytes (3 header + 4 value)
-		}
+		// Shift tail right to make room for NEXT_HOP (copy handles overlap)
+		copy(attrBuf[insertPos+nhSize:], attrBuf[insertPos:attrOff])
 
-		attrBytes := make([]byte, len(wireAttrs)+nhSize+lpSize)
-
-		// Copy attrs before NEXT_HOP position
-		copy(attrBytes, wireAttrs[:insertPos])
-		off := insertPos
-
-		// Write NEXT_HOP
-		attribute.WriteAttrTo(nh, attrBytes, off)
-		off += nhSize
-
-		// Copy remaining attrs (after insert position)
-		copy(attrBytes[off:], wireAttrs[insertPos:])
-		off += len(wireAttrs) - insertPos
+		// Write NEXT_HOP at insert position
+		nh := &attribute.NextHop{Addr: nextHop}
+		attribute.WriteAttrTo(nh, attrBuf, insertPos)
+		attrOff += nhSize
 
 		// Append LOCAL_PREF=100 at end if needed for iBGP
-		// Note: LOCAL_PREF (type 5) comes after NEXT_HOP (type 3) and MED (type 4)
 		if isIBGP && !hasLocalPref {
 			lp := attribute.LocalPref(100)
-			attribute.WriteAttrTo(lp, attrBytes, off)
+			attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
 		}
 
 		return &message.Update{
-			PathAttributes: attrBytes,
+			PathAttributes: attrBuf[:attrOff],
 			NLRI:           nlriBytes,
 		}
 	}
 
-	// Non-IPv4 unicast: append MP_REACH_NLRI and LOCAL_PREF to wire attrs
+	// Non-IPv4 unicast: append LOCAL_PREF and MP_REACH_NLRI to existing attrs
+	hasLocalPref := a.hasAttribute(attrBuf[:attrOff], attribute.AttrLocalPref)
+	if isIBGP && !hasLocalPref {
+		lp := attribute.LocalPref(100)
+		attrOff += attribute.WriteAttrTo(lp, attrBuf, attrOff)
+	}
+
 	mpReach := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(family.AFI),
 		SAFI:     attribute.SAFI(family.SAFI),
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
-
-	// Check if LOCAL_PREF is already present
-	hasLocalPref := a.hasAttribute(wireAttrs, attribute.AttrLocalPref)
-
-	// For iBGP without LOCAL_PREF, add default LOCAL_PREF=100
-	lpSize := 0
-	if isIBGP && !hasLocalPref {
-		lpSize = 7 // LOCAL_PREF is 7 bytes (3 header + 4 value)
-	}
-
-	// MP_REACH_NLRI size: 4 header + 2 AFI + 1 SAFI + 1 NH-len + 32 NH (IPv6 global+link-local) + 1 reserved + NLRI
-	attrBytes := make([]byte, len(wireAttrs)+len(nlriBytes)+48+lpSize)
-	copy(attrBytes, wireAttrs)
-	off := len(wireAttrs)
-
-	// Add LOCAL_PREF for iBGP before MP_REACH_NLRI
-	if isIBGP && !hasLocalPref {
-		lp := attribute.LocalPref(100)
-		off += attribute.WriteAttrTo(lp, attrBytes, off)
-	}
-
-	// MP_REACH_NLRI at end
-	attrLen := off + attribute.WriteAttrTo(mpReach, attrBytes, off)
+	attrOff += attribute.WriteAttrTo(mpReach, attrBuf, attrOff)
 
 	return &message.Update{
-		PathAttributes: attrBytes[:attrLen],
+		PathAttributes: attrBuf[:attrOff],
 	}
 }
 
@@ -2114,82 +2086,62 @@ func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.At
 	return false
 }
 
-// ensureMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes.
+// writeMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes,
+// writing the result into buf. Returns bytes written.
 // RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
 // RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
 // RFC 4271 Section 5.1: Attributes must appear in type code order.
 // If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
-func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire, isIBGP, asn4 bool) []byte {
+func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool) int {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
-
-	if hasOrigin && hasASPath {
-		return wire.Packed()
-	}
-
 	packed := wire.Packed()
 
-	// Calculate AS_PATH size
-	var asPathSize int
-	if !hasASPath {
-		switch {
-		case isIBGP:
-			asPathSize = 3 // Empty AS_PATH: flag + type + len(0)
-		case asn4:
-			asPathSize = 3 + 2 + 4 // Header + segment header + 4-byte AS
-		default:
-			asPathSize = 3 + 2 + 2 // Header + segment header + 2-byte AS
-		}
+	if hasOrigin && hasASPath {
+		copy(buf, packed)
+		return len(packed)
 	}
+
+	off := 0
 
 	// Case 1: Both missing - prepend ORIGIN + AS_PATH
 	if !hasOrigin && !hasASPath {
-		result := make([]byte, 4+asPathSize+len(packed))
-		off := 0
-
 		// ORIGIN=IGP
-		result[off] = 0x40 // Transitive
-		result[off+1] = 1  // ORIGIN
-		result[off+2] = 1  // Length
-		result[off+3] = 0  // IGP
+		buf[off] = 0x40 // Transitive
+		buf[off+1] = 1  // ORIGIN
+		buf[off+2] = 1  // Length
+		buf[off+3] = 0  // IGP
 		off += 4
 
 		// AS_PATH
-		off += a.writeASPath(result[off:], isIBGP, asn4)
+		off += a.writeASPath(buf[off:], isIBGP, asn4)
 
-		copy(result[off:], packed)
-		return result
+		copy(buf[off:], packed)
+		return off + len(packed)
 	}
 
 	// Case 2: Only ORIGIN missing - prepend ORIGIN, copy rest
 	if !hasOrigin {
-		result := make([]byte, 4+len(packed))
-		result[0] = 0x40 // Transitive
-		result[1] = 1    // ORIGIN
-		result[2] = 1    // Length
-		result[3] = 0    // IGP
-		copy(result[4:], packed)
-		return result
+		buf[0] = 0x40 // Transitive
+		buf[1] = 1    // ORIGIN
+		buf[2] = 1    // Length
+		buf[3] = 0    // IGP
+		copy(buf[4:], packed)
+		return 4 + len(packed)
 	}
 
 	// Case 3: Only AS_PATH missing - insert after ORIGIN
 	// RFC 4271: attributes must be in type code order (ORIGIN=1, AS_PATH=2)
-	// Find the end of ORIGIN attribute (4 bytes: flag + type + len + value)
 	originEnd := 4 // ORIGIN is always 4 bytes
-
-	result := make([]byte, len(packed)+asPathSize)
-	off := 0
-
-	// Copy ORIGIN
-	copy(result[off:], packed[:originEnd])
-	off += originEnd
+	copy(buf, packed[:originEnd])
+	off = originEnd
 
 	// Insert AS_PATH
-	off += a.writeASPath(result[off:], isIBGP, asn4)
+	off += a.writeASPath(buf[off:], isIBGP, asn4)
 
 	// Copy remaining attributes
-	copy(result[off:], packed[originEnd:])
-	return result
+	copy(buf[off:], packed[originEnd:])
+	return off + len(packed) - originEnd
 }
 
 // findNextHopInsertPosition finds where to insert NEXT_HOP (type 3) in wire attrs.
@@ -2257,23 +2209,18 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
+// attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch plugin.NLRIBatch, addPath bool) *message.Update {
-	// Calculate total NLRI size and pack
-	totalNLRILen := 0
-	for _, n := range batch.NLRIs {
-		totalNLRILen += nlri.LenWithContext(n, addPath)
-	}
-	nlriBytes := make([]byte, totalNLRILen)
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, addPath bool) *message.Update {
+	// Pack NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, addPath)
+		nlriOff += nlri.WriteNLRI(n, nlriBuf, nlriOff, addPath)
 	}
+	nlriBytes := nlriBuf[:nlriOff]
 
-	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
-
-	if isIPv4Unicast {
+	if batch.Family == nlri.IPv4Unicast {
 		// IPv4 unicast: Use WithdrawnRoutes field
 		return &message.Update{
 			WithdrawnRoutes: nlriBytes,
@@ -2286,9 +2233,6 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch plugin.NLRIBatch, add
 		SAFI: attribute.SAFI(batch.Family.SAFI),
 		NLRI: nlriBytes,
 	}
-
-	// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
-	attrBuf := make([]byte, 8+len(nlriBytes))
 	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 	return &message.Update{
 		PathAttributes: attrBuf[:attrLen],
@@ -2968,16 +2912,13 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		addPath := peer.addPathFor(family)
 		var update *message.Update
 
-		// Calculate total NLRI size
-		totalLen := 0
-		for _, n := range nlris {
-			totalLen += nlri.LenWithContext(n, addPath)
-		}
-		nlriBytes := make([]byte, totalLen)
+		// Pack NLRIs into pooled buffer
+		nlriBuf := buildBufPool.Get().([]byte)
 		off := 0
 		for _, n := range nlris {
-			off += nlri.WriteNLRI(n, nlriBytes, off, addPath)
+			off += nlri.WriteNLRI(n, nlriBuf, off, addPath)
 		}
+		nlriBytes := nlriBuf[:off]
 
 		if family == ipv4Unicast {
 			// IPv4 unicast: use WithdrawnRoutes field
@@ -2991,17 +2932,24 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				SAFI: attribute.SAFI(family.SAFI),
 				NLRI: nlriBytes,
 			}
-			// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
-			attrBuf := make([]byte, 8+len(nlriBytes))
+			attrBuf := buildBufPool.Get().([]byte)
 			attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 			update = &message.Update{
 				PathAttributes: attrBuf[:attrLen],
 			}
+			// Send then return attr buffer (nlri already copied into attrBuf by WriteAttrTo)
+			if err := peer.SendUpdate(update); err == nil {
+				updatesSent++
+			}
+			buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+			continue
 		}
 
 		if err := peer.SendUpdate(update); err == nil {
 			updatesSent++
 		}
+		buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
 	}
 
 	return updatesSent
@@ -3192,10 +3140,12 @@ func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Rou
 		family := route.NLRI().Family()
 		addPath := peer.addPathFor(family)
 		asn4 := peer.asn4()
-		update := buildRIBRouteUpdate(route, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
-
-		if err := peer.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
-			errs = append(errs, fmt.Errorf("route %s: %w", route.NLRI(), err))
+		attrBuf := buildBufPool.Get().([]byte)
+		update := buildRIBRouteUpdate(attrBuf, route, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
+		sendErr := peer.sendUpdateWithSplit(update, maxMsgSize, family)
+		buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+		if sendErr != nil {
+			errs = append(errs, fmt.Errorf("route %s: %w", route.NLRI(), sendErr))
 		}
 	}
 
@@ -3295,20 +3245,20 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 		return nil
 	}
 
-	// Pack all NLRIs
-	totalLen := 0
-	for _, route := range routes {
-		totalLen += nlri.LenWithContext(route.NLRI(), addPath)
-	}
-	nlriBytes := make([]byte, totalLen)
+	// Pack all NLRIs into pooled buffer
+	nlriBuf := buildBufPool.Get().([]byte)
+	defer buildBufPool.Put(nlriBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
 	off := 0
 	for _, route := range routes {
-		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, addPath)
+		off += nlri.WriteNLRI(route.NLRI(), nlriBuf, off, addPath)
 	}
+	nlriBytes := nlriBuf[:off]
 
 	// Build grouped UPDATE with all NLRIs
 	firstRoute := routes[0]
-	groupedUpdate := a.buildGroupedMPUpdate(firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
+	attrBuf := buildBufPool.Get().([]byte)
+	defer buildBufPool.Put(attrBuf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	groupedUpdate := a.buildGroupedMPUpdate(attrBuf, firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
 
 	// Check actual size of grouped update
 	msgSize := message.HeaderLen + 4 + len(groupedUpdate.PathAttributes)
@@ -3338,7 +3288,7 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 
 	var errs []error
 	for _, chunk := range chunks {
-		chunkUpdate := a.buildGroupedMPUpdate(firstRoute, chunk, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
+		chunkUpdate := a.buildGroupedMPUpdate(attrBuf, firstRoute, chunk, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
 		if err := peer.SendUpdate(chunkUpdate); err != nil {
 			errs = append(errs, err)
 		}
@@ -3379,9 +3329,7 @@ func nextHopLength(family nlri.Family, nh netip.Addr) int {
 // buildGroupedMPUpdate builds an UPDATE with MP_REACH_NLRI containing multiple NLRIs.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
-func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, asn4 bool) *message.Update {
-	// Pre-allocate buffer for attributes (4KB typical BGP max)
-	attrBuf := make([]byte, 4096)
+func (a *reactorAPIAdapter) buildGroupedMPUpdate(attrBuf []byte, templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, asn4 bool) *message.Update {
 	off := 0
 
 	// Create encoding context for ASPath encoding
@@ -4811,7 +4759,8 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 			}
 			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
 		}
-		data = buildMUPPrefix(prefix)
+		data = make([]byte, mupPrefixLen(prefix))
+		writeMUPPrefix(data, 0, prefix)
 
 	case nlri.MUPDSD:
 		if spec.Address == "" {
@@ -4847,7 +4796,8 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 			}
 			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
 		}
-		data = buildMUPPrefix(prefix)
+		data = make([]byte, mupPrefixLen(prefix))
+		writeMUPPrefix(data, 0, prefix)
 		// TODO: Add TEID, QFI, endpoint if needed
 
 	case nlri.MUPT2ST:
@@ -4868,9 +4818,11 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 		}
 		epBytes := ep.AsSlice()
 		teid, bits := parseTEIDFieldWithBits(spec.TEID)
-		data = append(data, byte(len(epBytes)*8+bits)) // combined: endpoint bits + TEID bits
-		data = append(data, epBytes...)
-		data = append(data, encodeTEIDFieldWithBits(teid, bits)...)
+		teidLen := teidFieldLen(bits)
+		data = make([]byte, 1+len(epBytes)+teidLen)
+		data[0] = byte(len(epBytes)*8 + bits) // combined: endpoint bits + TEID bits
+		copy(data[1:], epBytes)
+		writeTEIDFieldWithBits(data, 1+len(epBytes), teid, bits)
 	}
 
 	// Determine AFI
@@ -4885,16 +4837,20 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 	return buf, nil
 }
 
-// buildMUPPrefix encodes a prefix for MUP NLRI.
-func buildMUPPrefix(prefix netip.Prefix) []byte {
+// writeMUPPrefix writes a MUP prefix into buf at off. Returns bytes written.
+func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) int {
 	bits := prefix.Bits()
 	addr := prefix.Addr()
 	addrBytes := addr.AsSlice()
 	prefixBytes := (bits + 7) / 8
-	result := make([]byte, 1+prefixBytes)
-	result[0] = byte(bits)
-	copy(result[1:], addrBytes[:prefixBytes])
-	return result
+	buf[off] = byte(bits)
+	copy(buf[off+1:], addrBytes[:prefixBytes])
+	return 1 + prefixBytes
+}
+
+// mupPrefixLen returns the encoded byte length of a MUP prefix.
+func mupPrefixLen(prefix netip.Prefix) int {
+	return 1 + (prefix.Bits()+7)/8
 }
 
 // parseTEIDFieldWithBits parses a TEID string "value/bits" into numeric TEID and bit length.
@@ -4912,18 +4868,26 @@ func parseTEIDFieldWithBits(s string) (uint32, int) {
 	return uint32(v), bits
 }
 
-// encodeTEIDFieldWithBits encodes TEID with the specified bit length.
-func encodeTEIDFieldWithBits(teid uint32, bits int) []byte {
+// writeTEIDFieldWithBits writes TEID with the specified bit length into buf at off.
+// Returns bytes written.
+func writeTEIDFieldWithBits(buf []byte, off int, teid uint32, bits int) int {
 	if bits <= 0 {
-		return nil
+		return 0
 	}
 	byteLen := (bits + 7) / 8
-	result := make([]byte, byteLen)
 	for i := range byteLen {
 		shift := (byteLen - 1 - i) * 8
-		result[i] = byte(teid >> shift)
+		buf[off+i] = byte(teid >> shift)
 	}
-	return result
+	return byteLen
+}
+
+// teidFieldLen returns the encoded byte length for a TEID field.
+func teidFieldLen(bits int) int {
+	if bits <= 0 {
+		return 0
+	}
+	return (bits + 7) / 8
 }
 
 // parseRD parses a Route Distinguisher string.

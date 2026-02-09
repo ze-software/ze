@@ -250,7 +250,8 @@ func TestBuildMUPPrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("invalid test prefix: %v", err)
 			}
-			got := buildMUPPrefix(prefix)
+			got := make([]byte, mupPrefixLen(prefix))
+			writeMUPPrefix(got, 0, prefix)
 			if len(got) != len(tt.want) {
 				t.Errorf("length = %d, want %d", len(got), len(tt.want))
 				return
