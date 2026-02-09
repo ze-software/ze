@@ -15,7 +15,7 @@ import (
 // SubsystemConfig describes a forked subsystem process.
 type SubsystemConfig struct {
 	Name       string   // Subsystem name (cache, route, session)
-	Binary     string   // Path to binary (default: ze-subsystem)
+	Binary     string   // Path to binary or full command
 	Commands   []string // Commands this subsystem handles (for pre-registration)
 	ConfigPath string   // Config file path (passed to child process)
 }
@@ -33,9 +33,6 @@ type SubsystemHandler struct {
 
 // NewSubsystemHandler creates a handler backed by a forked process.
 func NewSubsystemHandler(config SubsystemConfig) *SubsystemHandler {
-	if config.Binary == "" {
-		config.Binary = "ze-subsystem"
-	}
 	return &SubsystemHandler{
 		config: config,
 	}
@@ -69,7 +66,7 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 
 	// Build command:
 	// - If Binary contains spaces (full command), use as-is
-	// - Otherwise, add --mode=<name> for ze-subsystem compatibility
+	// - Otherwise, add --mode=<name>
 	cmd := h.config.Binary
 	if !strings.Contains(cmd, " ") {
 		cmd = fmt.Sprintf("%s --mode=%s", cmd, h.config.Name)

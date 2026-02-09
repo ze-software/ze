@@ -3,12 +3,6 @@ package plugin
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -18,282 +12,292 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// Shared test binary setup - built once, used by all tests.
-var (
-	subsystemBinaryPath string
-	subsystemBuildOnce  sync.Once
-	subsystemBuildErr   error
-	subsystemTestTmpDir string
-)
-
-// TestMain handles cleanup of shared test resources.
-func TestMain(m *testing.M) {
-	code := m.Run()
-
-	// Cleanup temp directory after all tests complete
-	if subsystemTestTmpDir != "" {
-		_ = os.RemoveAll(subsystemTestTmpDir)
-	}
-
-	os.Exit(code)
+// mockPluginCommands defines commands the mock plugin declares and how it handles them.
+type mockPluginCommands struct {
+	decls   []rpc.CommandDecl
+	handler func(command string) (status, data string)
 }
 
-// buildSubsystemBinary builds the ze-subsystem binary once for all tests.
-// Uses sync.Once to ensure only one build happens even with parallel tests.
-func buildSubsystemBinary(_ context.Context, t *testing.T) {
+// startTestHandler creates a SubsystemHandler with in-memory connections and
+// completes the 5-stage protocol using a mock plugin goroutine.
+// The mock plugin declares the given commands and handles execute-command RPCs.
+func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *SubsystemHandler {
 	t.Helper()
 
-	subsystemBuildOnce.Do(func() {
-		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	t.Cleanup(func() { pairs.Close() })
+
+	proc := NewProcess(PluginConfig{
+		Name:     "subsystem-" + name,
+		Internal: true,
+	})
+	proc.sockets = pairs
+	proc.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	proc.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+	proc.running.Store(true)
+
+	handler := &SubsystemHandler{
+		config: SubsystemConfig{Name: name},
+		proc:   proc,
+	}
+
+	// Plugin side connections
+	pluginConnA := NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
+	pluginConnB := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+
+	// Run mock plugin protocol in goroutine
+	protocolDone := make(chan struct{})
+	go func() {
+		defer close(protocolDone)
 		defer cancel()
 
-		// Create temp directory for binary
-		subsystemTestTmpDir, subsystemBuildErr = os.MkdirTemp("", "ze-subsystem-test-*")
-		if subsystemBuildErr != nil {
-			subsystemBuildErr = fmt.Errorf("create temp dir: %w", subsystemBuildErr)
+		// Stage 1: Send declare-registration
+		reg := &rpc.DeclareRegistrationInput{}
+		if mock != nil {
+			reg.Commands = mock.decls
+		}
+		if err := pluginConnA.SendDeclareRegistration(ctx, reg); err != nil {
 			return
 		}
 
-		subsystemBinaryPath = filepath.Join(subsystemTestTmpDir, "ze-subsystem")
-
-		// Find project root via go list
-		listCmd := exec.CommandContext(ctx, "go", "list", "-m", "-f", "{{.Dir}}")
-		output, err := listCmd.Output()
+		// Stage 2: Receive configure, respond OK
+		req, err := pluginConnB.ReadRequest(ctx)
 		if err != nil {
-			subsystemBuildErr = fmt.Errorf("find project root: %w", err)
 			return
 		}
-		projectRoot := strings.TrimSpace(string(output))
+		if err := pluginConnB.SendResult(ctx, req.ID, nil); err != nil {
+			return
+		}
 
-		// Build ze-subsystem binary once
-		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", subsystemBinaryPath, "./cmd/ze-subsystem") //nolint:gosec // test code
-		buildCmd.Dir = projectRoot
-		buildOutput, err := buildCmd.CombinedOutput()
-		if err != nil {
-			subsystemBuildErr = fmt.Errorf("build ze-subsystem: %w\n%s", err, buildOutput)
+		// Stage 3: Send declare-capabilities
+		if err := pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{}); err != nil {
 			return
 		}
+
+		// Stage 4: Receive share-registry, respond OK
+		req, err = pluginConnB.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		if err := pluginConnB.SendResult(ctx, req.ID, nil); err != nil {
+			return
+		}
+
+		// Stage 5: Send ready
+		if err := pluginConnA.SendReady(ctx); err != nil {
+			return
+		}
+
+		// Command loop (if handler provided)
+		if mock != nil && mock.handler != nil {
+			for {
+				req, err := pluginConnB.ReadRequest(ctx)
+				if err != nil {
+					return
+				}
+
+				var input rpc.ExecuteCommandInput
+				if err := json.Unmarshal(req.Params, &input); err != nil {
+					return
+				}
+
+				status, data := mock.handler(input.Command)
+				out := &rpc.ExecuteCommandOutput{Status: status, Data: data}
+				if err := pluginConnB.SendResult(ctx, req.ID, out); err != nil {
+					return
+				}
+			}
+		}
+	}()
+
+	// Complete engine-side protocol
+	err = handler.completeProtocol(ctx)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		cancel()
+		<-protocolDone
 	})
 
-	if subsystemBuildErr != nil {
-		t.Skipf("skipping test requiring ze-subsystem binary: %v", subsystemBuildErr)
-	}
+	return handler
 }
 
-// TestSubsystemBinaryExists verifies the subsystem binary can be built.
+// TestSubsystemRPCProtocol verifies the 5-stage RPC protocol using in-memory connections.
 //
-// VALIDATES: ze-subsystem binary compiles successfully.
-// PREVENTS: Build failures in subsystem code.
-func TestSubsystemBinaryExists(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
-}
-
-// TestSubsystemRPCProtocol verifies the 5-stage RPC protocol at the Process level.
-//
-// VALIDATES: ze-subsystem binary sends correct YANG RPC methods in stage order
-// and declares expected commands via DeclareRegistrationInput.
+// VALIDATES: completeProtocol correctly handles all 5 stages via YANG RPC.
 // PREVENTS: Protocol regression when SDK or subsystem changes.
 func TestSubsystemRPCProtocol(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
 
-	config := PluginConfig{
-		Name: "test-cache",
-		Run:  subsystemBinaryPath + " --mode=cache",
+	mock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp cache list", Description: "List cache entries"},
+			{Name: "bgp cache retain", Description: "Retain cache entry"},
+			{Name: "bgp cache release", Description: "Release cache entry"},
+		},
 	}
 
-	proc := NewProcess(config)
-	err := proc.StartWithContext(ctx)
-	require.NoError(t, err)
-	defer proc.Stop()
+	handler := startTestHandler(t, "cache", mock)
 
-	connA := proc.engineConnA
-	connB := proc.engineConnB
-
-	// Stage 1: Read declare-registration from plugin (Socket A)
-	req, err := connA.ReadRequest(ctx)
-	require.NoError(t, err, "stage 1: read registration")
-	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-
-	var regInput rpc.DeclareRegistrationInput
-	require.NoError(t, json.Unmarshal(req.Params, &regInput), "stage 1: unmarshal registration")
-
-	// Verify cache mode declared expected commands
-	commands := make([]string, 0, len(regInput.Commands))
-	for _, cmd := range regInput.Commands {
-		commands = append(commands, cmd.Name)
-	}
+	// Verify commands were extracted from registration
+	commands := handler.Commands()
 	assert.Contains(t, commands, "bgp cache list")
 	assert.Contains(t, commands, "bgp cache retain")
 	assert.Contains(t, commands, "bgp cache release")
-
-	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 1: send OK")
-
-	// Stage 2: Send configure to plugin (Socket B)
-	require.NoError(t, connB.SendConfigure(ctx, nil), "stage 2: send configure")
-
-	// Stage 3: Read declare-capabilities from plugin (Socket A)
-	req, err = connA.ReadRequest(ctx)
-	require.NoError(t, err, "stage 3: read capabilities")
-	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
-	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 3: send OK")
-
-	// Stage 4: Send share-registry to plugin (Socket B)
-	require.NoError(t, connB.SendShareRegistry(ctx, nil), "stage 4: send registry")
-
-	// Stage 5: Read ready from plugin (Socket A)
-	req, err = connA.ReadRequest(ctx)
-	require.NoError(t, err, "stage 5: read ready")
-	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
-	require.NoError(t, connA.SendResult(ctx, req.ID, nil), "stage 5: send OK")
 }
 
 // TestSubsystemRPCCommand verifies command execution through the RPC protocol.
 //
 // VALIDATES: After completing 5-stage protocol, commands are routed and return responses.
-// PREVENTS: Command routing failures after protocol migration to RPC.
+// PREVENTS: Command routing failures after protocol completion.
 func TestSubsystemRPCCommand(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
 
-	config := SubsystemConfig{
-		Name:   "session",
-		Binary: subsystemBinaryPath,
+	mock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp session ping", Description: "Ping session"},
+		},
+		handler: func(command string) (string, string) {
+			if command == "bgp session ping" {
+				return "done", `{"pong":true}`
+			}
+			return "error", "unknown command: " + command
+		},
 	}
 
-	handler := NewSubsystemHandler(config)
-	err := handler.Start(ctx)
-	require.NoError(t, err)
-	defer handler.Stop()
+	handler := startTestHandler(t, "session", mock)
 
-	// Send command and verify response content (not just status)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	resp, err := handler.Handle(ctx, "bgp session ping")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
-	// Verify response contains pong with PID (matches ze-subsystem handleSessionCommand)
 	data, ok := resp.Data.(string)
 	require.True(t, ok, "expected string data")
 	assert.Contains(t, data, "pong")
 }
 
-// TestSubsystemShutdown verifies graceful shutdown via RPC bye.
+// TestSubsystemShutdown verifies graceful shutdown closes connections.
 //
-// VALIDATES: Subprocess exits cleanly on shutdown signal.
-// PREVENTS: Zombie processes after subsystem shutdown.
+// VALIDATES: Stop() closes connections without panic.
+// PREVENTS: Resource leaks after subsystem shutdown.
 func TestSubsystemShutdown(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
 
-	config := SubsystemConfig{
-		Name:   "cache",
-		Binary: subsystemBinaryPath,
-	}
+	handler := startTestHandler(t, "cache", nil)
 
-	handler := NewSubsystemHandler(config)
-	err := handler.Start(ctx)
-	require.NoError(t, err)
-
-	// Verify running before shutdown
 	assert.True(t, handler.Running())
 
-	// Stop sends shutdown signal
+	// Stop closes connections and cancels context.
+	// For in-memory connections, running is cleared by the process
+	// wait goroutine (not present in test setup), so we just verify
+	// Stop() completes without panic and connections are closed.
 	handler.Stop()
 
-	// Wait briefly for process to exit
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer waitCancel()
-
-	// Poll until not running or timeout
-	for handler.Running() {
-		select {
-		case <-waitCtx.Done():
-			t.Fatal("subsystem did not exit within timeout")
-		case <-time.After(50 * time.Millisecond):
-		}
-	}
-
-	assert.False(t, handler.Running())
+	// After Stop, Handle should fail (connections closed)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+	_, err := handler.Handle(ctx, "anything")
+	assert.Error(t, err)
 }
 
 // TestSubsystemHandler verifies the SubsystemHandler wrapper.
 //
-// VALIDATES: SubsystemHandler spawns process and routes commands.
+// VALIDATES: SubsystemHandler completes protocol and routes commands.
 // PREVENTS: Handler failing to complete protocol or route commands.
 func TestSubsystemHandler(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
 
-	// Use session mode - it doesn't require engine callbacks
-	config := SubsystemConfig{
-		Name:   "session",
-		Binary: subsystemBinaryPath,
+	mock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp session ping", Description: "Ping session"},
+			{Name: "bgp session bye", Description: "Session goodbye"},
+		},
+		handler: func(command string) (string, string) {
+			switch command {
+			case "bgp session ping":
+				return "done", `{"pong":true}`
+			case "bgp session bye":
+				return "done", `{"status":"goodbye"}`
+			default:
+				return "error", "unknown command: " + command
+			}
+		},
 	}
 
-	handler := NewSubsystemHandler(config)
-
-	// Start the handler (completes 5-stage protocol)
-	err := handler.Start(ctx)
-	require.NoError(t, err)
-	defer handler.Stop()
+	handler := startTestHandler(t, "session", mock)
 
 	// Verify commands were declared
 	commands := handler.Commands()
 	assert.Contains(t, commands, "bgp session ping")
+	assert.Contains(t, commands, "bgp session bye")
 
-	// Send a command that doesn't need callback
+	// Send a command
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	resp, err := handler.Handle(ctx, "bgp session ping")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 }
 
-// TestSubsystemManager verifies the SubsystemManager.
+// TestSubsystemManager verifies the SubsystemManager with pre-started handlers.
 //
-// VALIDATES: Manager starts/stops multiple subsystems.
-// PREVENTS: Manager failing to coordinate subsystems.
+// VALIDATES: Manager tracks handlers and routes commands by prefix.
+// PREVENTS: Command routing failures in manager.
 func TestSubsystemManager(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
+
+	cacheMock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp cache list", Description: "List cache entries"},
+		},
+		handler: func(command string) (string, string) {
+			if command == "bgp cache list" {
+				return "done", "[]"
+			}
+			return "error", "unknown"
+		},
+	}
+
+	sessionMock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp session ping", Description: "Ping session"},
+		},
+		handler: func(command string) (string, string) {
+			if command == "bgp session ping" {
+				return "done", `{"pong":true}`
+			}
+			return "error", "unknown"
+		},
+	}
+
+	cacheHandler := startTestHandler(t, "cache", cacheMock)
+	sessionHandler := startTestHandler(t, "session", sessionMock)
 
 	manager := NewSubsystemManager()
-	manager.Register(SubsystemConfig{
-		Name:   "cache",
-		Binary: subsystemBinaryPath,
-	})
-	manager.Register(SubsystemConfig{
-		Name:   "session",
-		Binary: subsystemBinaryPath,
-	})
+	manager.mu.Lock()
+	manager.handlers["cache"] = cacheHandler
+	manager.handlers["session"] = sessionHandler
+	manager.mu.Unlock()
 
-	// Start all
-	err := manager.StartAll(ctx)
-	require.NoError(t, err)
-	defer manager.StopAll()
-
-	// Verify both running
-	cache := manager.Get("cache")
-	require.NotNil(t, cache)
-	assert.True(t, cache.Running())
-
-	session := manager.Get("session")
-	require.NotNil(t, session)
-	assert.True(t, session.Running())
+	// Verify both accessible
+	assert.NotNil(t, manager.Get("cache"))
+	assert.NotNil(t, manager.Get("session"))
 
 	// Find handler for command
-	handler := manager.FindHandler("bgp cache list")
-	require.NotNil(t, handler)
-	assert.Equal(t, "cache", handler.Name())
+	h := manager.FindHandler("bgp cache list")
+	require.NotNil(t, h)
+	assert.Equal(t, "cache", h.Name())
 
-	handler = manager.FindHandler("bgp session ping")
-	require.NotNil(t, handler)
-	assert.Equal(t, "session", handler.Name())
+	h = manager.FindHandler("bgp session ping")
+	require.NotNil(t, h)
+	assert.Equal(t, "session", h.Name())
 
 	// All commands
 	allCmds := manager.AllCommands()
@@ -303,35 +307,38 @@ func TestSubsystemManager(t *testing.T) {
 
 // TestDispatcherSubsystemIntegration verifies Dispatcher routes to subsystems.
 //
-// VALIDATES: Dispatcher routes commands to forked subsystems.
+// VALIDATES: Dispatcher routes commands to subsystem handlers.
 // PREVENTS: Commands not being routed to subsystems.
 func TestDispatcherSubsystemIntegration(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	buildSubsystemBinary(ctx, t)
+	t.Parallel()
 
-	// Create dispatcher with subsystem manager
+	mock := &mockPluginCommands{
+		decls: []rpc.CommandDecl{
+			{Name: "bgp session ping", Description: "Ping session"},
+		},
+		handler: func(command string) (string, string) {
+			if command == "bgp session ping" {
+				return "done", `{"pong":true}`
+			}
+			return "error", "unknown"
+		},
+	}
+
+	sessionHandler := startTestHandler(t, "session", mock)
+
 	d := NewDispatcher()
+	manager := NewSubsystemManager()
+	manager.mu.Lock()
+	manager.handlers["session"] = sessionHandler
+	manager.mu.Unlock()
+	d.SetSubsystems(manager)
 
-	// Register subsystems
-	d.Subsystems().Register(SubsystemConfig{
-		Name:   "session",
-		Binary: subsystemBinaryPath,
-	})
-
-	// Start subsystems
-	err := d.Subsystems().StartAll(ctx)
-	require.NoError(t, err)
-	defer d.Subsystems().StopAll()
-
-	// Dispatch command to subsystem (not a builtin)
-	// Note: "bgp session ping" is registered by the subsystem, not as builtin
+	// Dispatch command to subsystem
 	resp, err := d.Dispatch(nil, "bgp session ping")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 
-	// Verify response contains pong
 	if data, ok := resp.Data.(string); ok {
 		assert.Contains(t, data, "pong")
 	}
