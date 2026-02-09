@@ -26,6 +26,11 @@
 [ ] 5. Verify file paths
       - Use Glob/Grep to confirm the target file exists and is correct
       - Never guess file locations from context
+
+[ ] 6. Buffer-first encoding check (see `rules/buffer-first.md`)
+      - If writing wire encoding: use WriteTo(buf, off), NOT Pack()/make([]byte)
+      - If calling an encoding function: check if WriteTo exists on the type first
+      - If adding a new wire type: implement wire.BufWriter from the start
 ```
 
 ## Verification

@@ -147,9 +147,10 @@ Complete IN ORDER. Do not skip steps.
 
 | Keywords in task | Required docs | RFC summaries |
 |------------------|---------------|---------------|
-| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md` | `rfc4271.md` |
-| UPDATE, message, build, route, announce | `core-design.md`, `update-building.md`, `encoding-context.md` | `rfc4271.md`, `rfc4760.md` |
-| attribute, AS_PATH, NEXT_HOP, MED, LOCAL_PREF | `core-design.md`, `wire/attributes.md`, `update-building.md` | `rfc4271.md`, `rfc6793.md` |
+| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `rules/buffer-first.md` | `rfc4271.md` |
+| encode, Pack, WriteTo, make, alloc | `rules/buffer-first.md`, `buffer-architecture.md` | |
+| UPDATE, message, build, route, announce | `core-design.md`, `update-building.md`, `encoding-context.md`, `rules/buffer-first.md` | `rfc4271.md`, `rfc4760.md` |
+| attribute, AS_PATH, NEXT_HOP, MED, LOCAL_PREF | `core-design.md`, `wire/attributes.md`, `update-building.md`, `rules/buffer-first.md` | `rfc4271.md`, `rfc6793.md` |
 | community | `wire/attributes.md` | `rfc1997.md` |
 | extended community, RT, RD | `wire/attributes.md` | `rfc4360.md`, `rfc5701.md` |
 | large community | `wire/attributes.md` | `rfc8092.md`, `rfc8195.md` |
