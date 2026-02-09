@@ -557,11 +557,8 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal net
 		}
 	}
 
-	// Pack raw attributes
-	rawAttrs := make([][]byte, len(r.RawAttributes))
-	for i, ra := range r.RawAttributes {
-		rawAttrs[i] = packRawAttribute(ra)
-	}
+	// Pack raw attributes into a single contiguous buffer
+	rawAttrs := packRawAttributes(r.RawAttributes)
 
 	return message.UnicastParams{
 		Prefix:             r.Prefix,
@@ -590,11 +587,8 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal net
 // Used for labeled unicast routes (SAFI 4).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
 func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
-	// Pack raw attributes
-	rawAttrs := make([][]byte, len(r.RawAttributes))
-	for i, ra := range r.RawAttributes {
-		rawAttrs[i] = packRawAttribute(ra)
-	}
+	// Pack raw attributes into a single contiguous buffer
+	rawAttrs := packRawAttributes(r.RawAttributes)
 
 	return message.LabeledUnicastParams{
 		Prefix:            r.Prefix,
@@ -1950,30 +1944,58 @@ func routeFamily(route StaticRoute) nlri.Family {
 	return nlri.IPv4Unicast
 }
 
-// packRawAttribute packs a raw attribute into wire format.
+// writeRawAttribute writes a raw attribute into buf at off, returning bytes written.
 // Format: flags (1 byte) + code (1 byte) + length (1 or 2 bytes) + value.
-func packRawAttribute(ra RawAttribute) []byte {
+func writeRawAttribute(buf []byte, off int, ra RawAttribute) int {
 	flags := ra.Flags
 	valueLen := len(ra.Value)
 
 	// Use extended length if value > 255 bytes OR if extended length flag is set
 	if valueLen > 255 || (flags&0x10) != 0 {
 		flags |= 0x10 // Ensure extended length flag is set
-		buf := make([]byte, 4+valueLen)
-		buf[0] = flags
-		buf[1] = ra.Code
-		buf[2] = byte(valueLen >> 8)
-		buf[3] = byte(valueLen)
-		copy(buf[4:], ra.Value)
-		return buf
+		buf[off] = flags
+		buf[off+1] = ra.Code
+		buf[off+2] = byte(valueLen >> 8)
+		buf[off+3] = byte(valueLen)
+		copy(buf[off+4:], ra.Value)
+		return 4 + valueLen
 	}
 
-	buf := make([]byte, 3+valueLen)
-	buf[0] = flags
-	buf[1] = ra.Code
-	buf[2] = byte(valueLen)
-	copy(buf[3:], ra.Value)
-	return buf
+	buf[off] = flags
+	buf[off+1] = ra.Code
+	buf[off+2] = byte(valueLen)
+	copy(buf[off+3:], ra.Value)
+	return 3 + valueLen
+}
+
+// rawAttributeLen returns the wire length of a raw attribute.
+func rawAttributeLen(ra RawAttribute) int {
+	valueLen := len(ra.Value)
+	if valueLen > 255 || (ra.Flags&0x10) != 0 {
+		return 4 + valueLen
+	}
+	return 3 + valueLen
+}
+
+// packRawAttributes packs multiple raw attributes into a single contiguous buffer,
+// returning sub-slices for each attribute. Reduces N allocations to 1.
+func packRawAttributes(attrs []RawAttribute) [][]byte {
+	if len(attrs) == 0 {
+		return nil
+	}
+	totalSize := 0
+	for i := range attrs {
+		totalSize += rawAttributeLen(attrs[i])
+	}
+	buf := make([]byte, totalSize)
+	result := make([][]byte, len(attrs))
+	off := 0
+	for i := range attrs {
+		n := writeRawAttribute(buf, off, attrs[i])
+		result[i] = buf[off : off+n]
+		off += n
+	}
+	return result
 }
 
 // routeGroupKey generates a string key for grouping routes by attributes.

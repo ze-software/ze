@@ -5016,29 +5016,52 @@ func parseAPIPrefixSIDSRv6(s string) ([]byte, error) {
 		}
 	}
 
-	// Build wire format per RFC 9252
-	var innerValue []byte
-	innerValue = append(innerValue, 0) // reserved
-	innerValue = append(innerValue, ipv6.AsSlice()...)
-	innerValue = append(innerValue, 0)        // flags
-	innerValue = append(innerValue, 0)        // reserved
-	innerValue = append(innerValue, behavior) // behavior
-
+	// Build wire format per RFC 9252 — single allocation.
+	// Inner value: reserved(1) + IPv6(16) + flags(1) + reserved(1) + behavior(1) = 20
+	// Optional SID struct sub-TLV: type(2) + length(2) + struct(6) = 10
+	// Inner TLV header: type(2) + length(2) = 4
+	// Outer TLV header: type(1) + length(2) = 3
+	innerValueLen := 20
 	if len(sidStruct) == 6 {
-		innerValue = append(innerValue, 0, 1)
-		innerValue = append(innerValue, 0, byte(len(sidStruct)))
-		innerValue = append(innerValue, sidStruct...)
+		innerValueLen += 2 + 2 + 6 // sub-TLV
 	}
+	totalLen := 3 + 4 + innerValueLen
+	result := make([]byte, totalLen)
+	off := 0
 
-	innerLen := len(innerValue)
-	innerTLV := make([]byte, 0, 4+innerLen)
-	innerTLV = append(innerTLV, 0, 1, byte(innerLen>>8), byte(innerLen))
-	innerTLV = append(innerTLV, innerValue...)
+	// Outer header
+	outerLen := totalLen - 3
+	result[off] = serviceType
+	result[off+1] = byte(outerLen >> 8)
+	result[off+2] = byte(outerLen)
+	off += 3
 
-	outerLen := len(innerTLV)
-	result := make([]byte, 0, 3+outerLen)
-	result = append(result, serviceType, byte(outerLen>>8), byte(outerLen))
-	result = append(result, innerTLV...)
+	// Inner TLV header
+	result[off] = 0
+	result[off+1] = 1
+	result[off+2] = byte(innerValueLen >> 8)
+	result[off+3] = byte(innerValueLen)
+	off += 4
+
+	// Inner value
+	result[off] = 0 // reserved
+	off++
+	a16 := ipv6.As16()
+	copy(result[off:], a16[:])
+	off += 16
+	result[off] = 0   // flags
+	result[off+1] = 0 // reserved
+	result[off+2] = behavior
+	off += 3
+
+	// Optional SID structure sub-TLV
+	if len(sidStruct) == 6 {
+		result[off] = 0
+		result[off+1] = 1
+		result[off+2] = 0
+		result[off+3] = byte(len(sidStruct))
+		copy(result[off+4:], sidStruct)
+	}
 
 	return result, nil
 }
