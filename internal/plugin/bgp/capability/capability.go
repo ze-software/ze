@@ -86,7 +86,6 @@ func (c Code) String() string {
 // RFC 5492 Section 4: Each capability is encoded as a TLV (Type-Length-Value).
 type Capability interface {
 	Code() Code
-	Pack() []byte
 	Len() int
 	WriteTo(buf []byte, off int) int
 }
@@ -228,30 +227,12 @@ type Unknown struct {
 
 func (u *Unknown) Code() Code { return u.code }
 
-func (u *Unknown) Pack() []byte {
-	return packCapability(u.code, u.Data)
-}
-
 func (u *Unknown) Len() int { return 2 + len(u.Data) }
 
 func (u *Unknown) WriteTo(buf []byte, off int) int {
 	writeCapabilityTo(buf, off, u.code, len(u.Data))
 	copy(buf[off+2:], u.Data)
 	return u.Len()
-}
-
-// packCapability creates a capability TLV.
-//
-// RFC 5492 Section 4: Each capability is encoded as:
-//   - Capability Code (1 octet)
-//   - Capability Length (1 octet)
-//   - Capability Value (variable)
-func packCapability(code Code, data []byte) []byte {
-	result := make([]byte, 2+len(data))
-	result[0] = byte(code)
-	result[1] = byte(len(data))
-	copy(result[2:], data)
-	return result
 }
 
 // writeCapabilityTo writes a capability TLV header into buf at offset.
@@ -276,17 +257,6 @@ type Multiprotocol struct {
 }
 
 func (m *Multiprotocol) Code() Code { return CodeMultiprotocol }
-
-// Pack encodes the Multiprotocol capability.
-//
-// RFC 4760 Section 8: AFI (16 bit), Reserved (8 bit, set to 0), SAFI (8 bit).
-func (m *Multiprotocol) Pack() []byte {
-	data := make([]byte, 4)
-	binary.BigEndian.PutUint16(data[0:2], uint16(m.AFI))
-	data[2] = 0 // RFC 4760 Section 8: Reserved, SHOULD be set to 0
-	data[3] = byte(m.SAFI)
-	return packCapability(CodeMultiprotocol, data)
-}
 
 func (m *Multiprotocol) Len() int { return 6 } // 2 header + 4 value
 
@@ -325,15 +295,6 @@ type ASN4 struct {
 
 func (a *ASN4) Code() Code { return CodeASN4 }
 
-// Pack encodes the ASN4 capability.
-//
-// RFC 6793 Section 3: The AS number is encoded as a 4-octet entity.
-func (a *ASN4) Pack() []byte {
-	data := make([]byte, 4)
-	binary.BigEndian.PutUint32(data, a.ASN)
-	return packCapability(CodeASN4, data)
-}
-
 func (a *ASN4) Len() int { return 6 } // 2 header + 4 value
 
 func (a *ASN4) WriteTo(buf []byte, off int) int {
@@ -363,13 +324,6 @@ type RouteRefresh struct{}
 
 func (r *RouteRefresh) Code() Code { return CodeRouteRefresh }
 
-// Pack encodes the Route Refresh capability.
-//
-// RFC 2918 Section 2: Capability length is 0 (no value field).
-func (r *RouteRefresh) Pack() []byte {
-	return packCapability(CodeRouteRefresh, nil)
-}
-
 func (r *RouteRefresh) Len() int { return 2 } // 2 header + 0 value
 
 func (r *RouteRefresh) WriteTo(buf []byte, off int) int {
@@ -390,13 +344,6 @@ type ExtendedMessage struct{}
 
 func (e *ExtendedMessage) Code() Code { return CodeExtendedMessage }
 
-// Pack encodes the Extended Message capability.
-//
-// RFC 8654 Section 3: Capability length is 0 (no value field).
-func (e *ExtendedMessage) Pack() []byte {
-	return packCapability(CodeExtendedMessage, nil)
-}
-
 func (e *ExtendedMessage) Len() int { return 2 } // 2 header + 0 value
 
 func (e *ExtendedMessage) WriteTo(buf []byte, off int) int {
@@ -416,13 +363,6 @@ func (e *ExtendedMessage) ConfigValues() map[string]string {
 type EnhancedRouteRefresh struct{}
 
 func (e *EnhancedRouteRefresh) Code() Code { return CodeEnhancedRouteRefresh }
-
-// Pack encodes the Enhanced Route Refresh capability.
-//
-// RFC 7313 Section 3.1: Capability length is 0 (no value field).
-func (e *EnhancedRouteRefresh) Pack() []byte {
-	return packCapability(CodeEnhancedRouteRefresh, nil)
-}
 
 func (e *EnhancedRouteRefresh) Len() int { return 2 } // 2 header + 0 value
 
@@ -468,21 +408,6 @@ type AddPath struct {
 }
 
 func (a *AddPath) Code() Code { return CodeAddPath }
-
-// Pack encodes the ADD-PATH capability.
-//
-// RFC 7911 Section 4: Each AFI/SAFI tuple is encoded as:
-// AFI (2 octets) + SAFI (1 octet) + Send/Receive (1 octet) = 4 octets.
-func (a *AddPath) Pack() []byte {
-	data := make([]byte, len(a.Families)*4)
-	for i, f := range a.Families {
-		offset := i * 4
-		binary.BigEndian.PutUint16(data[offset:], uint16(f.AFI))
-		data[offset+2] = byte(f.SAFI)
-		data[offset+3] = byte(f.Mode)
-	}
-	return packCapability(CodeAddPath, data)
-}
 
 func (a *AddPath) Len() int { return 2 + len(a.Families)*4 }
 
@@ -562,31 +487,6 @@ type GracefulRestart struct {
 }
 
 func (g *GracefulRestart) Code() Code { return CodeGracefulRestart }
-
-// Pack encodes the Graceful Restart capability.
-//
-// RFC 4724 Section 3: Restart Flags in high 4 bits, Restart Time in low 12 bits.
-func (g *GracefulRestart) Pack() []byte {
-	data := make([]byte, 2+len(g.Families)*4)
-
-	// RFC 4724 Section 3: First 2 bytes contain flags (4 bits) and restart time (12 bits)
-	val := g.RestartTime & 0x0FFF
-	if g.RestartState {
-		val |= 0x8000 // RFC 4724: R bit is the most significant bit
-	}
-	binary.BigEndian.PutUint16(data[0:2], val)
-
-	// RFC 4724 Section 3: AFI/SAFI entries (4 bytes each)
-	for i, f := range g.Families {
-		offset := 2 + i*4
-		binary.BigEndian.PutUint16(data[offset:], uint16(f.AFI))
-		data[offset+2] = byte(f.SAFI)
-		if f.ForwardingState {
-			data[offset+3] = 0x80 // RFC 4724: F bit is the most significant bit
-		}
-	}
-	return packCapability(CodeGracefulRestart, data)
-}
 
 func (g *GracefulRestart) Len() int { return 2 + 2 + len(g.Families)*4 }
 
@@ -679,20 +579,6 @@ type ExtendedNextHop struct {
 
 func (e *ExtendedNextHop) Code() Code { return CodeExtendedNextHop }
 
-// Pack encodes the Extended Next Hop capability.
-//
-// RFC 8950 Section 4: Each tuple is 6 octets (AFI + SAFI + Next Hop AFI, all 16-bit).
-func (e *ExtendedNextHop) Pack() []byte {
-	data := make([]byte, len(e.Families)*6)
-	for i, f := range e.Families {
-		offset := i * 6
-		binary.BigEndian.PutUint16(data[offset:], uint16(f.NLRIAFI))
-		binary.BigEndian.PutUint16(data[offset+2:], uint16(f.NLRISAFI)) // RFC 8950: SAFI as 16-bit
-		binary.BigEndian.PutUint16(data[offset+4:], uint16(f.NextHopAFI))
-	}
-	return packCapability(CodeExtendedNextHop, data)
-}
-
 func (e *ExtendedNextHop) Len() int { return 2 + len(e.Families)*6 }
 
 func (e *ExtendedNextHop) WriteTo(buf []byte, off int) int {
@@ -748,31 +634,6 @@ type FQDN struct {
 }
 
 func (f *FQDN) Code() Code { return CodeFQDN }
-
-// Pack encodes the FQDN capability.
-//
-// RFC 8516 Section 3: Each string is prefixed with a 1-octet length field.
-// Maximum length for each string is 255 bytes.
-func (f *FQDN) Pack() []byte {
-	hostLen := len(f.Hostname)
-	domainLen := len(f.DomainName)
-
-	// RFC 8516: Max 255 bytes each (1-octet length field)
-	if hostLen > 255 {
-		hostLen = 255
-	}
-	if domainLen > 255 {
-		domainLen = 255
-	}
-
-	data := make([]byte, 1+hostLen+1+domainLen)
-	data[0] = byte(hostLen)
-	copy(data[1:1+hostLen], f.Hostname[:hostLen])
-	data[1+hostLen] = byte(domainLen)
-	copy(data[2+hostLen:], f.DomainName[:domainLen])
-
-	return packCapability(CodeFQDN, data)
-}
 
 func (f *FQDN) Len() int {
 	return 2 + 1 + min(len(f.Hostname), 255) + 1 + min(len(f.DomainName), 255)
@@ -842,23 +703,6 @@ type SoftwareVersion struct {
 }
 
 func (s *SoftwareVersion) Code() Code { return CodeSoftwareVersion }
-
-// Pack encodes the Software Version capability.
-//
-// draft-ietf-idr-software-version: Version string prefixed with 1-octet length.
-// Maximum length is 255 bytes.
-func (s *SoftwareVersion) Pack() []byte {
-	verLen := len(s.Version)
-	if verLen > 255 {
-		verLen = 255
-	}
-
-	data := make([]byte, 1+verLen)
-	data[0] = byte(verLen)
-	copy(data[1:], s.Version[:verLen])
-
-	return packCapability(CodeSoftwareVersion, data)
-}
 
 func (s *SoftwareVersion) Len() int { return 2 + 1 + min(len(s.Version), 255) }
 

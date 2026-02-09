@@ -20,8 +20,10 @@ func TestCommunities(t *testing.T) {
 	assert.Equal(t, FlagOptional|FlagTransitive, comms.Flags())
 	assert.Equal(t, 8, comms.Len())
 
-	packed := comms.Pack()
-	assert.Equal(t, []byte{0xFD, 0xE9, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01}, packed)
+	buf := make([]byte, 64)
+	n := comms.WriteTo(buf, 0)
+	assert.Equal(t, 8, n)
+	assert.Equal(t, []byte{0xFD, 0xE9, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01}, buf[:n])
 }
 
 func TestCommunitiesParse(t *testing.T) {
@@ -51,13 +53,15 @@ func TestLargeCommunities(t *testing.T) {
 	assert.Equal(t, FlagOptional|FlagTransitive, lcs.Flags())
 	assert.Equal(t, 12, lcs.Len())
 
-	packed := lcs.Pack()
+	buf := make([]byte, 64)
+	n := lcs.WriteTo(buf, 0)
 	expected := []byte{
 		0x00, 0x00, 0xFD, 0xE9, // 65001
 		0x00, 0x00, 0x00, 0x64, // 100
 		0x00, 0x00, 0x00, 0xC8, // 200
 	}
-	assert.Equal(t, expected, packed)
+	assert.Equal(t, 12, n)
+	assert.Equal(t, expected, buf[:n])
 }
 
 func TestLargeCommunitiesParse(t *testing.T) {
@@ -81,8 +85,10 @@ func TestExtendedCommunities(t *testing.T) {
 	assert.Equal(t, AttrExtCommunity, ecs.Code())
 	assert.Equal(t, 8, ecs.Len())
 
-	packed := ecs.Pack()
-	assert.Equal(t, []byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}, packed)
+	buf := make([]byte, 64)
+	n := ecs.WriteTo(buf, 0)
+	assert.Equal(t, 8, n)
+	assert.Equal(t, []byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}, buf[:n])
 }
 
 func TestExtendedCommunitiesParse(t *testing.T) {
@@ -117,8 +123,10 @@ func TestIPv6ExtendedCommunities(t *testing.T) {
 	assert.Equal(t, FlagOptional|FlagTransitive, ecs.Flags())
 	assert.Equal(t, 20, ecs.Len())
 
-	packed := ecs.Pack()
-	assert.Equal(t, ec[:], packed)
+	buf := make([]byte, 64)
+	n := ecs.WriteTo(buf, 0)
+	assert.Equal(t, 20, n)
+	assert.Equal(t, ec[:], buf[:n])
 }
 
 // TestIPv6ExtendedCommunitiesParse verifies parsing RFC 5701 attribute.
@@ -193,12 +201,12 @@ func TestLargeCommunitiesDeduplication(t *testing.T) {
 	assert.Equal(t, LargeCommunity{65002, 1, 2}, lcs[1])
 }
 
-// TestLargeCommunitiesPackNoDuplicates verifies Pack doesn't emit duplicates.
+// TestLargeCommunitiesWriteToNoDuplicates verifies WriteTo doesn't emit duplicates.
 //
 // RFC 8092 Section 5: "Duplicate BGP Large Community values MUST NOT be transmitted."
 //
-// VALIDATES: Even if struct contains duplicates, Pack outputs unique.
-func TestLargeCommunitiesPackNoDuplicates(t *testing.T) {
+// VALIDATES: Even if struct contains duplicates, WriteTo outputs unique.
+func TestLargeCommunitiesWriteToNoDuplicates(t *testing.T) {
 	// Create with intentional duplicates (shouldn't happen normally, but defensive)
 	lcs := LargeCommunities{
 		{65001, 100, 200},
@@ -206,17 +214,18 @@ func TestLargeCommunitiesPackNoDuplicates(t *testing.T) {
 		{65002, 1, 2},
 	}
 
-	packed := lcs.Pack()
+	buf := make([]byte, 4096)
+	n := lcs.WriteTo(buf, 0)
 	// Should only be 2 x 12 = 24 bytes (deduplicated)
-	assert.Equal(t, 24, len(packed), "Pack should deduplicate")
+	assert.Equal(t, 24, n, "WriteTo should deduplicate")
 
 	// Parse back to verify
-	parsed, err := ParseLargeCommunities(packed)
+	parsed, err := ParseLargeCommunities(buf[:n])
 	require.NoError(t, err)
 	require.Len(t, parsed, 2)
 }
 
-// TestIPv6ExtendedCommunitiesRoundTrip verifies pack/parse consistency.
+// TestIPv6ExtendedCommunitiesRoundTrip verifies WriteTo/parse consistency.
 func TestIPv6ExtendedCommunitiesRoundTrip(t *testing.T) {
 	// Two IPv6 extended communities
 	original := IPv6ExtendedCommunities{
@@ -226,47 +235,57 @@ func TestIPv6ExtendedCommunitiesRoundTrip(t *testing.T) {
 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0xC8},
 	}
 
-	packed := original.Pack()
-	assert.Equal(t, 40, len(packed)) // 2 x 20 bytes
+	buf := make([]byte, 64)
+	n := original.WriteTo(buf, 0)
+	assert.Equal(t, 40, n) // 2 x 20 bytes
 
-	parsed, err := ParseIPv6ExtendedCommunities(packed)
+	parsed, err := ParseIPv6ExtendedCommunities(buf[:n])
 	require.NoError(t, err)
 	assert.Equal(t, original, parsed)
 }
 
-// TestCommunitiesWriteToMatchesPack verifies WriteTo produces identical bytes to Pack.
+// TestCommunitiesWriteTo verifies WriteTo produces correct bytes.
 //
-// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+// VALIDATES: Zero-allocation WriteTo path produces correct wire format.
 //
-// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
-func TestCommunitiesWriteToMatchesPack(t *testing.T) {
+// PREVENTS: Wire format errors in community encoding.
+func TestCommunitiesWriteTo(t *testing.T) {
 	tests := []struct {
-		name  string
-		comms Communities
+		name    string
+		comms   Communities
+		wantLen int
 	}{
 		{
-			name:  "empty",
-			comms: Communities{},
+			name:    "empty",
+			comms:   Communities{},
+			wantLen: 0,
 		},
 		{
-			name:  "single",
-			comms: Communities{Community(0xFDE90064)},
+			name:    "single",
+			comms:   Communities{Community(0xFDE90064)},
+			wantLen: 4,
 		},
 		{
-			name:  "multiple",
-			comms: Communities{Community(0xFDE90064), CommunityNoExport, CommunityNoAdvertise},
+			name:    "multiple",
+			comms:   Communities{Community(0xFDE90064), CommunityNoExport, CommunityNoAdvertise},
+			wantLen: 12,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expected := tt.comms.Pack()
-
 			buf := make([]byte, 4096)
 			n := tt.comms.WriteTo(buf, 0)
 
-			assert.Equal(t, len(expected), n, "length mismatch")
-			assert.Equal(t, expected, buf[:n], "content mismatch")
+			assert.Equal(t, tt.wantLen, n, "length mismatch")
+			assert.Equal(t, tt.comms.Len(), n, "Len() should match WriteTo result")
+
+			// Round-trip: parse back and verify
+			if n > 0 {
+				parsed, err := ParseCommunities(buf[:n])
+				require.NoError(t, err)
+				assert.Equal(t, tt.comms, parsed)
+			}
 		})
 	}
 }
@@ -314,18 +333,12 @@ func TestCommunitiesWriteToExtendedLength(t *testing.T) {
 				comms[i] = Community(uint32(0xFFFF0000 | i)) //nolint:gosec // G115: test data, i bounded
 			}
 
-			// Verify Pack
-			packed := comms.Pack()
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
-			// Verify WriteTo matches Pack
 			buf := make([]byte, 4096)
 			n := comms.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
 
 			// Parse back and verify count
-			parsed, err := ParseCommunities(packed)
+			parsed, err := ParseCommunities(buf[:n])
 			require.NoError(t, err)
 			assert.Len(t, parsed, tt.numComms, "community count preserved")
 		})
@@ -339,7 +352,7 @@ func TestCommunitiesWriteToExtendedLength(t *testing.T) {
 // PREVENTS: Buffer corruption when writing at non-zero offset.
 func TestCommunitiesWriteToOffset(t *testing.T) {
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}
-	expected := comms.Pack()
+	wantLen := comms.Len()
 	offset := 100
 
 	buf := make([]byte, 4096)
@@ -349,30 +362,36 @@ func TestCommunitiesWriteToOffset(t *testing.T) {
 
 	n := comms.WriteTo(buf, offset)
 
-	assert.Equal(t, len(expected), n)
-	assert.Equal(t, expected, buf[offset:offset+n])
+	assert.Equal(t, wantLen, n)
+
+	// Verify content at offset via round-trip
+	parsed, err := ParseCommunities(buf[offset : offset+n])
+	require.NoError(t, err)
+	assert.Equal(t, comms, parsed)
 
 	for i := 0; i < offset; i++ {
 		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
 	}
 }
 
-// TestExtendedCommunitiesWriteToMatchesPack verifies WriteTo for extended communities.
+// TestExtendedCommunitiesWriteTo verifies WriteTo for extended communities.
 //
-// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
-func TestExtendedCommunitiesWriteToMatchesPack(t *testing.T) {
+// VALIDATES: Zero-allocation WriteTo path produces correct wire format.
+func TestExtendedCommunitiesWriteTo(t *testing.T) {
 	ecs := ExtendedCommunities{
 		{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64},
 		{0x00, 0x02, 0xFD, 0xEA, 0x00, 0x00, 0x00, 0x65},
 	}
 
-	expected := ecs.Pack()
-
 	buf := make([]byte, 4096)
 	n := ecs.WriteTo(buf, 0)
 
-	assert.Equal(t, len(expected), n)
-	assert.Equal(t, expected, buf[:n])
+	assert.Equal(t, 16, n)
+
+	// Round-trip
+	parsed, err := ParseExtendedCommunities(buf[:n])
+	require.NoError(t, err)
+	assert.Equal(t, ecs, parsed)
 }
 
 // TestExtendedCommunitiesWriteToExtendedLength verifies WriteTo handles >31 ext communities.
@@ -413,33 +432,36 @@ func TestExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
 				ecs[i] = ExtendedCommunity{0x00, 0x02, byte(i >> 8), byte(i), 0x00, 0x00, 0x00, byte(i)}
 			}
 
-			packed := ecs.Pack()
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
 			buf := make([]byte, 4096)
 			n := ecs.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
+
+			// Round-trip
+			parsed, err := ParseExtendedCommunities(buf[:n])
+			require.NoError(t, err)
+			assert.Len(t, parsed, tt.numComms)
 		})
 	}
 }
 
-// TestLargeCommunitiesWriteToMatchesPack verifies WriteTo for large communities.
+// TestLargeCommunitiesWriteTo verifies WriteTo for large communities.
 //
-// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
-func TestLargeCommunitiesWriteToMatchesPack(t *testing.T) {
+// VALIDATES: Zero-allocation WriteTo path produces correct wire format.
+func TestLargeCommunitiesWriteTo(t *testing.T) {
 	lcs := LargeCommunities{
 		{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200},
 		{GlobalAdmin: 65002, LocalData1: 101, LocalData2: 201},
 	}
 
-	expected := lcs.Pack()
-
 	buf := make([]byte, 4096)
 	n := lcs.WriteTo(buf, 0)
 
-	assert.Equal(t, len(expected), n)
-	assert.Equal(t, expected, buf[:n])
+	assert.Equal(t, 24, n)
+
+	// Round-trip
+	parsed, err := ParseLargeCommunities(buf[:n])
+	require.NoError(t, err)
+	assert.Equal(t, lcs, parsed)
 }
 
 // TestLargeCommunitiesWriteToExtendedLength verifies WriteTo handles >21 large communities.
@@ -484,13 +506,14 @@ func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
 				}
 			}
 
-			packed := lcs.Pack()
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
 			buf := make([]byte, 4096)
 			n := lcs.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
+
+			// Round-trip
+			parsed, err := ParseLargeCommunities(buf[:n])
+			require.NoError(t, err)
+			assert.Len(t, parsed, tt.numComms, "community count preserved")
 		})
 	}
 }
@@ -538,13 +561,14 @@ func TestIPv6ExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
 				}
 			}
 
-			packed := ecs.Pack()
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
 			buf := make([]byte, 4096)
 			n := ecs.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
+
+			// Round-trip
+			parsed, err := ParseIPv6ExtendedCommunities(buf[:n])
+			require.NoError(t, err)
+			assert.Len(t, parsed, tt.numComms)
 		})
 	}
 }

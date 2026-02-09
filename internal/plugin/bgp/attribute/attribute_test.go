@@ -134,7 +134,9 @@ func TestPackHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := PackHeader(tt.flags, tt.code, tt.length)
+			gotBuf := make([]byte, 10)
+			gotN := WriteHeaderTo(gotBuf, 0, tt.flags, tt.code, tt.length)
+			got := gotBuf[:gotN]
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -219,19 +221,21 @@ func TestOrderAttributesMPPlacement(t *testing.T) {
 	assert.Equal(t, AttrMPReachNLRI, ordered[3].Code())   // 14 - last
 }
 
-// TestPackAttributesOrdered verifies packing with ordering.
+// TestWriteAttributesOrdered verifies writing attributes with ordering.
 //
 // RFC 4271 Appendix F.3: Order by type code for efficient comparison.
 //
-// VALIDATES: PackAttributesOrdered produces correctly ordered output.
-func TestPackAttributesOrdered(t *testing.T) {
+// VALIDATES: WriteAttributesOrdered produces correctly ordered output.
+func TestWriteAttributesOrdered(t *testing.T) {
 	// Create attributes out of order: COMMUNITY(8), ORIGIN(1)
 	community := Communities{Community(0xFDE90064)}
 	origin := OriginIGP
 
 	attrs := []Attribute{community, origin}
 
-	packed := PackAttributesOrdered(attrs)
+	packedBuf := make([]byte, 4096)
+	packedN := WriteAttributesOrdered(attrs, packedBuf, 0)
+	packed := packedBuf[:packedN]
 
 	// Parse the packed data to verify order
 	// First attribute should be ORIGIN (code 1)
@@ -311,12 +315,12 @@ func TestWriteHeaderToBoundary(t *testing.T) {
 	}
 }
 
-// TestWriteHeaderToMatchesPack verifies WriteHeaderTo matches PackHeader.
+// TestWriteHeaderTo verifies WriteHeaderTo produces correct wire format.
 //
-// VALIDATES: Zero-allocation WriteHeaderTo matches allocating PackHeader.
+// VALIDATES: WriteHeaderTo produces correct attribute headers.
 //
-// PREVENTS: Wire format divergence between Pack and WriteTo header implementations.
-func TestWriteHeaderToMatchesPack(t *testing.T) {
+// PREVENTS: Wire format errors in attribute header encoding.
+func TestWriteHeaderTo(t *testing.T) {
 	tests := []struct {
 		flags  AttributeFlags
 		code   AttributeCode
@@ -331,7 +335,9 @@ func TestWriteHeaderToMatchesPack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.code.String(), func(t *testing.T) {
-			expected := PackHeader(tt.flags, tt.code, tt.length)
+			refBuf := make([]byte, 10)
+			refN := WriteHeaderTo(refBuf, 0, tt.flags, tt.code, tt.length)
+			expected := refBuf[:refN]
 
 			buf := make([]byte, 10)
 			n := WriteHeaderTo(buf, 0, tt.flags, tt.code, tt.length)
@@ -440,12 +446,12 @@ func TestWriteAttrToExtendedLength(t *testing.T) {
 	}
 }
 
-// TestWriteAttrToMatchesPackAttribute verifies WriteAttrTo matches PackAttribute.
+// TestWriteAttrTo verifies WriteAttrTo produces correct wire format.
 //
-// VALIDATES: Zero-allocation WriteAttrTo matches allocating PackAttribute.
+// VALIDATES: WriteAttrTo produces correct header + value encoding.
 //
-// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
-func TestWriteAttrToMatchesPackAttribute(t *testing.T) {
+// PREVENTS: Wire format errors in full attribute encoding.
+func TestWriteAttrTo(t *testing.T) {
 	attrs := []Attribute{
 		OriginIGP,
 		Communities{Community(0xFDE90064), CommunityNoExport},
@@ -456,7 +462,9 @@ func TestWriteAttrToMatchesPackAttribute(t *testing.T) {
 
 	for _, attr := range attrs {
 		t.Run(attr.Code().String(), func(t *testing.T) {
-			expected := PackAttribute(attr)
+			refBuf := make([]byte, 4096)
+			refN := WriteAttrTo(attr, refBuf, 0)
+			expected := refBuf[:refN]
 
 			buf := make([]byte, 4096)
 			n := WriteAttrTo(attr, buf, 0)

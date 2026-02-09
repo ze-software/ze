@@ -64,9 +64,11 @@ func TestAS4Path_Pack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.path.Pack()
+			buf := make([]byte, 4096)
+			n := tt.path.WriteTo(buf, 0)
+			got := buf[:n]
 			if !bytes.Equal(got, tt.expected) {
-				t.Errorf("Pack() = %v, want %v", got, tt.expected)
+				t.Errorf("WriteTo() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
@@ -209,7 +211,9 @@ func TestAS4Path_RoundTrip(t *testing.T) {
 		},
 	}
 
-	packed := original.Pack()
+	buf := make([]byte, 4096)
+	n := original.WriteTo(buf, 0)
+	packed := buf[:n]
 	parsed, err := ParseAS4Path(packed)
 	if err != nil {
 		t.Fatalf("ParseAS4Path() error = %v", err)
@@ -241,7 +245,9 @@ func TestAS4Aggregator_Pack(t *testing.T) {
 		Address: netip.MustParseAddr("10.0.0.1"),
 	}
 
-	got := agg.Pack()
+	buf := make([]byte, 4096)
+	n := agg.WriteTo(buf, 0)
+	got := buf[:n]
 	expected := []byte{
 		0xfa, 0x56, 0xea, 0x01, // 4200000001
 		0x0a, 0x00, 0x00, 0x01, // 10.0.0.1
@@ -277,7 +283,9 @@ func TestAS4Aggregator_RoundTrip(t *testing.T) {
 		Address: netip.MustParseAddr("192.168.1.1"),
 	}
 
-	packed := original.Pack()
+	buf := make([]byte, 4096)
+	n := original.WriteTo(buf, 0)
+	packed := buf[:n]
 	parsed, err := ParseAS4Aggregator(packed)
 	if err != nil {
 		t.Fatalf("ParseAS4Aggregator() error = %v", err)
@@ -494,7 +502,9 @@ func TestAS4PathPackExcludesConfed(t *testing.T) {
 		},
 	}
 
-	packed := path.Pack()
+	buf := make([]byte, 4096)
+	n := path.WriteTo(buf, 0)
+	packed := buf[:n]
 
 	// Parse back to verify confed segments are gone
 	parsed, err := ParseAS4Path(packed)

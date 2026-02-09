@@ -28,73 +28,82 @@ func TestOpaqueAttributeBasic(t *testing.T) {
 	}
 }
 
-// TestOpaqueAttributePack verifies Pack returns original data unchanged.
+// TestOpaqueAttributeWriteTo verifies WriteTo writes original data unchanged.
 //
 // VALIDATES: Unknown attribute value is preserved exactly.
 // PREVENTS: Modification or corruption of unknown attribute data.
-func TestOpaqueAttributePack(t *testing.T) {
+func TestOpaqueAttributeWriteTo(t *testing.T) {
 	data := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(200), data)
 
-	packed := attr.Pack()
+	buf := make([]byte, 64)
+	n := attr.WriteTo(buf, 0)
 
-	if len(packed) != len(data) {
-		t.Fatalf("Pack() len = %d, want %d", len(packed), len(data))
+	if n != len(data) {
+		t.Fatalf("WriteTo() = %d, want %d", n, len(data))
 	}
 	for i := range data {
-		if packed[i] != data[i] {
-			t.Errorf("Pack()[%d] = %02x, want %02x", i, packed[i], data[i])
+		if buf[i] != data[i] {
+			t.Errorf("WriteTo()[%d] = %02x, want %02x", i, buf[i], data[i])
 		}
 	}
 }
 
-// TestOpaqueAttributePackWithContext verifies context-independent packing.
+// TestOpaqueAttributeWriteToWithContext verifies context-independent writing.
 //
-// VALIDATES: Unknown attributes pack the same regardless of context.
+// VALIDATES: Unknown attributes write the same regardless of context.
 // PREVENTS: Incorrect re-encoding of unknown attribute structures.
-func TestOpaqueAttributePackWithContext(t *testing.T) {
+func TestOpaqueAttributeWriteToWithContext(t *testing.T) {
 	data := []byte{0x01, 0x02, 0x03}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(100), data)
 
-	// Both nil contexts - should return data unchanged
-	packed := attr.PackWithContext(nil, nil)
+	// Both nil contexts - should write data unchanged
+	buf := make([]byte, 64)
+	n := attr.WriteToWithContext(buf, 0, nil, nil)
 
-	if len(packed) != len(data) {
-		t.Fatalf("PackWithContext() len = %d, want %d", len(packed), len(data))
+	if n != len(data) {
+		t.Fatalf("WriteToWithContext() = %d, want %d", n, len(data))
 	}
 	for i := range data {
-		if packed[i] != data[i] {
-			t.Errorf("PackWithContext()[%d] = %02x, want %02x", i, packed[i], data[i])
+		if buf[i] != data[i] {
+			t.Errorf("WriteToWithContext()[%d] = %02x, want %02x", i, buf[i], data[i])
 		}
 	}
 
-	// With actual contexts - should still return data unchanged
+	// With actual contexts - should still write data unchanged
 	ctx := bgpctx.EncodingContextForASN4(true)
-	packed2 := attr.PackWithContext(ctx, ctx)
+	buf2 := make([]byte, 64)
+	n2 := attr.WriteToWithContext(buf2, 0, ctx, ctx)
 
-	if len(packed2) != len(data) {
-		t.Fatalf("PackWithContext(ctx,ctx) len = %d, want %d", len(packed2), len(data))
+	if n2 != len(data) {
+		t.Fatalf("WriteToWithContext(ctx,ctx) = %d, want %d", n2, len(data))
 	}
 	for i := range data {
-		if packed2[i] != data[i] {
-			t.Errorf("PackWithContext(ctx,ctx)[%d] = %02x, want %02x", i, packed2[i], data[i])
+		if buf2[i] != data[i] {
+			t.Errorf("WriteToWithContext(ctx,ctx)[%d] = %02x, want %02x", i, buf2[i], data[i])
 		}
 	}
 }
 
-// TestOpaqueAttributeNoBorrowedDataModification verifies data is not copied.
+// TestOpaqueAttributeWriteToContent verifies WriteTo writes correct bytes.
 //
-// VALIDATES: OpaqueAttribute borrows data (zero-copy).
-// PREVENTS: Unnecessary allocations for unknown attributes.
-func TestOpaqueAttributeNoBorrowedDataModification(t *testing.T) {
+// VALIDATES: OpaqueAttribute WriteTo produces expected content.
+// PREVENTS: Data corruption in zero-copy forwarding path.
+func TestOpaqueAttributeWriteToContent(t *testing.T) {
 	data := []byte{0x01, 0x02, 0x03}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(100), data)
 
-	packed := attr.Pack()
+	buf := make([]byte, 64)
+	n := attr.WriteTo(buf, 0)
 
-	// Verify it's the same underlying slice (zero-copy)
-	if &packed[0] != &data[0] {
-		t.Error("Pack() returned a copy, expected borrowed slice")
+	// Verify correct bytes written
+	if n != 3 {
+		t.Fatalf("WriteTo() = %d, want 3", n)
+	}
+	for i, b := range data {
+		if buf[i] != b {
+			t.Errorf("buf[%d] = %02x, want %02x", i, buf[i], b)
+		}
 	}
 }
 
@@ -126,9 +135,10 @@ func TestOpaqueAttributeEmptyData(t *testing.T) {
 		t.Errorf("Len() = %d, want 0", attr.Len())
 	}
 
-	packed := attr.Pack()
-	if len(packed) != 0 {
-		t.Errorf("Pack() = %v, want nil or empty", packed)
+	buf := make([]byte, 64)
+	n := attr.WriteTo(buf, 0)
+	if n != 0 {
+		t.Errorf("WriteTo() = %d, want 0", n)
 	}
 }
 

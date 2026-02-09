@@ -57,47 +57,6 @@ func (p *AS4Path) Len() int {
 	return length
 }
 
-// Pack serializes the AS4 path (always 4-byte ASN format).
-//
-// RFC 6793 Section 3: "The AS4_PATH attribute has the same semantics and
-// the same encoding as the AS_PATH attribute, except that it is 'optional
-// transitive', and it carries four-octet AS numbers."
-//
-// RFC 6793 Section 3: "the path segment types AS_CONFED_SEQUENCE and
-// AS_CONFED_SET are declared invalid for the AS4_PATH attribute and
-// MUST NOT be included in the AS4_PATH attribute of an UPDATE message."
-//
-// Returns the packed AS4_PATH attribute bytes.
-func (p *AS4Path) Pack() []byte {
-	if len(p.Segments) == 0 {
-		return []byte{}
-	}
-
-	buf := make([]byte, p.Len())
-	offset := 0
-
-	for _, seg := range p.Segments {
-		// RFC 6793 Section 3: confed segments MUST NOT be included
-		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
-			continue
-		}
-
-		buf[offset] = byte(seg.Type)
-		buf[offset+1] = byte(len(seg.ASNs))
-		offset += 2
-
-		for _, asn := range seg.ASNs {
-			binary.BigEndian.PutUint32(buf[offset:], asn)
-			offset += 4
-		}
-	}
-
-	return buf
-}
-
-// PackWithContext returns Pack() - AS4_PATH always uses 4-byte ASNs (RFC 6793).
-func (p *AS4Path) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return p.Pack() }
-
 // WriteTo writes the AS4 path (always 4-byte ASN format) into buf at offset.
 func (p *AS4Path) WriteTo(buf []byte, off int) int {
 	if len(p.Segments) == 0 {
@@ -308,21 +267,6 @@ func (a *AS4Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTrans
 // RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message
 // SHALL be considered malformed if the attribute length is not 8.".
 func (a *AS4Aggregator) Len() int { return 8 }
-
-// Pack serializes the AS4_AGGREGATOR attribute.
-//
-// RFC 6793 Section 3: "The AS4_AGGREGATOR attribute has the same semantics
-// and the same encoding as the AGGREGATOR attribute, except that it carries
-// a four-octet AS number.".
-func (a *AS4Aggregator) Pack() []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint32(buf[0:4], a.ASN)
-	copy(buf[4:8], a.Address.AsSlice())
-	return buf
-}
-
-// PackWithContext returns Pack() - AS4_AGGREGATOR always uses 4-byte ASN (RFC 6793).
-func (a *AS4Aggregator) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return a.Pack() }
 
 // WriteTo writes the AS4_AGGREGATOR into buf at offset.
 func (a *AS4Aggregator) WriteTo(buf []byte, off int) int {

@@ -69,14 +69,16 @@ func TestMPReachNLRI_Pack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.attr.Pack()
+			buf := make([]byte, 256)
+			n := tt.attr.WriteTo(buf, 0)
+			got := buf[:n]
 			if len(got) != len(tt.expected) {
-				t.Errorf("Pack() len = %d, want %d", len(got), len(tt.expected))
+				t.Errorf("WriteTo() len = %d, want %d", len(got), len(tt.expected))
 				return
 			}
 			for i := range got {
 				if got[i] != tt.expected[i] {
-					t.Errorf("Pack()[%d] = 0x%02x, want 0x%02x", i, got[i], tt.expected[i])
+					t.Errorf("WriteTo()[%d] = 0x%02x, want 0x%02x", i, got[i], tt.expected[i])
 				}
 			}
 		})
@@ -192,14 +194,16 @@ func TestMPUnreachNLRI_Pack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.attr.Pack()
+			buf := make([]byte, 256)
+			n := tt.attr.WriteTo(buf, 0)
+			got := buf[:n]
 			if len(got) != len(tt.expected) {
-				t.Errorf("Pack() len = %d, want %d", len(got), len(tt.expected))
+				t.Errorf("WriteTo() len = %d, want %d", len(got), len(tt.expected))
 				return
 			}
 			for i := range got {
 				if got[i] != tt.expected[i] {
-					t.Errorf("Pack()[%d] = 0x%02x, want 0x%02x", i, got[i], tt.expected[i])
+					t.Errorf("WriteTo()[%d] = 0x%02x, want 0x%02x", i, got[i], tt.expected[i])
 				}
 			}
 		})
@@ -520,8 +524,9 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 		NLRI:     []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x01},
 	}
 
-	packed := original.Pack()
-	parsed, err := ParseMPReachNLRI(packed)
+	buf := make([]byte, 256)
+	n := original.WriteTo(buf, 0)
+	parsed, err := ParseMPReachNLRI(buf[:n])
 	if err != nil {
 		t.Fatalf("ParseMPReachNLRI() error = %v", err)
 	}
@@ -547,8 +552,9 @@ func TestMPUnreachNLRI_RoundTrip(t *testing.T) {
 		NLRI: []byte{64, 0x20, 0x01, 0x0d, 0xb8},
 	}
 
-	packed := original.Pack()
-	parsed, err := ParseMPUnreachNLRI(packed)
+	buf := make([]byte, 256)
+	n := original.WriteTo(buf, 0)
+	parsed, err := ParseMPUnreachNLRI(buf[:n])
 	if err != nil {
 		t.Fatalf("ParseMPUnreachNLRI() error = %v", err)
 	}

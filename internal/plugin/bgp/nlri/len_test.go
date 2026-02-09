@@ -5,12 +5,12 @@ import (
 	"testing"
 )
 
-// TestLenWithContext_MatchesPack verifies that LenWithContext returns the same
-// length as len(Pack(ctx)) for all NLRI types and context combinations.
+// TestLenWithContext_MatchesWriteTo verifies that LenWithContext returns the same
+// length as WriteTo actually writes for all NLRI types and context combinations.
 //
-// VALIDATES: LenWithContext is consistent with Pack for buffer pre-allocation.
+// VALIDATES: LenWithContext is consistent with WriteTo for buffer pre-allocation.
 // PREVENTS: Buffer overflow or garbage bytes when using WriteTo after LenWithContext.
-func TestLenWithContext_MatchesPack(t *testing.T) {
+func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 	// Create test NLRIs of different types
 	testCases := []struct {
 		name string

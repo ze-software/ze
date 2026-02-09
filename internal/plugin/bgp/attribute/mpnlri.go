@@ -113,42 +113,6 @@ func (m *MPReachNLRI) nextHopLen() int {
 	return total
 }
 
-// Pack serializes the MP_REACH_NLRI attribute value per RFC 4760 Section 3.
-func (m *MPReachNLRI) Pack() []byte {
-	nhLen := m.nextHopLen()
-	buf := make([]byte, m.Len())
-
-	// RFC 4760 Section 3: Address Family Identifier (2 octets)
-	binary.BigEndian.PutUint16(buf[0:2], uint16(m.AFI))
-
-	// RFC 4760 Section 3: Subsequent Address Family Identifier (1 octet)
-	buf[2] = byte(m.SAFI)
-
-	// RFC 4760 Section 3: Length of Next Hop Network Address (1 octet)
-	buf[3] = byte(nhLen)
-
-	// RFC 4760 Section 3: Network Address of Next Hop (variable)
-	offset := 4
-	for _, nh := range m.NextHops {
-		nhBytes := nh.AsSlice()
-		copy(buf[offset:], nhBytes)
-		offset += len(nhBytes)
-	}
-
-	// RFC 4760 Section 3: Reserved (1 octet) - "MUST be set to 0"
-	buf[offset] = 0
-	offset++
-
-	// RFC 4760 Section 3: Network Layer Reachability Information (variable)
-	copy(buf[offset:], m.NLRI)
-
-	return buf
-}
-
-// PackWithContext returns Pack() - MP_REACH_NLRI header encoding is context-independent.
-// Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
-func (m *MPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
-
 // WriteTo writes the MP_REACH_NLRI attribute value into buf at offset.
 func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 	nhLen := m.nextHopLen()
@@ -428,26 +392,6 @@ func (m *MPUnreachNLRI) Flags() AttributeFlags { return FlagOptional }
 func (m *MPUnreachNLRI) Len() int {
 	return 2 + 1 + len(m.NLRI)
 }
-
-// Pack serializes the MP_UNREACH_NLRI attribute value per RFC 4760 Section 4.
-func (m *MPUnreachNLRI) Pack() []byte {
-	buf := make([]byte, m.Len())
-
-	// RFC 4760 Section 4: Address Family Identifier (2 octets)
-	binary.BigEndian.PutUint16(buf[0:2], uint16(m.AFI))
-
-	// RFC 4760 Section 4: Subsequent Address Family Identifier (1 octet)
-	buf[2] = byte(m.SAFI)
-
-	// RFC 4760 Section 4: Withdrawn Routes (variable)
-	copy(buf[3:], m.NLRI)
-
-	return buf
-}
-
-// PackWithContext returns Pack() - MP_UNREACH_NLRI header encoding is context-independent.
-// Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
-func (m *MPUnreachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
 // WriteTo writes the MP_UNREACH_NLRI attribute value into buf at offset.
 func (m *MPUnreachNLRI) WriteTo(buf []byte, off int) int {

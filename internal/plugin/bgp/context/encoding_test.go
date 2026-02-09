@@ -104,8 +104,10 @@ func TestASPathEncodingWithASN4(t *testing.T) {
 				},
 			}
 
-			// Pack with ASN4=true (context indicates 4-byte AS speaker)
-			packed := asPath.PackWithASN4(true)
+			// Encode with ASN4=true (context indicates 4-byte AS speaker)
+			buf := make([]byte, 64)
+			n := asPath.WriteToWithASN4(buf, 0, true)
+			packed := buf[:n]
 
 			// Format: [type:1][count:1][asn:4]
 			require.Len(t, packed, 6, "should be 6 bytes: type(1)+count(1)+asn(4)")
@@ -157,8 +159,10 @@ func TestASPathEncodingWithoutASN4(t *testing.T) {
 				},
 			}
 
-			// Pack with ASN4=false (context indicates 2-byte AS speaker)
-			packed := asPath.PackWithASN4(false)
+			// Encode with ASN4=false (context indicates 2-byte AS speaker)
+			buf := make([]byte, 64)
+			n := asPath.WriteToWithASN4(buf, 0, false)
+			packed := buf[:n]
 
 			// Format: [type:1][count:1][asn:2]
 			require.Len(t, packed, 4, "should be 4 bytes: type(1)+count(1)+asn(2)")
@@ -185,11 +189,15 @@ func TestASPathEncodingContextIntegration(t *testing.T) {
 
 	// Context with ASN4=true (NEW speaker)
 	ctxASN4 := bgpctx.EncodingContextForASN4(true)
-	packedASN4 := asPath.PackWithASN4(ctxASN4.ASN4())
+	bufASN4 := make([]byte, 64)
+	nASN4 := asPath.WriteToWithASN4(bufASN4, 0, ctxASN4.ASN4())
+	packedASN4 := bufASN4[:nASN4]
 
 	// Context with ASN4=false (OLD speaker)
 	ctxNoASN4 := bgpctx.EncodingContextForASN4(false)
-	packedNoASN4 := asPath.PackWithASN4(ctxNoASN4.ASN4())
+	bufNoASN4 := make([]byte, 64)
+	nNoASN4 := asPath.WriteToWithASN4(bufNoASN4, 0, ctxNoASN4.ASN4())
+	packedNoASN4 := bufNoASN4[:nNoASN4]
 
 	// ASN4 encoding should be 6 bytes (4-byte ASN)
 	require.Len(t, packedASN4, 6, "ASN4=true should produce 6-byte encoding")

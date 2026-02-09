@@ -476,11 +476,7 @@ func (m *vpnMPReachNLRI) Code() attribute.AttributeCode { return attribute.AttrM
 func (m *vpnMPReachNLRI) Flags() attribute.AttributeFlags {
 	return attribute.FlagOptional
 }
-func (m *vpnMPReachNLRI) Len() int     { return len(m.value) }
-func (m *vpnMPReachNLRI) Pack() []byte { return m.value }
-
-// PackWithContext returns Pack() - raw attribute value is pre-encoded.
-func (m *vpnMPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.value }
+func (m *vpnMPReachNLRI) Len() int { return len(m.value) }
 
 // WriteTo writes the pre-encoded value into buf at offset.
 func (m *vpnMPReachNLRI) WriteTo(buf []byte, off int) int {

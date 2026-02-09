@@ -82,19 +82,6 @@ func (c Communities) Flags() AttributeFlags { return FlagOptional | FlagTransiti
 // Len returns the length in bytes (4 bytes per community).
 func (c Communities) Len() int { return len(c) * 4 }
 
-// Pack encodes the communities attribute.
-// RFC 1997: Each community is encoded as a 4-octet value.
-func (c Communities) Pack() []byte {
-	buf := make([]byte, len(c)*4)
-	for i, comm := range c {
-		binary.BigEndian.PutUint32(buf[i*4:], uint32(comm))
-	}
-	return buf
-}
-
-// PackWithContext returns Pack() - COMMUNITIES encoding is context-independent.
-func (c Communities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
-
 // WriteTo writes the communities into buf at offset.
 func (c Communities) WriteTo(buf []byte, off int) int {
 	for i, comm := range c {
@@ -173,19 +160,6 @@ func (e ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | Flag
 
 // Len returns the length in bytes (8 bytes per extended community).
 func (e ExtendedCommunities) Len() int { return len(e) * 8 }
-
-// Pack encodes the extended communities attribute.
-// RFC 4360 Section 2: Each Extended Community is encoded as an 8-octet quantity.
-func (e ExtendedCommunities) Pack() []byte {
-	buf := make([]byte, len(e)*8)
-	for i, ec := range e {
-		copy(buf[i*8:], ec[:])
-	}
-	return buf
-}
-
-// PackWithContext returns Pack() - EXT_COMMUNITIES encoding is context-independent.
-func (e ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return e.Pack() }
 
 // WriteTo writes the extended communities into buf at offset.
 func (e ExtendedCommunities) WriteTo(buf []byte, off int) int {
@@ -279,24 +253,6 @@ func (l LargeCommunities) Flags() AttributeFlags { return FlagOptional | FlagTra
 // Len returns the length in bytes (12 bytes per large community).
 // Note: If duplicates exist, actual packed length may be smaller.
 func (l LargeCommunities) Len() int { return len(l.deduplicate()) * 12 }
-
-// Pack encodes the large communities attribute.
-// RFC 8092 Section 3: Each value is encoded as a 12-octet quantity.
-// Per RFC 8092 Section 5, duplicate values are removed before transmission.
-func (l LargeCommunities) Pack() []byte {
-	unique := l.deduplicate()
-	buf := make([]byte, len(unique)*12)
-	for i, lc := range unique {
-		offset := i * 12
-		binary.BigEndian.PutUint32(buf[offset:], lc.GlobalAdmin)
-		binary.BigEndian.PutUint32(buf[offset+4:], lc.LocalData1)
-		binary.BigEndian.PutUint32(buf[offset+8:], lc.LocalData2)
-	}
-	return buf
-}
-
-// PackWithContext returns Pack() - LARGE_COMMUNITIES encoding is context-independent.
-func (l LargeCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
 
 // WriteTo writes the large communities into buf at offset.
 // Per RFC 8092 Section 5, duplicate values are removed before transmission.
@@ -423,21 +379,6 @@ func (e IPv6ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | 
 
 // Len returns the length in bytes (20 bytes per IPv6 extended community).
 func (e IPv6ExtendedCommunities) Len() int { return len(e) * 20 }
-
-// Pack encodes the IPv6 extended communities attribute.
-// RFC 5701 Section 2: Each community is encoded as a 20-octet quantity.
-func (e IPv6ExtendedCommunities) Pack() []byte {
-	buf := make([]byte, len(e)*20)
-	for i, ec := range e {
-		copy(buf[i*20:], ec[:])
-	}
-	return buf
-}
-
-// PackWithContext returns Pack() - IPV6_EXT_COMMUNITIES encoding is context-independent.
-func (e IPv6ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
-	return e.Pack()
-}
 
 // WriteTo writes the IPv6 extended communities into buf at offset.
 func (e IPv6ExtendedCommunities) WriteTo(buf []byte, off int) int {

@@ -25,7 +25,9 @@ func TestASPathSegmentTypes(t *testing.T) {
 func TestASPathEmpty(t *testing.T) {
 	path := &ASPath{}
 	assert.Equal(t, 0, path.Len())
-	assert.Equal(t, []byte{}, path.Pack())
+	buf := make([]byte, 64)
+	n := path.WriteTo(buf, 0)
+	assert.Equal(t, 0, n)
 	assert.Equal(t, 0, path.PathLength())
 }
 
@@ -38,11 +40,12 @@ func TestASPathSimpleSequence(t *testing.T) {
 
 	assert.Equal(t, 3, path.PathLength())
 
-	// Pack: type(1) + count(1) + 3×4 bytes = 14 bytes
-	packed := path.Pack()
-	assert.Equal(t, 14, len(packed))
-	assert.Equal(t, byte(ASSequence), packed[0])
-	assert.Equal(t, byte(3), packed[1])
+	// WriteTo: type(1) + count(1) + 3×4 bytes = 14 bytes
+	buf := make([]byte, 64)
+	n := path.WriteTo(buf, 0)
+	assert.Equal(t, 14, n)
+	assert.Equal(t, byte(ASSequence), buf[0])
+	assert.Equal(t, byte(3), buf[1])
 }
 
 func TestASPathParse4Byte(t *testing.T) {
@@ -120,7 +123,9 @@ func TestASPathRoundTrip(t *testing.T) {
 		},
 	}
 
-	packed := original.Pack()
+	buf := make([]byte, 4096)
+	n := original.WriteTo(buf, 0)
+	packed := buf[:n]
 	parsed, err := ParseASPath(packed, true)
 
 	require.NoError(t, err)
@@ -219,7 +224,9 @@ func TestASPathPackAutoSplit(t *testing.T) {
 		},
 	}
 
-	packed := path.Pack()
+	buf := make([]byte, 4096)
+	n := path.WriteTo(buf, 0)
+	packed := buf[:n]
 
 	// Parse it back - should have 2 segments now
 	parsed, err := ParseASPath(packed, true)
@@ -251,7 +258,9 @@ func TestASPathPackAutoSplitLarge(t *testing.T) {
 		},
 	}
 
-	packed := path.Pack()
+	buf := make([]byte, 8192)
+	n := path.WriteTo(buf, 0)
+	packed := buf[:n]
 
 	// Parse it back
 	parsed, err := ParseASPath(packed, true)
@@ -471,12 +480,12 @@ func TestParseASPath2ByteValidation(t *testing.T) {
 	require.ErrorIs(t, err, ErrMalformedASPath)
 }
 
-// TestASPathWriteToMatchesPack verifies WriteTo produces identical bytes to Pack.
+// TestASPathWriteToWithASN4 verifies WriteToWithASN4 produces correct length and bytes.
 //
-// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+// VALIDATES: WriteToWithASN4 writes expected bytes matching LenWithASN4.
 //
-// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
-func TestASPathWriteToMatchesPack(t *testing.T) {
+// PREVENTS: Wire format errors in AS_PATH encoding.
+func TestASPathWriteToWithASN4(t *testing.T) {
 	tests := []struct {
 		name string
 		path *ASPath
@@ -519,13 +528,10 @@ func TestASPathWriteToMatchesPack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expected := tt.path.PackWithASN4(tt.asn4)
-
 			buf := make([]byte, 4096)
 			n := tt.path.WriteToWithASN4(buf, 0, tt.asn4)
 
-			assert.Equal(t, len(expected), n, "length mismatch")
-			assert.Equal(t, expected, buf[:n], "content mismatch")
+			assert.Equal(t, tt.path.LenWithASN4(tt.asn4), n, "length mismatch with LenWithASN4")
 		})
 	}
 }
@@ -591,15 +597,11 @@ func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
 				},
 			}
 
-			// Verify Pack
-			packed := path.Pack()
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
-			// Verify WriteTo matches Pack
+			// Verify WriteTo produces correct length
 			buf := make([]byte, 4096)
 			n := path.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			packed := buf[:n]
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
 
 			// Parse back and verify segment count
 			parsed, err := ParseASPath(packed, true)
@@ -670,15 +672,11 @@ func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
 				},
 			}
 
-			// Verify Pack
-			packed := path.PackWithASN4(false)
-			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
-
-			// Verify WriteTo matches Pack
+			// Verify WriteToWithASN4
 			buf := make([]byte, 4096)
 			n := path.WriteToWithASN4(buf, 0, false)
-			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
-			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+			assert.Equal(t, tt.wantLen, n, "WriteTo length")
+			assert.Equal(t, path.LenWithASN4(false), n, "WriteTo length should match LenWithASN4")
 		})
 	}
 }
@@ -695,7 +693,11 @@ func TestASPathWriteToOffset(t *testing.T) {
 		},
 	}
 
-	expected := path.Pack()
+	// Get expected bytes by writing at offset 0
+	ref := make([]byte, 4096)
+	expectedLen := path.WriteTo(ref, 0)
+	expected := ref[:expectedLen]
+
 	offset := 100
 
 	buf := make([]byte, 4096)
@@ -706,7 +708,7 @@ func TestASPathWriteToOffset(t *testing.T) {
 
 	n := path.WriteTo(buf, offset)
 
-	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expectedLen, n)
 	assert.Equal(t, expected, buf[offset:offset+n])
 
 	// Verify bytes before offset are untouched

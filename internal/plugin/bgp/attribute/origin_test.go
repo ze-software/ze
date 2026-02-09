@@ -47,10 +47,20 @@ func TestOriginParse(t *testing.T) {
 	}
 }
 
-func TestOriginPack(t *testing.T) {
-	assert.Equal(t, []byte{0x00}, OriginIGP.Pack())
-	assert.Equal(t, []byte{0x01}, OriginEGP.Pack())
-	assert.Equal(t, []byte{0x02}, OriginIncomplete.Pack())
+func TestOriginWriteTo(t *testing.T) {
+	buf := make([]byte, 64)
+
+	n := OriginIGP.WriteTo(buf, 0)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []byte{0x00}, buf[:n])
+
+	n = OriginEGP.WriteTo(buf, 0)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []byte{0x01}, buf[:n])
+
+	n = OriginIncomplete.WriteTo(buf, 0)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []byte{0x02}, buf[:n])
 }
 
 func TestOriginInterface(t *testing.T) {
@@ -59,12 +69,18 @@ func TestOriginInterface(t *testing.T) {
 	assert.Equal(t, AttrOrigin, attr.Code())
 	assert.Equal(t, FlagTransitive, attr.Flags())
 	assert.Equal(t, 1, attr.Len())
-	assert.Equal(t, []byte{0x00}, attr.Pack())
+
+	buf := make([]byte, 64)
+	n := attr.WriteTo(buf, 0)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, []byte{0x00}, buf[:n])
 }
 
-func TestOriginPackWithHeader(t *testing.T) {
+func TestOriginWriteAttrTo(t *testing.T) {
 	// Full attribute: flags(1) + code(1) + len(1) + value(1) = 4 bytes
 	want := []byte{0x40, 0x01, 0x01, 0x00} // Transitive, ORIGIN, len=1, value=IGP
-	got := PackAttribute(OriginIGP)
-	assert.Equal(t, want, got)
+	buf := make([]byte, 64)
+	n := WriteAttrTo(OriginIGP, buf, 0)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, want, buf[:n])
 }

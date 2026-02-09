@@ -126,27 +126,28 @@ func TestParseHeaderLengthBounds(t *testing.T) {
 // VALIDATES: Correct wire format output.
 //
 // PREVENTS: Malformed messages sent to peers.
-func TestHeaderPack(t *testing.T) {
+func TestHeaderWriteTo(t *testing.T) {
 	h := Header{
 		Length: 50,
 		Type:   TypeUPDATE,
 	}
 
-	data := h.Pack()
+	buf := make([]byte, HeaderLen)
+	n := h.WriteTo(buf, 0)
 
-	require.Len(t, data, HeaderLen)
+	require.Equal(t, HeaderLen, n)
 
 	// Check marker
 	for i := 0; i < MarkerLen; i++ {
-		assert.Equal(t, byte(0xFF), data[i], "marker byte %d", i)
+		assert.Equal(t, byte(0xFF), buf[i], "marker byte %d", i)
 	}
 
 	// Check length
-	assert.Equal(t, byte(0x00), data[16])
-	assert.Equal(t, byte(0x32), data[17]) // 50 = 0x32
+	assert.Equal(t, byte(0x00), buf[16])
+	assert.Equal(t, byte(0x32), buf[17]) // 50 = 0x32
 
 	// Check type
-	assert.Equal(t, byte(TypeUPDATE), data[18])
+	assert.Equal(t, byte(TypeUPDATE), buf[18])
 }
 
 // TestHeaderRoundTrip verifies pack/parse symmetry.
@@ -160,8 +161,11 @@ func TestHeaderRoundTrip(t *testing.T) {
 		Type:   TypeNOTIFICATION,
 	}
 
-	data := original.Pack()
-	parsed, err := ParseHeader(data)
+	buf := make([]byte, HeaderLen)
+	n := original.WriteTo(buf, 0)
+	require.Equal(t, HeaderLen, n)
+
+	parsed, err := ParseHeader(buf)
 	require.NoError(t, err)
 
 	assert.Equal(t, original.Length, parsed.Length)

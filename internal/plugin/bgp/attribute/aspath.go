@@ -113,57 +113,6 @@ func (p *ASPath) LenWithASN4(asn4 bool) int {
 	return length
 }
 
-// Pack serializes the AS path (4-byte ASN format per RFC 6793).
-func (p *ASPath) Pack() []byte {
-	return p.PackWithASN4(true)
-}
-
-// PackWithContext serializes AS_PATH with context-dependent ASN size.
-//
-// RFC 6793 transcoding scenarios:
-//
-//	srcCtx.ASN4=true  → dstCtx.ASN4=true:  encode 4-byte
-//	srcCtx.ASN4=true  → dstCtx.ASN4=false: encode 2-byte (AS_TRANS for large ASNs)
-//	srcCtx.ASN4=false → dstCtx.ASN4=true:  encode 4-byte (after AS4_PATH merge)
-//	srcCtx.ASN4=false → dstCtx.ASN4=false: encode 2-byte
-//
-// Note: AS4_PATH merge/generation is handled at UPDATE processing level.
-// This method handles the encoding format based on dstCtx.ASN4.
-func (p *ASPath) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
-	if dstCtx == nil || dstCtx.ASN4() {
-		return p.PackWithASN4(true)
-	}
-	return p.PackWithASN4(false)
-}
-
-// PackWithASN4 serializes the AS path.
-//
-// RFC 6793 Section 4.1: Between NEW speakers, AS numbers are 4-octet.
-// RFC 6793 Section 4.2.2: When sending to OLD speakers, non-mappable
-// 4-octet AS numbers are represented by AS_TRANS (23456).
-//
-// RFC 6793 Section 3: "AS_TRANS can be used to represent non-mappable
-// four-octet AS numbers as two-octet AS numbers in AS path information
-// that is encoded with two-octet AS numbers."
-//
-// RFC 4271 Section 4.3: Segments with >255 ASNs are split into multiple
-// segments of the same type.
-func (p *ASPath) PackWithASN4(asn4 bool) []byte {
-	if len(p.Segments) == 0 {
-		return []byte{}
-	}
-
-	buf := make([]byte, p.LenWithASN4(asn4))
-	offset := 0
-
-	for _, seg := range p.Segments {
-		// RFC 4271: Split segments that exceed 255 ASNs
-		offset = packSegmentWithSplit(buf, offset, seg.Type, seg.ASNs, asn4)
-	}
-
-	return buf[:offset]
-}
-
 // WriteTo writes the AS path (4-byte ASN format per RFC 6793) into buf at offset.
 func (p *ASPath) WriteTo(buf []byte, off int) int {
 	return p.WriteToWithASN4(buf, off, true)
@@ -218,8 +167,6 @@ func (p *ASPath) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *
 }
 
 // writeSegmentWithSplit writes a segment, splitting if it exceeds MaxASPathSegmentLength.
-//
-//nolint:dupl // Intentionally parallel to packSegmentWithSplit - different output mechanism
 func writeSegmentWithSplit(buf []byte, off int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
 	if len(asns) == 0 {
 		return off
@@ -255,49 +202,6 @@ func writeSegmentWithSplit(buf []byte, off int, segType ASPathSegmentType, asns 
 	}
 
 	return off
-}
-
-// packSegmentWithSplit encodes a segment, splitting if it exceeds MaxASPathSegmentLength.
-//
-//nolint:dupl // Intentionally parallel to writeSegmentWithSplit - different output mechanism
-func packSegmentWithSplit(buf []byte, offset int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
-	if len(asns) == 0 {
-		return offset
-	}
-
-	// Determine how many ASNs fit in this segment
-	count := len(asns)
-	if count > MaxASPathSegmentLength {
-		count = MaxASPathSegmentLength
-	}
-
-	buf[offset] = byte(segType)
-	buf[offset+1] = byte(count)
-	offset += 2
-
-	for i := 0; i < count; i++ {
-		if asn4 {
-			binary.BigEndian.PutUint32(buf[offset:], asns[i])
-			offset += 4
-		} else {
-			// RFC 6793 Section 4.2.2: Use AS_TRANS for non-mappable ASNs
-			var as16 uint16
-			if asns[i] > 65535 {
-				as16 = 23456 // AS_TRANS per RFC 6793 Section 9
-			} else {
-				as16 = uint16(asns[i]) // #nosec G115 -- bounds checked above
-			}
-			binary.BigEndian.PutUint16(buf[offset:], as16)
-			offset += 2
-		}
-	}
-
-	// Recursively encode remaining ASNs if segment was split
-	if len(asns) > MaxASPathSegmentLength {
-		return packSegmentWithSplit(buf, offset, segType, asns[MaxASPathSegmentLength:], asn4)
-	}
-
-	return offset
 }
 
 // PathLength returns the AS path length for BGP path selection.

@@ -141,11 +141,12 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	// When ASN4=false, ASNs are 2-byte. When ASN4=true (default), ASNs are 4-byte.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
@@ -401,10 +402,6 @@ type rawAttribute struct {
 func (r *rawAttribute) Code() attribute.AttributeCode   { return r.code }
 func (r *rawAttribute) Flags() attribute.AttributeFlags { return r.flags }
 func (r *rawAttribute) Len() int                        { return len(r.data) }
-func (r *rawAttribute) Pack() []byte                    { return r.data }
-
-// PackWithContext returns Pack() - raw attributes are pre-encoded.
-func (r *rawAttribute) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return r.data }
 
 // WriteTo writes the pre-encoded data into buf at offset.
 func (r *rawAttribute) WriteTo(buf []byte, off int) int {
@@ -513,11 +510,12 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
@@ -792,11 +790,12 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
@@ -1060,11 +1059,12 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP (for IPv4 test compatibility)
@@ -1270,11 +1270,12 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 4. MED
@@ -1427,11 +1428,12 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 5. LOCAL_PREF
@@ -1642,11 +1644,12 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 	// 2. AS_PATH
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP - for IPv4 next-hop compatibility
@@ -1816,11 +1819,12 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP - only for IPv4 MUP with IPv4 next-hop
@@ -1940,11 +1944,12 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 5. LOCAL_PREF
@@ -2086,11 +2091,12 @@ func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
 	// 2. AS_PATH
 	asPath := ub.buildASPath(first.ASPath)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	// 3. NEXT_HOP (IPv4 only)
@@ -2278,11 +2284,12 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathValue := asPath.PackWithASN4(asn4)
+	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
 		code:  asPath.Code(),
-		data:  asPathValue,
+		data:  asPathBuf,
 	})
 
 	if first.NextHop.Is4() {

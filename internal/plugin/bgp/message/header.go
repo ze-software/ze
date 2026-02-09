@@ -204,6 +204,16 @@ func (h Header) ValidateLengthWithMax(extendedMessage bool) error {
 	return nil
 }
 
+// WriteTo writes a BGP message header into buf at offset.
+// RFC 4271 Section 4.1: Marker(16) + Length(2) + Type(1) = 19 octets.
+// Returns HeaderLen (19).
+func (h Header) WriteTo(buf []byte, off int) int {
+	copy(buf[off:], Marker[:])
+	binary.BigEndian.PutUint16(buf[off+16:], h.Length)
+	buf[off+18] = byte(h.Type)
+	return HeaderLen
+}
+
 // MaxMessageLength returns the maximum message length for a given type.
 // RFC 4271: Default max is 4096.
 // RFC 8654: Extended Message capability raises limit to 65535 for UPDATE, NOTIFICATION, ROUTE-REFRESH.
@@ -220,21 +230,4 @@ func MaxMessageLength(msgType MessageType, extendedMessage bool) uint16 {
 	default:
 		return MaxMsgLen
 	}
-}
-
-// Pack serializes the header to wire format.
-// RFC 4271 Section 4.1 - Returns a 19-byte slice with marker, length, and type.
-func (h Header) Pack() []byte {
-	data := make([]byte, HeaderLen)
-
-	// RFC 4271 Section 4.1 - Marker (16 octets) MUST be set to all ones.
-	copy(data[:MarkerLen], Marker[:])
-
-	// RFC 4271 Section 4.1 - Length (2 octets) at offset 16.
-	binary.BigEndian.PutUint16(data[16:18], h.Length)
-
-	// RFC 4271 Section 4.1 - Type (1 octet) at offset 18.
-	data[18] = byte(h.Type)
-
-	return data
 }

@@ -52,25 +52,6 @@ func (o *OpaqueAttribute) Len() int {
 	return len(o.data)
 }
 
-// Pack returns the attribute value bytes.
-//
-// Returns the borrowed data slice unchanged (zero-copy).
-// WARNING: Do not modify the returned slice.
-func (o *OpaqueAttribute) Pack() []byte {
-	return o.data
-}
-
-// PackWithContext returns the attribute value bytes.
-//
-// Unknown attributes cannot be re-encoded (structure unknown),
-// so context is ignored and original data is returned unchanged.
-//
-// RFC 4271: Unknown transitive attributes must be propagated with Partial bit set.
-// Flag handling is the caller's responsibility when re-encoding headers.
-func (o *OpaqueAttribute) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
-	return o.data
-}
-
 // WriteTo writes the opaque attribute data into buf at offset.
 func (o *OpaqueAttribute) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], o.data)

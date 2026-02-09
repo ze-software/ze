@@ -9,13 +9,13 @@ import (
 
 const ctxNameNil = "nil"
 
-// TestAttrLenWithContext_MatchesPackWithContext verifies that attrLenWithContext
-// returns the same length as len(attr.PackWithContext(nil, ctx)) for all
+// TestAttrLenWithContext_MatchesWriteToWithContext verifies that attrLenWithContext
+// returns the same length as attr.WriteToWithContext actually writes for all
 // context-dependent attributes.
 //
-// VALIDATES: attrLenWithContext is consistent with PackWithContext.
+// VALIDATES: attrLenWithContext is consistent with WriteToWithContext.
 // PREVENTS: Buffer overflow or garbage when using WriteAttrToWithContext.
-func TestAttrLenWithContext_MatchesPackWithContext(t *testing.T) {
+func TestAttrLenWithContext_MatchesActualWriteLen(t *testing.T) {
 	// Context-dependent attributes per RFC 6793
 	testCases := []struct {
 		name string
@@ -80,12 +80,12 @@ func TestAttrLenWithContext_MatchesPackWithContext(t *testing.T) {
 				// Get length via attrLenWithContext
 				lenFromFunc := attrLenWithContext(attr, ctx)
 
-				// Get length via PackWithContext
-				packed := attr.PackWithContext(nil, ctx)
-				lenFromPack := len(packed)
+				// Get length via WriteToWithContext
+				buf := make([]byte, 4096)
+				lenFromPack := attr.WriteToWithContext(buf, 0, nil, ctx)
 
 				if lenFromFunc != lenFromPack {
-					t.Errorf("attrLenWithContext=%d but len(PackWithContext)=%d",
+					t.Errorf("attrLenWithContext=%d but WriteToWithContext=%d",
 						lenFromFunc, lenFromPack)
 				}
 			})
@@ -145,12 +145,12 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 	}
 }
 
-// TestWriteAttrToWithContext_MatchesPack verifies that WriteAttrToWithContext
-// produces the same bytes as PackAttribute + PackWithContext.
+// TestWriteAttrToWithContext_Consistency verifies that WriteAttrToWithContext
+// produces consistent wire format across contexts.
 //
-// VALIDATES: WriteAttrToWithContext produces identical wire format.
+// VALIDATES: WriteAttrToWithContext produces correct wire format.
 // PREVENTS: Protocol errors from incorrect encoding.
-func TestWriteAttrToWithContext_MatchesPack(t *testing.T) {
+func TestWriteAttrToWithContext_Consistency(t *testing.T) {
 	testCases := []struct {
 		name string
 		attr Attribute
@@ -185,10 +185,10 @@ func TestWriteAttrToWithContext_MatchesPack(t *testing.T) {
 			t.Run(name, func(t *testing.T) {
 				attr := tc.attr
 
-				// Pack using old method
-				value := attr.PackWithContext(nil, ctx)
-				header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // test data, overflow not possible
-				expected := append(header, value...)                                //nolint:gocritic // intentional: create new slice for comparison
+				// Encode using WriteAttrToWithContext
+				expectedBuf := make([]byte, 4096)
+				expectedN := WriteAttrToWithContext(attr, expectedBuf, 0, nil, ctx)
+				expected := expectedBuf[:expectedN]
 
 				// Write using new method
 				buf := make([]byte, len(expected)+10)

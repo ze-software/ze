@@ -247,7 +247,8 @@ func TestCapabilityRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			packed := tt.cap.Pack()
+			packed := make([]byte, tt.cap.Len())
+			tt.cap.WriteTo(packed, 0)
 			parsed, err := Parse(packed)
 			require.NoError(t, err)
 			require.Len(t, parsed, 1)
@@ -291,7 +292,8 @@ func TestExtendedNextHopRoundTrip(t *testing.T) {
 		},
 	}
 
-	packed := original.Pack()
+	packed := make([]byte, original.Len())
+	original.WriteTo(packed, 0)
 	parsed, err := Parse(packed)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1)
@@ -339,7 +341,8 @@ func TestFQDNRoundTrip(t *testing.T) {
 		DomainName: "datacenter.internal",
 	}
 
-	packed := original.Pack()
+	packed := make([]byte, original.Len())
+	original.WriteTo(packed, 0)
 	parsed, err := Parse(packed)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1)
@@ -357,7 +360,8 @@ func TestFQDNEmpty(t *testing.T) {
 		DomainName: "",
 	}
 
-	packed := original.Pack()
+	packed := make([]byte, original.Len())
+	original.WriteTo(packed, 0)
 	parsed, err := Parse(packed)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1)
@@ -396,7 +400,8 @@ func TestSoftwareVersionRoundTrip(t *testing.T) {
 		Version: "ExaBGP/5.0.0-pre1",
 	}
 
-	packed := original.Pack()
+	packed := make([]byte, original.Len())
+	original.WriteTo(packed, 0)
 	parsed, err := Parse(packed)
 	require.NoError(t, err)
 	require.Len(t, parsed, 1)
@@ -406,12 +411,12 @@ func TestSoftwareVersionRoundTrip(t *testing.T) {
 	assert.Equal(t, original.Version, sv.Version)
 }
 
-// TestCapabilityWriteToMatchesPack verifies WriteTo produces identical bytes to Pack
+// TestCapabilityWriteTo verifies WriteTo produces correct parseable TLV bytes
 // for all 12 capability types (11 standard + Plugin).
 //
-// VALIDATES: WriteTo(buf, off) writes the same TLV bytes as Pack() returns.
-// PREVENTS: Encoding divergence between legacy Pack and buffer-first WriteTo paths.
-func TestCapabilityWriteToMatchesPack(t *testing.T) {
+// VALIDATES: WriteTo(buf, off) writes correct TLV bytes matching Len().
+// PREVENTS: Encoding errors in buffer-first WriteTo path.
+func TestCapabilityWriteTo(t *testing.T) {
 	caps := []Capability{
 		&Unknown{code: 99, Data: []byte{0x01, 0x02, 0x03}},
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -445,16 +450,17 @@ func TestCapabilityWriteToMatchesPack(t *testing.T) {
 	for _, c := range caps {
 		name := fmt.Sprintf("%T/code=%d", c, c.Code())
 		t.Run(name, func(t *testing.T) {
-			packed := c.Pack()
-
-			// Len must match Pack output size
-			assert.Equal(t, len(packed), c.Len(), "Len() mismatch")
-
-			// WriteTo at offset 0
 			buf := make([]byte, c.Len())
 			n := c.WriteTo(buf, 0)
-			assert.Equal(t, len(packed), n, "WriteTo returned wrong count")
-			assert.Equal(t, packed, buf[:n], "WriteTo bytes differ from Pack")
+
+			// WriteTo must write exactly Len() bytes
+			assert.Equal(t, c.Len(), n, "WriteTo returned wrong count")
+
+			// Result must be parseable back to same capability code
+			parsed, err := Parse(buf[:n])
+			require.NoError(t, err, "WriteTo output must be parseable")
+			require.Len(t, parsed, 1, "WriteTo output must contain exactly one capability")
+			assert.Equal(t, c.Code(), parsed[0].Code(), "parsed code mismatch")
 		})
 	}
 }
@@ -477,7 +483,10 @@ func TestCapabilityWriteToAtOffset(t *testing.T) {
 	for _, c := range caps {
 		name := fmt.Sprintf("%T/offset", c)
 		t.Run(name, func(t *testing.T) {
-			packed := c.Pack()
+			// Get reference bytes from WriteTo at offset 0
+			ref := make([]byte, c.Len())
+			c.WriteTo(ref, 0)
+
 			offset := 10
 
 			buf := make([]byte, offset+c.Len()+5)
@@ -487,8 +496,8 @@ func TestCapabilityWriteToAtOffset(t *testing.T) {
 			}
 
 			n := c.WriteTo(buf, offset)
-			assert.Equal(t, len(packed), n)
-			assert.Equal(t, packed, buf[offset:offset+n])
+			assert.Equal(t, len(ref), n)
+			assert.Equal(t, ref, buf[offset:offset+n])
 
 			// Sentinels before and after must be preserved
 			for i := range offset {

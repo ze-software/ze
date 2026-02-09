@@ -32,10 +32,6 @@ func (n *NextHop) Len() int {
 	}
 	return 4
 }
-func (n *NextHop) Pack() []byte { return n.Addr.AsSlice() }
-
-// PackWithContext returns Pack() - NEXT_HOP encoding is context-independent.
-func (n *NextHop) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return n.Pack() }
 
 // WriteTo writes the NEXT_HOP value into buf at offset.
 func (n *NextHop) WriteTo(buf []byte, off int) int {
@@ -86,14 +82,6 @@ type MED uint32
 func (m MED) Code() AttributeCode   { return AttrMED }
 func (m MED) Flags() AttributeFlags { return FlagOptional }
 func (m MED) Len() int              { return 4 }
-func (m MED) Pack() []byte {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, uint32(m))
-	return buf
-}
-
-// PackWithContext returns Pack() - MED encoding is context-independent.
-func (m MED) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
 // WriteTo writes the MED value into buf at offset.
 func (m MED) WriteTo(buf []byte, off int) int {
@@ -139,14 +127,6 @@ type LocalPref uint32
 func (l LocalPref) Code() AttributeCode   { return AttrLocalPref }
 func (l LocalPref) Flags() AttributeFlags { return FlagTransitive }
 func (l LocalPref) Len() int              { return 4 }
-func (l LocalPref) Pack() []byte {
-	buf := make([]byte, 4)
-	binary.BigEndian.PutUint32(buf, uint32(l))
-	return buf
-}
-
-// PackWithContext returns Pack() - LOCAL_PREF encoding is context-independent.
-func (l LocalPref) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
 
 // WriteTo writes the LOCAL_PREF value into buf at offset.
 func (l LocalPref) WriteTo(buf []byte, off int) int {
@@ -191,10 +171,6 @@ type AtomicAggregate struct{}
 func (AtomicAggregate) Code() AttributeCode   { return AttrAtomicAggregate }
 func (AtomicAggregate) Flags() AttributeFlags { return FlagTransitive }
 func (AtomicAggregate) Len() int              { return 0 }
-func (AtomicAggregate) Pack() []byte          { return nil }
-
-// PackWithContext returns Pack() - ATOMIC_AGGREGATE encoding is context-independent.
-func (AtomicAggregate) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return nil }
 
 // WriteTo writes nothing (ATOMIC_AGGREGATE has zero length).
 func (AtomicAggregate) WriteTo(_ []byte, _ int) int { return 0 }
@@ -234,39 +210,6 @@ func (a *Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTransiti
 // Note: RFC 4271 specifies 6 bytes (2-byte AS), but this implementation
 // uses RFC 6793 4-byte AS format by default.
 func (a *Aggregator) Len() int { return 8 }
-
-// Pack encodes the AGGREGATOR using 4-byte AS format (RFC 6793).
-func (a *Aggregator) Pack() []byte {
-	buf := make([]byte, 8)
-	binary.BigEndian.PutUint32(buf[0:4], a.ASN)
-	copy(buf[4:8], a.Address.AsSlice())
-	return buf
-}
-
-// PackWithContext serializes AGGREGATOR with context-dependent format.
-//
-// RFC 6793: 8-byte format (4-byte ASN + 4-byte IP) when dstCtx.ASN4=true,
-// 6-byte format (2-byte ASN + 4-byte IP) when dstCtx.ASN4=false.
-// Large ASNs (>65535) are encoded as AS_TRANS (23456) in 2-byte format.
-func (a *Aggregator) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
-	if dstCtx == nil || dstCtx.ASN4() {
-		// 8-byte format: 4-byte ASN + 4-byte IP
-		buf := make([]byte, 8)
-		binary.BigEndian.PutUint32(buf[0:4], a.ASN)
-		copy(buf[4:8], a.Address.AsSlice())
-		return buf
-	}
-
-	// 6-byte format: 2-byte ASN + 4-byte IP
-	asn := a.ASN
-	if asn > 65535 {
-		asn = 23456 // AS_TRANS per RFC 6793 Section 9
-	}
-	buf := make([]byte, 6)
-	binary.BigEndian.PutUint16(buf[0:2], uint16(asn)) // #nosec G115 -- bounds checked above
-	copy(buf[2:6], a.Address.AsSlice())
-	return buf
-}
 
 // WriteTo writes the AGGREGATOR using 4-byte AS format (RFC 6793).
 func (a *Aggregator) WriteTo(buf []byte, off int) int {
@@ -355,10 +298,6 @@ type OriginatorID netip.Addr
 func (o OriginatorID) Code() AttributeCode   { return AttrOriginatorID }
 func (o OriginatorID) Flags() AttributeFlags { return FlagOptional }
 func (o OriginatorID) Len() int              { return 4 }
-func (o OriginatorID) Pack() []byte          { return netip.Addr(o).AsSlice() }
-
-// PackWithContext returns Pack() - ORIGINATOR_ID encoding is context-independent.
-func (o OriginatorID) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
 
 // WriteTo writes the ORIGINATOR_ID value into buf at offset.
 func (o OriginatorID) WriteTo(buf []byte, off int) int {
@@ -398,16 +337,6 @@ type ClusterList []uint32
 func (c ClusterList) Code() AttributeCode   { return AttrClusterList }
 func (c ClusterList) Flags() AttributeFlags { return FlagOptional }
 func (c ClusterList) Len() int              { return len(c) * 4 }
-func (c ClusterList) Pack() []byte {
-	buf := make([]byte, len(c)*4)
-	for i, id := range c {
-		binary.BigEndian.PutUint32(buf[i*4:], id)
-	}
-	return buf
-}
-
-// PackWithContext returns Pack() - CLUSTER_LIST encoding is context-independent.
-func (c ClusterList) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
 
 // WriteTo writes the CLUSTER_LIST value into buf at offset.
 func (c ClusterList) WriteTo(buf []byte, off int) int {

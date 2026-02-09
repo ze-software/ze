@@ -10,8 +10,10 @@ import (
 
 // Helper to build packed attribute bytes.
 func packAttr(flags AttributeFlags, code AttributeCode, value []byte) []byte {
-	hdr := PackHeader(flags, code, uint16(len(value))) //nolint:gosec // G115: test values are small
-	return append(hdr, value...)
+	buf := make([]byte, 4+len(value))
+	n := WriteHeaderTo(buf, 0, flags, code, uint16(len(value))) //nolint:gosec // G115: test values are small
+	copy(buf[n:], value)
+	return buf[:n+len(value)]
 }
 
 // Helper to build multiple attributes into packed bytes.

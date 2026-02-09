@@ -2,7 +2,6 @@ package attribute
 
 import (
 	"fmt"
-	"log/slog"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
@@ -65,12 +64,6 @@ func (o Origin) Flags() AttributeFlags { return FlagTransitive }
 // The ORIGIN attribute is always exactly 1 octet.
 func (o Origin) Len() int { return 1 }
 
-// Pack serializes the origin value as a single octet per RFC 4271.
-func (o Origin) Pack() []byte { return []byte{byte(o)} }
-
-// PackWithContext returns Pack() - ORIGIN encoding is context-independent.
-func (o Origin) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
-
 // WriteTo writes the origin value into buf at offset.
 // Returns 1 (number of bytes written).
 func (o Origin) WriteTo(buf []byte, off int) int {
@@ -111,24 +104,6 @@ func ParseOrigin(data []byte) (Origin, error) {
 		return 0, fmt.Errorf("%w: invalid origin value %d", ErrMalformedValue, o)
 	}
 	return o, nil
-}
-
-// PackAttribute packs an attribute with its header.
-//
-// Deprecated: Use WriteAttrTo for zero-allocation encoding.
-func PackAttribute(attr Attribute) []byte {
-	value := attr.Pack()
-	header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
-	return append(header, value...)
-}
-
-// PackASPathAttribute packs an AS_PATH attribute with optional 4-byte ASN support.
-//
-// Deprecated: Use WriteAttrTo with ASPath for zero-allocation encoding.
-func PackASPathAttribute(asPath *ASPath, asn4 bool) []byte {
-	value := asPath.PackWithASN4(asn4)
-	header := PackHeader(asPath.Flags(), asPath.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
-	return append(header, value...)
 }
 
 // OrderAttributes sorts attributes with MP_UNREACH first, regular attributes
@@ -194,51 +169,6 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 	}
 
 	return result
-}
-
-// PackAttributesOrdered packs a slice of attributes ordered by type code.
-//
-// RFC 4271 Appendix F.3: Order by type code for efficient comparison.
-// This combines OrderAttributes and PackAttribute for convenience.
-//
-// Deprecated: Use WriteAttributesOrdered for zero-allocation encoding.
-func PackAttributesOrdered(attrs []Attribute) []byte {
-	if len(attrs) == 0 {
-		return nil
-	}
-
-	ordered := OrderAttributes(attrs)
-
-	// Calculate total size
-	totalLen := 0
-	for _, attr := range ordered {
-		// Header (3 or 4 bytes) + value
-		attrLen := attr.Len()
-		if attrLen > 255 {
-			totalLen += 4 + attrLen // Extended length header
-		} else {
-			totalLen += 3 + attrLen // Normal header
-		}
-	}
-
-	// Pack all attributes using copy (single allocation)
-	buf := make([]byte, totalLen)
-	off := 0
-	for _, attr := range ordered {
-		off += WriteAttrTo(attr, buf, off)
-	}
-
-	// Sanity check: verify size calculation matches actual bytes written
-	if off != totalLen {
-		slog.Error("attribute size mismatch: Len disagrees with WriteTo",
-			"predicted", totalLen,
-			"actual", off,
-			"attrCount", len(attrs))
-		// Return actual bytes written to maintain correctness
-		return buf[:off]
-	}
-
-	return buf
 }
 
 // WriteAttributesOrdered writes attributes ordered by type code into buf.

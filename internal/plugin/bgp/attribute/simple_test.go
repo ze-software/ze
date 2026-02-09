@@ -14,7 +14,11 @@ func TestNextHop(t *testing.T) {
 	assert.Equal(t, AttrNextHop, nh.Code())
 	assert.Equal(t, FlagTransitive, nh.Flags())
 	assert.Equal(t, 4, nh.Len())
-	assert.Equal(t, []byte{10, 0, 0, 1}, nh.Pack())
+
+	buf := make([]byte, 64)
+	n := nh.WriteTo(buf, 0)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, []byte{10, 0, 0, 1}, buf[:n])
 }
 
 func TestNextHopParse(t *testing.T) {
@@ -29,7 +33,11 @@ func TestMED(t *testing.T) {
 	assert.Equal(t, AttrMED, med.Code())
 	assert.Equal(t, FlagOptional, med.Flags())
 	assert.Equal(t, 4, med.Len())
-	assert.Equal(t, []byte{0, 0, 0, 100}, med.Pack())
+
+	buf := make([]byte, 64)
+	n := med.WriteTo(buf, 0)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, []byte{0, 0, 0, 100}, buf[:n])
 }
 
 func TestMEDParse(t *testing.T) {
@@ -44,7 +52,11 @@ func TestLocalPref(t *testing.T) {
 	assert.Equal(t, AttrLocalPref, lp.Code())
 	assert.Equal(t, FlagTransitive, lp.Flags())
 	assert.Equal(t, 4, lp.Len())
-	assert.Equal(t, []byte{0, 0, 0, 200}, lp.Pack())
+
+	buf := make([]byte, 64)
+	n := lp.WriteTo(buf, 0)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, []byte{0, 0, 0, 200}, buf[:n])
 }
 
 func TestLocalPrefParse(t *testing.T) {
@@ -59,7 +71,10 @@ func TestAtomicAggregate(t *testing.T) {
 	assert.Equal(t, AttrAtomicAggregate, aa.Code())
 	assert.Equal(t, FlagTransitive, aa.Flags())
 	assert.Equal(t, 0, aa.Len())
-	assert.Nil(t, aa.Pack())
+
+	buf := make([]byte, 64)
+	n := aa.WriteTo(buf, 0)
+	assert.Equal(t, 0, n)
 }
 
 func TestAggregator(t *testing.T) {
@@ -72,8 +87,10 @@ func TestAggregator(t *testing.T) {
 	assert.Equal(t, FlagOptional|FlagTransitive, agg.Flags())
 	assert.Equal(t, 8, agg.Len())
 
-	packed := agg.Pack()
-	assert.Equal(t, []byte{0, 0, 0xFD, 0xE9, 10, 0, 0, 1}, packed)
+	buf := make([]byte, 64)
+	n := agg.WriteTo(buf, 0)
+	assert.Equal(t, 8, n)
+	assert.Equal(t, []byte{0, 0, 0xFD, 0xE9, 10, 0, 0, 1}, buf[:n])
 }
 
 func TestAggregatorParse4Byte(t *testing.T) {
@@ -91,8 +108,10 @@ func TestClusterList(t *testing.T) {
 	assert.Equal(t, FlagOptional, cl.Flags())
 	assert.Equal(t, 8, cl.Len())
 
-	packed := cl.Pack()
-	assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, packed)
+	buf := make([]byte, 64)
+	n := cl.WriteTo(buf, 0)
+	assert.Equal(t, 8, n)
+	assert.Equal(t, []byte{1, 2, 3, 4, 5, 6, 7, 8}, buf[:n])
 }
 
 func TestClusterListParse(t *testing.T) {
@@ -108,7 +127,11 @@ func TestOriginatorID(t *testing.T) {
 	assert.Equal(t, AttrOriginatorID, oid.Code())
 	assert.Equal(t, FlagOptional, oid.Flags())
 	assert.Equal(t, 4, oid.Len())
-	assert.Equal(t, []byte{10, 0, 0, 1}, oid.Pack())
+
+	buf := make([]byte, 64)
+	n := oid.WriteTo(buf, 0)
+	assert.Equal(t, 4, n)
+	assert.Equal(t, []byte{10, 0, 0, 1}, buf[:n])
 }
 
 // TestOriginatorIDParse verifies ORIGINATOR_ID parsing (RFC 4456).

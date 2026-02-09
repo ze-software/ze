@@ -176,33 +176,6 @@ func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length 
 	return flags, code, length, hdrLen, nil
 }
 
-// PackHeader packs an attribute header per RFC 4271 Section 4.3.
-//
-// Automatically sets FlagExtLength if length > 255, per RFC 4271 Section 4.3:
-// "If the Extended Length bit of the Attribute Flags octet is set to 1,
-// the third and fourth octets of the path attribute contain the length
-// of the attribute data in octets.".
-func PackHeader(flags AttributeFlags, code AttributeCode, length uint16) []byte {
-	if length > 255 {
-		flags |= FlagExtLength
-	}
-
-	if flags.IsExtLength() {
-		return []byte{
-			byte(flags),
-			byte(code),
-			byte(length >> 8),
-			byte(length),
-		}
-	}
-
-	return []byte{
-		byte(flags),
-		byte(code),
-		byte(length),
-	}
-}
-
 // Attribute is the interface for all BGP path attributes.
 //
 // RFC 4271 Section 4.3 defines path attributes as triples:
@@ -218,25 +191,6 @@ type Attribute interface {
 
 	// Len returns the attribute value length in octets (excluding header).
 	Len() int
-
-	// Pack serializes the attribute value (excluding header).
-	//
-	// Deprecated: Use WriteTo for zero-allocation encoding.
-	// Pack allocates a new slice; WriteTo writes directly into a buffer.
-	Pack() []byte
-
-	// PackWithContext serializes the attribute value for transmission.
-	//
-	// srcCtx describes how the attribute was received (nil if locally originated).
-	// dstCtx describes how the attribute should be encoded (destination capabilities).
-	//
-	// Most attributes ignore srcCtx and only use dstCtx for encoding.
-	// AS_PATH and AGGREGATOR use dstCtx.ASN4 for RFC 6793 encoding decisions.
-	//
-	// RFC 6793: ASN4 determines 2-byte vs 4-byte AS number encoding.
-	//
-	// Deprecated: Use WriteToWithContext for zero-allocation encoding.
-	PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
 
 	// WriteTo writes the attribute value (excluding header) into buf at offset.
 	// Returns number of bytes written.
