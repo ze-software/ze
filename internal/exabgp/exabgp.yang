@@ -32,6 +32,7 @@ module exabgp {
         leaf name { type string; }
         leaf watchdog { type string; }
         leaf split { type string; }
+        leaf bgp-prefix-sid { ze:syntax "value-or-array"; type string; description "BGP Prefix-SID (RFC 8669)"; }
         container attribute { ze:syntax "flex"; }
         container bgp-prefix-sid-srv6 { ze:syntax "flex"; }
         container withdraw { ze:syntax "flex"; }

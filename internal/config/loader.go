@@ -654,7 +654,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 				Communities:       attrs.Community.Values,
 				LargeCommunities:  attrs.LargeCommunity.Values,
 				ExtCommunity:      attrs.ExtendedCommunity.Raw,
-				ExtCommunityBytes: attrs.ExtendedCommunity.Bytes,
+				ExtCommunityBytes: sortExtCommunities(attrs.ExtendedCommunity.Bytes),
 				PathID:            uint32(attrs.PathID),
 				Labels:            labels,
 				RD:                attrs.RD.Raw,
@@ -919,7 +919,7 @@ func convertVPLSRoute(vr VPLSRouteConfig) (reactor.VPLSRoute, error) {
 		if err != nil {
 			return route, fmt.Errorf("parse extended-community: %w", err)
 		}
-		route.ExtCommunityBytes = ec.Bytes
+		route.ExtCommunityBytes = sortExtCommunities(ec.Bytes)
 	}
 
 	// Parse originator-id

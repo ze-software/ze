@@ -492,19 +492,29 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 // prefix is the NLRI prefix (e.g., "10.0.0.0/24").
 // attrTree contains the route attributes from ExaBGP.
 // dst is the peer block where the update will be added.
+//
+// Family detection: rd present → mpls-vpn, label present (no rd) → nlri-mpls, else → unicast.
+// RD and label go inline in the NLRI (config loader expects them there, not in attribute block).
 func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	update := config.NewTree()
 
 	attrBlock := config.NewTree()
 	attrBlock.Set("origin", "igp")
 
+	// Path attributes that go in the attribute block.
+	// Note: rd and label are NOT here — they go inline in the NLRI line.
 	attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
 		"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
-		"path-information", "rd", "label", "labels", "split"}
+		"path-information", "labels", "split"}
 	for _, field := range attrFields {
 		if v, ok := attrTree.Get(field); ok {
 			attrBlock.Set(field, v)
 		}
+	}
+
+	// BGP Prefix-SID (RFC 8669) — inline-list parser stores bracketed values via Set().
+	if v, ok := attrTree.Get("bgp-prefix-sid"); ok {
+		attrBlock.Set("bgp-prefix-sid", v)
 	}
 
 	// Handle atomic-aggregate (flag attribute stored as "true")
@@ -522,16 +532,48 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 
 	update.SetContainer("attribute", attrBlock)
 
-	nlriBlock := config.NewTree()
-	// Determine family from prefix format.
-	family := defaultFamily
-	if strings.Contains(prefix, ":") {
-		family = familyIPv6Unicast
+	// Detect family from prefix format and route attributes.
+	isIPv6 := strings.Contains(prefix, ":")
+	rdVal, hasRD := attrTree.Get("rd")
+	labelVal, hasLabel := attrTree.Get("label")
+
+	family := detectRouteFamily(isIPv6, hasRD, hasLabel)
+
+	// Build NLRI value with inline rd/label (config loader parses these from NLRI line).
+	nlriValue := prefix
+	if hasLabel {
+		nlriValue = "label " + labelVal + " " + nlriValue
 	}
-	nlriBlock.Set(family, prefix)
+	if hasRD {
+		nlriValue = "rd " + rdVal + " " + nlriValue
+	}
+
+	nlriBlock := config.NewTree()
+	nlriBlock.Set(family, nlriValue)
 	update.SetContainer("nlri", nlriBlock)
 
 	dst.AddListEntry("update", "", update)
+}
+
+// detectRouteFamily determines the BGP address family from route characteristics.
+// rd present → mpls-vpn, label present (no rd) → nlri-mpls, else → unicast.
+func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
+	if hasRD && isIPv6 {
+		return "ipv6/mpls-vpn"
+	}
+	if hasRD {
+		return "ipv4/mpls-vpn"
+	}
+	if hasLabel && isIPv6 {
+		return "ipv6/mpls"
+	}
+	if hasLabel {
+		return "ipv4/mpls"
+	}
+	if isIPv6 {
+		return familyIPv6Unicast
+	}
+	return defaultFamily
 }
 
 // convertFamilyBlock converts ExaBGP family syntax to ZeBGP.
