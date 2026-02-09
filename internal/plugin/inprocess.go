@@ -3,20 +3,9 @@ package plugin
 import (
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/gr"
-	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
-	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/llnh"
-	llnhschema "codeberg.org/thomas-mangin/ze/internal/plugin/llnh/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/rib"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/rr"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	// Import all plugins to trigger init() registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
 // InternalPluginRunner is a function that runs a plugin in-process using SDK RPC.
@@ -24,83 +13,32 @@ import (
 // callbackConn = Socket B plugin side (engine → plugin callbacks).
 type InternalPluginRunner func(engineConn, callbackConn net.Conn) int
 
-// internalPluginRunners maps plugin names to their runner functions.
-// This is the single source of truth for available internal plugins.
-// Used by:
-//   - IsInternalPlugin() in resolve.go
-//   - AvailableInternalPlugins() in resolve.go
-//   - startInternal() in process.go
-var internalPluginRunners = map[string]InternalPluginRunner{
-	"rib": rib.RunRIBPlugin,
-	"gr":  gr.RunGRPlugin,
-	"rr":  rr.RunRouteServer,
-	"hostname": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.hostname env var)
-		hostname.ConfigureLogger(slogutil.Logger("hostname"))
-		return hostname.RunHostnamePlugin(engineConn, callbackConn)
-	},
-	"llnh": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.llnh env var)
-		llnh.SetLLNHLogger(slogutil.Logger("llnh"))
-		return llnh.RunLLNHPlugin(engineConn, callbackConn)
-	},
-	"flowspec": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.flowspec env var)
-		flowspec.SetFlowSpecLogger(slogutil.Logger("flowspec"))
-		return flowspec.RunFlowSpecPlugin(engineConn, callbackConn)
-	},
-	"evpn": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.evpn env var)
-		evpn.SetEVPNLogger(slogutil.Logger("evpn"))
-		return evpn.RunEVPNPlugin(engineConn, callbackConn)
-	},
-	"vpn": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.vpn env var)
-		vpn.SetVPNLogger(slogutil.Logger("vpn"))
-		return vpn.RunVPNPlugin(engineConn, callbackConn)
-	},
-	"bgpls": func(engineConn, callbackConn net.Conn) int {
-		// Configure logger for in-process plugin (uses ze.log.bgpls env var)
-		bgpls.SetBGPLSLogger(slogutil.Logger("bgpls"))
-		return bgpls.RunBGPLSPlugin(engineConn, callbackConn)
-	},
-}
-
-// internalPluginYANG maps plugin names to their YANG schema content.
-// Plugins that provide YANG (config augments or operational state) are listed here.
-var internalPluginYANG = map[string]string{
-	"hostname": hostnameschema.ZeHostnameYANG,
-	"gr":       grschema.ZeGracefulRestartYANG,
-	"rib":      ribschema.ZeRibYANG,
-	"llnh":     llnhschema.ZeLinkLocalNexthopYANG,
-}
-
-// internalPluginWantsConfig maps plugin names to their config roots.
-// This is static metadata matching what plugins declare at runtime via "declare wants config <root>".
-// Used for schema discovery without running the plugins.
-var internalPluginWantsConfig = map[string][]string{
-	"hostname": {"bgp"},
-	"gr":       {"bgp"},
-	"llnh":     {"bgp"},
-}
-
 // GetInternalPluginWantsConfig returns the config roots an internal plugin wants.
 // Returns nil if the plugin doesn't declare any config roots.
 func GetInternalPluginWantsConfig(name string) []string {
-	return internalPluginWantsConfig[name]
+	reg := registry.Lookup(name)
+	if reg == nil {
+		return nil
+	}
+	return reg.ConfigRoots
 }
 
 // GetInternalPluginYANG returns the YANG schema for an internal plugin.
 // Returns empty string if the plugin doesn't provide YANG.
 func GetInternalPluginYANG(name string) string {
-	return internalPluginYANG[name]
+	reg := registry.Lookup(name)
+	if reg == nil {
+		return ""
+	}
+	return reg.YANG
 }
 
 // GetAllInternalPluginYANG returns all internal plugin YANG schemas.
 // Used to load all plugin YANG schemas before config parsing.
 func GetAllInternalPluginYANG() map[string]string {
-	result := make(map[string]string, len(internalPluginYANG))
-	for name, yang := range internalPluginYANG {
+	schemas := registry.YANGSchemas()
+	result := make(map[string]string, len(schemas))
+	for name, yang := range schemas {
 		moduleName := "ze-" + name + ".yang"
 		result[moduleName] = yang
 	}
@@ -113,7 +51,7 @@ func GetAllInternalPluginYANG() map[string]string {
 func CollectPluginYANG(plugins []string) map[string]string {
 	result := make(map[string]string)
 	for _, p := range plugins {
-		// Extract plugin name from "ze.X" format
+		// Extract plugin name from "ze.X" format.
 		name := p
 		if len(p) > 3 && p[:3] == "ze." {
 			name = p[3:]
@@ -121,7 +59,6 @@ func CollectPluginYANG(plugins []string) map[string]string {
 
 		yang := GetInternalPluginYANG(name)
 		if yang != "" {
-			// Derive module name from YANG content or use convention
 			moduleName := "ze-" + name + ".yang"
 			result[moduleName] = yang
 		}
@@ -131,46 +68,29 @@ func CollectPluginYANG(plugins []string) map[string]string {
 
 // GetInternalPluginRunner returns the runner function for an internal plugin.
 // Returns nil if the plugin is not found.
+// The returned runner configures the plugin's engine logger before running.
 func GetInternalPluginRunner(name string) InternalPluginRunner {
-	return internalPluginRunners[name]
-}
-
-// familyToPlugin maps address families to the internal plugin that handles them.
-// Used for auto-loading plugins when a family is configured but no plugin declared.
-// Key: family string (e.g., "ipv4/flow"), Value: plugin name (e.g., "flowspec").
-var familyToPlugin = map[string]string{
-	// FlowSpec families → flowspec plugin
-	"ipv4/flow":     "flowspec",
-	"ipv6/flow":     "flowspec",
-	"ipv4/flow-vpn": "flowspec",
-	"ipv6/flow-vpn": "flowspec",
-	// EVPN family → evpn plugin
-	"l2vpn/evpn": "evpn",
-	// VPN families → vpn plugin
-	"ipv4/vpn": "vpn",
-	"ipv6/vpn": "vpn",
-	// BGP-LS families → bgpls plugin
-	"bgp-ls/bgp-ls":     "bgpls",
-	"bgp-ls/bgp-ls-vpn": "bgpls",
+	reg := registry.Lookup(name)
+	if reg == nil {
+		return nil
+	}
+	return func(engineConn, callbackConn net.Conn) int {
+		if reg.ConfigureEngineLogger != nil {
+			reg.ConfigureEngineLogger(name)
+		}
+		return reg.RunEngine(engineConn, callbackConn)
+	}
 }
 
 // GetPluginForFamily returns the internal plugin name that handles a family.
 // Returns empty string if no plugin is known for the family.
 func GetPluginForFamily(family string) string {
-	return familyToPlugin[family]
+	return registry.PluginForFamily(family)
 }
 
 // GetRequiredPlugins returns the list of internal plugins needed for the given families.
-// Only returns plugins that are in familyToPlugin (known internal plugins).
+// Only returns plugins that handle known families.
 // Deduplicates the result.
 func GetRequiredPlugins(families []string) []string {
-	seen := make(map[string]bool)
-	var plugins []string
-	for _, fam := range families {
-		if p := familyToPlugin[fam]; p != "" && !seen[p] {
-			seen[p] = true
-			plugins = append(plugins, p)
-		}
-	}
-	return plugins
+	return registry.RequiredPlugins(families)
 }

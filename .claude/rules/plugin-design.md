@@ -4,71 +4,98 @@
 
 ## Plugin Architecture
 
-Ze uses a two-tier plugin system:
+Ze uses a two-tier plugin system with compile-time registration:
 
 | Layer | Location | Purpose |
 |-------|----------|---------|
+| Registry | `internal/plugin/registry/` | Central plugin registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | High-level callback abstraction for external plugins |
 | RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC type definitions |
-| Internal | `internal/plugin/<name>/` | Low-level protocol implementations |
-| CLI Wrapper | `cmd/ze/bgp/plugin_<name>.go` | Standard CLI interface |
+| Internal | `internal/plugin/<name>/` | Low-level protocol implementations + `register.go` |
+| All imports | `internal/plugin/all/` | Blank imports triggering all plugin `init()` |
+| CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` shared framework |
+
+## Registration Architecture
+
+Plugins self-register at compile time via Go's `init()` mechanism:
+
+```
+internal/plugin/registry/       ← Leaf package (no plugin imports)
+    registry.go                 ← Register(), Lookup(), Names(), FamilyMap(), etc.
+
+internal/plugin/<name>/         ← Each plugin package
+    <name>.go                   ← Plugin logic
+    register.go                 ← init() { registry.Register(...) }
+
+internal/plugin/all/            ← Auto-generated aggregation file
+    all.go                      ← Generated blank imports (make generate)
+    gen.go                      ← go:generate directive
+
+scripts/gen-plugin-imports.go   ← Generator: discovers register.go, writes all.go
+
+cmd/ze/bgp/plugin.go           ← Imports all, dispatches via registry.Lookup()
+internal/plugin/inprocess.go   ← Delegates to registry for runners/YANG/config
+cmd/ze/bgp/decode.go           ← Maps populated from registry at init time
+```
+
+**Key design:** The registry package is a leaf with zero plugin dependencies. Plugin packages import the registry (not vice versa). The `all` package uses blank imports to trigger `init()` registration.
 
 ## 5-Stage Protocol (MANDATORY)
 
 All plugins follow this startup sequence over **YANG RPC** (NUL-framed JSON over dual Unix socket pairs):
 
 ```
-Stage 1: Declaration    → Plugin sends: ze-plugin-engine:declare-registration (Socket A)
-Stage 2: Config         → Engine sends: ze-plugin-callback:configure (Socket B)
-Stage 3: Capability     → Plugin sends: ze-plugin-engine:declare-capabilities (Socket A)
-Stage 4: Registry       → Engine sends: ze-plugin-callback:share-registry (Socket B)
-Stage 5: Ready          → Plugin sends: ze-plugin-engine:ready (Socket A), enter event loop
+Stage 1: Declaration    -> Plugin sends: ze-plugin-engine:declare-registration (Socket A)
+Stage 2: Config         -> Engine sends: ze-plugin-callback:configure (Socket B)
+Stage 3: Capability     -> Plugin sends: ze-plugin-engine:declare-capabilities (Socket A)
+Stage 4: Registry       -> Engine sends: ze-plugin-callback:share-registry (Socket B)
+Stage 5: Ready          -> Plugin sends: ze-plugin-engine:ready (Socket A), enter event loop
 ```
 
-**Socket A** = plugin → engine RPCs (registration, routes, subscribe)
-**Socket B** = engine → plugin callbacks (config, events, encode/decode, bye)
+**Socket A** = plugin -> engine RPCs (registration, routes, subscribe)
+**Socket B** = engine -> plugin callbacks (config, events, encode/decode, bye)
 
-## Plugin Registration Pattern
+## Plugin Registration via init() (MANDATORY)
 
-**File:** `cmd/ze/bgp/plugin.go`
+**File:** `internal/plugin/<name>/register.go`
 
-Plugins are registered in the dispatch switch:
+Every internal plugin MUST have a `register.go` file that calls `registry.Register()` in `init()`. The Registration struct provides ALL metadata needed for the plugin to be integrated throughout the system.
 
-```go
-switch args[0] {
-case "gr":       return cmdPluginGR(args[1:])
-case "hostname": return cmdPluginHostname(args[1:])
-case "flowspec": return cmdPluginFlowSpec(args[1:])
-// Add new plugins here
-}
-```
+### Registration Fields
 
-## CLI Wrapper Pattern (MANDATORY)
+| Field | Type | Required | Purpose |
+|-------|------|----------|---------|
+| `Name` | string | Yes | Plugin name (e.g., "rib", "gr", "flowspec") |
+| `Description` | string | Yes | Human-readable description for help text |
+| `RunEngine` | func(net.Conn, net.Conn) int | Yes | Engine-mode entry point (Socket A, Socket B) |
+| `CLIHandler` | func([]string) int | Yes | CLI dispatch handler (calls RunPlugin) |
+| `RFCs` | []string | No | Related RFCs (e.g., ["RFC 4724"]) |
+| `Families` | []string | No | Address families handled (e.g., ["ipv4/flow", "ipv6/flow"]) |
+| `CapabilityCodes` | []uint8 | No | Capability codes decoded by this plugin |
+| `ConfigRoots` | []string | No | Config roots this plugin wants |
+| `YANG` | string | No | YANG schema content |
+| `ConfigureEngineLogger` | func(string) | No | Logger setup for engine mode |
+| `InProcessDecoder` | func(*bytes.Buffer, *bytes.Buffer) int | No | In-process decode function for CLI |
+| `Features` | string | No | Space-separated feature flags ("nlri yang capa") |
+| `SupportsNLRI` | bool | No | Enable --nlri CLI flag |
+| `SupportsCapa` | bool | No | Enable --capa CLI flag |
 
-**File:** `cmd/ze/bgp/plugin_<name>.go`
+### Registration Validation
 
-Every plugin wrapper MUST use `PluginConfig` and `RunPlugin()`:
+`Register()` validates:
+- Name must be non-empty
+- RunEngine must be non-nil
+- CLIHandler must be non-nil
+- Family strings must contain "/" (format "afi/safi")
+- Duplicate names are rejected
 
-```go
-func cmdPluginXxx(args []string) int {
-    cfg := PluginConfig{
-        Name:         "xxx",                    // Plugin name
-        Features:     "nlri yang",              // Space-separated: nlri, capa, yang
-        SupportsNLRI: true,                     // Enable --nlri flag
-        SupportsCapa: false,                    // Enable --capa flag
-        GetYANG:      xxx.GetYANG,              // Returns YANG schema
-        ConfigLogger: xxx.SetLogger,            // Configures logger
-        RunCLIDecode: xxx.RunCLIDecode,         // CLI decode handler
-        RunDecode:    xxx.RunDecode,            // Engine decode handler (optional)
-        RunEngine:    xxx.RunXxxPlugin,         // Engine mode handler (net.Conn, net.Conn) int
-    }
-    return RunPlugin(cfg, args)
-}
-```
+Registration errors cause `os.Exit(1)` in `init()` - a broken plugin registration is a fatal startup error.
 
-**RunEngine signature:** `func(engineConn, callbackConn net.Conn) int`
+## CLI Shared Framework
 
-In engine mode, `RunPlugin()` reads `ZE_ENGINE_FD` and `ZE_CALLBACK_FD` environment variables to obtain the socket pair connections, then calls `RunEngine`.
+**File:** `internal/plugin/cli/cli.go`
+
+The `PluginConfig` struct and `RunPlugin()` function live in a shared package importable by plugin `register.go` files. Each plugin's `CLIHandler` creates a `PluginConfig` and calls `RunPlugin()`.
 
 ## Standard Plugin Flags
 
@@ -145,7 +172,7 @@ func RunXxxPlugin(engineConn, callbackConn net.Conn) int {
 | `OnBye` | Notification of shutdown | (general) |
 | `OnStarted` | Post-startup hook (safe to call engine) | (general) |
 
-### SDK Engine Calls (plugin → engine via Socket A)
+### SDK Engine Calls (plugin -> engine via Socket A)
 
 | Method | Purpose |
 |--------|---------|
@@ -167,8 +194,8 @@ func RunXxxPlugin(engineConn, callbackConn net.Conn) int {
 Plugins supporting `--decode` mode respond to stdin commands:
 
 ```
-decode capability <code> <hex>  →  decoded json {...}
-decode nlri <family> <hex>      →  decoded json [...]
+decode capability <code> <hex>  ->  decoded json {...}
+decode nlri <family> <hex>      ->  decoded json [...]
 ```
 
 Response format:
@@ -178,79 +205,57 @@ Response format:
 Note: This text-based decode protocol is separate from the YANG RPC protocol.
 It is used only for the `--decode` CLI flag, not for engine-mode operation.
 
-## In-Process Decoder Registration
+## Auto-Populated Maps
 
-**File:** `cmd/ze/bgp/decode.go`
+These maps are populated automatically from the registry at package init time.
+No manual registration needed - plugins declare their capabilities in `register.go`.
 
-Register decoders for fallback (tests, direct mode):
-
-```go
-var inProcessDecoders = map[string]func(input, output *bytes.Buffer) int{
-    "flowspec": func(in, out *bytes.Buffer) int { return flowspec.RunFlowSpecDecode(in, out) },
-    "evpn":     func(in, out *bytes.Buffer) int { return evpn.RunEVPNDecode(in, out) },
-    // Add new decoders here
-}
-```
-
-## Internal Plugin Runner Registration
-
-**File:** `internal/plugin/inprocess.go`
-
-Register internal plugin runners (engine-mode entry points):
-
-```go
-var internalPluginRunners = map[string]InternalPluginRunner{
-    "rib":      rib.RunRIBPlugin,
-    "gr":       gr.RunGRPlugin,
-    "rr":       rr.RunRouteServer,
-    "hostname": func(e, c net.Conn) int { ... },
-    "flowspec": func(e, c net.Conn) int { ... },
-    // Add new internal plugins here
-}
-```
-
-Type: `InternalPluginRunner = func(engineConn, callbackConn net.Conn) int`
-
-## Family-to-Plugin Mapping
-
-**File:** `cmd/ze/bgp/decode.go`
-
-Register which plugin handles which address families:
-
-```go
-var pluginFamilyMap = map[string]string{
-    "ipv4/flow":     "flowspec",
-    "l2vpn/evpn":    "evpn",
-    "ipv4/vpn":      "vpn",
-    "bgp-ls/bgp-ls": "bgpls",
-    // Add new family mappings here
-}
-```
-
-## Capability-to-Plugin Mapping
-
-```go
-var pluginCapabilityMap = map[uint8]string{
-    73: "hostname",  // FQDN capability
-    // Add new capability mappings here
-}
-```
+| Map | Location | Source |
+|-----|----------|--------|
+| CLI dispatch | `cmd/ze/bgp/plugin.go` | `registry.Lookup()` |
+| Plugin runners | `internal/plugin/inprocess.go` | `registry.Lookup().RunEngine` |
+| YANG schemas | `internal/plugin/inprocess.go` | `registry.YANGSchemas()` |
+| Config roots | `internal/plugin/inprocess.go` | `registry.ConfigRootsMap()` |
+| Family->plugin | `cmd/ze/bgp/decode.go` | `registry.FamilyMap()` |
+| Capability->plugin | `cmd/ze/bgp/decode.go` | `registry.CapabilityMap()` |
+| In-process decoders | `cmd/ze/bgp/decode.go` | `registry.InProcessDecoders()` |
 
 ## New Plugin Checklist
 
-When adding a new plugin:
+When adding a new plugin, you need exactly TWO files:
 
 ```
 [ ] Create internal implementation: internal/plugin/<name>/<name>.go
 [ ] Add package-level logger with SetLogger()
 [ ] Implement SDK callback pattern (NewWithConn + callbacks + Run)
-[ ] Create CLI wrapper: cmd/ze/bgp/plugin_<name>.go
-[ ] Use PluginConfig + RunPlugin() pattern (RunEngine takes net.Conn pair)
-[ ] Register in cmd/ze/bgp/plugin.go switch
-[ ] Register in internalPluginRunners (inprocess.go) for internal plugins
-[ ] Register in inProcessDecoders if decode support
-[ ] Register in pluginFamilyMap if NLRI decode support
-[ ] Register in pluginCapabilityMap if capability decode support
-[ ] Add YANG schema if configuration support
+[ ] Create register.go: internal/plugin/<name>/register.go
+    - init() calls registry.Register() with full Registration struct
+    - CLIHandler creates PluginConfig and calls cli.RunPlugin()
+    - Set Families, CapabilityCodes, InProcessDecoder as applicable
+[ ] Run make generate (auto-discovers register.go, regenerates all.go)
+[ ] Update TestAllPluginsRegistered expected count in all_test.go
+[ ] Add YANG schema if configuration support (internal/plugin/<name>/schema/)
 [ ] Add functional tests in test/plugin/
 ```
+
+**What you do NOT need to do (handled automatically):**
+- No changes to `cmd/ze/bgp/plugin.go` (dispatch)
+- No changes to `cmd/ze/bgp/decode.go` (family/capability/decoder maps)
+- No changes to `internal/plugin/inprocess.go` (runners/YANG/config)
+- No individual `cmd/ze/bgp/plugin_<name>.go` wrapper files
+- No manual editing of `internal/plugin/all/all.go` (generated by `make generate`)
+
+## Integration Tests
+
+**File:** `internal/plugin/all/all_test.go`
+
+Verifies that all plugins register correctly:
+
+| Test | Validates |
+|------|-----------|
+| `TestAllPluginsRegistered` | All expected plugins are registered |
+| `TestAllPluginsHaveRunEngine` | No nil RunEngine handlers |
+| `TestAllPluginsHaveCLIHandler` | No nil CLIHandler handlers |
+| `TestAllPluginsHaveDescription` | Help text has descriptions for all plugins |
+| `TestFamilyMappings` | Expected families map to correct plugins |
+| `TestCapabilityMappings` | Expected capabilities map to correct plugins |

@@ -1,4 +1,10 @@
-package bgp
+// Package cli provides the shared plugin CLI framework.
+//
+// This package is imported by both plugin packages (to build their CLI handlers
+// in register.go) and by cmd/ze/bgp/ (for dispatch). It depends only on the
+// registry package (a leaf), not on specific plugin implementations, preventing
+// import cycles.
+package cli
 
 import (
 	"bufio"
@@ -9,25 +15,40 @@ import (
 	"os"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
-// PluginConfig defines the capabilities and handlers for a plugin.
-type PluginConfig struct {
-	Name     string // Plugin name (e.g., "evpn", "hostname")
-	Features string // Space-separated features (e.g., "nlri", "capa yang")
+// BaseConfig creates a PluginConfig pre-filled with common fields from a Registration.
+// This eliminates duplication between Registration and PluginConfig in register.go files.
+// Plugin-specific handlers (GetYANG, ConfigLogger, RunCLIDecode, etc.) must be set by the caller.
+func BaseConfig(reg *registry.Registration) PluginConfig {
+	return PluginConfig{
+		Name:         reg.Name,
+		Features:     reg.Features,
+		SupportsNLRI: reg.SupportsNLRI,
+		SupportsCapa: reg.SupportsCapa,
+		RunEngine:    reg.RunEngine,
+	}
+}
 
-	// Feature support
+// PluginConfig defines the capabilities and handlers for a plugin CLI.
+type PluginConfig struct {
+	Name     string // Plugin name (e.g., "evpn", "hostname").
+	Features string // Space-separated features (e.g., "nlri", "capa yang").
+
+	// Feature support.
 	SupportsNLRI bool
 	SupportsCapa bool
 
-	// Handlers
-	GetYANG       func() string                                                         // Returns YANG schema
-	ConfigLogger  func(level string)                                                    // Configures plugin logger
-	RunCLIDecode  func(hex string, text bool, out, err io.Writer) int                   // CLI decode handler
-	RunDecode     func(in io.Reader, out io.Writer) int                                 // Engine decode handler (optional)
-	RunEngine     func(engineConn, callbackConn net.Conn) int                           // Engine mode handler (RPC)
-	ExtraFlags    func(fs *flag.FlagSet)                                                // Register extra flags (optional)
-	RunCLIWithCtx func(hex string, text bool, out, err io.Writer, fs *flag.FlagSet) int // CLI decode with flag context (optional)
+	// Handlers.
+	GetYANG       func() string                                                          // Returns YANG schema.
+	ConfigLogger  func(level string)                                                     // Configures plugin logger.
+	RunCLIDecode  func(hex string, text bool, out, errW io.Writer) int                   // CLI decode handler.
+	RunDecode     func(in io.Reader, out io.Writer) int                                  // Engine decode handler (optional).
+	RunEngine     func(engineConn, callbackConn net.Conn) int                            // Engine mode handler (RPC).
+	ExtraFlags    func(fs *flag.FlagSet)                                                 // Register extra flags (optional).
+	RunCLIWithCtx func(hex string, text bool, out, errW io.Writer, fs *flag.FlagSet) int // CLI decode with flag context (optional).
 }
 
 // RunPlugin runs a plugin with the standard CLI interface.
@@ -56,7 +77,7 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	}
 	textOutput := fs.Bool("text", false, "Output human-readable text instead of JSON")
 
-	// Register plugin-specific extra flags
+	// Register plugin-specific extra flags.
 	if cfg.ExtraFlags != nil {
 		cfg.ExtraFlags(fs)
 	}
@@ -65,24 +86,24 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		return 1
 	}
 
-	// Output features if requested
+	// Output features if requested.
 	if *showFeatures {
 		printFeatures(cfg.Features)
 		return 0
 	}
 
-	// Output YANG schema if requested
+	// Output YANG schema if requested.
 	if *showYang && cfg.GetYANG != nil {
 		printYANG(cfg.GetYANG())
 		return 0
 	}
 
-	// Configure plugin logger
+	// Configure plugin logger.
 	if cfg.ConfigLogger != nil {
 		cfg.ConfigLogger(*logLevel)
 	}
 
-	// Check for unsupported features
+	// Check for unsupported features.
 	if *nlriHex != "" && !cfg.SupportsNLRI {
 		available := availableFeatures(cfg)
 		unsupportedFeatureError(os.Stderr, cfg.Name, "nlri", available)
@@ -94,7 +115,7 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		return 1
 	}
 
-	// CLI Mode: --nlri or --capa with optional --text
+	// CLI Mode: --nlri or --capa with optional --text.
 	hexValue := ""
 	if cfg.SupportsNLRI && *nlriHex != "" {
 		hexValue = *nlriHex
@@ -105,7 +126,7 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	if hexValue != "" {
 		hex, ok := resolveHexInput(hexValue)
 		if !ok {
-			cliError(os.Stderr, "error: no input on stdin")
+			writeError(os.Stderr, "error: no input on stdin")
 			return 1
 		}
 		if cfg.RunCLIWithCtx != nil {
@@ -114,15 +135,15 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		return cfg.RunCLIDecode(hex, *textOutput, os.Stdout, os.Stderr)
 	}
 
-	// Engine Decode Mode
+	// Engine Decode Mode.
 	if decodeMode != nil && *decodeMode {
 		return cfg.RunDecode(os.Stdin, os.Stdout)
 	}
 
-	// Engine Mode (RPC over inherited socket pairs)
+	// Engine Mode (RPC over inherited socket pairs).
 	engineConn, callbackConn, err := connsFromEnv()
 	if err != nil {
-		cliError(os.Stderr, "error: %v", err)
+		writeError(os.Stderr, "error: %v", err)
 		return 1
 	}
 	return cfg.RunEngine(engineConn, callbackConn)
@@ -145,16 +166,16 @@ func resolveHexInput(hexValue string) (string, bool) {
 	return hexValue, true
 }
 
-// cliError writes an error message to the given writer.
-func cliError(w io.Writer, format string, args ...any) {
+// writeError writes an error message to the given writer.
+func writeError(w io.Writer, format string, args ...any) {
 	msg := fmt.Sprintf(format+"\n", args...)
 	_, err := io.WriteString(w, msg)
-	_ = err // CLI output - pipe failure is unrecoverable
+	_ = err // CLI output - pipe failure is unrecoverable.
 }
 
 // unsupportedFeatureError prints a standard error for unsupported decode features.
 func unsupportedFeatureError(w io.Writer, plugin, feature, available string) {
-	cliError(w, "error: plugin '%s' does not support --%s (available: %s)",
+	writeError(w, "error: plugin '%s' does not support --%s (available: %s)",
 		plugin, feature, available)
 }
 
@@ -234,7 +255,7 @@ func fdToConn(fd int, name string) (net.Conn, error) {
 		return nil, fmt.Errorf("invalid fd %d", fd)
 	}
 	conn, err := net.FileConn(f)
-	f.Close() //nolint:errcheck,gosec // FD ownership transferred
+	f.Close() //nolint:errcheck,gosec // FD ownership transferred.
 	if err != nil {
 		return nil, err
 	}

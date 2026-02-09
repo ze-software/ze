@@ -21,10 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
 // Message type constants.
@@ -304,26 +301,12 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 }
 
 // pluginCapabilityMap maps capability codes to plugin names.
-// Plugins that can decode specific capabilities register here.
-var pluginCapabilityMap = map[uint8]string{
-	73: "hostname", // FQDN capability
-	77: "llnh",     // Link-local next-hop capability
-}
+// Populated from plugin registry at init time.
+var pluginCapabilityMap = registry.CapabilityMap()
 
 // pluginFamilyMap maps address families to plugin names for CLI decode.
-// Used by standalone `ze bgp decode` command which has no runtime registry.
-// When engine is running, PluginRegistry.LookupFamily is used instead.
-var pluginFamilyMap = map[string]string{
-	"ipv4/flow":         "flowspec",
-	"ipv6/flow":         "flowspec",
-	"ipv4/flow-vpn":     "flowspec",
-	"ipv6/flow-vpn":     "flowspec",
-	"l2vpn/evpn":        "evpn",
-	"ipv4/vpn":          "vpn",
-	"ipv6/vpn":          "vpn",
-	"bgp-ls/bgp-ls":     "bgpls",
-	"bgp-ls/bgp-ls-vpn": "bgpls",
-}
+// Populated from plugin registry at init time.
+var pluginFamilyMap = registry.FamilyMap()
 
 // capabilityToZeJSON converts a capability to Ze ze-bgp JSON format.
 // Ze format: {"code": N, "name": "...", "value": "..."}.
@@ -665,13 +648,8 @@ func invokePluginSubprocess(pluginName, request string) any {
 }
 
 // inProcessDecoders maps plugin names to their in-process decode functions.
-// Used as fallback when subprocess decode fails (e.g., during tests).
-var inProcessDecoders = map[string]func(input, output *bytes.Buffer) int{
-	"bgpls":    func(in, out *bytes.Buffer) int { return bgpls.RunBGPLSDecode(in, out) },
-	"flowspec": func(in, out *bytes.Buffer) int { return flowspec.RunFlowSpecDecode(in, out) },
-	"evpn":     func(in, out *bytes.Buffer) int { return evpn.RunEVPNDecode(in, out) },
-	"vpn":      func(in, out *bytes.Buffer) int { return vpn.RunVPNDecode(in, out) },
-}
+// Populated from plugin registry at init time.
+var inProcessDecoders = registry.InProcessDecoders()
 
 // invokePluginInProcess runs plugin decode in-process (Direct mode: ze-name).
 // Synchronous, blocking - fastest invocation for CLI decode.

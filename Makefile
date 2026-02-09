@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-editor functional-exabgp verify help
+.PHONY: all build test lint clean fmt vet tidy generate functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-editor functional-exabgp verify help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -7,8 +7,12 @@ export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 # Default target
 all: lint test build
 
+# Generate code (plugin imports, etc.)
+generate:
+	@go run scripts/gen-plugin-imports.go
+
 # Build all binaries
-build: bin/ze bin/ze-test
+build: generate bin/ze bin/ze-test
 	@echo "All binaries built"
 
 # Individual binary targets

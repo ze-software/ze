@@ -4,8 +4,9 @@ package plugin
 import (
 	"errors"
 	"path/filepath"
-	"sort"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
 // PluginType represents the type of plugin resolution.
@@ -36,62 +37,30 @@ type PluginInfo struct {
 	Families     []string `json:"families,omitempty"`     // Address families this plugin handles
 }
 
-// internalPluginInfo contains metadata for each internal plugin.
-var internalPluginInfo = map[string]PluginInfo{
-	"flowspec": {
-		Name:        "flowspec",
-		Description: "FlowSpec NLRI encoding/decoding",
-		RFCs:        []string{"8955", "8956"},
-		Families:    []string{"ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn"},
-	},
-	"gr": {
-		Name:        "gr",
-		Description: "Graceful Restart state management",
-		RFCs:        []string{"4724"},
-	},
-	"hostname": {
-		Name:         "hostname",
-		Description:  "FQDN capability decoding",
-		RFCs:         []string{"5765"},
-		Capabilities: []int{73},
-	},
-	"rib": {
-		Name:        "rib",
-		Description: "Route Information Base storage",
-		RFCs:        []string{"4271"},
-	},
-	"rr": {
-		Name:        "rr",
-		Description: "Route Reflector / Route Server",
-		RFCs:        []string{"4456"},
-	},
-}
-
 // AvailableInternalPlugins returns the list of internal plugin names.
 // Used by `ze --plugin` to list available plugins.
-// Uses internalPluginRunners from inprocess.go as single source of truth.
+// Uses the registry as single source of truth.
 func AvailableInternalPlugins() []string {
-	plugins := make([]string, 0, len(internalPluginRunners))
-	for name := range internalPluginRunners {
-		plugins = append(plugins, name)
-	}
-	// Sort for stable output
-	sort.Strings(plugins)
-	return plugins
+	return registry.Names()
 }
 
 // InternalPluginInfo returns metadata for all internal plugins.
 // Returns a slice sorted by plugin name.
 func InternalPluginInfo() []PluginInfo {
-	names := AvailableInternalPlugins()
-	result := make([]PluginInfo, 0, len(names))
-	for _, name := range names {
-		if info, ok := internalPluginInfo[name]; ok {
-			result = append(result, info)
-		} else {
-			// Fallback for plugins without metadata
-			result = append(result, PluginInfo{Name: name})
+	regs := registry.All()
+	result := make([]PluginInfo, 0, len(regs))
+	for _, reg := range regs {
+		info := PluginInfo{
+			Name:        reg.Name,
+			Description: reg.Description,
+			RFCs:        reg.RFCs,
+			Families:    reg.Families,
 		}
+		// Convert uint8 capability codes to int for JSON compatibility.
+		for _, c := range reg.CapabilityCodes {
+			info.Capabilities = append(info.Capabilities, int(c))
+		}
+		result = append(result, info)
 	}
 	return result
 }
@@ -115,12 +84,12 @@ func ResolvePlugin(s string) (*ResolvedPlugin, error) {
 		return nil, ErrEmptyPlugin
 	}
 
-	// Auto discovery
+	// Auto discovery.
 	if s == "auto" {
 		return &ResolvedPlugin{Type: PluginTypeAuto}, nil
 	}
 
-	// Internal plugin (ze.X)
+	// Internal plugin (ze.X).
 	if strings.HasPrefix(s, "ze.") {
 		name := strings.TrimPrefix(s, "ze.")
 		if !IsInternalPlugin(name) {
@@ -132,13 +101,13 @@ func ResolvePlugin(s string) (*ResolvedPlugin, error) {
 		}, nil
 	}
 
-	// External plugin - parse command
+	// External plugin - parse command.
 	parts := strings.Fields(s)
 	if len(parts) == 0 {
 		return nil, ErrEmptyPlugin
 	}
 
-	// Derive name from last component of first part (binary) or last arg
+	// Derive name from last component of first part (binary) or last arg.
 	name := deriveName(parts)
 
 	return &ResolvedPlugin{
@@ -151,19 +120,19 @@ func ResolvePlugin(s string) (*ResolvedPlugin, error) {
 // deriveName extracts a plugin name from command parts.
 // Uses last argument if it looks like a plugin name, otherwise basename of binary.
 func deriveName(parts []string) string {
-	// If command is "ze bgp plugin X", use X as name
+	// If command is "ze bgp plugin X", use X as name.
 	if len(parts) >= 4 && parts[0] == "ze" && parts[1] == "bgp" && parts[2] == cmdPlugin {
 		return parts[3]
 	}
 
-	// Otherwise use basename of binary
+	// Otherwise use basename of binary.
 	return filepath.Base(parts[0])
 }
 
 // IsInternalPlugin checks if a name is a registered internal plugin.
-// Uses internalPluginRunners from inprocess.go as single source of truth.
+// Uses the registry as single source of truth.
 func IsInternalPlugin(name string) bool {
-	return GetInternalPluginRunner(name) != nil
+	return registry.Has(name)
 }
 
 // InternalPluginCommand returns the command to run an internal plugin.
