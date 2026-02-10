@@ -646,6 +646,125 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.Equal(t, `{"routes":[]}`, r.output.Data)
 }
 
+// TestSendConfigVerifyOK verifies config-verify RPC with successful response.
+//
+// VALIDATES: Engine sends config-verify, plugin responds OK with status "ok".
+// PREVENTS: Config verify RPC not being available on engine side.
+func TestSendConfigVerifyOK(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ConfigVerifyOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendConfigVerify(context.Background(), []rpc.ConfigSection{
+			{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
+		})
+		done <- struct {
+			output *rpc.ConfigVerifyOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:config-verify", req.Method)
+
+	var input rpc.ConfigVerifyInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, 1, len(input.Sections))
+	assert.Equal(t, "bgp", input.Sections[0].Root)
+
+	result := &rpc.ConfigVerifyOutput{Status: "ok"}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "ok", r.output.Status)
+	assert.Empty(t, r.output.Error)
+}
+
+// TestSendConfigVerifyError verifies config-verify RPC with rejection response.
+//
+// VALIDATES: Engine sends config-verify, plugin responds with status "error".
+// PREVENTS: Config verify errors not being propagated to engine.
+func TestSendConfigVerifyError(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ConfigVerifyOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendConfigVerify(context.Background(), []rpc.ConfigSection{
+			{Root: "bgp", Data: `{"invalid":true}`},
+		})
+		done <- struct {
+			output *rpc.ConfigVerifyOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:config-verify", req.Method)
+
+	result := &rpc.ConfigVerifyOutput{Status: "error", Error: "invalid config: missing router-id"}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "error", r.output.Status)
+	assert.Equal(t, "invalid config: missing router-id", r.output.Error)
+}
+
+// TestSendConfigApplyOK verifies config-apply RPC with successful response.
+//
+// VALIDATES: Engine sends config-apply with diff sections, plugin responds OK.
+// PREVENTS: Config apply RPC not being available on engine side.
+func TestSendConfigApplyOK(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ConfigApplyOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendConfigApply(context.Background(), []rpc.ConfigDiffSection{
+			{Root: "bgp", Added: `{"peer":{"p1":{}}}`, Changed: `{"router-id":"5.6.7.8"}`},
+		})
+		done <- struct {
+			output *rpc.ConfigApplyOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:config-apply", req.Method)
+
+	var input rpc.ConfigApplyInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, 1, len(input.Sections))
+	assert.Equal(t, "bgp", input.Sections[0].Root)
+	assert.Equal(t, `{"peer":{"p1":{}}}`, input.Sections[0].Added)
+	assert.Equal(t, `{"router-id":"5.6.7.8"}`, input.Sections[0].Changed)
+
+	result := &rpc.ConfigApplyOutput{Status: "ok"}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "ok", r.output.Status)
+}
+
 // TestCapabilityCodeBoundary verifies boundary values for capability codes.
 //
 // VALIDATES: Capability code 0 and 255 are valid, no overflow.

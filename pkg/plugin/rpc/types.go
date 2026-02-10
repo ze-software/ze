@@ -138,6 +138,38 @@ type ReadyInput struct {
 	Subscribe *SubscribeEventsInput `json:"subscribe,omitempty"`
 }
 
+// ConfigVerifyInput is the input for ze-plugin-callback:config-verify.
+// The engine sends the full candidate config sections for the plugin to validate.
+type ConfigVerifyInput struct {
+	Sections []ConfigSection `json:"sections"`
+}
+
+// ConfigVerifyOutput is the output for ze-plugin-callback:config-verify.
+type ConfigVerifyOutput struct {
+	Status string `json:"status"`          // "ok" or "error"
+	Error  string `json:"error,omitempty"` // Reason for rejection
+}
+
+// ConfigDiffSection describes what changed in a single config root.
+type ConfigDiffSection struct {
+	Root    string `json:"root"`              // Config root name (e.g., "bgp")
+	Added   string `json:"added,omitempty"`   // JSON-encoded added config
+	Removed string `json:"removed,omitempty"` // JSON-encoded removed config
+	Changed string `json:"changed,omitempty"` // JSON-encoded changed config
+}
+
+// ConfigApplyInput is the input for ze-plugin-callback:config-apply.
+// The engine sends the diff between old and new config for the plugin to apply.
+type ConfigApplyInput struct {
+	Sections []ConfigDiffSection `json:"sections"`
+}
+
+// ConfigApplyOutput is the output for ze-plugin-callback:config-apply.
+type ConfigApplyOutput struct {
+	Status string `json:"status"`          // "ok" or "error"
+	Error  string `json:"error,omitempty"` // Reason for failure
+}
+
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).
 type ByeInput struct {
 	Reason string `json:"reason,omitempty"`

@@ -46,6 +46,8 @@ type Plugin struct {
 	onDecodeNLRI       func(family string, hex string) (string, error)
 	onDecodeCapability func(code uint8, hex string) (string, error)
 	onExecuteCommand   func(serial, command string, args []string, peer string) (status, data string, err error)
+	onConfigVerify     func([]ConfigSection) error
+	onConfigApply      func([]ConfigDiffSection) error
 	onBye              func(string)
 
 	// Post-startup callback (runs after Stage 5, before event loop).
@@ -207,6 +209,24 @@ func (p *Plugin) OnExecuteCommand(fn func(serial, command string, args []string,
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onExecuteCommand = fn
+}
+
+// OnConfigVerify sets the handler for config verification requests (reload pipeline).
+// The handler receives the full candidate config sections and returns nil to accept
+// or an error to reject. If no handler is registered, config-verify returns OK (no-op).
+func (p *Plugin) OnConfigVerify(fn func([]ConfigSection) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onConfigVerify = fn
+}
+
+// OnConfigApply sets the handler for config apply requests (reload pipeline).
+// The handler receives diff sections describing what changed and returns nil to accept
+// or an error to reject. If no handler is registered, config-apply returns OK (no-op).
+func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onConfigApply = fn
 }
 
 // OnStarted sets a callback that runs after the 5-stage startup completes
@@ -407,6 +427,12 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *ipc.Request) error {
 
 	case "ze-plugin-callback:execute-command":
 		return p.handleExecuteCommand(ctx, req)
+
+	case "ze-plugin-callback:config-verify":
+		return p.handleConfigVerify(ctx, req)
+
+	case "ze-plugin-callback:config-apply":
+		return p.handleConfigApply(ctx, req)
 
 	case "ze-plugin-callback:bye":
 		return p.handleByeAndRespond(ctx, req)
@@ -618,6 +644,67 @@ func (p *Plugin) handleExecuteCommand(ctx context.Context, req *ipc.Request) err
 	})
 }
 
+// handleConfigRPC is a shared handler for config-verify and config-apply RPCs.
+// Both follow the same pattern: unmarshal params, call handler, return status/error result.
+// The handler function receives raw params and returns an error (reject) or nil (accept).
+func (p *Plugin) handleConfigRPC(ctx context.Context, req *ipc.Request, handler func(json.RawMessage) error) error {
+	if handler == nil {
+		// No handler = graceful no-op (not all plugins care about config).
+		return p.callbackConn.SendResult(ctx, req.ID, &struct {
+			Status string `json:"status"`
+		}{Status: "ok"})
+	}
+
+	if err := handler(req.Params); err != nil {
+		return p.callbackConn.SendResult(ctx, req.ID, &struct {
+			Status string `json:"status"`
+			Error  string `json:"error,omitempty"`
+		}{Status: "error", Error: err.Error()})
+	}
+
+	return p.callbackConn.SendResult(ctx, req.ID, &struct {
+		Status string `json:"status"`
+	}{Status: "ok"})
+}
+
+func (p *Plugin) handleConfigVerify(ctx context.Context, req *ipc.Request) error {
+	p.mu.Lock()
+	fn := p.onConfigVerify
+	p.mu.Unlock()
+
+	var handler func(json.RawMessage) error
+	if fn != nil {
+		handler = func(params json.RawMessage) error {
+			var input rpc.ConfigVerifyInput
+			if err := json.Unmarshal(params, &input); err != nil {
+				return fmt.Errorf("unmarshal config-verify: %w", err)
+			}
+			return fn(input.Sections)
+		}
+	}
+
+	return p.handleConfigRPC(ctx, req, handler)
+}
+
+func (p *Plugin) handleConfigApply(ctx context.Context, req *ipc.Request) error {
+	p.mu.Lock()
+	fn := p.onConfigApply
+	p.mu.Unlock()
+
+	var handler func(json.RawMessage) error
+	if fn != nil {
+		handler = func(params json.RawMessage) error {
+			var input rpc.ConfigApplyInput
+			if err := json.Unmarshal(params, &input); err != nil {
+				return fmt.Errorf("unmarshal config-apply: %w", err)
+			}
+			return fn(input.Sections)
+		}
+	}
+
+	return p.handleConfigRPC(ctx, req, handler)
+}
+
 // --- RPC Types (aliases to canonical types in pkg/plugin/rpc) ---
 
 // Registration is the SDK name for the declare-registration input (Stage 1).
@@ -649,3 +736,12 @@ type UpdateRouteOutput = rpc.UpdateRouteOutput
 
 // ExecuteCommandOutput is the output for execute-command (runtime).
 type ExecuteCommandOutput = rpc.ExecuteCommandOutput
+
+// ConfigDiffSection describes what changed in a single config root (reload).
+type ConfigDiffSection = rpc.ConfigDiffSection
+
+// ConfigVerifyOutput is the output for config-verify (reload).
+type ConfigVerifyOutput = rpc.ConfigVerifyOutput
+
+// ConfigApplyOutput is the output for config-apply (reload).
+type ConfigApplyOutput = rpc.ConfigApplyOutput

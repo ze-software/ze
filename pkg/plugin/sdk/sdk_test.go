@@ -635,6 +635,377 @@ func TestSDKExecuteCommand(t *testing.T) {
 	}
 }
 
+// TestSDKDispatchConfigVerify verifies config-verify dispatch in the event loop.
+//
+// VALIDATES: Engine sends config-verify, SDK dispatches to registered handler.
+// PREVENTS: config-verify rejected as unknown method during runtime.
+func TestSDKDispatchConfigVerify(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	verifyReceived := make(chan []ConfigSection, 1)
+	p.OnConfigVerify(func(sections []ConfigSection) error {
+		verifyReceived <- sections
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-verify request
+	verifyInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{Sections: []ConfigSection{{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	require.NoError(t, err)
+
+	// Parse response — should be OK with status
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	// Verify callback was invoked
+	select {
+	case got := <-verifyReceived:
+		require.Len(t, got, 1)
+		assert.Equal(t, "bgp", got[0].Root)
+	case <-time.After(time.Second):
+		t.Fatal("config-verify callback not called")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDispatchConfigApply verifies config-apply dispatch in the event loop.
+//
+// VALIDATES: Engine sends config-apply, SDK dispatches to registered handler.
+// PREVENTS: config-apply rejected as unknown method during runtime.
+func TestSDKDispatchConfigApply(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	applyReceived := make(chan []ConfigDiffSection, 1)
+	p.OnConfigApply(func(sections []ConfigDiffSection) error {
+		applyReceived <- sections
+		return nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-apply request
+	applyInput := struct {
+		Sections []ConfigDiffSection `json:"sections"`
+	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{"peer":{"p1":{}}}`, Changed: `{"router-id":"5.6.7.8"}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error)
+
+	var result struct {
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	// Verify callback was invoked
+	select {
+	case got := <-applyReceived:
+		require.Len(t, got, 1)
+		assert.Equal(t, "bgp", got[0].Root)
+		assert.Equal(t, `{"peer":{"p1":{}}}`, got[0].Added)
+	case <-time.After(time.Second):
+		t.Fatal("config-apply callback not called")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKConfigVerifyReject verifies handler rejection produces status "error" response.
+//
+// VALIDATES: Handler returning error → SDK sends {status:"error", error:"..."}.
+// PREVENTS: Validation rejections being silently swallowed or misformatted.
+func TestSDKConfigVerifyReject(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnConfigVerify(func(sections []ConfigSection) error {
+		return fmt.Errorf("invalid config: missing router-id")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-verify — handler will reject
+	verifyInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{Sections: []ConfigSection{{Root: "bgp", Data: `{"invalid":true}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	require.NoError(t, err)
+
+	// Response should be a result (not RPC error) with status "error"
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error, "rejection should be in result, not RPC error")
+
+	var result struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "error", result.Status)
+	assert.Equal(t, "invalid config: missing router-id", result.Error)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKConfigApplyReject verifies handler rejection produces status "error" response.
+//
+// VALIDATES: Handler returning error → SDK sends {status:"error", error:"..."}.
+// PREVENTS: Apply rejections being silently swallowed or misformatted.
+func TestSDKConfigApplyReject(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnConfigApply(func(sections []ConfigDiffSection) error {
+		return fmt.Errorf("cannot apply: peer limit exceeded")
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-apply — handler will reject
+	applyInput := struct {
+		Sections []ConfigDiffSection `json:"sections"`
+	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{"peer":{"p99":{}}}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error, "rejection should be in result, not RPC error")
+
+	var result struct {
+		Status string `json:"status"`
+		Error  string `json:"error"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "error", result.Status)
+	assert.Equal(t, "cannot apply: peer limit exceeded", result.Error)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKConfigVerifyNoHandler verifies graceful no-op when no config-verify handler is set.
+//
+// VALIDATES: config-verify with no handler returns OK (not error).
+// PREVENTS: Plugins without config handling crashing on config-verify.
+func TestSDKConfigVerifyNoHandler(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+	// No OnConfigVerify registered
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-verify — no handler should still get OK
+	verifyInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{Sections: []ConfigSection{{Root: "bgp", Data: `{}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error, "no-handler config-verify should succeed, not error")
+
+	var result struct {
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKConfigApplyNoHandler verifies graceful no-op when no config-apply handler is set.
+//
+// VALIDATES: config-apply with no handler returns OK (not error).
+// PREVENTS: Plugins without config handling crashing on config-apply.
+func TestSDKConfigApplyNoHandler(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+	// No OnConfigApply registered
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send config-apply — no handler should still get OK
+	applyInput := struct {
+		Sections []ConfigDiffSection `json:"sections"`
+	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{}`}}}
+
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	require.NoError(t, err)
+
+	var probe struct {
+		Error  string          `json:"error,omitempty"`
+		Result json.RawMessage `json:"result,omitempty"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &probe))
+	assert.Empty(t, probe.Error, "no-handler config-apply should succeed, not error")
+
+	var result struct {
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
 // TestSDKUpdateRoute verifies the plugin can call update-route on the engine.
 //
 // VALIDATES: SDK UpdateRoute sends RPC to engine and parses response.

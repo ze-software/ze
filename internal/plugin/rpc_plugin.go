@@ -168,6 +168,44 @@ func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command st
 	return &out, nil
 }
 
+// SendConfigVerify sends a config verification request to the plugin.
+// Returns the plugin's validation result (status + optional error).
+func (pc *PluginConn) SendConfigVerify(ctx context.Context, sections []rpc.ConfigSection) (*rpc.ConfigVerifyOutput, error) {
+	input := &rpc.ConfigVerifyInput{Sections: sections}
+	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:config-verify", input)
+	if err != nil {
+		return nil, err
+	}
+	result, err := rpc.ParseResponse(raw)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigVerifyOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-verify result: %w", err)
+	}
+	return &out, nil
+}
+
+// SendConfigApply sends a config apply request to the plugin.
+// Returns the plugin's apply result (status + optional error).
+func (pc *PluginConn) SendConfigApply(ctx context.Context, sections []rpc.ConfigDiffSection) (*rpc.ConfigApplyOutput, error) {
+	input := &rpc.ConfigApplyInput{Sections: sections}
+	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:config-apply", input)
+	if err != nil {
+		return nil, err
+	}
+	result, err := rpc.ParseResponse(raw)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ConfigApplyOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal config-apply result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendBye sends a shutdown request to the plugin.
 func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}
