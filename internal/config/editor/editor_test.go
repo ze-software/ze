@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -480,9 +481,385 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 	// Create editor
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck
+	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Diff should be empty
 	diff := ed.PendingEditDiff()
 	assert.Empty(t, diff, "no changes should produce empty diff")
+}
+
+// --- Tree-canonical tests (spec-editor-tree-canonical) ---
+
+// validBGPConfig is a parseable config for tree tests.
+const validBGPConfig = `bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		hold-time 90;
+	}
+}
+`
+
+// writeTestConfig writes a config to a temp file and returns the path.
+func writeTestConfig(t *testing.T, content string) string {
+	t.Helper()
+	configPath := filepath.Join(t.TempDir(), "test.conf")
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+	return configPath
+}
+
+// TestEditorTreeValid verifies treeValid is set when config parses.
+//
+// VALIDATES: NewEditor sets treeValid=true and stores schema for valid configs.
+// PREVENTS: Tree always invalid, falling back to raw text.
+func TestEditorTreeValid(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	assert.True(t, ed.treeValid, "treeValid should be true for parseable config")
+	assert.NotNil(t, ed.schema, "schema should be stored")
+	assert.NotNil(t, ed.tree, "tree should be populated")
+}
+
+// TestEditorTreeInvalidFallback verifies treeValid is false for unparseable configs.
+//
+// VALIDATES: Editor gracefully handles invalid configs by leaving treeValid false.
+// PREVENTS: Crash when opening garbled config files.
+func TestEditorTreeInvalidFallback(t *testing.T) {
+	configPath := writeTestConfig(t, `this is not { valid } config syntax !!!`)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	assert.False(t, ed.treeValid, "treeValid should be false for unparseable config")
+}
+
+// TestEditorTreeNavigation verifies WalkPath navigates containers.
+//
+// VALIDATES: WalkPath(["bgp"]) returns the bgp container subtree.
+// PREVENTS: Tree navigation returning nil for valid paths.
+func TestEditorTreeNavigation(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp, "WalkPath should find 'bgp' container")
+
+	// Verify we can read values inside the container
+	rid, ok := bgp.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "1.2.3.4", rid)
+}
+
+// TestEditorTreeNavigationListKey verifies WalkPath navigates through list entries.
+//
+// VALIDATES: WalkPath(["bgp","peer","1.1.1.1"]) navigates through list keyed by peer address.
+// PREVENTS: List entries unreachable via tree navigation.
+func TestEditorTreeNavigationListKey(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	require.NotNil(t, peer, "WalkPath should find peer 1.1.1.1 via list navigation")
+
+	peerAS, ok := peer.Get("peer-as")
+	assert.True(t, ok)
+	assert.Equal(t, "65001", peerAS)
+}
+
+// TestEditorTreeNavigationMissing verifies WalkPath returns nil for nonexistent paths.
+//
+// VALIDATES: WalkPath returns nil (not crash) for missing path elements.
+// PREVENTS: Panic on invalid path navigation.
+func TestEditorTreeNavigationMissing(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	assert.Nil(t, ed.WalkPath([]string{"nonexistent"}), "missing top-level should return nil")
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "9.9.9.9"}), "missing peer should return nil")
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "nonexistent"}), "missing child should return nil")
+}
+
+// TestEditorTreeSet verifies SetValue mutates tree and marks dirty.
+//
+// VALIDATES: SetValue changes a value in the tree and sets dirty flag.
+// PREVENTS: Mutations silently lost, dirty flag not set.
+func TestEditorTreeSet(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty(), "editor should be dirty after SetValue")
+
+	// Verify tree was mutated
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp)
+	rid, ok := bgp.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "5.6.7.8", rid)
+}
+
+// TestEditorTreeSetNewKey verifies SetValue creates a new key.
+//
+// VALIDATES: SetValue adds a key that didn't exist before.
+// PREVENTS: SetValue only updating existing keys, ignoring new ones.
+func TestEditorTreeSetNewKey(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "description", "test-peer")
+	require.NoError(t, err)
+
+	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	require.NotNil(t, peer)
+	desc, ok := peer.Get("description")
+	assert.True(t, ok)
+	assert.Equal(t, "test-peer", desc)
+}
+
+// TestEditorTreeDelete verifies DeleteValue removes a leaf from the tree.
+//
+// VALIDATES: DeleteValue removes a key-value pair from the tree.
+// PREVENTS: Delete being a no-op stub.
+func TestEditorTreeDelete(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+
+	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	require.NotNil(t, peer)
+	_, ok := peer.Get("hold-time")
+	assert.False(t, ok, "hold-time should be deleted")
+}
+
+// TestEditorTreeDeleteContainer verifies DeleteContainer removes a block.
+//
+// VALIDATES: DeleteContainer removes an entire container from the tree.
+// PREVENTS: Container deletion not working.
+func TestEditorTreeDeleteContainer(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteContainer([]string{}, "bgp")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+	assert.Nil(t, ed.WalkPath([]string{"bgp"}), "bgp should be gone after delete")
+}
+
+// TestEditorTreeDeleteListEntry verifies DeleteListEntry removes a peer.
+//
+// VALIDATES: DeleteListEntry removes a keyed list entry.
+// PREVENTS: List entry deletion not working.
+func TestEditorTreeDeleteListEntry(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteListEntry([]string{"bgp"}, "peer", "1.1.1.1")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"}), "peer should be gone")
+}
+
+// TestEditorDeleteByPathListEntry verifies DeleteByPath detects list entries via schema.
+//
+// VALIDATES: DeleteByPath with path ["bgp","peer","1.1.1.1"] uses schema to find
+// that "peer" is a ListNode and calls DeleteListEntry.
+// PREVENTS: delete bgp peer 1.1.1.1 failing because WalkPath can't resolve list paths.
+func TestEditorDeleteByPathListEntry(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteByPath([]string{"bgp", "peer", "1.1.1.1"})
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"}), "peer should be gone")
+}
+
+// TestEditorDeleteByPathLeaf verifies DeleteByPath removes a leaf value.
+//
+// VALIDATES: DeleteByPath with leaf path uses DeleteValue.
+// PREVENTS: Leaf deletion broken by schema-aware path logic.
+func TestEditorDeleteByPathLeaf(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteByPath([]string{"bgp", "router-id"})
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp)
+	_, ok := bgp.Get("router-id")
+	assert.False(t, ok, "router-id should be deleted")
+}
+
+// TestEditorDeleteByPathContainer verifies DeleteByPath removes a container.
+//
+// VALIDATES: DeleteByPath with container path uses DeleteContainer.
+// PREVENTS: Container deletion broken by schema-aware path logic.
+func TestEditorDeleteByPathContainer(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.DeleteByPath([]string{"bgp"})
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+	assert.Nil(t, ed.WalkPath([]string{"bgp"}), "bgp should be gone")
+}
+
+// TestEditorContentAfterSet verifies WorkingContent returns serialized tree.
+//
+// VALIDATES: After SetValue, WorkingContent() returns Serialize(tree) containing the new value.
+// PREVENTS: WorkingContent returning stale raw text after tree mutation.
+func TestEditorContentAfterSet(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "9.9.9.9", "serialized output should contain new value")
+	assert.NotContains(t, content, "1.2.3.4", "serialized output should not contain old value")
+}
+
+// TestEditorSerializeRoundtrip verifies tree → serialize → parse → tree equality.
+//
+// VALIDATES: Serialize(tree) produces valid config that re-parses to equivalent tree.
+// PREVENTS: Serialization losing or corrupting data.
+func TestEditorSerializeRoundtrip(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	// Mutate
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Get serialized content
+	content := ed.WorkingContent()
+
+	// Parse again
+	schema := config.YANGSchema()
+	parser := config.NewParser(schema)
+	tree2, err := parser.Parse(content)
+	require.NoError(t, err, "serialized content should be parseable")
+
+	// Verify the value survived the round-trip
+	bgp := tree2.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	rid, ok := bgp.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "9.9.9.9", rid)
+}
+
+// TestEditorSaveSerialized verifies Save writes Serialize(tree) to disk.
+//
+// VALIDATES: Save() writes serialized tree content, not stale raw text.
+// PREVENTS: Save writing outdated workingContent after tree mutations.
+func TestEditorSaveSerialized(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	// Mutate via tree
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Save
+	err = ed.Save()
+	require.NoError(t, err)
+
+	// Read from disk
+	data, err := os.ReadFile(configPath) //nolint:gosec // test path
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "9.9.9.9", "saved file should contain new value")
+	assert.NotContains(t, string(data), "1.2.3.4", "saved file should not contain old value")
+}
+
+// TestEditorDiscardReparse verifies Discard re-parses original into tree.
+//
+// VALIDATES: After Discard(), tree is restored to original parsed state.
+// PREVENTS: Discard leaving tree in mutated state.
+func TestEditorDiscardReparse(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	// Mutate
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Discard
+	err = ed.Discard()
+	require.NoError(t, err)
+
+	// Tree should be back to original
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp)
+	rid, ok := bgp.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "1.2.3.4", rid, "after discard, tree should have original value")
+	assert.True(t, ed.treeValid, "treeValid should still be true after discard")
+}
+
+// TestEditorSetWorkingContentParse verifies SetWorkingContent parses into tree.
+//
+// VALIDATES: SetWorkingContent() parses text into tree for backward compat.
+// PREVENTS: SetWorkingContent leaving tree stale after text-based load.
+func TestEditorSetWorkingContentParse(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	// Load new content via SetWorkingContent (simulates load command)
+	newContent := `bgp {
+	router-id 5.6.7.8;
+	local-as 65001;
+}
+`
+	ed.SetWorkingContent(newContent)
+
+	// Tree should reflect new content
+	bgp := ed.WalkPath([]string{"bgp"})
+	require.NotNil(t, bgp, "tree should be updated from SetWorkingContent")
+	rid, ok := bgp.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "5.6.7.8", rid)
 }

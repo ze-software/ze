@@ -1,6 +1,6 @@
-# Test: Edit with wildcard enters template mode
-# VALIDATES: "edit peer *" creates template context
-# VALIDATES: Template mode flag is set
+# Test: Edit with wildcard returns error (template mode deferred)
+# VALIDATES: "edit peer *" returns error since template mode is not yet supported
+# PREVENTS: Silent failure when using deferred features
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -17,9 +17,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Edit with wildcard
-input=type:text=edit peer *
+# Edit with wildcard should return error (template mode deferred)
+input=type:text=edit bgp peer *
 input=enter
-expect=template:true
-expect=context:path=bgp.peer.*
-expect=error:none
+expect=error:contains=not yet supported

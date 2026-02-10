@@ -426,3 +426,57 @@ neighbor 192.0.2.1 {
 	_, ok = origN.Get("hold-time")
 	require.False(t, ok, "original neighbor should not have hold-time after clone modification")
 }
+
+// TestTreeDeleteValue verifies Tree.Delete removes a leaf value.
+//
+// VALIDATES: Delete removes an existing leaf value and its valuesOrder entry.
+// PREVENTS: Stale values remaining in tree after deletion.
+func TestTreeDeleteValue(t *testing.T) {
+	tree := NewTree()
+	tree.Set("router-id", "1.2.3.4")
+	tree.Set("local-as", "65000")
+
+	// Delete existing key
+	tree.Delete("router-id")
+
+	_, ok := tree.Get("router-id")
+	require.False(t, ok, "deleted value should not be present")
+
+	// Other value should still exist
+	val, ok := tree.Get("local-as")
+	require.True(t, ok)
+	require.Equal(t, "65000", val)
+}
+
+// TestTreeDeleteValueOrder verifies Tree.Delete also removes from valuesOrder.
+//
+// VALIDATES: After Delete, Values() no longer includes the deleted key.
+// PREVENTS: Orphaned keys in valuesOrder causing stale iteration.
+func TestTreeDeleteValueOrder(t *testing.T) {
+	tree := NewTree()
+	tree.Set("a", "1")
+	tree.Set("b", "2")
+	tree.Set("c", "3")
+
+	tree.Delete("b")
+
+	values := tree.Values()
+	require.Equal(t, []string{"a", "c"}, values)
+}
+
+// TestTreeDeleteNonexistent verifies Tree.Delete on a missing key is a no-op.
+//
+// VALIDATES: Delete on nonexistent key does not panic or corrupt state.
+// PREVENTS: Panic on deleting keys that don't exist.
+func TestTreeDeleteNonexistent(t *testing.T) {
+	tree := NewTree()
+	tree.Set("a", "1")
+
+	// Should not panic
+	tree.Delete("nonexistent")
+
+	// Original value still intact
+	val, ok := tree.Get("a")
+	require.True(t, ok)
+	require.Equal(t, "1", val)
+}

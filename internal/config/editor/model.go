@@ -1169,27 +1169,25 @@ func (m *Model) cmdUp() (commandResult, error) {
 
 	content := m.editor.WorkingContent()
 
-	// Try removing elements from the end until we find a valid parent
-	// Blocks can be 1 element (e.g., "bgp") or 2 elements (e.g., "peer", "1.1.1.1")
-	// We try removing the minimum that gives us a valid parent
-	for removeCount := 1; removeCount <= 2 && removeCount < len(m.contextPath); removeCount++ {
+	// Try removing elements from the end until we find a valid parent.
+	// Containers are 1 element (e.g., "bgp"), list entries are 2 (e.g., "peer", "1.1.1.1").
+	// Use WalkPath to verify the parent exists in the tree.
+	for removeCount := 1; removeCount <= 2 && removeCount <= len(m.contextPath); removeCount++ {
 		newContext := m.contextPath[:len(m.contextPath)-removeCount]
 
 		if len(newContext) == 0 {
-			// Going to root
 			return commandResult{
 				clearContext: true,
 				configView:   &viewportData{content: content, lineMapping: nil},
 			}, nil
 		}
 
-		// Check if this parent context is valid (has content)
-		data := filterContentByContextPath(content, newContext)
-		if data.content != "" {
+		// Verify this parent path resolves in the tree
+		if m.editor.WalkPath(newContext) != nil {
 			return commandResult{
 				newContext: newContext,
 				isTemplate: false,
-				configView: &data,
+				configView: &viewportData{content: content, lineMapping: nil},
 			}, nil
 		}
 	}
@@ -1206,74 +1204,39 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("usage: edit <path>")
 	}
 
-	content := m.editor.WorkingContent()
-
 	// Check for wildcard template (e.g., "edit peer *")
 	if len(args) >= 2 && args[len(args)-1] == "*" {
-		// Template mode: find parent block, not the wildcard itself
-		// For "peer *", find where "peer X" blocks exist and use that parent
-		keyword := args[0]
-		parentPath := findParentOfKeyword(content, keyword)
-
-		// Build template context: parent + keyword + "*"
-		var templatePath []string
-		if parentPath != nil {
-			templatePath = append(templatePath, parentPath...)
-		}
-		templatePath = append(templatePath, keyword, "*")
-
-		// Show parent block content (where peers are defined)
-		var data viewportData
-		if parentPath != nil {
-			data = filterContentByContextPath(content, parentPath)
-		} else {
-			data = viewportData{content: "(template: no existing " + keyword + " blocks)", lineMapping: nil}
-		}
-
-		return commandResult{
-			newContext: templatePath,
-			isTemplate: true,
-			configView: &data,
-		}, nil
+		// Template editing deferred to Part 2/3
+		return commandResult{}, fmt.Errorf("template editing (wildcard *) not yet supported in tree mode")
 	}
 
-	// Regular edit: find the full hierarchical path to this target
-	fullPath := findFullContextPath(content, args)
+	// Build full path: current context + args (JUNOS-style relative navigation)
+	fullPath := make([]string, 0, len(m.contextPath)+len(args))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, args...)
 
-	if fullPath == nil {
+	// Verify the path exists in the tree
+	if m.editor.WalkPath(fullPath) == nil {
 		return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
 	}
 
-	// Get filtered content for this context
-	data := filterContentByContextPath(content, fullPath)
-
+	content := m.editor.WorkingContent()
 	return commandResult{
 		newContext: fullPath,
 		isTemplate: false,
-		configView: &data,
+		configView: &viewportData{content: content, lineMapping: nil},
 	}, nil
 }
 
 // showConfigContent displays config content in viewport with proper highlighting.
-// Handles context filtering and line mapping automatically.
 // Used only in WindowSizeMsg handler for initial display.
+// Part 1: always shows full serialized tree (subtree filtering deferred to Part 2).
 func (m *Model) showConfigContent() {
 	content := m.editor.WorkingContent()
 	if content == "" {
 		m.setViewportText("(empty configuration)")
 		return
 	}
-
-	// If we have a context path, try to show only that section
-	if len(m.contextPath) > 0 {
-		data := m.filterContentByContext(content)
-		if data.content != "" {
-			m.setViewportData(data)
-			return
-		}
-	}
-
-	// Full content - no line mapping needed
 	m.setViewportData(viewportData{content: content, lineMapping: nil})
 }
 
@@ -1282,248 +1245,8 @@ func (m *Model) cmdShow(_ []string) (commandResult, error) {
 	if content == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
-
-	// If we have a context path, try to show only that section
-	if len(m.contextPath) > 0 {
-		data := m.filterContentByContext(content)
-		if data.content != "" {
-			return commandResult{configView: &data}, nil
-		}
-	}
-
-	// Full content - no line mapping needed
+	// Part 1: always show full serialized tree (subtree filtering deferred to Part 2)
 	return commandResult{configView: &viewportData{content: content, lineMapping: nil}}, nil
-}
-
-// filterContentByContext extracts the inner content of the section matching the current context.
-// Returns viewportData with filtered content and line mapping.
-func (m *Model) filterContentByContext(content string) viewportData {
-	return filterContentByContextPath(content, m.contextPath)
-}
-
-// findParentOfKeyword finds the parent block path where blocks of the given keyword exist.
-// For example, if keyword is "peer" and config has "bgp { peer 1.1.1.1 { } }",
-// returns ["bgp"].
-func findParentOfKeyword(content string, keyword string) []string {
-	lines := strings.Split(content, "\n")
-	var blockStack []string
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Process closing braces first
-		if strings.Contains(trimmed, "}") {
-			beforeOpen := trimmed
-			if before, _, found := strings.Cut(trimmed, "{"); found {
-				beforeOpen = before
-			}
-			closeBraces := strings.Count(beforeOpen, "}")
-			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
-				blockStack = blockStack[:len(blockStack)-1]
-			}
-		}
-
-		// Check for block opening
-		if strings.Contains(trimmed, "{") {
-			blockPart := strings.TrimSuffix(trimmed, "{")
-			blockPart = strings.TrimSpace(blockPart)
-			if idx := strings.LastIndex(blockPart, "}"); idx >= 0 {
-				blockPart = strings.TrimSpace(blockPart[idx+1:])
-			}
-
-			if blockPart != "" {
-				// Check if this block starts with our keyword
-				if strings.HasPrefix(blockPart, keyword+" ") || blockPart == keyword {
-					// Found a block of this type - return the parent (current stack)
-					if len(blockStack) == 0 {
-						return nil // At root level
-					}
-					// Split each stack element into path parts
-					var result []string
-					for _, elem := range blockStack {
-						result = append(result, tokenizeCommand(elem)...)
-					}
-					return result
-				}
-
-				// Push this block onto the stack (keep as single element for correct } tracking)
-				blockStack = append(blockStack, blockPart)
-			}
-		}
-	}
-
-	return nil // Not found
-}
-
-// findFullContextPath finds the full hierarchical path to a target block.
-// For example, if target is ["peer", "1.1.1.1"] and config has:
-//
-//	bgp { peer 1.1.1.1 { ... } }
-//
-// Returns ["bgp", "peer", "1.1.1.1"], or nil if not found.
-func findFullContextPath(content string, target []string) []string {
-	if len(target) == 0 {
-		return nil
-	}
-
-	// Build the pattern to match (e.g., "peer 1.1.1.1" or "peer \"my peer\"")
-	targetPattern := target[0]
-	if len(target) > 1 && target[1] != "*" {
-		// Keys with spaces, tabs, or quotes need quoting with escapes
-		if strings.ContainsAny(target[1], " \t\"") {
-			escaped := strings.ReplaceAll(target[1], `\`, `\\`)
-			escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-			targetPattern += " \"" + escaped + "\""
-		} else {
-			targetPattern += " " + target[1]
-		}
-	}
-
-	lines := strings.Split(content, "\n")
-	var blockStack []string // Stack of block names we're inside
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Process closing braces FIRST to handle "} foo {" correctly
-		if strings.Contains(trimmed, "}") {
-			// Count closes before any opening brace
-			beforeOpen := trimmed
-			if before, _, found := strings.Cut(trimmed, "{"); found {
-				beforeOpen = before
-			}
-			closeBraces := strings.Count(beforeOpen, "}")
-			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
-				blockStack = blockStack[:len(blockStack)-1]
-			}
-		}
-
-		// Check for block opening: "name {" or "name value {"
-		if strings.Contains(trimmed, "{") {
-			// Extract block name (everything before the brace)
-			blockPart := strings.TrimSuffix(trimmed, "{")
-			blockPart = strings.TrimSpace(blockPart)
-			// Remove any leading } from lines like "} foo {"
-			if idx := strings.LastIndex(blockPart, "}"); idx >= 0 {
-				blockPart = strings.TrimSpace(blockPart[idx+1:])
-			}
-
-			if blockPart != "" {
-				// Check if this is our target (exact match, not prefix)
-				if blockPart == targetPattern {
-					// Found it! Return full path
-					// Split each stack element into path parts (e.g., "peer 1.1.1.1" -> ["peer", "1.1.1.1"])
-					var result []string
-					for _, elem := range blockStack {
-						result = append(result, tokenizeCommand(elem)...)
-					}
-					// Add the target components
-					result = append(result, target...)
-					return result
-				}
-
-				// Push this block onto the stack (keep as single element for correct } tracking)
-				blockStack = append(blockStack, blockPart)
-			}
-		}
-	}
-
-	// Not found
-	return nil
-}
-
-// filterContentByContextPath extracts content for a given hierarchical context path.
-// Handles multi-level paths like ["bgp", "peer", "1.1.1.1"].
-func filterContentByContextPath(content string, contextPath []string) viewportData {
-	if len(contextPath) == 0 {
-		return viewportData{content: content, lineMapping: nil}
-	}
-
-	lines := strings.Split(content, "\n")
-	var result strings.Builder
-	lineMapping := make(map[int]int) // filtered line (1-based) → original line (1-based)
-
-	// We need to drill down through each level of the path
-	// Track which level we're looking for and our current depth
-	targetLevel := 0
-	inTarget := false
-	targetDepth := 0
-	currentDepth := 0
-	filteredLineNum := 0
-
-	for origIdx, line := range lines {
-		origLineNum := origIdx + 1
-		trimmed := strings.TrimSpace(line)
-
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		if !inTarget {
-			// Looking for the next level in our path
-			if targetLevel < len(contextPath) && strings.Contains(trimmed, "{") {
-				// Extract block name (everything before the brace)
-				blockPart := strings.TrimSuffix(trimmed, "{")
-				blockPart = strings.TrimSpace(blockPart)
-
-				// Build expected pattern for current target level
-				pattern := contextPath[targetLevel]
-				// Check if next element is a value (keyword + value style like "peer 1.1.1.1")
-				if targetLevel+1 < len(contextPath) && contextPath[targetLevel+1] != "*" {
-					nextPart := contextPath[targetLevel+1]
-					// Keys with spaces, tabs, or quotes need quoting with escapes
-					var fullPattern string
-					if strings.ContainsAny(nextPart, " \t\"") {
-						escaped := strings.ReplaceAll(nextPart, `\`, `\\`)
-						escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-						fullPattern = pattern + " \"" + escaped + "\""
-					} else {
-						fullPattern = pattern + " " + nextPart
-					}
-					if blockPart == fullPattern {
-						// Exact match for multi-part (e.g., "peer 1.1.1.1")
-						targetLevel += 2
-						if targetLevel >= len(contextPath) {
-							inTarget = true
-							targetDepth = currentDepth + openBraces
-						}
-						currentDepth += openBraces - closeBraces
-						continue
-					}
-				}
-				// Try single-part exact match (e.g., "bgp")
-				if blockPart == pattern {
-					targetLevel++
-					if targetLevel >= len(contextPath) {
-						inTarget = true
-						targetDepth = currentDepth + openBraces
-					}
-				}
-			}
-		} else {
-			// We're inside our target section
-			newDepth := currentDepth + openBraces - closeBraces
-			if newDepth < targetDepth {
-				break // Exited our section
-			}
-
-			// Include this line (dedented by target depth)
-			dedented := line
-			for i := 0; i < targetDepth; i++ {
-				dedented = strings.TrimPrefix(dedented, "\t")
-				dedented = strings.TrimPrefix(dedented, "    ")
-			}
-			if strings.TrimSpace(dedented) != "" {
-				filteredLineNum++
-				lineMapping[filteredLineNum] = origLineNum
-				result.WriteString(dedented)
-				result.WriteString("\n")
-			}
-		}
-
-		currentDepth += openBraces - closeBraces
-	}
-
-	return viewportData{content: result.String(), lineMapping: lineMapping}
 }
 
 func (m *Model) cmdHistory() (commandResult, error) {
@@ -1598,17 +1321,19 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
-	// Modify the config content
+	// Mutate the tree directly
+	if err := m.editor.SetValue(containerPath, key, value); err != nil {
+		return commandResult{}, fmt.Errorf("set failed: %w", err)
+	}
+
+	// Update completer with mutated tree
+	m.completer.SetTree(m.editor.Tree())
+
 	content := m.editor.WorkingContent()
-	newContent := setValueInConfig(content, containerPath, key, value)
-
-	m.editor.SetWorkingContent(newContent)
-	m.editor.MarkDirty()
-
 	displayPath := append(append([]string{}, containerPath...), key)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value),
-		configView:    &viewportData{content: newContent, lineMapping: nil},
+		configView:    &viewportData{content: content, lineMapping: nil},
 		revalidate:    true,
 	}, nil
 }
@@ -1709,10 +1434,18 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
 
-	// For now, just acknowledge
-	m.editor.MarkDirty()
+	// Use schema-aware delete to handle leaf values, containers, and list entries.
+	if err := m.editor.DeleteByPath(fullPath); err != nil {
+		return commandResult{}, fmt.Errorf("delete failed: %w", err)
+	}
+
+	// Update completer with mutated tree
+	m.completer.SetTree(m.editor.Tree())
+
+	content := m.editor.WorkingContent()
 	return commandResult{
 		statusMessage: fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")),
+		configView:    &viewportData{content: content, lineMapping: nil},
 		revalidate:    true,
 	}, nil
 }
@@ -2318,181 +2051,6 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 	return strings.TrimSuffix(result.String(), "\n")
 }
 
-// setValueInConfig sets a leaf value at the specified path in the config.
-// containerPath is the path to the containing block (e.g., ["bgp", "peer", "1.1.1.1"]).
-// key is the leaf name (e.g., "description").
-// value is the new value (e.g., "test peer").
-func setValueInConfig(fullConfig string, containerPath []string, key, value string) string {
-	lines := strings.Split(fullConfig, "\n")
-	var result strings.Builder
-
-	// Setting at root level - just find/replace the key
-	if len(containerPath) == 0 {
-		return setRootLevelValue(fullConfig, key, value)
-	}
-
-	// Build the target pattern for the container block
-	// For single element path: just use the element (e.g., "bgp")
-	// For multi-element path: combine last two for list entries (e.g., "peer 1.1.1.1")
-	// Keys with spaces need quotes in the config (e.g., "peer \"my peer\"")
-	targetPattern := formatBlockPattern(containerPath)
-
-	inTarget := false
-	targetDepth := 0
-	currentDepth := 0
-	keyFound := false
-	keyWritten := false
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		if !inTarget {
-			// Looking for target block
-			if strings.Contains(trimmed, "{") {
-				blockPart := strings.TrimSuffix(trimmed, "{")
-				blockPart = strings.TrimSpace(blockPart)
-
-				if blockPart == targetPattern {
-					inTarget = true
-					targetDepth = currentDepth + openBraces
-				}
-			}
-			result.WriteString(line)
-			result.WriteString("\n")
-		} else {
-			// Inside target block
-			newDepth := currentDepth + openBraces - closeBraces
-
-			// Check if this line sets the key we're looking for
-			if newDepth == targetDepth && !keyFound {
-				lineKey := extractKeyFromLine(trimmed)
-				if lineKey == key {
-					// Replace this line with new value
-					indent := strings.Repeat("\t", targetDepth)
-					result.WriteString(indent)
-					result.WriteString(formatKeyValue(key, value))
-					result.WriteString("\n")
-					keyFound = true
-					keyWritten = true
-					currentDepth += openBraces - closeBraces
-					continue
-				}
-			}
-
-			// If we're about to exit the target block and haven't written the key yet
-			if newDepth < targetDepth && !keyWritten {
-				indent := strings.Repeat("\t", targetDepth)
-				result.WriteString(indent)
-				result.WriteString(formatKeyValue(key, value))
-				result.WriteString("\n")
-				keyWritten = true
-				inTarget = false
-			}
-
-			result.WriteString(line)
-			result.WriteString("\n")
-
-			if newDepth < targetDepth {
-				inTarget = false
-			}
-		}
-
-		currentDepth += openBraces - closeBraces
-	}
-
-	return strings.TrimSuffix(result.String(), "\n")
-}
-
-// setRootLevelValue sets a value at the root level of the config.
-func setRootLevelValue(fullConfig string, key, value string) string {
-	lines := strings.Split(fullConfig, "\n")
-	var result strings.Builder
-	keyFound := false
-	depth := 0
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		openBraces := strings.Count(trimmed, "{")
-		closeBraces := strings.Count(trimmed, "}")
-
-		// Only look for key at depth 0 (root level)
-		if depth == 0 && !keyFound {
-			lineKey := extractKeyFromLine(trimmed)
-			if lineKey == key {
-				result.WriteString(formatKeyValue(key, value))
-				result.WriteString("\n")
-				keyFound = true
-				depth += openBraces - closeBraces
-				continue
-			}
-		}
-
-		result.WriteString(line)
-		result.WriteString("\n")
-		depth += openBraces - closeBraces
-	}
-
-	// If key wasn't found, add it at the end
-	if !keyFound {
-		result.WriteString(formatKeyValue(key, value))
-		result.WriteString("\n")
-	}
-
-	return strings.TrimSuffix(result.String(), "\n")
-}
-
-// extractKeyFromLine extracts the key name from a config line.
-// Examples: "description \"test\";" -> "description", "local-as 65000;" -> "local-as".
-func extractKeyFromLine(line string) string {
-	line = strings.TrimSpace(line)
-	if line == "" || line == "}" || strings.HasSuffix(line, "{") {
-		return ""
-	}
-	// Get first word
-	parts := strings.Fields(line)
-	if len(parts) == 0 {
-		return ""
-	}
-	return parts[0]
-}
-
-// formatBlockPattern builds a pattern to match a block header in config.
-// For path ["bgp"], returns "bgp".
-// For path ["bgp", "peer", "1.1.1.1"], returns "peer 1.1.1.1".
-// For path ["bgp", "peer", "my peer"], returns "peer \"my peer\"" (quotes for spaces).
-func formatBlockPattern(containerPath []string) string {
-	if len(containerPath) == 0 {
-		return ""
-	}
-	if len(containerPath) == 1 {
-		return containerPath[0]
-	}
-	// Combine last two elements for list entries
-	keyword := containerPath[len(containerPath)-2]
-	key := containerPath[len(containerPath)-1]
-	// If key contains spaces, tabs, or quotes, it needs quoting with escapes
-	if strings.ContainsAny(key, " \t\"") {
-		escaped := strings.ReplaceAll(key, `\`, `\\`)
-		escaped = strings.ReplaceAll(escaped, `"`, `\"`)
-		return keyword + " \"" + escaped + "\""
-	}
-	return keyword + " " + key
-}
-
-// formatKeyValue formats a key-value pair for config output.
-func formatKeyValue(key, value string) string {
-	// If value contains spaces or special chars, quote it
-	needsQuote := strings.ContainsAny(value, " \t\"';{}") || value == ""
-	if needsQuote {
-		// Escape existing quotes in value
-		escaped := strings.ReplaceAll(value, "\"", "\\\"")
-		return key + " \"" + escaped + "\";"
-	}
-	return key + " " + value + ";"
-}
-
 // cmdShowPipe executes show with pipe filters.
 func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
 	content := m.editor.WorkingContent()
@@ -2500,13 +2058,7 @@ func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, er
 		return commandResult{output: "(empty configuration)"}, nil
 	}
 
-	// If we have a context path, filter to that section first
-	if len(m.contextPath) > 0 {
-		data := m.filterContentByContext(content)
-		if data.content != "" {
-			content = data.content
-		}
-	}
+	// Part 1: pipe filters apply to full serialized tree (subtree filtering deferred to Part 2)
 
 	// Apply pipe filters
 	output := content

@@ -16,11 +16,16 @@ import (
 )
 
 // Editor manages an editing session for a configuration file.
+// The tree is the canonical in-memory representation when treeValid is true.
+// WorkingContent() returns Serialize(tree) when tree is valid, otherwise falls
+// back to stored raw text for configs that can't be parsed.
 type Editor struct {
 	originalPath    string
 	originalContent string
-	workingContent  string
-	tree            *config.Tree // Parsed config tree
+	workingContent  string         // Fallback when tree can't parse
+	tree            *config.Tree   // Parsed config tree (canonical when treeValid)
+	schema          *config.Schema // YANG schema for Serialize
+	treeValid       bool           // True when tree was parsed successfully
 	dirty           bool
 	hasPendingEdit  bool // true if .edit file exists
 }
@@ -61,11 +66,16 @@ func NewEditor(configPath string) (*Editor, error) {
 		hasPending = true
 	}
 
+	// Parse succeeded if tree has content (not the empty fallback)
+	treeValid := err == nil
+
 	return &Editor{
 		originalPath:    configPath,
 		originalContent: content,
 		workingContent:  content,
 		tree:            tree,
+		schema:          schema,
+		treeValid:       treeValid,
 		dirty:           false,
 		hasPendingEdit:  hasPending,
 	}, nil
@@ -228,16 +238,290 @@ func (e *Editor) OriginalContent() string {
 }
 
 // WorkingContent returns the current working content.
+// When tree is valid, returns Serialize(tree, schema); otherwise raw text.
 func (e *Editor) WorkingContent() string {
+	if e.treeValid && e.tree != nil && e.schema != nil {
+		return config.Serialize(e.tree, e.schema)
+	}
 	return e.workingContent
 }
 
-// SetWorkingContent sets the working content.
+// SetWorkingContent sets the working content and parses it into the tree.
+// If parsing fails, falls back to raw text mode (treeValid = false).
 func (e *Editor) SetWorkingContent(content string) {
 	e.workingContent = content
+	if e.schema != nil {
+		parser := config.NewParser(e.schema)
+		tree, err := parser.Parse(content)
+		if err == nil {
+			e.tree = tree
+			e.treeValid = true
+		} else {
+			e.treeValid = false
+		}
+	}
 }
 
-// Save commits changes: creates backup of original, writes working content.
+// schemaGetter is any schema node that can look up children by name.
+// Satisfied by *config.Schema, *config.ContainerNode, *config.ListNode, *config.FlexNode.
+type schemaGetter interface {
+	Get(name string) config.Node
+}
+
+// WalkPath navigates the tree using the schema to distinguish containers from list keys.
+// Returns the subtree at the given path, or nil if the path doesn't resolve.
+func (e *Editor) WalkPath(path []string) *config.Tree {
+	if e.tree == nil || e.schema == nil || len(path) == 0 {
+		return nil
+	}
+
+	currentTree := e.tree
+	var currentSchema schemaGetter = e.schema
+
+	i := 0
+	for i < len(path) {
+		name := path[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil
+		}
+
+		navigable, next, step := walkSchemaNode(schemaNode, currentTree, name, path, i)
+		if !navigable || next == nil {
+			return nil
+		}
+		currentTree = next
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			currentSchema = n
+		case *config.ListNode:
+			currentSchema = n
+		case *config.FlexNode:
+			currentSchema = n
+		}
+		i += step
+	}
+
+	return currentTree
+}
+
+// walkSchemaNode resolves one step of tree navigation based on the schema node type.
+// Returns (navigable, subtree, step). step is how many path elements were consumed
+// (2 for keyed list entries, 1 for containers and anonymous list entries).
+func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path []string, i int) (bool, *config.Tree, int) {
+	switch n := schemaNode.(type) {
+	case *config.ContainerNode:
+		return true, tree.GetContainer(name), 1
+	case *config.ListNode:
+		entries := tree.GetList(name)
+		// Determine if next path element is a key or an anonymous entry.
+		// Anonymous: no next element, or next element is a schema child of the list.
+		if i+1 >= len(path) || n.Get(path[i+1]) != nil {
+			// Anonymous list entry — use KeyDefault
+			if entries == nil {
+				return true, nil, 1
+			}
+			return true, entries[config.KeyDefault], 1
+		}
+		// Keyed list entry — next path element is the key
+		key := path[i+1]
+		if entries == nil {
+			return true, nil, 2
+		}
+		return true, entries[key], 2
+	case *config.FlexNode:
+		return true, tree.GetContainer(name), 1
+	case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+		*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
+		*config.InlineListNode:
+		return false, nil, 0 // Leaf-like nodes — can't navigate deeper
+	}
+	return false, nil, 0 // Unknown node type
+}
+
+// walkOrCreate navigates the tree, creating containers along the way.
+func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
+	if e.tree == nil || e.schema == nil {
+		return nil, fmt.Errorf("tree or schema not available")
+	}
+	if len(path) == 0 {
+		return e.tree, nil
+	}
+
+	currentTree := e.tree
+	var currentSchema schemaGetter = e.schema
+
+	i := 0
+	for i < len(path) {
+		name := path[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil, fmt.Errorf("unknown path element: %s", name)
+		}
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			currentTree = currentTree.GetOrCreateContainer(name)
+			currentSchema = n
+			i++
+		case *config.ListNode:
+			// Determine anonymous vs keyed: anonymous if no next element
+			// or next element is a schema child of the list.
+			var key string
+			var step int
+			if i+1 >= len(path) || n.Get(path[i+1]) != nil {
+				key = config.KeyDefault
+				step = 1
+			} else {
+				key = path[i+1]
+				step = 2
+			}
+			entries := currentTree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				entry := config.NewTree()
+				currentTree.AddListEntry(name, key, entry)
+				currentTree = entry
+			} else {
+				currentTree = entries[key]
+			}
+			currentSchema = n
+			i += step
+		case *config.FlexNode:
+			currentTree = currentTree.GetOrCreateContainer(name)
+			currentSchema = n
+			i++
+		case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
+			*config.InlineListNode:
+			return nil, fmt.Errorf("cannot navigate into %s (leaf node)", name)
+		}
+	}
+
+	return currentTree, nil
+}
+
+// SetValue sets a leaf value at the given path in the tree.
+func (e *Editor) SetValue(path []string, key, value string) error {
+	target, err := e.walkOrCreate(path)
+	if err != nil {
+		return err
+	}
+	target.Set(key, value)
+	e.dirty = true
+	return nil
+}
+
+// DeleteValue removes a leaf value at the given path in the tree.
+func (e *Editor) DeleteValue(path []string, key string) error {
+	target := e.WalkPath(path)
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	target.Delete(key)
+	e.dirty = true
+	return nil
+}
+
+// DeleteContainer removes a container at the given path in the tree.
+func (e *Editor) DeleteContainer(path []string, name string) error {
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	target.DeleteContainer(name)
+	e.dirty = true
+	return nil
+}
+
+// DeleteByPath deletes the element at the given absolute path using schema awareness.
+// It determines whether the target is a leaf, container, or list entry and calls
+// the appropriate delete method.
+func (e *Editor) DeleteByPath(fullPath []string) error {
+	if len(fullPath) == 0 {
+		return fmt.Errorf("empty path")
+	}
+	if e.schema == nil {
+		return fmt.Errorf("schema not available")
+	}
+
+	// Walk the schema to find what the second-to-last element is.
+	// If it's a ListNode, the last element is a key → DeleteListEntry.
+	// Otherwise, last element is a leaf or container name.
+	if len(fullPath) >= 2 {
+		possibleListName := fullPath[len(fullPath)-2]
+		possibleKey := fullPath[len(fullPath)-1]
+		parentPath := fullPath[:len(fullPath)-2]
+
+		// Walk schema to the parent of possibleListName
+		parentSchema := e.walkSchema(parentPath)
+		if parentSchema != nil {
+			schemaNode := parentSchema.Get(possibleListName)
+			if _, isList := schemaNode.(*config.ListNode); isList {
+				return e.DeleteListEntry(parentPath, possibleListName, possibleKey)
+			}
+		}
+	}
+
+	// Not a list entry: try leaf delete, then container delete
+	target := fullPath[len(fullPath)-1]
+	parentPath := fullPath[:len(fullPath)-1]
+
+	if err := e.DeleteValue(parentPath, target); err != nil {
+		if errC := e.DeleteContainer(parentPath, target); errC != nil {
+			return fmt.Errorf("not found: %s", strings.Join(fullPath, " "))
+		}
+	}
+	return nil
+}
+
+// walkSchema walks the schema tree along the given path, returning the schema node
+// at the end of the path (or nil if any element is not found or not navigable).
+func (e *Editor) walkSchema(path []string) schemaGetter {
+	var current schemaGetter = e.schema
+	for _, name := range path {
+		node := current.Get(name)
+		if node == nil {
+			return nil
+		}
+		switch n := node.(type) {
+		case *config.ContainerNode:
+			current = n
+		case *config.ListNode:
+			current = n
+		case *config.FlexNode:
+			current = n
+		case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
+			*config.InlineListNode:
+			return nil // Can't navigate into leaf nodes
+		}
+	}
+	return current
+}
+
+// DeleteListEntry removes a list entry at the given path in the tree.
+func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
+	var target *config.Tree
+	if len(path) == 0 {
+		target = e.tree
+	} else {
+		target = e.WalkPath(path)
+	}
+	if target == nil {
+		return fmt.Errorf("path not found")
+	}
+	target.RemoveListEntry(listName, key)
+	e.dirty = true
+	return nil
+}
+
+// Save commits changes: creates backup of original, writes serialized tree.
 func (e *Editor) Save() error {
 	if !e.dirty {
 		return nil
@@ -248,13 +532,14 @@ func (e *Editor) Save() error {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
-	// Write working content to original path
-	if err := os.WriteFile(e.originalPath, []byte(e.workingContent), 0600); err != nil {
+	// Write serialized tree (or raw text fallback) to original path
+	content := e.WorkingContent()
+	if err := os.WriteFile(e.originalPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
-	// Update original to match working
-	e.originalContent = e.workingContent
+	// Update original to match saved
+	e.originalContent = content
 	e.dirty = false
 
 	// Delete edit file on successful commit
@@ -263,10 +548,20 @@ func (e *Editor) Save() error {
 	return nil
 }
 
-// Discard reverts working content to original.
+// Discard reverts working content and tree to original state.
 func (e *Editor) Discard() error {
 	e.workingContent = e.originalContent
 	e.dirty = false
+
+	// Re-parse original content into tree
+	if e.schema != nil {
+		parser := config.NewParser(e.schema)
+		tree, err := parser.Parse(e.originalContent)
+		if err == nil {
+			e.tree = tree
+			e.treeValid = true
+		}
+	}
 
 	// Delete edit file on discard
 	e.deleteEditFile()
@@ -433,11 +728,23 @@ func (e *Editor) Rollback(backupPath string) error {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 
-	// Update editor state
+	// Update editor state and re-parse into tree
 	content := string(data)
 	e.originalContent = content
 	e.workingContent = content
 	e.dirty = false
+
+	// Re-parse the restored content into the tree
+	if e.schema != nil {
+		parser := config.NewParser(e.schema)
+		tree, err := parser.Parse(content)
+		if err == nil {
+			e.tree = tree
+			e.treeValid = true
+		} else {
+			e.treeValid = false
+		}
+	}
 
 	return nil
 }

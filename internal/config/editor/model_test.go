@@ -245,16 +245,16 @@ func TestModelCmdEditHierarchical(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit a nested block
-	result, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	// Edit a nested block using full path (JUNOS-style: relative to context)
+	result, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 
-	// Should build hierarchical path including parent (bgp)
+	// Should build hierarchical path
 	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext, "should have hierarchical path")
 
-	// Should show peer content
+	// Should show config content (full serialized tree in Part 1)
 	assert.NotNil(t, result.configView, "should have config view")
-	assert.Contains(t, result.configView.content, "peer-as", "should show peer block content")
+	assert.Contains(t, result.configView.content, "peer-as", "should contain peer block content")
 }
 
 // TestModelCmdEditWildcardTemplate verifies edit with wildcard creates template context.
@@ -275,18 +275,10 @@ func TestModelCmdEditWildcardTemplate(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit with wildcard template
-	result, err := model.cmdEdit([]string{"peer", "*"})
-	require.NoError(t, err, "wildcard edit should not error")
-
-	// Should be in template mode
-	assert.True(t, result.isTemplate, "should be template mode")
-
-	// Context should include wildcard
-	assert.Equal(t, []string{"bgp", "peer", "*"}, result.newContext, "should have template path")
-
-	// Should have config view (parent block content)
-	assert.NotNil(t, result.configView, "should have config view")
+	// Edit with wildcard template — deferred to Part 2/3
+	_, err = model.cmdEdit([]string{"peer", "*"})
+	require.Error(t, err, "wildcard edit should error (deferred feature)")
+	assert.Contains(t, err.Error(), "not yet supported", "should mention not supported")
 }
 
 // TestModelCmdEditNotFound verifies edit shows error for nonexistent block.
@@ -379,13 +371,13 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit "peer 1.1.1.1" should find the correct peer
-	result, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	// Edit "bgp peer 1.1.1.1" using full path (JUNOS-style)
+	result, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 
 	// Should find the correct peer block
 	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext)
-	assert.Contains(t, result.configView.content, "65002", "should show peer 1.1.1.1 content")
+	assert.Contains(t, result.configView.content, "65002", "should contain peer 1.1.1.1 content")
 }
 
 // TestModelCmdUp verifies up command goes up one context level.
@@ -911,8 +903,9 @@ func TestModelContextHighlighting(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Config with syntax error on line 6 (invalid value)
-	// The parser reports error on the line with the invalid token
+	// Config with parse error on line 6 (invalid hold-time value)
+	// The parser rejects "notanumber" during type validation, so tree is empty.
+	// This test verifies error highlighting works on the full config view (raw text fallback).
 	content := `bgp {
   router-id 1.2.3.4;
   local-as 65000;
@@ -926,45 +919,24 @@ func TestModelContextHighlighting(t *testing.T) {
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck,gosec
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
 
-	// Should have validation error from load
+	// Should have validation error from load (parse error with line number)
 	require.NotEmpty(t, model.validationErrors, "should have errors")
 
-	// Find error with line number that's in the peer block (lines 5-6)
-	var errorInPeerBlock bool
-	for _, e := range model.validationErrors {
-		if e.Line >= 5 && e.Line <= 6 {
-			errorInPeerBlock = true
-			t.Logf("Found error in peer block: Line=%d, Message=%s", e.Line, e.Message)
-		}
-	}
+	// Show full config content with error highlighting
+	model.showConfigContent()
 
-	// Enter edit context for the peer - get result and apply it manually
-	result, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
-	require.NoError(t, err)
+	// Viewport should show the raw config content (tree is invalid, raw text fallback)
+	assert.Contains(t, model.viewportContent, "hold-time", "viewport should show config content")
 
-	// Apply the result (simulating what Update handler does)
-	if result.newContext != nil {
-		model.contextPath = result.newContext
-		model.isTemplate = result.isTemplate
-	}
-	if result.configView != nil {
-		model.setViewportData(*result.configView)
-	}
-
-	// Viewport should show filtered content
-	assert.Contains(t, model.viewportContent, "hold-time", "viewport should show peer content")
-
-	// If we have an error in the peer block, it should be highlighted
-	if errorInPeerBlock {
-		assert.Contains(t, model.viewportContent, "\x1b[", "error line should be highlighted in filtered view")
-	}
+	// Error line should be highlighted with ANSI escape codes
+	assert.Contains(t, model.viewportContent, "\x1b[", "error line should be highlighted")
 }
 
 // TestModelStatusBarNoErrorsWhenValid verifies no indicator when valid.
@@ -1698,7 +1670,7 @@ description "new peer";`
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -1749,7 +1721,7 @@ hold-time 180;`
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -1989,7 +1961,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -2095,7 +2067,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -2162,18 +2134,18 @@ func TestJoinTokensWithQuotes(t *testing.T) {
 	}
 }
 
-// TestEditQuotedPeerName verifies edit command works with quoted peer names.
+// TestEditQuotedListKey verifies edit command works with quoted string-keyed list entries.
 //
-// VALIDATES: "edit peer \"my peer\"" correctly navigates to the block.
-// PREVENTS: Pattern matching failure for peers with spaces in names.
-func TestEditQuotedPeerName(t *testing.T) {
+// VALIDATES: Tree navigation handles string-keyed lists (e.g., template group names).
+// PREVENTS: Navigation failure for list entries with spaces in keys.
+func TestEditQuotedListKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	originalContent := `bgp {
-	peer "my peer" {
+	// template.group is a string-keyed list (key "name")
+	originalContent := `template {
+	group "my group" {
 		peer-as 65001;
-		description "test";
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0600)
@@ -2181,34 +2153,34 @@ func TestEditQuotedPeerName(t *testing.T) {
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit peer with quoted name - simulates tokenized input from "edit peer \"my peer\""
-	editResult, err := model.cmdEdit([]string{"peer", "my peer"})
-	require.NoError(t, err, "edit should find quoted peer")
+	// Edit group with quoted name using full path (JUNOS-style)
+	editResult, err := model.cmdEdit([]string{"template", "group", "my group"})
+	require.NoError(t, err, "edit should find string-keyed list entry")
 
 	// Verify we entered the correct context
-	assert.Equal(t, []string{"bgp", "peer", "my peer"}, editResult.newContext)
+	assert.Equal(t, []string{"template", "group", "my group"}, editResult.newContext)
 
-	// Verify filtered content shows the peer block
+	// Verify config content includes the group block (full tree in Part 1)
 	assert.NotNil(t, editResult.configView)
 	assert.Contains(t, editResult.configView.content, "peer-as 65001")
-	assert.Contains(t, editResult.configView.content, `description "test"`)
 }
 
-// TestSetInQuotedPeerBlock verifies set command works inside quoted peer blocks.
+// TestSetInQuotedListEntry verifies set command works inside string-keyed list entries.
 //
-// VALIDATES: Full flow: edit quoted peer → set value → config updated correctly.
-// PREVENTS: Pattern matching failure when setting values in quoted blocks.
-func TestSetInQuotedPeerBlock(t *testing.T) {
+// VALIDATES: Full flow: edit string-keyed list entry → set value → config updated correctly.
+// PREVENTS: Tree mutation failure when setting values in string-keyed blocks.
+func TestSetInQuotedListEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	originalContent := `bgp {
-	peer "my peer" {
+	// template.group is a string-keyed list (key "name")
+	originalContent := `template {
+	group "my group" {
 		peer-as 65001;
 	}
 }`
@@ -2217,69 +2189,25 @@ func TestSetInQuotedPeerBlock(t *testing.T) {
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
 
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Enter the quoted peer context
-	editResult, err := model.cmdEdit([]string{"peer", "my peer"})
+	// Enter the group context using full path (JUNOS-style)
+	editResult, err := model.cmdEdit([]string{"template", "group", "my group"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
-	// Set a value inside the quoted peer block
-	setResult, err := model.cmdSet([]string{"description", "new description"})
+	// Set a value inside the group block
+	setResult, err := model.cmdSet([]string{"peer-as", "65002"})
 	require.NoError(t, err)
 
 	// Verify the content was modified correctly
 	assert.Contains(t, setResult.statusMessage, "Set")
 	content := ed.WorkingContent()
-	assert.Contains(t, content, `description "new description"`)
-	// Verify the peer block structure is preserved
-	assert.Contains(t, content, `peer "my peer" {`)
-}
-
-// TestFormatBlockPattern verifies block pattern generation for config matching.
-//
-// VALIDATES: Patterns correctly quote keys with spaces.
-// PREVENTS: Pattern mismatch for blocks with special characters.
-func TestFormatBlockPattern(t *testing.T) {
-	tests := []struct {
-		name   string
-		path   []string
-		expect string
-	}{
-		{
-			name:   "single element",
-			path:   []string{"bgp"},
-			expect: "bgp",
-		},
-		{
-			name:   "simple peer",
-			path:   []string{"bgp", "peer", "1.1.1.1"},
-			expect: "peer 1.1.1.1",
-		},
-		{
-			name:   "peer with spaces",
-			path:   []string{"bgp", "peer", "my peer"},
-			expect: `peer "my peer"`,
-		},
-		{
-			name:   "peer with tab",
-			path:   []string{"bgp", "peer", "my\tpeer"},
-			expect: "peer \"my\tpeer\"",
-		},
-		{
-			name:   "empty path",
-			path:   []string{},
-			expect: "",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatBlockPattern(tt.path)
-			assert.Equal(t, tt.expect, result)
-		})
-	}
+	assert.Contains(t, content, "peer-as 65002")
+	assert.NotContains(t, content, "peer-as 65001", "old value should be replaced")
+	// Verify the group block structure is preserved
+	assert.Contains(t, content, `group "my group" {`)
 }

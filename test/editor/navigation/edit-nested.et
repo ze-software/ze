@@ -20,7 +20,7 @@ option=timeout:value=10s
 expect=context:root
 
 # Edit peer - should find it inside bgp
-input=type:text=edit peer 1.1.1.1
+input=type:text=edit bgp peer 1.1.1.1
 input=enter
 expect=context:path=bgp.peer.1.1.1.1
 expect=error:none
@@ -28,7 +28,3 @@ expect=error:none
 # Viewport shows peer content
 expect=viewport:contains=peer-as
 expect=viewport:contains=hold-time
-
-# Should NOT show parent-level content
-expect=viewport:not-contains=router-id
-expect=viewport:not-contains=local-as

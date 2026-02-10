@@ -15,7 +15,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Verify IPv6 peer is navigable
-input=type:text=edit peer 2001:db8::1
+input=type:text=edit bgp peer 2001:db8::1
 input=enter
 expect=context:path=bgp.peer.2001:db8::1
 expect=error:none

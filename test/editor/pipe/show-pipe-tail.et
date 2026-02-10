@@ -26,9 +26,9 @@ input=type:text=show | tail 3
 input=enter
 expect=error:none
 
-# Last line content (closing braces or peer 2.2.2.2 block) should be present
+# Last line content (closing braces) should be present
 expect=viewport:contains=}
 
-# Earlier content should be excluded (router-id is early in file)
-expect=viewport:not-contains=router-id
+# Earlier content should be excluded (local-as and first peer are early in serialized output)
 expect=viewport:not-contains=local-as
+expect=viewport:not-contains=peer-as 65001

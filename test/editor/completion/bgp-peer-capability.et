@@ -17,7 +17,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Enter peer context
-input=type:text=edit peer 1.1.1.1
+input=type:text=edit bgp peer 1.1.1.1
 input=enter
 expect=context:path=bgp.peer.1.1.1.1
 

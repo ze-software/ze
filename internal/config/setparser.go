@@ -290,9 +290,21 @@ func (p *SetParser) walkAndDelete(tree *Tree, parent Node, tokens []string, line
 	}
 }
 
-// Delete removes a leaf value from the tree.
+// Delete removes a leaf value and its insertion-order entry.
+// No-op if the key does not exist.
 func (t *Tree) Delete(name string) {
+	if _, exists := t.values[name]; !exists {
+		return
+	}
 	delete(t.values, name)
+
+	// Remove from valuesOrder
+	for i, k := range t.valuesOrder {
+		if k == name {
+			t.valuesOrder = append(t.valuesOrder[:i], t.valuesOrder[i+1:]...)
+			break
+		}
+	}
 }
 
 // DeleteContainer removes a container from the tree.

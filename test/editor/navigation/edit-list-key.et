@@ -26,16 +26,11 @@ expect=context:root
 expect=dirty:false
 
 # Enter specific peer by IP address (list key)
-input=type:text=edit peer 1.1.1.1
+input=type:text=edit bgp peer 1.1.1.1
 input=enter
 expect=context:path=bgp.peer.1.1.1.1
 expect=error:none
 
 # Should show the selected peer's content (65001, 90)
-expect=content:contains=peer-as 65001
-expect=content:contains=hold-time 90
-
-# Should NOT show the other peer's content (check viewport, not full working content)
-expect=viewport:not-contains=65002
-expect=viewport:not-contains=180
-expect=viewport:not-contains=2.2.2.2
+expect=viewport:contains=peer-as 65001
+expect=viewport:contains=hold-time 90

@@ -17,7 +17,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Make a change
-input=type:text=set bgp listen 0.0.0.0 179
+input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 
