@@ -37,6 +37,40 @@ type UpdateBuilder struct {
 	// AddPath indicates ADD-PATH is negotiated for this family.
 	// RFC 7911 - ADD-PATH requires path identifier in NLRI.
 	AddPath bool
+
+	// scratch is a reusable buffer for intermediate encoding during Build* calls.
+	// Allocated once on first use, reused across calls. Sub-slices are handed out
+	// via alloc() and remain valid until the next resetScratch() call.
+	scratch []byte
+	off     int
+}
+
+// resetScratch prepares the scratch buffer for a new Build* call.
+// Called at the start of each Build* method.
+func (ub *UpdateBuilder) resetScratch() {
+	if ub.scratch == nil {
+		ub.scratch = make([]byte, wire.StandardMaxSize)
+	}
+	ub.off = 0
+}
+
+// alloc returns a sub-slice of length n from the scratch buffer.
+// The returned slice is valid until the next resetScratch() call.
+// Grows the scratch buffer if needed (rare — only for extended messages).
+func (ub *UpdateBuilder) alloc(n int) []byte {
+	end := ub.off + n
+	if end > len(ub.scratch) {
+		newSize := len(ub.scratch) * 2
+		if newSize < end {
+			newSize = end
+		}
+		newBuf := make([]byte, newSize)
+		copy(newBuf, ub.scratch[:ub.off])
+		ub.scratch = newBuf
+	}
+	s := ub.scratch[ub.off:end:end]
+	ub.off = end
+	return s
 }
 
 // NewUpdateBuilder creates a new UpdateBuilder with the given context.
@@ -130,6 +164,8 @@ type UnicastParams struct {
 // RFC 4271 Appendix F.3 - Attributes are ordered by type code for
 // consistent wire format and interoperability.
 func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
+	ub.resetScratch()
+
 	// Build attributes in a slice for sorting
 	var attrs []attribute.Attribute
 
@@ -141,7 +177,7 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	// When ASN4=false, ASNs are 2-byte. When ASN4=true (default), ASNs are 4-byte.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -336,7 +372,7 @@ func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 
 	if asn4 {
 		// 8-byte format: 4-byte ASN + 4-byte IP
-		buf := make([]byte, 8)
+		buf := ub.alloc(8)
 		buf[0] = byte(asn >> 24)
 		buf[1] = byte(asn >> 16)
 		buf[2] = byte(asn >> 8)
@@ -351,7 +387,7 @@ func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 	if asn > 65535 {
 		encodedASN = 23456 // AS_TRANS
 	}
-	buf := make([]byte, 6)
+	buf := ub.alloc(6)
 	buf[0] = byte(encodedASN >> 8) //nolint:gosec // buf is 6 bytes, indices 0-5 are valid
 	buf[1] = byte(encodedASN)      //nolint:gosec // buf is 6 bytes, indices 0-5 are valid
 	copy(buf[2:6], ip[:])
@@ -375,7 +411,7 @@ func (ub *UpdateBuilder) buildMPReachUnicast(p UnicastParams) *attribute.MPReach
 
 	// Build NLRI
 	inet := nlri.NewINET(nlri.Family{AFI: nlriAFI, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
-	nlriBytes := make([]byte, nlri.LenWithContext(inet, ub.AddPath))
+	nlriBytes := ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
 	// RFC 2545 Section 3: IPv6 MP_REACH_NLRI may include link-local as second next-hop.
@@ -501,6 +537,8 @@ type VPNParams struct {
 // RFC 4364 Section 4 - VPN routes use MP_REACH_NLRI with SAFI=128.
 // NLRI format: Label(3) + RD(8) + Prefix.
 func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN
@@ -510,7 +548,7 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -651,10 +689,10 @@ func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
 	// RFC 4364: Next-hop for VPN is RD + IP
 	var nhBytes []byte
 	if p.NextHop.Is4() {
-		nhBytes = make([]byte, 12) // 8-byte RD + 4-byte IPv4
+		nhBytes = ub.alloc(12) // 8-byte RD + 4-byte IPv4
 		copy(nhBytes[8:], p.NextHop.AsSlice())
 	} else {
-		nhBytes = make([]byte, 24) // 8-byte RD + 16-byte IPv6
+		nhBytes = ub.alloc(24) // 8-byte RD + 16-byte IPv6
 		copy(nhBytes[8:], p.NextHop.AsSlice())
 	}
 
@@ -663,7 +701,7 @@ func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
 
 	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
 	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(vpnNLRI)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
@@ -685,36 +723,35 @@ func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
 // Length (1 octet) + Labels (3 octets each) + RD (8 octets) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
 func (ub *UpdateBuilder) buildVPNNLRIBytes(p VPNParams) []byte {
-	// RFC 8277 Section 2: Encode label stack with BOS bit on last label
-	labelBytes := nlri.EncodeLabelStack(p.Labels)
-
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	prefixData := p.Prefix.Addr().AsSlice()[:prefixBytes]
 
+	// RFC 8277: Each label contributes 24 bits (3 bytes)
+	labelLen := len(p.Labels) * 3
 	// Total bits: labels*24 + 64 (RD) + prefix bits
-	// RFC 8277: Each label contributes 24 bits
 	totalBits := len(p.Labels)*24 + 64 + prefixBits
 
 	// Build: [path-id] + length + labels + RD + prefix
+	// Write labels directly via WriteLabelStack (zero-alloc).
 	var buf []byte
 	if ub.AddPath && p.PathID != 0 {
-		buf = make([]byte, 4+1+len(labelBytes)+8+prefixBytes)
+		buf = ub.alloc(4 + 1 + labelLen + 8 + prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		copy(buf[5:5+len(labelBytes)], labelBytes)
-		copy(buf[5+len(labelBytes):5+len(labelBytes)+8], p.RDBytes[:])
-		copy(buf[5+len(labelBytes)+8:], prefixData)
+		nlri.WriteLabelStack(buf, 5, p.Labels)
+		copy(buf[5+labelLen:5+labelLen+8], p.RDBytes[:])
+		copy(buf[5+labelLen+8:], prefixData)
 	} else {
-		buf = make([]byte, 1+len(labelBytes)+8+prefixBytes)
+		buf = ub.alloc(1 + labelLen + 8 + prefixBytes)
 		buf[0] = byte(totalBits)
-		copy(buf[1:1+len(labelBytes)], labelBytes)
-		copy(buf[1+len(labelBytes):1+len(labelBytes)+8], p.RDBytes[:])
-		copy(buf[1+len(labelBytes)+8:], prefixData)
+		nlri.WriteLabelStack(buf, 1, p.Labels)
+		copy(buf[1+labelLen:1+labelLen+8], p.RDBytes[:])
+		copy(buf[1+labelLen+8:], prefixData)
 	}
 
 	return buf
@@ -781,6 +818,8 @@ type LabeledUnicastParams struct {
 //
 // RFC 8277 - NLRI format: Label(3) + Prefix.
 func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN
@@ -790,7 +829,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -934,7 +973,7 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 
 	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
 	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(labeledNLRI)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
@@ -956,36 +995,35 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 // Length (1 octet, bits) + Labels (3 octets each) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
 func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []byte {
-	// RFC 8277 Section 2: Encode label stack with BOS bit on last label
-	labelBytes := nlri.EncodeLabelStack(p.Labels)
-
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	prefixData := p.Prefix.Addr().AsSlice()[:prefixBytes]
 
+	// RFC 8277: Each label contributes 24 bits (3 bytes)
+	labelLen := len(p.Labels) * 3
 	// Total bits: labels*24 + prefix bits
-	// RFC 8277: Each label contributes 24 bits
 	totalBits := len(p.Labels)*24 + prefixBits
 
 	// Build: [path-id] + length + labels + prefix
+	// Write labels directly via WriteLabelStack (zero-alloc).
 	// RFC 7911: Path Identifier MUST be included when ADD-PATH is negotiated
 	var buf []byte
 	if ub.AddPath {
 		// RFC 7911: Always include 4-byte path ID when ADD-PATH negotiated
-		buf = make([]byte, 4+1+len(labelBytes)+prefixBytes)
+		buf = ub.alloc(4 + 1 + labelLen + prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		copy(buf[5:5+len(labelBytes)], labelBytes)
-		copy(buf[5+len(labelBytes):], prefixData)
+		nlri.WriteLabelStack(buf, 5, p.Labels)
+		copy(buf[5+labelLen:], prefixData)
 	} else {
-		buf = make([]byte, 1+len(labelBytes)+prefixBytes)
+		buf = ub.alloc(1 + labelLen + prefixBytes)
 		buf[0] = byte(totalBits)
-		copy(buf[1:1+len(labelBytes)], labelBytes)
-		copy(buf[1+len(labelBytes):], prefixData)
+		nlri.WriteLabelStack(buf, 1, p.Labels)
+		copy(buf[1+labelLen:], prefixData)
 	}
 
 	return buf
@@ -1045,6 +1083,8 @@ type MVPNParams struct {
 // slice have differing values for these attributes, only the first route's
 // values are used.
 func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
+	ub.resetScratch()
+
 	if len(routes) == 0 {
 		return &Update{}
 	}
@@ -1059,7 +1099,7 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1157,7 +1197,7 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 
 	// Build MP_REACH_NLRI value
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriData)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safiMVPN
@@ -1229,7 +1269,7 @@ func (ub *UpdateBuilder) buildMVPNNLRIBytes(route MVPNParams) []byte {
 	}
 
 	// MVPN NLRI: Type (1) + Length (1) + Data
-	result := make([]byte, 2+len(data))
+	result := ub.alloc(2 + len(data))
 	result[0] = route.RouteType
 	result[1] = byte(len(data))
 	copy(result[2:], data)
@@ -1261,6 +1301,8 @@ type VPLSParams struct {
 //
 // RFC 4761 - VPLS uses L2VPN AFI (25) and VPLS SAFI (65).
 func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN
@@ -1270,7 +1312,7 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1352,7 +1394,7 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 // Length (2) + RD (8) + VE-ID (2) + VE Block Offset (2) + VE Block Size (2) + Label Base (3).
 func (ub *UpdateBuilder) buildMPReachVPLS(p VPLSParams) *rawAttribute {
 	nlriLen := 2 + 8 + 2 + 2 + 2 + 3
-	nlri := make([]byte, nlriLen)
+	nlri := ub.alloc(nlriLen)
 	nlri[0] = 0
 	nlri[1] = 17 // Length in octets (8+2+2+2+3=17)
 	copy(nlri[2:10], p.RD[:])
@@ -1374,7 +1416,7 @@ func (ub *UpdateBuilder) buildMPReachVPLS(p VPLSParams) *rawAttribute {
 	nhLen := len(nhBytes)
 
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlri)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = 0
 	value[1] = 25 // AFI L2VPN
 	value[2] = 65 // SAFI VPLS
@@ -1419,6 +1461,8 @@ type FlowSpecParams struct {
 //
 // RFC 5575 - FlowSpec uses SAFI 133 (plain) or 134 (VPN).
 func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN (IGP)
@@ -1428,7 +1472,7 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1533,13 +1577,13 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 		payloadLen := 8 + len(p.NLRI) // RD (8) + components
 		if payloadLen < 240 {
 			// Single byte length
-			nlriBytes = make([]byte, 1+payloadLen)
+			nlriBytes = ub.alloc(1 + payloadLen)
 			nlriBytes[0] = byte(payloadLen)
 			copy(nlriBytes[1:9], p.RD[:])
 			copy(nlriBytes[9:], p.NLRI)
 		} else {
 			// Extended length (2 bytes): 0xfnnn format
-			nlriBytes = make([]byte, 2+payloadLen)
+			nlriBytes = ub.alloc(2 + payloadLen)
 			nlriBytes[0] = 0xF0 | byte(payloadLen>>8)
 			nlriBytes[1] = byte(payloadLen)
 			copy(nlriBytes[2:10], p.RD[:])
@@ -1551,7 +1595,7 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 	}
 
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriBytes)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safi
@@ -1636,6 +1680,8 @@ type EVPNParams struct {
 //
 // RFC 7432 - BGP MPLS-Based Ethernet VPN.
 func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN
@@ -1644,7 +1690,7 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 	// 2. AS_PATH
 	asPath := ub.buildASPath(p.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1774,7 +1820,7 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 
 	// MP_REACH_NLRI format:
 	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
-	value := make([]byte, 2+1+1+nhLen+1+nlriLen)
+	value := ub.alloc(2 + 1 + 1 + nhLen + 1 + nlriLen)
 	value[0] = 0x00
 	value[1] = byte(nlri.AFIL2VPN) // AFI 25
 	value[2] = byte(nlri.SAFIEVPN) // SAFI 70
@@ -1810,6 +1856,8 @@ type MUPParams struct {
 
 // BuildMUP builds an UPDATE message for a MUP route (SAFI 85).
 func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN (IGP)
@@ -1819,7 +1867,7 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1916,7 +1964,7 @@ func (ub *UpdateBuilder) buildMPReachMUP(p MUPParams) *rawAttribute {
 	nhLen := len(nhBytes)
 
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(p.NLRI)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safiMUP
@@ -1935,6 +1983,8 @@ func (ub *UpdateBuilder) buildMPReachMUP(p MUPParams) *rawAttribute {
 // BuildMUPWithdraw builds an UPDATE message to withdraw a MUP route (SAFI 85).
 // Unlike simple withdrawals, MUP withdrawals include path attributes per the test expectations.
 func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
+	ub.resetScratch()
+
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN (IGP)
@@ -1944,7 +1994,7 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -2001,7 +2051,7 @@ func (ub *UpdateBuilder) buildMPUnreachMUP(p MUPParams) *rawAttribute {
 
 	// Value: AFI(2) + SAFI(1) + Withdrawn NLRI
 	valueLen := 2 + 1 + len(p.NLRI)
-	value := make([]byte, valueLen)
+	value := ub.alloc(valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
 	value[2] = safiMUP
@@ -2025,6 +2075,8 @@ func (ub *UpdateBuilder) buildMPUnreachMUP(p MUPParams) *rawAttribute {
 // RFC 4271 Section 4.3: Multiple UPDATEs may advertise same attributes.
 // RFC 8654: Respects maxSize (4096 or 65535 based on Extended Message).
 func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, maxSize int) ([]*Update, error) {
+	ub.resetScratch()
+
 	if len(routes) == 0 {
 		return nil, nil
 	}
@@ -2049,7 +2101,7 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 		// Calculate NLRI size and pack
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
 		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
-		nlriBytes := make([]byte, nlriLen)
+		nlriBytes := ub.alloc(nlriLen)
 		nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
 		// Check if single NLRI is too large
@@ -2091,7 +2143,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
 	// 2. AS_PATH
 	asPath := ub.buildASPath(first.ASPath)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -2264,6 +2316,8 @@ func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p UnicastParams, maxSize int) (
 // RFC 4271 Section 4.3: Multiple UPDATEs may advertise same attributes.
 // RFC 8654: Respects maxSize (4096 or 65535 based on Extended Message).
 func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([]*Update, error) {
+	ub.resetScratch()
+
 	if len(routes) == 0 {
 		return nil, nil
 	}
@@ -2284,7 +2338,7 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 
 	asPath := ub.buildASPath(nil)
 	asn4 := ub.ASN4
-	asPathBuf := make([]byte, asPath.LenWithASN4(asn4))
+	asPathBuf := ub.alloc(asPath.LenWithASN4(asn4))
 	asPath.WriteToWithASN4(asPathBuf, 0, asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),

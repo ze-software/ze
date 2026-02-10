@@ -524,7 +524,14 @@ func (n *BGPLSNode) Bytes() []byte {
 }
 
 // Len returns the length in bytes.
-func (n *BGPLSNode) Len() int { return len(n.Bytes()) }
+// Calculates arithmetically without allocating, matching WriteTo logic:
+// NLRI header (4) + Protocol-ID (1) + Identifier (8) + TLV 256 header (4) + local node.
+func (n *BGPLSNode) Len() int {
+	if n.cached != nil {
+		return len(n.cached)
+	}
+	return 4 + 9 + 4 + n.LocalNode.Len()
+}
 
 // String returns command-style format for API round-trip compatibility.
 // Format: node protocol set <proto> asn set <n>.
@@ -592,7 +599,14 @@ func (l *BGPLSLink) Bytes() []byte {
 }
 
 // Len returns the length in bytes.
-func (l *BGPLSLink) Len() int { return len(l.Bytes()) }
+// Calculates arithmetically without allocating, matching WriteTo logic:
+// NLRI header (4) + body (9) + local TLV (4+len) + remote TLV (4+len) + link desc.
+func (l *BGPLSLink) Len() int {
+	if l.cached != nil {
+		return len(l.cached)
+	}
+	return 4 + 9 + (4 + l.LocalNode.Len()) + (4 + l.RemoteNode.Len()) + l.LinkDesc.Len()
+}
 
 // String returns command-style format for API round-trip compatibility.
 // Format: link protocol set <proto> local-asn set <n> remote-asn set <m>.
@@ -670,7 +684,14 @@ func (p *BGPLSPrefix) Bytes() []byte {
 }
 
 // Len returns the length in bytes.
-func (p *BGPLSPrefix) Len() int { return len(p.Bytes()) }
+// Calculates arithmetically without allocating, matching WriteTo logic:
+// NLRI header (4) + body (9) + local node TLV (4+len) + prefix desc.
+func (p *BGPLSPrefix) Len() int {
+	if p.cached != nil {
+		return len(p.cached)
+	}
+	return 4 + 9 + (4 + p.LocalNode.Len()) + p.PrefixDesc.Len()
+}
 
 // String returns command-style format for API round-trip compatibility.
 // Format: prefix protocol set <proto> type set <type> asn set <n>.
@@ -985,7 +1006,14 @@ func (s *BGPLSSRv6SID) Bytes() []byte {
 }
 
 // Len returns the length in bytes.
-func (s *BGPLSSRv6SID) Len() int { return len(s.Bytes()) }
+// Calculates arithmetically without allocating, matching WriteTo logic:
+// NLRI header (4) + body (9) + local node TLV (4+len) + SRv6 SID desc.
+func (s *BGPLSSRv6SID) Len() int {
+	if s.cached != nil {
+		return len(s.cached)
+	}
+	return 4 + 9 + (4 + s.LocalNode.Len()) + s.SRv6SID.Len()
+}
 
 // String returns command-style format for API round-trip compatibility.
 // Format: srv6-sid protocol set <proto> asn set <n>.

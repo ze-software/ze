@@ -10,6 +10,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -1329,7 +1330,8 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
 			if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
 				start := len(params.ExtCommunityBytes)
-				params.ExtCommunityBytes = append(params.ExtCommunityBytes, make([]byte, ecs.Len())...)
+				needed := ecs.Len()
+				params.ExtCommunityBytes = slices.Grow(params.ExtCommunityBytes, needed)[:start+needed]
 				ecs.WriteTo(params.ExtCommunityBytes, start)
 			}
 		}

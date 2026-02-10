@@ -524,3 +524,162 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 		})
 	}
 }
+
+// TestBGPLSNodeLen verifies Len() returns correct size without allocating via Bytes().
+//
+// VALIDATES: BGPLSNode.Len() calculates wire size arithmetically matching WriteTo output.
+// PREVENTS: Len() calling Bytes() which allocates just to measure size.
+func TestBGPLSNodeLen(t *testing.T) {
+	tests := []struct {
+		name string
+		node *BGPLSNode
+	}{
+		{
+			name: "with_asn_and_routerid",
+			node: NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
+				ASN:         65001,
+				IGPRouterID: []byte{1, 1, 1, 1},
+			}),
+		},
+		{
+			name: "with_all_descriptors",
+			node: NewBGPLSNode(ProtoISISL2, 0x200, NodeDescriptor{
+				ASN:             65500,
+				BGPLSIdentifier: 0x12345678,
+				OSPFAreaID:      0x0A000000,
+				IGPRouterID:     []byte{10, 0, 0, 1, 10, 0, 0, 2},
+			}),
+		},
+		{
+			name: "minimal",
+			node: NewBGPLSNode(ProtoStatic, 0, NodeDescriptor{
+				ASN: 1,
+			}),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Verify Len() matches actual WriteTo byte count
+			buf := make([]byte, 1024)
+			n := tt.node.WriteTo(buf, 0)
+			assert.Equal(t, n, tt.node.Len(), "Len() must match WriteTo byte count")
+		})
+	}
+}
+
+// TestBGPLSLinkLen verifies Len() returns correct size without allocating via Bytes().
+//
+// VALIDATES: BGPLSLink.Len() calculates wire size arithmetically matching WriteTo output.
+// PREVENTS: Len() calling Bytes() which allocates just to measure size.
+func TestBGPLSLinkLen(t *testing.T) {
+	tests := []struct {
+		name string
+		link *BGPLSLink
+	}{
+		{
+			name: "basic_link",
+			link: NewBGPLSLink(ProtoOSPFv2, 0x100,
+				NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+				NodeDescriptor{ASN: 65002, IGPRouterID: []byte{2, 2, 2, 2}},
+				LinkDescriptor{},
+			),
+		},
+		{
+			name: "link_with_descriptors",
+			link: NewBGPLSLink(ProtoISISL2, 0x200,
+				NodeDescriptor{ASN: 65001},
+				NodeDescriptor{ASN: 65002},
+				LinkDescriptor{
+					LinkLocalID:        100,
+					LinkRemoteID:       200,
+					LocalInterfaceAddr: []byte{10, 0, 0, 1},
+					NeighborAddr:       []byte{10, 0, 0, 2},
+				},
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := make([]byte, 1024)
+			n := tt.link.WriteTo(buf, 0)
+			assert.Equal(t, n, tt.link.Len(), "Len() must match WriteTo byte count")
+		})
+	}
+}
+
+// TestBGPLSPrefixLen verifies Len() returns correct size without allocating via Bytes().
+//
+// VALIDATES: BGPLSPrefix.Len() calculates wire size arithmetically matching WriteTo output.
+// PREVENTS: Len() calling Bytes() which allocates just to measure size.
+func TestBGPLSPrefixLen(t *testing.T) {
+	tests := []struct {
+		name   string
+		prefix *BGPLSPrefix
+	}{
+		{
+			name: "ipv4_prefix",
+			prefix: NewBGPLSPrefixV4(ProtoOSPFv2, 0x100,
+				NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+				PrefixDescriptor{IPReachabilityInfo: []byte{24, 10, 0, 0}},
+			),
+		},
+		{
+			name: "ipv6_prefix",
+			prefix: NewBGPLSPrefixV6(ProtoOSPFv3, 0x200,
+				NodeDescriptor{ASN: 65002},
+				PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
+			),
+		},
+		{
+			name: "empty_prefix_desc",
+			prefix: NewBGPLSPrefixV4(ProtoStatic, 0,
+				NodeDescriptor{ASN: 1},
+				PrefixDescriptor{},
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := make([]byte, 1024)
+			n := tt.prefix.WriteTo(buf, 0)
+			assert.Equal(t, n, tt.prefix.Len(), "Len() must match WriteTo byte count")
+		})
+	}
+}
+
+// TestBGPLSSRv6SIDLen verifies Len() returns correct size without allocating via Bytes().
+//
+// VALIDATES: BGPLSSRv6SID.Len() calculates wire size arithmetically matching WriteTo output.
+// PREVENTS: Len() calling Bytes() which allocates just to measure size.
+func TestBGPLSSRv6SIDLen(t *testing.T) {
+	tests := []struct {
+		name string
+		srv6 *BGPLSSRv6SID
+	}{
+		{
+			name: "with_sid",
+			srv6: NewBGPLSSRv6SID(ProtoSegment, 0x200,
+				NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+				SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+			),
+		},
+		{
+			name: "without_sid",
+			srv6: NewBGPLSSRv6SID(ProtoISISL1, 0x300,
+				NodeDescriptor{ASN: 65500},
+				SRv6SIDDescriptor{},
+			),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := make([]byte, 1024)
+			n := tt.srv6.WriteTo(buf, 0)
+			assert.Equal(t, n, tt.srv6.Len(), "Len() must match WriteTo byte count")
+		})
+	}
+}

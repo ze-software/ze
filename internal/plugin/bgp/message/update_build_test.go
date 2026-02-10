@@ -2225,3 +2225,50 @@ func TestBuildMUP_MaxSize_TooLarge(t *testing.T) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
 	}
 }
+
+// TestUpdateBuilderReuse verifies the builder produces identical bytes when reused.
+//
+// VALIDATES: UpdateBuilder with scratch buffer produces byte-identical output on
+// successive calls with the same parameters.
+// PREVENTS: Scratch buffer state leaking between Build* calls, causing corruption.
+func TestUpdateBuilderReuse(t *testing.T) {
+	ub := NewUpdateBuilder(65001, false, true, false)
+
+	params := UnicastParams{
+		Prefix:      netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		Origin:      attribute.OriginIGP,
+		MED:         100,
+		Communities: []uint32{0xFFFF0001, 0xFFFF0002},
+	}
+
+	// Build twice with same parameters
+	update1 := ub.BuildUnicast(params)
+	update2 := ub.BuildUnicast(params)
+
+	if !bytes.Equal(update1.PathAttributes, update2.PathAttributes) {
+		t.Error("PathAttributes differ between reused builds")
+	}
+	if !bytes.Equal(update1.NLRI, update2.NLRI) {
+		t.Error("NLRI differ between reused builds")
+	}
+
+	// Build a different route in between to stress scratch reuse
+	otherParams := UnicastParams{
+		Prefix:           netip.MustParsePrefix("2001:db8::/32"),
+		NextHop:          netip.MustParseAddr("2001:db8::1"),
+		Origin:           attribute.OriginEGP,
+		MED:              200,
+		LargeCommunities: [][3]uint32{{65001, 1, 2}},
+	}
+	_ = ub.BuildUnicast(otherParams)
+
+	// Build original again — must still match
+	update3 := ub.BuildUnicast(params)
+	if !bytes.Equal(update1.PathAttributes, update3.PathAttributes) {
+		t.Error("PathAttributes differ after interleaved build")
+	}
+	if !bytes.Equal(update1.NLRI, update3.NLRI) {
+		t.Error("NLRI differ after interleaved build")
+	}
+}
