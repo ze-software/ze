@@ -181,24 +181,40 @@ func TestOpenWaitDuration(t *testing.T) {
 }
 
 func TestSocketPath(t *testing.T) {
-	t.Run("default", func(t *testing.T) {
+	t.Run("default_no_xdg", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", "")
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if env.SocketPath() != "/var/run/ze-bgp.sock" {
-			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/ze-bgp.sock")
+		// Non-root without XDG_RUNTIME_DIR falls back to /tmp/ze.socket.
+		want := "/tmp/ze.socket"
+		if got := env.SocketPath(); got != want {
+			t.Errorf("SocketPath() = %q, want %q", got, want)
 		}
 	})
 
-	t.Run("custom", func(t *testing.T) {
-		t.Setenv("ze.bgp.api.socketname", "custom")
+	t.Run("xdg_runtime_dir", func(t *testing.T) {
+		t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
 		}
-		if env.SocketPath() != "/var/run/custom.sock" {
-			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/custom.sock")
+		want := "/run/user/1000/ze.socket"
+		if got := env.SocketPath(); got != want {
+			t.Errorf("SocketPath() = %q, want %q", got, want)
+		}
+	})
+
+	t.Run("custom_socketpath", func(t *testing.T) {
+		t.Setenv("ze.bgp.api.socketpath", "/custom/path/my.sock")
+		env, err := LoadEnvironment()
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := "/custom/path/my.sock"
+		if got := env.SocketPath(); got != want {
+			t.Errorf("SocketPath() = %q, want %q", got, want)
 		}
 	})
 }

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"io"
@@ -10,9 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
 )
 
-// mockServer simulates the API server for testing.
+// mockServer simulates the API server using NUL-framed JSON RPC.
 type mockServer struct {
 	listener net.Listener
 	path     string
@@ -57,83 +58,70 @@ func (s *mockServer) serve() {
 func (s *mockServer) handleConn(conn net.Conn) {
 	defer conn.Close() //nolint:errcheck // test cleanup
 
-	reader := bufio.NewReader(conn)
+	reader := ipc.NewFrameReader(conn)
+	writer := ipc.NewFrameWriter(conn)
 
 	for {
-		line, err := reader.ReadString('\n')
+		msg, err := reader.Read()
 		if err != nil {
 			return
 		}
 
-		cmd := strings.TrimSpace(line)
-		resp := s.handleCommand(cmd)
+		var req ipc.Request
+		if err := json.Unmarshal(msg, &req); err != nil {
+			resp := &ipc.RPCError{Error: "invalid-json"}
+			data, merr := json.Marshal(resp)
+			if merr != nil {
+				return
+			}
+			if werr := writer.Write(data); werr != nil {
+				return
+			}
+			continue
+		}
 
-		data, err := json.Marshal(resp)
+		result := s.handleRPC(req.Method)
+		data, err := json.Marshal(result)
 		if err != nil {
 			return
 		}
-		if _, err := conn.Write(append(data, '\n')); err != nil {
+		if err := writer.Write(data); err != nil {
 			return
 		}
 	}
 }
 
-func (s *mockServer) handleCommand(cmd string) map[string]any {
-	switch cmd {
-	case "system version":
-		return map[string]any{
-			"status": "done",
-			"data": map[string]any{
-				"version": "0.1.0",
+func (s *mockServer) handleRPC(method string) any {
+	switch method {
+	case "ze-system:version-software":
+		return &ipc.RPCResult{Result: mustJSON(map[string]any{"version": "0.1.0"})}
+	case "ze-system:help":
+		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+			"commands": []string{"daemon shutdown", "peer list", "system help"},
+		})}
+	case "ze-bgp:daemon-status":
+		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+			"uptime":     "1h30m",
+			"peer-count": 2,
+		})}
+	case "ze-bgp:peer-list":
+		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+			"peers": []any{
+				map[string]any{"Address": "10.0.0.1", "State": "established"},
+				map[string]any{"Address": "10.0.0.2", "State": "idle"},
 			},
-		}
-	case "system help":
-		return map[string]any{
-			"status": "done",
-			"data": map[string]any{
-				"commands": []string{
-					"daemon shutdown",
-					"daemon status",
-					"peer list",
-					"system help",
-					"system version",
-				},
-			},
-		}
-	case "daemon status":
-		return map[string]any{
-			"status": "done",
-			"data": map[string]any{
-				"uptime":     "1h30m",
-				"peer_count": 2,
-			},
-		}
-	case "peer list":
-		return map[string]any{
-			"status": "done",
-			"data": map[string]any{
-				"peers": []any{
-					map[string]any{
-						"Address": "10.0.0.1",
-						"State":   "established",
-					},
-					map[string]any{
-						"Address": "10.0.0.2",
-						"State":   "idle",
-					},
-				},
-			},
-		}
-	case "bad command":
-		return map[string]any{
-			"status": "error",
-			"error":  "unknown command",
-		}
-	default: // handle unknown commands gracefully in test
-		return map[string]any{
-			"status": "done",
-		}
+		})}
+	default:
+		return &ipc.RPCError{Error: "unknown-method"}
 	}
+}
+
+func mustJSON(v any) json.RawMessage {
+	data, err := json.Marshal(v)
+	if err != nil {
+		panic("mustJSON: " + err.Error())
+	}
+	return data
 }
 
 func (s *mockServer) Close() {
@@ -175,6 +163,10 @@ func captureOutput(t *testing.T, isStderr bool, fn func()) string {
 	return string(out)
 }
 
+// TestCLIClient_SendCommand verifies the CLI sends JSON RPC and receives responses.
+//
+// VALIDATES: CLI correctly maps text commands to wire methods and decodes responses.
+// PREVENTS: Protocol mismatch between CLI and API server.
 func TestCLIClient_SendCommand(t *testing.T) {
 	server := newMockServer(t)
 	defer server.Close()
@@ -186,27 +178,34 @@ func TestCLIClient_SendCommand(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	tests := []struct {
-		name    string
-		command string
-		wantErr bool
-		status  string
+		name     string
+		command  string
+		wantErr  string // non-empty means expect this error
+		wantData bool   // expect result data
 	}{
-		{"version", "system version", false, "done"},
-		{"help", "system help", false, "done"},
-		{"status", "daemon status", false, "done"},
-		{"peers", "peer list", false, "done"},
-		{"error", "bad command", false, "error"},
+		{"help", "system help", "", true},
+		{"status", "daemon status", "", true},
+		{"peers", "peer list", "", true},
+		{"unknown", "nonexistent command", "unknown command", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resp, err := client.SendCommand(tt.command)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("SendCommand() error = %v, wantErr %v", err, tt.wantErr)
-				return
+			if err != nil {
+				t.Fatalf("SendCommand() unexpected error: %v", err)
 			}
-			if resp.Status != tt.status {
-				t.Errorf("SendCommand() status = %v, want %v", resp.Status, tt.status)
+			if tt.wantErr != "" {
+				if !strings.Contains(resp.Error, tt.wantErr) {
+					t.Errorf("SendCommand() error = %q, want containing %q", resp.Error, tt.wantErr)
+				}
+			} else {
+				if resp.Error != "" {
+					t.Errorf("SendCommand() unexpected error: %s", resp.Error)
+				}
+				if tt.wantData && len(resp.Result) == 0 {
+					t.Error("SendCommand() expected result data, got none")
+				}
 			}
 		})
 	}
@@ -224,15 +223,15 @@ func TestCLIClient_Execute(t *testing.T) {
 
 	var code int
 	output := captureOutput(t, false, func() {
-		code = client.Execute("system version")
+		code = client.Execute("system help")
 	})
 
 	if code != 0 {
 		t.Errorf("Execute() returned %d, want 0", code)
 	}
 
-	if !strings.Contains(output, "version") {
-		t.Errorf("Execute() output = %q, want to contain 'version'", output)
+	if !strings.Contains(output, "commands") {
+		t.Errorf("Execute() output = %q, want to contain 'commands'", output)
 	}
 }
 
@@ -248,7 +247,7 @@ func TestCLIClient_ExecuteError(t *testing.T) {
 
 	var code int
 	output := captureOutput(t, true, func() {
-		code = client.Execute("bad command")
+		code = client.Execute("nonexistent command")
 	})
 
 	if code != 1 {
@@ -278,15 +277,15 @@ func TestCLIClient_MultipleCommands(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 
 	// Send multiple commands on same connection
-	commands := []string{"system version", "daemon status", "peer list"}
+	commands := []string{"system help", "daemon status", "peer list"}
 
 	for _, cmd := range commands {
 		resp, err := client.SendCommand(cmd)
 		if err != nil {
 			t.Errorf("SendCommand(%q) error = %v", cmd, err)
 		}
-		if resp.Status != "done" {
-			t.Errorf("SendCommand(%q) status = %v, want done", cmd, resp.Status)
+		if resp.Error != "" {
+			t.Errorf("SendCommand(%q) unexpected error: %s", cmd, resp.Error)
 		}
 	}
 }
@@ -302,15 +301,15 @@ func TestRun_RunFlag(t *testing.T) {
 	// Test successful command
 	var code int
 	output := captureOutput(t, false, func() {
-		code = Run([]string{"--socket", server.path, "--run", "system version"})
+		code = Run([]string{"--socket", server.path, "--run", "system help"})
 	})
 
 	if code != 0 {
 		t.Errorf("Run(--run) returned %d, want 0", code)
 	}
 
-	if !strings.Contains(output, "version") {
-		t.Errorf("Run(--run) output = %q, want to contain 'version'", output)
+	if !strings.Contains(output, "commands") {
+		t.Errorf("Run(--run) output = %q, want to contain 'commands'", output)
 	}
 }
 
@@ -324,7 +323,7 @@ func TestRun_RunFlagError(t *testing.T) {
 
 	var code int
 	captureOutput(t, true, func() {
-		code = Run([]string{"--socket", server.path, "--run", "bad command"})
+		code = Run([]string{"--socket", server.path, "--run", "nonexistent command"})
 	})
 
 	if code != 1 {
@@ -342,15 +341,15 @@ func TestRun_BgpSubsystem(t *testing.T) {
 
 	var code int
 	output := captureOutput(t, false, func() {
-		code = Run([]string{"bgp", "--socket", server.path, "--run", "system version"})
+		code = Run([]string{"bgp", "--socket", server.path, "--run", "system help"})
 	})
 
 	if code != 0 {
 		t.Errorf("Run(bgp --run) returned %d, want 0", code)
 	}
 
-	if !strings.Contains(output, "version") {
-		t.Errorf("Run(bgp --run) output = %q, want to contain 'version'", output)
+	if !strings.Contains(output, "commands") {
+		t.Errorf("Run(bgp --run) output = %q, want to contain 'commands'", output)
 	}
 }
 
@@ -437,41 +436,27 @@ func TestRun_BgpSubsystemConnectionFailure(t *testing.T) {
 // VALIDATES: Different response types format correctly.
 // PREVENTS: Formatting bugs causing garbled output.
 func TestCLIClient_PrintResponse(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:errcheck // test cleanup
+	client := &cliClient{}
 
 	tests := []struct {
 		name     string
-		resp     *cliResponse
-		wantOut  string
+		resp     *rpcResponse
 		wantErr  bool
 		contains []string
 	}{
 		{
 			name:     "ok_no_data",
-			resp:     &cliResponse{Status: "done"},
+			resp:     &rpcResponse{},
 			contains: []string{"OK"},
 		},
 		{
-			name: "with_data",
-			resp: &cliResponse{
-				Status: "done",
-				Data:   map[string]any{"version": "1.0"},
-			},
+			name:     "with_data",
+			resp:     &rpcResponse{Result: mustJSON(map[string]any{"version": "1.0"})},
 			contains: []string{"version", "1.0"},
 		},
 		{
-			name: "error_response",
-			resp: &cliResponse{
-				Status: "error",
-				Error:  "something failed",
-			},
+			name:     "error_response",
+			resp:     &rpcResponse{Error: "something failed"},
 			wantErr:  true,
 			contains: []string{"error", "something failed"},
 		},
@@ -504,22 +489,19 @@ func TestCLIClient_PrintResponse(t *testing.T) {
 // VALIDATES: Nested maps and arrays format with proper indentation.
 // PREVENTS: Nested data being flattened or misformatted.
 func TestCLIClient_PrintResponseNestedData(t *testing.T) {
-	// Create a minimal client just for testing PrintResponse
-	// (doesn't need actual connection)
 	client := &cliClient{}
 
-	resp := &cliResponse{
-		Status: "done",
-		Data: map[string]any{
+	resp := &rpcResponse{
+		Result: mustJSON(map[string]any{
 			"peers": []any{
 				map[string]any{"Address": "10.0.0.1", "State": "established"},
 				map[string]any{"Address": "10.0.0.2", "State": "idle"},
 			},
 			"config": map[string]any{
-				"local_as": 65000,
+				"local-as": 65000,
 			},
-			"empty_list": []any{},
-		},
+			"empty-list": []any{},
+		}),
 	}
 
 	output := captureOutput(t, false, func() {
@@ -537,7 +519,7 @@ func TestCLIClient_PrintResponseNestedData(t *testing.T) {
 	}
 
 	// Check nested map
-	if !strings.Contains(output, "local_as") {
+	if !strings.Contains(output, "local-as") {
 		t.Errorf("output missing nested config: %q", output)
 	}
 }
@@ -603,18 +585,16 @@ func TestCommandTree(t *testing.T) {
 // VALIDATES: String arrays format as bullet points.
 // PREVENTS: String lists being printed as Go slice syntax.
 func TestCLIClient_ResponseWithStringList(t *testing.T) {
-	// Create a minimal client just for testing PrintResponse
 	client := &cliClient{}
 
-	resp := &cliResponse{
-		Status: "done",
-		Data: map[string]any{
+	resp := &rpcResponse{
+		Result: mustJSON(map[string]any{
 			"commands": []any{
 				"daemon shutdown",
 				"peer list",
 				"system help",
 			},
-		},
+		}),
 	}
 
 	output := captureOutput(t, false, func() {
@@ -628,5 +608,59 @@ func TestCLIClient_ResponseWithStringList(t *testing.T) {
 
 	if !strings.Contains(output, "- ") {
 		t.Errorf("output should format list items with '- ': %q", output)
+	}
+}
+
+// TestResolveCommand verifies text command to wire method mapping.
+//
+// VALIDATES: CLI commands resolve to correct wire methods.
+// PREVENTS: Wrong RPC method being called for a text command.
+func TestResolveCommand(t *testing.T) {
+	client := &cliClient{
+		cmdMap: map[string]string{
+			"bgp peer list":           "ze-bgp:peer-list",
+			"bgp peer show":           "ze-bgp:peer-show",
+			"bgp daemon status":       "ze-bgp:daemon-status",
+			"system help":             "ze-system:help",
+			"system version software": "ze-system:version-software",
+		},
+	}
+	// Build sorted keys (longest first)
+	keys := make([]string, 0, len(client.cmdMap))
+	for k := range client.cmdMap {
+		keys = append(keys, k)
+	}
+	for i := range keys {
+		for j := i + 1; j < len(keys); j++ {
+			if len(keys[j]) > len(keys[i]) {
+				keys[i], keys[j] = keys[j], keys[i]
+			}
+		}
+	}
+	client.cmdKeys = keys
+
+	tests := []struct {
+		name       string
+		input      string
+		wantMethod string
+		wantArgs   []string
+	}{
+		{"peer_list", "peer list", "ze-bgp:peer-list", nil},
+		{"peer_show_with_arg", "peer show 10.0.0.1", "ze-bgp:peer-show", []string{"10.0.0.1"}},
+		{"daemon_status", "daemon status", "ze-bgp:daemon-status", nil},
+		{"system_help", "system help", "ze-system:help", nil},
+		{"unknown", "nonexistent", "", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			method, args := client.resolveCommand(tt.input)
+			if method != tt.wantMethod {
+				t.Errorf("resolveCommand(%q) method = %q, want %q", tt.input, method, tt.wantMethod)
+			}
+			if len(args) != len(tt.wantArgs) {
+				t.Errorf("resolveCommand(%q) args = %v, want %v", tt.input, args, tt.wantArgs)
+			}
+		})
 	}
 }

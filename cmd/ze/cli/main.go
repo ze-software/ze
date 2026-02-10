@@ -2,7 +2,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
@@ -13,13 +12,13 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
-
-const statusError = "error"
 
 // Run executes the cli subcommand with the given arguments.
 // Returns exit code.
@@ -106,17 +105,19 @@ func runBGP(args []string) int {
 	return 0
 }
 
-// cliResponse represents an API response.
-type cliResponse struct {
-	Status string         `json:"status"`
-	Error  string         `json:"error,omitempty"`
-	Data   map[string]any `json:"data,omitempty"`
+// rpcResponse covers both success and error JSON RPC wire formats.
+type rpcResponse struct {
+	Result json.RawMessage `json:"result,omitempty"`
+	Error  string          `json:"error,omitempty"`
 }
 
-// cliClient handles communication with the API server.
+// cliClient handles communication with the API server using NUL-framed JSON RPC.
 type cliClient struct {
-	conn   net.Conn
-	reader *bufio.Reader
+	conn    net.Conn
+	reader  *ipc.FrameReader
+	writer  *ipc.FrameWriter
+	cmdMap  map[string]string // lowercase CLI command → wire method
+	cmdKeys []string          // sorted by length descending for longest-match
 }
 
 func newCLIClient(socketPath string) (*cliClient, error) {
@@ -125,14 +126,63 @@ func newCLIClient(socketPath string) (*cliClient, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Build command map from all registered RPCs
+	cmdMap := make(map[string]string)
+	for _, reg := range plugin.AllBuiltinRPCs() {
+		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
+	}
+
+	// Sort keys by length descending for longest-match
+	keys := make([]string, 0, len(cmdMap))
+	for k := range cmdMap {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return len(keys[i]) > len(keys[j])
+	})
+
 	return &cliClient{
-		conn:   conn,
-		reader: bufio.NewReader(conn),
+		conn:    conn,
+		reader:  ipc.NewFrameReader(conn),
+		writer:  ipc.NewFrameWriter(conn),
+		cmdMap:  cmdMap,
+		cmdKeys: keys,
 	}, nil
 }
 
 func (c *cliClient) Close() error {
 	return c.conn.Close()
+}
+
+// resolveCommand finds the wire method for a text command.
+// Tries "bgp <input>" first (default subsystem), then raw input.
+// Returns wire method and any remaining args after the matched prefix.
+func (c *cliClient) resolveCommand(input string) (method string, args []string) {
+	// Try with "bgp " prefix first (default subsystem)
+	if m, a := c.matchCommand("bgp " + input); m != "" {
+		return m, a
+	}
+	// Try raw input for system/rib/plugin commands
+	return c.matchCommand(input)
+}
+
+// matchCommand does longest-prefix matching against registered CLI commands.
+func (c *cliClient) matchCommand(input string) (method string, args []string) {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	for _, key := range c.cmdKeys {
+		if strings.HasPrefix(lower, key) {
+			// Check word boundary
+			if len(lower) == len(key) || lower[len(key)] == ' ' {
+				remaining := strings.TrimSpace(input[len(key):])
+				if remaining != "" {
+					args = strings.Fields(remaining)
+				}
+				return c.cmdMap[key], args
+			}
+		}
+	}
+	return "", nil
 }
 
 // Execute sends a command and prints the response.
@@ -145,89 +195,156 @@ func (c *cliClient) Execute(command string) int {
 
 	c.PrintResponse(resp)
 
-	if resp.Status == "error" {
+	if resp.Error != "" {
 		return 1
 	}
 	return 0
 }
 
-// SendCommand sends a command and returns the response.
-func (c *cliClient) SendCommand(command string) (*cliResponse, error) {
-	// Send command
-	_, err := fmt.Fprintf(c.conn, "%s\n", command)
+// SendCommand sends a command as JSON RPC and returns the response.
+func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
+	method, args := c.resolveCommand(command)
+	if method == "" {
+		return &rpcResponse{Error: "unknown command: " + command}, nil
+	}
+
+	// Build JSON RPC request
+	req := ipc.Request{Method: method}
+	if len(args) > 0 {
+		params := struct {
+			Args []string `json:"args,omitempty"`
+		}{Args: args}
+		paramBytes, err := json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("marshal params: %w", err)
+		}
+		req.Params = paramBytes
+	}
+
+	// Send NUL-framed JSON
+	reqBytes, err := json.Marshal(req)
 	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
+	}
+	if err := c.writer.Write(reqBytes); err != nil {
 		return nil, fmt.Errorf("send: %w", err)
 	}
 
-	// Read response
-	line, err := c.reader.ReadString('\n')
+	// Read NUL-framed response
+	respBytes, err := c.reader.Read()
 	if err != nil {
 		return nil, fmt.Errorf("receive: %w", err)
 	}
 
-	var resp cliResponse
-	if err := json.Unmarshal([]byte(line), &resp); err != nil {
-		return nil, fmt.Errorf("parse: %w", err)
+	var resp rpcResponse
+	if err := json.Unmarshal(respBytes, &resp); err != nil {
+		return nil, fmt.Errorf("parse response: %w", err)
 	}
 
 	return &resp, nil
 }
 
 // PrintResponse formats and prints a response.
-func (c *cliClient) PrintResponse(resp *cliResponse) {
-	if resp.Status == "error" {
+func (c *cliClient) PrintResponse(resp *rpcResponse) {
+	if resp.Error != "" {
 		fmt.Fprintf(os.Stderr, "error: %s\n", resp.Error)
 		return
 	}
 
-	if resp.Data == nil {
+	if len(resp.Result) == 0 || string(resp.Result) == "null" {
 		fmt.Println("OK")
 		return
 	}
 
-	// Pretty print data
-	c.printData(resp.Data, "")
-}
-
-func (c *cliClient) printData(data map[string]any, indent string) {
-	for key, value := range data {
-		switch v := value.(type) {
-		case []any:
-			if len(v) == 0 {
-				fmt.Printf("%s%s: (none)\n", indent, key)
-			} else {
-				fmt.Printf("%s%s:\n", indent, key)
-				for _, item := range v {
-					if m, ok := item.(map[string]any); ok {
-						c.printItem(m, indent+"  ")
-					} else if s, ok := item.(string); ok {
-						fmt.Printf("%s  - %s\n", indent, s)
-					} else {
-						fmt.Printf("%s  - %v\n", indent, item)
-					}
-				}
-			}
-		case map[string]any:
-			fmt.Printf("%s%s:\n", indent, key)
-			c.printData(v, indent+"  ")
-		default: // print unknown types with generic format
-			fmt.Printf("%s%s: %v\n", indent, key, value)
-		}
-	}
-}
-
-func (c *cliClient) printItem(m map[string]any, indent string) {
-	// For peer info, format nicely
-	if addr, ok := m["Address"]; ok {
-		state := m["State"]
-		fmt.Printf("%s%v [%v]\n", indent, addr, state)
+	// Pretty print result
+	var data any
+	if err := json.Unmarshal(resp.Result, &data); err != nil {
+		fmt.Println(string(resp.Result))
 		return
 	}
 
-	// Generic map
-	for k, v := range m {
-		fmt.Printf("%s%s: %v\n", indent, k, v)
+	printValue(data, "")
+}
+
+// printValue recursively prints a JSON value with indentation.
+func printValue(v any, indent string) {
+	switch val := v.(type) {
+	case map[string]any:
+		for key, value := range val {
+			switch child := value.(type) {
+			case map[string]any:
+				fmt.Printf("%s%s:\n", indent, key)
+				printValue(child, indent+"  ")
+			case []any:
+				if len(child) == 0 {
+					fmt.Printf("%s%s: (none)\n", indent, key)
+				} else {
+					fmt.Printf("%s%s:\n", indent, key)
+					printValue(child, indent+"  ")
+				}
+			default:
+				fmt.Printf("%s%s: %v\n", indent, key, formatNumber(value))
+			}
+		}
+	case []any:
+		for _, item := range val {
+			if m, ok := item.(map[string]any); ok {
+				// For peer info, format nicely
+				if addr, ok := m["Address"]; ok {
+					state := m["State"]
+					fmt.Printf("%s%v [%v]\n", indent, addr, state)
+					continue
+				}
+			}
+			fmt.Printf("%s- %v\n", indent, item)
+		}
+	default:
+		fmt.Printf("%s%v\n", indent, v)
 	}
+}
+
+// formatNumber displays integers without decimal points.
+func formatNumber(v any) any {
+	if n, ok := v.(float64); ok {
+		if n == float64(int64(n)) {
+			return int64(n)
+		}
+	}
+	return v
+}
+
+// buildCommandTree builds the command tree from registered RPCs.
+// Strips the "bgp " prefix for BGP commands to create the user-facing tree.
+func buildCommandTree() *Command {
+	root := &Command{Children: make(map[string]*Command)}
+
+	for _, reg := range plugin.AllBuiltinRPCs() {
+		cmd := reg.CLICommand
+
+		// Strip "bgp " prefix for BGP commands (user types "peer list", not "bgp peer list")
+		cmd = strings.TrimPrefix(cmd, "bgp ")
+
+		parts := strings.Fields(cmd)
+		if len(parts) == 0 {
+			continue
+		}
+
+		current := root
+		for _, part := range parts {
+			if current.Children == nil {
+				current.Children = make(map[string]*Command)
+			}
+			child, ok := current.Children[part]
+			if !ok {
+				child = &Command{Name: part}
+				current.Children[part] = child
+			}
+			current = child
+		}
+		current.Description = reg.Help
+	}
+
+	return root
 }
 
 // Command represents a CLI command with metadata.
@@ -239,52 +356,6 @@ type Command struct {
 
 // commandTree holds all available commands for completion.
 var commandTree = buildCommandTree()
-
-func buildCommandTree() *Command {
-	return &Command{
-		Name: "",
-		Children: map[string]*Command{
-			"daemon": {
-				Name:        "daemon",
-				Description: "Daemon control commands",
-				Children: map[string]*Command{
-					"shutdown": {Name: "shutdown", Description: "Gracefully shutdown the daemon"},
-					"status":   {Name: "status", Description: "Show daemon status"},
-				},
-			},
-			"peer": {
-				Name:        "peer",
-				Description: "Peer operations",
-				Children: map[string]*Command{
-					"list": {Name: "list", Description: "List all peers (brief)"},
-					"show": {Name: "show", Description: "Show peer details [<ip>]"},
-				},
-			},
-			"rib": {
-				Name:        "rib",
-				Description: "RIB operations",
-				Children: map[string]*Command{
-					"show": {
-						Name:        "show",
-						Description: "Show RIB contents",
-						Children: map[string]*Command{
-							"in":  {Name: "in", Description: "Show Adj-RIB-In"},
-							"out": {Name: "out", Description: "Show Adj-RIB-Out"},
-						},
-					},
-				},
-			},
-			"system": {
-				Name:        "system",
-				Description: "System commands",
-				Children: map[string]*Command{
-					"help":    {Name: "help", Description: "Show available commands"},
-					"version": {Name: "version", Description: "Show version"},
-				},
-			},
-		},
-	}
-}
 
 // Styles.
 var (
@@ -483,12 +554,17 @@ func (m model) executeCommand(command string) tea.Cmd {
 
 		// Format response
 		var output strings.Builder
-		if resp.Status == statusError {
+		if resp.Error != "" {
 			output.WriteString(errorStyle.Render("Error: " + resp.Error))
 		} else {
-			if resp.Data != nil {
-				formatted, _ := json.MarshalIndent(resp.Data, "", "  ")
-				output.WriteString(string(formatted))
+			if len(resp.Result) > 0 && string(resp.Result) != "null" {
+				var data any
+				if err := json.Unmarshal(resp.Result, &data); err == nil {
+					formatted, _ := json.MarshalIndent(data, "", "  ")
+					output.WriteString(string(formatted))
+				} else {
+					output.WriteString(string(resp.Result))
+				}
 			} else {
 				output.WriteString(successStyle.Render("OK"))
 			}
