@@ -1167,8 +1167,6 @@ func (m *Model) cmdUp() (commandResult, error) {
 		return commandResult{output: "Already at top level"}, nil
 	}
 
-	content := m.editor.WorkingContent()
-
 	// Try removing elements from the end until we find a valid parent.
 	// Containers are 1 element (e.g., "bgp"), list entries are 2 (e.g., "peer", "1.1.1.1").
 	// Use WalkPath to verify the parent exists in the tree.
@@ -1176,6 +1174,7 @@ func (m *Model) cmdUp() (commandResult, error) {
 		newContext := m.contextPath[:len(m.contextPath)-removeCount]
 
 		if len(newContext) == 0 {
+			content := m.editor.WorkingContent()
 			return commandResult{
 				clearContext: true,
 				configView:   &viewportData{content: content, lineMapping: nil},
@@ -1184,6 +1183,7 @@ func (m *Model) cmdUp() (commandResult, error) {
 
 		// Verify this parent path resolves in the tree
 		if m.editor.WalkPath(newContext) != nil {
+			content := m.editor.ContentAtPath(newContext)
 			return commandResult{
 				newContext: newContext,
 				isTemplate: false,
@@ -1193,6 +1193,7 @@ func (m *Model) cmdUp() (commandResult, error) {
 	}
 
 	// Fallback: go to root
+	content := m.editor.WorkingContent()
 	return commandResult{
 		clearContext: true,
 		configView:   &viewportData{content: content, lineMapping: nil},
@@ -1220,7 +1221,7 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
 	}
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(fullPath)
 	return commandResult{
 		newContext: fullPath,
 		isTemplate: false,
@@ -1230,9 +1231,8 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 
 // showConfigContent displays config content in viewport with proper highlighting.
 // Used only in WindowSizeMsg handler for initial display.
-// Part 1: always shows full serialized tree (subtree filtering deferred to Part 2).
 func (m *Model) showConfigContent() {
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	if content == "" {
 		m.setViewportText("(empty configuration)")
 		return
@@ -1241,11 +1241,10 @@ func (m *Model) showConfigContent() {
 }
 
 func (m *Model) cmdShow(_ []string) (commandResult, error) {
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	if content == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
-	// Part 1: always show full serialized tree (subtree filtering deferred to Part 2)
 	return commandResult{configView: &viewportData{content: content, lineMapping: nil}}, nil
 }
 
@@ -1292,7 +1291,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Rolled back to %s", backups[n-1].Path),
 		configView:    &viewportData{content: content, lineMapping: nil},
@@ -1329,7 +1328,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	displayPath := append(append([]string{}, containerPath...), key)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value),
@@ -1442,7 +1441,7 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")),
 		configView:    &viewportData{content: content, lineMapping: nil},
@@ -1489,7 +1488,7 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: "Changes discarded",
 		configView:    &viewportData{content: content, lineMapping: nil},
@@ -1708,7 +1707,7 @@ func (m *Model) cmdAbort() (commandResult, error) {
 		}
 	}
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage:     "Changes rolled back to previous state.",
 		configView:        &viewportData{content: content, lineMapping: nil},
@@ -1735,7 +1734,7 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(string(data))
 	m.editor.MarkDirty()
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration loaded from %s", args[0]),
 		configView:    &viewportData{content: content, lineMapping: nil},
@@ -1756,9 +1755,7 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("cannot read %s: %w", args[0], err)
 	}
 
-	// Simple merge: append the loaded content after the current content
-	// A more sophisticated merge would parse both and combine trees
-	// For now, we do line-based merge avoiding duplicates
+	// Merge needs full content (not subtree)
 	currentContent := m.editor.WorkingContent()
 	mergeContent := string(data)
 
@@ -1767,7 +1764,7 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(merged)
 	m.editor.MarkDirty()
 
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration merged from %s", args[0]),
 		configView:    &viewportData{content: content, lineMapping: nil},
@@ -1868,7 +1865,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 		m.editor.MarkDirty()
 		return commandResult{
 			statusMessage: fmt.Sprintf("Configuration loaded from %s", path),
-			configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+			configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
 			revalidate:    true,
 		}, nil
 	}
@@ -1880,7 +1877,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 	m.editor.MarkDirty()
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration merged from %s", path),
-		configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+		configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
 		revalidate:    true,
 	}, nil
 }
@@ -1912,7 +1909,7 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration %s from %s at %s", verb, path, strings.Join(m.contextPath, " ")),
-		configView:    &viewportData{content: m.editor.WorkingContent(), lineMapping: nil},
+		configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
 		revalidate:    true,
 	}, nil
 }
@@ -2053,12 +2050,10 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 
 // cmdShowPipe executes show with pipe filters.
 func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
-	content := m.editor.WorkingContent()
+	content := m.editor.ContentAtPath(m.contextPath)
 	if content == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
-
-	// Part 1: pipe filters apply to full serialized tree (subtree filtering deferred to Part 2)
 
 	// Apply pipe filters
 	output := content

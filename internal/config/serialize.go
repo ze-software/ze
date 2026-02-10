@@ -38,6 +38,55 @@ func Serialize(tree *Tree, schema *Schema) string {
 	return b.String()
 }
 
+// childProvider is any schema node with children that can be iterated.
+type childProvider interface {
+	Children() []string
+	Get(name string) Node
+}
+
+// SerializeSubtree serializes a subtree using the given schema node for ordering.
+// Works with *ContainerNode, *ListNode, or *FlexNode.
+func SerializeSubtree(tree *Tree, node Node) string {
+	cp, ok := node.(childProvider)
+	if !ok {
+		return ""
+	}
+	var b strings.Builder
+	serializeWithChildren(&b, tree, cp, 0)
+	return b.String()
+}
+
+// serializeWithChildren serializes tree content using a schema node that provides
+// Children() and Get() for ordering.
+func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, indent int) {
+	prefix := strings.Repeat("\t", indent)
+
+	for _, name := range node.Children() {
+		child := node.Get(name)
+		serializeNode(b, tree, name, child, indent)
+	}
+
+	schemaNames := make(map[string]bool)
+	for _, name := range node.Children() {
+		schemaNames[name] = true
+	}
+
+	var valueKeys []string
+	for k := range tree.values {
+		if !schemaNames[k] {
+			valueKeys = append(valueKeys, k)
+		}
+	}
+	sort.Strings(valueKeys)
+	for _, k := range valueKeys {
+		b.WriteString(prefix)
+		b.WriteString(k)
+		b.WriteString(" ")
+		b.WriteString(quoteIfNeeded(tree.values[k]))
+		b.WriteString(";\n")
+	}
+}
+
 func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent int) {
 	prefix := strings.Repeat("\t", indent)
 

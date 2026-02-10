@@ -262,10 +262,71 @@ func (e *Editor) SetWorkingContent(content string) {
 	}
 }
 
+// ContentAtPath returns the serialized content at the given context path.
+// If path is empty, returns the full WorkingContent().
+// If the path doesn't resolve, falls back to full content.
+func (e *Editor) ContentAtPath(path []string) string {
+	if len(path) == 0 {
+		return e.WorkingContent()
+	}
+	if !e.treeValid || e.tree == nil || e.schema == nil {
+		return e.workingContent
+	}
+
+	subtree, schemaNode := e.walkPathWithSchema(path)
+	if subtree == nil || schemaNode == nil {
+		return e.WorkingContent()
+	}
+	return config.SerializeSubtree(subtree, schemaNode)
+}
+
 // schemaGetter is any schema node that can look up children by name.
 // Satisfied by *config.Schema, *config.ContainerNode, *config.ListNode, *config.FlexNode.
 type schemaGetter interface {
 	Get(name string) config.Node
+}
+
+// walkPathWithSchema navigates tree and schema in parallel, returning both
+// the subtree and the schema node at the destination.
+func (e *Editor) walkPathWithSchema(path []string) (*config.Tree, config.Node) {
+	if e.tree == nil || e.schema == nil || len(path) == 0 {
+		return nil, nil
+	}
+
+	currentTree := e.tree
+	var currentSchema schemaGetter = e.schema
+
+	i := 0
+	for i < len(path) {
+		name := path[i]
+		schemaNode := currentSchema.Get(name)
+		if schemaNode == nil {
+			return nil, nil
+		}
+
+		navigable, next, step := walkSchemaNode(schemaNode, currentTree, name, path, i)
+		if !navigable || next == nil {
+			return nil, nil
+		}
+		currentTree = next
+
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			currentSchema = n
+		case *config.ListNode:
+			currentSchema = n
+		case *config.FlexNode:
+			currentSchema = n
+		}
+		i += step
+	}
+
+	// Return the tree and the last schema node we navigated through
+	node, ok := currentSchema.(config.Node)
+	if !ok {
+		return nil, nil
+	}
+	return currentTree, node
 }
 
 // WalkPath navigates the tree using the schema to distinguish containers from list keys.
