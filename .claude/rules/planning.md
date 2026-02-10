@@ -558,6 +558,10 @@ If you had to investigate/debug something, ask:
 ### Design Insights
 - [Key learnings that should be documented elsewhere]
 
+### Documentation Updates
+<!-- Check the Post-Implementation Updates table below. If your task changed any listed area, update the corresponding docs and record what you updated here. -->
+- [List docs updated, or "None — no architectural changes"]
+
 ### Deviations from Plan
 - [Any differences from original plan and why]
 
@@ -661,6 +665,7 @@ If you had to investigate/debug something, ask:
 [ ] 4. Update spec to reflect reality
       → Mark all checklist items with actual status
       → Add "Implementation Summary" section if missing
+      → Fill "Documentation Updates" subsection (which docs were updated, or "None")
       → Document any bugs found/fixed
       → Document any deviations from original plan
 
