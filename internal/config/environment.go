@@ -169,11 +169,83 @@ func (e *Environment) OpenWaitDuration() time.Duration {
 
 // SocketPath returns the full path to the API socket.
 // Can be overridden with ze.bgp.api.socketpath or ze_bgp_api_socketpath env var.
+// Otherwise uses DefaultSocketPath() cascade: XDG_RUNTIME_DIR → /var/run → /tmp.
 func (e *Environment) SocketPath() string {
 	if path := getEnv("api", "socketpath"); path != "" {
 		return path
 	}
-	return "/var/run/" + e.API.SocketName + ".sock"
+	return DefaultSocketPath()
+}
+
+// DefaultSocketPath returns the default socket path using XDG conventions.
+// Resolution order:
+//  1. $XDG_RUNTIME_DIR/ze.socket (per-user runtime dir)
+//  2. /var/run/ze.socket (system runtime dir, when running as root)
+//  3. /tmp/ze.socket (fallback, always writable)
+func DefaultSocketPath() string {
+	const socketName = "ze.socket"
+
+	if dir := os.Getenv("XDG_RUNTIME_DIR"); dir != "" {
+		return dir + "/" + socketName
+	}
+	if os.Getuid() == 0 {
+		return "/var/run/" + socketName
+	}
+	return "/tmp/" + socketName
+}
+
+// ResolveConfigPath searches for a config file using XDG conventions.
+// Search order:
+//  1. Path as given (absolute or relative to cwd)
+//  2. $XDG_CONFIG_HOME/ze/<name> (defaults to ~/.config/ze/)
+//  3. Each dir in $XDG_CONFIG_DIRS/ze/<name> (defaults to /etc/xdg/ze/)
+//
+// Returns the original path unchanged if no XDG match is found,
+// letting the caller produce the appropriate "file not found" error.
+func ResolveConfigPath(path string) string {
+	// Absolute paths and stdin are used as-is.
+	if path == "-" || strings.HasPrefix(path, "/") {
+		return path
+	}
+
+	// If it exists relative to cwd, use it.
+	if _, err := os.Stat(path); err == nil {
+		return path
+	}
+
+	name := path // treat as a filename to search for
+
+	// $XDG_CONFIG_HOME/ze/<name> (default: ~/.config/ze/)
+	configHome := os.Getenv("XDG_CONFIG_HOME")
+	if configHome == "" {
+		if home := os.Getenv("HOME"); home != "" {
+			configHome = home + "/.config"
+		}
+	}
+	if configHome != "" {
+		candidate := configHome + "/ze/" + name
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	// $XDG_CONFIG_DIRS/ze/<name> (default: /etc/xdg/ze/)
+	configDirs := os.Getenv("XDG_CONFIG_DIRS")
+	if configDirs == "" {
+		configDirs = "/etc/xdg"
+	}
+	for _, dir := range strings.Split(configDirs, ":") {
+		if dir == "" {
+			continue
+		}
+		candidate := dir + "/ze/" + name
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate
+		}
+	}
+
+	// Nothing found — return original so caller gets a clear error.
+	return path
 }
 
 // getEnv returns the environment variable value.

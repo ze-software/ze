@@ -399,21 +399,19 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		ConfiguredFamilies: configuredFamilies,
 	}
 
-	// Set API socket path if plugins are configured or families might need auto-load
-	if len(cfg.Plugins) > 0 || len(configuredFamilies) > 0 {
-		reactorCfg.APISocketPath = env.SocketPath()
+	// Always set API socket path so CLI can connect to the daemon
+	reactorCfg.APISocketPath = env.SocketPath()
 
-		// Convert plugin configs
-		for _, pc := range cfg.Plugins {
-			reactorCfg.Plugins = append(reactorCfg.Plugins, reactor.PluginConfig{
-				Name:          pc.Name,
-				Run:           pc.Run,
-				Encoder:       pc.Encoder,
-				ReceiveUpdate: pc.ReceiveUpdate,
-				StageTimeout:  pc.StageTimeout,
-				Internal:      pc.Internal,
-			})
-		}
+	// Convert plugin configs
+	for _, pc := range cfg.Plugins {
+		reactorCfg.Plugins = append(reactorCfg.Plugins, reactor.PluginConfig{
+			Name:          pc.Name,
+			Run:           pc.Run,
+			Encoder:       pc.Encoder,
+			ReceiveUpdate: pc.ReceiveUpdate,
+			StageTimeout:  pc.StageTimeout,
+			Internal:      pc.Internal,
+		})
 	}
 
 	r := reactor.New(reactorCfg)

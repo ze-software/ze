@@ -39,12 +39,17 @@ type APISyncState struct {
 func (r *Reactor) SetAPIProcessCount(count int) {
 	r.processCount = count
 	r.readyCount.Store(0)
-	r.apiReady = make(chan struct{})
-	r.apiReadyOnce = sync.Once{}
-	r.startupComplete = make(chan struct{})
-	r.startupCompleteOnce = sync.Once{}
 	if r.apiTimeout == 0 {
 		r.apiTimeout = DefaultAPITimeout
+	}
+	// Only create wait channels when there are plugins to wait for.
+	// With count==0, WaitForAPIReady and WaitForPluginStartupComplete
+	// return immediately via their nil/count checks.
+	if count > 0 {
+		r.apiReady = make(chan struct{})
+		r.apiReadyOnce = sync.Once{}
+		r.startupComplete = make(chan struct{})
+		r.startupCompleteOnce = sync.Once{}
 	}
 }
 

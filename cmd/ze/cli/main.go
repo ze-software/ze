@@ -12,12 +12,13 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/config"
+
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
-const defaultSocketPath = "/var/run/ze-bgp.sock"
 const statusError = "error"
 
 // Run executes the cli subcommand with the given arguments.
@@ -47,7 +48,7 @@ Subsystems:
   bgp    BGP daemon (default)
 
 Options:
-  --socket <path>    Path to API socket (default: /var/run/ze-bgp.sock)
+  --socket <path>    Path to API socket (default: auto-detected)
   --run <command>    Execute single command and exit
 
 Examples:
@@ -61,7 +62,7 @@ Examples:
 // runBGP runs the BGP CLI.
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
-	socketPath := fs.String("socket", defaultSocketPath, "Path to API socket")
+	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
 	runCmd := fs.String("run", "", "Execute single command and exit")
 
 	if err := fs.Parse(args); err != nil {

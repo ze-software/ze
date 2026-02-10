@@ -78,6 +78,8 @@ func main() {
 		if arg == "-" {
 			os.Exit(hub.Run(arg, plugins))
 		}
+		// Search XDG config paths if not found locally
+		arg = config.ResolveConfigPath(arg)
 		switch detectConfigType(arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
