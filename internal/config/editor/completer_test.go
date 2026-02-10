@@ -3,6 +3,7 @@ package editor
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -170,6 +171,71 @@ func TestCompleterSetListKeys(t *testing.T) {
 	// Should NOT show schema children (those are for inside a peer)
 	assert.NotContains(t, texts, "peer-as", "should not show peer-as (that's inside peer)")
 	assert.NotContains(t, texts, "address", "should not show address (that's inside peer)")
+}
+
+// TestCompleterListKeysInContext verifies that list key completions work
+// when the context path includes list entries (e.g., inside a peer).
+//
+// VALIDATES: Navigating the config tree through list entries finds sublist keys.
+// PREVENTS: "edit update <tab>" inside a peer showing only <value> instead of existing keys.
+func TestCompleterListKeysInContext(t *testing.T) {
+	c := NewCompleter()
+
+	// Build a tree: bgp { peer 1.1.1.1 { update { ... } update named { ... } } }
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+
+	peer := config.NewTree()
+	peer.Set("peer-as", "65001")
+	bgp.AddListEntry("peer", "1.1.1.1", peer)
+
+	update1 := config.NewTree()
+	peer.AddListEntry("update", config.KeyDefault, update1)
+
+	update2 := config.NewTree()
+	peer.AddListEntry("update", "named", update2)
+
+	c.SetTree(tree)
+
+	// "edit update " inside peer context should show #N for unnamed, actual key for named
+	contextPath := []string{"bgp", "peer", "1.1.1.1"}
+	completions := c.Complete("edit update ", contextPath)
+	require.NotEmpty(t, completions)
+
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "*", "should show wildcard")
+	assert.Contains(t, texts, "#1", "unnamed default entry shown as #1")
+	assert.Contains(t, texts, "named", "named entry shown by actual key")
+	// Should NOT show raw internal KeyDefault
+	assert.NotContains(t, texts, config.KeyDefault, "should not show raw 'default' key")
+}
+
+// TestCompleterListKeySingleEntry verifies that a single list entry
+// does not show key completions — the user should not be asked to pick.
+//
+// VALIDATES: Single-entry lists auto-select without requiring a key.
+// PREVENTS: Asking for a key when there's only one option.
+func TestCompleterListKeySingleEntry(t *testing.T) {
+	c := NewCompleter()
+
+	// Build a tree: bgp { peer 1.1.1.1 { update { ... } } }
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+
+	peer := config.NewTree()
+	bgp.AddListEntry("peer", "1.1.1.1", peer)
+
+	update := config.NewTree()
+	peer.AddListEntry("update", config.KeyDefault, update)
+
+	c.SetTree(tree)
+
+	// "edit update " with only one entry should return empty — no key needed
+	contextPath := []string{"bgp", "peer", "1.1.1.1"}
+	completions := c.Complete("edit update ", contextPath)
+	assert.Empty(t, completions, "single entry should not show key completions")
 }
 
 func completionTexts(completions []Completion) []string {

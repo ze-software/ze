@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"sort"
 	"strings"
 
@@ -248,7 +249,28 @@ func (c *Completer) completeShowPath(tokens []string, contextPath []string, ends
 
 // listKeyCompletions returns completions for list keys.
 // contextPath is used to navigate to the correct container in the config tree.
+// Single-entry lists return nil (auto-selected, no key needed).
+// Multi-entry lists show positional IDs (#1, #2, ...) instead of raw keys.
 func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []string) []Completion {
+	// Count existing entries to decide behavior
+	var entryCount int
+	var orderedEntries []struct {
+		Key   string
+		Value *config.Tree
+	}
+	if c.tree != nil {
+		tree := c.navigateTreeToPath(contextPath)
+		if tree != nil {
+			orderedEntries = tree.GetListOrdered(listName)
+			entryCount = len(orderedEntries)
+		}
+	}
+
+	// Single entry — auto-select, no key needed
+	if entryCount == 1 {
+		return nil
+	}
+
 	var completions []Completion
 
 	// Add wildcard template option
@@ -260,31 +282,30 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		})
 	}
 
-	// Add existing keys from config tree
-	if c.tree != nil {
-		// Navigate to the correct container based on context path
-		tree := c.tree
-		for _, part := range contextPath {
-			container := tree.GetContainer(part)
-			if container == nil {
-				break
-			}
-			tree = container
-		}
-		keys := tree.ListKeys(listName)
-		for _, key := range keys {
-			if prefix == "" || strings.HasPrefix(key, prefix) {
+	// Multiple entries — show actual keys for named entries, #N for unnamed
+	for i, entry := range orderedEntries {
+		if isDefaultKey(entry.Key) {
+			// Unnamed entry — show as positional ID
+			id := fmt.Sprintf("#%d", i+1)
+			if prefix == "" || strings.HasPrefix(id, prefix) {
 				completions = append(completions, Completion{
-					Text:        key,
-					Description: "Existing " + listName,
+					Text:        id,
+					Description: listName,
 					Type:        "list-key",
 				})
 			}
+		} else if prefix == "" || strings.HasPrefix(entry.Key, prefix) {
+			// Named entry — show actual key
+			completions = append(completions, Completion{
+				Text:        entry.Key,
+				Description: listName,
+				Type:        "list-key",
+			})
 		}
 	}
 
-	// Add hint for new entry
-	if len(completions) <= 1 {
+	// Add hint for new entry when no entries exist
+	if entryCount == 0 {
 		completions = append(completions, Completion{
 			Text:        "<value>",
 			Description: "New " + listName + " key",
@@ -293,6 +314,67 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 	}
 
 	return completions
+}
+
+// isDefaultKey returns true if the key is auto-generated (KeyDefault or KeyDefault#N).
+func isDefaultKey(key string) bool {
+	return key == config.KeyDefault || strings.HasPrefix(key, config.KeyDefault+"#")
+}
+
+// navigateTreeToPath walks the config tree along a context path,
+// handling both containers and list entries using the YANG schema
+// to distinguish list keys from child names.
+func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
+	tree := c.tree
+	if tree == nil {
+		return nil
+	}
+
+	entry := c.loader.GetEntry("ze-bgp-conf")
+	if entry == nil {
+		return tree
+	}
+
+	for i := 0; i < len(contextPath); i++ {
+		part := contextPath[i]
+		if entry.Dir == nil {
+			return nil
+		}
+		child, ok := entry.Dir[part]
+		if !ok {
+			return nil
+		}
+		entry = child
+
+		// If this is a list, next path element is the key value
+		if entry.IsList() && i+1 < len(contextPath) {
+			nextPart := contextPath[i+1]
+			if _, hasChild := entry.Dir[nextPart]; !hasChild {
+				// Next element is a list key — navigate into the list entry
+				entries := tree.GetList(part)
+				if entries == nil {
+					return nil
+				}
+				entryTree, ok := entries[nextPart]
+				if !ok {
+					return nil
+				}
+				tree = entryTree
+				i++ // skip the key element
+				continue
+			}
+		}
+
+		// Container navigation
+		container := tree.GetContainer(part)
+		if container != nil {
+			tree = container
+		} else {
+			return nil
+		}
+	}
+
+	return tree
 }
 
 // matchChildren returns completions for children at path matching prefix.

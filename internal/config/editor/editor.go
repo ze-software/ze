@@ -390,6 +390,10 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 		if entries == nil {
 			return true, nil, 2
 		}
+		// Resolve #N positional index to actual key
+		if entry := resolveListKey(tree, name, key); entry != nil {
+			return true, entry, 2
+		}
 		return true, entries[key], 2
 	case *config.FlexNode:
 		return true, tree.GetContainer(name), 1
@@ -399,6 +403,73 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 		return false, nil, 0 // Leaf-like nodes — can't navigate deeper
 	}
 	return false, nil, 0 // Unknown node type
+}
+
+// AutoSelectListEntry checks if the path ends at a list node with exactly one entry.
+// If so, it returns the expanded path with the single entry's key appended.
+// Otherwise returns the original path unchanged.
+func (e *Editor) AutoSelectListEntry(path []string) []string {
+	if e.schema == nil || e.tree == nil || len(path) == 0 {
+		return path
+	}
+
+	// Navigate to the parent and check if the last element is a list
+	lastElem := path[len(path)-1]
+	var parentSchema schemaGetter = e.schema
+	parentTree := e.tree
+
+	// Walk to the parent of the last element
+	for i := 0; i < len(path)-1; i++ {
+		name := path[i]
+		schemaNode := parentSchema.Get(name)
+		if schemaNode == nil {
+			return path
+		}
+		_, next, step := walkSchemaNode(schemaNode, parentTree, name, path, i)
+		if next == nil {
+			return path
+		}
+		parentTree = next
+		switch n := schemaNode.(type) {
+		case *config.ContainerNode:
+			parentSchema = n
+		case *config.ListNode:
+			parentSchema = n
+		case *config.FlexNode:
+			parentSchema = n
+		}
+		i += step - 1 // -1 because the for loop increments
+	}
+
+	schemaNode := parentSchema.Get(lastElem)
+	if _, ok := schemaNode.(*config.ListNode); !ok {
+		return path
+	}
+
+	entries := parentTree.GetListOrdered(lastElem)
+	if len(entries) != 1 {
+		return path
+	}
+
+	// Single entry — expand path with the entry's key
+	return append(path, entries[0].Key)
+}
+
+// resolveListKey resolves a #N positional index to the actual list entry.
+// Returns nil if the key is not a positional index or the index is out of range.
+func resolveListKey(tree *config.Tree, listName, key string) *config.Tree {
+	if !strings.HasPrefix(key, "#") {
+		return nil
+	}
+	idx, err := strconv.Atoi(key[1:])
+	if err != nil || idx < 1 {
+		return nil
+	}
+	ordered := tree.GetListOrdered(listName)
+	if idx > len(ordered) {
+		return nil
+	}
+	return ordered[idx-1].Value
 }
 
 // walkOrCreate navigates the tree, creating containers along the way.

@@ -169,9 +169,14 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 	fullPath = append(fullPath, m.contextPath...)
 	fullPath = append(fullPath, args...)
 
-	// Verify the path exists in the tree
+	// Verify the path exists in the tree.
+	// If it doesn't resolve (e.g., list without KeyDefault), try auto-selecting
+	// a single list entry before giving up.
 	if m.editor.WalkPath(fullPath) == nil {
-		return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
+		fullPath = m.editor.AutoSelectListEntry(fullPath)
+		if m.editor.WalkPath(fullPath) == nil {
+			return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
+		}
 	}
 
 	content := m.editor.ContentAtPath(fullPath)
