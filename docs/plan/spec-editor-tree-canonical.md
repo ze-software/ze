@@ -6,7 +6,8 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/architecture/config/syntax.md` - config file format
-4. `internal/config/editor/model.go` - editor model (large file, ~2500 lines)
+4. `internal/config/editor/model.go` - editor model struct + Update/Init (681 lines)
+4b. `internal/config/editor/model_commands.go` - command handlers: cmdEdit, cmdSet, cmdDelete, cmdShow (486 lines)
 5. `internal/config/editor/editor.go` - Editor struct, file I/O
 6. `internal/config/parser.go` - Tree struct, all tree methods
 7. `internal/config/serialize.go` - Tree → config text serializer
@@ -34,7 +35,10 @@ Part 1 is self-contained: it eliminates the text-surgery functions and brace-cou
 - [ ] `internal/config/serialize_test.go` - round-trip tests proving Serialize works on real configs
 - [ ] `internal/config/schema.go` - Schema struct, ContainerNode, ListNode, navigation via Lookup()
 - [ ] `internal/config/editor/editor.go` - Editor struct (originalContent, workingContent, tree, dirty, save/discard)
-- [ ] `internal/config/editor/model.go` - Model struct, all command handlers (cmdEdit, cmdTop, cmdUp, cmdSet, cmdDelete, cmdShow, cmdLoad, etc.)
+- [ ] `internal/config/editor/model.go` - Model struct, Update, Init, key handling (681 lines)
+- [ ] `internal/config/editor/model_commands.go` - command handlers: cmdEdit, cmdTop, cmdUp, cmdSet, cmdDelete, cmdShow, dispatchCommand (486 lines)
+- [ ] `internal/config/editor/model_load.go` - cmdLoad, cmdCommitConfirm, merge/pipe functions (710 lines)
+- [ ] `internal/config/editor/model_render.go` - View, highlight, render, overlay functions (498 lines)
 - [ ] `internal/config/editor/completer.go` - Completer, already uses YANG schema
 - [ ] `internal/config/editor/validator.go` - ConfigValidator, already parses tree for validation
 
@@ -49,7 +53,7 @@ Part 1 is self-contained: it eliminates the text-surgery functions and brace-cou
 
 **Source files read:** (must read BEFORE writing this spec)
 - [ ] `internal/config/editor/editor.go` - Editor holds both `workingContent string` (raw text, source of truth) and `tree *config.Tree` (parsed once at startup, used only for completions). All mutations go through `SetWorkingContent()` which modifies the raw text. The tree is never updated after startup.
-- [ ] `internal/config/editor/model.go` - Navigation uses text-based functions:
+- [ ] `internal/config/editor/model_commands.go` - Navigation uses text-based functions:
 - [ ] `internal/config/parser.go` - Tree struct definition with Get/Set/GetContainer/GetList/RemoveContainer/RemoveListEntry methods
 - [ ] `internal/config/serialize.go` - Serialize() round-trips through 80+ config files
 - [ ] `internal/config/schema.go` - Schema with ContainerNode/ListNode, Lookup() for path navigation
@@ -57,13 +61,13 @@ Part 1 is self-contained: it eliminates the text-surgery functions and brace-cou
 - [ ] `internal/config/editor/validator.go` - Already parses tree for validation
 
 **Current behavior details:**
-- Text-based navigation functions in model.go:
+- Text-based navigation functions in model_commands.go and model_load.go:
   - `findFullContextPath()` — walks raw text counting `{`/`}` to locate blocks (70 lines)
   - `filterContentByContextPath()` — walks raw text counting braces to extract subsection (90 lines)
   - `findParentOfKeyword()` — walks raw text counting braces (50 lines)
   - `setValueInConfig()` — text surgery to insert/replace key-value pairs (80 lines)
   - `replaceAtContext()` / `mergeAtContext()` / `mergeConfigs()` — text surgery for load commands
-- Command handlers in model.go:
+- Command handlers in model_commands.go:
   - `cmdSet()` builds full path from contextPath + args, calls `setValueInConfig()` on raw text
   - `cmdDelete()` is a stub — marks dirty but does not actually delete anything
   - `cmdEdit()` calls `findFullContextPath()` to locate block, then `filterContentByContextPath()` to extract content for viewport
@@ -193,7 +197,7 @@ Part 1 is self-contained: it eliminates the text-surgery functions and brace-cou
   - Store `schema *config.Schema` for serialization
   - `Save()` uses `Serialize(tree, schema)` to produce file content
   - `Discard()` re-parses original content into tree
-- `internal/config/editor/model.go` - Replace text-based commands with tree-based:
+- `internal/config/editor/model_commands.go` - Replace text-based commands with tree-based:
   - `cmdEdit()` — navigate tree via `WalkPath`, not `findFullContextPath`
   - `cmdUp()` — pop contextPath, no brace-counting needed
   - `cmdTop()` — clear contextPath, serialize full tree for display
@@ -204,7 +208,8 @@ Part 1 is self-contained: it eliminates the text-surgery functions and brace-cou
   - `cmdDiscard()` — call `editor.Discard()`, re-serialize for display
   - `runValidation()` — validate tree directly instead of re-parsing text
   - `showConfigContent()` — serialize tree for display
-  - Delete: `findFullContextPath()`, `findParentOfKeyword()`, `filterContentByContextPath()`, `setValueInConfig()`, `setRootLevelValue()`, `extractKeyFromLine()`, `formatBlockPattern()`, `formatKeyValue()`
+  - Delete from model_commands.go: `findFullContextPath()`, `findParentOfKeyword()`, `setValueInConfig()`, `setRootLevelValue()`, `extractKeyFromLine()`, `formatBlockPattern()`, `formatKeyValue()`
+  - Delete from model_render.go: `filterContentByContextPath()`
 - `internal/config/editor/completer.go` - No changes (already tree-based)
 - `internal/config/editor/validator.go` - `Validate()` accepts `*config.Tree` directly instead of string (or add `ValidateTree()` method)
 
