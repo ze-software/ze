@@ -183,14 +183,80 @@ No new functional tests. All existing must pass.
 - [x] Minimal coupling — splitting reduces what must be loaded together
 
 ### 🧪 TDD
-- [ ] Tests written (no new tests — existing tests validate refactor correctness)
-- [ ] Tests FAIL (N/A — refactor, not new feature; existing tests must keep passing)
-- [ ] Tests PASS (all existing tests pass after split)
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] Tests written (no new tests — existing tests validate refactor correctness)
+- [x] Tests FAIL (N/A — refactor, not new feature; existing tests must keep passing)
+- [x] Tests PASS (all existing tests pass after split)
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes (224 tests: 42 encode + 45 plugin + 22 parse + 22 decode + 93 editor)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes
+- [x] `make test-all` passes (includes ExaBGP: 37 tests)
+
+## Implementation Summary
+
+### What Was Implemented
+- Split `editor/model.go` (2340 → 681 + 498 + 486 + 710)
+- Split `editor/model_test.go` (2213 → 389 + 262 + 733 + 861)
+- Split `config/bgp.go` (3093 → 495 + 986 + 1310 + 330)
+- Split `config/bgp_test.go` (3538 → 949 + 1637 + 566 + 408)
+
+### Bugs Found/Fixed
+- None — pure mechanical refactor
+
+### Design Insights
+- Shared test helpers (e.g., `schemaWithGR`, `parseConfig`) must stay in the base test file since Go test files in the same package share namespace
+- The auto-linter hook's goimports handles unused import cleanup automatically
+- `gofmt -w` needed after bash-created files (sed/cat don't preserve Go formatting)
+
+### Deviations from Plan
+- Spec planned `validateProcessCapabilities` and `applyTreeSettings` in `bgp.go` but they were moved to `bgp_peer.go` (they are peer-related logic, not type definitions)
+- `parseAddPathFamily` placed in `bgp_util.go` instead of `bgp_routes.go` (it's a utility parser, not route extraction)
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Split editor/model.go into 4 files | ✅ Done | `internal/config/editor/model*.go` | |
+| Split editor/model_test.go into 4 files | ✅ Done | `internal/config/editor/model*_test.go` | |
+| Split config/bgp.go into 4 files | ✅ Done | `internal/config/bgp*.go` | |
+| Split config/bgp_test.go into 4 files | ✅ Done | `internal/config/bgp*_test.go` | |
+| No behavior changes | ✅ Done | All tests pass | |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| All editor tests pass | ✅ Done | `go test ./internal/config/editor/...` | |
+| All config tests pass | ✅ Done | `go test ./internal/config/...` | |
+| All functional tests pass | ✅ Done | `make functional` (224 tests) | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `editor/model.go` | ✅ Modified | 2340 → 681 lines |
+| `editor/model_test.go` | ✅ Modified | 2213 → 389 lines |
+| `config/bgp.go` | ✅ Modified | 3093 → 495 lines |
+| `config/bgp_test.go` | ✅ Modified | 3538 → 949 lines |
+| `editor/model_render.go` | ✅ Created | 498 lines |
+| `editor/model_commands.go` | ✅ Created | 486 lines |
+| `editor/model_load.go` | ✅ Created | 710 lines |
+| `editor/model_render_test.go` | ✅ Created | 262 lines |
+| `editor/model_commands_test.go` | ✅ Created | 733 lines |
+| `editor/model_load_test.go` | ✅ Created | 861 lines |
+| `config/bgp_peer.go` | ✅ Created | 986 lines |
+| `config/bgp_routes.go` | ✅ Created | 1310 lines |
+| `config/bgp_util.go` | ✅ Created | 330 lines |
+| `config/bgp_peer_test.go` | ✅ Created | 1637 lines |
+| `config/bgp_routes_test.go` | ✅ Created | 566 lines |
+| `config/bgp_util_test.go` | ✅ Created | 408 lines |
+
+### Audit Summary
+- **Total items:** 21
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 2 (documented in Deviations — improved grouping)
