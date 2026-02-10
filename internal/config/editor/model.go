@@ -71,6 +71,9 @@ type Model struct {
 	height          int
 	quitting        bool
 
+	// Quit confirmation state
+	confirmQuit bool // True if waiting for y/n/Esc to confirm quit
+
 	// Commit confirm state
 	confirmTimerActive bool   // True if waiting for confirm/abort
 	confirmBackupPath  string // Path to backup for rollback on timeout/abort
@@ -242,6 +245,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	// Quit confirmation takes highest priority
+	if m.confirmQuit {
+		switch msg.Type { //nolint:exhaustive // only handle specific keys
+		case tea.KeyEsc, tea.KeyCtrlC:
+			// Second Escape or Ctrl-C confirms quit
+			m.quitting = true
+			return m, tea.Quit
+		case tea.KeyRunes:
+			if len(msg.Runes) == 1 && (msg.Runes[0] == 'y' || msg.Runes[0] == 'Y') {
+				m.quitting = true
+				return m, tea.Quit
+			}
+		}
+		// Any other key cancels quit
+		m.confirmQuit = false
+		m.statusMessage = ""
+		return m, nil
+	}
+
 	// Dropdown navigation takes priority
 	if m.showDropdown && len(m.completions) > 0 {
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
@@ -292,13 +314,10 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg.Type { //nolint:exhaustive // only handle specific keys
-	case tea.KeyCtrlC:
-		m.quitting = true
-		return m, tea.Quit
-
-	case tea.KeyEsc:
-		m.quitting = true
-		return m, tea.Quit
+	case tea.KeyCtrlC, tea.KeyEsc:
+		m.confirmQuit = true
+		m.statusMessage = "Quit? (y/Esc to confirm, any other key to cancel)"
+		return m, nil
 
 	case tea.KeyTab:
 		return m.handleTab()
