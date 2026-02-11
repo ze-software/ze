@@ -26,6 +26,12 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 		return bgpCacheHelp()
 	}
 
+	// Guard reactor access
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	// Check for "list" command (no ID needed)
 	if args[0] == "list" {
 		return handleBgpCacheList(ctx)
@@ -86,7 +92,7 @@ func bgpCacheHelp() (*Response, error) {
 
 // handleBgpCacheList returns all cached message IDs.
 func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
-	ids := ctx.Reactor.ListUpdates()
+	ids := ctx.Reactor().ListUpdates()
 
 	return &Response{
 		Status: statusDone,
@@ -99,7 +105,7 @@ func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
 
 // handleBgpCacheRetain prevents eviction of a cached message.
 func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor.RetainUpdate(id); err != nil {
+	if err := ctx.Reactor().RetainUpdate(id); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("retain failed: %v", err),
@@ -117,7 +123,7 @@ func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
 
 // handleBgpCacheRelease allows eviction of a cached message.
 func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor.ReleaseUpdate(id); err != nil {
+	if err := ctx.Reactor().ReleaseUpdate(id); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("release failed: %v", err),
@@ -135,7 +141,7 @@ func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
 
 // handleBgpCacheExpire removes a cached message immediately.
 func handleBgpCacheExpire(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor.DeleteUpdate(id); err != nil {
+	if err := ctx.Reactor().DeleteUpdate(id); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("expire failed: %v", err),
@@ -168,7 +174,7 @@ func handleBgpCacheForward(ctx *CommandContext, id uint64, args []string) (*Resp
 		}, err
 	}
 
-	if err := ctx.Reactor.ForwardUpdate(sel, id); err != nil {
+	if err := ctx.Reactor().ForwardUpdate(sel, id); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("forward failed: %v", err),

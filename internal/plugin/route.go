@@ -1427,6 +1427,11 @@ func routeRPCs() []RPCRegistration {
 // handleWatchdogAnnounce handles: watchdog announce <name>
 // Announces all routes in the named watchdog group that are currently withdrawn.
 func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
@@ -1437,7 +1442,7 @@ func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, erro
 	name := args[0]
 	peerSelector := ctx.PeerSelector()
 
-	if err := ctx.Reactor.AnnounceWatchdog(peerSelector, name); err != nil {
+	if err := ctx.Reactor().AnnounceWatchdog(peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   err.Error(),
@@ -1456,6 +1461,11 @@ func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, erro
 // handleWatchdogWithdraw handles: watchdog withdraw <name>
 // Withdraws all routes in the named watchdog group that are currently announced.
 func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
@@ -1466,7 +1476,7 @@ func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, erro
 	name := args[0]
 	peerSelector := ctx.PeerSelector()
 
-	if err := ctx.Reactor.WithdrawWatchdog(peerSelector, name); err != nil {
+	if err := ctx.Reactor().WithdrawWatchdog(peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   err.Error(),

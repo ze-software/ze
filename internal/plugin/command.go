@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 )
@@ -99,16 +100,55 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 type Handler func(ctx *CommandContext, args []string) (*Response, error)
 
 // CommandContext provides access to reactor and session state.
+// Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Reactor       ReactorInterface
-	Encoder       *JSONEncoder
-	CommitManager *CommitManager
-	Dispatcher    *Dispatcher          // For accessing registry/commands
-	Process       *Process             // The API process (for session state)
-	Subscriptions *SubscriptionManager // Event subscription tracking
-	Server        *Server              // For coordinator access (reload, config loader)
-	Peer          string               // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Serial        string               // Command serial from #N prefix (empty = no ack)
+	Server  *Server  // Gateway to all server state (reactor, dispatcher, etc.)
+	Process *Process // The API process (for session state)
+	Peer    string   // Peer selector: "*" for all, or specific IP. Empty = "*"
+}
+
+// Reactor returns the reactor interface via Server. Nil-safe: returns nil if Server is nil.
+func (c *CommandContext) Reactor() ReactorInterface {
+	if c.Server == nil {
+		return nil
+	}
+	return c.Server.Reactor()
+}
+
+// Dispatcher returns the command dispatcher via Server. Nil-safe: returns nil if Server is nil.
+func (c *CommandContext) Dispatcher() *Dispatcher {
+	if c.Server == nil {
+		return nil
+	}
+	return c.Server.Dispatcher()
+}
+
+// CommitManager returns the commit manager via Server. Nil-safe: returns nil if Server is nil.
+func (c *CommandContext) CommitManager() *CommitManager {
+	if c.Server == nil {
+		return nil
+	}
+	return c.Server.CommitManager()
+}
+
+// Subscriptions returns the subscription manager via Server. Nil-safe: returns nil if Server is nil.
+func (c *CommandContext) Subscriptions() *SubscriptionManager {
+	if c.Server == nil {
+		return nil
+	}
+	return c.Server.Subscriptions()
+}
+
+// requireReactor returns the reactor or an error response if not available.
+func requireReactor(ctx *CommandContext) (ReactorInterface, *Response, error) {
+	r := ctx.Reactor()
+	if r == nil {
+		return nil, &Response{
+			Status: statusError,
+			Data:   "reactor not available",
+		}, fmt.Errorf("reactor not available")
+	}
+	return r, nil, nil
 }
 
 // PeerSelector returns the effective neighbor selector.

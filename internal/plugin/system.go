@@ -29,12 +29,12 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	var commands []string
 
 	// Use dispatcher if available
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Commands() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			commands = append(commands, cmd.Name+" - "+cmd.Help)
 		}
 		// Add plugin commands
-		for _, cmd := range ctx.Dispatcher.Registry().All() {
+		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			line := cmd.Name
 			if cmd.Args != "" {
 				line += " " + cmd.Args
@@ -87,7 +87,11 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleDaemonShutdown signals the reactor to stop.
 func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
-	ctx.Reactor.Stop()
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	ctx.Reactor().Stop()
 	return &Response{
 		Status: statusDone,
 		Data: map[string]any{
@@ -98,7 +102,11 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
 
 // handleDaemonStatus returns daemon status.
 func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
-	stats := ctx.Reactor.Stats()
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	stats := ctx.Reactor().Stats()
 	return &Response{
 		Status: statusDone,
 		Data: map[string]any{
@@ -114,6 +122,10 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
 // is available. Falls back to direct Reactor.Reload() when no coordinator is configured
 // (e.g., no Server, or no config loader set).
 func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
 	// Use coordinator path when available: reloads config from disk, verifies with
 	// all plugins that registered WantsConfigRoots, then applies to each.
 	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
@@ -132,7 +144,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	// Fallback: direct reactor reload (BGP peer reconciliation only).
-	if err := ctx.Reactor.Reload(); err != nil {
+	if err := ctx.Reactor().Reload(); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("reload failed: %v", err),
@@ -166,8 +178,8 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, err
 	var commands []Completion
 
 	// Add builtin commands
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Commands() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			c := Completion{
 				Value: cmd.Name,
 				Help:  cmd.Help,
@@ -179,7 +191,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, err
 		}
 
 		// Add plugin commands
-		for _, cmd := range ctx.Dispatcher.Registry().All() {
+		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			c := Completion{
 				Value: cmd.Name,
 				Help:  cmd.Description,
@@ -211,8 +223,8 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 	name := args[0]
 
 	// Check builtins first
-	if ctx.Dispatcher != nil {
-		if cmd := ctx.Dispatcher.Lookup(name); cmd != nil {
+	if ctx.Dispatcher() != nil {
+		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
 				Data: map[string]any{
@@ -224,7 +236,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 		}
 
 		// Check plugin commands
-		if cmd := ctx.Dispatcher.Registry().Lookup(name); cmd != nil {
+		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
 				Data: map[string]any{
@@ -274,10 +286,10 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*Response,
 
 	var completions []Completion
 
-	if ctx.Dispatcher != nil {
+	if ctx.Dispatcher() != nil {
 		// Complete builtins
 		lowerPartial := strings.ToLower(partial)
-		for _, cmd := range ctx.Dispatcher.Commands() {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{
 					Value: cmd.Name,
@@ -287,7 +299,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*Response,
 		}
 
 		// Complete plugin commands
-		completions = append(completions, ctx.Dispatcher.Registry().Complete(partial)...)
+		completions = append(completions, ctx.Dispatcher().Registry().Complete(partial)...)
 	}
 
 	return &Response{
@@ -305,12 +317,12 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 		Data:   map[string]any{"completions": []Completion{}},
 	}
 
-	if ctx.Dispatcher == nil {
+	if ctx.Dispatcher() == nil {
 		return emptyResult, nil
 	}
 
 	// Check if it's a plugin command with completable flag
-	cmd := ctx.Dispatcher.Registry().Lookup(cmdName)
+	cmd := ctx.Dispatcher().Registry().Lookup(cmdName)
 	if cmd == nil || !cmd.Completable {
 		return emptyResult, nil
 	}
@@ -325,7 +337,7 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	respCh := make(chan *Response, 1)
 
 	// Add pending request with completion timeout
-	serial := ctx.Dispatcher.Pending().Add(&PendingRequest{
+	serial := ctx.Dispatcher().Pending().Add(&PendingRequest{
 		Command:  cmd.Name,
 		Process:  proc,
 		Timeout:  CompletionTimeout,
@@ -339,16 +351,16 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	// Send completion request via RPC
 	connB := proc.ConnB()
 	if connB == nil {
-		ctx.Dispatcher.Pending().Complete(serial, emptyResult)
+		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 		return <-respCh, nil
 	}
 	rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
 	defer cancel()
 	rpcOut, rpcErr := connB.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
 	if rpcErr != nil {
-		ctx.Dispatcher.Pending().Complete(serial, emptyResult)
+		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 	} else if rpcOut != nil {
-		ctx.Dispatcher.Pending().Complete(serial, &Response{Status: rpcOut.Status, Data: rpcOut.Data})
+		ctx.Dispatcher().Pending().Complete(serial, &Response{Status: rpcOut.Status, Data: rpcOut.Data})
 	}
 
 	// Wait for response

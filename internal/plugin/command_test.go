@@ -220,6 +220,44 @@ func TestDispatcherListCommands(t *testing.T) {
 	assert.True(t, names["rib show in"])
 }
 
+// TestCommandContextNilServer verifies accessor methods return nil safely when Server is nil.
+//
+// VALIDATES: Nil-safe accessors return nil/zero when Server is not set.
+// PREVENTS: Nil pointer panics in tests or handlers that don't need a full Server.
+func TestCommandContextNilServer(t *testing.T) {
+	ctx := &CommandContext{}
+
+	assert.Nil(t, ctx.Reactor(), "Reactor() should return nil when Server is nil")
+	assert.Nil(t, ctx.Dispatcher(), "Dispatcher() should return nil when Server is nil")
+	assert.Nil(t, ctx.CommitManager(), "CommitManager() should return nil when Server is nil")
+	assert.Nil(t, ctx.Subscriptions(), "Subscriptions() should return nil when Server is nil")
+}
+
+// TestCommandContextAccessors verifies accessor methods delegate to Server fields correctly.
+//
+// VALIDATES: Accessor methods on CommandContext return the corresponding Server fields.
+// PREVENTS: Accessor methods returning wrong or stale values.
+func TestCommandContextAccessors(t *testing.T) {
+	reactor := &mockReactor{}
+	dispatcher := NewDispatcher()
+	cm := NewCommitManager()
+	subs := NewSubscriptionManager()
+
+	srv := &Server{
+		reactor:       reactor,
+		dispatcher:    dispatcher,
+		commitManager: cm,
+		subscriptions: subs,
+	}
+
+	ctx := &CommandContext{Server: srv}
+
+	assert.Equal(t, reactor, ctx.Reactor(), "Reactor() should return server's reactor")
+	assert.Equal(t, dispatcher, ctx.Dispatcher(), "Dispatcher() should return server's dispatcher")
+	assert.Equal(t, cm, ctx.CommitManager(), "CommitManager() should return server's commitManager")
+	assert.Equal(t, subs, ctx.Subscriptions(), "Subscriptions() should return server's subscriptions")
+}
+
 // TestDispatcherCaseInsensitive verifies case handling.
 //
 // VALIDATES: Commands are matched case-insensitively.

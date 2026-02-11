@@ -1151,8 +1151,8 @@ func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error { return 
 func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "192.0.2.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "192.0.2.1",
 	}
 
 	args := []string{
@@ -1180,8 +1180,8 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1205,8 +1205,8 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1232,8 +1232,8 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1267,8 +1267,8 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1292,8 +1292,8 @@ func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 func TestHandleUpdateText_ParseError(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1313,8 +1313,8 @@ func TestHandleUpdateText_ParseError(t *testing.T) {
 func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersMatching: true}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "192.0.2.99",
+		Server: &Server{reactor: reactor},
+		Peer:   "192.0.2.99",
 	}
 
 	args := []string{
@@ -1334,8 +1334,8 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1359,8 +1359,8 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 func TestHandleUpdateText_EmptyResult(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	// Just nhop set, no nlri section
@@ -1381,8 +1381,8 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1405,8 +1405,8 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1429,8 +1429,8 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersAccepted: true}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1452,8 +1452,8 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Only IPv6 is not accepted
 	reactor := &mockReactorBatch{noPeersAcceptedFor: nlri.IPv6Unicast}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	// Use separate nhop sections with correct next-hops per family
@@ -1482,8 +1482,8 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 func TestHandleUpdate_TextSubcommand(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{
@@ -1505,8 +1505,8 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
+		Server: &Server{reactor: reactor},
+		Peer:   "*",
 	}
 
 	args := []string{"unknown", "some", "args"}

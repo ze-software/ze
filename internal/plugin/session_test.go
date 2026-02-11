@@ -14,7 +14,7 @@ import (
 // PREVENTS: Missing health check endpoint.
 func TestPluginSessionPing(t *testing.T) {
 	ctx := &CommandContext{
-		Reactor: &mockReactor{},
+		Server: &Server{reactor: &mockReactor{}},
 	}
 
 	resp, err := handlePluginSessionPing(ctx, nil)
@@ -34,7 +34,7 @@ func TestPluginSessionPing(t *testing.T) {
 // PREVENTS: Error on client disconnect cleanup.
 func TestPluginSessionBye(t *testing.T) {
 	ctx := &CommandContext{
-		Reactor: &mockReactor{},
+		Server: &Server{reactor: &mockReactor{}},
 	}
 
 	resp, err := handlePluginSessionBye(ctx, nil)
@@ -50,7 +50,7 @@ func TestPluginSessionBye(t *testing.T) {
 // PREVENTS: Plugin startup signal not being acknowledged.
 func TestPluginSessionReady(t *testing.T) {
 	ctx := &CommandContext{
-		Reactor: &mockReactor{},
+		Server: &Server{reactor: &mockReactor{}},
 	}
 
 	resp, err := handlePluginSessionReady(ctx, nil)

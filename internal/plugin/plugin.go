@@ -29,8 +29,8 @@ func handlePluginHelp(_ *CommandContext, _ []string) (*Response, error) {
 func handlePluginCommandList(ctx *CommandContext, _ []string) (*Response, error) {
 	var commands []map[string]any
 
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Registry().All() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			commands = append(commands, map[string]any{
 				"name":        cmd.Name,
 				"description": cmd.Description,
@@ -57,8 +57,8 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*Response, err
 
 	name := args[0]
 
-	if ctx.Dispatcher != nil {
-		if cmd := ctx.Dispatcher.Registry().Lookup(name); cmd != nil {
+	if ctx.Dispatcher() != nil {
+		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
 				Data: map[string]any{
@@ -89,8 +89,8 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*Response,
 	partial := args[0]
 	var completions []Completion
 
-	if ctx.Dispatcher != nil {
-		completions = ctx.Dispatcher.Registry().Complete(partial)
+	if ctx.Dispatcher() != nil {
+		completions = ctx.Dispatcher().Registry().Complete(partial)
 	}
 
 	return &Response{

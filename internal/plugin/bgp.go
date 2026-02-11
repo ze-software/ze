@@ -43,7 +43,10 @@ var bgpEventTypes = []string{
 // filterPeersBySelector returns peers matching the context's peer selector.
 // If the selector is "*", all peers are returned. Otherwise, filters by IP.
 func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
-	allPeers := ctx.Reactor.Peers()
+	if ctx.Reactor() == nil {
+		return nil, &Response{Status: statusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
+	}
+	allPeers := ctx.Reactor().Peers()
 	selector := ctx.PeerSelector()
 
 	if selector == "*" {
@@ -105,6 +108,11 @@ func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	if len(args) < 1 {
 		return &Response{
 			Status: statusError,
@@ -139,7 +147,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	}
 	subcode := uint8(code)
 
-	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
+	if err := ctx.Reactor().TeardownPeer(addr, subcode); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("teardown failed: %v", err),
@@ -182,6 +190,11 @@ func parseUint(s string) (uint64, error) {
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
 func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	// Parse peer address from context (extracted by dispatcher)
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
@@ -285,7 +298,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Add peer via reactor
-	if err := ctx.Reactor.AddDynamicPeer(config); err != nil {
+	if err := ctx.Reactor().AddDynamicPeer(config); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("failed to add peer: %v", err),
@@ -305,6 +318,11 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 // handleBgpPeerRemove handles "bgp peer <ip> remove" command.
 // Removes a peer dynamically at runtime.
 func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	// Parse peer address from context (extracted by dispatcher)
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
@@ -323,7 +341,7 @@ func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	// Remove peer via reactor
-	if err := ctx.Reactor.RemovePeer(addr); err != nil {
+	if err := ctx.Reactor().RemovePeer(addr); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("failed to remove peer: %v", err),
@@ -365,8 +383,8 @@ func parseRouterID(s string) (uint32, error) {
 func handleBgpHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	var commands []string
 
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Commands() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
 				commands = append(commands, cmd.Name+" - "+cmd.Help)
 			}
@@ -387,8 +405,8 @@ func handleBgpCommandList(ctx *CommandContext, args []string) (*Response, error)
 
 	var commands []Completion
 
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Commands() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
 				c := Completion{
 					Value: cmd.Name,
@@ -418,8 +436,8 @@ func handleBgpCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 
 	name := args[0]
 
-	if ctx.Dispatcher != nil {
-		if cmd := ctx.Dispatcher.Lookup(name); cmd != nil {
+	if ctx.Dispatcher() != nil {
+		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
 				return &Response{
 					Status: statusDone,
@@ -445,9 +463,9 @@ func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, er
 	partial := args[0]
 	var completions []Completion
 
-	if ctx.Dispatcher != nil {
+	if ctx.Dispatcher() != nil {
 		lowerPartial := strings.ToLower(partial)
-		for _, cmd := range ctx.Dispatcher.Commands() {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") &&
 				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{

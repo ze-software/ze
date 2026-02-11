@@ -40,13 +40,8 @@ type RPCParams struct {
 func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
 	return func(_ string, params json.RawMessage) (any, error) {
 		ctx := &CommandContext{
-			Reactor:       s.reactor,
-			Encoder:       s.encoder,
-			CommitManager: s.commitManager,
-			Dispatcher:    s.dispatcher,
-			Subscriptions: s.subscriptions,
-			Server:        s,
-			Peer:          "*",
+			Server: s,
+			Peer:   "*",
 		}
 
 		var rpcParams RPCParams
@@ -223,6 +218,26 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 // a cancellable context tied to the server's lifetime (e.g., coordinator reload).
 func (s *Server) Context() context.Context {
 	return s.ctx
+}
+
+// Reactor returns the reactor interface.
+func (s *Server) Reactor() ReactorInterface {
+	return s.reactor
+}
+
+// Dispatcher returns the command dispatcher.
+func (s *Server) Dispatcher() *Dispatcher {
+	return s.dispatcher
+}
+
+// CommitManager returns the commit manager.
+func (s *Server) CommitManager() *CommitManager {
+	return s.commitManager
+}
+
+// Subscriptions returns the subscription manager.
+func (s *Server) Subscriptions() *SubscriptionManager {
+	return s.subscriptions
 }
 
 // Running returns true if the server is running.
@@ -915,14 +930,9 @@ func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc
 	}
 
 	cmdCtx := &CommandContext{
-		Reactor:       s.reactor,
-		Encoder:       s.encoder,
-		CommitManager: s.commitManager,
-		Dispatcher:    s.dispatcher,
-		Subscriptions: s.subscriptions,
-		Server:        s,
-		Process:       proc,
-		Peer:          input.PeerSelector,
+		Server:  s,
+		Process: proc,
+		Peer:    input.PeerSelector,
 	}
 	if cmdCtx.Peer == "" {
 		cmdCtx.Peer = "*"

@@ -356,14 +356,14 @@ func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 		}, fmt.Errorf("no process context")
 	}
 
-	if ctx.Subscriptions == nil {
+	if ctx.Subscriptions() == nil {
 		return &Response{
 			Status: statusError,
 			Data:   "subscription manager not available",
 		}, fmt.Errorf("no subscription manager")
 	}
 
-	ctx.Subscriptions.Add(ctx.Process, sub)
+	ctx.Subscriptions().Add(ctx.Process, sub)
 
 	return &Response{
 		Status: statusDone,
@@ -392,14 +392,14 @@ func handleUnsubscribe(ctx *CommandContext, args []string) (*Response, error) {
 		}, fmt.Errorf("no process context")
 	}
 
-	if ctx.Subscriptions == nil {
+	if ctx.Subscriptions() == nil {
 		return &Response{
 			Status: statusError,
 			Data:   "subscription manager not available",
 		}, fmt.Errorf("no subscription manager")
 	}
 
-	removed := ctx.Subscriptions.Remove(ctx.Process, sub)
+	removed := ctx.Subscriptions().Remove(ctx.Process, sub)
 
 	return &Response{
 		Status: statusDone,

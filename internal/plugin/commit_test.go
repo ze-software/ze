@@ -10,8 +10,7 @@ import (
 // testCommitContext creates a CommandContext with CommitManager for tests.
 func testCommitContext() *CommandContext {
 	return &CommandContext{
-		Reactor:       &mockReactor{},
-		CommitManager: NewCommitManager(),
+		Server: &Server{reactor: &mockReactor{}, commitManager: NewCommitManager()},
 	}
 }
 
@@ -33,7 +32,7 @@ func TestCommitStart(t *testing.T) {
 	assert.Equal(t, "batch1", data["commit"])
 
 	// Verify commit exists
-	tx, err := ctx.CommitManager.Get("batch1")
+	tx, err := ctx.CommitManager().Get("batch1")
 	require.NoError(t, err)
 	assert.Equal(t, "batch1", tx.Name())
 }
@@ -79,7 +78,7 @@ func TestCommitEnd(t *testing.T) {
 	assert.Equal(t, "end", data["action"])
 
 	// Verify commit removed
-	_, err = ctx.CommitManager.Get("batch1")
+	_, err = ctx.CommitManager().Get("batch1")
 	require.Error(t, err)
 }
 
@@ -141,7 +140,7 @@ func TestCommitRollback(t *testing.T) {
 	assert.Equal(t, 0, data["routes_discarded"]) // Empty commit
 
 	// Verify commit removed
-	_, err = ctx.CommitManager.Get("batch1")
+	_, err = ctx.CommitManager().Get("batch1")
 	require.Error(t, err)
 }
 
@@ -270,11 +269,11 @@ func TestCommitConcurrent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Both should be accessible
-	tx1, err := ctx.CommitManager.Get("batch1")
+	tx1, err := ctx.CommitManager().Get("batch1")
 	require.NoError(t, err)
 	assert.Equal(t, "batch1", tx1.Name())
 
-	tx2, err := ctx.CommitManager.Get("batch2")
+	tx2, err := ctx.CommitManager().Get("batch2")
 	require.NoError(t, err)
 	assert.Equal(t, "batch2", tx2.Name())
 
@@ -282,10 +281,10 @@ func TestCommitConcurrent(t *testing.T) {
 	_, err = handleCommit(ctx, []string{"batch1", "end"})
 	require.NoError(t, err)
 
-	_, err = ctx.CommitManager.Get("batch1")
+	_, err = ctx.CommitManager().Get("batch1")
 	require.Error(t, err)
 
-	_, err = ctx.CommitManager.Get("batch2")
+	_, err = ctx.CommitManager().Get("batch2")
 	require.NoError(t, err)
 }
 
@@ -304,6 +303,6 @@ func TestCommitWithdrawRoute(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 
 	// Verify withdrawal queued
-	tx, _ := ctx.CommitManager.Get("batch1")
+	tx, _ := ctx.CommitManager().Get("batch1")
 	assert.Equal(t, 1, tx.WithdrawalCount())
 }

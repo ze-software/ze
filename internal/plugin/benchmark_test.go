@@ -52,8 +52,7 @@ func BenchmarkDispatch(b *testing.B) {
 	}
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	commands := []struct {
@@ -188,9 +187,8 @@ func BenchmarkConnect(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		ctx := &CommandContext{
-			Reactor:    reactor,
-			Dispatcher: d,
-			Peer:       "*",
+			Server: &Server{reactor: reactor, dispatcher: d},
+			Peer:   "*",
 		}
 		// Simulate initial command exchange
 		benchResp, benchErr = d.Dispatch(ctx, "system version software")
@@ -209,9 +207,8 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 		d := NewDispatcher()
 		RegisterDefaultHandlers(d)
 		ctx := &CommandContext{
-			Reactor:    reactor,
-			Dispatcher: d,
-			Peer:       "*",
+			Server: &Server{reactor: reactor, dispatcher: d},
+			Peer:   "*",
 		}
 		benchResp, benchErr = d.Dispatch(ctx, "bgp peer list")
 	}

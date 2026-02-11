@@ -30,12 +30,12 @@ func handleRibHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	// Add plugin-provided subcommands (e.g., "adjacent" from RIB plugin)
-	if ctx.Dispatcher != nil {
+	if ctx.Dispatcher() != nil {
 		seen := make(map[string]bool)
 		for _, sub := range subcommands {
 			seen[sub] = true
 		}
-		for _, cmd := range ctx.Dispatcher.Registry().All() {
+		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			if strings.HasPrefix(cmd.Name, "rib ") {
 				parts := strings.SplitN(strings.TrimPrefix(cmd.Name, "rib "), " ", 2)
 				if len(parts) > 0 && !seen[parts[0]] {
@@ -61,8 +61,8 @@ func handleRibCommandList(ctx *CommandContext, args []string) (*Response, error)
 	var commands []Completion
 
 	// Add builtin rib commands
-	if ctx.Dispatcher != nil {
-		for _, cmd := range ctx.Dispatcher.Commands() {
+	if ctx.Dispatcher() != nil {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "rib ") {
 				c := Completion{
 					Value: cmd.Name,
@@ -76,7 +76,7 @@ func handleRibCommandList(ctx *CommandContext, args []string) (*Response, error)
 		}
 
 		// Add plugin-provided rib commands
-		for _, cmd := range ctx.Dispatcher.Registry().All() {
+		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			if strings.HasPrefix(cmd.Name, "rib ") {
 				c := Completion{
 					Value: cmd.Name,
@@ -114,8 +114,8 @@ func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 	}
 
 	// Check builtins first
-	if ctx.Dispatcher != nil {
-		if cmd := ctx.Dispatcher.Lookup(name); cmd != nil {
+	if ctx.Dispatcher() != nil {
+		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
 				Data: map[string]any{
@@ -127,7 +127,7 @@ func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 		}
 
 		// Check plugin commands
-		if cmd := ctx.Dispatcher.Registry().Lookup(name); cmd != nil {
+		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
 				Data: map[string]any{
@@ -164,10 +164,10 @@ func handleRibCommandComplete(ctx *CommandContext, args []string) (*Response, er
 
 	var completions []Completion
 
-	if ctx.Dispatcher != nil {
+	if ctx.Dispatcher() != nil {
 		// Complete builtin rib commands
 		lowerPartial := strings.ToLower(partial)
-		for _, cmd := range ctx.Dispatcher.Commands() {
+		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "rib ") &&
 				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, Completion{
@@ -178,7 +178,7 @@ func handleRibCommandComplete(ctx *CommandContext, args []string) (*Response, er
 		}
 
 		// Complete plugin rib commands
-		for _, c := range ctx.Dispatcher.Registry().Complete(partial) {
+		for _, c := range ctx.Dispatcher().Registry().Complete(partial) {
 			if strings.HasPrefix(c.Value, "rib ") {
 				completions = append(completions, c)
 			}
@@ -213,14 +213,18 @@ func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleRIBShowIn returns Adj-RIB-In contents.
 func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
 	// Optional peer filter
 	peerID := ""
 	if len(args) > 0 {
 		peerID = args[0]
 	}
 
-	routes := ctx.Reactor.RIBInRoutes(peerID)
-	stats := ctx.Reactor.RIBStats()
+	routes := ctx.Reactor().RIBInRoutes(peerID)
+	stats := ctx.Reactor().RIBStats()
 
 	return &Response{
 		Status: statusDone,
@@ -234,7 +238,11 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleRIBClearIn clears all routes from Adj-RIB-In.
 func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
-	count := ctx.Reactor.ClearRIBIn()
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	count := ctx.Reactor().ClearRIBIn()
 
 	return &Response{
 		Status: statusDone,

@@ -389,7 +389,7 @@ func TestHandlerBgpPeerList(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor, Peer: "*"}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}, Peer: "*"}
 	resp, err := handleBgpPeerList(ctx, nil)
 
 	require.NoError(t, err)
@@ -425,7 +425,7 @@ func TestHandlerBgpPeerShowAll(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor, Peer: "*"}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}, Peer: "*"}
 	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err)
@@ -454,7 +454,7 @@ func TestHandlerPeerShowSpecific(t *testing.T) {
 	}
 
 	// Step 5: Now use handleBgpPeerShow with ctx.Peer set by dispatcher
-	ctx := &CommandContext{Reactor: reactor, Peer: "192.168.1.2"}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}, Peer: "192.168.1.2"}
 	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err)
@@ -481,7 +481,7 @@ func TestHandlerPeerShowNotFound(t *testing.T) {
 	}
 
 	// Step 5: Now use handleBgpPeerShow with ctx.Peer set by dispatcher
-	ctx := &CommandContext{Reactor: reactor, Peer: "10.0.0.1"}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}, Peer: "10.0.0.1"}
 	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err) // Command succeeded, but no peers matched
@@ -501,7 +501,7 @@ func TestHandlerPeerShowNotFound(t *testing.T) {
 func TestHandlerDaemonShutdown(t *testing.T) {
 	reactor := &mockReactor{}
 
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 	resp, err := handleDaemonShutdown(ctx, nil)
 
 	require.NoError(t, err)
@@ -525,7 +525,7 @@ func TestHandlerDaemonStatus(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 	resp, err := handleDaemonStatus(ctx, nil)
 
 	require.NoError(t, err)
@@ -547,7 +547,7 @@ func TestHandlerSystemHelp(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	ctx := &CommandContext{Reactor: &mockReactor{}}
+	ctx := &CommandContext{Server: &Server{reactor: &mockReactor{}}}
 
 	// Dispatch the help command
 	resp, err := d.Dispatch(ctx, "system help")
@@ -612,8 +612,8 @@ func TestRegisterDefaultHandlers(t *testing.T) {
 func TestHandleTeardown(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "127.0.0.1", // Set by dispatcher from "neighbor 127.0.0.1 teardown 4"
+		Server: &Server{reactor: reactor},
+		Peer:   "127.0.0.1", // Set by dispatcher from "neighbor 127.0.0.1 teardown 4"
 	}
 
 	// teardown 4 = Cease subcode 4 (Administrative Reset)
@@ -636,8 +636,8 @@ func TestHandleTeardown(t *testing.T) {
 func TestHandleTeardown_AdminShutdown(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "192.168.1.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "192.168.1.1",
 	}
 
 	resp, err := handleTeardown(ctx, []string{"2"})
@@ -658,8 +658,8 @@ func TestHandleTeardown_AdminShutdown(t *testing.T) {
 func TestHandleTeardown_MissingSubcode(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "127.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "127.0.0.1",
 	}
 
 	resp, err := handleTeardown(ctx, []string{})
@@ -678,8 +678,8 @@ func TestHandleTeardown_MissingSubcode(t *testing.T) {
 func TestHandleTeardown_InvalidSubcode(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "127.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "127.0.0.1",
 	}
 
 	resp, err := handleTeardown(ctx, []string{"invalid"})
@@ -697,8 +697,8 @@ func TestHandleTeardown_InvalidSubcode(t *testing.T) {
 func TestHandleTeardown_MissingPeer(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "", // No peer specified
+		Server: &Server{reactor: reactor},
+		Peer:   "", // No peer specified
 	}
 
 	resp, err := handleTeardown(ctx, []string{"4"})
@@ -718,7 +718,7 @@ func TestDispatchBgpPeerTeardownFull(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 
 	// Step 5: Now uses bgp peer prefix
 	resp, err := d.Dispatch(ctx, "bgp peer 127.0.0.1 teardown 4")
@@ -741,7 +741,7 @@ func TestRIBClearIn(t *testing.T) {
 		ribInCleared: false,
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 	resp, err := handleRIBClearIn(ctx, nil)
 
 	require.NoError(t, err)
@@ -766,8 +766,8 @@ func TestRIBClearIn(t *testing.T) {
 func TestHandleRaw_UpdateHex(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// raw update hex 0000000e40010100400200400304c0a80101180a00
@@ -792,8 +792,8 @@ func TestHandleRaw_UpdateHex(t *testing.T) {
 func TestHandleRaw_NotificationHex(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// raw notification hex 0602 (Cease/Admin Shutdown)
@@ -817,8 +817,8 @@ func TestHandleRaw_NotificationHex(t *testing.T) {
 func TestHandleRaw_KeepaliveEmpty(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// raw keepalive hex (empty payload is valid)
@@ -842,8 +842,8 @@ func TestHandleRaw_KeepaliveEmpty(t *testing.T) {
 func TestHandleRaw_FullPacketHex(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// raw hex ffffffffffffffffffffffffffffffff001304 (full KEEPALIVE packet)
@@ -868,8 +868,8 @@ func TestHandleRaw_FullPacketHex(t *testing.T) {
 func TestHandleRaw_B64Encoding(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// raw notification b64 BgI= (0x0602 in base64)
@@ -892,8 +892,8 @@ func TestHandleRaw_B64Encoding(t *testing.T) {
 func TestHandleRaw_InvalidHex(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	args := []string{"update", "hex", "not-valid-hex"}
@@ -912,8 +912,8 @@ func TestHandleRaw_InvalidHex(t *testing.T) {
 func TestHandleRaw_InvalidB64(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	args := []string{"update", "b64", "not-valid-base64!!!"}
@@ -932,8 +932,8 @@ func TestHandleRaw_InvalidB64(t *testing.T) {
 func TestHandleRaw_MissingPeer(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "", // No peer
+		Server: &Server{reactor: reactor},
+		Peer:   "", // No peer
 	}
 
 	args := []string{"update", "hex", "0000"}
@@ -952,8 +952,8 @@ func TestHandleRaw_MissingPeer(t *testing.T) {
 func TestHandleRaw_InvalidMsgType(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	args := []string{"foo", "hex", "0000"}
@@ -986,8 +986,8 @@ func TestHandleRaw_AllMessageTypes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reactor := &mockReactor{}
 			ctx := &CommandContext{
-				Reactor: reactor,
-				Peer:    "10.0.0.1",
+				Server: &Server{reactor: reactor},
+				Peer:   "10.0.0.1",
 			}
 
 			args := []string{tt.msgType, "hex", "00"}
@@ -1010,8 +1010,8 @@ func TestHandleRaw_AllMessageTypes(t *testing.T) {
 func TestHandleRaw_MissingEncoding(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// Only type, no encoding
@@ -1031,8 +1031,8 @@ func TestHandleRaw_MissingEncoding(t *testing.T) {
 func TestHandleRaw_PeerNotFound(t *testing.T) {
 	reactor := &mockReactorRawError{err: ErrPeerNotFound}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.99", // Non-existent peer
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.99", // Non-existent peer
 	}
 
 	args := []string{"update", "hex", "0000"}
@@ -1072,7 +1072,7 @@ func TestDispatchPluginSessionReady(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 
 	resp, err := d.Dispatch(ctx, "plugin session ready")
 	require.NoError(t, err)
@@ -1090,7 +1090,7 @@ func TestDispatchPluginSessionPing(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 
 	resp, err := d.Dispatch(ctx, "plugin session ping")
 	require.NoError(t, err)
@@ -1112,7 +1112,7 @@ func TestDispatchPluginSessionBye(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := &CommandContext{Server: &Server{reactor: reactor}}
 
 	resp, err := d.Dispatch(ctx, "plugin session bye")
 	require.NoError(t, err)
@@ -1134,7 +1134,7 @@ func TestDispatchPluginHelp(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+	ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 
 	resp, err := d.Dispatch(ctx, "plugin help")
 	require.NoError(t, err)
@@ -1159,7 +1159,7 @@ func TestDispatchPluginCommandList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+	ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 
 	resp, err := d.Dispatch(ctx, "plugin command list")
 	require.NoError(t, err)
@@ -1259,8 +1259,7 @@ func TestDispatchSystemVersionSoftware(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "system version software")
@@ -1282,8 +1281,7 @@ func TestDispatchSystemVersionAPI(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "system version api")
@@ -1317,8 +1315,7 @@ func TestDispatchSystemSubsystemList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "system subsystem list")
@@ -1392,8 +1389,7 @@ func TestDispatchBgpHelp(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp help")
@@ -1416,8 +1412,7 @@ func TestDispatchBgpCommandList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp command list")
@@ -1440,8 +1435,7 @@ func TestDispatchBgpEventList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp event list")
@@ -1466,8 +1460,7 @@ func TestDispatchBgpPluginEncoding(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp plugin encoding json")
@@ -1489,8 +1482,7 @@ func TestDispatchBgpPluginFormat(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp plugin format full")
@@ -1513,8 +1505,7 @@ func TestDispatchBgpPluginAck(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp plugin ack sync")
@@ -1586,9 +1577,8 @@ func TestBgpPluginEncodingAllValues(t *testing.T) {
 
 	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
-		Process:    proc,
+		Server:  &Server{reactor: &mockReactor{}, dispatcher: d},
+		Process: proc,
 	}
 
 	tests := []struct {
@@ -1624,8 +1614,7 @@ func TestBgpPluginEncodingInvalid(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	// Invalid value
@@ -1651,9 +1640,8 @@ func TestBgpPluginFormatAllValues(t *testing.T) {
 
 	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
-		Process:    proc,
+		Server:  &Server{reactor: &mockReactor{}, dispatcher: d},
+		Process: proc,
 	}
 
 	tests := []struct {
@@ -1691,8 +1679,7 @@ func TestBgpPluginFormatInvalid(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	// Invalid value
@@ -1718,9 +1705,8 @@ func TestBgpPluginAckAllValues(t *testing.T) {
 
 	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
-		Process:    proc,
+		Server:  &Server{reactor: &mockReactor{}, dispatcher: d},
+		Process: proc,
 	}
 
 	// Test sync
@@ -1750,8 +1736,7 @@ func TestBgpPluginAckInvalid(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	// Invalid value
@@ -1781,8 +1766,7 @@ func TestDispatchDaemonShutdown(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "daemon shutdown")
@@ -1809,8 +1793,7 @@ func TestDispatchDaemonStatus(t *testing.T) {
 		},
 	}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "daemon status")
@@ -1833,8 +1816,7 @@ func TestDispatchDaemonReload(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "daemon reload")
@@ -1858,8 +1840,7 @@ func TestDispatchBgpPeerList(t *testing.T) {
 		},
 	}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer * list")
@@ -1888,8 +1869,7 @@ func TestDispatchBgpPeerShowAll(t *testing.T) {
 		},
 	}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer * show")
@@ -1919,8 +1899,7 @@ func TestDispatchBgpPeerShow(t *testing.T) {
 		},
 	}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.2 show")
@@ -1946,8 +1925,7 @@ func TestDispatchBgpPeerTeardown(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer 127.0.0.1 teardown 4")
@@ -1971,9 +1949,7 @@ func TestDispatchBgpCommit(t *testing.T) {
 	mock := &mockReactor{}
 	cm := NewCommitManager()
 	ctx := &CommandContext{
-		Reactor:       mock,
-		Dispatcher:    d,
-		CommitManager: cm,
+		Server: &Server{reactor: mock, dispatcher: d, commitManager: cm},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp commit list")
@@ -1992,8 +1968,7 @@ func TestDispatchBgpWatchdog(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp watchdog announce test")
@@ -2012,8 +1987,7 @@ func TestDispatchBgpPeerUpdate(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	// Simple update with family and prefix
@@ -2033,8 +2007,7 @@ func TestDispatchBgpPeerBorr(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer * borr ipv4/unicast")
@@ -2053,8 +2026,7 @@ func TestDispatchBgpPeerEorr(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer * eorr ipv4/unicast")
@@ -2073,8 +2045,7 @@ func TestDispatchBgpPeerRaw(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 raw update hex 0000")
@@ -2140,7 +2111,7 @@ func TestBgpPeerAdd(t *testing.T) {
 
 	t.Run("basic_add", func(t *testing.T) {
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 add asn 65000")
 		require.NoError(t, err)
 		assert.Equal(t, statusDone, resp.Status)
@@ -2151,7 +2122,7 @@ func TestBgpPeerAdd(t *testing.T) {
 
 	t.Run("with_options", func(t *testing.T) {
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 add asn 65001 local-as 65100 local-address 10.0.0.254 passive")
 		require.NoError(t, err)
 		assert.Equal(t, statusDone, resp.Status)
@@ -2166,7 +2137,7 @@ func TestBgpPeerAdd(t *testing.T) {
 
 	t.Run("missing_asn", func(t *testing.T) {
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.1 add")
 		require.Error(t, err)
 		assert.Equal(t, statusError, resp.Status)
@@ -2177,7 +2148,7 @@ func TestBgpPeerAdd(t *testing.T) {
 		// When no peer selector is provided ("add" doesn't look like IP),
 		// dispatcher uses default "*" selector. Handler checks for specific peer.
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer add asn 65000")
 		// err may be nil since handler returns error in response
 		_ = err
@@ -2196,7 +2167,7 @@ func TestBgpPeerRemove(t *testing.T) {
 
 	t.Run("basic_remove", func(t *testing.T) {
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 remove")
 		require.NoError(t, err)
 		assert.Equal(t, statusDone, resp.Status)
@@ -2208,7 +2179,7 @@ func TestBgpPeerRemove(t *testing.T) {
 		// When no peer selector is provided ("remove" doesn't look like IP),
 		// dispatcher uses default "*" selector. Handler checks for specific peer.
 		reactor := &mockReactor{}
-		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer remove")
 		// err may be nil since handler returns error in response
 		_ = err
@@ -2253,8 +2224,7 @@ func TestNeighborPrefixRemoved(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	_, err := d.Dispatch(ctx, "neighbor 127.0.0.1 teardown 4")
@@ -2311,8 +2281,7 @@ func TestBgpPeerSelectorExtraction(t *testing.T) {
 		},
 	}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.1 show")
@@ -2332,8 +2301,7 @@ func TestBgpPeerWildcardSelector(t *testing.T) {
 
 	mock := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
+		Server: &Server{reactor: mock, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp peer * borr ipv4/unicast")
@@ -2355,8 +2323,7 @@ func TestDispatchRibHelp(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "rib help")
@@ -2386,8 +2353,7 @@ func TestDispatchRibCommandList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "rib command list")
@@ -2410,8 +2376,7 @@ func TestDispatchRibEventList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    &mockReactor{},
-		Dispatcher: d,
+		Server: &Server{reactor: &mockReactor{}, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "rib event list")
@@ -2547,8 +2512,7 @@ func TestDaemonReloadUsesCoordinator(t *testing.T) {
 	})
 
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Server:  s,
+		Server: s,
 	}
 
 	resp, err := handleDaemonReload(ctx, nil)
@@ -2576,8 +2540,7 @@ func TestDaemonReloadFallsBackToReactor(t *testing.T) {
 	t.Cleanup(func() { s.cancel() })
 
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Server:  s,
+		Server: s,
 	}
 
 	resp, err := handleDaemonReload(ctx, nil)
@@ -2587,28 +2550,4 @@ func TestDaemonReloadFallsBackToReactor(t *testing.T) {
 
 	// Reactor.Reload() SHOULD have been called (fallback path).
 	assert.True(t, reactor.reloadCalled, "Reactor.Reload() should be called when no config loader")
-}
-
-// TestDaemonReloadNoServer verifies that handleDaemonReload works when
-// no Server is set on CommandContext (backwards compatibility).
-//
-// VALIDATES: handleDaemonReload falls back to Reactor.Reload() when Server is nil.
-// PREVENTS: Nil pointer dereference when Server is not set.
-func TestDaemonReloadNoServer(t *testing.T) {
-	t.Parallel()
-
-	reactor := &mockReactorReload{}
-
-	ctx := &CommandContext{
-		Reactor: reactor,
-		// Server is nil — older code paths or tests.
-	}
-
-	resp, err := handleDaemonReload(ctx, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, statusDone, resp.Status)
-
-	// Reactor.Reload() should be called (no Server = fallback).
-	assert.True(t, reactor.reloadCalled, "Reactor.Reload() should be called when Server is nil")
 }

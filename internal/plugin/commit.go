@@ -39,6 +39,12 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 		}, fmt.Errorf("missing commit arguments")
 	}
 
+	// Guard reactor access
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	// Special case: commit list (no name)
 	if args[0] == "list" {
 		return handleCommitList(ctx)
@@ -84,7 +90,7 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleCommitList returns all active commit names.
 func handleCommitList(ctx *CommandContext) (*Response, error) {
-	names := ctx.CommitManager.List()
+	names := ctx.CommitManager().List()
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
@@ -98,7 +104,7 @@ func handleCommitList(ctx *CommandContext) (*Response, error) {
 func handleNamedCommitStart(ctx *CommandContext, name string) (*Response, error) {
 	peerSelector := ctx.PeerSelector()
 
-	if err := ctx.CommitManager.Start(name, peerSelector); err != nil {
+	if err := ctx.CommitManager().Start(name, peerSelector); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   fmt.Sprintf("failed to start commit: %v", err),
@@ -118,7 +124,7 @@ func handleNamedCommitStart(ctx *CommandContext, name string) (*Response, error)
 // handleNamedCommitEnd flushes the named commit.
 // If sendEOR is true, sends EOR for affected families after routes.
 func handleNamedCommitEnd(ctx *CommandContext, name string, sendEOR bool) (*Response, error) {
-	tx, err := ctx.CommitManager.End(name)
+	tx, err := ctx.CommitManager().End(name)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -148,7 +154,7 @@ func handleNamedCommitEnd(ctx *CommandContext, name string, sendEOR bool) (*Resp
 	}
 
 	// Send routes to matching peers via Reactor
-	result, err := ctx.Reactor.SendRoutes(tx.PeerSelector(), routes, withdrawals, sendEOR)
+	result, err := ctx.Reactor().SendRoutes(tx.PeerSelector(), routes, withdrawals, sendEOR)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -178,7 +184,7 @@ func handleNamedCommitEnd(ctx *CommandContext, name string, sendEOR bool) (*Resp
 
 // handleNamedCommitRollback discards all queued routes in the commit.
 func handleNamedCommitRollback(ctx *CommandContext, name string) (*Response, error) {
-	discarded, err := ctx.CommitManager.Rollback(name)
+	discarded, err := ctx.CommitManager().Rollback(name)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -198,7 +204,7 @@ func handleNamedCommitRollback(ctx *CommandContext, name string) (*Response, err
 
 // handleNamedCommitShow returns info about a pending commit.
 func handleNamedCommitShow(ctx *CommandContext, name string) (*Response, error) {
-	tx, err := ctx.CommitManager.Get(name)
+	tx, err := ctx.CommitManager().Get(name)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -227,7 +233,7 @@ func handleNamedCommitShow(ctx *CommandContext, name string) (*Response, error) 
 // handleNamedCommitWithdraw queues a route withdrawal to a named commit.
 // Syntax: commit <name> withdraw route <prefix>.
 func handleNamedCommitWithdraw(ctx *CommandContext, name string, args []string) (*Response, error) {
-	tx, err := ctx.CommitManager.Get(name)
+	tx, err := ctx.CommitManager().Get(name)
 	if err != nil {
 		return &Response{
 			Status: "error",

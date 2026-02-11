@@ -68,8 +68,7 @@ func TestBgpCacheRetain(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp cache 12345 retain")
@@ -94,8 +93,7 @@ func TestBgpCacheRelease(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp cache 99999 release")
@@ -120,8 +118,7 @@ func TestBgpCacheExpire(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp cache 55555 expire")
@@ -148,8 +145,7 @@ func TestBgpCacheList(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp cache list")
@@ -207,8 +203,7 @@ func TestBgpCacheForward(t *testing.T) {
 			RegisterDefaultHandlers(d)
 
 			ctx := &CommandContext{
-				Reactor:    reactor,
-				Dispatcher: d,
+				Server: &Server{reactor: reactor, dispatcher: d},
 			}
 
 			resp, err := d.Dispatch(ctx, tt.input)
@@ -249,8 +244,7 @@ func TestBgpCacheInvalidId(t *testing.T) {
 			RegisterDefaultHandlers(d)
 
 			ctx := &CommandContext{
-				Reactor:    reactor,
-				Dispatcher: d,
+				Server: &Server{reactor: reactor, dispatcher: d},
 			}
 
 			resp, _ := d.Dispatch(ctx, tt.input)
@@ -270,8 +264,7 @@ func TestBgpCacheUnknownAction(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, _ := d.Dispatch(ctx, "bgp cache 12345 unknown")
@@ -287,8 +280,7 @@ func TestBgpCacheHelp(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
-		Reactor:    reactor,
-		Dispatcher: d,
+		Server: &Server{reactor: reactor, dispatcher: d},
 	}
 
 	resp, err := d.Dispatch(ctx, "bgp cache")

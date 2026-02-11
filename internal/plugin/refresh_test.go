@@ -157,7 +157,7 @@ func TestRefreshCommands(t *testing.T) {
 				input += " " + tc.family
 			}
 
-			ctx := &CommandContext{Reactor: mock}
+			ctx := &CommandContext{Server: &Server{reactor: mock}}
 			resp, err := d.Dispatch(ctx, input)
 
 			if tc.wantErr {
@@ -224,7 +224,7 @@ func TestRefreshErrors(t *testing.T) {
 			d := NewDispatcher()
 			RegisterDefaultHandlers(d)
 
-			ctx := &CommandContext{Reactor: mock}
+			ctx := &CommandContext{Server: &Server{reactor: mock}}
 			resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 "+tc.cmd+" ipv4/unicast")
 
 			if err == nil && (resp == nil || resp.Status != statusError) {

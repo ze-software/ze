@@ -1666,6 +1666,11 @@ func updateRPCs() []RPCRegistration {
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: peer <addr> update <encoding> ...
 func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
 	if len(args) < 1 {
 		return nil, fmt.Errorf("usage: peer <addr> update <text|hex|b64>")
 	}
@@ -1702,7 +1707,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	peerSelector := ctx.PeerSelector()
 	var eorSent int
 	for _, family := range result.EORFamilies {
-		if err := ctx.Reactor.AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+		if err := ctx.Reactor().AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
 			return &Response{Status: statusError, Data: err.Error()}, err
 		}
 		eorSent++
@@ -1754,7 +1759,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, err
 				NextHop: group.NextHop,
 				Wire:    group.Wire,
 			}
-			if err := ctx.Reactor.AnnounceNLRIBatch(peerSelector, batch); err != nil {
+			if err := ctx.Reactor().AnnounceNLRIBatch(peerSelector, batch); err != nil {
 				if errors.Is(err, ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
@@ -1768,7 +1773,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, err
 				Family: group.Family,
 				NLRIs:  group.Withdraw,
 			}
-			if err := ctx.Reactor.WithdrawNLRIBatch(peerSelector, batch); err != nil {
+			if err := ctx.Reactor().WithdrawNLRIBatch(peerSelector, batch); err != nil {
 				if errors.Is(err, ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue

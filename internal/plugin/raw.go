@@ -26,6 +26,10 @@ func rawRPCs() []RPCRegistration {
 // Encodings: hex, b64
 // Data: encoded bytes (empty allowed for keepalive).
 func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
+	_, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
 	// Require peer selector
 	if ctx.Peer == "" || ctx.Peer == "*" {
 		return &Response{
@@ -86,7 +90,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Send to reactor
-	if err := ctx.Reactor.SendRawMessage(peerAddr, msgType, payload); err != nil {
+	if err := ctx.Reactor().SendRawMessage(peerAddr, msgType, payload); err != nil {
 		return &Response{
 			Status: statusError,
 			Data:   fmt.Sprintf("send error: %v", err),

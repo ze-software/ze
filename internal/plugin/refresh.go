@@ -15,56 +15,39 @@ func refreshRPCs() []RPCRegistration {
 }
 
 // handleBoRR sends a Beginning of Route Refresh marker.
-// Usage: bgp peer <selector> borr <family>
-//
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
 func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
-	if len(args) < 1 {
-		return &Response{
-			Status: statusError,
-			Data:   "usage: bgp peer <selector> borr <family>",
-		}, fmt.Errorf("missing family")
+	r, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
 	}
-
-	// Parse family (e.g., "ipv4/unicast")
-	family, ok := nlri.ParseFamily(args[0])
-	if !ok {
-		return &Response{
-			Status: statusError,
-			Data:   fmt.Sprintf("invalid family: %s", args[0]),
-		}, fmt.Errorf("invalid family: %s", args[0])
-	}
-
-	peerSelector := ctx.PeerSelector()
-
-	// Send BoRR to matching peers
-	if err := ctx.Reactor.SendBoRR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
-		return &Response{
-			Status: statusError,
-			Data:   fmt.Sprintf("borr failed: %v", err),
-		}, err
-	}
-
-	return &Response{
-		Status: statusDone,
-		Data: map[string]any{
-			"selector": peerSelector,
-			"family":   family.String(),
-		},
-	}, nil
+	return handleRefreshMarker(ctx, args, "borr", r.SendBoRR)
 }
 
 // handleEoRR sends an End of Route Refresh marker.
-// Usage: bgp peer <selector> eorr <family>
-//
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
 func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
+	r, errResp, err := requireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	return handleRefreshMarker(ctx, args, "eorr", r.SendEoRR)
+}
+
+// handleRefreshMarker implements the shared logic for borr/eorr commands.
+// Usage: bgp peer <selector> {borr|eorr} <family>.
+func handleRefreshMarker(
+	ctx *CommandContext,
+	args []string,
+	cmd string,
+	send func(string, uint16, uint8) error,
+) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: statusError,
-			Data:   "usage: bgp peer <selector> eorr <family>",
+			Data:   fmt.Sprintf("usage: bgp peer <selector> %s <family>", cmd),
 		}, fmt.Errorf("missing family")
 	}
 
@@ -79,11 +62,10 @@ func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
 
 	peerSelector := ctx.PeerSelector()
 
-	// Send EoRR to matching peers
-	if err := ctx.Reactor.SendEoRR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+	if err := send(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
 		return &Response{
 			Status: statusError,
-			Data:   fmt.Sprintf("eorr failed: %v", err),
+			Data:   fmt.Sprintf("%s failed: %v", cmd, err),
 		}, err
 	}
 

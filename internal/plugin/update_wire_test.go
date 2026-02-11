@@ -412,8 +412,8 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 func TestHandleUpdateHex_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// peer 10.0.0.1 update hex attr set 400101 nhop set 0a000001 nlri ipv4/unicast add 180a0000
@@ -446,8 +446,8 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 func TestHandleUpdateB64_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	// peer 10.0.0.1 update b64 attr set QAEB nhop set CgAAAQ== nlri ipv4/unicast add GAoAAA==
@@ -477,8 +477,8 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	args := []string{
@@ -502,8 +502,8 @@ func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 func TestHandleUpdateHex_MixedAddDel(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "10.0.0.1",
+		Server: &Server{reactor: reactor},
+		Peer:   "10.0.0.1",
 	}
 
 	args := []string{

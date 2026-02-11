@@ -47,13 +47,13 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*Response, error) {
 // peer-specific API initialization is complete (e.g., route replay after reconnect).
 // If called without peer prefix, unblocks reactor startup.
 func handlePluginSessionReady(ctx *CommandContext, _ []string) (*Response, error) {
-	if ctx.Reactor != nil {
+	if ctx.Reactor() != nil {
 		// Check if this is a peer-specific ready signal
 		if ctx.Peer != "" && ctx.Peer != "*" {
-			ctx.Reactor.SignalPeerAPIReady(ctx.Peer)
+			ctx.Reactor().SignalPeerAPIReady(ctx.Peer)
 		} else {
 			// Global ready signal for startup
-			ctx.Reactor.SignalAPIReady()
+			ctx.Reactor().SignalAPIReady()
 		}
 	}
 	return &Response{
