@@ -1,0 +1,105 @@
+# Test: Rapid successive SIGHUPs handled correctly
+# First SIGHUP: config change (add route) triggers peer restart
+# Second SIGHUP: config unchanged, daemon should no-op (no restart)
+# Expected: exactly 2 connections, daemon survives both reloads
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+
+# Connection 1: One static route + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: rewrite config (add second route) and send SIGHUP
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+
+# Connection 2: Both routes after first reload + EOR
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After second connection messages: send SIGHUP again (no rewrite — config unchanged)
+# Daemon should detect no changes and not restart the peer
+action=sighup:conn=2:seq=2
+EOF_PEER
+
+# Initial ze bgp configuration (one route)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config (two routes - count change triggers restart on first SIGHUP)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+				ipv4/unicast add 10.0.0.0/24;
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=25s

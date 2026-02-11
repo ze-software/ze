@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy generate functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-editor functional-exabgp verify help
+.PHONY: all build test lint clean fmt vet tidy generate functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-reload functional-editor functional-exabgp verify help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -88,6 +88,9 @@ functional: bin/ze bin/ze-test
 	echo "Running decode functional tests..."; \
 	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
 	echo ""; \
+	echo "Running reload functional tests..."; \
+	bin/ze-test bgp reload --all || failed=$$((failed + 1)); \
+	echo ""; \
 	echo "Running editor functional tests..."; \
 	bin/ze-test editor || failed=$$((failed + 1)); \
 	echo ""; \
@@ -125,6 +128,11 @@ functional-parse: bin/ze-test
 	@echo "Running parse functional tests..."
 	bin/ze-test bgp parse --all
 
+# Run reload functional tests
+functional-reload: bin/ze-test
+	@echo "Running reload functional tests..."
+	bin/ze-test bgp reload --all
+
 # Run editor functional tests
 functional-editor: bin/ze-test
 	@echo "Running editor functional tests..."
@@ -153,12 +161,13 @@ help:
 	@echo "  test                 - Run unit tests with race detector"
 	@echo "  test-all             - Full verification: lint + test + functional-all (before commits)"
 	@echo "  test-cover           - Run tests with coverage report"
-	@echo "  functional           - Run functional tests (encode, plugin, parse, decode)"
+	@echo "  functional           - Run functional tests (encode, plugin, parse, decode, reload)"
 	@echo "  functional-all       - Run all functional tests including ExaBGP compat (pre-commit)"
 	@echo "  functional-encode    - Run encode functional tests only"
 	@echo "  functional-plugin    - Run plugin functional tests only"
 	@echo "  functional-decode    - Run decode functional tests only"
 	@echo "  functional-parse     - Run parse functional tests only"
+	@echo "  functional-reload    - Run reload functional tests only"
 	@echo "  functional-editor    - Run editor functional tests only"
 	@echo "  functional-exabgp    - Run ExaBGP compatibility tests only"
 	@echo "  lint                 - Run golangci-lint"

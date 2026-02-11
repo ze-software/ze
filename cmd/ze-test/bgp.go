@@ -56,7 +56,7 @@ func bgpMain() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encode", "plugin":
+	case "encode", "plugin", "reload":
 		return runEncodingOrAPI(ctx, cli, baseDir)
 	case "decode":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
@@ -244,8 +244,11 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	// Discover tests first (needed for --server/--client modes)
 	tests := runner.NewEncodingTests(baseDir)
 	testDir := filepath.Join(baseDir, "test/encode")
-	if cli.command == "plugin" {
+	switch cli.command {
+	case "plugin":
 		testDir = filepath.Join(baseDir, "test/plugin")
+	case "reload":
+		testDir = filepath.Join(baseDir, "test/reload")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -560,6 +563,7 @@ func parseRunCLI() *runCLIFlags {
 		"plugin": true,
 		"decode": true,
 		"parse":  true,
+		"reload": true,
 	}
 
 	if !validCommands[command] {
@@ -606,9 +610,10 @@ func printRunUsage() {
 
 Types:
   encode    Run encode tests (static routes)
-  plugin      Run plugin tests (dynamic routes via .run scripts)
+  plugin    Run plugin tests (dynamic routes via .run scripts)
   decode    Run decode tests (BGP message hex to JSON)
   parse     Run parse tests (config file validation)
+  reload    Run reload tests (SIGHUP config reload)
 
 Modes:
   -l, --list          List available tests

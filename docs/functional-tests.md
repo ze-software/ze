@@ -9,6 +9,7 @@ Functional tests verify ZeBGP's BGP message encoding by comparing actual wire ou
 make functional           # Run all tests
 make functional-encode    # Encoding tests only
 make functional-plugin    # Plugin tests only
+make functional-reload    # Reload tests only
 ```
 
 ---
@@ -94,7 +95,40 @@ Dynamic route tests - routes injected via scripts using the process API.
 - `*.conf` - ZeBGP configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
-### 4. Decode Tests (`test/decode/`)
+### 4. Reload Tests (`test/reload/`)
+
+Config reload tests - verify SIGHUP-triggered reload behavior end-to-end.
+
+**Files:** All reload tests use `.ci` format with embedded config and tmpfs alternate configs.
+
+**How they work:**
+1. Daemon starts with initial config, establishes BGP session
+2. Test peer verifies initial messages
+3. `action=rewrite` replaces config file with alternate version in tmpfs
+4. `action=sighup` sends SIGHUP to daemon PID (read from `daemon.pid` in tmpfs)
+5. Daemon reloads config — peers restart if settings changed
+6. Test peer verifies reconnection and new messages
+
+**Example:**
+```
+# Initial config establishes session with one route
+stdin=ze-bgp:terminator=EOF_CONF
+bgp { peer 127.0.0.1 { ... nlri { ipv4/unicast add 192.168.1.0/24; } } }
+EOF_CONF
+
+# Alternate config with two routes
+tmpfs=config2.conf:terminator=EOF_CONF2
+bgp { peer 127.0.0.1 { ... nlri { ipv4/unicast add 192.168.1.0/24; ipv4/unicast add 10.0.0.0/24; } } }
+EOF_CONF2
+
+option=tcp_connections:value=2
+expect=bgp:conn=1:seq=1:hex=...   # Initial route
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+expect=bgp:conn=2:seq=1:hex=...   # Both routes after reload
+```
+
+### 5. Decode Tests (`test/decode/`)
 
 BGP message decoding tests - verify wire bytes decode to expected JSON.
 
@@ -208,6 +242,8 @@ expect=json:conn=1:seq=1:json={...}
 | `expect=stderr:` | `expect=stderr:pattern=...` | Regex pattern in stderr |
 | `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
 | `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
+| `action=rewrite:` | `action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf` | Rewrite config file |
+| `action=sighup:` | `action=sighup:conn=1:seq=2` | Send SIGHUP to daemon |
 
 ### Tmpfs (Virtual File System)
 
@@ -623,4 +659,4 @@ Subcommand-based CLI with `bgp` for BGP test execution and `syslog` for syslog s
 
 ---
 
-**Updated:** 2026-01-20
+**Updated:** 2026-02-11

@@ -1,0 +1,66 @@
+# Test: Bad config reload doesn't crash daemon
+# Initial config is valid, session established
+# After SIGHUP with invalid config: reload fails, daemon keeps running
+# Expected: initial session is not disrupted, test completes successfully
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: rewrite config to invalid syntax and send SIGHUP
+# The daemon should log an error but continue running with the old config
+action=rewrite:conn=1:seq=2:source=bad-config.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+# No more expectations - checker completes, proving daemon survived
+EOF_PEER
+
+# Initial ze bgp configuration (valid)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Bad config (syntax error - parser will reject this)
+tmpfs=bad-config.conf:terminator=EOF_BAD
+bgp {
+	this is not valid config syntax;
+}
+EOF_BAD
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

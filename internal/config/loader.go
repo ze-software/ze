@@ -40,9 +40,10 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
+// configPath is the original file path (used for SIGHUP reload). May be empty or "-".
 // This is used when config data is already read (e.g., from stdin) and plugins
 // need to be merged in.
-func LoadReactorWithPlugins(input string, cliPlugins []string) (*reactor.Reactor, error) {
+func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
 	// Start with all internal plugin YANG (GR, hostname, etc.)
 	pluginYANG := plugin.GetAllInternalPluginYANG()
 	// Add CLI-specified plugins (may override internal)
@@ -54,25 +55,27 @@ func LoadReactorWithPlugins(input string, cliPlugins []string) (*reactor.Reactor
 		return nil, err
 	}
 
-	// Set config directory for process execution (use cwd since we have data, not path)
-	cwd, err := os.Getwd()
-	if err != nil {
-		return nil, fmt.Errorf("get working directory: %w", err)
+	// Set config directory for process execution
+	if configPath != "" && configPath != "-" {
+		cfg.ConfigDir = filepath.Dir(configPath)
+	} else {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, fmt.Errorf("get working directory: %w", err)
+		}
+		cfg.ConfigDir = cwd
 	}
-	cfg.ConfigDir = cwd
 
 	// Merge CLI plugins BEFORE creating reactor
 	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
-	// Create reactor (no path since config came from data)
-	r, err := CreateReactor(cfg)
-	if err != nil {
-		return nil, err
+	// Create reactor with config path for SIGHUP reload support
+	if configPath != "" && configPath != "-" {
+		return CreateReactorWithPath(cfg, configPath)
 	}
-
-	return r, nil
+	return CreateReactor(cfg)
 }
 
 // LoadReactorWithConfig parses config and returns both Config and Reactor.

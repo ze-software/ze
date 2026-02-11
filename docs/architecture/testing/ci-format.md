@@ -305,6 +305,34 @@ action=send:conn=<N>:seq=<N>:hex=<hex-bytes>
 
 Sends raw bytes to peer.
 
+### Rewrite Config File
+
+```
+action=rewrite:conn=<N>:seq=<N>:source=<tmpfs-file>:dest=<config-file>
+```
+
+Copies a tmpfs file over the daemon's config file. Used with `action=sighup` to test config reload.
+
+| Key | Description |
+|-----|-------------|
+| `conn` | Connection number triggering the rewrite |
+| `seq` | Sequence number (after matching messages) |
+| `source` | Source file name in tmpfs |
+| `dest` | Destination file name in tmpfs (usually `ze-bgp.conf`) |
+
+### Send SIGHUP
+
+```
+action=sighup:conn=<N>:seq=<N>
+```
+
+Sends SIGHUP to the daemon process. Reads PID from `daemon.pid` in the tmpfs directory (written automatically by the test runner).
+
+| Key | Description |
+|-----|-------------|
+| `conn` | Connection number triggering the signal |
+| `seq` | Sequence number (after matching messages) |
+
 ## Complete Example
 
 ```
@@ -355,6 +383,7 @@ Different components consume different line types:
 | `expect=exit:`, `stdout:`, `stderr:`, `json:` | Test runner |
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
+| `action=rewrite:`, `action=sighup:` | ze-peer (reload tests) |
 
 Lines not recognized by a consumer are ignored.
 

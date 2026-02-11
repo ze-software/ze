@@ -49,7 +49,7 @@ func Run(configPath string, plugins []string) int {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 func runBGPInProcess(configPath string, data []byte, plugins []string) int {
 	// Use YANG-based config parser with CLI plugins
-	reactor, err := zeconfig.LoadReactorWithPlugins(string(data), plugins)
+	reactor, err := zeconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1

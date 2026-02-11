@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 	"unicode/utf8"
 
@@ -33,6 +34,9 @@ const (
 	MsgKEEPALIVE    = 4
 	MsgROUTEREFRESH = 5
 )
+
+// Action type identifiers used in .ci test files.
+const actionSighup = "sighup"
 
 // Mode specifies testpeer operation mode.
 type Mode int
@@ -348,6 +352,11 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 				if p.checker.Completed() {
 					return Result{Success: true}
 				}
+				// After sighup, the daemon may restart the peer which closes this connection.
+				// Treat EOF as expected — Run() will accept the next connection.
+				if p.checker.ExpectingClose() {
+					return Result{Success: true}
+				}
 				return Result{Success: false, Error: errors.New("connection closed before completion")}
 			}
 			return Result{Success: false, Error: fmt.Errorf("read: %w", err)}
@@ -430,6 +439,45 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			if _, err := conn.Write(data); err != nil {
 				return Result{Success: false, Error: fmt.Errorf("write send: %w", err)}
 			}
+			if p.checker.Completed() {
+				return Result{Success: true}
+			}
+		}
+
+		// Check for rewrite action after matched message.
+		// Copies source file to dest in the peer's working directory (tmpfs).
+		for {
+			ok, source, dest := p.checker.NextRewriteAction()
+			if !ok {
+				break
+			}
+			p.printf("\nrewriting %s -> %s\n", source, dest)
+			data, err := os.ReadFile(source) //nolint:gosec // test peer, path from .ci file
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("rewrite read %s: %w", source, err)}
+			}
+			if err := os.WriteFile(dest, data, 0o600); err != nil {
+				return Result{Success: false, Error: fmt.Errorf("rewrite write %s: %w", dest, err)}
+			}
+		}
+
+		// Check for sighup action after matched message.
+		// Reads daemon PID from daemon.pid and sends SIGHUP.
+		if p.checker.NextSighupAction() {
+			pidData, err := os.ReadFile("daemon.pid")
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("read daemon.pid: %w", err)}
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("parse daemon.pid: %w", err)}
+			}
+			p.printf("\nsending SIGHUP to pid %d\n", pid)
+			if err := syscall.Kill(pid, syscall.SIGHUP); err != nil {
+				return Result{Success: false, Error: fmt.Errorf("sighup pid %d: %w", pid, err)}
+			}
+			// Brief pause to let the daemon process the signal before we continue.
+			time.Sleep(500 * time.Millisecond)
 			if p.checker.Completed() {
 				return Result{Success: true}
 			}
@@ -658,6 +706,7 @@ type Checker struct {
 	lastExpected        string // For diff output on mismatch
 	lastReceived        string // For diff output on mismatch
 	connectionJustEnded bool   // True if last match ended a connection (not just sequence)
+	expectClose         bool   // True after sighup action — next EOF is expected (daemon restarts peer)
 	mu                  sync.Mutex
 }
 
@@ -798,6 +847,66 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 			return 0, 0, "", fmt.Errorf("action:send missing hex: %q", rule)
 		}
 		content = "send:" + strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
+		return conn, seq, content, nil
+	}
+
+	// action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
+	if strings.HasPrefix(rule, "action=rewrite:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=rewrite:"))
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action:rewrite missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action:rewrite invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action:rewrite missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action:rewrite invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		source := kv["source"]
+		if source == "" {
+			return 0, 0, "", fmt.Errorf("action:rewrite missing source: %q", rule)
+		}
+		dest := kv["dest"]
+		if dest == "" {
+			return 0, 0, "", fmt.Errorf("action:rewrite missing dest: %q", rule)
+		}
+		content = "rewrite:" + source + ":" + dest
+		return conn, seq, content, nil
+	}
+
+	// action=sighup:conn=N:seq=N
+	if strings.HasPrefix(rule, "action=sighup:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=sighup:"))
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action:sighup missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action:sighup invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action:sighup missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action:sighup invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		content = actionSighup
 		return conn, seq, content, nil
 	}
 
@@ -1006,6 +1115,65 @@ func (c *Checker) NextSendAction() (bool, string) {
 	return true, hexData
 }
 
+// NextRewriteAction checks if the next expected item is a rewrite: action.
+// If so, it returns (true, source, dest) and removes the action from the queue.
+// If not, it returns (false, "", "").
+func (c *Checker) NextRewriteAction() (bool, string, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false, "", ""
+	}
+
+	msg := c.messages[0]
+	if !strings.HasPrefix(msg, "rewrite:") {
+		return false, "", ""
+	}
+
+	// Format: "rewrite:SOURCE:DEST"
+	parts := strings.SplitN(strings.TrimPrefix(msg, "rewrite:"), ":", 2)
+	if len(parts) != 2 {
+		return false, "", ""
+	}
+	c.messages = c.messages[1:]
+	c.updateMessagesIfRequired()
+
+	return true, parts[0], parts[1]
+}
+
+// NextSighupAction checks if the next expected item is a sighup action.
+// If so, it returns true, removes the action from the queue, and sets
+// expectClose so the next EOF is treated as expected (daemon restarts peer).
+func (c *Checker) NextSighupAction() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false
+	}
+
+	if c.messages[0] != actionSighup {
+		return false
+	}
+
+	c.messages = c.messages[1:]
+	c.expectClose = true
+	c.updateMessagesIfRequired()
+
+	return true
+}
+
+// ExpectingClose returns true if the connection is expected to close
+// (e.g., after a SIGHUP triggered a daemon reload). Clears the flag.
+func (c *Checker) ExpectingClose() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	v := c.expectClose
+	c.expectClose = false
+	return v
+}
+
 // LoadExpectFile loads expected messages from a file.
 // Uses format: action:type:key=value:key=value:...
 func LoadExpectFile(path string) ([]string, *Config, error) {
@@ -1061,6 +1229,14 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 			}
 			if lineType == "send" {
 				// Pass through new format: action=send:conn=N:seq=N:hex=...
+				expect = append(expect, line)
+			}
+			if lineType == "rewrite" {
+				// Pass through: action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
+				expect = append(expect, line)
+			}
+			if lineType == actionSighup {
+				// Pass through: action=sighup:conn=N:seq=N
 				expect = append(expect, line)
 			}
 

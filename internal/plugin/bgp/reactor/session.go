@@ -669,6 +669,7 @@ func (s *Session) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
+			s.closeConn()
 			return ctx.Err()
 		case err := <-s.errChan:
 			s.closeConn()

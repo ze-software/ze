@@ -848,6 +848,30 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		// Add to Expects for testpeer (new format).
 		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
 
+	case "rewrite":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("action:rewrite: %w", err)
+		}
+		source := kv["source"]
+		if source == "" {
+			return fmt.Errorf("action:rewrite missing source=")
+		}
+		dest := kv["dest"]
+		if dest == "" {
+			return fmt.Errorf("action:rewrite missing dest=")
+		}
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("action=rewrite:conn=%d:seq=%d:source=%s:dest=%s", conn, seq, source, dest))
+
+	case "sighup":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("action:sighup: %w", err)
+		}
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("action=sighup:conn=%d:seq=%d", conn, seq))
+
 	default:
 		return fmt.Errorf("unknown action type %q", actType)
 	}

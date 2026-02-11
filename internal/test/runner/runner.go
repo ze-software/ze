@@ -788,6 +788,12 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		} else {
 			// Foreground (daemon): start but don't wait - we wait for peer instead
 			bgProcs = append(bgProcs, proc) // Track for cleanup
+
+			// Write daemon PID to tmpfs dir so the test peer can send SIGHUP.
+			if rec.TmpfsTempDir != "" && proc.Process != nil {
+				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
+				_ = os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", proc.Process.Pid)), 0o600)
+			}
 		}
 	}
 
