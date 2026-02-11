@@ -234,3 +234,9 @@ func (hm *HeadlessModel) ConfirmTimerActive() bool {
 func (hm *HeadlessModel) TriggerCompletions() {
 	hm.model.UpdateCompletions()
 }
+
+// SetReloadNotifier configures a reload notifier on the underlying editor.
+// Used by the .et test runner to simulate daemon reload behavior.
+func (hm *HeadlessModel) SetReloadNotifier(fn editor.ReloadNotifier) {
+	hm.editor.SetReloadNotifier(fn)
+}

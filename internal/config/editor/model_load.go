@@ -32,6 +32,14 @@ func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
 		return commandResult{}, err
 	}
 
+	// Notify daemon immediately so it runs the new config during the confirm window
+	var reloadWarning string
+	if m.editor.HasReloadNotifier() {
+		if err := m.editor.NotifyReload(); err != nil {
+			reloadWarning = fmt.Sprintf(" (reload failed: %v)", err)
+		}
+	}
+
 	// Get the most recent backup path for potential rollback
 	backups, err := m.editor.ListBackups()
 	if err != nil || len(backups) == 0 {
@@ -39,7 +47,7 @@ func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
 	}
 
 	return commandResult{
-		statusMessage:     fmt.Sprintf("Committed. Confirm within %d seconds or changes will be rolled back. Use 'confirm' or 'abort'.", seconds),
+		statusMessage:     fmt.Sprintf("Committed%s. Confirm within %d seconds or changes will be rolled back. Use 'confirm' or 'abort'.", reloadWarning, seconds),
 		setConfirmTimer:   true,
 		confirmTimerValue: true,
 		confirmBackupPath: backups[0].Path,
@@ -47,13 +55,21 @@ func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
 }
 
 // cmdConfirm confirms a pending commit, making changes permanent.
+// Triggers daemon reload so the confirmed config takes effect.
 func (m *Model) cmdConfirm() (commandResult, error) {
 	if !m.confirmTimerActive {
 		return commandResult{}, fmt.Errorf("no pending commit to confirm")
 	}
 
+	msg := "Configuration confirmed and saved permanently."
+	if m.editor.HasReloadNotifier() {
+		if err := m.editor.NotifyReload(); err != nil {
+			msg = fmt.Sprintf("Configuration confirmed (reload failed: %v)", err)
+		}
+	}
+
 	return commandResult{
-		statusMessage:     "Configuration confirmed and saved permanently.",
+		statusMessage:     msg,
 		setConfirmTimer:   true,
 		confirmTimerValue: false,
 		confirmBackupPath: "",
@@ -61,6 +77,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 }
 
 // cmdAbort aborts a pending commit and rolls back to previous state.
+// Triggers daemon reload so the daemon reverts to the rolled-back config.
 func (m *Model) cmdAbort() (commandResult, error) {
 	if !m.confirmTimerActive {
 		return commandResult{}, fmt.Errorf("no pending commit to abort")
@@ -77,9 +94,16 @@ func (m *Model) cmdAbort() (commandResult, error) {
 		}
 	}
 
+	msg := "Changes rolled back to previous state."
+	if m.editor.HasReloadNotifier() {
+		if err := m.editor.NotifyReload(); err != nil {
+			msg = fmt.Sprintf("Changes rolled back (reload failed: %v)", err)
+		}
+	}
+
 	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
-		statusMessage:     "Changes rolled back to previous state.",
+		statusMessage:     msg,
 		configView:        &viewportData{content: content, lineMapping: nil},
 		revalidate:        true,
 		setConfirmTimer:   true,

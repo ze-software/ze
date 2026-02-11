@@ -15,6 +15,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
+// ReloadNotifier is called after a successful save to notify the running daemon.
+// Returns nil on success, or an error if the daemon could not be reached.
+type ReloadNotifier func() error
+
 // Editor manages an editing session for a configuration file.
 // The tree is the canonical in-memory representation when treeValid is true.
 // WorkingContent() returns Serialize(tree) when tree is valid, otherwise falls
@@ -27,7 +31,8 @@ type Editor struct {
 	schema          *config.Schema // YANG schema for Serialize
 	treeValid       bool           // True when tree was parsed successfully
 	dirty           bool
-	hasPendingEdit  bool // true if .edit file exists
+	hasPendingEdit  bool           // true if .edit file exists
+	onReload        ReloadNotifier // Optional: called after successful save
 }
 
 // BackupInfo describes a backup file.
@@ -225,6 +230,28 @@ func (e *Editor) SaveEditState() error {
 func (e *Editor) deleteEditFile() {
 	editPath := e.originalPath + ".edit"
 	_ = os.Remove(editPath) // Ignore error if doesn't exist
+}
+
+// SetReloadNotifier sets an optional function to notify the daemon after save.
+// When set, commit will call this after writing config to disk.
+// When nil (standalone mode), no notification is attempted.
+func (e *Editor) SetReloadNotifier(fn ReloadNotifier) {
+	e.onReload = fn
+}
+
+// HasReloadNotifier returns true if a reload notifier is configured.
+// Use this to distinguish "no daemon" from "reload succeeded".
+func (e *Editor) HasReloadNotifier() bool {
+	return e.onReload != nil
+}
+
+// NotifyReload calls the reload notifier if one is configured.
+// Returns nil if no notifier is set or if notification succeeds.
+func (e *Editor) NotifyReload() error {
+	if e.onReload == nil {
+		return nil
+	}
+	return e.onReload()
 }
 
 // MarkDirty marks the editor as having unsaved changes.

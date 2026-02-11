@@ -424,6 +424,8 @@ func (m *Model) scheduleValidation() tea.Cmd {
 }
 
 // cmdCommit saves changes with validation check.
+// After successful save, attempts to notify the running daemon via ReloadNotifier.
+// Reload failure does not fail the commit — config is saved regardless.
 func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
 	// (m is captured by value in the tea.Cmd closure)
@@ -437,7 +439,15 @@ func (m *Model) cmdCommit() (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	return commandResult{statusMessage: "Configuration committed"}, nil
+	// Notify daemon of config change (best-effort)
+	if !m.editor.HasReloadNotifier() {
+		return commandResult{statusMessage: "Configuration committed"}, nil
+	}
+	if err := m.editor.NotifyReload(); err != nil {
+		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err)}, nil
+	}
+
+	return commandResult{statusMessage: "Configuration committed and reloaded"}, nil
 }
 
 // cmdDiscard reverts all changes.

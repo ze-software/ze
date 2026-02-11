@@ -18,6 +18,7 @@ const (
 	originIGP        = "igp"
 	originEGP        = "egp"
 	originIncomplete = "incomplete"
+	originUnknown    = "unknown"
 )
 
 // FormatPrefixFromBytes formats an NLRI prefix from raw wire bytes.
@@ -194,7 +195,7 @@ func FormatOriginJSON(value byte, w io.Writer) {
 	case 2:
 		origin = originIncomplete
 	default:
-		origin = "unknown"
+		origin = originUnknown
 	}
 	_, _ = fmt.Fprintf(w, `"%s"`, origin)
 }

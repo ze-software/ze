@@ -151,6 +151,9 @@ Examples:
 	}
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
+	// Wire reload notification: commit will notify daemon via API socket
+	ed.SetReloadNotifier(editor.NewSocketReloadNotifier(config.DefaultSocketPath()))
+
 	// Check for pending edit file from previous session
 	if ed.HasPendingEdit() {
 		switch ed.PromptPendingEdit() {

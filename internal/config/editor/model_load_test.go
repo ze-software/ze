@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -858,4 +859,154 @@ description "merged content";`
 
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")
+}
+
+// =============================================================================
+// Reload notification tests for commit-confirm/confirm/abort
+// =============================================================================
+
+// TestCommitConfirmTriggersReload verifies commit confirm notifies daemon.
+//
+// VALIDATES: cmdCommitConfirm calls reload notifier after save.
+// PREVENTS: Daemon running old config during confirm window.
+func TestCommitConfirmTriggersReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	notified := false
+	ed.SetReloadNotifier(func() error {
+		notified = true
+		return nil
+	})
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	result, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+	model.ApplyResult(result)
+
+	assert.True(t, notified, "reload notifier should be called during commit-confirm")
+	assert.True(t, model.ConfirmTimerActive(), "timer should be active")
+}
+
+// TestCommitConfirmReloadFailsGracefully verifies commit confirm proceeds on reload failure.
+//
+// VALIDATES: Daemon unreachable → commit confirm still succeeds with warning.
+// PREVENTS: Commit confirm blocked by daemon not running.
+func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	ed.SetReloadNotifier(func() error {
+		return fmt.Errorf("connection refused")
+	})
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	result, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err, "commit confirm should not fail on reload error")
+	model.ApplyResult(result)
+
+	assert.Contains(t, result.statusMessage, "reload failed", "status should warn about reload failure")
+	assert.True(t, model.ConfirmTimerActive(), "timer should still be active")
+}
+
+// TestConfirmTriggersReload verifies confirm command notifies daemon.
+//
+// VALIDATES: "confirm" after "commit confirm" calls reload notifier.
+// PREVENTS: Daemon not refreshed after confirm.
+func TestConfirmTriggersReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	reloadCount := 0
+	ed.SetReloadNotifier(func() error {
+		reloadCount++
+		return nil
+	})
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// Start commit confirm
+	commitResult, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+	model.ApplyResult(commitResult)
+	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
+
+	// Confirm
+	confirmResult, err := model.cmdConfirm()
+	require.NoError(t, err)
+	model.ApplyResult(confirmResult)
+
+	assert.Equal(t, 2, reloadCount, "second reload during confirm")
+	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled")
+	assert.Contains(t, confirmResult.statusMessage, "confirmed", "status should mention confirmed")
+}
+
+// TestAbortTriggersReload verifies abort command notifies daemon after rollback.
+//
+// VALIDATES: "abort" after "commit confirm" rolls back and reloads.
+// PREVENTS: Daemon running new config after abort.
+func TestAbortTriggersReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	reloadCount := 0
+	ed.SetReloadNotifier(func() error {
+		reloadCount++
+		return nil
+	})
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.editor.MarkDirty()
+
+	// Start commit confirm
+	commitResult, err := model.cmdCommitConfirm(60)
+	require.NoError(t, err)
+	model.ApplyResult(commitResult)
+	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
+
+	// Abort - should rollback and reload
+	abortResult, err := model.cmdAbort()
+	require.NoError(t, err)
+	model.ApplyResult(abortResult)
+
+	assert.Equal(t, 2, reloadCount, "second reload during abort")
+	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled")
+	assert.Contains(t, abortResult.statusMessage, "rolled back", "status should mention rollback")
 }

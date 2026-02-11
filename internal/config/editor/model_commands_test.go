@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -730,4 +731,151 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	assert.NotContains(t, content, "peer-as 65001", "old value should be replaced")
 	// Verify the group block structure is preserved
 	assert.Contains(t, content, `group "my group" {`)
+}
+
+// TestCommitTriggersReload verifies commit calls reload notifier after save.
+//
+// VALIDATES: After save, reload notification is attempted.
+// PREVENTS: Config saved but daemon not notified of changes.
+func TestCommitTriggersReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	// Track whether notifier was called
+	notified := false
+	ed.SetReloadNotifier(func() error {
+		notified = true
+		return nil
+	})
+
+	// Mark dirty so save will proceed
+	ed.MarkDirty()
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommit()
+	require.NoError(t, err)
+
+	assert.True(t, notified, "reload notifier should have been called")
+	assert.Contains(t, result.statusMessage, "committed")
+	assert.Contains(t, result.statusMessage, "reloaded")
+}
+
+// TestCommitReloadFailsGracefully verifies commit succeeds even when reload fails.
+//
+// VALIDATES: Daemon not running → commit succeeds with warning.
+// PREVENTS: Save lost because daemon notification failed.
+func TestCommitReloadFailsGracefully(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	// Notifier that simulates daemon not running
+	ed.SetReloadNotifier(func() error {
+		return fmt.Errorf("connection refused")
+	})
+
+	ed.MarkDirty()
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommit()
+	require.NoError(t, err, "commit should succeed even when reload fails")
+
+	// Save should still succeed
+	assert.False(t, ed.Dirty(), "editor should no longer be dirty")
+	// Status should indicate reload failure
+	assert.Contains(t, result.statusMessage, "committed")
+	assert.Contains(t, result.statusMessage, "reload")
+}
+
+// TestCommitValidationFailsNoReload verifies no reload when validation fails.
+//
+// VALIDATES: YANG validation fails → no save, no reload notification.
+// PREVENTS: Invalid config pushed to running daemon.
+func TestCommitValidationFailsNoReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	// Write config with errors
+	content := `bgp {
+  router-id invalid;
+}`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	// Track whether notifier was called
+	notified := false
+	ed.SetReloadNotifier(func() error {
+		notified = true
+		return nil
+	})
+
+	ed.MarkDirty()
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdCommit()
+	require.Error(t, err, "commit should fail with validation errors")
+	assert.Contains(t, err.Error(), "validation error")
+	assert.False(t, notified, "reload notifier should NOT be called on validation failure")
+}
+
+// TestCommitNoNotifierStandalone verifies commit works without notifier (standalone mode).
+//
+// VALIDATES: Editor works in standalone mode (no daemon).
+// PREVENTS: Nil pointer panic when no notifier is set.
+func TestCommitNoNotifierStandalone(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	// No notifier set (standalone mode)
+	ed.MarkDirty()
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommit()
+	require.NoError(t, err, "commit should succeed without notifier")
+	assert.Contains(t, result.statusMessage, "committed")
+	assert.NotContains(t, result.statusMessage, "reloaded", "standalone mode should not claim reloaded")
+}
+
+// TestSocketReloadNotifierNoDaemon verifies socket notifier fails gracefully.
+//
+// VALIDATES: NewSocketReloadNotifier returns error when daemon socket doesn't exist.
+// PREVENTS: Panic or hang when daemon is not running.
+func TestSocketReloadNotifierNoDaemon(t *testing.T) {
+	// Use a non-existent socket path
+	notifier := NewSocketReloadNotifier("/tmp/ze-test-nonexistent-" + t.Name() + ".sock")
+	err := notifier()
+	require.Error(t, err, "should fail when daemon socket doesn't exist")
+	assert.Contains(t, err.Error(), "daemon not reachable")
 }

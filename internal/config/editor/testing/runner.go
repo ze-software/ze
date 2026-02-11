@@ -92,6 +92,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	timeout := 30 * time.Second
 	width := 80
 	height := 24
+	reloadMode := "" // "success", "fail", or "" (standalone)
 
 	for _, opt := range tc.Options {
 		switch opt.Type {
@@ -117,6 +118,10 @@ func runTestCase(tc *TestCase) *TestResult {
 					height = h
 				}
 			}
+		case "reload":
+			if mode, ok := opt.Values["mode"]; ok {
+				reloadMode = mode
+			}
 		}
 	}
 
@@ -136,6 +141,14 @@ func runTestCase(tc *TestCase) *TestResult {
 	if err != nil {
 		result.Error = fmt.Sprintf("creating editor: %v", err)
 		return result
+	}
+
+	// Configure mock reload notifier if requested
+	switch reloadMode {
+	case "success":
+		hm.SetReloadNotifier(func() error { return nil })
+	case "fail":
+		hm.SetReloadNotifier(func() error { return fmt.Errorf("daemon not reachable") })
 	}
 
 	// Set window size if specified
