@@ -170,10 +170,14 @@ type Server struct {
 
 	running atomic.Bool
 
+	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
 	mu     sync.RWMutex
+
+	reloadMu sync.Mutex // Prevents concurrent config reloads
 }
 
 // Client represents a connected API client.
@@ -797,6 +801,7 @@ func (s *Server) deliverConfigRPC(proc *Process) {
 				}
 				jsonBytes, err := json.Marshal(subtree)
 				if err != nil {
+					logger().Error("deliverConfigRPC: marshal config subtree", "plugin", proc.Name(), "root", root, "error", err)
 					continue
 				}
 				sections = append(sections, rpc.ConfigSection{Root: root, Data: string(jsonBytes)})

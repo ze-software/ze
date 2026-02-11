@@ -1125,6 +1125,7 @@ func (m *mockReactorBatch) FlushRIBOut() int                                    
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding { return nil }
 func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig         { return nil }
 func (m *mockReactorBatch) GetConfigTree() map[string]any                            { return nil }
+func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                           {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64) error       { return nil }
 func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                              { return nil }
 func (m *mockReactorBatch) RetainUpdate(_ uint64) error                              { return nil }

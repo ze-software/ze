@@ -336,6 +336,13 @@ func (a *reactorAPIAdapter) GetConfigTree() map[string]any {
 	return a.r.configTree
 }
 
+// SetConfigTree replaces the running config tree after a successful reload.
+func (a *reactorAPIAdapter) SetConfigTree(tree map[string]any) {
+	a.r.mu.Lock()
+	defer a.r.mu.Unlock()
+	a.r.configTree = tree
+}
+
 // Stats returns reactor statistics for the API.
 func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 	stats := a.r.Stats()

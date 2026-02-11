@@ -447,6 +447,10 @@ type ReactorInterface interface {
 	// GetConfigTree returns the full config as a map for plugin config delivery.
 	// Plugins request specific roots (e.g., "bgp", "environment") and receive JSON.
 	GetConfigTree() map[string]any
+
+	// SetConfigTree replaces the running config tree after a successful reload.
+	// Called by the reload coordinator after verify→apply completes.
+	SetConfigTree(tree map[string]any)
 }
 
 // PeerProcessBinding describes which plugin receives messages from a peer.

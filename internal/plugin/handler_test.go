@@ -232,6 +232,8 @@ func (m *mockReactor) GetConfigTree() map[string]any {
 	return nil // Mock: no config tree
 }
 
+func (m *mockReactor) SetConfigTree(_ map[string]any) {}
+
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }

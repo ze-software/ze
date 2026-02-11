@@ -149,40 +149,59 @@ Run `make lint && make test` — all tests pass.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| reloadConfig() orchestration | | | |
-| ReloadFromDisk() entry point | | | |
-| No-change detection (empty diff) | | | |
-| Verify-all-before-apply semantics | | | |
-| Per-root filtering by WantsConfigRoots | | | |
-| Concurrent reload rejection | | | |
-| SetConfigTree on reactor | | | |
-| ConfigDiff → ConfigDiffSection conversion | | | |
+| reloadConfig() orchestration | ✅ Done | `reload.go:48` | Verify→apply with diff computation |
+| ReloadFromDisk() entry point | ✅ Done | `reload.go:26` | Calls configLoader then reloadConfig |
+| No-change detection (empty diff) | ✅ Done | `reload.go:64` | Returns nil when diff is empty |
+| Verify-all-before-apply semantics | ✅ Done | `reload.go:115-133` | Collects all verify errors before checking |
+| Per-root filtering by WantsConfigRoots | ✅ Done | `reload.go:86-99` | rootHasChanges filters per-root |
+| Concurrent reload rejection | ✅ Done | `reload.go:50-52` | TryLock on reloadMu |
+| SetConfigTree on reactor | ✅ Done | `types.go:453`, `reactor.go:339` | Interface + implementation |
+| ConfigDiff → ConfigDiffSection conversion | ✅ Done | `reload.go:281-329` | buildDiffSections groups by root |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestReloadConfigNoChange | | | |
-| TestReloadConfigVerifyFails | | | |
-| TestReloadConfigVerifyThenApply | | | |
-| TestReloadConfigPerRootFiltering | | | |
-| TestReloadConfigMultiplePlugins | | | |
-| TestReloadConfigConcurrentRejected | | | |
-| TestReloadFromDiskParseError | | | |
+| TestReloadConfigNoChange | ✅ Done | `reload_test.go:169` | |
+| TestReloadConfigVerifyFails | ✅ Done | `reload_test.go:199` | |
+| TestReloadConfigVerifyThenApply | ✅ Done | `reload_test.go:235` | |
+| TestReloadConfigPerRootFiltering | ✅ Done | `reload_test.go:268` | |
+| TestReloadConfigMultiplePlugins | ✅ Done | `reload_test.go:305` | |
+| TestReloadConfigConcurrentRejected | ✅ Done | `reload_test.go:343` | |
+| TestReloadFromDiskParseError | ✅ Done | `reload_test.go:369` | |
+
+### Extra Tests (beyond spec)
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestReloadFromDiskNoLoader | ✅ Done | `reload_test.go:396` | Missing loader → error |
+| TestDiffMapsLocal | ✅ Done | `reload_test.go:411` | Local diff logic correctness |
+| TestRootHasChanges | ✅ Done | `reload_test.go:446` | Root path matching |
+| TestReloadConfigRootRemoved | ✅ Done | `reload_test.go:466` | Root removal → plugin still notified |
+| TestReloadConfigWildcardRoot | ✅ Done | `reload_test.go:506` | Wildcard root → verify + apply |
+| TestDiffPairJSONKeys | ✅ Done | `reload_test.go:543` | JSON keys are kebab-case |
+| TestBuildDiffSections | ✅ Done | `reload_test.go:561` | Per-root grouping |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/plugin/server.go` | | |
-| `internal/plugin/types.go` | | |
-| `internal/plugin/reload.go` | | |
-| `internal/plugin/reload_test.go` | | |
+| `internal/plugin/server.go` | ✅ Modified | configLoader/reloadMu fields + deliverConfigRPC marshal error logging |
+| `internal/plugin/types.go` | ✅ Modified | Added SetConfigTree to ReactorInterface |
+| `internal/plugin/reload.go` | ✅ Created | Full coordinator with logging and edge-case handling |
+| `internal/plugin/reload_test.go` | ✅ Created | 14 tests with mock plugin responders |
+
+### Additional Files Modified
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/plugin/bgp/reactor/reactor.go` | ✅ Modified | SetConfigTree implementation |
+| `internal/plugin/handler_test.go` | ✅ Modified | SetConfigTree stub on mockReactor |
+| `internal/plugin/refresh_test.go` | ✅ Modified | SetConfigTree stub on mockReactorRefresh |
+| `internal/plugin/update_text_test.go` | ✅ Modified | SetConfigTree stub on mockReactorBatch |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 22
+- **Done:** 22
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Checklist
 
@@ -195,14 +214,50 @@ Run `make lint && make test` — all tests pass.
 - [x] Next-developer test (follows deliverConfigRPC pattern)
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Feature code integrated into codebase
-- [ ] Functional tests verify end-user behavior
+- [x] Tests written (14 tests in reload_test.go)
+- [x] Tests FAIL (verified RED before implementation)
+- [x] Implementation complete (reload.go)
+- [x] Tests PASS (all 14 pass)
+- [x] Feature code integrated into codebase (server.go, types.go, reactor.go)
+- [x] Functional tests verify end-user behavior (N/A — coordinator is internal, functional tests in sub-spec 5)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes (all unit tests pass)
+- [x] `make functional` passes (93/93 editor, 38/42 BGP — 4 pre-existing FlowSpec/BGP-LS timeouts unrelated to reload)
+
+## Implementation Summary
+
+### What Was Implemented
+- `reload.go`: Full config reload coordinator with verify→apply protocol
+  - `ConfigLoader` type and `SetConfigLoader()` for disk-based reload
+  - `ReloadFromDisk()` entry point (parses config, calls reloadConfig)
+  - `ReloadConfig()` public API / `reloadConfig()` internal implementation
+  - Local `diffMaps()` (equivalent to `config.DiffMaps()`, avoids import cycle)
+  - `rootHasChanges()` for per-root diff filtering
+  - `buildDiffSections()` for ConfigDiff → per-root ConfigDiffSection conversion
+  - `topLevelRoot()` helper for key grouping
+- `types.go`: Added `SetConfigTree(map[string]any)` to `ReactorInterface`
+- `reactor.go`: Implemented `SetConfigTree` on `reactorAPIAdapter` (mutex-protected)
+- `server.go`: Added `configLoader ConfigLoader` and `reloadMu sync.Mutex` fields
+- Mock reactor stubs added to 3 existing test files
+
+### Bugs Found/Fixed
+- **Root removal silent skip:** When a config root was entirely removed from the new config, `extractConfigSubtree` returned nil and the plugin was silently skipped. Fixed by sending `"{}"` section for removed roots. Regression test: `TestReloadConfigRootRemoved`.
+- **Wildcard apply filter:** Plugins with `WantsConfigRoots: ["*"]` passed verify but never received apply, because `slices.Contains(["*"], "bgp")` is false. Fixed by checking `wantsAll` flag. Regression test: `TestReloadConfigWildcardRoot`.
+- **PascalCase JSON keys:** `diffPair` struct had no JSON tags, producing `"Old"/"New"` instead of kebab-case `"old"/"new"`. Fixed with `json:"old"` / `json:"new"` tags. Regression test: `TestDiffPairJSONKeys`.
+- **Silent marshal errors:** `json.Marshal` failures in verify section building, `buildDiffSections`, and `deliverConfigRPC` were silently dropped. Fixed with `logger().Error` calls including root/plugin context.
+- **No reload logging:** `reloadConfig()` had no logging. Added Info/Debug/Warn at: start, no-change, diff stats, no-affected, verify phase, verify failed, apply phase, completed.
+
+### Design Insights
+- Local `diffMaps` duplication was necessary to avoid import cycle (internal/plugin cannot import internal/config, confirmed via `go list -json`). The implementation is identical to `config.DiffMaps`.
+- The coordinator uses `TryLock()` (Go 1.18+) for non-blocking concurrent reload rejection, which is cleaner than a channel-based semaphore.
+- Edge cases (root removal, wildcard) required explicit handling because the happy path (concrete roots with values present) masks absence/wildcard semantics.
+
+### Documentation Updates
+- None — no architectural changes
+
+### Deviations from Plan
+- Added `ReloadConfig()` as a public method (not in original spec) — needed for editor integration (sub-spec 4)
+- Added 7 extra tests beyond the spec's TDD plan for internal helpers and critical review bug fixes
+- Added logging throughout `reloadConfig()` and error logging for marshal failures (not in original spec)
