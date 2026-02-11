@@ -333,6 +333,19 @@ Sends SIGHUP to the daemon process. Reads PID from `daemon.pid` in the tmpfs dir
 | `conn` | Connection number triggering the signal |
 | `seq` | Sequence number (after matching messages) |
 
+### Send SIGTERM
+
+```
+action=sigterm:conn=<N>:seq=<N>
+```
+
+Sends SIGTERM to the daemon process. Reads PID from `daemon.pid` in the tmpfs directory (written automatically by the test runner). After sending SIGTERM, the connection is expected to close (daemon shuts down gracefully).
+
+| Key | Description |
+|-----|-------------|
+| `conn` | Connection number triggering the signal |
+| `seq` | Sequence number (after matching messages) |
+
 ## Complete Example
 
 ```
@@ -383,7 +396,7 @@ Different components consume different line types:
 | `expect=exit:`, `stdout:`, `stderr:`, `json:` | Test runner |
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
-| `action=rewrite:`, `action=sighup:` | ze-peer (reload tests) |
+| `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
 
 Lines not recognized by a consumer are ignored.
 

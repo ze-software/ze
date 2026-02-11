@@ -37,7 +37,10 @@ const (
 )
 
 // Action type identifiers used in .ci test files.
-const actionSighup = "sighup"
+const (
+	actionSighup  = "sighup"
+	actionSigterm = "sigterm"
+)
 
 // Mode specifies testpeer operation mode.
 type Mode int
@@ -483,6 +486,28 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 				return Result{Success: true}
 			}
 		}
+
+		// Check for sigterm action after matched message.
+		// Reads daemon PID from daemon.pid and sends SIGTERM.
+		if p.checker.NextSigtermAction() {
+			pidData, err := os.ReadFile("daemon.pid")
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("read daemon.pid: %w", err)}
+			}
+			pid, err := strconv.Atoi(strings.TrimSpace(string(pidData)))
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("parse daemon.pid: %w", err)}
+			}
+			p.printf("\nsending SIGTERM to pid %d\n", pid)
+			if err := syscall.Kill(pid, syscall.SIGTERM); err != nil {
+				return Result{Success: false, Error: fmt.Errorf("sigterm pid %d: %w", pid, err)}
+			}
+			// Brief pause to let the daemon shut down before we continue.
+			time.Sleep(500 * time.Millisecond)
+			if p.checker.Completed() {
+				return Result{Success: true}
+			}
+		}
 	}
 }
 
@@ -908,6 +933,32 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		return conn, seq, content, nil
 	}
 
+	// action=sigterm:conn=N:seq=N
+	if after, ok := strings.CutPrefix(rule, "action=sigterm:"); ok {
+		kv := parseKV(after)
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action:sigterm missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action:sigterm invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action:sigterm missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action:sigterm invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		content = actionSigterm
+		return conn, seq, content, nil
+	}
+
 	return 0, 0, "", fmt.Errorf("unknown expect format: %q", rule)
 }
 
@@ -1162,6 +1213,28 @@ func (c *Checker) NextSighupAction() bool {
 	return true
 }
 
+// NextSigtermAction checks if the next expected item is a sigterm action.
+// If so, it returns true, removes the action from the queue, and sets
+// expectClose so the next EOF is treated as expected (daemon shuts down).
+func (c *Checker) NextSigtermAction() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false
+	}
+
+	if c.messages[0] != actionSigterm {
+		return false
+	}
+
+	c.messages = c.messages[1:]
+	c.expectClose = true
+	c.updateMessagesIfRequired()
+
+	return true
+}
+
 // ExpectingClose returns true if the connection is expected to close
 // (e.g., after a SIGHUP triggered a daemon reload). Clears the flag.
 func (c *Checker) ExpectingClose() bool {
@@ -1235,6 +1308,10 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 			}
 			if lineType == actionSighup {
 				// Pass through: action=sighup:conn=N:seq=N
+				expect = append(expect, line)
+			}
+			if lineType == actionSigterm {
+				// Pass through: action=sigterm:conn=N:seq=N
 				expect = append(expect, line)
 			}
 

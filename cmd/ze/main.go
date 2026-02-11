@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
+	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
@@ -59,6 +60,8 @@ func main() {
 		os.Exit(schema.Run(args[1:], plugins))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
+	case "signal":
+		os.Exit(zesignal.Run(args[1:]))
 	case "version":
 		fmt.Printf("ze %s\n", version)
 		os.Exit(0)
@@ -154,6 +157,7 @@ Commands:
   schema    Schema discovery
   cli      Interactive CLI for running daemons
   bgp      BGP protocol tools (decode, encode, plugin)
+  signal   Send signals to running daemon (reload, stop, status)
   exabgp   ExaBGP bridge tools
   version  Show version
   help     Show this help

@@ -11,6 +11,7 @@ import (
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/hub"
+	"codeberg.org/thomas-mangin/ze/internal/pidfile"
 )
 
 // Run executes the hub with the given config file path and optional CLI plugins.
@@ -46,6 +47,26 @@ func Run(configPath string, plugins []string) int {
 	return 1
 }
 
+// acquirePIDFile attempts to acquire a PID file for the given config path.
+// Returns the PIDFile (caller must Release) or an error if another instance
+// holds the lock. Returns a no-op PIDFile for stdin configs or when the
+// PID file location cannot be determined.
+func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
+	if configPath == "-" {
+		return pidfile.Noop(), nil
+	}
+	pidPath, err := pidfile.Location(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: PID file location: %v\n", err)
+		return pidfile.Noop(), nil
+	}
+	pf, err := pidfile.Acquire(pidPath, configPath)
+	if err != nil {
+		return nil, fmt.Errorf("PID file: %w", err)
+	}
+	return pf, nil
+}
+
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 func runBGPInProcess(configPath string, data []byte, plugins []string) int {
 	// Use YANG-based config parser with CLI plugins
@@ -54,6 +75,14 @@ func runBGPInProcess(configPath string, data []byte, plugins []string) int {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
 	}
+
+	// Acquire PID file (prevents duplicate instances)
+	pf, err := acquirePIDFile(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	defer pf.Release()
 
 	// Setup signal handling
 	sigCh := make(chan os.Signal, 1)
@@ -102,6 +131,14 @@ func runOrchestratorWithData(configPath string, data []byte) int {
 		return 1
 	}
 	cfg.ConfigPath = configPath
+
+	// Acquire PID file (prevents duplicate instances)
+	pf, err := acquirePIDFile(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	defer pf.Release()
 
 	o := hub.NewOrchestrator(cfg)
 

@@ -227,85 +227,83 @@ def shutdown(self):
 
 ---
 
-## Ze Implementation Notes
+## Ze Implementation
 
-### Signal Package
+Ze diverges from ExaBGP's signal mapping. The following reflects the actual implementation.
 
-```go
-package signal
+### Ze Signal Mapping
 
-type Signal int
+| Signal | Action | Handler |
+|--------|--------|---------|
+| SIGTERM | Graceful shutdown | `cmd/ze/hub/main.go` — both BGP and orchestrator paths |
+| SIGINT | Graceful shutdown | Same as SIGTERM (Ctrl+C) |
+| SIGHUP | Config reload | `reactor.SignalHandler.OnReload` (BGP path); TODO in orchestrator path |
+| SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
+| SIGQUIT | Goroutine dump + exit | Go runtime default (not caught — useful for debugging) |
 
-const (
-    None       Signal = 0
-    Shutdown   Signal = -1
-    Restart    Signal = -2
-    Reload     Signal = -4
-    FullReload Signal = -8
-)
+### PID File Management
 
-type Handler struct {
-    received Signal
-    number   int
-    ch       chan os.Signal
-}
+Ze uses flock(2)-based PID files to prevent duplicate instances and enable `ze signal` CLI.
 
-func NewHandler() *Handler {
-    h := &Handler{
-        ch: make(chan os.Signal, 1),
-    }
-    signal.Notify(h.ch, syscall.SIGTERM, syscall.SIGHUP,
-        syscall.SIGALRM, syscall.SIGUSR1, syscall.SIGUSR2)
-    go h.listen()
-    return h
-}
+**Package:** `internal/pidfile/`
 
-func (h *Handler) listen() {
-    for sig := range h.ch {
-        switch sig {
-        case syscall.SIGTERM, syscall.SIGHUP:
-            h.received = Shutdown
-        case syscall.SIGALRM:
-            h.received = Restart
-        case syscall.SIGUSR1:
-            h.received = Reload
-        case syscall.SIGUSR2:
-            h.received = FullReload
-        }
-    }
-}
-```
+**Location cascade** (matches socket path — see `config.DefaultSocketPath`):
 
-### Reactor Integration
+| Priority | Path | Condition |
+|----------|------|-----------|
+| 1 | `$XDG_RUNTIME_DIR/ze/<config-hash>.pid` | XDG_RUNTIME_DIR set and writable |
+| 2 | `/var/run/ze/<config-hash>.pid` | Running as root |
+| 3 | `/tmp/ze/<config-hash>.pid` | Fallback (always writable) |
 
-```go
-func (r *Reactor) Run(ctx context.Context) error {
-    for {
-        select {
-        case <-ctx.Done():
-            return r.shutdown()
+**Config hash:** First 8 hex characters of SHA256 of absolute config path.
 
-        default:
-            switch r.signal.Received() {
-            case signal.Shutdown:
-                return r.shutdown()
-            case signal.Restart:
-                r.restartPeers()
-                r.signal.Rearm()
-            case signal.Reload:
-                r.reloadConfig()
-                r.signal.Rearm()
-            case signal.FullReload:
-                r.fullReload()
-                r.signal.Rearm()
-            }
+**PID file content** (3 lines):
 
-            r.runPeers()
-        }
-    }
-}
-```
+| Line | Content | Example |
+|------|---------|---------|
+| 1 | Process ID | `12345` |
+| 2 | Config path | `/etc/ze/router.conf` |
+| 3 | Start time (RFC 3339) | `2026-01-31T10:30:00Z` |
+
+**Lifecycle:**
+- Startup: `pidfile.Acquire()` creates file, writes content, acquires `flock(LOCK_EX|LOCK_NB)`
+- Running: flock held — second `Acquire` fails with "already running"
+- Shutdown: `pidfile.Release()` unlocks, closes, removes file
+- Crash: stale file detected by successful `flock(LOCK_NB)` probe (no holder)
+
+**Lock failure is fatal:** If another instance holds the lock, the daemon refuses to start.
+
+### `ze signal` CLI
+
+**Package:** `cmd/ze/signal/`
+
+Usage: `ze signal <command> [--pid-file <path>] <config>`
+
+| Command | Signal | Exit 0 | Exit 1 | Exit 2 | Exit 3 | Exit 4 |
+|---------|--------|--------|--------|--------|--------|--------|
+| reload | SIGHUP | Sent | Not running | No PID file | Permission denied | Send failed |
+| stop | SIGTERM | Sent | Not running | No PID file | Permission denied | Send failed |
+| quit | SIGQUIT | Sent | Not running | No PID file | Permission denied | Send failed |
+| status | kill(0) | Running | Not running | No PID file | — | — |
+
+### Startup Paths
+
+Both startup paths acquire PID files:
+
+**BGP in-process** (`runBGPInProcess`):
+1. Load config via YANG parser
+2. Acquire PID file (fatal on lock failure)
+3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
+4. Wait for SIGTERM/SIGINT or reactor done
+5. Release PID file (deferred)
+
+**Hub orchestrator** (`runOrchestratorWithData`):
+1. Parse hub config
+2. Acquire PID file (fatal on lock failure)
+3. Start orchestrator
+4. Signal goroutine handles SIGTERM/SIGINT/SIGHUP
+5. Release PID file (deferred)
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-02-11

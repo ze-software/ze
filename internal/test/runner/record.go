@@ -872,6 +872,14 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 		// Add to Expects for testpeer (new format).
 		r.Expects = append(r.Expects, fmt.Sprintf("action=sighup:conn=%d:seq=%d", conn, seq))
 
+	case "sigterm":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("action:sigterm: %w", err)
+		}
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("action=sigterm:conn=%d:seq=%d", conn, seq))
+
 	default:
 		return fmt.Errorf("unknown action type %q", actType)
 	}

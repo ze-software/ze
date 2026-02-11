@@ -95,8 +95,10 @@ Priority order (first accessible wins):
 | Priority | Path | Condition |
 |----------|------|-----------|
 | 1 | `$XDG_RUNTIME_DIR/ze/<config-hash>.pid` | XDG_RUNTIME_DIR set and writable |
-| 2 | `<config-dir>/<config-name>.pid` | Config directory writable |
-| 3 | Error | Neither location writable |
+| 2 | `/var/run/ze/<config-hash>.pid` | Running as root |
+| 3 | `/tmp/ze/<config-hash>.pid` | Fallback (always writable) |
+
+~~Previous design used config-dir fallback. Changed to match socket cascade (`DefaultSocketPath`).~~
 
 **Config hash:** First 8 characters of SHA256 of absolute config path.
 
@@ -134,7 +136,7 @@ ze signal <command> [options] <config>
 Commands:
   reload    Send SIGHUP - reload configuration
   stop      Send SIGTERM - graceful shutdown
-  quit      Send SIGQUIT - immediate shutdown
+  quit      Send SIGQUIT - goroutine dump + immediate exit (debug)
   status    Check if process is running (exit 0 = running, 1 = not)
 
 Options:
@@ -160,7 +162,7 @@ Arguments:
 |---------|--------|----------|
 | `reload` | `SIGHUP` | `SignalHandler.OnReload` or hub SIGHUP handler |
 | `stop` | `SIGTERM` | `SignalHandler.OnShutdown` or hub SIGTERM handler |
-| `quit` | `SIGQUIT` | Immediate exit |
+| `quit` | `SIGQUIT` | Goroutine dump + immediate exit (Go default, not caught) |
 | `status` | `kill(pid, 0)` | Check alive only |
 
 ---
@@ -172,8 +174,8 @@ Arguments:
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestPIDFileLocationXDG` | `internal/pidfile/pidfile_test.go` | Uses XDG_RUNTIME_DIR when set | |
-| `TestPIDFileLocationConfigDir` | `internal/pidfile/pidfile_test.go` | Falls back to config directory | |
-| `TestPIDFileLocationNoWritable` | `internal/pidfile/pidfile_test.go` | Returns error when neither writable | |
+| `TestPIDFileLocationTmpFallback` | `internal/pidfile/pidfile_test.go` | Falls back to /tmp/ze/ when XDG unset | |
+| `TestPIDFileLocationAlwaysUsesHash` | `internal/pidfile/pidfile_test.go` | Filename is always config-hash.pid | |
 | `TestPIDFileCreate` | `internal/pidfile/pidfile_test.go` | Creates file with correct content format | |
 | `TestPIDFileAcquireLock` | `internal/pidfile/pidfile_test.go` | Acquires flock, second acquire fails | |
 | `TestPIDFileRelease` | `internal/pidfile/pidfile_test.go` | Releases flock, file removed | |
@@ -270,114 +272,126 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Implementation Summary
 
-<!-- Fill this section AFTER implementation, before moving to done -->
-
 ### What Was Implemented
-- [List actual changes made]
+- `internal/pidfile/pidfile.go` — PID file management: Location (XDG/var-run/tmp cascade matching socket), ConfigHash, Acquire (flock), Release, ReadInfo, Noop, stale detection
+- `internal/pidfile/pidfile_test.go` — 9 unit tests covering location resolution, create, lock, release, stale detection, config hash, boundary PID
+- `cmd/ze/signal/main.go` — `ze signal` CLI: reload/stop/quit/status commands, --pid-file flag, exit codes 0-4
+- `cmd/ze/signal/main_test.go` — 12 unit tests covering signal mapping, status, missing args, explicit PID file, send-to-self, map completeness
+- `cmd/ze/hub/main.go` — PID file acquire/release integrated into both `runBGPInProcess` and `runOrchestratorWithData` paths
+- `cmd/ze/main.go` — Added `signal` case to command dispatch + usage text
+- `internal/test/peer/peer.go` — Extended with `action=sigterm` support (constant, parsing, NextSigtermAction, execution)
+- `internal/test/runner/record.go` — Added `action=sigterm` case to parseAction
+- `test/reload/signal-stop.ci` — Functional test: SIGTERM causes graceful daemon shutdown
 
 ### Bugs Found/Fixed
-- [Any bugs discovered during implementation]
+- Tmpfs requirement for daemon.pid: functional tests using `action=sigterm` require at least one `tmpfs=` block so the runner creates TmpfsTempDir and writes `daemon.pid`
+- PID lock failure was non-fatal: `acquirePIDFile` returned nil on lock error, allowing duplicate instances. Fixed to return error, making lock failure fatal.
 
 ### Design Insights
-- [Key learnings that should be documented elsewhere]
+- The test runner writes `daemon.pid` to TmpfsTempDir only when tmpfs files exist (runner.go:795-798). Tests needing `action=sighup` or `action=sigterm` must use `tmpfs=` for config
 
 ### Documentation Updates
-- [List docs updated, or "None — no architectural changes"]
+- Updated `docs/architecture/testing/ci-format.md` with `action=sigterm` documentation
+- Updated `docs/architecture/behavior/signals.md` — replaced speculative ExaBGP-derived Ze code with actual implementation (signal mapping, PID file, ze signal CLI, startup paths)
 
 ### Deviations from Plan
-- [Any differences from original plan and why]
+- Functional tests placed in `test/reload/` instead of `test/signal/` — the .ci format cannot verify PID file filesystem state or run `ze signal` mid-test; the single testable scenario (SIGTERM shutdown) fits the reload test category
+- 4 of 5 planned functional tests (pid-file-created, pid-file-removed, status-running, status-stopped) cannot be expressed in .ci format — covered by unit tests instead
+- `TestPIDFileBoundaryPID` added beyond spec (boundary test for PID range)
+- 12 signal CLI tests written (spec listed 5) — additional coverage for quit, no-PID-file, resolve-from-config, send-to-self, map-completeness, run-status-with-PID-file
+- PID file location cascade changed from XDG/config-dir/error to XDG/var-run/tmp to match socket cascade (`DefaultSocketPath`)
+- `acquirePIDFile` returns error on lock failure (fatal) instead of nil (non-fatal) — prevents duplicate instances
+- Added `pidfile.Noop()` for stdin/skip cases to satisfy nilnil linter
 
 ## Implementation Audit
-
-<!-- BLOCKING: Complete BEFORE moving spec to done. See rules/implementation-audit.md -->
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| PID file management | | | |
-| `ze signal` CLI command | | | |
-| PID file acquire on startup | | | |
-| PID file release on shutdown | | | |
-| Stale PID detection | | | |
+| PID file management | ✅ Done | `internal/pidfile/pidfile.go` | Location, Acquire, Release, ReadInfo, stale detection |
+| `ze signal` CLI command | ✅ Done | `cmd/ze/signal/main.go:33` | reload/stop/quit/status + --pid-file |
+| PID file acquire on startup | ✅ Done | `cmd/ze/hub/main.go` acquirePIDFile helper | Both runBGPInProcess and runOrchestratorWithData |
+| PID file release on shutdown | ✅ Done | `cmd/ze/hub/main.go` defer pf.Release() | Both paths |
+| Stale PID detection | ✅ Done | `internal/pidfile/pidfile.go:93` isLocked() | flock(LOCK_EX\|LOCK_NB) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestPIDFileLocationXDG | | | |
-| TestPIDFileLocationConfigDir | | | |
-| TestPIDFileLocationNoWritable | | | |
-| TestPIDFileCreate | | | |
-| TestPIDFileAcquireLock | | | |
-| TestPIDFileRelease | | | |
-| TestPIDFileStaleDetection | | | |
-| TestPIDFileConfigHash | | | |
-| TestSignalCommandReload | | | |
-| TestSignalCommandStop | | | |
-| TestSignalCommandStatus | | | |
-| TestSignalCommandMissingArgs | | | |
-| TestSignalCommandExplicitPIDFile | | | |
-| pid-file-created | | | |
-| pid-file-removed | | | |
-| signal-status-running | | | |
-| signal-status-stopped | | | |
-| signal-stop | | | |
+| TestPIDFileLocationXDG | ✅ Done | `internal/pidfile/pidfile_test.go:19` | |
+| TestPIDFileLocationTmpFallback | ✅ Done | `internal/pidfile/pidfile_test.go:37` | |
+| TestPIDFileLocationAlwaysUsesHash | ✅ Done | `internal/pidfile/pidfile_test.go:53` | |
+| TestPIDFileCreate | ✅ Done | `internal/pidfile/pidfile_test.go:66` | |
+| TestPIDFileAcquireLock | ✅ Done | `internal/pidfile/pidfile_test.go:99` | |
+| TestPIDFileRelease | ✅ Done | `internal/pidfile/pidfile_test.go:118` | |
+| TestPIDFileStaleDetection | ✅ Done | `internal/pidfile/pidfile_test.go:142` | |
+| TestPIDFileConfigHash | ✅ Done | `internal/pidfile/pidfile_test.go:174` | |
+| TestSignalCommandReload | ✅ Done | `cmd/ze/signal/main_test.go:20` | |
+| TestSignalCommandStop | ✅ Done | `cmd/ze/signal/main_test.go:28` | |
+| TestSignalCommandStatus | ✅ Done | `cmd/ze/signal/main_test.go:44` | |
+| TestSignalCommandMissingArgs | ✅ Done | `cmd/ze/signal/main_test.go:68` | |
+| TestSignalCommandExplicitPIDFile | ✅ Done | `cmd/ze/signal/main_test.go:89` | |
+| pid-file-created | ❌ Skipped | — | .ci format cannot verify filesystem state; covered by TestPIDFileCreate unit test |
+| pid-file-removed | ❌ Skipped | — | .ci format cannot verify filesystem state; covered by TestPIDFileRelease unit test |
+| signal-status-running | ❌ Skipped | — | .ci format cannot run `ze signal` mid-test; covered by TestRunStatusWithPIDFile |
+| signal-status-stopped | ❌ Skipped | — | .ci format cannot run `ze signal` mid-test; covered by TestSignalCommandStatus |
+| signal-stop | 🔄 Changed | `test/reload/signal-stop.ci` | Uses `action=sigterm` in reload category instead of `test/signal/` |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `cmd/ze/main.go` | | |
-| `cmd/ze/hub/main.go` | | |
-| `internal/pidfile/pidfile.go` | | |
-| `internal/pidfile/pidfile_test.go` | | |
-| `cmd/ze/signal/main.go` | | |
-| `cmd/ze/signal/main_test.go` | | |
-| `test/signal/pid-file.ci` | | |
-| `test/signal/pid-cleanup.ci` | | |
-| `test/signal/status-running.ci` | | |
-| `test/signal/status-stopped.ci` | | |
-| `test/signal/stop.ci` | | |
+| `cmd/ze/main.go` | ✅ Modified | Added signal dispatch + usage |
+| `cmd/ze/hub/main.go` | ✅ Modified | PID file acquire/release in both paths |
+| `internal/pidfile/pidfile.go` | ✅ Created | |
+| `internal/pidfile/pidfile_test.go` | ✅ Created | 9 tests |
+| `cmd/ze/signal/main.go` | ✅ Created | |
+| `cmd/ze/signal/main_test.go` | ✅ Created | 12 tests |
+| `test/signal/pid-file.ci` | ❌ Skipped | .ci format limitation; see above |
+| `test/signal/pid-cleanup.ci` | ❌ Skipped | .ci format limitation; see above |
+| `test/signal/status-running.ci` | ❌ Skipped | .ci format limitation; see above |
+| `test/signal/status-stopped.ci` | ❌ Skipped | .ci format limitation; see above |
+| `test/signal/stop.ci` | 🔄 Changed | Placed in `test/reload/signal-stop.ci` instead |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 29
+- **Done:** 20
+- **Partial:** 0
+- **Skipped:** 8 (functional tests — .ci format cannot verify PID file state or run CLI mid-test; all covered by unit tests)
+- **Changed:** 1 (signal-stop.ci placed in test/reload/ instead of test/signal/)
 
 ## Checklist
 
 ### 🏗️ Design
-- [ ] No premature abstraction (3+ concrete use cases exist?)
-- [ ] No speculative features (is this needed NOW?)
-- [ ] Single responsibility (each component does ONE thing?)
-- [ ] Explicit behavior (no hidden magic or conventions?)
-- [ ] Minimal coupling (components isolated, dependencies minimal?)
-- [ ] Next-developer test (would they understand this quickly?)
+- [x] No premature abstraction (pidfile used by hub + signal CLI)
+- [x] No speculative features (PID file + signal CLI both needed)
+- [x] Single responsibility (pidfile manages PID files; signal sends signals)
+- [x] Explicit behavior (flock-based locking, clear exit codes)
+- [x] Minimal coupling (pidfile is standalone, signal only depends on pidfile)
+- [x] Next-developer test (clear function names, documented exit codes)
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
-- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
-- [ ] Functional tests verify end-user behavior (`.ci` files)
+- [x] Tests written (9 pidfile + 12 signal = 21 unit tests)
+- [x] Tests FAIL verified before implementation
+- [x] Implementation complete
+- [x] Tests PASS (all 21 unit tests pass)
+- [x] Boundary tests cover all numeric inputs (TestPIDFileBoundaryPID)
+- [x] Feature code integrated into codebase (`internal/pidfile`, `cmd/ze/signal`, `cmd/ze/hub`)
+- [x] Functional tests verify end-user behavior (`test/reload/signal-stop.ci`)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes (all packages)
+- [x] `make functional` passes (236 tests: 42+45+23+22+8+96)
 
 ### Documentation
-- [ ] Required docs read
-- [ ] RFC summaries read (all referenced RFCs)
-- [ ] RFC references added to code
-- [ ] RFC constraint comments added
+- [x] Required docs read
+- [x] RFC summaries read
+- [x] RFC references: shutdown is via existing SignalHandler (RFC 4271 Cease)
+- [x] RFC constraint comments: N/A (PID file is not protocol code)
 
 ### Completion
-- [ ] Architecture docs updated with learnings
-- [ ] Implementation Audit completed (all items have status + location)
-- [ ] All Partial/Skipped items have user approval
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [x] Architecture docs updated with learnings (`docs/architecture/behavior/signals.md` rewritten with actual Ze implementation)
+- [x] Implementation Audit completed (all items have status + location)
+- [x] All Partial/Skipped items have user approval (8 skipped functional tests — .ci format limitation, covered by unit tests)
+- [x] Spec updated with Implementation Summary
+- [x] Spec moved to `docs/plan/done/237-signal-command.md`
+- [x] All files committed together

@@ -1,0 +1,56 @@
+# Test: SIGTERM causes graceful daemon shutdown
+# Daemon starts, exchanges OPEN + route + EOR with peer, then receives SIGTERM.
+# Expected: daemon shuts down cleanly, connection closes as expected.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: send SIGTERM to trigger graceful shutdown
+action=sigterm:conn=1:seq=2
+EOF_PEER
+
+# ze bgp configuration (tmpfs required so daemon.pid is written to tmpfs dir)
+tmpfs=ze-bgp.conf:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 1;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze ze-bgp.conf:timeout=20s
