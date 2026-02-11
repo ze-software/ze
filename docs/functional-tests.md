@@ -239,11 +239,15 @@ expect=json:conn=1:seq=1:json={...}
 | `cmd=` | `cmd=api:conn=1:seq=1:text=...` | API command |
 | `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
 | `expect=json:` | `expect=json:conn=1:seq=1:json=...` | Expected JSON |
-| `expect=stderr:` | `expect=stderr:pattern=...` | Regex pattern in stderr |
+| `expect=stdout:` | `expect=stdout:contains=text` | Substring match in stdout |
+| `expect=stderr:` | `expect=stderr:pattern=...` or `contains=...` | Regex or substring match in stderr |
 | `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
+| `reject=stderr:` | `reject=stderr:pattern=...` | Fail if stderr matches regex |
+| `reject=syslog:` | `reject=syslog:pattern=...` | Fail if syslog matches regex |
 | `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
 | `action=rewrite:` | `action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf` | Rewrite config file |
 | `action=sighup:` | `action=sighup:conn=1:seq=2` | Send SIGHUP to daemon |
+| `action=sigterm:` | `action=sigterm:conn=1:seq=2` | Send SIGTERM to daemon |
 
 ### Tmpfs (Virtual File System)
 
@@ -264,38 +268,38 @@ At runtime, Tmpfs files are written to a temp directory. This enables self-conta
 
 ### Logging Tests
 
-Tests can verify logging behavior using `option:env:`, `expect:stderr:`, `reject:stderr:`, and `expect:syslog:`.
+Tests can verify logging behavior using `option=env:`, `expect=stderr:`, `reject=stderr:`, and `expect=syslog:`.
 
 **Example: Verify server subsystem logs to stderr**
 ```
-option:file:mytest.conf
-option:env:ze.bgp.log.server=debug
+option=file:path=mytest.conf
+option=env:var=ze.bgp.log.server:value=debug
 
-1:raw:FFFF...
-expect:stderr:subsystem=server
+expect=bgp:conn=1:seq=1:hex=FFFF...
+expect=stderr:pattern=subsystem=server
 ```
 
 **Example: Verify DEBUG messages are filtered at INFO level**
 ```
-option:file:mytest.conf
-option:env:ze.bgp.log.server=info
+option=file:path=mytest.conf
+option=env:var=ze.bgp.log.server:value=info
 
-1:raw:FFFF...
-reject:stderr:level=DEBUG
+expect=bgp:conn=1:seq=1:hex=FFFF...
+reject=stderr:pattern=level=DEBUG
 ```
 
 **Example: Verify syslog backend**
 ```
-option:file:mytest.conf
-option:env:ze.bgp.log.server=debug
+option=file:path=mytest.conf
+option=env:var=ze.bgp.log.server:value=debug
 
-1:raw:FFFF...
-expect:syslog:subsystem=server
+expect=bgp:conn=1:seq=1:hex=FFFF...
+expect=syslog:pattern=subsystem=server
 ```
 
-When `expect:syslog:` is present, the test runner automatically:
+When `expect=syslog:` is present, the test runner automatically:
 1. Starts a test-syslog UDP server on a dynamic port
-2. Sets `ze.bgp.log.backend=syslog` and `ze.bgp.log.destination=127.0.0.1:<port>`
+2. Sets `ze.log.backend=syslog` and `ze.log.destination=127.0.0.1:<port>`
 3. Validates patterns against captured syslog messages after test
 
 #### Syslog Testing Architecture

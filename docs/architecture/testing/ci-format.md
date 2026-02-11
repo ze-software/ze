@@ -17,6 +17,7 @@ action=type:key=value:key=value:...
 | `option=` | Test configuration |
 | `cmd=` | Commands (API, shell, foreground/background) |
 | `expect=` | Expectations to validate |
+| `reject=` | Negative expectations (fail if matched) |
 | `action=` | Actions (send notification, raw bytes) |
 
 ## Stdin Blocks
@@ -274,14 +275,46 @@ expect=exit:code=<N>
 
 Validates the foreground process exit code.
 
-### Stdout/Stderr Expectations
+### Stdout Expectations
+
+```
+expect=stdout:contains=<text>
+```
+
+Validates that stdout contains the given substring. Multiple `expect=stdout:contains=` lines are allowed per test — all must match.
+
+### Stderr Expectations
 
 ```
 expect=stderr:pattern=<regex>
+expect=stderr:contains=<text>
+```
+
+Two modes:
+- `pattern=` — regex match against stderr (uses Go `regexp` syntax)
+- `contains=` — substring match against stderr
+
+### Syslog Expectations
+
+```
 expect=syslog:pattern=<regex>
 ```
 
-Validates log output contains pattern.
+Validates that captured syslog output matches the regex pattern. When any `expect=syslog:` line is present, the test runner automatically starts a UDP syslog server and injects `ze.log.backend=syslog` and `ze.log.destination=127.0.0.1:<port>` into the test environment.
+
+### Negative Expectations (reject)
+
+```
+reject=stderr:pattern=<regex>
+reject=syslog:pattern=<regex>
+```
+
+Inverse of `expect=` — the test **fails** if the pattern matches. Used to verify that unwanted output (e.g., deprecated warnings, ERROR-level messages) does NOT appear.
+
+| Type | Description |
+|------|-------------|
+| `reject=stderr:pattern=<regex>` | Fail if stderr matches regex |
+| `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
 
 ## Actions
 
@@ -393,7 +426,8 @@ Different components consume different line types:
 | `option=` | Test runner + ze-peer |
 | `cmd=api:` | Test runner (sends to ze-peer) |
 | `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
-| `expect=exit:`, `stdout:`, `stderr:`, `json:` | Test runner |
+| `expect=exit:`, `stdout:`, `stderr:`, `json:`, `syslog:` | Test runner |
+| `reject=stderr:`, `reject=syslog:` | Test runner (negative expectations) |
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
 | `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
