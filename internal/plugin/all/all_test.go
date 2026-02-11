@@ -8,7 +8,7 @@ import (
 )
 
 // TestAllPluginsRegistered verifies that importing the all package
-// registers all 9 expected internal plugins.
+// registers all 10 expected internal plugins.
 //
 // VALIDATES: Every internal plugin registers via init().
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
@@ -21,6 +21,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"hostname",
 		"llnh",
 		"rib",
+		"role",
 		"rr",
 		"vpn",
 	}
@@ -113,5 +114,8 @@ func TestCapabilityMappings(t *testing.T) {
 	}
 	if cm[77] != "llnh" {
 		t.Errorf("CapabilityMap[77] = %q, want llnh", cm[77])
+	}
+	if cm[9] != "role" {
+		t.Errorf("CapabilityMap[9] = %q, want role", cm[9])
 	}
 }

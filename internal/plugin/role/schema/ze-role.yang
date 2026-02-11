@@ -1,0 +1,38 @@
+module ze-role {
+    namespace "urn:ze:role";
+    prefix role;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description "RFC 9234 BGP Role plugin for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    typedef role-type {
+        type enumeration {
+            enum provider { value 0; description "RFC 9234: Provider (0)"; }
+            enum rs { value 1; description "RFC 9234: Route Server (1)"; }
+            enum rs-client { value 2; description "RFC 9234: RS-Client (2)"; }
+            enum customer { value 3; description "RFC 9234: Customer (3)"; }
+            enum peer { value 4; description "RFC 9234: Peer (4)"; }
+        }
+        description "RFC 9234 BGP Role values";
+    }
+
+    augment "/bgp:bgp/bgp:peer" {
+        description "Role configuration for peers";
+
+        leaf role {
+            type role-type;
+            description "Our role in this peer relationship";
+        }
+
+        leaf role-strict {
+            type boolean;
+            default false;
+            description "Require peer to send Role capability";
+        }
+    }
+}

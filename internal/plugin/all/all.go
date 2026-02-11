@@ -14,6 +14,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/llnh"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/rib"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/role"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/rr"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
 )
