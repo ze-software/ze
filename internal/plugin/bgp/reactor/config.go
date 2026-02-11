@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -161,7 +162,18 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 		return nil
 	}
 
-	for key, val := range familyMap {
+	// Sort family keys for deterministic capability ordering in OPEN messages.
+	// Go maps have random iteration order; without sorting, the OPEN message
+	// would encode multiprotocol capabilities in non-deterministic order.
+	familyKeys := make([]string, 0, len(familyMap))
+	for key := range familyMap {
+		familyKeys = append(familyKeys, key)
+	}
+	slices.Sort(familyKeys)
+
+	for _, key := range familyKeys {
+		val := familyMap[key]
+
 		// Handle ignore-mismatch option.
 		if key == "ignore-mismatch" {
 			if vs, ok := val.(string); ok {
