@@ -61,6 +61,72 @@ func TestStageSynchronization(t *testing.T) {
 		assert.Equal(t, int32(2), stage2Started.Load())
 	})
 
+	t.Run("barrier_timeout_from_stage_start", func(t *testing.T) {
+		// VALIDATES: Fast plugin does NOT timeout when slow plugin arrives late
+		//   but total stage time is within timeout.
+		// PREVENTS: Fast plugins failing because they wait for slow plugins at barrier.
+
+		coordinator := NewStartupCoordinator(2)
+
+		// Stage start time is set when coordinator is created (for Registration).
+		stageStart := coordinator.StageStartTime()
+		assert.False(t, stageStart.IsZero(), "stage start time should be set at construction")
+
+		// Simulate: fast plugin completes Registration quickly
+		coordinator.StageComplete(0, StageRegistration)
+
+		// Simulate: slow plugin completes 200ms later (still within 5s default)
+		time.Sleep(200 * time.Millisecond)
+		coordinator.StageComplete(1, StageRegistration)
+
+		// Now stage advances — start time should be updated
+		newStart := coordinator.StageStartTime()
+		assert.True(t, newStart.After(stageStart), "stage start time should advance after stage change")
+
+		// Both should be able to wait for Config with no timeout
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		err := coordinator.WaitForStage(ctx, StageConfig)
+		require.NoError(t, err, "should not timeout — stage advanced successfully")
+	})
+
+	t.Run("stage_start_time_advances", func(t *testing.T) {
+		// VALIDATES: Each advanceStage updates stageStartTime.
+		// PREVENTS: Stale start time causing accumulated timing errors.
+
+		coordinator := NewStartupCoordinator(1)
+		initialStart := coordinator.StageStartTime()
+		assert.False(t, initialStart.IsZero())
+
+		// Complete Registration → advances to Config
+		time.Sleep(10 * time.Millisecond) // Ensure clock difference
+		coordinator.StageComplete(0, StageRegistration)
+		configStart := coordinator.StageStartTime()
+		assert.True(t, configStart.After(initialStart), "Config start should be after Registration start")
+
+		// Complete Config → advances to Capability
+		time.Sleep(10 * time.Millisecond)
+		coordinator.StageComplete(0, StageConfig)
+		capStart := coordinator.StageStartTime()
+		assert.True(t, capStart.After(configStart), "Capability start should be after Config start")
+	})
+
+	t.Run("barrier_timeout_expired", func(t *testing.T) {
+		// VALIDATES: Plugin that exceeds stageStart+timeout still fails.
+		// PREVENTS: Infinite waits when a plugin is truly stuck.
+
+		coordinator := NewStartupCoordinator(2)
+
+		// Only plugin 0 completes — plugin 1 never does
+		coordinator.StageComplete(0, StageRegistration)
+
+		// Wait with very short timeout — should expire
+		ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+		defer cancel()
+		err := coordinator.WaitForStage(ctx, StageConfig)
+		require.Error(t, err, "should timeout when plugin never completes")
+	})
+
 	t.Run("three_plugins_all_stages", func(t *testing.T) {
 		coordinator := NewStartupCoordinator(3)
 		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)

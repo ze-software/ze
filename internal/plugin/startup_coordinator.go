@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -29,24 +30,43 @@ var coordinatorLogger = slogutil.LazyLogger("coordinator")
 type StartupCoordinator struct {
 	pluginCount int
 
-	mu            sync.Mutex
-	currentStage  PluginStage
-	stageComplete []bool        // which plugins completed current stage
-	stageCh       chan struct{} // closed when stage advances
-	failedPlugin  int           // -1 if none failed
-	failedMsg     string
-	err           error
+	mu             sync.Mutex
+	currentStage   PluginStage
+	stageStartTime time.Time     // when current stage began
+	stageComplete  []bool        // which plugins completed current stage
+	stageCh        chan struct{} // closed when stage advances
+	failedPlugin   int           // -1 if none failed
+	failedMsg      string
+	err            error
 }
 
 // NewStartupCoordinator creates a coordinator for the given number of plugins.
 func NewStartupCoordinator(pluginCount int) *StartupCoordinator {
 	return &StartupCoordinator{
-		pluginCount:   pluginCount,
-		currentStage:  StageRegistration,
-		stageComplete: make([]bool, pluginCount),
-		stageCh:       make(chan struct{}),
-		failedPlugin:  -1,
+		pluginCount:    pluginCount,
+		currentStage:   StageRegistration,
+		stageStartTime: time.Now(),
+		stageComplete:  make([]bool, pluginCount),
+		stageCh:        make(chan struct{}),
+		failedPlugin:   -1,
 	}
+}
+
+// StageStartTime returns when the current stage began.
+// Used by stageTransition to compute deadline as stageStartTime + timeout.
+func (c *StartupCoordinator) StageStartTime() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stageStartTime
+}
+
+// SetStartTime sets the stage start time for the initial stage (Registration).
+// Called after ProcessManager.StartWithContext returns, so the Registration
+// timeout includes process fork time, not time before processes exist.
+func (c *StartupCoordinator) SetStartTime(t time.Time) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.stageStartTime = t
 }
 
 // StageComplete signals that a plugin completed a stage.
@@ -211,8 +231,9 @@ func (c *StartupCoordinator) advanceStage() {
 		c.stageComplete[i] = false
 	}
 
-	// Advance stage
+	// Advance stage and record when it began
 	c.currentStage++
+	c.stageStartTime = time.Now()
 	coordinatorLogger().Debug("coordinator: advanceStage", "from", oldStage, "to", c.currentStage)
 
 	// Notify waiters by closing old channel and creating new one

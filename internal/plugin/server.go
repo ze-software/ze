@@ -26,7 +26,25 @@ var logger = slogutil.LazyLogger("server")
 
 // Default stage timeout for plugin registration protocol.
 // Each stage must complete within this duration.
+// Override via ze.plugin.stage.timeout env var or per-plugin config timeout.
 const defaultStageTimeout = 5 * time.Second
+
+// stageTimeoutFromEnv reads ze.plugin.stage.timeout (or ze_plugin_stage_timeout)
+// and returns the parsed duration. Falls back to defaultStageTimeout on missing
+// or invalid values.
+func stageTimeoutFromEnv() time.Duration {
+	for _, key := range []string{"ze.plugin.stage.timeout", "ze_plugin_stage_timeout"} {
+		if v := os.Getenv(key); v != "" {
+			d, err := time.ParseDuration(v)
+			if err != nil {
+				logger().Warn("invalid stage timeout env var", "key", key, "value", v, "error", err)
+				return defaultStageTimeout
+			}
+			return d
+		}
+	}
+	return defaultStageTimeout
+}
 
 // RPCParams is the standard params format for JSON RPC requests from socket clients.
 // Handlers receive Args as positional arguments and Selector as the peer filter.
@@ -81,13 +99,19 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 	s.coordinator.StageComplete(proc.Index(), completeStage)
 	logger().Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
 
-	// Use per-plugin timeout if configured, else default
+	// Use per-plugin timeout if configured, else env var, else default.
+	// Priority: config > env > default.
 	timeout := proc.config.StageTimeout
 	if timeout == 0 {
-		timeout = defaultStageTimeout
+		timeout = stageTimeoutFromEnv()
 	}
 
-	stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
+	// Deadline is stageStartTime + timeout, not now + timeout.
+	// This prevents fast plugins from timing out while waiting for slow
+	// plugins at the barrier — the timeout measures from when the stage
+	// began, not from when this plugin reached the barrier.
+	deadline := s.coordinator.StageStartTime().Add(timeout)
+	stageCtx, cancel := context.WithDeadline(s.ctx, deadline)
 	err := s.coordinator.WaitForStage(stageCtx, waitStage)
 	cancel()
 
@@ -362,6 +386,10 @@ func (s *Server) runPluginPhase(plugins []PluginConfig) error {
 	if err := pm.StartWithContext(s.ctx); err != nil {
 		return err
 	}
+
+	// Set the Registration stage start time to NOW, after all processes are forked.
+	// This ensures the timeout includes fork time, not time before processes exist.
+	s.coordinator.SetStartTime(time.Now())
 
 	// Handle commands synchronously (blocks until all plugins reach StageRunning)
 	s.handleProcessCommandsSync(pm)

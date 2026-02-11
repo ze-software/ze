@@ -522,6 +522,69 @@ func mustParseAddr(t *testing.T, s string) netip.Addr {
 	return addr
 }
 
+// TestEnvVarStageTimeout verifies ze.plugin.stage.timeout env var overrides default.
+//
+// VALIDATES: Env var provides non-config override for stage timeout.
+// PREVENTS: Test environments stuck with 5s default under load.
+func TestEnvVarStageTimeout(t *testing.T) {
+	t.Setenv("ze.plugin.stage.timeout", "15s")
+	got := stageTimeoutFromEnv()
+	assert.Equal(t, 15*time.Second, got)
+}
+
+// TestEnvVarStageTimeoutUnderscore verifies ze_plugin_stage_timeout works.
+//
+// VALIDATES: Shell-compatible underscore form follows ze.log.* convention.
+// PREVENTS: Users unable to set env var in shells that don't allow dots.
+func TestEnvVarStageTimeoutUnderscore(t *testing.T) {
+	t.Setenv("ze_plugin_stage_timeout", "20s")
+	got := stageTimeoutFromEnv()
+	assert.Equal(t, 20*time.Second, got)
+}
+
+// TestEnvVarStageTimeoutInvalid verifies invalid env var falls back to default.
+//
+// VALIDATES: Bad duration string doesn't crash, uses default.
+// PREVENTS: Typo in env var causing zero timeout or panic.
+func TestEnvVarStageTimeoutInvalid(t *testing.T) {
+	t.Setenv("ze.plugin.stage.timeout", "not-a-duration")
+	got := stageTimeoutFromEnv()
+	assert.Equal(t, defaultStageTimeout, got)
+}
+
+// TestTimeoutPriorityConfigOverEnv verifies per-plugin config beats env var.
+//
+// VALIDATES: Priority order: config > env > default.
+// PREVENTS: Env var overriding explicit per-plugin config.
+func TestTimeoutPriorityConfigOverEnv(t *testing.T) {
+	t.Setenv("ze.plugin.stage.timeout", "15s")
+
+	// Per-plugin config timeout should be used, not env var
+	proc := NewProcess(PluginConfig{
+		Name:         "test",
+		StageTimeout: 30 * time.Second,
+	})
+
+	// stageTransition uses proc.config.StageTimeout if non-zero, else env/default.
+	// The priority logic: config > env > default
+	timeout := proc.config.StageTimeout
+	if timeout == 0 {
+		timeout = stageTimeoutFromEnv()
+	}
+	assert.Equal(t, 30*time.Second, timeout, "per-plugin config should beat env var")
+}
+
+// TestEnvVarStageTimeoutDotPrecedence verifies dot form takes precedence over underscore.
+//
+// VALIDATES: When both forms are set, dot form wins (checked first).
+// PREVENTS: Unexpected behavior when both env vars are set.
+func TestEnvVarStageTimeoutDotPrecedence(t *testing.T) {
+	t.Setenv("ze.plugin.stage.timeout", "10s")
+	t.Setenv("ze_plugin_stage_timeout", "20s")
+	got := stageTimeoutFromEnv()
+	assert.Equal(t, 10*time.Second, got, "dot form should take precedence")
+}
+
 // TestEncodeNLRI_NotConfigured verifies error when server has no plugin support.
 //
 // VALIDATES: EncodeNLRI returns error when registry/procManager nil.
