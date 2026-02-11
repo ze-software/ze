@@ -48,7 +48,8 @@ func TestParsePeerFromTree(t *testing.T) {
 // PREVENTS: Nil pointer or missing defaults on minimal config.
 func TestParsePeerFromTreeDefaults(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65002",
+		"peer-as":       "65002",
+		"local-address": "auto",
 	}
 
 	ps, err := parsePeerFromTree("10.0.0.2", tree, 65000, 0x01020304)
@@ -60,7 +61,7 @@ func TestParsePeerFromTreeDefaults(t *testing.T) {
 	assert.Equal(t, 90*time.Second, ps.HoldTime)     // Default.
 	assert.False(t, ps.Passive)                      // Default.
 	assert.True(t, ps.GroupUpdates)                  // Default.
-	assert.Equal(t, netip.Addr{}, ps.LocalAddress)   // Unset.
+	assert.Equal(t, netip.Addr{}, ps.LocalAddress)   // Unset ("auto").
 	assert.Equal(t, netip.Addr{}, ps.LinkLocal)      // Unset.
 }
 
@@ -90,7 +91,7 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 		{
 			name:    "invalid_router_id",
 			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "router-id": "not-an-ip"},
+			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "router-id": "not-an-ip"},
 			wantErr: "invalid router-id",
 		},
 		{
@@ -102,7 +103,7 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 		{
 			name:    "invalid_link_local",
 			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "link-local": "bad"},
+			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "link-local": "bad"},
 			wantErr: "invalid link-local",
 		},
 	}
@@ -138,8 +139,9 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":   "65001",
-				"hold-time": tt.ht,
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"hold-time":     tt.ht,
 			}
 			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
 			if tt.wantErr {
@@ -159,7 +161,8 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 // PREVENTS: Wrong AFI/SAFI mapping or missed family modes.
 func TestParsePeerFamilies(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast":   "enable",
 			"ipv6/unicast":   "require",
@@ -197,7 +200,8 @@ func TestParsePeerFamilies(t *testing.T) {
 // PREVENTS: Missing the special-case key in the family map.
 func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast":    "enable",
 			"ignore-mismatch": "true",
@@ -215,7 +219,8 @@ func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 // PREVENTS: Silently ignoring typos in family names.
 func TestParsePeerFamilyInvalid(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"bogus/family": "enable",
 		},
@@ -233,7 +238,8 @@ func TestParsePeerFamilyInvalid(t *testing.T) {
 // PREVENTS: Missing or misconfigured capabilities after config parsing.
 func TestParsePeerCapabilities(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast": "enable",
 		},
@@ -276,7 +282,8 @@ func TestParsePeerCapabilities(t *testing.T) {
 // PREVENTS: Ignoring explicit ASN4 disable in config.
 func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"capability": map[string]any{
 			"asn4": "false",
 		},
@@ -293,7 +300,8 @@ func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 // PREVENTS: Lost GR config when converting from tree to PeerSettings.
 func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"capability": map[string]any{
 			"graceful-restart": map[string]any{
 				"restart-time": "120",
@@ -315,7 +323,8 @@ func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 // PREVENTS: ADD-PATH not applied to configured families.
 func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast": "enable",
 			"ipv6/unicast": "enable",
@@ -352,7 +361,8 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 // PREVENTS: Block-style add-path config not being parsed.
 func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast": "enable",
 		},
@@ -385,7 +395,8 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 // PREVENTS: Wrong mode when only send is requested.
 func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"family": map[string]any{
 			"ipv4/unicast": "enable",
 		},
@@ -415,7 +426,8 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 // PREVENTS: Lost extended next-hop config.
 func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"capability": map[string]any{
 			"nexthop": map[string]any{
 				"ipv4/unicast ipv6": "true",
@@ -446,7 +458,8 @@ func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 // PREVENTS: Lost hostname config when parsing capabilities.
 func TestParsePeerCapabilityHostname(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"capability": map[string]any{
 			"hostname": map[string]any{
 				"host":   "router1",
@@ -471,10 +484,11 @@ func TestParsePeerCapabilityHostname(t *testing.T) {
 // PREVENTS: Plugin-augmented fields being ignored.
 func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":     "65001",
-		"host-name":   "myhost",
-		"domain-name": "mydomain.net",
-		"capability":  map[string]any{},
+		"peer-as":       "65001",
+		"local-address": "auto",
+		"host-name":     "myhost",
+		"domain-name":   "mydomain.net",
+		"capability":    map[string]any{},
 	}
 
 	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
@@ -491,7 +505,8 @@ func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
 // PREVENTS: Lost process config or wrong flag mapping.
 func TestParsePeerProcessBindings(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"process": map[string]any{
 			"my-rib": map[string]any{
 				"content": map[string]any{
@@ -535,7 +550,8 @@ func TestParsePeerProcessBindings(t *testing.T) {
 // PREVENTS: Missing flags when using shorthand notation.
 func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"process": map[string]any{
 			"my-plugin": map[string]any{
 				"receive": map[string]any{
@@ -571,7 +587,8 @@ func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 // PREVENTS: Plugins not receiving capability config they need.
 func TestParsePeerCapabilityConfigJSON(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 		"capability": map[string]any{
 			"asn4":          "true",
 			"route-refresh": "enable",
@@ -584,6 +601,20 @@ func TestParsePeerCapabilityConfigJSON(t *testing.T) {
 	assert.NotEmpty(t, ps.CapabilityConfigJSON)
 	assert.Contains(t, ps.CapabilityConfigJSON, `"asn4"`)
 	assert.Contains(t, ps.CapabilityConfigJSON, `"route-refresh"`)
+}
+
+// TestParsePeerMissingLocalAddress verifies that a peer without local-address is rejected.
+//
+// VALIDATES: parsePeerFromTree requires local-address to be present in config.
+// PREVENTS: Silent OS-dependent source IP selection causing inconsistent behavior.
+func TestParsePeerMissingLocalAddress(t *testing.T) {
+	tree := map[string]any{
+		"peer-as": "65001",
+	}
+
+	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "local-address is required")
 }
 
 // TestParsePeerLocalAddressAuto verifies "auto" local-address is treated as unset.
@@ -607,7 +638,8 @@ func TestParsePeerLocalAddressAuto(t *testing.T) {
 // PREVENTS: IPv4-only assumption in address parsing.
 func TestParsePeerIPv6Address(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"peer-as":       "65001",
+		"local-address": "auto",
 	}
 
 	ps, err := parsePeerFromTree("2001:db8::1", tree, 65000, 0)
@@ -627,15 +659,17 @@ func TestPeersFromTree(t *testing.T) {
 		"local-as":  "65000",
 		"peer": map[string]any{
 			"192.0.2.1": map[string]any{
-				"peer-as":   "65001",
-				"hold-time": "180",
+				"peer-as":       "65001",
+				"local-address": "192.0.2.100",
+				"hold-time":     "180",
 				"family": map[string]any{
 					"ipv4/unicast": "enable",
 				},
 			},
 			"192.0.2.2": map[string]any{
-				"peer-as": "65002",
-				"passive": "true",
+				"peer-as":       "65002",
+				"local-address": "auto",
+				"passive":       "true",
 			},
 		},
 	}
@@ -711,8 +745,9 @@ func TestPeersFromTreePeerLocalASOverride(t *testing.T) {
 		"local-as":  "65000",
 		"peer": map[string]any{
 			"192.0.2.1": map[string]any{
-				"peer-as":  "65001",
-				"local-as": "65100",
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"local-as":      "65100",
 			},
 		},
 	}
@@ -733,14 +768,16 @@ func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 		"local-as":  "65000",
 		"peer": map[string]any{
 			"192.0.2.1": map[string]any{
-				"peer-as": "65001",
+				"peer-as":       "65001",
+				"local-address": "auto",
 				"family": map[string]any{
 					"ipv4/unicast": "enable",
 					"ipv6/unicast": "enable",
 				},
 			},
 			"192.0.2.2": map[string]any{
-				"peer-as": "65002",
+				"peer-as":       "65002",
+				"local-address": "auto",
 				"family": map[string]any{
 					"ipv4/unicast": "enable",
 				},

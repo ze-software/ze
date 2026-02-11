@@ -20,6 +20,7 @@ func TestPeersFromConfigTreeBasic(t *testing.T) {
 	peerTree := NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "180")
+	peerTree.Set("local-address", "auto")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -45,6 +46,7 @@ func TestPeersFromConfigTreeStaticRoute(t *testing.T) {
 
 	peerTree := NewTree()
 	peerTree.Set("peer-as", "65001")
+	peerTree.Set("local-address", "auto")
 
 	// Build static route: static { route 10.10.0.0/24 { next-hop 192.168.1.1; origin igp; } }
 	staticTree := NewTree()
@@ -79,6 +81,7 @@ func TestPeersFromConfigTreeTemplateWithRoutes(t *testing.T) {
 	peerTree := NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "base")
+	peerTree.Set("local-address", "auto")
 
 	// Static route on the peer itself.
 	staticTree := NewTree()
@@ -124,6 +127,7 @@ func TestPeersFromConfigTreePortOverride(t *testing.T) {
 
 	peerTree := NewTree()
 	peerTree.Set("peer-as", "65001")
+	peerTree.Set("local-address", "auto")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 

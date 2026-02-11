@@ -1,0 +1,14 @@
+# Test: peer without local-address is rejected
+# local-address is mandatory — omitting it should produce a clear error
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 192.0.2.1 {
+		local-as 65000;
+		peer-as 65001;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=local-address is required

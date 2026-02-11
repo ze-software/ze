@@ -109,7 +109,8 @@ module ze-bgp-conf {
 
         leaf local-address {
             type string;
-            description "Local address for connection";
+            mandatory true;
+            description "Local address for connection (use IP address or 'auto')";
         }
 
         leaf link-local {

@@ -24,11 +24,13 @@ bgp {
     peer 192.0.2.1 {
         peer-as 65001;
         hold-time 90;
+        local-address 192.168.1.1;
     }
 
     peer 192.0.2.2 {
         peer-as 65002;
         passive true;
+        local-address 192.168.1.1;
     }
 }
 `
@@ -54,6 +56,7 @@ bgp {
 
     peer 192.0.2.1 {
         peer-as 65001;
+        local-address 192.168.1.1;
     }
 }
 `
@@ -84,6 +87,7 @@ bgp {
     peer 192.0.2.1 {
         peer-as 65001;
         passive true;
+        local-address 192.168.1.1;
     }
 }
 `
@@ -113,6 +117,7 @@ bgp {
 
     peer 192.0.2.1 {
         peer-as 65001;
+        local-address 192.168.1.1;
         capability {
             route-refresh;
         }
@@ -195,7 +200,7 @@ func TestOldSyntaxHint(t *testing.T) {
 
 	t.Run("current syntax no hint", func(t *testing.T) {
 		// Valid current config should parse without error (no hint needed)
-		input := `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; } }`
+		input := `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; local-address 192.168.1.1; } }`
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
 	})
@@ -536,6 +541,7 @@ bgp {
     peer 192.0.2.1 {
         peer-as 65001;
         hold-time 90;
+        local-address 192.168.1.1;
     }
 }
 `
@@ -581,6 +587,7 @@ template {
     bgp {
         peer * {
             hold-time 90;
+            local-address auto;
         }
     }
 }
@@ -618,6 +625,7 @@ template {
         peer * {
             inherit-name backbone;
             hold-time 90;
+            local-address auto;
         }
     }
 }
@@ -849,6 +857,7 @@ bgp {
     peer 192.0.2.1 {
         peer-as 65001;
         hold-time 0;
+        local-address 192.168.1.1;
     }
 }`,
 			wantHoldTime: 0,
@@ -861,6 +870,7 @@ bgp {
     local-as 65000;
     peer 192.0.2.1 {
         peer-as 65001;
+        local-address 192.168.1.1;
     }
 }`,
 			wantHoldTime: 90,
@@ -874,6 +884,7 @@ bgp {
     peer 192.0.2.1 {
         peer-as 65001;
         hold-time 30;
+        local-address 192.168.1.1;
     }
 }`,
 			wantHoldTime: 30,

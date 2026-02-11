@@ -5,6 +5,7 @@ bgp {
 		router-id 1.2.3.4;
 		local-as 65001;
 		peer-as 65002;
+		local-address 192.0.2.1;
 		capability {
 			route-refresh;
 		}

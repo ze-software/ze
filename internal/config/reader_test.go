@@ -376,6 +376,7 @@ bgp {
     local-as 65001;
     peer 10.0.0.1 {
         peer-as 65002;
+        local-address auto;
     }
 }
 `

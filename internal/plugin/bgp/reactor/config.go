@@ -77,15 +77,17 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 		ps.GroupUpdates = v
 	}
 
-	// Local address.
-	if v, ok := mapString(tree, "local-address"); ok {
-		if v != "auto" {
-			la, err := netip.ParseAddr(v)
-			if err != nil {
-				return nil, fmt.Errorf("peer %s: invalid local-address: %w", addr, err)
-			}
-			ps.LocalAddress = la
+	// Local address (required).
+	v, hasLocalAddr := mapString(tree, "local-address")
+	if !hasLocalAddr {
+		return nil, fmt.Errorf("peer %s: local-address is required (use IP address or \"auto\")", addr)
+	}
+	if v != "auto" {
+		la, err := netip.ParseAddr(v)
+		if err != nil {
+			return nil, fmt.Errorf("peer %s: invalid local-address: %w", addr, err)
 		}
+		ps.LocalAddress = la
 	}
 
 	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop.
