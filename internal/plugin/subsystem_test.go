@@ -48,11 +48,14 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
-	// Run mock plugin protocol in goroutine
+	// Run mock plugin protocol in goroutine.
+	// NOTE: Do NOT defer cancel() here — the engine-side completeProtocol uses
+	// the same ctx. If the goroutine exits before completeProtocol finishes its
+	// stage 5 SendResult, cancel() would kill the context mid-write, causing
+	// "stage 5 respond: context canceled". The t.Cleanup below handles cancel.
 	protocolDone := make(chan struct{})
 	go func() {
 		defer close(protocolDone)
-		defer cancel()
 
 		// Stage 1: Send declare-registration
 		reg := &rpc.DeclareRegistrationInput{}
