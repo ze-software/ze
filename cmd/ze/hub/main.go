@@ -156,7 +156,11 @@ func runOrchestratorWithData(configPath string, data []byte) int {
 				return
 			case syscall.SIGHUP:
 				fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-				// TODO: Implement config reload
+				if err := o.Reload(configPath); err != nil {
+					fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+					cancel()
+					return
+				}
 			}
 		}
 	}()

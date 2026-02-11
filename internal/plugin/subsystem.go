@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -184,6 +185,21 @@ func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 	return nil
 }
 
+// Signal sends an OS signal to the subsystem's external process.
+// Returns an error if the process is not running or is internal (goroutine).
+func (h *SubsystemHandler) Signal(sig os.Signal) error {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	if h.proc == nil || !h.proc.Running() {
+		return fmt.Errorf("subsystem %s: not running", h.config.Name)
+	}
+	if h.proc.cmd == nil || h.proc.cmd.Process == nil {
+		return fmt.Errorf("subsystem %s: internal plugin, cannot signal", h.config.Name)
+	}
+	return h.proc.cmd.Process.Signal(sig)
+}
+
 // Stop terminates the subsystem process.
 func (h *SubsystemHandler) Stop() {
 	h.mu.Lock()
@@ -279,6 +295,32 @@ func (m *SubsystemManager) Get(name string) *SubsystemHandler {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.handlers[name]
+}
+
+// Unregister stops and removes a subsystem by name.
+// No-op if the name is not registered.
+func (m *SubsystemManager) Unregister(name string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	handler, ok := m.handlers[name]
+	if !ok {
+		return
+	}
+	handler.Stop()
+	delete(m.handlers, name)
+}
+
+// Names returns the names of all registered subsystems.
+func (m *SubsystemManager) Names() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	names := make([]string, 0, len(m.handlers))
+	for name := range m.handlers {
+		names = append(names, name)
+	}
+	return names
 }
 
 // FindHandler returns the handler for a given command, or nil if not found.

@@ -1,0 +1,42 @@
+# Test: Hub orchestrator SIGHUP reload with no changes
+# Hub starts with empty plugin config, receives SIGHUP,
+# reloads config (no changes), then receives SIGTERM for shutdown.
+# Expected: clean reload with "reloading config" message, exit 0.
+
+# Shell script to send signals to the daemon
+tmpfs=signal.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+# Wait for daemon.pid to be written by test runner
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
+    if [ -f daemon.pid ]; then
+        break
+    fi
+    sleep 0.1
+done
+if [ ! -f daemon.pid ]; then
+    echo "daemon.pid not found" >&2
+    exit 1
+fi
+PID=$(cat daemon.pid)
+# Wait for daemon to be ready (signal handler registered)
+sleep 1
+# Send SIGHUP to trigger reload
+kill -HUP "$PID" 2>/dev/null
+# Wait for reload to complete
+sleep 1
+# Send SIGTERM for graceful shutdown
+kill -TERM "$PID" 2>/dev/null
+EOF_SH
+
+# Hub config (plugin {} block required for hub mode detection)
+tmpfs=hub.conf:terminator=EOF_CONF
+plugin {
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=./signal.sh
+cmd=foreground:seq=2:exec=ze hub.conf:timeout=10s
+expect=exit:code=0
+expect=stderr:contains=reloading config
+reject=stderr:pattern=reload error

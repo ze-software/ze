@@ -237,7 +237,7 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 |--------|--------|---------|
 | SIGTERM | Graceful shutdown | `cmd/ze/hub/main.go` — both BGP and orchestrator paths |
 | SIGINT | Graceful shutdown | Same as SIGTERM (Ctrl+C) |
-| SIGHUP | Config reload | `reactor.SignalHandler.OnReload` (BGP path); TODO in orchestrator path |
+| SIGHUP | Config reload | `reactor.SignalHandler.OnReload` (BGP path); `Orchestrator.Reload` (hub path — shuts down on failure) |
 | SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
 | SIGQUIT | Goroutine dump + exit | Go runtime default (not caught — useful for debugging) |
 
