@@ -74,25 +74,6 @@ module ze-bgp-api {
         }
     }
 
-    // Daemon control
-
-    rpc daemon-status {
-        description "Query daemon status";
-        output {
-            leaf uptime-seconds { type uint32; description "Seconds since start"; }
-            leaf peer-count { type uint32; description "Number of configured peers"; }
-            leaf start-time { type string; description "ISO 8601 start timestamp"; }
-        }
-    }
-
-    rpc daemon-shutdown {
-        description "Graceful daemon shutdown";
-    }
-
-    rpc daemon-reload {
-        description "Reload configuration";
-    }
-
     // Peer operations
 
     rpc peer-list {

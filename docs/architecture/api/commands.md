@@ -121,13 +121,20 @@ subscribe rib event route                               # RIB route events
 system help              # Show help (uses dispatcher, includes plugin commands)
 system version software  # Show Ze version
 system version api       # Show IPC protocol version
-system shutdown          # Graceful application shutdown
 system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
 system command help "<name>" # Show command details
 system command complete "<partial>"  # Complete command names
 system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
+```
+
+### Daemon Commands
+
+```
+daemon shutdown          # Gracefully shutdown the daemon
+daemon status            # Show daemon status
+daemon reload            # Reload the configuration
 ```
 
 ### Peer Commands

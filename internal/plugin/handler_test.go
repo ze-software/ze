@@ -569,7 +569,7 @@ func TestHandlerSystemHelp(t *testing.T) {
 func TestBuiltinCount(t *testing.T) {
 	// This count should be updated when adding/removing handlers.
 	// If this test fails, verify the change was intentional.
-	const expectedCount = 51
+	const expectedCount = 50
 
 	actual := BuiltinCount()
 	assert.Equal(t, expectedCount, actual,
@@ -584,10 +584,10 @@ func TestRegisterDefaultHandlers(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	// Step 5: Commands moved to bgp namespace
+	// Daemon commands moved to system module (spec-config-reload-8)
 	requiredCommands := []string{
-		"bgp daemon shutdown",
-		"bgp daemon status",
+		"daemon shutdown",
+		"daemon status",
 		"bgp peer list",
 		"bgp peer show",
 		"system help",
@@ -1296,25 +1296,16 @@ func TestDispatchSystemVersionAPI(t *testing.T) {
 	assert.Equal(t, APIVersion, data["version"], "should return API version")
 }
 
-// TestDispatchSystemShutdown verifies system shutdown triggers reactor stop.
+// TestDispatchSystemShutdownRemoved verifies old "system shutdown" is no longer registered.
 //
-// VALIDATES: "system shutdown" calls reactor.Stop().
-// PREVENTS: Application-level shutdown broken.
-func TestDispatchSystemShutdown(t *testing.T) {
+// VALIDATES: "system shutdown" replaced by "daemon shutdown" (ze-system:daemon-shutdown).
+// PREVENTS: Old shutdown path still working.
+func TestDispatchSystemShutdownRemoved(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	mock := &mockReactor{}
-	ctx := &CommandContext{
-		Reactor:    mock,
-		Dispatcher: d,
-	}
-
-	resp, err := d.Dispatch(ctx, "system shutdown")
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.True(t, mock.stopped, "reactor.Stop() should have been called")
+	c := d.Lookup("system shutdown")
+	assert.Nil(t, c, "old command \"system shutdown\" should NOT be registered")
 }
 
 // TestDispatchSystemSubsystemList verifies system subsystem list returns subsystems.
@@ -1371,7 +1362,9 @@ func TestSystemCommandsRegistered(t *testing.T) {
 		"system help",
 		"system version software",
 		"system version api",
-		"system shutdown",
+		"daemon shutdown",
+		"daemon status",
+		"daemon reload",
 		"system subsystem list",
 		"system command list",
 		"system command help",
@@ -1778,11 +1771,11 @@ func TestBgpPluginAckInvalid(t *testing.T) {
 // Step 5: BGP Command Migration Tests
 // =============================================================================
 
-// TestDispatchBgpDaemonShutdown verifies bgp daemon shutdown triggers reactor stop.
+// TestDispatchDaemonShutdown verifies daemon shutdown triggers reactor stop.
 //
-// VALIDATES: "bgp daemon shutdown" calls reactor.Stop().
+// VALIDATES: "daemon shutdown" calls reactor.Stop().
 // PREVENTS: Daemon shutdown command not working.
-func TestDispatchBgpDaemonShutdown(t *testing.T) {
+func TestDispatchDaemonShutdown(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
@@ -1792,18 +1785,18 @@ func TestDispatchBgpDaemonShutdown(t *testing.T) {
 		Dispatcher: d,
 	}
 
-	resp, err := d.Dispatch(ctx, "bgp daemon shutdown")
+	resp, err := d.Dispatch(ctx, "daemon shutdown")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 	assert.True(t, mock.stopped, "reactor.Stop() should have been called")
 }
 
-// TestDispatchBgpDaemonStatus verifies bgp daemon status returns uptime and peer count.
+// TestDispatchDaemonStatus verifies daemon status returns uptime and peer count.
 //
-// VALIDATES: "bgp daemon status" returns operational stats.
+// VALIDATES: "daemon status" returns operational stats.
 // PREVENTS: Status information not accessible.
-func TestDispatchBgpDaemonStatus(t *testing.T) {
+func TestDispatchDaemonStatus(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
@@ -1820,7 +1813,7 @@ func TestDispatchBgpDaemonStatus(t *testing.T) {
 		Dispatcher: d,
 	}
 
-	resp, err := d.Dispatch(ctx, "bgp daemon status")
+	resp, err := d.Dispatch(ctx, "daemon status")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
@@ -1830,11 +1823,11 @@ func TestDispatchBgpDaemonStatus(t *testing.T) {
 	assert.Equal(t, 2, data["peer_count"])
 }
 
-// TestDispatchBgpDaemonReload verifies bgp daemon reload triggers config reload.
+// TestDispatchDaemonReload verifies daemon reload triggers config reload.
 //
-// VALIDATES: "bgp daemon reload" calls reactor.Reload().
+// VALIDATES: "daemon reload" calls reactor.Reload().
 // PREVENTS: Config reload command not working.
-func TestDispatchBgpDaemonReload(t *testing.T) {
+func TestDispatchDaemonReload(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
@@ -1844,7 +1837,7 @@ func TestDispatchBgpDaemonReload(t *testing.T) {
 		Dispatcher: d,
 	}
 
-	resp, err := d.Dispatch(ctx, "bgp daemon reload")
+	resp, err := d.Dispatch(ctx, "daemon reload")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
@@ -2093,18 +2086,18 @@ func TestDispatchBgpPeerRaw(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), mock.rawMessages[0].addr)
 }
 
-// TestOldDaemonCommandsRemoved verifies old daemon commands are removed.
+// TestOldBgpDaemonCommandsRemoved verifies old bgp daemon commands are removed.
 //
-// VALIDATES: "daemon shutdown/status/reload" return unknown command.
-// PREVENTS: Old command paths still working.
-func TestOldDaemonCommandsRemoved(t *testing.T) {
+// VALIDATES: "bgp daemon shutdown/status/reload" return unknown command.
+// PREVENTS: Old BGP-prefixed daemon command paths still working.
+func TestOldBgpDaemonCommandsRemoved(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
 	oldCommands := []string{
-		"daemon shutdown",
-		"daemon status",
-		"daemon reload",
+		"bgp daemon shutdown",
+		"bgp daemon status",
+		"bgp daemon reload",
 	}
 
 	for _, cmd := range oldCommands {
@@ -2278,10 +2271,10 @@ func TestBgpStep5CommandsRegistered(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	commands := []string{
-		// Daemon commands
-		"bgp daemon shutdown",
-		"bgp daemon status",
-		"bgp daemon reload",
+		// Daemon commands (moved to system module, CLI prefix "daemon")
+		"daemon shutdown",
+		"daemon status",
+		"daemon reload",
 		// Peer commands (registered without selector - dispatcher extracts it)
 		"bgp peer list",
 		"bgp peer show",

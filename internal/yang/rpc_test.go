@@ -46,7 +46,6 @@ func TestExtractRPCs(t *testing.T) {
 			wantRPCs: []string{
 				"help", "command-list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
-				"daemon-status", "daemon-shutdown", "daemon-reload",
 				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
 				"peer-update", "watchdog-announce", "watchdog-withdraw",
 				"peer-borr", "peer-eorr", "peer-raw",
@@ -59,7 +58,8 @@ func TestExtractRPCs(t *testing.T) {
 			module: "ze-system-api",
 			wantRPCs: []string{
 				"help", "version-software", "version-api",
-				"shutdown", "subsystem-list",
+				"daemon-shutdown", "daemon-status", "daemon-reload",
+				"subsystem-list",
 				"command-list", "command-help", "command-complete",
 			},
 		},

@@ -99,7 +99,7 @@ func (s *mockServer) handleRPC(method string) any {
 		return &ipc.RPCResult{Result: mustJSON(map[string]any{
 			"commands": []string{"daemon shutdown", "peer list", "system help"},
 		})}
-	case "ze-bgp:daemon-status":
+	case "ze-system:daemon-status":
 		return &ipc.RPCResult{Result: mustJSON(map[string]any{
 			"uptime":     "1h30m",
 			"peer-count": 2,
@@ -620,7 +620,7 @@ func TestResolveCommand(t *testing.T) {
 		cmdMap: map[string]string{
 			"bgp peer list":           "ze-bgp:peer-list",
 			"bgp peer show":           "ze-bgp:peer-show",
-			"bgp daemon status":       "ze-bgp:daemon-status",
+			"daemon status":           "ze-system:daemon-status",
 			"system help":             "ze-system:help",
 			"system version software": "ze-system:version-software",
 		},
@@ -647,7 +647,7 @@ func TestResolveCommand(t *testing.T) {
 	}{
 		{"peer_list", "peer list", "ze-bgp:peer-list", nil},
 		{"peer_show_with_arg", "peer show 10.0.0.1", "ze-bgp:peer-show", []string{"10.0.0.1"}},
-		{"daemon_status", "daemon status", "ze-bgp:daemon-status", nil},
+		{"daemon_status", "daemon status", "ze-system:daemon-status", nil},
 		{"system_help", "system help", "ze-system:help", nil},
 		{"unknown", "nonexistent", "", nil},
 	}

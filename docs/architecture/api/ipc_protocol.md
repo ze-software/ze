@@ -339,15 +339,6 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp commit <name> show` | Show queued count |
 | `bgp commit list` | List active batches |
 
-**Daemon Control:**
-
-| Command | Description |
-|---------|-------------|
-| `bgp daemon shutdown` | Shutdown BGP subsystem |
-| `bgp daemon restart` | Restart BGP subsystem |
-| `bgp daemon reload` | Reload BGP configuration |
-| `bgp daemon status` | BGP subsystem status |
-
 **Raw Passthrough:**
 
 | Command | Description |
@@ -363,9 +354,11 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `system command help "<cmd>"` | Command details |
 | `system command complete "<partial>"` | Completion |
 | `system subsystem list` | List available subsystems |
-| `system shutdown` | Graceful application shutdown |
 | `system version software` | Ze version |
 | `system version api` | IPC protocol version |
+| `daemon shutdown` | Gracefully shutdown the daemon |
+| `daemon status` | Show daemon status |
+| `daemon reload` | Reload the configuration |
 
 ### RIB Namespace
 

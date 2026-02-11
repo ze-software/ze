@@ -7,12 +7,16 @@ import (
 )
 
 // systemRPCs returns all RPCs for the ze-system module.
+// Includes daemon lifecycle RPCs (reload, shutdown, status) which are system-wide
+// operations affecting all plugins, not BGP-specific.
 func systemRPCs() []RPCRegistration {
 	return []RPCRegistration{
 		{"ze-system:help", "system help", handleSystemHelp, "Show available commands"},
 		{"ze-system:version-software", "system version software", handleSystemVersionSoftware, "Show ze version"},
 		{"ze-system:version-api", "system version api", handleSystemVersionAPI, "Show IPC protocol version"},
-		{"ze-system:shutdown", "system shutdown", handleSystemShutdown, "Graceful application shutdown"},
+		{"ze-system:daemon-shutdown", "daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon"},
+		{"ze-system:daemon-status", "daemon status", handleDaemonStatus, "Show daemon status"},
+		{"ze-system:daemon-reload", "daemon reload", handleDaemonReload, "Reload the configuration"},
 		{"ze-system:subsystem-list", "system subsystem list", handleSystemSubsystemList, "List available subsystems"},
 		{"ze-system:command-list", "system command list", handleSystemCommandList, "List all commands"},
 		{"ze-system:command-help", "system command help", handleSystemCommandHelp, "Show command details"},
@@ -43,8 +47,8 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	// Fallback if no dispatcher
 	if len(commands) == 0 {
 		commands = []string{
-			"bgp daemon shutdown - Gracefully shutdown the daemon",
-			"bgp daemon status - Show daemon status",
+			"daemon shutdown - Gracefully shutdown the daemon",
+			"daemon status - Show daemon status",
 			"bgp peer <selector> list - List peer(s) (brief)",
 			"bgp peer <selector> show - Show peer(s) details",
 			"system help - Show available commands",
@@ -81,13 +85,63 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*Response, error) {
 	}, nil
 }
 
-// handleSystemShutdown triggers graceful application shutdown.
-func handleSystemShutdown(ctx *CommandContext, _ []string) (*Response, error) {
+// handleDaemonShutdown signals the reactor to stop.
+func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
 	ctx.Reactor.Stop()
 	return &Response{
 		Status: statusDone,
 		Data: map[string]any{
 			"message": "shutdown initiated",
+		},
+	}, nil
+}
+
+// handleDaemonStatus returns daemon status.
+func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
+	stats := ctx.Reactor.Stats()
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"uptime":     stats.Uptime.String(),
+			"peer_count": stats.PeerCount,
+			"start_time": stats.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+		},
+	}, nil
+}
+
+// handleDaemonReload reloads the configuration.
+// Routes through the coordinator (verify→apply across all plugins) when a config loader
+// is available. Falls back to direct Reactor.Reload() when no coordinator is configured
+// (e.g., no Server, or no config loader set).
+func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
+	// Use coordinator path when available: reloads config from disk, verifies with
+	// all plugins that registered WantsConfigRoots, then applies to each.
+	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
+		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
+			return &Response{
+				Status: statusError,
+				Data:   fmt.Sprintf("reload failed: %v", err),
+			}, err
+		}
+		return &Response{
+			Status: statusDone,
+			Data: map[string]any{
+				"message": "configuration reloaded",
+			},
+		}, nil
+	}
+
+	// Fallback: direct reactor reload (BGP peer reconciliation only).
+	if err := ctx.Reactor.Reload(); err != nil {
+		return &Response{
+			Status: statusError,
+			Data:   fmt.Sprintf("reload failed: %v", err),
+		}, err
+	}
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"message": "configuration reloaded",
 		},
 	}, nil
 }

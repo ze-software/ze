@@ -7,13 +7,11 @@ import (
 	"time"
 )
 
-// handlerBgpRPCs returns BGP RPCs for daemon and peer operations.
+// handlerBgpRPCs returns BGP RPCs for peer operations.
 // Part of the ze-bgp module — aggregated by BgpPluginRPCs().
+// Daemon lifecycle RPCs (reload, shutdown, status) are in systemRPCs() (system.go).
 func handlerBgpRPCs() []RPCRegistration {
 	return []RPCRegistration{
-		{"ze-bgp:daemon-shutdown", "bgp daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon"},
-		{"ze-bgp:daemon-status", "bgp daemon status", handleDaemonStatus, "Show daemon status"},
-		{"ze-bgp:daemon-reload", "bgp daemon reload", handleDaemonReload, "Reload the configuration"},
 		{"ze-bgp:peer-list", "bgp peer list", handleBgpPeerList, "List peer(s) (brief)"},
 		{"ze-bgp:peer-show", "bgp peer show", handleBgpPeerShow, "Show peer(s) details"},
 		{"ze-bgp:peer-teardown", "bgp peer teardown", handleTeardown, "Teardown peer session with cease subcode"},
@@ -40,67 +38,6 @@ func bgpRPCs() []RPCRegistration {
 var bgpEventTypes = []string{
 	"update", "open", "notification", "keepalive",
 	"refresh", "state", "negotiated",
-}
-
-// handleDaemonShutdown signals the reactor to stop.
-func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
-	ctx.Reactor.Stop()
-	return &Response{
-		Status: statusDone,
-		Data: map[string]any{
-			"message": "shutdown initiated",
-		},
-	}, nil
-}
-
-// handleDaemonStatus returns daemon status.
-func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
-	stats := ctx.Reactor.Stats()
-	return &Response{
-		Status: statusDone,
-		Data: map[string]any{
-			"uptime":     stats.Uptime.String(),
-			"peer_count": stats.PeerCount,
-			"start_time": stats.StartTime.Format("2006-01-02T15:04:05Z07:00"),
-		},
-	}, nil
-}
-
-// handleDaemonReload reloads the configuration.
-// Routes through the coordinator (verify→apply across all plugins) when a config loader
-// is available. Falls back to direct Reactor.Reload() when no coordinator is configured
-// (e.g., no Server, or no config loader set).
-func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
-	// Use coordinator path when available: reloads config from disk, verifies with
-	// all plugins that registered WantsConfigRoots, then applies to each.
-	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
-		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
-			return &Response{
-				Status: statusError,
-				Data:   fmt.Sprintf("reload failed: %v", err),
-			}, err
-		}
-		return &Response{
-			Status: statusDone,
-			Data: map[string]any{
-				"message": "configuration reloaded",
-			},
-		}, nil
-	}
-
-	// Fallback: direct reactor reload (BGP peer reconciliation only).
-	if err := ctx.Reactor.Reload(); err != nil {
-		return &Response{
-			Status: statusError,
-			Data:   fmt.Sprintf("reload failed: %v", err),
-		}, err
-	}
-	return &Response{
-		Status: statusDone,
-		Data: map[string]any{
-			"message": "configuration reloaded",
-		},
-	}, nil
 }
 
 // filterPeersBySelector returns peers matching the context's peer selector.

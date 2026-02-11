@@ -25,9 +25,9 @@ func TestMethodNameParsing(t *testing.T) {
 			wantRPC:    "peer-list",
 		},
 		{
-			name:       "bgp_daemon_status",
-			method:     "ze-bgp:daemon-status",
-			wantModule: "ze-bgp",
+			name:       "system_daemon_status",
+			method:     "ze-system:daemon-status",
+			wantModule: "ze-system",
 			wantRPC:    "daemon-status",
 		},
 		{

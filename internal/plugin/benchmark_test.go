@@ -61,7 +61,7 @@ func BenchmarkDispatch(b *testing.B) {
 		cmd  string
 	}{
 		{"peer_list", "bgp peer list"},
-		{"daemon_status", "bgp daemon status"},
+		{"daemon_status", "daemon status"},
 		{"system_version", "system version software"},
 		{"system_command_list", "system command list"},
 		{"peer_show_selector", "bgp peer 10.0.0.1 show"},
@@ -86,7 +86,7 @@ func BenchmarkDispatchLookup(b *testing.B) {
 
 	commands := []string{
 		"bgp peer list",
-		"bgp daemon status",
+		"daemon status",
 		"system version software",
 		"system command list",
 		"rib show in",

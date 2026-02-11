@@ -176,13 +176,13 @@ func TestRPCDispatchHasMethod(t *testing.T) {
 func TestRPCDispatchNilResult(t *testing.T) {
 	d := NewRPCDispatcher()
 
-	err := d.Register("ze-bgp:daemon-shutdown", func(_ string, _ json.RawMessage) (any, error) {
+	err := d.Register("ze-system:daemon-shutdown", func(_ string, _ json.RawMessage) (any, error) {
 		return map[string]string{"status": "done"}, nil
 	})
 	require.NoError(t, err)
 
 	req := &Request{
-		Method: "ze-bgp:daemon-shutdown",
+		Method: "ze-system:daemon-shutdown",
 		ID:     json.RawMessage(`7`),
 	}
 

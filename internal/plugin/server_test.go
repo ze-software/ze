@@ -173,7 +173,7 @@ func TestServerCommandExecution(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	result := rpcCall(t, conn, "ze-bgp:daemon-status", 1)
+	result := rpcCall(t, conn, "ze-system:daemon-status", 1)
 
 	// RPC result: {"id":1,"result":{...}}
 	assert.Equal(t, float64(1), result["id"])
@@ -708,7 +708,7 @@ func TestServerNULProtocolWithParams(t *testing.T) {
 
 	// Send daemon-status request (no params needed)
 	req := ipc.Request{
-		Method: "ze-bgp:daemon-status",
+		Method: "ze-system:daemon-status",
 		ID:     json.RawMessage(`42`),
 	}
 	reqJSON, _ := json.Marshal(req)

@@ -17,7 +17,7 @@ func TestRPCRegistrationTable(t *testing.T) {
 	rpcs := AllBuiltinRPCs()
 
 	// Verify count matches expected
-	assert.Len(t, rpcs, 51, "expected 51 builtin RPCs (update test if changed)")
+	assert.Len(t, rpcs, 50, "expected 50 builtin RPCs (update test if changed)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -60,8 +60,8 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	lifecycle := PluginLifecycleRPCs()
 
 	// Verify per-module counts
-	assert.Len(t, bgp, 26, "BGP plugin RPCs")
-	assert.Len(t, system, 8, "System RPCs")
+	assert.Len(t, bgp, 23, "BGP plugin RPCs")
+	assert.Len(t, system, 10, "System RPCs")
 	assert.Len(t, rib, 9, "RIB RPCs")
 	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
 
@@ -107,9 +107,9 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 	}
 
 	expectedMethods := []string{
-		"ze-bgp:daemon-shutdown",
-		"ze-bgp:daemon-status",
-		"ze-bgp:daemon-reload",
+		"ze-system:daemon-shutdown",
+		"ze-system:daemon-status",
+		"ze-system:daemon-reload",
 		"ze-bgp:peer-list",
 		"ze-bgp:peer-show",
 		"ze-bgp:peer-teardown",
@@ -118,7 +118,6 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		"ze-bgp:unsubscribe",
 		"ze-system:help",
 		"ze-system:command-list",
-		"ze-system:shutdown",
 		"ze-rib:show-in",
 		"ze-rib:clear-in",
 		"ze-plugin:session-ready",

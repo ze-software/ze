@@ -452,11 +452,11 @@ func TestCmdMethods(t *testing.T) {
 		modules[rpc.Module]++
 	}
 
-	if modules["ze-bgp-api"] != 26 {
-		t.Errorf("expected 26 BGP RPCs, got %d", modules["ze-bgp-api"])
+	if modules["ze-bgp-api"] != 23 {
+		t.Errorf("expected 23 BGP RPCs, got %d", modules["ze-bgp-api"])
 	}
-	if modules["ze-system-api"] != 8 {
-		t.Errorf("expected 8 system RPCs, got %d", modules["ze-system-api"])
+	if modules["ze-system-api"] != 10 {
+		t.Errorf("expected 10 system RPCs, got %d", modules["ze-system-api"])
 	}
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
@@ -578,9 +578,9 @@ func TestBuildSchemaRegistryRPCs(t *testing.T) {
 
 	// Verify key RPCs from each module
 	expected := []string{
-		"ze-bgp:peer-list", "ze-bgp:daemon-status", "ze-bgp:help",
+		"ze-bgp:peer-list", "ze-bgp:help",
 		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
-		"ze-system:help", "ze-system:version-software", "ze-system:shutdown",
+		"ze-system:help", "ze-system:version-software", "ze-system:daemon-status",
 		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
 		"ze-rib:help", "ze-rib:show-in", "ze-rib:event-list",
 	}

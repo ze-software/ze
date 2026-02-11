@@ -28,9 +28,9 @@ defines the RPC. The RPC name uses kebab-case.
 | Wire Method | YANG Module |
 |-------------|-------------|
 | `ze-bgp:peer-list` | ze-bgp-api |
-| `ze-bgp:daemon-status` | ze-bgp-api |
 | `ze-bgp:subscribe` | ze-bgp-api |
-| `ze-system:version` | ze-system-api |
+| `ze-system:daemon-status` | ze-system-api |
+| `ze-system:version-software` | ze-system-api |
 | `ze-system:command-list` | ze-system-api |
 | `ze-rib:show-in` | ze-rib-api |
 | `ze-plugin-api:session-ready` | ze-plugin-api |

@@ -14,7 +14,7 @@ import (
 const reloadTimeout = 5 * time.Second
 
 // NewSocketReloadNotifier creates a ReloadNotifier that triggers config reload
-// via the daemon's API socket. It sends the "ze-bgp:daemon-reload" RPC using
+// via the daemon's API socket. It sends the "ze-system:daemon-reload" RPC using
 // NUL-framed JSON, the same protocol the CLI uses.
 //
 // If the socket does not exist or the daemon is not running, the returned
@@ -38,7 +38,7 @@ func NewSocketReloadNotifier(socketPath string) ReloadNotifier {
 		}
 
 		// Send reload request
-		req := ipc.Request{Method: "ze-bgp:daemon-reload"}
+		req := ipc.Request{Method: "ze-system:daemon-reload"}
 		reqBytes, err := json.Marshal(req)
 		if err != nil {
 			return fmt.Errorf("marshal reload request: %w", err)

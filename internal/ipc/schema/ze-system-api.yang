@@ -33,8 +33,23 @@ module ze-system-api {
         }
     }
 
-    rpc shutdown {
-        description "Graceful application shutdown";
+    // Daemon lifecycle (system-wide operations affecting all plugins)
+
+    rpc daemon-shutdown {
+        description "Gracefully shutdown the daemon";
+    }
+
+    rpc daemon-status {
+        description "Query daemon status";
+        output {
+            leaf uptime-seconds { type uint32; description "Seconds since start"; }
+            leaf peer-count { type uint32; description "Number of configured peers"; }
+            leaf start-time { type string; description "ISO 8601 start timestamp"; }
+        }
+    }
+
+    rpc daemon-reload {
+        description "Reload configuration";
     }
 
     rpc subsystem-list {

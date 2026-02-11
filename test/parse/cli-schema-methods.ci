@@ -20,11 +20,10 @@ expect=stdout:contains=Module
 expect=stdout:contains=Description
 # RPCs from ze-bgp-api
 expect=stdout:contains=ze-bgp:peer-list
-expect=stdout:contains=ze-bgp:daemon-status
 expect=stdout:contains=ze-bgp:subscribe
 # RPCs from ze-system-api
 expect=stdout:contains=ze-system:help
-expect=stdout:contains=ze-system:shutdown
+expect=stdout:contains=ze-system:daemon-status
 # RPCs from ze-plugin-api
 expect=stdout:contains=ze-plugin:session-ping
 # RPCs from ze-rib-api
