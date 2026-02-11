@@ -951,128 +951,77 @@ Options:
 		fmt.Fprintln(os.Stderr)
 	}
 
-	cfg, err := config.TreeToConfig(tree)
+	bgpTree, err := config.ResolveBGPTree(tree)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error converting config: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
 		return 1
 	}
 
 	if *jsonOutput {
+		// Build full dump with resolved BGP section.
+		dumpMap := tree.ToMap()
+		dumpMap["bgp"] = bgpTree
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
-		if err := enc.Encode(cfg); err != nil {
+		if err := enc.Encode(dumpMap); err != nil {
 			fmt.Fprintf(os.Stderr, "Error encoding JSON: %v\n", err)
 			return 1
 		}
 		return 0
 	}
 
-	printConfig(cfg)
+	printConfig(bgpTree, tree)
 	return 0
 }
 
-func printConfig(cfg *config.BGPConfig) {
-	fmt.Printf("router-id: %s\n", uint32ToIP(cfg.RouterID))
-	fmt.Printf("local-as: %d\n", cfg.LocalAS)
-	if cfg.Listen != "" {
-		fmt.Printf("listen: %s\n", cfg.Listen)
+func printConfig(bgpTree map[string]any, tree *config.Tree) {
+	// Global BGP settings.
+	for _, key := range []string{"router-id", "local-as", "listen"} {
+		if v, ok := bgpTree[key]; ok {
+			fmt.Printf("%s: %s\n", key, v)
+		}
 	}
 	fmt.Println()
 
-	for _, n := range cfg.Peers {
-		fmt.Printf("peer %s:\n", n.Address)
-		if n.Description != "" {
-			fmt.Printf("  description: %s\n", n.Description)
+	// Peers from resolved tree.
+	peers, _ := bgpTree["peer"].(map[string]any)
+	for addr, v := range peers {
+		peer, ok := v.(map[string]any)
+		if !ok {
+			continue
 		}
-		if n.RouterID != 0 {
-			fmt.Printf("  router-id: %s\n", uint32ToIP(n.RouterID))
-		}
-		if n.LocalAddress.IsValid() {
-			fmt.Printf("  local-address: %s\n", n.LocalAddress)
-		}
-		if n.LocalAS != 0 {
-			fmt.Printf("  local-as: %d\n", n.LocalAS)
-		}
-		if n.PeerAS != 0 {
-			fmt.Printf("  peer-as: %d\n", n.PeerAS)
-		}
-		if n.HoldTime != 0 {
-			fmt.Printf("  hold-time: %d\n", n.HoldTime)
-		}
-		if n.Passive {
-			fmt.Printf("  passive: true\n")
-		}
-
-		if len(n.Families) > 0 {
-			fmt.Printf("  families:\n")
-			for _, f := range n.Families {
-				fmt.Printf("    - %s\n", f)
-			}
-		}
-
-		cap := n.Capabilities
-		if cap.ASN4 || cap.RouteRefresh || cap.GracefulRestart || cap.AddPathSend || cap.AddPathReceive || cap.SoftwareVersion {
-			fmt.Printf("  capabilities:\n")
-			if cap.ASN4 {
-				fmt.Printf("    asn4: true\n")
-			}
-			if cap.RouteRefresh {
-				fmt.Printf("    route-refresh: true\n")
-			}
-			if cap.GracefulRestart {
-				fmt.Printf("    graceful-restart: true (restart-time: %d)\n", cap.RestartTime)
-			}
-			if cap.AddPathSend {
-				fmt.Printf("    add-path-send: true\n")
-			}
-			if cap.AddPathReceive {
-				fmt.Printf("    add-path-receive: true\n")
-			}
-			if cap.SoftwareVersion {
-				fmt.Printf("    software-version: true\n")
-			}
-		}
-
-		if len(n.StaticRoutes) > 0 {
-			fmt.Printf("  static-routes:\n")
-			for _, sr := range n.StaticRoutes {
-				fmt.Printf("    - prefix: %s\n", sr.Prefix)
-				if sr.NextHop != "" {
-					fmt.Printf("      next-hop: %s\n", sr.NextHop)
-				}
-				if sr.LocalPreference != 0 {
-					fmt.Printf("      local-preference: %d\n", sr.LocalPreference)
-				}
-				if sr.MED != 0 {
-					fmt.Printf("      med: %d\n", sr.MED)
-				}
-				if sr.Community != "" {
-					fmt.Printf("      community: %s\n", sr.Community)
-				}
-				if sr.ASPath != "" {
-					fmt.Printf("      as-path: %s\n", sr.ASPath)
-				}
-			}
-		}
-
+		fmt.Printf("peer %s:\n", addr)
+		printTreeMap(peer, "  ")
 		fmt.Println()
 	}
 
-	if len(cfg.Plugins) > 0 {
-		fmt.Printf("plugins:\n")
-		for _, pl := range cfg.Plugins {
-			fmt.Printf("  - name: %s\n", pl.Name)
-			if pl.Run != "" {
-				fmt.Printf("    run: %s\n", pl.Run)
-			}
-			if pl.Encoder != "" {
-				fmt.Printf("    encoder: %s\n", pl.Encoder)
+	// Plugins from original tree.
+	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
+		plugins := pluginContainer.GetListOrdered("external")
+		if len(plugins) > 0 {
+			fmt.Printf("plugins:\n")
+			for _, entry := range plugins {
+				fmt.Printf("  - name: %s\n", entry.Key)
+				if run, ok := entry.Value.Get("run"); ok {
+					fmt.Printf("    run: %s\n", run)
+				}
+				if enc, ok := entry.Value.Get("encoder"); ok {
+					fmt.Printf("    encoder: %s\n", enc)
+				}
 			}
 		}
 	}
 }
 
-func uint32ToIP(n uint32) string {
-	return fmt.Sprintf("%d.%d.%d.%d",
-		(n>>24)&0xFF, (n>>16)&0xFF, (n>>8)&0xFF, n&0xFF)
+// printTreeMap prints a map[string]any tree in a readable key-value format.
+func printTreeMap(m map[string]any, indent string) {
+	for k, v := range m {
+		switch val := v.(type) {
+		case map[string]any:
+			fmt.Printf("%s%s:\n", indent, k)
+			printTreeMap(val, indent+"  ")
+		default:
+			fmt.Printf("%s%s: %v\n", indent, k, val)
+		}
+	}
 }

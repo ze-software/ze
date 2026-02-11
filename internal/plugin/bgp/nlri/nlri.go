@@ -166,6 +166,8 @@ var familyStrings = map[string]Family{
 	"ipv6/multicast":    IPv6Multicast,
 	"ipv4/mpls-label":   IPv4LabeledUnicast,
 	"ipv6/mpls-label":   IPv6LabeledUnicast,
+	"ipv4/mpls":         IPv4LabeledUnicast,
+	"ipv6/mpls":         IPv6LabeledUnicast,
 	"ipv4/vpn":          IPv4VPN,
 	"ipv6/vpn":          IPv6VPN,
 	"l2vpn/evpn":        L2VPNEVPN,

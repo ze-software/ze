@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
@@ -33,10 +32,53 @@ const (
 // FlowSpec action names.
 const flowSpecRedirectNextHop = "redirect-to-nexthop"
 
+// parseTreeWithYANG parses config with optional plugin YANG schemas.
+// Returns the parsed tree for further processing by callers.
+func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
+	// Parse input using YANG-derived schema with plugin augmentations
+	var schema *Schema
+	if len(pluginYANG) > 0 {
+		schema = YANGSchemaWithPlugins(pluginYANG)
+	} else {
+		schema = YANGSchema()
+	}
+	if schema == nil {
+		return nil, fmt.Errorf("failed to load YANG schema")
+	}
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	if err != nil {
+		// Check if this looks like old syntax and provide migration hint
+		if hint := detectLegacySyntaxHint(input, err); hint != "" {
+			return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+		}
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	// Log parse warnings
+	if warnings := p.Warnings(); len(warnings) > 0 {
+		configLogger().Debug("config parsed", "warnings", warnings)
+	}
+
+	// Extract environment block and apply log config early.
+	// Lazy loggers (LazyLogger) will pick up these settings on first use.
+	envValues := ExtractEnvironment(tree)
+	slogutil.ApplyLogConfig(envValues)
+
+	return tree, nil
+}
+
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
-	_, r, err := LoadReactorWithConfig(input)
-	return r, err
+	tree, err := parseTreeWithYANG(input, nil)
+	if err != nil {
+		return nil, err
+	}
+	plugins, err := ExtractPluginsFromTree(tree)
+	if err != nil {
+		return nil, err
+	}
+	return CreateReactorFromTree(tree, "", plugins)
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
@@ -50,84 +92,47 @@ func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*rea
 	for name, yang := range plugin.CollectPluginYANG(cliPlugins) {
 		pluginYANG[name] = yang
 	}
-	cfg, err := parseConfigWithYANG(input, pluginYANG)
+
+	tree, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config directory for process execution
-	if configPath != "" && configPath != "-" {
-		cfg.ConfigDir = filepath.Dir(configPath)
-	} else {
-		cwd, err := os.Getwd()
-		if err != nil {
-			return nil, fmt.Errorf("get working directory: %w", err)
-		}
-		cfg.ConfigDir = cwd
+	plugins, err := ExtractPluginsFromTree(tree)
+	if err != nil {
+		return nil, err
 	}
 
-	// Merge CLI plugins BEFORE creating reactor
-	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
+	// Merge CLI plugins with config plugins
+	plugins, err = mergeCliPlugins(plugins, cliPlugins)
+	if err != nil {
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
-	// Create reactor with config path for SIGHUP reload support
+	// Set config directory for process execution
+	var configDir string
 	if configPath != "" && configPath != "-" {
-		return CreateReactorWithPath(cfg, configPath)
-	}
-	return CreateReactor(cfg)
-}
-
-// LoadReactorWithConfig parses config and returns both Config and Reactor.
-func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
-	// Parse input using YANG-derived schema
-	schema := YANGSchema()
-	if schema == nil {
-		return nil, nil, fmt.Errorf("failed to load YANG schema")
-	}
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	if err != nil {
-		// Check if this looks like old syntax and provide migration hint
-		if hint := detectLegacySyntaxHint(input, err); hint != "" {
-			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+		configDir = filepath.Dir(configPath)
+	} else {
+		cwd, cwdErr := os.Getwd()
+		if cwdErr != nil {
+			return nil, fmt.Errorf("get working directory: %w", cwdErr)
 		}
-		return nil, nil, fmt.Errorf("parse config: %w", err)
+		configDir = cwd
 	}
 
-	// Log parse warnings
-	if warnings := p.Warnings(); len(warnings) > 0 {
-		configLogger().Debug("config parsed", "warnings", warnings)
-	}
-
-	// Extract environment block (ze-specific, before conversion)
-	envValues := ExtractEnvironment(tree)
-
-	// Apply log config to environment variables.
-	// Lazy loggers (LazyLogger) will pick up these settings on first use.
-	slogutil.ApplyLogConfig(envValues)
-
-	// Convert to typed config
-	cfg, err := TreeToConfig(tree)
+	r, err := CreateReactorFromTree(tree, configDir, plugins)
 	if err != nil {
-		return nil, nil, fmt.Errorf("convert config: %w", err)
+		return nil, err
 	}
 
-	// Store environment values for later use
-	cfg.EnvValues = envValues
-
-	// Store config tree for plugin JSON delivery
-	cfg.ConfigTree = tree.ToMap()
-
-	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
-
-	// Create reactor
-	r, err := CreateReactor(cfg)
-	if err != nil {
-		return nil, nil, err
+	// Set config path for SIGHUP reload support
+	if configPath != "" && configPath != "-" {
+		r.SetConfigPath(configPath)
+		r.SetReloadFunc(createReloadFunc())
 	}
 
-	return cfg, r, nil
+	return r, nil
 }
 
 // LoadReactorFile loads config from file and creates Reactor.
@@ -169,30 +174,38 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 		pluginYANG[name] = yang
 	}
 
-	// Parse config with plugin YANG schemas merged
-	cfg, err := parseConfigWithYANG(string(data), pluginYANG)
+	// Parse config into tree
+	tree, err := parseTreeWithYANG(string(data), pluginYANG)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config directory for process execution (use cwd for stdin)
+	// Determine config directory
+	var configDir string
 	var absPath string
 	if path == "-" {
 		absPath, err = os.Getwd()
 		if err != nil {
 			return nil, fmt.Errorf("get working directory: %w", err)
 		}
-		cfg.ConfigDir = absPath
+		configDir = absPath
 	} else {
 		absPath, err = filepath.Abs(path)
 		if err != nil {
 			return nil, fmt.Errorf("resolve config path: %w", err)
 		}
-		cfg.ConfigDir = filepath.Dir(absPath)
+		configDir = filepath.Dir(absPath)
+	}
+
+	// Extract plugins from tree
+	plugins, err := ExtractPluginsFromTree(tree)
+	if err != nil {
+		return nil, err
 	}
 
 	// Merge CLI plugins with config plugins
-	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
+	plugins, err = mergeCliPlugins(plugins, cliPlugins)
+	if err != nil {
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
@@ -201,87 +214,46 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 		plugin.SetYANGValidator(v)
 	}
 
-	// Create reactor with config path for reload support
-	r, err := CreateReactorWithPath(cfg, absPath)
+	// Create reactor from tree
+	r, err := CreateReactorFromTree(tree, configDir, plugins)
 	if err != nil {
 		return nil, err
+	}
+
+	// Set config path for SIGHUP reload support
+	if path != "-" {
+		r.SetConfigPath(absPath)
+		r.SetReloadFunc(createReloadFunc())
 	}
 
 	return r, nil
 }
 
-// parseConfigWithYANG parses config with additional plugin YANG schemas.
-// Returns typed config without creating reactor (callers may need to modify config first).
-func parseConfigWithYANG(input string, pluginYANG map[string]string) (*BGPConfig, error) {
-	// Parse input using YANG-derived schema with plugin augmentations
-	schema := YANGSchemaWithPlugins(pluginYANG)
-	if schema == nil {
-		return nil, fmt.Errorf("failed to load YANG schema")
-	}
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	if err != nil {
-		// Check if this looks like old syntax and provide migration hint
-		if hint := detectLegacySyntaxHint(input, err); hint != "" {
-			return nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
-		}
-		return nil, fmt.Errorf("parse config: %w", err)
-	}
-
-	// Log parse warnings
-	if warnings := p.Warnings(); len(warnings) > 0 {
-		configLogger().Debug("config parsed", "warnings", warnings)
-	}
-
-	// Extract environment block (ze-specific, before conversion)
-	envValues := ExtractEnvironment(tree)
-
-	// Apply log config to environment variables.
-	// Lazy loggers (LazyLogger) will pick up these settings on first use.
-	slogutil.ApplyLogConfig(envValues)
-
-	// Convert to typed config
-	cfg, err := TreeToConfig(tree)
-	if err != nil {
-		return nil, fmt.Errorf("convert config: %w", err)
-	}
-
-	// Store environment values for later use
-	cfg.EnvValues = envValues
-
-	// Store config tree for plugin JSON delivery
-	cfg.ConfigTree = tree.ToMap()
-
-	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
-
-	return cfg, nil
-}
-
-// mergeCliPlugins resolves CLI plugin strings and merges them with config plugins.
+// mergeCliPlugins resolves CLI plugin strings and merges them with extracted plugins.
 // CLI plugins are added first (higher priority), then config plugins.
 // Duplicate plugins (same name) are deduplicated.
-func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
+func mergeCliPlugins(plugins []reactor.PluginConfig, cliPlugins []string) ([]reactor.PluginConfig, error) {
 	if len(cliPlugins) == 0 {
-		return nil
+		return plugins, nil
 	}
 
 	// Build set of existing plugin names for deduplication
 	existing := make(map[string]bool)
-	for _, p := range cfg.Plugins {
+	for _, p := range plugins {
 		existing[p.Name] = true
 	}
 
 	// Resolve and prepend CLI plugins
-	var newPlugins []PluginConfig
+	var newPlugins []reactor.PluginConfig
 	for _, ps := range cliPlugins {
 		resolved, err := plugin.ResolvePlugin(ps)
 		if err != nil {
-			return fmt.Errorf("plugin %q: %w", ps, err)
+			return nil, fmt.Errorf("plugin %q: %w", ps, err)
 		}
 
 		// Skip auto for now (would need discovery)
 		if resolved.Type == plugin.PluginTypeAuto {
-			return fmt.Errorf("plugin 'auto' not yet implemented")
+			return nil, fmt.Errorf("plugin 'auto' not yet implemented")
 		}
 
 		// Skip if already in config
@@ -291,7 +263,7 @@ func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
 		existing[resolved.Name] = true
 
 		// Build plugin config based on type
-		pc := PluginConfig{
+		pc := reactor.PluginConfig{
 			Name:    resolved.Name,
 			Encoder: "json", // Default encoder
 		}
@@ -309,33 +281,96 @@ func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
 	}
 
 	// Prepend CLI plugins to config plugins (CLI takes priority)
-	cfg.Plugins = append(newPlugins, cfg.Plugins...)
-	return nil
+	return append(newPlugins, plugins...), nil
 }
 
-// CreateReactor creates a Reactor from typed BGPConfig.
-func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
-	return CreateReactorWithDir(cfg, "")
-}
+// CreateReactorFromTree creates a Reactor directly from a parsed config tree.
+func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.PluginConfig) (*reactor.Reactor, error) {
+	// Load environment with config block values (if any)
+	envValues := ExtractEnvironment(tree)
+	env, err := LoadEnvironmentWithConfig(envValues)
+	if err != nil {
+		return nil, fmt.Errorf("load environment: %w", err)
+	}
 
-// CreateReactorWithPath creates a Reactor with full config path for reload support.
-func CreateReactorWithPath(cfg *BGPConfig, configPath string) (*reactor.Reactor, error) {
-	r, err := CreateReactorWithDir(cfg, filepath.Dir(configPath))
+	// Extract global BGP settings directly from tree
+	var routerID uint32
+	var localAS uint32
+	var listen string
+	if bgpContainer := tree.GetContainer("bgp"); bgpContainer != nil {
+		if v, ok := bgpContainer.Get("router-id"); ok {
+			if ip, parseErr := netip.ParseAddr(v); parseErr == nil {
+				routerID = ipToUint32(ip)
+			}
+		}
+		if v, ok := bgpContainer.Get("local-as"); ok {
+			if n, parseErr := strconv.ParseUint(v, 10, 32); parseErr == nil {
+				localAS = uint32(n)
+			}
+		}
+		if v, ok := bgpContainer.Get("listen"); ok {
+			listen = v
+		}
+	}
+
+	// Build peers from tree (resolves templates, extracts routes)
+	peers, err := PeersFromConfigTree(tree)
 	if err != nil {
 		return nil, err
 	}
 
-	// Set config path for reload
-	r.SetConfigPath(configPath)
+	// Validate plugin references
+	if err := ValidatePluginReferences(tree, plugins); err != nil {
+		return nil, err
+	}
 
-	// Set reload function
-	r.SetReloadFunc(createReloadFunc())
+	// Derive ConfiguredFamilies from peer capabilities.
+	// Multiprotocol capabilities declare which families each peer supports.
+	var configuredFamilies []string
+	familySeen := make(map[string]bool)
+	for _, ps := range peers {
+		for _, cap := range ps.Capabilities {
+			if mp, ok := cap.(*capability.Multiprotocol); ok {
+				family := nlri.Family{AFI: mp.AFI, SAFI: mp.SAFI}
+				fs := family.String()
+				if !familySeen[fs] {
+					familySeen[fs] = true
+					configuredFamilies = append(configuredFamilies, fs)
+				}
+			}
+		}
+	}
+
+	// Build reactor config
+	reactorCfg := &reactor.Config{
+		ListenAddr:         listen,
+		RouterID:           routerID,
+		LocalAS:            localAS,
+		ConfigDir:          configDir,
+		ConfigTree:         tree.ToMap(),
+		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
+		ConfiguredFamilies: configuredFamilies,
+		Plugins:            plugins,
+	}
+
+	// Always set API socket path so CLI can connect to the daemon
+	reactorCfg.APISocketPath = env.SocketPath()
+
+	r := reactor.New(reactorCfg)
+
+	// Add peers
+	for _, ps := range peers {
+		if err := r.AddPeer(ps); err != nil {
+			return nil, fmt.Errorf("add peer %s: %w", ps.Address, err)
+		}
+	}
 
 	return r, nil
 }
 
 // createReloadFunc creates a ReloadFunc that parses config files.
 // It returns full PeerSettings to ensure reloaded peers are identical to initial load.
+// Uses PeersFromConfigTree which resolves templates and extracts routes directly.
 func createReloadFunc() reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := os.ReadFile(configPath) //nolint:gosec // User-provided config path
@@ -354,410 +389,8 @@ func createReloadFunc() reactor.ReloadFunc {
 			return nil, fmt.Errorf("parse config: %w", err)
 		}
 
-		// Convert to typed config.
-		bgpCfg, err := TreeToConfig(tree)
-		if err != nil {
-			return nil, fmt.Errorf("convert config: %w", err)
-		}
-
-		// Convert each peer using the same logic as initial load.
-		var peers []*reactor.PeerSettings
-		for i := range bgpCfg.Peers {
-			settings, err := configToPeer(&bgpCfg.Peers[i], bgpCfg)
-			if err != nil {
-				return nil, fmt.Errorf("convert peer %s: %w", bgpCfg.Peers[i].Address, err)
-			}
-			peers = append(peers, settings)
-		}
-
-		return peers, nil
+		return PeersFromConfigTree(tree)
 	}
-}
-
-// CreateReactorWithDir creates a Reactor with a specific config directory.
-// The configDir is used as the working directory for spawned processes.
-func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, error) {
-	// Load environment with config block values (if any)
-	env, err := LoadEnvironmentWithConfig(cfg.EnvValues)
-	if err != nil {
-		return nil, fmt.Errorf("load environment: %w", err)
-	}
-
-	// Collect all families configured across all peers for deferred auto-load.
-	// Auto-load happens after explicit plugins register, based on which families
-	// remain unclaimed. Families are per-peer in config but aggregated here.
-	var configuredFamilies []string
-	for _, peer := range cfg.Peers {
-		configuredFamilies = append(configuredFamilies, peer.Families...)
-	}
-
-	// Build reactor config
-	reactorCfg := &reactor.Config{
-		ListenAddr:         cfg.Listen,
-		RouterID:           cfg.RouterID,
-		LocalAS:            cfg.LocalAS,
-		ConfigDir:          configDir,
-		ConfigTree:         cfg.ConfigTree,
-		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
-		ConfiguredFamilies: configuredFamilies,
-	}
-
-	// Always set API socket path so CLI can connect to the daemon
-	reactorCfg.APISocketPath = env.SocketPath()
-
-	// Convert plugin configs
-	for _, pc := range cfg.Plugins {
-		reactorCfg.Plugins = append(reactorCfg.Plugins, reactor.PluginConfig{
-			Name:          pc.Name,
-			Run:           pc.Run,
-			Encoder:       pc.Encoder,
-			ReceiveUpdate: pc.ReceiveUpdate,
-			StageTimeout:  pc.StageTimeout,
-			Internal:      pc.Internal,
-		})
-	}
-
-	r := reactor.New(reactorCfg)
-
-	// Add peers
-	for i := range cfg.Peers {
-		settings, err := configToPeer(&cfg.Peers[i], cfg)
-		if err != nil {
-			return nil, fmt.Errorf("convert peer %s: %w", cfg.Peers[i].Address, err)
-		}
-		if err := r.AddPeer(settings); err != nil {
-			return nil, fmt.Errorf("add peer %s: %w", cfg.Peers[i].Address, err)
-		}
-	}
-
-	return r, nil
-}
-
-// configToPeer converts PeerConfig to reactor.PeerSettings.
-func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, error) {
-	// Determine local AS (inherit from global if not set)
-	localAS := nc.LocalAS
-	if localAS == 0 {
-		localAS = global.LocalAS
-	}
-
-	// Determine router ID (inherit from global if not set)
-	routerID := nc.RouterID
-	if routerID == 0 {
-		routerID = global.RouterID
-	}
-
-	n := reactor.NewPeerSettings(nc.Address, localAS, nc.PeerAS, routerID)
-	// nc.HoldTime defaults to 90 in config; explicit 0 disables keepalives (RFC 4271).
-	n.HoldTime = time.Duration(nc.HoldTime) * time.Second
-	n.Passive = nc.Passive
-	n.GroupUpdates = nc.GroupUpdates
-	n.LocalAddress = nc.LocalAddress
-	n.LinkLocal = nc.LinkLocal
-	n.IgnoreFamilyMismatch = nc.IgnoreFamilyMismatch
-
-	// Build capabilities.
-	// Add Multiprotocol capabilities from configured families.
-	// Skip disabled families, track required families.
-	for _, fc := range nc.FamilyConfigs {
-		// Skip disabled families
-		if fc.Mode == FamilyModeDisable {
-			continue
-		}
-
-		// Map AFI/SAFI strings to capability types
-		familyKey := fc.AFI + "/" + fc.SAFI
-		family, ok := nlri.ParseFamily(familyKey)
-		if !ok {
-			// Unknown family, skip
-			continue
-		}
-		afi, safi := family.AFI, family.SAFI
-
-		// Add capability
-		n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
-			AFI:  afi,
-			SAFI: safi,
-		})
-
-		// Track required families
-		if fc.Mode == FamilyModeRequire {
-			n.RequiredFamilies = append(n.RequiredFamilies, capability.Family{
-				AFI:  afi,
-				SAFI: safi,
-			})
-		}
-
-		// Track ignore families (lenient UPDATE validation)
-		if fc.Mode == FamilyModeIgnore {
-			n.IgnoreFamilies = append(n.IgnoreFamilies, capability.Family{
-				AFI:  afi,
-				SAFI: safi,
-			})
-		}
-	}
-
-	// NOTE: FQDN capability (host-name/domain-name) is now handled by hostname plugin.
-	// Load with: ze bgp server --plugin ze.hostname config.conf
-
-	// RFC 8654: Extended Message Support - allows messages up to 65,535 octets.
-	if nc.Capabilities.ExtendedMessage {
-		n.Capabilities = append(n.Capabilities, &capability.ExtendedMessage{})
-	}
-
-	if nc.Capabilities.SoftwareVersion {
-		n.Capabilities = append(n.Capabilities, &capability.SoftwareVersion{
-			Version: "ExaBGP/5.0.0-0+test",
-		})
-	}
-
-	// RFC 8950: Build ExtendedNextHop capability from nexthop { } block config.
-	// Capability is inferred from nexthop block presence - no explicit enable needed.
-	if len(nc.NexthopFamilies) > 0 {
-		extNH := &capability.ExtendedNextHop{
-			Families: make([]capability.ExtendedNextHopFamily, 0, len(nc.NexthopFamilies)),
-		}
-		for _, nhf := range nc.NexthopFamilies {
-			extNH.Families = append(extNH.Families, capability.ExtendedNextHopFamily{
-				NLRIAFI:    capability.AFI(nhf.NLRIAFI),
-				NLRISAFI:   capability.SAFI(nhf.NLRISAFI),
-				NextHopAFI: capability.AFI(nhf.NextHopAFI),
-			})
-		}
-		n.Capabilities = append(n.Capabilities, extNH)
-	}
-
-	// RFC 7911: Build ADD-PATH capability from config.
-	// Global add-path applies to all configured families.
-	// Per-family add-path overrides global settings.
-	if nc.Capabilities.AddPathSend || nc.Capabilities.AddPathReceive || len(nc.AddPathFamilies) > 0 {
-		addPath := &capability.AddPath{
-			Families: make([]capability.AddPathFamily, 0),
-		}
-
-		// Global mode
-		var globalMode capability.AddPathMode
-		switch {
-		case nc.Capabilities.AddPathSend && nc.Capabilities.AddPathReceive:
-			globalMode = capability.AddPathBoth
-		case nc.Capabilities.AddPathSend:
-			globalMode = capability.AddPathSend
-		case nc.Capabilities.AddPathReceive:
-			globalMode = capability.AddPathReceive
-		}
-
-		// Apply global mode to all configured families
-		if globalMode != capability.AddPathNone {
-			for _, cap := range n.Capabilities {
-				if mp, ok := cap.(*capability.Multiprotocol); ok {
-					addPath.Families = append(addPath.Families, capability.AddPathFamily{
-						AFI:  mp.AFI,
-						SAFI: mp.SAFI,
-						Mode: globalMode,
-					})
-				}
-			}
-		}
-
-		// Override with per-family settings
-		for _, apf := range nc.AddPathFamilies {
-			var mode capability.AddPathMode
-			switch {
-			case apf.Send && apf.Receive:
-				mode = capability.AddPathBoth
-			case apf.Send:
-				mode = capability.AddPathSend
-			case apf.Receive:
-				mode = capability.AddPathReceive
-			}
-			if mode != capability.AddPathNone {
-				// Parse family string like "ipv4/unicast"
-				family, ok := nlri.ParseFamily(apf.Family)
-				if !ok {
-					continue // Skip unknown families
-				}
-				afi, safi := family.AFI, family.SAFI
-				addPath.Families = append(addPath.Families, capability.AddPathFamily{
-					AFI:  afi,
-					SAFI: safi,
-					Mode: mode,
-				})
-			}
-		}
-
-		if len(addPath.Families) > 0 {
-			n.Capabilities = append(n.Capabilities, addPath)
-		}
-	}
-
-	// RFC 2918/7313: Add RouteRefresh and EnhancedRouteRefresh capabilities.
-	// Both are needed for RFC 7313 BoRR/EoRR support.
-	if nc.Capabilities.RouteRefresh {
-		n.Capabilities = append(n.Capabilities, &capability.RouteRefresh{})
-		n.Capabilities = append(n.Capabilities, &capability.EnhancedRouteRefresh{})
-	}
-
-	// ASN4 is enabled by default, disable if explicitly set to false in config.
-	n.DisableASN4 = !nc.Capabilities.ASN4
-
-	// Override port from environment (for testing).
-	if p := os.Getenv("ze_bgp_tcp_port"); p != "" {
-		if v, err := strconv.ParseUint(p, 10, 16); err == nil {
-			n.Port = uint16(v) //nolint:gosec // Validated above
-		}
-	}
-
-	// Convert static routes with typed attribute parsing.
-	for _, sr := range nc.StaticRoutes {
-		attrs, err := ParseRouteAttributes(sr)
-		if err != nil {
-			return nil, fmt.Errorf("static route %s: %w", sr.Prefix, err)
-		}
-
-		// Create RouteNextHop from config
-		var nextHop plugin.RouteNextHop
-		if sr.NextHopSelf {
-			nextHop = plugin.NewNextHopSelf()
-		} else if attrs.NextHop.IsValid() {
-			nextHop = plugin.NewNextHopExplicit(attrs.NextHop)
-		}
-
-		// Convert raw attributes
-		var rawAttrs []reactor.RawAttribute
-		for _, ra := range attrs.RawAttributes {
-			rawAttrs = append(rawAttrs, reactor.RawAttribute{
-				Code:  ra.Code,
-				Flags: ra.Flags,
-				Value: ra.Value,
-			})
-		}
-
-		// Handle split: expand prefix into more-specific prefixes
-		prefixes := []netip.Prefix{attrs.Prefix}
-		if splitLen := parseSplitLen(sr.Split); splitLen > 0 {
-			prefixes = splitPrefix(attrs.Prefix, splitLen)
-		}
-
-		// Create a route for each prefix (usually just one, unless split)
-		for _, prefix := range prefixes {
-			// Convert labels from MPLSLabel to uint32
-			labels := make([]uint32, len(attrs.Labels))
-			for i, l := range attrs.Labels {
-				labels[i] = uint32(l)
-			}
-
-			route := reactor.StaticRoute{
-				Prefix:            prefix,
-				NextHop:           nextHop,
-				Origin:            uint8(attrs.Origin),
-				LocalPreference:   attrs.LocalPreference,
-				MED:               attrs.MED,
-				Communities:       attrs.Community.Values,
-				LargeCommunities:  attrs.LargeCommunity.Values,
-				ExtCommunity:      attrs.ExtendedCommunity.Raw,
-				ExtCommunityBytes: sortExtCommunities(attrs.ExtendedCommunity.Bytes),
-				PathID:            uint32(attrs.PathID),
-				Labels:            labels,
-				RD:                attrs.RD.Raw,
-				RDBytes:           attrs.RD.Bytes,
-				ASPath:            attrs.ASPath.Values,
-				AggregatorASN:     attrs.Aggregator.ASN,
-				AggregatorIP:      attrs.Aggregator.IP,
-				HasAggregator:     attrs.Aggregator.Valid,
-				AtomicAggregate:   attrs.AtomicAggregate,
-				OriginatorID:      attrs.OriginatorID,
-				ClusterList:       attrs.ClusterList,
-				PrefixSIDBytes:    attrs.PrefixSID.Bytes,
-				RawAttributes:     rawAttrs,
-			}
-
-			// Validate: VPN routes require at least one label
-			// RFC 4364: MPLS label is required for VPN routes
-			if route.IsVPN() && len(route.Labels) == 0 {
-				return nil, fmt.Errorf("VPN route %s requires at least one label", prefix)
-			}
-
-			// Route to correct bucket based on watchdog field
-			if sr.Watchdog != "" {
-				wr := reactor.WatchdogRoute{
-					StaticRoute:        route,
-					InitiallyWithdrawn: sr.WatchdogWithdraw,
-				}
-				if n.WatchdogGroups == nil {
-					n.WatchdogGroups = make(map[string][]reactor.WatchdogRoute)
-				}
-				n.WatchdogGroups[sr.Watchdog] = append(n.WatchdogGroups[sr.Watchdog], wr)
-			} else {
-				n.StaticRoutes = append(n.StaticRoutes, route)
-			}
-		}
-	}
-
-	// Convert MVPN routes
-	for _, mr := range nc.MVPNRoutes {
-		route, err := convertMVPNRoute(mr)
-		if err != nil {
-			return nil, fmt.Errorf("mvpn route: %w", err)
-		}
-		n.MVPNRoutes = append(n.MVPNRoutes, route)
-	}
-
-	// Convert VPLS routes
-	for _, vr := range nc.VPLSRoutes {
-		route, err := convertVPLSRoute(vr)
-		if err != nil {
-			return nil, fmt.Errorf("vpls route %s: %w", vr.Name, err)
-		}
-		n.VPLSRoutes = append(n.VPLSRoutes, route)
-	}
-
-	// Convert FlowSpec routes
-	for _, fr := range nc.FlowSpecRoutes {
-		route, err := convertFlowSpecRoute(fr)
-		if err != nil {
-			return nil, fmt.Errorf("flowspec route %s: %w", fr.Name, err)
-		}
-		n.FlowSpecRoutes = append(n.FlowSpecRoutes, route)
-	}
-
-	// Convert MUP routes
-	for _, mr := range nc.MUPRoutes {
-		route, err := convertMUPRoute(mr)
-		if err != nil {
-			return nil, fmt.Errorf("mup route: %w", err)
-		}
-		n.MUPRoutes = append(n.MUPRoutes, route)
-	}
-
-	// Log static routes
-	if len(n.StaticRoutes) > 0 {
-		configLogger().Debug("peer routes configured", "peer", nc.Address.String(), "routes", len(n.StaticRoutes))
-	}
-
-	// Convert process bindings
-	for _, pb := range nc.ProcessBindings {
-		n.ProcessBindings = append(n.ProcessBindings, reactor.ProcessBinding{
-			PluginName:          pb.PluginName,
-			Encoding:            pb.Content.Encoding,
-			Format:              pb.Content.Format,
-			ReceiveUpdate:       pb.Receive.Update,
-			ReceiveOpen:         pb.Receive.Open,
-			ReceiveNotification: pb.Receive.Notification,
-			ReceiveKeepalive:    pb.Receive.Keepalive,
-			ReceiveRefresh:      pb.Receive.Refresh,
-			ReceiveState:        pb.Receive.State,
-			ReceiveSent:         pb.Receive.Sent,
-			ReceiveNegotiated:   pb.Receive.Negotiated,
-			SendUpdate:          pb.Send.Update,
-			SendRefresh:         pb.Send.Refresh,
-		})
-	}
-
-	// Copy raw capability config for plugin delivery
-	n.RawCapabilityConfig = nc.RawCapabilityConfig
-	n.CapabilityConfigJSON = nc.CapabilityConfigJSON
-
-	return n, nil
 }
 
 // convertMVPNRoute converts config MVPN route to reactor MVPN route.
@@ -1542,7 +1175,7 @@ func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
 }
 
 // parseFlowTCPFlags parses TCP flags like "[SYN RST&FIN&!=push]".
-// Returns simple flag values (for backwards compatibility).
+// Returns simple flag values.
 //
 //nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
 func parseFlowTCPFlags(s string) []uint8 {

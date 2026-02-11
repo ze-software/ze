@@ -23,6 +23,7 @@ This is implemented as 5 ordered sub-specs:
 | 4 | `spec-config-reload-4-editor.md` | Editor commit → save + reload |
 | 5 | `spec-config-reload-5-e2e.md` | End-to-end functional tests |
 | 6 | `spec-config-reload-6-remove-bgpconfig.md` | Remove BGPConfig typed intermediate, reactor parses from tree |
+| 7 | `spec-config-reload-7-coordinator-hardening.md` | Crash detection, apply error propagation, daemon reload wiring |
 
 ## Required Reading
 

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -143,33 +144,6 @@ bgp {
 	require.True(t, hasEnhancedRouteRefresh, "EnhancedRouteRefresh capability (code 70) should be present")
 }
 
-// TestLoadReactorConfig verifies reactor config settings.
-//
-// VALIDATES: Listen address and router-id are set.
-//
-// PREVENTS: Missing reactor configuration.
-func TestLoadReactorConfig(t *testing.T) {
-	input := `
-bgp {
-    router-id 10.0.0.1;
-    local-as 65000;
-    listen 0.0.0.0:179;
-
-    peer 192.0.2.1 {
-        peer-as 65001;
-    }
-}
-`
-
-	cfg, r, err := LoadReactorWithConfig(input)
-	require.NoError(t, err)
-	require.NotNil(t, cfg)
-	require.NotNil(t, r)
-
-	require.Equal(t, uint32(0x0a000001), cfg.RouterID) // 10.0.0.1
-	require.Equal(t, uint32(65000), cfg.LocalAS)
-}
-
 // TestLoadReactorError verifies error handling.
 //
 // VALIDATES: Invalid config returns error.
@@ -186,23 +160,6 @@ bgp {
 
 	_, err := LoadReactor(input)
 	require.Error(t, err)
-}
-
-// TestCreateReactorFromConfig verifies direct Config to Reactor.
-//
-// VALIDATES: CreateReactor works with typed Config.
-//
-// PREVENTS: Only string-based loading working.
-func TestCreateReactorFromConfig(t *testing.T) {
-	cfg := &BGPConfig{
-		RouterID: 0x0a000001,
-		LocalAS:  65000,
-		Listen:   "127.0.0.1:1179",
-	}
-
-	r, err := CreateReactor(cfg)
-	require.NoError(t, err)
-	require.NotNil(t, r)
 }
 
 // TestParseAllConfigFiles verifies all etc/ze/bgp/*.conf files parse.
@@ -749,7 +706,7 @@ bgp {
 func TestMergeCliPlugins(t *testing.T) {
 	tests := []struct {
 		name        string
-		configPlugs []PluginConfig
+		configPlugs []reactor.PluginConfig
 		cliPlugs    []string
 		wantNames   []string // Expected plugin names in order
 		wantErr     bool
@@ -774,7 +731,7 @@ func TestMergeCliPlugins(t *testing.T) {
 		},
 		{
 			name: "cli_plus_config",
-			configPlugs: []PluginConfig{
+			configPlugs: []reactor.PluginConfig{
 				{Name: "existing", Run: "some-plugin"},
 			},
 			cliPlugs:  []string{"ze.rib"},
@@ -782,7 +739,7 @@ func TestMergeCliPlugins(t *testing.T) {
 		},
 		{
 			name: "dedup_cli_matches_config",
-			configPlugs: []PluginConfig{
+			configPlugs: []reactor.PluginConfig{
 				{Name: "rib", Run: "ze bgp plugin rib"},
 			},
 			cliPlugs:  []string{"ze.rib"},
@@ -796,7 +753,7 @@ func TestMergeCliPlugins(t *testing.T) {
 		},
 		{
 			name:        "empty_cli",
-			configPlugs: []PluginConfig{{Name: "existing", Run: "x"}},
+			configPlugs: []reactor.PluginConfig{{Name: "existing", Run: "x"}},
 			cliPlugs:    nil,
 			wantNames:   []string{"existing"},
 		},
@@ -816,11 +773,7 @@ func TestMergeCliPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cfg := &BGPConfig{
-				Plugins: tt.configPlugs,
-			}
-
-			err := mergeCliPlugins(cfg, tt.cliPlugs)
+			result, err := mergeCliPlugins(tt.configPlugs, tt.cliPlugs)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -828,7 +781,7 @@ func TestMergeCliPlugins(t *testing.T) {
 			require.NoError(t, err)
 
 			var gotNames []string
-			for _, p := range cfg.Plugins {
+			for _, p := range result {
 				gotNames = append(gotNames, p.Name)
 			}
 			assert.Equal(t, tt.wantNames, gotNames)
@@ -841,20 +794,18 @@ func TestMergeCliPlugins(t *testing.T) {
 // VALIDATES: Internal plugins have Internal=true, empty Run.
 // PREVENTS: Internal plugins being treated as external.
 func TestMergeCliPluginsInternal(t *testing.T) {
-	cfg := &BGPConfig{}
-	err := mergeCliPlugins(cfg, []string{"ze.rib"})
+	result, err := mergeCliPlugins(nil, []string{"ze.rib"})
 	require.NoError(t, err)
-	require.Len(t, cfg.Plugins, 1)
-	assert.True(t, cfg.Plugins[0].Internal, "internal plugin should have Internal=true")
-	assert.Empty(t, cfg.Plugins[0].Run, "internal plugin should have empty Run")
-	assert.Equal(t, "rib", cfg.Plugins[0].Name)
+	require.Len(t, result, 1)
+	assert.True(t, result[0].Internal, "internal plugin should have Internal=true")
+	assert.Empty(t, result[0].Run, "internal plugin should have empty Run")
+	assert.Equal(t, "rib", result[0].Name)
 
-	cfg2 := &BGPConfig{}
-	err = mergeCliPlugins(cfg2, []string{"./custom-plugin"})
+	result2, err := mergeCliPlugins(nil, []string{"./custom-plugin"})
 	require.NoError(t, err)
-	require.Len(t, cfg2.Plugins, 1)
-	assert.False(t, cfg2.Plugins[0].Internal, "external plugin should have Internal=false")
-	assert.Equal(t, "./custom-plugin", cfg2.Plugins[0].Run)
+	require.Len(t, result2, 1)
+	assert.False(t, result2[0].Internal, "external plugin should have Internal=false")
+	assert.Equal(t, "./custom-plugin", result2[0].Run)
 }
 
 // TestHostnameAlwaysAvailable verifies hostname/domain-name are always parseable.
@@ -877,110 +828,6 @@ bgp {
 	// Parsing should succeed - internal plugin YANG is always loaded
 	require.NoError(t, err)
 	require.NotNil(t, tree)
-}
-
-// TestHostnameWithPluginYANG verifies hostname plugin YANG enables parsing.
-//
-// VALIDATES: With plugin YANG, host-name/domain-name parse and populate RawCapabilityConfig.
-// PREVENTS: Plugin not receiving config values.
-func TestHostnameWithPluginYANG(t *testing.T) {
-	input := `
-bgp {
-    peer 192.0.2.1 {
-        peer-as 65001;
-        host-name my-host-name;
-        domain-name my-domain.com;
-    }
-}
-`
-	// Load plugin YANG
-	pluginYANG := map[string]string{
-		"ze-hostname.yang": `module ze-hostname {
-    namespace "urn:ze:hostname";
-    prefix hostname;
-    import ze-bgp-conf { prefix bgp; }
-    revision 2025-01-29 { description "Test"; }
-    augment "/bgp:bgp/bgp:peer" {
-        leaf host-name { type string; }
-        leaf domain-name { type string; }
-    }
-}`,
-	}
-
-	// With plugin YANG, parsing should succeed
-	schema := YANGSchemaWithPlugins(pluginYANG)
-	require.NotNil(t, schema, "schema should load")
-
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	require.NoError(t, err, "parsing should succeed with plugin YANG")
-
-	cfg, err := TreeToConfig(tree)
-	require.NoError(t, err)
-	require.Len(t, cfg.Peers, 1)
-
-	peer := cfg.Peers[0]
-
-	// Verify RawCapabilityConfig for plugin delivery
-	require.NotNil(t, peer.RawCapabilityConfig, "RawCapabilityConfig should be populated")
-	require.NotNil(t, peer.RawCapabilityConfig["hostname"], "hostname scope should exist")
-	assert.Equal(t, "my-host-name", peer.RawCapabilityConfig["hostname"]["host"])
-	assert.Equal(t, "my-domain.com", peer.RawCapabilityConfig["hostname"]["domain"])
-}
-
-// TestHostnameNewSyntax verifies the new capability { hostname { ... } } syntax.
-//
-// VALIDATES: New syntax capability { hostname { host ...; domain ...; } } populates CapabilityConfigJSON.
-// PREVENTS: New syntax not being extracted for plugin delivery.
-func TestHostnameNewSyntax(t *testing.T) {
-	input := `
-bgp {
-    peer 192.0.2.1 {
-        peer-as 65001;
-        capability {
-            hostname {
-                host my-host-name;
-                domain my-domain.com;
-            }
-        }
-    }
-}
-`
-	// Load plugin YANG
-	pluginYANG := map[string]string{
-		"ze-hostname.yang": `module ze-hostname {
-    namespace "urn:ze:hostname";
-    prefix hostname;
-    import ze-bgp-conf { prefix bgp; }
-    revision 2025-01-29 { description "Test"; }
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
-        container hostname {
-            leaf host { type string; }
-            leaf domain { type string; }
-        }
-    }
-}`,
-	}
-
-	// With plugin YANG, parsing should succeed
-	schema := YANGSchemaWithPlugins(pluginYANG)
-	require.NotNil(t, schema, "schema should load")
-
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	require.NoError(t, err, "parsing should succeed with plugin YANG")
-
-	cfg, err := TreeToConfig(tree)
-	require.NoError(t, err)
-	require.Len(t, cfg.Peers, 1)
-
-	peer := cfg.Peers[0]
-
-	// Verify CapabilityConfigJSON for plugin delivery (new JSON-based approach)
-	require.NotEmpty(t, peer.CapabilityConfigJSON, "CapabilityConfigJSON should be populated")
-	assert.Contains(t, peer.CapabilityConfigJSON, `"hostname"`)
-	assert.Contains(t, peer.CapabilityConfigJSON, `"host":"my-host-name"`)
-	assert.Contains(t, peer.CapabilityConfigJSON, `"domain":"my-domain.com"`)
 }
 
 // TestHoldTimeZeroPreserved verifies hold-time 0 is preserved, not defaulted.

@@ -140,30 +140,6 @@ func TestExtractLine(t *testing.T) {
 	}
 }
 
-// TestUint32ToIP verifies IP address formatting.
-//
-// VALIDATES: uint32 correctly converted to dotted quad.
-// PREVENTS: Wrong byte order in router-id display.
-func TestUint32ToIP(t *testing.T) {
-	tests := []struct {
-		input uint32
-		want  string
-	}{
-		{0x0A000001, "10.0.0.1"},
-		{0xC0A80001, "192.168.0.1"},
-		{0x7F000001, "127.0.0.1"},
-		{0x00000000, "0.0.0.0"},
-		{0xFFFFFFFF, "255.255.255.255"},
-	}
-
-	for _, tt := range tests {
-		got := uint32ToIP(tt.input)
-		if got != tt.want {
-			t.Errorf("uint32ToIP(0x%08X) = %q, want %q", tt.input, got, tt.want)
-		}
-	}
-}
-
 // TestValidationResultValid verifies validation result for valid config.
 //
 // VALIDATES: Valid config produces Valid=true result.

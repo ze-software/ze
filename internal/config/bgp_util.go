@@ -3,36 +3,7 @@ package config
 import (
 	"net/netip"
 	"strings"
-	"time"
 )
-
-// parseAddPathFamily parses a per-family add-path configuration string.
-// Format: "ipv4/unicast send" or "ipv6/unicast receive" or "ipv4/multicast send/receive"
-// Returns AddPathFamilyConfig with Family, Send, and Receive populated.
-func parseAddPathFamily(s string) AddPathFamilyConfig {
-	parts := strings.Fields(s)
-	if len(parts) < 2 {
-		return AddPathFamilyConfig{}
-	}
-
-	// Family is first token (e.g., "ipv4/unicast")
-	family := parts[0]
-	mode := parts[1]
-
-	apf := AddPathFamilyConfig{Family: family}
-
-	switch mode {
-	case addPathSend:
-		apf.Send = true
-	case addPathReceive:
-		apf.Receive = true
-	case addPathSendReceive, addPathReceiveSend:
-		apf.Send = true
-		apf.Receive = true
-	}
-
-	return apf
-}
 
 // ipToUint32 converts an IPv4 address to uint32.
 func ipToUint32(ip netip.Addr) uint32 {
@@ -41,97 +12,6 @@ func ipToUint32(ip netip.Addr) uint32 {
 	}
 	b := ip.As4()
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
-}
-
-// ToReactorConfig converts BGPConfig to reactor configuration.
-func (c *BGPConfig) ToReactorPeers() []*PeerReactor {
-	neighbors := make([]*PeerReactor, 0, len(c.Peers))
-
-	for _, nc := range c.Peers {
-		n := &PeerReactor{
-			Address:  nc.Address,
-			Port:     179,
-			LocalAS:  nc.LocalAS,
-			PeerAS:   nc.PeerAS,
-			RouterID: nc.RouterID,
-			HoldTime: time.Duration(nc.HoldTime) * time.Second,
-			Passive:  nc.Passive,
-		}
-
-		// Use global LocalAS if not set per-neighbor
-		if n.LocalAS == 0 {
-			n.LocalAS = c.LocalAS
-		}
-
-		// Use global RouterID if not set per-neighbor
-		if n.RouterID == 0 {
-			n.RouterID = c.RouterID
-		}
-
-		neighbors = append(neighbors, n)
-	}
-
-	return neighbors
-}
-
-// PeerReactor is the reactor-compatible neighbor config.
-type PeerReactor struct {
-	Address  netip.Addr
-	Port     uint16
-	LocalAS  uint32
-	PeerAS   uint32
-	RouterID uint32
-	HoldTime time.Duration
-	Passive  bool
-}
-
-// parseDurationValue parses a duration string like "100ms", "5s", "0.5s".
-func parseDurationValue(s string) (time.Duration, error) {
-	s = strings.TrimSpace(s)
-	if s == "0" {
-		return 0, nil
-	}
-	return time.ParseDuration(s)
-}
-
-// isValidGroupName validates group names per naming rules:
-// - Must start with a letter (a-z, A-Z).
-// - May contain letters, numbers, hyphens.
-// - Must NOT end with a hyphen.
-// - Minimum length: 1 character.
-func isValidGroupName(name string) bool {
-	if len(name) == 0 {
-		return false
-	}
-
-	// Must start with letter.
-	first := name[0]
-	isLetter := (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')
-	if !isLetter {
-		return false
-	}
-
-	// Single character is valid.
-	if len(name) == 1 {
-		return true
-	}
-
-	// Must not end with hyphen.
-	last := name[len(name)-1]
-	if last == '-' {
-		return false
-	}
-
-	// Middle characters: letters, numbers, hyphens only.
-	for i := 1; i < len(name); i++ {
-		c := name[i]
-		isAlphaNum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-		if !isAlphaNum && c != '-' {
-			return false
-		}
-	}
-
-	return true
 }
 
 // IPGlobMatch checks if an IP address matches a glob pattern.

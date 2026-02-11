@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
 )
 
 // Run executes the validate subcommand with the given arguments.
@@ -141,8 +143,8 @@ func validateConfig(input, path string) *ValidationResult {
 		return result
 	}
 
-	// Convert to typed config
-	cfg, err := config.TreeToConfig(tree)
+	// Resolve templates and get BGP tree as map.
+	bgpTree, err := config.ResolveBGPTree(tree)
 	if err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, ValidationError{
@@ -151,64 +153,117 @@ func validateConfig(input, path string) *ValidationResult {
 		return result
 	}
 
-	// Build summary
-	result.Config = &ValidationSummary{
-		LocalAS: cfg.LocalAS,
-		Listen:  cfg.Listen,
-		Peers:   len(cfg.Peers),
-		Plugins: len(cfg.Plugins),
-	}
+	// Build summary from resolved tree.
+	result.Config = buildSummary(bgpTree, tree)
 
-	if cfg.RouterID != 0 {
-		result.Config.RouterID = uint32ToIP(cfg.RouterID)
-	}
+	// Semantic validation.
+	result.Warnings = semanticValidation(bgpTree)
 
-	for _, n := range cfg.Peers {
-		result.Config.PeerDetails = append(result.Config.PeerDetails, PeerSummary{
-			Address: n.Address.String(),
-			PeerAS:  n.PeerAS,
-			Passive: n.Passive,
+	// Validate process/capability constraints (without deep route parsing).
+	peers, err := reactor.PeersFromTree(bgpTree)
+	if err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Message: err.Error(),
 		})
+		return result
 	}
-
-	// Semantic validation
-	result.Warnings = semanticValidation(cfg)
+	if err := config.ValidatePeerProcessCaps(peers); err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Message: err.Error(),
+		})
+		return result
+	}
 
 	return result
 }
 
-func semanticValidation(cfg *config.BGPConfig) []ValidationWarning {
+// buildSummary extracts a ValidationSummary from the resolved BGP tree.
+func buildSummary(bgpTree map[string]any, tree *config.Tree) *ValidationSummary {
+	summary := &ValidationSummary{}
+
+	if rid, ok := bgpTree["router-id"]; ok {
+		summary.RouterID = fmt.Sprint(rid)
+	}
+	summary.LocalAS = treeUint32(bgpTree["local-as"])
+	if listen, ok := bgpTree["listen"]; ok {
+		summary.Listen = fmt.Sprint(listen)
+	}
+
+	if peers, ok := bgpTree["peer"].(map[string]any); ok {
+		summary.Peers = len(peers)
+		for addr, v := range peers {
+			peer, ok := v.(map[string]any)
+			if !ok {
+				continue
+			}
+			summary.PeerDetails = append(summary.PeerDetails, PeerSummary{
+				Address: addr,
+				PeerAS:  treeUint32(peer["peer-as"]),
+				Passive: fmt.Sprint(peer["passive"]) == "true",
+			})
+		}
+	}
+
+	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
+		summary.Plugins = len(pluginContainer.GetList("external"))
+	}
+
+	return summary
+}
+
+// treeUint32 parses a tree value (string) as uint32. Returns 0 on nil or error.
+func treeUint32(v any) uint32 {
+	if v == nil {
+		return 0
+	}
+	n, err := strconv.ParseUint(fmt.Sprint(v), 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(n) //nolint:gosec // Validated by ParseUint with bitSize 32
+}
+
+func semanticValidation(bgpTree map[string]any) []ValidationWarning {
 	var warnings []ValidationWarning
 
-	// Check for missing router-id
-	if cfg.RouterID == 0 {
+	// Check for missing router-id.
+	if _, ok := bgpTree["router-id"]; !ok {
 		warnings = append(warnings, ValidationWarning{
 			Message: "router-id not configured (will use system default)",
 		})
 	}
 
-	// Check for missing local-as
-	if cfg.LocalAS == 0 {
+	// Check for missing local-as.
+	globalLocalAS := treeUint32(bgpTree["local-as"])
+	if globalLocalAS == 0 {
 		warnings = append(warnings, ValidationWarning{
 			Message: "local-as not configured globally",
 		})
 	}
 
-	// Check each peer
-	for _, n := range cfg.Peers {
-		if n.LocalAS == 0 && cfg.LocalAS == 0 {
+	// Check each peer.
+	peers, _ := bgpTree["peer"].(map[string]any)
+	for addr, v := range peers {
+		peer, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		if treeUint32(peer["local-as"]) == 0 && globalLocalAS == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: local-as not configured", n.Address),
+				Message: fmt.Sprintf("peer %s: local-as not configured", addr),
 			})
 		}
-		if n.PeerAS == 0 {
+		if treeUint32(peer["peer-as"]) == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: peer-as not configured", n.Address),
+				Message: fmt.Sprintf("peer %s: peer-as not configured", addr),
 			})
 		}
-		if n.HoldTime > 0 && n.HoldTime < 3 {
+		holdTime := treeUint32(peer["hold-time"])
+		if holdTime > 0 && holdTime < 3 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", n.Address, n.HoldTime),
+				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", addr, holdTime),
 			})
 		}
 	}
@@ -337,9 +392,4 @@ func extractLine(errMsg string) int {
 		return 0
 	}
 	return line
-}
-
-func uint32ToIP(n uint32) string {
-	return fmt.Sprintf("%d.%d.%d.%d",
-		(n>>24)&0xFF, (n>>16)&0xFF, (n>>8)&0xFF, n&0xFF)
 }

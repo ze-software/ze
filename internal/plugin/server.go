@@ -269,6 +269,11 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 {
 		s.wg.Add(1)
 		go s.runPluginStartup()
+	} else {
+		// No plugins to start — signal immediately so WaitForPluginStartupComplete
+		// does not block. SetAPIProcessCount always creates the startupComplete
+		// channel, but without runPluginStartup nothing would close it.
+		s.signalStartupComplete()
 	}
 
 	return nil

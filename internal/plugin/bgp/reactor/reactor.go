@@ -1165,7 +1165,7 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 			}
 		}
 		if v, ok := fields["passive"].(string); ok {
-			settings.Passive = v == "true"
+			settings.Passive = v == valTrue
 		}
 		if v, ok := fields["router-id"].(string); ok {
 			if rid, err := netip.ParseAddr(v); err == nil && rid.Is4() {

@@ -42,22 +42,31 @@ func (r *Reactor) SetAPIProcessCount(count int) {
 	if r.apiTimeout == 0 {
 		r.apiTimeout = DefaultAPITimeout
 	}
-	// Only create wait channels when there are plugins to wait for.
-	// With count==0, WaitForAPIReady and WaitForPluginStartupComplete
-	// return immediately via their nil/count checks.
+	// Always create startupComplete so WaitForPluginStartupComplete blocks
+	// until the server signals Phase 2 is done. This is critical for auto-load
+	// configs (count==0) where plugins are discovered and started in Phase 2.
+	r.startupComplete = make(chan struct{})
+	r.startupCompleteOnce = sync.Once{}
+	// Only create apiReady when there are explicit plugins to wait for.
+	// For auto-load configs, AddAPIProcessCount creates it lazily.
 	if count > 0 {
 		r.apiReady = make(chan struct{})
 		r.apiReadyOnce = sync.Once{}
-		r.startupComplete = make(chan struct{})
-		r.startupCompleteOnce = sync.Once{}
 	}
 }
 
 // AddAPIProcessCount adds to the number of API processes to wait for.
 // Used for two-phase plugin startup: Phase 1 (explicit) + Phase 2 (auto-load).
-// Safe to call while WaitForAPIReady is blocking.
+// Safe to call while WaitForPluginStartupComplete is blocking on the reactor goroutine.
+// Lazily creates apiReady if initial count was 0 (auto-load only configs).
 func (r *Reactor) AddAPIProcessCount(count int) {
 	r.processCount += count
+	// Create apiReady lazily when auto-loaded plugins arrive after SetAPIProcessCount(0).
+	// startupComplete is always created by SetAPIProcessCount, so no lazy creation needed.
+	if r.apiReady == nil && count > 0 {
+		r.apiReady = make(chan struct{})
+		r.apiReadyOnce = sync.Once{}
+	}
 	slog.Debug("added api process count", "added", count, "total", r.processCount)
 }
 
@@ -99,9 +108,12 @@ func (r *Reactor) SignalAPIReady() {
 }
 
 // signalAllReady closes the apiReady channel safely.
+// Handles nil apiReady (when no explicit plugins were configured but auto-loaded plugins signal ready).
 func (r *Reactor) signalAllReady() {
 	r.apiReadyOnce.Do(func() {
-		close(r.apiReady)
+		if r.apiReady != nil {
+			close(r.apiReady)
+		}
 	})
 }
 
