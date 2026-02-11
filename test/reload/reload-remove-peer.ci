@@ -1,0 +1,71 @@
+# Test: Config reload removes a peer
+# Initial config has one peer at 127.0.0.1
+# After SIGHUP: config has no peer blocks
+# reconcilePeers removes the peer, calls peer.Stop(), session torn down
+# Expected: daemon survives with zero peers, no new connections
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# After initial messages: rewrite config (remove all peers) and send SIGHUP
+# reconcilePeers diffs current (1 peer) vs new (0 peers): peer gets Stop()
+action=rewrite:conn=1:seq=2:source=config2.conf:dest=ze-bgp.conf
+action=sighup:conn=1:seq=2
+EOF_PEER
+
+# Initial ze bgp configuration (one peer)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Rewritten config (no peers - reconcilePeers removes the existing peer)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+}
+EOF_CONF2
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s

@@ -1,0 +1,82 @@
+# Test: Config reload adds a peer
+# Initial config has no peers (empty bgp block)
+# After delay: config rewritten to add one peer, SIGHUP sent via trigger script
+# reconcilePeers finds new peer, calls AddPeer(), session established
+# Expected: new BGP session connects and sends routes
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+
+# Connection 1: Static route from newly added peer (192.168.1.0/24) + EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Initial ze bgp configuration (no peers)
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+}
+EOF_CONF
+
+# Rewritten config (one peer added - reconcilePeers adds it via AddPeer)
+tmpfs=config2.conf:terminator=EOF_CONF2
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 10.0.0.1;
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24;
+			}
+		}
+	}
+}
+EOF_CONF2
+
+# Trigger script: waits for daemon to start, then rewrites config and sends SIGHUP
+# Runs as background process since there's no initial peer to trigger actions from
+tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
+#!/bin/sh
+# Wait for daemon to be ready (daemon.pid written by test runner)
+while [ ! -f daemon.pid ]; do sleep 1; done
+# Give daemon time to fully initialize
+sleep 1
+cp config2.conf ze-bgp.conf
+kill -HUP $(cat daemon.pid)
+EOF_TRIGGER
+
+# Process orchestration
+# seq=1: ze-peer listens for the new peer's connection
+# seq=2: trigger script waits then rewrites config + sends SIGHUP
+# seq=3: ze daemon starts with empty bgp block (no peers)
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=sh trigger.sh
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
