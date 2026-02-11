@@ -21,6 +21,12 @@ func (s *Server) SetConfigLoader(loader ConfigLoader) {
 	s.configLoader = loader
 }
 
+// HasConfigLoader reports whether a config loader has been set.
+// Used by SIGHUP handler to decide between coordinator path and direct reload.
+func (s *Server) HasConfigLoader() bool {
+	return s.configLoader != nil
+}
+
 // ReloadFromDisk loads the config from the configured loader and triggers reload.
 // Returns error if the loader is not set, parsing fails, or reload fails.
 func (s *Server) ReloadFromDisk(ctx context.Context) error {
@@ -115,73 +121,101 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		s.procManager.mu.RUnlock()
 	}
 
-	if len(affected) == 0 {
-		// No plugins care about these changes — just update.
+	// Verify reactor (BGP peer settings) if bgp root has changes.
+	bgpChanged := rootHasChanges(diff, "bgp")
+	if bgpChanged {
+		bgpSubtree, _ := newTree["bgp"].(map[string]any)
+		if bgpSubtree == nil {
+			bgpSubtree = map[string]any{}
+		}
+		if err := s.reactor.VerifyConfig(bgpSubtree); err != nil {
+			logger().Warn("config reload: reactor verify failed", "error", err)
+			return fmt.Errorf("config verify failed: reactor: %w", err)
+		}
+	}
+
+	if len(affected) == 0 && !bgpChanged {
+		// No plugins care about these changes and no BGP changes — just update.
 		logger().Info("config reload: no affected plugins, updating config")
 		s.reactor.SetConfigTree(newTree)
 		return nil
 	}
 
 	// Verify phase: ask all affected plugins to validate the new config.
-	logger().Info("config reload: verify phase", "plugins", len(affected))
-	var verifyErrors []string
-	for _, ap := range affected {
-		connB := ap.proc.ConnB()
-		if connB == nil {
-			continue
-		}
+	if len(affected) > 0 {
+		logger().Info("config reload: verify phase", "plugins", len(affected))
+		var verifyErrors []string
+		for _, ap := range affected {
+			connB := ap.proc.ConnB()
+			if connB == nil {
+				continue
+			}
 
-		out, err := connB.SendConfigVerify(ctx, ap.sections)
-		if err != nil {
-			verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
-			continue
-		}
-		if out.Status == statusError {
-			verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
-		}
-	}
-
-	if len(verifyErrors) > 0 {
-		logger().Warn("config reload: verify failed", "errors", len(verifyErrors))
-		return fmt.Errorf("config verify failed: %s", strings.Join(verifyErrors, "; "))
-	}
-
-	// Apply phase: build per-root diff sections and send to affected plugins.
-	logger().Info("config reload: apply phase", "plugins", len(affected))
-	diffSections := buildDiffSections(diff)
-
-	for _, ap := range affected {
-		connB := ap.proc.ConnB()
-		if connB == nil {
-			continue
-		}
-
-		// Filter diff sections to only roots this plugin cares about.
-		// "*" means the plugin wants all roots.
-		roots := ap.proc.Registration().WantsConfigRoots
-		wantsAll := slices.Contains(roots, "*")
-		var pluginDiffSections []rpc.ConfigDiffSection
-		for _, ds := range diffSections {
-			if wantsAll || slices.Contains(roots, ds.Root) {
-				pluginDiffSections = append(pluginDiffSections, ds)
+			out, err := connB.SendConfigVerify(ctx, ap.sections)
+			if err != nil {
+				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
+				continue
+			}
+			if out.Status == statusError {
+				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
 			}
 		}
 
-		if len(pluginDiffSections) == 0 {
-			continue
+		if len(verifyErrors) > 0 {
+			logger().Warn("config reload: verify failed", "errors", len(verifyErrors))
+			return fmt.Errorf("config verify failed: %s", strings.Join(verifyErrors, "; "))
 		}
+	}
 
-		out, err := connB.SendConfigApply(ctx, pluginDiffSections)
-		if err != nil {
-			logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
-		} else if out.Status == statusError {
-			logger().Error("config apply rejected", "plugin", ap.proc.Name(), "error", out.Error)
+	// Apply phase: send diffs to plugins, then apply reactor peer changes.
+	if len(affected) > 0 {
+		logger().Info("config reload: apply phase", "plugins", len(affected))
+		diffSections := buildDiffSections(diff)
+
+		for _, ap := range affected {
+			connB := ap.proc.ConnB()
+			if connB == nil {
+				continue
+			}
+
+			// Filter diff sections to only roots this plugin cares about.
+			// "*" means the plugin wants all roots.
+			roots := ap.proc.Registration().WantsConfigRoots
+			wantsAll := slices.Contains(roots, "*")
+			var pluginDiffSections []rpc.ConfigDiffSection
+			for _, ds := range diffSections {
+				if wantsAll || slices.Contains(roots, ds.Root) {
+					pluginDiffSections = append(pluginDiffSections, ds)
+				}
+			}
+
+			if len(pluginDiffSections) == 0 {
+				continue
+			}
+
+			out, err := connB.SendConfigApply(ctx, pluginDiffSections)
+			if err != nil {
+				logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
+			} else if out.Status == statusError {
+				logger().Error("config apply rejected", "plugin", ap.proc.Name(), "error", out.Error)
+			}
+		}
+	}
+
+	// Apply reactor peer changes after plugins have applied.
+	if bgpChanged {
+		bgpSubtree, _ := newTree["bgp"].(map[string]any)
+		if bgpSubtree == nil {
+			bgpSubtree = map[string]any{}
+		}
+		if err := s.reactor.ApplyConfigDiff(bgpSubtree); err != nil {
+			logger().Error("config reload: reactor apply failed", "error", err)
 		}
 	}
 
 	// Update running config.
 	s.reactor.SetConfigTree(newTree)
-	logger().Info("config reload completed", "plugins", len(affected))
+	logger().Info("config reload completed")
 
 	return nil
 }

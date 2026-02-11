@@ -119,6 +119,14 @@ func (m *mockReactor) Reload() error {
 	return nil
 }
 
+func (m *mockReactor) VerifyConfig(_ map[string]any) error {
+	return nil
+}
+
+func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error {
+	return nil
+}
+
 func (m *mockReactor) AddDynamicPeer(config DynamicPeerConfig) error {
 	m.addedPeers = append(m.addedPeers, config)
 	return nil

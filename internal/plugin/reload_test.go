@@ -404,6 +404,25 @@ func TestReloadFromDiskNoLoader(t *testing.T) {
 	assert.Contains(t, err.Error(), "no config loader")
 }
 
+// TestHasConfigLoader verifies the HasConfigLoader predicate.
+//
+// VALIDATES: Returns false before SetConfigLoader, true after.
+// PREVENTS: SIGHUP handler taking coordinator path when no loader is configured.
+func TestHasConfigLoader(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReloadReactor{tree: map[string]any{}}
+	s := newTestReloadServer(t, reactor, nil)
+
+	assert.False(t, s.HasConfigLoader(), "should be false before SetConfigLoader")
+
+	s.SetConfigLoader(func() (map[string]any, error) {
+		return map[string]any{}, nil
+	})
+
+	assert.True(t, s.HasConfigLoader(), "should be true after SetConfigLoader")
+}
+
 // TestDiffMapsLocal verifies the local diffMaps implementation.
 //
 // VALIDATES: Diff computation matches expected behavior for add/remove/change.

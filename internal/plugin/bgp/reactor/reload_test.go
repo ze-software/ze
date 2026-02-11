@@ -388,3 +388,266 @@ func TestPeerSettingsEqual(t *testing.T) {
 		})
 	}
 }
+
+// --- VerifyConfig / ApplyConfigDiff tests ---
+
+// makeBGPTree builds a bgp config tree with the given peers.
+// Each peer is defined by address key → field map (strings, matching config tree format).
+func makeBGPTree(peers map[string]map[string]string) map[string]any {
+	peerMap := make(map[string]any, len(peers))
+	for addr, fields := range peers {
+		m := make(map[string]any, len(fields))
+		for k, v := range fields {
+			m[k] = v
+		}
+		peerMap[addr] = m
+	}
+	return map[string]any{
+		"peer": peerMap,
+	}
+}
+
+// TestReactorVerifyConfigValid verifies that VerifyConfig accepts valid peer settings.
+//
+// VALIDATES: Valid peer config tree passes verification without error.
+// PREVENTS: VerifyConfig rejecting well-formed config.
+func TestReactorVerifyConfigValid(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	adapter := &reactorAPIAdapter{r: r}
+	bgpTree := makeBGPTree(map[string]map[string]string{
+		"10.0.0.1": {"peer-as": "65001", "local-as": "65000"},
+		"10.0.0.2": {"peer-as": "65002", "local-as": "65000"},
+	})
+
+	err := adapter.VerifyConfig(bgpTree)
+	require.NoError(t, err)
+}
+
+// TestReactorVerifyConfigInvalidAddress verifies that VerifyConfig rejects invalid peer address.
+//
+// VALIDATES: Invalid peer address key → error returned.
+// PREVENTS: Bad address silently accepted, causing crash on AddPeer.
+func TestReactorVerifyConfigInvalidAddress(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	adapter := &reactorAPIAdapter{r: r}
+	bgpTree := makeBGPTree(map[string]map[string]string{
+		"not-an-ip": {"peer-as": "65001", "local-as": "65000"},
+	})
+
+	err := adapter.VerifyConfig(bgpTree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not-an-ip")
+}
+
+// TestReactorVerifyConfigNoMutation verifies that VerifyConfig does NOT modify reactor state.
+//
+// VALIDATES: Calling VerifyConfig does not add, remove, or modify peers.
+// PREVENTS: Verify phase accidentally applying config changes.
+func TestReactorVerifyConfigNoMutation(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	// Add an existing peer.
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Passive = true
+	_ = r.AddPeer(settings)
+
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	// Snapshot peer count before verify.
+	peersBefore := len(r.Peers())
+
+	adapter := &reactorAPIAdapter{r: r}
+	// Verify a config that would add a new peer and remove existing one.
+	bgpTree := makeBGPTree(map[string]map[string]string{
+		"10.0.0.99": {"peer-as": "65099", "local-as": "65000"},
+	})
+
+	err := adapter.VerifyConfig(bgpTree)
+	require.NoError(t, err)
+
+	// Peer count must be unchanged — verify is read-only.
+	peersAfter := len(r.Peers())
+	assert.Equal(t, peersBefore, peersAfter, "VerifyConfig must not mutate reactor state")
+}
+
+// TestReactorApplyConfigDiffAddPeer verifies that ApplyConfigDiff adds new peers.
+//
+// VALIDATES: Peer in new config but not current → added to reactor.
+// PREVENTS: New peers being silently ignored during apply.
+func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	assert.Empty(t, r.Peers(), "should start with no peers")
+
+	adapter := &reactorAPIAdapter{r: r}
+	bgpTree := makeBGPTree(map[string]map[string]string{
+		"10.0.0.1": {"peer-as": "65001", "local-as": "65000"},
+	})
+
+	err := adapter.ApplyConfigDiff(bgpTree)
+	require.NoError(t, err)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
+}
+
+// TestReactorApplyConfigDiffRemovePeer verifies that ApplyConfigDiff removes peers not in new config.
+//
+// VALIDATES: Peer in reactor but not in new config → removed.
+// PREVENTS: Stale peers remaining after config change.
+func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Passive = true
+	_ = r.AddPeer(settings)
+
+	require.NoError(t, r.Start())
+	defer r.Stop()
+	require.Len(t, r.Peers(), 1)
+
+	adapter := &reactorAPIAdapter{r: r}
+	// Empty peer map — peer should be removed.
+	bgpTree := makeBGPTree(map[string]map[string]string{})
+
+	err := adapter.ApplyConfigDiff(bgpTree)
+	require.NoError(t, err)
+
+	assert.Empty(t, r.Peers(), "peer should be removed")
+}
+
+// TestReactorApplyConfigDiffChangedPeer verifies that ApplyConfigDiff restarts changed peers.
+//
+// VALIDATES: Peer with changed settings → removed and re-added with new settings.
+// PREVENTS: Changed peer keeping old settings after config reload.
+func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Passive = true
+	settings.HoldTime = 90 * time.Second
+	_ = r.AddPeer(settings)
+
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+	assert.Equal(t, 90*time.Second, peers[0].Settings().HoldTime)
+
+	adapter := &reactorAPIAdapter{r: r}
+	// Same peer, different hold time.
+	bgpTree := makeBGPTree(map[string]map[string]string{
+		"10.0.0.1": {"peer-as": "65002", "local-as": "65001", "hold-time": "30"},
+	})
+
+	err := adapter.ApplyConfigDiff(bgpTree)
+	require.NoError(t, err)
+
+	peers = r.Peers()
+	require.Len(t, peers, 1)
+	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
+	assert.Equal(t, 30*time.Second, peers[0].Settings().HoldTime)
+}
+
+// TestReactorReloadBackwardCompat verifies that existing Reload() still works.
+//
+// VALIDATES: Reload() wrapper using reloadFunc still adds/removes peers.
+// PREVENTS: Refactoring breaking the existing Reload() code path.
+func TestReactorReloadBackwardCompat(t *testing.T) {
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.conf")
+
+	require.NoError(t, os.WriteFile(configPath, []byte(emptyConfig), 0o600))
+
+	cfg := &Config{
+		ConfigPath: configPath,
+		ListenAddr: "127.0.0.1:0",
+	}
+	r := New(cfg)
+	r.SetReloadFunc(simpleReloadFunc)
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	assert.Empty(t, r.Peers())
+
+	// Update config to add a peer.
+	updatedConfig := `ze bgp {
+    neighbor 10.0.0.1 {
+        local-as 65001;
+        peer-as 65002;
+        passive;
+    }
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(updatedConfig), 0o600))
+
+	adapter := &reactorAPIAdapter{r: r}
+	err := adapter.Reload()
+	require.NoError(t, err)
+
+	require.Len(t, r.Peers(), 1)
+	assert.Equal(t, "10.0.0.1", r.Peers()[0].Settings().Address.String())
+}
+
+// TestReactorVerifyConfigNoPeerSection verifies VerifyConfig with no peer section.
+//
+// VALIDATES: BGP tree without "peer" key → valid (no peers to configure).
+// PREVENTS: Nil pointer or panic when peer section is missing.
+func TestReactorVerifyConfigNoPeerSection(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+	require.NoError(t, r.Start())
+	defer r.Stop()
+
+	adapter := &reactorAPIAdapter{r: r}
+	bgpTree := map[string]any{
+		"router-id": "1.2.3.4",
+	}
+
+	err := adapter.VerifyConfig(bgpTree)
+	require.NoError(t, err)
+}
+
+// TestReactorApplyConfigDiffNoPeerSection verifies ApplyConfigDiff removes all when no peer section.
+//
+// VALIDATES: BGP tree without "peer" key → all existing peers removed.
+// PREVENTS: Missing peer section silently leaving stale peers.
+func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Passive = true
+	_ = r.AddPeer(settings)
+
+	require.NoError(t, r.Start())
+	defer r.Stop()
+	require.Len(t, r.Peers(), 1)
+
+	adapter := &reactorAPIAdapter{r: r}
+	bgpTree := map[string]any{
+		"router-id": "1.2.3.4",
+	}
+
+	err := adapter.ApplyConfigDiff(bgpTree)
+	require.NoError(t, err)
+
+	assert.Empty(t, r.Peers(), "all peers should be removed when no peer section")
+}

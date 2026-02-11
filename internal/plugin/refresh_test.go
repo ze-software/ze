@@ -45,6 +45,8 @@ func (m *mockReactorRefresh) Peers() []PeerInfo                                {
 func (m *mockReactorRefresh) Stats() ReactorStats                              { return ReactorStats{} }
 func (m *mockReactorRefresh) Stop()                                            {}
 func (m *mockReactorRefresh) Reload() error                                    { return nil }
+func (m *mockReactorRefresh) VerifyConfig(_ map[string]any) error              { return nil }
+func (m *mockReactorRefresh) ApplyConfigDiff(_ map[string]any) error           { return nil }
 func (m *mockReactorRefresh) AddDynamicPeer(_ DynamicPeerConfig) error         { return nil }
 func (m *mockReactorRefresh) RemovePeer(_ netip.Addr) error                    { return nil }
 func (m *mockReactorRefresh) AnnounceRoute(_ string, _ RouteSpec) error        { return nil }

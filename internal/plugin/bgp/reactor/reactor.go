@@ -1000,6 +1000,63 @@ func (a *reactorAPIAdapter) Reload() error {
 		return fmt.Errorf("reload config: %w", err)
 	}
 
+	return a.reconcilePeers(newPeers, "reload")
+}
+
+// VerifyConfig validates peer settings without modifying reactor state.
+// When reloadFunc is available (production), uses the full config parsing pipeline
+// for accurate validation of all peer fields. Falls back to parsePeersFromTree
+// for basic address validation in tests.
+// Called by the reload coordinator during the verify phase.
+func (a *reactorAPIAdapter) VerifyConfig(bgpTree map[string]any) error {
+	if peers, err := a.loadPeersFullOrTree(bgpTree); err != nil {
+		return err
+	} else {
+		_ = peers // verify only — discard result
+		return nil
+	}
+}
+
+// ApplyConfigDiff applies peer changes from config.
+// When reloadFunc is available (production), uses the full config parsing pipeline
+// so PeerSettings are complete (all fields from configToPeer). Falls back to
+// parsePeersFromTree in tests.
+// Called by the reload coordinator during the apply phase.
+func (a *reactorAPIAdapter) ApplyConfigDiff(bgpTree map[string]any) error {
+	newPeers, err := a.loadPeersFullOrTree(bgpTree)
+	if err != nil {
+		return fmt.Errorf("apply config diff: %w", err)
+	}
+
+	return a.reconcilePeers(newPeers, "apply config diff")
+}
+
+// loadPeersFullOrTree loads peers using the full config parsing pipeline when
+// reloadFunc is available (production), or falls back to parsePeersFromTree
+// for basic parsing in tests. The full pipeline produces PeerSettings with all
+// fields populated (capabilities, static routes, etc.), avoiding false diffs
+// in peerSettingsEqual.
+func (a *reactorAPIAdapter) loadPeersFullOrTree(bgpTree map[string]any) ([]*PeerSettings, error) {
+	r := a.r
+
+	configPath := r.config.ConfigPath
+	r.mu.RLock()
+	reloadFn := r.reloadFunc
+	r.mu.RUnlock()
+
+	if reloadFn != nil && configPath != "" {
+		return reloadFn(configPath)
+	}
+
+	return parsePeersFromTree(bgpTree)
+}
+
+// reconcilePeers diffs newPeers against the reactor's current peers and
+// stops removed/changed peers, adds new/changed peers.
+// The label parameter is used for log messages (e.g., "reload", "apply config diff").
+func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label string) error {
+	r := a.r
+
 	// Build map of new peer settings for quick lookup.
 	newPeerSettings := make(map[string]*PeerSettings)
 	for _, p := range newPeers {
@@ -1021,19 +1078,16 @@ func (a *reactorAPIAdapter) Reload() error {
 	for addr := range currentPeers {
 		newSettings, exists := newPeerSettings[addr]
 		if !exists {
-			// Peer removed from config.
 			toRemove = append(toRemove, addr)
 		} else if !peerSettingsEqual(currentPeers[addr], newSettings) {
-			// Peer settings changed - remove and re-add.
 			toRemove = append(toRemove, addr)
 			toAdd = append(toAdd, newSettings)
-			reactorLogger().Debug("reload: peer settings changed", "peer", addr)
+			reactorLogger().Debug(label+": peer settings changed", "peer", addr)
 		}
 	}
 
 	for addr, settings := range newPeerSettings {
 		if _, exists := currentPeers[addr]; !exists {
-			// New peer in config.
 			toAdd = append(toAdd, settings)
 		}
 	}
@@ -1044,7 +1098,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		if peer, ok := r.peers[addr]; ok {
 			peer.Stop()
 			delete(r.peers, addr)
-			reactorLogger().Debug("reload: removed peer", "peer", addr)
+			reactorLogger().Debug(label+": removed peer", "peer", addr)
 		}
 		r.mu.Unlock()
 	}
@@ -1055,7 +1109,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		if err := r.AddPeer(settings); err != nil {
 			addErrors = append(addErrors, fmt.Errorf("add peer %s: %w", settings.Address, err))
 		} else {
-			reactorLogger().Debug("reload: added peer", "peer", settings.Address)
+			reactorLogger().Debug(label+": added peer", "peer", settings.Address)
 		}
 	}
 
@@ -1064,6 +1118,85 @@ func (a *reactorAPIAdapter) Reload() error {
 	}
 
 	return nil
+}
+
+// parsePeersFromTree extracts PeerSettings from a BGP config tree.
+// The tree uses "peer" as the key, with peer addresses as sub-keys.
+// Field values are strings (from config parser's Tree.ToMap()).
+func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
+	peerSection, ok := bgpTree["peer"]
+	if !ok {
+		return nil, nil // No peers configured.
+	}
+
+	peerMap, ok := peerSection.(map[string]any)
+	if !ok {
+		return nil, fmt.Errorf("invalid peer section type: %T", peerSection)
+	}
+
+	var peers []*PeerSettings
+	for addrStr, peerData := range peerMap {
+		addr, err := netip.ParseAddr(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid peer address %q: %w", addrStr, err)
+		}
+
+		fields, ok := peerData.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid peer data for %s: %T", addrStr, peerData)
+		}
+
+		var localAS, peerAS uint32
+		if v, ok := fields["local-as"].(string); ok {
+			parseUint32FromString(v, &localAS)
+		}
+		if v, ok := fields["peer-as"].(string); ok {
+			parseUint32FromString(v, &peerAS)
+		}
+
+		settings := NewPeerSettings(addr, localAS, peerAS, 0)
+
+		// Parse optional fields.
+		if v, ok := fields["hold-time"].(string); ok {
+			var ht uint32
+			parseUint32FromString(v, &ht)
+			if ht > 0 {
+				settings.HoldTime = time.Duration(ht) * time.Second
+			}
+		}
+		if v, ok := fields["passive"].(string); ok {
+			settings.Passive = v == "true"
+		}
+		if v, ok := fields["router-id"].(string); ok {
+			if rid, err := netip.ParseAddr(v); err == nil && rid.Is4() {
+				settings.RouterID = ipv4ToUint32(rid)
+			}
+		}
+
+		peers = append(peers, settings)
+	}
+
+	return peers, nil
+}
+
+// parseUint32FromString parses a decimal string into a uint32.
+func parseUint32FromString(s string, out *uint32) {
+	var n uint64
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	if n <= 0xFFFFFFFF {
+		*out = uint32(n)
+	}
+}
+
+// ipv4ToUint32 converts an IPv4 address to a uint32 (network byte order).
+func ipv4ToUint32(addr netip.Addr) uint32 {
+	b := addr.As4()
+	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
 // peerSettingsEqual compares two PeerSettings for reload diffing.
@@ -4178,11 +4311,23 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.Stop()
 	})
 	r.signals.OnReload(func() {
-		adapter := &reactorAPIAdapter{r: r}
-		if err := adapter.Reload(); err != nil {
-			reactorLogger().Error("config reload failed", "error", err)
+		// Use the reload coordinator (verify→apply protocol with plugins)
+		// when the API server has a config loader configured. Falls back
+		// to direct reload via reloadFunc otherwise (production default
+		// until config loader is wired).
+		if r.api != nil && r.api.HasConfigLoader() {
+			if err := r.api.ReloadFromDisk(r.ctx); err != nil {
+				reactorLogger().Error("config reload failed", "error", err)
+			} else {
+				reactorLogger().Info("config reloaded via coordinator")
+			}
 		} else {
-			reactorLogger().Info("config reloaded")
+			adapter := &reactorAPIAdapter{r: r}
+			if err := adapter.Reload(); err != nil {
+				reactorLogger().Error("config reload failed", "error", err)
+			} else {
+				reactorLogger().Info("config reloaded")
+			}
 		}
 	})
 	r.signals.StartWithContext(r.ctx)

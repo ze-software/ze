@@ -232,8 +232,17 @@ type ReactorInterface interface {
 	// Used by "bgp peer <ip> remove" command for runtime peer management.
 	RemovePeer(addr netip.Addr) error
 
-	// Reload reloads the configuration.
+	// Reload reloads the configuration from the config file via reloadFunc.
 	Reload() error
+
+	// VerifyConfig validates peer settings from a BGP config tree without modifying state.
+	// Called by the reload coordinator during the verify phase.
+	VerifyConfig(bgpTree map[string]any) error
+
+	// ApplyConfigDiff applies peer changes from a BGP config tree.
+	// Computes diff between current peers and new config, removes/adds as needed.
+	// Called by the reload coordinator during the apply phase.
+	ApplyConfigDiff(bgpTree map[string]any) error
 
 	// AnnounceRoute announces a route to peers matching the selector.
 	// Selector can be "*" for all peers or a specific IP address.
