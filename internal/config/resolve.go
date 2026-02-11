@@ -1,6 +1,9 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"maps"
+)
 
 // templateData holds parsed template information for inheritance resolution.
 type templateData struct {
@@ -41,9 +44,7 @@ func extractTemplateData(tree *Tree) templateData {
 	}
 
 	// Legacy syntax: template { group <name> { ... } }
-	for name, groupTree := range tmpl.GetList("group") {
-		td.named[name] = groupTree
-	}
+	maps.Copy(td.named, tmpl.GetList("group"))
 
 	// Legacy syntax: template { match <pattern> { ... } } — auto-apply.
 	for _, entry := range tmpl.GetListOrdered("match") {

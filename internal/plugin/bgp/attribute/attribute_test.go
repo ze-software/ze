@@ -365,7 +365,7 @@ func TestWriteHeaderToOffset(t *testing.T) {
 	assert.Equal(t, 4, n) // Extended length header
 
 	// Verify bytes before offset are untouched
-	for i := 0; i < offset; i++ {
+	for i := range offset {
 		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
 	}
 

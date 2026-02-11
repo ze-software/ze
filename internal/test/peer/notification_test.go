@@ -85,7 +85,7 @@ func TestNotificationMsg(t *testing.T) {
 			}
 
 			// Check marker
-			for i := 0; i < 16; i++ {
+			for i := range 16 {
 				if got[i] != 0xFF {
 					t.Errorf("marker byte %d = %02x, want FF", i, got[i])
 				}

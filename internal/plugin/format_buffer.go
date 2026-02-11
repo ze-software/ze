@@ -128,7 +128,7 @@ func FormatCommunitiesJSON(data []byte, w io.Writer) error {
 	_, _ = w.Write([]byte("["))
 
 	numComms := len(data) / 4
-	for i := 0; i < numComms; i++ {
+	for i := range numComms {
 		if i > 0 {
 			_, _ = w.Write([]byte(","))
 		}

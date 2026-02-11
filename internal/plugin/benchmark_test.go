@@ -70,7 +70,7 @@ func BenchmarkDispatch(b *testing.B) {
 	for _, tc := range commands {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				benchResp, benchErr = d.Dispatch(ctx, tc.cmd)
 			}
 		})
@@ -92,9 +92,8 @@ func BenchmarkDispatchLookup(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		cmd := commands[i%len(commands)]
 		benchCmd = d.Lookup(cmd)
 	}
@@ -116,7 +115,7 @@ func BenchmarkTokenize(b *testing.B) {
 	for _, tc := range inputs {
 		b.Run(tc.name, func(b *testing.B) {
 			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				_ = tokenize(tc.input)
 			}
 		})
@@ -146,7 +145,7 @@ func BenchmarkEventThroughput(b *testing.B) {
 			b.SetBytes(int64(len(eventBytes)))
 			b.ResetTimer()
 
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				buf.Write(eventBytes) //nolint:errcheck // bytes.Buffer.Write never returns error
 				if buf.Len() > 1<<20 {
 					buf.Reset()
@@ -160,7 +159,7 @@ func BenchmarkEventThroughput(b *testing.B) {
 // This represents the per-connection overhead during plugin/API initialization.
 func BenchmarkPluginStartup(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		d := NewDispatcher()
 		RegisterDefaultHandlers(d)
 		benchCmd = d.Lookup("bgp peer list")
@@ -183,9 +182,8 @@ func BenchmarkConnect(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		ctx := &CommandContext{
 			Server: &Server{reactor: reactor, dispatcher: d},
 			Peer:   "*",
@@ -201,9 +199,8 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 	reactor := &mockReactor{}
 
 	b.ReportAllocs()
-	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		d := NewDispatcher()
 		RegisterDefaultHandlers(d)
 		ctx := &CommandContext{
@@ -218,7 +215,7 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 func generateLargeUpdateEvent(nlriCount int) string {
 	var buf bytes.Buffer
 	buf.WriteString(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":100,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp","as-path":[65001,65002,65003],"next-hop":"10.0.0.1","local-preference":100},"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":[`)
-	for i := 0; i < nlriCount; i++ {
+	for i := range nlriCount {
 		if i > 0 {
 			buf.WriteByte(',')
 		}

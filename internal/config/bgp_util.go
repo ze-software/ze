@@ -68,8 +68,8 @@ func cidrMatch(cidr, ip string) bool {
 // Supports patterns like "2001:db8::*" matching "2001:db8::1".
 func ipv6GlobMatch(pattern, ip string) bool {
 	// Handle trailing wildcard: 2001:db8::*
-	if strings.HasSuffix(pattern, "::*") {
-		prefix := strings.TrimSuffix(pattern, "::*")
+	if before, ok := strings.CutSuffix(pattern, "::*"); ok {
+		prefix := before
 		// The IP should start with the prefix followed by ::
 		if strings.HasPrefix(ip, prefix+"::") {
 			return true
@@ -130,7 +130,7 @@ func normalizeIPv6Parts(parts []string) []string {
 		case p == "" && i > 0 && i < len(parts)-1:
 			// This is the :: expansion point.
 			zerosNeeded := 8 - len(parts) + emptyCount
-			for j := 0; j < zerosNeeded; j++ {
+			for range zerosNeeded {
 				result = append(result, "0")
 			}
 		case p != "":
@@ -158,7 +158,7 @@ func ipv4GlobMatch(pattern, ip string) bool {
 		return false
 	}
 
-	for i := 0; i < 4; i++ {
+	for i := range 4 {
 		if patternParts[i] == "*" {
 			continue // wildcard matches any octet
 		}

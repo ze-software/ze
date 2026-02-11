@@ -620,7 +620,7 @@ func parseBracketedListText(args []string) ([]string, int) {
 				return tokens, i + 1
 			}
 			// Split by comma if present
-			for _, tok := range strings.Split(args[i], ",") {
+			for tok := range strings.SplitSeq(args[i], ",") {
 				tok = strings.TrimSpace(tok)
 				if tok != "" {
 					tokens = append(tokens, tok)
@@ -635,7 +635,7 @@ func parseBracketedListText(args []string) ([]string, int) {
 	if strings.HasPrefix(first, "[") && strings.HasSuffix(first, "]") {
 		inner := first[1 : len(first)-1]
 		var tokens []string
-		for _, tok := range strings.Split(inner, " ") {
+		for tok := range strings.SplitSeq(inner, " ") {
 			tok = strings.TrimSpace(tok)
 			if tok != "" {
 				tokens = append(tokens, tok)
@@ -649,7 +649,7 @@ func parseBracketedListText(args []string) ([]string, int) {
 		var tokens []string
 		// First token without leading bracket
 		firstVal := strings.TrimPrefix(first, "[")
-		for _, tok := range strings.Split(firstVal, ",") {
+		for tok := range strings.SplitSeq(firstVal, ",") {
 			tok = strings.TrimSpace(tok)
 			if tok != "" {
 				tokens = append(tokens, tok)
@@ -661,10 +661,10 @@ func parseBracketedListText(args []string) ([]string, int) {
 		for i := 1; i < len(args); i++ {
 			consumed = i + 1
 			arg := args[i]
-			if strings.HasSuffix(arg, "]") {
+			if before, ok := strings.CutSuffix(arg, "]"); ok {
 				// Last token - strip trailing bracket
-				lastVal := strings.TrimSuffix(arg, "]")
-				for _, tok := range strings.Split(lastVal, ",") {
+				lastVal := before
+				for tok := range strings.SplitSeq(lastVal, ",") {
 					tok = strings.TrimSpace(tok)
 					if tok != "" {
 						tokens = append(tokens, tok)
@@ -673,7 +673,7 @@ func parseBracketedListText(args []string) ([]string, int) {
 				return tokens, consumed
 			}
 			// Middle tokens
-			for _, tok := range strings.Split(arg, ",") {
+			for tok := range strings.SplitSeq(arg, ",") {
 				tok = strings.TrimSpace(tok)
 				if tok != "" {
 					tokens = append(tokens, tok)
@@ -685,7 +685,7 @@ func parseBracketedListText(args []string) ([]string, int) {
 
 	// Case 4: Single value or comma-separated list without brackets
 	var tokens []string
-	for _, tok := range strings.Split(first, ",") {
+	for tok := range strings.SplitSeq(first, ",") {
 		tok = strings.TrimSpace(tok)
 		if tok != "" {
 			tokens = append(tokens, tok)

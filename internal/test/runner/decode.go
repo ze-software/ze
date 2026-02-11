@@ -23,18 +23,18 @@ var (
 func ColoredString(m *decode.DecodedMessage, c *Colors) string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("  %s%s%s (len=%d)\n", c.Cyan("type:"), "      ", m.Type, m.Length))
+	fmt.Fprintf(&sb, "  %s%s%s (len=%d)\n", c.Cyan("type:"), "      ", m.Type, m.Length)
 
 	for _, attr := range m.Attributes {
-		sb.WriteString(fmt.Sprintf("    %s: %s\n", c.Gray(attr.Name), attr.Value))
+		fmt.Fprintf(&sb, "    %s: %s\n", c.Gray(attr.Name), attr.Value)
 	}
 
 	if len(m.NLRI) > 0 {
-		sb.WriteString(fmt.Sprintf("  %s%s%s\n", c.Gray("nlri:"), "      ", strings.Join(m.NLRI, ", ")))
+		fmt.Fprintf(&sb, "  %s%s%s\n", c.Gray("nlri:"), "      ", strings.Join(m.NLRI, ", "))
 	}
 
 	if len(m.Withdrawn) > 0 {
-		sb.WriteString(fmt.Sprintf("  %s%s%s\n", c.Gray("withdrawn:"), " ", strings.Join(m.Withdrawn, ", ")))
+		fmt.Fprintf(&sb, "  %s%s%s\n", c.Gray("withdrawn:"), " ", strings.Join(m.Withdrawn, ", "))
 	}
 
 	return sb.String()
@@ -78,11 +78,11 @@ func ColoredDiff(expected, received string, c *Colors) string {
 
 		switch {
 		case !hasExp:
-			sb.WriteString(fmt.Sprintf("  %s: %s (unexpected)\n", key, c.Red("+"+rcvVal)))
+			fmt.Fprintf(&sb, "  %s: %s (unexpected)\n", key, c.Red("+"+rcvVal))
 		case !hasRcv:
-			sb.WriteString(fmt.Sprintf("  %s: %s (missing)\n", key, c.Green("-"+expVal)))
+			fmt.Fprintf(&sb, "  %s: %s (missing)\n", key, c.Green("-"+expVal))
 		case expVal != rcvVal:
-			sb.WriteString(fmt.Sprintf("  %s: %s %s\n", key, c.Green("-"+expVal), c.Red("+"+rcvVal)))
+			fmt.Fprintf(&sb, "  %s: %s %s\n", key, c.Green("-"+expVal), c.Red("+"+rcvVal))
 		}
 	}
 
@@ -90,13 +90,13 @@ func ColoredDiff(expected, received string, c *Colors) string {
 	expNLRI := strings.Join(expMsg.NLRI, ",")
 	rcvNLRI := strings.Join(rcvMsg.NLRI, ",")
 	if expNLRI != rcvNLRI {
-		sb.WriteString(fmt.Sprintf("  NLRI: %s %s\n", c.Green("-"+expNLRI), c.Red("+"+rcvNLRI)))
+		fmt.Fprintf(&sb, "  NLRI: %s %s\n", c.Green("-"+expNLRI), c.Red("+"+rcvNLRI))
 	}
 
 	// Find byte-level differences
 	byteDiff := decode.FindByteDiff(expected, received)
 	if byteDiff != "" {
-		sb.WriteString(fmt.Sprintf("  %s %s\n", c.Gray("raw diff:"), byteDiff))
+		fmt.Fprintf(&sb, "  %s %s\n", c.Gray("raw diff:"), byteDiff)
 	}
 
 	return sb.String()

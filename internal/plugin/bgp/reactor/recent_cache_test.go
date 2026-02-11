@@ -154,26 +154,24 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 	const opsPerGoroutine = 100
 
 	// Concurrent writers
-	for g := 0; g < goroutines; g++ {
+	for g := range goroutines {
 		wg.Add(1)
 		go func(base int) {
 			defer wg.Done()
-			for i := 0; i < opsPerGoroutine; i++ {
+			for i := range opsPerGoroutine {
 				cache.Add(newTestUpdate(uint64(base*opsPerGoroutine + i))) //nolint:gosec // G115: test values are small
 			}
 		}(g)
 	}
 
 	// Concurrent readers (using Contains to avoid removing entries)
-	for g := 0; g < goroutines; g++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for i := 0; i < opsPerGoroutine; i++ {
+	for range goroutines {
+		wg.Go(func() {
+			for i := range opsPerGoroutine {
 				cache.Contains(uint64(i)) //nolint:gosec // G115: test values are small
 				_ = cache.Len()
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

@@ -169,6 +169,7 @@ func TestServer_HandleStateUp(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
@@ -202,6 +203,7 @@ func TestServer_HandleStateUp_ExcludesSelf(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
@@ -555,6 +557,7 @@ func TestServer_FilterReplayByFamily(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")

@@ -18,6 +18,7 @@ func TestBuildEOR_IPv4Unicast(t *testing.T) {
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
+		return
 	}
 
 	// IPv4 unicast EOR is empty UPDATE
@@ -48,6 +49,7 @@ func TestBuildEOR_IPv6Unicast(t *testing.T) {
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
+		return
 	}
 
 	// IPv6 unicast EOR uses MP_UNREACH_NLRI attribute
@@ -129,6 +131,7 @@ func TestBuildEOR_VPNv4(t *testing.T) {
 
 	if update == nil {
 		t.Fatal("BuildEOR returned nil")
+		return
 	}
 
 	// VPNv4 uses MP_UNREACH_NLRI (not empty UPDATE like IPv4 unicast)

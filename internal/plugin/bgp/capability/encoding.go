@@ -1,5 +1,7 @@
 package capability
 
+import "slices"
+
 // EncodingCaps holds capabilities that affect wire encoding.
 // Shared between Negotiated and EncodingContexts (recv/send).
 // Immutable after session creation.
@@ -26,12 +28,7 @@ type EncodingCaps struct {
 // SupportsFamily returns true if the family was negotiated.
 // RFC 4760: A family is supported only if both peers advertise it.
 func (e *EncodingCaps) SupportsFamily(f Family) bool {
-	for _, fam := range e.Families {
-		if fam == f {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.Families, f)
 }
 
 // AddPathFor returns the negotiated ADD-PATH mode for a family.

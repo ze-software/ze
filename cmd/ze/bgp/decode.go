@@ -350,11 +350,11 @@ const (
 //   - "/path/to/prog" → ("", ModeFork, path, nil) - execute path directly
 //   - "/path/to/prog --arg" → ("", ModeFork, path, ["--arg"]) - path with args
 func parsePluginName(input string) (name string, mode PluginMode, path string, args []string) {
-	if strings.HasPrefix(input, "ze.") {
-		return strings.TrimPrefix(input, "ze."), ModeInternal, "", nil
+	if after, ok := strings.CutPrefix(input, "ze."); ok {
+		return after, ModeInternal, "", nil
 	}
-	if strings.HasPrefix(input, "ze-") {
-		return strings.TrimPrefix(input, "ze-"), ModeDirect, "", nil
+	if after, ok := strings.CutPrefix(input, "ze-"); ok {
+		return after, ModeDirect, "", nil
 	}
 	if strings.Contains(input, "/") {
 		// Path mode: split into binary path and arguments.
@@ -430,8 +430,8 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 	if scanner.Scan() {
 		line := scanner.Text()
 		// Parse: "decoded json <json>" or "decoded unknown"
-		if strings.HasPrefix(line, "decoded json ") {
-			jsonStr := strings.TrimPrefix(line, "decoded json ")
+		if after, ok := strings.CutPrefix(line, "decoded json "); ok {
+			jsonStr := after
 			if err := json.Unmarshal([]byte(jsonStr), &result); err == nil {
 				_ = cmd.Wait()
 				return result
@@ -596,8 +596,8 @@ func invokePluginSubprocess(pluginName, request string) any {
 	scanner := bufio.NewScanner(stdout)
 	if scanner.Scan() {
 		line := scanner.Text()
-		if strings.HasPrefix(line, "decoded json ") {
-			jsonStr := strings.TrimPrefix(line, "decoded json ")
+		if after, ok := strings.CutPrefix(line, "decoded json "); ok {
+			jsonStr := after
 			// Try array first (EVPN returns array), then map (FlowSpec returns map)
 			var arrResult []any
 			if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
@@ -695,8 +695,8 @@ func invokePluginInternal(pluginName, request string) any {
 // parsePluginResponse parses the "decoded json ..." response from a plugin.
 func parsePluginResponse(output string) any {
 	line := strings.TrimSpace(output)
-	if strings.HasPrefix(line, "decoded json ") {
-		jsonStr := strings.TrimPrefix(line, "decoded json ")
+	if after, ok := strings.CutPrefix(line, "decoded json "); ok {
+		jsonStr := after
 		var arrResult []any
 		if err := json.Unmarshal([]byte(jsonStr), &arrResult); err == nil {
 			return arrResult
@@ -942,7 +942,7 @@ func parseASPathZe(data []byte) []uint32 {
 			break
 		}
 
-		for i := 0; i < segLen; i++ {
+		for range segLen {
 			var asn uint32
 			if asnSize == 4 {
 				asn = binary.BigEndian.Uint32(data[offset : offset+4])
@@ -1299,7 +1299,7 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 		case 1091: // Unreserved Bandwidth (8 values)
 			if len(value) >= 32 {
 				bws := make([]float64, 8)
-				for i := 0; i < 8; i++ {
+				for i := range 8 {
 					bws[i] = float64(math.Float32frombits(binary.BigEndian.Uint32(value[i*4:])))
 				}
 				result["unreserved-bandwidth"] = bws
@@ -1629,7 +1629,7 @@ func hasValidMarker(data []byte) bool {
 	if len(data) < 16 {
 		return false
 	}
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if data[i] != 0xFF {
 			return false
 		}

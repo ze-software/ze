@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 )
@@ -269,11 +270,12 @@ func parseGenericBlock(tok *config.Tokenizer) (map[string]any, error) {
 						return nil, err
 					}
 					// Store as "key value" -> nested
-					fullKey := key
+					var fullKey strings.Builder
+					fullKey.WriteString(key)
 					for _, v := range values {
-						fullKey += " " + v
+						fullKey.WriteString(" " + v)
 					}
-					result[fullKey] = nested
+					result[fullKey.String()] = nested
 					values = nil // Reset - handled as nested block
 					break
 				}
@@ -287,14 +289,14 @@ func parseGenericBlock(tok *config.Tokenizer) (map[string]any, error) {
 				tok.Next() // consume ;
 
 				// Join values
-				value := ""
+				var value strings.Builder
 				for i, v := range values {
 					if i > 0 {
-						value += " "
+						value.WriteString(" ")
 					}
-					value += v
+					value.WriteString(v)
 				}
-				result[key] = value
+				result[key] = value.String()
 			}
 
 		case config.TokenSemicolon:

@@ -63,7 +63,7 @@ func HexDecode(buf []byte, off int, hex string) (int, error) {
 	}
 
 	n := len(hex) / 2
-	for i := 0; i < n; i++ {
+	for i := range n {
 		hi := hexDecodeTable[hex[i*2]]
 		lo := hexDecodeTable[hex[i*2+1]]
 		if hi == 0xFF || lo == 0xFF {

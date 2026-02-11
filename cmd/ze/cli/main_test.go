@@ -543,6 +543,7 @@ func TestCommandTree(t *testing.T) {
 	daemon := tree.Children["daemon"]
 	if daemon == nil {
 		t.Fatal("daemon command missing")
+		return
 	}
 	if _, ok := daemon.Children["shutdown"]; !ok {
 		t.Error("daemon missing shutdown subcommand")
@@ -555,6 +556,7 @@ func TestCommandTree(t *testing.T) {
 	peer := tree.Children["peer"]
 	if peer == nil {
 		t.Fatal("peer command missing")
+		return
 	}
 	if _, ok := peer.Children["list"]; !ok {
 		t.Error("peer missing list subcommand")
@@ -567,10 +569,12 @@ func TestCommandTree(t *testing.T) {
 	rib := tree.Children["rib"]
 	if rib == nil {
 		t.Fatal("rib command missing")
+		return
 	}
 	ribShow := rib.Children["show"]
 	if ribShow == nil {
 		t.Fatal("rib show command missing")
+		return
 	}
 	if _, ok := ribShow.Children["in"]; !ok {
 		t.Error("rib show missing 'in' subcommand")

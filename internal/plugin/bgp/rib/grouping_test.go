@@ -137,7 +137,7 @@ func TestGroupByAttributes_DeterministicOrder(t *testing.T) {
 
 	// Run multiple times to verify determinism
 	var firstOrder []string
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		groups := GroupByAttributes(routes)
 		order := make([]string, len(groups))
 		for j, g := range groups {
@@ -480,7 +480,7 @@ func TestGroupByAttributesTwoLevel_Deterministic(t *testing.T) {
 	var firstAttrKeys []string
 	var firstASPathCounts []int
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		groups := GroupByAttributesTwoLevel(routes)
 
 		attrKeys := make([]string, len(groups))

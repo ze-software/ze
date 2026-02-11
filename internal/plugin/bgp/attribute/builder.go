@@ -140,10 +140,7 @@ func (b *Builder) Len() int {
 		var asPathLen int
 		remaining := len(b.asPath)
 		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
-			}
+			chunk := min(remaining, MaxASPathSegmentLength)
 			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
 			remaining -= chunk
 		}
@@ -223,10 +220,7 @@ func (b *Builder) WriteTo(buf []byte) int {
 		var asPathLen int
 		remaining := len(b.asPath)
 		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
-			}
+			chunk := min(remaining, MaxASPathSegmentLength)
 			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
 			remaining -= chunk
 		}
@@ -248,14 +242,11 @@ func (b *Builder) WriteTo(buf []byte) int {
 		remaining = len(b.asPath)
 		idx := 0
 		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
-			}
+			chunk := min(remaining, MaxASPathSegmentLength)
 			buf[off] = byte(ASSequence)
 			buf[off+1] = byte(chunk)
 			off += 2
-			for i := 0; i < chunk; i++ {
+			for i := range chunk {
 				binary.BigEndian.PutUint32(buf[off:], b.asPath[idx+i])
 				off += 4
 			}

@@ -185,7 +185,7 @@ func TestRejectTooManyFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var sb strings.Builder
-			for i := 0; i < tt.fileCount; i++ {
+			for i := range tt.fileCount {
 				term := "EOF" + strings.Repeat("X", i) // Unique terminators
 				sb.WriteString("tmpfs=file" + string(rune('0'+i)) + ".txt:terminator=" + term + "\n")
 				sb.WriteString("content\n")

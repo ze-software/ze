@@ -16,6 +16,7 @@ import (
 	"errors"
 	"net"
 	"regexp"
+	"slices"
 	"sync"
 	"time"
 )
@@ -130,12 +131,7 @@ func (s *Server) Match(pattern string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, msg := range s.messages {
-		if re.MatchString(msg) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(s.messages, re.MatchString)
 }
 
 // Close stops the server and releases resources.

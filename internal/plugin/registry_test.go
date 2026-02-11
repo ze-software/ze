@@ -32,6 +32,7 @@ func TestCommandRegistry_Register(t *testing.T) {
 	cmd := registry.Lookup("myapp status")
 	if cmd == nil {
 		t.Fatal("Lookup returned nil for registered command")
+		return
 	}
 	if cmd.Name != "myapp status" {
 		t.Errorf("expected name 'myapp status', got %q", cmd.Name)
@@ -47,6 +48,7 @@ func TestCommandRegistry_Register(t *testing.T) {
 	cmd = registry.Lookup("myapp reload")
 	if cmd == nil {
 		t.Fatal("Lookup returned nil for myapp reload")
+		return
 	}
 	if cmd.Timeout != 60*time.Second {
 		t.Errorf("expected 60s timeout, got %v", cmd.Timeout)

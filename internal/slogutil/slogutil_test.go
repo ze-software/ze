@@ -876,7 +876,7 @@ func TestLazyLoggerConcurrentAccess(t *testing.T) {
 	start := make(chan struct{})
 
 	// Launch goroutines that all wait for start signal
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		go func() {
 			<-start // Wait for signal
 			results <- lazy()
@@ -888,7 +888,7 @@ func TestLazyLoggerConcurrentAccess(t *testing.T) {
 
 	// Collect all results
 	var loggers []*slog.Logger
-	for i := 0; i < numGoroutines; i++ {
+	for range numGoroutines {
 		loggers = append(loggers, <-results)
 	}
 

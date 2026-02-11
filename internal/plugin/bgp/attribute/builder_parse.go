@@ -132,8 +132,8 @@ func (b *Builder) ParseCommunity(s string) error {
 	s = strings.TrimSuffix(s, "]")
 	s = strings.TrimSpace(s)
 
-	tokens := strings.Fields(s)
-	for _, tok := range tokens {
+	tokens := strings.FieldsSeq(s)
+	for tok := range tokens {
 		comm, err := parseSingleCommunity(tok)
 		if err != nil {
 			return err
@@ -186,8 +186,8 @@ func (b *Builder) ParseLargeCommunity(s string) error {
 	s = strings.TrimSuffix(s, "]")
 	s = strings.TrimSpace(s)
 
-	tokens := strings.Fields(s)
-	for _, tok := range tokens {
+	tokens := strings.FieldsSeq(s)
+	for tok := range tokens {
 		lc, err := ParseLargeCommunity(tok)
 		if err != nil {
 			return err
@@ -216,8 +216,8 @@ func (b *Builder) ParseExtCommunity(s string) error {
 	s = strings.TrimSuffix(s, "]")
 	s = strings.TrimSpace(s)
 
-	tokens := strings.Fields(s)
-	for _, tok := range tokens {
+	tokens := strings.FieldsSeq(s)
+	for tok := range tokens {
 		ec, err := parseSingleExtCommunity(tok)
 		if err != nil {
 			return err

@@ -102,7 +102,7 @@ func (u *Update) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		buf[off+i] = 0xFF
 	}
 	off += MarkerLen

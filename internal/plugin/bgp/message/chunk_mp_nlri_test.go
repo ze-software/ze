@@ -66,7 +66,7 @@ func TestChunkMPNLRI_IPv6_SmallFits(t *testing.T) {
 func TestChunkMPNLRI_IPv6_MultiplePrefixes(t *testing.T) {
 	// 10 /64 prefixes, each 9 bytes
 	var nlri []byte
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nlri = append(nlri, 64) // /64
 		nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, byte(i), 0x00, 0x00, 0x00)
 	}
@@ -281,7 +281,7 @@ func TestChunkMPNLRI_VPN_SinglePrefix(t *testing.T) {
 // PREVENTS: Split in middle of label/RD/prefix.
 func TestChunkMPNLRI_VPN_MultipleWithSplit(t *testing.T) {
 	var nlri []byte
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// VPNv4: label=i, RD=65000:i, 10.0.i.0/24
 		nlri = append(nlri, 112)                                // total-bits
 		nlri = append(nlri, 0x00, byte(i>>4), byte(i<<4)|0x01)  // label with BoS
@@ -433,7 +433,7 @@ func TestChunkMPNLRI_EVPN_Type5(t *testing.T) {
 // PREVENTS: Split in middle of EVPN payload.
 func TestChunkMPNLRI_EVPN_MultipleSplit(t *testing.T) {
 	var nlri []byte
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		nlri = append(nlri, 2)  // route-type
 		nlri = append(nlri, 20) // length
 		payload := make([]byte, 20)
@@ -560,7 +560,7 @@ func TestChunkMPNLRI_BGPLS_Link(t *testing.T) {
 // PREVENTS: Split in middle of BGP-LS TLV.
 func TestChunkMPNLRI_BGPLS_Split(t *testing.T) {
 	var nlri []byte
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		nlri = append(nlri, 0, 1)  // type = Node
 		nlri = append(nlri, 0, 30) // length = 30
 		payload := make([]byte, 30)
@@ -594,13 +594,13 @@ func TestChunkMPNLRI_EVPN_AddPath(t *testing.T) {
 	// EVPN Add-Path: [path-id:4][route-type:1][length:1][payload]
 	// Type 2 MAC/IP route with path-id
 	var nlri []byte
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// Path-id (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// Route type 2, length 33
 		nlri = append(nlri, 0x02, 33)
 		// Payload (33 bytes of dummy data)
-		for j := 0; j < 33; j++ {
+		for j := range 33 {
 			nlri = append(nlri, byte(j))
 		}
 	}
@@ -626,12 +626,12 @@ func TestChunkMPNLRI_EVPN_AddPath(t *testing.T) {
 func TestChunkMPNLRI_FlowSpec_AddPath(t *testing.T) {
 	// FlowSpec Add-Path: [path-id:4][length:1][components]
 	var nlri []byte
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		// Path-id (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// Length (1 byte) + components
 		nlri = append(nlri, 10) // 10 bytes of components
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			nlri = append(nlri, byte(j))
 		}
 	}
@@ -661,7 +661,7 @@ func TestChunkMPNLRI_FlowSpec_AddPath_LongLength(t *testing.T) {
 	// 2-byte length encoding for 250 bytes: 0xF0 | (250 >> 8), 250 & 0xFF = 0xF0, 0xFA
 	nlri = append(nlri, 0xF0, 0xFA)
 	// 250 bytes of components
-	for i := 0; i < 250; i++ {
+	for i := range 250 {
 		nlri = append(nlri, byte(i))
 	}
 
@@ -679,7 +679,7 @@ func TestChunkMPNLRI_FlowSpec_AddPath_LongLength(t *testing.T) {
 func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 	// BGP-LS Add-Path: [path-id:4][nlri-type:2][length:2][payload]
 	var nlri []byte
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		// Path-id (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// NLRI type (2 bytes) - Node NLRI = 1
@@ -687,7 +687,7 @@ func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 		// Length (2 bytes) - 20 bytes payload
 		nlri = append(nlri, 0x00, 0x14)
 		// Payload (20 bytes)
-		for j := 0; j < 20; j++ {
+		for j := range 20 {
 			nlri = append(nlri, byte(j))
 		}
 	}
@@ -716,7 +716,7 @@ func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 func TestSplitMPNLRI_Subslice(t *testing.T) {
 	// Create NLRI buffer with 10 /24 prefixes (4 bytes each = 40 bytes)
 	nlri := make([]byte, 40)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nlri[i*4] = 24 // /24
 		nlri[i*4+1] = 10
 		nlri[i*4+2] = 0
@@ -748,7 +748,7 @@ func TestSplitMPNLRI_Subslice(t *testing.T) {
 func TestSplitMPNLRI_NoAllocHotPath(t *testing.T) {
 	// Create NLRI buffer with 10 /24 prefixes
 	nlri := make([]byte, 40)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nlri[i*4] = 24
 		nlri[i*4+1] = 10
 		nlri[i*4+2] = 0
@@ -773,7 +773,7 @@ func TestSplitMPNLRI_NoAllocHotPath(t *testing.T) {
 func TestSplitMPNLRI_BoundaryExact(t *testing.T) {
 	// 5 /24 prefixes = exactly 20 bytes
 	nlri := make([]byte, 20)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		nlri[i*4] = 24
 		nlri[i*4+1] = 10
 		nlri[i*4+2] = 0
@@ -859,7 +859,7 @@ func TestSplitMPNLRI_SingleTooLarge(t *testing.T) {
 func TestSplitMPNLRI_MultipleSplits(t *testing.T) {
 	// 20 /24 prefixes = 80 bytes
 	nlri := make([]byte, 80)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		nlri[i*4] = 24
 		nlri[i*4+1] = 10
 		nlri[i*4+2] = 0
@@ -942,7 +942,7 @@ func TestChunkMPNLRI_SingleTooLarge(t *testing.T) {
 func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 	// Build UPDATE with MP_REACH_NLRI containing many IPv6 prefixes
 	var mpNLRI []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		mpNLRI = append(mpNLRI, 64) // /64
 		mpNLRI = append(mpNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0, 0)
 	}
@@ -985,7 +985,7 @@ func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 func TestSplitUpdate_DetectsMPUnreach(t *testing.T) {
 	// Build UPDATE with MP_UNREACH_NLRI containing many prefixes
 	var mpNLRI []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		mpNLRI = append(mpNLRI, 64)
 		mpNLRI = append(mpNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0, 0)
 	}
@@ -1022,7 +1022,7 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 
 	// MP_REACH_NLRI with many prefixes
 	mpNLRI := make([]byte, 0, 50*9) // 50 /64 prefixes at 9 bytes each
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		mpNLRI = append(mpNLRI, 64)
 		mpNLRI = append(mpNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i), 0, 0, 0)
 	}
@@ -1080,7 +1080,7 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 
 	// MP_UNREACH_NLRI with many prefixes (withdrawals)
 	unreachNLRI := make([]byte, 0, 20*9) // 20 /64 prefixes at 9 bytes each
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		unreachNLRI = append(unreachNLRI, 64)
 		unreachNLRI = append(unreachNLRI, 0x20, 0x01, 0x0d, 0xb8, 0xFF, byte(i), 0, 0)
 	}
@@ -1099,7 +1099,7 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 
 	// MP_REACH_NLRI with many prefixes (announcements)
 	reachNLRI := make([]byte, 0, 30*9) // 30 /64 prefixes at 9 bytes each
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		reachNLRI = append(reachNLRI, 64)
 		reachNLRI = append(reachNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i), 0, 0, 0)
 	}
@@ -1188,7 +1188,7 @@ func TestSplitUpdate_AddPath(t *testing.T) {
 	// Build IPv4 Add-Path NLRIs
 	// Format: [path-id:4][prefix-len:1][prefix-bytes]
 	var nlri []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// Path ID (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// /24 prefix (4 bytes total: 1 len + 3 prefix)

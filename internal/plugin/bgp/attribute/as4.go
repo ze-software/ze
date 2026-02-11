@@ -196,7 +196,7 @@ func ParseAS4Path(data []byte) (*AS4Path, error) {
 		}
 
 		asns := make([]uint32, count)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			asns[i] = binary.BigEndian.Uint32(data[offset:])
 			offset += 4
 		}

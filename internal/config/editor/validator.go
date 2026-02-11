@@ -3,6 +3,7 @@ package editor
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -232,9 +233,7 @@ func (v *ConfigValidator) extractTemplates(tree *config.Tree) map[string]*config
 	}
 
 	// Legacy syntax: template { group <name> { ... } }
-	for name, groupTree := range tmpl.GetList("group") {
-		templates[name] = groupTree
-	}
+	maps.Copy(templates, tmpl.GetList("group"))
 
 	return templates
 }

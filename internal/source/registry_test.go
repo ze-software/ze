@@ -276,7 +276,7 @@ func TestRegistryConcurrent(t *testing.T) {
 
 	// Concurrent peer registrations
 	wg.Add(numGoroutines)
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(n int) {
 			defer wg.Done()
 			ip := netip.AddrFrom4([4]byte{10, 0, byte(n / 256), byte(n % 256)})

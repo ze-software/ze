@@ -262,10 +262,8 @@ func TestAttributesWireConcurrentAccess(t *testing.T) {
 	errs := make(chan error, 100)
 
 	// Concurrent Gets
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 100 {
+		wg.Go(func() {
 			_, err := aw.Get(AttrOrigin)
 			if err != nil {
 				errs <- err
@@ -274,7 +272,7 @@ func TestAttributesWireConcurrentAccess(t *testing.T) {
 			if err != nil {
 				errs <- err
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

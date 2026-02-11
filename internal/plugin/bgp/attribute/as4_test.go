@@ -345,6 +345,7 @@ func TestMergeAS4Path(t *testing.T) {
 			merged := MergeAS4Path(tt.asPath, tt.as4Path)
 			if merged == nil {
 				t.Fatal("MergeAS4Path() returned nil")
+				return
 			}
 
 			// Flatten ASNs for comparison

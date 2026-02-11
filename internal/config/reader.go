@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"sort"
 	"strconv"
@@ -167,9 +168,7 @@ func tokensToNestedMap(tokens []Token) map[string]any {
 			// Merge if container already exists (repeated blocks).
 			existing, _ := result[key].(map[string]any)
 			if existing != nil {
-				for k, v := range innerMap {
-					existing[k] = v
-				}
+				maps.Copy(existing, innerMap)
 			} else {
 				result[key] = innerMap
 			}

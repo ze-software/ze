@@ -383,29 +383,25 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 	const iterations = 100
 
 	// Concurrent adds
-	for i := 0; i < goroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < iterations; j++ {
+	for range goroutines {
+		wg.Go(func() {
+			for range iterations {
 				sm.Add(proc, &Subscription{
 					Namespace: "bgp",
 					EventType: "update",
 					Direction: "both",
 				})
 			}
-		}()
+		})
 	}
 
 	// Concurrent reads
-	for i := 0; i < goroutines; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < iterations; j++ {
+	for range goroutines {
+		wg.Go(func() {
+			for range iterations {
 				_ = sm.GetMatching("bgp", "update", "received", "10.0.0.1")
 			}
-		}()
+		})
 	}
 
 	wg.Wait()

@@ -435,7 +435,7 @@ func TestUTF8TruncationSafety(t *testing.T) {
 	// Create a string with multi-byte characters near the 255 boundary
 	// Each emoji is 4 bytes, so 64 emojis = 256 bytes
 	var text string
-	for i := 0; i < 64; i++ {
+	for range 64 {
 		text += "👋" // 4 bytes each
 	}
 

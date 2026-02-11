@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -186,10 +187,8 @@ func ConfigRootsMap() map[string][]string {
 // Returns empty string if no plugin is registered for the family.
 func PluginForFamily(family string) string {
 	for _, reg := range plugins {
-		for _, f := range reg.Families {
-			if f == family {
-				return reg.Name
-			}
+		if slices.Contains(reg.Families, family) {
+			return reg.Name
 		}
 	}
 	return ""

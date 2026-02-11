@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
@@ -18,10 +19,8 @@ import (
 // 2. ZE_CHILD_MODE=1 environment variable.
 func isChildMode(args []string) bool {
 	// Check for --child flag
-	for _, arg := range args {
-		if arg == "--child" {
-			return true
-		}
+	if slices.Contains(args, "--child") {
+		return true
 	}
 
 	// Check environment variable
@@ -38,8 +37,8 @@ func parseChildArgs(args []string) string {
 		if arg == "--config" && i+1 < len(args) {
 			return args[i+1]
 		}
-		if strings.HasPrefix(arg, "--config=") {
-			return strings.TrimPrefix(arg, "--config=")
+		if after, ok := strings.CutPrefix(arg, "--config="); ok {
+			return after
 		}
 	}
 	return ""
@@ -99,8 +98,8 @@ func parseChildConfig(r io.Reader) (map[string]any, error) {
 		}
 
 		// Config line format: "config {json...}"
-		if strings.HasPrefix(line, "config ") {
-			jsonStr := strings.TrimPrefix(line, "config ")
+		if after, ok := strings.CutPrefix(line, "config "); ok {
+			jsonStr := after
 			if err := json.Unmarshal([]byte(jsonStr), &cfg); err != nil {
 				return nil, fmt.Errorf("parse config JSON: %w", err)
 			}

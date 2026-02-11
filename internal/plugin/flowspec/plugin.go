@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -374,12 +375,7 @@ func formatNestedValues(vals []any) string {
 
 // contains checks if a string slice contains a value.
 func contains(slice []string, val string) bool {
-	for _, s := range slice {
-		if s == val {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, val)
 }
 
 // handleEncodeNLRIFromJSON handles: encode json nlri <family> <json>.
@@ -1055,7 +1051,7 @@ func EncodeFlowSpecComponents(family Family, args []string) ([]byte, error) {
 
 // parseRDFromArgs parses "rd <value>" from args.
 func parseRDFromArgs(args []string) (RouteDistinguisher, int, error) {
-	for i := 0; i < len(args)-1; i++ {
+	for i := range len(args) - 1 {
 		if args[i] == kwRD {
 			rd, err := nlri.ParseRDString(args[i+1])
 			if err != nil {
@@ -1142,7 +1138,7 @@ func parseProtocolComponentText(args []string) (FlowComponent, int, error) {
 	var protocols []uint8
 	consumed := 0
 
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		token := strings.ToLower(args[i])
 		if isComponentKeyword(token) {
 			break
@@ -1181,7 +1177,7 @@ func parseNumericComponentText(args []string, compType FlowComponentType) (FlowC
 
 	maxValue := componentMaxValue(compType)
 
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		token := args[i]
 		if isComponentKeyword(strings.ToLower(token)) {
 			break
@@ -1219,7 +1215,7 @@ func parseTCPFlagsComponentText(args []string) (FlowComponent, int, error) {
 	var matches []FlowMatch
 	consumed := 0
 
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		token := strings.ToLower(args[i])
 		if isComponentKeyword(token) {
 			break
@@ -1254,7 +1250,7 @@ func parseFragmentComponentText(args []string) (FlowComponent, int, error) {
 	var matches []FlowMatch
 	consumed := 0
 
-	for i := 0; i < len(args); i++ {
+	for i := range args {
 		token := strings.ToLower(args[i])
 		if isComponentKeyword(token) {
 			break
@@ -1366,7 +1362,7 @@ func parseBitmaskValue(token string, nameToValue map[string]uint8) (FlowOperator
 
 	// Parse flag names (may be combined with &)
 	var flags uint8
-	for _, part := range strings.Split(s, "&") {
+	for part := range strings.SplitSeq(s, "&") {
 		part = strings.TrimSpace(part)
 		if part == "" {
 			continue

@@ -90,8 +90,8 @@ func ResolvePlugin(s string) (*ResolvedPlugin, error) {
 	}
 
 	// Internal plugin (ze.X).
-	if strings.HasPrefix(s, "ze.") {
-		name := strings.TrimPrefix(s, "ze.")
+	if after, ok := strings.CutPrefix(s, "ze."); ok {
+		name := after
 		if !IsInternalPlugin(name) {
 			return nil, ErrUnknownInternalPlugin
 		}

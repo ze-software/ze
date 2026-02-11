@@ -495,7 +495,7 @@ func TestLargeReader(t *testing.T) {
 	// Create a reader that produces content on demand
 	var buf bytes.Buffer
 	buf.WriteString("tmpfs=test.txt:terminator=EOF\n")
-	for i := 0; i < 1000; i++ {
+	for range 1000 {
 		buf.WriteString("line content\n")
 	}
 	buf.WriteString("EOF\n")

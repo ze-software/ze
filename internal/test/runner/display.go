@@ -114,10 +114,7 @@ func (d *Display) Status() {
 	completed := passed + failed + timedOut
 	if d.parallel > 0 && d.parallel < d.total {
 		totalBatches := (d.total + d.parallel - 1) / d.parallel // ceil division
-		currentBatch := (completed / d.parallel) + 1
-		if currentBatch > totalBatches {
-			currentBatch = totalBatches
-		}
+		currentBatch := min((completed/d.parallel)+1, totalBatches)
 		parts = append(parts, fmt.Sprintf("batch[%d/%d]", currentBatch, totalBatches))
 	}
 

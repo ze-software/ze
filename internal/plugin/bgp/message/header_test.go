@@ -15,7 +15,7 @@ import (
 func TestParseHeaderValid(t *testing.T) {
 	// Valid KEEPALIVE header: 16-byte marker + length(19) + type(4)
 	data := make([]byte, HeaderLen)
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		data[i] = 0xFF
 	}
 	data[16] = 0x00 // Length high byte
@@ -138,7 +138,7 @@ func TestHeaderWriteTo(t *testing.T) {
 	require.Equal(t, HeaderLen, n)
 
 	// Check marker
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		assert.Equal(t, byte(0xFF), buf[i], "marker byte %d", i)
 	}
 
@@ -198,7 +198,7 @@ func TestMessageTypeString(t *testing.T) {
 // makeHeader creates a valid header with given length and type.
 func makeHeader(length uint16, msgType byte) []byte {
 	data := make([]byte, HeaderLen)
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		data[i] = 0xFF
 	}
 	data[16] = byte(length >> 8)

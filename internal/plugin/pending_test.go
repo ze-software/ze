@@ -178,7 +178,7 @@ func TestPendingRequests_Limit(t *testing.T) {
 	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	// Fill up to limit
-	for i := 0; i < MaxPendingPerProcess; i++ {
+	for i := range MaxPendingPerProcess {
 		respCh := make(chan *Response, 1)
 		serial := pending.Add(&PendingRequest{
 			Command:  "myapp status",
@@ -223,7 +223,7 @@ func TestPendingRequests_SerialUniqueness(t *testing.T) {
 	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	serials := make(map[string]bool)
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		respCh := make(chan *Response, 1)
 		serial := pending.Add(&PendingRequest{
 			Command:  "myapp status",
@@ -261,7 +261,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 	serial := pending.Add(req)
 
 	// Send partial responses
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		ok := pending.Partial(serial, &Response{
 			Status: "partial",
 			Data:   map[string]int{"chunk": i},
@@ -303,7 +303,7 @@ func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 	done := make(chan bool, 100)
 
 	// Spawn concurrent adders and completers
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		go func() {
 			respCh := make(chan *Response, 1)
 			serial := pending.Add(&PendingRequest{
@@ -320,7 +320,7 @@ func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 	}
 
 	// Wait for all
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		select {
 		case <-done:
 		case <-ctx.Done():

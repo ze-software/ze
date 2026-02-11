@@ -26,13 +26,13 @@ func ParseKVPairs(parts []string) map[string]string {
 	}
 
 	// Parse remaining simple key=value pairs
-	for _, part := range strings.Split(joined, ":") {
+	for part := range strings.SplitSeq(joined, ":") {
 		if part == "" {
 			continue
 		}
-		if eqIdx := strings.Index(part, "="); eqIdx != -1 {
-			key := part[:eqIdx]
-			value := part[eqIdx+1:]
+		if before, after, ok := strings.Cut(part, "="); ok {
+			key := before
+			value := after
 			kv[key] = value
 		}
 	}

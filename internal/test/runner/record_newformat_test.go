@@ -3,6 +3,7 @@ package runner
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -234,13 +235,7 @@ action=notification:conn=1:seq=2:text=session ending`
 	require.NotNil(t, rec)
 
 	// Notification should be in Expects for testpeer to process.
-	found := false
-	for _, exp := range rec.Expects {
-		if exp == "action=notification:conn=1:seq=2:text=session ending" {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(rec.Expects, "action=notification:conn=1:seq=2:text=session ending")
 	assert.True(t, found, "notification action should be in Expects")
 }
 

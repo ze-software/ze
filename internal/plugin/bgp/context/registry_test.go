@@ -122,11 +122,11 @@ func TestRegistryConcurrent(t *testing.T) {
 	const numOps = 100
 
 	// Spawn goroutines that register and get contexts concurrently
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		wg.Add(1)
 		go func(seed int) {
 			defer wg.Done()
-			for j := 0; j < numOps; j++ {
+			for j := range numOps {
 				ctx := NewEncodingContext(
 					&capability.PeerIdentity{
 						LocalASN: uint32(seed % 65536),     //nolint:gosec // test-only

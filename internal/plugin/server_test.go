@@ -135,7 +135,7 @@ func TestServerMultipleClients(t *testing.T) {
 
 	// Connect multiple clients
 	var conns []net.Conn
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		conn := dialUnix(t, sockPath)
 		conns = append(conns, conn)
 	}

@@ -166,8 +166,8 @@ func MapPrefixToModule(prefix string) string {
 // stripListKey removes list key from path segment.
 // For example, "peer[address=192.0.2.1]" becomes "peer".
 func (v *Validator) stripListKey(segment string) string {
-	if idx := strings.Index(segment, "["); idx >= 0 {
-		return segment[:idx]
+	if before, _, ok := strings.Cut(segment, "["); ok {
+		return before
 	}
 	return segment
 }

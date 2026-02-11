@@ -507,11 +507,9 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 		// Determine value length from operator's len field (bits 2-3)
 		// RFC 8955 Section 4.2.1.1: length = 1 << len (1, 2, 4, or 8 octets)
 		lenCode := (op & FlowOpLenMask) >> 4
-		valueLen := 1 << lenCode
-		if valueLen > 4 {
+		valueLen := min(1<<lenCode,
 			// Note: RFC allows 8 octets (len=11), but we cap at 4 for uint32 values
-			valueLen = 4
-		}
+			4)
 
 		if offset+valueLen > len(data) {
 			return nil, nil, ErrFlowSpecTruncated
@@ -519,7 +517,7 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 
 		// Read value in network byte order (big-endian)
 		var value uint64
-		for i := 0; i < valueLen; i++ {
+		for i := range valueLen {
 			value = value<<8 | uint64(data[offset+i])
 		}
 

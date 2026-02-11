@@ -310,7 +310,7 @@ func TestWatchdogManagerConcurrency(t *testing.T) {
 	// Run concurrent operations
 	done := make(chan bool)
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			route := StaticRoute{
 				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -325,7 +325,7 @@ func TestWatchdogManagerConcurrency(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 

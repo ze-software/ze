@@ -218,7 +218,7 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 
 	// Attempt respawns beyond limit
 	// Wait a bit between respawns for the crash script to exit
-	for i := 0; i < RespawnLimit+2; i++ {
+	for range RespawnLimit + 2 {
 		respawnErr := pm.Respawn("crash")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
 			break // Limit reached
@@ -266,7 +266,7 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 	defer pm.Stop()
 
 	// First few respawns should succeed
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		err := pm.Respawn("run")
 		require.NoError(t, err, "respawn %d should succeed", i)
 		time.Sleep(10 * time.Millisecond) // Let process start

@@ -145,7 +145,7 @@ func TestWriteToRespectsOffset(t *testing.T) {
 			n := msg.WriteTo(buf, offset, nil)
 
 			// Verify bytes before offset are untouched
-			for i := 0; i < offset; i++ {
+			for i := range offset {
 				assert.Equal(t, byte(0xAA), buf[i], "byte %d before offset modified", i)
 			}
 

@@ -73,7 +73,7 @@ func SplitWireUpdate(wu *WireUpdate, maxBodySize int, srcCtx *bgpctx.EncodingCon
 	// Process each MP_* combination (or just IPv4 if no MP_*)
 	maxIter := max(len(mpReaches), len(mpUnreaches), 1)
 
-	for i := 0; i < maxIter; i++ {
+	for i := range maxIter {
 		var mpReach, mpUnreach []byte
 		if i < len(mpReaches) {
 			mpReach = mpReaches[i]

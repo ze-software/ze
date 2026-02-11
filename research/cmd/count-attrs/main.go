@@ -148,7 +148,7 @@ func processRIB(data []byte, subtype uint16, counts map[int]int, total *int) {
 	offset += 2
 
 	// Process each RIB entry
-	for i := 0; i < int(entryCount); i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			return
 		}

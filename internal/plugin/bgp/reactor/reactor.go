@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/netip"
 	"slices"
@@ -308,9 +309,7 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 		// This allows new capabilities to be added without modifying this code.
 		for _, cap := range s.Capabilities {
 			if provider, ok := cap.(capability.ConfigProvider); ok {
-				for k, v := range provider.ConfigValues() {
-					cfg.Values[k] = v
-				}
+				maps.Copy(cfg.Values, provider.ConfigValues())
 			}
 		}
 
@@ -542,10 +541,7 @@ func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
 	var valueLen int
 	remaining := len(asns)
 	for remaining > 0 {
-		chunk := remaining
-		if chunk > attribute.MaxASPathSegmentLength {
-			chunk = attribute.MaxASPathSegmentLength
-		}
+		chunk := min(remaining, attribute.MaxASPathSegmentLength)
 		valueLen += 2 + chunk*asnSize // type(1) + count(1) + asns
 		remaining -= chunk
 	}
@@ -568,16 +564,13 @@ func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
 	remaining = len(asns)
 	idx := 0
 	for remaining > 0 {
-		chunk := remaining
-		if chunk > attribute.MaxASPathSegmentLength {
-			chunk = attribute.MaxASPathSegmentLength
-		}
+		chunk := min(remaining, attribute.MaxASPathSegmentLength)
 
 		buf[off] = byte(attribute.ASSequence) // Type
 		buf[off+1] = byte(chunk)              // Count
 		off += 2
 
-		for i := 0; i < chunk; i++ {
+		for i := range chunk {
 			asn := asns[idx+i]
 			if asn4 {
 				binary.BigEndian.PutUint32(buf[off:], asn)
@@ -675,7 +668,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
-	for i := 0; i < message.MarkerLen; i++ {
+	for i := range message.MarkerLen {
 		buf[off+i] = 0xFF
 	}
 	off += message.MarkerLen
@@ -889,7 +882,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
-	for i := 0; i < message.MarkerLen; i++ {
+	for i := range message.MarkerLen {
 		buf[off+i] = 0xFF
 	}
 	off += message.MarkerLen
@@ -2939,7 +2932,7 @@ func ipGlobMatch(pattern, ip string) bool {
 			return false
 		}
 
-		for i := 0; i < 4; i++ {
+		for i := range 4 {
 			if patternParts[i] == "*" {
 				continue // wildcard matches any octet
 			}
@@ -3337,10 +3330,8 @@ func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Rou
 	// Check if any route has complex AS_PATH (AS_SET, CONFED, multiple segments)
 	// that can't be represented in UnicastParams.ASPath (which is just []uint32).
 	// Fall back to individual sending for such routes.
-	for _, route := range routes {
-		if hasComplexASPath(route) {
-			return a.sendRoutesIndividually(peer, routes, maxMsgSize)
-		}
+	if slices.ContainsFunc(routes, hasComplexASPath) {
+		return a.sendRoutesIndividually(peer, routes, maxMsgSize)
 	}
 
 	// Convert to UnicastParams
@@ -5158,9 +5149,9 @@ func parseAPIPrefixSIDSRv6(s string) ([]byte, error) {
 				return nil, fmt.Errorf("invalid srv6 behavior %q: %w", f, err)
 			}
 			behavior = behVal
-		} else if strings.HasPrefix(f, "[") {
+		} else if after, ok := strings.CutPrefix(f, "["); ok {
 			// Parse SID structure [LB,LN,Func,Arg,TransLen,TransOffset]
-			structStr := strings.TrimPrefix(f, "[")
+			structStr := after
 			structStr = strings.TrimSuffix(structStr, "]")
 			parts := strings.Split(structStr, ",")
 			if len(parts) != 6 {

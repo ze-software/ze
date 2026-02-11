@@ -234,7 +234,7 @@ func ResolveConfigPath(path string) string {
 	if configDirs == "" {
 		configDirs = "/etc/xdg"
 	}
-	for _, dir := range strings.Split(configDirs, ":") {
+	for dir := range strings.SplitSeq(configDirs, ":") {
 		if dir == "" {
 			continue
 		}

@@ -108,7 +108,7 @@ func uitoa(v uint32) string {
 func ParseSourceID(s string) SourceID {
 	// Find colon
 	colon := -1
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == ':' {
 			colon = i
 			break
@@ -124,7 +124,7 @@ func ParseSourceID(s string) SourceID {
 	// Parse number with overflow protection
 	var n uint32
 	const maxUint32Div10 = 429496729 // MaxUint32 / 10
-	for i := 0; i < len(numStr); i++ {
+	for i := range len(numStr) {
 		c := numStr[i]
 		if c < '0' || c > '9' {
 			return InvalidSourceID

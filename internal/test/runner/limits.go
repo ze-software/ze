@@ -29,10 +29,9 @@ func CheckUlimit(parallel int) (*LimitCheck, error) {
 	const fdsPerTest = 1000 // Socket pairs for YANG RPC + pipes + files
 	const minRecommended = 81920
 
-	needed := uint64(parallel) * fdsPerTest //nolint:gosec // parallel is always small (1-16)
-	if needed < minRecommended {
-		needed = minRecommended
-	}
+	needed := max(
+		//nolint:gosec // parallel is always small (1-16)
+		uint64(parallel)*fdsPerTest, minRecommended)
 
 	check := &LimitCheck{
 		Current:  limit.Cur,
@@ -47,10 +46,7 @@ func CheckUlimit(parallel int) (*LimitCheck, error) {
 	check.RaiseNeeded = true
 
 	// Try to raise soft limit
-	newLimit := needed
-	if newLimit > limit.Max {
-		newLimit = limit.Max
-	}
+	newLimit := min(needed, limit.Max)
 
 	limit.Cur = newLimit
 	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &limit); err != nil {

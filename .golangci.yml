@@ -12,6 +12,7 @@ linters:
           - dupl
           - goconst
           - gosec
+          - prealloc
       - path: cmd/
         linters:
           - forbidigo
@@ -37,13 +38,15 @@ linters:
     - errorlint
     - exhaustive
     - forcetypeassert
-    - dupl
     - goconst
     - godot
     - nilerr
     - nilnil
     - tparallel
     - wastedassign
+    # Modernization linters
+    - intrange
+    - modernize
 
 formatters:
   enable:

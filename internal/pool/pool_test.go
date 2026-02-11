@@ -223,12 +223,12 @@ func TestConcurrentIntern(t *testing.T) {
 	p := New(1024 * 1024)
 	var wg sync.WaitGroup
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
-			for j := 0; j < 1000; j++ {
-				data := []byte(fmt.Sprintf("data-%d-%d", id, j))
+			for j := range 1000 {
+				data := fmt.Appendf(nil, "data-%d-%d", id, j)
 				h := p.Intern(data)
 				got := mustGet(t, p, h)
 				assert.Equal(t, data, got)
@@ -250,7 +250,7 @@ func TestConcurrentInternDedup(t *testing.T) {
 	handles := make([]Handle, 100)
 
 	// All goroutines intern the same data
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
@@ -277,7 +277,7 @@ func TestConcurrentRelease(t *testing.T) {
 
 	// Intern same data 100 times (refCount = 100)
 	var handles []Handle
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		handles = append(handles, p.Intern([]byte("shared")))
 	}
 
@@ -530,8 +530,8 @@ func TestPoolIdxRebuildIndex(t *testing.T) {
 
 	// Intern enough data to trigger buffer growth
 	var handles []Handle
-	for i := 0; i < 100; i++ {
-		h := p.Intern([]byte(fmt.Sprintf("data-%d-padding-to-make-it-longer", i)))
+	for i := range 100 {
+		h := p.Intern(fmt.Appendf(nil, "data-%d-padding-to-make-it-longer", i))
 		handles = append(handles, h)
 		require.Equal(t, uint8(7), h.PoolIdx(), "handle %d should have poolIdx=7", i)
 	}
@@ -813,8 +813,8 @@ func TestBufferGrowthDuringCompaction(t *testing.T) {
 	// Now intern enough data to trigger buffer growth
 	// This forces ensureCapacity -> rebuildIndex
 	var newHandles []Handle
-	for i := 0; i < 50; i++ {
-		h := p.Intern([]byte(fmt.Sprintf("new-data-during-compact-%d-padding", i)))
+	for i := range 50 {
+		h := p.Intern(fmt.Appendf(nil, "new-data-during-compact-%d-padding", i))
 		newHandles = append(newHandles, h)
 	}
 
@@ -862,8 +862,8 @@ func TestDedupAfterBufferGrowthDuringCompaction(t *testing.T) {
 	p.StartCompaction()
 
 	// Trigger buffer growth by interning lots of new data
-	for i := 0; i < 50; i++ {
-		p.Intern([]byte(fmt.Sprintf("grow-buffer-data-%d-padding-to-make-longer", i)))
+	for i := range 50 {
+		p.Intern(fmt.Appendf(nil, "grow-buffer-data-%d-padding-to-make-longer", i))
 	}
 
 	// Now try to dedup with the unmigrated entry

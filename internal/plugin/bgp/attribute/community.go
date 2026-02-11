@@ -3,6 +3,7 @@ package attribute
 import (
 	"encoding/binary"
 	"fmt"
+	"slices"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
@@ -121,12 +122,7 @@ func ParseCommunities(data []byte) (Communities, error) {
 
 // Contains returns true if the community list contains the given community.
 func (c Communities) Contains(comm Community) bool {
-	for _, v := range c {
-		if v == comm {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c, comm)
 }
 
 // ExtendedCommunity represents an extended community.

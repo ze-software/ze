@@ -361,7 +361,7 @@ func decodeASPath(data []byte) string {
 		}
 
 		var asns []string
-		for i := 0; i < segLen; i++ {
+		for range segLen {
 			var asn uint32
 			if asnSize == 4 {
 				asn = binary.BigEndian.Uint32(data[offset : offset+4])
@@ -407,18 +407,18 @@ func decodeExtCommunities(data []byte) string {
 func (m *DecodedMessage) String() string {
 	var sb strings.Builder
 
-	sb.WriteString(fmt.Sprintf("%s (len=%d)\n", m.Type, m.Length))
+	fmt.Fprintf(&sb, "%s (len=%d)\n", m.Type, m.Length)
 
 	for _, attr := range m.Attributes {
-		sb.WriteString(fmt.Sprintf("  %s: %s\n", attr.Name, attr.Value))
+		fmt.Fprintf(&sb, "  %s: %s\n", attr.Name, attr.Value)
 	}
 
 	if len(m.NLRI) > 0 {
-		sb.WriteString(fmt.Sprintf("  NLRI: %s\n", strings.Join(m.NLRI, ", ")))
+		fmt.Fprintf(&sb, "  NLRI: %s\n", strings.Join(m.NLRI, ", "))
 	}
 
 	if len(m.Withdrawn) > 0 {
-		sb.WriteString(fmt.Sprintf("  WITHDRAWN: %s\n", strings.Join(m.Withdrawn, ", ")))
+		fmt.Fprintf(&sb, "  WITHDRAWN: %s\n", strings.Join(m.Withdrawn, ", "))
 	}
 
 	return sb.String()
@@ -433,19 +433,19 @@ func Diff(expected, received string) string {
 	sb.WriteString("\n--- Expected vs Received ---\n")
 
 	if expErr != nil {
-		sb.WriteString(fmt.Sprintf("Expected (decode error): %v\n", expErr))
-		sb.WriteString(fmt.Sprintf("  Raw: %s\n", expected))
+		fmt.Fprintf(&sb, "Expected (decode error): %v\n", expErr)
+		fmt.Fprintf(&sb, "  Raw: %s\n", expected)
 	} else {
-		sb.WriteString(fmt.Sprintf("Expected: %s", expMsg.String()))
+		fmt.Fprintf(&sb, "Expected: %s", expMsg.String())
 	}
 
 	sb.WriteString("\n")
 
 	if rcvErr != nil {
-		sb.WriteString(fmt.Sprintf("Received (decode error): %v\n", rcvErr))
-		sb.WriteString(fmt.Sprintf("  Raw: %s\n", received))
+		fmt.Fprintf(&sb, "Received (decode error): %v\n", rcvErr)
+		fmt.Fprintf(&sb, "  Raw: %s\n", received)
 	} else {
-		sb.WriteString(fmt.Sprintf("Received: %s", rcvMsg.String()))
+		fmt.Fprintf(&sb, "Received: %s", rcvMsg.String())
 	}
 
 	// Show attribute differences if both decoded successfully
@@ -479,13 +479,13 @@ func Diff(expected, received string) string {
 
 			switch {
 			case !hasExp:
-				sb.WriteString(fmt.Sprintf("  + %s: %s (unexpected)\n", key, rcvVal))
+				fmt.Fprintf(&sb, "  + %s: %s (unexpected)\n", key, rcvVal)
 				hasDiff = true
 			case !hasRcv:
-				sb.WriteString(fmt.Sprintf("  - %s: %s (missing)\n", key, expVal))
+				fmt.Fprintf(&sb, "  - %s: %s (missing)\n", key, expVal)
 				hasDiff = true
 			case expVal != rcvVal:
-				sb.WriteString(fmt.Sprintf("  ~ %s: expected=%s, got=%s\n", key, expVal, rcvVal))
+				fmt.Fprintf(&sb, "  ~ %s: expected=%s, got=%s\n", key, expVal, rcvVal)
 				hasDiff = true
 			}
 		}
@@ -494,7 +494,7 @@ func Diff(expected, received string) string {
 		expNLRI := strings.Join(expMsg.NLRI, ",")
 		rcvNLRI := strings.Join(rcvMsg.NLRI, ",")
 		if expNLRI != rcvNLRI {
-			sb.WriteString(fmt.Sprintf("  ~ NLRI: expected=%s, got=%s\n", expNLRI, rcvNLRI))
+			fmt.Fprintf(&sb, "  ~ NLRI: expected=%s, got=%s\n", expNLRI, rcvNLRI)
 			hasDiff = true
 		}
 
@@ -511,16 +511,10 @@ func FindByteDiff(exp, rcv string) string {
 	exp = strings.ReplaceAll(strings.ReplaceAll(exp, ":", ""), " ", "")
 	rcv = strings.ReplaceAll(strings.ReplaceAll(rcv, ":", ""), " ", "")
 
-	minLen := len(exp)
-	if len(rcv) < minLen {
-		minLen = len(rcv)
-	}
+	minLen := min(len(rcv), len(exp))
 
 	for i := 0; i < minLen; i += 2 {
-		end := i + 2
-		if end > minLen {
-			end = minLen
-		}
+		end := min(i+2, minLen)
 		if exp[i:end] != rcv[i:end] {
 			bytePos := i / 2
 			return fmt.Sprintf("byte %d: %s vs %s", bytePos, exp[i:end], rcv[i:end])

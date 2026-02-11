@@ -57,7 +57,7 @@ func TestSplitWireUpdate_ExactFit(t *testing.T) {
 func TestSplitWireUpdate_IPv4NLRIOverflow(t *testing.T) {
 	// Create many NLRIs: 100 /24s = 400 bytes
 	var nlriData []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
@@ -92,7 +92,7 @@ func TestSplitWireUpdate_IPv4NLRIOverflow(t *testing.T) {
 func TestSplitWireUpdate_WithdrawnOverflow(t *testing.T) {
 	// Create many withdrawn prefixes
 	var withdrawn []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		withdrawn = append(withdrawn, 0x18, 0x0A, 0x00, byte(i))
 	}
 	payload := buildTestUpdatePayload(withdrawn, nil, nil)
@@ -152,7 +152,7 @@ func TestSplitWireUpdate_SingleNLRITooLarge(t *testing.T) {
 // PREVENTS: Malformed UPDATE messages.
 func TestSplitWireUpdate_AllChunksValid(t *testing.T) {
 	var nlriData []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
@@ -187,7 +187,7 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	// Add-Path NLRI: [path-id:4][prefix-len:1][prefix-bytes]
 	// Each /24 with path-id = 4 + 1 + 3 = 8 bytes
 	var nlriData []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		nlriData = append(nlriData, 0x00, 0x00, 0x00, byte(i+1)) // path-id
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))   // /24
 	}
@@ -235,7 +235,7 @@ func TestSplitWireUpdate_SourceCtxIDPreserved(t *testing.T) {
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	var nlriData []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
@@ -294,7 +294,7 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	// With ADD-PATH, each NLRI is: [path-id:4][prefix-len:1][prefix:8] = 13 bytes for /64
 
 	var mpNLRIs []byte
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		mpNLRIs = append(mpNLRIs, 0x00, 0x00, 0x00, byte(i+1)) // path-id
 		mpNLRIs = append(mpNLRIs, 0x40)                        // /64
 		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00)
@@ -408,7 +408,7 @@ func TestSplitWireUpdate_FastPathNoValidation(t *testing.T) {
 func TestSplitWireUpdate_OutputChunksAccessible(t *testing.T) {
 	// Create UPDATE with many NLRIs that will be split
 	var nlriData []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
@@ -447,7 +447,7 @@ func TestSplitWireUpdate_BaseAttrsInAllChunks(t *testing.T) {
 	baseAttrs = append(baseAttrs, asPath...)
 
 	var nlriData []byte
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
 	}
 
@@ -491,7 +491,7 @@ func TestSplitWireUpdate_BaseAttrsInAllChunks(t *testing.T) {
 func TestSplitWireUpdate_SourceIDPreserved(t *testing.T) {
 	// Create UPDATE that will be split
 	var nlriData []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
@@ -519,7 +519,7 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	// Build MP_REACH_NLRI for IPv6 with several prefixes
 	// Keep it small: 5 /64s = 45 bytes NLRI
 	mpNLRIs := make([]byte, 0, 5*9) // 5 * (1 prefix len + 8 prefix bytes)
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		mpNLRIs = append(mpNLRIs, 0x40)                                              // /64
 		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}
@@ -549,13 +549,13 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 
 	// IPv4 NLRIs: 30 /24s = 120 bytes
 	ipv4NLRI := make([]byte, 0, 30*4) // 30 * 4 bytes per /24
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		ipv4NLRI = append(ipv4NLRI, 0x18, 0xC0, 0xA8, byte(i)) // /24
 	}
 
 	// IPv4 withdrawals: 15 /24s = 60 bytes
 	ipv4Withdrawn := make([]byte, 0, 15*4) // 15 * 4 bytes per /24
-	for i := 0; i < 15; i++ {
+	for i := range 15 {
 		ipv4Withdrawn = append(ipv4Withdrawn, 0x18, 0x0A, 0x00, byte(i)) // /24
 	}
 
@@ -823,7 +823,7 @@ func TestSplitMPReach_NoSplit(t *testing.T) {
 func TestSplitMPReach_Split(t *testing.T) {
 	// Build MP_REACH with many NLRIs
 	var nlris []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		nlris = append(nlris, 0x40)                                              // /64
 		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}
@@ -914,7 +914,7 @@ func TestSplitMPUnreach_NoSplit(t *testing.T) {
 func TestSplitMPUnreach_Split(t *testing.T) {
 	// Build MP_UNREACH with many NLRIs
 	var nlris []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		nlris = append(nlris, 0x40)                                              // /64
 		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}

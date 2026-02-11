@@ -613,12 +613,13 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 		}
 
 		// Build NLRI line: <family> [rd <rd>] <criteria...>
-		nlriLine := family
+		var nlriLine strings.Builder
+		nlriLine.WriteString(family)
 		if rd != "" {
-			nlriLine += " rd " + rd
+			nlriLine.WriteString(" rd " + rd)
 		}
 		for _, c := range nlriCriteria {
-			nlriLine += " " + c
+			nlriLine.WriteString(" " + c)
 		}
 
 		// Build update block.
@@ -640,7 +641,7 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 		update.SetContainer("attribute", attrBlock)
 
 		nlriBlock := config.NewTree()
-		nlriBlock.Set(nlriLine, "")
+		nlriBlock.Set(nlriLine.String(), "")
 		update.SetContainer("nlri", nlriBlock)
 
 		dst.AddListEntry("update", "", update)

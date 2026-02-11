@@ -128,13 +128,7 @@ func TestBuildSchemaRegistry(t *testing.T) {
 	// Check for expected modules
 	expected := []string{"ze-bgp-conf"}
 	for _, name := range expected {
-		found := false
-		for _, m := range modules {
-			if m == name {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(modules, name)
 		if !found {
 			t.Errorf("expected module %q not found in registry", name)
 		}
@@ -188,13 +182,7 @@ func TestSchemaRegistryIncludesPlugins(t *testing.T) {
 	expectedPlugins := []string{"ze-graceful-restart", "ze-hostname"}
 
 	for _, plugin := range expectedPlugins {
-		found := false
-		for _, m := range modules {
-			if m == plugin {
-				found = true
-				break
-			}
-		}
+		found := slices.Contains(modules, plugin)
 		if !found {
 			t.Errorf("expected plugin module %q not found in registry", plugin)
 		}

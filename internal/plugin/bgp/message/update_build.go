@@ -6,6 +6,7 @@ package message
 
 import (
 	"net/netip"
+	"slices"
 	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
@@ -60,10 +61,7 @@ func (ub *UpdateBuilder) resetScratch() {
 func (ub *UpdateBuilder) alloc(n int) []byte {
 	end := ub.off + n
 	if end > len(ub.scratch) {
-		newSize := len(ub.scratch) * 2
-		if newSize < end {
-			newSize = end
-		}
+		newSize := max(len(ub.scratch)*2, end)
 		newBuf := make([]byte, newSize)
 		copy(newBuf, ub.scratch[:ub.off])
 		ub.scratch = newBuf
@@ -231,7 +229,7 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	if len(p.Communities) > 0 {
 		sorted := make([]uint32, len(p.Communities))
 		copy(sorted, p.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
@@ -598,7 +596,7 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	if len(p.Communities) > 0 {
 		sorted := make([]uint32, len(p.Communities))
 		copy(sorted, p.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
@@ -877,7 +875,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	if len(p.Communities) > 0 {
 		sorted := make([]uint32, len(p.Communities))
 		copy(sorted, p.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
@@ -1338,7 +1336,7 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 	if len(p.Communities) > 0 {
 		sorted := make([]uint32, len(p.Communities))
 		copy(sorted, p.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
@@ -1721,7 +1719,7 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 	if len(p.Communities) > 0 {
 		sorted := make([]uint32, len(p.Communities))
 		copy(sorted, p.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
@@ -2189,7 +2187,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
 	if len(first.Communities) > 0 {
 		sorted := make([]uint32, len(first.Communities))
 		copy(sorted, first.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		slices.Sort(sorted)
 		comms := make(attribute.Communities, len(sorted))
 		for i, c := range sorted {
 			comms[i] = attribute.Community(c)

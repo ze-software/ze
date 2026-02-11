@@ -148,7 +148,7 @@ func TestAPISyncConcurrent(t *testing.T) {
 	r.apiTimeout = 500 * time.Millisecond
 
 	// Spawn 10 goroutines signaling concurrently
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			time.Sleep(10 * time.Millisecond)
 			r.SignalAPIReady()

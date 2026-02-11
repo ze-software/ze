@@ -100,7 +100,7 @@ func TestMsgIDAssignment(t *testing.T) {
 	msgIDCounter.Store(0)
 
 	ids := make(map[uint64]bool)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		id := nextMsgID()
 		if ids[id] {
 			t.Fatalf("duplicate ID %d at iteration %d", id, i)
@@ -121,7 +121,7 @@ func TestMsgIDMonotonic(t *testing.T) {
 	msgIDCounter.Store(0)
 
 	var prev uint64
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		id := nextMsgID()
 		if id <= prev {
 			t.Fatalf("ID %d not greater than previous %d", id, prev)

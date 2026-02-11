@@ -232,12 +232,12 @@ func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limit
 		if part == "" {
 			continue
 		}
-		eqIdx := strings.Index(part, "=")
-		if eqIdx == -1 {
+		before, after, ok := strings.Cut(part, "=")
+		if !ok {
 			return nil, startLine, fmt.Errorf("invalid key-value pair: %q", part)
 		}
-		key := part[:eqIdx]
-		value := part[eqIdx+1:]
+		key := before
+		value := after
 
 		switch key {
 		case "terminator":
@@ -348,16 +348,16 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 
 	// Check for single-line formats (hex= or text=)
 	for _, part := range parts[1:] {
-		if strings.HasPrefix(part, "hex=") {
-			hexValue := strings.TrimPrefix(part, "hex=")
+		if after, ok := strings.CutPrefix(part, "hex="); ok {
+			hexValue := after
 			decoded, decErr := decodeHex(hexValue)
 			if decErr != nil {
 				return "", nil, startLine, fmt.Errorf("invalid hex value: %w", decErr)
 			}
 			return name, decoded, startLine, nil
 		}
-		if strings.HasPrefix(part, "text=") {
-			textValue := strings.TrimPrefix(part, "text=")
+		if after, ok := strings.CutPrefix(part, "text="); ok {
+			textValue := after
 			return name, []byte(textValue + "\n"), startLine, nil
 		}
 	}
@@ -365,8 +365,8 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 	// Multi-line format: find terminator
 	var terminator string
 	for _, part := range parts[1:] {
-		if strings.HasPrefix(part, "terminator=") {
-			terminator = strings.TrimPrefix(part, "terminator=")
+		if after, ok := strings.CutPrefix(part, "terminator="); ok {
+			terminator = after
 			break
 		}
 	}
@@ -416,7 +416,7 @@ func decodeHex(s string) ([]byte, error) {
 	result := make([]byte, len(s)/2)
 	for i := 0; i < len(s); i += 2 {
 		var b byte
-		for j := 0; j < 2; j++ {
+		for j := range 2 {
 			c := s[i+j]
 			var nibble byte
 			switch {

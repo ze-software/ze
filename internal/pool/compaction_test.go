@@ -182,7 +182,7 @@ func TestConcurrentAccessDuringCompaction(t *testing.T) {
 	// Pre-populate
 	handles := make([]Handle, 1000)
 	for i := range handles {
-		handles[i] = p.Intern([]byte(fmt.Sprintf("data-%04d", i)))
+		handles[i] = p.Intern(fmt.Appendf(nil, "data-%04d", i))
 	}
 
 	// Release half to create dead space
@@ -193,11 +193,9 @@ func TestConcurrentAccessDuringCompaction(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Start compaction in background
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		p.Compact()
-	}()
+	})
 
 	// Concurrent reads during compaction
 	for i := 1; i < len(handles); i += 2 {
@@ -222,8 +220,8 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 	p := New(1024 * 1024)
 
 	// Pre-populate and create dead space
-	for i := 0; i < 100; i++ {
-		h := p.Intern([]byte(fmt.Sprintf("pre-%d", i)))
+	for i := range 100 {
+		h := p.Intern(fmt.Appendf(nil, "pre-%d", i))
 		if i%2 == 0 {
 			_ = p.Release(h)
 		}
@@ -232,19 +230,17 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 	var wg sync.WaitGroup
 
 	// Compaction in background
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		p.Compact()
-	}()
+	})
 
 	// Concurrent Intern during compaction
 	newHandles := make([]Handle, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			newHandles[idx] = p.Intern([]byte(fmt.Sprintf("new-%d", idx)))
+			newHandles[idx] = p.Intern(fmt.Appendf(nil, "new-%d", idx))
 		}(i)
 	}
 
@@ -254,6 +250,6 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 	for i, h := range newHandles {
 		d, err := p.Get(h)
 		require.NoError(t, err)
-		require.Equal(t, []byte(fmt.Sprintf("new-%d", i)), d)
+		require.Equal(t, fmt.Appendf(nil, "new-%d", i), d)
 	}
 }

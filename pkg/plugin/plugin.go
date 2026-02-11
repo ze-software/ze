@@ -25,6 +25,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"sort"
 	"strings"
@@ -316,8 +317,8 @@ func (p *Plugin) handleCommand(serial, command string) string {
 
 	// Check registered commands.
 	for name, handler := range p.commandHandlers {
-		if strings.HasPrefix(command, name) {
-			args := strings.Fields(strings.TrimPrefix(command, name))
+		if after, ok := strings.CutPrefix(command, name); ok {
+			args := strings.Fields(after)
 			ctx := &CommandContext{
 				Command: name,
 				Args:    args,
@@ -633,9 +634,7 @@ func (p *Plugin) cloneState(state map[string]map[string]string) map[string]map[s
 	clone := make(map[string]map[string]string)
 	for handler, items := range state {
 		clone[handler] = make(map[string]string)
-		for key, data := range items {
-			clone[handler][key] = data
-		}
+		maps.Copy(clone[handler], items)
 	}
 	return clone
 }

@@ -79,7 +79,7 @@ func (p *SetParser) tokenizeLine(line string) []string {
 	inQuote := false
 	quoteChar := byte(0)
 
-	for i := 0; i < len(line); i++ {
+	for i := range len(line) {
 		ch := line[i]
 
 		if inQuote {

@@ -101,7 +101,7 @@ func TestListenerMultipleConnections(t *testing.T) {
 
 	// Connect multiple times concurrently
 	const numConns = 5
-	for i := 0; i < numConns; i++ {
+	for range numConns {
 		go func() {
 			conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
 			if err == nil {

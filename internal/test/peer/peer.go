@@ -239,7 +239,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 	}
 }
 
-func (p *Peer) printf(format string, args ...interface{}) {
+func (p *Peer) printf(format string, args ...any) {
 	_, _ = fmt.Fprintf(p.output, format, args...)
 }
 
@@ -504,10 +504,7 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 		param := append([]byte{2, byte(len(cap66))}, cap66...)
 
 		oldLen := binary.BigEndian.Uint16(open[16:])
-		paramLen := len(param)
-		if paramLen > 65535-int(oldLen) {
-			paramLen = 65535 - int(oldLen)
-		}
+		paramLen := min(len(param), 65535-int(oldLen))
 		newLen := oldLen + uint16(paramLen) //nolint:gosec // Bounds checked
 		binary.BigEndian.PutUint16(open[16:], newLen)
 		open[19+9] += byte(len(param))
@@ -533,7 +530,7 @@ func (p *Peer) printPayload(prefix string, header, body []byte) {
 		copy(fullMsg, header)
 		copy(fullMsg[len(header):], body)
 		if decoded, err := decode.DecodeMessageBytes(fullMsg); err == nil {
-			for _, line := range strings.Split(decoded.String(), "\n") {
+			for line := range strings.SplitSeq(decoded.String(), "\n") {
 				if line != "" {
 					p.printf("             %s\n", line)
 				}
@@ -762,8 +759,8 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
 // Returns error for invalid or incomplete rules.
 func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	// expect=bgp:conn=N:seq=N:hex=...
-	if strings.HasPrefix(rule, "expect=bgp:") {
-		kv := parseKV(strings.TrimPrefix(rule, "expect=bgp:"))
+	if after, ok := strings.CutPrefix(rule, "expect=bgp:"); ok {
+		kv := parseKV(after)
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -792,8 +789,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	}
 
 	// action=notification:conn=N:seq=N:text=...
-	if strings.HasPrefix(rule, "action=notification:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action=notification:"))
+	if after, ok := strings.CutPrefix(rule, "action=notification:"); ok {
+		kv := parseKV(after)
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -822,8 +819,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	}
 
 	// action=send:conn=N:seq=N:hex=...
-	if strings.HasPrefix(rule, "action=send:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action=send:"))
+	if after, ok := strings.CutPrefix(rule, "action=send:"); ok {
+		kv := parseKV(after)
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -852,8 +849,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	}
 
 	// action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
-	if strings.HasPrefix(rule, "action=rewrite:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action=rewrite:"))
+	if after, ok := strings.CutPrefix(rule, "action=rewrite:"); ok {
+		kv := parseKV(after)
 
 		connStr := kv["conn"]
 		if connStr == "" {
@@ -886,8 +883,8 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 	}
 
 	// action=sighup:conn=N:seq=N
-	if strings.HasPrefix(rule, "action=sighup:") {
-		kv := parseKV(strings.TrimPrefix(rule, "action=sighup:"))
+	if after, ok := strings.CutPrefix(rule, "action=sighup:"); ok {
+		kv := parseKV(after)
 
 		connStr := kv["conn"]
 		if connStr == "" {

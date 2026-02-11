@@ -333,16 +333,13 @@ func TestParseASPathMaxLength(t *testing.T) {
 	var data []byte
 	totalASNs := 0
 	for totalASNs < MaxASPathTotalLength {
-		segmentSize := MaxASPathTotalLength - totalASNs
-		if segmentSize > MaxASPathSegmentLength {
-			segmentSize = MaxASPathSegmentLength
-		}
+		segmentSize := min(MaxASPathTotalLength-totalASNs, MaxASPathSegmentLength)
 		// Segment header: type + count
 		segment := make([]byte, 2+segmentSize*4)
 		segment[0] = byte(ASSequence)
 		segment[1] = byte(segmentSize)
 		// Fill with ASN values
-		for i := 0; i < segmentSize; i++ {
+		for i := range segmentSize {
 			offset := 2 + i*4
 			asnVal := totalASNs + i + 1
 			segment[offset] = byte(asnVal >> 24)   //nolint:gosec // test values
@@ -712,7 +709,7 @@ func TestASPathWriteToOffset(t *testing.T) {
 	assert.Equal(t, expected, buf[offset:offset+n])
 
 	// Verify bytes before offset are untouched
-	for i := 0; i < offset; i++ {
+	for i := range offset {
 		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
 	}
 }

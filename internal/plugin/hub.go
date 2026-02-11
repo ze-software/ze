@@ -153,11 +153,11 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 // "bgp.peer" → "bgp", "peer".
 // "bgp" → "bgp", "".
 func splitHandler(handler string) (namespace, path string) {
-	idx := strings.Index(handler, ".")
-	if idx < 0 {
+	before, after, ok := strings.Cut(handler, ".")
+	if !ok {
 		return handler, ""
 	}
-	return handler[:idx], handler[idx+1:]
+	return before, after
 }
 
 // ParseCommand parses a namespace command.

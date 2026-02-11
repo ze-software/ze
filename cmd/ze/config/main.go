@@ -840,15 +840,12 @@ func printDiff(path, original, formatted string) {
 	fmt.Fprintf(os.Stderr, "--- %s (original)\n", path)
 	fmt.Fprintf(os.Stderr, "+++ %s (formatted)\n", path)
 
-	maxLines := len(origLines)
-	if len(fmtLines) > maxLines {
-		maxLines = len(fmtLines)
-	}
+	maxLines := max(len(fmtLines), len(origLines))
 
 	inHunk := false
 	hunkStart := 0
 
-	for i := 0; i < maxLines; i++ {
+	for i := range maxLines {
 		origLine := ""
 		fmtLine := ""
 		if i < len(origLines) {
@@ -862,10 +859,7 @@ func printDiff(path, original, formatted string) {
 			if !inHunk {
 				inHunk = true
 				hunkStart = i
-				start := i - 3
-				if start < 0 {
-					start = 0
-				}
+				start := max(i-3, 0)
 				fmt.Fprintf(os.Stderr, "@@ -%d,%d +%d,%d @@\n", start+1, len(origLines)-start, start+1, len(fmtLines)-start)
 				for j := start; j < i; j++ {
 					if j < len(origLines) {

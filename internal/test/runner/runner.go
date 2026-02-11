@@ -792,7 +792,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Write daemon PID to tmpfs dir so the test peer can send SIGHUP.
 			if rec.TmpfsTempDir != "" && proc.Process != nil {
 				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
-				_ = os.WriteFile(pidPath, []byte(fmt.Sprintf("%d", proc.Process.Pid)), 0o600)
+				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 			}
 		}
 	}
@@ -986,8 +986,8 @@ func extractReceivedMessages(output string) []string {
 
 	// Look for "msg  recv" lines followed by hex
 	// Format: "msg  recv    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0029:02:..."
-	lines := strings.Split(output, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(output, "\n")
+	for line := range lines {
 		if strings.Contains(line, "msg  recv") || strings.Contains(line, "msg recv") {
 			// Extract hex after the prefix
 			parts := strings.Fields(line)

@@ -171,7 +171,7 @@ func TestSchedulerCompactsHighDeadRatio(t *testing.T) {
 		handles[i] = p.Intern([]byte{byte(i)}) // Unique data for each
 	}
 	// Release 8 out of 10 (80% dead)
-	for i := 0; i < 8; i++ {
+	for i := range 8 {
 		_ = p.Release(handles[i])
 	}
 

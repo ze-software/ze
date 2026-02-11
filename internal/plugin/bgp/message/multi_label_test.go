@@ -66,7 +66,7 @@ func TestBuildVPNNLRIBytes_MultiLabel(t *testing.T) {
 
 			// Verify BOS bit: only last label should have BOS=1
 			labelBytes := result[1 : 1+len(tt.labels)*3]
-			for i := 0; i < len(tt.labels); i++ {
+			for i := range len(tt.labels) {
 				bos := labelBytes[i*3+2] & 0x01
 				if i == len(tt.labels)-1 {
 					assert.Equal(t, byte(1), bos, "last label should have BOS=1")
@@ -135,7 +135,7 @@ func TestBuildLabeledUnicastNLRIBytes_MultiLabel(t *testing.T) {
 
 			// Verify BOS bit: only last label should have BOS=1
 			labelBytes := result[1 : 1+len(tt.labels)*3]
-			for i := 0; i < len(tt.labels); i++ {
+			for i := range len(tt.labels) {
 				bos := labelBytes[i*3+2] & 0x01
 				if i == len(tt.labels)-1 {
 					assert.Equal(t, byte(1), bos, "last label should have BOS=1")
@@ -198,7 +198,7 @@ func TestEncodeLabelStackConsistency(t *testing.T) {
 	require.Equal(t, 9, len(expected), "3 labels should be 9 bytes")
 
 	// Check BOS bits
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		bos := expected[i*3+2] & 0x01
 		if i == 2 {
 			assert.Equal(t, byte(1), bos, "last label should have BOS=1")

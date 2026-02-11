@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 )
@@ -65,9 +66,7 @@ func (t *Tree) Clone() *Tree {
 	clone := NewTree()
 
 	// Clone values
-	for k, v := range t.values {
-		clone.values[k] = v
-	}
+	maps.Copy(clone.values, t.values)
 
 	// Clone multiValues
 	for k, v := range t.multiValues {
@@ -148,9 +147,7 @@ func (t *Tree) MergeContainer(name string, child *Tree) {
 		return
 	}
 	// Merge values.
-	for k, v := range child.values {
-		existing.values[k] = v
-	}
+	maps.Copy(existing.values, child.values)
 	// Merge multiValues (append).
 	for k, v := range child.multiValues {
 		existing.multiValues[k] = append(existing.multiValues[k], v...)
@@ -617,15 +614,15 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error
 		}
 	}
 
-	value := ""
+	var value strings.Builder
 	for i, w := range words {
 		if i > 0 {
-			value += " "
+			value.WriteString(" ")
 		}
-		value += w
+		value.WriteString(w)
 	}
 
-	tree.Set(name, value)
+	tree.Set(name, value.String())
 	return nil
 }
 
@@ -661,15 +658,15 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, _ *BracketLeafLis
 	p.tok.Next()
 
 	// Store as space-separated string
-	value := ""
+	var value strings.Builder
 	for i, item := range items {
 		if i > 0 {
-			value += " "
+			value.WriteString(" ")
 		}
-		value += item
+		value.WriteString(item)
 	}
 
-	tree.Set(name, value)
+	tree.Set(name, value.String())
 	return nil
 }
 
@@ -705,14 +702,14 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode)
 		p.tok.Next()
 
 		// Store as space-separated string
-		value := ""
+		var value strings.Builder
 		for i, item := range items {
 			if i > 0 {
-				value += " "
+				value.WriteString(" ")
 			}
-			value += item
+			value.WriteString(item)
 		}
-		tree.Set(name, value)
+		tree.Set(name, value.String())
 		return nil
 	}
 
@@ -733,14 +730,14 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode)
 	}
 
 	// Store as space-separated string
-	value := ""
+	var value strings.Builder
 	for i, item := range items {
 		if i > 0 {
-			value += " "
+			value.WriteString(" ")
 		}
-		value += item
+		value.WriteString(item)
 	}
-	tree.Set(name, value)
+	tree.Set(name, value.String())
 	return nil
 }
 
@@ -785,14 +782,14 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 			}
 			if tok.Type == TokenLBrace {
 				// Warn about nested block being skipped
-				key := ""
+				var key strings.Builder
 				for i, w := range words {
 					if i > 0 {
-						key += " "
+						key.WriteString(" ")
 					}
-					key += w
+					key.WriteString(w)
 				}
-				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, key)
+				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, key.String())
 				// Skip nested block
 				if err := p.skipBlock(); err != nil {
 					return err
@@ -826,24 +823,24 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 			if hadArray && len(words) > 1 {
 				// Array present: "processes [ watcher ];" -> key="processes", value="watcher"
 				key := words[0]
-				value := ""
+				var value strings.Builder
 				for i, w := range words[1:] {
 					if i > 0 {
-						value += " "
+						value.WriteString(" ")
 					}
-					value += w
+					value.WriteString(w)
 				}
-				child.Set(key, value)
+				child.Set(key, value.String())
 			} else {
 				// No array: "ipv4/unicast;" -> key="ipv4/unicast", value="true"
-				key := ""
+				var key strings.Builder
 				for i, w := range words {
 					if i > 0 {
-						key += " "
+						key.WriteString(" ")
 					}
-					key += w
+					key.WriteString(w)
 				}
-				child.Set(key, configTrue)
+				child.Set(key.String(), configTrue)
 			}
 		}
 	}
@@ -1036,12 +1033,12 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		if err != nil {
 			return err
 		}
-		value := ""
+		var value strings.Builder
 		for i, v := range parenVals {
 			if i > 0 {
-				value += " "
+				value.WriteString(" ")
 			}
-			value += v
+			value.WriteString(v)
 		}
 
 		// Optional semicolon after parenthesized content
@@ -1050,7 +1047,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 			p.tok.Next()
 		}
 
-		tree.Set(name, value)
+		tree.Set(name, value.String())
 		return nil
 
 	case TokenLBracket:

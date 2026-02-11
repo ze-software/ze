@@ -133,12 +133,10 @@ func TestAttributeStore_Concurrent(t *testing.T) {
 
 	// Intern the same value from multiple goroutines
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 100 {
+		wg.Go(func() {
 			store.Intern(testValue{data: "concurrent"})
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -236,8 +234,7 @@ func BenchmarkAttributeStore_Intern(b *testing.B) {
 
 	value := testValue{data: "benchmark"}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.Intern(value)
 	}
 }
@@ -248,8 +245,7 @@ func BenchmarkAttributeStore_InternDirect(b *testing.B) {
 
 	value := testValue{data: "benchmark"}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.InternDirect(value)
 	}
 }

@@ -459,7 +459,7 @@ func makeAttr(flags, code byte, n int) []byte {
 		panic("use makeExtAttr for length > 255")
 	}
 	result := []byte{flags, code, byte(n)}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result = append(result, byte(i))
 	}
 	return result
@@ -469,7 +469,7 @@ func makeAttr(flags, code byte, n int) []byte {
 func makeExtAttr(flags, code byte, n int) []byte {
 	flags |= 0x10 // Set extended length flag.
 	result := []byte{flags, code, byte(n >> 8), byte(n)}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		result = append(result, byte(i))
 	}
 	return result

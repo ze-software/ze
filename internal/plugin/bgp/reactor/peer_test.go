@@ -521,7 +521,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
-	for i := 0; i < MaxOpQueueSize; i++ {
+	for range MaxOpQueueSize {
 		peer.QueueAnnounce(route)
 	}
 

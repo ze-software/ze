@@ -309,15 +309,13 @@ func (p *Process) startInternal() error {
 
 	// Start the plugin in a goroutine
 	// Plugin side: read from callback socket, write to engine socket
-	p.wg.Add(1)
-	go func() {
-		defer p.wg.Done()
+	p.wg.Go(func() {
 		defer p.running.Store(false)
 		defer func() { _ = pairs.Engine.PluginSide.Close() }()
 		defer func() { _ = pairs.Callback.PluginSide.Close() }()
 
 		_ = runner(pairs.Engine.PluginSide, pairs.Callback.PluginSide)
-	}()
+	})
 
 	return nil
 }

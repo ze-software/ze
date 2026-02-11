@@ -218,7 +218,7 @@ func TestCommitService_VPNNextHopHasRD(t *testing.T) {
 
 				// Verify first 8 bytes are zeros (RD)
 				if valueStart+4+8 <= len(sender.updates[0].PathAttributes) {
-					for i := 0; i < 8; i++ {
+					for i := range 8 {
 						if sender.updates[0].PathAttributes[valueStart+4+i] != 0 {
 							t.Errorf("expected RD byte %d to be 0, got %d", i, sender.updates[0].PathAttributes[valueStart+4+i])
 						}

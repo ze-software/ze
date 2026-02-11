@@ -350,7 +350,7 @@ func replaceAtContext(fullConfig string, contextPath []string, newContent string
 
 					// Write indented new content
 					indent := strings.Repeat("  ", targetDepth)
-					for _, newLine := range strings.Split(strings.TrimSpace(newContent), "\n") {
+					for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
 						result.WriteString(indent)
 						result.WriteString(newLine)
 						result.WriteString("\n")
@@ -424,7 +424,7 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 			if newDepth < targetDepth && !contentInserted {
 				// Insert merged content before closing brace
 				indent := strings.Repeat("  ", targetDepth)
-				for _, newLine := range strings.Split(strings.TrimSpace(newContent), "\n") {
+				for newLine := range strings.SplitSeq(strings.TrimSpace(newContent), "\n") {
 					result.WriteString(indent)
 					result.WriteString(newLine)
 					result.WriteString("\n")

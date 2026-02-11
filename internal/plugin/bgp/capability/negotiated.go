@@ -2,6 +2,7 @@ package capability
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 )
 
@@ -324,13 +325,9 @@ func (n *Negotiated) buildSubComponents() {
 
 	// Create Encoding (copy maps to avoid aliasing)
 	addPathCopy := make(map[Family]AddPathMode, len(n.addPath))
-	for k, v := range n.addPath {
-		addPathCopy[k] = v
-	}
+	maps.Copy(addPathCopy, n.addPath)
 	extNHCopy := make(map[Family]AFI, len(n.extendedNextHop))
-	for k, v := range n.extendedNextHop {
-		extNHCopy[k] = v
-	}
+	maps.Copy(extNHCopy, n.extendedNextHop)
 	n.Encoding = &EncodingCaps{
 		ASN4:            n.ASN4,
 		ExtendedMessage: n.ExtendedMessage, // RFC 8654: affects wire encoding (max message size)

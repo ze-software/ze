@@ -15,8 +15,8 @@ func matchEventPattern(pattern, event string) bool {
 	}
 
 	// Wildcard matching
-	if strings.HasSuffix(pattern, ".*") {
-		prefix := strings.TrimSuffix(pattern, ".*")
+	if before, ok := strings.CutSuffix(pattern, ".*"); ok {
+		prefix := before
 		// Pattern "bgp.*" matches "bgp.peer" but not "bgp" exactly
 		if strings.HasPrefix(event, prefix+".") || event == prefix {
 			return true

@@ -362,7 +362,7 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 
 	// Verify BGP header
 	// RFC 4271 Section 4.1 - Marker must be all 0xFF
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		require.Equal(t, byte(0xFF), buf[i], "marker byte %d must be 0xFF", i)
 	}
 

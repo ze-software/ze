@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"maps"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -89,9 +90,7 @@ func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*rea
 	// Start with all internal plugin YANG (GR, hostname, etc.)
 	pluginYANG := plugin.GetAllInternalPluginYANG()
 	// Add CLI-specified plugins (may override internal)
-	for name, yang := range plugin.CollectPluginYANG(cliPlugins) {
-		pluginYANG[name] = yang
-	}
+	maps.Copy(pluginYANG, plugin.CollectPluginYANG(cliPlugins))
 
 	tree, err := parseTreeWithYANG(input, pluginYANG)
 	if err != nil {
@@ -170,9 +169,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	// Start with all internal plugin YANG (GR, hostname, etc.)
 	pluginYANG := plugin.GetAllInternalPluginYANG()
 	// Add CLI-specified plugins (may override internal)
-	for name, yang := range plugin.CollectPluginYANG(cliPlugins) {
-		pluginYANG[name] = yang
-	}
+	maps.Copy(pluginYANG, plugin.CollectPluginYANG(cliPlugins))
 
 	// Parse config into tree
 	tree, err := parseTreeWithYANG(string(data), pluginYANG)
@@ -476,8 +473,8 @@ func convertMVPNRoute(mr MVPNRouteConfig) (reactor.MVPNRoute, error) {
 
 	// Parse cluster-list (RFC 4456, space-separated IPs)
 	if mr.ClusterList != "" {
-		parts := strings.Fields(mr.ClusterList)
-		for _, p := range parts {
+		parts := strings.FieldsSeq(mr.ClusterList)
+		for p := range parts {
 			p = strings.Trim(p, "[]")
 			if p == "" {
 				continue
@@ -570,8 +567,8 @@ func convertVPLSRoute(vr VPLSRouteConfig) (reactor.VPLSRoute, error) {
 
 	// Parse cluster-list (space-separated IPs)
 	if vr.ClusterList != "" {
-		parts := strings.Fields(vr.ClusterList)
-		for _, p := range parts {
+		parts := strings.FieldsSeq(vr.ClusterList)
+		for p := range parts {
 			// Remove brackets
 			p = strings.Trim(p, "[]")
 			if p == "" {
@@ -684,7 +681,7 @@ func sortExtCommunities(data []byte) []byte {
 		data = data[:count*8]
 	}
 	communities := make([]uint64, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		offset := i * 8
 		communities[i] = uint64(data[offset])<<56 |
 			uint64(data[offset+1])<<48 |
@@ -921,18 +918,6 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 	return prefix, 0
 }
 
-// parseFlowProtocols parses protocol values like "tcp", "=udp", "[ tcp udp ]".
-//
-//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
-func parseFlowProtocols(s string) []uint8 {
-	matches := parseFlowProtocolMatches(s)
-	result := make([]uint8, len(matches))
-	for i, m := range matches {
-		result[i] = uint8(m.Value) // #nosec G115 -- protocol is uint8
-	}
-	return result
-}
-
 // parseFlowProtocolMatches parses protocol values with operators.
 func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
 	s = strings.Trim(s, "[]")
@@ -964,18 +949,6 @@ func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
 		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
 			result = append(result, flowspec.FlowMatch{Op: op, Value: n})
 		}
-	}
-	return result
-}
-
-// parseFlowPorts parses port values like "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088".
-//
-//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
-func parseFlowPorts(s string) []uint16 {
-	matches := parseFlowMatches(s)
-	result := make([]uint16, len(matches))
-	for i, m := range matches {
-		result[i] = uint16(m.Value) //nolint:gosec // Value range validated by caller
 	}
 	return result
 }
@@ -1174,19 +1147,6 @@ func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
 	return result
 }
 
-// parseFlowTCPFlags parses TCP flags like "[SYN RST&FIN&!=push]".
-// Returns simple flag values.
-//
-//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
-func parseFlowTCPFlags(s string) []uint8 {
-	matches := parseFlowTCPFlagMatches(s)
-	result := make([]uint8, len(matches))
-	for i, m := range matches {
-		result[i] = uint8(m.Value) // #nosec G115 -- TCP flags fit in uint8
-	}
-	return result
-}
-
 // parseFlowTCPFlagMatches parses TCP flags with AND and NOT operators.
 // TCP flags use bitmask matching:
 //   - 0x01 = MATCH (exact match)
@@ -1235,8 +1195,8 @@ func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
 func parseFlowLabels(s string) []uint32 {
 	var result []uint32
 	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	for _, p := range parts {
+	parts := strings.FieldsSeq(s)
+	for p := range parts {
 		p = strings.TrimPrefix(p, "=")
 		val, err := strconv.ParseUint(p, 10, 32)
 		if err == nil {
@@ -1550,7 +1510,7 @@ func writeTEIDWithBits(buf []byte, off int, teid uint32, bits int) int {
 		return 0
 	}
 	byteLen := (bits + 7) / 8
-	for i := 0; i < byteLen; i++ {
+	for i := range byteLen {
 		shift := (byteLen - 1 - i) * 8
 		buf[off+i] = byte(teid >> shift)
 	}
@@ -1607,8 +1567,8 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	hasPeerGlobError := strings.Contains(errMsg, "invalid key for peer") && strings.Contains(errMsg, "invalid IP")
 
 	// Also check input for old syntax patterns
-	lines := strings.Split(input, "\n")
-	for _, line := range lines {
+	lines := strings.SplitSeq(input, "\n")
+	for line := range lines {
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "neighbor ") {
 			hasNeighborKeyword = true
@@ -1660,7 +1620,7 @@ func splitPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
 	result := make([]netip.Prefix, 0, numPrefixes)
 
 	baseAddr := prefix.Addr()
-	for i := 0; i < numPrefixes; i++ {
+	for i := range numPrefixes {
 		newAddr := addToAddr(baseAddr, i, targetLen)
 		result = append(result, netip.PrefixFrom(newAddr, targetLen))
 	}

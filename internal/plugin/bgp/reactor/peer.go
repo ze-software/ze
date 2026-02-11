@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -2004,7 +2005,7 @@ func routeGroupKey(r StaticRoute) string {
 	// Sort communities for consistent key.
 	comms := make([]uint32, len(r.Communities))
 	copy(comms, r.Communities)
-	sort.Slice(comms, func(i, j int) bool { return comms[i] < comms[j] })
+	slices.Sort(comms)
 
 	// Sort large communities.
 	lcs := make([][3]uint32, len(r.LargeCommunities))

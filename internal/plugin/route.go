@@ -60,7 +60,7 @@ func splitPrefix(prefix netip.Prefix, targetLen int) ([]netip.Prefix, error) {
 	// Get base address as bytes
 	baseAddr := prefix.Addr()
 
-	for i := 0; i < numPrefixes; i++ {
+	for i := range numPrefixes {
 		// Calculate the new address by adding i * (size of each sub-prefix)
 		newAddr := addToAddr(baseAddr, i, targetLen)
 		newPrefix := netip.PrefixFrom(newAddr, targetLen)
@@ -146,7 +146,7 @@ func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
 // parseSplitArg looks for "split /N" in args and returns the target prefix length.
 // Returns (0, false) if not found or invalid.
 func parseSplitArg(args []string) (int, bool) {
-	for i := 0; i < len(args)-1; i++ {
+	for i := range len(args) - 1 {
 		if strings.EqualFold(args[i], "split") {
 			val := args[i+1]
 			if !strings.HasPrefix(val, "/") {
@@ -612,13 +612,13 @@ func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
 	}
 
 	// Split on first colon to get type prefix
-	colonIdx := strings.Index(s, ":")
-	if colonIdx == -1 {
+	before, after, ok := strings.Cut(s, ":")
+	if !ok {
 		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid extended community format: %s", s)
 	}
 
-	typePrefix := strings.ToLower(s[:colonIdx])
-	value := s[colonIdx+1:]
+	typePrefix := strings.ToLower(before)
+	value := after
 
 	switch typePrefix {
 	case "origin":

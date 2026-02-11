@@ -212,12 +212,12 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 		}
 
 		// Parse stdin= line
-		if strings.HasPrefix(trimmed, "stdin=") {
-			rest := strings.TrimPrefix(trimmed, "stdin=")
-			parts := strings.Split(rest, ":")
-			for _, part := range parts {
-				if strings.HasPrefix(part, "terminator=") {
-					terminator = strings.TrimPrefix(part, "terminator=")
+		if after, ok := strings.CutPrefix(trimmed, "stdin="); ok {
+			rest := after
+			parts := strings.SplitSeq(rest, ":")
+			for part := range parts {
+				if after, ok := strings.CutPrefix(part, "terminator="); ok {
+					terminator = after
 					inStdinBlock = true
 					break
 				}
@@ -232,8 +232,8 @@ func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
 		}
 
 		// Parse expect=stderr:contains=<error>
-		if strings.HasPrefix(trimmed, "expect=stderr:contains=") {
-			test.ExpectError = strings.TrimPrefix(trimmed, "expect=stderr:contains=")
+		if after, ok := strings.CutPrefix(trimmed, "expect=stderr:contains="); ok {
+			test.ExpectError = after
 			continue
 		}
 

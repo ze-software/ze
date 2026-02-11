@@ -3,6 +3,7 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
 
@@ -327,9 +328,7 @@ func (r *SchemaRegistry) ListHandlers() map[string]string {
 	defer r.mu.RUnlock()
 
 	result := make(map[string]string, len(r.handlers))
-	for handler, module := range r.handlers {
-		result[handler] = module
-	}
+	maps.Copy(result, r.handlers)
 	return result
 }
 

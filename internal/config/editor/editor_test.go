@@ -78,7 +78,7 @@ func TestEditorBackupNaming(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create multiple backups
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		ed, err := NewEditor(configPath)
 		require.NoError(t, err)
 		ed.MarkDirty()

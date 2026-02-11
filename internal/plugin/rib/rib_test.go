@@ -427,7 +427,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 
 	// Rapid state changes from multiple goroutines
 	done := make(chan bool)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(n int) {
 			state := "up"
 			if n%2 == 0 {
@@ -444,7 +444,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	}
 
 	// Wait for all goroutines
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 

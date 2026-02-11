@@ -3,6 +3,7 @@ package pool
 
 import (
 	"errors"
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -459,10 +460,7 @@ func (p *Pool) StartCompaction() {
 	p.currentBit = newBit
 
 	// Allocate new buffer with headroom
-	newSize := liveBytes + liveBytes/4
-	if newSize < 64 {
-		newSize = 64
-	}
+	newSize := max(liveBytes+liveBytes/4, 64)
 	p.buffers[newBit].data = make([]byte, 0, newSize)
 	p.buffers[newBit].pos = 0
 	p.buffers[newBit].refCount.Store(0)
@@ -570,10 +568,7 @@ func (p *Pool) ensureCapacity(needed int) {
 	}
 
 	// Grow buffer
-	newCap := cap(buf.data) * 2
-	if newCap < required {
-		newCap = required
-	}
+	newCap := max(cap(buf.data)*2, required)
 
 	oldData := buf.data
 	buf.data = make([]byte, len(oldData), newCap)
@@ -605,9 +600,7 @@ func (p *Pool) rebuildIndex() {
 	p.index = make(map[string]Handle, len(p.slots))
 
 	// Restore preserved old-buffer entries
-	for k, h := range preserved {
-		p.index[k] = h
-	}
+	maps.Copy(p.index, preserved)
 
 	// Rebuild entries for current buffer
 	for i := range p.slots {

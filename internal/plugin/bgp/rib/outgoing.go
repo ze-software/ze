@@ -2,6 +2,7 @@ package rib
 
 import (
 	"errors"
+	"maps"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
@@ -202,9 +203,7 @@ func (r *OutgoingRIB) FlushPending(family nlri.Family) []*Route {
 	if r.sent[family] == nil {
 		r.sent[family] = make(map[string]*Route)
 	}
-	for idx, route := range familyPending {
-		r.sent[family][idx] = route
-	}
+	maps.Copy(r.sent[family], familyPending)
 
 	return routes
 }

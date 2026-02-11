@@ -11,8 +11,7 @@ func BenchmarkInternExisting(b *testing.B) {
 	p := New(1024 * 1024)
 	p.Intern([]byte("benchmark-data"))
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		p.Intern([]byte("benchmark-data"))
 	}
 }
@@ -22,9 +21,8 @@ func BenchmarkInternExisting(b *testing.B) {
 func BenchmarkInternNew(b *testing.B) {
 	p := New(1024 * 1024 * 100) // 100MB to avoid reallocation
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		p.Intern([]byte(fmt.Sprintf("data-%d", i)))
+	for i := 0; b.Loop(); i++ {
+		p.Intern(fmt.Appendf(nil, "data-%d", i))
 	}
 }
 
@@ -34,8 +32,7 @@ func BenchmarkGet(b *testing.B) {
 	p := New(1024)
 	h := p.Intern([]byte("benchmark-data"))
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = p.Get(h)
 	}
 }
@@ -47,12 +44,12 @@ func BenchmarkRelease(b *testing.B) {
 	handles := make([]Handle, b.N)
 
 	// Pre-allocate unique handles
-	for i := 0; i < b.N; i++ {
-		handles[i] = p.Intern([]byte(fmt.Sprintf("data-%d", i)))
+	for i := range b.N {
+		handles[i] = p.Intern(fmt.Appendf(nil, "data-%d", i))
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		_ = p.Release(handles[i])
 	}
 }
@@ -62,8 +59,7 @@ func BenchmarkLength(b *testing.B) {
 	p := New(1024)
 	h := p.Intern([]byte("benchmark-data"))
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, _ = p.Length(h)
 	}
 }
@@ -72,29 +68,27 @@ func BenchmarkLength(b *testing.B) {
 func BenchmarkMetrics(b *testing.B) {
 	p := New(1024)
 	// Add some entries
-	for i := 0; i < 100; i++ {
-		p.Intern([]byte(fmt.Sprintf("data-%d", i)))
+	for i := range 100 {
+		p.Intern(fmt.Appendf(nil, "data-%d", i))
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_ = p.Metrics()
 	}
 }
 
 // BenchmarkCompact measures performance of compaction.
 func BenchmarkCompact(b *testing.B) {
-	b.StopTimer()
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		p := New(1024 * 1024)
 		// Create entries
 		handles := make([]Handle, 1000)
-		for j := 0; j < 1000; j++ {
-			handles[j] = p.Intern([]byte(fmt.Sprintf("data-%d", j)))
+		for j := range 1000 {
+			handles[j] = p.Intern(fmt.Appendf(nil, "data-%d", j))
 		}
 		// Release half
-		for j := 0; j < 500; j++ {
+		for j := range 500 {
 			_ = p.Release(handles[j])
 		}
 
@@ -111,7 +105,7 @@ func BenchmarkConcurrentIntern(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			p.Intern([]byte(fmt.Sprintf("data-%d", i)))
+			p.Intern(fmt.Appendf(nil, "data-%d", i))
 			i++
 		}
 	})
@@ -134,13 +128,12 @@ func BenchmarkDeduplication(b *testing.B) {
 	p := New(1024 * 1024)
 
 	// Pre-populate with some entries
-	for i := 0; i < 100; i++ {
-		p.Intern([]byte(fmt.Sprintf("data-%d", i)))
+	for i := range 100 {
+		p.Intern(fmt.Appendf(nil, "data-%d", i))
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := 0; b.Loop(); i++ {
 		// 50% hit rate
-		p.Intern([]byte(fmt.Sprintf("data-%d", i%100)))
+		p.Intern(fmt.Appendf(nil, "data-%d", i%100))
 	}
 }

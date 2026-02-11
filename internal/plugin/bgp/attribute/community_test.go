@@ -369,7 +369,7 @@ func TestCommunitiesWriteToOffset(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, comms, parsed)
 
-	for i := 0; i < offset; i++ {
+	for i := range offset {
 		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
 	}
 }

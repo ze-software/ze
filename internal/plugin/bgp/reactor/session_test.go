@@ -21,11 +21,9 @@ func acceptWithReader(t *testing.T, session *Session, server, client net.Conn) [
 	buf := make([]byte, 4096)
 	var n int
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		n, _ = client.Read(buf)
-	}()
+	})
 
 	err := session.Accept(server)
 	require.NoError(t, err)
@@ -635,7 +633,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 
 	// Write as BGP message
 	hdr := make([]byte, 19)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff // Marker
 	}
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
@@ -729,7 +727,7 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 	// Build UPDATE header with length > 4096 (e.g., 4100)
 	// RFC 8654: Without extended message, this MUST be rejected
 	hdr := make([]byte, 19)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff // Marker
 	}
 	// Length = 4100 (> 4096 max without extended message)
@@ -822,7 +820,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 	// Build valid UPDATE with length > 4096 (e.g., 5000)
 	// RFC 8654: With extended message, this SHOULD be accepted
 	updateMsg := make([]byte, 5000)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		updateMsg[i] = 0xff // Marker
 	}
 	// Length = 5000 (> 4096, allowed with extended message)
@@ -879,7 +877,7 @@ func TestSessionOpenAlwaysBounded(t *testing.T) {
 	// Build OPEN header with length > 4096 (e.g., 4100)
 	// Even though peer might support extended message, OPEN is always bounded
 	hdr := make([]byte, 19)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff // Marker
 	}
 	// Length = 4100 (> 4096 - invalid for OPEN regardless of extended message)
@@ -981,7 +979,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	update = append(update, pathAttrs...)
 
 	hdr := make([]byte, 19)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff
 	}
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
@@ -1169,7 +1167,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 
 	// Write as BGP message
 	hdr := make([]byte, 19, 19+len(update))
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff
 	}
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
@@ -1270,7 +1268,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
 	hdr := make([]byte, 19, 19+len(update))
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff
 	}
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
@@ -1366,7 +1364,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
 	hdr := make([]byte, 19, 19+len(update))
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		hdr[i] = 0xff
 	}
 	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
@@ -1472,7 +1470,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 	require.GreaterOrEqual(t, len(received), message.HeaderLen, "message too short")
 
 	// Check marker (16 bytes of 0xFF)
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		require.Equal(t, byte(0xFF), received[i], "marker byte %d should be 0xFF", i)
 	}
 
@@ -1525,7 +1523,7 @@ func TestSendRawUpdateBodyNotEstablished(t *testing.T) {
 func buildRouteRefreshMsg(body []byte) []byte {
 	msg := make([]byte, 19+len(body))
 	// Marker
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		msg[i] = 0xff
 	}
 	// Length

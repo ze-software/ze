@@ -162,14 +162,14 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		}
 
 		// Parse stdin= line (single-line hex format)
-		if strings.HasPrefix(line, "stdin=") {
-			rest := strings.TrimPrefix(line, "stdin=")
+		if after, ok := strings.CutPrefix(line, "stdin="); ok {
+			rest := after
 			parts := strings.Split(rest, ":")
 			if len(parts) >= 2 {
 				stdinName := parts[0]
 				for _, part := range parts[1:] {
-					if strings.HasPrefix(part, "hex=") {
-						stdinBlocks[stdinName] = strings.TrimPrefix(part, "hex=")
+					if after, ok := strings.CutPrefix(part, "hex="); ok {
+						stdinBlocks[stdinName] = after
 					}
 				}
 			}
@@ -183,8 +183,8 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		}
 
 		// Parse legacy decode= line
-		if strings.HasPrefix(line, "decode=") {
-			rest := strings.TrimPrefix(line, "decode=")
+		if after, ok := strings.CutPrefix(line, "decode="); ok {
+			rest := after
 			parts := strings.Split(rest, ":")
 			if len(parts) == 0 {
 				return nil, fmt.Errorf("invalid decode= line: %s", line)
@@ -193,20 +193,20 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 
 			// Parse key=value pairs
 			for _, part := range parts[1:] {
-				if strings.HasPrefix(part, "family=") {
-					family = strings.TrimPrefix(part, "family=")
-				} else if strings.HasPrefix(part, "hex=") {
-					hexPayload = strings.TrimPrefix(part, "hex=")
+				if after, ok := strings.CutPrefix(part, "family="); ok {
+					family = after
+				} else if after, ok := strings.CutPrefix(part, "hex="); ok {
+					hexPayload = after
 				}
 			}
 			continue
 		}
 
 		// Parse expect=json: line
-		if strings.HasPrefix(line, "expect=json:") {
-			rest := strings.TrimPrefix(line, "expect=json:")
-			if strings.HasPrefix(rest, "json=") {
-				expectedJSON = strings.TrimPrefix(rest, "json=")
+		if after, ok := strings.CutPrefix(line, "expect=json:"); ok {
+			rest := after
+			if after, ok := strings.CutPrefix(rest, "json="); ok {
+				expectedJSON = after
 			}
 			continue
 		}
@@ -264,11 +264,11 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 	var execPart string
 	var stdinRef string
 	for _, part := range parts {
-		if strings.HasPrefix(part, "exec=") {
-			execPart = strings.TrimPrefix(part, "exec=")
+		if after, ok := strings.CutPrefix(part, "exec="); ok {
+			execPart = after
 		}
-		if strings.HasPrefix(part, "stdin=") {
-			stdinRef = strings.TrimPrefix(part, "stdin=")
+		if after, ok := strings.CutPrefix(part, "stdin="); ok {
+			stdinRef = after
 		}
 	}
 

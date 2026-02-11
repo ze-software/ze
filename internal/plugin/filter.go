@@ -10,7 +10,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -72,8 +71,8 @@ func ParseAttributeFilter(s string) (AttributeFilter, error) {
 		name = strings.ToLower(name)
 
 		// Handle numeric attr-N syntax
-		if strings.HasPrefix(name, "attr-") {
-			numStr := strings.TrimPrefix(name, "attr-")
+		if after, ok := strings.CutPrefix(name, "attr-"); ok {
+			numStr := after
 			num, err := strconv.Atoi(numStr)
 			if err != nil || num < 0 || num > 255 {
 				return AttributeFilter{}, fmt.Errorf("invalid attribute code: %s", name)
@@ -572,158 +571,4 @@ func extractNextHopBytes(pathAttrs []byte) []byte {
 		i = valueOffset + attrValueLen
 	}
 	return nil
-}
-
-// extractNLRIFromBody extracts IPv4 NLRI and withdrawn from UPDATE body.
-// Also extracts NEXT_HOP if present in path attributes.
-// Does NOT parse other attributes - this is the fast path.
-// Use this when you need concrete types for caching (vs zero-copy MPReachWire).
-//
-//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
-func extractNLRIFromBody(body []byte) (announced, withdrawn []netip.Prefix, nextHop netip.Addr) {
-	if len(body) < 4 {
-		return nil, nil, netip.Addr{}
-	}
-
-	// Parse UPDATE structure: withdrawn_len (2) + withdrawn + attr_len (2) + attrs + nlri
-	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
-	offset := 2
-
-	// Parse withdrawn routes (IPv4)
-	if withdrawnLen > 0 && offset+withdrawnLen <= len(body) {
-		withdrawn = parseIPv4Prefixes(body[offset : offset+withdrawnLen])
-	}
-	offset += withdrawnLen
-
-	if offset+2 > len(body) {
-		return announced, withdrawn, nextHop
-	}
-
-	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
-	offset += 2
-	if offset+attrLen > len(body) {
-		return announced, withdrawn, nextHop
-	}
-
-	// Quick scan for NEXT_HOP only (don't parse other attrs)
-	nextHop = extractNextHopQuick(body[offset : offset+attrLen])
-
-	nlriOffset := offset + attrLen
-	nlriLen := len(body) - nlriOffset
-
-	// Parse IPv4 NLRI
-	if nlriLen > 0 {
-		announced = parseIPv4Prefixes(body[nlriOffset:])
-	}
-
-	return announced, withdrawn, nextHop
-}
-
-// extractNextHopQuick scans attributes for NEXT_HOP without full parsing.
-// Returns zero Addr if not found.
-//
-//nolint:unused // Used by extractNLRIFromBody for RIB/caching path
-func extractNextHopQuick(pathAttrs []byte) netip.Addr {
-	for i := 0; i < len(pathAttrs); {
-		if i+2 > len(pathAttrs) {
-			break
-		}
-		flags := pathAttrs[i]
-		typeCode := pathAttrs[i+1]
-		attrLenBytes := 1
-		if flags&0x10 != 0 { // Extended length
-			attrLenBytes = 2
-		}
-		if i+2+attrLenBytes > len(pathAttrs) {
-			break
-		}
-		var attrValueLen int
-		if attrLenBytes == 1 {
-			attrValueLen = int(pathAttrs[i+2])
-			i += 3
-		} else {
-			attrValueLen = int(binary.BigEndian.Uint16(pathAttrs[i+2 : i+4]))
-			i += 4
-		}
-		if i+attrValueLen > len(pathAttrs) {
-			break
-		}
-
-		// NEXT_HOP = type code 3
-		if typeCode == 3 && attrValueLen == 4 {
-			var addrBytes [4]byte
-			copy(addrBytes[:], pathAttrs[i:i+4])
-			return netip.AddrFrom4(addrBytes)
-		}
-
-		i += attrValueLen
-	}
-	return netip.Addr{}
-}
-
-// extractMPReachFromWireWithFamily gets prefixes, next-hop, and family from MP_REACH_NLRI.
-// Uses wire's lazy parsing - only parses this specific attribute.
-// Use this when you need concrete types for caching (vs zero-copy MPReachWire).
-//
-//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
-func extractMPReachFromWireWithFamily(wire *attribute.AttributesWire) (prefixes []netip.Prefix, nextHop netip.Addr, family string) {
-	attr, err := wire.Get(attribute.AttrMPReachNLRI)
-	if err != nil || attr == nil {
-		return nil, netip.Addr{}, ""
-	}
-
-	mpReach, ok := attr.(*attribute.MPReachNLRI)
-	if !ok {
-		return nil, netip.Addr{}, ""
-	}
-
-	// Get next-hop (first one if multiple)
-	if len(mpReach.NextHops) > 0 {
-		nextHop = mpReach.NextHops[0]
-	}
-
-	// Determine family string
-	family = message.AFISAFIToFamily(message.AFI(mpReach.AFI), message.SAFI(mpReach.SAFI))
-
-	// Parse NLRI bytes based on AFI/SAFI
-	switch {
-	case mpReach.AFI == attribute.AFIIPv6 && mpReach.SAFI == attribute.SAFIUnicast:
-		prefixes = parseIPv6Prefixes(mpReach.NLRI)
-	case mpReach.AFI == attribute.AFIIPv4 && mpReach.SAFI == attribute.SAFIUnicast:
-		prefixes = parseIPv4Prefixes(mpReach.NLRI)
-		// TODO: handle other AFI/SAFI combinations
-	}
-
-	return prefixes, nextHop, family
-}
-
-// extractMPUnreachFromWireWithFamily gets withdrawn prefixes and family from MP_UNREACH_NLRI.
-// Uses wire's lazy parsing - only parses this specific attribute.
-// Use this when you need concrete types for caching (vs zero-copy MPUnreachWire).
-//
-//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
-func extractMPUnreachFromWireWithFamily(wire *attribute.AttributesWire) (prefixes []netip.Prefix, family string) {
-	attr, err := wire.Get(attribute.AttrMPUnreachNLRI)
-	if err != nil || attr == nil {
-		return nil, ""
-	}
-
-	mpUnreach, ok := attr.(*attribute.MPUnreachNLRI)
-	if !ok {
-		return nil, ""
-	}
-
-	// Determine family string
-	family = message.AFISAFIToFamily(message.AFI(mpUnreach.AFI), message.SAFI(mpUnreach.SAFI))
-
-	// Parse withdrawn NLRI bytes based on AFI/SAFI
-	switch {
-	case mpUnreach.AFI == attribute.AFIIPv6 && mpUnreach.SAFI == attribute.SAFIUnicast:
-		prefixes = parseIPv6Prefixes(mpUnreach.NLRI)
-	case mpUnreach.AFI == attribute.AFIIPv4 && mpUnreach.SAFI == attribute.SAFIUnicast:
-		prefixes = parseIPv4Prefixes(mpUnreach.NLRI)
-		// TODO: handle other AFI/SAFI combinations
-	}
-
-	return prefixes, family
 }

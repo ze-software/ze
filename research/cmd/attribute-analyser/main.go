@@ -389,7 +389,7 @@ func parsePeerIndexTable(data []byte, stats *Stats) {
 	offset += 2
 
 	// Parse each peer entry
-	for i := uint16(0); i < peerCount; i++ {
+	for i := range peerCount {
 		if offset+1 > len(data) {
 			break
 		}
@@ -458,7 +458,7 @@ func processRIBEntry(data []byte, _ int, stats *Stats) error {
 	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}
@@ -494,7 +494,7 @@ func processRIBGeneric(data []byte, stats *Stats) error {
 	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}
@@ -1169,13 +1169,10 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		return peers[i].updates > peers[j].updates
 	})
 
-	limit := 10
-	if len(peers) < limit {
-		limit = len(peers)
-	}
+	limit := min(len(peers), 10)
 
 	var avgHitRate float64
-	for i := 0; i < limit; i++ {
+	for i := range limit {
 		p := peers[i]
 		avgHitRate += p.hitRate
 
@@ -1194,11 +1191,8 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		// Show default communities
 		if len(p.defaultComms) > 0 {
 			_, _ = fmt.Fprintf(w, "    Defaults (>90%%): ")
-			maxShow := 5
-			if len(p.defaultComms) < maxShow {
-				maxShow = len(p.defaultComms)
-			}
-			for j := 0; j < maxShow; j++ {
+			maxShow := min(len(p.defaultComms), 5)
+			for j := range maxShow {
 				if j > 0 {
 					_, _ = fmt.Fprintf(w, ", ")
 				}
@@ -1319,11 +1313,8 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	_, _ = fmt.Fprintf(w, "\n  Top 20 COMMUNITY values (by occurrence):\n")
 	_, _ = fmt.Fprintf(w, "    %-20s %12s %8s\n", "Community", "Count", "% of updates")
 	_, _ = fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 44))
-	topLimit := 20
-	if len(topComms) < topLimit {
-		topLimit = len(topComms)
-	}
-	for i := 0; i < topLimit; i++ {
+	topLimit := min(len(topComms), 20)
+	for i := range topLimit {
 		c := topComms[i]
 		_, _ = fmt.Fprintf(w, "    %-20s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
 	}
@@ -1342,11 +1333,8 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		_, _ = fmt.Fprintf(w, "\n  Top 20 LARGE_COMMUNITY values (by occurrence):\n")
 		_, _ = fmt.Fprintf(w, "    %-30s %12s %8s\n", "Large Community", "Count", "% of updates")
 		_, _ = fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 54))
-		topLimit = 20
-		if len(topLargeComms) < topLimit {
-			topLimit = len(topLargeComms)
-		}
-		for i := 0; i < topLimit; i++ {
+		topLimit = min(len(topLargeComms), 20)
+		for i := range topLimit {
 			c := topLargeComms[i]
 			_, _ = fmt.Fprintf(w, "    %-30s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
 		}

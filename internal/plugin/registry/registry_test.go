@@ -41,6 +41,7 @@ func TestRegister(t *testing.T) {
 	reg := Lookup("alpha")
 	if reg == nil {
 		t.Fatal("expected registration, got nil")
+		return
 	}
 	if reg.Name != "alpha" {
 		t.Errorf("expected name %q, got %q", "alpha", reg.Name)

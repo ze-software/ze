@@ -276,7 +276,7 @@ func TestSchemaRegistry_Concurrent(t *testing.T) {
 
 	// Register schemas concurrently
 	done := make(chan bool, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		go func(idx int) {
 			schema := &Schema{
 				Module:   strings.Repeat("a", idx+1) + "-module",
@@ -291,7 +291,7 @@ func TestSchemaRegistry_Concurrent(t *testing.T) {
 	}
 
 	// Wait for all
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 
@@ -299,7 +299,7 @@ func TestSchemaRegistry_Concurrent(t *testing.T) {
 	assert.Greater(t, reg.Count(), 0)
 
 	// Concurrent reads - use results to avoid _, _ = pattern
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		go func() {
 			modules := reg.ListModules()
 			handlers := reg.ListHandlers()
@@ -312,7 +312,7 @@ func TestSchemaRegistry_Concurrent(t *testing.T) {
 		}()
 	}
 
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		<-done
 	}
 }

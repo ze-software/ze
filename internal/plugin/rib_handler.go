@@ -36,8 +36,8 @@ func handleRibHelp(ctx *CommandContext, _ []string) (*Response, error) {
 			seen[sub] = true
 		}
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
-			if strings.HasPrefix(cmd.Name, "rib ") {
-				parts := strings.SplitN(strings.TrimPrefix(cmd.Name, "rib "), " ", 2)
+			if after, ok := strings.CutPrefix(cmd.Name, "rib "); ok {
+				parts := strings.SplitN(after, " ", 2)
 				if len(parts) > 0 && !seen[parts[0]] {
 					subcommands = append(subcommands, parts[0])
 					seen[parts[0]] = true

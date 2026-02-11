@@ -45,7 +45,7 @@ func TestCmdEncode_BasicUnicast(t *testing.T) {
 	}
 
 	// Check BGP marker
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if decoded[i] != 0xFF {
 			t.Errorf("byte %d: expected 0xFF, got 0x%02X", i, decoded[i])
 		}

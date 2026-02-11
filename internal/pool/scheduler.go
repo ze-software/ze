@@ -105,7 +105,7 @@ func (s *Scheduler) tick() {
 
 	// Find next pool needing compaction (round-robin)
 	n := len(s.pools)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		idx := (s.lastIndex + 1 + i) % n
 		p := s.pools[idx]
 

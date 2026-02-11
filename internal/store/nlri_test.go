@@ -94,12 +94,10 @@ func TestFamilyStore_Concurrent(t *testing.T) {
 	defer store.Stop()
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 100 {
+		wg.Go(func() {
 			store.Intern(testNLRI{family: 1, data: []byte{1, 2, 3, 4}})
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -198,7 +196,7 @@ func TestNLRIStore_ConcurrentFamilies(t *testing.T) {
 
 	// Concurrent access to multiple families
 	for family := uint32(1); family <= 10; family++ {
-		for i := 0; i < 10; i++ {
+		for range 10 {
 			wg.Add(1)
 			go func(f uint32) {
 				defer wg.Done()
@@ -224,8 +222,7 @@ func BenchmarkFamilyStore_Intern(b *testing.B) {
 
 	nlri := testNLRI{family: 1, data: []byte{10, 0, 0, 0, 24}}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.Intern(nlri)
 	}
 }
@@ -236,8 +233,7 @@ func BenchmarkNLRIStore_Intern(b *testing.B) {
 
 	nlri := testNLRI{family: 0x00010001, data: []byte{10, 0, 0, 0, 24}}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.Intern(nlri)
 	}
 }

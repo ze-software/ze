@@ -16,6 +16,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -235,7 +236,7 @@ func parsePeerIndexTable(data []byte, stats *Stats) {
 	offset += 2
 
 	// Parse each peer entry
-	for i := uint16(0); i < peerCount; i++ {
+	for i := range peerCount {
 		if offset+1 > len(data) {
 			break
 		}
@@ -307,7 +308,7 @@ func processRIBEntry(data []byte, stats *Stats) {
 	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}
@@ -351,7 +352,7 @@ func processRIBGeneric(data []byte, stats *Stats) {
 	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}
@@ -483,13 +484,7 @@ func analyzeRoute(attrs []byte, asn uint32, peerIndex uint16, stats *Stats) {
 	asnStats.Routes++
 
 	// Track peer indices for this ASN
-	found := false
-	for _, p := range asnStats.Peers {
-		if p == peerIndex {
-			found = true
-			break
-		}
-	}
+	found := slices.Contains(asnStats.Peers, peerIndex)
 	if !found {
 		asnStats.Peers = append(asnStats.Peers, peerIndex)
 	}

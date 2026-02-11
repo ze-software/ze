@@ -24,9 +24,7 @@ func TestStageSynchronization(t *testing.T) {
 		var wg sync.WaitGroup
 
 		// Plugin 1: fast
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			// Complete stage 1
 			stage1Complete.Add(1)
 			coordinator.StageComplete(0, StageRegistration)
@@ -35,12 +33,10 @@ func TestStageSynchronization(t *testing.T) {
 			err := coordinator.WaitForStage(context.Background(), StageConfig)
 			require.NoError(t, err)
 			stage2Started.Add(1)
-		}()
+		})
 
 		// Plugin 2: slow
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			time.Sleep(50 * time.Millisecond)
 
 			// At this point, plugin 1 should NOT have started stage 2
@@ -55,7 +51,7 @@ func TestStageSynchronization(t *testing.T) {
 			err := coordinator.WaitForStage(context.Background(), StageConfig)
 			require.NoError(t, err)
 			stage2Started.Add(1)
-		}()
+		})
 
 		// Coordinator advances stages when all complete
 		go func() { _ = coordinator.Run(context.Background()) }()
@@ -73,7 +69,7 @@ func TestStageSynchronization(t *testing.T) {
 		var completedStages [3]atomic.Int32
 		var wg sync.WaitGroup
 
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			wg.Add(1)
 			go func(pluginID int) {
 				defer wg.Done()
@@ -109,7 +105,7 @@ func TestStageSynchronization(t *testing.T) {
 		wg.Wait()
 
 		// All plugins should complete all 5 stages
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			assert.Equal(t, int32(5), completedStages[i].Load(), "plugin %d stages", i)
 		}
 	})
@@ -167,9 +163,7 @@ func TestTwoPluginsFullStartup(t *testing.T) {
 	var plugin0Done, plugin1Done atomic.Bool
 
 	// Plugin 0: Fast (no patterns, like Python test plugin)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 
 		// Stage 1: Registration
 		coord.StageComplete(0, StageRegistration)
@@ -203,12 +197,10 @@ func TestTwoPluginsFullStartup(t *testing.T) {
 		// Stage 5: Ready
 		coord.StageComplete(0, StageReady)
 		plugin0Done.Store(true)
-	}()
+	})
 
 	// Plugin 1: Slow (has patterns, like RIB plugin)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		time.Sleep(50 * time.Millisecond) // Start slightly later
 
 		// Stage 1: Registration
@@ -243,7 +235,7 @@ func TestTwoPluginsFullStartup(t *testing.T) {
 		// Stage 5: Ready
 		coord.StageComplete(1, StageReady)
 		plugin1Done.Store(true)
-	}()
+	})
 
 	// Run coordinator
 	go func() { _ = coord.Run(ctx) }()

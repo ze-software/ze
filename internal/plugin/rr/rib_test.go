@@ -46,6 +46,7 @@ func TestRIB_InsertReplace(t *testing.T) {
 
 	if old == nil {
 		t.Fatal("expected old route on replace")
+		return
 	}
 	if old.MsgID != 100 {
 		t.Errorf("expected old MsgID 100, got %d", old.MsgID)
@@ -73,6 +74,7 @@ func TestRIB_Remove(t *testing.T) {
 	removed := rib.Remove("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
 	if removed == nil {
 		t.Fatal("expected removed route")
+		return
 	}
 	if removed.MsgID != 100 {
 		t.Errorf("expected MsgID 100, got %d", removed.MsgID)

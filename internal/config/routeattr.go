@@ -1364,7 +1364,7 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 		clStr := strings.TrimSpace(src.ClusterList)
 		clStr = strings.TrimPrefix(clStr, "[")
 		clStr = strings.TrimSuffix(clStr, "]")
-		for _, p := range strings.Fields(clStr) {
+		for p := range strings.FieldsSeq(clStr) {
 			ip, err := netip.ParseAddr(p)
 			if err != nil {
 				return nil, fmt.Errorf("invalid cluster-list entry %q: %w", p, err)

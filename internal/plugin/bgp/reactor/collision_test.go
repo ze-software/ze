@@ -18,11 +18,9 @@ func collisionAcceptWithReader(t *testing.T, session *Session, server, client ne
 	t.Helper()
 	buf := make([]byte, 4096)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		_, _ = client.Read(buf)
-	}()
+	})
 
 	err := session.Accept(server)
 	require.NoError(t, err)
@@ -309,15 +307,13 @@ func TestCollisionNotificationSent(t *testing.T) {
 	// Read the NOTIFICATION in a goroutine
 	var notifData []byte
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		buf := make([]byte, 256)
 		n, _ := incomingClient.Read(buf)
 		if n > 0 {
 			notifData = buf[:n]
 		}
-	}()
+	})
 
 	// Send NOTIFICATION to the incoming connection (simulate collision reject)
 	notif := &message.Notification{

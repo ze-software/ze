@@ -11,6 +11,7 @@ package selector
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 )
 
@@ -106,12 +107,7 @@ func (sel *Selector) Matches(peer netip.Addr) bool {
 	}
 
 	if len(sel.IPs) > 0 {
-		for _, ip := range sel.IPs {
-			if ip == peer {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(sel.IPs, peer)
 	}
 
 	if sel.IP.IsValid() {

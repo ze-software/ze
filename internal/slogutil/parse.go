@@ -111,13 +111,13 @@ func parseAttrs(s string) []any {
 	}
 
 	var attrs []any
-	for _, part := range strings.Fields(s) {
-		idx := strings.Index(part, "=")
-		if idx == -1 {
+	for part := range strings.FieldsSeq(s) {
+		before, after, ok := strings.Cut(part, "=")
+		if !ok {
 			continue
 		}
-		key := part[:idx]
-		value := part[idx+1:]
+		key := before
+		value := after
 		// Remove quotes from value if present
 		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
 			value = value[1 : len(value)-1]

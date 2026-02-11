@@ -76,7 +76,7 @@ type Route struct {
 	Prefix    string    `json:"prefix"`
 	PathID    uint32    `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
 	NextHop   string    `json:"next-hop"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
+	Timestamp time.Time `json:"timestamp,omitzero"`
 
 	// Path attributes for full route resend
 	Origin              string   `json:"origin,omitempty"`
@@ -806,7 +806,7 @@ func matchesPeer(peerAddr, selector string) bool {
 
 	// Multi-IP: IP,IP,IP matches any in list
 	if strings.Contains(selector, ",") {
-		for _, s := range strings.Split(selector, ",") {
+		for s := range strings.SplitSeq(selector, ",") {
 			if strings.TrimSpace(s) == peerAddr {
 				return true
 			}

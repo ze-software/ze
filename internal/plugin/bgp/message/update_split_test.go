@@ -61,7 +61,7 @@ func TestSplitUpdate_NLRIOverflow(t *testing.T) {
 	// Create many NLRIs to force splitting
 	// Each /24 = 4 bytes, create 100 = 400 bytes
 	var nlri []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -98,7 +98,7 @@ func TestSplitUpdate_NLRIOverflow(t *testing.T) {
 func TestSplitUpdate_WithdrawnOverflow(t *testing.T) {
 	// Create many withdrawn prefixes
 	var withdrawn []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		withdrawn = append(withdrawn, 0x18, 0x0A, 0x00, byte(i))
 	}
 
@@ -206,7 +206,7 @@ func TestSplitUpdate_OneByteOver(t *testing.T) {
 func TestSplitUpdate_AttributesBytesPreserved(t *testing.T) {
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 	var nlri []byte
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -264,7 +264,7 @@ func TestSplitUpdate_SingleNLRITooLarge(t *testing.T) {
 // PREVENTS: Malformed UPDATE messages.
 func TestSplitUpdate_AllChunksValid(t *testing.T) {
 	var nlri []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -298,7 +298,7 @@ func TestSplitUpdate_AllChunksValid(t *testing.T) {
 func TestSplitUpdate_NLRICountPreserved(t *testing.T) {
 	// Create 100 /24 prefixes
 	var nlri []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -350,7 +350,7 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	// Create large NLRI (many /64 prefixes)
 	// Each /64 = 9 bytes (1 len + 8 prefix bytes)
 	var nlri []byte
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlri = append(nlri, 0x40) // /64
 		nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
 	}
@@ -426,7 +426,7 @@ func TestSplitMPUnreachNLRI_SmallFits(t *testing.T) {
 func TestSplitMPUnreachNLRI_Overflow(t *testing.T) {
 	// Create large NLRI
 	var nlri []byte
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlri = append(nlri, 0x40)
 		nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
 	}
@@ -465,7 +465,7 @@ func TestSplitMPReachNLRI_VPN(t *testing.T) {
 	// VPN NLRI: len(1) + label(3) + RD(8) + prefix(variable)
 	// Create 20 VPN prefixes
 	var nlri []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// /32 VPN prefix: len=88 (24 label + 64 RD + 32 prefix bits = 120 bits)
 		// Actually: 88 bits = 11 bytes payload
 		nlri = append(nlri, 88)                                // prefix len in bits
@@ -506,7 +506,7 @@ func TestSplitUpdateWithAddPath_IPv4(t *testing.T) {
 	// Add-Path NLRI: [path-id:4][prefix-len:1][prefix-bytes]
 	// Each /24 with path-id = 4 + 1 + 3 = 8 bytes
 	var nlri []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// Path ID (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// /24 prefix
@@ -546,7 +546,7 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 	// Add-Path IPv6 NLRI: [path-id:4][prefix-len:1][prefix-bytes]
 	// Each /64 with path-id = 4 + 1 + 8 = 13 bytes
 	var nlri []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// Path ID (4 bytes)
 		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
 		// /64 prefix (1 + 8 bytes)
@@ -581,7 +581,7 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 func TestSplitUpdateWithAddPath_Withdrawal(t *testing.T) {
 	// Add-Path withdrawn NLRI
 	var withdrawn []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// Path ID (4 bytes)
 		withdrawn = append(withdrawn, 0x00, 0x00, 0x00, byte(i+1))
 		// /24 prefix
@@ -614,7 +614,7 @@ func TestSplitUpdateWithAddPath_FalseDoesNotAssumePathId(t *testing.T) {
 	// Basic NLRI (no path-id): [prefix-len:1][prefix-bytes]
 	// Each /24 = 4 bytes
 	var nlri []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -647,13 +647,13 @@ func TestSplitUpdateWithAddPath_FalseDoesNotAssumePathId(t *testing.T) {
 func TestSplitUpdate_MixedLargeSplits(t *testing.T) {
 	// Create many withdrawn prefixes (100 * 4 = 400 bytes)
 	var withdrawn []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		withdrawn = append(withdrawn, 0x18, 0x0A, byte(i), 0x00)
 	}
 
 	// Create many announcement prefixes (100 * 4 = 400 bytes)
 	var nlri []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -751,7 +751,7 @@ func TestSplitUpdate_MixedWithdrawalsFirst(t *testing.T) {
 func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 	// Create UPDATE with many NLRIs that will require splitting
 	var nlri []byte
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -815,7 +815,7 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 	asPath := make([]byte, 0, 205)
 	asPath = append(asPath, 0x40, 0x02, 0xC8) // Extended length, code 2, length 200
 	asPath = append(asPath, 0x02, 0x32)       // AS_SEQUENCE, 50 ASNs
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		asPath = append(asPath, 0x00, 0x00, byte(i>>8), byte(i))
 	}
 	attrs = append(attrs, asPath...)
@@ -823,14 +823,14 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 	// COMMUNITIES: 20 communities
 	communities := make([]byte, 0, 83)
 	communities = append(communities, 0xC0, 0x08, 0x50) // Optional transitive, code 8, length 80
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		communities = append(communities, 0xFD, 0xE9, byte(i>>8), byte(i))
 	}
 	attrs = append(attrs, communities...)
 
 	// Add some NLRIs
 	nlri := make([]byte, 0, 50*4) // 50 /24 prefixes at 4 bytes each
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
 
@@ -869,7 +869,7 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 	// Create many withdrawals
 	var withdrawn []byte
-	for i := 0; i < 200; i++ {
+	for i := range 200 {
 		withdrawn = append(withdrawn, 0x18, 0x0A, byte(i), 0x00)
 	}
 
@@ -914,7 +914,7 @@ func TestSplitUpdate_CheckAfterWrite(t *testing.T) {
 	// With overhead = 27, available = 30 - 27 = 3 bytes - too small for /24
 	// So use maxSize = 50: overhead = 27, available = 23 bytes (5 prefixes = 20, 6th would be 24)
 	var nlri []byte
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		nlri = append(nlri, 24, 10, 0, byte(i)) // /24 = 4 bytes each
 	}
 
@@ -950,7 +950,7 @@ func TestSplitUpdate_CheckAfterWrite(t *testing.T) {
 func TestSplitUpdate_IPv4Field(t *testing.T) {
 	// Create many IPv4 /24 prefixes
 	var nlri []byte
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		nlri = append(nlri, 24, 192, 168, byte(i)) // /24
 	}
 
@@ -986,10 +986,10 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 	// Create FlowSpec NLRIs via MP_REACH_NLRI
 	// Each FlowSpec NLRI: [length:1][components:length]
 	var fsNLRI []byte
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		// Simple FlowSpec NLRI: length=10, 10 bytes of components
 		fsNLRI = append(fsNLRI, 10)
-		for j := 0; j < 10; j++ {
+		for j := range 10 {
 			fsNLRI = append(fsNLRI, byte(j+i))
 		}
 	}

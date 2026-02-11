@@ -147,8 +147,8 @@ func ParseBracketedList(args []string) ([]string, int) {
 			if i == 0 {
 				arg = strings.TrimPrefix(arg, "[")
 			}
-			if strings.HasSuffix(arg, "]") {
-				arg = strings.TrimSuffix(arg, "]")
+			if before, ok := strings.CutSuffix(arg, "]"); ok {
+				arg = before
 				if arg != "" {
 					tokens = append(tokens, arg)
 				}
@@ -162,8 +162,8 @@ func ParseBracketedList(args []string) ([]string, int) {
 		// Expand comma-separated values
 		var expanded []string
 		for _, tok := range tokens {
-			parts := strings.Split(tok, ",")
-			for _, p := range parts {
+			parts := strings.SplitSeq(tok, ",")
+			for p := range parts {
 				p = strings.TrimSpace(p)
 				if p != "" {
 					expanded = append(expanded, p)

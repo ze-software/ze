@@ -1249,10 +1249,7 @@ func (s *Session) negotiate() {
 	if localHold == 0 || peerHold == 0 {
 		negotiatedHold = 0
 	} else {
-		negotiatedHold = localHold
-		if peerHold < negotiatedHold {
-			negotiatedHold = peerHold
-		}
+		negotiatedHold = min(peerHold, localHold)
 		// RFC 4271: Minimum hold time is 3 seconds if non-zero.
 		if negotiatedHold > 0 && negotiatedHold < 3*time.Second {
 			negotiatedHold = 3 * time.Second

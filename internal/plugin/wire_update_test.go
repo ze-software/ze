@@ -1145,7 +1145,7 @@ func TestWireUpdate_CachedParsing(t *testing.T) {
 
 	// Call all three accessors multiple times
 	// They should all succeed and return consistent data
-	for i := 0; i < 3; i++ {
+	for i := range 3 {
 		wd, err := wu.Withdrawn()
 		if err != nil {
 			t.Fatalf("Withdrawn() call %d error: %v", i, err)

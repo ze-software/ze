@@ -68,11 +68,8 @@ func diffRunes(a, b []rune) []diff {
 }
 
 func commonPrefixLen(a, b []rune) int {
-	n := len(a)
-	if len(b) < n {
-		n = len(b)
-	}
-	for i := 0; i < n; i++ {
+	n := min(len(b), len(a))
+	for i := range n {
 		if a[i] != b[i] {
 			return i
 		}
@@ -82,11 +79,8 @@ func commonPrefixLen(a, b []rune) int {
 
 func commonSuffixLen(a, b []rune) int {
 	la, lb := len(a), len(b)
-	n := la
-	if lb < n {
-		n = lb
-	}
-	for i := 0; i < n; i++ {
+	n := min(lb, la)
+	for i := range n {
 		if a[la-1-i] != b[lb-1-i] {
 			return i
 		}

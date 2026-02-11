@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
@@ -330,7 +331,7 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 	}
 
 	// Verify ordering: each type code should be <= next
-	for i := 0; i < len(codes)-1; i++ {
+	for i := range len(codes) - 1 {
 		if codes[i] > codes[i+1] {
 			t.Errorf("attribute order violation: type %d before type %d at position %d",
 				codes[i], codes[i+1], i)
@@ -381,13 +382,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
 	}
 
 	// Verify AS_PATH is present
-	hasASPath := false
-	for _, c := range codes {
-		if c == attribute.AttrASPath {
-			hasASPath = true
-			break
-		}
-	}
+	hasASPath := slices.Contains(codes, attribute.AttrASPath)
 	if !hasASPath {
 		t.Fatal("AS_PATH not found")
 	}
@@ -506,13 +501,7 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasMPReach := false
-	for _, c := range codes {
-		if c == attribute.AttrMPReachNLRI {
-			hasMPReach = true
-			break
-		}
-	}
+	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
 	if !hasMPReach {
 		t.Error("VPN route should have MP_REACH_NLRI")
 	}
@@ -581,7 +570,7 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 	}
 
 	// Verify ordering
-	for i := 0; i < len(codes)-1; i++ {
+	for i := range len(codes) - 1 {
 		if codes[i] > codes[i+1] {
 			t.Errorf("attribute order violation: type %d before type %d at position %d",
 				codes[i], codes[i+1], i)
@@ -620,13 +609,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasExtComm := false
-	for _, c := range codes {
-		if c == attribute.AttrExtCommunity {
-			hasExtComm = true
-			break
-		}
-	}
+	hasExtComm := slices.Contains(codes, attribute.AttrExtCommunity)
 	if !hasExtComm {
 		t.Error("VPN route should have EXTENDED_COMMUNITIES")
 	}
@@ -667,13 +650,7 @@ func TestUpdateBuilder_BuildMVPN_Basic(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasMPReach := false
-	for _, c := range codes {
-		if c == attribute.AttrMPReachNLRI {
-			hasMPReach = true
-			break
-		}
-	}
+	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
 	if !hasMPReach {
 		t.Error("MVPN route should have MP_REACH_NLRI")
 	}
@@ -710,7 +687,7 @@ func TestUpdateBuilder_BuildMVPN_AttributeOrder(t *testing.T) {
 	}
 
 	// Verify ordering
-	for i := 0; i < len(codes)-1; i++ {
+	for i := range len(codes) - 1 {
 		if codes[i] > codes[i+1] {
 			t.Errorf("attribute order violation: type %d before type %d at position %d",
 				codes[i], codes[i+1], i)
@@ -751,13 +728,7 @@ func TestUpdateBuilder_BuildVPLS_Basic(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasMPReach := false
-	for _, c := range codes {
-		if c == attribute.AttrMPReachNLRI {
-			hasMPReach = true
-			break
-		}
-	}
+	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
 	if !hasMPReach {
 		t.Error("VPLS route should have MP_REACH_NLRI")
 	}
@@ -793,13 +764,7 @@ func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasMPReach := false
-	for _, c := range codes {
-		if c == attribute.AttrMPReachNLRI {
-			hasMPReach = true
-			break
-		}
-	}
+	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
 	if !hasMPReach {
 		t.Error("FlowSpec route should have MP_REACH_NLRI")
 	}
@@ -835,13 +800,7 @@ func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
 		t.Fatalf("extractAttributeCodes failed: %v", err)
 	}
 
-	hasMPReach := false
-	for _, c := range codes {
-		if c == attribute.AttrMPReachNLRI {
-			hasMPReach = true
-			break
-		}
-	}
+	hasMPReach := slices.Contains(codes, attribute.AttrMPReachNLRI)
 	if !hasMPReach {
 		t.Error("MUP route should have MP_REACH_NLRI")
 	}
@@ -1630,7 +1589,7 @@ func TestBuildWithLimit_AllFit(t *testing.T) {
 
 	// Create 10 routes that should fit in one UPDATE
 	var routes []UnicastParams
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		routes = append(routes, UnicastParams{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: netip.MustParseAddr("192.168.1.1"),
@@ -1657,7 +1616,7 @@ func TestBuildWithLimit_Overflow(t *testing.T) {
 
 	// Create 100 routes - should overflow with small maxSize
 	var routes []UnicastParams
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		routes = append(routes, UnicastParams{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: netip.MustParseAddr("192.168.1.1"),
@@ -1728,7 +1687,7 @@ func TestBuildWithLimit_AllRoutesPreserved(t *testing.T) {
 
 	// Create 50 routes (same prefix is fine - testing byte count)
 	var routes []UnicastParams
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		routes = append(routes, UnicastParams{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: netip.MustParseAddr("192.168.1.1"),
@@ -1763,7 +1722,7 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 	ub := NewUpdateBuilder(65001, true, true, false)
 
 	var routes []UnicastParams
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		routes = append(routes, UnicastParams{
 			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 			NextHop: netip.MustParseAddr("192.168.1.1"),
@@ -1892,7 +1851,7 @@ func TestBuildMVPNWithLimit_Split(t *testing.T) {
 
 	// Create 20 MVPN routes - should overflow with small maxSize
 	var routes []MVPNParams
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		routes = append(routes, MVPNParams{
 			RouteType: 5,
 			IsIPv6:    false,

@@ -7,7 +7,6 @@
 // Called by: go generate ./internal/plugin/all/...
 //
 //go:build ignore
-// +build ignore
 
 package main
 

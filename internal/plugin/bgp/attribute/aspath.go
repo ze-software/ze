@@ -3,6 +3,7 @@ package attribute
 
 import (
 	"encoding/binary"
+	"slices"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
@@ -172,16 +173,13 @@ func writeSegmentWithSplit(buf []byte, off int, segType ASPathSegmentType, asns 
 		return off
 	}
 
-	count := len(asns)
-	if count > MaxASPathSegmentLength {
-		count = MaxASPathSegmentLength
-	}
+	count := min(len(asns), MaxASPathSegmentLength)
 
 	buf[off] = byte(segType)
 	buf[off+1] = byte(count)
 	off += 2
 
-	for i := 0; i < count; i++ {
+	for i := range count {
 		if asn4 {
 			binary.BigEndian.PutUint32(buf[off:], asns[i])
 			off += 4
@@ -237,10 +235,8 @@ func (p *ASPath) PathLength() int {
 // Used for loop detection per RFC 4271 Section 9 (UPDATE Message Handling).
 func (p *ASPath) Contains(asn uint32) bool {
 	for _, seg := range p.Segments {
-		for _, a := range seg.ASNs {
-			if a == asn {
-				return true
-			}
+		if slices.Contains(seg.ASNs, asn) {
+			return true
 		}
 	}
 	return false
@@ -341,7 +337,7 @@ func ParseASPath(data []byte, fourByte bool) (*ASPath, error) {
 		}
 
 		asns := make([]uint32, count)
-		for i := 0; i < count; i++ {
+		for i := range count {
 			if fourByte {
 				// RFC 6793: 4-octet AS numbers
 				asns[i] = binary.BigEndian.Uint32(data[offset:])

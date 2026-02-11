@@ -839,7 +839,7 @@ func tokenizeInline(s string) []string {
 	var tokens []string
 	var current strings.Builder
 
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		c := s[i]
 		switch c {
 		case ' ', '\t', '\n', '\r':

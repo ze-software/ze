@@ -122,7 +122,7 @@ func TestRouteStore_Stats(t *testing.T) {
 	defer store.Stop()
 
 	// Add some routes
-	for i := 0; i < 5; i++ {
+	for i := range 5 {
 		prefix := netip.MustParsePrefix("10.0.0.0/24")
 		nextHop := netip.MustParseAddr("192.168.1.1")
 		n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, uint32(i)) //nolint:gosec // Test data
@@ -152,8 +152,7 @@ func BenchmarkRouteStore_InternAttribute(b *testing.B) {
 
 	attr := attribute.LocalPref(100)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.InternAttribute(attr)
 	}
 }
@@ -170,8 +169,7 @@ func BenchmarkRouteStore_InternRoute(b *testing.B) {
 	}
 	route := NewRoute(n, nextHop, attrs)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		store.InternRoute(route)
 	}
 }

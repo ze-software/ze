@@ -31,7 +31,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 	numPrefixes := 1200
 	announceWire := make([][]byte, numPrefixes)
 
-	for i := 0; i < numPrefixes; i++ {
+	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
 		n := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
 		announceWire[i] = n.Bytes()
@@ -161,7 +161,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 	numPrefixes := 1200
 	announceWire := make([][]byte, numPrefixes)
 
-	for i := 0; i < numPrefixes; i++ {
+	for i := range numPrefixes {
 		prefix := netip.MustParsePrefix(generatePrefix(i))
 		n := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
 		announceWire[i] = n.Bytes()
@@ -229,7 +229,7 @@ func generatePrefix(i int) string {
 // PREVENTS: Data loss or corruption during UPDATE splitting.
 func TestSplitUpdateEndToEnd(t *testing.T) {
 	var nlriBytes []byte
-	for i := 0; i < 1200; i++ {
+	for i := range 1200 {
 		b1 := (i / 256) % 256
 		b2 := i % 256
 		nlriBytes = append(nlriBytes, 0x18, 10, byte(b1), byte(b2))
@@ -278,7 +278,7 @@ func TestSplitUpdateEndToEnd(t *testing.T) {
 // PREVENTS: Path-ID corruption during splitting.
 func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 	var nlriBytes []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		nlriBytes = append(nlriBytes, 0x00, 0x00, 0x00, byte(i+1))
 		b1 := (i / 256) % 256
 		b2 := i % 256

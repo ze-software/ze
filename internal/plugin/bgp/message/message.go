@@ -20,7 +20,7 @@ type Message interface {
 // totalLen is the complete message length (including header).
 func writeHeader(buf []byte, off int, msgType MessageType, totalLen int) {
 	// 16-byte marker (all 0xFF)
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		buf[off+i] = 0xFF
 	}
 

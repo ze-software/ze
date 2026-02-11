@@ -569,8 +569,8 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		// The peer block content is passed to ze-peer which parses it, but the
 		// test runner also needs to know about expectations for progress/failure reporting.
 		if peerBlock, ok := v.StdinBlocks["peer"]; ok {
-			lines := strings.Split(string(peerBlock), "\n")
-			for _, line := range lines {
+			lines := strings.SplitSeq(string(peerBlock), "\n")
+			for line := range lines {
 				trimmed := strings.TrimSpace(line)
 				if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 					continue

@@ -102,7 +102,7 @@ func TestToRIBRouteUnicastParams(t *testing.T) {
 func TestGroupedSendReducesUpdateCount(t *testing.T) {
 	// Create 100 routes with identical attributes
 	routes := make([]*rib.Route, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		routes[i] = rib.NewRouteWithASPath(
 			nlri.NewINET(nlri.IPv4Unicast, prefix, 0),
@@ -138,7 +138,7 @@ func TestGroupedSendSeparatesAttributeGroups(t *testing.T) {
 		netip.MustParseAddr("192.168.1.3"),
 	}
 
-	for i := 0; i < 30; i++ {
+	for i := range 30 {
 		prefix := netip.PrefixFrom(netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)}), 24)
 		nh := nextHops[i%3] //nolint:gosec // nextHops has exactly 3 elements, i%3 is always in bounds
 		routes[i] = rib.NewRouteWithASPath(
@@ -174,7 +174,7 @@ func TestGroupedSendSeparatesAttributeGroups(t *testing.T) {
 func TestBuildGroupedMPReachWithLimit(t *testing.T) {
 	// Create 50 IPv6 routes with same attributes
 	routes := make([]*rib.Route, 50)
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		prefix := netip.MustParsePrefix("2001:db8::" + string(rune('0'+i%10)) + "/48")
 		if i >= 10 {
 			// Generate more prefixes

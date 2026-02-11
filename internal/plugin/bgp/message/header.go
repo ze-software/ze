@@ -87,7 +87,7 @@ func ParseHeader(data []byte) (Header, error) {
 
 	// RFC 4271 Section 4.1 - Marker MUST be set to all ones.
 	// RFC 4271 Section 6.1 - If Marker is not as expected, Connection Not Synchronized error.
-	for i := 0; i < MarkerLen; i++ {
+	for i := range MarkerLen {
 		if data[i] != 0xFF {
 			return Header{}, ErrInvalidMarker
 		}

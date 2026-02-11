@@ -34,7 +34,7 @@ func validatePath(path string) error {
 	}
 
 	// Reject hidden files (starting with . at any component)
-	for _, component := range strings.Split(path, "/") {
+	for component := range strings.SplitSeq(path, "/") {
 		if strings.HasPrefix(component, ".") && component != "." {
 			return fmt.Errorf("hidden file not allowed: %s", path)
 		}
@@ -85,7 +85,7 @@ func validatePathWithOptions(path string, opts ValidateOptions) error {
 
 	// Reject hidden files unless allowed
 	if !opts.AllowHidden {
-		for _, component := range strings.Split(path, "/") {
+		for component := range strings.SplitSeq(path, "/") {
 			if strings.HasPrefix(component, ".") && component != "." {
 				return fmt.Errorf("hidden file not allowed: %s", path)
 			}

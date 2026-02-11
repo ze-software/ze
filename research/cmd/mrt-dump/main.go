@@ -141,7 +141,7 @@ func processRIBEntry(data []byte, _ int) error {
 	offset += 2
 
 	// Process each RIB entry (one per peer)
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}
@@ -189,7 +189,7 @@ func processRIBGeneric(data []byte) error {
 	entryCount := binary.BigEndian.Uint16(data[offset : offset+2])
 	offset += 2
 
-	for i := uint16(0); i < entryCount; i++ {
+	for range entryCount {
 		if offset+8 > len(data) {
 			break
 		}

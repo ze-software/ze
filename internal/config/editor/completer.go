@@ -593,11 +593,8 @@ func filterCompletions(completions []Completion, prefix string) []Completion {
 }
 
 func commonPrefix(a, b string) string {
-	minLen := len(a)
-	if len(b) < minLen {
-		minLen = len(b)
-	}
-	for i := 0; i < minLen; i++ {
+	minLen := min(len(b), len(a))
+	for i := range minLen {
 		if a[i] != b[i] {
 			return a[:i]
 		}

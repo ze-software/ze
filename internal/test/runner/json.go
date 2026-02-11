@@ -3,6 +3,7 @@ package runner
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"sort"
 	"strings"
@@ -147,9 +148,7 @@ func transformZeBGPFormat(envelope, result map[string]any) (map[string]any, stri
 
 	// Copy attributes to top level (from update.attr)
 	if attrs, ok := update["attr"].(map[string]any); ok {
-		for k, v := range attrs {
-			result[k] = v
-		}
+		maps.Copy(result, attrs)
 	}
 
 	// Track detected family

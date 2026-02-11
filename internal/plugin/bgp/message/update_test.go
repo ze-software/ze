@@ -189,7 +189,7 @@ func TestChunkNLRI_LargeChunked(t *testing.T) {
 	// Create NLRI larger than maxSize (100 /24 prefixes = 400 bytes)
 	// Use small maxSize (100 bytes) to force chunking
 	var nlri []byte
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		// Each /24 prefix is 4 bytes: length(1) + 3 bytes
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
@@ -398,7 +398,7 @@ func TestUpdateWriteToOffset(t *testing.T) {
 	assert.Equal(t, expected, buf[offset:offset+n], "content mismatch")
 
 	// Verify bytes before offset are untouched
-	for i := 0; i < offset; i++ {
+	for i := range offset {
 		assert.Equal(t, byte(0), buf[i], "byte %d should be untouched", i)
 	}
 }
