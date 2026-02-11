@@ -141,6 +141,20 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		return nil
 	}
 
+	// Plugin crash handling during reload:
+	//
+	// Three crash detection points protect the verify→apply protocol:
+	//
+	// 1. Verify phase (below): ConnB()==nil → verify error. A crashed plugin that
+	//    registered WantsConfigRoots cannot validate the change, so we abort.
+	//
+	// 2. Pre-apply alive check: After all plugins pass verify, re-check ConnB().
+	//    A plugin can die between verify and apply — applying to a subset is unsafe.
+	//
+	// 3. Apply phase: ConnB()==nil → apply error collected and returned.
+	//    At this point some plugins may have already applied, so we continue
+	//    and collect errors rather than aborting.
+
 	// Verify phase: ask all affected plugins to validate the new config.
 	if len(affected) > 0 {
 		logger().Info("config reload: verify phase", "plugins", len(affected))
@@ -148,6 +162,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		for _, ap := range affected {
 			connB := ap.proc.ConnB()
 			if connB == nil {
+				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: verify failed: plugin connection closed (crashed?)", ap.proc.Name()))
 				continue
 			}
 
@@ -167,7 +182,25 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		}
 	}
 
+	// Pre-apply alive check: re-verify all affected plugins still have connB.
+	// A plugin could die between verify and apply — sending apply to a subset is unsafe.
+	if len(affected) > 0 {
+		var deadPlugins []string
+		for _, ap := range affected {
+			if ap.proc.ConnB() == nil {
+				deadPlugins = append(deadPlugins, ap.proc.Name())
+			}
+		}
+		if len(deadPlugins) > 0 {
+			logger().Warn("config reload: plugins died between verify and apply", "plugins", deadPlugins)
+			return fmt.Errorf("config apply aborted: plugins died after verify: %s", strings.Join(deadPlugins, ", "))
+		}
+	}
+
 	// Apply phase: send diffs to plugins, then apply reactor peer changes.
+	// Errors are collected and returned to the caller, but SetConfigTree still happens
+	// because the reactor has already verified and some plugins may have applied.
+	var applyErrors []string
 	if len(affected) > 0 {
 		logger().Info("config reload: apply phase", "plugins", len(affected))
 		diffSections := buildDiffSections(diff)
@@ -175,6 +208,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		for _, ap := range affected {
 			connB := ap.proc.ConnB()
 			if connB == nil {
+				applyErrors = append(applyErrors, fmt.Sprintf("%s: apply failed: plugin connection closed (crashed?)", ap.proc.Name()))
 				continue
 			}
 
@@ -196,8 +230,10 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 			out, err := connB.SendConfigApply(ctx, pluginDiffSections)
 			if err != nil {
 				logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
+				applyErrors = append(applyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
 			} else if out.Status == statusError {
 				logger().Error("config apply rejected", "plugin", ap.proc.Name(), "error", out.Error)
+				applyErrors = append(applyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
 			}
 		}
 	}
@@ -210,12 +246,18 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		}
 		if err := s.reactor.ApplyConfigDiff(bgpSubtree); err != nil {
 			logger().Error("config reload: reactor apply failed", "error", err)
+			applyErrors = append(applyErrors, fmt.Sprintf("reactor: %v", err))
 		}
 	}
 
-	// Update running config.
+	// Update running config even if some plugins had apply errors.
+	// The reactor has already applied; the config tree must reflect the new state.
 	s.reactor.SetConfigTree(newTree)
 	logger().Info("config reload completed")
+
+	if len(applyErrors) > 0 {
+		return fmt.Errorf("config apply partial failure: %s", strings.Join(applyErrors, "; "))
+	}
 
 	return nil
 }

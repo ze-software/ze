@@ -67,7 +67,28 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
 }
 
 // handleDaemonReload reloads the configuration.
+// Routes through the coordinator (verify→apply across all plugins) when a config loader
+// is available. Falls back to direct Reactor.Reload() when no coordinator is configured
+// (e.g., no Server, or no config loader set).
 func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
+	// Use coordinator path when available: reloads config from disk, verifies with
+	// all plugins that registered WantsConfigRoots, then applies to each.
+	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
+		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
+			return &Response{
+				Status: statusError,
+				Data:   fmt.Sprintf("reload failed: %v", err),
+			}, err
+		}
+		return &Response{
+			Status: statusDone,
+			Data: map[string]any{
+				"message": "configuration reloaded",
+			},
+		}, nil
+	}
+
+	// Fallback: direct reactor reload (BGP peer reconciliation only).
 	if err := ctx.Reactor.Reload(); err != nil {
 		return &Response{
 			Status: statusError,

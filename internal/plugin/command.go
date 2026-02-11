@@ -106,6 +106,7 @@ type CommandContext struct {
 	Dispatcher    *Dispatcher          // For accessing registry/commands
 	Process       *Process             // The API process (for session state)
 	Subscriptions *SubscriptionManager // Event subscription tracking
+	Server        *Server              // For coordinator access (reload, config loader)
 	Peer          string               // Peer selector: "*" for all, or specific IP. Empty = "*"
 	Serial        string               // Command serial from #N prefix (empty = no ack)
 }

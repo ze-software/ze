@@ -45,6 +45,7 @@ func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
 			CommitManager: s.commitManager,
 			Dispatcher:    s.dispatcher,
 			Subscriptions: s.subscriptions,
+			Server:        s,
 			Peer:          "*",
 		}
 
@@ -216,6 +217,12 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 	}
 
 	return s
+}
+
+// Context returns the server's context. Used by RPC handlers that need
+// a cancellable context tied to the server's lifetime (e.g., coordinator reload).
+func (s *Server) Context() context.Context {
+	return s.ctx
 }
 
 // Running returns true if the server is running.
@@ -913,6 +920,7 @@ func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc
 		CommitManager: s.commitManager,
 		Dispatcher:    s.dispatcher,
 		Subscriptions: s.subscriptions,
+		Server:        s,
 		Process:       proc,
 		Peer:          input.PeerSelector,
 	}

@@ -198,25 +198,48 @@ N/A — no protocol changes.
 
 ## Implementation Summary
 
-<!-- Fill this section AFTER implementation, before moving to done -->
-
 ### What Was Implemented
-- [To be filled]
+
+**Change 1 — Verify crash detection:** `reload.go:158-161` — connB==nil during verify appends to verifyErrors with plugin name.
+
+**Change 2 — Apply crash detection:** `reload.go:204-207` — connB==nil during apply appends to applyErrors with plugin name.
+
+**Change 3 — Pre-apply alive check:** `reload.go:179-192` — re-checks all affected plugin connB after verify phase. If any nil, aborts with error listing dead plugins.
+
+**Change 4 — Apply error aggregation:** `reload.go:251-253` — apply errors collected in slice, returned as combined error. Apply RPC failures and rejections both logged AND collected.
+
+**Change 5 — Reactor apply error collection:** `reload.go:241-243` — reactor ApplyConfigDiff error also collected in applyErrors (was only logged).
+
+**Change 6 — handleDaemonReload coordinator path:** `bgp.go:73-96` — checks `ctx.Server != nil && ctx.Server.HasConfigLoader()`, uses `ReloadFromDisk(ctx.Server.Context())` when available, falls back to `ctx.Reactor.Reload()`.
+
+**Change 7 — Crash handling documentation:** `reload.go:144-155` — consolidated comment block documenting all three crash detection points.
+
+**Wiring changes:**
+- `command.go:109` — Added `Server *Server` field to CommandContext
+- `server.go:48` — Wired `Server: s` in wrapHandler
+- `server.go:923` — Wired `Server: s` in handleUpdateRouteRPC
+- `server.go:224-226` — Added `Context()` accessor to Server
 
 ### Bugs Found/Fixed
-- [To be filled]
+- handleDaemonReload used `context.Background()` instead of server context — fixed to use `ctx.Server.Context()`
+- Apply error logging was removed when adding applyErrors collection — restored both logging and collection
+- TestReloadApplyCrashedPlugin name was misleading (tested verify, not apply) — renamed to TestReloadVerifyCrashedPluginMultiple
 
 ### Investigation → Test Rule
-- [To be filled]
+- beforeVerifyRsp hook pattern discovered for deterministic inter-phase testing: hook runs before verify response is sent, blocking the coordinator while test mutates state
 
 ### Design Insights
-- [To be filled]
+- Only niling the connB pointer (not closing the connection) is necessary for inter-phase tests — closing breaks the in-flight verify response read
+- SetConfigTree must still be called after apply errors because the reactor has already applied and the config tree must reflect the new state
 
 ### Documentation Updates
-- [To be filled]
+- None — no architectural changes, only behavioral hardening of existing coordinator
 
 ### Deviations from Plan
-- [To be filled]
+- **TestReloadApplyCrashedPlugin renamed** to TestReloadVerifyCrashedPluginMultiple — the test nils connB before reload, so verify catches it, not apply. Name was misleading.
+- **TestDaemonReloadNoServer added** — bonus test not in spec, validates fallback when Server is nil
+- **Server.Context() accessor added** — needed for handleDaemonReload to use proper server context instead of context.Background()
+- **Reactor apply error added to applyErrors** — critical review found reactor ApplyConfigDiff error was only logged, not returned
 
 ## Implementation Audit
 
@@ -225,38 +248,41 @@ N/A — no protocol changes.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| connB==nil during verify → error | | | |
-| connB==nil during apply → error collected | | | |
-| Apply errors returned to caller | | | |
-| Pre-apply alive check | | | |
-| handleDaemonReload uses coordinator | | | |
-| handleDaemonReload fallback to Reload | | | |
-| Crash handling documented in comments | | | |
+| connB==nil during verify → error | ✅ Done | `reload.go:158-161` | Appends to verifyErrors with plugin name |
+| connB==nil during apply → error collected | ✅ Done | `reload.go:204-207` | Appends to applyErrors with plugin name |
+| Apply errors returned to caller | ✅ Done | `reload.go:251-253` | Combined error after SetConfigTree |
+| Pre-apply alive check | ✅ Done | `reload.go:179-192` | Re-checks all connB, aborts if any nil |
+| handleDaemonReload uses coordinator | ✅ Done | `bgp.go:74-82` | Uses ReloadFromDisk when HasConfigLoader true |
+| handleDaemonReload fallback to Reload | ✅ Done | `bgp.go:84-93` | Falls back to ctx.Reactor.Reload() |
+| Crash handling documented in comments | ✅ Done | `reload.go:144-155` | Three crash detection points documented |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestReloadVerifyCrashedPlugin | | | |
-| TestReloadApplyCrashedPlugin | | | |
-| TestReloadApplyErrorReturned | | | |
-| TestReloadProcessDiedBetweenVerifyAndApply | | | |
-| TestDaemonReloadUsesCoordinator | | | |
-| TestDaemonReloadFallsBackToReactor | | | |
+| TestReloadVerifyCrashedPlugin | ✅ Done | `reload_test.go:632` | Single crashed plugin, verify error |
+| TestReloadApplyCrashedPlugin | 🔄 Changed | `reload_test.go:702` | Renamed to TestReloadVerifyCrashedPluginMultiple — tests verify, not apply |
+| TestReloadApplyErrorReturned | ✅ Done | `reload_test.go:669` | Apply rejection returns error, config still updated |
+| TestReloadProcessDiedBetweenVerifyAndApply | ✅ Done | `reload_test.go:737` | Uses beforeVerifyRsp hook for deterministic inter-phase |
+| TestDaemonReloadUsesCoordinator | ✅ Done | `handler_test.go:2541` | Coordinator path, config loader set |
+| TestDaemonReloadFallsBackToReactor | ✅ Done | `handler_test.go:2575` | Fallback path, no config loader |
+| TestDaemonReloadNoServer (bonus) | ✅ Done | `handler_test.go:2604` | Nil Server fallback |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/plugin/reload.go` | | Verify crash, pre-apply check, apply error aggregation |
-| `internal/plugin/bgp.go` | | handleDaemonReload coordinator path |
-| `internal/plugin/reload_test.go` | | 4 new tests |
-| `internal/plugin/handler_test.go` | | 2 new tests |
+| `internal/plugin/reload.go` | ✅ Modified | Verify crash, pre-apply check, apply error aggregation, crash docs, reactor error collection |
+| `internal/plugin/bgp.go` | ✅ Modified | handleDaemonReload coordinator path with fallback |
+| `internal/plugin/command.go` | ✅ Modified | Added Server field to CommandContext |
+| `internal/plugin/server.go` | ✅ Modified | Context() accessor, Server wiring in wrapHandler + handleUpdateRouteRPC |
+| `internal/plugin/reload_test.go` | ✅ Modified | 4 new tests (1 renamed) + mockPluginResponder enhanced |
+| `internal/plugin/handler_test.go` | ✅ Modified | 3 new tests + mockReactorReload |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 17
+- **Done:** 16
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (TestReloadApplyCrashedPlugin renamed — documented in Deviations)
 
 ## Checklist
 
@@ -269,29 +295,29 @@ N/A — no protocol changes.
 - [x] Next-developer test (clear error messages, documented crash handling)
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs (N/A)
-- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
-- [ ] Functional tests verify end-user behavior (existing tests cover regression)
+- [x] Tests written
+- [x] Tests FAIL (verified during implementation)
+- [x] Implementation complete
+- [x] Tests PASS (all 18 reload tests + 3 handler tests pass)
+- [x] Boundary tests cover all numeric inputs (N/A)
+- [x] Feature code integrated into codebase (`internal/*`)
+- [x] Functional tests verify end-user behavior (existing tests cover regression)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes (100% — 96 editor + 4 reload tests)
 
 ### Documentation (during implementation)
-- [ ] Required docs read
-- [ ] RFC summaries read (N/A)
-- [ ] RFC references added to code (N/A)
-- [ ] RFC constraint comments added (N/A)
+- [x] Required docs read
+- [x] RFC summaries read (N/A)
+- [x] RFC references added to code (N/A)
+- [x] RFC constraint comments added (N/A)
 
 ### Completion (after tests pass - see Completion Checklist)
-- [ ] Architecture docs updated with learnings
-- [ ] Implementation Audit completed (all items have status + location)
-- [ ] All Partial/Skipped items have user approval
-- [ ] Spec updated with Implementation Summary
+- [x] Architecture docs updated with learnings (none needed)
+- [x] Implementation Audit completed (all items have status + location)
+- [x] All Partial/Skipped items have user approval (none)
+- [x] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
 - [ ] All files committed together

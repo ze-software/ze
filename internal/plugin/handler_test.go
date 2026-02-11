@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 	"testing"
@@ -2515,4 +2516,106 @@ func TestRibCommandsRegistered(t *testing.T) {
 			assert.NotNil(t, c, "command %q must be registered", cmd)
 		})
 	}
+}
+
+// =============================================================================
+// Daemon Reload Coordinator Path Tests
+// =============================================================================
+
+// mockReactorReload tracks whether Reload() was called.
+type mockReactorReload struct {
+	mockReactor
+	reloadCalled bool
+}
+
+func (m *mockReactorReload) Reload() error {
+	m.reloadCalled = true
+	return nil
+}
+
+// TestDaemonReloadUsesCoordinator verifies that handleDaemonReload uses
+// Server.ReloadFromDisk when HasConfigLoader is true.
+//
+// VALIDATES: handleDaemonReload routes through coordinator when config loader is set.
+// PREVENTS: RPC reload bypassing the plugin verify→apply protocol.
+func TestDaemonReloadUsesCoordinator(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReactorReload{}
+
+	// Create a real Server with a config loader set.
+	s := &Server{reactor: reactor}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	t.Cleanup(func() { s.cancel() })
+
+	// Set config loader that returns same tree (no-op reload).
+	s.SetConfigLoader(func() (map[string]any, error) {
+		return reactor.GetConfigTree(), nil
+	})
+
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Server:  s,
+	}
+
+	resp, err := handleDaemonReload(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, statusDone, resp.Status)
+
+	// Reactor.Reload() should NOT have been called (coordinator path used instead).
+	assert.False(t, reactor.reloadCalled, "Reactor.Reload() should not be called when coordinator is available")
+}
+
+// TestDaemonReloadFallsBackToReactor verifies that handleDaemonReload falls
+// back to Reactor.Reload() when no config loader is configured.
+//
+// VALIDATES: handleDaemonReload uses direct Reload() when HasConfigLoader is false.
+// PREVENTS: Error when coordinator is not available.
+func TestDaemonReloadFallsBackToReactor(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReactorReload{}
+
+	// Create a Server WITHOUT a config loader.
+	s := &Server{reactor: reactor}
+	s.ctx, s.cancel = context.WithCancel(context.Background())
+	t.Cleanup(func() { s.cancel() })
+
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Server:  s,
+	}
+
+	resp, err := handleDaemonReload(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, statusDone, resp.Status)
+
+	// Reactor.Reload() SHOULD have been called (fallback path).
+	assert.True(t, reactor.reloadCalled, "Reactor.Reload() should be called when no config loader")
+}
+
+// TestDaemonReloadNoServer verifies that handleDaemonReload works when
+// no Server is set on CommandContext (backwards compatibility).
+//
+// VALIDATES: handleDaemonReload falls back to Reactor.Reload() when Server is nil.
+// PREVENTS: Nil pointer dereference when Server is not set.
+func TestDaemonReloadNoServer(t *testing.T) {
+	t.Parallel()
+
+	reactor := &mockReactorReload{}
+
+	ctx := &CommandContext{
+		Reactor: reactor,
+		// Server is nil — older code paths or tests.
+	}
+
+	resp, err := handleDaemonReload(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, statusDone, resp.Status)
+
+	// Reactor.Reload() should be called (no Server = fallback).
+	assert.True(t, reactor.reloadCalled, "Reactor.Reload() should be called when Server is nil")
 }

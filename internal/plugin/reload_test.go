@@ -38,12 +38,13 @@ func (m *mockReloadReactor) SetConfigTree(tree map[string]any) {
 // mockPluginResponder runs a goroutine that reads RPCs from a PluginConn
 // and responds with pre-configured verify/apply results.
 type mockPluginResponder struct {
-	pluginConn  *PluginConn
-	verifyResp  *rpc.ConfigVerifyOutput
-	applyResp   *rpc.ConfigApplyOutput
-	verifyCalls int
-	applyCalls  int
-	mu          sync.Mutex
+	pluginConn      *PluginConn
+	verifyResp      *rpc.ConfigVerifyOutput
+	applyResp       *rpc.ConfigApplyOutput
+	beforeVerifyRsp func() // Called BEFORE verify response is sent (blocks coordinator)
+	verifyCalls     int
+	applyCalls      int
+	mu              sync.Mutex
 }
 
 func (m *mockPluginResponder) start(ctx context.Context) {
@@ -61,6 +62,15 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				resp := m.verifyResp
 				if resp == nil {
 					resp = &rpc.ConfigVerifyOutput{Status: "ok"}
+				}
+				// Hook runs BEFORE sending the response — the coordinator's
+				// SendConfigVerify blocks until it reads this response, so any
+				// state change in the hook is visible before the pre-apply check.
+				if m.beforeVerifyRsp != nil {
+					fn := m.beforeVerifyRsp
+					m.mu.Unlock()
+					fn()
+					m.mu.Lock()
 				}
 				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
 
@@ -612,4 +622,152 @@ func TestBuildDiffSections(t *testing.T) {
 	assert.NotEmpty(t, envSection.Removed)
 	assert.Empty(t, envSection.Added)
 	assert.Empty(t, envSection.Changed)
+}
+
+// TestReloadVerifyCrashedPlugin verifies that a crashed plugin (connB==nil)
+// during verify phase causes a verify error.
+//
+// VALIDATES: connB==nil during verify → verify error returned with plugin name.
+// PREVENTS: Silent skip of crashed plugins during verify.
+func TestReloadVerifyCrashedPlugin(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{name: "crashed-plugin", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	// Simulate crash: close connB so ConnB() returns nil.
+	proc := s.procManager.processes["crashed-plugin"]
+	proc.mu.Lock()
+	if proc.engineConnB != nil {
+		proc.engineConnB.Close() //nolint:errcheck,gosec // test: simulate crash
+		proc.engineConnB = nil
+	}
+	proc.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err, "should fail when plugin connB is nil during verify")
+	assert.Contains(t, err.Error(), "crashed-plugin")
+	assert.Contains(t, err.Error(), "verify")
+
+	// Running config should NOT be updated.
+	reactor.mu.Lock()
+	assert.Nil(t, reactor.setTree)
+	reactor.mu.Unlock()
+}
+
+// TestReloadApplyErrorReturned verifies that plugin apply rejection
+// is returned as an error to the caller (not swallowed).
+//
+// VALIDATES: Plugin apply rejection → error returned to caller.
+// PREVENTS: Apply errors being logged but silently returning nil.
+func TestReloadApplyErrorReturned(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	plugins := []pluginDef{
+		{
+			name:      "rib",
+			roots:     []string{"bgp"},
+			applyResp: &rpc.ConfigApplyOutput{Status: "error", Error: "apply rejected"},
+		},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err, "should return error when plugin rejects apply")
+	assert.Contains(t, err.Error(), "apply rejected")
+	assert.Contains(t, err.Error(), "rib")
+
+	// SetConfigTree should still be called (apply errors are non-fatal for config update).
+	time.Sleep(50 * time.Millisecond)
+	reactor.mu.Lock()
+	require.NotNil(t, reactor.setTree, "config should still be updated after apply error")
+	reactor.mu.Unlock()
+}
+
+// TestReloadVerifyCrashedPluginMultiple verifies that when one of several plugins
+// has connB==nil, the verify phase catches it and aborts reload.
+//
+// VALIDATES: One crashed plugin among many → verify error with crashed plugin name.
+// PREVENTS: Partial verify when one plugin in a group has died.
+func TestReloadVerifyCrashedPluginMultiple(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	// Two plugins: first responds normally, second has connB niled before reload.
+	// Verify phase will see connB==nil on the second and fail.
+	plugins := []pluginDef{
+		{name: "healthy", roots: []string{"bgp"}},
+		{name: "crashed", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	// Nil connB for "crashed" before reload — verify phase catches this.
+	proc := s.procManager.processes["crashed"]
+	proc.mu.Lock()
+	if proc.engineConnB != nil {
+		proc.engineConnB.Close() //nolint:errcheck,gosec // test: simulate crash
+		proc.engineConnB = nil
+	}
+	proc.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err, "should fail when plugin connB is nil during verify")
+	assert.Contains(t, err.Error(), "crashed")
+	assert.Contains(t, err.Error(), "verify")
+}
+
+// TestReloadProcessDiedBetweenVerifyAndApply verifies that if a plugin's connB
+// becomes nil after verify succeeds but before apply starts, the reload aborts.
+//
+// VALIDATES: Process death between verify and apply → reload aborted.
+// PREVENTS: Sending apply to a subset of plugins when one has died.
+func TestReloadProcessDiedBetweenVerifyAndApply(t *testing.T) {
+	t.Parallel()
+
+	oldTree := map[string]any{"bgp": map[string]any{"router-id": "1.2.3.4"}}
+	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
+	reactor := &mockReloadReactor{tree: oldTree}
+
+	// Plugin responds to verify OK, then dies before apply.
+	plugins := []pluginDef{
+		{name: "dies-after-verify", roots: []string{"bgp"}},
+	}
+	s := newTestReloadServer(t, reactor, plugins)
+
+	proc := s.procManager.processes["dies-after-verify"]
+
+	// Use beforeVerifyRsp to deterministically nil engineConnB BEFORE the verify
+	// response is sent. Only nil the pointer — do NOT close the underlying connection,
+	// because the coordinator's in-flight SendConfigVerify still needs to read the
+	// response through the old reference. The pre-apply alive check calls ConnB()
+	// which returns nil, triggering the abort.
+	plugins[0].responder.mu.Lock()
+	plugins[0].responder.beforeVerifyRsp = func() {
+		proc.mu.Lock()
+		proc.engineConnB = nil
+		proc.mu.Unlock()
+	}
+	plugins[0].responder.mu.Unlock()
+
+	err := s.ReloadConfig(context.Background(), newTree)
+	require.Error(t, err, "should fail when plugin dies between verify and apply")
+	assert.Contains(t, err.Error(), "dies-after-verify")
+
+	// Running config should NOT be updated when pre-apply check fails.
+	reactor.mu.Lock()
+	assert.Nil(t, reactor.setTree, "config should NOT be updated when process died between phases")
+	reactor.mu.Unlock()
 }

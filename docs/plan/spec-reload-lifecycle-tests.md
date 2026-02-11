@@ -24,6 +24,7 @@ This is implemented as 5 ordered sub-specs:
 | 5 | `spec-config-reload-5-e2e.md` | End-to-end functional tests |
 | 6 | `spec-config-reload-6-remove-bgpconfig.md` | Remove BGPConfig typed intermediate, reactor parses from tree |
 | 7 | `spec-config-reload-7-coordinator-hardening.md` | Crash detection, apply error propagation, daemon reload wiring |
+| 8 | `spec-config-reload-8-daemon-rpcs.md` | Move daemon-* RPCs from ze-bgp to ze-system module |
 
 ## Required Reading
 
