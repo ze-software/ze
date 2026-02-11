@@ -256,33 +256,36 @@ func printSchemaTable(header string, kind string, entries []schemaEntry) {
 
 // cmdMethods lists RPCs from YANG API modules.
 func cmdMethods(args []string, plugins []string) int {
-	var module string
-	if len(args) > 0 {
-		module = args[0]
-	}
-
-	registry, err := buildSchemaRegistry(plugins)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-
-	rpcs := registry.ListRPCs(module)
-	if len(rpcs) == 0 && module != "" {
-		fmt.Fprintf(os.Stderr, "no RPCs found for module %s\n", module)
-		return 1
-	}
-
-	entries := make([]schemaEntry, len(rpcs))
-	for i, rpc := range rpcs {
-		entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.Description}
-	}
-	printSchemaTable("Method", "RPC", entries)
-	return 0
+	return cmdListSchema(args, plugins, "RPC", "Method", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
+		rpcs := reg.ListRPCs(module)
+		entries := make([]schemaEntry, len(rpcs))
+		for i, rpc := range rpcs {
+			entries[i] = schemaEntry{wire: rpc.WireMethod, module: rpc.Module, desc: rpc.Description}
+		}
+		return entries
+	})
 }
 
 // cmdEvents lists notifications from YANG API modules.
 func cmdEvents(args []string, plugins []string) int {
+	return cmdListSchema(args, plugins, "notification", "Event", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
+		notifs := reg.ListNotifications(module)
+		entries := make([]schemaEntry, len(notifs))
+		for i, notif := range notifs {
+			entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.Description}
+		}
+		return entries
+	})
+}
+
+// cmdListSchema is the shared logic for listing RPCs or notifications.
+func cmdListSchema(
+	args []string,
+	plugins []string,
+	kind string,
+	header string,
+	listFn func(*plugin.SchemaRegistry, string) []schemaEntry,
+) int {
 	var module string
 	if len(args) > 0 {
 		module = args[0]
@@ -294,17 +297,13 @@ func cmdEvents(args []string, plugins []string) int {
 		return 1
 	}
 
-	notifs := registry.ListNotifications(module)
-	if len(notifs) == 0 && module != "" {
-		fmt.Fprintf(os.Stderr, "no notifications found for module %s\n", module)
+	entries := listFn(registry, module)
+	if len(entries) == 0 && module != "" {
+		fmt.Fprintf(os.Stderr, "no %ss found for module %s\n", kind, module)
 		return 1
 	}
 
-	entries := make([]schemaEntry, len(notifs))
-	for i, notif := range notifs {
-		entries[i] = schemaEntry{wire: notif.WireMethod, module: notif.Module, desc: notif.Description}
-	}
-	printSchemaTable("Event", "notification", entries)
+	printSchemaTable(header, kind, entries)
 	return 0
 }
 

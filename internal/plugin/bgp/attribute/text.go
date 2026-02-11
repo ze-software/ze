@@ -105,9 +105,9 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	}
 
 	return LargeCommunity{
-		GlobalAdmin: uint32(ga),
-		LocalData1:  uint32(ld1),
-		LocalData2:  uint32(ld2),
+		GlobalAdmin: uint32(ga),  //nolint:gosec // G115: bounded by ParseUint 32-bit
+		LocalData1:  uint32(ld1), //nolint:gosec // G115: bounded by ParseUint 32-bit
+		LocalData2:  uint32(ld2), //nolint:gosec // G115: bounded by ParseUint 32-bit
 	}, nil
 }
 

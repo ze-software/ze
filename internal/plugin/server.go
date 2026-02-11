@@ -606,7 +606,7 @@ func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
 //   - "*" → entire tree
 //   - "bgp" → {"bgp": configTree["bgp"]}
 //   - "bgp/peer" → {"bgp": {"peer": configTree["bgp"]["peer"]}}
-func extractConfigSubtree(configTree map[string]any, path string) any {
+func ExtractConfigSubtree(configTree map[string]any, path string) any {
 	if path == "*" {
 		return configTree
 	}
@@ -822,7 +822,7 @@ func (s *Server) deliverConfigRPC(proc *Process) {
 		configTree := s.reactor.GetConfigTree()
 		if configTree != nil {
 			for _, root := range reg.WantsConfigRoots {
-				subtree := extractConfigSubtree(configTree, root)
+				subtree := ExtractConfigSubtree(configTree, root)
 				if subtree == nil {
 					continue
 				}

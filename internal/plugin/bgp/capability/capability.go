@@ -740,3 +740,36 @@ func parseSoftwareVersion(data []byte) (*SoftwareVersion, error) {
 		Version: string(data[1 : 1+verLen]),
 	}, nil
 }
+
+// ParseFromOptionalParams extracts capabilities from OPEN optional parameters.
+// RFC 5492 Section 4: Optional Parameters contain type-length-value triples.
+// Type 2 indicates the Capabilities Optional Parameter.
+func ParseFromOptionalParams(optParams []byte) []Capability {
+	var caps []Capability
+	offset := 0
+
+	for offset < len(optParams) {
+		if offset+2 > len(optParams) {
+			break
+		}
+
+		paramType := optParams[offset]
+		paramLen := int(optParams[offset+1])
+		offset += 2
+
+		if offset+paramLen > len(optParams) {
+			break
+		}
+
+		// RFC 5492: Capability parameter type is 2
+		if paramType == 2 {
+			parsed, err := Parse(optParams[offset : offset+paramLen])
+			if err == nil {
+				caps = append(caps, parsed...)
+			}
+		}
+		offset += paramLen
+	}
+
+	return caps
+}

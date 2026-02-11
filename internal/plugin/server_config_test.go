@@ -117,7 +117,7 @@ func TestExtractConfigSubtree(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractConfigSubtree(configTree, tt.path)
+			result := ExtractConfigSubtree(configTree, tt.path)
 			if tt.wantNil {
 				assert.Nil(t, result)
 				return
@@ -151,7 +151,7 @@ func TestExtractConfigSubtreePreservesPath(t *testing.T) {
 	}
 
 	// Extract bgp/peer - should get {"bgp": {"peer": {...}}}
-	result := extractConfigSubtree(configTree, "bgp/peer")
+	result := ExtractConfigSubtree(configTree, "bgp/peer")
 	require.NotNil(t, result)
 
 	// Navigate the wrapped structure

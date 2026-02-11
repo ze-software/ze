@@ -237,7 +237,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 			return 0, fmt.Errorf("missing as-path value")
 		}
 		// Collect tokens until boundary or end
-		tokens, consumed := parseBracketedList(args[idx+1:])
+		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseASPath(strings.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
@@ -248,7 +248,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 			return 0, fmt.Errorf("missing community value")
 		}
 		// Collect tokens until boundary or end
-		tokens, consumed := parseBracketedList(args[idx+1:])
+		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseCommunity(strings.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
@@ -258,7 +258,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing large-community value")
 		}
-		tokens, consumed := parseBracketedList(args[idx+1:])
+		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseLargeCommunity(strings.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
@@ -268,7 +268,7 @@ func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribut
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing extended-community value")
 		}
-		tokens, consumed := parseBracketedList(args[idx+1:])
+		tokens, consumed := attribute.ParseBracketedList(args[idx+1:])
 		if err := b.ParseExtCommunity(strings.Join(tokens, " ")); err != nil {
 			return 0, err
 		}
@@ -366,7 +366,7 @@ func parseASPath(args []string) ([]uint32, int, error) {
 		return nil, 0, fmt.Errorf("missing as-path value")
 	}
 
-	tokens, consumed := parseBracketedList(args)
+	tokens, consumed := attribute.ParseBracketedList(args)
 	asPath := make([]uint32, 0, len(tokens))
 	for _, tok := range tokens {
 		asn, err := strconv.ParseUint(tok, 10, 32)
@@ -377,67 +377,6 @@ func parseASPath(args []string) ([]uint32, int, error) {
 	}
 
 	return asPath, consumed, nil
-}
-
-// parseBracketedList parses a list of tokens.
-// Supports:
-//   - Bracketed: [token1 token2 ...] or [token1,token2,...]
-//   - Single value: token (no brackets, returns single-element list)
-//
-// Returns the individual tokens and how many args were consumed.
-func parseBracketedList(args []string) ([]string, int) {
-	if len(args) == 0 {
-		return nil, 0
-	}
-
-	// Check if bracketed
-	if strings.HasPrefix(args[0], "[") {
-		var tokens []string
-		consumed := 0
-
-		for i, arg := range args {
-			consumed++
-			if i == 0 {
-				arg = strings.TrimPrefix(arg, "[")
-			}
-			if strings.HasSuffix(arg, "]") {
-				arg = strings.TrimSuffix(arg, "]")
-				if arg != "" {
-					tokens = append(tokens, arg)
-				}
-				break
-			}
-			if arg != "" {
-				tokens = append(tokens, arg)
-			}
-		}
-
-		// Expand comma-separated values
-		var expanded []string
-		for _, tok := range tokens {
-			parts := strings.Split(tok, ",")
-			for _, p := range parts {
-				p = strings.TrimSpace(p)
-				if p != "" {
-					expanded = append(expanded, p)
-				}
-			}
-		}
-
-		return expanded, consumed
-	}
-
-	// Single value without brackets (like ExaBGP: community 2914:666)
-	// Expand comma-separated if present
-	parts := strings.Split(args[0], ",")
-	var expanded []string
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			expanded = append(expanded, p)
-		}
-	}
-	return expanded, 1
 }
 
 // parseParenthesizedValue parses a parenthesis-delimited value from args.
@@ -481,7 +420,7 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 		return nil, 0, fmt.Errorf("missing community value")
 	}
 
-	tokens, consumed := parseBracketedList(args)
+	tokens, consumed := attribute.ParseBracketedList(args)
 	comms := make([]uint32, 0, len(tokens))
 	for _, tok := range tokens {
 		comm, err := attribute.ParseCommunity(tok)
@@ -500,7 +439,7 @@ func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
 		return nil, 0, fmt.Errorf("missing large-community value")
 	}
 
-	tokens, consumed := parseBracketedList(args)
+	tokens, consumed := attribute.ParseBracketedList(args)
 	lcomms := make([]LargeCommunity, 0, len(tokens))
 	for _, tok := range tokens {
 		lc, err := attribute.ParseLargeCommunity(tok)
@@ -550,7 +489,7 @@ func parseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 	}
 
 	// Fall back to list syntax
-	tokens, consumed := parseBracketedList(args)
+	tokens, consumed := attribute.ParseBracketedList(args)
 	comms := make([]attribute.ExtendedCommunity, 0, len(tokens))
 	for _, tok := range tokens {
 		ec, err := parseExtendedCommunity(tok)
@@ -979,7 +918,7 @@ func parseLabels(args []string) ([]uint32, int, error) {
 		return nil, 0, ErrMissingLabel
 	}
 
-	tokens, consumed := parseBracketedList(args)
+	tokens, consumed := attribute.ParseBracketedList(args)
 	if len(tokens) == 0 {
 		return nil, consumed, ErrMissingLabel
 	}
@@ -1427,40 +1366,25 @@ func routeRPCs() []RPCRegistration {
 // handleWatchdogAnnounce handles: watchdog announce <name>
 // Announces all routes in the named watchdog group that are currently withdrawn.
 func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-
-	if len(args) < 1 {
-		return &Response{
-			Status: "error",
-			Data:   "missing watchdog name",
-		}, ErrMissingWatchdog
-	}
-
-	name := args[0]
-	peerSelector := ctx.PeerSelector()
-
-	if err := ctx.Reactor().AnnounceWatchdog(peerSelector, name); err != nil {
-		return &Response{
-			Status: "error",
-			Data:   err.Error(),
-		}, err
-	}
-
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"peer":     peerSelector,
-			"watchdog": name,
-		},
-	}, nil
+	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
+		return r.AnnounceWatchdog(peer, name)
+	})
 }
 
 // handleWatchdogWithdraw handles: watchdog withdraw <name>
 // Withdraws all routes in the named watchdog group that are currently announced.
 func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
+	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
+		return r.WithdrawWatchdog(peer, name)
+	})
+}
+
+// handleWatchdogAction implements the shared logic for watchdog announce/withdraw.
+func handleWatchdogAction(
+	ctx *CommandContext,
+	args []string,
+	action func(ReactorInterface, string, string) error,
+) (*Response, error) {
 	_, errResp, err := requireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -1476,7 +1400,7 @@ func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, erro
 	name := args[0]
 	peerSelector := ctx.PeerSelector()
 
-	if err := ctx.Reactor().WithdrawWatchdog(peerSelector, name); err != nil {
+	if err := action(ctx.Reactor(), peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   err.Error(),
@@ -1606,7 +1530,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 				return spec, fmt.Errorf("missing extended-community value")
 			}
 			// Collect bracketed value - must set spec.ExtCommunity for MUP
-			tokens, consumed := parseBracketedList(args[i+1:])
+			tokens, consumed := attribute.ParseBracketedList(args[i+1:])
 			spec.ExtCommunity = "[" + strings.Join(tokens, " ") + "]"
 			i += consumed
 			continue

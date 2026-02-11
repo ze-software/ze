@@ -56,18 +56,13 @@ func SerializeSubtree(tree *Tree, node Node) string {
 	return b.String()
 }
 
-// serializeWithChildren serializes tree content using a schema node that provides
-// Children() and Get() for ordering.
-func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, indent int) {
+// serializeExtraValues writes tree values that are not in the schema's children list.
+// This handles unknown/extra keys that appear in the config but aren't defined in schema.
+func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
-	for _, name := range node.Children() {
-		child := node.Get(name)
-		serializeNode(b, tree, name, child, indent)
-	}
-
-	schemaNames := make(map[string]bool)
-	for _, name := range node.Children() {
+	schemaNames := make(map[string]bool, len(children))
+	for _, name := range children {
 		schemaNames[name] = true
 	}
 
@@ -87,37 +82,25 @@ func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, i
 	}
 }
 
-func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent int) {
-	prefix := strings.Repeat("\t", indent)
+// serializeWithChildren serializes tree content using a schema node that provides
+// Children() and Get() for ordering.
+func serializeWithChildren(b *strings.Builder, tree *Tree, node childProvider, indent int) {
+	for _, name := range node.Children() {
+		child := node.Get(name)
+		serializeNode(b, tree, name, child, indent)
+	}
 
+	serializeExtraValues(b, tree, node.Children(), indent)
+}
+
+func serializeTree(b *strings.Builder, tree *Tree, node *ContainerNode, indent int) {
 	// Serialize in schema order where possible
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
 	}
 
-	// Also serialize any values/containers/lists not in schema (shouldn't happen, but be safe)
-	// Values
-	schemaNames := make(map[string]bool)
-	for _, name := range node.Children() {
-		schemaNames[name] = true
-	}
-
-	// Sort for deterministic output
-	var valueKeys []string
-	for k := range tree.values {
-		if !schemaNames[k] {
-			valueKeys = append(valueKeys, k)
-		}
-	}
-	sort.Strings(valueKeys)
-	for _, k := range valueKeys {
-		b.WriteString(prefix)
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString(";\n")
-	}
+	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
 func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, indent int) {
@@ -315,34 +298,13 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 }
 
 func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent int) {
-	prefix := strings.Repeat("\t", indent)
-
 	// Serialize in schema order
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
 	}
 
-	// Values not in schema
-	schemaNames := make(map[string]bool)
-	for _, name := range node.Children() {
-		schemaNames[name] = true
-	}
-
-	var valueKeys []string
-	for k := range tree.values {
-		if !schemaNames[k] {
-			valueKeys = append(valueKeys, k)
-		}
-	}
-	sort.Strings(valueKeys)
-	for _, k := range valueKeys {
-		b.WriteString(prefix)
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString(";\n")
-	}
+	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
 func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
@@ -401,65 +363,23 @@ func serializeFamilyBlock(b *strings.Builder, tree *Tree, indent int) {
 }
 
 func serializeFlexContainer(b *strings.Builder, tree *Tree, node *FlexNode, indent int) {
-	prefix := strings.Repeat("\t", indent)
-
 	// Serialize in schema order
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
 	}
 
-	// Values not in schema
-	schemaNames := make(map[string]bool)
-	for _, name := range node.Children() {
-		schemaNames[name] = true
-	}
-
-	var valueKeys []string
-	for k := range tree.values {
-		if !schemaNames[k] {
-			valueKeys = append(valueKeys, k)
-		}
-	}
-	sort.Strings(valueKeys)
-	for _, k := range valueKeys {
-		b.WriteString(prefix)
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString(";\n")
-	}
+	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
 func serializeInlineListEntry(b *strings.Builder, tree *Tree, node *InlineListNode, indent int) {
-	prefix := strings.Repeat("\t", indent)
-
 	// Serialize in schema order
 	for _, name := range node.Children() {
 		child := node.Get(name)
 		serializeNode(b, tree, name, child, indent)
 	}
 
-	// Values not in schema
-	schemaNames := make(map[string]bool)
-	for _, name := range node.Children() {
-		schemaNames[name] = true
-	}
-
-	var valueKeys []string
-	for k := range tree.values {
-		if !schemaNames[k] {
-			valueKeys = append(valueKeys, k)
-		}
-	}
-	sort.Strings(valueKeys)
-	for _, k := range valueKeys {
-		b.WriteString(prefix)
-		b.WriteString(k)
-		b.WriteString(" ")
-		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString(";\n")
-	}
+	serializeExtraValues(b, tree, node.Children(), indent)
 }
 
 // quoteIfNeeded quotes a string if it contains spaces or special characters.

@@ -562,7 +562,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		tokens, consumed := parseBracketedListText(args[idx+1:])
 		lcs := make([]LargeCommunity, 0, len(tokens))
 		for _, tok := range tokens {
-			lc, err := parseLargeCommunityText(tok)
+			lc, err := attribute.ParseLargeCommunity(tok)
 			if err != nil {
 				return 0, err
 			}
@@ -720,27 +720,6 @@ func parseCommunityText(s string) (uint32, error) {
 		return 0, fmt.Errorf("invalid community value: %s", parts[1])
 	}
 	return uint32(high)<<16 | uint32(low), nil
-}
-
-// parseLargeCommunityText parses large community in GA:LD1:LD2 format.
-func parseLargeCommunityText(s string) (LargeCommunity, error) {
-	parts := strings.SplitN(s, ":", 3)
-	if len(parts) != 3 {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community format: %s (expected GA:LD1:LD2)", s)
-	}
-	ga, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community global-admin: %s", parts[0])
-	}
-	ld1, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data-1: %s", parts[1])
-	}
-	ld2, err := strconv.ParseUint(parts[2], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data-2: %s", parts[2])
-	}
-	return LargeCommunity{GlobalAdmin: uint32(ga), LocalData1: uint32(ld1), LocalData2: uint32(ld2)}, nil
 }
 
 // ParseUpdateText parses the "update text" command format.

@@ -1,5 +1,6 @@
-// Package testpeer provides a BGP test peer for functional testing.
-package peer
+// Package decode provides shared BGP message decode helpers for test tools.
+// Used by both ze-peer (test peer) and ze-test (functional test runner).
+package decode
 
 import (
 	"encoding/binary"
@@ -64,6 +65,7 @@ func DecodeMessageBytes(data []byte) (*DecodedMessage, error) {
 		decodeUpdate(msg, data[19:])
 	case 3:
 		msg.Type = "NOTIFICATION"
+		decodeNotification(msg, data[19:])
 	case 4:
 		msg.Type = "KEEPALIVE"
 	case 5:
@@ -143,6 +145,46 @@ func decodeUpdate(msg *DecodedMessage, body []byte) {
 	}
 }
 
+func decodeNotification(msg *DecodedMessage, body []byte) {
+	if len(body) < 2 {
+		return
+	}
+
+	errCode := body[0]
+	errSubcode := body[1]
+
+	msg.Attributes = append(msg.Attributes, DecodedAttribute{
+		Name:  "error-code",
+		Value: fmt.Sprintf("%d (%s)", errCode, notificationErrorName(errCode)),
+	})
+	msg.Attributes = append(msg.Attributes, DecodedAttribute{
+		Name:  "error-subcode",
+		Value: fmt.Sprintf("%d", errSubcode),
+	})
+
+	if len(body) > 2 {
+		msg.Attributes = append(msg.Attributes, DecodedAttribute{
+			Name:  "data",
+			Value: hex.EncodeToString(body[2:]),
+		})
+	}
+}
+
+func notificationErrorName(code byte) string {
+	names := map[byte]string{
+		1: "Message Header Error",
+		2: "OPEN Message Error",
+		3: "UPDATE Message Error",
+		4: "Hold Timer Expired",
+		5: "FSM Error",
+		6: "Cease",
+	}
+	if name, ok := names[code]; ok {
+		return name
+	}
+	return "Unknown"
+}
+
 func decodePathAttributes(data []byte) []DecodedAttribute {
 	var attrs []DecodedAttribute
 	offset := 0
@@ -178,7 +220,7 @@ func decodePathAttributes(data []byte) []DecodedAttribute {
 		value := data[offset+hdrLen : offset+hdrLen+valueLen]
 		attr := DecodedAttribute{
 			Code:  code,
-			Name:  attrCodeName(code),
+			Name:  AttrCodeName(code),
 			Flags: flags,
 			Value: decodeAttrValue(code, value),
 		}
@@ -222,7 +264,8 @@ func decodeNLRI(data []byte) []string {
 	return prefixes
 }
 
-func attrCodeName(code byte) string {
+// AttrCodeName returns the human-readable name for a BGP attribute code.
+func AttrCodeName(code byte) string {
 	names := map[byte]string{
 		1:  "ORIGIN",
 		2:  "AS_PATH",
@@ -355,7 +398,6 @@ func decodeCommunities(data []byte) string {
 func decodeExtCommunities(data []byte) string {
 	var comms []string
 	for i := 0; i+8 <= len(data); i += 8 {
-		// Simplified: just show as hex for now
 		comms = append(comms, fmt.Sprintf("0x%s", hex.EncodeToString(data[i:i+8])))
 	}
 	return strings.Join(comms, " ")
@@ -462,4 +504,32 @@ func Diff(expected, received string) string {
 	}
 
 	return sb.String()
+}
+
+// FindByteDiff finds the first differing bytes between two hex strings.
+func FindByteDiff(exp, rcv string) string {
+	exp = strings.ReplaceAll(strings.ReplaceAll(exp, ":", ""), " ", "")
+	rcv = strings.ReplaceAll(strings.ReplaceAll(rcv, ":", ""), " ", "")
+
+	minLen := len(exp)
+	if len(rcv) < minLen {
+		minLen = len(rcv)
+	}
+
+	for i := 0; i < minLen; i += 2 {
+		end := i + 2
+		if end > minLen {
+			end = minLen
+		}
+		if exp[i:end] != rcv[i:end] {
+			bytePos := i / 2
+			return fmt.Sprintf("byte %d: %s vs %s", bytePos, exp[i:end], rcv[i:end])
+		}
+	}
+
+	if len(exp) != len(rcv) {
+		return fmt.Sprintf("length: %d vs %d", len(exp)/2, len(rcv)/2)
+	}
+
+	return ""
 }

@@ -99,7 +99,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 				if !rootHasChanges(diff, root) {
 					continue
 				}
-				subtree := extractConfigSubtree(newTree, root)
+				subtree := ExtractConfigSubtree(newTree, root)
 				if subtree == nil {
 					// Root was removed from new config — send empty object
 					// so the plugin can verify/handle the removal.

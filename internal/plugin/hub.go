@@ -73,32 +73,7 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 // RouteCommit sends a commit command to a plugin.
 // Format: <namespace> commit.
 func (h *Hub) RouteCommit(ctx context.Context, namespace string) error {
-	// Find schema for namespace.
-	schema, _ := h.registry.FindHandler(namespace)
-	if schema == nil {
-		return fmt.Errorf("unknown namespace: %s", namespace)
-	}
-
-	// Find subsystem.
-	handler := h.subsystems.Get(schema.Plugin)
-	if handler == nil {
-		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
-	}
-
-	// Format commit command.
-	cmd := fmt.Sprintf("%s commit", namespace)
-
-	// Send commit to plugin.
-	resp, err := handler.Handle(ctx, cmd)
-	if err != nil {
-		return fmt.Errorf("commit failed: %w", err)
-	}
-
-	if resp.Status == statusError {
-		return fmt.Errorf("commit rejected: %v", resp.Data)
-	}
-
-	return nil
+	return h.routeTransaction(ctx, namespace, "commit")
 }
 
 // ProcessConfig processes a configuration transaction.
@@ -145,29 +120,30 @@ func (h *Hub) ProcessConfig(ctx context.Context, blocks []ConfigBlock) error {
 // RouteRollback sends a rollback command to a plugin.
 // Format: <namespace> rollback.
 func (h *Hub) RouteRollback(ctx context.Context, namespace string) error {
-	// Find schema for namespace.
+	return h.routeTransaction(ctx, namespace, "rollback")
+}
+
+// routeTransaction sends a transaction command (commit/rollback) to a plugin.
+func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) error {
 	schema, _ := h.registry.FindHandler(namespace)
 	if schema == nil {
 		return fmt.Errorf("unknown namespace: %s", namespace)
 	}
 
-	// Find subsystem.
 	handler := h.subsystems.Get(schema.Plugin)
 	if handler == nil {
 		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
 	}
 
-	// Format rollback command.
-	cmd := fmt.Sprintf("%s rollback", namespace)
+	cmd := fmt.Sprintf("%s %s", namespace, action)
 
-	// Send rollback to plugin.
 	resp, err := handler.Handle(ctx, cmd)
 	if err != nil {
-		return fmt.Errorf("rollback failed: %w", err)
+		return fmt.Errorf("%s failed: %w", action, err)
 	}
 
 	if resp.Status == statusError {
-		return fmt.Errorf("rollback rejected: %v", resp.Data)
+		return fmt.Errorf("%s rejected: %v", action, resp.Data)
 	}
 
 	return nil

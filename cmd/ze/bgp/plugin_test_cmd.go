@@ -123,7 +123,7 @@ Examples:
 	if *showTree {
 		for _, root := range roots {
 			fmt.Printf("\n🌳 Config tree (root=%s):\n", root)
-			subtree := extractSubtree(treeMap, root)
+			subtree := plugin.ExtractConfigSubtree(treeMap, root)
 			if subtree != nil {
 				jsonBytes, _ := json.MarshalIndent(subtree, "   ", "  ")
 				fmt.Printf("   %s\n", string(jsonBytes))
@@ -138,7 +138,7 @@ Examples:
 	if *showJSON {
 		for _, root := range roots {
 			fmt.Printf("\n📤 JSON delivery for root=%s:\n", root)
-			subtree := extractSubtree(treeMap, root)
+			subtree := plugin.ExtractConfigSubtree(treeMap, root)
 			if subtree != nil {
 				jsonBytes, _ := json.Marshal(subtree)
 				fmt.Printf("   config json %s %s\n", root, string(jsonBytes))
@@ -181,45 +181,4 @@ func mapKeys(m map[string]any) []string {
 		keys = append(keys, k)
 	}
 	return keys
-}
-
-// extractSubtree extracts a subtree based on path, wrapped in full path structure.
-// "bgp/peer" returns {"bgp": {"peer": ...}} - always includes path from root.
-func extractSubtree(tree map[string]any, path string) any {
-	if path == "*" {
-		return tree
-	}
-
-	// Split path and filter empty parts
-	rawParts := strings.Split(path, "/")
-	var parts []string
-	for _, p := range rawParts {
-		if p != "" {
-			parts = append(parts, p)
-		}
-	}
-
-	if len(parts) == 0 {
-		return tree
-	}
-
-	// Navigate to the leaf data
-	var current any = tree
-	for _, part := range parts {
-		m, ok := current.(map[string]any)
-		if !ok {
-			return nil
-		}
-		current = m[part]
-		if current == nil {
-			return nil
-		}
-	}
-
-	// Wrap the leaf data in its path structure (from leaf to root)
-	result := current
-	for i := len(parts) - 1; i >= 0; i-- {
-		result = map[string]any{parts[i]: result}
-	}
-	return result
 }

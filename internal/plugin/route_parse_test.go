@@ -234,17 +234,17 @@ func TestParseBracketedList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tokens, consumed := parseBracketedList(tt.args)
+			tokens, consumed := attribute.ParseBracketedList(tt.args)
 			if consumed != tt.wantConsumed {
-				t.Errorf("parseBracketedList(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
+				t.Errorf("attribute.ParseBracketedList(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
 			}
 			if len(tokens) != len(tt.wantTokens) {
-				t.Errorf("parseBracketedList(%v) tokens = %v, want %v", tt.args, tokens, tt.wantTokens)
+				t.Errorf("attribute.ParseBracketedList(%v) tokens = %v, want %v", tt.args, tokens, tt.wantTokens)
 				return
 			}
 			for i, tok := range tokens {
 				if tok != tt.wantTokens[i] {
-					t.Errorf("parseBracketedList(%v) tokens[%d] = %q, want %q", tt.args, i, tok, tt.wantTokens[i])
+					t.Errorf("attribute.ParseBracketedList(%v) tokens[%d] = %q, want %q", tt.args, i, tok, tt.wantTokens[i])
 				}
 			}
 		})

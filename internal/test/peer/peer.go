@@ -24,6 +24,7 @@ import (
 	"unicode/utf8"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
+	"codeberg.org/thomas-mangin/ze/internal/test/decode"
 )
 
 // BGP message types.
@@ -396,7 +397,7 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 
 		if !matched {
 			expected, received := p.checker.LastMismatch()
-			diff := Diff(expected, received)
+			diff := decode.Diff(expected, received)
 			return Result{Success: false, Error: fmt.Errorf("message mismatch%s", diff)}
 		}
 
@@ -531,7 +532,7 @@ func (p *Peer) printPayload(prefix string, header, body []byte) {
 		fullMsg := make([]byte, len(header)+len(body))
 		copy(fullMsg, header)
 		copy(fullMsg[len(header):], body)
-		if decoded, err := DecodeMessageBytes(fullMsg); err == nil {
+		if decoded, err := decode.DecodeMessageBytes(fullMsg); err == nil {
 			for _, line := range strings.Split(decoded.String(), "\n") {
 				if line != "" {
 					p.printf("             %s\n", line)

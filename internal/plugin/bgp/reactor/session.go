@@ -1223,8 +1223,8 @@ func (s *Session) negotiate() {
 	}
 
 	// Parse capabilities from OPEN messages.
-	localCaps := parseCapabilities(s.localOpen.OptionalParams)
-	peerCaps := parseCapabilities(s.peerOpen.OptionalParams)
+	localCaps := capability.ParseFromOptionalParams(s.localOpen.OptionalParams)
+	peerCaps := capability.ParseFromOptionalParams(s.peerOpen.OptionalParams)
 
 	// Negotiate.
 	s.negotiated = capability.Negotiate(
@@ -1391,36 +1391,6 @@ func (s *Session) TriggerHoldTimerExpiry() {
 	s.timers.StopAll()
 	_ = s.fsm.Event(fsm.EventHoldTimerExpires)
 	s.closeConn()
-}
-
-// parseCapabilities parses capabilities from OPEN optional parameters.
-func parseCapabilities(optParams []byte) []capability.Capability {
-	var caps []capability.Capability
-
-	i := 0
-	for i < len(optParams) {
-		if i+2 > len(optParams) {
-			break
-		}
-		paramType := optParams[i]
-		paramLen := int(optParams[i+1])
-		i += 2
-
-		if i+paramLen > len(optParams) {
-			break
-		}
-
-		if paramType == 2 { // Capabilities
-			parsed, err := capability.Parse(optParams[i : i+paramLen])
-			if err == nil {
-				caps = append(caps, parsed...)
-			}
-		}
-
-		i += paramLen
-	}
-
-	return caps
 }
 
 // buildOptionalParams builds optional parameters from capabilities.

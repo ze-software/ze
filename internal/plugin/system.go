@@ -220,9 +220,12 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 		}, fmt.Errorf("missing command name")
 	}
 
-	name := args[0]
+	return lookupCommandHelp(ctx, args[0], "command")
+}
 
-	// Check builtins first
+// lookupCommandHelp looks up a command by name in builtins then plugins.
+// The kind parameter is used in error messages (e.g., "command", "rib command").
+func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error) {
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &Response{
@@ -235,7 +238,6 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 			}, nil
 		}
 
-		// Check plugin commands
 		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
 				Status: statusDone,
@@ -252,8 +254,8 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 
 	return &Response{
 		Status: statusError,
-		Data:   fmt.Sprintf("unknown command: %s", name),
-	}, fmt.Errorf("unknown command: %s", name)
+		Data:   fmt.Sprintf("unknown %s: %s", kind, name),
+	}, fmt.Errorf("unknown %s: %s", kind, name)
 }
 
 // handleSystemCommandComplete returns completions for partial input.

@@ -113,38 +113,7 @@ func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 		name = "rib " + name
 	}
 
-	// Check builtins first
-	if ctx.Dispatcher() != nil {
-		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
-			return &Response{
-				Status: statusDone,
-				Data: map[string]any{
-					"command":     cmd.Name,
-					"description": cmd.Help,
-					"source":      sourceBuiltin,
-				},
-			}, nil
-		}
-
-		// Check plugin commands
-		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
-			return &Response{
-				Status: statusDone,
-				Data: map[string]any{
-					"command":     cmd.Name,
-					"description": cmd.Description,
-					"args":        cmd.Args,
-					"source":      cmd.Process.Name(),
-					"timeout":     cmd.Timeout.String(),
-				},
-			}, nil
-		}
-	}
-
-	return &Response{
-		Status: statusError,
-		Data:   fmt.Sprintf("unknown rib command: %s", name),
-	}, fmt.Errorf("unknown rib command: %s", name)
+	return lookupCommandHelp(ctx, name, "rib command")
 }
 
 // handleRibCommandComplete returns completions for RIB commands.

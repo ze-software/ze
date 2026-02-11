@@ -240,7 +240,7 @@ func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[strin
 	}
 
 	// Parse capabilities
-	caps := parseCapabilities(open.OptionalParams)
+	caps := capability.ParseFromOptionalParams(open.OptionalParams)
 
 	// Determine ASN (use ASN4 if available)
 	asn := uint32(open.MyAS)
@@ -267,37 +267,6 @@ func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[strin
 	}
 
 	return map[string]any{"open": openContent}, nil
-}
-
-// parseCapabilities parses optional parameters for capabilities.
-func parseCapabilities(optParams []byte) []capability.Capability {
-	var caps []capability.Capability
-	offset := 0
-
-	for offset < len(optParams) {
-		if offset+2 > len(optParams) {
-			break
-		}
-
-		paramType := optParams[offset]
-		paramLen := int(optParams[offset+1])
-		offset += 2
-
-		if offset+paramLen > len(optParams) {
-			break
-		}
-
-		// Capability parameter (type 2)
-		if paramType == 2 {
-			parsed, err := capability.Parse(optParams[offset : offset+paramLen])
-			if err == nil {
-				caps = append(caps, parsed...)
-			}
-		}
-		offset += paramLen
-	}
-
-	return caps
 }
 
 // pluginCapabilityMap maps capability codes to plugin names.

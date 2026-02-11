@@ -188,7 +188,7 @@ func (b *Builder) ParseLargeCommunity(s string) error {
 
 	tokens := strings.Fields(s)
 	for _, tok := range tokens {
-		lc, err := parseSingleLargeCommunity(tok)
+		lc, err := ParseLargeCommunity(tok)
 		if err != nil {
 			return err
 		}
@@ -196,34 +196,6 @@ func (b *Builder) ParseLargeCommunity(s string) error {
 	}
 
 	return nil
-}
-
-func parseSingleLargeCommunity(s string) (LargeCommunity, error) {
-	parts := strings.SplitN(s, ":", 3)
-	if len(parts) != 3 {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community format: %s (expected global:local1:local2)", s)
-	}
-
-	global, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community global: %s", parts[0])
-	}
-
-	local1, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local1: %s", parts[1])
-	}
-
-	local2, err := strconv.ParseUint(parts[2], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local2: %s", parts[2])
-	}
-
-	return LargeCommunity{
-		GlobalAdmin: uint32(global), //nolint:gosec // G115: bounded by ParseUint 32-bit
-		LocalData1:  uint32(local1), //nolint:gosec // G115: bounded by ParseUint 32-bit
-		LocalData2:  uint32(local2), //nolint:gosec // G115: bounded by ParseUint 32-bit
-	}, nil
 }
 
 // ParseExtCommunity parses an extended community string.

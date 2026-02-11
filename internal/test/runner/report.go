@@ -112,7 +112,7 @@ func (r *Report) printTimeoutReport(rec *Record) {
 
 		if decoded, err := DecodeMessage(rawHex); err == nil {
 			_, _ = fmt.Fprintf(r.output, "%s\n", c.Yellow("decoded:"))
-			_, _ = fmt.Fprint(r.output, decoded.ColoredString(c))
+			_, _ = fmt.Fprint(r.output, ColoredString(decoded, c))
 		}
 		_, _ = fmt.Fprintln(r.output)
 	}
@@ -195,7 +195,7 @@ func (r *Report) printMismatchReport(rec *Record) {
 		}
 		if decoded, err := DecodeMessage(msg.RawHex); err == nil {
 			_, _ = fmt.Fprintf(r.output, "%s\n", c.Yellow("decoded:"))
-			_, _ = fmt.Fprint(r.output, decoded.ColoredString(c))
+			_, _ = fmt.Fprint(r.output, ColoredString(decoded, c))
 		}
 	}
 	_, _ = fmt.Fprintln(r.output)
@@ -216,7 +216,7 @@ func (r *Report) printMismatchReport(rec *Record) {
 		_, _ = fmt.Fprintf(r.output, "%s     %s\n", c.Yellow("raw:"), formatHex(rawHex))
 		if decoded, err := DecodeMessage(rawHex); err == nil {
 			_, _ = fmt.Fprintf(r.output, "%s\n", c.Yellow("decoded:"))
-			_, _ = fmt.Fprint(r.output, decoded.ColoredString(c))
+			_, _ = fmt.Fprint(r.output, ColoredString(decoded, c))
 		}
 	}
 	_, _ = fmt.Fprintln(r.output)
