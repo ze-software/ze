@@ -15,7 +15,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

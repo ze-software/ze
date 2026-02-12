@@ -15,7 +15,7 @@ import (
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 

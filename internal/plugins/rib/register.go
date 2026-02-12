@@ -1,25 +1,23 @@
-package gr
+package rib
 
 import (
 	"fmt"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
-	grschema "codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 func init() {
 	reg := registry.Registration{
-		Name:         "gr",
-		Description:  "Graceful Restart capability plugin",
-		RFCs:         []string{"4724"},
-		SupportsCapa: true,
-		Features:     "capa yang",
-		ConfigRoots:  []string{"bgp"},
-		YANG:         grschema.ZeGracefulRestartYANG,
-		RunEngine:    RunGRPlugin,
+		Name:        "rib",
+		Description: "Route Information Base storage",
+		RFCs:        []string{"4271"},
+		Features:    "yang",
+		YANG:        ribschema.ZeRibYANG,
+		RunEngine:   RunRIBPlugin,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
@@ -30,12 +28,10 @@ func init() {
 		cfg.ConfigLogger = func(level string) {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
-		cfg.RunCLIDecode = RunCLIDecode
-		cfg.RunEngine = RunGRPlugin
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "gr: registration failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "rib: registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }

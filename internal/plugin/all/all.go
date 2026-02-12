@@ -2,20 +2,20 @@
 
 // Package all imports all internal plugins, triggering their init() registration.
 //
-// To add a plugin, create internal/plugin/<name>/register.go with an init()
+// To add a plugin, create internal/plugins/<name>/register.go with an init()
 // that calls registry.Register(). Then run: make generate
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/bgpls"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/gr"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/hostname"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/llnh"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/rib"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/role"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/rr"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgpls"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/gr"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/hostname"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/llnh"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/rib"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/role"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/rr"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
 )
 

@@ -10,7 +10,7 @@ import (
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/rib/storage"
 )
 
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.

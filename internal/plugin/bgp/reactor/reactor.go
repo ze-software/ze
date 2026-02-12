@@ -25,7 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )

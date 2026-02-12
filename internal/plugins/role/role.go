@@ -11,7 +11,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/role/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/role/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

@@ -5,7 +5,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	roleschema "codeberg.org/thomas-mangin/ze/internal/plugin/role/schema"
+	roleschema "codeberg.org/thomas-mangin/ze/internal/plugins/role/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 

@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
-	llnhschema "codeberg.org/thomas-mangin/ze/internal/plugin/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	llnhschema "codeberg.org/thomas-mangin/ze/internal/plugins/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 

@@ -36,7 +36,7 @@ func handleConnection() {
 
 **Plugin processes** (use `slogutil.PluginLogger()`):
 ```go
-// In internal/plugin/gr/gr.go
+// In internal/plugins/gr/gr.go
 var logger = slogutil.DiscardLogger()  // Disabled by default
 
 func SetLogger(l *slog.Logger) {

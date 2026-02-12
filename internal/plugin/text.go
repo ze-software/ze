@@ -9,9 +9,9 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/vpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
 )
 
 // Encoding constants for process output formatting.

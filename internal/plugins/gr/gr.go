@@ -17,7 +17,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/gr/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

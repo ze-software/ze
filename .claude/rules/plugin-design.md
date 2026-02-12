@@ -11,7 +11,7 @@ Ze uses a two-tier plugin system with compile-time registration:
 | Registry | `internal/plugin/registry/` | Central plugin registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | High-level callback abstraction for external plugins |
 | RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC type definitions |
-| Internal | `internal/plugin/<name>/` | Low-level protocol implementations + `register.go` |
+| Internal | `internal/plugins/<name>/` | Plugin implementations + `register.go` |
 | All imports | `internal/plugin/all/` | Blank imports triggering all plugin `init()` |
 | CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` shared framework |
 
@@ -23,7 +23,7 @@ Plugins self-register at compile time via Go's `init()` mechanism:
 internal/plugin/registry/       ← Leaf package (no plugin imports)
     registry.go                 ← Register(), Lookup(), Names(), FamilyMap(), etc.
 
-internal/plugin/<name>/         ← Each plugin package
+internal/plugins/<name>/        ← Each plugin package
     <name>.go                   ← Plugin logic
     register.go                 ← init() { registry.Register(...) }
 
@@ -57,7 +57,7 @@ Stage 5: Ready          -> Plugin sends: ze-plugin-engine:ready (Socket A), ente
 
 ## Plugin Registration via init() (MANDATORY)
 
-**File:** `internal/plugin/<name>/register.go`
+**File:** `internal/plugins/<name>/register.go`
 
 Every internal plugin MUST have a `register.go` file that calls `registry.Register()` in `init()`. The Registration struct provides ALL metadata needed for the plugin to be integrated throughout the system.
 
@@ -113,7 +113,7 @@ The `PluginConfig` struct and `RunPlugin()` function live in a shared package im
 
 ## Internal Plugin Pattern
 
-**File:** `internal/plugin/<name>/<name>.go`
+**File:** `internal/plugins/<name>/<name>.go`
 
 ### Logger Setup (MANDATORY)
 
@@ -225,16 +225,16 @@ No manual registration needed - plugins declare their capabilities in `register.
 When adding a new plugin, you need exactly TWO files:
 
 ```
-[ ] Create internal implementation: internal/plugin/<name>/<name>.go
+[ ] Create internal implementation: internal/plugins/<name>/<name>.go
 [ ] Add package-level logger with SetLogger()
 [ ] Implement SDK callback pattern (NewWithConn + callbacks + Run)
-[ ] Create register.go: internal/plugin/<name>/register.go
+[ ] Create register.go: internal/plugins/<name>/register.go
     - init() calls registry.Register() with full Registration struct
     - CLIHandler creates PluginConfig and calls cli.RunPlugin()
     - Set Families, CapabilityCodes, InProcessDecoder as applicable
 [ ] Run make generate (auto-discovers register.go, regenerates all.go)
 [ ] Update TestAllPluginsRegistered expected count in all_test.go
-[ ] Add YANG schema if configuration support (internal/plugin/<name>/schema/)
+[ ] Add YANG schema if configuration support (internal/plugins/<name>/schema/)
 [ ] Add functional tests in test/plugin/
 ```
 

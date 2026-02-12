@@ -19,8 +19,8 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/rib/schema"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"

@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
-	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugin/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugins/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 

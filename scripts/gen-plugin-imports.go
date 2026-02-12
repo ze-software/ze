@@ -1,6 +1,6 @@
 // gen-plugin-imports generates internal/plugin/all/all.go from register.go discovery.
 //
-// It scans internal/plugin/*/register.go to find plugin packages and generates
+// It scans internal/plugins/*/register.go to find plugin packages and generates
 // the blank-import file that triggers init() registration.
 //
 // Usage: go run scripts/gen-plugin-imports.go
@@ -30,7 +30,7 @@ func main() {
 		fatal(err)
 	}
 
-	plugins, err := discoverPlugins(filepath.Join(root, "internal", "plugin"))
+	plugins, err := discoverPlugins(filepath.Join(root, "internal", "plugins"))
 	if err != nil {
 		fatal(err)
 	}
@@ -85,15 +85,8 @@ func readModulePath(path string) (string, error) {
 }
 
 // discoverPlugins finds plugin packages by looking for register.go files.
-func discoverPlugins(pluginDir string) ([]string, error) {
-	skip := map[string]bool{
-		"all":      true,
-		"bgp":      true,
-		"cli":      true,
-		"registry": true,
-	}
-
-	entries, err := os.ReadDir(pluginDir)
+func discoverPlugins(pluginsDir string) ([]string, error) {
+	entries, err := os.ReadDir(pluginsDir)
 	if err != nil {
 		return nil, err
 	}
@@ -103,13 +96,9 @@ func discoverPlugins(pluginDir string) ([]string, error) {
 		if !entry.IsDir() {
 			continue
 		}
-		name := entry.Name()
-		if skip[name] {
-			continue
-		}
-		regPath := filepath.Join(pluginDir, name, "register.go")
+		regPath := filepath.Join(pluginsDir, entry.Name(), "register.go")
 		if _, err := os.Stat(regPath); err == nil {
-			plugins = append(plugins, name)
+			plugins = append(plugins, entry.Name())
 		}
 	}
 
@@ -131,13 +120,13 @@ func generateAllGo(path, module string, plugins []string) error {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "// Package all imports all internal plugins, triggering their init() registration.")
 	fmt.Fprintln(w, "//")
-	fmt.Fprintln(w, "// To add a plugin, create internal/plugin/<name>/register.go with an init()")
+	fmt.Fprintln(w, "// To add a plugin, create internal/plugins/<name>/register.go with an init()")
 	fmt.Fprintln(w, "// that calls registry.Register(). Then run: make generate")
 	fmt.Fprintln(w, "package all")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "import (")
 	for _, name := range plugins {
-		fmt.Fprintf(w, "\t_ \"%s/internal/plugin/%s\"\n", module, name)
+		fmt.Fprintf(w, "\t_ \"%s/internal/plugins/%s\"\n", module, name)
 	}
 	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w)
