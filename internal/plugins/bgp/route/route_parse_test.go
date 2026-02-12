@@ -1,4 +1,4 @@
-package plugin
+package route
 
 import (
 	"net/netip"
@@ -1196,16 +1196,16 @@ func TestParseExtendedCommunities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			comms, consumed, err := parseExtendedCommunities(tt.args)
+			comms, consumed, err := ParseExtendedCommunities(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseExtendedCommunities(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				t.Errorf("ParseExtendedCommunities(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
 				return
 			}
 			if consumed != tt.wantConsumed {
-				t.Errorf("parseExtendedCommunities(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
+				t.Errorf("ParseExtendedCommunities(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
 			}
 			if len(comms) != tt.wantCount {
-				t.Errorf("parseExtendedCommunities(%v) count = %d, want %d", tt.args, len(comms), tt.wantCount)
+				t.Errorf("ParseExtendedCommunities(%v) count = %d, want %d", tt.args, len(comms), tt.wantCount)
 			}
 		})
 	}

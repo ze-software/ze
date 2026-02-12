@@ -16,8 +16,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -1182,7 +1184,7 @@ func (s *Server) handleDecodeMPReachRPC(proc *Process, connA *PluginConn, req *i
 			return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
 		}
 
-		mpw := MPReachWire(data)
+		mpw := wireu.MPReachWire(data)
 		familyStr := mpw.Family().String()
 
 		var nhStr string
@@ -1222,7 +1224,7 @@ func (s *Server) handleDecodeMPUnreachRPC(proc *Process, connA *PluginConn, req 
 			return nil, fmt.Errorf("MP_UNREACH_NLRI too short: %d bytes", len(data))
 		}
 
-		mpw := MPUnreachWire(data)
+		mpw := wireu.MPUnreachWire(data)
 		familyStr := mpw.Family().String()
 
 		nlriJSON, err := decodeMPNLRIs(mpw.WithdrawnBytes(), mpw.Family(), input.AddPath)
@@ -1272,7 +1274,7 @@ func (s *Server) handleDecodeUpdateRPC(proc *Process, connA *PluginConn, req *ip
 		}
 
 		ctxID := getStatelessDecodeCtxID()
-		wu := NewWireUpdate(body, ctxID)
+		wu := wireu.NewWireUpdate(body, ctxID)
 		wire, err := wu.Attrs()
 		if err != nil {
 			return nil, fmt.Errorf("parsing attributes: %w", err)
@@ -1308,7 +1310,7 @@ func decodeMPNLRIs(nlriBytes []byte, family nlri.Family, addPath bool) (json.Raw
 	}
 
 	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)
-	nlris, err := parseNLRIs(nlriBytes, family, addPath)
+	nlris, err := wireu.ParseNLRIs(nlriBytes, family, addPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1612,28 +1614,28 @@ func messageTypeToEventType(msgType message.MessageType) string {
 
 // formatMessageForSubscription formats a BGP message for subscription-based delivery.
 // Uses JSON encoding with the specified format (from process settings).
-func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage, format string) string {
+func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage, fmtMode string) string {
 	switch msg.Type { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
 		content := ContentConfig{
 			Encoding: EncodingJSON,
-			Format:   format,
+			Format:   fmtMode,
 		}
 		return FormatMessage(peer, msg, content, "")
 
 	case message.TypeOPEN:
-		decoded := DecodeOpen(msg.RawBytes)
+		decoded := format.DecodeOpen(msg.RawBytes)
 		return s.encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
-		decoded := DecodeNotification(msg.RawBytes)
+		decoded := format.DecodeNotification(msg.RawBytes)
 		return s.encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
 		return s.encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
-		decoded := DecodeRouteRefresh(msg.RawBytes)
+		decoded := format.DecodeRouteRefresh(msg.RawBytes)
 		return s.encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
 	default:
@@ -1672,7 +1674,7 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 // OnPeerNegotiated handles capability negotiation completion.
 // Called by reactor after OPEN exchange completes successfully.
 // Informs plugins of negotiated capabilities so they can adjust behavior.
-func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
+func (s *Server) OnPeerNegotiated(peer PeerInfo, neg format.DecodedNegotiated) {
 	if s.procManager == nil || s.subscriptions == nil {
 		return
 	}
@@ -1729,10 +1731,10 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 // formatSentMessageForSubscription formats a sent BGP message for subscription delivery.
 // Uses FormatSentMessage which sets "type":"sent" to distinguish from received messages.
 // The format parameter is the process's configured format (hex, base64, parsed, full).
-func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage, format string) string {
+func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage, fmtMode string) string {
 	content := ContentConfig{
 		Encoding: EncodingJSON,
-		Format:   format,
+		Format:   fmtMode,
 	}
 	return FormatSentMessage(peer, msg, content)
 }

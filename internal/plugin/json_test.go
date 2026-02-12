@@ -12,8 +12,10 @@ import (
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
 	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -307,7 +309,7 @@ func TestJSONEncoderNotification(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	notify := DecodedNotification{
+	notify := format.DecodedNotification{
 		ErrorCode:        6, // Cease
 		ErrorSubcode:     2, // Administrative Shutdown
 		ErrorCodeName:    "Cease",
@@ -367,7 +369,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	notify := DecodedNotification{
+	notify := format.DecodedNotification{
 		ErrorCode:        4, // Hold Timer Expired
 		ErrorSubcode:     0,
 		ErrorCodeName:    "Hold Timer Expired",
@@ -415,7 +417,7 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	notify := DecodedNotification{
+	notify := format.DecodedNotification{
 		ErrorCode:        6,
 		ErrorSubcode:     3, // Peer De-configured
 		ErrorCodeName:    "Cease",
@@ -601,7 +603,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
@@ -662,7 +664,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		netip.MustParsePrefix("172.16.0.0/16"),
 	)
 
-	wireUpdate := NewWireUpdate(body, testEncodingContext())
+	wireUpdate := wireu.NewWireUpdate(body, testEncodingContext())
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := RawMessage{
@@ -724,7 +726,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		netip.MustParseAddr("2001:db8::1"),
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
@@ -792,7 +794,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		netip.MustParsePrefix("172.16.0.0/16"),
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := RawMessage{
@@ -862,7 +864,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		42, // path-id
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
@@ -1055,7 +1057,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		netip.MustParseAddr("10.0.0.2"), // MP next-hop
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
@@ -1600,7 +1602,7 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 		LocalAS:      65000,
 	}
 
-	neg := DecodedNegotiated{
+	neg := format.DecodedNegotiated{
 		MessageSize:    4096,
 		HoldTime:       90,
 		ASN4:           true,
@@ -1658,7 +1660,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
 	peer := PeerInfo{Address: netip.MustParseAddr("10.0.0.1")}
 
-	neg := DecodedNegotiated{
+	neg := format.DecodedNegotiated{
 		MessageSize:  4096,
 		HoldTime:     180,
 		ASN4:         false,
@@ -1719,7 +1721,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
@@ -1822,7 +1824,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := RawMessage{
@@ -1904,7 +1906,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := RawMessage{
@@ -1974,7 +1976,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
 	msg := RawMessage{

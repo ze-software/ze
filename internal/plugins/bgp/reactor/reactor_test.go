@@ -9,6 +9,7 @@ import (
 	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -1825,7 +1826,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	copy(updatePayload[4+len(attrs):], nlri)
 
 	// Create WireUpdate (as session would do)
-	wireUpdate := plugin.NewWireUpdate(updatePayload, 0)
+	wireUpdate := wireu.NewWireUpdate(updatePayload, 0)
 
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through

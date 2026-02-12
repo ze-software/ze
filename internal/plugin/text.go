@@ -9,8 +9,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // Encoding constants for process output formatting.
@@ -90,10 +92,10 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 	if content.Format != FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
-			decoded := DecodeOpen(msg.RawBytes)
+			decoded := format.DecodeOpen(msg.RawBytes)
 			return FormatOpen(peer, decoded, direction, msg.MessageID)
 		case message.TypeNOTIFICATION:
-			decoded := DecodeNotification(msg.RawBytes)
+			decoded := format.DecodeNotification(msg.RawBytes)
 			return FormatNotification(peer, decoded, direction, msg.MessageID)
 		case message.TypeKEEPALIVE:
 			return FormatKeepalive(peer, direction, msg.MessageID)
@@ -167,7 +169,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 
 		// Extract raw components if WireUpdate available
 		if msg.WireUpdate != nil {
-			rawComps, err := ExtractRawComponents(msg.WireUpdate)
+			rawComps, err := wireu.ExtractRawComponents(msg.WireUpdate)
 			if err == nil && rawComps != nil {
 				// attributes: raw bytes without MP_REACH/MP_UNREACH
 				if len(rawComps.Attributes) > 0 {
@@ -749,7 +751,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 // Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <code> <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
-func FormatOpen(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
+func FormatOpen(peer PeerInfo, open format.DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("peer %s %s open %d asn %d router-id %s hold-time %d",
 		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime))
@@ -768,7 +770,7 @@ func FormatOpen(peer PeerInfo, open DecodedOpen, direction string, msgID uint64)
 // FormatNotification formats a NOTIFICATION message as text output.
 // Format: peer <ip> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
 // Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
-func FormatNotification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
+func FormatNotification(peer PeerInfo, notify format.DecodedNotification, direction string, msgID uint64) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
@@ -792,7 +794,7 @@ func FormatKeepalive(peer PeerInfo, direction string, msgID uint64) string {
 // FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 // Format: peer <ip> <direction> <type> <msg-id> family <family>.
-func FormatRouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+func FormatRouteRefresh(peer PeerInfo, decoded format.DecodedRouteRefresh, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s %s %s %d family %s\n",
 		peer.Address, direction, decoded.SubtypeName, msgID, decoded.Family)
 }
@@ -820,7 +822,7 @@ func formatStateChangeText(peer PeerInfo, state string) string {
 
 // FormatNegotiated formats negotiated capabilities event.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
-func FormatNegotiated(peer PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {
+func FormatNegotiated(peer PeerInfo, neg format.DecodedNegotiated, encoder *JSONEncoder) string {
 	// Always use JSON for negotiated - too complex for text format
 	return encoder.Negotiated(peer, neg)
 }

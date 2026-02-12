@@ -32,6 +32,8 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
@@ -457,11 +459,11 @@ func formatLargeCommunity(lc bgptypes.LargeCommunity) string {
 func originToString(o uint8) string {
 	switch o {
 	case 0:
-		return originIGP
+		return format.OriginIGP
 	case 1:
-		return originEGP
+		return format.OriginEGP
 	case 2:
-		return originIncomplete
+		return format.OriginIncomplete
 	default:
 		return fmt.Sprintf("%d", o)
 	}
@@ -576,9 +578,9 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing extended-community value")
 		}
-		// Use parseExtendedCommunities which handles both function syntax
+		// Use route.ParseExtendedCommunities which handles both function syntax
 		// (traffic-rate, discard, redirect, traffic-marking) and list syntax.
-		ecs, consumed, err := parseExtendedCommunities(args[idx+1:])
+		ecs, consumed, err := route.ParseExtendedCommunities(args[idx+1:])
 		if err != nil {
 			return 0, err
 		}
@@ -1203,12 +1205,12 @@ func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
 func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
 	// args[0] = "nlri"
 	if len(args) < 2 {
-		return nlri.Family{}, nil, nil, "", 0, ErrInvalidFamily
+		return nlri.Family{}, nil, nil, "", 0, route.ErrInvalidFamily
 	}
 
 	family, ok := nlri.ParseFamily(args[1])
 	if !ok {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", ErrInvalidFamily, args[1])
+		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
 	}
 
 	// Check if family is supported (EOR is supported for all families)
@@ -1377,7 +1379,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%w: %s", ErrInvalidPrefix, token)
+		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
 	}
 
 	// Validate prefix matches family AFI
@@ -1415,7 +1417,7 @@ func parseNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, in
 func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%w: %s", ErrInvalidPrefix, token)
+		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
 	}
 
 	// Validate prefix matches family AFI
@@ -1429,12 +1431,12 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 
 	// Require RD for VPN families
 	if accum.RD.Type == 0 && accum.RD.Value == [6]byte{} {
-		return nil, 0, fmt.Errorf("%w: rd required for %s", ErrMissingRD, family)
+		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, family)
 	}
 
 	// Require at least one label for VPN families
 	if len(accum.Labels) == 0 {
-		return nil, 0, fmt.Errorf("%w: label required for %s", ErrMissingLabel, family)
+		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
 	}
 
 	// Build args for registry encoder: "rd <val> label <val> ... prefix <val> [path-id <val>]"
@@ -1468,7 +1470,7 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
-		return nil, 0, fmt.Errorf("%w: %s", ErrInvalidPrefix, token)
+		return nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidPrefix, token)
 	}
 
 	// Validate prefix matches family AFI
@@ -1482,7 +1484,7 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 
 	// Require at least one label for labeled unicast
 	if len(accum.Labels) == 0 {
-		return nil, 0, fmt.Errorf("%w: label required for %s", ErrMissingLabel, family)
+		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
 	}
 
 	return nlri.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
@@ -1591,7 +1593,7 @@ func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int,
 	// Validate rd presence based on family
 	isVPN := family.SAFI == nlri.SAFIFlowSpecVPN
 	if isVPN && !hasRD {
-		return nil, 0, fmt.Errorf("%w: rd required for %s", ErrMissingRD, family)
+		return nil, 0, fmt.Errorf("%w: rd required for %s", route.ErrMissingRD, family)
 	}
 	if !isVPN && hasRD {
 		return nil, 0, fmt.Errorf("rd not allowed for %s (use %s/flow-vpn)", family, family.AFI)

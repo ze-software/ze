@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -154,14 +155,14 @@ type FilterResult struct {
 	Attributes map[attribute.AttributeCode]attribute.Attribute
 
 	// MP-BGP path: zero-copy slices into wire bytes
-	// Each MPReachWire contains AFI/SAFI/NextHop/NLRI for one address family.
-	MPReach   []MPReachWire   // From MP_REACH_NLRI attributes
-	MPUnreach []MPUnreachWire // From MP_UNREACH_NLRI attributes
+	// Each wireu.MPReachWire contains AFI/SAFI/NextHop/NLRI for one address family.
+	MPReach   []wireu.MPReachWire   // From MP_REACH_NLRI attributes
+	MPUnreach []wireu.MPUnreachWire // From MP_UNREACH_NLRI attributes
 
 	// Legacy IPv4 unicast path: slices into body structure
 	// Used when IPv4 NLRI is in UPDATE body (not MP attribute).
-	IPv4Announced *IPv4Reach    // nil if no body NLRI
-	IPv4Withdrawn *IPv4Withdraw // nil if no body withdrawn
+	IPv4Announced *wireu.IPv4Reach    // nil if no body NLRI
+	IPv4Withdrawn *wireu.IPv4Withdraw // nil if no body withdrawn
 }
 
 // NLRIFilter specifies which address families to include in API output.
@@ -317,7 +318,7 @@ func (r FilterResult) HasAnnouncements() bool {
 	if len(r.MPReach) > 0 {
 		return true
 	}
-	return r.IPv4Announced != nil && len(r.IPv4Announced.nlri) > 0
+	return r.IPv4Announced != nil && len(r.IPv4Announced.NLRISlice()) > 0
 }
 
 // HasWithdrawals returns true if there are any withdrawn prefixes.
@@ -325,7 +326,7 @@ func (r FilterResult) HasWithdrawals() bool {
 	if len(r.MPUnreach) > 0 {
 		return true
 	}
-	return r.IPv4Withdrawn != nil && len(r.IPv4Withdrawn.withdrawn) > 0
+	return r.IPv4Withdrawn != nil && len(r.IPv4Withdrawn.WithdrawnSlice()) > 0
 }
 
 // IsEOR returns true if this is an End-of-RIB marker (no NLRI).
@@ -458,18 +459,18 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 
 	// Get MP NLRI from wire (lazy - only parses MP attrs if present)
 	if wire != nil && !nlriFilter.IsEmpty() {
-		// Zero-copy MPReachWire
+		// Zero-copy wireu.MPReachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
-			mpw := MPReachWire(mpRaw)
+			mpw := wireu.MPReachWire(mpRaw)
 			family := mpw.Family().String()
 			if nlriFilter.IncludesFamily(family) {
 				result.MPReach = append(result.MPReach, mpw)
 			}
 		}
 
-		// Zero-copy MPUnreachWire
+		// Zero-copy wireu.MPUnreachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
-			mpw := MPUnreachWire(mpRaw)
+			mpw := wireu.MPUnreachWire(mpRaw)
 			family := mpw.Family().String()
 			if nlriFilter.IncludesFamily(family) {
 				result.MPUnreach = append(result.MPUnreach, mpw)
@@ -491,7 +492,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 
 // extractIPv4SlicesFromBody extracts zero-copy slices for IPv4 unicast NLRI.
 // Returns nil for each if not present.
-func extractIPv4SlicesFromBody(body []byte) (*IPv4Reach, *IPv4Withdraw) {
+func extractIPv4SlicesFromBody(body []byte) (*wireu.IPv4Reach, *wireu.IPv4Withdraw) {
 	if len(body) < 4 {
 		return nil, nil
 	}
@@ -500,9 +501,9 @@ func extractIPv4SlicesFromBody(body []byte) (*IPv4Reach, *IPv4Withdraw) {
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	offset := 2
 
-	var ipv4Withdraw *IPv4Withdraw
+	var ipv4Withdraw *wireu.IPv4Withdraw
 	if withdrawnLen > 0 && offset+withdrawnLen <= len(body) {
-		ipv4Withdraw = &IPv4Withdraw{withdrawn: body[offset : offset+withdrawnLen]}
+		ipv4Withdraw = wireu.NewIPv4Withdraw(body[offset : offset+withdrawnLen])
 	}
 	offset += withdrawnLen
 
@@ -523,12 +524,9 @@ func extractIPv4SlicesFromBody(body []byte) (*IPv4Reach, *IPv4Withdraw) {
 	nlriOffset := offset + attrLen
 	nlriLen := len(body) - nlriOffset
 
-	var ipv4Reach *IPv4Reach
+	var ipv4Reach *wireu.IPv4Reach
 	if nlriLen > 0 || len(nhBytes) > 0 {
-		ipv4Reach = &IPv4Reach{
-			nh:   nhBytes,
-			nlri: body[nlriOffset:],
-		}
+		ipv4Reach = wireu.NewIPv4Reach(nhBytes, body[nlriOffset:])
 	}
 
 	return ipv4Reach, ipv4Withdraw

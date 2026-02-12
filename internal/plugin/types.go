@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
@@ -505,7 +506,7 @@ type RawMessage struct {
 	Timestamp  time.Time
 	MessageID  uint64                    // Unique ID for all message types
 	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
-	WireUpdate *WireUpdate               // UPDATE wire wrapper (nil if not UPDATE)
+	WireUpdate *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
 	Direction  string                    // "sent" or "received"
 	ParseError error                     // Non-nil if lazy parsing failed
 }

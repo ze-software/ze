@@ -1,4 +1,4 @@
-package plugin
+package wireu
 
 import (
 	"encoding/binary"
@@ -95,9 +95,9 @@ func (m MPReachWire) Prefixes() []netip.Prefix {
 
 	switch afi {
 	case 1: // IPv4
-		return parseIPv4Prefixes(nlriBytes)
+		return ParseIPv4Prefixes(nlriBytes)
 	case 2: // IPv6
-		return parseIPv6Prefixes(nlriBytes)
+		return ParseIPv6Prefixes(nlriBytes)
 	default:
 		return nil
 	}
@@ -121,7 +121,7 @@ func (m MPReachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	nlriBytes := m[nlriOffset:]
 	family := m.Family()
 
-	return parseNLRIs(nlriBytes, family, hasAddPath)
+	return ParseNLRIs(nlriBytes, family, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the NLRI section.
@@ -215,9 +215,9 @@ func (m MPUnreachWire) Prefixes() []netip.Prefix {
 
 	switch afi {
 	case 1: // IPv4
-		return parseIPv4Prefixes(withdrawnBytes)
+		return ParseIPv4Prefixes(withdrawnBytes)
 	case 2: // IPv6
-		return parseIPv6Prefixes(withdrawnBytes)
+		return ParseIPv6Prefixes(withdrawnBytes)
 	default:
 		return nil
 	}
@@ -235,7 +235,7 @@ func (m MPUnreachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	withdrawnBytes := m[3:]
 	family := m.Family()
 
-	return parseNLRIs(withdrawnBytes, family, hasAddPath)
+	return ParseNLRIs(withdrawnBytes, family, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn NLRI section.
@@ -293,7 +293,7 @@ func (r IPv4Reach) Prefixes() []netip.Prefix {
 	if len(r.nlri) == 0 {
 		return nil
 	}
-	return parseIPv4Prefixes(r.nlri)
+	return ParseIPv4Prefixes(r.nlri)
 }
 
 // NLRIs parses and returns all NLRIs, preserving path-id.
@@ -303,7 +303,7 @@ func (r IPv4Reach) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	if len(r.nlri) == 0 {
 		return nil, nil
 	}
-	return parseNLRIs(r.nlri, nlri.IPv4Unicast, hasAddPath)
+	return ParseNLRIs(r.nlri, nlri.IPv4Unicast, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the NLRI section.
@@ -315,9 +315,31 @@ func (r IPv4Reach) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 	return nlri.NewNLRIIterator(r.nlri, addPath)
 }
 
+// NewIPv4Reach creates an IPv4Reach from next-hop and NLRI byte slices.
+// Used by filter to construct from parsed UPDATE body fields.
+func NewIPv4Reach(nh, nlriData []byte) *IPv4Reach {
+	return &IPv4Reach{nh: nh, nlri: nlriData}
+}
+
+// NLRISlice returns the raw NLRI bytes for cross-package access.
+func (r IPv4Reach) NLRISlice() []byte {
+	return r.nlri
+}
+
 // IPv4Withdraw holds zero-copy slice into UPDATE body for withdrawn routes.
 type IPv4Withdraw struct {
 	withdrawn []byte // slice to body withdrawn section
+}
+
+// NewIPv4Withdraw creates an IPv4Withdraw from withdrawn byte slice.
+// Used by filter to construct from parsed UPDATE body fields.
+func NewIPv4Withdraw(withdrawn []byte) *IPv4Withdraw {
+	return &IPv4Withdraw{withdrawn: withdrawn}
+}
+
+// WithdrawnSlice returns the raw withdrawn bytes for cross-package access.
+func (w IPv4Withdraw) WithdrawnSlice() []byte {
+	return w.withdrawn
 }
 
 // Prefixes parses and returns all withdrawn IPv4 prefixes.
@@ -327,7 +349,7 @@ func (w IPv4Withdraw) Prefixes() []netip.Prefix {
 	if len(w.withdrawn) == 0 {
 		return nil
 	}
-	return parseIPv4Prefixes(w.withdrawn)
+	return ParseIPv4Prefixes(w.withdrawn)
 }
 
 // NLRIs parses and returns all withdrawn NLRIs, preserving path-id.
@@ -337,7 +359,7 @@ func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	if len(w.withdrawn) == 0 {
 		return nil, nil
 	}
-	return parseNLRIs(w.withdrawn, nlri.IPv4Unicast, hasAddPath)
+	return ParseNLRIs(w.withdrawn, nlri.IPv4Unicast, hasAddPath)
 }
 
 // NLRIIterator returns a zero-allocation iterator over the withdrawn section.
@@ -349,10 +371,10 @@ func (w IPv4Withdraw) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 	return nlri.NewNLRIIterator(w.withdrawn, addPath)
 }
 
-// parseNLRIs parses a sequence of NLRIs using the nlri package.
+// ParseNLRIs parses a sequence of NLRIs using the nlri package.
 // RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
 // Supports IPv4/IPv6 unicast/multicast. Other families return error.
-func parseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, error) {
+func ParseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, error) {
 	var result []nlri.NLRI
 	originalLen := len(data)
 

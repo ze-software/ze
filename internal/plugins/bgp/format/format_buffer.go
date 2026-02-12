@@ -1,7 +1,7 @@
-// Package plugin provides format functions that write directly from wire bytes.
+// Package format provides format functions that write directly from wire bytes.
 // These functions avoid intermediate struct allocation by formatting directly
 // from buffer data using iterators.
-package plugin
+package format
 
 import (
 	"encoding/binary"
@@ -15,10 +15,10 @@ import (
 
 // Origin string constants for ORIGIN attribute formatting.
 const (
-	originIGP        = "igp"
-	originEGP        = "egp"
-	originIncomplete = "incomplete"
-	originUnknown    = "unknown"
+	OriginIGP        = "igp"
+	OriginEGP        = "egp"
+	OriginIncomplete = "incomplete"
+	OriginUnknown    = "unknown"
 )
 
 // FormatPrefixFromBytes formats an NLRI prefix from raw wire bytes.
@@ -189,13 +189,13 @@ func FormatOriginJSON(value byte, w io.Writer) {
 	var origin string
 	switch value {
 	case 0:
-		origin = originIGP
+		origin = OriginIGP
 	case 1:
-		origin = originEGP
+		origin = OriginEGP
 	case 2:
-		origin = originIncomplete
+		origin = OriginIncomplete
 	default:
-		origin = originUnknown
+		origin = OriginUnknown
 	}
 	_, _ = fmt.Fprintf(w, `"%s"`, origin)
 }

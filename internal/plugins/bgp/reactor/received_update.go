@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // msgIDCounter generates unique message IDs.
@@ -26,7 +26,7 @@ func nextMsgID() uint64 {
 type ReceivedUpdate struct {
 	// WireUpdate contains the UPDATE payload with zero-copy accessors.
 	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID(), MessageID().
-	WireUpdate *plugin.WireUpdate
+	WireUpdate *wireu.WireUpdate
 
 	// poolBuf is the session read buffer that WireUpdate slices into.
 	// Returned to pool when cache evicts this entry.

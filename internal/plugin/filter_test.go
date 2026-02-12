@@ -8,6 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // testPrefix10 is a test prefix used across filter tests.
@@ -303,7 +304,7 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 	copy(body[4+len(nextHopAttr):], nlri)
 
 	// Create WireUpdate to extract attributes
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	wire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -458,7 +459,7 @@ func buildTestUpdateBody() []byte {
 func TestApplyToUpdate(t *testing.T) {
 	ctxID := testEncodingContext()
 	body := buildTestUpdateBody()
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	wire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -501,7 +502,7 @@ func TestAnnouncedByFamilyNilCtx(t *testing.T) {
 	// Create a FilterResult with MP_REACH data
 	mpReach := buildTestMPReachIPv4()
 	result := FilterResult{
-		MPReach: []MPReachWire{mpReach},
+		MPReach: []wireu.MPReachWire{mpReach},
 	}
 
 	// Should not panic with nil ctx
@@ -521,7 +522,7 @@ func TestWithdrawnByFamilyNilCtx(t *testing.T) {
 	// Create a FilterResult with MP_UNREACH data
 	mpUnreach := buildTestMPUnreachIPv4()
 	result := FilterResult{
-		MPUnreach: []MPUnreachWire{mpUnreach},
+		MPUnreach: []wireu.MPUnreachWire{mpUnreach},
 	}
 
 	// Should not panic with nil ctx
@@ -535,7 +536,7 @@ func TestWithdrawnByFamilyNilCtx(t *testing.T) {
 
 // buildTestMPReachIPv4 builds MP_REACH_NLRI wire bytes for IPv4 unicast.
 // Returns wire bytes for 192.168.1.0/24 with next-hop 10.0.0.1.
-func buildTestMPReachIPv4() MPReachWire {
+func buildTestMPReachIPv4() wireu.MPReachWire {
 	data := make([]byte, 0, 32)
 	data = append(data, 0x00, 0x01) // AFI: IPv4
 	data = append(data, 0x01)       // SAFI: unicast
@@ -550,12 +551,12 @@ func buildTestMPReachIPv4() MPReachWire {
 	data = append(data, 24)          // prefix length
 	data = append(data, 192, 168, 1) // prefix bytes
 
-	return MPReachWire(data)
+	return wireu.MPReachWire(data)
 }
 
 // buildTestMPUnreachIPv4 builds MP_UNREACH_NLRI wire bytes for IPv4 unicast.
 // Returns wire bytes for 192.168.1.0/24.
-func buildTestMPUnreachIPv4() MPUnreachWire {
+func buildTestMPUnreachIPv4() wireu.MPUnreachWire {
 	data := make([]byte, 0, 16)
 	data = append(data, 0x00, 0x01) // AFI: IPv4
 	data = append(data, 0x01)       // SAFI: unicast
@@ -564,7 +565,7 @@ func buildTestMPUnreachIPv4() MPUnreachWire {
 	data = append(data, 24)          // prefix length
 	data = append(data, 192, 168, 1) // prefix bytes
 
-	return MPUnreachWire(data)
+	return wireu.MPUnreachWire(data)
 }
 
 // TODO: TestFormatMessageBothPaths disabled pending new API format implementation

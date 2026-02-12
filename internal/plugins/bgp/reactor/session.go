@@ -14,8 +14,8 @@ import (
 	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -106,7 +106,7 @@ var (
 // ctxID is the encoding context for zero-copy decisions.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *plugin.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
 
 type Session struct {
 	mu sync.RWMutex
@@ -810,9 +810,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 	s.mu.RUnlock()
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
-	var wireUpdate *plugin.WireUpdate
+	var wireUpdate *wireu.WireUpdate
 	if hdr.Type == message.TypeUPDATE {
-		wireUpdate = plugin.NewWireUpdate(body, ctxID)
+		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
 	}
 
@@ -999,7 +999,7 @@ func (s *Session) handleKeepalive() error {
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
 // RFC 7606: validates path attributes with revised error handling.
 // Accepts WireUpdate for zero-copy processing.
-func (s *Session) handleUpdate(wu *plugin.WireUpdate) error {
+func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 	// Reset hold timer.
 	s.timers.ResetHoldTimer()
 

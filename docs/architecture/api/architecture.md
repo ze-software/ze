@@ -1196,7 +1196,8 @@ if needsAPIWait {
 | `internal/plugin/rib_handler.go` | RIB handlers (show/clear, introspection) |
 | `internal/plugin/session.go` | Session handlers (ready, ping, bye) |
 | `internal/plugin/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
-| `internal/plugin/route.go` | Route announce/withdraw handlers |
+| `internal/plugins/bgp/route/route.go` | Route attribute/NLRI parsing |
+| `internal/plugin/route_watchdog.go` | Watchdog announce/withdraw handlers |
 | `internal/plugin/types.go` | ReactorInterface, RouteSpec |
 | `internal/plugin/text.go` | Text/JSON formatting including FormatStateChange |
 | `internal/plugin/commit_manager.go` | Transaction management |

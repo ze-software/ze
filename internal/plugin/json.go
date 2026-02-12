@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
@@ -136,7 +137,7 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 
 // Notification returns JSON for a NOTIFICATION message.
 // Fields in inner payload: code, subcode, data, code-name, subcode-name.
-func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
+func (e *JSONEncoder) Notification(peer PeerInfo, notify format.DecodedNotification, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "notification")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -164,7 +165,7 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, di
 
 // Open returns JSON for an OPEN message.
 // Fields in inner payload: asn, router-id, hold-time, capabilities.
-func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
+func (e *JSONEncoder) Open(peer PeerInfo, open format.DecodedOpen, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "open")
 	setMessageDirection(outer, direction)
 	setMessageID(outer, msgID)
@@ -201,7 +202,7 @@ func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) s
 
 // RouteRefresh returns JSON for a ROUTE-REFRESH message.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
-func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded format.DecodedRouteRefresh, direction string, msgID uint64) string {
 	// Use subtype name as event type for proper dispatch
 	outer, inner := e.message(peer, decoded.SubtypeName)
 	setMessageDirection(outer, direction)
@@ -221,7 +222,7 @@ func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, d
 
 // Negotiated returns JSON for negotiated capabilities after OPEN exchange.
 // Fields in inner payload: hold-time, asn4, families, add-path.
-func (e *JSONEncoder) Negotiated(peer PeerInfo, neg DecodedNegotiated) string {
+func (e *JSONEncoder) Negotiated(peer PeerInfo, neg format.DecodedNegotiated) string {
 	outer, inner := e.message(peer, "negotiated")
 
 	// Fields in inner payload (hyphenated per json-format.md)

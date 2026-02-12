@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"github.com/stretchr/testify/require"
 )
@@ -134,9 +135,9 @@ func TestContentConfigDefaults(t *testing.T) {
 	require.Equal(t, "parsed", cfg.Format)
 }
 
-// TestDecodeOpen verifies DecodeOpen parses OPEN message bytes.
+// TestDecodeOpen verifies format.DecodeOpen parses OPEN message bytes.
 //
-// VALIDATES: DecodeOpen extracts version, AS, hold time, router ID, capabilities.
+// VALIDATES: format.DecodeOpen extracts version, AS, hold time, router ID, capabilities.
 //
 // PREVENTS: Bug where OPEN messages can't be formatted for processes.
 func TestDecodeOpen(t *testing.T) {
@@ -149,7 +150,7 @@ func TestDecodeOpen(t *testing.T) {
 		0x00, // opt param len
 	}
 
-	decoded := DecodeOpen(openBytes)
+	decoded := format.DecodeOpen(openBytes)
 
 	require.Equal(t, uint8(4), decoded.Version)
 	require.Equal(t, uint32(65001), decoded.ASN)
@@ -160,7 +161,7 @@ func TestDecodeOpen(t *testing.T) {
 
 // TestDecodeOpenWithCapabilities verifies capabilities are parsed.
 //
-// VALIDATES: DecodeOpen extracts capabilities from optional parameters.
+// VALIDATES: format.DecodeOpen extracts capabilities from optional parameters.
 //
 // PREVENTS: Bug where capabilities missing from OPEN output.
 func TestDecodeOpenWithCapabilities(t *testing.T) {
@@ -184,7 +185,7 @@ func TestDecodeOpenWithCapabilities(t *testing.T) {
 		0x41, 0x04, 0x00, 0x01, 0x00, 0x00,
 	}
 
-	decoded := DecodeOpen(openBytes)
+	decoded := format.DecodeOpen(openBytes)
 
 	require.Equal(t, uint8(4), decoded.Version)
 	require.Equal(t, uint32(65536), decoded.ASN) // Should use ASN4 capability
@@ -192,12 +193,12 @@ func TestDecodeOpenWithCapabilities(t *testing.T) {
 	require.Equal(t, "10.0.0.1", decoded.RouterID)
 	require.Len(t, decoded.Capabilities, 3)
 	// Check structured capabilities
-	require.Equal(t, DecodedCapability{Code: 1, Name: "multiprotocol", Value: "ipv4/unicast"}, decoded.Capabilities[0])
-	require.Equal(t, DecodedCapability{Code: 2, Name: "route-refresh", Value: ""}, decoded.Capabilities[1])
-	require.Equal(t, DecodedCapability{Code: 65, Name: "asn4", Value: "65536"}, decoded.Capabilities[2])
+	require.Equal(t, format.DecodedCapability{Code: 1, Name: "multiprotocol", Value: "ipv4/unicast"}, decoded.Capabilities[0])
+	require.Equal(t, format.DecodedCapability{Code: 2, Name: "route-refresh", Value: ""}, decoded.Capabilities[1])
+	require.Equal(t, format.DecodedCapability{Code: 65, Name: "asn4", Value: "65536"}, decoded.Capabilities[2])
 }
 
-// TestDecodeOpenInvalid verifies DecodeOpen handles invalid input gracefully.
+// TestDecodeOpenInvalid verifies format.DecodeOpen handles invalid input gracefully.
 //
 // VALIDATES: Short/invalid OPEN bytes return zero-value DecodedOpen.
 //
@@ -214,16 +215,16 @@ func TestDecodeOpenInvalid(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			decoded := DecodeOpen(tc.bytes)
+			decoded := format.DecodeOpen(tc.bytes)
 			// Should return zero values, not panic
 			require.Equal(t, uint8(0), decoded.Version)
 		})
 	}
 }
 
-// TestDecodeNotification verifies DecodeNotification parses NOTIFICATION bytes.
+// TestDecodeNotification verifies format.DecodeNotification parses NOTIFICATION bytes.
 //
-// VALIDATES: DecodeNotification extracts error code, subcode, and data.
+// VALIDATES: format.DecodeNotification extracts error code, subcode, and data.
 //
 // PREVENTS: Bug where NOTIFICATION messages can't be formatted for processes.
 func TestDecodeNotification(t *testing.T) {
@@ -235,7 +236,7 @@ func TestDecodeNotification(t *testing.T) {
 		'g', 'o', 'o', 'd', 'b', 'y', 'e', // message
 	}
 
-	decoded := DecodeNotification(notifyBytes)
+	decoded := format.DecodeNotification(notifyBytes)
 
 	require.Equal(t, uint8(6), decoded.ErrorCode)
 	require.Equal(t, uint8(2), decoded.ErrorSubcode)
@@ -253,7 +254,7 @@ func TestDecodeNotificationMinimal(t *testing.T) {
 	// Hold Timer Expired (code 4, subcode 0)
 	notifyBytes := []byte{0x04, 0x00}
 
-	decoded := DecodeNotification(notifyBytes)
+	decoded := format.DecodeNotification(notifyBytes)
 
 	require.Equal(t, uint8(4), decoded.ErrorCode)
 	require.Equal(t, uint8(0), decoded.ErrorSubcode)
@@ -261,7 +262,7 @@ func TestDecodeNotificationMinimal(t *testing.T) {
 	require.Empty(t, decoded.ShutdownMessage)
 }
 
-// TestDecodeNotificationInvalid verifies DecodeNotification handles invalid input.
+// TestDecodeNotificationInvalid verifies format.DecodeNotification handles invalid input.
 //
 // VALIDATES: Short/invalid NOTIFICATION bytes return zero-value.
 //
@@ -277,7 +278,7 @@ func TestDecodeNotificationInvalid(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			decoded := DecodeNotification(tc.bytes)
+			decoded := format.DecodeNotification(tc.bytes)
 			require.Equal(t, uint8(0), decoded.ErrorCode)
 		})
 	}
@@ -299,7 +300,7 @@ func TestNegotiatedToDecoded(t *testing.T) {
 		// Set families via Negotiate (we need to populate internal maps)
 		// For simplicity, test with nil (which gives empty families)
 
-		decoded := NegotiatedToDecoded(neg)
+		decoded := format.NegotiatedToDecoded(neg)
 
 		require.Equal(t, 65535, decoded.MessageSize, "extended message = 65535")
 		require.Equal(t, uint16(90), decoded.HoldTime)
@@ -315,7 +316,7 @@ func TestNegotiatedToDecoded(t *testing.T) {
 			HoldTime:        180,
 		}
 
-		decoded := NegotiatedToDecoded(neg)
+		decoded := format.NegotiatedToDecoded(neg)
 
 		require.Equal(t, 4096, decoded.MessageSize, "no extended message = 4096")
 		require.Equal(t, uint16(180), decoded.HoldTime)
@@ -329,13 +330,13 @@ func TestNegotiatedToDecoded(t *testing.T) {
 			EnhancedRouteRefresh: false,
 		}
 
-		decoded := NegotiatedToDecoded(neg)
+		decoded := format.NegotiatedToDecoded(neg)
 
 		require.Equal(t, "absent", decoded.RouteRefresh)
 	})
 
 	t.Run("nil_negotiated", func(t *testing.T) {
-		decoded := NegotiatedToDecoded(nil)
+		decoded := format.NegotiatedToDecoded(nil)
 
 		require.Equal(t, 0, decoded.MessageSize)
 		require.Equal(t, uint16(0), decoded.HoldTime)

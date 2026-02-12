@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // buildUpdatePayload builds an UPDATE message body from components.
@@ -36,7 +36,7 @@ func TestReceivedUpdateFields(t *testing.T) {
 	// Build UPDATE payload
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 	payload := buildUpdatePayload(attrBytes, nil)
-	wireUpdate := plugin.NewWireUpdate(payload, ctxID)
+	wireUpdate := wireu.NewWireUpdate(payload, ctxID)
 	wireUpdate.SetMessageID(12345)
 
 	update := &ReceivedUpdate{
@@ -73,7 +73,7 @@ func TestReceivedUpdateFields(t *testing.T) {
 func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 	// Withdraw-only: no attributes
 	payload := buildUpdatePayload(nil, nil)
-	wireUpdate := plugin.NewWireUpdate(payload, bgpctx.ContextID(1))
+	wireUpdate := wireu.NewWireUpdate(payload, bgpctx.ContextID(1))
 	wireUpdate.SetMessageID(1)
 
 	update := &ReceivedUpdate{

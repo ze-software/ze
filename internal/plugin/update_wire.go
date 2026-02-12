@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -250,12 +251,12 @@ func parseIPFromBytes(b []byte) (netip.Addr, error) {
 func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int, error) {
 	// args[0] = "nlri"
 	if len(args) < 2 {
-		return nlri.Family{}, nil, nil, 0, ErrInvalidFamily
+		return nlri.Family{}, nil, nil, 0, route.ErrInvalidFamily
 	}
 
 	family, ok := nlri.ParseFamily(args[1])
 	if !ok {
-		return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: %s", ErrInvalidFamily, args[1])
+		return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
 	}
 
 	consumed := 2 // "nlri" + family

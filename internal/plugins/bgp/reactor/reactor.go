@@ -17,7 +17,9 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
@@ -3166,7 +3168,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
 
 			maxBodySize := maxMsgSize - message.HeaderLen
-			splits, err := plugin.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
+			splits, err := wireu.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, err))
 				continue
@@ -3932,7 +3934,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 		LocalAS:      peer.settings.LocalAS,
 	}
 
-	decoded := plugin.NegotiatedToDecoded(neg)
+	decoded := format.NegotiatedToDecoded(neg)
 	r.api.OnPeerNegotiated(peerInfo, decoded)
 }
 
@@ -3968,7 +3970,7 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 // direction is "sent" or "received".
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *plugin.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.peers[peerAddr.String()]

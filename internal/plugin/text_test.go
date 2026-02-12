@@ -8,8 +8,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // testEncCtx is an empty encoding context for tests (no ADD-PATH).
@@ -92,7 +94,7 @@ func TestFormatMessageText(t *testing.T) {
 		[]uint32{65001, 65002},
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -153,7 +155,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		0, 0, nil,
 	)
 
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -364,7 +366,7 @@ func TestFilterResultZeroValues(t *testing.T) {
 	)
 
 	// Create WireUpdate and apply filter
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	wire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -409,7 +411,7 @@ func TestFilterResultBothNextHops(t *testing.T) {
 	)
 
 	// Create WireUpdate and apply filter
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	wire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -470,7 +472,7 @@ func TestFilterResultCommunities(t *testing.T) {
 	)
 
 	// Create WireUpdate and apply filter
-	wireUpdate := NewWireUpdate(body, ctxID)
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	wire, err := wireUpdate.Attrs()
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
@@ -612,7 +614,7 @@ func TestFormatOpenWithDirection(t *testing.T) {
 		PeerAS:  65001,
 	}
 
-	open := DecodedOpen{
+	open := format.DecodedOpen{
 		ASN:      65001,
 		RouterID: "1.1.1.1",
 		HoldTime: 90,
@@ -692,7 +694,7 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 		PeerAS:  65001,
 	}
 
-	notify := DecodedNotification{
+	notify := format.DecodedNotification{
 		ErrorCode:        6,
 		ErrorSubcode:     2,
 		Data:             nil,

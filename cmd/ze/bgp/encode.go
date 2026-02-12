@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
 	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
@@ -206,7 +206,7 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseRouteAttributes(args[1:], plugin.UnicastKeywords)
+	parsed, err := route.ParseRouteAttributes(args[1:], route.UnicastKeywords)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -469,7 +469,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseL3VPNAttributes(args)
+	parsed, err := route.ParseL3VPNAttributes(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -546,7 +546,7 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseLabeledUnicastAttributes(args)
+	parsed, err := route.ParseLabeledUnicastAttributes(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -635,7 +635,7 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseFlowSpecArgs(args)
+	parsed, err := route.ParseFlowSpecArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -789,7 +789,7 @@ func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, 
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseMUPArgs(args, isIPv6)
+	parsed, err := route.ParseMUPArgs(args, isIPv6)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -832,13 +832,13 @@ func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch spec.RouteType {
-	case plugin.MUPRouteTypeISD:
+	case route.MUPRouteTypeISD:
 		routeType = nlri.MUPISD
-	case plugin.MUPRouteTypeDSD:
+	case route.MUPRouteTypeDSD:
 		routeType = nlri.MUPDSD
-	case plugin.MUPRouteTypeT1ST:
+	case route.MUPRouteTypeT1ST:
 		routeType = nlri.MUPT1ST
-	case plugin.MUPRouteTypeT2ST:
+	case route.MUPRouteTypeT2ST:
 		routeType = nlri.MUPT2ST
 	default:
 		return nil, 0, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)

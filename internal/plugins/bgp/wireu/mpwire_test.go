@@ -1,4 +1,4 @@
-package plugin
+package wireu
 
 import (
 	"net/netip"
@@ -629,7 +629,7 @@ func TestMPReachWireNLRIs_IPv6AddPath(t *testing.T) {
 
 // FuzzParseNLRIs tests NLRI parsing robustness against arbitrary input.
 //
-// VALIDATES: parseNLRIs handles arbitrary bytes without panicking.
+// VALIDATES: ParseNLRIs handles arbitrary bytes without panicking.
 // PREVENTS: Remote crash via malformed UPDATE with ADD-PATH.
 // SECURITY: Critical - parses untrusted network data.
 func FuzzParseNLRIs(f *testing.F) {
@@ -643,16 +643,16 @@ func FuzzParseNLRIs(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, data []byte, hasAddPath bool) {
 		// Test IPv4 unicast - MUST NOT panic
-		_, _ = parseNLRIs(data, nlri.IPv4Unicast, hasAddPath)
+		_, _ = ParseNLRIs(data, nlri.IPv4Unicast, hasAddPath)
 
 		// Test IPv6 unicast - MUST NOT panic
-		_, _ = parseNLRIs(data, nlri.IPv6Unicast, hasAddPath)
+		_, _ = ParseNLRIs(data, nlri.IPv6Unicast, hasAddPath)
 
 		// Test IPv4 multicast - MUST NOT panic
-		_, _ = parseNLRIs(data, nlri.IPv4Multicast, hasAddPath)
+		_, _ = ParseNLRIs(data, nlri.IPv4Multicast, hasAddPath)
 
 		// Test IPv6 multicast - MUST NOT panic
-		_, _ = parseNLRIs(data, nlri.IPv6Multicast, hasAddPath)
+		_, _ = ParseNLRIs(data, nlri.IPv6Multicast, hasAddPath)
 	})
 }
 

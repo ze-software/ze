@@ -1,5 +1,5 @@
 //nolint:goconst // Many string literals are intentional for BGP protocol keywords
-package plugin
+package route
 
 import (
 	"errors"
@@ -33,7 +33,6 @@ var (
 	ErrInvalidProtocol    = errors.New("invalid protocol")
 	ErrInvalidPort        = errors.New("invalid port")
 	ErrInvalidSplit       = errors.New("invalid split length")
-	ErrMissingWatchdog    = errors.New("missing watchdog name")
 )
 
 // splitPrefix splits a prefix into more-specific prefixes with the given length.
@@ -454,7 +453,7 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 	return lcomms, consumed, nil
 }
 
-// parseExtendedCommunities parses extended communities in format [type:value:value ...].
+// ParseExtendedCommunities parses extended communities in format [type:value:value ...].
 // RFC 4360 (Extended Communities), RFC 5575 (FlowSpec Actions).
 //
 // Supported formats:
@@ -472,7 +471,7 @@ func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error
 //   - discard - Sugar for traffic-rate 0 0
 //   - redirect <asn> <target> - Redirect to VRF
 //   - traffic-marking <dscp> - Set DSCP value
-func parseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
+func ParseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) == 0 {
 		return nil, 0, fmt.Errorf("missing extended-community value")
 	}
@@ -1354,68 +1353,6 @@ func ParseL3VPNAttributes(args []string) (bgptypes.L3VPNRoute, error) {
 // Format: <prefix> next-hop <addr> label <label> [attributes...].
 func ParseLabeledUnicastAttributes(args []string) (bgptypes.LabeledUnicastRoute, error) {
 	return parseLabeledUnicastAttributes(args)
-}
-
-// routeRPCs returns RPC registrations for handlers defined in this file.
-// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
-func routeRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:watchdog-announce", "bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group"},
-		{"ze-bgp:watchdog-withdraw", "bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group"},
-	}
-}
-
-// handleWatchdogAnnounce handles: watchdog announce <name>
-// Announces all routes in the named watchdog group that are currently withdrawn.
-func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
-	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
-		return r.AnnounceWatchdog(peer, name)
-	})
-}
-
-// handleWatchdogWithdraw handles: watchdog withdraw <name>
-// Withdraws all routes in the named watchdog group that are currently announced.
-func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
-	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
-		return r.WithdrawWatchdog(peer, name)
-	})
-}
-
-// handleWatchdogAction implements the shared logic for watchdog announce/withdraw.
-func handleWatchdogAction(
-	ctx *CommandContext,
-	args []string,
-	action func(ReactorInterface, string, string) error,
-) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-
-	if len(args) < 1 {
-		return &Response{
-			Status: "error",
-			Data:   "missing watchdog name",
-		}, ErrMissingWatchdog
-	}
-
-	name := args[0]
-	peerSelector := ctx.PeerSelector()
-
-	if err := action(ctx.Reactor(), peerSelector, name); err != nil {
-		return &Response{
-			Status: "error",
-			Data:   err.Error(),
-		}, err
-	}
-
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"peer":     peerSelector,
-			"watchdog": name,
-		},
-	}, nil
 }
 
 // MUP route type constants.

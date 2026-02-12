@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"github.com/stretchr/testify/assert"
@@ -802,7 +803,7 @@ func TestParseUpdateText_InvalidFamilyString(t *testing.T) {
 		"nlri", "not-a-family", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrInvalidFamily)
+	assert.ErrorIs(t, err, route.ErrInvalidFamily)
 }
 
 // TestParseUpdateText_InvalidPrefix verifies invalid prefix fails.
@@ -814,7 +815,7 @@ func TestParseUpdateText_InvalidPrefix(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "not-a-prefix",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrInvalidPrefix)
+	assert.ErrorIs(t, err, route.ErrInvalidPrefix)
 }
 
 // TestParseUpdateText_MissingPrefixAfterAdd verifies add without prefix fails.
@@ -1013,7 +1014,7 @@ func TestParseUpdateText_FamilyCaseSensitive(t *testing.T) {
 		"nlri", "IPV4/UNICAST", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrInvalidFamily)
+	assert.ErrorIs(t, err, route.ErrInvalidFamily)
 }
 
 // TestParseUpdateText_OnlySet verifies alone set returns empty result.
@@ -1954,7 +1955,7 @@ func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingRD)
+	assert.ErrorIs(t, err, route.ErrMissingRD)
 }
 
 // TestParseUpdateText_VPNMissingLabel verifies VPN family requires label.
@@ -1968,7 +1969,7 @@ func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingLabel)
+	assert.ErrorIs(t, err, route.ErrMissingLabel)
 }
 
 // TestParseUpdateText_LabeledUnicast verifies labeled unicast family.
@@ -2002,7 +2003,7 @@ func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 		"nlri", "ipv4/nlri-mpls", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingLabel)
+	assert.ErrorIs(t, err, route.ErrMissingLabel)
 }
 
 // TestParseUpdateText_IPv6VPN verifies IPv6 VPN family.
@@ -2220,7 +2221,7 @@ func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingLabel)
+	assert.ErrorIs(t, err, route.ErrMissingLabel)
 }
 
 // TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN verifies label-only still requires rd for VPN.
@@ -2233,7 +2234,7 @@ func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T)
 		"nlri", "ipv4/mpls-vpn", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingRD)
+	assert.ErrorIs(t, err, route.ErrMissingRD)
 }
 
 // TestParseUpdateText_InNLRIModifierScopeIsSectionOnly verifies modifiers don't leak to next section.
@@ -2552,7 +2553,7 @@ func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 		"nlri", "ipv4/flow-vpn", "add", "destination", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingRD)
+	assert.ErrorIs(t, err, route.ErrMissingRD)
 }
 
 // ============================================================================

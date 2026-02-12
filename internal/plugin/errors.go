@@ -2,18 +2,8 @@ package plugin
 
 import "errors"
 
-// UPDATE message parsing errors.
-// Use with fmt.Errorf for context: fmt.Errorf("withdrawn: %w", ErrUpdateTruncated).
-var (
-	// ErrUpdateTruncated indicates the UPDATE payload is shorter than declared lengths.
-	ErrUpdateTruncated = errors.New("UPDATE payload truncated")
-
-	// ErrUpdateMalformed indicates a structural error in the UPDATE message.
-	ErrUpdateMalformed = errors.New("UPDATE malformed")
-)
-
 // UpdateText parsing errors.
-// Note: ErrInvalidPrefix and ErrInvalidFamily are defined in route.go.
+// Note: ErrInvalidPrefix and ErrInvalidFamily are defined in internal/plugins/bgp/route/.
 var (
 	ErrInvalidAttrMode    = errors.New("invalid attr mode (expected set, add, or del)")
 	ErrMissingAttrMode    = errors.New("missing attr mode")

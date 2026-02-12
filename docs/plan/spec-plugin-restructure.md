@@ -442,16 +442,38 @@ Each phase is independently committable and testable. The system works correctly
 <!-- Fill this section AFTER implementation, before moving to done -->
 
 ### What Was Implemented
-- [To be filled]
+
+**Phase 1** (committed b42ead8): Renamed 10 BGP extension plugins from `evpn` → `bgp-evpn`, etc.
+
+**Phase 2** (committed 1ad30c4): Moved `internal/plugin/bgp/` → `internal/plugins/bgp/`. 181 files changed.
+
+**Phase 3** (committed d293d6e): Extracted BGP types into `internal/plugins/bgp/types/`. RouteSpec, FlowSpecRoute, WireUpdate, RouteNextHop, NLRIGroup, UpdateTextResult, and all route type structs moved. ReactorInterface stays unified for now.
+
+**Phase 4** (in progress — 3 of 8 planned sub-packages done):
+- `internal/plugins/bgp/wireu/`: wire_update.go, wire_update_split.go, wire_extract.go, mpwire.go + tests + new errors.go, prefix.go
+- `internal/plugins/bgp/format/`: decode.go, format_buffer.go + test
+- `internal/plugins/bgp/route/`: route.go, route_keywords.go + 2 test files. Watchdog RPC handlers stayed in `internal/plugin/route_watchdog.go`. `parseExtendedCommunities` exported as `ParseExtendedCommunities`.
+
+Remaining Phase 4 sub-packages not yet moved:
+- `update/`: update_text.go, update_wire.go — heavy cross-deps with internal/plugin types
+- `filter/`: filter.go
+- `handler/`: bgp.go, cache.go, commit.go, commit_manager.go, raw.go, refresh.go, rib_handler.go
+- `errors/`: errors.go — mostly generic errors, borderline
+- `validate/`: validate_open.go
 
 ### Design Insights
-- [To be filled]
+- Watchdog RPC handlers depend on `RPCRegistration`, `CommandContext`, `ReactorInterface` from `internal/plugin/` — cannot move to `internal/plugins/bgp/route/` without circular imports
+- Error variables shared across package boundaries (ErrInvalidFamily etc.) work well with `route.ErrX` qualification — no circular import risk since route only imports from `internal/plugins/bgp/*`
+- `parseExtendedCommunities` needed exporting for cross-package access from update_text.go
+- goimports auto-manages imports during refactoring, which helps but can cause "file modified" errors between sequential edits
 
 ### Documentation Updates
-- [To be filled]
+- None yet — awaiting completion of remaining phases
 
 ### Deviations from Plan
-- [To be filled]
+- Phase 4 scoped to 3 sub-packages (wireu, format, route) rather than all 8 planned. The remaining 5 have heavier dependencies on `internal/plugin/` types and will benefit from Phase 5's interface split first.
+- `nexthop.go` not moved to wireu/ — may belong in format/ or types/ instead
+- `json.go` and `text.go` not moved to format/ — they have extensive dependencies on server types
 
 ## Implementation Audit
 
@@ -462,33 +484,44 @@ Each phase is independently committable and testable. The system works correctly
 |-------------|--------|----------|-------|
 | Rename BGP extensions to bgp-<name> | ✅ Done | `internal/plugins/bgp-*/` | Committed b42ead8 |
 | Move internal/plugin/bgp/ to internal/plugins/bgp/ | ✅ Done | `internal/plugins/bgp/` | 181 files, pure path rename |
-| Move BGP-specific flat files to sub-packages | | | |
-| Split types.go into generic + BGP | | | |
-| Split server.go into generic + BGP | | | |
-| internal/plugin/ becomes generic-only | | | |
+| Extract BGP types from types.go | ✅ Done | `internal/plugins/bgp/types/` | Committed d293d6e |
+| Move wire files to wireu/ | ✅ Done | `internal/plugins/bgp/wireu/` | 4 files + tests |
+| Move decode/format files to format/ | ✅ Done | `internal/plugins/bgp/format/` | 2 files + test |
+| Move route files to route/ | ✅ Done | `internal/plugins/bgp/route/` | 2 files + 2 test files |
+| Move remaining BGP flat files | ⚠️ Partial | | update/, filter/, handler/, validate/ remain |
+| Split server.go into generic + BGP | | | Phase 5 |
+| internal/plugin/ becomes generic-only | | | Depends on Phases 4+5 |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | TestAllPluginsRegistered with new names | ✅ Done | `internal/plugin/all/all_test.go` | Phase 1 |
-| All existing tests pass per phase | ✅ Done | `make verify` | Phase 1+2 green |
-| Functional tests pass per phase | ✅ Done | 243/243 pass | Phase 1+2 green |
+| All existing tests pass per phase | ✅ Done | `make verify` | Phase 1+2+3+4 green |
+| Functional tests pass per phase | ✅ Done | 243/243 pass | Phase 1+2+3+4 green |
+| Route package tests | ✅ Done | `internal/plugins/bgp/route/*_test.go` | Moved with package |
+| Format package tests | ✅ Done | `internal/plugins/bgp/format/*_test.go` | Moved with package |
+| WireU package tests | ✅ Done | `internal/plugins/bgp/wireu/*_test.go` | Moved with package |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
 | 10 plugin directories renamed | ✅ Done | Committed b42ead8 |
 | internal/plugin/bgp/ moved | ✅ Done | 181 files changed |
-| internal/plugins/bgp/types/ created | | |
-| BGP sub-packages created | | |
-| Mixed files split | | |
+| internal/plugins/bgp/types/ created | ✅ Done | Committed d293d6e |
+| internal/plugins/bgp/wireu/ created | ✅ Done | 4 files + tests + errors.go, prefix.go |
+| internal/plugins/bgp/format/ created | ✅ Done | decode.go, format_buffer.go + test |
+| internal/plugins/bgp/route/ created | ✅ Done | route.go, route_keywords.go + 2 test files |
+| internal/plugin/route_watchdog.go created | ✅ Done | Extracted from route.go |
+| Remaining BGP sub-packages | ⚠️ Partial | update/, filter/, handler/, validate/ pending |
+| Mixed files split | | Phase 5 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 18
+- **Done:** 14
+- **Partial:** 2 (remaining flat files + sub-packages)
+- **Skipped:** 0
+- **Changed:** 0
+- **Not started:** 2 (Phase 5 server split, generic-only goal)
 
 ## Checklist
 

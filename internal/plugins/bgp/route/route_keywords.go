@@ -1,4 +1,4 @@
-package plugin
+package route
 
 // KeywordSet defines which keywords are valid for a route family.
 type KeywordSet map[string]bool
