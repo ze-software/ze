@@ -15,6 +15,9 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
+// statusDone is the command response status for successful operations.
+const statusDone = "done"
+
 // loggerPtr is the package-level logger, disabled by default.
 // Stored as atomic.Pointer to avoid data races when tests start
 // multiple in-process plugin instances concurrently.
@@ -326,9 +329,9 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 func (rs *RouteServer) handleCommand(command string) (string, string, error) {
 	switch command {
 	case "rr status":
-		return "done", `{"running":true}`, nil
+		return statusDone, `{"running":true}`, nil
 	case "rr peers":
-		return "done", rs.peersJSON(), nil
+		return statusDone, rs.peersJSON(), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}

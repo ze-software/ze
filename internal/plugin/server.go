@@ -602,13 +602,11 @@ func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []InjectedCapabil
 	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
 }
 
-// IsCapabilityStrict returns whether a capability code has strict mode set for a peer.
-// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
-func (s *Server) IsCapabilityStrict(peerAddr string, code uint8) bool {
-	if s.capInjector == nil {
-		return false
-	}
-	return s.capInjector.IsCapabilityStrict(peerAddr, code)
+// BroadcastValidateOpen sends validate-open to all plugins that declared WantsValidateOpen.
+// Returns nil if all accept, or an OpenValidationError on first rejection.
+// Called by reactor Peer during OPEN processing.
+func (s *Server) BroadcastValidateOpen(peerAddr string, local, remote *message.Open) error {
+	return s.broadcastValidateOpenImpl(peerAddr, local, remote)
 }
 
 // GetDecodeFamilies returns all families that have decode plugins registered.
@@ -1100,8 +1098,9 @@ func (s *Server) handleUnsubscribeEventsRPC(proc *Process, connA *PluginConn, re
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).
 func registrationFromRPC(input *rpc.DeclareRegistrationInput) *PluginRegistration {
 	reg := &PluginRegistration{
-		WantsConfigRoots: input.WantsConfig,
-		Done:             true,
+		WantsConfigRoots:  input.WantsConfig,
+		WantsValidateOpen: input.WantsValidateOpen,
+		Done:              true,
 	}
 
 	for _, fam := range input.Families {
@@ -1144,7 +1143,6 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *PluginCapabilitie
 			Encoding: cap.Encoding,
 			Payload:  cap.Payload,
 			Peers:    cap.Peers,
-			Strict:   cap.Strict,
 		})
 	}
 

@@ -765,6 +765,126 @@ func TestSendConfigApplyOK(t *testing.T) {
 	assert.Equal(t, "ok", r.output.Status)
 }
 
+// TestSendValidateOpenAccept verifies validate-open RPC when plugin accepts.
+//
+// VALIDATES: Engine sends validate-open, plugin responds with accept=true.
+// PREVENTS: validate-open RPC not being available on engine side.
+func TestSendValidateOpenAccept(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ValidateOpenOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendValidateOpen(context.Background(), &rpc.ValidateOpenInput{
+			Peer: "10.0.0.1",
+			Local: rpc.ValidateOpenMessage{
+				ASN:      65000,
+				RouterID: "1.2.3.4",
+				HoldTime: 180,
+				Capabilities: []rpc.ValidateOpenCapability{
+					{Code: 9, Hex: "03"}, // customer
+				},
+			},
+			Remote: rpc.ValidateOpenMessage{
+				ASN:      65001,
+				RouterID: "5.6.7.8",
+				HoldTime: 90,
+				Capabilities: []rpc.ValidateOpenCapability{
+					{Code: 9, Hex: "00"}, // provider
+				},
+			},
+		})
+		done <- struct {
+			output *rpc.ValidateOpenOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:validate-open", req.Method)
+
+	var input rpc.ValidateOpenInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "10.0.0.1", input.Peer)
+	assert.Equal(t, uint32(65000), input.Local.ASN)
+	assert.Equal(t, "1.2.3.4", input.Local.RouterID)
+	assert.Equal(t, uint16(180), input.Local.HoldTime)
+	require.Equal(t, 1, len(input.Local.Capabilities))
+	assert.Equal(t, uint8(9), input.Local.Capabilities[0].Code)
+	assert.Equal(t, "03", input.Local.Capabilities[0].Hex)
+	assert.Equal(t, uint32(65001), input.Remote.ASN)
+	assert.Equal(t, "00", input.Remote.Capabilities[0].Hex)
+
+	result := &rpc.ValidateOpenOutput{Accept: true}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.True(t, r.output.Accept)
+	assert.Equal(t, uint8(0), r.output.NotifyCode)
+}
+
+// TestSendValidateOpenReject verifies validate-open RPC when plugin rejects.
+//
+// VALIDATES: Engine sends validate-open, plugin responds with reject + NOTIFICATION codes.
+// PREVENTS: Rejection reason/codes not propagating through RPC.
+func TestSendValidateOpenReject(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	done := make(chan struct {
+		output *rpc.ValidateOpenOutput
+		err    error
+	}, 1)
+	go func() {
+		out, err := engineConn.SendValidateOpen(context.Background(), &rpc.ValidateOpenInput{
+			Peer: "10.0.0.2",
+			Local: rpc.ValidateOpenMessage{
+				ASN:          65000,
+				RouterID:     "1.2.3.4",
+				HoldTime:     180,
+				Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
+			},
+			Remote: rpc.ValidateOpenMessage{
+				ASN:          65002,
+				RouterID:     "9.8.7.6",
+				HoldTime:     90,
+				Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
+			},
+		})
+		done <- struct {
+			output *rpc.ValidateOpenOutput
+			err    error
+		}{out, err}
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:validate-open", req.Method)
+
+	// RFC 9234: Role Mismatch → NOTIFICATION 2/11.
+	result := &rpc.ValidateOpenOutput{
+		Accept:        false,
+		NotifyCode:    2,
+		NotifySubcode: 11,
+		Reason:        "role mismatch: customer↔customer",
+	}
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.False(t, r.output.Accept)
+	assert.Equal(t, uint8(2), r.output.NotifyCode)
+	assert.Equal(t, uint8(11), r.output.NotifySubcode)
+	assert.Equal(t, "role mismatch: customer↔customer", r.output.Reason)
+}
+
 // TestCapabilityCodeBoundary verifies boundary values for capability codes.
 //
 // VALIDATES: Capability code 0 and 255 are valid, no overflow.

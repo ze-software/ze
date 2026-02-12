@@ -1,0 +1,8 @@
+# plugin-role-capa-text - verify RFC 9234 role plugin capability decode (text)
+# Tests Role capability human-readable decode output
+# Provider role has wire value 0x00
+
+cmd=foreground:seq=1:exec=ze bgp plugin role --capa 00 --text
+expect=exit:code=0
+expect=stdout:contains=role
+expect=stdout:contains=provider

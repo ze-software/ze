@@ -421,21 +421,18 @@ func (p *Peer) getPluginFamilies() []string {
 	return r.api.GetDecodeFamilies()
 }
 
-// isRoleStrict returns whether Role capability strict mode is set for this peer.
-// Used as callback for Session.SetRoleStrictChecker().
-// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
-func (p *Peer) isRoleStrict() bool {
+// validateOpen delegates OPEN validation to registered plugins via Server.BroadcastValidateOpen.
+// Used as callback for Session.SetOpenValidator().
+func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error {
 	p.mu.RLock()
 	r := p.reactor
-	settings := p.settings
 	p.mu.RUnlock()
 
 	if r == nil || r.api == nil {
-		return false
+		return nil
 	}
 
-	peerAddr := settings.Address.String()
-	return r.api.IsCapabilityStrict(peerAddr, uint8(capability.CodeRole))
+	return r.api.BroadcastValidateOpen(peerAddr, local, remote)
 }
 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
@@ -902,7 +899,7 @@ func (p *Peer) runOnce() error {
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
-	session.SetRoleStrictChecker(p.isRoleStrict)
+	session.SetOpenValidator(p.validateOpen)
 
 	p.mu.Lock()
 	p.session = session

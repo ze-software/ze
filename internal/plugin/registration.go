@@ -65,6 +65,7 @@ type PluginRegistration struct {
 	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
 	WantsConfigRoots   []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
+	WantsValidateOpen  bool                // Plugin wants to validate OPEN message pairs (validate-open callback)
 	Done               bool                // True when "registration done" received
 
 	// YANG schema declarations (Hub Architecture)
@@ -96,7 +97,6 @@ type PluginCapability struct {
 	Encoding string   // Encoding of payload (b64, hex, text)
 	Payload  string   // Encoded capability value
 	Peers    []string // Optional peer addresses (empty = global/all peers)
-	Strict   bool     // RFC 9234: require peer to send this capability
 }
 
 // PluginCapabilities holds Stage 3 capability declarations.
@@ -253,7 +253,6 @@ type InjectedCapability struct {
 	Value    []byte
 	Plugin   string
 	PeerAddr string // Empty = global (applies to all peers)
-	Strict   bool   // RFC 9234: require peer to send this capability
 }
 
 // CapabilityInjector collects and manages plugin capabilities for OPEN messages.
@@ -297,7 +296,6 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 				Code:   cap.Code,
 				Value:  value,
 				Plugin: caps.PluginName,
-				Strict: cap.Strict,
 			})
 			ci.globalByCode[cap.Code] = caps.PluginName
 		} else {
@@ -315,7 +313,6 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 					Value:    value,
 					Plugin:   caps.PluginName,
 					PeerAddr: peerAddr,
-					Strict:   cap.Strict,
 				})
 				ci.peerByCode[peerAddr][cap.Code] = caps.PluginName
 			}
@@ -360,30 +357,6 @@ func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []Injected
 	}
 
 	return result
-}
-
-// IsCapabilityStrict returns whether a capability code has strict mode set for a peer.
-// Checks per-peer capabilities first, then global.
-// Returns false if the capability is not injected for this peer.
-func (ci *CapabilityInjector) IsCapabilityStrict(peerAddr string, code uint8) bool {
-	ci.mu.RLock()
-	defer ci.mu.RUnlock()
-
-	// Check per-peer first (takes precedence)
-	for _, cap := range ci.peerCaps[peerAddr] {
-		if cap.Code == code {
-			return cap.Strict
-		}
-	}
-
-	// Check global
-	for _, cap := range ci.globalCaps {
-		if cap.Code == code {
-			return cap.Strict
-		}
-	}
-
-	return false
 }
 
 // DecodeCapabilityPayload decodes a plugin capability payload.

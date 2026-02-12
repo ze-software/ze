@@ -10,10 +10,11 @@ package rpc
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
-	Families    []FamilyDecl  `json:"families,omitempty"`
-	Commands    []CommandDecl `json:"commands,omitempty"`
-	WantsConfig []string      `json:"wants-config,omitempty"`
-	Schema      *SchemaDecl   `json:"schema,omitempty"`
+	Families          []FamilyDecl  `json:"families,omitempty"`
+	Commands          []CommandDecl `json:"commands,omitempty"`
+	WantsConfig       []string      `json:"wants-config,omitempty"`
+	Schema            *SchemaDecl   `json:"schema,omitempty"`
+	WantsValidateOpen bool          `json:"wants-validate-open,omitempty"`
 }
 
 // FamilyDecl declares an address family the plugin handles.
@@ -60,7 +61,6 @@ type CapabilityDecl struct {
 	Encoding string   `json:"encoding,omitempty"` // "hex", "b64", "text"
 	Payload  string   `json:"payload,omitempty"`
 	Peers    []string `json:"peers,omitempty"`
-	Strict   bool     `json:"strict,omitempty"` // RFC 9234: require peer to send this capability
 }
 
 // RegistryCommand is a command in the shared registry (Stage 4).
@@ -174,4 +174,37 @@ type ConfigApplyOutput struct {
 // ByeInput is the input for ze-plugin-callback:bye (shutdown).
 type ByeInput struct {
 	Reason string `json:"reason,omitempty"`
+}
+
+// ValidateOpenCapability is a single capability from an OPEN message,
+// represented as code + raw value bytes in hex (no TLV envelope).
+type ValidateOpenCapability struct {
+	Code uint8  `json:"code"`
+	Hex  string `json:"hex"`
+}
+
+// ValidateOpenMessage represents one side of the OPEN exchange for validation.
+type ValidateOpenMessage struct {
+	ASN          uint32                   `json:"asn"`
+	RouterID     string                   `json:"router-id"`
+	HoldTime     uint16                   `json:"hold-time"`
+	Capabilities []ValidateOpenCapability `json:"capabilities,omitempty"`
+}
+
+// ValidateOpenInput is the input for ze-plugin-callback:validate-open.
+// The engine sends both local and remote OPENs for the plugin to validate.
+type ValidateOpenInput struct {
+	Peer   string              `json:"peer"`
+	Local  ValidateOpenMessage `json:"local"`
+	Remote ValidateOpenMessage `json:"remote"`
+}
+
+// ValidateOpenOutput is the output for ze-plugin-callback:validate-open.
+// A plugin returns Accept=true to allow the session, or Accept=false with
+// NOTIFICATION code/subcode to reject it.
+type ValidateOpenOutput struct {
+	Accept        bool   `json:"accept"`
+	NotifyCode    uint8  `json:"notify-code,omitempty"`
+	NotifySubcode uint8  `json:"notify-subcode,omitempty"`
+	Reason        string `json:"reason,omitempty"`
 }

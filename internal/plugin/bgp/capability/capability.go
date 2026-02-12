@@ -212,8 +212,6 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseFQDN(data)
 	case CodeSoftwareVersion:
 		return parseSoftwareVersion(data)
-	case CodeRole:
-		return parseRole(data)
 	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil

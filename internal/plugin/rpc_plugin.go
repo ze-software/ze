@@ -206,6 +206,24 @@ func (pc *PluginConn) SendConfigApply(ctx context.Context, sections []rpc.Config
 	return &out, nil
 }
 
+// SendValidateOpen sends a validate-open request to the plugin.
+// Returns the plugin's validation result (accept/reject with optional NOTIFICATION codes).
+func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateOpenInput) (*rpc.ValidateOpenOutput, error) {
+	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:validate-open", input)
+	if err != nil {
+		return nil, err
+	}
+	result, err := rpc.ParseResponse(raw)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.ValidateOpenOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal validate-open result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendBye sends a shutdown request to the plugin.
 func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}

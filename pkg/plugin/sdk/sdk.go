@@ -48,6 +48,7 @@ type Plugin struct {
 	onExecuteCommand   func(serial, command string, args []string, peer string) (status, data string, err error)
 	onConfigVerify     func([]ConfigSection) error
 	onConfigApply      func([]ConfigDiffSection) error
+	onValidateOpen     func(*ValidateOpenInput) *ValidateOpenOutput
 	onBye              func(string)
 
 	// Post-startup callback (runs after Stage 5, before event loop).
@@ -229,6 +230,16 @@ func (p *Plugin) OnConfigApply(fn func([]ConfigDiffSection) error) {
 	p.onConfigApply = fn
 }
 
+// OnValidateOpen sets the handler for OPEN validation requests.
+// The handler receives both local and remote OPEN messages and returns accept/reject.
+// When registered, WantsValidateOpen is automatically set in Stage 1 registration.
+// If no handler is registered, validate-open returns accept (no-op).
+func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onValidateOpen = fn
+}
+
 // OnStarted sets a callback that runs after the 5-stage startup completes
 // but before the event loop begins. This is the safe place to make engine
 // calls (e.g., SubscribeEvents) because Socket A is no longer blocked by
@@ -269,6 +280,13 @@ func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
 // Run executes the 5-stage startup protocol and enters the event loop.
 // Returns nil on clean shutdown (bye received), or error on failure.
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
+	// Auto-set WantsValidateOpen if callback is registered.
+	p.mu.Lock()
+	if p.onValidateOpen != nil {
+		reg.WantsValidateOpen = true
+	}
+	p.mu.Unlock()
+
 	// Stage 1: declare-registration
 	if err := p.callEngine(ctx, "ze-plugin-engine:declare-registration", &reg); err != nil {
 		return fmt.Errorf("stage 1 (declare-registration): %w", err)
@@ -433,6 +451,9 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *ipc.Request) error {
 
 	case "ze-plugin-callback:config-apply":
 		return p.handleConfigApply(ctx, req)
+
+	case "ze-plugin-callback:validate-open":
+		return p.handleValidateOpen(ctx, req)
 
 	case "ze-plugin-callback:bye":
 		return p.handleByeAndRespond(ctx, req)
@@ -705,6 +726,27 @@ func (p *Plugin) handleConfigApply(ctx context.Context, req *ipc.Request) error 
 	return p.handleConfigRPC(ctx, req, handler)
 }
 
+func (p *Plugin) handleValidateOpen(ctx context.Context, req *ipc.Request) error {
+	p.mu.Lock()
+	fn := p.onValidateOpen
+	p.mu.Unlock()
+
+	if fn == nil {
+		// No handler = accept (no-op).
+		return p.callbackConn.SendResult(ctx, req.ID, &rpc.ValidateOpenOutput{Accept: true})
+	}
+
+	var input rpc.ValidateOpenInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		return p.callbackConn.SendResult(ctx, req.ID, &rpc.ValidateOpenOutput{
+			Accept: false, Reason: fmt.Sprintf("unmarshal validate-open: %v", err),
+		})
+	}
+
+	output := fn(&input)
+	return p.callbackConn.SendResult(ctx, req.ID, output)
+}
+
 // --- RPC Types (aliases to canonical types in pkg/plugin/rpc) ---
 
 // Registration is the SDK name for the declare-registration input (Stage 1).
@@ -745,3 +787,15 @@ type ConfigVerifyOutput = rpc.ConfigVerifyOutput
 
 // ConfigApplyOutput is the output for config-apply (reload).
 type ConfigApplyOutput = rpc.ConfigApplyOutput
+
+// ValidateOpenInput is the input for validate-open (OPEN validation).
+type ValidateOpenInput = rpc.ValidateOpenInput
+
+// ValidateOpenOutput is the output for validate-open (OPEN validation).
+type ValidateOpenOutput = rpc.ValidateOpenOutput
+
+// ValidateOpenMessage represents one side of the OPEN exchange.
+type ValidateOpenMessage = rpc.ValidateOpenMessage
+
+// ValidateOpenCapability is a single capability from an OPEN message.
+type ValidateOpenCapability = rpc.ValidateOpenCapability

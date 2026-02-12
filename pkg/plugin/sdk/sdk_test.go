@@ -1212,3 +1212,181 @@ func closeFDs(t *testing.T, fds ...int) {
 		}
 	}
 }
+
+// TestSDKDispatchValidateOpen verifies validate-open dispatch in the event loop.
+//
+// VALIDATES: Engine sends validate-open, SDK dispatches to registered handler, returns accept.
+// PREVENTS: validate-open rejected as unknown method during runtime.
+func TestSDKDispatchValidateOpen(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	type validateOpenCall struct {
+		input rpc.ValidateOpenInput
+	}
+	received := make(chan validateOpenCall, 1)
+
+	p.OnValidateOpen(func(input *rpc.ValidateOpenInput) *rpc.ValidateOpenOutput {
+		received <- validateOpenCall{input: *input}
+		return &rpc.ValidateOpenOutput{Accept: true}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	// Verify WantsValidateOpen is auto-set in Stage 1
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+
+	var regInput rpc.DeclareRegistrationInput
+	require.NoError(t, json.Unmarshal(req.Params, &regInput))
+	assert.True(t, regInput.WantsValidateOpen, "WantsValidateOpen should be auto-set")
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Complete remaining startup stages (2-5)
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+
+	req, err = engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+
+	// Send validate-open request
+	voInput := rpc.ValidateOpenInput{
+		Peer: "10.0.0.1",
+		Local: rpc.ValidateOpenMessage{
+			ASN:      65000,
+			RouterID: "1.2.3.4",
+			HoldTime: 180,
+			Capabilities: []rpc.ValidateOpenCapability{
+				{Code: 9, Hex: "03"},
+			},
+		},
+		Remote: rpc.ValidateOpenMessage{
+			ASN:      65001,
+			RouterID: "5.6.7.8",
+			HoldTime: 90,
+			Capabilities: []rpc.ValidateOpenCapability{
+				{Code: 9, Hex: "00"},
+			},
+		},
+	}
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
+	require.NoError(t, err)
+
+	// Parse response
+	result, err := rpc.ParseResponse(raw)
+	require.NoError(t, err)
+
+	var output rpc.ValidateOpenOutput
+	require.NoError(t, json.Unmarshal(result, &output))
+	assert.True(t, output.Accept)
+
+	// Verify callback was invoked
+	select {
+	case got := <-received:
+		assert.Equal(t, "10.0.0.1", got.input.Peer)
+		assert.Equal(t, uint32(65000), got.input.Local.ASN)
+		assert.Equal(t, uint8(9), got.input.Local.Capabilities[0].Code)
+	case <-time.After(time.Second):
+		t.Fatal("validate-open callback not called")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKValidateOpenReject verifies validate-open reject response.
+//
+// VALIDATES: SDK returns reject with NOTIFICATION codes when callback rejects.
+// PREVENTS: Rejection codes not propagating through SDK layer.
+func TestSDKValidateOpenReject(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	p.OnValidateOpen(func(input *rpc.ValidateOpenInput) *rpc.ValidateOpenOutput {
+		return &rpc.ValidateOpenOutput{
+			Accept:        false,
+			NotifyCode:    2,
+			NotifySubcode: 11,
+			Reason:        "role mismatch",
+		}
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Send validate-open request
+	voInput := rpc.ValidateOpenInput{
+		Peer: "10.0.0.2",
+		Local: rpc.ValidateOpenMessage{
+			ASN: 65000, RouterID: "1.2.3.4", HoldTime: 180,
+			Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
+		},
+		Remote: rpc.ValidateOpenMessage{
+			ASN: 65002, RouterID: "9.8.7.6", HoldTime: 90,
+			Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
+		},
+	}
+	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
+	require.NoError(t, err)
+
+	result, err := rpc.ParseResponse(raw)
+	require.NoError(t, err)
+
+	var output rpc.ValidateOpenOutput
+	require.NoError(t, json.Unmarshal(result, &output))
+	assert.False(t, output.Accept)
+	assert.Equal(t, uint8(2), output.NotifyCode)
+	assert.Equal(t, uint8(11), output.NotifySubcode)
+	assert.Equal(t, "role mismatch", output.Reason)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

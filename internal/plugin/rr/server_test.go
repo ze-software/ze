@@ -278,7 +278,7 @@ func TestServer_HandleCommand_Status(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		t.Errorf("expected status done, got %q", status)
 	}
 	if !strings.Contains(data, `"running":true`) {
@@ -303,7 +303,7 @@ func TestServer_HandleCommand_Peers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if status != "done" {
+	if status != statusDone {
 		t.Errorf("expected status done, got %q", status)
 	}
 	if !strings.Contains(data, "10.0.0.1") {
