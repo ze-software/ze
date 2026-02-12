@@ -111,6 +111,10 @@ Stop and investigate if:
 - A test from the TDD plan doesn't exist
 - A file from "Files to Create" wasn't created
 - You're unsure whether something was implemented
+- New RPCs were added but YANG schema wasn't updated
+- New RPCs/APIs were added with only unit tests — functional tests are MANDATORY
+- New CLI commands/flags were added but usage text and docs weren't updated
+- Integration Checklist items from spec marked "needed" but not in Files from Plan
 
 ## Cannot Mark Done Until
 
@@ -120,6 +124,7 @@ Stop and investigate if:
 [ ] Every file in plan has a status
 [ ] All Partial items have user approval
 [ ] All Skipped items have user approval
+[ ] Integration points verified (YANG, CLI, docs — per Integration Checklist)
 [ ] Audit Summary totals are accurate
 ```
 

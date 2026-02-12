@@ -349,10 +349,11 @@ Instead of function implementations, use prose or steps:
 [ ] 9. Implementation steps include "(paste output)" where shown
 [ ] 10. No code snippets - use tables and prose (see Spec Writing Style)
 [ ] 11. Files to Modify includes feature code (internal/*, cmd/*), not only tests
-[ ] 12. Functional Tests section includes .ci files for end-user verification
-[ ] 13. Current Behavior section completed (source files read, behavior documented)
-[ ] 14. "Behavior to change" is empty OR user explicitly requested the change
-[ ] 15. Data Flow section completed (see `rules/data-flow-tracing.md`)
+[ ] 12. Integration Checklist completed (YANG, CLI, docs, editor — see template)
+[ ] 13. Functional Tests section includes .ci files for end-user verification
+[ ] 14. Current Behavior section completed (source files read, behavior documented)
+[ ] 15. "Behavior to change" is empty OR user explicitly requested the change
+[ ] 16. Data Flow section completed (see `rules/data-flow-tracing.md`)
 ```
 
 **Common mistakes:**
@@ -369,6 +370,8 @@ Instead of function implementations, use prose or steps:
 - Inventing new formats → preserve existing behavior unless user explicitly asked to change it
 - Missing "Data Flow" section → MUST trace data through system before implementation
 - Skipping boundary verification → changes may violate architectural layers
+- Missing Integration Checklist → new RPCs need YANG schema updates, new CLI commands need dispatch + usage + docs
+- Adding RPCs without updating YANG → editor autocomplete, `command-list`, and architecture docs become stale
 
 ## Spec File Template
 
@@ -454,16 +457,33 @@ Write to `docs/plan/spec-<task-name>.md`:
 
 ### Functional Tests
 <!-- REQUIRED: Verify feature works from end-user perspective -->
+<!-- New RPCs/APIs MUST have functional tests — unit tests alone are NOT sufficient -->
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `test-xxx` | `test/.../*.ci` | [what user expects to happen] | |
 
+**RPC/API functional test rule:** Every new RPC or API endpoint MUST have a functional test that exercises it through the real transport (sockets, CLI, or plugin process). Unit tests with mock sockets test marshaling; functional tests prove the feature works end-to-end. If a functional test requires a test plugin, create one in `test/plugin/`.
+
 ### Future (if deferring any tests)
-- [Tests to add later and why deferred]
+- [Tests to add later and why deferred — requires explicit user approval]
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
+<!-- CHECK integration points: YANG schemas, CLI dispatch, editor, docs (see table below) -->
 - `internal/...` - [feature changes]
+
+### Integration Checklist
+<!-- Answer each: does this task require updating these? If yes, add to Files to Modify/Create above. -->
+| Integration Point | Needed? | File |
+|-------------------|---------|------|
+| YANG schema (new RPCs) | [ ] | `internal/yang/modules/*.yang` |
+| RPC count in architecture docs | [ ] | `docs/architecture/api/architecture.md` |
+| CLI commands/flags | [ ] | `cmd/ze/*/main.go` or subcommand files |
+| CLI usage/help text | [ ] | Same as above |
+| API commands doc | [ ] | `docs/architecture/api/commands.md` |
+| Plugin SDK docs | [ ] | `.claude/rules/plugin-design.md` |
+| Editor autocomplete | [ ] | YANG-driven (automatic if YANG updated) |
+| Functional test for new RPC/API | [ ] | `test/plugin/*.ci` or `test/decode/*.ci` (unit tests alone are NOT sufficient) |
 
 ## Files to Create
 <!-- Feature code for codebase integration + functional tests for end-user verification -->
@@ -611,7 +631,7 @@ If you had to investigate/debug something, ask:
 - [ ] Tests PASS (output below)
 - [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
 - [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
-- [ ] Functional tests verify end-user behavior (`.ci` files)
+- [ ] Functional tests verify end-to-end behavior (`.ci` files — MANDATORY for new RPCs/APIs, unit tests alone are insufficient)
 
 ### Verification
 - [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
@@ -638,10 +658,14 @@ If you had to investigate/debug something, ask:
 **BLOCKING:** After implementation passes all tests, complete these steps IN ORDER:
 
 ```
-[ ] 1. Review architecture docs
+[ ] 1. Review architecture docs and integration points
       → Did we learn something not documented?
       → Add design insights, gotchas, or patterns discovered
       → Update docs in "Post-Implementation Updates" table below
+      → **YANG schemas:** If new RPCs were added, update the YANG module + RPC count in architecture.md
+      → **CLI:** If new user-facing features, update cmd/ze/ dispatch + usage text + commands.md
+      → **Editor:** YANG-driven autocomplete auto-updates, but verify if non-YANG completions needed
+      → **Plugin SDK docs:** If new SDK methods, update plugin-design.md SDK tables
 
 [ ] 2. Check for dead code and test coverage
       → Search for unused functions, types, or variables introduced
@@ -702,6 +726,11 @@ If task changed any of these, update corresponding docs:
 | UPDATE building | `docs/architecture/update-building.md` |
 | Pool/memory | `docs/architecture/pool-architecture.md` |
 | API commands | `docs/architecture/api/architecture.md` |
+| RPCs (plugin↔engine) | YANG schema (`internal/yang/modules/ze-plugin-engine.yang` or `ze-plugin-callback.yang`) + RPC count in `docs/architecture/api/architecture.md` |
+| RPCs (user-facing) | YANG schema for domain (`ze-bgp-api.yang`, `ze-system-api.yang`, etc.) + handler registration in `command.go` |
+| CLI commands/flags | `cmd/ze/` dispatch + usage text + `docs/architecture/api/commands.md` |
+| Editor/completer | YANG-driven (auto-updates when YANG schema is updated) — verify via `internal/config/editor/` |
+| Plugin SDK methods | `.claude/rules/plugin-design.md` SDK Engine Calls table |
 | Test format (.ci) | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` |
 
 ## Moving Completed Specs
