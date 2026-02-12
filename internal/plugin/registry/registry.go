@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"slices"
 	"sort"
@@ -271,4 +272,17 @@ func WriteUsage(w io.Writer) error {
 // Reset clears the registry. Only for use in tests.
 func Reset() {
 	plugins = make(map[string]*Registration)
+}
+
+// Snapshot returns a copy of the current registry state. Only for use in tests.
+// Use with Restore to safely reset and restore after test-specific registrations.
+func Snapshot() map[string]*Registration {
+	snap := make(map[string]*Registration, len(plugins))
+	maps.Copy(snap, plugins)
+	return snap
+}
+
+// Restore replaces the registry with a previously saved snapshot. Only for use in tests.
+func Restore(snap map[string]*Registration) {
+	plugins = snap
 }

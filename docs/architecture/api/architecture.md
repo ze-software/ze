@@ -235,7 +235,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
-| `ze-plugin-engine` | `internal/yang/modules/` | 6 | 0 |
+| `ze-plugin-engine` | `internal/yang/modules/` | 11 | 0 |
 | `ze-plugin-callback` | `internal/yang/modules/` | 8 | 0 |
 
 Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/yang/rpc.go`.
@@ -311,7 +311,7 @@ internal/plugin/
 └── rpc_plugin.go     # PluginConn (embeds *rpc.Conn, typed stage methods)
 
 internal/yang/modules/
-├── ze-plugin-engine.yang    # RPCs engine serves (6: declare-registration, ready, etc.)
+├── ze-plugin-engine.yang    # RPCs engine serves (11: startup, routes, subscriptions, decode/encode)
 └── ze-plugin-callback.yang  # RPCs plugin serves (8: configure, deliver-event, bye, etc.)
 ```
 
@@ -319,7 +319,7 @@ internal/yang/modules/
 
 | Socket | Engine Role | Plugin Role | RPCs |
 |--------|-------------|-------------|------|
-| A | Server | Client | declare-registration, declare-capabilities, ready, update-route, subscribe/unsubscribe |
+| A | Server | Client | declare-registration, declare-capabilities, ready, update-route, subscribe/unsubscribe, decode/encode-nlri, decode-mp-reach/unreach, decode-update |
 | B | Client | Server | configure, share-registry, deliver-event, encode/decode-nlri, decode-capability, execute-command, bye |
 
 **5-stage startup preserved as typed RPCs:**

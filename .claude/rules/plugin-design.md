@@ -40,6 +40,53 @@ cmd/ze/bgp/decode.go           ← Maps populated from registry at init time
 
 **Key design:** The registry package is a leaf with zero plugin dependencies. Plugin packages import the registry (not vice versa). The `all` package uses blank imports to trigger `init()` registration.
 
+## Import Rules (BLOCKING)
+
+**BLOCKING:** Infrastructure code MUST NOT directly import plugin implementation packages.
+
+The registry exists as an indirection layer. Code outside `internal/plugins/` must use registry lookups, not direct imports.
+
+| Import from `internal/plugins/bgp-*` | Allowed? | Why |
+|---------------------------------------|----------|-----|
+| Plugin importing its own subpackage (e.g., bgp-rib → bgp-rib/storage) | Yes | Internal to the plugin |
+| `internal/plugin/all/all.go` blank imports | Yes | Registration trigger (generated) |
+| Importing `<plugin>/schema/` for YANG content strings | Yes | Schema is data, not logic |
+| Infrastructure code importing plugin logic | **No** | Use registry instead |
+| Tests importing plugin types for decode/encode | Tolerated | Prefer registry helpers when available |
+
+### What "infrastructure code" means
+
+Any code in these locations must go through the registry:
+
+- `internal/plugin/` (plugin framework — text parsing, JSON encoding, process management)
+- `internal/plugin/bgp/` (reactor, message building, session handling)
+- `internal/config/` (config loading and parsing)
+- `cmd/ze/` (CLI commands)
+
+### How to use the registry instead
+
+For NLRI **decoding** (wire → display):
+- Use `registry.NLRIDecoder(family)` to get a `func(hex) (json, error)` callback
+- Already done in `text.go` and `update_text.go`
+
+For NLRI **encoding** (args → wire):
+- Use `registry.NLRIEncoder(family)` to get a `func(args) (hex, error)` callback
+- Plugin registers `EncodeNLRIArgs` in its `Registration` struct
+
+### Known violations (to be fixed)
+
+These files still directly import plugin packages for NLRI construction.
+They should use `registry.EncodeNLRIByFamily(family, args)` instead — the same
+API that `update_text.go` already uses. The text-based args format is the
+universal interface (e.g., `"type2", "rd", "0:1:1", "mac", "00:11:22:33:44:55"`).
+
+| File | Plugin imports | What it does |
+|------|---------------|--------------|
+| `cmd/ze/bgp/encode.go` | bgp-evpn, bgp-flowspec, bgp-vpn | CLI `ze bgp encode` — builds NLRI from flags |
+| `internal/plugin/bgp/reactor/reactor.go` | bgp-vpn | VPN withdrawal building |
+| `internal/plugin/bgp/message/update_build.go` | bgp-evpn | EVPN UPDATE building |
+| `internal/config/loader.go` | bgp-flowspec | FlowSpec config parsing |
+
 ## 5-Stage Protocol (MANDATORY)
 
 All plugins follow this startup sequence over **YANG RPC** (NUL-framed JSON over dual Unix socket pairs):
@@ -76,6 +123,8 @@ Every internal plugin MUST have a `register.go` file that calls `registry.Regist
 | `YANG` | string | No | YANG schema content |
 | `ConfigureEngineLogger` | func(string) | No | Logger setup for engine mode |
 | `InProcessDecoder` | func(*bytes.Buffer, *bytes.Buffer) int | No | In-process decode function for CLI |
+| `InProcessNLRIDecoder` | func(family, hex string) (string, error) | No | NLRI decode: (family, hex) → JSON. Used by `text.go`, `update_text.go` to avoid plugin imports |
+| `InProcessNLRIEncoder` | func(family string, args []string) (string, error) | No | NLRI encode: (family, args) → hex. Used by infrastructure to avoid plugin imports |
 | `Features` | string | No | Space-separated feature flags ("nlri yang capa") |
 | `SupportsNLRI` | bool | No | Enable --nlri CLI flag |
 | `SupportsCapa` | bool | No | Enable --capa CLI flag |
@@ -177,6 +226,11 @@ func RunXxxPlugin(engineConn, callbackConn net.Conn) int {
 | Method | Purpose |
 |--------|---------|
 | `p.UpdateRoute(ctx, peer, command)` | Send route update/forward/withdraw |
+| `p.DecodeNLRI(ctx, family, hex)` | Decode NLRI hex via compile-time registry |
+| `p.EncodeNLRI(ctx, family, args)` | Encode NLRI from args via compile-time registry |
+| `p.DecodeMPReach(ctx, hex, addPath)` | Decode MP_REACH_NLRI attribute (family + next-hop + NLRI) |
+| `p.DecodeMPUnreach(ctx, hex, addPath)` | Decode MP_UNREACH_NLRI attribute (family + withdrawn NLRI) |
+| `p.DecodeUpdate(ctx, hex, addPath)` | Decode full UPDATE body as ze-bgp JSON |
 | `p.SubscribeEvents(ctx, events, families, peer)` | Subscribe to event types |
 | `p.UnsubscribeEvents(ctx)` | Clear all subscriptions |
 
@@ -219,6 +273,8 @@ No manual registration needed - plugins declare their capabilities in `register.
 | Family->plugin | `cmd/ze/bgp/decode.go` | `registry.FamilyMap()` |
 | Capability->plugin | `cmd/ze/bgp/decode.go` | `registry.CapabilityMap()` |
 | In-process decoders | `cmd/ze/bgp/decode.go` | `registry.InProcessDecoders()` |
+| NLRI decoder by family | `internal/plugin/text.go` | `registry.NLRIDecoder(family)` |
+| NLRI encoder by family | `internal/plugin/update_text.go` | `registry.NLRIEncoder(family)` |
 
 ## New Plugin Checklist
 

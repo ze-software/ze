@@ -1,0 +1,103 @@
+# Test: Plugin→engine decode-update RPC
+# Validates plugin can decode full UPDATE message body via engine RPC (Socket A)
+# UPDATE: ORIGIN=IGP, NEXT_HOP=192.168.1.1, NLRI=10.0.0.0/24
+# Plugin decodes, validates ze-bgp JSON result, sends EOR as success signal
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Plugin sends EOR after successful decode-update validation
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin script
+tmpfs=decode-update.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test decode-update RPC: plugin calls engine to decode full UPDATE body."""
+
+import json
+import sys
+import time
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+    api.ready()
+    time.sleep(0.1)
+
+    # UPDATE body (after 19-byte BGP header):
+    # Withdrawn Routes Length=0(0000), Attr Length=11(000B),
+    # ORIGIN=IGP(40010100), NEXT_HOP=192.168.1.1(400304C0A80101),
+    # NLRI=10.0.0.0/24(180A0000)
+    # RFC 4271 Section 4.3
+    params = {'hex': '0000000B40010100400304C0A80101180A0000', 'add-path': False}
+    resp = api._call_engine('ze-plugin-engine:decode-update', params)
+
+    result = resp.get('result')
+    if result is None:
+        print('ERROR: decode-update returned no result', file=sys.stderr)
+        sys.exit(1)
+
+    json_str = result.get('json', '')
+    if not json_str:
+        print('ERROR: decode-update returned empty json', file=sys.stderr)
+        sys.exit(1)
+
+    # Parse the ze-bgp JSON and validate content
+    try:
+        update = json.loads(json_str)
+    except json.JSONDecodeError as e:
+        print(f'ERROR: invalid JSON from decode-update: {e}', file=sys.stderr)
+        sys.exit(1)
+
+    # Check for expected content in ze-bgp JSON
+    update_data = update.get('update', {})
+    attr = update_data.get('attr', {})
+    if attr.get('origin') != 'igp':
+        print(f'ERROR: expected origin igp, got {attr.get("origin")}', file=sys.stderr)
+        sys.exit(1)
+
+    if '10.0.0.0/24' not in json_str:
+        print(f'ERROR: expected 10.0.0.0/24 in update JSON', file=sys.stderr)
+        sys.exit(1)
+
+    # Success: send EOR to signal completion
+    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+    api.wait_for_ack(expected_count=1)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external decode-test {
+        run ./decode-update.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.1;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65000;
+        group-updates disable;
+
+        family {
+            ipv4/unicast;
+        }
+        process decode-test {
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

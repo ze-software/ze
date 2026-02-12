@@ -14,8 +14,10 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -947,6 +949,21 @@ func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Re
 	case "ze-plugin-engine:unsubscribe-events":
 		s.handleUnsubscribeEventsRPC(proc, connA, req)
 		return
+	case "ze-plugin-engine:decode-nlri":
+		s.handleDecodeNLRIRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:encode-nlri":
+		s.handleEncodeNLRIRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:decode-mp-reach":
+		s.handleDecodeMPReachRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:decode-mp-unreach":
+		s.handleDecodeMPUnreachRPC(proc, connA, req)
+		return
+	case "ze-plugin-engine:decode-update":
+		s.handleDecodeUpdateRPC(proc, connA, req)
+		return
 	}
 	if err := connA.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
 		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
@@ -1093,6 +1110,298 @@ func (s *Server) handleUnsubscribeEventsRPC(proc *Process, connA *PluginConn, re
 	if sendErr := connA.SendResult(s.ctx, req.ID, nil); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
+}
+
+// handleCodecRPC is a shared helper for plugin→engine codec RPCs (decode-nlri, encode-nlri).
+// The codec callback unmarshals params and calls the registry; it returns the result to send
+// or an error to relay back to the plugin.
+func (s *Server) handleCodecRPC(proc *Process, connA *PluginConn, req *ipc.Request,
+	codec func(json.RawMessage) (any, error),
+) {
+	result, err := codec(req.Params)
+	if err != nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	if sendErr := connA.SendResult(s.ctx, req.ID, result); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// handleDecodeNLRIRPC handles ze-plugin-engine:decode-nlri from a plugin.
+// Routes through the compile-time registry to find the in-process decoder for the family.
+func (s *Server) handleDecodeNLRIRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	s.handleCodecRPC(proc, connA, req, func(params json.RawMessage) (any, error) {
+		var input rpc.DecodeNLRIInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("invalid decode-nlri params: %w", err)
+		}
+		result, err := registry.DecodeNLRIByFamily(input.Family, input.Hex)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.DecodeNLRIOutput{JSON: result}, nil
+	})
+}
+
+// handleEncodeNLRIRPC handles ze-plugin-engine:encode-nlri from a plugin.
+// Routes through the compile-time registry to find the in-process encoder for the family.
+func (s *Server) handleEncodeNLRIRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	s.handleCodecRPC(proc, connA, req, func(params json.RawMessage) (any, error) {
+		var input rpc.EncodeNLRIInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("invalid encode-nlri params: %w", err)
+		}
+		result, err := registry.EncodeNLRIByFamily(input.Family, input.Args)
+		if err != nil {
+			return nil, err
+		}
+		return &rpc.EncodeNLRIOutput{Hex: result}, nil
+	})
+}
+
+// handleDecodeMPReachRPC handles ze-plugin-engine:decode-mp-reach from a plugin.
+// RFC 4760 Section 3: Decodes MP_REACH_NLRI attribute value (AFI+SAFI+NH+Reserved+NLRI).
+func (s *Server) handleDecodeMPReachRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	s.handleCodecRPC(proc, connA, req, func(params json.RawMessage) (any, error) {
+		var input rpc.DecodeMPReachInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("invalid decode-mp-reach params: %w", err)
+		}
+
+		data, err := hex.DecodeString(input.Hex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid hex: %w", err)
+		}
+
+		// RFC 4760 Section 3: minimum is AFI(2)+SAFI(1)+NHLen(1)+Reserved(1) = 5 bytes
+		if len(data) < 5 {
+			return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
+		}
+
+		mpw := MPReachWire(data)
+		familyStr := mpw.Family().String()
+
+		var nhStr string
+		if nhAddr := mpw.NextHop(); nhAddr.IsValid() {
+			nhStr = nhAddr.String()
+		}
+
+		nlriJSON, err := decodeMPNLRIs(mpw.NLRIBytes(), mpw.Family(), input.AddPath)
+		if err != nil {
+			return nil, err
+		}
+
+		return &rpc.DecodeMPReachOutput{
+			Family:  familyStr,
+			NextHop: nhStr,
+			NLRI:    nlriJSON,
+		}, nil
+	})
+}
+
+// handleDecodeMPUnreachRPC handles ze-plugin-engine:decode-mp-unreach from a plugin.
+// RFC 4760 Section 4: Decodes MP_UNREACH_NLRI attribute value (AFI+SAFI+Withdrawn).
+func (s *Server) handleDecodeMPUnreachRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	s.handleCodecRPC(proc, connA, req, func(params json.RawMessage) (any, error) {
+		var input rpc.DecodeMPUnreachInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("invalid decode-mp-unreach params: %w", err)
+		}
+
+		data, err := hex.DecodeString(input.Hex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid hex: %w", err)
+		}
+
+		// RFC 4760 Section 4: minimum is AFI(2)+SAFI(1) = 3 bytes
+		if len(data) < 3 {
+			return nil, fmt.Errorf("MP_UNREACH_NLRI too short: %d bytes", len(data))
+		}
+
+		mpw := MPUnreachWire(data)
+		familyStr := mpw.Family().String()
+
+		nlriJSON, err := decodeMPNLRIs(mpw.WithdrawnBytes(), mpw.Family(), input.AddPath)
+		if err != nil {
+			return nil, err
+		}
+
+		return &rpc.DecodeMPUnreachOutput{
+			Family: familyStr,
+			NLRI:   nlriJSON,
+		}, nil
+	})
+}
+
+// handleDecodeUpdateRPC handles ze-plugin-engine:decode-update from a plugin.
+// statelessDecodeCtxID is a lazily-registered encoding context for stateless decode RPCs.
+// Uses ASN4=true (modern default) since the caller has no negotiated capabilities.
+var (
+	statelessDecodeOnce sync.Once
+	statelessDecodeCtx  bgpctx.ContextID
+)
+
+func getStatelessDecodeCtxID() bgpctx.ContextID {
+	statelessDecodeOnce.Do(func() {
+		ctx := bgpctx.EncodingContextForASN4(true)
+		statelessDecodeCtx = bgpctx.Registry.Register(ctx)
+	})
+	return statelessDecodeCtx
+}
+
+// RFC 4271 Section 4.3: Decodes full UPDATE message body (after 19-byte BGP header).
+func (s *Server) handleDecodeUpdateRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	s.handleCodecRPC(proc, connA, req, func(params json.RawMessage) (any, error) {
+		var input rpc.DecodeUpdateInput
+		if err := json.Unmarshal(params, &input); err != nil {
+			return nil, fmt.Errorf("invalid decode-update params: %w", err)
+		}
+
+		body, err := hex.DecodeString(input.Hex)
+		if err != nil {
+			return nil, fmt.Errorf("invalid hex: %w", err)
+		}
+
+		// RFC 4271 Section 4.3: minimum is withdrawn_len(2) + attr_len(2) = 4 bytes
+		if len(body) < 4 {
+			return nil, fmt.Errorf("UPDATE body too short: %d bytes", len(body))
+		}
+
+		ctxID := getStatelessDecodeCtxID()
+		wu := NewWireUpdate(body, ctxID)
+		wire, err := wu.Attrs()
+		if err != nil {
+			return nil, fmt.Errorf("parsing attributes: %w", err)
+		}
+
+		filter := NewFilterAll()
+		result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
+		if err != nil {
+			return nil, fmt.Errorf("parsing UPDATE: %w", err)
+		}
+
+		jsonStr := formatDecodeUpdateJSON(result, input.AddPath)
+		return &rpc.DecodeUpdateOutput{JSON: jsonStr}, nil
+	})
+}
+
+// decodeMPNLRIs decodes raw NLRI bytes for the given family, returning a JSON array.
+// Plugin families route through the compile-time registry; core families parse via nlri package.
+func decodeMPNLRIs(nlriBytes []byte, family nlri.Family, addPath bool) (json.RawMessage, error) {
+	if len(nlriBytes) == 0 {
+		return json.RawMessage("[]"), nil
+	}
+
+	// Plugin families: decode via registry (VPN, EVPN, FlowSpec, BGP-LS)
+	familyStr := family.String()
+	if registry.PluginForFamily(familyStr) != "" {
+		nlriHex := hex.EncodeToString(nlriBytes)
+		result, err := registry.DecodeNLRIByFamily(familyStr, nlriHex)
+		if err != nil {
+			return nil, err
+		}
+		return json.RawMessage(result), nil
+	}
+
+	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)
+	nlris, err := parseNLRIs(nlriBytes, family, addPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return formatNLRIsAsJSON(nlris), nil
+}
+
+// formatNLRIsAsJSON formats a slice of NLRIs as a JSON array.
+// Uses formatNLRIJSONValue for consistent formatting of all NLRI types.
+func formatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, n := range nlris {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		formatNLRIJSONValue(&sb, n)
+	}
+	sb.WriteString("]")
+	return json.RawMessage(sb.String())
+}
+
+// formatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.
+// Produces {"update":{"attr":{...},"nlri":{...}}} without peer/message metadata.
+func formatDecodeUpdateJSON(result FilterResult, addPath bool) string {
+	var sb strings.Builder
+	sb.WriteString(`{"update":{`)
+
+	// Attributes
+	if len(result.Attributes) > 0 {
+		sb.WriteString(`"attr":{`)
+		formatAttributesJSON(&sb, result)
+		sb.WriteString(`},`)
+	}
+
+	// Collect NLRI operations by family
+	familyOps := make(map[string][]familyOperation)
+
+	// MP-BGP announced routes
+	for _, mp := range result.MPReach {
+		nlris, err := mp.NLRIs(addPath)
+		if err != nil || len(nlris) == 0 {
+			continue
+		}
+		nhStr := mp.NextHop().String()
+		familyOps[mp.Family().String()] = append(familyOps[mp.Family().String()], familyOperation{
+			Action:  "add",
+			NextHop: nhStr,
+			NLRIs:   nlris,
+		})
+	}
+
+	// MP-BGP withdrawn routes
+	for _, mp := range result.MPUnreach {
+		nlris, err := mp.NLRIs(addPath)
+		if err != nil || len(nlris) == 0 {
+			continue
+		}
+		familyOps[mp.Family().String()] = append(familyOps[mp.Family().String()], familyOperation{
+			Action: "del",
+			NLRIs:  nlris,
+		})
+	}
+
+	// Legacy IPv4 announced
+	if result.IPv4Announced != nil {
+		nlris, err := result.IPv4Announced.NLRIs(addPath)
+		if err == nil && len(nlris) > 0 {
+			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
+				Action:  "add",
+				NextHop: result.IPv4Announced.NextHop().String(),
+				NLRIs:   nlris,
+			})
+		}
+	}
+
+	// Legacy IPv4 withdrawn
+	if result.IPv4Withdrawn != nil {
+		nlris, err := result.IPv4Withdrawn.NLRIs(addPath)
+		if err == nil && len(nlris) > 0 {
+			familyOps["ipv4/unicast"] = append(familyOps["ipv4/unicast"], familyOperation{
+				Action: "del",
+				NLRIs:  nlris,
+			})
+		}
+	}
+
+	// Format NLRI operations
+	sb.WriteString(`"nlri":{`)
+	formatFamilyOpsJSON(&sb, familyOps)
+	sb.WriteString(`}}}`)
+
+	return sb.String()
 }
 
 // registrationFromRPC converts DeclareRegistrationInput (RPC types) to PluginRegistration (engine types).

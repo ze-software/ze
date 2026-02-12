@@ -321,39 +321,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 
 	// NLRIs inside update
 	sb.WriteString(`"nlri":{`)
-	first := true
-	for family, ops := range familyOps {
-		if !first {
-			sb.WriteString(",")
-		}
-		first = false
-		sb.WriteString(`"`)
-		sb.WriteString(family)
-		sb.WriteString(`":[`)
-		for i, op := range ops {
-			if i > 0 {
-				sb.WriteString(",")
-			}
-			sb.WriteString(`{`)
-			// next-hop only for add operations (and only if valid)
-			if op.Action == "add" && op.NextHop != "" && op.NextHop != "invalid IP" {
-				sb.WriteString(`"next-hop":"`)
-				sb.WriteString(op.NextHop)
-				sb.WriteString(`",`)
-			}
-			sb.WriteString(`"action":"`)
-			sb.WriteString(op.Action)
-			sb.WriteString(`","nlri":[`)
-			for j, n := range op.NLRIs {
-				if j > 0 {
-					sb.WriteString(",")
-				}
-				formatNLRIJSONValue(&sb, n)
-			}
-			sb.WriteString(`]}`)
-		}
-		sb.WriteString(`]`)
-	}
+	formatFamilyOpsJSON(&sb, familyOps)
 	sb.WriteString(`}`)
 
 	// Close update, bgp, and outer wrapper
@@ -495,10 +463,9 @@ func writeJSONEscapedString(sb *strings.Builder, s string) {
 }
 
 // formatAttributesJSON formats attributes from FilterResult for JSON.
-// Returns true if any attributes were written (for comma handling).
-func formatAttributesJSON(sb *strings.Builder, result FilterResult) bool {
+func formatAttributesJSON(sb *strings.Builder, result FilterResult) {
 	if len(result.Attributes) == 0 {
-		return false
+		return
 	}
 
 	first := true
@@ -509,7 +476,43 @@ func formatAttributesJSON(sb *strings.Builder, result FilterResult) bool {
 		first = false
 		formatAttributeJSON(sb, code, attr)
 	}
-	return true
+}
+
+// formatFamilyOpsJSON writes family operations as JSON object entries.
+// Shared by formatFilterResultJSON and formatDecodeUpdateJSON.
+func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOperation) {
+	first := true
+	for family, ops := range familyOps {
+		if !first {
+			sb.WriteString(",")
+		}
+		first = false
+		sb.WriteString(`"`)
+		sb.WriteString(family)
+		sb.WriteString(`":[`)
+		for i, op := range ops {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			sb.WriteString(`{`)
+			if op.Action == kwAdd && op.NextHop != "" && op.NextHop != "invalid IP" {
+				sb.WriteString(`"next-hop":"`)
+				sb.WriteString(op.NextHop)
+				sb.WriteString(`",`)
+			}
+			sb.WriteString(`"action":"`)
+			sb.WriteString(op.Action)
+			sb.WriteString(`","nlri":[`)
+			for j, n := range op.NLRIs {
+				if j > 0 {
+					sb.WriteString(",")
+				}
+				formatNLRIJSONValue(sb, n)
+			}
+			sb.WriteString(`]}`)
+		}
+		sb.WriteString(`]`)
+	}
 }
 
 // formatAttributeJSON formats a single attribute for JSON.

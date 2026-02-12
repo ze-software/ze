@@ -1390,3 +1390,364 @@ func TestSDKValidateOpenReject(t *testing.T) {
 		t.Fatal("plugin did not exit")
 	}
 }
+
+// TestSDKDecodeNLRIEngineCall verifies plugin→engine decode-nlri RPC.
+//
+// VALIDATES: Plugin calls DecodeNLRI() and receives JSON result from engine.
+// PREVENTS: Plugin unable to request NLRI decoding from the engine.
+func TestSDKDecodeNLRIEngineCall(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: send a no-op event to confirm the event loop is running.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls DecodeNLRI in background
+	decodeDone := make(chan struct {
+		json string
+		err  error
+	}, 1)
+	go func() {
+		j, err := p.DecodeNLRI(ctx, "ipv4/flow", "0701180A0000")
+		decodeDone <- struct {
+			json string
+			err  error
+		}{j, err}
+	}()
+
+	// Engine reads decode-nlri request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:decode-nlri", req.Method)
+
+	// Verify params
+	var input rpc.DecodeNLRIInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "ipv4/flow", input.Family)
+	assert.Equal(t, "0701180A0000", input.Hex)
+
+	// Respond with JSON result
+	decodeResult := struct {
+		JSON string `json:"json"`
+	}{JSON: `[{"source":"10.0.0.0/24"}]`}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+
+	r := <-decodeDone
+	require.NoError(t, r.err)
+	assert.Equal(t, `[{"source":"10.0.0.0/24"}]`, r.json)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKEncodeNLRIEngineCall verifies plugin→engine encode-nlri RPC.
+//
+// VALIDATES: Plugin calls EncodeNLRI() and receives hex result from engine.
+// PREVENTS: Plugin unable to request NLRI encoding from the engine.
+func TestSDKEncodeNLRIEngineCall(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: send a no-op event to confirm the event loop is running.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls EncodeNLRI in background
+	encodeDone := make(chan struct {
+		hex string
+		err error
+	}, 1)
+	go func() {
+		h, err := p.EncodeNLRI(ctx, "ipv4/flow", []string{"match", "source", "10.0.0.0/24"})
+		encodeDone <- struct {
+			hex string
+			err error
+		}{h, err}
+	}()
+
+	// Engine reads encode-nlri request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:encode-nlri", req.Method)
+
+	// Verify params
+	var input rpc.EncodeNLRIInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "ipv4/flow", input.Family)
+	assert.Equal(t, []string{"match", "source", "10.0.0.0/24"}, input.Args)
+
+	// Respond with hex result
+	encodeResult := struct {
+		Hex string `json:"hex"`
+	}{Hex: "0701180A0000"}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, encodeResult))
+
+	r := <-encodeDone
+	require.NoError(t, r.err)
+	assert.Equal(t, "0701180A0000", r.hex)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDecodeMPReachEngineCall verifies plugin→engine decode-mp-reach RPC.
+//
+// VALIDATES: Plugin calls DecodeMPReach() and receives structured result from engine.
+// PREVENTS: Plugin unable to decode MP_REACH_NLRI via engine.
+func TestSDKDecodeMPReachEngineCall(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: send a no-op event to confirm the event loop is running.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls DecodeMPReach in background
+	type mpReachResult struct {
+		output *rpc.DecodeMPReachOutput
+		err    error
+	}
+	decodeDone := make(chan mpReachResult, 1)
+	go func() {
+		out, err := p.DecodeMPReach(ctx, "00010104C0A8010100180A0000", false)
+		decodeDone <- mpReachResult{out, err}
+	}()
+
+	// Engine reads decode-mp-reach request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:decode-mp-reach", req.Method)
+
+	// Verify params
+	var input rpc.DecodeMPReachInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "00010104C0A8010100180A0000", input.Hex)
+	assert.False(t, input.AddPath)
+
+	// Respond with structured result
+	decodeResult := rpc.DecodeMPReachOutput{
+		Family:  "ipv4/unicast",
+		NextHop: "192.168.1.1",
+		NLRI:    json.RawMessage(`["10.0.0.0/24"]`),
+	}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+
+	mpR := <-decodeDone
+	require.NoError(t, mpR.err)
+	assert.Equal(t, "ipv4/unicast", mpR.output.Family)
+	assert.Equal(t, "192.168.1.1", mpR.output.NextHop)
+	assert.JSONEq(t, `["10.0.0.0/24"]`, string(mpR.output.NLRI))
+
+	// Shutdown
+	byeInput2 := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDecodeMPUnreachEngineCall verifies plugin→engine decode-mp-unreach RPC.
+//
+// VALIDATES: Plugin calls DecodeMPUnreach() and receives structured result from engine.
+// PREVENTS: Plugin unable to decode MP_UNREACH_NLRI via engine.
+func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls DecodeMPUnreach in background
+	type mpUnreachResult struct {
+		output *rpc.DecodeMPUnreachOutput
+		err    error
+	}
+	decodeDone := make(chan mpUnreachResult, 1)
+	go func() {
+		out, err := p.DecodeMPUnreach(ctx, "00010118C0A800", false)
+		decodeDone <- mpUnreachResult{out, err}
+	}()
+
+	// Engine reads decode-mp-unreach request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:decode-mp-unreach", req.Method)
+
+	var input rpc.DecodeMPUnreachInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "00010118C0A800", input.Hex)
+	assert.False(t, input.AddPath)
+
+	decodeResult := rpc.DecodeMPUnreachOutput{
+		Family: "ipv4/unicast",
+		NLRI:   json.RawMessage(`["192.168.0.0/24"]`),
+	}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+
+	mpR := <-decodeDone
+	require.NoError(t, mpR.err)
+	assert.Equal(t, "ipv4/unicast", mpR.output.Family)
+	assert.JSONEq(t, `["192.168.0.0/24"]`, string(mpR.output.NLRI))
+
+	// Shutdown
+	byeInput2 := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestSDKDecodeUpdateEngineCall verifies plugin→engine decode-update RPC.
+//
+// VALIDATES: Plugin calls DecodeUpdate() and receives ze-bgp JSON from engine.
+// PREVENTS: Plugin unable to decode full UPDATE message via engine.
+func TestSDKDecodeUpdateEngineCall(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls DecodeUpdate in background
+	type updateResult struct {
+		json string
+		err  error
+	}
+	decodeDone := make(chan updateResult, 1)
+	go func() {
+		j, err := p.DecodeUpdate(ctx, "0000000B40010100400304C0A80101180A0000", false)
+		decodeDone <- updateResult{j, err}
+	}()
+
+	// Engine reads decode-update request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:decode-update", req.Method)
+
+	var input rpc.DecodeUpdateInput
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Equal(t, "0000000B40010100400304C0A80101180A0000", input.Hex)
+	assert.False(t, input.AddPath)
+
+	// Respond with ze-bgp JSON
+	decodeResult := struct {
+		JSON string `json:"json"`
+	}{JSON: `{"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+
+	upR := <-decodeDone
+	require.NoError(t, upR.err)
+	assert.Contains(t, upR.json, "update")
+	assert.Contains(t, upR.json, "10.0.0.0/24")
+
+	// Shutdown
+	byeInput2 := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

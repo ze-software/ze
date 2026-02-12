@@ -1,0 +1,86 @@
+# Test: Plugin→engine decode-mp-unreach RPC
+# Validates plugin can decode MP_UNREACH_NLRI via engine RPC (Socket A)
+# MP_UNREACH_NLRI: IPv4 unicast, withdrawn=192.168.0.0/24
+# Plugin decodes, validates result, sends EOR as success signal
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Plugin sends EOR after successful decode-mp-unreach validation
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin script
+tmpfs=decode-mp-unreach.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test decode-mp-unreach RPC: plugin calls engine to decode MP_UNREACH_NLRI."""
+
+import sys
+import time
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+    api.ready()
+    time.sleep(0.1)
+
+    # MP_UNREACH_NLRI for IPv4 unicast:
+    # AFI=1(0001), SAFI=1(01), Withdrawn=192.168.0.0/24(18C0A800)
+    # RFC 4760 Section 4
+    params = {'hex': '00010118C0A800', 'add-path': False}
+    resp = api._call_engine('ze-plugin-engine:decode-mp-unreach', params)
+
+    result = resp.get('result')
+    if result is None:
+        print('ERROR: decode-mp-unreach returned no result', file=sys.stderr)
+        sys.exit(1)
+
+    if result.get('family') != 'ipv4/unicast':
+        print(f'ERROR: expected family ipv4/unicast, got {result.get("family")}', file=sys.stderr)
+        sys.exit(1)
+
+    nlri = result.get('nlri', '')
+    if '192.168.0.0/24' not in str(nlri):
+        print(f'ERROR: expected 192.168.0.0/24 in nlri, got {nlri}', file=sys.stderr)
+        sys.exit(1)
+
+    # Success: send EOR to signal completion
+    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+    api.wait_for_ack(expected_count=1)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external decode-test {
+        run ./decode-mp-unreach.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.1;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65000;
+        group-updates disable;
+
+        family {
+            ipv4/unicast;
+        }
+        process decode-test {
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

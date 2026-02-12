@@ -178,6 +178,141 @@ module ze-plugin-engine {
         description "Stop event delivery.";
     }
 
+    // Runtime: Wire decoding services.
+    // Plugins call these to decode BGP wire data via the engine's parsers.
+
+    rpc decode-nlri {
+        description
+            "Decode NLRI hex for a specific address family.
+             Engine routes to the compile-time plugin registry for decoding.";
+        input {
+            leaf family {
+                type string;
+                mandatory true;
+                description "Address family (e.g., ipv4/unicast, l2vpn/evpn)";
+            }
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded NLRI wire bytes";
+            }
+        }
+        output {
+            leaf json {
+                type string;
+                description "JSON-encoded decoded NLRI";
+            }
+        }
+    }
+
+    rpc encode-nlri {
+        description
+            "Encode NLRI from text arguments for a specific address family.
+             Engine routes to the compile-time plugin registry for encoding.";
+        input {
+            leaf family {
+                type string;
+                mandatory true;
+                description "Address family (e.g., ipv4/flow, l2vpn/evpn)";
+            }
+            leaf-list args {
+                type string;
+                description "Encoding arguments (family-specific)";
+            }
+        }
+        output {
+            leaf hex {
+                type string;
+                description "Hex-encoded NLRI wire bytes";
+            }
+        }
+    }
+
+    rpc decode-mp-reach {
+        description
+            "Decode a full MP_REACH_NLRI attribute value (RFC 4760 Section 3).
+             Engine extracts address family, next-hop, and decoded NLRI.";
+        input {
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded MP_REACH_NLRI value (after TLV header)";
+            }
+            leaf add-path {
+                type boolean;
+                default false;
+                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+            }
+        }
+        output {
+            leaf family {
+                type string;
+                description "Decoded address family (e.g., ipv4/unicast)";
+            }
+            leaf next-hop {
+                type string;
+                description "Decoded next-hop address";
+            }
+            leaf nlri {
+                type string;
+                description "JSON array of decoded NLRI entries";
+            }
+        }
+    }
+
+    rpc decode-mp-unreach {
+        description
+            "Decode a full MP_UNREACH_NLRI attribute value (RFC 4760 Section 4).
+             Engine extracts address family and decoded withdrawn NLRI.";
+        input {
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded MP_UNREACH_NLRI value (after TLV header)";
+            }
+            leaf add-path {
+                type boolean;
+                default false;
+                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+            }
+        }
+        output {
+            leaf family {
+                type string;
+                description "Decoded address family (e.g., ipv4/unicast)";
+            }
+            leaf nlri {
+                type string;
+                description "JSON array of decoded withdrawn NLRI entries";
+            }
+        }
+    }
+
+    rpc decode-update {
+        description
+            "Decode a full UPDATE message body (RFC 4271 Section 4.3).
+             Engine parses attributes, NLRI, and withdrawn routes.
+             Returns ze-bgp JSON format (same structure as deliver-event).";
+        input {
+            leaf hex {
+                type string;
+                mandatory true;
+                description "Hex-encoded UPDATE body (after 19-byte BGP header)";
+            }
+            leaf add-path {
+                type boolean;
+                default false;
+                description "Whether NLRI includes ADD-PATH path-id (RFC 7911)";
+            }
+        }
+        output {
+            leaf json {
+                type string;
+                description "ze-bgp JSON with update attributes and NLRI";
+            }
+        }
+    }
+
     // Error identities.
 
     identity registration-conflict {

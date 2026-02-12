@@ -4,9 +4,14 @@
 // to ensure a single source of truth for the RPC message structures.
 //
 // The two-socket architecture uses these types in JSON-RPC messages:
-//   - Socket A (plugin → engine): declare-registration, declare-capabilities, ready
-//   - Socket B (engine → plugin): configure, share-registry, deliver-event, bye
+//   - Socket A (plugin → engine): declare-registration, declare-capabilities, ready,
+//     update-route, subscribe/unsubscribe-events, decode/encode-nlri,
+//     decode-mp-reach, decode-mp-unreach, decode-update
+//   - Socket B (engine → plugin): configure, share-registry, deliver-event,
+//     decode/encode-nlri, decode-capability, execute-command, bye
 package rpc
+
+import "encoding/json"
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
@@ -80,16 +85,68 @@ type DeliverEventInput struct {
 	Event string `json:"event"`
 }
 
-// EncodeNLRIInput is the input for ze-plugin-callback:encode-nlri.
+// EncodeNLRIInput is the input for ze-plugin-callback:encode-nlri (engine→plugin)
+// and ze-plugin-engine:encode-nlri (plugin→engine).
 type EncodeNLRIInput struct {
 	Family string   `json:"family"`
 	Args   []string `json:"args,omitempty"`
 }
 
-// DecodeNLRIInput is the input for ze-plugin-callback:decode-nlri.
+// EncodeNLRIOutput is the output for ze-plugin-engine:encode-nlri (plugin→engine).
+type EncodeNLRIOutput struct {
+	Hex string `json:"hex"`
+}
+
+// DecodeNLRIInput is the input for ze-plugin-callback:decode-nlri (engine→plugin)
+// and ze-plugin-engine:decode-nlri (plugin→engine).
 type DecodeNLRIInput struct {
 	Family string `json:"family"`
 	Hex    string `json:"hex"`
+}
+
+// DecodeNLRIOutput is the output for ze-plugin-engine:decode-nlri (plugin→engine).
+type DecodeNLRIOutput struct {
+	JSON string `json:"json"`
+}
+
+// DecodeMPReachInput is the input for ze-plugin-engine:decode-mp-reach (plugin→engine).
+// Hex is the MP_REACH_NLRI attribute value (after TLV header): AFI(2)+SAFI(1)+NHLen(1)+NH+Reserved+NLRI.
+type DecodeMPReachInput struct {
+	Hex     string `json:"hex"`
+	AddPath bool   `json:"add-path,omitempty"`
+}
+
+// DecodeMPReachOutput is the output for ze-plugin-engine:decode-mp-reach (plugin→engine).
+type DecodeMPReachOutput struct {
+	Family  string          `json:"family"`
+	NextHop string          `json:"next-hop,omitempty"`
+	NLRI    json.RawMessage `json:"nlri"`
+}
+
+// DecodeMPUnreachInput is the input for ze-plugin-engine:decode-mp-unreach (plugin→engine).
+// Hex is the MP_UNREACH_NLRI attribute value (after TLV header): AFI(2)+SAFI(1)+Withdrawn.
+type DecodeMPUnreachInput struct {
+	Hex     string `json:"hex"`
+	AddPath bool   `json:"add-path,omitempty"`
+}
+
+// DecodeMPUnreachOutput is the output for ze-plugin-engine:decode-mp-unreach (plugin→engine).
+type DecodeMPUnreachOutput struct {
+	Family string          `json:"family"`
+	NLRI   json.RawMessage `json:"nlri"`
+}
+
+// DecodeUpdateInput is the input for ze-plugin-engine:decode-update (plugin→engine).
+// Hex is the UPDATE message body (after 19-byte BGP header): Withdrawn+Attrs+NLRI.
+type DecodeUpdateInput struct {
+	Hex     string `json:"hex"`
+	AddPath bool   `json:"add-path,omitempty"`
+}
+
+// DecodeUpdateOutput is the output for ze-plugin-engine:decode-update (plugin→engine).
+// JSON contains the ze-bgp format UPDATE, same structure as deliver-event.
+type DecodeUpdateOutput struct {
+	JSON string `json:"json"`
 }
 
 // DecodeCapabilityInput is the input for ze-plugin-callback:decode-capability.

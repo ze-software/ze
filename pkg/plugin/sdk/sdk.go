@@ -384,6 +384,86 @@ func (p *Plugin) UnsubscribeEvents(ctx context.Context) error {
 	return p.callEngine(ctx, "ze-plugin-engine:unsubscribe-events", nil)
 }
 
+// DecodeNLRI requests NLRI decoding from the engine via the plugin registry.
+// The engine routes the request to the in-process decoder for the given family.
+// Returns the JSON representation of the decoded NLRI.
+func (p *Plugin) DecodeNLRI(ctx context.Context, family, hex string) (string, error) {
+	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-nlri", input)
+	if err != nil {
+		return "", err
+	}
+	var out rpc.DecodeNLRIOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return "", fmt.Errorf("unmarshal decode-nlri result: %w", err)
+	}
+	return out.JSON, nil
+}
+
+// EncodeNLRI requests NLRI encoding from the engine via the plugin registry.
+// The engine routes the request to the in-process encoder for the given family.
+// Returns hex-encoded NLRI bytes.
+func (p *Plugin) EncodeNLRI(ctx context.Context, family string, args []string) (string, error) {
+	input := &rpc.EncodeNLRIInput{Family: family, Args: args}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:encode-nlri", input)
+	if err != nil {
+		return "", err
+	}
+	var out rpc.EncodeNLRIOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return "", fmt.Errorf("unmarshal encode-nlri result: %w", err)
+	}
+	return out.Hex, nil
+}
+
+// DecodeMPReach requests MP_REACH_NLRI decoding from the engine.
+// The engine parses the attribute value (AFI+SAFI+NH+NLRI) and returns the family,
+// next-hop, and decoded NLRI. RFC 4760 Section 3.
+func (p *Plugin) DecodeMPReach(ctx context.Context, hex string, addPath bool) (*rpc.DecodeMPReachOutput, error) {
+	input := &rpc.DecodeMPReachInput{Hex: hex, AddPath: addPath}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-mp-reach", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.DecodeMPReachOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal decode-mp-reach result: %w", err)
+	}
+	return &out, nil
+}
+
+// DecodeMPUnreach requests MP_UNREACH_NLRI decoding from the engine.
+// The engine parses the attribute value (AFI+SAFI+Withdrawn) and returns the family
+// and decoded withdrawn NLRI. RFC 4760 Section 4.
+func (p *Plugin) DecodeMPUnreach(ctx context.Context, hex string, addPath bool) (*rpc.DecodeMPUnreachOutput, error) {
+	input := &rpc.DecodeMPUnreachInput{Hex: hex, AddPath: addPath}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-mp-unreach", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.DecodeMPUnreachOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal decode-mp-unreach result: %w", err)
+	}
+	return &out, nil
+}
+
+// DecodeUpdate requests full UPDATE message decoding from the engine.
+// The engine parses the UPDATE body (after 19-byte BGP header) and returns
+// the ze-bgp JSON representation. RFC 4271 Section 4.3.
+func (p *Plugin) DecodeUpdate(ctx context.Context, hex string, addPath bool) (string, error) {
+	input := &rpc.DecodeUpdateInput{Hex: hex, AddPath: addPath}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:decode-update", input)
+	if err != nil {
+		return "", err
+	}
+	var out rpc.DecodeUpdateOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return "", fmt.Errorf("unmarshal decode-update result: %w", err)
+	}
+	return out.JSON, nil
+}
+
 // serveOne reads one request from Socket B, dispatches it, and sends the response.
 func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler func(json.RawMessage) error) error {
 	req, err := p.callbackConn.ReadRequest(ctx)
@@ -799,3 +879,18 @@ type ValidateOpenMessage = rpc.ValidateOpenMessage
 
 // ValidateOpenCapability is a single capability from an OPEN message.
 type ValidateOpenCapability = rpc.ValidateOpenCapability
+
+// DecodeNLRIOutput is the output for decode-nlri (plugin→engine).
+type DecodeNLRIOutput = rpc.DecodeNLRIOutput
+
+// EncodeNLRIOutput is the output for encode-nlri (plugin→engine).
+type EncodeNLRIOutput = rpc.EncodeNLRIOutput
+
+// DecodeMPReachOutput is the output for decode-mp-reach (plugin→engine).
+type DecodeMPReachOutput = rpc.DecodeMPReachOutput
+
+// DecodeMPUnreachOutput is the output for decode-mp-unreach (plugin→engine).
+type DecodeMPUnreachOutput = rpc.DecodeMPUnreachOutput
+
+// DecodeUpdateOutput is the output for decode-update (plugin→engine).
+type DecodeUpdateOutput = rpc.DecodeUpdateOutput

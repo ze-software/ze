@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1058,4 +1059,408 @@ func TestCapabilitiesFromRPCEdgeCases(t *testing.T) {
 		assert.Equal(t, uint8(2), caps.Capabilities[0].Code)
 		assert.Empty(t, caps.Capabilities[0].Payload)
 	})
+}
+
+// TestDispatchDecodeNLRI verifies the engine dispatches decode-nlri to the registry.
+//
+// VALIDATES: Plugin→engine decode-nlri RPC routes through registry.DecodeNLRIByFamily.
+// PREVENTS: Engine rejecting decode-nlri as unknown method.
+func TestDispatchDecodeNLRI(t *testing.T) {
+	// No t.Parallel(): mutates global compile-time registry.
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "test-decoder",
+		Description: "test",
+		Families:    []string{"ipv4/flow"},
+		InProcessNLRIDecoder: func(family, hex string) (string, error) {
+			return fmt.Sprintf(`[{"family":"%s","hex":"%s"}]`, family, hex), nil
+		},
+		RunEngine:  func(_, _ net.Conn) int { return 0 },
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	// Create socket pair for Socket A
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	// Plugin sends decode-nlri request in background
+	type decodeResult struct {
+		json string
+		err  error
+	}
+	done := make(chan decodeResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-nlri", &rpc.DecodeNLRIInput{
+			Family: "ipv4/flow",
+			Hex:    "0701180A0000",
+		})
+		if err != nil {
+			done <- decodeResult{"", err}
+			return
+		}
+		resp, err := rpc.ParseResponse(raw)
+		if err != nil {
+			done <- decodeResult{"", err}
+			return
+		}
+		var out rpc.DecodeNLRIOutput
+		if err := json.Unmarshal(resp, &out); err != nil {
+			done <- decodeResult{"", err}
+			return
+		}
+		done <- decodeResult{out.JSON, nil}
+	}()
+
+	// Engine reads and dispatches
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, `[{"family":"ipv4/flow","hex":"0701180A0000"}]`, r.json)
+}
+
+// TestDispatchEncodeNLRI verifies the engine dispatches encode-nlri to the registry.
+//
+// VALIDATES: Plugin→engine encode-nlri RPC routes through registry.EncodeNLRIByFamily.
+// PREVENTS: Engine rejecting encode-nlri as unknown method.
+func TestDispatchEncodeNLRI(t *testing.T) {
+	// No t.Parallel(): mutates global compile-time registry.
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "test-encoder",
+		Description: "test",
+		Families:    []string{"ipv4/flow"},
+		InProcessNLRIEncoder: func(family string, args []string) (string, error) {
+			return "DEADBEEF", nil
+		},
+		RunEngine:  func(_, _ net.Conn) int { return 0 },
+		CLIHandler: func([]string) int { return 0 },
+	}))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	type encodeResult struct {
+		hex string
+		err error
+	}
+	done := make(chan encodeResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:encode-nlri", &rpc.EncodeNLRIInput{
+			Family: "ipv4/flow",
+			Args:   []string{"match", "source", "10.0.0.0/24"},
+		})
+		if err != nil {
+			done <- encodeResult{"", err}
+			return
+		}
+		resp, err := rpc.ParseResponse(raw)
+		if err != nil {
+			done <- encodeResult{"", err}
+			return
+		}
+		var out rpc.EncodeNLRIOutput
+		if err := json.Unmarshal(resp, &out); err != nil {
+			done <- encodeResult{"", err}
+			return
+		}
+		done <- encodeResult{out.Hex, nil}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	r := <-done
+	require.NoError(t, r.err)
+	assert.Equal(t, "DEADBEEF", r.hex)
+}
+
+// TestDispatchDecodeNLRI_NoDecoder verifies error when no decoder registered.
+//
+// VALIDATES: Engine returns RPC error for unregistered family.
+// PREVENTS: Nil pointer or silent failure on unregistered family.
+func TestDispatchDecodeNLRI_NoDecoder(t *testing.T) {
+	// No t.Parallel(): mutates global compile-time registry.
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	type errResult struct {
+		err error
+	}
+	done := make(chan errResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-nlri", &rpc.DecodeNLRIInput{
+			Family: "ipv4/flow",
+			Hex:    "0701180A0000",
+		})
+		if err != nil {
+			done <- errResult{err}
+			return
+		}
+		_, err = rpc.ParseResponse(raw)
+		done <- errResult{err}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	r := <-done
+	require.Error(t, r.err)
+	assert.Contains(t, r.err.Error(), "no NLRI decoder")
+}
+
+// TestDispatchDecodeMPReach verifies the engine dispatches decode-mp-reach.
+//
+// VALIDATES: Plugin→engine decode-mp-reach RPC parses MP_REACH_NLRI and returns structured JSON.
+// PREVENTS: Engine rejecting decode-mp-reach as unknown method.
+func TestDispatchDecodeMPReach(t *testing.T) {
+	// No t.Parallel(): handler may use global state.
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	// MP_REACH_NLRI for IPv4 unicast: AFI=1, SAFI=1, NH=192.168.1.1, NLRI=10.0.0.0/24
+	// RFC 4760 Section 3: AFI(2) + SAFI(1) + NHLen(1) + NH(4) + Reserved(1) + NLRI
+	mpReachHex := "00010104C0A8010100180A0000"
+
+	type decodeResult struct {
+		output rpc.DecodeMPReachOutput
+		err    error
+	}
+	done := make(chan decodeResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-mp-reach", &rpc.DecodeMPReachInput{
+			Hex: mpReachHex,
+		})
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		resp, err := rpc.ParseResponse(raw)
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		var out rpc.DecodeMPReachOutput
+		if err := json.Unmarshal(resp, &out); err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		done <- decodeResult{output: out}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	dr := <-done
+	require.NoError(t, dr.err)
+	assert.Equal(t, "ipv4/unicast", dr.output.Family)
+	assert.Equal(t, "192.168.1.1", dr.output.NextHop)
+	assert.Contains(t, string(dr.output.NLRI), "10.0.0.0/24")
+}
+
+// TestDispatchDecodeMPUnreach verifies the engine dispatches decode-mp-unreach.
+//
+// VALIDATES: Plugin→engine decode-mp-unreach RPC parses MP_UNREACH_NLRI and returns structured JSON.
+// PREVENTS: Engine rejecting decode-mp-unreach as unknown method.
+func TestDispatchDecodeMPUnreach(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	// MP_UNREACH_NLRI for IPv4 unicast: AFI=1, SAFI=1, Withdrawn=192.168.0.0/24
+	// RFC 4760 Section 4: AFI(2) + SAFI(1) + Withdrawn
+	mpUnreachHex := "00010118C0A800"
+
+	type decodeResult struct {
+		output rpc.DecodeMPUnreachOutput
+		err    error
+	}
+	done := make(chan decodeResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-mp-unreach", &rpc.DecodeMPUnreachInput{
+			Hex: mpUnreachHex,
+		})
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		resp, err := rpc.ParseResponse(raw)
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		var out rpc.DecodeMPUnreachOutput
+		if err := json.Unmarshal(resp, &out); err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		done <- decodeResult{output: out}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	dr := <-done
+	require.NoError(t, dr.err)
+	assert.Equal(t, "ipv4/unicast", dr.output.Family)
+	assert.Contains(t, string(dr.output.NLRI), "192.168.0.0/24")
+}
+
+// TestDispatchDecodeUpdate verifies the engine dispatches decode-update.
+//
+// VALIDATES: Plugin→engine decode-update RPC parses full UPDATE body and returns ze-bgp JSON.
+// PREVENTS: Engine rejecting decode-update as unknown method.
+func TestDispatchDecodeUpdate(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	// UPDATE body: withdrawn_len=0, attr_len=11, ORIGIN=IGP, NEXT_HOP=192.168.1.1, NLRI=10.0.0.0/24
+	// RFC 4271 Section 4.3: Withdrawn(2) + Attrs(2+N) + NLRI
+	updateHex := "0000000B40010100400304C0A80101180A0000"
+
+	type decodeResult struct {
+		output rpc.DecodeUpdateOutput
+		err    error
+	}
+	done := make(chan decodeResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-update", &rpc.DecodeUpdateInput{
+			Hex: updateHex,
+		})
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		resp, err := rpc.ParseResponse(raw)
+		if err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		var out rpc.DecodeUpdateOutput
+		if err := json.Unmarshal(resp, &out); err != nil {
+			done <- decodeResult{err: err}
+			return
+		}
+		done <- decodeResult{output: out}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	dr := <-done
+	require.NoError(t, dr.err)
+	assert.Contains(t, dr.output.JSON, "update")
+	assert.Contains(t, dr.output.JSON, "10.0.0.0/24")
+	assert.Contains(t, dr.output.JSON, "igp")
+}
+
+// TestDispatchDecodeMPReach_Malformed verifies error handling for truncated MP_REACH_NLRI.
+//
+// VALIDATES: Engine returns RPC error for malformed hex input.
+// PREVENTS: Panic or silent failure on truncated MP_REACH_NLRI data.
+func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	s := &Server{ctx: ctx}
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })
+
+	engineConn := NewPluginConn(engineEnd, engineEnd)
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	proc := &Process{}
+
+	// Only 2 bytes — too short for MP_REACH_NLRI (need at least AFI+SAFI+NHLen = 4)
+	type errResult struct {
+		err error
+	}
+	done := make(chan errResult, 1)
+	go func() {
+		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-mp-reach", &rpc.DecodeMPReachInput{
+			Hex: "0001",
+		})
+		if err != nil {
+			done <- errResult{err}
+			return
+		}
+		_, err = rpc.ParseResponse(raw)
+		done <- errResult{err}
+	}()
+
+	req, err := engineConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	s.dispatchPluginRPC(proc, engineConn, req)
+
+	malR := <-done
+	require.Error(t, malR.err)
+	assert.Contains(t, malR.err.Error(), "too short")
 }
