@@ -198,6 +198,42 @@ if [[ "$FUNC_DEFS" -gt 0 ]]; then
     ERRORS+=("Specs MUST NOT contain function definitions. Use tables/prose to describe behavior")
 fi
 
+# === ACCEPTANCE CRITERIA CHECK ===
+# New specs should have Acceptance Criteria section with AC-N table rows
+if ! grep -q "^## Acceptance Criteria" "$FILE_PATH"; then
+    WARNINGS+=("Missing '## Acceptance Criteria' section. Define testable AC-N assertions before implementation")
+else
+    AC_SECTION=$(sed -n '/^## Acceptance Criteria/,/^##/p' "$FILE_PATH" | head -20)
+    if ! echo "$AC_SECTION" | grep -qE 'AC-[0-9]+'; then
+        WARNINGS+=("Acceptance Criteria section should have AC-N table rows (e.g., AC-1, AC-2)")
+    elif ! echo "$AC_SECTION" | grep -q '|.*|.*|'; then
+        WARNINGS+=("Acceptance Criteria section should use table format (| AC ID | Input / Condition | Expected Behavior |)")
+    fi
+fi
+
+# === CONTEXT CHECKPOINT CHECK ===
+# Required Reading entries should have → Decision: or → Constraint: checkpoint lines
+REQ_READING_SECTION=$(sed -n '/^## Required Reading/,/^## /p' "$FILE_PATH" | head -40)
+if [[ -n "$REQ_READING_SECTION" ]]; then
+    # Count doc entries (checkbox lines: - [ ] or - [x])
+    DOC_ENTRIES=$(echo "$REQ_READING_SECTION" | grep -cE '^\s*-\s*\[\s*[x ]\s*\]' || true)
+    DOC_ENTRIES=${DOC_ENTRIES:-0}
+    # Count checkpoint lines
+    CHECKPOINT_LINES=$(echo "$REQ_READING_SECTION" | grep -cE '^\s*→\s*(Decision|Constraint):' || true)
+    CHECKPOINT_LINES=${CHECKPOINT_LINES:-0}
+    if [[ "$DOC_ENTRIES" -gt 0 && "$CHECKPOINT_LINES" -eq 0 ]]; then
+        WARNINGS+=("Required Reading entries should have '→ Decision:' or '→ Constraint:' checkpoint annotations")
+    fi
+fi
+
+# === GOAL GATES CHECK ===
+# New specs should split checklist into Goal Gates and Quality Gates
+if grep -q "^## Checklist" "$FILE_PATH"; then
+    if ! grep -q "### Goal Gates" "$FILE_PATH"; then
+        WARNINGS+=("Checklist should use '### Goal Gates' and '### Quality Gates' split")
+    fi
+fi
+
 # === OUTPUT RESULTS (compact) ===
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "${RED}❌ Spec invalid (${#ERRORS[@]} errors):${RESET}" >&2

@@ -51,6 +51,8 @@ Complete IN ORDER before doing ANYTHING else:
 
 [ ] 6. Re-read architecture docs in spec's "Required Reading" section
       → Ignore checkboxes - re-read everything
+      → FAST-PATH: If entries have `→ Decision:` / `→ Constraint:` annotations,
+        read those FIRST for immediate context, then re-read full docs
 
 [ ] 7. Check git status
       → What files are modified?
@@ -58,6 +60,20 @@ Complete IN ORDER before doing ANYTHING else:
 
 [ ] 8. ONLY THEN continue work
 ```
+
+## Context Checkpoints (Fast-Path Recovery)
+
+Specs written with the current template include `→ Decision:` and `→ Constraint:` annotations under Required Reading entries. These capture the key insight from each doc in one line:
+
+```
+- [ ] `docs/architecture/wire/attributes.md` - [why relevant]
+  → Decision: Attributes use pool-based dedup with ref-counting
+  → Constraint: Must use WriteHeaderTo(), not PackHeader()
+```
+
+**After compaction, read these annotations FIRST.** They restore critical context in seconds instead of minutes. Then re-read the full docs to fill in details.
+
+If the spec lacks checkpoint annotations, you must read the full docs with no shortcut.
 
 ## What You MUST NOT Do Post-Compaction
 

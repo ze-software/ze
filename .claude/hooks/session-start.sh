@@ -26,10 +26,15 @@ elif [ "$SPEC_COUNT" -gt 0 ]; then
     echo "📋 ${SPEC_COUNT} specs, none selected"
 fi
 
-# Session state reminder
+# Session state reminder with phase display
 if [ -f ".claude/session-state.md" ]; then
     LAST_UPDATE=$(head -5 .claude/session-state.md | grep -o '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' | head -1)
-    [ -n "$LAST_UPDATE" ] && echo "📝 Session state exists (updated: $LAST_UPDATE)"
+    PHASE=$(grep '^Phase:' .claude/session-state.md 2>/dev/null | head -1 | sed 's/^Phase:\s*//')
+    if [ -n "$PHASE" ]; then
+        echo "📝 Session state (phase: $PHASE)"
+    elif [ -n "$LAST_UPDATE" ]; then
+        echo "📝 Session state exists (updated: $LAST_UPDATE)"
+    fi
 fi
 
 # Top rule reminder (one line)

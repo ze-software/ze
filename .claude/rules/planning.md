@@ -73,9 +73,13 @@ echo "" > .claude/selected-spec
 
 ## Pre-Implementation Checklist
 
-Complete IN ORDER. Do not skip steps.
+Complete IN ORDER. Do not skip steps. Steps are grouped into four phases.
 
 ```
+── RESEARCH phase ──────────────────────────────────────────────
+   Read, search, understand. No spec writing, no implementation.
+   Gate: Can name 3 related files and describe current behavior.
+
 [ ] 1. Check existing spec: `docs/plan/spec-<task>.md`
       → If exists: read it, resume from last progress
       → If not: continue
@@ -114,6 +118,10 @@ Complete IN ORDER. Do not skip steps.
       → Check for architectural violations (bypassed layers, coupling, duplication)
       → **BLOCKING:** Cannot write spec until data flow is understood
 
+── DESIGN phase ────────────────────────────────────────────────
+   Write spec, define acceptance criteria, get user approval.
+   Gate: User approves spec.
+
 [ ] 10. Document existing behavior in spec
       → Add "Current Behavior" section to spec
       → List exact output formats, function signatures, test expectations
@@ -131,14 +139,26 @@ Complete IN ORDER. Do not skip steps.
 [ ] 13. Write spec to `docs/plan/spec-<task>.md`
       → FIRST complete "Pre-Spec Verification" checklist below
       → Match template format EXACTLY (not approximately)
+      → Include Acceptance Criteria (testable AC-N assertions)
+      → Include context checkpoints (→ Decision: / → Constraint:) under Required Reading
 
 [ ] 14. Track spec with git
       → `git add docs/plan/spec-<task>.md`
       → Ensures spec is not lost if session ends
 
+── IMPLEMENT phase ─────────────────────────────────────────────
+   TDD cycle. Log mistakes as they happen in Mistake Log.
+   Gate: All tests pass.
+
 [ ] 15. Begin TDD cycle (test fails → implement → test passes)
+      → Log wrong assumptions and failed approaches in Mistake Log IMMEDIATELY
+
+── VERIFY phase ────────────────────────────────────────────────
+   Audit, docs, completion. No new code.
+   Gate: Audit complete, `make verify` passes.
 
 [ ] 16. Post-implementation completion (see "Completion Checklist" below)
+      → Review Mistake Log escalation candidates
 ```
 
 ## Keyword → Documentation Mapping
@@ -354,6 +374,9 @@ Instead of function implementations, use prose or steps:
 [ ] 14. Current Behavior section completed (source files read, behavior documented)
 [ ] 15. "Behavior to change" is empty OR user explicitly requested the change
 [ ] 16. Data Flow section completed (see `rules/data-flow-tracing.md`)
+[ ] 17. Acceptance Criteria section has AC-N table rows with testable assertions
+[ ] 18. Required Reading entries have → Decision: or → Constraint: checkpoint lines
+[ ] 19. Checklist uses Goal Gates / Quality Gates split
 ```
 
 **Common mistakes:**
@@ -395,11 +418,14 @@ Write to `docs/plan/spec-<task-name>.md`:
 
 ### Architecture Docs
 - [ ] `docs/architecture/<doc>.md` - [why relevant]
+  → Decision: [specific architectural decision that constrains this spec]
+  → Constraint: [specific rule from the doc that applies here]
 
 ### RFC Summaries (MUST for protocol work)
 - [ ] `rfc/short/rfcNNNN.md` - [why relevant]
+  → Constraint: [specific RFC rule that applies here]
 
-**Key insights:**
+**Key insights:** (summary of all checkpoint lines — minimal context to resume after compaction)
 - [insight from docs]
 
 ## Current Behavior (MANDATORY)
@@ -442,6 +468,15 @@ Write to `docs/plan/spec-<task-name>.md`:
 - [ ] No unintended coupling (components remain isolated)
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
+
+## Acceptance Criteria
+
+<!-- Define BEFORE implementation. Each row is a testable assertion. -->
+<!-- The Implementation Audit cross-references these criteria. -->
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | [what triggers the behavior] | [observable outcome] |
+| AC-2 | [what triggers the behavior] | [observable outcome] |
 
 ## 🧪 TDD Test Plan
 
@@ -524,6 +559,39 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Verify error messages are clear and actionable
    - If issues found: FIX THEM before proceeding
 
+### Failure Routing
+
+When a step fails, use this table to determine where to route back:
+
+| Failure | Symptom | Route To |
+|---------|---------|----------|
+| Compilation error | `go build` fails | Step 3 (Implement) — fix syntax or type errors |
+| Test fails, wrong reason | Test errors on setup, not behavior | Step 1 (Write tests) — test itself is wrong |
+| Test fails, behavior mismatch | Code does X, test expects Y | Re-read source files from Current Behavior. Was behavior misunderstood? If yes, back to RESEARCH phase |
+| Lint failure | `make lint` reports issues | Fix inline. If architectural (e.g., import cycle), back to DESIGN phase |
+| Functional test fails | `.ci` test expects wrong output | Check Acceptance Criteria. If AC wrong, update spec (DESIGN). If AC correct, fix implementation (IMPLEMENT) |
+| Audit finds missing AC | Acceptance criterion not demonstrated | Back to IMPLEMENT for that specific criterion |
+
+## Mistake Log
+
+<!-- LIVE section — write to IMMEDIATELY when something goes wrong, not at the end. -->
+<!-- This captures PROCESS mistakes. "Bugs Found/Fixed" in Implementation Summary captures CODE bugs. -->
+
+### Wrong Assumptions
+<!-- Log immediately when an assumption proves false (during any phase) -->
+| What was assumed | What was true | How discovered | Impact |
+|------------------|---------------|----------------|--------|
+
+### Failed Approaches
+<!-- Log when an approach is tried and abandoned (during IMPLEMENT) -->
+| Approach | Why abandoned | Replacement |
+|----------|---------------|-------------|
+
+### Escalation Candidates
+<!-- Fill at VERIFY phase. Check MEMORY.md for recurrence. Promote if seen before. -->
+| Mistake | Frequency | Proposed rule | Action |
+|---------|-----------|---------------|--------|
+
 ## RFC Documentation
 
 ### Reference Comments
@@ -595,6 +663,11 @@ If you had to investigate/debug something, ask:
 | [Feature 1 from Task section] | | | |
 | [Feature 2 from Task section] | | | |
 
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | | (test name or manual verification) | |
+
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
@@ -616,6 +689,19 @@ If you had to investigate/debug something, ask:
 
 ## Checklist
 
+### Goal Gates (MUST pass — cannot defer)
+- [ ] Acceptance criteria AC-1..AC-N all demonstrated
+- [ ] Tests pass (`make test`)
+- [ ] No regressions (`make functional`)
+- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
+
+### Quality Gates (SHOULD pass — can defer with explicit user approval)
+- [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
+- [ ] Architecture docs updated with learnings
+- [ ] RFC constraint comments added (quoted requirement + explanation)
+- [ ] Implementation Audit fully completed (all items have status + location)
+- [ ] Mistake Log escalation candidates reviewed
+
 ### 🏗️ Design (see `rules/design-principles.md`)
 - [ ] No premature abstraction (3+ concrete use cases exist?)
 - [ ] No speculative features (is this needed NOW?)
@@ -630,23 +716,14 @@ If you had to investigate/debug something, ask:
 - [ ] Implementation complete
 - [ ] Tests PASS (output below)
 - [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
-- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
 - [ ] Functional tests verify end-to-end behavior (`.ci` files — MANDATORY for new RPCs/APIs, unit tests alone are insufficient)
-
-### Verification
-- [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
-- [ ] `make test` passes
-- [ ] `make functional` passes
 
 ### Documentation (during implementation)
 - [ ] Required docs read
 - [ ] RFC summaries read (all referenced RFCs)
 - [ ] RFC references added to code
-- [ ] RFC constraint comments added (quoted requirement + explanation)
 
 ### Completion (after tests pass - see Completion Checklist)
-- [ ] Architecture docs updated with learnings
-- [ ] Implementation Audit completed (all items have status + location)
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
@@ -677,6 +754,7 @@ If you had to investigate/debug something, ask:
       → Ensure edge cases from old tests are preserved in refactored tests
 
 [ ] 3. Complete Implementation Audit (BLOCKING - see rules/implementation-audit.md)
+      → Go through EVERY acceptance criterion (AC-1..AC-N)
       → Go through EVERY requirement in spec's Task section
       → Go through EVERY test in TDD Test Plan (unit + functional)
       → Go through EVERY file in Files to Modify/Create
@@ -686,23 +764,28 @@ If you had to investigate/debug something, ask:
       → Complete Audit Summary with accurate totals
       → CANNOT proceed until ALL items are accounted for
 
-[ ] 4. Update spec to reflect reality
+[ ] 4. Review Mistake Log escalation candidates
+      → Check each entry against MEMORY.md — seen before?
+      → Promote recurring mistakes to MEMORY.md or .claude/rules/
+      → Mark Action column in Escalation Candidates table
+
+[ ] 5. Update spec to reflect reality
       → Mark all checklist items with actual status
       → Add "Implementation Summary" section if missing
       → Fill "Documentation Updates" subsection (which docs were updated, or "None")
       → Document any bugs found/fixed
       → Document any deviations from original plan
 
-[ ] 5. Move spec to done folder
+[ ] 6. Move spec to done folder
       → Use the "Moving Completed Specs" script below
       → Spec number determined at move time
 
-[ ] 6. Verify all changes
+[ ] 7. Verify all changes
       → `git status` to see all modified files
       → `git diff` to review changes
       → Ensure no unintended modifications
 
-[ ] 7. Commit (when user approves)
+[ ] 8. Commit (when user approves)
       → Include ALL modified files in ONE commit:
         - Code changes
         - Test files

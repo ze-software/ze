@@ -27,6 +27,7 @@ Go through the spec and list EVERY item that should be implemented:
 | Source Section | Items to Check |
 |----------------|----------------|
 | Task | Each feature/requirement mentioned |
+| Acceptance Criteria | Each AC-N assertion (input/condition → expected behavior) |
 | 🧪 TDD Test Plan → Unit Tests | Each test row |
 | 🧪 TDD Test Plan → Functional Tests | Each test row |
 | Files to Modify | Each file listed |
@@ -59,6 +60,12 @@ Complete the Implementation Audit table in the spec:
 | [Feature 1] | ✅ Done | `file.go:123` | |
 | [Feature 2] | ⚠️ Partial | `file.go:200` | Missing edge case X |
 | [Feature 3] | ❌ Skipped | - | User approved: not needed for MVP |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `TestFoo` in `foo_test.go:50` | |
+| AC-2 | ✅ Done | Manual: `make functional` output | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -107,6 +114,7 @@ If any item is 🔄 Changed:
 
 Stop and investigate if:
 
+- An AC-N assertion has no test or evidence demonstrating it
 - You can't find where a feature was implemented
 - A test from the TDD plan doesn't exist
 - A file from "Files to Create" wasn't created
@@ -120,6 +128,7 @@ Stop and investigate if:
 
 ```
 [ ] Every Task requirement has a status
+[ ] Every Acceptance Criteria (AC-N) has a status and "Demonstrated By" evidence
 [ ] Every TDD test has a status
 [ ] Every file in plan has a status
 [ ] All Partial items have user approval
@@ -150,6 +159,13 @@ Everything was implemented.
 | Parse YANG schema | ✅ Done | `yang/parse.go:45` | |
 | Route commands to plugins | ✅ Done | `router/dispatch.go:120` | |
 | Support nested containers | ⚠️ Partial | `yang/container.go:80` | Only 2 levels deep; user approved |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | `TestParseModule` in `yang/parse_test.go:30` | |
+| AC-2 | ✅ Done | `TestRouteCommand` in `router/dispatch_test.go:55` | |
+| AC-3 | ⚠️ Partial | `TestParseModule` (covers 2 levels) | Only 2 levels deep; user approved |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
