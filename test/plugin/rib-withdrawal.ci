@@ -79,7 +79,7 @@ plugin {
 		encoder json;
 	}
 	external rib {
-		run "ze bgp plugin rib";
+		run "ze bgp plugin bgp-rib";
 		encoder json;
 	}
 }

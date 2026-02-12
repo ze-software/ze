@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	grschema "codeberg.org/thomas-mangin/ze/internal/plugins/gr/schema"
+	grschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-gr/schema"
 )
 
 // extendedSchemaWithGR returns schema with GR plugin YANG for extended tests.

@@ -15,9 +15,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
+	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
+	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.

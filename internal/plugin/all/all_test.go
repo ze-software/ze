@@ -14,16 +14,16 @@ import (
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
 func TestAllPluginsRegistered(t *testing.T) {
 	expected := []string{
-		"bgpls",
-		"evpn",
-		"flowspec",
-		"gr",
-		"hostname",
-		"llnh",
-		"rib",
+		"bgp-evpn",
+		"bgp-flowspec",
+		"bgp-gr",
+		"bgp-hostname",
+		"bgp-llnh",
+		"bgp-ls",
+		"bgp-rib",
+		"bgp-rr",
+		"bgp-vpn",
 		"role",
-		"rr",
-		"vpn",
 	}
 
 	names := registry.Names()
@@ -84,15 +84,15 @@ func TestFamilyMappings(t *testing.T) {
 	fm := registry.FamilyMap()
 
 	expected := map[string]string{
-		"ipv4/flow":         "flowspec",
-		"ipv6/flow":         "flowspec",
-		"ipv4/flow-vpn":     "flowspec",
-		"ipv6/flow-vpn":     "flowspec",
-		"l2vpn/evpn":        "evpn",
-		"ipv4/vpn":          "vpn",
-		"ipv6/vpn":          "vpn",
-		"bgp-ls/bgp-ls":     "bgpls",
-		"bgp-ls/bgp-ls-vpn": "bgpls",
+		"ipv4/flow":         "bgp-flowspec",
+		"ipv6/flow":         "bgp-flowspec",
+		"ipv4/flow-vpn":     "bgp-flowspec",
+		"ipv6/flow-vpn":     "bgp-flowspec",
+		"l2vpn/evpn":        "bgp-evpn",
+		"ipv4/vpn":          "bgp-vpn",
+		"ipv6/vpn":          "bgp-vpn",
+		"bgp-ls/bgp-ls":     "bgp-ls",
+		"bgp-ls/bgp-ls-vpn": "bgp-ls",
 	}
 
 	for family, wantPlugin := range expected {
@@ -109,11 +109,11 @@ func TestFamilyMappings(t *testing.T) {
 func TestCapabilityMappings(t *testing.T) {
 	cm := registry.CapabilityMap()
 
-	if cm[73] != "hostname" {
-		t.Errorf("CapabilityMap[73] = %q, want hostname", cm[73])
+	if cm[73] != "bgp-hostname" {
+		t.Errorf("CapabilityMap[73] = %q, want bgp-hostname", cm[73])
 	}
-	if cm[77] != "llnh" {
-		t.Errorf("CapabilityMap[77] = %q, want llnh", cm[77])
+	if cm[77] != "bgp-llnh" {
+		t.Errorf("CapabilityMap[77] = %q, want bgp-llnh", cm[77])
 	}
 	if cm[9] != "role" {
 		t.Errorf("CapabilityMap[9] = %q, want role", cm[9])

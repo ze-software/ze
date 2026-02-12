@@ -1,9 +1,9 @@
 # Test: Explicit plugin via config file prevents auto-loading
 #
 # Scenario:
-# - Config has `family { ipv4/flow; }` which would normally auto-load ze.flowspec
+# - Config has `family { ipv4/flow; }` which would normally auto-load ze.bgp-flowspec
 # - Config explicitly declares plugin named "flowspec" (external wrapper)
-# - Expected: Only explicit plugin runs, not the internal ze.flowspec
+# - Expected: Only explicit plugin runs, not the internal ze.bgp-flowspec
 #
 # Verification:
 # - External plugin sends a unique BGP UPDATE with marker prefix 99.99.99.0/24

@@ -267,7 +267,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode WITH plugin
-	output, err := decodeHexPacket(hexInput, "open", "", []string{"ze.hostname"}, true)
+	output, err := decodeHexPacket(hexInput, "open", "", []string{"ze.bgp-hostname"}, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -954,7 +954,7 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// This tests the infrastructure path even without actual plugin
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
-	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"flowspec"}, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"bgp-flowspec"}, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -980,13 +980,13 @@ func TestLookupFamilyPlugin(t *testing.T) {
 		plugins []string
 		want    string
 	}{
-		{"ipv4/flow", []string{"flowspec"}, "flowspec"},
-		{"IPV4/FLOW", []string{"flowspec"}, "flowspec"},
-		{"IPv4/Flow", []string{"flowspec"}, "flowspec"},
-		{"ipv4/flow", []string{"other"}, "flowspec"}, // Auto-invoked for known family
-		{"ipv4/flow", nil, "flowspec"},               // Auto-invoked for known family
-		{"ipv4/unicast", []string{"flowspec"}, ""},   // Unknown family, no plugin
-		{"ipv6/flow-vpn", []string{"flowspec"}, "flowspec"},
+		{"ipv4/flow", []string{"bgp-flowspec"}, "bgp-flowspec"},
+		{"IPV4/FLOW", []string{"bgp-flowspec"}, "bgp-flowspec"},
+		{"IPv4/Flow", []string{"bgp-flowspec"}, "bgp-flowspec"},
+		{"ipv4/flow", []string{"other"}, "bgp-flowspec"}, // Auto-invoked for known family
+		{"ipv4/flow", nil, "bgp-flowspec"},               // Auto-invoked for known family
+		{"ipv4/unicast", []string{"bgp-flowspec"}, ""},   // Unknown family, no plugin
+		{"ipv6/flow-vpn", []string{"bgp-flowspec"}, "bgp-flowspec"},
 	}
 
 	for _, tt := range tests {
@@ -1294,19 +1294,19 @@ func TestParsePluginName(t *testing.T) {
 		wantArgs []string
 	}{
 		// Plain names → Fork mode (subprocess)
-		{"flowspec", "flowspec", ModeFork, "", nil},
-		{"hostname", "hostname", ModeFork, "", nil},
-		{"bgpls", "bgpls", ModeFork, "", nil},
+		{"bgp-flowspec", "bgp-flowspec", ModeFork, "", nil},
+		{"bgp-hostname", "bgp-hostname", ModeFork, "", nil},
+		{"bgp-ls", "bgp-ls", ModeFork, "", nil},
 
 		// ze.name → Internal mode (goroutine + pipe)
-		{"ze.flowspec", "flowspec", ModeInternal, "", nil},
-		{"ze.hostname", "hostname", ModeInternal, "", nil},
-		{"ze.bgpls", "bgpls", ModeInternal, "", nil},
+		{"ze.bgp-flowspec", "bgp-flowspec", ModeInternal, "", nil},
+		{"ze.bgp-hostname", "bgp-hostname", ModeInternal, "", nil},
+		{"ze.bgp-ls", "bgp-ls", ModeInternal, "", nil},
 
 		// ze-name → Direct mode (sync in-process)
-		{"ze-flowspec", "flowspec", ModeDirect, "", nil},
-		{"ze-hostname", "hostname", ModeDirect, "", nil},
-		{"ze-bgpls", "bgpls", ModeDirect, "", nil},
+		{"ze-bgp-flowspec", "bgp-flowspec", ModeDirect, "", nil},
+		{"ze-bgp-hostname", "bgp-hostname", ModeDirect, "", nil},
+		{"ze-bgp-ls", "bgp-ls", ModeDirect, "", nil},
 
 		// Paths → Fork mode with path (no args)
 		{"/usr/bin/plugin", "", ModeFork, "/usr/bin/plugin", nil},
@@ -1397,12 +1397,12 @@ func TestParsePluginNameBoundary(t *testing.T) {
 
 // TestInvokePluginDirect verifies ze-name syntax uses direct in-process decode.
 //
-// VALIDATES: Direct mode (ze-flowspec) decodes NLRI without subprocess.
+// VALIDATES: Direct mode (ze-bgp-flowspec) decodes NLRI without subprocess.
 // PREVENTS: Wrong invocation path for ze- prefix.
 func TestInvokePluginDirect(t *testing.T) {
-	result := invokePluginNLRIDecode("ze-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("ze-bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	if result == nil {
-		t.Fatal("ze-flowspec direct decode returned nil")
+		t.Fatal("ze-bgp-flowspec direct decode returned nil")
 	}
 
 	// Verify we got a decoded result (map or array).
@@ -1425,7 +1425,7 @@ func TestInvokePluginDirect(t *testing.T) {
 // VALIDATES: Internal mode (ze.flowspec) decodes NLRI via plugin protocol.
 // PREVENTS: Wrong invocation path for ze. prefix.
 func TestInvokePluginInternal(t *testing.T) {
-	result := invokePluginNLRIDecode("ze.flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	if result == nil {
 		t.Fatal("ze.flowspec internal decode returned nil")
 	}
@@ -1450,7 +1450,7 @@ func TestInvokePluginInternal(t *testing.T) {
 // VALIDATES: Fork mode (flowspec) attempts subprocess, retries in-process.
 // PREVENTS: Plain names not being handled correctly.
 func TestInvokePluginFork(t *testing.T) {
-	result := invokePluginNLRIDecode("flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	if result == nil {
 		t.Fatal("flowspec fork decode returned nil")
 	}
@@ -1480,7 +1480,7 @@ func TestInvokePluginForkPath(t *testing.T) {
 
 	// Create a wrapper script that calls ze bgp plugin flowspec --decode.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"
-	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s bgp plugin flowspec \"$@\"\n", binPath)
+	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s bgp plugin bgp-flowspec \"$@\"\n", binPath)
 	if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755); err != nil { //nolint:gosec // executable script
 		t.Fatalf("failed to write wrapper: %v", err)
 	}
@@ -1511,9 +1511,9 @@ func TestInvokePluginForkPath(t *testing.T) {
 // VALIDATES: Fork, Internal, and Direct modes decode identically.
 // PREVENTS: Mode-dependent decode differences.
 func TestInvokePluginModeConsistency(t *testing.T) {
-	directResult := invokePluginNLRIDecode("ze-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	internalResult := invokePluginNLRIDecode("ze.flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	forkResult := invokePluginNLRIDecode("flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	directResult := invokePluginNLRIDecode("ze-bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	internalResult := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	forkResult := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 
 	if directResult == nil || internalResult == nil || forkResult == nil {
 		t.Fatalf("one or more modes returned nil: direct=%v internal=%v fork=%v",

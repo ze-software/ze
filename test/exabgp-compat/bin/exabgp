@@ -244,9 +244,9 @@ def main():
     try:
         # Build ze command
         # Always load capability plugins that ExaBGP supports:
-        # - ze.hostname: FQDN capability (code 73)
-        # - ze.llnh: Link-local next-hop capability (code 77)
-        cmd = [ze_binary, '--plugin', 'ze.hostname', '--plugin', 'ze.llnh', temp_config]
+        # - ze.bgp-hostname: FQDN capability (code 73)
+        # - ze.bgp-llnh: Link-local next-hop capability (code 77)
+        cmd = [ze_binary, '--plugin', 'ze.bgp-hostname', '--plugin', 'ze.bgp-llnh', temp_config]
 
         # Add environment-based options
         env_vars = get_exabgp_env_vars()

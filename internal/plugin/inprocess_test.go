@@ -37,9 +37,9 @@ func TestGetInternalPluginRunner(t *testing.T) {
 		name    string
 		wantNil bool
 	}{
-		{"rib", false},
-		{"gr", false},
-		{"rr", false},
+		{"bgp-rib", false},
+		{"bgp-gr", false},
+		{"bgp-rr", false},
 		{"unknown", true},
 		{"", true},
 	}
@@ -118,12 +118,12 @@ func TestGetPluginForFamily(t *testing.T) {
 		want   string
 	}{
 		// FlowSpec families
-		{"ipv4/flow", "flowspec"},
-		{"ipv6/flow", "flowspec"},
-		{"ipv4/flow-vpn", "flowspec"},
-		{"ipv6/flow-vpn", "flowspec"},
+		{"ipv4/flow", "bgp-flowspec"},
+		{"ipv6/flow", "bgp-flowspec"},
+		{"ipv4/flow-vpn", "bgp-flowspec"},
+		{"ipv6/flow-vpn", "bgp-flowspec"},
 		// EVPN family
-		{"l2vpn/evpn", "evpn"},
+		{"l2vpn/evpn", "bgp-evpn"},
 		// Unknown families
 		{"ipv4/unicast", ""},
 		{"ipv6/unicast", ""},
@@ -150,11 +150,11 @@ func TestGetRequiredPlugins(t *testing.T) {
 		want     []string
 	}{
 		{"empty", []string{}, nil},
-		{"evpn_only", []string{"l2vpn/evpn"}, []string{"evpn"}},
-		{"flowspec_only", []string{"ipv4/flow"}, []string{"flowspec"}},
-		{"evpn_and_flowspec", []string{"l2vpn/evpn", "ipv4/flow"}, []string{"evpn", "flowspec"}},
-		{"flowspec_dedupe", []string{"ipv4/flow", "ipv6/flow"}, []string{"flowspec"}},
-		{"unknown_ignored", []string{"ipv4/unicast", "l2vpn/evpn"}, []string{"evpn"}},
+		{"evpn_only", []string{"l2vpn/evpn"}, []string{"bgp-evpn"}},
+		{"flowspec_only", []string{"ipv4/flow"}, []string{"bgp-flowspec"}},
+		{"evpn_and_flowspec", []string{"l2vpn/evpn", "ipv4/flow"}, []string{"bgp-evpn", "bgp-flowspec"}},
+		{"flowspec_dedupe", []string{"ipv4/flow", "ipv6/flow"}, []string{"bgp-flowspec"}},
+		{"unknown_ignored", []string{"ipv4/unicast", "l2vpn/evpn"}, []string{"bgp-evpn"}},
 		{"all_unknown", []string{"ipv4/unicast", "ipv6/unicast"}, nil},
 	}
 

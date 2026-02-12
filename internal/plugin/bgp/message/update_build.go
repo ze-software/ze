@@ -13,7 +13,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
+	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
 )
 
 // UpdateBuilder provides context for building UPDATE messages.

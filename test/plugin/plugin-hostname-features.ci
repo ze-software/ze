@@ -1,6 +1,6 @@
 # plugin-hostname-features - verify hostname plugin --features output
-# Tests that ze bgp plugin hostname --features lists supported features
+# Tests that ze bgp plugin bgp-hostname --features lists supported features
 
-cmd=foreground:seq=1:exec=ze bgp plugin hostname --features
+cmd=foreground:seq=1:exec=ze bgp plugin bgp-hostname --features
 expect=exit:code=0
 expect=stdout:contains=capa

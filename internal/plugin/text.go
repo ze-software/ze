@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -9,9 +10,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
 // Encoding constants for process output formatting.
@@ -373,25 +372,31 @@ type familyOperation struct {
 // Simple prefixes without path-id are output as strings: "10.0.0.0/24".
 // Complex NLRIs (ADD-PATH, VPN, EVPN, FlowSpec) are output as objects with structured fields.
 //
+// Plugin NLRI types (VPN, EVPN, FlowSpec) are decoded via registry.DecodeNLRIByFamily,
+// which routes to the plugin's in-process decoder. This avoids direct plugin type imports.
+// Core types (LabeledUnicast) are handled directly since they live in the nlri package.
+//
 // RFC 4364: VPN NLRI includes RD and labels.
 // RFC 7432: EVPN NLRI includes route-type, ESI, etc.
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
 func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
-	// Check for complex NLRI types that need structured output
-	switch v := n.(type) {
-	case *vpn.VPN:
-		formatIPVPNJSON(sb, v)
+	// Core type: LabeledUnicast lives in nlri package, not a plugin
+	if lu, ok := n.(*nlri.LabeledUnicast); ok {
+		formatLabeledUnicastJSON(sb, lu)
 		return
-	case *nlri.LabeledUnicast:
-		formatLabeledUnicastJSON(sb, v)
-		return
-	case *flowspec.FlowSpecVPN:
-		formatFlowSpecVPNJSON(sb, v)
-		return
-	case *evpn.EVPNType2:
-		formatEVPNType2JSON(sb, v)
-		return
+	}
+
+	// Try registry-based decode for plugin NLRI types (VPN, EVPN, FlowSpec).
+	// The registry routes to the plugin's InProcessNLRIDecoder by family.
+	familyStr := n.Family().String()
+	if registry.PluginForFamily(familyStr) != "" {
+		hexData := hex.EncodeToString(n.Bytes())
+		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
+		if err == nil {
+			sb.WriteString(decoded)
+			return
+		}
 	}
 
 	pathID := n.PathID()
@@ -408,33 +413,6 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 
 	// Complex NLRI (has path-id or not a simple prefix): output as object
 	formatNLRIJSON(sb, n)
-}
-
-// formatIPVPNJSON formats an IPVPN NLRI as structured JSON.
-// RFC 4364: {"prefix":"10.0.0.0/24", "rd":"0:65000:1", "labels":[100]}.
-func formatIPVPNJSON(sb *strings.Builder, v *vpn.VPN) {
-	sb.WriteString(`{"prefix":"`)
-	sb.WriteString(v.Prefix().String())
-	sb.WriteString(`","rd":"`)
-	sb.WriteString(v.RD().String())
-	sb.WriteString(`"`)
-
-	if labels := v.Labels(); len(labels) > 0 {
-		sb.WriteString(`,"labels":[`)
-		for i, l := range labels {
-			if i > 0 {
-				sb.WriteString(",")
-			}
-			fmt.Fprintf(sb, "%d", l)
-		}
-		sb.WriteString(`]`)
-	}
-
-	if pathID := v.PathID(); pathID != 0 {
-		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
-	}
-
-	sb.WriteString(`}`)
 }
 
 // formatLabeledUnicastJSON formats a LabeledUnicast NLRI as structured JSON.
@@ -454,72 +432,6 @@ func formatLabeledUnicastJSON(sb *strings.Builder, v *nlri.LabeledUnicast) {
 		}
 		sb.WriteString(`]`)
 	}
-
-	if pathID := v.PathID(); pathID != 0 {
-		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
-	}
-
-	sb.WriteString(`}`)
-}
-
-// formatEVPNType2JSON formats an EVPN Type 2 (MAC/IP Advertisement) NLRI as structured JSON.
-// RFC 7432 Section 7.2: {"route-type":"mac-ip-advertisement","rd":"0:65000:1","esi":"00:...","mac":"...", ...}.
-func formatEVPNType2JSON(sb *strings.Builder, v *evpn.EVPNType2) {
-	sb.WriteString(`{"route-type":"`)
-	sb.WriteString(v.RouteType().String())
-	sb.WriteString(`","rd":"`)
-	sb.WriteString(v.RD().String())
-	sb.WriteString(`","esi":"`)
-	sb.WriteString(v.ESI().String())
-	sb.WriteString(`"`)
-
-	// Ethernet Tag
-	fmt.Fprintf(sb, `,"ethernet-tag":%d`, v.EthernetTag())
-
-	// MAC
-	mac := v.MAC()
-	fmt.Fprintf(sb, `,"mac":"%02x:%02x:%02x:%02x:%02x:%02x"`,
-		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
-
-	// IP (optional)
-	if ip := v.IP(); ip.IsValid() {
-		sb.WriteString(`,"ip":"`)
-		sb.WriteString(ip.String())
-		sb.WriteString(`"`)
-	}
-
-	// Labels
-	if labels := v.Labels(); len(labels) > 0 {
-		sb.WriteString(`,"labels":[`)
-		for i, l := range labels {
-			if i > 0 {
-				sb.WriteString(",")
-			}
-			fmt.Fprintf(sb, "%d", l)
-		}
-		sb.WriteString(`]`)
-	}
-
-	// Path ID
-	if pathID := v.PathID(); pathID != 0 {
-		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
-	}
-
-	sb.WriteString(`}`)
-}
-
-// formatFlowSpecVPNJSON formats a FlowSpecVPN NLRI as structured JSON.
-// RFC 8955: {"rd":"0:65000:1", ...flowspec components...}.
-func formatFlowSpecVPNJSON(sb *strings.Builder, v *flowspec.FlowSpecVPN) {
-	sb.WriteString(`{"rd":"`)
-	sb.WriteString(v.RD().String())
-	sb.WriteString(`"`)
-
-	// FlowSpec components are complex - use String() for now
-	// TODO: Add structured component output
-	sb.WriteString(`,"spec":"`)
-	writeJSONEscapedString(sb, v.FlowSpec().String())
-	sb.WriteString(`"`)
 
 	if pathID := v.PathID(); pathID != 0 {
 		fmt.Fprintf(sb, `,"path-id":%d`, pathID)

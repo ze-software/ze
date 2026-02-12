@@ -1,8 +1,8 @@
 # Test: Explicit plugin via --plugin flag prevents auto-loading
 #
 # Scenario:
-# - Config has `family { ipv4/flow; }` which would normally auto-load ze.flowspec
-# - User explicitly loads ze.flowspec via --plugin flag
+# - Config has `family { ipv4/flow; }` which would normally auto-load ze.bgp-flowspec
+# - User explicitly loads ze.bgp-flowspec via --plugin flag
 # - Expected: Only one flowspec instance, no conflict from duplicate auto-loading
 #
 # Key verification:
@@ -24,8 +24,8 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A0102
 EOF_PEER
 
 # ze bgp configuration
-# Config has family block - would normally trigger auto-load of ze.flowspec
-# But --plugin ze.flowspec is explicit, so auto-load is skipped
+# Config has family block - would normally trigger auto-load of ze.bgp-flowspec
+# But --plugin ze.bgp-flowspec is explicit, so auto-load is skipped
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
     peer 127.0.0.1 {
@@ -42,6 +42,6 @@ bgp {
 EOF_CONF
 
 # Process orchestration
-# --plugin ze.flowspec is explicit - prevents auto-loading
+# --plugin ze.bgp-flowspec is explicit - prevents auto-loading
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=ze --plugin ze.flowspec -:stdin=ze-bgp:timeout=10s
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-flowspec -:stdin=ze-bgp:timeout=10s

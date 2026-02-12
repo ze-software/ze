@@ -1,6 +1,6 @@
 # plugin-gr-features - verify graceful-restart plugin --features output
-# Tests that ze bgp plugin gr --features lists supported features
+# Tests that ze bgp plugin bgp-gr --features lists supported features
 
-cmd=foreground:seq=1:exec=ze bgp plugin gr --features
+cmd=foreground:seq=1:exec=ze bgp plugin bgp-gr --features
 expect=exit:code=0
 expect=stdout:contains=capa

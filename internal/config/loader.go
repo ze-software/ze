@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 

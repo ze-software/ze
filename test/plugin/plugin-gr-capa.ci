@@ -3,7 +3,7 @@
 # Capability: restart-time=120 (0x0078), R-bit=1, families with F-bit
 # Wire: 0078 (restart-time) 0001 (ipv4) 01 (unicast) 80 (F-bit)
 
-cmd=foreground:seq=1:exec=ze bgp plugin gr --capa 007800010180
+cmd=foreground:seq=1:exec=ze bgp plugin bgp-gr --capa 007800010180
 expect=exit:code=0
 expect=stdout:contains=restart-time
 expect=stdout:contains=120

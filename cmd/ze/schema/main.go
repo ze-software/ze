@@ -15,7 +15,7 @@ import (
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/rib/schema"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
@@ -24,6 +24,9 @@ const internalPluginPrefix = "ze."
 
 // Module name prefix for Ze modules (e.g., "ze-bgp", "ze-types").
 const moduleNamePrefix = "ze-"
+
+// YANG module name for the core BGP configuration schema.
+const bgpConfModule = "ze-bgp-conf"
 
 // Timeout for external plugin YANG queries.
 const externalPluginTimeout = 10 * time.Second
@@ -332,8 +335,8 @@ func loadAPIRPCs(registry *plugin.SchemaRegistry) error {
 	}
 
 	// Load conf modules first (API modules may import them)
-	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
-		return fmt.Errorf("load ze-bgp-conf: %w", err)
+	if err := loader.AddModuleFromText(bgpConfModule+".yang", bgpschema.ZeBGPConfYANG); err != nil {
+		return fmt.Errorf("load %s: %w", bgpConfModule, err)
 	}
 
 	// Load all API YANG modules
@@ -493,7 +496,7 @@ func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loa
 // Returns empty yangContent if module is not found.
 func getInternalYANG(moduleName, pluginName string) (yangContent string, handlers []string, pluginID string) {
 	// Core BGP module
-	if moduleName == "ze-bgp-conf" {
+	if moduleName == bgpConfModule {
 		return bgpschema.ZeBGPConfYANG, []string{"bgp", "bgp.peer"}, internalPluginPrefix + "bgp"
 	}
 

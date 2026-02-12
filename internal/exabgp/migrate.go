@@ -147,7 +147,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 // injectRIBPlugin adds the RIB plugin to the tree.
 func injectRIBPlugin(tree *config.Tree) {
 	ribPlugin := config.NewTree()
-	ribPlugin.Set("run", `"ze bgp plugin rib"`)
+	ribPlugin.Set("run", `"ze bgp plugin bgp-rib"`)
 	tree.AddListEntry("plugin", "rib", ribPlugin)
 }
 

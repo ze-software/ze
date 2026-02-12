@@ -282,7 +282,7 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 // PREVENTS: Internal plugins accidentally forking.
 func TestProcessInternalPlugin(t *testing.T) {
 	proc := NewProcess(PluginConfig{
-		Name:     "rib",
+		Name:     "bgp-rib",
 		Internal: true,
 		Encoder:  "json",
 	})
@@ -319,7 +319,7 @@ func TestProcessInternalPluginUnknown(t *testing.T) {
 // PREVENTS: Internal plugins hanging on Stop().
 func TestProcessInternalPluginStop(t *testing.T) {
 	proc := NewProcess(PluginConfig{
-		Name:     "rib",
+		Name:     "bgp-rib",
 		Internal: true,
 		Encoder:  "json",
 	})
@@ -349,7 +349,7 @@ func TestProcessInternalPluginStop(t *testing.T) {
 // PREVENTS: Regression to io.Pipe transport after socket pair migration.
 func TestProcessInternalPluginSocketPairs(t *testing.T) {
 	proc := NewProcess(PluginConfig{
-		Name:     "rib",
+		Name:     "bgp-rib",
 		Internal: true,
 		Encoder:  "json",
 	})

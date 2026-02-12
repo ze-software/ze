@@ -25,6 +25,7 @@
 package plugin
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -34,9 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 
 // ValueValidator validates individual values against a schema (e.g., YANG).
@@ -1436,7 +1435,29 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 		return nil, 0, fmt.Errorf("%w: label required for %s", ErrMissingLabel, family)
 	}
 
-	return vpn.NewVPN(family, accum.RD, accum.Labels, prefix, accum.PathID), 0, nil
+	// Build args for registry encoder: "rd <val> label <val> ... prefix <val> [path-id <val>]"
+	encodeArgs := []string{"rd", accum.RD.String()}
+	for _, l := range accum.Labels {
+		encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
+	}
+	encodeArgs = append(encodeArgs, "prefix", prefix.String())
+	if accum.PathID != 0 {
+		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
+	}
+
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("vpn encode: %w", err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nil, 0, fmt.Errorf("vpn hex decode: %w", err)
+	}
+	wire, err := nlri.NewWireNLRI(family, wireBytes, accum.PathID != 0)
+	if err != nil {
+		return nil, 0, err
+	}
+	return wire, 0, nil
 }
 
 // parseLabeledNLRI parses a prefix for labeled unicast families (SAFI 4).
@@ -1596,10 +1617,14 @@ func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int,
 	}
 	pluginArgs = append(pluginArgs, args[start:i]...)
 
-	// Call flowspec encoder directly (in-process plugin)
-	wireBytes, err := flowspec.EncodeFlowSpecComponents(family, pluginArgs)
+	// Call flowspec encoder via registry (in-process fast path)
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), pluginArgs)
 	if err != nil {
 		return nil, 0, fmt.Errorf("flowspec encode: %w", err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nil, 0, fmt.Errorf("flowspec hex decode: %w", err)
 	}
 
 	// Return WireNLRI wrapping the encoded bytes
@@ -2151,14 +2176,24 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		return nlri.Family{}, nil, nil, "", 0, errors.New("evpn requires rd")
 	}
 
-	// Create EVPN NLRI based on route type
-	var evpnNLRI nlri.NLRI
+	// Create EVPN NLRI via registry encoder
+	// Build args: route-type specific key-value pairs
+	var encodeArgs []string
 	switch routeType {
 	case kwMACIP:
 		if !hasMAC {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("mac-ip route requires mac")
 		}
-		evpnNLRI = evpn.NewEVPNType2(rd, esi, ethernetTag, mac, ip, labels)
+		encodeArgs = append(encodeArgs, "type2", "rd", rd.String())
+		encodeArgs = append(encodeArgs, "esi", formatESIString(esi))
+		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
+		encodeArgs = append(encodeArgs, "mac", formatMACString(mac))
+		if ip.IsValid() {
+			encodeArgs = append(encodeArgs, "ip", ip.String())
+		}
+		for _, l := range labels {
+			encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
+		}
 
 	case kwIPPrefix:
 		if !prefix.IsValid() {
@@ -2173,7 +2208,16 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		if esiNonZero && gateway.IsValid() {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
 		}
-		evpnNLRI = evpn.NewEVPNType5(rd, esi, ethernetTag, prefix, gateway, labels)
+		encodeArgs = append(encodeArgs, "type5", "rd", rd.String())
+		encodeArgs = append(encodeArgs, "esi", formatESIString(esi))
+		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
+		encodeArgs = append(encodeArgs, "prefix", prefix.String())
+		if gateway.IsValid() {
+			encodeArgs = append(encodeArgs, "gateway", gateway.String())
+		}
+		for _, l := range labels {
+			encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
+		}
 
 	case kwMulticast:
 		// Type 3: Inclusive Multicast Ethernet Tag route
@@ -2181,7 +2225,22 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		if !originatorIP.IsValid() {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("multicast route requires ip (originator)")
 		}
-		evpnNLRI = evpn.NewEVPNType3(rd, ethernetTag, originatorIP)
+		encodeArgs = append(encodeArgs, "type3", "rd", rd.String())
+		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
+		encodeArgs = append(encodeArgs, "ip", originatorIP.String())
+	}
+
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
+	if err != nil {
+		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn encode: %w", err)
+	}
+	evpnBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn hex decode: %w", err)
+	}
+	evpnNLRI, err := nlri.NewWireNLRI(family, evpnBytes, false)
+	if err != nil {
+		return nlri.Family{}, nil, nil, "", 0, err
 	}
 
 	// Add to appropriate list
@@ -2235,4 +2294,15 @@ func parseESI(s string) ([10]byte, error) {
 		esi[i] = byte(val)
 	}
 	return esi, nil
+}
+
+// formatMACString formats a MAC address as colon-separated hex (e.g., "00:11:22:33:44:55").
+func formatMACString(mac [6]byte) string {
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+}
+
+// formatESIString formats an ESI as colon-separated hex (e.g., "00:11:22:33:44:55:66:77:88:99").
+func formatESIString(esi [10]byte) string {
+	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
+		esi[0], esi[1], esi[2], esi[3], esi[4], esi[5], esi[6], esi[7], esi[8], esi[9])
 }

@@ -43,6 +43,12 @@ type Registration struct {
 	ConfigureEngineLogger func(loggerName string)               // Configure logger for in-process engine mode
 	InProcessDecoder      func(input, output *bytes.Buffer) int // Decode function for CLI fallback
 
+	// In-process NLRI decode/encode: fast path for infrastructure code (text.go, update_text.go)
+	// that avoids plugin package imports. Same semantics as the SDK's OnDecodeNLRI/OnEncodeNLRI
+	// callbacks, but callable directly without RPC. External plugins use the RPC path instead.
+	InProcessNLRIDecoder func(family, hex string) (string, error)           // (family, hex) → JSON
+	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
+
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
@@ -205,6 +211,32 @@ func RequiredPlugins(families []string) []string {
 		}
 	}
 	return result
+}
+
+// DecodeNLRIByFamily finds the plugin registered for a family and calls its
+// in-process NLRI decoder. Returns the JSON result and nil on success.
+// Returns an error if no decoder is registered or the decoder fails.
+// This is the fast path — external plugins use RPC via Server.DecodeNLRI instead.
+func DecodeNLRIByFamily(family, hexData string) (string, error) {
+	for _, reg := range plugins {
+		if reg.InProcessNLRIDecoder != nil && slices.Contains(reg.Families, family) {
+			return reg.InProcessNLRIDecoder(family, hexData)
+		}
+	}
+	return "", fmt.Errorf("no NLRI decoder for family %s", family)
+}
+
+// EncodeNLRIByFamily finds the plugin registered for a family and calls its
+// in-process NLRI encoder. Returns the hex result and nil on success.
+// Returns an error if no encoder is registered or the encoder fails.
+// This is the fast path — external plugins use RPC via Server.EncodeNLRI instead.
+func EncodeNLRIByFamily(family string, args []string) (string, error) {
+	for _, reg := range plugins {
+		if reg.InProcessNLRIEncoder != nil && slices.Contains(reg.Families, family) {
+			return reg.InProcessNLRIEncoder(family, args)
+		}
+	}
+	return "", fmt.Errorf("no NLRI encoder for family %s", family)
 }
 
 // WriteUsage writes a formatted plugin list to w for help text.

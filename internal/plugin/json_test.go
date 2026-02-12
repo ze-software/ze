@@ -11,9 +11,9 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/evpn"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/vpn"
+	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
+	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1158,7 +1158,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 			assert.Equal(t, tc.wantRD, rd.String(), "RD should include type prefix")
 
 			// Create IPVPN NLRI and verify JSON output
-			vpn := vpn.NewVPN(
+			vpnNLRI := vpn.NewVPN(
 				nlri.IPv4VPN,
 				rd,
 				[]uint32{100}, // label
@@ -1166,9 +1166,9 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 				0, // no path-id
 			)
 
-			// Format using formatIPVPNJSON
+			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatIPVPNJSON(&sb, vpn)
+			formatNLRIJSONValue(&sb, vpnNLRI)
 			output := sb.String()
 
 			// Verify RD in JSON output
@@ -1204,26 +1204,26 @@ func TestJSONEncoderEVPN(t *testing.T) {
 	label := []byte{0x00, 0x06, 0x41} // label 100, BOS=1
 
 	// Create EVPN Type 2 directly for testing JSON formatter
-	evpn := createTestEVPNType2(rd, esi, ethTag, mac, ip, label)
+	evpnNLRI := createTestEVPNType2(rd, esi, ethTag, mac, ip, label)
 
-	// Format using formatEVPNType2JSON
+	// Format using formatNLRIJSONValue (registry-based decode)
 	var sb strings.Builder
-	formatEVPNType2JSON(&sb, evpn)
+	formatNLRIJSONValue(&sb, evpnNLRI)
 	output := sb.String()
 
-	// Verify all fields
-	assert.Contains(t, output, `"route-type":"mac-ip-advertisement"`, "route-type")
+	// Verify all fields (plugin decode format: array with code/name/parsed/raw fields)
+	assert.Contains(t, output, `"name":"MAC/IP advertisement"`, "route type name")
 	assert.Contains(t, output, `"rd":"0:65000:100"`, "RD with type prefix")
-	assert.Contains(t, output, `"esi":"00:00:00:00:00:00:00:00:00:00"`, "ESI")
 	assert.Contains(t, output, `"ethernet-tag":0`, "ethernet-tag")
 	assert.Contains(t, output, `"mac":"00:11:22:33:44:55"`, "MAC")
 	assert.Contains(t, output, `"ip":"10.0.0.1"`, "IP")
-	assert.Contains(t, output, `"labels":[100]`, "labels")
+	assert.Contains(t, output, `"label":[[100]]`, "labels (nested array)")
 
-	// Verify valid JSON
-	var parsed map[string]any
+	// Verify valid JSON (plugin returns array)
+	var parsed []any
 	err := json.Unmarshal([]byte(output), &parsed)
 	require.NoError(t, err, "Output should be valid JSON: %s", output)
+	require.Len(t, parsed, 1, "should contain one EVPN route")
 }
 
 // createTestEVPNType2 creates an EVPNType2 for testing by parsing wire format.
@@ -1434,7 +1434,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			rdValue:    [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}, // 65000:100
 			labels:     []uint32{100},
 			wantRD:     "0:65000:100",
-			wantLabels: `"labels":[100]`,
+			wantLabels: `"labels":[[100]]`, // Plugin uses nested arrays for MPLS label stacks
 		},
 		{
 			name:       "vpnv4_type1_rd",
@@ -1443,7 +1443,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			rdValue:    [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}, // 10.0.0.1:100
 			labels:     []uint32{200, 300},
 			wantRD:     "1:10.0.0.1:100",
-			wantLabels: `"labels":[200,300]`,
+			wantLabels: `"labels":[[200],[300]]`, // Plugin uses nested arrays for MPLS label stacks
 		},
 		{
 			name:       "vpnv4_type2_rd",
@@ -1453,8 +1453,8 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			labels:     []uint32{400},
 			pathID:     42,
 			wantRD:     "2:65536:100",
-			wantLabels: `"labels":[400]`,
-			wantPathID: true,
+			wantLabels: `"labels":[[400]]`, // Plugin uses nested arrays for MPLS label stacks
+			wantPathID: false,              // path-id is transport-level, not in plugin decode output
 		},
 	}
 
@@ -1462,7 +1462,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create IPVPN NLRI
 			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
-			vpn := vpn.NewVPN(
+			vpnNLRI := vpn.NewVPN(
 				nlri.IPv4VPN,
 				rd,
 				tc.labels,
@@ -1470,9 +1470,9 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 				tc.pathID,
 			)
 
-			// Format using formatIPVPNJSON
+			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatIPVPNJSON(&sb, vpn)
+			formatNLRIJSONValue(&sb, vpnNLRI)
 			output := sb.String()
 
 			// Verify prefix
@@ -1518,7 +1518,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		rdValue    [6]byte
 		components []flowspec.FlowComponent
 		wantRD     string
-		wantSpec   string // Expected substring in spec field
+		wantKey    string // Expected top-level key in structured output
 	}{
 		{
 			name:    "flowspec_vpn_dest_prefix",
@@ -1527,8 +1527,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			components: []flowspec.FlowComponent{
 				flowspec.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
 			},
-			wantRD:   "0:65000:100",
-			wantSpec: "destination 10.0.0.0/24",
+			wantRD:  "0:65000:100",
+			wantKey: "destination",
 		},
 		{
 			name:    "flowspec_vpn_protocol",
@@ -1537,8 +1537,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			components: []flowspec.FlowComponent{
 				flowspec.NewFlowIPProtocolComponent(6), // TCP
 			},
-			wantRD:   "2:65536:100",
-			wantSpec: "protocol",
+			wantRD:  "2:65536:100",
+			wantKey: "protocol",
 		},
 		{
 			name:    "flowspec_vpn_port_range",
@@ -1547,8 +1547,8 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			components: []flowspec.FlowComponent{
 				flowspec.NewFlowDestPortComponent(80, 443),
 			},
-			wantRD:   "1:10.0.0.1:100",
-			wantSpec: "destination-port",
+			wantRD:  "1:10.0.0.1:100",
+			wantKey: "destination-port",
 		},
 	}
 
@@ -1561,18 +1561,18 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 				fsv.AddComponent(comp)
 			}
 
-			// Format using formatFlowSpecVPNJSON
+			// Format using formatNLRIJSONValue (registry-based decode)
 			var sb strings.Builder
-			formatFlowSpecVPNJSON(&sb, fsv)
+			formatNLRIJSONValue(&sb, fsv)
 			output := sb.String()
 
 			// Verify RD with type prefix
 			assert.Contains(t, output, fmt.Sprintf(`"rd":"%s"`, tc.wantRD),
 				"JSON should contain RD with type prefix")
 
-			// Verify spec field contains expected component info
-			assert.Contains(t, output, tc.wantSpec,
-				"JSON spec field should contain component info")
+			// Verify structured component key exists (plugin uses structured JSON, not spec string)
+			assert.Contains(t, output, fmt.Sprintf(`"%s"`, tc.wantKey),
+				"JSON should contain component key")
 
 			// Verify valid JSON
 			var parsed map[string]any
@@ -1581,7 +1581,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 			// Verify required fields exist
 			assert.Contains(t, parsed, "rd", "JSON should have rd field")
-			assert.Contains(t, parsed, "spec", "JSON should have spec field")
+			assert.Contains(t, parsed, tc.wantKey, "JSON should have component key")
 		})
 	}
 }

@@ -1,6 +1,6 @@
 # plugin-evpn-features - verify evpn plugin --features output
-# Tests that ze bgp plugin evpn --features lists supported features
+# Tests that ze bgp plugin bgp-evpn --features lists supported features
 
-cmd=foreground:seq=1:exec=ze bgp plugin evpn --features
+cmd=foreground:seq=1:exec=ze bgp plugin bgp-evpn --features
 expect=exit:code=0
 expect=stdout:contains=nlri

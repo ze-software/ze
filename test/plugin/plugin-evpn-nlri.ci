@@ -4,7 +4,7 @@
 #         MAC 00:11:22:33:44:55, IP 10.0.0.1, labels [200]
 # Hex from RFC 7432 example format
 
-cmd=foreground:seq=1:exec=ze bgp plugin evpn --nlri 02250001000100010001000000000000000000006400112233445510000000020000c8
+cmd=foreground:seq=1:exec=ze bgp plugin bgp-evpn --nlri 02250001000100010001000000000000000000006400112233445510000000020000c8
 expect=exit:code=0
 expect=stdout:contains="code":2
 expect=stdout:contains=raw

@@ -722,8 +722,8 @@ func TestMergeCliPlugins(t *testing.T) {
 		{
 			name:        "cli_only_internal",
 			configPlugs: nil,
-			cliPlugs:    []string{"ze.rib"},
-			wantNames:   []string{"rib"},
+			cliPlugs:    []string{"ze.bgp-rib"},
+			wantNames:   []string{"bgp-rib"},
 		},
 		{
 			name:        "cli_only_external",
@@ -734,24 +734,24 @@ func TestMergeCliPlugins(t *testing.T) {
 		{
 			name:        "cli_multiple",
 			configPlugs: nil,
-			cliPlugs:    []string{"ze.rib", "ze.gr"},
-			wantNames:   []string{"rib", "gr"},
+			cliPlugs:    []string{"ze.bgp-rib", "ze.bgp-gr"},
+			wantNames:   []string{"bgp-rib", "bgp-gr"},
 		},
 		{
 			name: "cli_plus_config",
 			configPlugs: []reactor.PluginConfig{
 				{Name: "existing", Run: "some-plugin"},
 			},
-			cliPlugs:  []string{"ze.rib"},
-			wantNames: []string{"rib", "existing"}, // CLI first
+			cliPlugs:  []string{"ze.bgp-rib"},
+			wantNames: []string{"bgp-rib", "existing"}, // CLI first
 		},
 		{
 			name: "dedup_cli_matches_config",
 			configPlugs: []reactor.PluginConfig{
-				{Name: "rib", Run: "ze bgp plugin rib"},
+				{Name: "bgp-rib", Run: "ze bgp plugin bgp-rib"},
 			},
-			cliPlugs:  []string{"ze.rib"},
-			wantNames: []string{"rib"}, // Only one rib
+			cliPlugs:  []string{"ze.bgp-rib"},
+			wantNames: []string{"bgp-rib"}, // Only one rib
 		},
 		{
 			name:        "cli_command_with_args",
@@ -802,12 +802,12 @@ func TestMergeCliPlugins(t *testing.T) {
 // VALIDATES: Internal plugins have Internal=true, empty Run.
 // PREVENTS: Internal plugins being treated as external.
 func TestMergeCliPluginsInternal(t *testing.T) {
-	result, err := mergeCliPlugins(nil, []string{"ze.rib"})
+	result, err := mergeCliPlugins(nil, []string{"ze.bgp-rib"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 	assert.True(t, result[0].Internal, "internal plugin should have Internal=true")
 	assert.Empty(t, result[0].Run, "internal plugin should have empty Run")
-	assert.Equal(t, "rib", result[0].Name)
+	assert.Equal(t, "bgp-rib", result[0].Name)
 
 	result2, err := mergeCliPlugins(nil, []string{"./custom-plugin"})
 	require.NoError(t, err)

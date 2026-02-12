@@ -1240,8 +1240,8 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		if !result.RIBInjected {
 			t.Error("expected RIBInjected=true for graceful-restart")
 		}
-		if !strings.Contains(got, "plugin rib") {
-			t.Error("expected 'plugin rib' in output")
+		if !strings.Contains(got, "plugin bgp-rib") {
+			t.Error("expected 'plugin bgp-rib' in output")
 		}
 
 	case "route-refresh":
