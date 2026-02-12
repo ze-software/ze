@@ -6,7 +6,7 @@ Scan encoding paths for `make([]byte, ...)` allocations that should use buffer-w
 
 1. Use ULTRATHINK for thorough analysis
 2. Accept an optional `$ARGUMENTS` parameter:
-   - If provided: scope search to that path (e.g., `internal/plugin/bgp/reactor/`)
+   - If provided: scope search to that path (e.g., `internal/plugins/bgp/reactor/`)
    - If empty: scan all production encoding paths under `internal/`
 3. Exclude `_test.go` files — tests legitimately allocate for test data
 4. Exclude these legitimate uses:

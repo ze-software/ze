@@ -8,8 +8,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
 
 // PeersFromConfigTree builds PeerSettings from a config tree.

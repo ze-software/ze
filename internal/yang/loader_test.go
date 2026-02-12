@@ -12,7 +12,7 @@ import (
 //
 // VALIDATES: Core YANG modules (extensions, types, plugin) load without errors.
 // PREVENTS: Syntax errors in YANG files breaking startup.
-// NOTE: ze-bgp is in internal/plugin/bgp/schema, ze-hub is in internal/hub/schema.
+// NOTE: ze-bgp is in internal/plugins/bgp/schema, ze-hub is in internal/hub/schema.
 func TestLoader_EmbeddedModules(t *testing.T) {
 	loader := NewLoader()
 
@@ -66,7 +66,7 @@ func TestLoader_ZeTypesModule(t *testing.T) {
 //
 // VALIDATES: ze-bgp-conf module defines expected containers and lists.
 // PREVENTS: Missing BGP configuration elements.
-// NOTE: Uses LoadAllForTesting since ze-bgp-conf is now in internal/plugin/bgp/schema.
+// NOTE: Uses LoadAllForTesting since ze-bgp-conf is now in internal/plugins/bgp/schema.
 func TestLoader_ZeBgpModule(t *testing.T) {
 	loader := NewLoader()
 

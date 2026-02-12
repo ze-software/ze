@@ -8,7 +8,7 @@
 | **Key Types** | `EncodingContext`, `NegotiatedCapabilities`, `ContextID` (uint16) |
 | **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `nc.Has()`, `nc.Families()` |
 | **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
-| **Files** | `internal/plugin/bgp/context/`, `internal/plugin/bgp/reactor/peer.go`, `internal/plugin/wire_update.go` |
+| **Files** | `internal/plugins/bgp/context/`, `internal/plugins/bgp/reactor/peer.go`, `internal/plugin/wire_update.go` |
 
 **When to read full doc:** Route forwarding, peer session, encoding mismatches, new capabilities.
 
@@ -30,12 +30,12 @@ while EncodingContext answers "how do we encode for this peer?"
 ## Package Structure
 
 ```
-internal/plugin/bgp/context/
+internal/plugins/bgp/context/
 ├── context.go      # EncodingContext struct, Hash(), ToPackContext()
 ├── registry.go     # ContextRegistry, ContextID, global Registry
 └── negotiated.go   # FromNegotiatedRecv/Send() helpers
 
-internal/plugin/bgp/reactor/
+internal/plugins/bgp/reactor/
 └── negotiated.go   # NegotiatedCapabilities struct
 ```
 
@@ -44,19 +44,19 @@ internal/plugin/bgp/reactor/
 All AFI/SAFI types are consolidated in `nlri.Family`. Other packages use type aliases:
 
 ```go
-// internal/plugin/bgp/nlri/nlri.go - canonical definition
+// internal/plugins/bgp/nlri/nlri.go - canonical definition
 type Family struct { AFI AFI; SAFI SAFI }
 
-// internal/plugin/bgp/capability/capability.go - alias for backward compat
+// internal/plugins/bgp/capability/capability.go - alias for backward compat
 type Family = nlri.Family
 
-// internal/plugin/bgp/context/context.go - alias
+// internal/plugins/bgp/context/context.go - alias
 type Family = nlri.Family
 ```
 
 ## NegotiatedCapabilities
 
-Tracks "what was negotiated" - which families are enabled. Lives in `internal/plugin/bgp/reactor/`.
+Tracks "what was negotiated" - which families are enabled. Lives in `internal/plugins/bgp/reactor/`.
 
 ```go
 type NegotiatedCapabilities struct {
@@ -93,7 +93,7 @@ for _, family := range nc.Families() {
 
 ## EncodingContext
 
-Captures all capability flags that affect wire encoding. Lives in `internal/plugin/bgp/context/`.
+Captures all capability flags that affect wire encoding. Lives in `internal/plugins/bgp/context/`.
 References sub-components from `capability.Negotiated` for zero duplication.
 
 ```go
@@ -107,7 +107,7 @@ type EncodingContext struct {
     addPath   map[nlri.Family]bool  // Derived from encoding.AddPathMode + direction
 }
 
-// EncodingCaps in internal/plugin/bgp/capability/encoding.go
+// EncodingCaps in internal/plugins/bgp/capability/encoding.go
 type EncodingCaps struct {
     ASN4            bool                      // RFC 6793: 4-byte ASN support
     ExtendedMessage bool                      // RFC 8654: max message 65535 bytes
@@ -177,7 +177,7 @@ from read to API notification. The buffer is returned to pool after processing.
 Two size-appropriate pools handle standard (4K) and extended (64K) messages:
 
 ```go
-// internal/plugin/bgp/reactor/session.go
+// internal/plugins/bgp/reactor/session.go
 var readBufPool4K = sync.Pool{
     New: func() any { return make([]byte, message.MaxMsgLen) },  // 4096
 }
@@ -245,7 +245,7 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)    // RFC 4760 MP_UNREAC
 The session's `recvCtxID` is set by Peer after capability negotiation:
 
 ```go
-// internal/plugin/bgp/reactor/peer.go - setEncodingContexts()
+// internal/plugins/bgp/reactor/peer.go - setEncodingContexts()
 p.recvCtxID = bgpctx.Registry.Register(recvCtx)
 p.session.SetRecvCtxID(p.recvCtxID)  // Propagate to session
 ```
@@ -415,7 +415,7 @@ With same-capability clients, route reflection is O(1):
 All wire types (Message, Attribute, NLRI) implement a common interface:
 
 ```go
-// internal/plugin/bgp/context/context.go
+// internal/plugins/bgp/context/context.go
 // Note: In context package (not wire) due to import cycle: wire→context→nlri→wire
 type WireWriter interface {
     // Len returns wire size in bytes. Pass nil for context-independent types.
@@ -430,13 +430,13 @@ type WireWriter interface {
 Message and Attribute interfaces embed WireWriter:
 
 ```go
-// internal/plugin/bgp/message/message.go
+// internal/plugins/bgp/message/message.go
 type Message interface {
     context.WireWriter
     Type() MessageType
 }
 
-// internal/plugin/bgp/attribute/attribute.go (planned)
+// internal/plugins/bgp/attribute/attribute.go (planned)
 type Attribute interface {
     context.WireWriter
     Code() AttributeCode
@@ -527,16 +527,16 @@ Context IDs must be registered via `Registry.Register()`:
 
 | File | Purpose |
 |------|---------|
-| `internal/plugin/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
-| `internal/plugin/bgp/context/context.go` | EncodingContext struct (references sub-components) |
-| `internal/plugin/bgp/context/registry.go` | ContextRegistry, global Registry |
-| `internal/plugin/bgp/context/negotiated.go` | FromNegotiatedRecv/Send factories |
-| `internal/plugin/bgp/capability/identity.go` | PeerIdentity sub-component |
-| `internal/plugin/bgp/capability/encoding.go` | EncodingCaps sub-component |
-| `internal/plugin/bgp/capability/session.go` | SessionCaps sub-component |
-| `internal/plugin/bgp/reactor/negotiated.go` | NegotiatedCapabilities struct |
-| `internal/plugin/bgp/rib/route.go` | Wire cache fields, Pack*For methods |
-| `internal/plugin/bgp/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
+| `internal/plugins/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
+| `internal/plugins/bgp/context/context.go` | EncodingContext struct (references sub-components) |
+| `internal/plugins/bgp/context/registry.go` | ContextRegistry, global Registry |
+| `internal/plugins/bgp/context/negotiated.go` | FromNegotiatedRecv/Send factories |
+| `internal/plugins/bgp/capability/identity.go` | PeerIdentity sub-component |
+| `internal/plugins/bgp/capability/encoding.go` | EncodingCaps sub-component |
+| `internal/plugins/bgp/capability/session.go` | SessionCaps sub-component |
+| `internal/plugins/bgp/reactor/negotiated.go` | NegotiatedCapabilities struct |
+| `internal/plugins/bgp/rib/route.go` | Wire cache fields, Pack*For methods |
+| `internal/plugins/bgp/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
 
 ## Related Specs
 

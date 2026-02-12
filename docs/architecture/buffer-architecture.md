@@ -256,7 +256,7 @@ func (b *UpdateBuilder) Reset()
 Routes store wire bytes as source of truth:
 
 ```go
-// internal/plugin/bgp/rib/route.go
+// internal/plugins/bgp/rib/route.go
 type Route struct {
     // Wire bytes (source of truth)
     wireBytes     []byte           // packed path attributes

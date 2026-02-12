@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/parse"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 )
 
 // Origin represents the ORIGIN path attribute.

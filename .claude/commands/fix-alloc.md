@@ -6,8 +6,8 @@ Convert a `make([]byte, ...)` allocation to buffer-writing pattern.
 
 1. Use ULTRATHINK for careful analysis
 2. `$ARGUMENTS` is REQUIRED and specifies the target: `file.go:line` or `file.go:functionName`
-   - Example: `internal/plugin/bgp/attribute/simple.go:MED.Pack`
-   - Example: `internal/plugin/bgp/reactor/reactor.go:4926`
+   - Example: `internal/plugins/bgp/attribute/simple.go:MED.Pack`
+   - Example: `internal/plugins/bgp/reactor/reactor.go:4926`
    - If no argument: print "Usage: /fix-alloc file.go:line-or-function" and stop
 3. Read the target file and understand the allocation context
 4. Read callers of the function to understand how the result is used
@@ -61,11 +61,11 @@ func (x Type) CheckedWriteTo(buf []byte, off int) (int, error) {
 ```
 
 **Reference implementations** (read these for patterns):
-- `MED.WriteTo` — `internal/plugin/bgp/attribute/simple.go:99`
-- `LocalPref.WriteTo` — `internal/plugin/bgp/attribute/simple.go:152`
-- `Origin.WriteTo` — `internal/plugin/bgp/attribute/origin.go:76`
-- `ASPath.WriteTo` — `internal/plugin/bgp/attribute/aspath.go`
-- `Communities.WriteTo` — `internal/plugin/bgp/attribute/community.go`
+- `MED.WriteTo` — `internal/plugins/bgp/attribute/simple.go:99`
+- `LocalPref.WriteTo` — `internal/plugins/bgp/attribute/simple.go:152`
+- `Origin.WriteTo` — `internal/plugins/bgp/attribute/origin.go:76`
+- `ASPath.WriteTo` — `internal/plugins/bgp/attribute/aspath.go`
+- `Communities.WriteTo` — `internal/plugins/bgp/attribute/community.go`
 
 ### Category B: Caller uses Pack() when WriteTo exists — Switch caller
 

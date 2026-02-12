@@ -59,7 +59,7 @@ The registry exists as an indirection layer. Code outside `internal/plugins/` mu
 Any code in these locations must go through the registry:
 
 - `internal/plugin/` (plugin framework — text parsing, JSON encoding, process management)
-- `internal/plugin/bgp/` (reactor, message building, session handling)
+- `internal/plugins/bgp/` (reactor, message building, session handling)
 - `internal/config/` (config loading and parsing)
 - `cmd/ze/` (CLI commands)
 
@@ -83,8 +83,8 @@ universal interface (e.g., `"type2", "rd", "0:1:1", "mac", "00:11:22:33:44:55"`)
 | File | Plugin imports | What it does |
 |------|---------------|--------------|
 | `cmd/ze/bgp/encode.go` | bgp-evpn, bgp-flowspec, bgp-vpn | CLI `ze bgp encode` — builds NLRI from flags |
-| `internal/plugin/bgp/reactor/reactor.go` | bgp-vpn | VPN withdrawal building |
-| `internal/plugin/bgp/message/update_build.go` | bgp-evpn | EVPN UPDATE building |
+| `internal/plugins/bgp/reactor/reactor.go` | bgp-vpn | VPN withdrawal building |
+| `internal/plugins/bgp/message/update_build.go` | bgp-evpn | EVPN UPDATE building |
 | `internal/config/loader.go` | bgp-flowspec | FlowSpec config parsing |
 
 ## 5-Stage Protocol (MANDATORY)

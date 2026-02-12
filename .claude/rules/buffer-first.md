@@ -35,16 +35,16 @@ These already exist — USE THEM:
 
 | Tool | Location | Purpose |
 |------|----------|---------|
-| `wire.BufWriter` interface | `internal/plugin/bgp/wire/writer.go` | `WriteTo(buf, off) int` |
-| `wire.CheckedBufWriter` | `internal/plugin/bgp/wire/writer.go` | `WriteTo` + capacity check |
-| `wire.SessionBuffer` | `internal/plugin/bgp/wire/writer.go` | Reusable per-session buffer |
-| `attribute.WriteHeaderTo()` | `internal/plugin/bgp/attribute/attribute.go` | Zero-alloc attr header |
-| `attribute.WriteAttributeTo()` | `internal/plugin/bgp/attribute/attribute.go` | Header + value into buffer |
+| `wire.BufWriter` interface | `internal/plugins/bgp/wire/writer.go` | `WriteTo(buf, off) int` |
+| `wire.CheckedBufWriter` | `internal/plugins/bgp/wire/writer.go` | `WriteTo` + capacity check |
+| `wire.SessionBuffer` | `internal/plugins/bgp/wire/writer.go` | Reusable per-session buffer |
+| `attribute.WriteHeaderTo()` | `internal/plugins/bgp/attribute/attribute.go` | Zero-alloc attr header |
+| `attribute.WriteAttributeTo()` | `internal/plugins/bgp/attribute/attribute.go` | Header + value into buffer |
 | `nlri.WriteTo()` | Various NLRI types | Zero-alloc NLRI encoding |
 
 ## Reference Pattern
 
-**MED** (`internal/plugin/bgp/attribute/simple.go`) shows both patterns side by side:
+**MED** (`internal/plugins/bgp/attribute/simple.go`) shows both patterns side by side:
 
 ```
 Pack() []byte        — allocates 4 bytes, writes, returns     ← LEGACY

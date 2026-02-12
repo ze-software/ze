@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

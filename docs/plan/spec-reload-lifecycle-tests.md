@@ -52,7 +52,7 @@ This is implemented as 5 ordered sub-specs:
 - [ ] `internal/plugin/rpc_plugin.go` — Send methods for all stages + runtime RPCs, no config reload
 - [ ] `pkg/plugin/sdk/sdk.go` — SDK dispatch for deliver-event, encode/decode, execute-command, bye
 - [ ] `internal/plugin/server.go` — deliverConfigRPC() at Stage 2, no reload notification
-- [ ] `internal/plugin/bgp/reactor/reactor.go` — Reload() reads config directly, bypasses plugins
+- [ ] `internal/plugins/bgp/reactor/reactor.go` — Reload() reads config directly, bypasses plugins
 - [ ] `internal/config/diff.go` — DiffMaps() computes Added/Removed/Changed on map[string]any
 - [ ] `internal/config/editor/model_commands.go` — cmdCommit() validates YANG + saves, no plugin notify
 
@@ -130,7 +130,7 @@ N/A — no new numeric inputs in the pipeline itself.
 - `internal/plugin/rpc_plugin.go` — add SendConfigVerify/SendConfigApply
 - `pkg/plugin/sdk/sdk.go` — add config-verify/apply dispatch + OnConfig handlers
 - `internal/plugin/server.go` — wire coordinator
-- `internal/plugin/bgp/reactor/reactor.go` — split Reload() into VerifyConfig/ApplyConfigDiff
+- `internal/plugins/bgp/reactor/reactor.go` — split Reload() into VerifyConfig/ApplyConfigDiff
 - `internal/config/editor/model_commands.go` — commit triggers reload
 
 ## Files to Create

@@ -3,7 +3,7 @@ package plugin
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // refreshRPCs returns RPC registrations for handlers defined in this file.

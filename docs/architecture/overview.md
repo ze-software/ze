@@ -156,33 +156,33 @@ Manages plugin lifecycle and communication:
 - Routes commands to appropriate plugins
 - Handles JSON events from reactor
 
-### 4.2 Reactor (`internal/plugin/bgp/reactor/`)
+### 4.2 Reactor (`internal/plugins/bgp/reactor/`)
 
 Core event loop:
 - Manages peer FSM instances
 - Routes BGP messages
 - Maintains message cache for zero-copy forwarding
 
-### 4.3 FSM (`internal/plugin/bgp/fsm/`)
+### 4.3 FSM (`internal/plugins/bgp/fsm/`)
 
 RFC 4271 state machine:
 - IDLE → CONNECT → ACTIVE → OPENSENT → OPENCONFIRM → ESTABLISHED
 - Timer management (hold, keepalive, connect retry)
 
-### 4.4 Messages (`internal/plugin/bgp/message/`)
+### 4.4 Messages (`internal/plugins/bgp/message/`)
 
 BGP message types:
 - OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH
 - Header parsing and validation
 
-### 4.5 Attributes (`internal/plugin/bgp/attribute/`)
+### 4.5 Attributes (`internal/plugins/bgp/attribute/`)
 
 Path attributes:
 - ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF
 - Communities (standard, extended, large)
 - MP_REACH_NLRI, MP_UNREACH_NLRI
 
-### 4.6 NLRI (`internal/plugin/bgp/nlri/`)
+### 4.6 NLRI (`internal/plugins/bgp/nlri/`)
 
 Network Layer Reachability Information:
 - INET (IPv4/IPv6 unicast)
@@ -192,7 +192,7 @@ Network Layer Reachability Information:
 - BGP-LS
 - MUP (Mobile User Plane)
 
-### 4.7 Capabilities (`internal/plugin/bgp/capability/`)
+### 4.7 Capabilities (`internal/plugins/bgp/capability/`)
 
 BGP capabilities and negotiation:
 - Multiprotocol, ASN4, ADD-PATH
@@ -290,7 +290,7 @@ process announce-routes {
 ### Unit Tests
 ```bash
 make test                     # All unit tests
-go test ./internal/plugin/bgp/message/...  # Single package
+go test ./internal/plugins/bgp/message/...  # Single package
 ```
 
 ### Functional Tests

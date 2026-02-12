@@ -63,7 +63,7 @@ All new code MUST follow these patterns.
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see internal/plugin/bgp/capability/negotiated.go for full struct
+// Simplified view - see internal/plugins/bgp/capability/negotiated.go for full struct
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -85,7 +85,7 @@ type Negotiated struct {
 - Different ContextID = must re-encode for target peer's capabilities
 
 ```go
-// internal/plugin/bgp/context/registry.go
+// internal/plugins/bgp/context/registry.go
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -260,7 +260,7 @@ type CheckedBufWriter interface {
     Len() int
 }
 
-// NLRI interface (internal/plugin/bgp/nlri/nlri.go)
+// NLRI interface (internal/plugins/bgp/nlri/nlri.go)
 type NLRI interface {
     Family() Family
     Bytes() []byte                    // Wire-format encoding (payload only)

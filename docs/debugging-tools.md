@@ -187,9 +187,9 @@ Shell-compatible: `ze_log_bgp_routes=debug` also works (dot→underscore)
 
 Currently instrumented:
 - `internal/config/loader.go`: Config parsing, peer routes (configLogger)
-- `internal/plugin/bgp/reactor/peer.go`: FSM, session, route operations (peerLogger, routesLogger)
-- `internal/plugin/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
-- `internal/plugin/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
+- `internal/plugins/bgp/reactor/peer.go`: FSM, session, route operations (peerLogger, routesLogger)
+- `internal/plugins/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
+- `internal/plugins/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
 
 ---
 
@@ -322,6 +322,6 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 | `cmd/ze-peer/main.go` | --decode flag |
 | `internal/config/parser.go` | Parser warnings |
 | `internal/config/loader.go` | Config logging (configLogger) |
-| `internal/plugin/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
-| `internal/plugin/bgp/reactor/session.go` | Session logging (sessionLogger) |
-| `internal/plugin/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |
+| `internal/plugins/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
+| `internal/plugins/bgp/reactor/session.go` | Session logging (sessionLogger) |
+| `internal/plugins/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |

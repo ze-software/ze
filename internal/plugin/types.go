@@ -13,10 +13,10 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 

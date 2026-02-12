@@ -180,7 +180,7 @@ None - audit task.
 - [x] `exabgp/exabgp-migration.md` - Migration guide
 
 #### Contributing (1 file)
-- [x] `contributing/rfc-implementation-guide.md` - Fixed code paths (internal/plugin/, internal/plugin/bgp/context/)
+- [x] `contributing/rfc-implementation-guide.md` - Fixed code paths (internal/plugin/, internal/plugins/bgp/context/)
 
 ## Common Issues Found
 

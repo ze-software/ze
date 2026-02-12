@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 )
 
 // Errors for route parsing.

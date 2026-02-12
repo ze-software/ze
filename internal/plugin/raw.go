@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
 // rawRPCs returns RPC registrations for handlers defined in this file.

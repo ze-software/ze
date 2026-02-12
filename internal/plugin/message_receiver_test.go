@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"github.com/stretchr/testify/require"
 )
 

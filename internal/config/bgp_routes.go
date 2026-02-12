@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
 // parseAnnounceAFIRoutes parses routes from an AFI container (ipv4 or ipv6).

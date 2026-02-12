@@ -8,14 +8,14 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 | Component | Package | When Needed |
 |-----------|---------|-------------|
-| Capability | `internal/plugin/bgp/capability/` | RFC introduces a capability |
-| Attribute | `internal/plugin/bgp/attribute/` | RFC introduces path attributes |
-| NLRI | `internal/plugin/bgp/nlri/` | RFC introduces new AFI/SAFI |
-| Message | `internal/plugin/bgp/message/` | RFC modifies message format |
-| FSM | `internal/plugin/bgp/fsm/` | RFC affects state machine |
+| Capability | `internal/plugins/bgp/capability/` | RFC introduces a capability |
+| Attribute | `internal/plugins/bgp/attribute/` | RFC introduces path attributes |
+| NLRI | `internal/plugins/bgp/nlri/` | RFC introduces new AFI/SAFI |
+| Message | `internal/plugins/bgp/message/` | RFC modifies message format |
+| FSM | `internal/plugins/bgp/fsm/` | RFC affects state machine |
 | Config | `internal/config/` | RFC needs configuration |
 | Plugin | `internal/plugin/` | RFC needs plugin commands |
-| Context | `internal/plugin/bgp/context/` | RFC affects encoding context |
+| Context | `internal/plugins/bgp/context/` | RFC affects encoding context |
 
 ## Phase 0: Preparation
 
@@ -33,9 +33,9 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 ```
 [ ] Search for existing partial implementation: grep -r "RFC NNNN" internal/
-[ ] Check if related capabilities exist: internal/plugin/bgp/capability/
-[ ] Check if related attributes exist: internal/plugin/bgp/attribute/
-[ ] Check if related NLRI types exist: internal/plugin/bgp/nlri/
+[ ] Check if related capabilities exist: internal/plugins/bgp/capability/
+[ ] Check if related attributes exist: internal/plugins/bgp/attribute/
+[ ] Check if related NLRI types exist: internal/plugins/bgp/nlri/
 [ ] Read architecture docs for affected areas (see planning.md keyword table)
 ```
 
@@ -74,7 +74,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 1.1 Define Capability
 
 ```
-[ ] Add capability code constant to internal/plugin/bgp/capability/codes.go
+[ ] Add capability code constant to internal/plugins/bgp/capability/codes.go
     - Code<Name> Code = NN  // RFC NNNN
 
 [ ] Create capability struct in appropriate file (or new file)
@@ -130,7 +130,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 2.1 Define Attribute
 
 ```
-[ ] Add attribute code constant to internal/plugin/bgp/attribute/codes.go
+[ ] Add attribute code constant to internal/plugins/bgp/attribute/codes.go
     - Attr<Name> AttributeCode = NN  // RFC NNNN
 
 [ ] Create attribute struct (new file if complex, or add to existing)
@@ -188,8 +188,8 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 3.1 Define Family
 
 ```
-[ ] Add AFI constant if new: internal/plugin/bgp/nlri/afi.go
-[ ] Add SAFI constant if new: internal/plugin/bgp/nlri/safi.go
+[ ] Add AFI constant if new: internal/plugins/bgp/nlri/afi.go
+[ ] Add SAFI constant if new: internal/plugins/bgp/nlri/safi.go
 [ ] Add Family constant: var <Name> = Family{AFI: ..., SAFI: ...}
 [ ] Register in familyNames map for string parsing
 ```
@@ -248,7 +248,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 4.1 New Message Type
 
 ```
-[ ] Add message type constant to internal/plugin/bgp/message/types.go
+[ ] Add message type constant to internal/plugins/bgp/message/types.go
 [ ] Create message struct implementing Message interface:
     - Type() MessageType
     - Len(ctx *EncodingContext) int
@@ -616,8 +616,8 @@ func TestMyFeature(t *testing.T) {
 
 | RFC | Components | Good Reference |
 |-----|------------|----------------|
-| RFC 4724 (GR) | Capability, FSM | `internal/plugin/bgp/capability/session.go` |
-| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/plugin/bgp/capability/encoding.go` |
-| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/plugin/bgp/nlri/`, `internal/plugin/bgp/attribute/mpreach.go` |
-| RFC 8955 (FlowSpec) | NLRI | `internal/plugin/bgp/nlri/flowspec.go` |
-| RFC 7432 (EVPN) | NLRI | `internal/plugin/bgp/nlri/evpn.go` |
+| RFC 4724 (GR) | Capability, FSM | `internal/plugins/bgp/capability/session.go` |
+| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/plugins/bgp/capability/encoding.go` |
+| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/plugins/bgp/nlri/`, `internal/plugins/bgp/attribute/mpreach.go` |
+| RFC 8955 (FlowSpec) | NLRI | `internal/plugins/bgp/nlri/flowspec.go` |
+| RFC 7432 (EVPN) | NLRI | `internal/plugins/bgp/nlri/evpn.go` |

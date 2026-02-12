@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // commitRPCs returns RPC registrations for handlers defined in this file.

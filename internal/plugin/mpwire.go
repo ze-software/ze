@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // MPReachWire wraps MP_REACH_NLRI attribute bytes for zero-copy lazy parsing.

@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // Message type constants.

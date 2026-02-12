@@ -460,8 +460,8 @@ Each phase is independently committable and testable. The system works correctly
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Rename BGP extensions to bgp-<name> | | | |
-| Move internal/plugin/bgp/ to internal/plugins/bgp/ | | | |
+| Rename BGP extensions to bgp-<name> | ✅ Done | `internal/plugins/bgp-*/` | Committed b42ead8 |
+| Move internal/plugin/bgp/ to internal/plugins/bgp/ | ✅ Done | `internal/plugins/bgp/` | 181 files, pure path rename |
 | Move BGP-specific flat files to sub-packages | | | |
 | Split types.go into generic + BGP | | | |
 | Split server.go into generic + BGP | | | |
@@ -470,15 +470,15 @@ Each phase is independently committable and testable. The system works correctly
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestAllPluginsRegistered with new names | | | |
-| All existing tests pass per phase | | | |
-| Functional tests pass per phase | | | |
+| TestAllPluginsRegistered with new names | ✅ Done | `internal/plugin/all/all_test.go` | Phase 1 |
+| All existing tests pass per phase | ✅ Done | `make verify` | Phase 1+2 green |
+| Functional tests pass per phase | ✅ Done | 243/243 pass | Phase 1+2 green |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| 10 plugin directories renamed | | |
-| internal/plugin/bgp/ moved | | |
+| 10 plugin directories renamed | ✅ Done | Committed b42ead8 |
+| internal/plugin/bgp/ moved | ✅ Done | 181 files changed |
 | internal/plugins/bgp/types/ created | | |
 | BGP sub-packages created | | |
 | Mixed files split | | |

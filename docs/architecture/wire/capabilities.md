@@ -299,7 +299,7 @@ draft-abraitis-bgp-version-capability
 
 ### Negotiated State
 
-Defined in `internal/plugin/bgp/capability/negotiated.go`:
+Defined in `internal/plugins/bgp/capability/negotiated.go`:
 
 ```go
 type Negotiated struct {
@@ -331,7 +331,7 @@ type Negotiated struct {
 
 ### Capability Interface
 
-Defined in `internal/plugin/bgp/capability/capability.go`:
+Defined in `internal/plugins/bgp/capability/capability.go`:
 
 ```go
 type Capability interface {

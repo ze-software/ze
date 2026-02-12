@@ -1098,7 +1098,7 @@ Single pool. Shared globally. Deduplicates identical bytes across all peers.
 
 ### Phase 3: Update Types
 
-**File:** `internal/plugin/bgp/message/update.go`
+**File:** `internal/plugins/bgp/message/update.go`
 
 ```go
 // Update interface - same API for both modes
@@ -1139,7 +1139,7 @@ type PooledUpdate struct {
 
 ### Phase 4: RIB Storage Model
 
-**File:** `internal/plugin/bgp/rib/rib.go`
+**File:** `internal/plugins/bgp/rib/rib.go`
 
 ```go
 // NLRISet interface with two implementations
@@ -1482,7 +1482,7 @@ See `docs/plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Dedup
 - Wire reconstruction for route resend
 
 **Dependencies:**
-- `internal/plugin/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
+- `internal/plugins/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
 - `internal/pool/pool.go` - Pool infrastructure (exists, extend)
 
 ---

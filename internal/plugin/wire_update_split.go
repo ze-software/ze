@@ -4,10 +4,10 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // updateLengthFieldsSize is the fixed overhead in UPDATE body:

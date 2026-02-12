@@ -4,12 +4,12 @@
 
 | ExaBGP | Ze | Notes |
 |--------|-------|-------|
-| `bgp/message/` | `internal/plugin/bgp/message/` | Message types |
-| `bgp/message/open/capability/` | `internal/plugin/bgp/capability/` | Capabilities |
-| `bgp/message/update/attribute/` | `internal/plugin/bgp/attribute/` | Path attributes |
-| `bgp/message/update/nlri/` | `internal/plugin/bgp/nlri/` | NLRI types |
-| `reactor/peer/` | `internal/plugin/bgp/reactor/peer.go` | Peer management |
-| `rib/` | `internal/plugin/bgp/rib/` | Route storage |
+| `bgp/message/` | `internal/plugins/bgp/message/` | Message types |
+| `bgp/message/open/capability/` | `internal/plugins/bgp/capability/` | Capabilities |
+| `bgp/message/update/attribute/` | `internal/plugins/bgp/attribute/` | Path attributes |
+| `bgp/message/update/nlri/` | `internal/plugins/bgp/nlri/` | NLRI types |
+| `reactor/peer/` | `internal/plugins/bgp/reactor/peer.go` | Peer management |
+| `rib/` | `internal/plugins/bgp/rib/` | Route storage |
 
 **When to read full doc:** ExaBGP compatibility, finding reference implementation.
 
@@ -25,10 +25,10 @@
 
 | ExaBGP Module | Files | Ze Equivalent | Notes |
 |---------------|-------|------------------|-------|
-| `bgp/` | 120+ | `internal/plugin/bgp/` | Core protocol |
-| `reactor/` | 30+ | `internal/plugin/bgp/reactor/` | Event loop, peers |
+| `bgp/` | 120+ | `internal/plugins/bgp/` | Core protocol |
+| `reactor/` | 30+ | `internal/plugins/bgp/reactor/` | Event loop, peers |
 | `configuration/` | 50+ | `internal/config/` | Config parsing |
-| `rib/` | 10+ | `internal/plugin/bgp/rib/` | Route storage |
+| `rib/` | 10+ | `internal/plugins/bgp/rib/` | Route storage |
 | `application/` | 20+ | `cmd/` | Entry points |
 | `protocol/` | 15+ | `internal/wire/` | Wire utilities |
 | `environment/` | 5+ | `internal/config/` | Env vars |
@@ -47,156 +47,156 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `message.py` | Base message class | `internal/plugin/bgp/message/message.go` |
-| `message_type.py` | Message type enum | `internal/plugin/bgp/message/types.go` |
-| `keepalive.py` | KEEPALIVE message | `internal/plugin/bgp/message/keepalive.go` |
-| `notification.py` | NOTIFICATION message | `internal/plugin/bgp/message/notification.go` |
-| `refresh.py` | ROUTE-REFRESH message | `internal/plugin/bgp/message/refresh.go` |
-| `operational.py` | Operational messages | `internal/plugin/bgp/message/operational.go` |
-| `unknown.py` | Unknown message handling | `internal/plugin/bgp/message/unknown.go` |
-| `direction.py` | Message direction enum | `internal/plugin/bgp/message/direction.go` |
-| `action.py` | Message action enum | `internal/plugin/bgp/message/action.go` |
-| `source.py` | Message source enum | `internal/plugin/bgp/message/source.go` |
-| `scheduling.py` | Message scheduling | `internal/plugin/bgp/reactor/scheduler.go` |
+| `message.py` | Base message class | `internal/plugins/bgp/message/message.go` |
+| `message_type.py` | Message type enum | `internal/plugins/bgp/message/types.go` |
+| `keepalive.py` | KEEPALIVE message | `internal/plugins/bgp/message/keepalive.go` |
+| `notification.py` | NOTIFICATION message | `internal/plugins/bgp/message/notification.go` |
+| `refresh.py` | ROUTE-REFRESH message | `internal/plugins/bgp/message/refresh.go` |
+| `operational.py` | Operational messages | `internal/plugins/bgp/message/operational.go` |
+| `unknown.py` | Unknown message handling | `internal/plugins/bgp/message/unknown.go` |
+| `direction.py` | Message direction enum | `internal/plugins/bgp/message/direction.go` |
+| `action.py` | Message action enum | `internal/plugins/bgp/message/action.go` |
+| `source.py` | Message source enum | `internal/plugins/bgp/message/source.go` |
+| `scheduling.py` | Message scheduling | `internal/plugins/bgp/reactor/scheduler.go` |
 
 ### 1.2 OPEN Message (`bgp/message/open/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `open/capability/capability.py` | Capability base | `internal/plugin/bgp/capability/capability.go` |
-| `open/capability/capabilities.py` | Capability collection | `internal/plugin/bgp/capability/capabilities.go` |
-| `open/capability/negotiated.py` | Negotiated state | `internal/plugin/bgp/capability/negotiated.go` |
-| `open/capability/mp.py` | Multiprotocol | `internal/plugin/bgp/capability/multiprotocol.go` |
-| `open/capability/asn4.py` | 4-byte AS | `internal/plugin/bgp/capability/asn4.go` |
-| `open/capability/addpath.py` | ADD-PATH | `internal/plugin/bgp/capability/addpath.go` |
-| `open/capability/graceful.py` | Graceful Restart | `internal/plugin/bgp/capability/graceful.go` |
-| `open/capability/extended.py` | Extended Message | `internal/plugin/bgp/capability/extended.go` |
-| `open/capability/refresh.py` | Route Refresh | `internal/plugin/bgp/capability/refresh.go` |
-| `open/capability/hostname.py` | FQDN capability | `internal/plugin/bgp/capability/hostname.go` |
-| `open/capability/software.py` | Software Version | `internal/plugin/bgp/capability/software.go` |
-| `open/capability/nexthop.py` | Extended Next Hop | `internal/plugin/bgp/capability/nexthop.go` |
-| `open/capability/ms.py` | Multiple Paths | `internal/plugin/bgp/capability/multipaths.go` |
-| `open/capability/operational.py` | Operational | `internal/plugin/bgp/capability/operational.go` |
-| `open/capability/unknown.py` | Unknown capability | `internal/plugin/bgp/capability/unknown.go` |
+| `open/capability/capability.py` | Capability base | `internal/plugins/bgp/capability/capability.go` |
+| `open/capability/capabilities.py` | Capability collection | `internal/plugins/bgp/capability/capabilities.go` |
+| `open/capability/negotiated.py` | Negotiated state | `internal/plugins/bgp/capability/negotiated.go` |
+| `open/capability/mp.py` | Multiprotocol | `internal/plugins/bgp/capability/multiprotocol.go` |
+| `open/capability/asn4.py` | 4-byte AS | `internal/plugins/bgp/capability/asn4.go` |
+| `open/capability/addpath.py` | ADD-PATH | `internal/plugins/bgp/capability/addpath.go` |
+| `open/capability/graceful.py` | Graceful Restart | `internal/plugins/bgp/capability/graceful.go` |
+| `open/capability/extended.py` | Extended Message | `internal/plugins/bgp/capability/extended.go` |
+| `open/capability/refresh.py` | Route Refresh | `internal/plugins/bgp/capability/refresh.go` |
+| `open/capability/hostname.py` | FQDN capability | `internal/plugins/bgp/capability/hostname.go` |
+| `open/capability/software.py` | Software Version | `internal/plugins/bgp/capability/software.go` |
+| `open/capability/nexthop.py` | Extended Next Hop | `internal/plugins/bgp/capability/nexthop.go` |
+| `open/capability/ms.py` | Multiple Paths | `internal/plugins/bgp/capability/multipaths.go` |
+| `open/capability/operational.py` | Operational | `internal/plugins/bgp/capability/operational.go` |
+| `open/capability/unknown.py` | Unknown capability | `internal/plugins/bgp/capability/unknown.go` |
 
 ### 1.3 UPDATE Message (`bgp/message/update/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `update/__init__.py` | UPDATE message | `internal/plugin/bgp/message/update.go` |
-| `update/collection.py` | Route collection | `internal/plugin/bgp/message/update_collection.go` |
-| `update/eor.py` | End of RIB | `internal/plugin/bgp/message/eor.go` |
+| `update/__init__.py` | UPDATE message | `internal/plugins/bgp/message/update.go` |
+| `update/collection.py` | Route collection | `internal/plugins/bgp/message/update_collection.go` |
+| `update/eor.py` | End of RIB | `internal/plugins/bgp/message/eor.go` |
 
 ### 1.4 Path Attributes (`bgp/message/update/attribute/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `attribute/attribute.py` | Attribute base | `internal/plugin/bgp/attribute/attribute.go` |
-| `attribute/collection.py` | Attribute collection | `internal/plugin/bgp/attribute/collection.go` |
-| `attribute/origin.py` | ORIGIN | `internal/plugin/bgp/attribute/origin.go` |
-| `attribute/aspath.py` | AS_PATH, AS4_PATH | `internal/plugin/bgp/attribute/aspath.go` |
-| `attribute/nexthop.py` | NEXT_HOP | `internal/plugin/bgp/attribute/nexthop.go` |
-| `attribute/med.py` | MULTI_EXIT_DISC | `internal/plugin/bgp/attribute/med.go` |
-| `attribute/localpref.py` | LOCAL_PREF | `internal/plugin/bgp/attribute/localpref.go` |
-| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `internal/plugin/bgp/attribute/atomicaggregate.go` |
-| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `internal/plugin/bgp/attribute/aggregator.go` |
-| `attribute/originatorid.py` | ORIGINATOR_ID | `internal/plugin/bgp/attribute/originatorid.go` |
-| `attribute/clusterlist.py` | CLUSTER_LIST | `internal/plugin/bgp/attribute/clusterlist.go` |
-| `attribute/mprnlri.py` | MP_REACH_NLRI | `internal/plugin/bgp/attribute/mpreach.go` |
-| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `internal/plugin/bgp/attribute/mpunreach.go` |
-| `attribute/aigp.py` | AIGP | `internal/plugin/bgp/attribute/aigp.go` |
-| `attribute/pmsi.py` | PMSI Tunnel | `internal/plugin/bgp/attribute/pmsi.go` |
-| `attribute/generic.py` | Generic/unknown | `internal/plugin/bgp/attribute/generic.go` |
+| `attribute/attribute.py` | Attribute base | `internal/plugins/bgp/attribute/attribute.go` |
+| `attribute/collection.py` | Attribute collection | `internal/plugins/bgp/attribute/collection.go` |
+| `attribute/origin.py` | ORIGIN | `internal/plugins/bgp/attribute/origin.go` |
+| `attribute/aspath.py` | AS_PATH, AS4_PATH | `internal/plugins/bgp/attribute/aspath.go` |
+| `attribute/nexthop.py` | NEXT_HOP | `internal/plugins/bgp/attribute/nexthop.go` |
+| `attribute/med.py` | MULTI_EXIT_DISC | `internal/plugins/bgp/attribute/med.go` |
+| `attribute/localpref.py` | LOCAL_PREF | `internal/plugins/bgp/attribute/localpref.go` |
+| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `internal/plugins/bgp/attribute/atomicaggregate.go` |
+| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `internal/plugins/bgp/attribute/aggregator.go` |
+| `attribute/originatorid.py` | ORIGINATOR_ID | `internal/plugins/bgp/attribute/originatorid.go` |
+| `attribute/clusterlist.py` | CLUSTER_LIST | `internal/plugins/bgp/attribute/clusterlist.go` |
+| `attribute/mprnlri.py` | MP_REACH_NLRI | `internal/plugins/bgp/attribute/mpreach.go` |
+| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `internal/plugins/bgp/attribute/mpunreach.go` |
+| `attribute/aigp.py` | AIGP | `internal/plugins/bgp/attribute/aigp.go` |
+| `attribute/pmsi.py` | PMSI Tunnel | `internal/plugins/bgp/attribute/pmsi.go` |
+| `attribute/generic.py` | Generic/unknown | `internal/plugins/bgp/attribute/generic.go` |
 | `attribute/watchdog.py` | Watchdog (internal) | N/A (internal only) |
 
 ### 1.5 Communities (`bgp/message/update/attribute/community/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `community/initial/community.py` | Standard community | `internal/plugin/bgp/attribute/community.go` |
-| `community/extended/*.py` | Extended communities | `internal/plugin/bgp/attribute/extcommunity.go` |
-| `community/large/*.py` | Large communities | `internal/plugin/bgp/attribute/largecommunity.go` |
+| `community/initial/community.py` | Standard community | `internal/plugins/bgp/attribute/community.go` |
+| `community/extended/*.py` | Extended communities | `internal/plugins/bgp/attribute/extcommunity.go` |
+| `community/large/*.py` | Large communities | `internal/plugins/bgp/attribute/largecommunity.go` |
 
 ### 1.6 BGP-LS Attributes (`bgp/message/update/attribute/bgpls/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `bgpls/node/*.py` | Node attributes | `internal/plugin/bgp/attribute/bgpls/node.go` |
-| `bgpls/link/*.py` | Link attributes | `internal/plugin/bgp/attribute/bgpls/link.go` |
-| `bgpls/prefix/*.py` | Prefix attributes | `internal/plugin/bgp/attribute/bgpls/prefix.go` |
+| `bgpls/node/*.py` | Node attributes | `internal/plugins/bgp/attribute/bgpls/node.go` |
+| `bgpls/link/*.py` | Link attributes | `internal/plugins/bgp/attribute/bgpls/link.go` |
+| `bgpls/prefix/*.py` | Prefix attributes | `internal/plugins/bgp/attribute/bgpls/prefix.go` |
 
 ### 1.7 SR/SRv6 (`bgp/message/update/attribute/sr/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `sr/*.py` | Segment Routing | `internal/plugin/bgp/attribute/sr/sr.go` |
-| `sr/srv6/*.py` | SRv6 | `internal/plugin/bgp/attribute/sr/srv6.go` |
+| `sr/*.py` | Segment Routing | `internal/plugins/bgp/attribute/sr/sr.go` |
+| `sr/srv6/*.py` | SRv6 | `internal/plugins/bgp/attribute/sr/srv6.go` |
 
 ### 1.8 NLRI Types (`bgp/message/update/nlri/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `nlri/nlri.py` | NLRI base class | `internal/plugin/bgp/nlri/nlri.go` |
-| `nlri/collection.py` | NLRI collection | `internal/plugin/bgp/nlri/collection.go` |
-| `nlri/cidr.py` | CIDR utilities | `internal/plugin/bgp/nlri/cidr.go` |
-| `nlri/inet.py` | IPv4/IPv6 unicast | `internal/plugin/bgp/nlri/inet.go` |
-| `nlri/label.py` | MPLS labels | `internal/plugin/bgp/nlri/label.go` |
-| `nlri/ipvpn.py` | VPNv4/VPNv6 | `internal/plugin/bgp/nlri/ipvpn.go` |
-| `nlri/flow.py` | FlowSpec | `internal/plugin/bgp/nlri/flowspec.go` |
-| `nlri/vpls.py` | VPLS | `internal/plugin/bgp/nlri/vpls.go` |
-| `nlri/rtc.py` | Route Target Constraint | `internal/plugin/bgp/nlri/rtc.go` |
-| `nlri/settings.py` | NLRI settings | `internal/plugin/bgp/nlri/settings.go` |
-| `nlri/empty.py` | Empty NLRI | `internal/plugin/bgp/nlri/empty.go` |
+| `nlri/nlri.py` | NLRI base class | `internal/plugins/bgp/nlri/nlri.go` |
+| `nlri/collection.py` | NLRI collection | `internal/plugins/bgp/nlri/collection.go` |
+| `nlri/cidr.py` | CIDR utilities | `internal/plugins/bgp/nlri/cidr.go` |
+| `nlri/inet.py` | IPv4/IPv6 unicast | `internal/plugins/bgp/nlri/inet.go` |
+| `nlri/label.py` | MPLS labels | `internal/plugins/bgp/nlri/label.go` |
+| `nlri/ipvpn.py` | VPNv4/VPNv6 | `internal/plugins/bgp/nlri/ipvpn.go` |
+| `nlri/flow.py` | FlowSpec | `internal/plugins/bgp/nlri/flowspec.go` |
+| `nlri/vpls.py` | VPLS | `internal/plugins/bgp/nlri/vpls.go` |
+| `nlri/rtc.py` | Route Target Constraint | `internal/plugins/bgp/nlri/rtc.go` |
+| `nlri/settings.py` | NLRI settings | `internal/plugins/bgp/nlri/settings.go` |
+| `nlri/empty.py` | Empty NLRI | `internal/plugins/bgp/nlri/empty.go` |
 
 ### 1.9 EVPN (`bgp/message/update/nlri/evpn/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `evpn/nlri.py` | EVPN base | `internal/plugin/bgp/nlri/evpn/evpn.go` |
-| `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/plugin/bgp/nlri/evpn/type1.go` |
-| `evpn/mac.py` | Type 2: MAC/IP | `internal/plugin/bgp/nlri/evpn/type2.go` |
-| `evpn/multicast.py` | Type 3: Inclusive Multicast | `internal/plugin/bgp/nlri/evpn/type3.go` |
-| `evpn/segment.py` | Type 4: Ethernet Segment | `internal/plugin/bgp/nlri/evpn/type4.go` |
-| `evpn/prefix.py` | Type 5: IP Prefix | `internal/plugin/bgp/nlri/evpn/type5.go` |
+| `evpn/nlri.py` | EVPN base | `internal/plugins/bgp/nlri/evpn/evpn.go` |
+| `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/plugins/bgp/nlri/evpn/type1.go` |
+| `evpn/mac.py` | Type 2: MAC/IP | `internal/plugins/bgp/nlri/evpn/type2.go` |
+| `evpn/multicast.py` | Type 3: Inclusive Multicast | `internal/plugins/bgp/nlri/evpn/type3.go` |
+| `evpn/segment.py` | Type 4: Ethernet Segment | `internal/plugins/bgp/nlri/evpn/type4.go` |
+| `evpn/prefix.py` | Type 5: IP Prefix | `internal/plugins/bgp/nlri/evpn/type5.go` |
 
 ### 1.10 BGP-LS NLRI (`bgp/message/update/nlri/bgpls/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `bgpls/nlri.py` | BGP-LS base | `internal/plugin/bgp/nlri/bgpls/bgpls.go` |
-| `bgpls/node.py` | Node NLRI | `internal/plugin/bgp/nlri/bgpls/node.go` |
-| `bgpls/link.py` | Link NLRI | `internal/plugin/bgp/nlri/bgpls/link.go` |
-| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `internal/plugin/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `internal/plugin/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/tlvs/*.py` | TLV types | `internal/plugin/bgp/nlri/bgpls/tlv.go` |
+| `bgpls/nlri.py` | BGP-LS base | `internal/plugins/bgp/nlri/bgpls/bgpls.go` |
+| `bgpls/node.py` | Node NLRI | `internal/plugins/bgp/nlri/bgpls/node.go` |
+| `bgpls/link.py` | Link NLRI | `internal/plugins/bgp/nlri/bgpls/link.go` |
+| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `internal/plugins/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `internal/plugins/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/tlvs/*.py` | TLV types | `internal/plugins/bgp/nlri/bgpls/tlv.go` |
 
 ### 1.11 MUP (`bgp/message/update/nlri/mup/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `mup/nlri.py` | MUP base | `internal/plugin/bgp/nlri/mup/mup.go` |
-| `mup/isd.py` | Interwork SD | `internal/plugin/bgp/nlri/mup/isd.go` |
-| `mup/dsd.py` | Direct SD | `internal/plugin/bgp/nlri/mup/dsd.go` |
-| `mup/t1st.py` | Type 1 ST | `internal/plugin/bgp/nlri/mup/t1st.go` |
-| `mup/t2st.py` | Type 2 ST | `internal/plugin/bgp/nlri/mup/t2st.go` |
+| `mup/nlri.py` | MUP base | `internal/plugins/bgp/nlri/mup/mup.go` |
+| `mup/isd.py` | Interwork SD | `internal/plugins/bgp/nlri/mup/isd.go` |
+| `mup/dsd.py` | Direct SD | `internal/plugins/bgp/nlri/mup/dsd.go` |
+| `mup/t1st.py` | Type 1 ST | `internal/plugins/bgp/nlri/mup/t1st.go` |
+| `mup/t2st.py` | Type 2 ST | `internal/plugins/bgp/nlri/mup/t2st.go` |
 
 ### 1.12 MVPN (`bgp/message/update/nlri/mvpn/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `mvpn/nlri.py` | MVPN base | `internal/plugin/bgp/nlri/mvpn/mvpn.go` |
-| `mvpn/*.py` | MVPN route types | `internal/plugin/bgp/nlri/mvpn/*.go` |
+| `mvpn/nlri.py` | MVPN base | `internal/plugins/bgp/nlri/mvpn/mvpn.go` |
+| `mvpn/*.py` | MVPN route types | `internal/plugins/bgp/nlri/mvpn/*.go` |
 
 ### 1.13 Qualifiers (`bgp/message/update/nlri/qualifier/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `qualifier/rd.py` | Route Distinguisher | `internal/plugin/bgp/nlri/rd.go` |
-| `qualifier/esi.py` | Ethernet Segment ID | `internal/plugin/bgp/nlri/esi.go` |
-| `qualifier/labels.py` | MPLS Label Stack | `internal/plugin/bgp/nlri/labels.go` |
-| `qualifier/mac.py` | MAC Address | `internal/plugin/bgp/nlri/mac.go` |
-| `qualifier/etag.py` | Ethernet Tag | `internal/plugin/bgp/nlri/etag.go` |
-| `qualifier/path_info.py` | ADD-PATH Path ID | `internal/plugin/bgp/nlri/pathid.go` |
+| `qualifier/rd.py` | Route Distinguisher | `internal/plugins/bgp/nlri/rd.go` |
+| `qualifier/esi.py` | Ethernet Segment ID | `internal/plugins/bgp/nlri/esi.go` |
+| `qualifier/labels.py` | MPLS Label Stack | `internal/plugins/bgp/nlri/labels.go` |
+| `qualifier/mac.py` | MAC Address | `internal/plugins/bgp/nlri/mac.go` |
+| `qualifier/etag.py` | Ethernet Tag | `internal/plugins/bgp/nlri/etag.go` |
+| `qualifier/path_info.py` | ADD-PATH Path ID | `internal/plugins/bgp/nlri/pathid.go` |
 
 ### 1.14 Neighbor (`bgp/neighbor/`)
 
@@ -209,8 +209,8 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `fsm.py` | State machine | `internal/plugin/bgp/fsm/fsm.go` |
-| `timer.py` | BGP timers | `internal/plugin/bgp/fsm/timer.go` |
+| `fsm.py` | State machine | `internal/plugins/bgp/fsm/fsm.go` |
+| `timer.py` | BGP timers | `internal/plugins/bgp/fsm/timer.go` |
 
 ---
 
@@ -218,29 +218,29 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `loop.py` | Main event loop | `internal/plugin/bgp/reactor/reactor.go` |
-| `asynchronous.py` | Async handling | `internal/plugin/bgp/reactor/reactor.go` (goroutines) |
+| `loop.py` | Main event loop | `internal/plugins/bgp/reactor/reactor.go` |
+| `asynchronous.py` | Async handling | `internal/plugins/bgp/reactor/reactor.go` (goroutines) |
 | `daemon.py` | Daemon management | `cmd/ze/bgp/daemon.go` |
-| `protocol.py` | Protocol handler | `internal/plugin/bgp/reactor/protocol.go` |
-| `listener.py` | TCP listener | `internal/plugin/bgp/reactor/listener.go` |
-| `timing.py` | Timing utilities | `internal/plugin/bgp/reactor/timing.go` |
-| `delay.py` | Delay handling | `internal/plugin/bgp/reactor/delay.go` |
-| `interrupt.py` | Signal handling | `internal/plugin/bgp/reactor/signals.go` |
-| `keepalive.py` | Keepalive handling | `internal/plugin/bgp/reactor/keepalive.go` |
+| `protocol.py` | Protocol handler | `internal/plugins/bgp/reactor/protocol.go` |
+| `listener.py` | TCP listener | `internal/plugins/bgp/reactor/listener.go` |
+| `timing.py` | Timing utilities | `internal/plugins/bgp/reactor/timing.go` |
+| `delay.py` | Delay handling | `internal/plugins/bgp/reactor/delay.go` |
+| `interrupt.py` | Signal handling | `internal/plugins/bgp/reactor/signals.go` |
+| `keepalive.py` | Keepalive handling | `internal/plugins/bgp/reactor/keepalive.go` |
 
 ### 2.1 Peer Management (`reactor/peer/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `peer/__init__.py` | Peer class | `internal/plugin/bgp/reactor/peer.go` |
-| `peer/handlers/*.py` | Message handlers | `internal/plugin/bgp/reactor/handlers/*.go` |
+| `peer/__init__.py` | Peer class | `internal/plugins/bgp/reactor/peer.go` |
+| `peer/handlers/*.py` | Message handlers | `internal/plugins/bgp/reactor/handlers/*.go` |
 
 ### 2.2 Network (`reactor/network/`)
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `network/connection.py` | TCP connection | `internal/plugin/bgp/reactor/connection.go` |
-| `network/*.py` | Network utilities | `internal/plugin/bgp/reactor/network.go` |
+| `network/connection.py` | TCP connection | `internal/plugins/bgp/reactor/connection.go` |
+| `network/*.py` | Network utilities | `internal/plugins/bgp/reactor/network.go` |
 
 ### 2.3 API (`reactor/api/`)
 
@@ -302,11 +302,11 @@
 
 | ExaBGP File | Purpose | Ze File |
 |-------------|---------|------------|
-| `rib.py` | Main RIB | `internal/plugin/bgp/rib/rib.go` |
-| `incoming.py` | Adj-RIB-In | `internal/plugin/bgp/rib/incoming.go` |
-| `outgoing.py` | Adj-RIB-Out | `internal/plugin/bgp/rib/outgoing.go` |
-| `store.py` | Route storage | `internal/plugin/bgp/rib/store.go` |
-| `cache.py` | RIB cache | `internal/plugin/bgp/rib/cache.go` |
+| `rib.py` | Main RIB | `internal/plugins/bgp/rib/rib.go` |
+| `incoming.py` | Adj-RIB-In | `internal/plugins/bgp/rib/incoming.go` |
+| `outgoing.py` | Adj-RIB-Out | `internal/plugins/bgp/rib/outgoing.go` |
+| `store.py` | Route storage | `internal/plugins/bgp/rib/store.go` |
+| `cache.py` | RIB cache | `internal/plugins/bgp/rib/cache.go` |
 
 ---
 

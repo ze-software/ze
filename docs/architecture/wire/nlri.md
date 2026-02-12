@@ -399,7 +399,7 @@ With ADD-PATH (RFC 7911):
 ### Ze Implementation
 
 ```go
-// internal/plugin/bgp/nlri/labeled.go
+// internal/plugins/bgp/nlri/labeled.go
 type LabeledUnicast struct {
     PrefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
     labels  []uint32     // Label stack (BOS on last)

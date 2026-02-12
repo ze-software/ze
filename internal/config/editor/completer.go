@@ -7,7 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )

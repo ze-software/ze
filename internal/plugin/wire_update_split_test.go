@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

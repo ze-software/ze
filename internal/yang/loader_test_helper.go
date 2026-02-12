@@ -2,7 +2,7 @@ package yang
 
 import (
 	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 )
 
 // LoadAllForTesting loads all YANG modules including module-specific ones.

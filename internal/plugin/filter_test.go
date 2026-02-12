@@ -5,9 +5,9 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 )
 
 // testPrefix10 is a test prefix used across filter tests.

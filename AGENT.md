@@ -74,7 +74,7 @@ Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN ex
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                    Negotiated (per-peer)                         │
-│     See internal/plugin/bgp/capability/negotiated.go             │
+│     See internal/plugins/bgp/capability/negotiated.go             │
 ├──────────────────────────────────────────────────────────────────┤
 │ ASN4            bool                 → 4-byte ASN support        │
 │ AddPath         map[Family]Mode      → Receive/Send/Both         │
@@ -355,11 +355,11 @@ Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocriti
 
 ### Individual Commands
 ```bash
-go test -race ./internal/plugin/bgp/message/... -v       # Single package
+go test -race ./internal/plugins/bgp/message/... -v       # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
 go test -bench=. -benchmem ./internal/...          # Benchmarks
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/plugin/bgp/message/...  # Fuzz
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/plugins/bgp/message/...  # Fuzz
 ```
 
 ## Config Design Rules

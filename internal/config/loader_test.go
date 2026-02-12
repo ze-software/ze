@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

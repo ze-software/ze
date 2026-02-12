@@ -12,10 +12,10 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 

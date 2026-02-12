@@ -12,7 +12,7 @@
 | Backpressure (1000/100) | ✅ Done | `internal/plugin/process.go` |
 | Respawn limits (5/60s) | ✅ Done | `internal/plugin/process.go` |
 | Command dispatch | ✅ Done | `internal/plugin/command.go`, `internal/ipc/dispatch.go` |
-| YANG API schema | ✅ Done | `internal/plugin/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
+| YANG API schema | ✅ Done | `internal/plugins/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
 | Plugin commands | ✅ Done | `internal/plugin/registry.go`, `internal/plugin/plugin.go` |
 | Route injection | ✅ Done | `internal/plugin/rib/` |
 | BGP cache commands | ✅ Done | `internal/plugin/cache.go` |
@@ -32,7 +32,7 @@
 | **API Role** | RIB storage, policy, best-path, GR state |
 | **Communication** | JSON events + base64 wire bytes |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
-| **RIB** | Owned by API program (use `internal/plugin/bgp/rib/` as reference) |
+| **RIB** | Owned by API program (use `internal/plugins/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **Cache Control** | API controls cache via `bgp cache` commands |
 
@@ -58,7 +58,7 @@
 
 | Component | Description |
 |-----------|-------------|
-| RIB | Route storage (use `internal/plugin/bgp/rib/` as reference) |
+| RIB | Route storage (use `internal/plugins/bgp/rib/` as reference) |
 | Pool | Attribute deduplication (see `POOL_ARCHITECTURE.md`) |
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
@@ -231,7 +231,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 
 | Module | Location | RPCs | Notifications |
 |--------|----------|------|---------------|
-| `ze-bgp-api` | `internal/plugin/bgp/schema/` | 26 | 7 |
+| `ze-bgp-api` | `internal/plugins/bgp/schema/` | 26 | 7 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
@@ -433,7 +433,7 @@ type PathAttributes struct {
 
 ### Next-Hop Resolution
 
-`RouteNextHop` is resolved at **peer level** in `internal/plugin/bgp/reactor/peer.go` via `resolveNextHop()`:
+`RouteNextHop` is resolved at **peer level** in `internal/plugins/bgp/reactor/peer.go` via `resolveNextHop()`:
 
 | Policy | Behavior |
 |--------|----------|
@@ -899,7 +899,7 @@ See `PROCESS_PROTOCOL.md` for full protocol details.
 > **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
 > The engine has no route storage - it delegates to API.
 
-API programs use `internal/plugin/bgp/rib/` as reference implementation:
+API programs use `internal/plugins/bgp/rib/` as reference implementation:
 
 ```go
 // In API program
@@ -1203,7 +1203,7 @@ if needsAPIWait {
 | `internal/ipc/dispatch.go` | RPCDispatcher (wire-method exact-match) |
 | `internal/yang/rpc.go` | YANG RPC/notification extraction |
 | `internal/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
-| `internal/plugin/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
-| `internal/plugin/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
-| `internal/plugin/bgp/reactor/session.go` | Session lifecycle, teardown handling |
-| `internal/plugin/bgp/rib/outgoing.go` | Adj-RIB-Out structure |
+| `internal/plugins/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
+| `internal/plugins/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
+| `internal/plugins/bgp/reactor/session.go` | Session lifecycle, teardown handling |
+| `internal/plugins/bgp/rib/outgoing.go` | Adj-RIB-Out structure |

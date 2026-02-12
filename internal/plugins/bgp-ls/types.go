@@ -5,7 +5,7 @@
 package bgp_ls
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // Type aliases for nlri types used by BGP-LS.

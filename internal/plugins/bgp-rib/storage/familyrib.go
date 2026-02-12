@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 

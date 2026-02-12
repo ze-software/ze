@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
 
 // TestDirectSession tests session establishment without reactor.

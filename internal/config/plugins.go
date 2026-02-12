@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
 
 // ExtractPluginsFromTree extracts plugin configurations from a parsed config tree.
@@ -42,7 +42,7 @@ func ExtractPluginsFromTree(tree *Tree) ([]reactor.PluginConfig, error) {
 				pc.StageTimeout = d
 			}
 			// Default: text encoder plugins receive updates
-			if pc.Encoder == "text" {
+			if pc.Encoder == EncoderText {
 				pc.ReceiveUpdate = true
 			}
 			plugins = append(plugins, pc)
@@ -114,8 +114,8 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 			plugins = append(plugins, reactor.PluginConfig{
 				Name:          name,
 				Run:           run,
-				Encoder:       "text", // Default to text encoder
-				ReceiveUpdate: true,   // Default: receive updates
+				Encoder:       EncoderText, // Default to text encoder
+				ReceiveUpdate: true,        // Default: receive updates
 			})
 		}
 	}

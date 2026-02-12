@@ -3,10 +3,10 @@ package plugin
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 )
 

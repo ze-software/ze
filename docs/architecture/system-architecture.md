@@ -535,7 +535,7 @@ declare done
 | Module | Location | Defines |
 |--------|----------|---------|
 | `ze-types` | `yang/ze-types.yang` | Common types (asn, ip-address, etc.) |
-| `ze-bgp-conf` | `internal/plugin/bgp/schema/ze-bgp-conf.yang` | `container bgp` with peers, families |
+| `ze-bgp-conf` | `internal/plugins/bgp/schema/ze-bgp-conf.yang` | `container bgp` with peers, families |
 | `ze-plugin-conf` | `internal/yang/modules/ze-plugin-conf.yang` | `container plugin` for process declarations |
 | `ze-rib` | `internal/plugin/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
 | `ze-graceful-restart` | `internal/plugin/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
