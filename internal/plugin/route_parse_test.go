@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/parse"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // TestSplitPrefix tests prefix splitting for the 'split /N' syntax.
@@ -407,21 +408,21 @@ func TestParseLargeCommunity(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    LargeCommunity
+		want    bgptypes.LargeCommunity
 		wantErr bool
 	}{
 		// Valid
-		{"simple", "2914:100:200", LargeCommunity{GlobalAdmin: 2914, LocalData1: 100, LocalData2: 200}, false},
-		{"zeros", "0:0:0", LargeCommunity{GlobalAdmin: 0, LocalData1: 0, LocalData2: 0}, false},
-		{"max values", "4294967295:4294967295:4294967295", LargeCommunity{GlobalAdmin: 0xFFFFFFFF, LocalData1: 0xFFFFFFFF, LocalData2: 0xFFFFFFFF}, false},
+		{"simple", "2914:100:200", bgptypes.LargeCommunity{GlobalAdmin: 2914, LocalData1: 100, LocalData2: 200}, false},
+		{"zeros", "0:0:0", bgptypes.LargeCommunity{GlobalAdmin: 0, LocalData1: 0, LocalData2: 0}, false},
+		{"max values", "4294967295:4294967295:4294967295", bgptypes.LargeCommunity{GlobalAdmin: 0xFFFFFFFF, LocalData1: 0xFFFFFFFF, LocalData2: 0xFFFFFFFF}, false},
 
 		// Invalid
-		{"missing parts", "2914:100", LargeCommunity{}, true},
-		{"too many parts", "2914:100:200:300", LargeCommunity{}, true},
-		{"invalid global admin", "abc:100:200", LargeCommunity{}, true},
-		{"invalid local data 1", "2914:abc:200", LargeCommunity{}, true},
-		{"invalid local data 2", "2914:100:abc", LargeCommunity{}, true},
-		{"empty string", "", LargeCommunity{}, true},
+		{"missing parts", "2914:100", bgptypes.LargeCommunity{}, true},
+		{"too many parts", "2914:100:200:300", bgptypes.LargeCommunity{}, true},
+		{"invalid global admin", "abc:100:200", bgptypes.LargeCommunity{}, true},
+		{"invalid local data 1", "2914:abc:200", bgptypes.LargeCommunity{}, true},
+		{"invalid local data 2", "2914:100:abc", bgptypes.LargeCommunity{}, true},
+		{"empty string", "", bgptypes.LargeCommunity{}, true},
 	}
 
 	for _, tt := range tests {
@@ -703,17 +704,17 @@ func TestParseLargeCommunities(t *testing.T) {
 	tests := []struct {
 		name         string
 		args         []string
-		wantComms    []LargeCommunity
+		wantComms    []bgptypes.LargeCommunity
 		wantConsumed int
 		wantErr      bool
 	}{
 		// Valid
-		{"single", []string{"[2914:1:0]"}, []LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}}, 1, false},
-		{"multiple", []string{"[2914:1:0", "2914:2:0]"}, []LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}, {GlobalAdmin: 2914, LocalData1: 2, LocalData2: 0}}, 2, false},
+		{"single", []string{"[2914:1:0]"}, []bgptypes.LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}}, 1, false},
+		{"multiple", []string{"[2914:1:0", "2914:2:0]"}, []bgptypes.LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}, {GlobalAdmin: 2914, LocalData1: 2, LocalData2: 0}}, 2, false},
 		{"empty", []string{"[]"}, nil, 1, false},
 
 		// Single value without brackets (ExaBGP compatible)
-		{"single no brackets", []string{"2914:1:0"}, []LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}}, 1, false},
+		{"single no brackets", []string{"2914:1:0"}, []bgptypes.LargeCommunity{{GlobalAdmin: 2914, LocalData1: 1, LocalData2: 0}}, 1, false},
 
 		// Invalid
 		{"invalid format", []string{"[2914:1]"}, nil, 1, true},

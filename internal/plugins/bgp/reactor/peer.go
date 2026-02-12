@@ -13,7 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -460,14 +461,14 @@ func (p *Peer) asn4() bool {
 //
 // RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
 // RFC 5549/8950 - Extended Next Hop Encoding.
-func (p *Peer) resolveNextHop(nh plugin.RouteNextHop, family nlri.Family) (netip.Addr, error) {
+func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, family nlri.Family) (netip.Addr, error) {
 	switch nh.Policy {
-	case plugin.NextHopExplicit:
+	case bgptypes.NextHopExplicit:
 		// Explicit addresses bypass validation - user is responsible.
 		// Returns invalid addr without error if that's what was configured.
 		return nh.Addr, nil
 
-	case plugin.NextHopSelf:
+	case bgptypes.NextHopSelf:
 		local := p.settings.LocalAddress
 		if !local.IsValid() {
 			return netip.Addr{}, ErrNextHopSelfNoLocal
@@ -478,7 +479,7 @@ func (p *Peer) resolveNextHop(nh plugin.RouteNextHop, family nlri.Family) (netip
 		}
 		return local, nil
 
-	case plugin.NextHopUnset:
+	case bgptypes.NextHopUnset:
 		return netip.Addr{}, ErrNextHopUnset
 
 	default:
@@ -1141,7 +1142,7 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 // RFC 4271 Section 4.3 - UPDATE Message Format.
 // RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
 // RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
-func (p *Peer) SendAnnounce(route plugin.RouteSpec, localAS uint32) error {
+func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()

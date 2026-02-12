@@ -10,6 +10,8 @@ import (
 	"net/netip"
 	"strings"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
@@ -28,13 +30,13 @@ const kwSelf = "self"
 
 // ParseUpdateWire parses wire-encoded update command (hex or b64).
 // Same structure as text mode but attrs/nlris are decoded wire bytes.
-// Returns same UpdateTextResult as ParseUpdateText for uniform handling.
-func ParseUpdateWire(args []string, encoding WireEncoding) (*UpdateTextResult, error) {
+// Returns same bgptypes.UpdateTextResult as ParseUpdateText for uniform handling.
+func ParseUpdateWire(args []string, encoding WireEncoding) (*bgptypes.UpdateTextResult, error) {
 	var (
 		attrsSet  bool
 		attrsWire *attribute.AttributesWire
-		nhop      RouteNextHop
-		groups    []NLRIGroup
+		nhop      bgptypes.RouteNextHop
+		groups    []bgptypes.NLRIGroup
 		watchdog  string
 	)
 
@@ -82,7 +84,7 @@ func ParseUpdateWire(args []string, encoding WireEncoding) (*UpdateTextResult, e
 				wire = attrsWire
 			}
 
-			groups = append(groups, NLRIGroup{
+			groups = append(groups, bgptypes.NLRIGroup{
 				Family:   family,
 				Announce: announce,
 				Withdraw: withdraw,
@@ -103,7 +105,7 @@ func ParseUpdateWire(args []string, encoding WireEncoding) (*UpdateTextResult, e
 		}
 	}
 
-	return &UpdateTextResult{Groups: groups, WatchdogName: watchdog}, nil
+	return &bgptypes.UpdateTextResult{Groups: groups, WatchdogName: watchdog}, nil
 }
 
 // decodeFunc decodes wire data from string.
@@ -184,7 +186,7 @@ func parseWireAttrSection(args []string, decode decodeFunc) (*attribute.Attribut
 
 // parseWireNhopSection parses nhop <set <data>|del> section.
 // Returns consumed count, error.
-func parseWireNhopSection(args []string, decode decodeFunc, nhop *RouteNextHop) (int, error) {
+func parseWireNhopSection(args []string, decode decodeFunc, nhop *bgptypes.RouteNextHop) (int, error) {
 	// args[0] = "nhop"
 	if len(args) < 2 {
 		return 0, errors.New("nhop requires set or del")
@@ -199,7 +201,7 @@ func parseWireNhopSection(args []string, decode decodeFunc, nhop *RouteNextHop) 
 
 		// Check for "self" keyword (same in all modes)
 		if value == kwSelf {
-			*nhop = NewNextHopSelf()
+			*nhop = bgptypes.NewNextHopSelf()
 			return 3, nil
 		}
 
@@ -215,7 +217,7 @@ func parseWireNhopSection(args []string, decode decodeFunc, nhop *RouteNextHop) 
 			return 0, fmt.Errorf("invalid next-hop: %w", err)
 		}
 
-		*nhop = NewNextHopExplicit(addr)
+		*nhop = bgptypes.NewNextHopExplicit(addr)
 		return 3, nil
 
 	case kwDel:
@@ -223,7 +225,7 @@ func parseWireNhopSection(args []string, decode decodeFunc, nhop *RouteNextHop) 
 		if len(args) > 2 && !isWireBoundaryKeyword(args[2]) {
 			return 0, errors.New("nhop del takes no arguments")
 		}
-		*nhop = RouteNextHop{} // Clear
+		*nhop = bgptypes.RouteNextHop{} // Clear
 		return 2, nil
 
 	default:

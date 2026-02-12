@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -350,9 +352,9 @@ func TestReactorStats(t *testing.T) {
 //
 // PREVENTS: Wire format regression when using zero-allocation path.
 func TestWriteAnnounceUpdateIPv4(t *testing.T) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	buf := make([]byte, 4096)
@@ -392,9 +394,9 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 //
 // PREVENTS: IPv6 routes being sent with IPv4-style encoding (RFC 4760 violation).
 func TestWriteAnnounceUpdateIPv6(t *testing.T) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	buf := make([]byte, 4096)
@@ -484,9 +486,9 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 //
 // PREVENTS: ADD-PATH encoding being silently skipped (RFC 7911 violation).
 func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	// With ADD-PATH enabled
@@ -513,9 +515,9 @@ func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 //
 // PREVENTS: 4-byte AS numbers being sent to peers without ASN4 capability (RFC 6793).
 func TestWriteAnnounceUpdateASN4False(t *testing.T) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	// With ASN4=true (4-byte AS)
@@ -548,9 +550,9 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	builder.SetASPath(asPath)
 	wireBytes := builder.Build()
 
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
@@ -631,9 +633,9 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	}
 	wireBytes := builder.Build()
 
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
@@ -678,9 +680,9 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 // BenchmarkWriteAnnounceUpdateIPv4 measures allocations for IPv4 announce.
 // Run with: go test -bench=BenchmarkWriteAnnounce -benchmem ./pkg/reactor/...
 func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 	buf := make([]byte, 4096)
 
@@ -701,9 +703,9 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 	builder.AddCommunityValue(0xFFFF0003)
 	wireBytes := builder.Build()
 
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 	buf := make([]byte, 4096)
@@ -718,9 +720,9 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 
 // BenchmarkWriteAnnounceUpdateIPv6 measures allocations for IPv6 announce.
 func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
-	route := plugin.RouteSpec{
+	route := bgptypes.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 	buf := make([]byte, 4096)
 
@@ -857,7 +859,7 @@ func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
 	builder.AddExtendedCommunity(attribute.ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64})
 	wireBytes := builder.Build()
 
-	route := plugin.LabeledUnicastRoute{
+	route := bgptypes.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100, 200}, // Label stack
@@ -943,7 +945,7 @@ func TestBuildLabeledUnicastRIBRouteIBGPDefaults(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Minimal route - no attributes set
-	route := plugin.LabeledUnicastRoute{
+	route := bgptypes.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100},
@@ -982,7 +984,7 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Route without AS_PATH
-	route := plugin.LabeledUnicastRoute{
+	route := bgptypes.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100},
@@ -1003,7 +1005,7 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 
 // TestBuildL3VPNParams verifies L3VPN params conversion.
 //
-// VALIDATES: plugin.L3VPNRoute correctly converts to message.VPNParams.
+// VALIDATES: bgptypes.L3VPNRoute correctly converts to message.VPNParams.
 //
 // PREVENTS: Lost attributes in L3VPN announcements.
 func TestBuildL3VPNParams(t *testing.T) {
@@ -1024,7 +1026,7 @@ func TestBuildL3VPNParams(t *testing.T) {
 	builder.AddCommunityValue(0x12345678)
 	wireBytes := builder.Build()
 
-	route := plugin.L3VPNRoute{
+	route := bgptypes.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
@@ -1068,7 +1070,7 @@ func TestBuildL3VPNParamsIPv6(t *testing.T) {
 	reactor := New(cfg)
 	adapter := &reactorAPIAdapter{reactor}
 
-	route := plugin.L3VPNRoute{
+	route := bgptypes.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 		NextHop: netip.MustParseAddr("2001::1"),
 		RD:      "100:100",
@@ -1099,7 +1101,7 @@ func TestBuildL3VPNRIBRoute(t *testing.T) {
 	builder.SetOrigin(0) // IGP
 	wireBytes := builder.Build()
 
-	route := plugin.L3VPNRoute{
+	route := bgptypes.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",

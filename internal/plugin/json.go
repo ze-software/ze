@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // JSONEncoder produces ze-bgp JSON output.
@@ -127,7 +129,7 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 	outer, inner := e.message(peer, "update")
 	inner["eor"] = map[string]any{
 		"afi":  family,
-		"safi": SAFINameUnicast,
+		"safi": bgptypes.SAFINameUnicast,
 	}
 	return e.marshal(outer)
 }

@@ -7,7 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
@@ -190,11 +191,11 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 		}
 
 		// Create RouteNextHop from config.
-		var nextHop plugin.RouteNextHop
+		var nextHop bgptypes.RouteNextHop
 		if sr.NextHopSelf {
-			nextHop = plugin.NewNextHopSelf()
+			nextHop = bgptypes.NewNextHopSelf()
 		} else if attrs.NextHop.IsValid() {
-			nextHop = plugin.NewNextHopExplicit(attrs.NextHop)
+			nextHop = bgptypes.NewNextHopExplicit(attrs.NextHop)
 		}
 
 		// Convert raw attributes.

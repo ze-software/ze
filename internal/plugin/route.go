@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 )
@@ -168,18 +170,18 @@ func parseSplitArg(args []string) (int, bool) {
 func parseSAFI(args []string) (safi string, rest []string, err error) {
 	if len(args) < 1 {
 		return "", nil, fmt.Errorf("missing SAFI (expected: %s, %s, %s, or %s)",
-			SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN, SAFINameMUP)
+			bgptypes.SAFINameUnicast, bgptypes.SAFINameNLRIMPLS, bgptypes.SAFINameMPLSVPN, bgptypes.SAFINameMUP)
 	}
 	safi = strings.ToLower(args[0])
 	switch safi {
-	case SAFINameUnicast, SAFINameMPLSVPN, SAFINameMUP:
+	case bgptypes.SAFINameUnicast, bgptypes.SAFINameMPLSVPN, bgptypes.SAFINameMUP:
 		return safi, args[1:], nil
-	case SAFINameNLRIMPLS, "labeled-unicast":
+	case bgptypes.SAFINameNLRIMPLS, "labeled-unicast":
 		// Normalize to nlri-mpls for ExaBGP compatibility
-		return SAFINameNLRIMPLS, args[1:], nil
+		return bgptypes.SAFINameNLRIMPLS, args[1:], nil
 	default:
 		return "", nil, fmt.Errorf("unsupported SAFI: %s (expected: %s, %s, %s, or %s)",
-			args[0], SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN, SAFINameMUP)
+			args[0], bgptypes.SAFINameUnicast, bgptypes.SAFINameNLRIMPLS, bgptypes.SAFINameMPLSVPN, bgptypes.SAFINameMUP)
 	}
 }
 
@@ -188,7 +190,7 @@ var ErrInvalidKeyword = errors.New("invalid keyword for route family")
 
 // ParsedRoute holds the result of parsing route attributes.
 type ParsedRoute struct {
-	Route RouteSpec
+	Route bgptypes.RouteSpec
 }
 
 // ParseRouteAttributes parses route attributes from args with keyword validation.
@@ -300,7 +302,7 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 	builder := attribute.NewBuilder()
 
 	result := ParsedRoute{
-		Route: RouteSpec{
+		Route: bgptypes.RouteSpec{
 			Prefix: prefix,
 		},
 	}
@@ -332,13 +334,13 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 			}
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
-				result.Route.NextHop = NewNextHopSelf()
+				result.Route.NextHop = bgptypes.NewNextHopSelf()
 			} else {
 				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
 					return ParsedRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
 				}
-				result.Route.NextHop = NewNextHopExplicit(nh)
+				result.Route.NextHop = bgptypes.NewNextHopExplicit(nh)
 			}
 			i++
 
@@ -434,13 +436,13 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 }
 
 // parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
-func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
+func parseLargeCommunities(args []string) ([]bgptypes.LargeCommunity, int, error) {
 	if len(args) == 0 {
 		return nil, 0, fmt.Errorf("missing large-community value")
 	}
 
 	tokens, consumed := attribute.ParseBracketedList(args)
-	lcomms := make([]LargeCommunity, 0, len(tokens))
+	lcomms := make([]bgptypes.LargeCommunity, 0, len(tokens))
 	for _, tok := range tokens {
 		lc, err := attribute.ParseLargeCommunity(tok)
 		if err != nil {
@@ -729,7 +731,7 @@ var ErrMissingNLRI = errors.New("missing nlri")
 
 // BatchAttributes holds parsed attributes for batch announcements.
 type BatchAttributes struct {
-	NextHop RouteNextHop
+	NextHop bgptypes.RouteNextHop
 	Attrs   *attribute.Builder
 }
 
@@ -765,13 +767,13 @@ func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error)
 			}
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
-				attrs.NextHop = NewNextHopSelf()
+				attrs.NextHop = bgptypes.NewNextHopSelf()
 			} else {
 				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
 					return attrs, nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
 				}
-				attrs.NextHop = NewNextHopExplicit(nh)
+				attrs.NextHop = bgptypes.NewNextHopExplicit(nh)
 			}
 			i++
 			continue
@@ -817,7 +819,7 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 	familyIndex := -1
 	for i, arg := range args {
 		lower := strings.ToLower(arg)
-		if strings.HasPrefix(lower, AFINameIPv4+"/") || strings.HasPrefix(lower, AFINameIPv6+"/") {
+		if strings.HasPrefix(lower, bgptypes.AFINameIPv4+"/") || strings.HasPrefix(lower, bgptypes.AFINameIPv6+"/") {
 			parts := strings.SplitN(lower, "/", 2)
 			afi = parts[0]
 			safi = parts[1]
@@ -832,7 +834,7 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 
 	// Validate SAFI
 	switch safi {
-	case SAFINameUnicast, SAFINameMulticast:
+	case bgptypes.SAFINameUnicast, bgptypes.SAFINameMulticast:
 		// OK
 	default:
 		return attrs, "", "", nil, fmt.Errorf("%w: unsupported SAFI '%s'", ErrInvalidFamily, safi)
@@ -849,13 +851,13 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 			}
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
-				attrs.NextHop = NewNextHopSelf()
+				attrs.NextHop = bgptypes.NewNextHopSelf()
 			} else {
 				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
 					return attrs, "", "", nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
 				}
-				attrs.NextHop = NewNextHopExplicit(nh)
+				attrs.NextHop = bgptypes.NewNextHopExplicit(nh)
 			}
 			i++
 			continue
@@ -942,18 +944,18 @@ func parseLabels(args []string) ([]uint32, int, error) {
 // parseLabeledUnicastAttributes parses MPLS labeled unicast route attributes.
 // Args format: <prefix> [keyword value]...
 // Supports MPLSKeywords: label plus all unicast keywords (no RD/RT).
-func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
+func parseLabeledUnicastAttributes(args []string) (bgptypes.LabeledUnicastRoute, error) {
 	if len(args) < 1 {
-		return LabeledUnicastRoute{}, ErrMissingPrefix
+		return bgptypes.LabeledUnicastRoute{}, ErrMissingPrefix
 	}
 
 	// Parse prefix (first arg)
 	prefix, err := netip.ParsePrefix(args[0])
 	if err != nil {
-		return LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
+		return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
 	}
 
-	route := LabeledUnicastRoute{
+	route := bgptypes.LabeledUnicastRoute{
 		Prefix: prefix,
 	}
 
@@ -966,13 +968,13 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 
 		// Validate keyword against MPLS keywords (not VPN - no RD/RT)
 		if !MPLSKeywords[key] {
-			return LabeledUnicastRoute{}, fmt.Errorf("%w: '%s' not valid for labeled-unicast", ErrInvalidKeyword, key)
+			return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("%w: '%s' not valid for labeled-unicast", ErrInvalidKeyword, key)
 		}
 
 		// Try common attribute parsing with Builder (wire-first)
 		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
 		if err != nil {
-			return LabeledUnicastRoute{}, err
+			return bgptypes.LabeledUnicastRoute{}, err
 		}
 		if consumed > 0 {
 			i += consumed
@@ -983,22 +985,22 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 		switch key {
 		case "label":
 			if i+1 >= len(args) {
-				return LabeledUnicastRoute{}, ErrMissingLabel
+				return bgptypes.LabeledUnicastRoute{}, ErrMissingLabel
 			}
 			labels, consumed, err := parseLabels(args[i+1:])
 			if err != nil {
-				return LabeledUnicastRoute{}, err
+				return bgptypes.LabeledUnicastRoute{}, err
 			}
 			route.Labels = labels
 			i += consumed
 
 		case "next-hop":
 			if i+1 >= len(args) {
-				return LabeledUnicastRoute{}, ErrMissingNextHop
+				return bgptypes.LabeledUnicastRoute{}, ErrMissingNextHop
 			}
 			nh, err := netip.ParseAddr(args[i+1])
 			if err != nil {
-				return LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+				return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
 			}
 			route.NextHop = nh
 			i++
@@ -1012,12 +1014,12 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 		case "path-id":
 			// RFC 7911 ADD-PATH identifier
 			if i+1 >= len(args) {
-				return LabeledUnicastRoute{}, fmt.Errorf("missing path-id value")
+				return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("missing path-id value")
 			}
 			var pathID uint64
 			pathID, err = strconv.ParseUint(args[i+1], 10, 32)
 			if err != nil {
-				return LabeledUnicastRoute{}, fmt.Errorf("invalid path-id: %s", args[i+1])
+				return bgptypes.LabeledUnicastRoute{}, fmt.Errorf("invalid path-id: %s", args[i+1])
 			}
 			route.PathID = uint32(pathID)
 			i++
@@ -1036,18 +1038,18 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 // parseL3VPNAttributes parses L3VPN route attributes from args.
 // Args format: <prefix> [keyword value]...
 // Supports VPNKeywords: rd, rt, label, plus all unicast keywords.
-func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
+func parseL3VPNAttributes(args []string) (bgptypes.L3VPNRoute, error) {
 	if len(args) < 1 {
-		return L3VPNRoute{}, ErrMissingPrefix
+		return bgptypes.L3VPNRoute{}, ErrMissingPrefix
 	}
 
 	// Parse prefix (first arg)
 	prefix, err := netip.ParsePrefix(args[0])
 	if err != nil {
-		return L3VPNRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
+		return bgptypes.L3VPNRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
 	}
 
-	route := L3VPNRoute{
+	route := bgptypes.L3VPNRoute{
 		Prefix: prefix,
 	}
 
@@ -1060,13 +1062,13 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 
 		// Validate keyword against VPN keywords
 		if !VPNKeywords[key] {
-			return L3VPNRoute{}, fmt.Errorf("%w: '%s' not valid for L3VPN", ErrInvalidKeyword, key)
+			return bgptypes.L3VPNRoute{}, fmt.Errorf("%w: '%s' not valid for L3VPN", ErrInvalidKeyword, key)
 		}
 
 		// Try common attribute parsing with Builder (wire-first)
 		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
 		if err != nil {
-			return L3VPNRoute{}, err
+			return bgptypes.L3VPNRoute{}, err
 		}
 		if consumed > 0 {
 			i += consumed
@@ -1077,36 +1079,36 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 		switch key {
 		case "rd":
 			if i+1 >= len(args) {
-				return L3VPNRoute{}, ErrMissingRD
+				return bgptypes.L3VPNRoute{}, ErrMissingRD
 			}
 			route.RD = args[i+1]
 			i++
 
 		case "rt":
 			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing rt value")
+				return bgptypes.L3VPNRoute{}, fmt.Errorf("missing rt value")
 			}
 			route.RT = args[i+1]
 			i++
 
 		case "label":
 			if i+1 >= len(args) {
-				return L3VPNRoute{}, ErrMissingLabel
+				return bgptypes.L3VPNRoute{}, ErrMissingLabel
 			}
 			labels, consumed, err := parseLabels(args[i+1:])
 			if err != nil {
-				return L3VPNRoute{}, err
+				return bgptypes.L3VPNRoute{}, err
 			}
 			route.Labels = labels
 			i += consumed
 
 		case "next-hop":
 			if i+1 >= len(args) {
-				return L3VPNRoute{}, ErrMissingNextHop
+				return bgptypes.L3VPNRoute{}, ErrMissingNextHop
 			}
 			nh, err := netip.ParseAddr(args[i+1])
 			if err != nil {
-				return L3VPNRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+				return bgptypes.L3VPNRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
 			}
 			route.NextHop = nh
 			i++
@@ -1122,10 +1124,10 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 	return route, nil
 }
 
-// ParseRouteArgs parses route arguments into a RouteSpec.
+// ParseRouteArgs parses route arguments into a bgptypes.RouteSpec.
 // This is exported for use by external callers that want to build routes.
-func ParseRouteArgs(args []string) (RouteSpec, error) {
-	var route RouteSpec
+func ParseRouteArgs(args []string) (bgptypes.RouteSpec, error) {
+	var route bgptypes.RouteSpec
 
 	if len(args) < 1 {
 		return route, ErrMissingPrefix
@@ -1145,14 +1147,14 @@ func ParseRouteArgs(args []string) (RouteSpec, error) {
 		switch key { //nolint:goconst,gocritic // String literals are clearer; switch for future cases
 		case "next-hop":
 			if strings.EqualFold(value, "self") {
-				route.NextHop = NewNextHopSelf()
+				route.NextHop = bgptypes.NewNextHopSelf()
 				continue
 			}
 			nh, err := netip.ParseAddr(value)
 			if err != nil {
 				return route, fmt.Errorf("%w: %s", ErrInvalidNextHop, value)
 			}
-			route.NextHop = NewNextHopExplicit(nh)
+			route.NextHop = bgptypes.NewNextHopExplicit(nh)
 
 			// TODO: Add more attribute parsing
 			// case "origin":
@@ -1169,9 +1171,9 @@ func ParseRouteArgs(args []string) (RouteSpec, error) {
 // ParseFlowSpecArgs parses FlowSpec command arguments.
 // Format: match <spec> then <action>.
 // Example: match destination 10.0.0.0/24 destination-port 80 then discard.
-func ParseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
-	var route FlowSpecRoute
-	route.Family = AFINameIPv4 // default
+func ParseFlowSpecArgs(args []string) (bgptypes.FlowSpecRoute, error) {
+	var route bgptypes.FlowSpecRoute
+	route.Family = bgptypes.AFINameIPv4 // default
 
 	inMatch := false
 	inThen := false
@@ -1205,7 +1207,7 @@ func ParseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.DestPrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = AFINameIPv6
+					route.Family = bgptypes.AFINameIPv6
 				}
 				i++
 
@@ -1216,7 +1218,7 @@ func ParseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.SourcePrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = AFINameIPv6
+					route.Family = bgptypes.AFINameIPv6
 				}
 				i++
 
@@ -1343,14 +1345,14 @@ func parsePort(s string) (uint16, error) {
 // ParseL3VPNAttributes parses L3VPN (mpls-vpn) command arguments.
 // Exported for use by encode command.
 // Format: <prefix> rd <rd> next-hop <addr> label <label> [attributes...].
-func ParseL3VPNAttributes(args []string) (L3VPNRoute, error) {
+func ParseL3VPNAttributes(args []string) (bgptypes.L3VPNRoute, error) {
 	return parseL3VPNAttributes(args)
 }
 
 // ParseLabeledUnicastAttributes parses labeled unicast (nlri-mpls) command arguments.
 // Exported for use by encode command.
 // Format: <prefix> next-hop <addr> label <label> [attributes...].
-func ParseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
+func ParseLabeledUnicastAttributes(args []string) (bgptypes.LabeledUnicastRoute, error) {
 	return parseLabeledUnicastAttributes(args)
 }
 
@@ -1435,8 +1437,8 @@ var validMUPRouteTypes = map[string]bool{
 // ParseMUPArgs parses MUP route arguments.
 // Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
 // Route types: mup-isd, mup-dsd, mup-t1st, mup-t2st.
-func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
-	spec := MUPRouteSpec{
+func ParseMUPArgs(args []string, isIPv6 bool) (bgptypes.MUPRouteSpec, error) {
+	spec := bgptypes.MUPRouteSpec{
 		IsIPv6: isIPv6,
 	}
 
@@ -1471,7 +1473,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 		key := strings.ToLower(args[i])
 
 		// Handle MUP-specific attributes BEFORE common attribute parsing.
-		// These must be set in MUPRouteSpec fields, not just in the builder.
+		// These must be set in bgptypes.MUPRouteSpec fields, not just in the builder.
 		switch key {
 		case "rd":
 			if i+1 >= len(args) {

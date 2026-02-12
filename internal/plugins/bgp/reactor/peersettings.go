@@ -7,7 +7,8 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 )
 
@@ -25,7 +26,7 @@ const DefaultHoldTime = 90 * time.Second
 // copies for efficiency; mutation would corrupt internal state.
 type StaticRoute struct {
 	Prefix  netip.Prefix
-	NextHop plugin.RouteNextHop // Encapsulates next-hop policy (explicit or self)
+	NextHop bgptypes.RouteNextHop // Encapsulates next-hop policy (explicit or self)
 
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
 	LocalPreference uint32 // For iBGP

@@ -4,7 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,7 +22,7 @@ func TestWatchdogManagerAddRouteCreatesPool(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	pr, err := wm.AddRoute("health", route)
@@ -45,11 +46,11 @@ func TestWatchdogManagerAddRouteToExistingPool(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	_, err := wm.AddRoute("health", route1)
@@ -72,11 +73,11 @@ func TestWatchdogManagerRemoveRoute(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	_, _ = wm.AddRoute("health", route1)
@@ -116,7 +117,7 @@ func TestWatchdogManagerRemoveRouteMissingRoute(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	_, _ = wm.AddRoute("health", route)
 
@@ -152,7 +153,7 @@ func TestWatchdogPoolPerPeerState(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	pr, err := wm.AddRoute("health", route)
 	require.NoError(t, err)
@@ -187,11 +188,11 @@ func TestWatchdogManagerAnnouncePool(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	pr1, _ := wm.AddRoute("health", route1)
@@ -222,11 +223,11 @@ func TestWatchdogManagerWithdrawPool(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	pr1, _ := wm.AddRoute("health", route1)
@@ -286,7 +287,7 @@ func TestWatchdogManagerPoolNames(t *testing.T) {
 	// Add routes to different pools
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	_, _ = wm.AddRoute("health", route)
 	_, _ = wm.AddRoute("backup", route)
@@ -314,7 +315,7 @@ func TestWatchdogManagerConcurrency(t *testing.T) {
 		go func() {
 			route := StaticRoute{
 				Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-				NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 			}
 			// Ignore error - duplicates are expected in concurrent test
 			_, _ = wm.AddRoute("health", route)
@@ -344,12 +345,12 @@ func TestWatchdogPoolRouteWithPathID(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 		PathID:  1,
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 		PathID:  2,
 	}
 
@@ -393,7 +394,7 @@ func TestReactorAddWatchdogRoute(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	err := r.AddWatchdogRoute(route, "health")
@@ -414,11 +415,11 @@ func TestReactorRemoveWatchdogRoute(t *testing.T) {
 
 	route1 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	route2 := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	_ = r.AddWatchdogRoute(route1, "health")
@@ -463,7 +464,7 @@ func TestReactorRemoveWatchdogRouteMissingRoute(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	_ = r.AddWatchdogRoute(route, "health")
 
@@ -513,7 +514,7 @@ func TestGlobalPoolAnnouncedStateTracked(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 	_, _ = wm.AddRoute("health", route)
 
@@ -547,7 +548,7 @@ func TestNextHopSelfStoredInPool(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopSelf(), // Will be resolved per-peer
+		NextHop: bgptypes.NewNextHopSelf(), // Will be resolved per-peer
 	}
 	pr, err := wm.AddRoute("health", route)
 	require.NoError(t, err)
@@ -566,7 +567,7 @@ func TestWatchdogManagerAddRouteDuplicate(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	// First add should succeed
@@ -593,7 +594,7 @@ func TestWatchdogManagerEmptyPoolCleanup(t *testing.T) {
 
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
 	_, _ = wm.AddRoute("health", route)

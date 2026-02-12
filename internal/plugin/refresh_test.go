@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"testing"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
@@ -41,71 +43,71 @@ func (m *mockReactorRefresh) SendEoRR(peerSelector string, afi uint16, safi uint
 }
 
 // Implement all other ReactorInterface methods as stubs.
-func (m *mockReactorRefresh) Peers() []PeerInfo                                { return nil }
-func (m *mockReactorRefresh) Stats() ReactorStats                              { return ReactorStats{} }
-func (m *mockReactorRefresh) Stop()                                            {}
-func (m *mockReactorRefresh) Reload() error                                    { return nil }
-func (m *mockReactorRefresh) VerifyConfig(_ map[string]any) error              { return nil }
-func (m *mockReactorRefresh) ApplyConfigDiff(_ map[string]any) error           { return nil }
-func (m *mockReactorRefresh) AddDynamicPeer(_ DynamicPeerConfig) error         { return nil }
-func (m *mockReactorRefresh) RemovePeer(_ netip.Addr) error                    { return nil }
-func (m *mockReactorRefresh) AnnounceRoute(_ string, _ RouteSpec) error        { return nil }
-func (m *mockReactorRefresh) WithdrawRoute(_ string, _ netip.Prefix) error     { return nil }
-func (m *mockReactorRefresh) AnnounceFlowSpec(_ string, _ FlowSpecRoute) error { return nil }
-func (m *mockReactorRefresh) WithdrawFlowSpec(_ string, _ FlowSpecRoute) error { return nil }
-func (m *mockReactorRefresh) AnnounceVPLS(_ string, _ VPLSRoute) error         { return nil }
-func (m *mockReactorRefresh) WithdrawVPLS(_ string, _ VPLSRoute) error         { return nil }
-func (m *mockReactorRefresh) AnnounceL2VPN(_ string, _ L2VPNRoute) error       { return nil }
-func (m *mockReactorRefresh) WithdrawL2VPN(_ string, _ L2VPNRoute) error       { return nil }
-func (m *mockReactorRefresh) AnnounceL3VPN(_ string, _ L3VPNRoute) error       { return nil }
-func (m *mockReactorRefresh) WithdrawL3VPN(_ string, _ L3VPNRoute) error       { return nil }
-func (m *mockReactorRefresh) AnnounceLabeledUnicast(_ string, _ LabeledUnicastRoute) error {
+func (m *mockReactorRefresh) Peers() []PeerInfo                                         { return nil }
+func (m *mockReactorRefresh) Stats() ReactorStats                                       { return ReactorStats{} }
+func (m *mockReactorRefresh) Stop()                                                     {}
+func (m *mockReactorRefresh) Reload() error                                             { return nil }
+func (m *mockReactorRefresh) VerifyConfig(_ map[string]any) error                       { return nil }
+func (m *mockReactorRefresh) ApplyConfigDiff(_ map[string]any) error                    { return nil }
+func (m *mockReactorRefresh) AddDynamicPeer(_ DynamicPeerConfig) error                  { return nil }
+func (m *mockReactorRefresh) RemovePeer(_ netip.Addr) error                             { return nil }
+func (m *mockReactorRefresh) AnnounceRoute(_ string, _ bgptypes.RouteSpec) error        { return nil }
+func (m *mockReactorRefresh) WithdrawRoute(_ string, _ netip.Prefix) error              { return nil }
+func (m *mockReactorRefresh) AnnounceFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
+func (m *mockReactorRefresh) WithdrawFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
+func (m *mockReactorRefresh) AnnounceVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
+func (m *mockReactorRefresh) WithdrawVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
+func (m *mockReactorRefresh) AnnounceL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
+func (m *mockReactorRefresh) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
+func (m *mockReactorRefresh) AnnounceL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
+func (m *mockReactorRefresh) WithdrawL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
+func (m *mockReactorRefresh) AnnounceLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
 	return nil
 }
-func (m *mockReactorRefresh) WithdrawLabeledUnicast(_ string, _ LabeledUnicastRoute) error {
+func (m *mockReactorRefresh) WithdrawLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
 	return nil
 }
-func (m *mockReactorRefresh) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
-func (m *mockReactorRefresh) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
-func (m *mockReactorRefresh) TeardownPeer(_ netip.Addr, _ uint8) error        { return nil }
-func (m *mockReactorRefresh) AnnounceEOR(_ string, _ uint16, _ uint8) error   { return nil }
-func (m *mockReactorRefresh) RIBInRoutes(_ string) []rib.RouteJSON            { return nil }
-func (m *mockReactorRefresh) RIBOutRoutes() []rib.RouteJSON                   { return nil }
-func (m *mockReactorRefresh) RIBStats() RIBStatsInfo                          { return RIBStatsInfo{} }
-func (m *mockReactorRefresh) BeginTransaction(_, _ string) error              { return nil }
-func (m *mockReactorRefresh) CommitTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorRefresh) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
+func (m *mockReactorRefresh) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
+func (m *mockReactorRefresh) TeardownPeer(_ netip.Addr, _ uint8) error                 { return nil }
+func (m *mockReactorRefresh) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
+func (m *mockReactorRefresh) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
+func (m *mockReactorRefresh) RIBOutRoutes() []rib.RouteJSON                            { return nil }
+func (m *mockReactorRefresh) RIBStats() RIBStatsInfo                                   { return RIBStatsInfo{} }
+func (m *mockReactorRefresh) BeginTransaction(_, _ string) error                       { return nil }
+func (m *mockReactorRefresh) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorRefresh) CommitTransactionWithLabel(_, _ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorRefresh) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorRefresh) RollbackTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorRefresh) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
 func (m *mockReactorRefresh) InTransaction(_ string) bool   { return false }
 func (m *mockReactorRefresh) TransactionID(_ string) string { return "" }
-func (m *mockReactorRefresh) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorRefresh) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorRefresh) AnnounceWatchdog(_, _ string) error           { return nil }
-func (m *mockReactorRefresh) WithdrawWatchdog(_, _ string) error           { return nil }
-func (m *mockReactorRefresh) AddWatchdogRoute(_ RouteSpec, _ string) error { return nil }
-func (m *mockReactorRefresh) RemoveWatchdogRoute(_, _ string) error        { return nil }
-func (m *mockReactorRefresh) ClearRIBIn() int                              { return 0 }
-func (m *mockReactorRefresh) ClearRIBOut() int                             { return 0 }
-func (m *mockReactorRefresh) FlushRIBOut() int                             { return 0 }
+func (m *mockReactorRefresh) AnnounceWatchdog(_, _ string) error                    { return nil }
+func (m *mockReactorRefresh) WithdrawWatchdog(_, _ string) error                    { return nil }
+func (m *mockReactorRefresh) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error { return nil }
+func (m *mockReactorRefresh) RemoveWatchdogRoute(_, _ string) error                 { return nil }
+func (m *mockReactorRefresh) ClearRIBIn() int                                       { return 0 }
+func (m *mockReactorRefresh) ClearRIBOut() int                                      { return 0 }
+func (m *mockReactorRefresh) FlushRIBOut() int                                      { return 0 }
 func (m *mockReactorRefresh) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding {
 	return nil
 }
-func (m *mockReactorRefresh) GetPeerCapabilityConfigs() []PeerCapabilityConfig { return nil }
-func (m *mockReactorRefresh) GetConfigTree() map[string]any                    { return nil }
-func (m *mockReactorRefresh) SetConfigTree(_ map[string]any)                   {}
-func (m *mockReactorRefresh) SignalAPIReady()                                  {}
-func (m *mockReactorRefresh) AddAPIProcessCount(_ int)                         {}
-func (m *mockReactorRefresh) SignalPluginStartupComplete()                     {}
-func (m *mockReactorRefresh) SignalPeerAPIReady(_ string)                      {}
-func (m *mockReactorRefresh) AnnounceNLRIBatch(_ string, _ NLRIBatch) error    { return nil }
-func (m *mockReactorRefresh) WithdrawNLRIBatch(_ string, _ NLRIBatch) error    { return nil }
+func (m *mockReactorRefresh) GetPeerCapabilityConfigs() []PeerCapabilityConfig       { return nil }
+func (m *mockReactorRefresh) GetConfigTree() map[string]any                          { return nil }
+func (m *mockReactorRefresh) SetConfigTree(_ map[string]any)                         {}
+func (m *mockReactorRefresh) SignalAPIReady()                                        {}
+func (m *mockReactorRefresh) AddAPIProcessCount(_ int)                               {}
+func (m *mockReactorRefresh) SignalPluginStartupComplete()                           {}
+func (m *mockReactorRefresh) SignalPeerAPIReady(_ string)                            {}
+func (m *mockReactorRefresh) AnnounceNLRIBatch(_ string, _ bgptypes.NLRIBatch) error { return nil }
+func (m *mockReactorRefresh) WithdrawNLRIBatch(_ string, _ bgptypes.NLRIBatch) error { return nil }
 func (m *mockReactorRefresh) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil
 }

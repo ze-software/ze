@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
@@ -29,7 +31,7 @@ type mockReactor struct {
 	stopped         bool
 	announcedRoutes []struct {
 		selector string
-		route    RouteSpec
+		route    bgptypes.RouteSpec
 	}
 	withdrawnRoutes []struct {
 		selector string
@@ -37,19 +39,19 @@ type mockReactor struct {
 	}
 	announcedL3VPNRoutes []struct {
 		selector string
-		route    L3VPNRoute
+		route    bgptypes.L3VPNRoute
 	}
 	withdrawnL3VPNRoutes []struct {
 		selector string
-		route    L3VPNRoute
+		route    bgptypes.L3VPNRoute
 	}
 	announcedLabeledUnicastRoutes []struct {
 		selector string
-		route    LabeledUnicastRoute
+		route    bgptypes.LabeledUnicastRoute
 	}
 	withdrawnLabeledUnicastRoutes []struct {
 		selector string
-		route    LabeledUnicastRoute
+		route    bgptypes.LabeledUnicastRoute
 	}
 	teardownCalls []struct {
 		addr    netip.Addr
@@ -68,11 +70,11 @@ type mockReactor struct {
 	// NLRI batch tracking for wire mode tests
 	announcedBatches []struct {
 		selector string
-		batch    NLRIBatch
+		batch    bgptypes.NLRIBatch
 	}
 	withdrawnBatches []struct {
 		selector string
-		batch    NLRIBatch
+		batch    bgptypes.NLRIBatch
 	}
 
 	// Dynamic peer management tracking
@@ -92,10 +94,10 @@ func (m *mockReactor) Stop() {
 	m.stopped = true
 }
 
-func (m *mockReactor) AnnounceRoute(selector string, route RouteSpec) error {
+func (m *mockReactor) AnnounceRoute(selector string, route bgptypes.RouteSpec) error {
 	m.announcedRoutes = append(m.announcedRoutes, struct {
 		selector string
-		route    RouteSpec
+		route    bgptypes.RouteSpec
 	}{selector, route})
 	return nil
 }
@@ -138,63 +140,63 @@ func (m *mockReactor) RemovePeer(addr netip.Addr) error {
 	return nil
 }
 
-func (m *mockReactor) AnnounceFlowSpec(_ string, _ FlowSpecRoute) error {
+func (m *mockReactor) AnnounceFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error {
 	return nil
 }
 
-func (m *mockReactor) WithdrawFlowSpec(_ string, _ FlowSpecRoute) error {
+func (m *mockReactor) WithdrawFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error {
 	return nil
 }
 
-func (m *mockReactor) AnnounceVPLS(_ string, _ VPLSRoute) error {
+func (m *mockReactor) AnnounceVPLS(_ string, _ bgptypes.VPLSRoute) error {
 	return nil
 }
 
-func (m *mockReactor) WithdrawVPLS(_ string, _ VPLSRoute) error {
+func (m *mockReactor) WithdrawVPLS(_ string, _ bgptypes.VPLSRoute) error {
 	return nil
 }
 
-func (m *mockReactor) AnnounceL2VPN(_ string, _ L2VPNRoute) error {
+func (m *mockReactor) AnnounceL2VPN(_ string, _ bgptypes.L2VPNRoute) error {
 	return nil
 }
 
-func (m *mockReactor) AnnounceL3VPN(selector string, route L3VPNRoute) error {
+func (m *mockReactor) AnnounceL3VPN(selector string, route bgptypes.L3VPNRoute) error {
 	m.announcedL3VPNRoutes = append(m.announcedL3VPNRoutes, struct {
 		selector string
-		route    L3VPNRoute
+		route    bgptypes.L3VPNRoute
 	}{selector, route})
 	return nil
 }
 
-func (m *mockReactor) WithdrawL3VPN(selector string, route L3VPNRoute) error {
+func (m *mockReactor) WithdrawL3VPN(selector string, route bgptypes.L3VPNRoute) error {
 	m.withdrawnL3VPNRoutes = append(m.withdrawnL3VPNRoutes, struct {
 		selector string
-		route    L3VPNRoute
+		route    bgptypes.L3VPNRoute
 	}{selector, route})
 	return nil
 }
 
-func (m *mockReactor) AnnounceLabeledUnicast(selector string, route LabeledUnicastRoute) error {
+func (m *mockReactor) AnnounceLabeledUnicast(selector string, route bgptypes.LabeledUnicastRoute) error {
 	m.announcedLabeledUnicastRoutes = append(m.announcedLabeledUnicastRoutes, struct {
 		selector string
-		route    LabeledUnicastRoute
+		route    bgptypes.LabeledUnicastRoute
 	}{selector, route})
 	return nil
 }
 
-func (m *mockReactor) WithdrawLabeledUnicast(selector string, route LabeledUnicastRoute) error {
+func (m *mockReactor) WithdrawLabeledUnicast(selector string, route bgptypes.LabeledUnicastRoute) error {
 	m.withdrawnLabeledUnicastRoutes = append(m.withdrawnLabeledUnicastRoutes, struct {
 		selector string
-		route    LabeledUnicastRoute
+		route    bgptypes.LabeledUnicastRoute
 	}{selector, route})
 	return nil
 }
 
-func (m *mockReactor) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error {
+func (m *mockReactor) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error {
 	return nil
 }
 
-func (m *mockReactor) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error {
+func (m *mockReactor) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error {
 	return nil
 }
 
@@ -243,25 +245,25 @@ func (m *mockReactor) GetConfigTree() map[string]any {
 
 func (m *mockReactor) SetConfigTree(_ map[string]any) {}
 
-func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
+func (m *mockReactor) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error {
 	return nil
 }
 
 // Transaction stubs (base mock doesn't support transactions).
 func (m *mockReactor) BeginTransaction(_, _ string) error {
-	return ErrNoTransaction
+	return bgptypes.ErrNoTransaction
 }
 
-func (m *mockReactor) CommitTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, ErrNoTransaction
+func (m *mockReactor) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
 }
 
-func (m *mockReactor) CommitTransactionWithLabel(_, _ string) (TransactionResult, error) {
-	return TransactionResult{}, ErrNoTransaction
+func (m *mockReactor) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
 }
 
-func (m *mockReactor) RollbackTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, ErrNoTransaction
+func (m *mockReactor) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
 }
 
 func (m *mockReactor) InTransaction(_ string) bool {
@@ -272,8 +274,8 @@ func (m *mockReactor) TransactionID(_ string) string {
 	return ""
 }
 
-func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (TransactionResult, error) {
-	return TransactionResult{
+func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{
 		RoutesAnnounced: len(routes),
 		RoutesWithdrawn: len(withdrawals),
 		UpdatesSent:     1,
@@ -288,7 +290,7 @@ func (m *mockReactor) WithdrawWatchdog(_, _ string) error {
 	return nil
 }
 
-func (m *mockReactor) AddWatchdogRoute(_ RouteSpec, _ string) error {
+func (m *mockReactor) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error {
 	return nil
 }
 
@@ -323,18 +325,18 @@ func (m *mockReactor) SignalPluginStartupComplete() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 
-func (m *mockReactor) AnnounceNLRIBatch(selector string, batch NLRIBatch) error {
+func (m *mockReactor) AnnounceNLRIBatch(selector string, batch bgptypes.NLRIBatch) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		selector string
-		batch    NLRIBatch
+		batch    bgptypes.NLRIBatch
 	}{selector, batch})
 	return nil
 }
 
-func (m *mockReactor) WithdrawNLRIBatch(selector string, batch NLRIBatch) error {
+func (m *mockReactor) WithdrawNLRIBatch(selector string, batch bgptypes.NLRIBatch) error {
 	m.withdrawnBatches = append(m.withdrawnBatches, struct {
 		selector string
-		batch    NLRIBatch
+		batch    bgptypes.NLRIBatch
 	}{selector, batch})
 	return nil
 }

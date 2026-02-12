@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -80,7 +82,7 @@ func testExtractCommunities(t *testing.T, wire *attribute.AttributesWire) []uint
 }
 
 // testExtractLargeCommunities extracts LargeCommunities from Wire for testing.
-func testExtractLargeCommunities(t *testing.T, wire *attribute.AttributesWire) []LargeCommunity {
+func testExtractLargeCommunities(t *testing.T, wire *attribute.AttributesWire) []bgptypes.LargeCommunity {
 	t.Helper()
 	attrs, err := wire.All()
 	require.NoError(t, err)
@@ -407,7 +409,7 @@ func TestParseUpdateText_LargeCommunity(t *testing.T) {
 
 	lcomms := testExtractLargeCommunities(t, result.Groups[0].Wire)
 	require.Len(t, lcomms, 1)
-	assert.Equal(t, LargeCommunity{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}, lcomms[0])
+	assert.Equal(t, bgptypes.LargeCommunity{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}, lcomms[0])
 }
 
 // TestParseUpdateText_ExtendedCommunity verifies extended community parsing.
@@ -1073,15 +1075,15 @@ func TestParseUpdateText_AttrBetweenNLRISections(t *testing.T) {
 type mockReactorBatch struct {
 	announceError      error
 	withdrawError      error
-	announceCalls      []NLRIBatch
-	withdrawCalls      []NLRIBatch
+	announceCalls      []bgptypes.NLRIBatch
+	withdrawCalls      []bgptypes.NLRIBatch
 	peerSelector       string
 	noPeersMatching    bool
 	noPeersAccepted    bool // Simulates family not negotiated
 	noPeersAcceptedFor nlri.Family
 }
 
-func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch NLRIBatch) error {
+func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	if m.noPeersMatching {
 		return ErrNoPeersMatch
 	}
@@ -1093,7 +1095,7 @@ func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch NLRIBatc
 	return m.announceError
 }
 
-func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch NLRIBatch) error {
+func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	if m.noPeersMatching {
 		return ErrNoPeersMatch
 	}
@@ -1106,55 +1108,55 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch NLRIBatc
 }
 
 // Stub implementations for other ReactorInterface methods.
-func (m *mockReactorBatch) Peers() []PeerInfo                                { return nil }
-func (m *mockReactorBatch) Stats() ReactorStats                              { return ReactorStats{} }
-func (m *mockReactorBatch) Stop()                                            {}
-func (m *mockReactorBatch) Reload() error                                    { return nil }
-func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error              { return nil }
-func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error           { return nil }
-func (m *mockReactorBatch) AddDynamicPeer(_ DynamicPeerConfig) error         { return nil }
-func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                    { return nil }
-func (m *mockReactorBatch) AnnounceRoute(_ string, _ RouteSpec) error        { return nil }
-func (m *mockReactorBatch) WithdrawRoute(_ string, _ netip.Prefix) error     { return nil }
-func (m *mockReactorBatch) AnnounceFlowSpec(_ string, _ FlowSpecRoute) error { return nil }
-func (m *mockReactorBatch) WithdrawFlowSpec(_ string, _ FlowSpecRoute) error { return nil }
-func (m *mockReactorBatch) AnnounceVPLS(_ string, _ VPLSRoute) error         { return nil }
-func (m *mockReactorBatch) WithdrawVPLS(_ string, _ VPLSRoute) error         { return nil }
-func (m *mockReactorBatch) AnnounceL2VPN(_ string, _ L2VPNRoute) error       { return nil }
-func (m *mockReactorBatch) WithdrawL2VPN(_ string, _ L2VPNRoute) error       { return nil }
-func (m *mockReactorBatch) AnnounceL3VPN(_ string, _ L3VPNRoute) error       { return nil }
-func (m *mockReactorBatch) WithdrawL3VPN(_ string, _ L3VPNRoute) error       { return nil }
-func (m *mockReactorBatch) AnnounceLabeledUnicast(_ string, _ LabeledUnicastRoute) error {
+func (m *mockReactorBatch) Peers() []PeerInfo                                         { return nil }
+func (m *mockReactorBatch) Stats() ReactorStats                                       { return ReactorStats{} }
+func (m *mockReactorBatch) Stop()                                                     {}
+func (m *mockReactorBatch) Reload() error                                             { return nil }
+func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                       { return nil }
+func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                    { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ DynamicPeerConfig) error                  { return nil }
+func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                             { return nil }
+func (m *mockReactorBatch) AnnounceRoute(_ string, _ bgptypes.RouteSpec) error        { return nil }
+func (m *mockReactorBatch) WithdrawRoute(_ string, _ netip.Prefix) error              { return nil }
+func (m *mockReactorBatch) AnnounceFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
+func (m *mockReactorBatch) WithdrawFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
+func (m *mockReactorBatch) AnnounceVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
+func (m *mockReactorBatch) WithdrawVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
+func (m *mockReactorBatch) AnnounceL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
+func (m *mockReactorBatch) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
+func (m *mockReactorBatch) AnnounceL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
+func (m *mockReactorBatch) WithdrawL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
+func (m *mockReactorBatch) AnnounceLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
 	return nil
 }
-func (m *mockReactorBatch) WithdrawLabeledUnicast(_ string, _ LabeledUnicastRoute) error {
+func (m *mockReactorBatch) WithdrawLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
 	return nil
 }
-func (m *mockReactorBatch) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
-func (m *mockReactorBatch) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
-func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error        { return nil }
-func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error   { return nil }
-func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON            { return nil }
-func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                   { return nil }
-func (m *mockReactorBatch) RIBStats() RIBStatsInfo                          { return RIBStatsInfo{} }
-func (m *mockReactorBatch) BeginTransaction(_, _ string) error              { return nil }
-func (m *mockReactorBatch) CommitTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorBatch) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
+func (m *mockReactorBatch) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
+func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error                 { return nil }
+func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
+func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
+func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                            { return nil }
+func (m *mockReactorBatch) RIBStats() RIBStatsInfo                                   { return RIBStatsInfo{} }
+func (m *mockReactorBatch) BeginTransaction(_, _ string) error                       { return nil }
+func (m *mockReactorBatch) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorBatch) CommitTransactionWithLabel(_, _ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorBatch) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorBatch) RollbackTransaction(_ string) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorBatch) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
 func (m *mockReactorBatch) InTransaction(_ string) bool   { return false }
 func (m *mockReactorBatch) TransactionID(_ string) string { return "" }
-func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (TransactionResult, error) {
-	return TransactionResult{}, nil
+func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, nil
 }
 func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error                       { return nil }
 func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                       { return nil }
-func (m *mockReactorBatch) AddWatchdogRoute(_ RouteSpec, _ string) error             { return nil }
+func (m *mockReactorBatch) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error    { return nil }
 func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                    { return nil }
 func (m *mockReactorBatch) ClearRIBIn() int                                          { return 0 }
 func (m *mockReactorBatch) ClearRIBOut() int                                         { return 0 }
@@ -1435,7 +1437,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 
 // TestHandleUpdateText_NextHopSelf verifies nhop set self flag passed to batch.
 //
-// VALIDATES: NextHopSelf flag propagated to reactor.
+// VALIDATES: bgptypes.NextHopSelf flag propagated to reactor.
 // PREVENTS: Flag loss in handler.
 func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	reactor := &mockReactorBatch{}

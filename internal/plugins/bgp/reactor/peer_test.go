@@ -9,7 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -252,7 +253,7 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 	nextHop := netip.MustParseAddr("2001:db8::ffff")
 	route := StaticRoute{
 		Prefix:          netip.MustParsePrefix("2001:db8::1/128"),
-		NextHop:         plugin.NewNextHopExplicit(nextHop),
+		NextHop:         bgptypes.NewNextHopExplicit(nextHop),
 		Origin:          0,
 		LocalPreference: 100,
 	}
@@ -309,7 +310,7 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.0.2.1")
 	route := StaticRoute{
 		Prefix:      netip.MustParsePrefix("192.0.2.0/24"),
-		NextHop:     plugin.NewNextHopExplicit(nextHop),
+		NextHop:     bgptypes.NewNextHopExplicit(nextHop),
 		Origin:      0,
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
@@ -551,17 +552,17 @@ func testWatchdogSettings() *PeerSettings {
 	settings.WatchdogGroups = map[string][]WatchdogRoute{
 		"health": {
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
 				InitiallyWithdrawn: false, // Starts announced
 			},
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
 				InitiallyWithdrawn: true, // Starts withdrawn
 			},
 		},
 		"backup": {
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("20.0.0.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.0.2.2"))},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("20.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.2"))},
 				InitiallyWithdrawn: true,
 			},
 		},
@@ -768,7 +769,7 @@ func TestWatchdogRouteKeyIncludesPathID(t *testing.T) {
 func TestRouteFamilyIPv4Unicast(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 
 	family := routeFamily(route)
@@ -785,7 +786,7 @@ func TestRouteFamilyIPv4Unicast(t *testing.T) {
 func TestRouteFamilyIPv6Unicast(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	family := routeFamily(route)
@@ -802,7 +803,7 @@ func TestRouteFamilyIPv6Unicast(t *testing.T) {
 func TestRouteFamilyVPNv4(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 		RD:      "100:100", // Has RD = VPN
 	}
 
@@ -820,7 +821,7 @@ func TestRouteFamilyVPNv4(t *testing.T) {
 func TestRouteFamilyVPNv6(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 		RD:      "100:100", // Has RD = VPN
 	}
 
@@ -841,10 +842,10 @@ func TestFamiliesSentTracking(t *testing.T) {
 
 	// Routes of various types
 	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},               // IPv4 Unicast
-		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},             // IPv4 Unicast (same family)
-		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1"))},           // IPv6 Unicast
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"}, // VPNv4
+		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},               // IPv4 Unicast
+		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},             // IPv4 Unicast (same family)
+		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1"))},           // IPv6 Unicast
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"}, // VPNv4
 	}
 
 	// Track families as sendInitialRoutes does
@@ -887,8 +888,8 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 
 	// Only VPN routes
 	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"},
-		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:101"},
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"},
+		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:101"},
 	}
 
 	for _, route := range routes {
@@ -1210,7 +1211,7 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:      plugin.NewNextHopExplicit(nextHop),
+		NextHop:      bgptypes.NewNextHopExplicit(nextHop),
 		OriginatorID: 0xC0A80101,
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
@@ -1234,12 +1235,12 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
 	route1 := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:      plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop:      bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		OriginatorID: 0xC0A80101,
 	}
 	route2 := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop:      plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop:      bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		OriginatorID: 0xC0A80102, // Different!
 	}
 
@@ -1257,12 +1258,12 @@ func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
 func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
 	route1 := StaticRoute{
 		Prefix:      netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:     plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop:     bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		ClusterList: []uint32{0xC0A80101},
 	}
 	route2 := StaticRoute{
 		Prefix:      netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop:     plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop:     bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		ClusterList: []uint32{0xC0A80101, 0xC0A80102}, // Different!
 	}
 
@@ -1470,7 +1471,7 @@ func TestResolveNextHop_Explicit(t *testing.T) {
 	peer := NewPeer(settings)
 
 	addr := netip.MustParseAddr("10.0.0.1")
-	nh := plugin.NewNextHopExplicit(addr)
+	nh := bgptypes.NewNextHopExplicit(addr)
 
 	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
 	require.NoError(t, err)
@@ -1486,7 +1487,7 @@ func TestResolveNextHop_Self(t *testing.T) {
 	settings.LocalAddress = netip.MustParseAddr("10.0.0.100")
 	peer := NewPeer(settings)
 
-	nh := plugin.NewNextHopSelf()
+	nh := bgptypes.NewNextHopSelf()
 
 	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
 	require.NoError(t, err)
@@ -1502,7 +1503,7 @@ func TestResolveNextHop_SelfNoLocal(t *testing.T) {
 	// LocalAddress not set (zero value)
 	peer := NewPeer(settings)
 
-	nh := plugin.NewNextHopSelf()
+	nh := bgptypes.NewNextHopSelf()
 
 	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopSelfNoLocal)
@@ -1516,7 +1517,7 @@ func TestResolveNextHop_Unset(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	var nh plugin.RouteNextHop // zero value = NextHopUnset
+	var nh bgptypes.RouteNextHop // zero value = NextHopUnset
 
 	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopUnset)
@@ -1530,7 +1531,7 @@ func TestResolveNextHop_ExplicitInvalid(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	nh := plugin.NewNextHopExplicit(netip.Addr{}) // invalid addr
+	nh := bgptypes.NewNextHopExplicit(netip.Addr{}) // invalid addr
 
 	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
 	require.NoError(t, err, "explicit bypasses validation")

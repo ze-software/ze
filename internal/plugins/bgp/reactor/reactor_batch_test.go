@@ -5,6 +5,8 @@ import (
 	"net/netip"
 	"testing"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -74,10 +76,10 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("192.168.1.1", batch)
@@ -95,7 +97,7 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 	}
@@ -131,10 +133,10 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// Try to announce IPv6 - all peers skipped
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	// Should return warning error when all peers skipped
@@ -169,7 +171,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// Try to withdraw IPv6 - all peers skipped
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family: nlri.IPv6Unicast,
 		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
 	}
@@ -200,13 +202,13 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
 		},
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("*", batch)
@@ -241,7 +243,7 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
@@ -280,10 +282,10 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{wn},
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 		Wire:    attrsWire,
 	}
 
@@ -316,10 +318,10 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv6Unicast, []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}, false)
 	require.NoError(t, err)
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{wn},
-		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 		Wire:    attrsWire,
 	}
 
@@ -347,7 +349,7 @@ func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
-	batch := plugin.NLRIBatch{
+	batch := bgptypes.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs:  []nlri.NLRI{wn},
 	}

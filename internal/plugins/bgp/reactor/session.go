@@ -13,6 +13,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
@@ -1516,7 +1518,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 // RFC 6793 - 4-byte AS encoding when asn4 is true.
 //
 // Note: Concurrent calls must be externally synchronized.
-func (s *Session) SendAnnounce(route plugin.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) error {
+func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()

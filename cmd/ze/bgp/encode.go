@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
@@ -241,7 +243,7 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 // routeSpecToUnicastParams converts a RouteSpec to UnicastParams.
 // Extracts address from RouteNextHop (must be explicit, not self).
 // Uses wire-first approach: prefers Wire, then Attrs (Builder).
-func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
+func routeSpecToUnicastParams(r bgptypes.RouteSpec) message.UnicastParams {
 	var attrs commonAttrs
 
 	if r.Wire != nil {
@@ -393,7 +395,7 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, _, addPath bool
 // l2vpnRouteToEVPNParams converts L2VPNRoute to EVPNParams.
 //
 //nolint:goconst // String literals are clearer for route type matching
-func l2vpnRouteToEVPNParams(r plugin.L2VPNRoute) (message.EVPNParams, error) {
+func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 	p := message.EVPNParams{
 		NextHop:     r.NextHop,
 		EthernetTag: r.EthernetTag,
@@ -509,7 +511,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _
 
 // l3vpnRouteToVPNParams converts L3VPNRoute to VPNParams.
 // Takes pre-parsed RD to avoid double parsing.
-func l3vpnRouteToVPNParams(r plugin.L3VPNRoute, rd nlri.RouteDistinguisher) message.VPNParams {
+func l3vpnRouteToVPNParams(r bgptypes.L3VPNRoute, rd nlri.RouteDistinguisher) message.VPNParams {
 	attrs := extractAttrsFromWire(r.Wire)
 
 	p := message.VPNParams{
@@ -576,7 +578,7 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 }
 
 // labeledUnicastRouteToParams converts LabeledUnicastRoute to LabeledUnicastParams.
-func labeledUnicastRouteToParams(r plugin.LabeledUnicastRoute) message.LabeledUnicastParams {
+func labeledUnicastRouteToParams(r bgptypes.LabeledUnicastRoute) message.LabeledUnicastParams {
 	attrs := extractAttrsFromWire(r.Wire)
 
 	p := message.LabeledUnicastParams{
@@ -687,9 +689,9 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 }
 
 // flowSpecRouteToParams converts FlowSpecRoute to FlowSpecParams.
-func flowSpecRouteToParams(r plugin.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
+func flowSpecRouteToParams(r bgptypes.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
 	p := message.FlowSpecParams{
-		IsIPv6: r.Family == plugin.AFINameIPv6,
+		IsIPv6: r.Family == bgptypes.AFINameIPv6,
 		NLRI:   nlriBytes,
 	}
 
@@ -826,7 +828,7 @@ func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, 
 
 // buildMUPNLRI builds MUP NLRI bytes from MUPRouteSpec.
 // Returns (nlri bytes, route type code, error).
-func buildMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, uint8, error) {
+func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch spec.RouteType {
@@ -924,8 +926,8 @@ func buildMUPPrefixBytes(prefix netip.Prefix) []byte {
 
 // parseVPLSArgs parses VPLS command arguments for encode command.
 // Format: rd <rd> ve-block-offset <n> ve-block-size <n> label <n> next-hop <addr>.
-func parseVPLSArgs(args []string) (plugin.VPLSRoute, error) {
-	var route plugin.VPLSRoute
+func parseVPLSArgs(args []string) (bgptypes.VPLSRoute, error) {
+	var route bgptypes.VPLSRoute
 
 	for i := 0; i < len(args)-1; i += 2 {
 		key := strings.ToLower(args[i])
@@ -974,8 +976,8 @@ func parseVPLSArgs(args []string) (plugin.VPLSRoute, error) {
 // parseL2VPNArgs parses L2VPN/EVPN command arguments for encode command.
 //
 //nolint:goconst // String literals are clearer for route type parsing
-func parseL2VPNArgs(args []string) (plugin.L2VPNRoute, error) {
-	var route plugin.L2VPNRoute
+func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
+	var route bgptypes.L2VPNRoute
 
 	if len(args) < 1 {
 		return route, fmt.Errorf("missing route type")
@@ -1075,7 +1077,7 @@ func parseL2VPNArgs(args []string) (plugin.L2VPNRoute, error) {
 }
 
 // vplsRouteToParams converts VPLSRoute to VPLSParams.
-func vplsRouteToParams(r plugin.VPLSRoute, rd nlri.RouteDistinguisher) message.VPLSParams {
+func vplsRouteToParams(r bgptypes.VPLSRoute, rd nlri.RouteDistinguisher) message.VPLSParams {
 	p := message.VPLSParams{
 		NextHop:  r.NextHop,
 		Offset:   r.VEBlockOffset,

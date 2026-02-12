@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/netip"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
@@ -494,13 +496,13 @@ func afiSafiToFamily(afi uint16, safi uint8) string {
 	var safiName string
 	switch safi {
 	case 1:
-		safiName = SAFINameUnicast
+		safiName = bgptypes.SAFINameUnicast
 	case 2:
-		safiName = SAFINameMulticast
+		safiName = bgptypes.SAFINameMulticast
 	case 4:
 		safiName = "mpls-labels"
 	case 128:
-		safiName = SAFINameMPLSVPN
+		safiName = bgptypes.SAFINameMPLSVPN
 	default:
 		safiName = fmt.Sprintf("safi(%d)", safi)
 	}

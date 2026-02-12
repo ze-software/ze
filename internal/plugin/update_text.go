@@ -1,4 +1,4 @@
-// Package api provides the update text parser for the "update text" command format.
+// Package plugin provides the update text parser for the "update text" command format.
 //
 // Grammar:
 //
@@ -31,6 +31,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -139,7 +141,7 @@ type parsedAttrs struct {
 	MED                 *uint32
 	ASPath              []uint32
 	Communities         []uint32
-	LargeCommunities    []LargeCommunity
+	LargeCommunities    []bgptypes.LargeCommunity
 	ExtendedCommunities []attribute.ExtendedCommunity
 
 	// VPN/labeled NLRI accumulators
@@ -351,7 +353,7 @@ type nlriAccum struct {
 // snapshot returns a wire-format snapshot of the current attribute state.
 // Builds attributes using Builder for wire-first encoding.
 // Also returns the current NLRI accumulators (pathID, RD, labels).
-func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriAccum) {
+func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextHop, nlriAccum) {
 	// Build wire-format attributes.
 	// Note: ORIGIN and AS_PATH are not forced here; reactor adds mandatory
 	// attributes if missing (with correct iBGP/eBGP AS_PATH handling).
@@ -386,12 +388,12 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriA
 		wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
 	}
 
-	// Convert to RouteNextHop: Self takes precedence if set
-	var nh RouteNextHop
+	// Convert to bgptypes.RouteNextHop: Self takes precedence if set
+	var nh bgptypes.RouteNextHop
 	if a.NextHopSelf {
-		nh = NewNextHopSelf()
+		nh = bgptypes.NewNextHopSelf()
 	} else if a.NextHop.IsValid() {
-		nh = NewNextHopExplicit(a.NextHop)
+		nh = bgptypes.NewNextHopExplicit(a.NextHop)
 	}
 
 	// Deep copy labels slice
@@ -446,8 +448,8 @@ func formatCommunity(c uint32) string {
 	return fmt.Sprintf("%d:%d", c>>16, c&0xFFFF)
 }
 
-// formatLargeCommunity formats a LargeCommunity as "GA:LD1:LD2".
-func formatLargeCommunity(lc LargeCommunity) string {
+// formatLargeCommunity formats a bgptypes.LargeCommunity as "GA:LD1:LD2".
+func formatLargeCommunity(lc bgptypes.LargeCommunity) string {
 	return fmt.Sprintf("%d:%d:%d", lc.GlobalAdmin, lc.LocalData1, lc.LocalData2)
 }
 
@@ -559,7 +561,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 			return 0, fmt.Errorf("missing large-community value")
 		}
 		tokens, consumed := parseBracketedListText(args[idx+1:])
-		lcs := make([]LargeCommunity, 0, len(tokens))
+		lcs := make([]bgptypes.LargeCommunity, 0, len(tokens))
 		for _, tok := range tokens {
 			lc, err := attribute.ParseLargeCommunity(tok)
 			if err != nil {
@@ -723,9 +725,9 @@ func parseCommunityText(s string) (uint32, error) {
 
 // ParseUpdateText parses the "update text" command format.
 // Returns the parsed result or an error.
-func ParseUpdateText(args []string) (*UpdateTextResult, error) {
+func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 	var accum parsedAttrs
-	var groups []NLRIGroup
+	var groups []bgptypes.NLRIGroup
 	var eorFamilies []nlri.Family
 	var watchdog string
 	i := 0
@@ -791,7 +793,7 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 			if len(announce) == 0 && len(withdraw) == 0 && family.AFI != 0 {
 				eorFamilies = append(eorFamilies, family)
 			} else {
-				groups = append(groups, NLRIGroup{
+				groups = append(groups, bgptypes.NLRIGroup{
 					Family:       family,
 					Announce:     announce,
 					Withdraw:     withdraw,
@@ -842,7 +844,7 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 		}
 	}
 
-	return &UpdateTextResult{Groups: groups, WatchdogName: watchdog, EORFamilies: eorFamilies}, nil
+	return &bgptypes.UpdateTextResult{Groups: groups, WatchdogName: watchdog, EORFamilies: eorFamilies}, nil
 }
 
 // parseNhopSection parses nhop <set <addr>|del> section.
@@ -1750,14 +1752,14 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 
 // dispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
-func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, error) {
+func dispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Response, error) {
 	peerSelector := ctx.PeerSelector()
 	var announced, withdrawn int
 	var warnings []string
 
 	for _, group := range groups {
 		if len(group.Announce) > 0 {
-			batch := NLRIBatch{
+			batch := bgptypes.NLRIBatch{
 				Family:  group.Family,
 				NLRIs:   group.Announce,
 				NextHop: group.NextHop,
@@ -1773,7 +1775,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, err
 			announced += len(group.Announce)
 		}
 		if len(group.Withdraw) > 0 {
-			batch := NLRIBatch{
+			batch := bgptypes.NLRIBatch{
 				Family: group.Family,
 				NLRIs:  group.Withdraw,
 			}

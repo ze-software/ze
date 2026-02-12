@@ -17,6 +17,8 @@ import (
 	"sync"
 	"time"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -359,7 +361,7 @@ func (a *reactorAPIAdapter) Stop() {
 
 // AnnounceRoute announces a route to matching peers.
 // If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
-func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.RouteSpec) error {
+func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route bgptypes.RouteSpec) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -431,7 +433,7 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 
 		// Create resolved route spec for buildAnnounceUpdate
 		resolvedRoute := route
-		resolvedRoute.NextHop = plugin.NewNextHopExplicit(nextHopAddr)
+		resolvedRoute.NextHop = bgptypes.NewNextHopExplicit(nextHopAddr)
 
 		if !peer.ShouldQueue() {
 			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
@@ -664,7 +666,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) int {
+func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -1237,37 +1239,37 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 
 // AnnounceFlowSpec announces a FlowSpec route to matching peers.
 // TODO: Implement when FlowSpec RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceFlowSpec(_ string, _ plugin.FlowSpecRoute) error {
+func (a *reactorAPIAdapter) AnnounceFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error {
 	return errors.New("flowspec: not implemented")
 }
 
 // WithdrawFlowSpec withdraws a FlowSpec route from matching peers.
 // TODO: Implement when FlowSpec RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawFlowSpec(_ string, _ plugin.FlowSpecRoute) error {
+func (a *reactorAPIAdapter) WithdrawFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error {
 	return errors.New("flowspec: not implemented")
 }
 
 // AnnounceVPLS announces a VPLS route to matching peers.
 // TODO: Implement when VPLS RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceVPLS(_ string, _ plugin.VPLSRoute) error {
+func (a *reactorAPIAdapter) AnnounceVPLS(_ string, _ bgptypes.VPLSRoute) error {
 	return errors.New("vpls: not implemented")
 }
 
 // WithdrawVPLS withdraws a VPLS route from matching peers.
 // TODO: Implement when VPLS RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawVPLS(_ string, _ plugin.VPLSRoute) error {
+func (a *reactorAPIAdapter) WithdrawVPLS(_ string, _ bgptypes.VPLSRoute) error {
 	return errors.New("vpls: not implemented")
 }
 
 // AnnounceL2VPN announces an L2VPN/EVPN route to matching peers.
 // TODO: Implement when L2VPN/EVPN RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceL2VPN(_ string, _ plugin.L2VPNRoute) error {
+func (a *reactorAPIAdapter) AnnounceL2VPN(_ string, _ bgptypes.L2VPNRoute) error {
 	return errors.New("l2vpn: not implemented")
 }
 
 // WithdrawL2VPN withdraws an L2VPN/EVPN route from matching peers.
 // TODO: Implement when L2VPN/EVPN RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ plugin.L2VPNRoute) error {
+func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error {
 	return errors.New("l2vpn: not implemented")
 }
 
@@ -1277,7 +1279,7 @@ func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ plugin.L2VPNRoute) error {
 // Behavior:
 //   - Established peer: sends UPDATE immediately
 //   - Non-established peer: queues to peer's operation queue (sent on connect)
-func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VPNRoute) error {
+func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route bgptypes.L3VPNRoute) error {
 	// RFC 4364: L3VPN routes require RD
 	if route.RD == "" {
 		return errors.New("l3vpn route requires route-distinguisher (rd)")
@@ -1337,7 +1339,7 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VP
 // Behavior:
 //   - Established peer: sends UPDATE with MP_UNREACH_NLRI immediately
 //   - Non-established peer: queues withdrawal (sent on connect)
-func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VPNRoute) error {
+func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route bgptypes.L3VPNRoute) error {
 	// RFC 4364: RD required to identify the VPN route
 	if route.RD == "" {
 		return errors.New("l3vpn withdrawal requires route-distinguisher (rd)")
@@ -1395,9 +1397,9 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VP
 	return lastErr
 }
 
-// buildL3VPNParams converts an plugin.L3VPNRoute to message.VPNParams.
+// buildL3VPNParams converts an bgptypes.L3VPNRoute to message.VPNParams.
 // RFC 4364 - VPN route parameters.
-func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.VPNParams, error) {
+func (a *reactorAPIAdapter) buildL3VPNParams(route bgptypes.L3VPNRoute) (message.VPNParams, error) {
 	// Parse RD
 	rd, err := nlri.ParseRDString(route.RD)
 	if err != nil {
@@ -1482,9 +1484,9 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 	return params, nil
 }
 
-// buildL3VPNRIBRoute creates a rib.Route from an plugin.L3VPNRoute for queueing.
+// buildL3VPNRIBRoute creates a rib.Route from an bgptypes.L3VPNRoute for queueing.
 // RFC 4364: VPN routes include RD + labels in NLRI.
-func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route plugin.L3VPNRoute, isIBGP bool) (*rib.Route, error) {
+func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route bgptypes.L3VPNRoute, isIBGP bool) (*rib.Route, error) {
 	// Parse RD
 	rd, err := nlri.ParseRDString(route.RD)
 	if err != nil {
@@ -1632,7 +1634,7 @@ func parseRouteTarget(s string) ([]byte, error) {
 //   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
 //   - Established: sends immediately and tracks for re-announcement
 //   - Not established: queues to peer's operation queue.
-func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route plugin.LabeledUnicastRoute) error {
+func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route bgptypes.LabeledUnicastRoute) error {
 	// RFC 8277: Labeled unicast routes require at least one label
 	if len(route.Labels) == 0 {
 		return errors.New("labeled unicast route requires at least one label")
@@ -1680,7 +1682,7 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route pl
 }
 
 // buildLabeledUnicastParams converts an API route to message.LabeledUnicastParams.
-func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicastRoute) message.LabeledUnicastParams {
+func (a *reactorAPIAdapter) buildLabeledUnicastParams(route bgptypes.LabeledUnicastRoute) message.LabeledUnicastParams {
 	params := message.LabeledUnicastParams{
 		Prefix:  route.Prefix,
 		PathID:  route.PathID, // RFC 7911 ADD-PATH
@@ -1752,7 +1754,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicas
 //
 // RFC 8277: Labeled unicast routes include MPLS labels in the NLRI.
 // RFC 7911: PathID is included when ADD-PATH is negotiated.
-func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnicastRoute, isIBGP bool) (*rib.Route, error) {
+func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route bgptypes.LabeledUnicastRoute, isIBGP bool) (*rib.Route, error) {
 	// 1. Build NLRI with nlri.LabeledUnicast
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	if route.Prefix.Addr().Is6() {
@@ -1819,7 +1821,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnic
 //   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
 //   - Established: sends immediately and removes from sent cache
 //   - Not established: queues to peer's operation queue.
-func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route plugin.LabeledUnicastRoute) error {
+func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route bgptypes.LabeledUnicastRoute) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -1868,18 +1870,18 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 
 // AnnounceMUPRoute announces a MUP route (SAFI 85) to matching peers.
 // draft-mpmz-bess-mup-safi - Mobile User Plane.
-func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec plugin.MUPRouteSpec) error {
+func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec bgptypes.MUPRouteSpec) error {
 	return a.sendMUPRoute(peerSelector, spec, false)
 }
 
 // WithdrawMUPRoute withdraws a MUP route from matching peers.
 // Uses MP_UNREACH_NLRI with SAFI 85.
-func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec plugin.MUPRouteSpec) error {
+func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec bgptypes.MUPRouteSpec) error {
 	return a.sendMUPRoute(peerSelector, spec, true)
 }
 
 // sendMUPRoute is a common helper for announce/withdraw MUP routes.
-func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec plugin.MUPRouteSpec, isWithdraw bool) error {
+func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec bgptypes.MUPRouteSpec, isWithdraw bool) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -1936,7 +1938,7 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec plugin.MUPRou
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.NLRIBatch) error {
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return plugin.ErrNoPeersMatch
@@ -2034,7 +2036,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.NLRIBatch) error {
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return plugin.ErrNoPeersMatch
@@ -2109,7 +2111,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
@@ -2357,7 +2359,7 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch plugin.NLRIBatch, addPath bool) *message.Update {
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, addPath bool) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
@@ -2597,11 +2599,11 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 
 // AddWatchdogRoute adds a route to a global watchdog pool.
 // Implements plugin.ReactorInterface.
-func (a *reactorAPIAdapter) AddWatchdogRoute(route plugin.RouteSpec, poolName string) error {
-	// Convert plugin.RouteSpec to StaticRoute
+func (a *reactorAPIAdapter) AddWatchdogRoute(route bgptypes.RouteSpec, poolName string) error {
+	// Convert bgptypes.RouteSpec to StaticRoute
 	sr := StaticRoute{
 		Prefix:  route.Prefix,
-		NextHop: route.NextHop, // Already plugin.RouteNextHop
+		NextHop: route.NextHop, // Already bgptypes.RouteNextHop
 	}
 
 	// Extract attributes from Wire (wire-first approach)
@@ -2659,9 +2661,9 @@ func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error
 	return a.r.RemoveWatchdogRoute(routeKey, poolName)
 }
 
-// staticRouteToSpec converts a StaticRoute to plugin.RouteSpec.
+// staticRouteToSpec converts a StaticRoute to bgptypes.RouteSpec.
 // localAddress is used to resolve "next-hop self" routes.
-func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) plugin.RouteSpec {
+func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) bgptypes.RouteSpec {
 	// Resolve next-hop from RouteNextHop policy
 	var nextHop netip.Addr
 	if route.NextHop.IsSelf() && localAddress.IsValid() {
@@ -2671,9 +2673,9 @@ func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) plugin.RouteS
 	}
 	// If neither, nextHop remains zero value (invalid)
 
-	spec := plugin.RouteSpec{
+	spec := bgptypes.RouteSpec{
 		Prefix:  route.Prefix,
-		NextHop: plugin.NewNextHopExplicit(nextHop),
+		NextHop: bgptypes.NewNextHopExplicit(nextHop),
 	}
 
 	// Build wire-format attributes using Builder (wire-first approach)
@@ -2865,22 +2867,22 @@ func (a *reactorAPIAdapter) BeginTransaction(peerSelector, label string) error {
 // CommitTransaction commits the current transaction.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (plugin.TransactionResult, error) {
-	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
+func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // CommitTransactionWithLabel commits, verifying the label matches.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (plugin.TransactionResult, error) {
-	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
+func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // RollbackTransaction discards all queued routes in the transaction.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> rollback".
-func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (plugin.TransactionResult, error) {
-	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
+func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (bgptypes.TransactionResult, error) {
+	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
 }
 
 // getMatchingPeers returns peers matching the selector.
@@ -2963,13 +2965,13 @@ func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
 
 // SendRoutes sends routes directly to matching peers using CommitService.
 // This bypasses OutgoingRIB transaction and is used for named commits.
-func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (plugin.TransactionResult, error) {
+func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (bgptypes.TransactionResult, error) {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return plugin.TransactionResult{}, errors.New("no peers match selector")
+		return bgptypes.TransactionResult{}, errors.New("no peers match selector")
 	}
 
-	var totalResult plugin.TransactionResult
+	var totalResult bgptypes.TransactionResult
 
 	// Collect families for EOR (from both routes and withdrawals)
 	seen := make(map[nlri.Family]bool)
@@ -4812,9 +4814,9 @@ func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *messa
 	}
 }
 
-// convertAPIMUPRoute converts an plugin.MUPRouteSpec to a reactor.MUPRoute.
+// convertAPIMUPRoute converts an bgptypes.MUPRouteSpec to a reactor.MUPRoute.
 // This function parses the string fields in the API spec into wire-format bytes.
-func convertAPIMUPRoute(spec plugin.MUPRouteSpec) (MUPRoute, error) {
+func convertAPIMUPRoute(spec bgptypes.MUPRouteSpec) (MUPRoute, error) {
 	route := MUPRoute{
 		IsIPv6: spec.IsIPv6,
 	}
@@ -4871,7 +4873,7 @@ func convertAPIMUPRoute(spec plugin.MUPRouteSpec) (MUPRoute, error) {
 }
 
 // buildAPIMUPNLRI builds MUP NLRI bytes from API spec.
-func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
+func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch spec.RouteType {
