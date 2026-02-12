@@ -602,6 +602,15 @@ func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []InjectedCapabil
 	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
 }
 
+// IsCapabilityStrict returns whether a capability code has strict mode set for a peer.
+// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
+func (s *Server) IsCapabilityStrict(peerAddr string, code uint8) bool {
+	if s.capInjector == nil {
+		return false
+	}
+	return s.capInjector.IsCapabilityStrict(peerAddr, code)
+}
+
 // GetDecodeFamilies returns all families that have decode plugins registered.
 // Used by Session to auto-add Multiprotocol capabilities in OPEN.
 // Plugins that can decode a family should advertise that family to peers.
@@ -1130,7 +1139,13 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *PluginCapabilitie
 	}
 
 	for _, cap := range input.Capabilities {
-		caps.Capabilities = append(caps.Capabilities, PluginCapability(cap))
+		caps.Capabilities = append(caps.Capabilities, PluginCapability{
+			Code:     cap.Code,
+			Encoding: cap.Encoding,
+			Payload:  cap.Payload,
+			Peers:    cap.Peers,
+			Strict:   cap.Strict,
+		})
 	}
 
 	return caps

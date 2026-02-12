@@ -137,60 +137,6 @@ func TestExtractRoleCapabilities_InvalidJSON(t *testing.T) {
 	assert.Empty(t, caps, "invalid JSON should return no capabilities")
 }
 
-// TestRoleValidPairs verifies RFC 9234 Table 2 valid role pair matching.
-//
-// VALIDATES: All 5 valid local↔peer role pairs are accepted.
-// PREVENTS: False rejection of valid BGP sessions.
-func TestRoleValidPairs(t *testing.T) {
-	// RFC 9234 Table 2: valid pairs
-	validPairs := []struct {
-		local string
-		peer  string
-	}{
-		{"provider", "customer"},
-		{"customer", "provider"},
-		{"rs", "rs-client"},
-		{"rs-client", "rs"},
-		{"peer", "peer"},
-	}
-
-	for _, tt := range validPairs {
-		t.Run(tt.local+"_"+tt.peer, func(t *testing.T) {
-			assert.True(t, validRolePair(tt.local, tt.peer),
-				"pair (%s, %s) should be valid", tt.local, tt.peer)
-		})
-	}
-}
-
-// TestRoleInvalidPairs verifies RFC 9234 Table 2 invalid role pair rejection.
-//
-// VALIDATES: All 20 invalid local↔peer role pairs are rejected.
-// PREVENTS: Accepting sessions with mismatched roles (route leak risk).
-func TestRoleInvalidPairs(t *testing.T) {
-	allRoles := []string{"provider", "rs", "rs-client", "customer", "peer"}
-
-	// Valid pairs to exclude
-	valid := map[[2]string]bool{
-		{"provider", "customer"}: true,
-		{"customer", "provider"}: true,
-		{"rs", "rs-client"}:      true,
-		{"rs-client", "rs"}:      true,
-		{"peer", "peer"}:         true,
-	}
-
-	for _, local := range allRoles {
-		for _, peer := range allRoles {
-			if valid[[2]string{local, peer}] {
-				continue
-			}
-			t.Run(local+"_"+peer, func(t *testing.T) {
-				assert.False(t, validRolePair(local, peer),
-					"pair (%s, %s) should be invalid", local, peer)
-			})
-		}
-	}
-}
-
 // TestRoleValueBoundary verifies role value encoding boundaries.
 //
 // VALIDATES: Role values 0-4 are valid, values outside range are rejected.
@@ -393,6 +339,22 @@ func TestDecodeRole(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestExtractRoleCapabilities_StrictPropagation verifies strict mode flows to CapabilityDecl.
+//
+// VALIDATES: extractRoleCapabilities sets Strict=true on CapabilityDecl when config has role-strict.
+// PREVENTS: Strict mode being parsed but not propagated to engine.
+func TestExtractRoleCapabilities_StrictPropagation(t *testing.T) {
+	strictJSON := `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer","role-strict":true}}}}}}`
+	caps := extractRoleCapabilities(strictJSON)
+	require.Len(t, caps, 1)
+	assert.True(t, caps[0].Strict, "Strict should be true when role-strict is true")
+
+	normalJSON := `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer"}}}}}}`
+	caps = extractRoleCapabilities(normalJSON)
+	require.Len(t, caps, 1)
+	assert.False(t, caps[0].Strict, "Strict should be false when role-strict is absent")
 }
 
 // TestExtractRoleCapabilities_StrictMode verifies strict mode config extraction.

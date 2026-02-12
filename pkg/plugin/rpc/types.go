@@ -60,6 +60,7 @@ type CapabilityDecl struct {
 	Encoding string   `json:"encoding,omitempty"` // "hex", "b64", "text"
 	Payload  string   `json:"payload,omitempty"`
 	Peers    []string `json:"peers,omitempty"`
+	Strict   bool     `json:"strict,omitempty"` // RFC 9234: require peer to send this capability
 }
 
 // RegistryCommand is a command in the shared registry (Stage 4).

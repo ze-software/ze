@@ -64,15 +64,6 @@ var roleValues = map[string]uint8{
 	"peer":      4,
 }
 
-// RFC 9234 Section 4.2, Table 2: Valid local→peer role pairs.
-var validPairs = map[[2]string]bool{
-	{"provider", "customer"}: true,
-	{"customer", "provider"}: true,
-	{"rs", "rs-client"}:      true,
-	{"rs-client", "rs"}:      true,
-	{"peer", "peer"}:         true,
-}
-
 // roleNameToValue maps a role name to its RFC 9234 wire value.
 func roleNameToValue(name string) (uint8, bool) {
 	v, ok := roleValues[name]
@@ -83,11 +74,6 @@ func roleNameToValue(name string) (uint8, bool) {
 func roleValueToName(value uint8) (string, bool) {
 	name, ok := roleNames[value]
 	return name, ok
-}
-
-// validRolePair checks if a local/peer role pair is valid per RFC 9234 Table 2.
-func validRolePair(local, peer string) bool {
-	return validPairs[[2]string{local, peer}]
 }
 
 // extractPeerRoleConfigs parses BGP config JSON and returns per-peer role configs.
@@ -174,6 +160,7 @@ func extractRoleCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Encoding: "hex",
 			Payload:  fmt.Sprintf("%02x", value),
 			Peers:    []string{peerAddr},
+			Strict:   cfg.strict,
 		})
 		logger().Debug("role capability", "peer", peerAddr, "role", cfg.role, "value", value)
 	}

@@ -163,6 +163,11 @@ type Session struct {
 	// Set by Peer to link to plugin.Server registry.
 	pluginFamiliesGetter func() []string
 
+	// roleStrictChecker returns whether Role capability strict mode is set for a peer.
+	// Set by Peer to link to CapabilityInjector.IsCapabilityStrict().
+	// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
+	roleStrictChecker func() bool
+
 	// done is closed when the Run loop exits.
 	done chan struct{}
 }
@@ -267,6 +272,13 @@ func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capabilit
 // Used to auto-add Multiprotocol capabilities for families that plugins can decode.
 func (s *Session) SetPluginFamiliesGetter(getter func() []string) {
 	s.pluginFamiliesGetter = getter
+}
+
+// SetRoleStrictChecker sets the callback for checking Role capability strict mode.
+// Called by Peer at creation time to link to CapabilityInjector.IsCapabilityStrict().
+// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
+func (s *Session) SetRoleStrictChecker(checker func() bool) {
+	s.roleStrictChecker = checker
 }
 
 // WriteBuf returns the session's write buffer for zero-allocation message building.
@@ -496,10 +508,18 @@ func (s *Session) processOpen(open *message.Open) error {
 
 	s.mu.Lock()
 	s.peerOpen = open
+	localOpen := s.localOpen
 	s.mu.Unlock()
 
-	// Negotiate capabilities
-	s.negotiate()
+	// Parse capabilities once from both OPENs.
+	var localCaps []capability.Capability
+	if localOpen != nil {
+		localCaps = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+	}
+	peerCaps := capability.ParseFromOptionalParams(open.OptionalParams)
+
+	// Negotiate capabilities.
+	s.negotiateWith(localCaps, peerCaps)
 
 	// Validate required families
 	s.mu.RLock()
@@ -883,8 +903,34 @@ func (s *Session) handleOpen(body []byte) error {
 	s.peerOpen = open
 	s.mu.Unlock()
 
+	// Parse capabilities once from both OPENs, shared by negotiate and validateRole.
+	s.mu.RLock()
+	localOpen := s.localOpen
+	s.mu.RUnlock()
+
+	var localCaps, peerCaps []capability.Capability
+	if localOpen != nil {
+		localCaps = capability.ParseFromOptionalParams(localOpen.OptionalParams)
+	}
+	peerCaps = capability.ParseFromOptionalParams(open.OptionalParams)
+
 	// Negotiate capabilities.
-	s.negotiate()
+	s.negotiateWith(localCaps, peerCaps)
+
+	// RFC 9234 Section 4.2: Validate Role capability pair.
+	if err := s.validateRoleWith(localCaps, peerCaps); err != nil {
+		s.mu.RLock()
+		roleConn := s.conn
+		s.mu.RUnlock()
+		_ = s.sendNotification(roleConn,
+			message.NotifyOpenMessage,
+			message.NotifyOpenRoleMismatch,
+			nil,
+		)
+		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return fmt.Errorf("role validation: %w", err)
+	}
 
 	// Validate required families are negotiated.
 	s.mu.RLock()
@@ -1213,18 +1259,27 @@ func isConnectionReset(err error) bool {
 		strings.Contains(errStr, "use of closed network connection")
 }
 
-// negotiate performs capability negotiation between local and peer OPEN.
-func (s *Session) negotiate() {
+// validateRoleWith performs RFC 9234 Role capability validation using pre-parsed caps.
+// Caps are parsed once in handleOpen and shared with negotiateWith.
+// Returns nil if no Role was configured or if the pair is valid.
+func (s *Session) validateRoleWith(localCaps, peerCaps []capability.Capability) error {
+	strict := false
+	if s.roleStrictChecker != nil {
+		strict = s.roleStrictChecker()
+	}
+
+	return capability.ValidateRole(localCaps, peerCaps, strict)
+}
+
+// negotiateWith performs capability negotiation using pre-parsed capabilities.
+// Caps are parsed once in handleOpen and shared with validateRoleWith.
+func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if s.localOpen == nil || s.peerOpen == nil {
 		return
 	}
-
-	// Parse capabilities from OPEN messages.
-	localCaps := capability.ParseFromOptionalParams(s.localOpen.OptionalParams)
-	peerCaps := capability.ParseFromOptionalParams(s.peerOpen.OptionalParams)
 
 	// Negotiate.
 	s.negotiated = capability.Negotiate(

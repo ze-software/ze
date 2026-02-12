@@ -421,6 +421,23 @@ func (p *Peer) getPluginFamilies() []string {
 	return r.api.GetDecodeFamilies()
 }
 
+// isRoleStrict returns whether Role capability strict mode is set for this peer.
+// Used as callback for Session.SetRoleStrictChecker().
+// RFC 9234 Section 4.2: strict mode requires peer to send Role capability.
+func (p *Peer) isRoleStrict() bool {
+	p.mu.RLock()
+	r := p.reactor
+	settings := p.settings
+	p.mu.RUnlock()
+
+	if r == nil || r.api == nil {
+		return false
+	}
+
+	peerAddr := settings.Address.String()
+	return r.api.IsCapabilityStrict(peerAddr, uint8(capability.CodeRole))
+}
+
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // Returns false if session not established.
@@ -885,6 +902,7 @@ func (p *Peer) runOnce() error {
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
+	session.SetRoleStrictChecker(p.isRoleStrict)
 
 	p.mu.Lock()
 	p.session = session

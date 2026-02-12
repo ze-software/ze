@@ -45,6 +45,7 @@ const (
 	CodeRouteRefresh         Code = 2  // RFC 2918 Section 2
 	CodeExtendedNextHop      Code = 5  // RFC 8950
 	CodeExtendedMessage      Code = 6  // RFC 8654 Section 3
+	CodeRole                 Code = 9  // RFC 9234 Section 4.1
 	CodeGracefulRestart      Code = 64 // RFC 4724 Section 3
 	CodeASN4                 Code = 65 // RFC 6793 Section 3
 	CodeAddPath              Code = 69 // RFC 7911 Section 4
@@ -64,6 +65,8 @@ func (c Code) String() string {
 		return "Extended Next Hop(5)"
 	case CodeExtendedMessage:
 		return "Extended Message(6)"
+	case CodeRole:
+		return "Role(9)"
 	case CodeGracefulRestart:
 		return "Graceful Restart(64)"
 	case CodeASN4:
@@ -209,8 +212,9 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseFQDN(data)
 	case CodeSoftwareVersion:
 		return parseSoftwareVersion(data)
-	default:
-		// RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
+	case CodeRole:
+		return parseRole(data)
+	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
 	}
@@ -753,8 +757,8 @@ func ParseFromOptionalParams(optParams []byte) []Capability {
 			break
 		}
 
-		paramType := optParams[offset]
-		paramLen := int(optParams[offset+1])
+		paramType := optParams[offset]       //nolint:gosec // G602 false positive: offset+2 bounds-checked above
+		paramLen := int(optParams[offset+1]) //nolint:gosec // G602 false positive: offset+2 bounds-checked above
 		offset += 2
 
 		if offset+paramLen > len(optParams) {
