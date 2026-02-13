@@ -449,15 +449,21 @@ Each phase is independently committable and testable. The system works correctly
 
 **Phase 3** (committed d293d6e): Extracted BGP types into `internal/plugins/bgp/types/`. RouteSpec, FlowSpecRoute, WireUpdate, RouteNextHop, NLRIGroup, UpdateTextResult, and all route type structs moved. ReactorInterface stays unified for now.
 
-**Phase 4** (in progress — 3 of 8 planned sub-packages done):
+**Phase 4** (in progress — 4 of 8 planned sub-packages done):
 - `internal/plugins/bgp/wireu/`: wire_update.go, wire_update_split.go, wire_extract.go, mpwire.go + tests + new errors.go, prefix.go
 - `internal/plugins/bgp/format/`: decode.go, format_buffer.go + test
 - `internal/plugins/bgp/route/`: route.go, route_keywords.go + 2 test files. Watchdog RPC handlers stayed in `internal/plugin/route_watchdog.go`. `parseExtendedCommunities` exported as `ParseExtendedCommunities`.
+- `internal/plugins/bgp/filter/`: filter.go extracted (was bgpfilter)
+
+**Phase 5 partial** (prerequisites for handler move):
+- Exported shared helpers: StatusDone, StatusError, StatusOK, RequireReactor, ParseSubscription (Task #5)
+- RPCProviders injection mechanism added to ServerConfig and NewServer() (Task #8)
+- BGP event constants moved to events.go (Task #9)
+- mockReactor extracted to mock_reactor_test.go for test fixture sharing
 
 Remaining Phase 4 sub-packages not yet moved:
 - `update/`: update_text.go, update_wire.go — heavy cross-deps with internal/plugin types
-- `filter/`: filter.go
-- `handler/`: bgp.go, cache.go, commit.go, commit_manager.go, raw.go, refresh.go, rib_handler.go
+- `handler/`: bgp.go, cache.go, commit.go, raw.go, refresh.go, rib_handler.go — DEFERRED: 245+ plugin type references, CommitManager/SubscriptionManager can't move (circular import with Server), benefits from ReactorInterface split
 - `errors/`: errors.go — mostly generic errors, borderline
 - `validate/`: validate_open.go
 
@@ -466,6 +472,10 @@ Remaining Phase 4 sub-packages not yet moved:
 - Error variables shared across package boundaries (ErrInvalidFamily etc.) work well with `route.ErrX` qualification — no circular import risk since route only imports from `internal/plugins/bgp/*`
 - `parseExtendedCommunities` needed exporting for cross-package access from update_text.go
 - goimports auto-manages imports during refactoring, which helps but can cause "file modified" errors between sequential edits
+- **Handler move blocked by circular imports:** CommitManager and SubscriptionManager are stored in Server (generic infra) but used by commit/subscribe handlers. Moving handlers to `handler/` while these types stay in `plugin/` works, but moving CommitManager with them would create plugin/ → handler/ → plugin/ cycle.
+- **Handler move has 245+ type references** to qualify with `plugin.` prefix — better deferred until ReactorInterface split reduces dependency surface
+- RPCProviders injection mechanism is ready (ServerConfig + NewServer loop) — just not activated until handlers actually move
+- mockReactor extracted to dedicated test file for portability across packages
 
 ### Documentation Updates
 - None yet — awaiting completion of remaining phases
@@ -488,8 +498,14 @@ Remaining Phase 4 sub-packages not yet moved:
 | Move wire files to wireu/ | ✅ Done | `internal/plugins/bgp/wireu/` | 4 files + tests |
 | Move decode/format files to format/ | ✅ Done | `internal/plugins/bgp/format/` | 2 files + test |
 | Move route files to route/ | ✅ Done | `internal/plugins/bgp/route/` | 2 files + 2 test files |
-| Move remaining BGP flat files | ⚠️ Partial | | update/, filter/, handler/, validate/ remain |
-| Split server.go into generic + BGP | | | Phase 5 |
+| Move filter.go to filter/ | ✅ Done | `internal/plugins/bgp/filter/` | Task #6 |
+| Export shared helpers | ✅ Done | `internal/plugin/` | Task #5: StatusDone/Error/OK, RequireReactor, ParseSubscription |
+| RPCProviders injection mechanism | ✅ Done | `internal/plugin/types.go`, `server.go` | Task #8: plumbing ready, not activated |
+| Move BGP event constants | ✅ Done | `internal/plugin/events.go` | Task #9 |
+| Extract mockReactor to own file | ✅ Done | `internal/plugin/mock_reactor_test.go` | Task #7 prerequisite |
+| Move handler files to handler/ | ⚠️ Deferred | | 245+ type refs, circular import constraints, needs ReactorInterface split |
+| Move remaining BGP flat files | ⚠️ Partial | | update/, validate/ remain |
+| Split server.go into generic + BGP | | | Phase 5 core |
 | internal/plugin/ becomes generic-only | | | Depends on Phases 4+5 |
 
 ### Tests from TDD Plan
@@ -512,13 +528,19 @@ Remaining Phase 4 sub-packages not yet moved:
 | internal/plugins/bgp/format/ created | ✅ Done | decode.go, format_buffer.go + test |
 | internal/plugins/bgp/route/ created | ✅ Done | route.go, route_keywords.go + 2 test files |
 | internal/plugin/route_watchdog.go created | ✅ Done | Extracted from route.go |
-| Remaining BGP sub-packages | ⚠️ Partial | update/, filter/, handler/, validate/ pending |
-| Mixed files split | | Phase 5 |
+| internal/plugins/bgp/filter/ created | ✅ Done | filter.go extracted |
+| internal/plugin/events.go created | ✅ Done | BGP event constants extracted |
+| internal/plugin/mock_reactor_test.go created | ✅ Done | Shared test fixture |
+| internal/plugin/types.go RPCProviders | ✅ Done | ServerConfig field added |
+| internal/plugin/server.go provider loop | ✅ Done | Registration logic in NewServer |
+| Remaining BGP sub-packages | ⚠️ Partial | update/, handler/ (deferred), validate/ pending |
+| Mixed files split | | Phase 5 core |
 
 ### Audit Summary
-- **Total items:** 18
-- **Done:** 14
-- **Partial:** 2 (remaining flat files + sub-packages)
+- **Total items:** 24
+- **Done:** 19 (Phases 1-3 complete, Phase 4 partial, Phase 5 prerequisites done)
+- **Partial:** 2 (remaining flat files + handler move deferred)
+- **Deferred:** 1 (handler/ file move — needs ReactorInterface split first)
 - **Skipped:** 0
 - **Changed:** 0
 - **Not started:** 2 (Phase 5 server split, generic-only goal)

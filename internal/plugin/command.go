@@ -61,6 +61,8 @@ func PluginLifecycleRPCs() []RPCRegistration {
 
 // AllBuiltinRPCs returns all builtin RPCs from all modules.
 // Each module registers its own commands; this aggregates them.
+// When BGP handler files move to internal/plugins/bgp/handler/,
+// BgpPluginRPCs() will be removed from here and injected via ServerConfig.RPCProviders.
 func AllBuiltinRPCs() []RPCRegistration {
 	sources := [][]RPCRegistration{
 		BgpPluginRPCs(),

@@ -410,9 +410,10 @@ type PluginConfig struct {
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	SocketPath         string         // Path to Unix socket
-	Plugins            []PluginConfig // External plugins to spawn
-	ConfiguredFamilies []string       // Families configured on peers (for deferred auto-load)
+	SocketPath         string                     // Path to Unix socket
+	Plugins            []PluginConfig             // External plugins to spawn
+	ConfiguredFamilies []string                   // Families configured on peers (for deferred auto-load)
+	RPCProviders       []func() []RPCRegistration // Additional RPC sources (e.g., BGP handler RPCs)
 }
 
 // Format constants for process output formatting.

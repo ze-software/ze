@@ -230,13 +230,23 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 		clients:       make(map[string]*Client),
 	}
 
-	// Register default handlers (text dispatcher for plugin protocol)
+	// Register core handlers (text dispatcher for plugin protocol)
 	RegisterDefaultHandlers(s.dispatcher)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
 		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler)); err != nil {
 			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
+		}
+	}
+
+	// Register additional RPCs from providers (e.g., BGP handler RPCs injected by reactor)
+	for _, provider := range config.RPCProviders {
+		for _, reg := range provider() {
+			s.dispatcher.Register(reg.CLICommand, reg.Handler, reg.Help)
+			if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler)); err != nil {
+				logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
+			}
 		}
 	}
 
