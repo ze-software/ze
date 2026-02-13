@@ -12,53 +12,6 @@ import (
 // Controlled by ze.log.subscribe environment variable.
 var subscribeLogger = slogutil.LazyLogger("subscribe")
 
-// Event namespaces.
-const (
-	NamespaceBGP = "bgp"
-	NamespaceRIB = "rib"
-)
-
-// BGP event types.
-const (
-	EventUpdate       = "update"
-	EventOpen         = "open"
-	EventNotification = "notification"
-	EventKeepalive    = "keepalive"
-	EventRefresh      = "refresh"
-	EventState        = "state"
-	EventNegotiated   = "negotiated"
-)
-
-// RIB event types.
-const (
-	EventCache = "cache"
-	EventRoute = "route"
-)
-
-// Direction constants for event filtering.
-const (
-	DirectionReceived = "received"
-	DirectionSent     = "sent"
-	DirectionBoth     = "both"
-)
-
-// validBgpEvents is the set of valid BGP event types.
-var validBgpEvents = map[string]bool{
-	EventUpdate:       true,
-	EventOpen:         true,
-	EventNotification: true,
-	EventKeepalive:    true,
-	EventRefresh:      true,
-	EventState:        true,
-	EventNegotiated:   true,
-}
-
-// validRibEvents is the set of valid RIB event types.
-var validRibEvents = map[string]bool{
-	EventCache: true,
-	EventRoute: true,
-}
-
 // Subscription represents an event subscription.
 type Subscription struct {
 	Namespace    string      // "bgp" or "rib"
@@ -209,9 +162,9 @@ func (sm *SubscriptionManager) GetSubscriptions(proc *Process) []*Subscription {
 	return result
 }
 
-// parseSubscription parses a subscribe/unsubscribe command.
+// ParseSubscription parses a subscribe/unsubscribe command.
 // Format: [peer <sel> | plugin <name>] <namespace> event <type> [direction received|sent|both].
-func parseSubscription(args []string) (*Subscription, error) {
+func ParseSubscription(args []string) (*Subscription, error) {
 	sub := &Subscription{
 		Direction: DirectionBoth, // default
 	}
@@ -341,24 +294,24 @@ func subscribeRPCs() []RPCRegistration {
 
 // handleSubscribe handles the "subscribe" command.
 func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
-	sub, err := parseSubscription(args)
+	sub, err := ParseSubscription(args)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   err.Error(),
 		}, err
 	}
 
 	if ctx.Process == nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "subscribe requires a process context",
 		}, fmt.Errorf("no process context")
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "subscription manager not available",
 		}, fmt.Errorf("no subscription manager")
 	}
@@ -366,7 +319,7 @@ func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 	ctx.Subscriptions().Add(ctx.Process, sub)
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"namespace": sub.Namespace,
 			"event":     sub.EventType,
@@ -377,24 +330,24 @@ func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleUnsubscribe handles the "unsubscribe" command.
 func handleUnsubscribe(ctx *CommandContext, args []string) (*Response, error) {
-	sub, err := parseSubscription(args)
+	sub, err := ParseSubscription(args)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   err.Error(),
 		}, err
 	}
 
 	if ctx.Process == nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "unsubscribe requires a process context",
 		}, fmt.Errorf("no process context")
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "subscription manager not available",
 		}, fmt.Errorf("no subscription manager")
 	}
@@ -402,7 +355,7 @@ func handleUnsubscribe(ctx *CommandContext, args []string) (*Response, error) {
 	removed := ctx.Subscriptions().Remove(ctx.Process, sub)
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"removed":   removed,
 			"namespace": sub.Namespace,

@@ -163,7 +163,7 @@ func TestRefreshCommands(t *testing.T) {
 			resp, err := d.Dispatch(ctx, input)
 
 			if tc.wantErr {
-				if err == nil && (resp == nil || resp.Status != statusError) {
+				if err == nil && (resp == nil || resp.Status != StatusError) {
 					t.Error("expected error")
 				}
 				return
@@ -229,7 +229,7 @@ func TestRefreshErrors(t *testing.T) {
 			ctx := &CommandContext{Server: &Server{reactor: mock}}
 			resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 "+tc.cmd+" ipv4/unicast")
 
-			if err == nil && (resp == nil || resp.Status != statusError) {
+			if err == nil && (resp == nil || resp.Status != StatusError) {
 				t.Error("expected error status when reactor fails")
 			}
 		})

@@ -22,7 +22,7 @@ func sessionRPCs() []RPCRegistration {
 // Returns daemon PID for identification.
 func handlePluginSessionPing(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"pong": os.Getpid(),
 		},
@@ -35,7 +35,7 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*Response, error) {
 	// Currently just acknowledges the disconnect.
 	// Future: could clean up client-specific state.
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"status": "goodbye",
 		},
@@ -57,7 +57,7 @@ func handlePluginSessionReady(ctx *CommandContext, _ []string) (*Response, error
 		}
 	}
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"api": "ready acknowledged",
 		},

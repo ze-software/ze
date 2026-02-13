@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -37,14 +38,14 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrid
 	// Get attribute filter (nil means all)
 	filter := content.Attributes
 	if filter == nil {
-		all := NewFilterAll()
+		all := bgpfilter.NewFilterAll()
 		filter = &all
 	}
 
 	// Get NLRI filter (nil means all)
 	nlriFilter := content.NLRI
 	if nlriFilter == nil {
-		all := NewNLRIFilterAll()
+		all := bgpfilter.NewNLRIFilterAll()
 		nlriFilter = &all
 	}
 
@@ -118,7 +119,7 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
 	case FormatRaw:
 		return formatRawFromResult(peer, msg, content, direction)
@@ -146,7 +147,7 @@ func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, d
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 // ctx provides ADD-PATH state per family.
-func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	if content.Encoding == EncodingJSON {
 		return formatFilterResultJSON(peer, result, msg.MessageID, direction, ctx)
 	}
@@ -156,7 +157,7 @@ func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig
 // formatFullFromResult formats both parsed content AND raw hex (ze-bgp JSON).
 // ctx provides ADD-PATH state per family.
 // Includes raw bytes nested under "raw" object: attributes, nlri, withdrawn.
-func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
@@ -261,7 +262,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 //	    }
 //	  }
 //	}
-func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultJSON(peer PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// ze-bgp JSON outer wrapper
@@ -465,7 +466,7 @@ func writeJSONEscapedString(sb *strings.Builder, s string) {
 }
 
 // formatAttributesJSON formats attributes from FilterResult for JSON.
-func formatAttributesJSON(sb *strings.Builder, result FilterResult) {
+func formatAttributesJSON(sb *strings.Builder, result bgpfilter.FilterResult) {
 	if len(result.Attributes) == 0 {
 		return
 	}
@@ -605,7 +606,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
-func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultText(peer PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> <direction> update <id>
@@ -662,7 +663,7 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 
 // formatAttributesText formats attributes from FilterResult for text output.
 // Only outputs what's in result.Attributes (lazy parsing - filter controls what's parsed).
-func formatAttributesText(sb *strings.Builder, result FilterResult) {
+func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
 	for code, attr := range result.Attributes {
 		sb.WriteString(" ")
 		formatAttributeText(sb, code, attr)

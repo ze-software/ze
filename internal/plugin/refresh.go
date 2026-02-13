@@ -18,7 +18,7 @@ func refreshRPCs() []RPCRegistration {
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
 func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
-	r, errResp, err := requireReactor(ctx)
+	r, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -29,7 +29,7 @@ func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
 func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
-	r, errResp, err := requireReactor(ctx)
+	r, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -46,7 +46,7 @@ func handleRefreshMarker(
 ) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("usage: bgp peer <selector> %s <family>", cmd),
 		}, fmt.Errorf("missing family")
 	}
@@ -55,7 +55,7 @@ func handleRefreshMarker(
 	family, ok := nlri.ParseFamily(args[0])
 	if !ok {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid family: %s", args[0]),
 		}, fmt.Errorf("invalid family: %s", args[0])
 	}
@@ -64,13 +64,13 @@ func handleRefreshMarker(
 
 	if err := send(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("%s failed: %v", cmd, err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"selector": peerSelector,
 			"family":   family.String(),

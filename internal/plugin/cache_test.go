@@ -73,7 +73,7 @@ func TestBgpCacheRetain(t *testing.T) {
 
 	resp, err := d.Dispatch(ctx, "bgp cache 12345 retain")
 	require.NoError(t, err)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 	assert.True(t, reactor.retainCalled, "RetainUpdate should be called")
 	assert.Equal(t, uint64(12345), reactor.lastID)
 
@@ -98,7 +98,7 @@ func TestBgpCacheRelease(t *testing.T) {
 
 	resp, err := d.Dispatch(ctx, "bgp cache 99999 release")
 	require.NoError(t, err)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 	assert.True(t, reactor.releaseCalled, "ReleaseUpdate should be called")
 	assert.Equal(t, uint64(99999), reactor.lastID)
 
@@ -123,7 +123,7 @@ func TestBgpCacheExpire(t *testing.T) {
 
 	resp, err := d.Dispatch(ctx, "bgp cache 55555 expire")
 	require.NoError(t, err)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 	assert.True(t, reactor.deleteCalled, "DeleteUpdate should be called")
 	assert.Equal(t, uint64(55555), reactor.lastID)
 
@@ -150,7 +150,7 @@ func TestBgpCacheList(t *testing.T) {
 
 	resp, err := d.Dispatch(ctx, "bgp cache list")
 	require.NoError(t, err)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 	assert.True(t, reactor.listCalled, "ListUpdates should be called")
 
 	data, ok := resp.Data.(map[string]any)
@@ -209,12 +209,12 @@ func TestBgpCacheForward(t *testing.T) {
 			resp, err := d.Dispatch(ctx, tt.input)
 
 			if tt.wantErr {
-				assert.Equal(t, statusError, resp.Status)
+				assert.Equal(t, StatusError, resp.Status)
 				return
 			}
 
 			require.NoError(t, err)
-			assert.Equal(t, statusDone, resp.Status)
+			assert.Equal(t, StatusDone, resp.Status)
 			assert.True(t, reactor.forwardCalled, "ForwardUpdate should be called")
 			assert.Equal(t, tt.wantID, reactor.lastID)
 			assert.Equal(t, tt.wantSel, reactor.lastSelector.String())
@@ -248,7 +248,7 @@ func TestBgpCacheInvalidId(t *testing.T) {
 			}
 
 			resp, _ := d.Dispatch(ctx, tt.input)
-			assert.Equal(t, statusError, resp.Status, "should return error for: %s", tt.input)
+			assert.Equal(t, StatusError, resp.Status, "should return error for: %s", tt.input)
 			assert.False(t, reactor.retainCalled, "RetainUpdate should not be called")
 		})
 	}
@@ -268,7 +268,7 @@ func TestBgpCacheUnknownAction(t *testing.T) {
 	}
 
 	resp, _ := d.Dispatch(ctx, "bgp cache 12345 unknown")
-	assert.Equal(t, statusError, resp.Status)
+	assert.Equal(t, StatusError, resp.Status)
 }
 
 // TestBgpCacheHelp verifies bgp cache returns help on no args.
@@ -286,7 +286,7 @@ func TestBgpCacheHelp(t *testing.T) {
 	resp, err := d.Dispatch(ctx, "bgp cache")
 	require.NoError(t, err)
 	// Should return help/usage, not an error
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)

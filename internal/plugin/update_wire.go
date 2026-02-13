@@ -384,13 +384,13 @@ func handleUpdateB64(ctx *CommandContext, args []string) (*Response, error) {
 func handleUpdateWire(ctx *CommandContext, args []string, encoding WireEncoding) (*Response, error) {
 	result, err := ParseUpdateWire(args, encoding)
 	if err != nil {
-		return &Response{Status: statusError, Data: err.Error()}, err
+		return &Response{Status: StatusError, Data: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for wire mode"
-		return &Response{Status: statusError, Data: errMsg}, errors.New(errMsg)
+		return &Response{Status: StatusError, Data: errMsg}, errors.New(errMsg)
 	}
 
-	return dispatchNLRIGroups(ctx, result.Groups)
+	return DispatchNLRIGroups(ctx, result.Groups)
 }

@@ -2116,7 +2116,7 @@ func TestBgpPeerAdd(t *testing.T) {
 		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 add asn 65000")
 		require.NoError(t, err)
-		assert.Equal(t, statusDone, resp.Status)
+		assert.Equal(t, StatusDone, resp.Status)
 		assert.Len(t, reactor.addedPeers, 1)
 		assert.Equal(t, netip.MustParseAddr("192.168.1.100"), reactor.addedPeers[0].Address)
 		assert.Equal(t, uint32(65000), reactor.addedPeers[0].PeerAS)
@@ -2127,7 +2127,7 @@ func TestBgpPeerAdd(t *testing.T) {
 		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 add asn 65001 local-as 65100 local-address 10.0.0.254 passive")
 		require.NoError(t, err)
-		assert.Equal(t, statusDone, resp.Status)
+		assert.Equal(t, StatusDone, resp.Status)
 		require.Len(t, reactor.addedPeers, 1)
 		cfg := reactor.addedPeers[0]
 		assert.Equal(t, netip.MustParseAddr("10.0.0.1"), cfg.Address)
@@ -2142,7 +2142,7 @@ func TestBgpPeerAdd(t *testing.T) {
 		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.1 add")
 		require.Error(t, err)
-		assert.Equal(t, statusError, resp.Status)
+		assert.Equal(t, StatusError, resp.Status)
 		assert.Contains(t, resp.Data, "asn is required")
 	})
 
@@ -2154,7 +2154,7 @@ func TestBgpPeerAdd(t *testing.T) {
 		resp, err := d.Dispatch(ctx, "bgp peer add asn 65000")
 		// err may be nil since handler returns error in response
 		_ = err
-		assert.Equal(t, statusError, resp.Status)
+		assert.Equal(t, StatusError, resp.Status)
 		assert.Contains(t, resp.Data, "add requires specific peer")
 	})
 }
@@ -2172,7 +2172,7 @@ func TestBgpPeerRemove(t *testing.T) {
 		ctx := &CommandContext{Server: &Server{reactor: reactor, dispatcher: d}}
 		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 remove")
 		require.NoError(t, err)
-		assert.Equal(t, statusDone, resp.Status)
+		assert.Equal(t, StatusDone, resp.Status)
 		assert.Len(t, reactor.removedPeers, 1)
 		assert.Equal(t, netip.MustParseAddr("192.168.1.100"), reactor.removedPeers[0])
 	})
@@ -2185,7 +2185,7 @@ func TestBgpPeerRemove(t *testing.T) {
 		resp, err := d.Dispatch(ctx, "bgp peer remove")
 		// err may be nil since handler returns error in response
 		_ = err
-		assert.Equal(t, statusError, resp.Status)
+		assert.Equal(t, StatusError, resp.Status)
 		assert.Contains(t, resp.Data, "remove requires specific peer")
 	})
 }
@@ -2520,7 +2520,7 @@ func TestDaemonReloadUsesCoordinator(t *testing.T) {
 	resp, err := handleDaemonReload(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 
 	// Reactor.Reload() should NOT have been called (coordinator path used instead).
 	assert.False(t, reactor.reloadCalled, "Reactor.Reload() should not be called when coordinator is available")
@@ -2548,7 +2548,7 @@ func TestDaemonReloadFallsBackToReactor(t *testing.T) {
 	resp, err := handleDaemonReload(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, statusDone, resp.Status)
+	assert.Equal(t, StatusDone, resp.Status)
 
 	// Reactor.Reload() SHOULD have been called (fallback path).
 	assert.True(t, reactor.reloadCalled, "Reactor.Reload() should be called when no config loader")

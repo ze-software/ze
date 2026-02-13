@@ -47,7 +47,7 @@ func handleRibHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"subcommands": subcommands,
 		},
@@ -91,7 +91,7 @@ func handleRibCommandList(ctx *CommandContext, args []string) (*Response, error)
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -102,7 +102,7 @@ func handleRibCommandList(ctx *CommandContext, args []string) (*Response, error)
 func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: rib command help \"<name>\"",
 		}, fmt.Errorf("missing command name")
 	}
@@ -120,7 +120,7 @@ func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 func handleRibCommandComplete(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: rib command complete \"<partial>\"",
 		}, fmt.Errorf("missing partial input")
 	}
@@ -155,7 +155,7 @@ func handleRibCommandComplete(ctx *CommandContext, args []string) (*Response, er
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"completions": completions,
 		},
@@ -173,7 +173,7 @@ func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"events": events,
 		},
@@ -182,7 +182,7 @@ func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleRIBShowIn returns Adj-RIB-In contents.
 func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -196,7 +196,7 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 	stats := ctx.Reactor().RIBStats()
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"routes":      routes,
 			"route_count": len(routes),
@@ -207,14 +207,14 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleRIBClearIn clears all routes from Adj-RIB-In.
 func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 	count := ctx.Reactor().ClearRIBIn()
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"routes_cleared": count,
 		},
@@ -225,7 +225,7 @@ func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
 // Stub: Adj-RIB-Out is maintained by RIB plugins, not the engine.
 func handleRIBShowOut(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusError,
+		Status: StatusError,
 		Data:   "not yet implemented: rib show out requires a RIB plugin",
 	}, fmt.Errorf("not yet implemented")
 }
@@ -234,7 +234,7 @@ func handleRIBShowOut(_ *CommandContext, _ []string) (*Response, error) {
 // Stub: Adj-RIB-Out is maintained by RIB plugins, not the engine.
 func handleRIBClearOut(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusError,
+		Status: StatusError,
 		Data:   "not yet implemented: rib clear out requires a RIB plugin",
 	}, fmt.Errorf("not yet implemented")
 }

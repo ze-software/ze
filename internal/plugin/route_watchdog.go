@@ -36,7 +36,7 @@ func handleWatchdogAction(
 	args []string,
 	action func(ReactorInterface, string, string) error,
 ) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}

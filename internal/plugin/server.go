@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -84,7 +85,7 @@ func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
 		if resp == nil {
 			return nil, nil
 		}
-		if resp.Status == statusError {
+		if resp.Status == StatusError {
 			return nil, fmt.Errorf("%v", resp.Data)
 		}
 		return resp.Data, nil
@@ -1046,7 +1047,7 @@ func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc
 
 // parseEventString splits an event string like "update direction sent" into
 // (eventType, direction). If no "direction" keyword is present, returns DirectionBoth.
-// This mirrors the text protocol's parseSubscription logic for RPC event strings.
+// This mirrors the text protocol's ParseSubscription logic for RPC event strings.
 func parseEventString(event string) (string, string) {
 	parts := strings.Fields(event)
 	if len(parts) >= 3 && parts[1] == "direction" {
@@ -1280,8 +1281,8 @@ func (s *Server) handleDecodeUpdateRPC(proc *Process, connA *PluginConn, req *ip
 			return nil, fmt.Errorf("parsing attributes: %w", err)
 		}
 
-		filter := NewFilterAll()
-		result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
+		filter := bgpfilter.NewFilterAll()
+		result, err := filter.ApplyToUpdate(wire, body, bgpfilter.NewNLRIFilterAll())
 		if err != nil {
 			return nil, fmt.Errorf("parsing UPDATE: %w", err)
 		}
@@ -1335,7 +1336,7 @@ func formatNLRIsAsJSON(nlris []nlri.NLRI) json.RawMessage {
 
 // formatDecodeUpdateJSON formats a FilterResult as ze-bgp JSON for the decode-update RPC.
 // Produces {"update":{"attr":{...},"nlri":{...}}} without peer/message metadata.
-func formatDecodeUpdateJSON(result FilterResult, addPath bool) string {
+func formatDecodeUpdateJSON(result bgpfilter.FilterResult, addPath bool) string {
 	var sb strings.Builder
 	sb.WriteString(`{"update":{`)
 

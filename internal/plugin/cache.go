@@ -27,7 +27,7 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Guard reactor access
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -40,7 +40,7 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 	// All other commands need <id> <action> [args...]
 	if len(args) < 2 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: bgp cache <id> retain|release|expire|forward <sel>",
 		}, fmt.Errorf("missing action")
 	}
@@ -49,7 +49,7 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 	cacheID, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid cache id: %s", args[0]),
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
@@ -68,7 +68,7 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 		return handleBgpCacheForward(ctx, cacheID, actionArgs)
 	default:
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("unknown cache action: %s", action),
 		}, fmt.Errorf("unknown action: %s", action)
 	}
@@ -77,7 +77,7 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 // bgpCacheHelp returns help for bgp cache command.
 func bgpCacheHelp() (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": []map[string]string{
 				{"command": "bgp cache list", "description": "List cached message IDs"},
@@ -95,7 +95,7 @@ func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
 	ids := ctx.Reactor().ListUpdates()
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"ids":   ids,
 			"count": len(ids),
@@ -107,13 +107,13 @@ func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
 func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
 	if err := ctx.Reactor().RetainUpdate(id); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("retain failed: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"retained": true,
@@ -125,13 +125,13 @@ func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
 func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
 	if err := ctx.Reactor().ReleaseUpdate(id); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("release failed: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"released": true,
@@ -143,13 +143,13 @@ func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
 func handleBgpCacheExpire(ctx *CommandContext, id uint64) (*Response, error) {
 	if err := ctx.Reactor().DeleteUpdate(id); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("expire failed: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"id":      id,
 			"expired": true,
@@ -161,7 +161,7 @@ func handleBgpCacheExpire(ctx *CommandContext, id uint64) (*Response, error) {
 func handleBgpCacheForward(ctx *CommandContext, id uint64, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: bgp cache <id> forward <selector>",
 		}, fmt.Errorf("missing selector")
 	}
@@ -169,20 +169,20 @@ func handleBgpCacheForward(ctx *CommandContext, id uint64, args []string) (*Resp
 	sel, err := selector.Parse(args[0])
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid selector: %v", err),
 		}, err
 	}
 
 	if err := ctx.Reactor().ForwardUpdate(sel, id); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("forward failed: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"selector": sel.String(),

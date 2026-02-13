@@ -58,7 +58,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -68,7 +68,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 // handleSystemVersionSoftware returns ze version information.
 func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"version": Version,
 		},
@@ -78,7 +78,7 @@ func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*Response, erro
 // handleSystemVersionAPI returns IPC protocol version.
 func handleSystemVersionAPI(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"version": APIVersion,
 		},
@@ -87,13 +87,13 @@ func handleSystemVersionAPI(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleDaemonShutdown signals the reactor to stop.
 func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 	ctx.Reactor().Stop()
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"message": "shutdown initiated",
 		},
@@ -102,13 +102,13 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*Response, error) {
 
 // handleDaemonStatus returns daemon status.
 func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 	stats := ctx.Reactor().Stats()
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"uptime":     stats.Uptime.String(),
 			"peer_count": stats.PeerCount,
@@ -122,7 +122,7 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
 // is available. Falls back to direct Reactor.Reload() when no coordinator is configured
 // (e.g., no Server, or no config loader set).
 func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -131,12 +131,12 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
 	if ctx.Server != nil && ctx.Server.HasConfigLoader() {
 		if err := ctx.Server.ReloadFromDisk(ctx.Server.Context()); err != nil {
 			return &Response{
-				Status: statusError,
+				Status: StatusError,
 				Data:   fmt.Sprintf("reload failed: %v", err),
 			}, err
 		}
 		return &Response{
-			Status: statusDone,
+			Status: StatusDone,
 			Data: map[string]any{
 				"message": "configuration reloaded",
 			},
@@ -146,12 +146,12 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
 	// Fallback: direct reactor reload (BGP peer reconciliation only).
 	if err := ctx.Reactor().Reload(); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("reload failed: %v", err),
 		}, err
 	}
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"message": "configuration reloaded",
 		},
@@ -164,7 +164,7 @@ func handleSystemSubsystemList(_ *CommandContext, _ []string) (*Response, error)
 	// Future: query reactor for enabled subsystems
 	subsystems := []string{"bgp"}
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"subsystems": subsystems,
 		},
@@ -204,7 +204,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -215,7 +215,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, err
 func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: system command help \"<name>\"",
 		}, fmt.Errorf("missing command name")
 	}
@@ -229,7 +229,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &Response{
-				Status: statusDone,
+				Status: StatusDone,
 				Data: map[string]any{
 					"command":     cmd.Name,
 					"description": cmd.Help,
@@ -240,7 +240,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error
 
 		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
-				Status: statusDone,
+				Status: StatusDone,
 				Data: map[string]any{
 					"command":     cmd.Name,
 					"description": cmd.Description,
@@ -253,7 +253,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error
 	}
 
 	return &Response{
-		Status: statusError,
+		Status: StatusError,
 		Data:   fmt.Sprintf("unknown %s: %s", kind, name),
 	}, fmt.Errorf("unknown %s: %s", kind, name)
 }
@@ -266,7 +266,7 @@ func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error
 func handleSystemCommandComplete(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: system command complete \"<partial>\"",
 		}, fmt.Errorf("missing partial input")
 	}
@@ -305,7 +305,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*Response,
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"completions": completions,
 		},
@@ -315,7 +315,7 @@ func handleSystemCommandComplete(ctx *CommandContext, args []string) (*Response,
 // handleArgComplete handles argument completion for a specific command.
 func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []string, partial string) (*Response, error) {
 	emptyResult := &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data:   map[string]any{"completions": []Completion{}},
 	}
 

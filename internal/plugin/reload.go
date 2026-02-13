@@ -171,7 +171,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
 				continue
 			}
-			if out.Status == statusError {
+			if out.Status == StatusError {
 				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
 			}
 		}
@@ -231,7 +231,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 			if err != nil {
 				logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
-			} else if out.Status == statusError {
+			} else if out.Status == StatusError {
 				logger().Error("config apply rejected", "plugin", ap.proc.Name(), "error", out.Error)
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: %s", ap.proc.Name(), out.Error))
 			}

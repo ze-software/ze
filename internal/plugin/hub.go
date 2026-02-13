@@ -63,7 +63,7 @@ func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
 		return fmt.Errorf("command failed: %w", err)
 	}
 
-	if resp.Status == statusError {
+	if resp.Status == StatusError {
 		return fmt.Errorf("command rejected: %v", resp.Data)
 	}
 
@@ -142,7 +142,7 @@ func (h *Hub) routeTransaction(ctx context.Context, namespace, action string) er
 		return fmt.Errorf("%s failed: %w", action, err)
 	}
 
-	if resp.Status == statusError {
+	if resp.Status == StatusError {
 		return fmt.Errorf("%s rejected: %v", action, resp.Data)
 	}
 

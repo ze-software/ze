@@ -1674,7 +1674,7 @@ func updateRPCs() []RPCRegistration {
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: peer <addr> update <encoding> ...
 func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -1703,12 +1703,12 @@ func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
 func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	result, err := ParseUpdateText(args)
 	if err != nil {
-		return &Response{Status: statusError, Data: err.Error()}, err
+		return &Response{Status: StatusError, Data: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for update text"
-		return &Response{Status: statusError, Data: errMsg}, errors.New(errMsg)
+		return &Response{Status: StatusError, Data: errMsg}, errors.New(errMsg)
 	}
 
 	// Handle EOR markers (RFC 4724)
@@ -1716,7 +1716,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	var eorSent int
 	for _, family := range result.EORFamilies {
 		if err := ctx.Reactor().AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
-			return &Response{Status: statusError, Data: err.Error()}, err
+			return &Response{Status: StatusError, Data: err.Error()}, err
 		}
 		eorSent++
 	}
@@ -1725,7 +1725,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	if len(result.Groups) == 0 {
 		if eorSent > 0 {
 			return &Response{
-				Status: statusDone,
+				Status: StatusDone,
 				Data: map[string]any{
 					"eor": eorSent,
 				},
@@ -1737,7 +1737,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 		}, nil
 	}
 
-	resp, err := dispatchNLRIGroups(ctx, result.Groups)
+	resp, err := DispatchNLRIGroups(ctx, result.Groups)
 	if err != nil {
 		return resp, err
 	}
@@ -1752,9 +1752,9 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	return resp, nil
 }
 
-// dispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
+// DispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
-func dispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Response, error) {
+func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Response, error) {
 	peerSelector := ctx.PeerSelector()
 	var announced, withdrawn int
 	var warnings []string
@@ -1772,7 +1772,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
-				return &Response{Status: statusError, Data: err.Error()}, err
+				return &Response{Status: StatusError, Data: err.Error()}, err
 			}
 			announced += len(group.Announce)
 		}
@@ -1786,7 +1786,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue
 				}
-				return &Response{Status: statusError, Data: err.Error()}, err
+				return &Response{Status: StatusError, Data: err.Error()}, err
 			}
 			withdrawn += len(group.Withdraw)
 		}
@@ -1812,7 +1812,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data:   respData,
 	}, nil
 }

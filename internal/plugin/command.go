@@ -139,12 +139,12 @@ func (c *CommandContext) Subscriptions() *SubscriptionManager {
 	return c.Server.Subscriptions()
 }
 
-// requireReactor returns the reactor or an error response if not available.
-func requireReactor(ctx *CommandContext) (ReactorInterface, *Response, error) {
+// RequireReactor returns the reactor or an error response if not available.
+func RequireReactor(ctx *CommandContext) (ReactorInterface, *Response, error) {
 	r := ctx.Reactor()
 	if r == nil {
 		return nil, &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "reactor not available",
 		}, fmt.Errorf("reactor not available")
 	}
@@ -312,7 +312,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 
 	// Execute handler
 	if matchedCmd.Handler == nil {
-		return &Response{Status: statusDone}, nil
+		return &Response{Status: StatusDone}, nil
 	}
 
 	return matchedCmd.Handler(ctx, args)
@@ -377,12 +377,12 @@ func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerS
 
 	rpcOut, err := connB.SendExecuteCommand(ctx, "", cmd.Name, args, peerSelector)
 	if err != nil {
-		return &Response{Status: statusError, Data: "failed to send request: " + err.Error()}, nil
+		return &Response{Status: StatusError, Data: "failed to send request: " + err.Error()}, nil
 	}
 	if rpcOut != nil {
 		return &Response{Status: rpcOut.Status, Data: rpcOut.Data}, nil
 	}
-	return &Response{Status: statusDone}, nil
+	return &Response{Status: StatusDone}, nil
 }
 
 // tokenize splits a command string into tokens.

@@ -26,14 +26,14 @@ func rawRPCs() []RPCRegistration {
 // Encodings: hex, b64
 // Data: encoded bytes (empty allowed for keepalive).
 func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 	// Require peer selector
 	if ctx.Peer == "" || ctx.Peer == "*" {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "raw requires specific peer: bgp peer <addr> raw ...",
 		}, fmt.Errorf("raw requires specific peer")
 	}
@@ -41,14 +41,14 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	peerAddr, err := netip.ParseAddr(ctx.Peer)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", ctx.Peer),
 		}, fmt.Errorf("invalid peer address: %w", err)
 	}
 
 	if len(args) < 2 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: raw [<type>] <encoding> <data>",
 		}, fmt.Errorf("raw requires at least encoding and data")
 	}
@@ -63,7 +63,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 		msgType = mt
 		if len(args) < 2 {
 			return &Response{
-				Status: statusError,
+				Status: StatusError,
 				Data:   "usage: raw <type> <encoding> <data>",
 			}, fmt.Errorf("missing encoding after type")
 		}
@@ -84,7 +84,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	payload, err := decodePayload(encoding, data)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("decode error: %v", err),
 		}, err
 	}
@@ -92,7 +92,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	// Send to reactor
 	if err := ctx.Reactor().SendRawMessage(peerAddr, msgType, payload); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("send error: %v", err),
 		}, err
 	}
@@ -108,7 +108,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data:   respData,
 	}, nil
 }

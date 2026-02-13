@@ -44,7 +44,7 @@ var bgpEventTypes = []string{
 // If the selector is "*", all peers are returned. Otherwise, filters by IP.
 func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
 	if ctx.Reactor() == nil {
-		return nil, &Response{Status: statusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
+		return nil, &Response{Status: StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
 	}
 	allPeers := ctx.Reactor().Peers()
 	selector := ctx.PeerSelector()
@@ -56,7 +56,7 @@ func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
 	filterIP, err := netip.ParseAddr(selector)
 	if err != nil {
 		return nil, &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid IP address: %s", selector),
 		}, err
 	}
@@ -80,7 +80,7 @@ func handleBgpPeerList(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"peers": peers,
 		},
@@ -97,7 +97,7 @@ func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"peers": peers,
 		},
@@ -108,14 +108,14 @@ func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("missing cease subcode")
 	}
@@ -124,7 +124,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "teardown requires specific peer: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
@@ -132,7 +132,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
@@ -141,7 +141,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	code, err := parseUint(args[0])
 	if err != nil || code > 255 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid subcode: %s", args[0]),
 		}, fmt.Errorf("invalid subcode: %s", args[0])
 	}
@@ -149,13 +149,13 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 
 	if err := ctx.Reactor().TeardownPeer(addr, subcode); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("teardown failed: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"subcode": subcode,
@@ -190,7 +190,7 @@ func parseUint(s string) (uint64, error) {
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
 func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -199,7 +199,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "add requires specific peer: bgp peer <ip> add asn <asn>",
 		}, fmt.Errorf("no peer specified")
 	}
@@ -207,7 +207,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
@@ -219,62 +219,62 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 		switch strings.ToLower(args[i]) {
 		case "asn":
 			if i+1 >= len(args) {
-				return &Response{Status: statusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
+				return &Response{Status: StatusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
 			}
 			i++
 			asn, err := parseUint(args[i])
 			if err != nil || asn > 0xFFFFFFFF {
-				return &Response{Status: statusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
+				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
 			}
 			config.PeerAS = uint32(asn)
 
 		case "local-as":
 			if i+1 >= len(args) {
-				return &Response{Status: statusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
+				return &Response{Status: StatusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
 			}
 			i++
 			asn, err := parseUint(args[i])
 			if err != nil || asn > 0xFFFFFFFF {
-				return &Response{Status: statusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
+				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
 			}
 			config.LocalAS = uint32(asn)
 
 		case "local-address":
 			if i+1 >= len(args) {
-				return &Response{Status: statusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
+				return &Response{Status: StatusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
 			}
 			i++
 			localAddr, err := netip.ParseAddr(args[i])
 			if err != nil {
-				return &Response{Status: statusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
+				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
 			}
 			config.LocalAddress = localAddr
 
 		case "router-id":
 			if i+1 >= len(args) {
-				return &Response{Status: statusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
+				return &Response{Status: StatusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
 			}
 			i++
 			rid, err := parseRouterID(args[i])
 			if err != nil {
-				return &Response{Status: statusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
+				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
 			}
 			config.RouterID = rid
 
 		case "hold-time":
 			if i+1 >= len(args) {
-				return &Response{Status: statusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
+				return &Response{Status: StatusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
 			}
 			i++
 			seconds, err := parseUint(args[i])
 			if err != nil {
-				return &Response{Status: statusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
+				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
 			}
 			// RFC 4271: hold time 0 is valid (no keepalives), 3-65535 are valid
 			// Cap at reasonable maximum to prevent overflow (1 day = 86400s)
 			const maxHoldTime = 86400
 			if seconds > maxHoldTime {
-				return &Response{Status: statusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
+				return &Response{Status: StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
 			}
 			config.HoldTime = time.Duration(seconds) * time.Second
 
@@ -283,7 +283,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 
 		default: // unknown option → return error
 			return &Response{
-				Status: statusError,
+				Status: StatusError,
 				Data:   fmt.Sprintf("unknown option: %s", args[i]),
 			}, fmt.Errorf("unknown option: %s", args[i])
 		}
@@ -292,7 +292,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	// Validate required fields
 	if config.PeerAS == 0 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "asn is required: bgp peer <ip> add asn <asn>",
 		}, fmt.Errorf("missing required asn")
 	}
@@ -300,13 +300,13 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	// Add peer via reactor
 	if err := ctx.Reactor().AddDynamicPeer(config); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("failed to add peer: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"asn":     config.PeerAS,
@@ -318,7 +318,7 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 // handleBgpPeerRemove handles "bgp peer <ip> remove" command.
 // Removes a peer dynamically at runtime.
 func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -327,7 +327,7 @@ func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "remove requires specific peer: bgp peer <ip> remove",
 		}, fmt.Errorf("no peer specified")
 	}
@@ -335,7 +335,7 @@ func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
@@ -343,13 +343,13 @@ func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
 	// Remove peer via reactor
 	if err := ctx.Reactor().RemovePeer(addr); err != nil {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   fmt.Sprintf("failed to remove peer: %v", err),
 		}, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"message": "peer removed",
@@ -392,7 +392,7 @@ func handleBgpHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -421,7 +421,7 @@ func handleBgpCommandList(ctx *CommandContext, args []string) (*Response, error)
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -440,7 +440,7 @@ func handleBgpCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
 				return &Response{
-					Status: statusDone,
+					Status: StatusDone,
 					Data: map[string]any{
 						"command":     cmd.Name,
 						"description": cmd.Help,
@@ -477,7 +477,7 @@ func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, er
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"completions": completions,
 		},
@@ -487,7 +487,7 @@ func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, er
 // handleBgpEventList returns available BGP event types.
 func handleBgpEventList(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"events": bgpEventTypes,
 		},
@@ -512,7 +512,7 @@ func handleBgpPluginEncoding(ctx *CommandContext, args []string) (*Response, err
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"encoding": enc,
 		},
@@ -537,7 +537,7 @@ func handleBgpPluginFormat(ctx *CommandContext, args []string) (*Response, error
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"format": format,
 		},
@@ -566,7 +566,7 @@ func handleBgpPluginAck(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"ack": mode,
 		},

@@ -40,7 +40,7 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Guard reactor access
-	_, errResp, err := requireReactor(ctx)
+	_, errResp, err := RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}

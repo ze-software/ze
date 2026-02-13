@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -375,8 +376,8 @@ func TestFilterResultZeroValues(t *testing.T) {
 		t.Fatal("Failed to extract attribute bytes")
 	}
 
-	filter := NewFilterAll()
-	nlriFilter := NewNLRIFilterAll()
+	filter := bgpfilter.NewFilterAll()
+	nlriFilter := bgpfilter.NewNLRIFilterAll()
 	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
 	if err != nil {
 		t.Fatalf("ApplyToUpdate failed: %v", err)
@@ -420,8 +421,8 @@ func TestFilterResultBothNextHops(t *testing.T) {
 		t.Fatal("Failed to extract attribute bytes")
 	}
 
-	filter := NewFilterAll()
-	nlriFilter := NewNLRIFilterAll()
+	filter := bgpfilter.NewFilterAll()
+	nlriFilter := bgpfilter.NewNLRIFilterAll()
 	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
 	if err != nil {
 		t.Fatalf("ApplyToUpdate failed: %v", err)
@@ -481,8 +482,8 @@ func TestFilterResultCommunities(t *testing.T) {
 		t.Fatal("Failed to extract attribute bytes")
 	}
 
-	filter := NewFilterAll()
-	nlriFilter := NewNLRIFilterAll()
+	filter := bgpfilter.NewFilterAll()
+	nlriFilter := bgpfilter.NewNLRIFilterAll()
 	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
 	if err != nil {
 		t.Fatalf("ApplyToUpdate failed: %v", err)

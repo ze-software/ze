@@ -18,7 +18,7 @@ func pluginRPCs() []RPCRegistration {
 // handlePluginHelp returns list of plugin subcommands.
 func handlePluginHelp(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"subcommands": []string{"session", "command"},
 		},
@@ -39,7 +39,7 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*Response, error)
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -50,7 +50,7 @@ func handlePluginCommandList(ctx *CommandContext, _ []string) (*Response, error)
 func handlePluginCommandHelp(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: plugin command help \"<name>\"",
 		}, fmt.Errorf("missing command name")
 	}
@@ -60,7 +60,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*Response, err
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Registry().Lookup(name); cmd != nil {
 			return &Response{
-				Status: statusDone,
+				Status: StatusDone,
 				Data: map[string]any{
 					"command":     cmd.Name,
 					"description": cmd.Description,
@@ -72,7 +72,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*Response, err
 	}
 
 	return &Response{
-		Status: statusError,
+		Status: StatusError,
 		Data:   fmt.Sprintf("unknown plugin command: %s", name),
 	}, fmt.Errorf("unknown plugin command: %s", name)
 }
@@ -81,7 +81,7 @@ func handlePluginCommandHelp(ctx *CommandContext, args []string) (*Response, err
 func handlePluginCommandComplete(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
-			Status: statusError,
+			Status: StatusError,
 			Data:   "usage: plugin command complete \"<partial>\"",
 		}, fmt.Errorf("missing partial input")
 	}
@@ -94,7 +94,7 @@ func handlePluginCommandComplete(ctx *CommandContext, args []string) (*Response,
 	}
 
 	return &Response{
-		Status: statusDone,
+		Status: StatusDone,
 		Data: map[string]any{
 			"completions": completions,
 		},

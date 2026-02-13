@@ -35,7 +35,7 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	}
 
 	// Complete the request
-	ok := pending.Complete(serial, &Response{Status: statusDone, Data: "test"})
+	ok := pending.Complete(serial, &Response{Status: StatusDone, Data: "test"})
 	if !ok {
 		t.Error("Complete should return true for valid serial")
 	}
@@ -43,7 +43,7 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	// Check response was delivered
 	select {
 	case resp := <-respCh:
-		if resp.Status != statusDone {
+		if resp.Status != StatusDone {
 			t.Errorf("expected status 'done', got %q", resp.Status)
 		}
 	default:
@@ -51,7 +51,7 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 	}
 
 	// Completing again should fail (already completed)
-	ok = pending.Complete(serial, &Response{Status: statusDone})
+	ok = pending.Complete(serial, &Response{Status: StatusDone})
 	if ok {
 		t.Error("Complete should return false for already-completed serial")
 	}
@@ -82,7 +82,7 @@ func TestPendingRequests_Timeout(t *testing.T) {
 	// Check timeout response was delivered
 	select {
 	case resp := <-respCh:
-		if resp.Status != statusError {
+		if resp.Status != StatusError {
 			t.Errorf("expected status 'error' for timeout, got %q", resp.Status)
 		}
 		if resp.Data == nil {
@@ -93,7 +93,7 @@ func TestPendingRequests_Timeout(t *testing.T) {
 	}
 
 	// Complete after timeout should fail
-	ok := pending.Complete(serial, &Response{Status: statusDone})
+	ok := pending.Complete(serial, &Response{Status: StatusDone})
 	if ok {
 		t.Error("Complete should return false after timeout")
 	}
@@ -138,7 +138,7 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 	// Check proc1 requests got error responses
 	select {
 	case resp := <-respCh1:
-		if resp.Status != statusError {
+		if resp.Status != StatusError {
 			t.Error("expected error for cancelled request")
 		}
 	default:
@@ -147,7 +147,7 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 
 	select {
 	case resp := <-respCh3:
-		if resp.Status != statusError {
+		if resp.Status != StatusError {
 			t.Error("expected error for cancelled request")
 		}
 	default:
@@ -163,7 +163,7 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 	}
 
 	// Complete proc2 request should work
-	ok := pending.Complete(serial2, &Response{Status: statusDone})
+	ok := pending.Complete(serial2, &Response{Status: StatusDone})
 	if !ok {
 		t.Error("proc2 request should still be completable")
 	}
@@ -206,7 +206,7 @@ func TestPendingRequests_Limit(t *testing.T) {
 	// Error should be sent to channel
 	select {
 	case resp := <-respCh:
-		if resp.Status != statusError {
+		if resp.Status != StatusError {
 			t.Error("expected error response for limit exceeded")
 		}
 	default:
@@ -237,7 +237,7 @@ func TestPendingRequests_SerialUniqueness(t *testing.T) {
 		serials[serial] = true
 
 		// Complete to free up limit
-		pending.Complete(serial, &Response{Status: statusDone})
+		pending.Complete(serial, &Response{Status: StatusDone})
 	}
 }
 
@@ -273,7 +273,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 	}
 
 	// Complete
-	ok := pending.Complete(serial, &Response{Status: statusDone, Data: "final"})
+	ok := pending.Complete(serial, &Response{Status: StatusDone, Data: "final"})
 	if !ok {
 		t.Error("Complete should succeed after partials")
 	}
@@ -313,7 +313,7 @@ func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 				RespChan: respCh,
 			})
 			if serial != "" {
-				pending.Complete(serial, &Response{Status: statusDone})
+				pending.Complete(serial, &Response{Status: StatusDone})
 			}
 			done <- true
 		}()

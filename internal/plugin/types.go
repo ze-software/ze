@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
@@ -389,7 +390,7 @@ func NewResponse(status string, data any) *Response {
 // NewErrorResponse creates an error Response with the given message.
 func NewErrorResponse(message string) *Response {
 	return &Response{
-		Status: statusError,
+		Status: StatusError,
 		Data:   message,
 	}
 }
@@ -471,8 +472,8 @@ func ParseWireEncoding(s string) (WireEncoding, error) {
 
 // Status constants for API responses.
 const (
-	statusDone  = "done"
-	statusError = "error"
+	StatusDone  = "done"
+	StatusError = "error"
 )
 
 // cmdPlugin is the "plugin" token in command strings like "ze bgp plugin <name>".
@@ -481,10 +482,10 @@ const cmdPlugin = "plugin"
 // ContentConfig controls HOW messages are formatted (encoding + format).
 // Separated from message type subscriptions (WHAT) per new API design.
 type ContentConfig struct {
-	Encoding   string           // "json" | "text" (default: "text")
-	Format     string           // "parsed" | "raw" | "full" (default: "parsed")
-	Attributes *AttributeFilter // Which attrs to include (nil = all)
-	NLRI       *NLRIFilter      // Which address families to include (nil = all)
+	Encoding   string                     // "json" | "text" (default: "text")
+	Format     string                     // "parsed" | "raw" | "full" (default: "parsed")
+	Attributes *bgpfilter.AttributeFilter // Which attrs to include (nil = all)
+	NLRI       *bgpfilter.NLRIFilter      // Which address families to include (nil = all)
 }
 
 // WithDefaults returns a ContentConfig with default values applied.

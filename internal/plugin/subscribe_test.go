@@ -17,7 +17,7 @@ import (
 // VALIDATES: Simple "bgp event update" parses correctly.
 // PREVENTS: Basic subscription parsing failures.
 func TestParseSubscriptionBasic(t *testing.T) {
-	sub, err := parseSubscription([]string{"bgp", "event", "update"})
+	sub, err := ParseSubscription([]string{"bgp", "event", "update"})
 	require.NoError(t, err)
 	assert.Equal(t, "bgp", sub.Namespace)
 	assert.Equal(t, "update", sub.EventType)
@@ -31,7 +31,7 @@ func TestParseSubscriptionBasic(t *testing.T) {
 // VALIDATES: "peer 10.0.0.1 bgp event update" extracts peer filter.
 // PREVENTS: Peer filter not parsed.
 func TestParseSubscriptionWithPeer(t *testing.T) {
-	sub, err := parseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update"})
+	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update"})
 	require.NoError(t, err)
 	assert.Equal(t, "bgp", sub.Namespace)
 	assert.Equal(t, "update", sub.EventType)
@@ -44,7 +44,7 @@ func TestParseSubscriptionWithPeer(t *testing.T) {
 // VALIDATES: "peer * bgp event state" uses glob selector.
 // PREVENTS: Glob selector rejected.
 func TestParseSubscriptionWithPeerGlob(t *testing.T) {
-	sub, err := parseSubscription([]string{"peer", "*", "bgp", "event", "state"})
+	sub, err := ParseSubscription([]string{"peer", "*", "bgp", "event", "state"})
 	require.NoError(t, err)
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "*", sub.PeerFilter.Selector)
@@ -55,7 +55,7 @@ func TestParseSubscriptionWithPeerGlob(t *testing.T) {
 // VALIDATES: "peer !10.0.0.1 bgp event update" uses exclusion.
 // PREVENTS: Exclusion selector rejected.
 func TestParseSubscriptionWithPeerExclude(t *testing.T) {
-	sub, err := parseSubscription([]string{"peer", "!10.0.0.1", "bgp", "event", "update"})
+	sub, err := ParseSubscription([]string{"peer", "!10.0.0.1", "bgp", "event", "update"})
 	require.NoError(t, err)
 	require.NotNil(t, sub.PeerFilter)
 	assert.Equal(t, "!10.0.0.1", sub.PeerFilter.Selector)
@@ -66,7 +66,7 @@ func TestParseSubscriptionWithPeerExclude(t *testing.T) {
 // VALIDATES: "plugin rib-cache rib event cache" extracts plugin filter.
 // PREVENTS: Plugin filter not parsed.
 func TestParseSubscriptionWithPlugin(t *testing.T) {
-	sub, err := parseSubscription([]string{"plugin", "rib-cache", "rib", "event", "cache"})
+	sub, err := ParseSubscription([]string{"plugin", "rib-cache", "rib", "event", "cache"})
 	require.NoError(t, err)
 	assert.Equal(t, "rib", sub.Namespace)
 	assert.Equal(t, "cache", sub.EventType)
@@ -91,7 +91,7 @@ func TestParseSubscriptionWithDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			sub, err := parseSubscription(tt.args)
+			sub, err := ParseSubscription(tt.args)
 			require.NoError(t, err)
 			assert.Equal(t, tt.direction, sub.Direction)
 		})
@@ -103,7 +103,7 @@ func TestParseSubscriptionWithDirection(t *testing.T) {
 // VALIDATES: "peer 10.0.0.1 bgp event update direction sent" parses fully.
 // PREVENTS: Complex subscriptions failing.
 func TestParseSubscriptionFull(t *testing.T) {
-	sub, err := parseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update", "direction", "sent"})
+	sub, err := ParseSubscription([]string{"peer", "10.0.0.1", "bgp", "event", "update", "direction", "sent"})
 	require.NoError(t, err)
 	assert.Equal(t, "bgp", sub.Namespace)
 	assert.Equal(t, "update", sub.EventType)
@@ -133,7 +133,7 @@ func TestParseSubscriptionInvalidNamespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseSubscription(tt.args)
+			_, err := ParseSubscription(tt.args)
 			require.Error(t, err)
 		})
 	}
@@ -157,7 +157,7 @@ func TestParseSubscriptionInvalidDirection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseSubscription(tt.args)
+			_, err := ParseSubscription(tt.args)
 			require.Error(t, err)
 		})
 	}
@@ -181,7 +181,7 @@ func TestParseSubscriptionInvalidEventType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseSubscription(tt.args)
+			_, err := ParseSubscription(tt.args)
 			require.Error(t, err)
 		})
 	}
@@ -204,7 +204,7 @@ func TestParseSubscriptionInvalidPeerSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseSubscription(tt.args)
+			_, err := ParseSubscription(tt.args)
 			require.Error(t, err)
 		})
 	}
@@ -215,7 +215,7 @@ func TestParseSubscriptionInvalidPeerSelector(t *testing.T) {
 // VALIDATES: "bgp update" fails (missing "event" keyword).
 // PREVENTS: Command without keyword accepted.
 func TestParseSubscriptionMissingKeyword(t *testing.T) {
-	_, err := parseSubscription([]string{"bgp", "update"})
+	_, err := ParseSubscription([]string{"bgp", "update"})
 	require.Error(t, err)
 }
 
@@ -437,7 +437,7 @@ func TestValidBgpEventTypes(t *testing.T) {
 
 	for _, eventType := range validTypes {
 		t.Run(eventType, func(t *testing.T) {
-			sub, err := parseSubscription([]string{"bgp", "event", eventType})
+			sub, err := ParseSubscription([]string{"bgp", "event", eventType})
 			require.NoError(t, err)
 			assert.Equal(t, eventType, sub.EventType)
 		})
@@ -453,7 +453,7 @@ func TestValidRibEventTypes(t *testing.T) {
 
 	for _, eventType := range validTypes {
 		t.Run(eventType, func(t *testing.T) {
-			sub, err := parseSubscription([]string{"rib", "event", eventType})
+			sub, err := ParseSubscription([]string{"rib", "event", eventType})
 			require.NoError(t, err)
 			assert.Equal(t, eventType, sub.EventType)
 		})

@@ -235,7 +235,7 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*Respons
 	}
 	out, err := connB.SendExecuteCommand(ctx, "", command, nil, "")
 	if err != nil {
-		return &Response{Status: statusError, Data: err.Error()}, err
+		return &Response{Status: StatusError, Data: err.Error()}, err
 	}
 
 	return &Response{Status: out.Status, Data: out.Data}, nil
