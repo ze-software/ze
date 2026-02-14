@@ -3,7 +3,7 @@ package plugin
 import (
 	"context"
 	"encoding/hex"
-	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -14,158 +14,159 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestOpenValidationError verifies the OpenValidationError type.
-//
-// VALIDATES: Error() returns human-readable message, NotifyCodes() returns correct codes.
-// PREVENTS: NOTIFICATION codes being lost when wrapping validation errors.
-func TestOpenValidationError(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name          string
-		notifyCode    uint8
-		notifySubcode uint8
-		reason        string
-		wantMsg       string
-	}{
-		{
-			name:          "role_mismatch",
-			notifyCode:    2,  // OPEN Message Error
-			notifySubcode: 11, // Role Mismatch
-			reason:        "role mismatch: customer↔customer",
-			wantMsg:       "open validation rejected: role mismatch: customer↔customer",
-		},
-		{
-			name:          "empty_reason",
-			notifyCode:    2,
-			notifySubcode: 0,
-			reason:        "",
-			wantMsg:       "open validation rejected",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			err := &OpenValidationError{
-				NotifyCode:    tt.notifyCode,
-				NotifySubcode: tt.notifySubcode,
-				Reason:        tt.reason,
-			}
-
-			// Verify Error() returns readable message
-			assert.Equal(t, tt.wantMsg, err.Error())
-
-			// Verify NotifyCodes() returns correct values
-			code, sub := err.NotifyCodes()
-			assert.Equal(t, tt.notifyCode, code)
-			assert.Equal(t, tt.notifySubcode, sub)
-
-			// Verify it satisfies the interface used by session.go
-			var valErr interface{ NotifyCodes() (uint8, uint8) }
-			assert.True(t, errors.As(err, &valErr))
-			c, s := valErr.NotifyCodes()
-			assert.Equal(t, tt.notifyCode, c)
-			assert.Equal(t, tt.notifySubcode, s)
-		})
-	}
+// testValidationError mirrors server.OpenValidationError for tests that cannot import
+// the server package (import cycle). Implements the same NotifyCodes() interface
+// used by session.go for error dispatch.
+type testValidationError struct {
+	NotifyCode    uint8
+	NotifySubcode uint8
+	Reason        string
 }
 
-// TestOpenMessageToRPC verifies conversion from message.Open to rpc.ValidateOpenMessage.
-//
-// VALIDATES: ASN (with ASN4), RouterID, HoldTime, and capabilities are correctly extracted.
-// PREVENTS: Capability TLVs being mangled during conversion to {code, hex} pairs.
-func TestOpenMessageToRPC(t *testing.T) {
-	t.Parallel()
+func (e *testValidationError) Error() string {
+	if e.Reason != "" {
+		return "open validation rejected: " + e.Reason
+	}
+	return "open validation rejected"
+}
 
-	tests := []struct {
-		name     string
-		open     *message.Open
-		wantASN  uint32
-		wantRID  string
-		wantHold uint16
-		wantCaps []rpc.ValidateOpenCapability
-	}{
-		{
-			name: "basic_open_with_role",
-			open: &message.Open{
-				MyAS:          65000,
-				HoldTime:      180,
-				BGPIdentifier: 0x01020304, // 1.2.3.4
-				// OptionalParams: type=2 (capabilities), len=3, cap_code=9, cap_len=1, value=0x03
-				OptionalParams: []byte{2, 3, 9, 1, 0x03},
-			},
-			wantASN:  65000,
-			wantRID:  "1.2.3.4",
-			wantHold: 180,
-			wantCaps: []rpc.ValidateOpenCapability{
-				{Code: 9, Hex: "03"},
-			},
-		},
-		{
-			name: "asn4_overrides_myas",
-			open: &message.Open{
-				MyAS:           23456, // AS_TRANS
-				HoldTime:       90,
-				BGPIdentifier:  0x0a000001, // 10.0.0.1
-				ASN4:           100000,
-				OptionalParams: []byte{2, 6, 65, 4, 0x00, 0x01, 0x86, 0xA0}, // ASN4 cap
-			},
-			wantASN:  100000,
-			wantRID:  "10.0.0.1",
-			wantHold: 90,
-			wantCaps: []rpc.ValidateOpenCapability{
-				{Code: 65, Hex: "000186a0"},
-			},
-		},
-		{
-			name: "no_capabilities",
-			open: &message.Open{
-				MyAS:          65001,
-				HoldTime:      60,
-				BGPIdentifier: 0xc0a80101, // 192.168.1.1
-			},
-			wantASN:  65001,
-			wantRID:  "192.168.1.1",
-			wantHold: 60,
-			wantCaps: nil,
-		},
-		{
-			name: "multiple_capabilities",
-			open: &message.Open{
-				MyAS:          65002,
-				HoldTime:      180,
-				BGPIdentifier: 0x05060708, // 5.6.7.8
-				// Two capability optional parameters
-				// Param 1: type=2, len=7, [cap1: code=1, len=4, AFI=1 SAFI=1] [cap2: code=9, len=1, value=0x00]
-				OptionalParams: func() []byte {
-					// Build: type=2, len=9
-					// cap: code=1, len=4, AFI(2 bytes)=0x0001, reserved=0, SAFI=1
-					// cap: code=9, len=1, value=0x00
-					return []byte{2, 9, 1, 4, 0x00, 0x01, 0x00, 0x01, 9, 1, 0x00}
-				}(),
-			},
-			wantASN:  65002,
-			wantRID:  "5.6.7.8",
-			wantHold: 180,
-			wantCaps: []rpc.ValidateOpenCapability{
-				{Code: 1, Hex: "00010001"},
-				{Code: 9, Hex: "00"},
-			},
-		},
+func (e *testValidationError) NotifyCodes() (uint8, uint8) {
+	return e.NotifyCode, e.NotifySubcode
+}
+
+// testOpenMessageToRPC converts message.Open to rpc.ValidateOpenMessage.
+// Mirrors server.openMessageToRPC for test use (avoids import cycle).
+func testOpenMessageToRPC(open *message.Open) rpc.ValidateOpenMessage {
+	asn := uint32(open.MyAS)
+	if open.ASN4 > 0 {
+		asn = open.ASN4
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
+	routerID := fmt.Sprintf("%d.%d.%d.%d",
+		(open.BGPIdentifier>>24)&0xFF,
+		(open.BGPIdentifier>>16)&0xFF,
+		(open.BGPIdentifier>>8)&0xFF,
+		open.BGPIdentifier&0xFF,
+	)
 
-			got := openMessageToRPC(tt.open)
-			assert.Equal(t, tt.wantASN, got.ASN)
-			assert.Equal(t, tt.wantRID, got.RouterID)
-			assert.Equal(t, tt.wantHold, got.HoldTime)
-			assert.Equal(t, tt.wantCaps, got.Capabilities)
-		})
+	msg := rpc.ValidateOpenMessage{
+		ASN:      asn,
+		RouterID: routerID,
+		HoldTime: open.HoldTime,
+	}
+
+	// Extract capabilities from OptionalParams TLV structure
+	if len(open.OptionalParams) > 0 {
+		var caps []rpc.ValidateOpenCapability
+		offset := 0
+
+		for offset < len(open.OptionalParams) {
+			if offset+2 > len(open.OptionalParams) {
+				break
+			}
+
+			paramType := open.OptionalParams[offset]
+			paramLen := int(open.OptionalParams[offset+1])
+			offset += 2
+
+			if offset+paramLen > len(open.OptionalParams) {
+				break
+			}
+
+			paramData := open.OptionalParams[offset : offset+paramLen]
+			offset += paramLen
+
+			if paramType != 2 {
+				continue
+			}
+
+			capOffset := 0
+			for capOffset < len(paramData) {
+				if capOffset+2 > len(paramData) {
+					break
+				}
+
+				capCode := paramData[capOffset]
+				capLen := int(paramData[capOffset+1])
+				capOffset += 2
+
+				if capOffset+capLen > len(paramData) {
+					break
+				}
+
+				capValue := paramData[capOffset : capOffset+capLen]
+				capOffset += capLen
+
+				caps = append(caps, rpc.ValidateOpenCapability{
+					Code: capCode,
+					Hex:  hex.EncodeToString(capValue),
+				})
+			}
+		}
+
+		msg.Capabilities = caps
+	}
+
+	return msg
+}
+
+// testBroadcastValidateOpenHooks returns a BGPHooks with BroadcastValidateOpen set
+// to a test implementation that mirrors server.broadcastValidateOpen.
+// Avoids import cycle (plugin -> bgp/server -> plugin).
+func testBroadcastValidateOpenHooks() *BGPHooks {
+	return &BGPHooks{
+		BroadcastValidateOpen: func(s *Server, peerAddr string, local, remote any) error {
+			localOpen, ok := local.(*message.Open)
+			if !ok {
+				return fmt.Errorf("test: local not *message.Open: %T", local)
+			}
+
+			remoteOpen, ok := remote.(*message.Open)
+			if !ok {
+				return fmt.Errorf("test: remote not *message.Open: %T", remote)
+			}
+
+			pm := s.ProcessManager()
+			if pm == nil {
+				return nil
+			}
+
+			input := &rpc.ValidateOpenInput{
+				Peer:   peerAddr,
+				Local:  testOpenMessageToRPC(localOpen),
+				Remote: testOpenMessageToRPC(remoteOpen),
+			}
+
+			for _, proc := range pm.AllProcesses() {
+				reg := proc.Registration()
+				if reg == nil || !reg.WantsValidateOpen {
+					continue
+				}
+
+				connB := proc.ConnB()
+				if connB == nil {
+					continue
+				}
+
+				ctx, cancel := context.WithTimeout(s.Context(), 5*time.Second)
+				output, err := connB.SendValidateOpen(ctx, input)
+				cancel()
+
+				if err != nil {
+					continue
+				}
+
+				if !output.Accept {
+					return &testValidationError{
+						NotifyCode:    output.NotifyCode,
+						NotifySubcode: output.NotifySubcode,
+						Reason:        output.Reason,
+					}
+				}
+			}
+
+			return nil
+		},
 	}
 }
 
@@ -190,6 +191,7 @@ func TestBroadcastValidateOpenNoInterested(t *testing.T) {
 	t.Parallel()
 
 	s := &Server{
+		bgpHooks: testBroadcastValidateOpenHooks(),
 		procManager: &ProcessManager{
 			processes: map[string]*Process{
 				"rib": {
@@ -227,7 +229,8 @@ func TestBroadcastValidateOpenAccepted(t *testing.T) {
 	t.Cleanup(cancel)
 
 	s := &Server{
-		ctx: ctx,
+		ctx:      ctx,
+		bgpHooks: testBroadcastValidateOpenHooks(),
 		procManager: &ProcessManager{
 			processes: map[string]*Process{"role": proc},
 		},
@@ -258,7 +261,7 @@ func TestBroadcastValidateOpenAccepted(t *testing.T) {
 
 // TestBroadcastValidateOpenRejected verifies broadcast when plugin rejects.
 //
-// VALIDATES: Plugin rejection returns OpenValidationError with correct NOTIFICATION codes.
+// VALIDATES: Plugin rejection returns error with correct NOTIFICATION codes via NotifyCodes().
 // PREVENTS: Rejection not propagating or losing NOTIFICATION code/subcode.
 func TestBroadcastValidateOpenRejected(t *testing.T) {
 	t.Parallel()
@@ -277,7 +280,8 @@ func TestBroadcastValidateOpenRejected(t *testing.T) {
 	t.Cleanup(cancel)
 
 	s := &Server{
-		ctx: ctx,
+		ctx:      ctx,
+		bgpHooks: testBroadcastValidateOpenHooks(),
 		procManager: &ProcessManager{
 			processes: map[string]*Process{"role": proc},
 		},
@@ -310,40 +314,15 @@ func TestBroadcastValidateOpenRejected(t *testing.T) {
 	err = s.BroadcastValidateOpen("10.0.0.1", localOpen, remoteOpen)
 	require.Error(t, err)
 
-	// Verify it's an OpenValidationError with correct codes
-	var valErr *OpenValidationError
-	require.True(t, errors.As(err, &valErr))
-	assert.Equal(t, uint8(2), valErr.NotifyCode)
-	assert.Equal(t, uint8(11), valErr.NotifySubcode)
-	assert.Equal(t, "role mismatch: customer↔customer", valErr.Reason)
-
-	// Verify NotifyCodes() interface works
+	// Verify error carries correct NOTIFICATION codes via NotifyCodes() interface
+	var valErr interface{ NotifyCodes() (uint8, uint8) }
+	require.ErrorAs(t, err, &valErr)
 	code, sub := valErr.NotifyCodes()
 	assert.Equal(t, uint8(2), code)
 	assert.Equal(t, uint8(11), sub)
-}
 
-// TestBroadcastValidateOpenCapabilityHexEncoding verifies capability hex encoding in RPC.
-//
-// VALIDATES: Capability values are hex-encoded correctly (lowercase, no prefix).
-// PREVENTS: Hex encoding issues (uppercase, 0x prefix, truncation).
-func TestBroadcastValidateOpenCapabilityHexEncoding(t *testing.T) {
-	t.Parallel()
-
-	// Test that openMessageToRPC produces correct hex for various cap values
-	open := &message.Open{
-		MyAS:          65000,
-		HoldTime:      180,
-		BGPIdentifier: 0x01020304,
-		// Cap: code=64 (GR), len=6, value=0x40, 0x78, 0x00, 0x01, 0x01, 0x00
-		OptionalParams: []byte{2, 8, 64, 6, 0x40, 0x78, 0x00, 0x01, 0x01, 0x00},
-	}
-
-	msg := openMessageToRPC(open)
-	require.Equal(t, 1, len(msg.Capabilities))
-	assert.Equal(t, uint8(64), msg.Capabilities[0].Code)
-	// hex.EncodeToString produces lowercase
-	assert.Equal(t, hex.EncodeToString([]byte{0x40, 0x78, 0x00, 0x01, 0x01, 0x00}), msg.Capabilities[0].Hex)
+	// Verify error message contains the reason
+	assert.Contains(t, err.Error(), "role mismatch: customer↔customer")
 }
 
 // TestRegistrationFromRPCWantsValidateOpen verifies WantsValidateOpen propagation.

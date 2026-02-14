@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
+	bgpserver "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
@@ -4272,6 +4273,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			RPCProviders: []func() []plugin.RPCRegistration{
 				handler.BgpHandlerRPCs,
 			},
+			BGPHooks: bgpserver.NewBGPHooks(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

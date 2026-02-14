@@ -1,4 +1,4 @@
-package plugin
+package server
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -128,37 +129,45 @@ func extractCapabilitiesFromOptParams(optParams []byte) []rpc.ValidateOpenCapabi
 // validateOpenTimeout is the timeout for a single validate-open RPC call.
 const validateOpenTimeout = 5 * time.Second
 
-// broadcastValidateOpenImpl contains the actual broadcast logic for BroadcastValidateOpen.
-// Iterates processes with WantsValidateOpen=true, sends validate-open RPC, fails fast on first rejection.
-func (s *Server) broadcastValidateOpenImpl(peerAddr string, local, remote *message.Open) error {
-	if s.procManager == nil {
+// broadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
+// local and remote are *message.Open passed as any from the generic hook.
+// Iterates processes, sends validate-open RPC, fails fast on first rejection.
+func broadcastValidateOpen(s *plugin.Server, peerAddr string, local, remote any) error {
+	localOpen, ok := local.(*message.Open)
+	if !ok {
+		return fmt.Errorf("broadcastValidateOpen: local not *message.Open: %T", local)
+	}
+
+	remoteOpen, ok := remote.(*message.Open)
+	if !ok {
+		return fmt.Errorf("broadcastValidateOpen: remote not *message.Open: %T", remote)
+	}
+
+	pm := s.ProcessManager()
+	if pm == nil {
 		return nil
 	}
 
 	// Build the RPC input once (shared across all plugin calls)
 	input := &rpc.ValidateOpenInput{
 		Peer:   peerAddr,
-		Local:  openMessageToRPC(local),
-		Remote: openMessageToRPC(remote),
+		Local:  openMessageToRPC(localOpen),
+		Remote: openMessageToRPC(remoteOpen),
 	}
 
 	// Iterate processes, fail-fast on first rejection
-	s.procManager.mu.RLock()
-	processes := make([]*Process, 0, len(s.procManager.processes))
-	for _, proc := range s.procManager.processes {
-		if proc.registration != nil && proc.registration.WantsValidateOpen {
-			processes = append(processes, proc)
+	for _, proc := range pm.AllProcesses() {
+		reg := proc.Registration()
+		if reg == nil || !reg.WantsValidateOpen {
+			continue
 		}
-	}
-	s.procManager.mu.RUnlock()
 
-	for _, proc := range processes {
 		connB := proc.ConnB()
 		if connB == nil {
 			continue
 		}
 
-		ctx, cancel := context.WithTimeout(s.ctx, validateOpenTimeout)
+		ctx, cancel := context.WithTimeout(s.Context(), validateOpenTimeout)
 		output, err := connB.SendValidateOpen(ctx, input)
 		cancel()
 

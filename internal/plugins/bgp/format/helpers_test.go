@@ -1,4 +1,4 @@
-package plugin
+package format
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"

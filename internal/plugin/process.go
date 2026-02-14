@@ -636,6 +636,19 @@ func (pm *ProcessManager) Wait(ctx context.Context) error {
 	}
 }
 
+// AllProcesses returns a snapshot of all processes.
+// Caller may iterate and filter the returned slice without holding the lock.
+func (pm *ProcessManager) AllProcesses() []*Process {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+
+	result := make([]*Process, 0, len(pm.processes))
+	for _, proc := range pm.processes {
+		result = append(result, proc)
+	}
+	return result
+}
+
 // ProcessCount returns the number of running processes.
 func (pm *ProcessManager) ProcessCount() int {
 	pm.mu.RLock()

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -172,7 +173,7 @@ type Server struct {
 	reactor       ReactorLifecycle
 	dispatcher    *Dispatcher
 	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
-	encoder       *JSONEncoder
+	bgpHooks      *BGPHooks
 	commitManager *commit.CommitManager
 	procManager   *ProcessManager
 	subscriptions *SubscriptionManager // API-driven event subscriptions
@@ -215,7 +216,7 @@ func NewServer(config *ServerConfig, reactor ReactorLifecycle) *Server {
 		reactor:       reactor,
 		dispatcher:    NewDispatcher(),
 		rpcDispatcher: ipc.NewRPCDispatcher(),
-		encoder:       NewJSONEncoder("6.0.0"),
+		bgpHooks:      config.BGPHooks,
 		commitManager: commit.NewCommitManager(),
 		subscriptions: NewSubscriptionManager(),
 		registry:      NewPluginRegistry(),
@@ -270,6 +271,12 @@ func (s *Server) CommitManager() *commit.CommitManager {
 // Subscriptions returns the subscription manager.
 func (s *Server) Subscriptions() *SubscriptionManager {
 	return s.subscriptions
+}
+
+// ProcessManager returns the process manager.
+// Used by BGP hook implementations to iterate plugin processes.
+func (s *Server) ProcessManager() *ProcessManager {
+	return s.procManager
 }
 
 // Running returns true if the server is running.
@@ -937,6 +944,8 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 
 // dispatchPluginRPC handles a single plugin→engine RPC request.
 // Unknown or empty methods get an explicit error per ze's fail-on-unknown rule.
+// Generic RPCs (update-route, subscribe, unsubscribe) are handled directly.
+// BGP codec RPCs (decode-nlri, encode-nlri, etc.) are delegated to BGPHooks.
 func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
 	switch req.Method {
 	case "ze-plugin-engine:update-route":
@@ -948,22 +957,17 @@ func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Re
 	case "ze-plugin-engine:unsubscribe-events":
 		s.handleUnsubscribeEventsRPC(proc, connA, req)
 		return
-	case "ze-plugin-engine:decode-nlri":
-		s.handleDecodeNLRIRPC(proc, connA, req)
-		return
-	case "ze-plugin-engine:encode-nlri":
-		s.handleEncodeNLRIRPC(proc, connA, req)
-		return
-	case "ze-plugin-engine:decode-mp-reach":
-		s.handleDecodeMPReachRPC(proc, connA, req)
-		return
-	case "ze-plugin-engine:decode-mp-unreach":
-		s.handleDecodeMPUnreachRPC(proc, connA, req)
-		return
-	case "ze-plugin-engine:decode-update":
-		s.handleDecodeUpdateRPC(proc, connA, req)
-		return
 	}
+
+	// Try BGP codec hook for remaining methods
+	if s.bgpHooks != nil && s.bgpHooks.CodecRPCHandler != nil {
+		codec := s.bgpHooks.CodecRPCHandler(req.Method)
+		if codec != nil {
+			s.handleCodecRPC(proc, connA, req, codec)
+			return
+		}
+	}
+
 	if err := connA.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
 		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
 	}
@@ -1279,4 +1283,138 @@ func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
 	delete(s.clients, client.id)
 	s.mu.Unlock()
+}
+
+// --- BGP event delegation ---
+// These methods delegate to BGPHooks when set.
+// They are called by the reactor for BGP event delivery.
+
+// OnMessageReceived handles raw BGP messages from peers.
+// Delegates to BGPHooks.OnMessageReceived when set.
+func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
+	if s.bgpHooks == nil || s.bgpHooks.OnMessageReceived == nil {
+		return
+	}
+	if s.procManager == nil || s.subscriptions == nil {
+		return
+	}
+	s.bgpHooks.OnMessageReceived(s, peer, msg)
+}
+
+// OnPeerStateChange handles peer state transitions.
+// Delegates to BGPHooks.OnPeerStateChange when set.
+func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
+	if s.bgpHooks == nil || s.bgpHooks.OnPeerStateChange == nil {
+		return
+	}
+	if s.procManager == nil || s.subscriptions == nil {
+		return
+	}
+	s.bgpHooks.OnPeerStateChange(s, peer, state)
+}
+
+// OnPeerNegotiated handles capability negotiation completion.
+// neg is format.DecodedNegotiated (typed as any to avoid BGP imports).
+// Delegates to BGPHooks.OnPeerNegotiated when set.
+func (s *Server) OnPeerNegotiated(peer PeerInfo, neg any) {
+	if s.bgpHooks == nil || s.bgpHooks.OnPeerNegotiated == nil {
+		return
+	}
+	if s.procManager == nil || s.subscriptions == nil {
+		return
+	}
+	s.bgpHooks.OnPeerNegotiated(s, peer, neg)
+}
+
+// OnMessageSent handles BGP messages sent to peers.
+// Delegates to BGPHooks.OnMessageSent when set.
+func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
+	if s.bgpHooks == nil || s.bgpHooks.OnMessageSent == nil {
+		return
+	}
+	if s.procManager == nil || s.subscriptions == nil {
+		return
+	}
+	s.bgpHooks.OnMessageSent(s, peer, msg)
+}
+
+// BroadcastValidateOpen sends validate-open to all plugins that declared WantsValidateOpen.
+// local and remote are *message.Open (typed as any to avoid BGP imports).
+// Returns nil if all accept, or an OpenValidationError on first rejection.
+func (s *Server) BroadcastValidateOpen(peerAddr string, local, remote any) error {
+	if s.bgpHooks == nil || s.bgpHooks.BroadcastValidateOpen == nil {
+		return nil
+	}
+	return s.bgpHooks.BroadcastValidateOpen(s, peerAddr, local, remote)
+}
+
+// EncodeNLRI encodes NLRI by routing to the appropriate family plugin via RPC.
+// Returns error if no plugin registered or plugin not running.
+func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
+	if s.registry == nil || s.procManager == nil {
+		return nil, fmt.Errorf("server not configured for plugins")
+	}
+
+	pluginName := s.registry.LookupFamily(family)
+	if pluginName == "" {
+		return nil, fmt.Errorf("no plugin registered for family %s", family)
+	}
+
+	proc := s.procManager.GetProcess(pluginName)
+	if proc == nil {
+		return nil, fmt.Errorf("plugin %s not running", pluginName)
+	}
+
+	connB := proc.ConnB()
+	if connB == nil {
+		return nil, fmt.Errorf("plugin %s connection closed", pluginName)
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+
+	hexStr, err := connB.SendEncodeNLRI(ctx, family, args)
+	if err != nil {
+		return nil, fmt.Errorf("plugin request failed: %w", err)
+	}
+
+	data, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, fmt.Errorf("decode plugin hex response: %w", err)
+	}
+	return data, nil
+}
+
+// DecodeNLRI decodes NLRI by routing to the appropriate family plugin via RPC.
+// Returns the JSON representation of the decoded NLRI.
+// Returns error if no plugin registered or plugin not running.
+func (s *Server) DecodeNLRI(family string, hexData string) (string, error) {
+	if s.registry == nil || s.procManager == nil {
+		return "", fmt.Errorf("server not configured for plugins")
+	}
+
+	pluginName := s.registry.LookupFamily(family)
+	if pluginName == "" {
+		return "", fmt.Errorf("no plugin registered for family %s", family)
+	}
+
+	proc := s.procManager.GetProcess(pluginName)
+	if proc == nil {
+		return "", fmt.Errorf("plugin %s not running", pluginName)
+	}
+
+	connB := proc.ConnB()
+	if connB == nil {
+		return "", fmt.Errorf("plugin %s connection closed", pluginName)
+	}
+
+	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+	defer cancel()
+
+	jsonResult, err := connB.SendDecodeNLRI(ctx, family, hexData)
+	if err != nil {
+		return "", fmt.Errorf("plugin request failed: %w", err)
+	}
+
+	return jsonResult, nil
 }

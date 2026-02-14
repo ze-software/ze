@@ -1,4 +1,4 @@
-package plugin
+package format
 
 import (
 	"encoding/binary"
@@ -8,11 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
 	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
@@ -77,7 +77,7 @@ func getNLRI(t *testing.T, payload map[string]any) map[string]any {
 func TestJSONEncoderStateUp(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -115,7 +115,7 @@ func TestJSONEncoderStateUp(t *testing.T) {
 func TestJSONEncoderStateDown(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -143,7 +143,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 func TestJSONEncoderStateConnected(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65000,
@@ -171,7 +171,7 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 func TestJSONEncoderValidJSON(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -199,7 +199,7 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -226,7 +226,7 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 func TestJSONEncoderIPv6(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("2001:db8::1"),
 		LocalAddress: netip.MustParseAddr("2001:db8::2"),
 		LocalAS:      65001,
@@ -255,7 +255,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 // VALIDATES: API output contains id in message wrapper for received UPDATEs.
 // PREVENTS: Controller can't reference updates for forwarding.
 func TestAPIOutputIncludesMsgID(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
@@ -263,7 +263,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	}
 
 	// UPDATE with msg-id
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type: message.TypeUPDATE,
 		RawBytes: []byte{
 			// Minimal UPDATE with NLRI: 10.0.0.0/24
@@ -274,9 +274,9 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		MessageID: 12345,
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -302,14 +302,14 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 func TestJSONEncoderNotification(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
 		PeerAS:       65002,
 	}
 
-	notify := format.DecodedNotification{
+	notify := DecodedNotification{
 		ErrorCode:        6, // Cease
 		ErrorSubcode:     2, // Administrative Shutdown
 		ErrorCodeName:    "Cease",
@@ -362,14 +362,14 @@ func TestJSONEncoderNotification(t *testing.T) {
 func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
 		PeerAS:       65002,
 	}
 
-	notify := format.DecodedNotification{
+	notify := DecodedNotification{
 		ErrorCode:        4, // Hold Timer Expired
 		ErrorSubcode:     0,
 		ErrorCodeName:    "Hold Timer Expired",
@@ -410,14 +410,14 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 func TestJSONEncoderNotificationSent(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
 		PeerAS:       65002,
 	}
 
-	notify := format.DecodedNotification{
+	notify := DecodedNotification{
 		ErrorCode:        6,
 		ErrorSubcode:     3, // Peer De-configured
 		ErrorCodeName:    "Cease",
@@ -452,7 +452,7 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 // VALIDATES: FormatMessage returns parseable text for NOTIFICATION.
 // PREVENTS: Crashes or malformed output from FormatMessage with NOTIFICATION.
 func TestFormatMessageNotificationText_Parsed(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		LocalAS:      65001,
@@ -467,18 +467,18 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		'g', 'o', 'o', 'd', 'b', 'y', 'e', // "goodbye"
 	}
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  rawBytes,
 		MessageID: 42,
 		Direction: "received",
 	}
 
-	// Even with EncodingJSON, FormatMessage returns text for non-UPDATE
+	// Even with plugin.EncodingJSON, FormatMessage returns text for non-UPDATE
 	// This is by design - JSON encoding for non-UPDATE uses Server.formatMessage()
-	content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingText,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -499,15 +499,15 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 // This is by design: Server.formatMessage() handles JSON encoding for non-UPDATE
 // messages using the shared JSONEncoder with proper counter semantics.
 //
-// VALIDATES: FormatMessage with EncodingJSON + FormatParsed + NOTIFICATION returns TEXT.
+// VALIDATES: FormatMessage with plugin.EncodingJSON + plugin.FormatParsed + NOTIFICATION returns TEXT.
 // PREVENTS: Confusion about why JSON encoding is ignored.
 func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65002,
 	}
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  []byte{0x04, 0x00}, // Hold Timer Expired
 		MessageID: 1,
@@ -515,9 +515,9 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 	}
 
 	// Request JSON encoding with parsed format
-	content := ContentConfig{
-		Encoding: EncodingJSON, // Requested JSON...
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON, // Requested JSON...
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -534,20 +534,20 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 // VALIDATES: Zero message.id is not included in output.
 // PREVENTS: Cluttering output with meaningless id:0.
 func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65002,
 	}
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
 		MessageID: 0,                              // No msg-id
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -591,7 +591,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -607,7 +607,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -615,9 +615,9 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -654,7 +654,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 // VALIDATES: ze-bgp JSON withdrawals use action: del with no next-hop.
 // PREVENTS: Withdraw still using old nested format.
 func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -667,7 +667,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, testEncodingContext())
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -675,9 +675,9 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -713,7 +713,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -730,7 +730,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -738,9 +738,9 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -782,7 +782,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -797,7 +797,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -805,9 +805,9 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -852,7 +852,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	// Create encoding context with ADD-PATH for IPv4 unicast
 	ctxID := testEncodingContextWithAddPath()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -868,7 +868,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -876,9 +876,9 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -1042,7 +1042,7 @@ func testEncodingContextWithAddPath() bgpctx.ContextID {
 func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -1061,7 +1061,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1069,9 +1069,9 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -1595,14 +1595,14 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 func TestJSONEncoderNegotiated(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
 		PeerAS:       65001,
 		LocalAS:      65000,
 	}
 
-	neg := format.DecodedNegotiated{
+	neg := DecodedNegotiated{
 		MessageSize:    4096,
 		HoldTime:       90,
 		ASN4:           true,
@@ -1658,9 +1658,9 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
-	peer := PeerInfo{Address: netip.MustParseAddr("10.0.0.1")}
+	peer := plugin.PeerInfo{Address: netip.MustParseAddr("10.0.0.1")}
 
-	neg := format.DecodedNegotiated{
+	neg := DecodedNegotiated{
 		MessageSize:  4096,
 		HoldTime:     180,
 		ASN4:         false,
@@ -1709,7 +1709,7 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 func TestEventJSONHasTopLevelType(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -1725,7 +1725,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1734,9 +1734,9 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		MessageID:  123,
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -1765,7 +1765,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 func TestEventJSONBgpTypeField(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -1813,7 +1813,7 @@ func TestEventJSONBgpTypeField(t *testing.T) {
 func TestEventJSONMessageMetadata(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -1827,7 +1827,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1836,9 +1836,9 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		MessageID:  456,
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -1865,7 +1865,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 func TestEventJSONPeerObject(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
 		LocalAddress: netip.MustParseAddr("192.168.1.1"),
 		LocalAS:      65001,
@@ -1895,7 +1895,7 @@ func TestEventJSONPeerObject(t *testing.T) {
 func TestEventJSONNestedStructure(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -1909,7 +1909,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1917,9 +1917,9 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	output := FormatMessage(peer, msg, content, "")
@@ -1965,7 +1965,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 func TestEventJSONRawSection(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -1979,7 +1979,7 @@ func TestEventJSONRawSection(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1987,9 +1987,9 @@ func TestEventJSONRawSection(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatFull, // Request raw bytes
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatFull, // Request raw bytes
 	}
 
 	output := FormatMessage(peer, msg, content, "")

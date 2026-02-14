@@ -1,4 +1,4 @@
-package plugin
+package format
 
 import (
 	"encoding/binary"
@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
@@ -24,7 +24,7 @@ var testEncCtx = bgpctx.EncodingContextForASN4(true)
 //
 // PREVENTS: State events not being delivered to processes.
 func TestFormatStateChange(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -38,26 +38,26 @@ func TestFormatStateChange(t *testing.T) {
 		{
 			name:     "text established",
 			state:    "established",
-			encoding: EncodingText,
+			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 asn 65001 state established\n",
 		},
 		{
 			name:     "text down",
 			state:    "down",
-			encoding: EncodingText,
+			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 asn 65001 state down\n",
 		},
 		{
 			name:     "json established",
 			state:    "established",
-			encoding: EncodingJSON,
+			encoding: plugin.EncodingJSON,
 			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
 			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down",
 			state:    "down",
-			encoding: EncodingJSON,
+			encoding: plugin.EncodingJSON,
 			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
 			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
 		},
@@ -81,7 +81,7 @@ func TestFormatStateChange(t *testing.T) {
 func TestFormatMessageText(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -100,7 +100,7 @@ func TestFormatMessageText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
 	}
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -108,9 +108,9 @@ func TestFormatMessageText(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingText,
+		Format:   plugin.FormatParsed,
 	}
 
 	got := FormatMessage(peer, msg, content, "")
@@ -144,7 +144,7 @@ func TestFormatMessageText(t *testing.T) {
 func TestFormatMessageJSON(t *testing.T) {
 	ctxID := testEncodingContext()
 
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -161,7 +161,7 @@ func TestFormatMessageJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
 	}
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -169,9 +169,9 @@ func TestFormatMessageJSON(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingJSON,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
 	}
 
 	got := FormatMessage(peer, msg, content, "")
@@ -282,7 +282,7 @@ func buildTestUpdateBodyWithAttrs(prefix netip.Prefix, nextHop netip.Addr, origi
 // VALIDATES: OPEN messages are formatted via FormatOpen.
 // PREVENTS: API processes receiving raw hex instead of parsed content.
 func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -296,15 +296,15 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		0, // opt params len
 	}
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:      message.TypeOPEN,
 		RawBytes:  openBody,
 		Direction: "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingText,
+		Format:   plugin.FormatParsed,
 	}
 
 	got := FormatMessage(peer, msg, content, "")
@@ -326,20 +326,20 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 // VALIDATES: KEEPALIVE produces expected format.
 // PREVENTS: KEEPALIVE being shown as raw hex.
 func TestFormatNonUpdateKeepalive(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
 
-	msg := RawMessage{
+	msg := plugin.RawMessage{
 		Type:      message.TypeKEEPALIVE,
 		RawBytes:  []byte{}, // KEEPALIVE has no body
 		Direction: "received",
 	}
 
-	content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
+	content := plugin.ContentConfig{
+		Encoding: plugin.EncodingText,
+		Format:   plugin.FormatParsed,
 	}
 
 	got := FormatMessage(peer, msg, content, "")
@@ -610,12 +610,12 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 // VALIDATES: FormatOpen uses direction parameter ("sent"/"received").
 // PREVENTS: API output missing direction indicator.
 func TestFormatOpenWithDirection(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
 
-	open := format.DecodedOpen{
+	open := DecodedOpen{
 		ASN:      65001,
 		RouterID: "1.1.1.1",
 		HoldTime: 90,
@@ -653,7 +653,7 @@ func TestFormatOpenWithDirection(t *testing.T) {
 // VALIDATES: FormatKeepalive uses direction parameter ("sent"/"received").
 // PREVENTS: API output missing direction indicator.
 func TestFormatKeepaliveWithDirection(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
@@ -690,12 +690,12 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 // VALIDATES: FormatNotification uses direction parameter ("sent"/"received").
 // PREVENTS: API output missing direction indicator.
 func TestFormatNotificationWithDirection(t *testing.T) {
-	peer := PeerInfo{
+	peer := plugin.PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
 	}
 
-	notify := format.DecodedNotification{
+	notify := DecodedNotification{
 		ErrorCode:        6,
 		ErrorSubcode:     2,
 		Data:             nil,

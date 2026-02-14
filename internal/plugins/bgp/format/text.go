@@ -1,4 +1,4 @@
-package plugin
+package format
 
 import (
 	"encoding/hex"
@@ -6,27 +6,21 @@ import (
 	"net/netip"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
-)
-
-// Encoding constants for process output formatting.
-const (
-	EncodingJSON = "json"
-	EncodingText = "text"
 )
 
 // FormatMessage formats a RawMessage based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
 // If overrideDir is non-empty, it overrides msg.Direction for formatting.
-func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrideDir string) string {
+func FormatMessage(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, overrideDir string) string {
 	content = content.WithDefaults()
 
 	// Compute effective direction
@@ -73,8 +67,8 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrid
 
 // formatEmptyUpdate formats an empty UPDATE message.
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
-func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
-	if content.Encoding == EncodingJSON {
+func formatEmptyUpdate(peer plugin.PeerInfo, content plugin.ContentConfig) string {
+	if content.Encoding == plugin.EncodingJSON {
 		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"address":"%s","asn":%d},"nlri":{}}}`+"\n",
 			peer.Address, peer.PeerAS)
 	}
@@ -88,15 +82,15 @@ func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 // For RAW format, it respects Encoding (JSON or text with raw hex).
 // For structured JSON output of non-UPDATE messages, use Server.formatMessage()
 // which has access to the shared JSONEncoder with proper counter semantics.
-func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
+func formatNonUpdate(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, direction string) string {
 	// For parsed format, use dedicated text formatters
-	if content.Format != FormatRaw {
+	if content.Format != plugin.FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
-			decoded := format.DecodeOpen(msg.RawBytes)
+			decoded := DecodeOpen(msg.RawBytes)
 			return FormatOpen(peer, decoded, direction, msg.MessageID)
 		case message.TypeNOTIFICATION:
-			decoded := format.DecodeNotification(msg.RawBytes)
+			decoded := DecodeNotification(msg.RawBytes)
 			return FormatNotification(peer, decoded, direction, msg.MessageID)
 		case message.TypeKEEPALIVE:
 			return FormatKeepalive(peer, direction, msg.MessageID)
@@ -106,7 +100,7 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 	// Raw format or unknown type
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 
-	if content.Encoding == EncodingJSON {
+	if content.Encoding == plugin.EncodingJSON {
 		// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"..."},...}}
 		msgType := strings.ToLower(msg.Type.String())
 		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"%s"},"peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}`+"\n",
@@ -119,22 +113,22 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direc
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFromFilterResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
-	case FormatRaw:
+	case plugin.FormatRaw:
 		return formatRawFromResult(peer, msg, content, direction)
-	case FormatFull:
+	case plugin.FormatFull:
 		return formatFullFromResult(peer, msg, content, result, ctx, direction)
-	default: // FormatParsed
-		return formatParsedFromResult(peer, msg, content, result, ctx, direction)
 	}
+	// FormatParsed (the common case)
+	return formatParsedFromResult(peer, msg, content, result, ctx, direction)
 }
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
-func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
+func formatRawFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
-	if content.Encoding == EncodingJSON {
+	if content.Encoding == plugin.EncodingJSON {
 		var msgFields string
 		if direction != "" {
 			msgFields = fmt.Sprintf(`,"direction":"%s"`, direction)
@@ -147,8 +141,8 @@ func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, d
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 // ctx provides ADD-PATH state per family.
-func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
-	if content.Encoding == EncodingJSON {
+func formatParsedFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+	if content.Encoding == plugin.EncodingJSON {
 		return formatFilterResultJSON(peer, result, msg.MessageID, direction, ctx)
 	}
 	return formatFilterResultText(peer, result, msg.MessageID, direction, ctx)
@@ -157,11 +151,11 @@ func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig
 // formatFullFromResult formats both parsed content AND raw hex (ze-bgp JSON).
 // ctx provides ADD-PATH state per family.
 // Includes raw bytes nested under "raw" object: attributes, nlri, withdrawn.
-func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFullFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
-	if content.Encoding == EncodingJSON {
+	if content.Encoding == plugin.EncodingJSON {
 		// Build raw object for pool-based storage
 		var rawObj strings.Builder
 		rawObj.WriteString(`"raw":{`)
@@ -262,7 +256,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 //	    }
 //	  }
 //	}
-func formatFilterResultJSON(peer PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// ze-bgp JSON outer wrapper
@@ -446,22 +440,26 @@ func writeJSONEscapedString(sb *strings.Builder, s string) {
 		switch r {
 		case '\\':
 			sb.WriteString(`\\`)
+			continue
 		case '"':
 			sb.WriteString(`\"`)
+			continue
 		case '\n':
 			sb.WriteString(`\n`)
+			continue
 		case '\r':
 			sb.WriteString(`\r`)
+			continue
 		case '\t':
 			sb.WriteString(`\t`)
-		default:
-			if r < 0x20 {
-				// Control character - use \uXXXX
-				fmt.Fprintf(sb, `\u%04x`, r)
-			} else {
-				sb.WriteRune(r)
-			}
+			continue
 		}
+		if r < 0x20 {
+			// Control character - use \uXXXX
+			fmt.Fprintf(sb, `\u%04x`, r)
+			continue
+		}
+		sb.WriteRune(r)
 	}
 }
 
@@ -482,7 +480,7 @@ func formatAttributesJSON(sb *strings.Builder, result bgpfilter.FilterResult) {
 }
 
 // formatFamilyOpsJSON writes family operations as JSON object entries.
-// Shared by formatFilterResultJSON and formatDecodeUpdateJSON.
+// Shared by formatFilterResultJSON and FormatDecodeUpdateJSON.
 func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOperation) {
 	first := true
 	for family, ops := range familyOps {
@@ -519,8 +517,9 @@ func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOpera
 }
 
 // formatAttributeJSON formats a single attribute for JSON.
+// Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
 func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
-	switch code { //nolint:exhaustive // default handles unknown codes as attr-N
+	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		if o, ok := attr.(*attribute.Origin); ok {
 			sb.WriteString(`"origin":"`)
@@ -531,6 +530,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 			sb.WriteString(strings.ToLower(o.String()))
 			sb.WriteString(`"`)
 		}
+		return
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
 			sb.WriteString(`"as-path":[`)
@@ -546,18 +546,21 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
+		return
 	case attribute.AttrMED:
 		if m, ok := attr.(*attribute.MED); ok {
 			fmt.Fprintf(sb, `"med":%d`, uint32(*m))
 		} else if m, ok := attr.(attribute.MED); ok {
 			fmt.Fprintf(sb, `"med":%d`, uint32(m))
 		}
+		return
 	case attribute.AttrLocalPref:
 		if lp, ok := attr.(*attribute.LocalPref); ok {
 			fmt.Fprintf(sb, `"local-preference":%d`, uint32(*lp))
 		} else if lp, ok := attr.(attribute.LocalPref); ok {
 			fmt.Fprintf(sb, `"local-preference":%d`, uint32(lp))
 		}
+		return
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
 			sb.WriteString(`"communities":[`)
@@ -571,6 +574,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
+		return
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
 			sb.WriteString(`"large-communities":[`)
@@ -584,6 +588,7 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
+		return
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
 			sb.WriteString(`"extended-communities":[`)
@@ -595,18 +600,18 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
-	default:
-		// Unknown attribute: attr-N as hex
-		attrBuf := make([]byte, attr.Len())
-		attr.WriteTo(attrBuf, 0)
-		fmt.Fprintf(sb, `"attr-%d":"%x"`, code, attrBuf)
+		return
 	}
+	// Unknown attribute code — format as "attr-N": "hex"
+	attrBuf := make([]byte, attr.Len())
+	attr.WriteTo(attrBuf, 0)
+	fmt.Fprintf(sb, `"attr-%d":"%x"`, code, attrBuf)
 }
 
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
-func formatFilterResultText(peer PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
+func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> <direction> update <id>
@@ -671,8 +676,9 @@ func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
 }
 
 // formatAttributeText formats a single attribute for text output.
+// Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
 func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
-	switch code { //nolint:exhaustive // default handles unknown codes as attr-N
+	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		if o, ok := attr.(*attribute.Origin); ok {
 			sb.WriteString("origin ")
@@ -681,6 +687,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 			sb.WriteString("origin ")
 			sb.WriteString(strings.ToLower(o.String()))
 		}
+		return
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
 			sb.WriteString("as-path")
@@ -690,23 +697,27 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 				}
 			}
 		}
+		return
 	case attribute.AttrNextHop:
 		if nh, ok := attr.(*attribute.NextHop); ok {
 			sb.WriteString("next-hop ")
 			sb.WriteString(nh.Addr.String())
 		}
+		return
 	case attribute.AttrMED:
 		if m, ok := attr.(*attribute.MED); ok {
 			fmt.Fprintf(sb, "med %d", uint32(*m))
 		} else if m, ok := attr.(attribute.MED); ok {
 			fmt.Fprintf(sb, "med %d", uint32(m))
 		}
+		return
 	case attribute.AttrLocalPref:
 		if lp, ok := attr.(*attribute.LocalPref); ok {
 			fmt.Fprintf(sb, "local-preference %d", uint32(*lp))
 		} else if lp, ok := attr.(attribute.LocalPref); ok {
 			fmt.Fprintf(sb, "local-preference %d", uint32(lp))
 		}
+		return
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
 			sb.WriteString("community [")
@@ -718,6 +729,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
+		return
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
 			sb.WriteString("large-community [")
@@ -729,6 +741,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
+		return
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
 			sb.WriteString("extended-community [")
@@ -740,19 +753,19 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 			}
 			sb.WriteString("]")
 		}
-	default:
-		// Unknown attribute: attr-N hex
-		attrBuf := make([]byte, attr.Len())
-		attr.WriteTo(attrBuf, 0)
-		fmt.Fprintf(sb, "attr-%d %x", code, attrBuf)
+		return
 	}
+	// Unknown attribute code — format as "attr-N hex"
+	attrBuf := make([]byte, attr.Len())
+	attr.WriteTo(attrBuf, 0)
+	fmt.Fprintf(sb, "attr-%d %x", code, attrBuf)
 }
 
 // FormatOpen formats an OPEN message as text output.
 // Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <code> <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
-func FormatOpen(peer PeerInfo, open format.DecodedOpen, direction string, msgID uint64) string {
+func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("peer %s %s open %d asn %d router-id %s hold-time %d",
 		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime))
@@ -771,7 +784,7 @@ func FormatOpen(peer PeerInfo, open format.DecodedOpen, direction string, msgID 
 // FormatNotification formats a NOTIFICATION message as text output.
 // Format: peer <ip> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
 // Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
-func FormatNotification(peer PeerInfo, notify format.DecodedNotification, direction string, msgID uint64) string {
+func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
@@ -788,14 +801,14 @@ func FormatNotification(peer PeerInfo, notify format.DecodedNotification, direct
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
 // Format: peer <ip> <direction> keepalive <msg-id>.
-func FormatKeepalive(peer PeerInfo, direction string, msgID uint64) string {
+func FormatKeepalive(peer plugin.PeerInfo, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s %s keepalive %d\n", peer.Address, direction, msgID)
 }
 
 // FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 // Format: peer <ip> <direction> <type> <msg-id> family <family>.
-func FormatRouteRefresh(peer PeerInfo, decoded format.DecodedRouteRefresh, direction string, msgID uint64) string {
+func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s %s %s %d family %s\n",
 		peer.Address, direction, decoded.SubtypeName, msgID, decoded.Family)
 }
@@ -803,27 +816,27 @@ func FormatRouteRefresh(peer PeerInfo, decoded format.DecodedRouteRefresh, direc
 // FormatStateChange formats a peer state change event.
 // State events are separate from BGP protocol messages.
 // Common states: "up", "down", "connected", "established".
-func FormatStateChange(peer PeerInfo, state string, encoding string) string {
-	if encoding == EncodingJSON {
+func FormatStateChange(peer plugin.PeerInfo, state string, encoding string) string {
+	if encoding == plugin.EncodingJSON {
 		return formatStateChangeJSON(peer, state)
 	}
 	return formatStateChangeText(peer, state)
 }
 
-func formatStateChangeJSON(peer PeerInfo, state string) string {
+func formatStateChangeJSON(peer plugin.PeerInfo, state string) string {
 	// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}
 	// State is a simple string value at bgp level
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
 		peer.Address, peer.PeerAS, state)
 }
 
-func formatStateChangeText(peer PeerInfo, state string) string {
+func formatStateChangeText(peer plugin.PeerInfo, state string) string {
 	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
 }
 
 // FormatNegotiated formats negotiated capabilities event.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
-func FormatNegotiated(peer PeerInfo, neg format.DecodedNegotiated, encoder *JSONEncoder) string {
+func FormatNegotiated(peer plugin.PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {
 	// Always use JSON for negotiated - too complex for text format
 	return encoder.Negotiated(peer, neg)
 }
@@ -831,14 +844,14 @@ func FormatNegotiated(peer PeerInfo, neg format.DecodedNegotiated, encoder *JSON
 // FormatSentMessage formats a sent UPDATE message.
 // Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
 // For text format, uses "sent update" instead of "received update".
-func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+func FormatSentMessage(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig) string {
 	// Format with direction override (no mutation of msg)
 	output := FormatMessage(peer, msg, content, "sent")
 
 	// Replace type indicator for JSON (text format uses direction field)
 	// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}
 	// We want to change "type":"update" to "type":"sent"
-	if content.Encoding == EncodingJSON {
+	if content.Encoding == plugin.EncodingJSON {
 		// Change message type from update to sent
 		output = strings.Replace(output, `"message":{"type":"update"`, `"message":{"type":"sent"`, 1)
 	}

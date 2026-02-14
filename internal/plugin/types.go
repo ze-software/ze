@@ -8,12 +8,47 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"time"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
+
+// Encoding constants for process output formatting.
+const (
+	EncodingJSON = "json"
+	EncodingText = "text"
+)
+
+// BGPHooks contains optional callbacks for BGP-specific behavior.
+// When provided via ServerConfig, the Server delegates BGP event dispatch,
+// message formatting, and codec RPCs through these hooks.
+// This allows BGP-specific logic to live outside the generic plugin infrastructure.
+type BGPHooks struct {
+	// OnMessageReceived handles BGP message delivery to subscribed plugins.
+	OnMessageReceived func(s *Server, peer PeerInfo, msg RawMessage)
+
+	// OnPeerStateChange handles peer state change delivery to subscribed plugins.
+	OnPeerStateChange func(s *Server, peer PeerInfo, state string)
+
+	// OnPeerNegotiated handles negotiated capabilities delivery to subscribed plugins.
+	// neg is format.DecodedNegotiated (typed as any to avoid BGP format imports).
+	OnPeerNegotiated func(s *Server, peer PeerInfo, neg any)
+
+	// OnMessageSent handles sent message delivery to subscribed plugins.
+	OnMessageSent func(s *Server, peer PeerInfo, msg RawMessage)
+
+	// BroadcastValidateOpen validates OPEN messages via plugins.
+	// local and remote are *message.Open (typed as any to avoid BGP message imports).
+	BroadcastValidateOpen func(s *Server, peerAddr string, local, remote any) error
+
+	// CodecRPCHandler returns a codec function for the given RPC method name.
+	// Returns nil if the method is not a BGP codec RPC.
+	// The returned function handles param unmarshaling and codec logic.
+	CodecRPCHandler func(method string) func(json.RawMessage) (any, error)
+}
 
 // PeerInfo is a snapshot of peer state for API output.
 type PeerInfo struct {
@@ -227,6 +262,7 @@ type ServerConfig struct {
 	Plugins            []PluginConfig             // External plugins to spawn
 	ConfiguredFamilies []string                   // Families configured on peers (for deferred auto-load)
 	RPCProviders       []func() []RPCRegistration // Additional RPC sources (e.g., BGP handler RPCs)
+	BGPHooks           *BGPHooks                  // Optional BGP-specific hooks (nil for generic server)
 }
 
 // Format constants for process output formatting.
