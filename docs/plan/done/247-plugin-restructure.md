@@ -487,7 +487,7 @@ The follow-up spec `spec-reactor-interface-split.md` addresses this by:
 - mockReactor extracted to dedicated test file for portability across packages
 
 ### Documentation Updates
-- None yet — awaiting completion of remaining phases
+- Spec audit updated with verified remaining work (7/28 files with BGP imports, 21/28 fully generic)
 
 ### Deviations from Plan
 - Phase 4 scoped to 3 sub-packages (wireu, format, route) rather than all 8 planned. The remaining 5 have heavier dependencies on `internal/plugin/` types and will benefit from Phase 5's interface split first.
@@ -517,8 +517,8 @@ The follow-up spec `spec-reactor-interface-split.md` addresses this by:
 | Extract BGP from server.go | ✅ Done | `server_bgp.go` | server.go has zero BGP imports |
 | Delete errors.go | ✅ Done | | Errors moved during reactor split |
 | Move commit_manager.go to commit/ | ✅ Done | `internal/plugins/bgp/commit/` | Zero plugin deps, clean move |
-| Move remaining BGP flat files | ⚠️ Blocked | | update/, text.go, json.go — all need API types extraction |
-| internal/plugin/ becomes generic-only | ⚠️ Blocked | | Remaining 8 BGP files depend on PeerInfo/RawMessage/ContentConfig/CommandContext |
+| Move remaining BGP flat files | ⚠️ Partial | | update_text.go, update_wire.go, route_watchdog.go moved to handler/ (spec 246). Remaining: text.go (7 BGP imports), json.go (2). nexthop.go already removed |
+| internal/plugin/ becomes generic-only | ⚠️ Partial | | 7 of 28 non-test files still import from `internal/plugins/bgp/`. See Remaining Work below |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -545,17 +545,35 @@ The follow-up spec `spec-reactor-interface-split.md` addresses this by:
 | internal/plugin/mock_reactor_test.go created | ✅ Done | Shared test fixture |
 | internal/plugin/types.go RPCProviders | ✅ Done | ServerConfig field added |
 | internal/plugin/server.go provider loop | ✅ Done | Registration logic in NewServer |
-| Remaining BGP sub-packages | ⚠️ Partial | update/, handler/ (deferred), validate/ pending |
-| Mixed files split | | Phase 5 core |
+| Remaining BGP sub-packages | ⚠️ Partial | handler/ done (spec 244+246), update/ done (spec 246). validate/ not created. text.go/json.go not moved to format/ |
+| Mixed files split | ⚠️ Partial | server_bgp.go extracted, handlers moved. Remaining in plugin/: text.go, json.go, validate_open.go, server_bgp.go (Server methods), nexthop.go |
 
 ### Audit Summary
 - **Total items:** 24
-- **Done:** 19 (Phases 1-3 complete, Phase 4 partial, Phase 5 prerequisites done)
-- **Partial:** 2 (remaining flat files + handler move deferred)
-- **Deferred:** 1 (handler/ file move — needs ReactorInterface split first)
+- **Done:** 20 (Phases 1-3 complete, Phase 4 mostly done via spec 244+246, Phase 5 server split done)
+- **Partial:** 4 (see Remaining Work below)
 - **Skipped:** 0
 - **Changed:** 0
-- **Not started:** 2 (Phase 5 server split, generic-only goal)
+
+### Remaining Work
+
+7 of 28 non-test `.go` files in `internal/plugin/` still import from `internal/plugins/bgp/`:
+
+| File | BGP Imports | Category | Blocker |
+|------|-------------|----------|---------|
+| `text.go` | 7 (attribute, context, filter, format, message, nlri, wireu) | Pure BGP formatting | Circular: text.go uses plugin types (PeerInfo, RawMessage), server_bgp.go calls Format*() |
+| `server_bgp.go` | 6 (context, filter, format, message, nlri, wireu) | Pure BGP server methods | Server method set — move requires BGP server wrapper or callback hooks |
+| `json.go` | 2 (format, bgptypes) | BGP JSON formatting | Circular: JSONEncoder uses PeerInfo from plugin, stored in Server |
+| `command.go` | 2 (commit, bgptypes) | Structural | Thin coupling via CommitManager + RequireBGPReactor — acceptable as-is |
+| `validate_open.go` | 1 (message) | Pure BGP validation | Server method, circular: `plugin → bgp/validate → plugin` |
+| `server.go` | 1 (commit) | Structural | Just CommitManager accessor — acceptable as-is |
+| `types.go` | 1 (bgptypes) | Structural | Type aliases + interface composition — acceptable as-is |
+
+**Movable** (follow-up spec: `spec-plugin-bgp-format-extraction.md`): `text.go`, `json.go`, `server_bgp.go`, `validate_open.go` — all pure BGP, but share a circular import blocker via PeerInfo/RawMessage/ContentConfig types
+
+**Structural** (acceptable as-is): `command.go`, `server.go`, `types.go` — thin coupling via interfaces and type aliases, not concrete BGP wire code
+
+**21 of 28 files are fully generic** with zero BGP imports: events.go, handler.go, hub.go, inprocess.go, pending.go, plugin.go, process.go, registration.go, registry.go, reload.go, resolve.go, rib_handler.go, rpc_plugin.go, schema.go, session.go, socketpair.go, startup_coordinator.go, subscribe.go, subsystem.go, system.go, validator.go
 
 ## Checklist
 
