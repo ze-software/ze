@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -240,7 +241,7 @@ func TestCommandContextNilServer(t *testing.T) {
 func TestCommandContextAccessors(t *testing.T) {
 	reactor := &mockReactor{}
 	dispatcher := NewDispatcher()
-	cm := NewCommitManager()
+	cm := commit.NewCommitManager()
 	subs := NewSubscriptionManager()
 
 	srv := &Server{

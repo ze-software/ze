@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
@@ -122,7 +123,7 @@ func (c *CommandContext) Dispatcher() *Dispatcher {
 }
 
 // CommitManager returns the commit manager via Server. Nil-safe: returns nil if Server is nil.
-func (c *CommandContext) CommitManager() *CommitManager {
+func (c *CommandContext) CommitManager() *commit.CommitManager {
 	if c.Server == nil {
 		return nil
 	}

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -172,7 +173,7 @@ type Server struct {
 	dispatcher    *Dispatcher
 	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
 	encoder       *JSONEncoder
-	commitManager *CommitManager
+	commitManager *commit.CommitManager
 	procManager   *ProcessManager
 	subscriptions *SubscriptionManager // API-driven event subscriptions
 
@@ -215,7 +216,7 @@ func NewServer(config *ServerConfig, reactor ReactorLifecycle) *Server {
 		dispatcher:    NewDispatcher(),
 		rpcDispatcher: ipc.NewRPCDispatcher(),
 		encoder:       NewJSONEncoder("6.0.0"),
-		commitManager: NewCommitManager(),
+		commitManager: commit.NewCommitManager(),
 		subscriptions: NewSubscriptionManager(),
 		registry:      NewPluginRegistry(),
 		capInjector:   NewCapabilityInjector(),
@@ -262,7 +263,7 @@ func (s *Server) Dispatcher() *Dispatcher {
 }
 
 // CommitManager returns the commit manager.
-func (s *Server) CommitManager() *CommitManager {
+func (s *Server) CommitManager() *commit.CommitManager {
 	return s.commitManager
 }
 

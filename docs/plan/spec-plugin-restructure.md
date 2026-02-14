@@ -512,10 +512,13 @@ The follow-up spec `spec-reactor-interface-split.md` addresses this by:
 | RPCProviders injection mechanism | ✅ Done | `internal/plugin/types.go`, `server.go` | Task #8: plumbing ready, not activated |
 | Move BGP event constants | ✅ Done | `internal/plugin/events.go` | Task #9 |
 | Extract mockReactor to own file | ✅ Done | `internal/plugin/mock_reactor_test.go` | Task #7 prerequisite |
-| Move handler files to handler/ | ⚠️ Deferred | | 245+ type refs, circular import constraints, needs ReactorInterface split |
-| Move remaining BGP flat files | ⚠️ Partial | | update/, validate/ remain |
-| Split server.go into generic + BGP | | | Phase 5 core |
-| internal/plugin/ becomes generic-only | | | Depends on Phases 4+5 |
+| Move handler files to handler/ | ✅ Done | `internal/plugins/bgp/handler/` | Completed in spec-reactor-interface-split (443fe2c) |
+| Split ReactorInterface | ✅ Done | `types.go` + `bgp/types/reactor.go` | ReactorLifecycle (16) + BGPReactor (52) |
+| Extract BGP from server.go | ✅ Done | `server_bgp.go` | server.go has zero BGP imports |
+| Delete errors.go | ✅ Done | | Errors moved during reactor split |
+| Move commit_manager.go to commit/ | ✅ Done | `internal/plugins/bgp/commit/` | Zero plugin deps, clean move |
+| Move remaining BGP flat files | ⚠️ Blocked | | update/, text.go, json.go — all need API types extraction |
+| internal/plugin/ becomes generic-only | ⚠️ Blocked | | Remaining 8 BGP files depend on PeerInfo/RawMessage/ContentConfig/CommandContext |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
