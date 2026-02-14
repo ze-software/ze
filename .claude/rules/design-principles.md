@@ -239,3 +239,7 @@ Ask:
 - Would they know what tests to add?
 
 If not, simplify until the answer is yes.
+
+## The 3-Fix Rule
+
+If 3 fix attempts for the same problem have failed, **STOP.** Do not attempt fix #4 without discussing fundamentals with the user. Three failures suggest a wrong mental model — more attempts in the same direction waste time. See `rules/anti-rationalization.md` for the full escalation procedure.

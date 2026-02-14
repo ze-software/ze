@@ -46,3 +46,7 @@ If there are many lint issues:
 - If `appendCombine` suggests combining appends: combine them
 
 No exceptions. Do the work.
+
+## Anti-Rationalization
+
+See `rules/anti-rationalization.md` for pre-addressed excuses covering TDD, test failures, completion claims, and review responses. If you catch yourself thinking any phrase from those tables, **STOP** — the answer is already "no."
