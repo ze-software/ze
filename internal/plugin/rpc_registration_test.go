@@ -18,7 +18,7 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 	// Verify count matches expected (BGP handler RPCs moved to handler/ package,
 	// injected via RPCProviders — not counted here)
-	assert.Len(t, rpcs, 32, "expected 32 builtin RPCs (update test if changed)")
+	assert.Len(t, rpcs, 28, "expected 28 builtin RPCs (4 RIB data handlers moved to plugin)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -63,7 +63,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	// Verify per-module counts
 	assert.Len(t, bgp, 5, "BGP plugin RPCs (handlers moved to handler/ package)")
 	assert.Len(t, system, 10, "System RPCs")
-	assert.Len(t, rib, 9, "RIB RPCs")
+	assert.Len(t, rib, 5, "RIB RPCs (data handlers moved to plugin)")
 	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
 
 	// Verify BGP RPCs all have ze-bgp: prefix
@@ -118,8 +118,8 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		"ze-bgp:unsubscribe",
 		"ze-system:help",
 		"ze-system:command-list",
-		"ze-rib:show-in",
-		"ze-rib:clear-in",
+		"ze-rib:help",
+		"ze-rib:event-list",
 		"ze-plugin:session-ready",
 		"ze-plugin:session-bye",
 	}
@@ -147,6 +147,6 @@ func TestRPCRegistrationLoadDispatcher(t *testing.T) {
 	// Verify specific methods are registered (peer-list moved to handler/ RPCProviders)
 	assert.True(t, dispatcher.HasMethod("ze-bgp:subscribe"))
 	assert.True(t, dispatcher.HasMethod("ze-system:help"))
-	assert.True(t, dispatcher.HasMethod("ze-rib:show-in"))
+	assert.True(t, dispatcher.HasMethod("ze-rib:help"))
 	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))
 }

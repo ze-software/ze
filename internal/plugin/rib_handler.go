@@ -6,6 +6,8 @@ import (
 )
 
 // ribRPCs returns all RPCs for the ze-rib module.
+// Data commands (show/clear in/out) are handled by the RIB plugin, not engine builtins.
+// Only meta-commands that need Dispatcher access remain here.
 func ribRPCs() []RPCRegistration {
 	return []RPCRegistration{
 		{"ze-rib:help", "rib help", handleRibHelp, "Show RIB subcommands"},
@@ -13,23 +15,17 @@ func ribRPCs() []RPCRegistration {
 		{"ze-rib:command-help", "rib command help", handleRibCommandHelp, "Show RIB command details"},
 		{"ze-rib:command-complete", "rib command complete", handleRibCommandComplete, "Complete RIB command/args"},
 		{"ze-rib:event-list", "rib event list", handleRibEventList, "List RIB event types"},
-		{"ze-rib:show-in", "rib show in", handleRIBShowIn, "Show Adj-RIB-In"},
-		{"ze-rib:clear-in", "rib clear in", handleRIBClearIn, "Clear Adj-RIB-In"},
-		{"ze-rib:show-out", "rib show out", handleRIBShowOut, "Show Adj-RIB-Out"},
-		{"ze-rib:clear-out", "rib clear out", handleRIBClearOut, "Clear Adj-RIB-Out"},
 	}
 }
 
 // handleRibHelp returns list of RIB subcommands.
 func handleRibHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	subcommands := []string{
-		"clear",
 		"command",
 		"event",
-		"show",
 	}
 
-	// Add plugin-provided subcommands (e.g., "adjacent" from RIB plugin)
+	// Add plugin-provided subcommands (e.g., "show", "clear", "adjacent" from RIB plugin)
 	if ctx.Dispatcher() != nil {
 		seen := make(map[string]bool)
 		for _, sub := range subcommands {
@@ -178,63 +174,4 @@ func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
 			"events": events,
 		},
 	}, nil
-}
-
-// handleRIBShowIn returns Adj-RIB-In contents.
-func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
-	r, errResp, err := RequireBGPReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-	// Optional peer filter
-	peerID := ""
-	if len(args) > 0 {
-		peerID = args[0]
-	}
-
-	routes := r.RIBInRoutes(peerID)
-	stats := r.RIBStats()
-
-	return &Response{
-		Status: StatusDone,
-		Data: map[string]any{
-			"routes":      routes,
-			"route_count": len(routes),
-			"peer_count":  stats.InPeerCount,
-		},
-	}, nil
-}
-
-// handleRIBClearIn clears all routes from Adj-RIB-In.
-func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
-	r, errResp, err := RequireBGPReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-	count := r.ClearRIBIn()
-
-	return &Response{
-		Status: StatusDone,
-		Data: map[string]any{
-			"routes_cleared": count,
-		},
-	}, nil
-}
-
-// handleRIBShowOut returns Adj-RIB-Out contents.
-// Stub: Adj-RIB-Out is maintained by RIB plugins, not the engine.
-func handleRIBShowOut(_ *CommandContext, _ []string) (*Response, error) {
-	return &Response{
-		Status: StatusError,
-		Data:   "not yet implemented: rib show out requires a RIB plugin",
-	}, fmt.Errorf("not yet implemented")
-}
-
-// handleRIBClearOut clears all routes from Adj-RIB-Out.
-// Stub: Adj-RIB-Out is maintained by RIB plugins, not the engine.
-func handleRIBClearOut(_ *CommandContext, _ []string) (*Response, error) {
-	return &Response{
-		Status: StatusError,
-		Data:   "not yet implemented: rib clear out requires a RIB plugin",
-	}, fmt.Errorf("not yet implemented")
 }

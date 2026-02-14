@@ -136,6 +136,13 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
+			// Short names (primary — match engine API style)
+			{Name: "rib status"},
+			{Name: "rib show in"},
+			{Name: "rib clear in"},
+			{Name: "rib show out"},
+			{Name: "rib clear out"},
+			// Long names (RFC 4271 Adj-RIB terminology)
 			{Name: "rib adjacent status"},
 			{Name: "rib adjacent inbound show"},
 			{Name: "rib adjacent inbound empty"},
@@ -772,17 +779,18 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
+// Supports both short names (rib show in) and legacy names (rib adjacent inbound show).
 func (r *RIBManager) handleCommand(command, selector string) (string, string, error) {
 	switch command {
-	case "rib adjacent status":
+	case "rib status", "rib adjacent status":
 		return statusDone, r.statusJSON(), nil
-	case "rib adjacent inbound show":
+	case "rib show in", "rib adjacent inbound show":
 		return statusDone, r.inboundShowJSON(selector), nil
-	case "rib adjacent inbound empty":
+	case "rib clear in", "rib adjacent inbound empty":
 		return statusDone, r.inboundEmptyJSON(selector), nil
-	case "rib adjacent outbound show":
+	case "rib show out", "rib adjacent outbound show":
 		return statusDone, r.outboundShowJSON(selector), nil
-	case "rib adjacent outbound resend":
+	case "rib clear out", "rib adjacent outbound resend":
 		return statusDone, r.outboundResendJSON(selector), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)

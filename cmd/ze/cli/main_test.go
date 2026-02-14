@@ -565,22 +565,20 @@ func TestCommandTree(t *testing.T) {
 		t.Error("peer missing show subcommand")
 	}
 
-	// Check rib hierarchy
+	// Check rib hierarchy (meta-commands only — data commands moved to plugin)
 	rib := tree.Children["rib"]
 	if rib == nil {
 		t.Fatal("rib command missing")
 		return
 	}
-	ribShow := rib.Children["show"]
-	if ribShow == nil {
-		t.Fatal("rib show command missing")
-		return
+	if _, ok := rib.Children["help"]; !ok {
+		t.Error("rib missing 'help' subcommand")
 	}
-	if _, ok := ribShow.Children["in"]; !ok {
-		t.Error("rib show missing 'in' subcommand")
+	if _, ok := rib.Children["command"]; !ok {
+		t.Error("rib missing 'command' subcommand")
 	}
-	if _, ok := ribShow.Children["out"]; !ok {
-		t.Error("rib show missing 'out' subcommand")
+	if _, ok := rib.Children["event"]; !ok {
+		t.Error("rib missing 'event' subcommand")
 	}
 }
 

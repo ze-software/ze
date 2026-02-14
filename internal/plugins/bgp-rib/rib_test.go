@@ -799,6 +799,101 @@ func TestHandleCommand_UnknownCommand(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown command")
 }
 
+// TestRIBPluginHandleCommandShortNames verifies short-name commands dispatch correctly.
+//
+// VALIDATES: handleCommand routes short names (rib show in, etc.) to correct handlers.
+// PREVENTS: Short-name unification failing after builtin removal.
+func TestRIBPluginHandleCommandShortNames(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Populate test data
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(announce)
+	r.peerUp["10.0.0.1"] = true
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.1.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	}
+
+	tests := []struct {
+		name    string
+		command string
+		wantOK  bool
+		wantIn  string // substring expected in data
+	}{
+		{"rib status", "rib status", true, `"running":true`},
+		{"rib show in", "rib show in", true, "10.0.0.1"},
+		{"rib clear in", "rib clear in", true, `"cleared"`},
+		{"rib show out", "rib show out", true, "adj_rib_out"},
+		{"rib clear out", "rib clear out", true, `"resent"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, data, err := r.handleCommand(tt.command, "*")
+			if tt.wantOK {
+				require.NoError(t, err, "command %q should succeed", tt.command)
+				assert.Equal(t, "done", status)
+				assert.Contains(t, data, tt.wantIn, "command %q data", tt.command)
+			} else {
+				require.Error(t, err)
+			}
+		})
+	}
+}
+
+// TestRIBPluginHandleCommandLegacyNames verifies old-style names still work.
+//
+// VALIDATES: handleCommand still routes legacy names (rib adjacent ...) to correct handlers.
+// PREVENTS: Backward compatibility break during command unification.
+func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Populate test data
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(announce)
+	r.peerUp["10.0.0.1"] = true
+
+	// Legacy names must still work
+	tests := []struct {
+		name    string
+		command string
+		wantIn  string
+	}{
+		{"adjacent status", "rib adjacent status", `"running":true`},
+		{"adjacent inbound show", "rib adjacent inbound show", "10.0.0.1"},
+		{"adjacent inbound empty", "rib adjacent inbound empty", `"cleared"`},
+		{"adjacent outbound show", "rib adjacent outbound show", "adj_rib_out"},
+		{"adjacent outbound resend", "rib adjacent outbound resend", `"resent"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			status, data, err := r.handleCommand(tt.command, "*")
+			require.NoError(t, err, "legacy command %q should succeed", tt.command)
+			assert.Equal(t, "done", status)
+			assert.Contains(t, data, tt.wantIn, "legacy command %q data", tt.command)
+		})
+	}
+}
+
 // =============================================================================
 // RFC 7313 - Enhanced Route Refresh Tests
 // =============================================================================
