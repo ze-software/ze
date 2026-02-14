@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -127,9 +128,9 @@ func newCLIClient(socketPath string) (*cliClient, error) {
 		return nil, err
 	}
 
-	// Build command map from all registered RPCs
+	// Build command map from all registered RPCs (builtins + BGP handlers)
 	cmdMap := make(map[string]string)
-	for _, reg := range plugin.AllBuiltinRPCs() {
+	for _, reg := range allCLIRPCs() {
 		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
 	}
 
@@ -313,12 +314,20 @@ func formatNumber(v any) any {
 	return v
 }
 
+// allCLIRPCs returns all RPCs needed for CLI command mapping.
+// Combines builtin RPCs with BGP handler RPCs (moved to handler/ package).
+func allCLIRPCs() []plugin.RPCRegistration {
+	rpcs := plugin.AllBuiltinRPCs()
+	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
+	return rpcs
+}
+
 // buildCommandTree builds the command tree from registered RPCs.
 // Strips the "bgp " prefix for BGP commands to create the user-facing tree.
 func buildCommandTree() *Command {
 	root := &Command{Children: make(map[string]*Command)}
 
-	for _, reg := range plugin.AllBuiltinRPCs() {
+	for _, reg := range allCLIRPCs() {
 		cmd := reg.CLICommand
 
 		// Strip "bgp " prefix for BGP commands (user types "peer list", not "bgp peer list")

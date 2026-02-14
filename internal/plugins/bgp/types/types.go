@@ -7,7 +7,6 @@
 package types
 
 import (
-	"errors"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -32,13 +31,6 @@ const (
 	SAFINameFlowSpec  = "flowspec"
 	SAFINameEVPN      = "evpn"
 	SAFINameMUP       = "mup" // Mobile User Plane (SAFI 85)
-)
-
-// Transaction errors.
-var (
-	ErrAlreadyInTransaction = errors.New("already in transaction")
-	ErrNoTransaction        = errors.New("no transaction in progress")
-	ErrLabelMismatch        = errors.New("transaction label mismatch")
 )
 
 // TransactionResult holds the result of a commit or rollback operation.
@@ -189,4 +181,14 @@ type NLRIBatch struct {
 	NextHop RouteNextHop              // Next-hop policy (announce only)
 	Attrs   *attribute.Builder        // Attribute builder (for new routes)
 	Wire    *attribute.AttributesWire // Wire passthrough (for forwarding)
+}
+
+// RIBStatsInfo holds RIB statistics for Adj-RIB-In and Adj-RIB-Out.
+// Moved from internal/plugin/types.go — this is a BGP-specific type.
+type RIBStatsInfo struct {
+	InPeerCount   int `json:"in_peer_count"`
+	InRouteCount  int `json:"in_route_count"`
+	OutPending    int `json:"out_pending"`
+	OutWithdrawls int `json:"out_withdrawals"`
+	OutSent       int `json:"out_sent"`
 }

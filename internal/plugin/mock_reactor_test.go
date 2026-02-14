@@ -242,19 +242,19 @@ func (m *mockReactor) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error {
 
 // Transaction stubs (base mock doesn't support transactions).
 func (m *mockReactor) BeginTransaction(_, _ string) error {
-	return bgptypes.ErrNoTransaction
+	return rib.ErrNoTransaction
 }
 
 func (m *mockReactor) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
+	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
 }
 
 func (m *mockReactor) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
+	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
 }
 
 func (m *mockReactor) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, bgptypes.ErrNoTransaction
+	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
 }
 
 func (m *mockReactor) InTransaction(_ string) bool {
@@ -347,14 +347,4 @@ func (m *mockReactor) SendBoRR(_ string, _ uint16, _ uint8) error {
 
 func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
 	return nil
-}
-
-// mockReactorRawError embeds mockReactor but returns error from SendRawMessage.
-type mockReactorRawError struct {
-	mockReactor
-	err error
-}
-
-func (m *mockReactorRawError) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
-	return m.err
 }

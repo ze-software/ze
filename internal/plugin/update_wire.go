@@ -297,7 +297,7 @@ func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri
 
 		// Must have a mode before data
 		if mode == "" {
-			return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+			return nlri.Family{}, nil, nil, 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Decode wire data
@@ -324,7 +324,7 @@ func parseWireNLRISection(args []string, decode decodeFunc) (nlri.Family, []nlri
 
 	// Must have at least one NLRI
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, 0, ErrEmptyNLRISection
+		return nlri.Family{}, nil, nil, 0, route.ErrEmptyNLRISection
 	}
 
 	return family, announce, withdraw, consumed, nil

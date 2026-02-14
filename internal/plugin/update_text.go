@@ -229,7 +229,7 @@ func (a *parsedAttrs) validateListOp(other parsedAttrs, scalarErr error) error {
 // applyAdd prepends list attributes from other into a.
 // Returns error if non-list attributes are set in other.
 func (a *parsedAttrs) applyAdd(other parsedAttrs) error {
-	if err := a.validateListOp(other, ErrAddOnScalar); err != nil {
+	if err := a.validateListOp(other, route.ErrAddOnScalar); err != nil {
 		return err
 	}
 	if other.ASPath != nil {
@@ -1056,11 +1056,11 @@ func parseLabelSection(args []string, accum *parsedAttrs) (int, error) {
 func parseAttrSection(args []string) (string, parsedAttrs, int, error) {
 	// args[0] = "attr"
 	if len(args) < 2 {
-		return "", parsedAttrs{}, 0, ErrMissingAttrMode
+		return "", parsedAttrs{}, 0, route.ErrMissingAttrMode
 	}
 	mode := args[1]
 	if mode != kwSet && mode != kwAdd && mode != kwDel {
-		return "", parsedAttrs{}, 0, ErrInvalidAttrMode
+		return "", parsedAttrs{}, 0, route.ErrInvalidAttrMode
 	}
 
 	consumed := 2 // "attr" + mode
@@ -1120,7 +1120,7 @@ func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
 
 	// Validate scalar vs list operations
 	if isScalarAttribute(attrName) && mode == kwAdd {
-		return "", parsedAttrs{}, 0, fmt.Errorf("%s: %w", attrName, ErrAddOnScalar)
+		return "", parsedAttrs{}, 0, fmt.Errorf("%s: %w", attrName, route.ErrAddOnScalar)
 	}
 
 	// AS-PATH supports set/add/del:
@@ -1216,7 +1216,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 	// Check if family is supported (EOR is supported for all families)
 	isEOR := len(args) > 2 && args[2] == kwEOR
 	if !isEOR && !isSupportedFamily(family) {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", ErrFamilyNotSupported, args[1])
+		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", route.ErrFamilyNotSupported, args[1])
 	}
 
 	// RFC 4724: End-of-RIB marker
@@ -1343,7 +1343,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 
 		// Must have a mode before prefixes
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse prefix based on family
@@ -1363,7 +1363,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 
 	// Must have at least one prefix
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
 	}
 
 	return family, announce, withdraw, watchdog, consumed, nil
@@ -1385,10 +1385,10 @@ func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, 
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
 	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 
 	return nlri.NewINET(family, prefix, pathID), 0, nil // 0 extra args consumed
@@ -1423,10 +1423,10 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
 	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 
 	// Require RD for VPN families
@@ -1476,10 +1476,10 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 	// Validate prefix matches family AFI
 	isIPv4 := prefix.Addr().Is4()
 	if isIPv4 && family.AFI != nlri.AFIIPv4 {
-		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv4 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 	if !isIPv4 && family.AFI != nlri.AFIIPv6 {
-		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", ErrFamilyMismatch, family)
+		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", route.ErrFamilyMismatch, family)
 	}
 
 	// Require at least one label for labeled unicast
@@ -1539,7 +1539,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlr
 
 		// Must have a mode before components
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse FlowSpec components for this rule
@@ -1558,7 +1558,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlr
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
 	}
 
 	return family, announce, withdraw, "", consumed, nil
@@ -1711,11 +1711,17 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 		return &Response{Status: StatusError, Data: errMsg}, errors.New(errMsg)
 	}
 
+	// BGP-specific operations: EOR, announce, withdraw
+	bgpReactor, errResp, bgpErr := RequireBGPReactor(ctx)
+	if bgpErr != nil {
+		return errResp, bgpErr
+	}
+
 	// Handle EOR markers (RFC 4724)
 	peerSelector := ctx.PeerSelector()
 	var eorSent int
 	for _, family := range result.EORFamilies {
-		if err := ctx.Reactor().AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
 			return &Response{Status: StatusError, Data: err.Error()}, err
 		}
 		eorSent++
@@ -1755,6 +1761,11 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 // DispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
 func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Response, error) {
+	bgpReactor, errResp, bgpErr := RequireBGPReactor(ctx)
+	if bgpErr != nil {
+		return errResp, bgpErr
+	}
+
 	peerSelector := ctx.PeerSelector()
 	var announced, withdrawn int
 	var warnings []string
@@ -1767,8 +1778,8 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 				NextHop: group.NextHop,
 				Wire:    group.Wire,
 			}
-			if err := ctx.Reactor().AnnounceNLRIBatch(peerSelector, batch); err != nil {
-				if errors.Is(err, ErrNoPeersAcceptedFamily) {
+			if err := bgpReactor.AnnounceNLRIBatch(peerSelector, batch); err != nil {
+				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
@@ -1781,8 +1792,8 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 				Family: group.Family,
 				NLRIs:  group.Withdraw,
 			}
-			if err := ctx.Reactor().WithdrawNLRIBatch(peerSelector, batch); err != nil {
-				if errors.Is(err, ErrNoPeersAcceptedFamily) {
+			if err := bgpReactor.WithdrawNLRIBatch(peerSelector, batch); err != nil {
+				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue
 				}
@@ -1877,7 +1888,7 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		// Must have mode before VPLS fields
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse VPLS-specific fields
@@ -1965,7 +1976,7 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
 	}
 
 	return family, announce, withdraw, "", consumed, nil
@@ -2050,7 +2061,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		// Must have mode before route type and fields
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Route type (after add/del)
@@ -2256,7 +2267,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
 	}
 
 	return family, announce, withdraw, "", consumed, nil

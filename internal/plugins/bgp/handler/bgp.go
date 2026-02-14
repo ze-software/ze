@@ -1,36 +1,36 @@
-package plugin
+package handler
 
 import (
 	"fmt"
 	"net/netip"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
-// handlerBgpRPCs returns BGP RPCs for peer operations.
-// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
-// Daemon lifecycle RPCs (reload, shutdown, status) are in systemRPCs() (system.go).
-func handlerBgpRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:peer-list", "bgp peer list", handleBgpPeerList, "List peer(s) (brief)"},
-		{"ze-bgp:peer-show", "bgp peer show", handleBgpPeerShow, "Show peer(s) details"},
-		{"ze-bgp:peer-teardown", "bgp peer teardown", handleTeardown, "Teardown peer session with cease subcode"},
-		{"ze-bgp:peer-add", "bgp peer add", handleBgpPeerAdd, "Add a peer dynamically"},
-		{"ze-bgp:peer-remove", "bgp peer remove", handleBgpPeerRemove, "Remove a peer dynamically"},
+// PeerOpsRPCs returns BGP RPCs for peer operations.
+func PeerOpsRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)"},
+		{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details"},
+		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode"},
+		{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically"},
+		{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically"},
 	}
 }
 
-// bgpRPCs returns RPC registrations for BGP introspection and plugin config.
-func bgpRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:help", "bgp help", handleBgpHelp, "List bgp subcommands"},
-		{"ze-bgp:command-list", "bgp command list", handleBgpCommandList, "List bgp commands"},
-		{"ze-bgp:command-help", "bgp command help", handleBgpCommandHelp, "Show command details"},
-		{"ze-bgp:command-complete", "bgp command complete", handleBgpCommandComplete, "Complete command/args"},
-		{"ze-bgp:event-list", "bgp event list", handleBgpEventList, "List available BGP event types"},
-		{"ze-bgp:plugin-encoding", "bgp plugin encoding", handleBgpPluginEncoding, "Set event encoding (json|text)"},
-		{"ze-bgp:plugin-format", "bgp plugin format", handleBgpPluginFormat, "Set wire format (hex|base64|parsed|full)"},
-		{"ze-bgp:plugin-ack", "bgp plugin ack", handleBgpPluginAck, "Set ACK timing (sync|async)"},
+// IntrospectionRPCs returns RPC registrations for BGP introspection and plugin config.
+func IntrospectionRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands"},
+		{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands"},
+		{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details"},
+		{WireMethod: "ze-bgp:command-complete", CLICommand: "bgp command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args"},
+		{WireMethod: "ze-bgp:event-list", CLICommand: "bgp event list", Handler: handleBgpEventList, Help: "List available BGP event types"},
+		{WireMethod: "ze-bgp:plugin-encoding", CLICommand: "bgp plugin encoding", Handler: handleBgpPluginEncoding, Help: "Set event encoding (json|text)"},
+		{WireMethod: "ze-bgp:plugin-format", CLICommand: "bgp plugin format", Handler: handleBgpPluginFormat, Help: "Set wire format (hex|base64|parsed|full)"},
+		{WireMethod: "ze-bgp:plugin-ack", CLICommand: "bgp plugin ack", Handler: handleBgpPluginAck, Help: "Set ACK timing (sync|async)"},
 	}
 }
 
@@ -42,9 +42,9 @@ var bgpEventTypes = []string{
 
 // filterPeersBySelector returns peers matching the context's peer selector.
 // If the selector is "*", all peers are returned. Otherwise, filters by IP.
-func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
+func filterPeersBySelector(ctx *plugin.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
-		return nil, &Response{Status: StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
+		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
 	}
 	allPeers := ctx.Reactor().Peers()
 	selector := ctx.PeerSelector()
@@ -55,15 +55,15 @@ func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
 
 	filterIP, err := netip.ParseAddr(selector)
 	if err != nil {
-		return nil, &Response{
-			Status: StatusError,
+		return nil, &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid IP address: %s", selector),
 		}, err
 	}
 
 	for _, p := range allPeers {
 		if p.Address == filterIP {
-			return []PeerInfo{p}, nil, nil
+			return []plugin.PeerInfo{p}, nil, nil
 		}
 	}
 
@@ -73,14 +73,14 @@ func filterPeersBySelector(ctx *CommandContext) ([]PeerInfo, *Response, error) {
 // handleBgpPeerList returns a brief list of peer(s).
 // Used by "bgp peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerList(ctx *CommandContext, _ []string) (*Response, error) {
+func handleBgpPeerList(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peers": peers,
 		},
@@ -90,14 +90,14 @@ func handleBgpPeerList(ctx *CommandContext, _ []string) (*Response, error) {
 // handleBgpPeerShow returns detailed peer information.
 // Used by "bgp peer <selector> show" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
+func handleBgpPeerShow(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peers": peers,
 		},
@@ -107,15 +107,15 @@ func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
 // handleTeardown handles "bgp peer <ip> teardown <subcode>" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
-func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+func handleTeardown(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 
 	if len(args) < 1 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "usage: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("missing cease subcode")
 	}
@@ -123,16 +123,16 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse peer address from context
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "teardown requires specific peer: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
 
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
@@ -140,22 +140,22 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse subcode
 	code, err := parseUint(args[0])
 	if err != nil || code > 255 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid subcode: %s", args[0]),
 		}, fmt.Errorf("invalid subcode: %s", args[0])
 	}
 	subcode := uint8(code)
 
 	if err := ctx.Reactor().TeardownPeer(addr, subcode); err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("teardown failed: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"subcode": subcode,
@@ -189,8 +189,8 @@ func parseUint(s string) (uint64, error) {
 //	router-id <id>      - Optional: router ID (default: reactor's RouterID)
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
-func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+func handleBgpPeerAdd(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -198,83 +198,83 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse peer address from context (extracted by dispatcher)
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "add requires specific peer: bgp peer <ip> add asn <asn>",
 		}, fmt.Errorf("no peer specified")
 	}
 
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
 
 	// Parse options
-	config := DynamicPeerConfig{Address: addr}
+	config := plugin.DynamicPeerConfig{Address: addr}
 
 	for i := 0; i < len(args); i++ {
 		switch strings.ToLower(args[i]) {
 		case "asn":
 			if i+1 >= len(args) {
-				return &Response{Status: StatusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
 			}
 			i++
 			asn, err := parseUint(args[i])
 			if err != nil || asn > 0xFFFFFFFF {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
 			}
 			config.PeerAS = uint32(asn)
 
 		case "local-as":
 			if i+1 >= len(args) {
-				return &Response{Status: StatusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
 			}
 			i++
 			asn, err := parseUint(args[i])
 			if err != nil || asn > 0xFFFFFFFF {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
 			}
 			config.LocalAS = uint32(asn)
 
 		case "local-address":
 			if i+1 >= len(args) {
-				return &Response{Status: StatusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
 			}
 			i++
 			localAddr, err := netip.ParseAddr(args[i])
 			if err != nil {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
 			}
 			config.LocalAddress = localAddr
 
 		case "router-id":
 			if i+1 >= len(args) {
-				return &Response{Status: StatusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
 			}
 			i++
 			rid, err := parseRouterID(args[i])
 			if err != nil {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
 			}
 			config.RouterID = rid
 
 		case "hold-time":
 			if i+1 >= len(args) {
-				return &Response{Status: StatusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
 			}
 			i++
 			seconds, err := parseUint(args[i])
 			if err != nil {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
 			}
 			// RFC 4271: hold time 0 is valid (no keepalives), 3-65535 are valid
 			// Cap at reasonable maximum to prevent overflow (1 day = 86400s)
 			const maxHoldTime = 86400
 			if seconds > maxHoldTime {
-				return &Response{Status: StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
 			}
 			config.HoldTime = time.Duration(seconds) * time.Second
 
@@ -282,8 +282,8 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 			config.Passive = true
 
 		default: // unknown option → return error
-			return &Response{
-				Status: StatusError,
+			return &plugin.Response{
+				Status: plugin.StatusError,
 				Data:   fmt.Sprintf("unknown option: %s", args[i]),
 			}, fmt.Errorf("unknown option: %s", args[i])
 		}
@@ -291,22 +291,22 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 
 	// Validate required fields
 	if config.PeerAS == 0 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "asn is required: bgp peer <ip> add asn <asn>",
 		}, fmt.Errorf("missing required asn")
 	}
 
 	// Add peer via reactor
 	if err := ctx.Reactor().AddDynamicPeer(config); err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("failed to add peer: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"asn":     config.PeerAS,
@@ -317,8 +317,8 @@ func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleBgpPeerRemove handles "bgp peer <ip> remove" command.
 // Removes a peer dynamically at runtime.
-func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+func handleBgpPeerRemove(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -326,30 +326,30 @@ func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
 	// Parse peer address from context (extracted by dispatcher)
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "remove requires specific peer: bgp peer <ip> remove",
 		}, fmt.Errorf("no peer specified")
 	}
 
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
 
 	// Remove peer via reactor
 	if err := ctx.Reactor().RemovePeer(addr); err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("failed to remove peer: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"message": "peer removed",
@@ -380,7 +380,7 @@ func parseRouterID(s string) (uint32, error) {
 }
 
 // handleBgpHelp returns list of bgp subcommands.
-func handleBgpHelp(ctx *CommandContext, _ []string) (*Response, error) {
+func handleBgpHelp(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
 	var commands []string
 
 	if ctx.Dispatcher() != nil {
@@ -391,8 +391,8 @@ func handleBgpHelp(ctx *CommandContext, _ []string) (*Response, error) {
 		}
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -400,15 +400,15 @@ func handleBgpHelp(ctx *CommandContext, _ []string) (*Response, error) {
 }
 
 // handleBgpCommandList returns commands in bgp namespace.
-func handleBgpCommandList(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
 
-	var commands []Completion
+	var commands []plugin.Completion
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
-				c := Completion{
+				c := plugin.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				}
@@ -420,8 +420,8 @@ func handleBgpCommandList(ctx *CommandContext, args []string) (*Response, error)
 		}
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"commands": commands,
 		},
@@ -429,7 +429,7 @@ func handleBgpCommandList(ctx *CommandContext, args []string) (*Response, error)
 }
 
 // handleBgpCommandHelp returns detailed help for a bgp command.
-func handleBgpCommandHelp(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpCommandHelp(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("usage: bgp command help \"<name>\"")
 	}
@@ -439,8 +439,8 @@ func handleBgpCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
-				return &Response{
-					Status: StatusDone,
+				return &plugin.Response{
+					Status: plugin.StatusDone,
 					Data: map[string]any{
 						"command":     cmd.Name,
 						"description": cmd.Help,
@@ -455,20 +455,20 @@ func handleBgpCommandHelp(ctx *CommandContext, args []string) (*Response, error)
 }
 
 // handleBgpCommandComplete returns completions for bgp commands.
-func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpCommandComplete(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("usage: bgp command complete \"<partial>\"")
 	}
 
 	partial := args[0]
-	var completions []Completion
+	var completions []plugin.Completion
 
 	if ctx.Dispatcher() != nil {
 		lowerPartial := strings.ToLower(partial)
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") &&
 				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
-				completions = append(completions, Completion{
+				completions = append(completions, plugin.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				})
@@ -476,8 +476,8 @@ func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, er
 		}
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"completions": completions,
 		},
@@ -485,9 +485,9 @@ func handleBgpCommandComplete(ctx *CommandContext, args []string) (*Response, er
 }
 
 // handleBgpEventList returns available BGP event types.
-func handleBgpEventList(_ *CommandContext, _ []string) (*Response, error) {
-	return &Response{
-		Status: StatusDone,
+func handleBgpEventList(_ *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"events": bgpEventTypes,
 		},
@@ -496,14 +496,14 @@ func handleBgpEventList(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleBgpPluginEncoding sets event encoding for this process.
 // Syntax: bgp plugin encoding <json|text>.
-func handleBgpPluginEncoding(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpPluginEncoding(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing encoding: bgp plugin encoding <json|text>")
 	}
 
 	enc := strings.ToLower(args[0])
 	switch enc {
-	case EncodingJSON, EncodingText:
+	case plugin.EncodingJSON, plugin.EncodingText:
 		if ctx.Process != nil {
 			ctx.Process.SetEncoding(enc)
 		}
@@ -511,8 +511,8 @@ func handleBgpPluginEncoding(ctx *CommandContext, args []string) (*Response, err
 		return nil, fmt.Errorf("invalid encoding: %s (valid: json, text)", args[0])
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"encoding": enc,
 		},
@@ -521,14 +521,14 @@ func handleBgpPluginEncoding(ctx *CommandContext, args []string) (*Response, err
 
 // handleBgpPluginFormat sets wire format for this process.
 // Syntax: bgp plugin format <hex|base64|parsed|full>.
-func handleBgpPluginFormat(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpPluginFormat(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing format: bgp plugin format <hex|base64|parsed|full>")
 	}
 
 	format := strings.ToLower(args[0])
 	switch format {
-	case FormatHex, FormatBase64, FormatParsed, FormatFull:
+	case plugin.FormatHex, plugin.FormatBase64, plugin.FormatParsed, plugin.FormatFull:
 		if ctx.Process != nil {
 			ctx.Process.SetFormat(format)
 		}
@@ -536,8 +536,8 @@ func handleBgpPluginFormat(ctx *CommandContext, args []string) (*Response, error
 		return nil, fmt.Errorf("invalid format: %s (valid: hex, base64, parsed, full)", args[0])
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"format": format,
 		},
@@ -546,7 +546,7 @@ func handleBgpPluginFormat(ctx *CommandContext, args []string) (*Response, error
 
 // handleBgpPluginAck sets ACK timing for this process.
 // Syntax: bgp plugin ack <sync|async>.
-func handleBgpPluginAck(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpPluginAck(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing mode: bgp plugin ack <sync|async>")
 	}
@@ -565,8 +565,8 @@ func handleBgpPluginAck(ctx *CommandContext, args []string) (*Response, error) {
 		return nil, fmt.Errorf("invalid mode: %s (valid: sync, async)", args[0])
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"ack": mode,
 		},

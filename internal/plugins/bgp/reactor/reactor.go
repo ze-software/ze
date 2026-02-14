@@ -18,6 +18,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
@@ -1943,7 +1945,7 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec bgptypes.MUPR
 func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return plugin.ErrNoPeersMatch
+		return route.ErrNoPeersMatch
 	}
 
 	// Build attributes for RIB route (used for queueing non-established peers)
@@ -2030,7 +2032,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
 	if acceptedCount == 0 {
-		return plugin.ErrNoPeersAcceptedFamily
+		return route.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
 }
@@ -2041,7 +2043,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return plugin.ErrNoPeersMatch
+		return route.ErrNoPeersMatch
 	}
 
 	var lastErr error
@@ -2083,7 +2085,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
 	if acceptedCount == 0 {
-		return plugin.ErrNoPeersAcceptedFamily
+		return route.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
 }
@@ -4267,6 +4269,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		apiConfig := &plugin.ServerConfig{
 			SocketPath:         r.config.APISocketPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
+			RPCProviders: []func() []plugin.RPCRegistration{
+				handler.BgpHandlerRPCs,
+			},
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

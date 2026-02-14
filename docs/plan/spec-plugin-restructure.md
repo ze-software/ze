@@ -462,10 +462,19 @@ Each phase is independently committable and testable. The system works correctly
 - mockReactor extracted to mock_reactor_test.go for test fixture sharing
 
 Remaining Phase 4 sub-packages not yet moved:
-- `update/`: update_text.go, update_wire.go — heavy cross-deps with internal/plugin types
+- `update/`: update_text.go, update_wire.go — heavy cross-deps with internal/plugin types (CommandContext, Response, WireEncoding — 36-40 references). Circular import: `plugin → bgp/update → plugin`
 - `handler/`: bgp.go, cache.go, commit.go, raw.go, refresh.go, rib_handler.go — DEFERRED: 245+ plugin type references, CommitManager/SubscriptionManager can't move (circular import with Server), benefits from ReactorInterface split
-- `errors/`: errors.go — mostly generic errors, borderline
-- `validate/`: validate_open.go
+- `errors/`: errors.go — all 12 errors are BGP-specific but only used by update_text.go (stays in plugin/) and reactor.go. Moving adds `route.` prefix to 44 references for no functional benefit
+- `validate/`: validate_open.go — tightly coupled to Server/ProcessManager. Circular: `plugin → bgp/validate → bgp/reactor → plugin`
+
+### Follow-Up: spec-reactor-interface-split
+
+All remaining items share one root blocker: the 68-method `ReactorInterface` mixes 16 generic lifecycle methods with 52 BGP-specific methods. This creates bidirectional coupling between `internal/plugin/` and BGP code, preventing handler/update/validate file moves.
+
+The follow-up spec `spec-reactor-interface-split.md` addresses this by:
+1. Splitting ReactorInterface into ReactorLifecycle (generic) + BGPReactor (BGP-specific)
+2. Extracting ~500 lines of BGP code from server.go via callback hooks
+3. Enabling the remaining file moves blocked by circular imports
 
 ### Design Insights
 - Watchdog RPC handlers depend on `RPCRegistration`, `CommandContext`, `ReactorInterface` from `internal/plugin/` — cannot move to `internal/plugins/bgp/route/` without circular imports

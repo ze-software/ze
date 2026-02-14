@@ -35,6 +35,26 @@ var (
 	ErrInvalidSplit       = errors.New("invalid split length")
 )
 
+// UpdateText parsing errors (moved from internal/plugin/errors.go).
+var (
+	ErrInvalidAttrMode    = errors.New("invalid attr mode (expected set, add, or del)")
+	ErrMissingAttrMode    = errors.New("missing attr mode")
+	ErrUnknownAttribute   = errors.New("unknown attribute")
+	ErrAddOnScalar        = errors.New("'add' not valid for scalar attribute (use 'set')")
+	ErrDelOnScalar        = errors.New("'del' not valid for scalar attribute (use 'set')")
+	ErrASPathNotAddable   = errors.New("as-path does not support add/del (use 'set')")
+	ErrMissingAddDel      = errors.New("expected 'add' or 'del' before prefix")
+	ErrEmptyNLRISection   = errors.New("nlri section has no prefixes")
+	ErrFamilyMismatch     = errors.New("NLRI does not match declared family")
+	ErrFamilyNotSupported = errors.New("family not supported in text mode")
+)
+
+// Reactor errors (moved from internal/plugin/errors.go).
+var (
+	ErrNoPeersMatch          = errors.New("no peers match selector")
+	ErrNoPeersAcceptedFamily = errors.New("no peers have family negotiated")
+)
+
 // splitPrefix splits a prefix into more-specific prefixes with the given length.
 // For example, 10.0.0.0/21 split to /23 produces 4 prefixes.
 // Returns error if targetLen is less than prefix length or exceeds address size.

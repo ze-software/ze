@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // ErrUnknownCommand is returned when a command is not recognized.
@@ -14,19 +16,14 @@ var ErrUnknownCommand = errors.New("unknown command")
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
 
-// BgpPluginRPCs returns all RPCs owned by the BGP plugin (ze-bgp namespace).
-// The BGP plugin registers all bgp-prefixed commands as one unit.
+// BgpPluginRPCs returns RPCs that remain in the plugin package (ze-bgp namespace).
+// BGP-specific handlers (peer ops, introspection, cache, commit, raw, refresh)
+// are now in internal/plugins/bgp/handler/ and injected via ServerConfig.RPCProviders.
 func BgpPluginRPCs() []RPCRegistration {
 	sources := [][]RPCRegistration{
-		handlerBgpRPCs(), // daemon, peer ops (handler.go)
-		bgpRPCs(),        // help, introspection, plugin config (bgp.go)
-		subscribeRPCs(),  // subscribe/unsubscribe (subscribe.go)
-		rawRPCs(),        // raw send (raw.go)
-		refreshRPCs(),    // borr/eorr (refresh.go)
-		cacheRPCs(),      // cache ops (cache.go)
-		commitRPCs(),     // commit ops (commit.go)
-		routeRPCs(),      // watchdog (route.go)
-		updateRPCs(),     // update (update_text.go)
+		subscribeRPCs(), // subscribe/unsubscribe (subscribe.go)
+		routeRPCs(),     // watchdog (route_watchdog.go)
+		updateRPCs(),    // update (update_text.go)
 	}
 	n := 0
 	for _, s := range sources {
@@ -61,8 +58,7 @@ func PluginLifecycleRPCs() []RPCRegistration {
 
 // AllBuiltinRPCs returns all builtin RPCs from all modules.
 // Each module registers its own commands; this aggregates them.
-// When BGP handler files move to internal/plugins/bgp/handler/,
-// BgpPluginRPCs() will be removed from here and injected via ServerConfig.RPCProviders.
+// BGP-specific handlers are injected separately via ServerConfig.RPCProviders.
 func AllBuiltinRPCs() []RPCRegistration {
 	sources := [][]RPCRegistration{
 		BgpPluginRPCs(),
@@ -109,8 +105,8 @@ type CommandContext struct {
 	Peer    string   // Peer selector: "*" for all, or specific IP. Empty = "*"
 }
 
-// Reactor returns the reactor interface via Server. Nil-safe: returns nil if Server is nil.
-func (c *CommandContext) Reactor() ReactorInterface {
+// Reactor returns the reactor lifecycle interface via Server. Nil-safe: returns nil if Server is nil.
+func (c *CommandContext) Reactor() ReactorLifecycle {
 	if c.Server == nil {
 		return nil
 	}
@@ -142,7 +138,7 @@ func (c *CommandContext) Subscriptions() *SubscriptionManager {
 }
 
 // RequireReactor returns the reactor or an error response if not available.
-func RequireReactor(ctx *CommandContext) (ReactorInterface, *Response, error) {
+func RequireReactor(ctx *CommandContext) (ReactorLifecycle, *Response, error) {
 	r := ctx.Reactor()
 	if r == nil {
 		return nil, &Response{
@@ -151,6 +147,27 @@ func RequireReactor(ctx *CommandContext) (ReactorInterface, *Response, error) {
 		}, fmt.Errorf("reactor not available")
 	}
 	return r, nil, nil
+}
+
+// RequireBGPReactor returns the reactor as a BGPReactor or an error response.
+// Use this when the handler needs BGP-specific operations (route announce,
+// cache, RIB, raw message, etc.) that are not part of ReactorLifecycle.
+func RequireBGPReactor(ctx *CommandContext) (bgptypes.BGPReactor, *Response, error) {
+	r := ctx.Reactor()
+	if r == nil {
+		return nil, &Response{
+			Status: StatusError,
+			Data:   "reactor not available",
+		}, fmt.Errorf("reactor not available")
+	}
+	bgp, ok := r.(bgptypes.BGPReactor)
+	if !ok {
+		return nil, &Response{
+			Status: StatusError,
+			Data:   "BGP reactor not available",
+		}, fmt.Errorf("BGP reactor not available")
+	}
+	return bgp, nil, nil
 }
 
 // PeerSelector returns the effective neighbor selector.

@@ -1,6 +1,10 @@
 package plugin
 
-import "errors"
+import (
+	"errors"
+
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+)
 
 // ErrMissingWatchdog is returned when watchdog name is not provided.
 var ErrMissingWatchdog = errors.New("missing watchdog name")
@@ -17,7 +21,7 @@ func routeRPCs() []RPCRegistration {
 // handleWatchdogAnnounce handles: watchdog announce <name>
 // Announces all routes in the named watchdog group that are currently withdrawn.
 func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
-	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
+	return handleWatchdogAction(ctx, args, func(r bgptypes.BGPReactor, peer, name string) error {
 		return r.AnnounceWatchdog(peer, name)
 	})
 }
@@ -25,7 +29,7 @@ func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, erro
 // handleWatchdogWithdraw handles: watchdog withdraw <name>
 // Withdraws all routes in the named watchdog group that are currently announced.
 func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
-	return handleWatchdogAction(ctx, args, func(r ReactorInterface, peer, name string) error {
+	return handleWatchdogAction(ctx, args, func(r bgptypes.BGPReactor, peer, name string) error {
 		return r.WithdrawWatchdog(peer, name)
 	})
 }
@@ -34,9 +38,9 @@ func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, erro
 func handleWatchdogAction(
 	ctx *CommandContext,
 	args []string,
-	action func(ReactorInterface, string, string) error,
+	action func(bgptypes.BGPReactor, string, string) error,
 ) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+	r, errResp, err := RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -51,7 +55,7 @@ func handleWatchdogAction(
 	name := args[0]
 	peerSelector := ctx.PeerSelector()
 
-	if err := action(ctx.Reactor(), peerSelector, name); err != nil {
+	if err := action(r, peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   err.Error(),

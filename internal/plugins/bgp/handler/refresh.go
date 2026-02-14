@@ -1,24 +1,25 @@
-package plugin
+package handler
 
 import (
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
-// refreshRPCs returns RPC registrations for handlers defined in this file.
-func refreshRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:peer-borr", "bgp peer borr", handleBoRR, "Send Beginning of Route Refresh"},
-		{"ze-bgp:peer-eorr", "bgp peer eorr", handleEoRR, "Send End of Route Refresh"},
+// RefreshRPCs returns RPC registrations for route refresh handlers.
+func RefreshRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:peer-borr", CLICommand: "bgp peer borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh"},
+		{WireMethod: "ze-bgp:peer-eorr", CLICommand: "bgp peer eorr", Handler: handleEoRR, Help: "Send End of Route Refresh"},
 	}
 }
 
 // handleBoRR sends a Beginning of Route Refresh marker.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
-func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
-	r, errResp, err := RequireReactor(ctx)
+func handleBoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -28,8 +29,8 @@ func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
 // handleEoRR sends an End of Route Refresh marker.
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
-func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
-	r, errResp, err := RequireReactor(ctx)
+func handleEoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -39,14 +40,14 @@ func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
 // handleRefreshMarker implements the shared logic for borr/eorr commands.
 // Usage: bgp peer <selector> {borr|eorr} <family>.
 func handleRefreshMarker(
-	ctx *CommandContext,
+	ctx *plugin.CommandContext,
 	args []string,
 	cmd string,
 	send func(string, uint16, uint8) error,
-) (*Response, error) {
+) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("usage: bgp peer <selector> %s <family>", cmd),
 		}, fmt.Errorf("missing family")
 	}
@@ -54,8 +55,8 @@ func handleRefreshMarker(
 	// Parse family (e.g., "ipv4/unicast")
 	family, ok := nlri.ParseFamily(args[0])
 	if !ok {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid family: %s", args[0]),
 		}, fmt.Errorf("invalid family: %s", args[0])
 	}
@@ -63,14 +64,14 @@ func handleRefreshMarker(
 	peerSelector := ctx.PeerSelector()
 
 	if err := send(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("%s failed: %v", cmd, err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"selector": peerSelector,
 			"family":   family.String(),

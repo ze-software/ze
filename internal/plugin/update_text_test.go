@@ -453,7 +453,7 @@ func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := ParseUpdateText(tc.args)
 			require.Error(t, err)
-			assert.ErrorIs(t, err, ErrAddOnScalar)
+			assert.ErrorIs(t, err, route.ErrAddOnScalar)
 		})
 	}
 }
@@ -676,7 +676,7 @@ func TestParseUpdateText_NLRIEmptyError(t *testing.T) {
 		"nlri", "ipv4/unicast",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrEmptyNLRISection)
+	assert.ErrorIs(t, err, route.ErrEmptyNLRISection)
 }
 
 // TestParseUpdateText_NLRIMissingAddDel verifies missing add/del fails.
@@ -688,7 +688,7 @@ func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 		"nlri", "ipv4/unicast", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingAddDel)
+	assert.ErrorIs(t, err, route.ErrMissingAddDel)
 }
 
 // TestParseUpdateText_AttrAndNLRI verifies combined attr + nlri.
@@ -764,7 +764,7 @@ func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 		"nlri", "ipv6/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrFamilyMismatch)
+	assert.ErrorIs(t, err, route.ErrFamilyMismatch)
 }
 
 // TestParseUpdateText_UnknownAttribute verifies unknown attr fails with valid list.
@@ -791,7 +791,7 @@ func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
 		"nlri", "ipv4/mvpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrFamilyNotSupported)
+	assert.ErrorIs(t, err, route.ErrFamilyNotSupported)
 }
 
 // TestParseUpdateText_InvalidFamilyString verifies invalid family fails.
@@ -827,7 +827,7 @@ func TestParseUpdateText_MissingPrefixAfterAdd(t *testing.T) {
 		"nlri", "ipv4/unicast", "add",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrEmptyNLRISection)
+	assert.ErrorIs(t, err, route.ErrEmptyNLRISection)
 }
 
 // TestParseUpdateText_Watchdog verifies watchdog inside nlri section.
@@ -975,7 +975,7 @@ func TestParseUpdateText_IPv6InIPv4Family(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "2001:db8::/32",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrFamilyMismatch)
+	assert.ErrorIs(t, err, route.ErrFamilyMismatch)
 }
 
 // TestParseUpdateText_MulticastFamily verifies multicast family support.
@@ -1086,10 +1086,10 @@ type mockReactorBatch struct {
 
 func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	if m.noPeersMatching {
-		return ErrNoPeersMatch
+		return route.ErrNoPeersMatch
 	}
 	if m.noPeersAccepted || (m.noPeersAcceptedFor != nlri.Family{} && m.noPeersAcceptedFor == batch.Family) {
-		return ErrNoPeersAcceptedFamily
+		return route.ErrNoPeersAcceptedFamily
 	}
 	m.peerSelector = peerSelector
 	m.announceCalls = append(m.announceCalls, batch)
@@ -1098,10 +1098,10 @@ func (m *mockReactorBatch) AnnounceNLRIBatch(peerSelector string, batch bgptypes
 
 func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch bgptypes.NLRIBatch) error {
 	if m.noPeersMatching {
-		return ErrNoPeersMatch
+		return route.ErrNoPeersMatch
 	}
 	if m.noPeersAccepted || (m.noPeersAcceptedFor != nlri.Family{} && m.noPeersAcceptedFor == batch.Family) {
-		return ErrNoPeersAcceptedFamily
+		return route.ErrNoPeersAcceptedFamily
 	}
 	m.peerSelector = peerSelector
 	m.withdrawCalls = append(m.withdrawCalls, batch)
@@ -2541,7 +2541,7 @@ func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 		"nlri", "ipv4/flow", "destination", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrMissingAddDel)
+	assert.ErrorIs(t, err, route.ErrMissingAddDel)
 }
 
 // TestParseUpdateText_FlowSpecVPNMissingRD verifies VPN requires RD.

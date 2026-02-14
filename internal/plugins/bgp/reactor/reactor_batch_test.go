@@ -5,12 +5,12 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -83,7 +83,7 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 
 	err := adapter.AnnounceNLRIBatch("192.168.1.1", batch)
-	assert.ErrorIs(t, err, plugin.ErrNoPeersMatch)
+	assert.ErrorIs(t, err, route.ErrNoPeersMatch)
 }
 
 // TestWithdrawNLRIBatch_NoMatchingPeers verifies error when no peers match.
@@ -103,7 +103,7 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 
 	err := adapter.WithdrawNLRIBatch("192.168.1.1", batch)
-	assert.ErrorIs(t, err, plugin.ErrNoPeersMatch)
+	assert.ErrorIs(t, err, route.ErrNoPeersMatch)
 }
 
 // TestAnnounceNLRIBatch_FamilyNotNegotiated verifies warning when family not negotiated.
@@ -141,7 +141,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Should return warning error when all peers skipped
 	err := adapter.AnnounceNLRIBatch("*", batch)
-	assert.ErrorIs(t, err, plugin.ErrNoPeersAcceptedFamily)
+	assert.ErrorIs(t, err, route.ErrNoPeersAcceptedFamily)
 }
 
 // TestWithdrawNLRIBatch_FamilyNotNegotiated verifies warning when family not negotiated.
@@ -178,7 +178,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	// Should return warning error when all peers skipped
 	err := adapter.WithdrawNLRIBatch("*", batch)
-	assert.ErrorIs(t, err, plugin.ErrNoPeersAcceptedFamily)
+	assert.ErrorIs(t, err, route.ErrNoPeersAcceptedFamily)
 }
 
 // TestAnnounceNLRIBatch_QueueForNonEstablished verifies queueing behavior.

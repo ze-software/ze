@@ -16,8 +16,9 @@ import (
 func TestRPCRegistrationTable(t *testing.T) {
 	rpcs := AllBuiltinRPCs()
 
-	// Verify count matches expected
-	assert.Len(t, rpcs, 50, "expected 50 builtin RPCs (update test if changed)")
+	// Verify count matches expected (BGP handler RPCs moved to handler/ package,
+	// injected via RPCProviders — not counted here)
+	assert.Len(t, rpcs, 32, "expected 32 builtin RPCs (update test if changed)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -60,7 +61,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	lifecycle := PluginLifecycleRPCs()
 
 	// Verify per-module counts
-	assert.Len(t, bgp, 23, "BGP plugin RPCs")
+	assert.Len(t, bgp, 5, "BGP plugin RPCs (handlers moved to handler/ package)")
 	assert.Len(t, system, 10, "System RPCs")
 	assert.Len(t, rib, 9, "RIB RPCs")
 	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
@@ -106,13 +107,12 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		methodMap[rpcs[i].WireMethod] = &rpcs[i]
 	}
 
+	// BGP handler methods (peer-list, peer-show, peer-teardown) moved to handler/ package
+	// and injected via RPCProviders — not in AllBuiltinRPCs.
 	expectedMethods := []string{
 		"ze-system:daemon-shutdown",
 		"ze-system:daemon-status",
 		"ze-system:daemon-reload",
-		"ze-bgp:peer-list",
-		"ze-bgp:peer-show",
-		"ze-bgp:peer-teardown",
 		"ze-bgp:peer-update",
 		"ze-bgp:subscribe",
 		"ze-bgp:unsubscribe",
@@ -144,8 +144,8 @@ func TestRPCRegistrationLoadDispatcher(t *testing.T) {
 		require.NoError(t, err, "failed to register %s", reg.WireMethod)
 	}
 
-	// Verify specific methods are registered
-	assert.True(t, dispatcher.HasMethod("ze-bgp:peer-list"))
+	// Verify specific methods are registered (peer-list moved to handler/ RPCProviders)
+	assert.True(t, dispatcher.HasMethod("ze-bgp:subscribe"))
 	assert.True(t, dispatcher.HasMethod("ze-system:help"))
 	assert.True(t, dispatcher.HasMethod("ze-rib:show-in"))
 	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))

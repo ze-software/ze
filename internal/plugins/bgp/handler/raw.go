@@ -1,4 +1,4 @@
-package plugin
+package handler
 
 import (
 	"encoding/base64"
@@ -7,13 +7,14 @@ import (
 	"net/netip"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
-// rawRPCs returns RPC registrations for handlers defined in this file.
-func rawRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:peer-raw", "bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)"},
+// RawRPCs returns RPC registrations for raw message handlers.
+func RawRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:peer-raw", CLICommand: "bgp peer raw", Handler: handleRaw, Help: "Send raw bytes to peer (no validation)"},
 	}
 }
 
@@ -25,30 +26,30 @@ func rawRPCs() []RPCRegistration {
 // Types: open, update, notification, keepalive, route-refresh
 // Encodings: hex, b64
 // Data: encoded bytes (empty allowed for keepalive).
-func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+func handleRaw(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 	// Require peer selector
 	if ctx.Peer == "" || ctx.Peer == "*" {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "raw requires specific peer: bgp peer <addr> raw ...",
 		}, fmt.Errorf("raw requires specific peer")
 	}
 
 	peerAddr, err := netip.ParseAddr(ctx.Peer)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", ctx.Peer),
 		}, fmt.Errorf("invalid peer address: %w", err)
 	}
 
 	if len(args) < 2 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "usage: raw [<type>] <encoding> <data>",
 		}, fmt.Errorf("raw requires at least encoding and data")
 	}
@@ -62,8 +63,8 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 		// raw <type> <encoding> <data>
 		msgType = mt
 		if len(args) < 2 {
-			return &Response{
-				Status: StatusError,
+			return &plugin.Response{
+				Status: plugin.StatusError,
 				Data:   "usage: raw <type> <encoding> <data>",
 			}, fmt.Errorf("missing encoding after type")
 		}
@@ -83,16 +84,20 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	// Decode payload
 	payload, err := decodePayload(encoding, data)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("decode error: %v", err),
 		}, err
 	}
 
-	// Send to reactor
-	if err := ctx.Reactor().SendRawMessage(peerAddr, msgType, payload); err != nil {
-		return &Response{
-			Status: StatusError,
+	// Send to reactor (BGP-specific: raw message injection)
+	r, errResp2, bgpErr := plugin.RequireBGPReactor(ctx)
+	if bgpErr != nil {
+		return errResp2, bgpErr
+	}
+	if err := r.SendRawMessage(peerAddr, msgType, payload); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("send error: %v", err),
 		}, err
 	}
@@ -107,8 +112,8 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 		respData["mode"] = "full-packet"
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data:   respData,
 	}, nil
 }
@@ -119,7 +124,7 @@ func parseMessageType(s string) (uint8, bool) {
 	switch strings.ToLower(s) {
 	case "open":
 		return uint8(message.TypeOPEN), true
-	case EventUpdate:
+	case plugin.EventUpdate:
 		return uint8(message.TypeUPDATE), true
 	case "notification":
 		return uint8(message.TypeNOTIFICATION), true
@@ -127,7 +132,7 @@ func parseMessageType(s string) (uint8, bool) {
 		return uint8(message.TypeKEEPALIVE), true
 	case "route-refresh":
 		return uint8(message.TypeROUTEREFRESH), true
-	default:
+	default: // not a recognized message type name
 		return 0, false
 	}
 }
@@ -145,7 +150,7 @@ func msgTypeName(t uint8) string {
 		return "keepalive"
 	case message.TypeROUTEREFRESH:
 		return "route-refresh"
-	default:
+	default: // numeric fallback for unknown types
 		return fmt.Sprintf("type-%d", t)
 	}
 }
@@ -162,7 +167,7 @@ func decodePayload(encoding, data string) ([]byte, error) {
 		return hex.DecodeString(data)
 	case "b64", "base64":
 		return base64.StdEncoding.DecodeString(data)
-	default:
+	default: // unknown encoding format — return explicit error
 		return nil, fmt.Errorf("unknown encoding: %q (valid: hex, b64)", encoding)
 	}
 }

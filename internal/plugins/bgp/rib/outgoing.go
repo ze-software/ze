@@ -1,19 +1,18 @@
 package rib
 
 import (
+	"errors"
 	"maps"
 	"sync"
-
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
-// Transaction errors — re-exported from bgptypes for package-local convenience.
+// Transaction errors.
 var (
-	ErrAlreadyInTransaction = bgptypes.ErrAlreadyInTransaction
-	ErrNoTransaction        = bgptypes.ErrNoTransaction
-	ErrLabelMismatch        = bgptypes.ErrLabelMismatch
+	ErrAlreadyInTransaction = errors.New("already in transaction")
+	ErrNoTransaction        = errors.New("no transaction in progress")
+	ErrLabelMismatch        = errors.New("transaction label mismatch")
 )
 
 // OutgoingRIB (Adj-RIB-Out) manages routes to be announced to peers.

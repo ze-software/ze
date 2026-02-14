@@ -1,16 +1,17 @@
-package plugin
+package handler
 
 import (
 	"fmt"
 	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
-// cacheRPCs returns RPC registrations for handlers defined in this file.
-func cacheRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:cache", "bgp cache", handleBgpCache, "BGP message cache operations"},
+// CacheRPCs returns RPC registrations for cache handlers.
+func CacheRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:cache", CLICommand: "bgp cache", Handler: handleBgpCache, Help: "BGP message cache operations"},
 	}
 }
 
@@ -21,13 +22,13 @@ func cacheRPCs() []RPCRegistration {
 //   - bgp cache <id> release
 //   - bgp cache <id> expire
 //   - bgp cache <id> forward <selector>
-func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
+func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return bgpCacheHelp()
 	}
 
-	// Guard reactor access
-	_, errResp, err := RequireReactor(ctx)
+	// Guard reactor access (BGP-specific: cache operations)
+	_, errResp, err := plugin.RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -39,8 +40,8 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 
 	// All other commands need <id> <action> [args...]
 	if len(args) < 2 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "usage: bgp cache <id> retain|release|expire|forward <sel>",
 		}, fmt.Errorf("missing action")
 	}
@@ -48,8 +49,8 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse cache ID
 	cacheID, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid cache id: %s", args[0]),
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
@@ -66,18 +67,18 @@ func handleBgpCache(ctx *CommandContext, args []string) (*Response, error) {
 		return handleBgpCacheExpire(ctx, cacheID)
 	case "forward":
 		return handleBgpCacheForward(ctx, cacheID, actionArgs)
-	default:
-		return &Response{
-			Status: StatusError,
+	default: // unknown cache action — return explicit error
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("unknown cache action: %s", action),
 		}, fmt.Errorf("unknown action: %s", action)
 	}
 }
 
 // bgpCacheHelp returns help for bgp cache command.
-func bgpCacheHelp() (*Response, error) {
-	return &Response{
-		Status: StatusDone,
+func bgpCacheHelp() (*plugin.Response, error) {
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"commands": []map[string]string{
 				{"command": "bgp cache list", "description": "List cached message IDs"},
@@ -91,11 +92,15 @@ func bgpCacheHelp() (*Response, error) {
 }
 
 // handleBgpCacheList returns all cached message IDs.
-func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
-	ids := ctx.Reactor().ListUpdates()
+func handleBgpCacheList(ctx *plugin.CommandContext) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	ids := r.ListUpdates()
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"ids":   ids,
 			"count": len(ids),
@@ -104,16 +109,20 @@ func handleBgpCacheList(ctx *CommandContext) (*Response, error) {
 }
 
 // handleBgpCacheRetain prevents eviction of a cached message.
-func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor().RetainUpdate(id); err != nil {
-		return &Response{
-			Status: StatusError,
+func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	if err := r.RetainUpdate(id); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("retain failed: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"retained": true,
@@ -122,16 +131,20 @@ func handleBgpCacheRetain(ctx *CommandContext, id uint64) (*Response, error) {
 }
 
 // handleBgpCacheRelease allows eviction of a cached message.
-func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor().ReleaseUpdate(id); err != nil {
-		return &Response{
-			Status: StatusError,
+func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	if err := r.ReleaseUpdate(id); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("release failed: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"released": true,
@@ -140,16 +153,20 @@ func handleBgpCacheRelease(ctx *CommandContext, id uint64) (*Response, error) {
 }
 
 // handleBgpCacheExpire removes a cached message immediately.
-func handleBgpCacheExpire(ctx *CommandContext, id uint64) (*Response, error) {
-	if err := ctx.Reactor().DeleteUpdate(id); err != nil {
-		return &Response{
-			Status: StatusError,
+func handleBgpCacheExpire(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	if err := r.DeleteUpdate(id); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("expire failed: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"id":      id,
 			"expired": true,
@@ -158,31 +175,35 @@ func handleBgpCacheExpire(ctx *CommandContext, id uint64) (*Response, error) {
 }
 
 // handleBgpCacheForward forwards a cached UPDATE to peers.
-func handleBgpCacheForward(ctx *CommandContext, id uint64, args []string) (*Response, error) {
+func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "usage: bgp cache <id> forward <selector>",
 		}, fmt.Errorf("missing selector")
 	}
 
 	sel, err := selector.Parse(args[0])
 	if err != nil {
-		return &Response{
-			Status: StatusError,
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid selector: %v", err),
 		}, err
 	}
 
-	if err := ctx.Reactor().ForwardUpdate(sel, id); err != nil {
-		return &Response{
-			Status: StatusError,
+	r, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
+	if bgpErr != nil {
+		return errResp, bgpErr
+	}
+	if err := r.ForwardUpdate(sel, id); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("forward failed: %v", err),
 		}, err
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"id":       id,
 			"selector": sel.String(),

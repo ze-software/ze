@@ -182,7 +182,7 @@ func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
 
 // handleRIBShowIn returns Adj-RIB-In contents.
 func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+	r, errResp, err := RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -192,8 +192,8 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 		peerID = args[0]
 	}
 
-	routes := ctx.Reactor().RIBInRoutes(peerID)
-	stats := ctx.Reactor().RIBStats()
+	routes := r.RIBInRoutes(peerID)
+	stats := r.RIBStats()
 
 	return &Response{
 		Status: StatusDone,
@@ -207,11 +207,11 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleRIBClearIn clears all routes from Adj-RIB-In.
 func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+	r, errResp, err := RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
-	count := ctx.Reactor().ClearRIBIn()
+	count := r.ClearRIBIn()
 
 	return &Response{
 		Status: StatusDone,
