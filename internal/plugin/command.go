@@ -20,21 +20,11 @@ var ErrEmptyCommand = errors.New("empty command")
 // BgpPluginRPCs returns RPCs that remain in the plugin package (ze-bgp namespace).
 // BGP-specific handlers (peer ops, introspection, cache, commit, raw, refresh)
 // are now in internal/plugins/bgp/handler/ and injected via ServerConfig.RPCProviders.
+// BgpPluginRPCs returns RPCs that remain in the plugin package (ze-bgp namespace).
+// Only subscribe/unsubscribe RPCs remain here — update and watchdog RPCs
+// moved to internal/plugins/bgp/handler/ and injected via ServerConfig.RPCProviders.
 func BgpPluginRPCs() []RPCRegistration {
-	sources := [][]RPCRegistration{
-		subscribeRPCs(), // subscribe/unsubscribe (subscribe.go)
-		routeRPCs(),     // watchdog (route_watchdog.go)
-		updateRPCs(),    // update (update_text.go)
-	}
-	n := 0
-	for _, s := range sources {
-		n += len(s)
-	}
-	rpcs := make([]RPCRegistration, 0, n)
-	for _, s := range sources {
-		rpcs = append(rpcs, s...)
-	}
-	return rpcs
+	return subscribeRPCs()
 }
 
 // SystemPluginRPCs returns all RPCs owned by the system module (ze-system namespace).

@@ -1,26 +1,27 @@
-package plugin
+package handler
 
 import (
 	"errors"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // ErrMissingWatchdog is returned when watchdog name is not provided.
 var ErrMissingWatchdog = errors.New("missing watchdog name")
 
-// routeRPCs returns RPC registrations for watchdog handlers.
-// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
-func routeRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:watchdog-announce", "bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group"},
-		{"ze-bgp:watchdog-withdraw", "bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group"},
+// WatchdogRPCs returns RPC registrations for watchdog handlers.
+// Part of the ze-bgp module — aggregated by BgpHandlerRPCs().
+func WatchdogRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:watchdog-announce", CLICommand: "bgp watchdog announce", Handler: handleWatchdogAnnounce, Help: "Announce routes in watchdog group"},
+		{WireMethod: "ze-bgp:watchdog-withdraw", CLICommand: "bgp watchdog withdraw", Handler: handleWatchdogWithdraw, Help: "Withdraw routes in watchdog group"},
 	}
 }
 
 // handleWatchdogAnnounce handles: watchdog announce <name>
 // Announces all routes in the named watchdog group that are currently withdrawn.
-func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
+func handleWatchdogAnnounce(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	return handleWatchdogAction(ctx, args, func(r bgptypes.BGPReactor, peer, name string) error {
 		return r.AnnounceWatchdog(peer, name)
 	})
@@ -28,7 +29,7 @@ func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, erro
 
 // handleWatchdogWithdraw handles: watchdog withdraw <name>
 // Withdraws all routes in the named watchdog group that are currently announced.
-func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
+func handleWatchdogWithdraw(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	return handleWatchdogAction(ctx, args, func(r bgptypes.BGPReactor, peer, name string) error {
 		return r.WithdrawWatchdog(peer, name)
 	})
@@ -36,18 +37,18 @@ func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, erro
 
 // handleWatchdogAction implements the shared logic for watchdog announce/withdraw.
 func handleWatchdogAction(
-	ctx *CommandContext,
+	ctx *plugin.CommandContext,
 	args []string,
 	action func(bgptypes.BGPReactor, string, string) error,
-) (*Response, error) {
-	r, errResp, err := RequireBGPReactor(ctx)
+) (*plugin.Response, error) {
+	r, errResp, err := plugin.RequireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
 
 	if len(args) < 1 {
-		return &Response{
-			Status: "error",
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   "missing watchdog name",
 		}, ErrMissingWatchdog
 	}
@@ -56,14 +57,14 @@ func handleWatchdogAction(
 	peerSelector := ctx.PeerSelector()
 
 	if err := action(r, peerSelector, name); err != nil {
-		return &Response{
-			Status: "error",
+		return &plugin.Response{
+			Status: plugin.StatusError,
 			Data:   err.Error(),
 		}, err
 	}
 
-	return &Response{
-		Status: "done",
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"peer":     peerSelector,
 			"watchdog": name,

@@ -1,4 +1,4 @@
-package plugin
+package handler
 
 import (
 	"net/netip"
@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
@@ -24,7 +25,7 @@ func TestParseUpdateWire_HexAttrs(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001", // 10.0.0.1
 		"nlri", "ipv4/unicast", "add", "180a0000", // 10.0.0.0/24
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.NotNil(t, result.Groups[0].Wire)
@@ -40,7 +41,7 @@ func TestParseUpdateWire_HexNLRI(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "add", "180a0000", // 10.0.0.0/24
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
@@ -60,7 +61,7 @@ func TestParseUpdateWire_HexNhop(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001", // 10.0.0.1
 		"nlri", "ipv4/unicast", "add", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.True(t, result.Groups[0].NextHop.IsExplicit())
@@ -78,7 +79,7 @@ func TestParseUpdateWire_NhopDel(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "180a0000",
 		"nhop", "del",
 		"nlri", "ipv4/unicast", "del", "180b0000", // Withdraw doesn't need nhop
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
 
@@ -99,7 +100,7 @@ func TestParseUpdateWire_NhopSetSelf(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "self",
 		"nlri", "ipv4/unicast", "add", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.True(t, result.Groups[0].NextHop.IsSelf())
@@ -115,7 +116,7 @@ func TestParseUpdateWire_B64Attrs(t *testing.T) {
 		"attr", "set", "QAEB",
 		"nhop", "set", "CgAAAQ==", // 10.0.0.1
 		"nlri", "ipv4/unicast", "add", "GAoAAA==", // 10.0.0.0/24
-	}, WireEncodingB64)
+	}, plugin.WireEncodingB64)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.NotNil(t, result.Groups[0].Wire)
@@ -131,7 +132,7 @@ func TestParseUpdateWire_B64NLRI(t *testing.T) {
 		"attr", "set", "QAEB",
 		"nhop", "set", "CgAAAQ==",
 		"nlri", "ipv4/unicast", "add", "GAoAAA==", // 10.0.0.0/24
-	}, WireEncodingB64)
+	}, plugin.WireEncodingB64)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
@@ -150,7 +151,7 @@ func TestParseUpdateWire_B64Nhop(t *testing.T) {
 		"attr", "set", "QAEB",
 		"nhop", "set", "CgAAAQ==", // 10.0.0.1
 		"nlri", "ipv4/unicast", "add", "GAoAAA==",
-	}, WireEncodingB64)
+	}, plugin.WireEncodingB64)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.True(t, result.Groups[0].NextHop.IsExplicit())
@@ -173,7 +174,7 @@ func TestParseUpdateWire_InvalidHex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseUpdateWire(tt.args, WireEncodingHex)
+			_, err := ParseUpdateWire(tt.args, plugin.WireEncodingHex)
 			require.Error(t, err)
 		})
 	}
@@ -195,7 +196,7 @@ func TestParseUpdateWire_InvalidB64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ParseUpdateWire(tt.args, WireEncodingB64)
+			_, err := ParseUpdateWire(tt.args, plugin.WireEncodingB64)
 			require.Error(t, err)
 		})
 	}
@@ -211,7 +212,7 @@ func TestParseUpdateWire_SpacesStripped(t *testing.T) {
 		"attr", "set", "40 01 01",
 		"nhop", "set", "0a 00 00 01",
 		"nlri", "ipv4/unicast", "add", "18 0a 00 00",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Wire.Packed())
@@ -227,7 +228,7 @@ func TestParseUpdateWire_MultipleNLRI(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "add", "180a0000180b0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 2)
@@ -252,7 +253,7 @@ func TestParseUpdateWire_AddDel(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "add", "180a0000", "del", "180b0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.Len(t, result.Groups[0].Announce, 1)
@@ -270,7 +271,7 @@ func TestParseUpdateWire_NhopPerFamily(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "180a0000",
 		"nhop", "set", "0a000002", // 10.0.0.2
 		"nlri", "ipv4/unicast", "add", "180b0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
 
@@ -292,7 +293,7 @@ func TestParseUpdateWire_AddPath(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "addpath", "add", "00000001180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
@@ -313,7 +314,7 @@ func TestParseUpdateWire_AddPathSplit(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "addpath", "add", "00000001180a000000000002180b0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 2)
@@ -335,7 +336,7 @@ func TestParseUpdateWire_NoAttrsAnnounce(t *testing.T) {
 	_, err := ParseUpdateWire([]string{
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "add", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "wire mode requires attr set for announce")
 }
@@ -347,7 +348,7 @@ func TestParseUpdateWire_NoAttrsAnnounce(t *testing.T) {
 func TestParseUpdateWire_NoAttrsWithdraw(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"nlri", "ipv4/unicast", "del", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.Len(t, result.Groups[0].Withdraw, 1)
@@ -364,7 +365,7 @@ func TestParseUpdateWire_IPv6(t *testing.T) {
 		"attr", "set", "400101",
 		"nhop", "set", "20010db8000000000000000000000001", // 2001:db8::1
 		"nlri", "ipv6/unicast", "add", "2020010db8",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	assert.Equal(t, nlri.IPv6Unicast, result.Groups[0].Family)
@@ -381,7 +382,7 @@ func TestParseUpdateWire_PathInfoError(t *testing.T) {
 		"nhop", "set", "0a000001",
 		"path-information", "1",
 		"nlri", "ipv4/unicast", "add", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "path-information only valid in text mode")
 }
@@ -396,7 +397,7 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 		"attr", "set", "400102",
 		"nhop", "set", "0a000001",
 		"nlri", "ipv4/unicast", "add", "180a0000",
-	}, WireEncodingHex)
+	}, plugin.WireEncodingHex)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "attr set can only appear once")
 }
@@ -411,8 +412,8 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 // PREVENTS: Handler integration failures.
 func TestHandleUpdateHex_Integration(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -445,8 +446,8 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 // PREVENTS: Handler integration failures.
 func TestHandleUpdateB64_Integration(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -476,8 +477,8 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 // PREVENTS: Withdrawal failures.
 func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -501,8 +502,8 @@ func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 // PREVENTS: Missing operations.
 func TestHandleUpdateHex_MixedAddDel(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 

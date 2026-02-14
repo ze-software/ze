@@ -1,4 +1,4 @@
-// Package plugin provides the update text parser for the "update text" command format.
+// update_text.go provides the update text parser for the "update text" command format.
 //
 // Grammar:
 //
@@ -22,7 +22,7 @@
 // Standalone watchdog commands: watchdog announce <name>, watchdog withdraw <name>
 //
 // Note: rd and label are ignored for families that don't support them.
-package plugin
+package handler
 
 import (
 	"encoding/hex"
@@ -32,6 +32,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
@@ -41,22 +42,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
-
-// ValueValidator validates individual values against a schema (e.g., YANG).
-// When set via SetYANGValidator, attribute values are validated against YANG types.
-type ValueValidator interface {
-	Validate(path string, value any) error
-}
-
-// yangValidator is the package-level YANG validator for attribute values.
-// Nil by default; set during engine startup via SetYANGValidator.
-var yangValidator ValueValidator //nolint:gochecknoglobals // follows logger pattern
-
-// SetYANGValidator sets the YANG validator for attribute value validation.
-// Pass nil to clear the validator.
-func SetYANGValidator(v ValueValidator) {
-	yangValidator = v
-}
 
 // YANG schema paths for attribute validation.
 const (
@@ -478,8 +463,8 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 			return 0, fmt.Errorf("missing origin value")
 		}
 		// YANG validation for origin enum (single source of truth)
-		if yangValidator != nil {
-			if err := yangValidator.Validate(yangPathOrigin, args[idx+1]); err != nil {
+		if plugin.YANGValidator() != nil {
+			if err := plugin.YANGValidator().Validate(yangPathOrigin, args[idx+1]); err != nil {
 				return 0, fmt.Errorf("invalid origin: %w", err)
 			}
 		}
@@ -500,8 +485,8 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		lpVal := uint32(lp)
 		// YANG validation for local-preference uint32 (single source of truth)
-		if yangValidator != nil {
-			if err := yangValidator.Validate(yangPathLocalPref, lpVal); err != nil {
+		if plugin.YANGValidator() != nil {
+			if err := plugin.YANGValidator().Validate(yangPathLocalPref, lpVal); err != nil {
 				return 0, fmt.Errorf("invalid local-preference: %w", err)
 			}
 		}
@@ -518,8 +503,8 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		}
 		medVal := uint32(med)
 		// YANG validation for MED uint32 (single source of truth)
-		if yangValidator != nil {
-			if err := yangValidator.Validate(yangPathMED, medVal); err != nil {
+		if plugin.YANGValidator() != nil {
+			if err := plugin.YANGValidator().Validate(yangPathMED, medVal); err != nil {
 				return 0, fmt.Errorf("invalid med: %w", err)
 			}
 		}
@@ -1664,17 +1649,17 @@ func isSupportedFamily(f nlri.Family) bool {
 }
 
 // updateRPCs returns RPC registrations for handlers defined in this file.
-// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
-func updateRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{"ze-bgp:peer-update", "bgp peer update", handleUpdate, "Batch UPDATE with text/hex/b64 encoding"},
+// Part of the ze-bgp module — aggregated by BgpHandlerRPCs().
+func UpdateRPCs() []plugin.RPCRegistration {
+	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:peer-update", CLICommand: "bgp peer update", Handler: handleUpdate, Help: "Batch UPDATE with text/hex/b64 encoding"},
 	}
 }
 
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: peer <addr> update <encoding> ...
-func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
-	_, errResp, err := RequireReactor(ctx)
+func handleUpdate(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -1700,19 +1685,19 @@ func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
 // Parses the update text format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4724 Section 2: End-of-RIB marker.
-func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
+func handleUpdateText(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	result, err := ParseUpdateText(args)
 	if err != nil {
-		return &Response{Status: StatusError, Data: err.Error()}, err
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for update text"
-		return &Response{Status: StatusError, Data: errMsg}, errors.New(errMsg)
+		return &plugin.Response{Status: plugin.StatusError, Data: errMsg}, errors.New(errMsg)
 	}
 
 	// BGP-specific operations: EOR, announce, withdraw
-	bgpReactor, errResp, bgpErr := RequireBGPReactor(ctx)
+	bgpReactor, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
@@ -1722,7 +1707,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	var eorSent int
 	for _, family := range result.EORFamilies {
 		if err := bgpReactor.AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
-			return &Response{Status: StatusError, Data: err.Error()}, err
+			return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 		}
 		eorSent++
 	}
@@ -1730,14 +1715,14 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	// If only EOR (no NLRI groups), return early
 	if len(result.Groups) == 0 {
 		if eorSent > 0 {
-			return &Response{
-				Status: StatusDone,
+			return &plugin.Response{
+				Status: plugin.StatusDone,
 				Data: map[string]any{
 					"eor": eorSent,
 				},
 			}, nil
 		}
-		return &Response{
+		return &plugin.Response{
 			Status: "warning",
 			Data:   "no routes or EOR markers to send",
 		}, nil
@@ -1760,8 +1745,8 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 
 // DispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
-func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Response, error) {
-	bgpReactor, errResp, bgpErr := RequireBGPReactor(ctx)
+func DispatchNLRIGroups(ctx *plugin.CommandContext, groups []bgptypes.NLRIGroup) (*plugin.Response, error) {
+	bgpReactor, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
@@ -1783,7 +1768,7 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
 				}
-				return &Response{Status: StatusError, Data: err.Error()}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 			}
 			announced += len(group.Announce)
 		}
@@ -1797,7 +1782,7 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 					warnings = append(warnings, fmt.Sprintf("withdraw %v: %s", group.Family, err))
 					continue
 				}
-				return &Response{Status: StatusError, Data: err.Error()}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 			}
 			withdrawn += len(group.Withdraw)
 		}
@@ -1808,7 +1793,7 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 		if len(warnings) > 0 {
 			msg = strings.Join(warnings, "; ")
 		}
-		return &Response{
+		return &plugin.Response{
 			Status: "warning",
 			Data:   msg,
 		}, nil
@@ -1822,8 +1807,8 @@ func DispatchNLRIGroups(ctx *CommandContext, groups []bgptypes.NLRIGroup) (*Resp
 		respData["warnings"] = warnings
 	}
 
-	return &Response{
-		Status: StatusDone,
+	return &plugin.Response{
+		Status: plugin.StatusDone,
 		Data:   respData,
 	}, nil
 }

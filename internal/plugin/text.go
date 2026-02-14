@@ -498,7 +498,7 @@ func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOpera
 				sb.WriteString(",")
 			}
 			sb.WriteString(`{`)
-			if op.Action == kwAdd && op.NextHop != "" && op.NextHop != "invalid IP" {
+			if op.Action == "add" && op.NextHop != "" && op.NextHop != "invalid IP" {
 				sb.WriteString(`"next-hop":"`)
 				sb.WriteString(op.NextHop)
 				sb.WriteString(`",`)

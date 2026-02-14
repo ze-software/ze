@@ -12,11 +12,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
-	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // PeerInfo is a snapshot of peer state for API output.
@@ -297,42 +293,8 @@ const (
 // cmdPlugin is the "plugin" token in command strings like "ze bgp plugin <name>".
 const cmdPlugin = "plugin"
 
-// ContentConfig controls HOW messages are formatted (encoding + format).
-// Separated from message type subscriptions (WHAT) per new API design.
-type ContentConfig struct {
-	Encoding   string                     // "json" | "text" (default: "text")
-	Format     string                     // "parsed" | "raw" | "full" (default: "parsed")
-	Attributes *bgpfilter.AttributeFilter // Which attrs to include (nil = all)
-	NLRI       *bgpfilter.NLRIFilter      // Which address families to include (nil = all)
-}
+// ContentConfig is a type alias — canonical definition in internal/plugins/bgp/types/.
+type ContentConfig = bgptypes.ContentConfig
 
-// WithDefaults returns a ContentConfig with default values applied.
-func (c ContentConfig) WithDefaults() ContentConfig {
-	if c.Encoding == "" {
-		c.Encoding = EncodingText
-	}
-	if c.Format == "" {
-		c.Format = FormatParsed
-	}
-	return c
-}
-
-// RawMessage represents a BGP message sent or received.
-// Contains raw wire bytes for on-demand parsing based on format config.
-type RawMessage struct {
-	Type       message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
-	RawBytes   []byte              // Original wire bytes (without marker/header)
-	Timestamp  time.Time
-	MessageID  uint64                    // Unique ID for all message types
-	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
-	WireUpdate *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
-	Direction  string                    // "sent" or "received"
-	ParseError error                     // Non-nil if lazy parsing failed
-}
-
-// IsAsyncSafe reports whether this message's RawBytes can be safely used after
-// the callback returns. Returns false for zero-copy received UPDATEs where
-// RawBytes points to a buffer that may be reused.
-func (m *RawMessage) IsAsyncSafe() bool {
-	return m.WireUpdate == nil
-}
+// RawMessage is a type alias — canonical definition in internal/plugins/bgp/types/.
+type RawMessage = bgptypes.RawMessage

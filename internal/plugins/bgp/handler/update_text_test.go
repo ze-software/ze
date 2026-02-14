@@ -1,4 +1,4 @@
-package plugin
+package handler
 
 import (
 	"encoding/hex"
@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
@@ -1109,13 +1110,13 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch bgptypes
 }
 
 // Stub implementations for other ReactorInterface methods.
-func (m *mockReactorBatch) Peers() []PeerInfo                                         { return nil }
-func (m *mockReactorBatch) Stats() ReactorStats                                       { return ReactorStats{} }
+func (m *mockReactorBatch) Peers() []plugin.PeerInfo                                  { return nil }
+func (m *mockReactorBatch) Stats() plugin.ReactorStats                                { return plugin.ReactorStats{} }
 func (m *mockReactorBatch) Stop()                                                     {}
 func (m *mockReactorBatch) Reload() error                                             { return nil }
 func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                       { return nil }
 func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                    { return nil }
-func (m *mockReactorBatch) AddDynamicPeer(_ DynamicPeerConfig) error                  { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ plugin.DynamicPeerConfig) error           { return nil }
 func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                             { return nil }
 func (m *mockReactorBatch) AnnounceRoute(_ string, _ bgptypes.RouteSpec) error        { return nil }
 func (m *mockReactorBatch) WithdrawRoute(_ string, _ netip.Prefix) error              { return nil }
@@ -1139,7 +1140,7 @@ func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error            
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
 func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                            { return nil }
-func (m *mockReactorBatch) RIBStats() RIBStatsInfo                                   { return RIBStatsInfo{} }
+func (m *mockReactorBatch) RIBStats() plugin.RIBStatsInfo                            { return plugin.RIBStatsInfo{} }
 func (m *mockReactorBatch) BeginTransaction(_, _ string) error                       { return nil }
 func (m *mockReactorBatch) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil
@@ -1155,26 +1156,28 @@ func (m *mockReactorBatch) TransactionID(_ string) string { return "" }
 func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error                       { return nil }
-func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                       { return nil }
-func (m *mockReactorBatch) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error    { return nil }
-func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                    { return nil }
-func (m *mockReactorBatch) ClearRIBIn() int                                          { return 0 }
-func (m *mockReactorBatch) ClearRIBOut() int                                         { return 0 }
-func (m *mockReactorBatch) FlushRIBOut() int                                         { return 0 }
-func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding { return nil }
-func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig         { return nil }
-func (m *mockReactorBatch) GetConfigTree() map[string]any                            { return nil }
-func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                           {}
-func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64) error       { return nil }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                              { return nil }
-func (m *mockReactorBatch) RetainUpdate(_ uint64) error                              { return nil }
-func (m *mockReactorBatch) ReleaseUpdate(_ uint64) error                             { return nil }
-func (m *mockReactorBatch) ListUpdates() []uint64                                    { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                                          {}
-func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                 {}
-func (m *mockReactorBatch) SignalPluginStartupComplete()                             {}
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                              {}
+func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error                    { return nil }
+func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                    { return nil }
+func (m *mockReactorBatch) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error { return nil }
+func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                 { return nil }
+func (m *mockReactorBatch) ClearRIBIn() int                                       { return 0 }
+func (m *mockReactorBatch) ClearRIBOut() int                                      { return 0 }
+func (m *mockReactorBatch) FlushRIBOut() int                                      { return 0 }
+func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
+	return nil
+}
+func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
+func (m *mockReactorBatch) GetConfigTree() map[string]any                           { return nil }
+func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                          {}
+func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64) error      { return nil }
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                             { return nil }
+func (m *mockReactorBatch) RetainUpdate(_ uint64) error                             { return nil }
+func (m *mockReactorBatch) ReleaseUpdate(_ uint64) error                            { return nil }
+func (m *mockReactorBatch) ListUpdates() []uint64                                   { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                                         {}
+func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                {}
+func (m *mockReactorBatch) SignalPluginStartupComplete()                            {}
+func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                             {}
 func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil
 }
@@ -1188,8 +1191,8 @@ func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error { return 
 // PREVENTS: Handler not calling reactor.
 func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "192.0.2.1",
 	}
 
@@ -1217,8 +1220,8 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 // PREVENTS: Separate calls per NLRI.
 func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1242,8 +1245,8 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 // PREVENTS: Missing withdraw call.
 func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1269,8 +1272,8 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 // PREVENTS: Attribute bleeding between groups.
 func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1304,8 +1307,8 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 // PREVENTS: Withdraw interpreted as announce.
 func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1329,8 +1332,8 @@ func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 // PREVENTS: Silent failure on bad input.
 func TestHandleUpdateText_ParseError(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1350,8 +1353,8 @@ func TestHandleUpdateText_ParseError(t *testing.T) {
 // PREVENTS: Silent success when no peers match.
 func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersMatching: true}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "192.0.2.99",
 	}
 
@@ -1371,8 +1374,8 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 // PREVENTS: Silent ignore of watchdog.
 func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1396,8 +1399,8 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 // PREVENTS: Silent success with no routes.
 func TestHandleUpdateText_EmptyResult(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1418,8 +1421,8 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 // PREVENTS: IPv6 parsing or dispatch failures.
 func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1442,8 +1445,8 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 // PREVENTS: Flag loss in handler.
 func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1466,8 +1469,8 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 // PREVENTS: Silent success when nothing was sent.
 func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersAccepted: true}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1489,8 +1492,8 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Only IPv6 is not accepted
 	reactor := &mockReactorBatch{noPeersAcceptedFor: nlri.IPv6Unicast}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1519,8 +1522,8 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 // PREVENTS: Wrong subcommand handler.
 func TestHandleUpdate_TextSubcommand(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1542,8 +1545,8 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 // PREVENTS: Silent failure or panic.
 func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Server: &Server{reactor: reactor},
+	ctx := &plugin.CommandContext{
+		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -3788,8 +3791,8 @@ func (v *testValidator) callsFor(path string) []testValidatorCall {
 // PREVENTS: Origin values bypassing YANG schema validation.
 func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 	v := newTestValidator()
-	SetYANGValidator(v)
-	defer SetYANGValidator(nil)
+	plugin.SetYANGValidator(v)
+	defer plugin.SetYANGValidator(nil)
 
 	// Parse valid origin
 	_, err := ParseUpdateText([]string{
@@ -3806,7 +3809,7 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 	// Test that YANG rejection is propagated
 	v2 := newTestValidator()
 	v2.errs[yangPathOrigin] = errors.New("enum error: value \"bad\" is not valid")
-	SetYANGValidator(v2)
+	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
 		"origin", "set", "bad",
@@ -3822,8 +3825,8 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 // PREVENTS: MED values bypassing YANG schema validation.
 func TestUpdateText_MEDRange_YANG(t *testing.T) {
 	v := newTestValidator()
-	SetYANGValidator(v)
-	defer SetYANGValidator(nil)
+	plugin.SetYANGValidator(v)
+	defer plugin.SetYANGValidator(nil)
 
 	// Parse valid MED
 	_, err := ParseUpdateText([]string{
@@ -3840,7 +3843,7 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 	// Test YANG rejection propagation
 	v2 := newTestValidator()
 	v2.errs[yangPathMED] = errors.New("range error: value outside range")
-	SetYANGValidator(v2)
+	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
 		"med", "set", "100",
@@ -3856,8 +3859,8 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 // PREVENTS: Local-preference values bypassing YANG schema validation.
 func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 	v := newTestValidator()
-	SetYANGValidator(v)
-	defer SetYANGValidator(nil)
+	plugin.SetYANGValidator(v)
+	defer plugin.SetYANGValidator(nil)
 
 	// Parse valid local-preference
 	_, err := ParseUpdateText([]string{
@@ -3874,7 +3877,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 	// Test YANG rejection propagation
 	v2 := newTestValidator()
 	v2.errs[yangPathLocalPref] = errors.New("range error: value outside range")
-	SetYANGValidator(v2)
+	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
 		"local-preference", "set", "200",

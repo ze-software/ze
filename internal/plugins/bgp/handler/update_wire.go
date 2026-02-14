@@ -1,6 +1,6 @@
-// Package api provides the wire-encoded update parser.
+// update_wire.go provides the wire-encoded update parser.
 // Handles hex and b64 encodings for peer update commands.
-package plugin
+package handler
 
 import (
 	"encoding/base64"
@@ -10,6 +10,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
@@ -32,7 +33,7 @@ const kwSelf = "self"
 // ParseUpdateWire parses wire-encoded update command (hex or b64).
 // Same structure as text mode but attrs/nlris are decoded wire bytes.
 // Returns same bgptypes.UpdateTextResult as ParseUpdateText for uniform handling.
-func ParseUpdateWire(args []string, encoding WireEncoding) (*bgptypes.UpdateTextResult, error) {
+func ParseUpdateWire(args []string, encoding plugin.WireEncoding) (*bgptypes.UpdateTextResult, error) {
 	var (
 		attrsSet  bool
 		attrsWire *attribute.AttributesWire
@@ -113,13 +114,13 @@ func ParseUpdateWire(args []string, encoding WireEncoding) (*bgptypes.UpdateText
 type decodeFunc func(s string) ([]byte, error)
 
 // decoderForEncoding returns the appropriate decoder for the encoding.
-func decoderForEncoding(enc WireEncoding) decodeFunc {
+func decoderForEncoding(enc plugin.WireEncoding) decodeFunc {
 	switch enc {
-	case WireEncodingHex:
+	case plugin.WireEncodingHex:
 		return decodeHex
-	case WireEncodingB64:
+	case plugin.WireEncodingB64:
 		return decodeB64
-	case WireEncodingText:
+	case plugin.WireEncodingText:
 		return decodeHex // Default fallback for non-wire encodings
 	}
 	return decodeHex // Default fallback
@@ -368,28 +369,28 @@ func splitWireNLRIs(data []byte, family nlri.Family, addPath bool) ([]nlri.NLRI,
 
 // handleUpdateHex handles: peer <addr> update hex ...
 // Parses wire hex format and dispatches to reactor batch methods.
-func handleUpdateHex(ctx *CommandContext, args []string) (*Response, error) {
-	return handleUpdateWire(ctx, args, WireEncodingHex)
+func handleUpdateHex(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	return handleUpdateWire(ctx, args, plugin.WireEncodingHex)
 }
 
 // handleUpdateB64 handles: peer <addr> update b64 ...
 // Parses wire base64 format and dispatches to reactor batch methods.
-func handleUpdateB64(ctx *CommandContext, args []string) (*Response, error) {
-	return handleUpdateWire(ctx, args, WireEncodingB64)
+func handleUpdateB64(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	return handleUpdateWire(ctx, args, plugin.WireEncodingB64)
 }
 
 // handleUpdateWire handles wire-encoded update commands (hex/b64).
 // Parses the wire format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
-func handleUpdateWire(ctx *CommandContext, args []string, encoding WireEncoding) (*Response, error) {
+func handleUpdateWire(ctx *plugin.CommandContext, args []string, encoding plugin.WireEncoding) (*plugin.Response, error) {
 	result, err := ParseUpdateWire(args, encoding)
 	if err != nil {
-		return &Response{Status: StatusError, Data: err.Error()}, err
+		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 	}
 
 	if result.WatchdogName != "" {
 		errMsg := "watchdog not yet implemented for wire mode"
-		return &Response{Status: StatusError, Data: errMsg}, errors.New(errMsg)
+		return &plugin.Response{Status: plugin.StatusError, Data: errMsg}, errors.New(errMsg)
 	}
 
 	return DispatchNLRIGroups(ctx, result.Groups)

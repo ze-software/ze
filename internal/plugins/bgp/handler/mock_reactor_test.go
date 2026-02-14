@@ -33,6 +33,16 @@ type mockReactor struct {
 	addedPeers   []plugin.DynamicPeerConfig
 	removedPeers []netip.Addr
 
+	// NLRI batch tracking (used by update_wire integration tests)
+	announcedBatches []struct {
+		peer  string
+		batch bgptypes.NLRIBatch
+	}
+	withdrawnBatches []struct {
+		peer  string
+		batch bgptypes.NLRIBatch
+	}
+
 	// Cache tracking
 	cachedIDs []uint64 // returned by ListUpdates
 	retainedIDs,
@@ -101,8 +111,21 @@ func (m *mockReactor) WithdrawLabeledUnicast(_ string, _ bgptypes.LabeledUnicast
 }
 func (m *mockReactor) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
 func (m *mockReactor) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
-func (m *mockReactor) AnnounceNLRIBatch(_ string, _ bgptypes.NLRIBatch) error   { return nil }
-func (m *mockReactor) WithdrawNLRIBatch(_ string, _ bgptypes.NLRIBatch) error   { return nil }
+func (m *mockReactor) AnnounceNLRIBatch(peer string, batch bgptypes.NLRIBatch) error {
+	m.announcedBatches = append(m.announcedBatches, struct {
+		peer  string
+		batch bgptypes.NLRIBatch
+	}{peer, batch})
+	return nil
+}
+
+func (m *mockReactor) WithdrawNLRIBatch(peer string, batch bgptypes.NLRIBatch) error {
+	m.withdrawnBatches = append(m.withdrawnBatches, struct {
+		peer  string
+		batch bgptypes.NLRIBatch
+	}{peer, batch})
+	return nil
+}
 
 // RIB stubs.
 func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
