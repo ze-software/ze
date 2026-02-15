@@ -2444,6 +2444,12 @@ func (a *reactorAPIAdapter) SendEoRR(peerSelector string, afi uint16, safi uint8
 }
 
 // sendRouteRefresh sends a ROUTE-REFRESH message with the specified subtype.
+// RFC 2918 Section 3: "A BGP speaker that is willing to receive the
+// ROUTE-REFRESH message from its peer SHOULD advertise the Route Refresh
+// Capability to the peer using BGP Capabilities advertisement."
+// RFC 2918 Section 4: "A BGP speaker may send a ROUTE-REFRESH message to
+// its peer only if it has received the Route Refresh Capability from its peer."
+//
 // RFC 7313 Section 3.2 - Message Subtype values:
 //   - 0: Normal Route Refresh (RFC 2918)
 //   - 1: Beginning of Route Refresh (BoRR)

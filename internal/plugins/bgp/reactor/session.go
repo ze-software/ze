@@ -1242,7 +1242,11 @@ func (s *Session) handleNotification(body []byte) error {
 }
 
 // handleRouteRefresh processes a received ROUTE-REFRESH message.
-// RFC 2918: Base Route Refresh capability.
+// RFC 2918 Section 3: "A BGP speaker that is willing to receive the
+// ROUTE-REFRESH message from its peer SHOULD advertise the Route Refresh
+// Capability to the peer using BGP Capabilities advertisement."
+// RFC 2918 Section 4: The receiver SHOULD ignore ROUTE-REFRESH for AFI/SAFI
+// that were not advertised in the OPEN message.
 // RFC 7313: Enhanced Route Refresh with BoRR/EoRR markers.
 func (s *Session) handleRouteRefresh(body []byte) error {
 	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
@@ -1336,7 +1340,10 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 		s.writeBuf.Resize(true) // Expand to 65535 if needed
 	}
 
-	// Negotiate hold time (minimum of both, but at least 3s if non-zero).
+	// RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value of the
+	// Hold Timer by using the smaller of its configured Hold Time and the
+	// Hold Time received in the OPEN message. The Hold Time MUST be either
+	// zero or at least three seconds."
 	localHold := s.settings.HoldTime
 	peerHold := time.Duration(s.peerOpen.HoldTime) * time.Second
 
@@ -1345,7 +1352,7 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 		negotiatedHold = 0
 	} else {
 		negotiatedHold = min(peerHold, localHold)
-		// RFC 4271: Minimum hold time is 3 seconds if non-zero.
+		// RFC 4271 Section 4.2: Hold time value MUST be either zero or at least 3 seconds.
 		if negotiatedHold > 0 && negotiatedHold < 3*time.Second {
 			negotiatedHold = 3 * time.Second
 		}

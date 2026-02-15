@@ -332,6 +332,10 @@ func (a *AS4Aggregator) ToAggregator() *Aggregator {
 //	 as two-octet AS numbers in AS path information that is encoded with
 //	 two-octet AS numbers."
 //
+// RFC 6793 Section 4.2.2: "if the AS number is mappable, then the
+// AS4_AGGREGATOR attribute MUST NOT be sent."
+// Only non-mappable (high 2 octets non-zero) ASNs require AS4_AGGREGATOR.
+//
 // RFC 6793 Section 9 (IANA): AS_TRANS = 23456.
 const ASTrans uint32 = 23456
 

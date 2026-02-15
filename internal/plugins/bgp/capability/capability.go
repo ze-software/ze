@@ -442,6 +442,10 @@ func (a *AddPath) ConfigValues() map[string]string {
 // parseAddPath parses an ADD-PATH capability.
 //
 // RFC 7911 Section 4: Capability value length must be a multiple of 4.
+// Each tuple is <AFI(2), SAFI(1), Send/Receive(1)> where Send/Receive
+// values are: 1 (Receive), 2 (Send), 3 (Both).
+// RFC 7911 Section 4: "If any other value is received, then the capability
+// SHOULD be treated as not understood and ignored [RFC5492].".
 func parseAddPath(data []byte) (*AddPath, error) {
 	if len(data)%4 != 0 {
 		return nil, ErrShortRead

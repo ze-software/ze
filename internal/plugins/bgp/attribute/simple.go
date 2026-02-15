@@ -318,8 +318,14 @@ func (o OriginatorID) CheckedWriteTo(buf []byte, off int) (int, error) {
 }
 
 // ParseOriginatorID parses an ORIGINATOR_ID attribute (RFC 4456).
-// ORIGINATOR_ID is the Router ID (4 bytes) of the route reflector client
-// that originated the route.
+//
+// RFC 4456 Section 8: "ORIGINATOR_ID is a new optional, non-transitive
+// BGP attribute of Type code 9. This attribute is 4 bytes long and it
+// will be created by an RR in reflecting a route."
+//
+// RFC 4456 Section 8: "A router that recognizes the ORIGINATOR_ID attribute
+// SHOULD ignore a route received with its BGP Identifier as the ORIGINATOR_ID."
+// (Loop prevention for reflected routes.)
 func ParseOriginatorID(data []byte) (OriginatorID, error) {
 	if len(data) != 4 {
 		return OriginatorID{}, ErrInvalidLength
@@ -361,6 +367,14 @@ func (c ClusterList) CheckedWriteTo(buf []byte, off int) (int, error) {
 }
 
 // ParseClusterList parses a CLUSTER_LIST attribute.
+//
+// RFC 4456 Section 8: "CLUSTER_LIST is a new, optional, non-transitive
+// BGP attribute of Type code 10. It is a sequence of CLUSTER_ID values
+// representing the reflection path that the route has passed."
+//
+// RFC 4456 Section 8: "When an RR reflects a route, it MUST prepend the
+// local CLUSTER_ID to the CLUSTER_LIST. If the CLUSTER_LIST is empty,
+// it MUST create a new one.".
 func ParseClusterList(data []byte) (ClusterList, error) {
 	if len(data)%4 != 0 {
 		return nil, ErrInvalidLength
