@@ -13,6 +13,7 @@ import (
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
@@ -20,7 +21,7 @@ import (
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
 // If overrideDir is non-empty, it overrides msg.Direction for formatting.
-func FormatMessage(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, overrideDir string) string {
+func FormatMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, overrideDir string) string {
 	content = content.WithDefaults()
 
 	// Compute effective direction
@@ -67,7 +68,7 @@ func FormatMessage(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.C
 
 // formatEmptyUpdate formats an empty UPDATE message.
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
-func formatEmptyUpdate(peer plugin.PeerInfo, content plugin.ContentConfig) string {
+func formatEmptyUpdate(peer plugin.PeerInfo, content bgptypes.ContentConfig) string {
 	if content.Encoding == plugin.EncodingJSON {
 		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"address":"%s","asn":%d},"nlri":{}}}`+"\n",
 			peer.Address, peer.PeerAS)
@@ -82,7 +83,7 @@ func formatEmptyUpdate(peer plugin.PeerInfo, content plugin.ContentConfig) strin
 // For RAW format, it respects Encoding (JSON or text with raw hex).
 // For structured JSON output of non-UPDATE messages, use Server.formatMessage()
 // which has access to the shared JSONEncoder with proper counter semantics.
-func formatNonUpdate(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, direction string) string {
+func formatNonUpdate(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
 	// For parsed format, use dedicated text formatters
 	if content.Format != plugin.FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
@@ -113,7 +114,7 @@ func formatNonUpdate(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func formatFromFilterResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFromFilterResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
 	case plugin.FormatRaw:
 		return formatRawFromResult(peer, msg, content, direction)
@@ -126,7 +127,7 @@ func formatFromFilterResult(peer plugin.PeerInfo, msg plugin.RawMessage, content
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update",...},...}}.
-func formatRawFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, direction string) string {
+func formatRawFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == plugin.EncodingJSON {
 		var msgFields string
@@ -141,7 +142,7 @@ func formatRawFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content pl
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 // ctx provides ADD-PATH state per family.
-func formatParsedFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatParsedFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	if content.Encoding == plugin.EncodingJSON {
 		return formatFilterResultJSON(peer, result, msg.MessageID, direction, ctx)
 	}
@@ -151,7 +152,7 @@ func formatParsedFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content
 // formatFullFromResult formats both parsed content AND raw hex (ze-bgp JSON).
 // ctx provides ADD-PATH state per family.
 // Includes raw bytes nested under "raw" object: attributes, nlri, withdrawn.
-func formatFullFromResult(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
+func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
@@ -844,7 +845,7 @@ func FormatNegotiated(peer plugin.PeerInfo, neg DecodedNegotiated, encoder *JSON
 // FormatSentMessage formats a sent UPDATE message.
 // Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
 // For text format, uses "sent update" instead of "received update".
-func FormatSentMessage(peer plugin.PeerInfo, msg plugin.RawMessage, content plugin.ContentConfig) string {
+func FormatSentMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig) string {
 	// Format with direction override (no mutation of msg)
 	output := FormatMessage(peer, msg, content, "sent")
 

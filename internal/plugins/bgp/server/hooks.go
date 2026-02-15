@@ -4,8 +4,11 @@
 package server
 
 import (
+	"fmt"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // NewBGPHooks creates the BGPHooks callbacks for the plugin server.
@@ -14,8 +17,13 @@ func NewBGPHooks() *plugin.BGPHooks {
 	encoder := format.NewJSONEncoder("0.0.1")
 
 	return &plugin.BGPHooks{
-		OnMessageReceived: func(s *plugin.Server, peer plugin.PeerInfo, msg plugin.RawMessage) {
-			onMessageReceived(s, encoder, peer, msg)
+		OnMessageReceived: func(s *plugin.Server, peer plugin.PeerInfo, msg any) {
+			typedMsg, ok := msg.(bgptypes.RawMessage)
+			if !ok {
+				logger().Warn("OnMessageReceived: invalid msg type", "type", fmt.Sprintf("%T", msg))
+				return
+			}
+			onMessageReceived(s, encoder, peer, typedMsg)
 		},
 		OnPeerStateChange: func(s *plugin.Server, peer plugin.PeerInfo, state string) {
 			onPeerStateChange(s, peer, state)
@@ -23,8 +31,13 @@ func NewBGPHooks() *plugin.BGPHooks {
 		OnPeerNegotiated: func(s *plugin.Server, peer plugin.PeerInfo, neg any) {
 			onPeerNegotiated(s, encoder, peer, neg)
 		},
-		OnMessageSent: func(s *plugin.Server, peer plugin.PeerInfo, msg plugin.RawMessage) {
-			onMessageSent(s, peer, msg)
+		OnMessageSent: func(s *plugin.Server, peer plugin.PeerInfo, msg any) {
+			typedMsg, ok := msg.(bgptypes.RawMessage)
+			if !ok {
+				logger().Warn("OnMessageSent: invalid msg type", "type", fmt.Sprintf("%T", msg))
+				return
+			}
+			onMessageSent(s, peer, typedMsg)
 		},
 		BroadcastValidateOpen: broadcastValidateOpen,
 		CodecRPCHandler:       codecRPCHandler,

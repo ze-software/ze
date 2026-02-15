@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -19,7 +20,7 @@ var logger = slogutil.LazyLogger("bgp.server")
 
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
-func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg plugin.RawMessage) {
+func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	eventType := messageTypeToEventType(msg.Type)
 	if eventType == "" {
 		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
@@ -70,10 +71,10 @@ func messageTypeToEventType(msgType message.MessageType) string {
 
 // formatMessageForSubscription formats a BGP message for subscription-based delivery.
 // Uses JSON encoding with the specified format (from process settings).
-func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerInfo, msg plugin.RawMessage, fmtMode string) string {
+func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode string) string {
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
 	case message.TypeUPDATE:
-		content := plugin.ContentConfig{
+		content := bgptypes.ContentConfig{
 			Encoding: plugin.EncodingJSON,
 			Format:   fmtMode,
 		}
@@ -156,7 +157,7 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 
 // onMessageSent handles BGP messages sent to peers.
 // Forwards to processes that subscribed to sent events.
-func onMessageSent(s *plugin.Server, peer plugin.PeerInfo, msg plugin.RawMessage) {
+func onMessageSent(s *plugin.Server, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	eventType := messageTypeToEventType(msg.Type)
 	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
 
@@ -168,7 +169,7 @@ func onMessageSent(s *plugin.Server, peer plugin.PeerInfo, msg plugin.RawMessage
 	logger().Debug("OnMessageSent matched", "count", len(procs))
 
 	for _, proc := range procs {
-		content := plugin.ContentConfig{
+		content := bgptypes.ContentConfig{
 			Encoding: plugin.EncodingJSON,
 			Format:   proc.Format(),
 		}

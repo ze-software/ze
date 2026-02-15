@@ -28,7 +28,7 @@ func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response
 	}
 
 	// Guard reactor access (BGP-specific: cache operations)
-	_, errResp, err := plugin.RequireBGPReactor(ctx)
+	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -93,7 +93,7 @@ func bgpCacheHelp() (*plugin.Response, error) {
 
 // handleBgpCacheList returns all cached message IDs.
 func handleBgpCacheList(ctx *plugin.CommandContext) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -110,7 +110,7 @@ func handleBgpCacheList(ctx *plugin.CommandContext) (*plugin.Response, error) {
 
 // handleBgpCacheRetain prevents eviction of a cached message.
 func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -132,7 +132,7 @@ func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Respon
 
 // handleBgpCacheRelease allows eviction of a cached message.
 func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -154,7 +154,7 @@ func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Respo
 
 // handleBgpCacheExpire removes a cached message immediately.
 func handleBgpCacheExpire(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -191,7 +191,7 @@ func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string)
 		}, err
 	}
 
-	r, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
+	r, errResp, bgpErr := requireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}

@@ -12,6 +12,7 @@ import (
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
@@ -100,7 +101,7 @@ func TestFormatMessageText(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
 	}
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -108,7 +109,7 @@ func TestFormatMessageText(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
@@ -161,7 +162,7 @@ func TestFormatMessageJSON(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Attrs() error = %v", err)
 	}
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -169,7 +170,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -296,13 +297,13 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		0, // opt params len
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeOPEN,
 		RawBytes:  openBody,
 		Direction: "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
@@ -331,13 +332,13 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 		PeerAS:  65001,
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeKEEPALIVE,
 		RawBytes:  []byte{}, // KEEPALIVE has no body
 		Direction: "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}

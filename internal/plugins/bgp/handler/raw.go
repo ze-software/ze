@@ -27,7 +27,7 @@ func RawRPCs() []plugin.RPCRegistration {
 // Encodings: hex, b64
 // Data: encoded bytes (empty allowed for keepalive).
 func handleRaw(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireBGPReactor(ctx)
+	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -91,7 +91,7 @@ func handleRaw(ctx *plugin.CommandContext, args []string) (*plugin.Response, err
 	}
 
 	// Send to reactor (BGP-specific: raw message injection)
-	r, errResp2, bgpErr := plugin.RequireBGPReactor(ctx)
+	r, errResp2, bgpErr := requireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp2, bgpErr
 	}

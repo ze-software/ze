@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +15,8 @@ import (
 // via RPCProviders, simulating the production dispatch chain.
 func newDispatchContext(reactor plugin.ReactorLifecycle) *plugin.CommandContext {
 	server := plugin.NewServer(&plugin.ServerConfig{
-		RPCProviders: []func() []plugin.RPCRegistration{BgpHandlerRPCs},
+		RPCProviders:  []func() []plugin.RPCRegistration{BgpHandlerRPCs},
+		CommitManager: commit.NewCommitManager(),
 	}, reactor)
 	return &plugin.CommandContext{Server: server}
 }

@@ -8,6 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,7 +19,7 @@ import (
 // PREVENTS: Regression where raw message data is lost during forwarding.
 func TestRawMessageType(t *testing.T) {
 	now := time.Now()
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  []byte{0x00, 0x00, 0x00, 0x17},
 		Timestamp: now,
@@ -49,13 +50,13 @@ func TestFormatSwitchingParsedRawFull(t *testing.T) {
 		0x00, 0x00, // path attr length
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  updateBytes,
 		Timestamp: time.Now(),
 	}
 
-	content := plugin.ContentConfig{Encoding: "json", Format: "raw"}
+	content := bgptypes.ContentConfig{Encoding: "json", Format: "raw"}
 	rawOutput := FormatMessage(peer, msg, content, "")
 	require.Contains(t, rawOutput, "raw", "raw format should contain raw field")
 
@@ -96,14 +97,14 @@ func TestFormatFullWithRoutes(t *testing.T) {
 		0x18, 0x0a, 0x00, 0x00,
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  updateBytes,
 		Timestamp: time.Now(),
 	}
 
 	// Test JSON full format
-	content := plugin.ContentConfig{Encoding: "json", Format: "full"}
+	content := bgptypes.ContentConfig{Encoding: "json", Format: "full"}
 	output := FormatMessage(peer, msg, content, "")
 
 	require.Contains(t, output, "raw", "full format must contain raw field")
@@ -126,7 +127,7 @@ func TestFormatFullWithRoutes(t *testing.T) {
 //
 // PREVENTS: Nil pointer or empty string causing unexpected behavior.
 func TestContentConfigDefaults(t *testing.T) {
-	cfg := plugin.ContentConfig{}
+	cfg := bgptypes.ContentConfig{}
 
 	// Apply defaults
 	cfg = cfg.WithDefaults()

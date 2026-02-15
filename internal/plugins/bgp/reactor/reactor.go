@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
@@ -147,17 +148,17 @@ type Stats struct {
 type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 
 // MessageReceiver receives raw BGP messages from peers.
-// Messages are passed as raw wire bytes for on-demand parsing based on format config.
+// Messages are passed as any (bgptypes.RawMessage) for on-demand parsing based on format config.
 type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
 	// peer contains full peer information for proper JSON encoding.
-	// msg contains raw wire bytes - parsing is done by receiver based on format config.
-	OnMessageReceived(peer plugin.PeerInfo, msg plugin.RawMessage)
+	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
+	OnMessageReceived(peer plugin.PeerInfo, msg any)
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
-	// Used by RIB plugin to track routes for replay on reconnect.
-	OnMessageSent(peer plugin.PeerInfo, msg plugin.RawMessage)
+	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
+	OnMessageSent(peer plugin.PeerInfo, msg any)
 }
 
 // PeerLifecycleObserver receives peer state change notifications.
@@ -265,7 +266,7 @@ type Reactor struct {
 	reloadFunc ReloadFunc
 }
 
-// reactorAPIAdapter implements plugin.ReactorInterface for the Reactor.
+// reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.
 type reactorAPIAdapter struct {
 	r *Reactor
 }
@@ -2603,7 +2604,7 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 }
 
 // AddWatchdogRoute adds a route to a global watchdog pool.
-// Implements plugin.ReactorInterface.
+// Implements plugin.ReactorLifecycle + bgptypes.BGPReactor.
 func (a *reactorAPIAdapter) AddWatchdogRoute(route bgptypes.RouteSpec, poolName string) error {
 	// Convert bgptypes.RouteSpec to StaticRoute
 	sr := StaticRoute{
@@ -2661,7 +2662,7 @@ func (a *reactorAPIAdapter) AddWatchdogRoute(route bgptypes.RouteSpec, poolName 
 }
 
 // RemoveWatchdogRoute removes a route from a global watchdog pool.
-// Implements plugin.ReactorInterface.
+// Implements plugin.ReactorLifecycle + bgptypes.BGPReactor.
 func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error {
 	return a.r.RemoveWatchdogRoute(routeKey, poolName)
 }
@@ -2764,8 +2765,8 @@ func (a *reactorAPIAdapter) RIBOutRoutes() []rib.RouteJSON {
 }
 
 // RIBStats returns RIB statistics.
-func (a *reactorAPIAdapter) RIBStats() plugin.RIBStatsInfo {
-	stats := plugin.RIBStatsInfo{}
+func (a *reactorAPIAdapter) RIBStats() bgptypes.RIBStatsInfo {
+	stats := bgptypes.RIBStatsInfo{}
 
 	if a.r.ribIn != nil {
 		inStats := a.r.ribIn.Stats()
@@ -4003,7 +4004,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	messageID := nextMsgID()
 	timestamp := time.Now()
 
-	var msg plugin.RawMessage
+	var msg bgptypes.RawMessage
 	var kept bool
 
 	// Zero-copy path for received UPDATE messages
@@ -4019,7 +4020,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 
 		// RawMessage uses zero-copy for synchronous callback processing
-		msg = plugin.RawMessage{
+		msg = bgptypes.RawMessage{
 			Type:       msgType,
 			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
 			Timestamp:  timestamp,
@@ -4034,7 +4035,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		bytes := make([]byte, len(rawBytes))
 		copy(bytes, rawBytes)
 
-		msg = plugin.RawMessage{
+		msg = bgptypes.RawMessage{
 			Type:      msgType,
 			RawBytes:  bytes,
 			Timestamp: timestamp,
@@ -4273,7 +4274,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			RPCProviders: []func() []plugin.RPCRegistration{
 				handler.BgpHandlerRPCs,
 			},
-			BGPHooks: bgpserver.NewBGPHooks(),
+			BGPHooks:      bgpserver.NewBGPHooks(),
+			CommitManager: commit.NewCommitManager(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

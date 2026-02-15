@@ -15,6 +15,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -263,7 +264,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	}
 
 	// UPDATE with msg-id
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type: message.TypeUPDATE,
 		RawBytes: []byte{
 			// Minimal UPDATE with NLRI: 10.0.0.0/24
@@ -274,7 +275,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		MessageID: 12345,
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -467,7 +468,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 		'g', 'o', 'o', 'd', 'b', 'y', 'e', // "goodbye"
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  rawBytes,
 		MessageID: 42,
@@ -476,7 +477,7 @@ func TestFormatMessageNotificationText_Parsed(t *testing.T) {
 
 	// Even with plugin.EncodingJSON, FormatMessage returns text for non-UPDATE
 	// This is by design - JSON encoding for non-UPDATE uses Server.formatMessage()
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingText,
 		Format:   plugin.FormatParsed,
 	}
@@ -507,7 +508,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		PeerAS:  65002,
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeNOTIFICATION,
 		RawBytes:  []byte{0x04, 0x00}, // Hold Timer Expired
 		MessageID: 1,
@@ -515,7 +516,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 	}
 
 	// Request JSON encoding with parsed format
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON, // Requested JSON...
 		Format:   plugin.FormatParsed,
 	}
@@ -539,13 +540,13 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 		PeerAS:  65002,
 	}
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:      message.TypeUPDATE,
 		RawBytes:  []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
 		MessageID: 0,                              // No msg-id
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -607,7 +608,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -615,7 +616,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -667,7 +668,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, testEncodingContext())
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -675,7 +676,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -730,7 +731,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -738,7 +739,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -797,7 +798,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -805,7 +806,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -868,7 +869,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -876,7 +877,7 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -1061,7 +1062,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1069,7 +1070,7 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -1725,7 +1726,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 	attrsWire, err := wireUpdate.Attrs()
 	require.NoError(t, err)
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1734,7 +1735,7 @@ func TestEventJSONHasTopLevelType(t *testing.T) {
 		MessageID:  123,
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -1827,7 +1828,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1836,7 +1837,7 @@ func TestEventJSONMessageMetadata(t *testing.T) {
 		MessageID:  456,
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -1909,7 +1910,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1917,7 +1918,7 @@ func TestEventJSONNestedStructure(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatParsed,
 	}
@@ -1979,7 +1980,7 @@ func TestEventJSONRawSection(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(body, ctxID)
 	attrsWire, _ := wireUpdate.Attrs()
 
-	msg := plugin.RawMessage{
+	msg := bgptypes.RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
 		AttrsWire:  attrsWire,
@@ -1987,7 +1988,7 @@ func TestEventJSONRawSection(t *testing.T) {
 		Direction:  "received",
 	}
 
-	content := plugin.ContentConfig{
+	content := bgptypes.ContentConfig{
 		Encoding: plugin.EncodingJSON,
 		Format:   plugin.FormatFull, // Request raw bytes
 	}

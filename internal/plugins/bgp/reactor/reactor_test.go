@@ -1803,10 +1803,10 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Track received messages
-	var receivedMsg plugin.RawMessage
+	var receivedMsg bgptypes.RawMessage
 	var receivedPeer plugin.PeerInfo
 	receiver := &testMessageReceiver{
-		onReceived: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
+		onReceived: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 			receivedPeer = peer
 			receivedMsg = msg
 		},
@@ -1872,9 +1872,9 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 	require.NoError(t, err)
 
 	// Track sent messages
-	var sentMsg plugin.RawMessage
+	var sentMsg bgptypes.RawMessage
 	receiver := &testMessageReceiver{
-		onSent: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
+		onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 			sentMsg = msg
 		},
 	}
@@ -1924,9 +1924,9 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	require.NoError(t, err)
 
 	// Track sent messages
-	var sentMsg plugin.RawMessage
+	var sentMsg bgptypes.RawMessage
 	receiver := &testMessageReceiver{
-		onSent: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
+		onSent: func(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 			sentMsg = msg
 		},
 	}
@@ -1945,20 +1945,24 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	require.Nil(t, sentMsg.AttrsWire, "AttrsWire should be nil when ctxID is 0")
 }
 
-// testMessageReceiver implements plugin.MessageReceiver for testing.
+// testMessageReceiver implements MessageReceiver for testing.
 type testMessageReceiver struct {
-	onReceived func(plugin.PeerInfo, plugin.RawMessage)
-	onSent     func(plugin.PeerInfo, plugin.RawMessage)
+	onReceived func(plugin.PeerInfo, bgptypes.RawMessage)
+	onSent     func(plugin.PeerInfo, bgptypes.RawMessage)
 }
 
-func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg plugin.RawMessage) {
+func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) {
 	if r.onReceived != nil {
-		r.onReceived(peer, msg)
+		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
+			r.onReceived(peer, typedMsg)
+		}
 	}
 }
 
-func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg plugin.RawMessage) {
+func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {
 	if r.onSent != nil {
-		r.onSent(peer, msg)
+		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
+			r.onSent(peer, typedMsg)
+		}
 	}
 }

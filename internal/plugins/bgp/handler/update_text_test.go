@@ -1072,7 +1072,7 @@ func TestParseUpdateText_AttrBetweenNLRISections(t *testing.T) {
 // Handler Integration Tests (TDD for handleUpdateText)
 // =============================================================================
 
-// mockReactorBatch implements ReactorInterface for batch handler testing.
+// mockReactorBatch implements ReactorLifecycle + BGPReactor for batch handler testing.
 // Used by handler integration tests.
 type mockReactorBatch struct {
 	announceError      error
@@ -1109,7 +1109,7 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(peerSelector string, batch bgptypes
 	return m.withdrawError
 }
 
-// Stub implementations for other ReactorInterface methods.
+// Stub implementations for other ReactorLifecycle methods.
 func (m *mockReactorBatch) Peers() []plugin.PeerInfo                                  { return nil }
 func (m *mockReactorBatch) Stats() plugin.ReactorStats                                { return plugin.ReactorStats{} }
 func (m *mockReactorBatch) Stop()                                                     {}
@@ -1140,7 +1140,7 @@ func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error            
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
 func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                            { return nil }
-func (m *mockReactorBatch) RIBStats() plugin.RIBStatsInfo                            { return plugin.RIBStatsInfo{} }
+func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo                          { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactorBatch) BeginTransaction(_, _ string) error                       { return nil }
 func (m *mockReactorBatch) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil

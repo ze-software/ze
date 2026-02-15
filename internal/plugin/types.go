@@ -12,8 +12,6 @@ import (
 	"fmt"
 	"net/netip"
 	"time"
-
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // Encoding constants for process output formatting.
@@ -28,7 +26,8 @@ const (
 // This allows BGP-specific logic to live outside the generic plugin infrastructure.
 type BGPHooks struct {
 	// OnMessageReceived handles BGP message delivery to subscribed plugins.
-	OnMessageReceived func(s *Server, peer PeerInfo, msg RawMessage)
+	// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
+	OnMessageReceived func(s *Server, peer PeerInfo, msg any)
 
 	// OnPeerStateChange handles peer state change delivery to subscribed plugins.
 	OnPeerStateChange func(s *Server, peer PeerInfo, state string)
@@ -38,7 +37,8 @@ type BGPHooks struct {
 	OnPeerNegotiated func(s *Server, peer PeerInfo, neg any)
 
 	// OnMessageSent handles sent message delivery to subscribed plugins.
-	OnMessageSent func(s *Server, peer PeerInfo, msg RawMessage)
+	// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
+	OnMessageSent func(s *Server, peer PeerInfo, msg any)
 
 	// BroadcastValidateOpen validates OPEN messages via plugins.
 	// local and remote are *message.Open (typed as any to avoid BGP message imports).
@@ -160,16 +160,6 @@ type ReactorLifecycle interface {
 	SignalPeerAPIReady(peerAddr string)
 }
 
-// ReactorInterface combines lifecycle and BGP reactor capabilities.
-// The Reactor struct (internal/plugins/bgp/reactor/) implements both.
-//
-// Callers that only need lifecycle operations should accept ReactorLifecycle.
-// Callers that need BGP operations should accept bgptypes.BGPReactor.
-type ReactorInterface interface {
-	ReactorLifecycle
-	bgptypes.BGPReactor
-}
-
 // PeerProcessBinding describes which plugin receives messages from a peer.
 type PeerProcessBinding struct {
 	PluginName string // Reference to plugin name
@@ -198,10 +188,6 @@ type PeerProcessBinding struct {
 type StateChangeReceiver interface {
 	OnPeerStateChange(peer PeerInfo, state string)
 }
-
-// RIBStatsInfo holds RIB statistics.
-// Type alias — canonical definition in internal/plugins/bgp/types/.
-type RIBStatsInfo = bgptypes.RIBStatsInfo
 
 // Response represents an API command response.
 // Serial is included only if command had #N prefix.
@@ -263,6 +249,7 @@ type ServerConfig struct {
 	ConfiguredFamilies []string                   // Families configured on peers (for deferred auto-load)
 	RPCProviders       []func() []RPCRegistration // Additional RPC sources (e.g., BGP handler RPCs)
 	BGPHooks           *BGPHooks                  // Optional BGP-specific hooks (nil for generic server)
+	CommitManager      any                        // Commit manager instance (injected by reactor, type-asserted by handlers)
 }
 
 // Format constants for process output formatting.
@@ -328,9 +315,3 @@ const (
 
 // cmdPlugin is the "plugin" token in command strings like "ze bgp plugin <name>".
 const cmdPlugin = "plugin"
-
-// ContentConfig is a type alias — canonical definition in internal/plugins/bgp/types/.
-type ContentConfig = bgptypes.ContentConfig
-
-// RawMessage is a type alias — canonical definition in internal/plugins/bgp/types/.
-type RawMessage = bgptypes.RawMessage

@@ -19,7 +19,7 @@ func RefreshRPCs() []plugin.RPCRegistration {
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
 func handleBoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -30,7 +30,7 @@ func handleBoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, er
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
 func handleEoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}

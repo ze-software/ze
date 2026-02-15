@@ -6,9 +6,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // ErrUnknownCommand is returned when a command is not recognized.
@@ -113,7 +110,7 @@ func (c *CommandContext) Dispatcher() *Dispatcher {
 }
 
 // CommitManager returns the commit manager via Server. Nil-safe: returns nil if Server is nil.
-func (c *CommandContext) CommitManager() *commit.CommitManager {
+func (c *CommandContext) CommitManager() any {
 	if c.Server == nil {
 		return nil
 	}
@@ -138,27 +135,6 @@ func RequireReactor(ctx *CommandContext) (ReactorLifecycle, *Response, error) {
 		}, fmt.Errorf("reactor not available")
 	}
 	return r, nil, nil
-}
-
-// RequireBGPReactor returns the reactor as a BGPReactor or an error response.
-// Use this when the handler needs BGP-specific operations (route announce,
-// cache, RIB, raw message, etc.) that are not part of ReactorLifecycle.
-func RequireBGPReactor(ctx *CommandContext) (bgptypes.BGPReactor, *Response, error) {
-	r := ctx.Reactor()
-	if r == nil {
-		return nil, &Response{
-			Status: StatusError,
-			Data:   "reactor not available",
-		}, fmt.Errorf("reactor not available")
-	}
-	bgp, ok := r.(bgptypes.BGPReactor)
-	if !ok {
-		return nil, &Response{
-			Status: StatusError,
-			Data:   "BGP reactor not available",
-		}, fmt.Errorf("BGP reactor not available")
-	}
-	return bgp, nil, nil
 }
 
 // PeerSelector returns the effective neighbor selector.

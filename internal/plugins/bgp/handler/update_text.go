@@ -1697,7 +1697,7 @@ func handleUpdateText(ctx *plugin.CommandContext, args []string) (*plugin.Respon
 	}
 
 	// BGP-specific operations: EOR, announce, withdraw
-	bgpReactor, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
+	bgpReactor, errResp, bgpErr := requireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
@@ -1746,7 +1746,7 @@ func handleUpdateText(ctx *plugin.CommandContext, args []string) (*plugin.Respon
 // DispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
 func DispatchNLRIGroups(ctx *plugin.CommandContext, groups []bgptypes.NLRIGroup) (*plugin.Response, error) {
-	bgpReactor, errResp, bgpErr := plugin.RequireBGPReactor(ctx)
+	bgpReactor, errResp, bgpErr := requireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}

@@ -41,7 +41,7 @@ func handleWatchdogAction(
 	args []string,
 	action func(bgptypes.BGPReactor, string, string) error,
 ) (*plugin.Response, error) {
-	r, errResp, err := plugin.RequireBGPReactor(ctx)
+	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}

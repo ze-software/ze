@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorInterface.
+// mockReloadReactor implements the GetConfigTree/SetConfigTree subset of ReactorLifecycle.
 // Embeds mockReactor (from handler_test.go) for all other interface methods.
 type mockReloadReactor struct {
 	mockReactor

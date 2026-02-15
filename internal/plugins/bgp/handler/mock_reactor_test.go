@@ -4,6 +4,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -11,7 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
-// mockReactor implements plugin.ReactorInterface for handler tests.
+// mockReactor implements plugin.ReactorLifecycle for handler tests.
 type mockReactor struct {
 	peers []plugin.PeerInfo
 	stats plugin.ReactorStats
@@ -130,7 +131,7 @@ func (m *mockReactor) WithdrawNLRIBatch(peer string, batch bgptypes.NLRIBatch) e
 // RIB stubs.
 func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBOutRoutes() []rib.RouteJSON        { return nil }
-func (m *mockReactor) RIBStats() plugin.RIBStatsInfo        { return plugin.RIBStatsInfo{} }
+func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
 func (m *mockReactor) ClearRIBOut() int                     { return 0 }
 func (m *mockReactor) FlushRIBOut() int                     { return 0 }
@@ -204,7 +205,9 @@ func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
 }
 
 // newTestContext creates a CommandContext backed by a mock reactor.
-func newTestContext(reactor plugin.ReactorInterface) *plugin.CommandContext {
-	server := plugin.NewServer(&plugin.ServerConfig{}, reactor)
+func newTestContext(reactor plugin.ReactorLifecycle) *plugin.CommandContext {
+	server := plugin.NewServer(&plugin.ServerConfig{
+		CommitManager: commit.NewCommitManager(),
+	}, reactor)
 	return &plugin.CommandContext{Server: server}
 }

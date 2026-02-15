@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -174,7 +173,7 @@ type Server struct {
 	dispatcher    *Dispatcher
 	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
 	bgpHooks      *BGPHooks
-	commitManager *commit.CommitManager
+	commitManager any
 	procManager   *ProcessManager
 	subscriptions *SubscriptionManager // API-driven event subscriptions
 
@@ -217,7 +216,7 @@ func NewServer(config *ServerConfig, reactor ReactorLifecycle) *Server {
 		dispatcher:    NewDispatcher(),
 		rpcDispatcher: ipc.NewRPCDispatcher(),
 		bgpHooks:      config.BGPHooks,
-		commitManager: commit.NewCommitManager(),
+		commitManager: config.CommitManager,
 		subscriptions: NewSubscriptionManager(),
 		registry:      NewPluginRegistry(),
 		capInjector:   NewCapabilityInjector(),
@@ -264,7 +263,7 @@ func (s *Server) Dispatcher() *Dispatcher {
 }
 
 // CommitManager returns the commit manager.
-func (s *Server) CommitManager() *commit.CommitManager {
+func (s *Server) CommitManager() any {
 	return s.commitManager
 }
 
@@ -1290,8 +1289,9 @@ func (s *Server) removeClient(client *Client) {
 // They are called by the reactor for BGP event delivery.
 
 // OnMessageReceived handles raw BGP messages from peers.
+// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 // Delegates to BGPHooks.OnMessageReceived when set.
-func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
+func (s *Server) OnMessageReceived(peer PeerInfo, msg any) {
 	if s.bgpHooks == nil || s.bgpHooks.OnMessageReceived == nil {
 		return
 	}
@@ -1327,8 +1327,9 @@ func (s *Server) OnPeerNegotiated(peer PeerInfo, neg any) {
 }
 
 // OnMessageSent handles BGP messages sent to peers.
+// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 // Delegates to BGPHooks.OnMessageSent when set.
-func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
+func (s *Server) OnMessageSent(peer PeerInfo, msg any) {
 	if s.bgpHooks == nil || s.bgpHooks.OnMessageSent == nil {
 		return
 	}
