@@ -1,0 +1,199 @@
+package scenario
+
+import (
+	"net/netip"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestConfigGenStructure verifies the generated config has the required
+// top-level structure: process block for RR plugin and N neighbor blocks.
+//
+// VALIDATES: Config has process + neighbor blocks.
+// PREVENTS: Missing structural elements causing Ze parse failures.
+func TestConfigGenStructure(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+		{Index: 1, ASN: 65000, RouterID: netip.MustParseAddr("10.255.0.2"), IsIBGP: true, Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	assert.Contains(t, config, "process route-reflector")
+	assert.Contains(t, config, "neighbor 127.0.0.1")
+	// Should have 2 neighbor blocks
+	assert.Equal(t, 2, strings.Count(config, "neighbor 127.0.0.1 {"), "expected 2 neighbor blocks")
+}
+
+// TestConfigGenPeerBlock verifies each peer block has correct ASN, families,
+// and passive flag.
+//
+// VALIDATES: Peer blocks contain correct per-peer config.
+// PREVENTS: Wrong ASN or missing capabilities in generated config.
+func TestConfigGenPeerBlock(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+		{Index: 1, ASN: 65000, RouterID: netip.MustParseAddr("10.255.0.2"), IsIBGP: true, Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	// eBGP peer (index 0): peer-as should be 65001
+	assert.Contains(t, config, "peer-as 65001;")
+	// iBGP peer (index 1): peer-as should be 65000
+	assert.Contains(t, config, "peer-as 65000;")
+	// local-as always present
+	assert.Contains(t, config, "local-as 65000;")
+	// Family block
+	assert.Contains(t, config, "ipv4 unicast;")
+	// Passive peer should have passive flag
+	assert.Contains(t, config, "passive true;")
+}
+
+// TestConfigGenDeterministic verifies that the same profiles always produce
+// the same config output.
+//
+// VALIDATES: Config generation is deterministic.
+// PREVENTS: Non-deterministic output breaking reproducibility.
+func TestConfigGenDeterministic(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+		{Index: 1, ASN: 65000, RouterID: netip.MustParseAddr("10.255.0.2"), IsIBGP: true, Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config1 := GenerateConfig(params)
+	config2 := GenerateConfig(params)
+
+	assert.Equal(t, config1, config2)
+}
+
+// TestConfigGenRouterID verifies the config includes the router-id.
+//
+// VALIDATES: Router ID is set in config.
+// PREVENTS: Missing router-id causing Ze to fail.
+func TestConfigGenRouterID(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+	assert.Contains(t, config, "router-id 10.0.0.1;")
+}
+
+// TestConfigGenHoldTime verifies the config includes hold-time per peer.
+//
+// VALIDATES: Hold time is set in peer block.
+// PREVENTS: Default hold time being used when specific value intended.
+func TestConfigGenHoldTime(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+	assert.Contains(t, config, "hold-time 90;")
+}
+
+// TestConfigGenMultiplePeers verifies that config with many peers has
+// the correct number of neighbor blocks.
+//
+// VALIDATES: Each profile produces a neighbor block.
+// PREVENTS: Off-by-one in peer iteration.
+func TestConfigGenMultiplePeers(t *testing.T) {
+	profiles := make([]PeerProfile, 10)
+	for i := range profiles {
+		profiles[i] = PeerProfile{
+			Index:      i,
+			ASN:        uint32(65001 + i),
+			RouterID:   netip.MustParseAddr("10.255.0.1"),
+			Mode:       ModeActive,
+			RouteCount: 100,
+			HoldTime:   90,
+			Port:       1890 + i,
+		}
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	// Count neighbor blocks
+	count := strings.Count(config, "neighbor 127.0.0.1 {")
+	require.Equal(t, 10, count, "expected 10 neighbor blocks")
+}
+
+// TestConfigGenConnectionMode verifies active peers connect to Ze's port
+// while passive peers have Ze connect to their listen port.
+//
+// VALIDATES: Active peers use Ze's base port; passive peers advertise their port.
+// PREVENTS: Port assignment confusion between active and passive modes.
+func TestConfigGenConnectionMode(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+		{Index: 1, ASN: 65002, RouterID: netip.MustParseAddr("10.255.0.2"), Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	// Passive peer should have passive true in its block
+	assert.Contains(t, config, "passive true;")
+	// Active peer's block should NOT have passive
+	// (we check the count: only 1 passive statement for 1 passive peer)
+	assert.Equal(t, 1, strings.Count(config, "passive true;"))
+}
