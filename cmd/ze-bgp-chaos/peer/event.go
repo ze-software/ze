@@ -24,6 +24,12 @@ const (
 	EventDisconnected
 	// EventError is sent when the peer encounters a fatal error.
 	EventError
+	// EventChaosExecuted is sent when a chaos action is executed on a peer.
+	EventChaosExecuted
+	// EventReconnecting is sent when a peer is about to reconnect after chaos.
+	EventReconnecting
+	// EventWithdrawalSent is sent when explicit withdrawals are sent by chaos.
+	EventWithdrawalSent
 )
 
 // Event represents a simulator lifecycle or route event.
@@ -43,6 +49,9 @@ type Event struct {
 	// Err is set for EventError.
 	Err error
 
-	// Count is set for EventEORSent (number of routes sent before EOR).
+	// Count is set for EventEORSent and EventWithdrawalSent.
 	Count int
+
+	// ChaosAction is the action name for EventChaosExecuted events.
+	ChaosAction string
 }

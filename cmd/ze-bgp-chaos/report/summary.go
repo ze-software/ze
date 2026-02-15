@@ -25,6 +25,11 @@ type Summary struct {
 	MaxLatency time.Duration
 	P99Latency time.Duration
 	SlowRoutes int
+
+	// Chaos injection stats.
+	ChaosEvents   int
+	Reconnections int
+	Withdrawn     int
 }
 
 // Pass returns true when there are no validation failures.
@@ -72,6 +77,11 @@ func (s *Summary) Write(w io.Writer) int {
 			formatDuration(s.AvgLatency),
 			formatDuration(s.MaxLatency),
 			formatDuration(s.P99Latency))
+	}
+
+	if s.ChaosEvents > 0 {
+		rw.printf("  chaos: %d events, %d reconnections, %d withdrawn\n",
+			s.ChaosEvents, s.Reconnections, s.Withdrawn)
 	}
 
 	rw.printf("  result: %s\n", verdict)

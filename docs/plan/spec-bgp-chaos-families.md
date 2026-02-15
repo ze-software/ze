@@ -46,7 +46,12 @@ Extend `ze-bgp-chaos` from ipv4/unicast-only to full multi-family support: ipv6/
 - [ ] `internal/plugins/bgp-flowspec/` - FlowSpec NLRI construction
 
 **Key insights:**
-- _To be filled after Phase 3 completes_
+- Chaos works per-session, not per-family — all 10 event types target a peer connection, not a specific address family
+- No family-specific chaos events needed — disconnects, withdrawals, etc. affect the entire peer session
+- Chaos executor lives in `peer/simulator.go` (not a separate executor file) — `executeChaos()` is called from the KEEPALIVE select loop
+- Partial/full withdrawal currently uses `BuildWithdrawal()` for IPv4/unicast only — families phase must extend this
+- Reconnect storm and connection collision create new TCP connections via `net.Dialer.DialContext` — multi-family OPENs must include correct capabilities
+- The `chaos/` package is pure scheduling logic (action types + weighted selection); execution lives in `peer/`
 
 ## Current Behavior (MANDATORY)
 
@@ -57,7 +62,7 @@ Extend `ze-bgp-chaos` from ipv4/unicast-only to full multi-family support: ipv6/
 - [ ] `cmd/ze-bgp-chaos/peer/sender.go` — route UPDATE building and sending
 - [ ] `cmd/ze-bgp-chaos/peer/receiver.go` — incoming UPDATE parsing
 - [ ] `cmd/ze-bgp-chaos/validation/model.go` — expected state model
-- [ ] `cmd/ze-bgp-chaos/chaos/executor.go` — chaos event execution on peers
+- [ ] `cmd/ze-bgp-chaos/peer/simulator.go` — chaos event execution in `executeChaos()` + helpers
 
 **Behavior to preserve:**
 - IPv4/unicast route generation from Phase 1

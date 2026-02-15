@@ -24,11 +24,15 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
 )
+
+// reconnectBackoff is the delay before a peer reconnects after a chaos disconnect.
+const reconnectBackoff = 2 * time.Second
 
 func main() {
 	os.Exit(run(os.Args[1:]))
@@ -71,6 +75,7 @@ func run(args []string) int {
 	// Control flags
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
 	warmup := fs.Duration("warmup", 5*time.Second, "Time before chaos starts")
+	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `ze-bgp-chaos - Chaos monkey for Ze BGP route server testing
@@ -112,6 +117,7 @@ Output:
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
   --warmup <dur>             Time before chaos starts (default: 5s)
+  --ze-pid <N>               Ze process PID (for config-reload chaos events)
 `)
 	}
 
@@ -167,11 +173,8 @@ Control:
 	_ = churnRate
 	_ = families
 	_ = excludeFamilies
-	_ = chaosRate
-	_ = chaosInterval
 	_ = eventFile
 	_ = metricsAddr
-	_ = warmup
 
 	// Generate scenario from seed.
 	profiles, err := scenario.Generate(scenario.GeneratorParams{
@@ -226,7 +229,12 @@ Control:
 
 	// Launch multi-peer orchestrator.
 	start := time.Now()
-	return runOrchestrator(ctx, profiles, *seed, *localAddr, *port, *verbose, *quiet, start)
+	chaosCfg := ChaosConfig{
+		Rate:     *chaosRate,
+		Interval: *chaosInterval,
+		Warmup:   *warmup,
+	}
+	return runOrchestrator(ctx, profiles, *seed, *localAddr, *port, *verbose, *quiet, start, chaosCfg, *zePID)
 }
 
 // writeConfig writes the Ze config to the specified file or stderr.
@@ -242,9 +250,12 @@ func writeConfig(config, path string, quiet bool) error {
 }
 
 // runOrchestrator launches N peer simulators and validates route propagation.
-func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed uint64, localAddr string, zePort int, verbose, quiet bool, start time.Time) int {
+// When chaos is enabled (chaosCfg.Rate > 0), it also starts the chaos scheduler
+// and wraps each peer in a reconnection loop.
+func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed uint64, localAddr string, zePort int, verbose, quiet bool, start time.Time, chaosCfg ChaosConfig, zePID int) int {
 	n := len(profiles)
 	addr := fmt.Sprintf("%s:%d", localAddr, zePort)
+	chaosEnabled := chaosCfg.Rate > 0
 
 	// Create validation components.
 	model := validation.NewModel(n)
@@ -256,16 +267,35 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 		Convergence: convergence,
 	}
 
+	// Established state tracking (shared with scheduler goroutine).
+	established := newEstablishedState(n)
+
+	// Per-peer chaos channels (only allocated when chaos is enabled).
+	var chaosChannels []chan chaos.ChaosAction
+	if chaosEnabled {
+		chaosChannels = make([]chan chaos.ChaosAction, n)
+		for i := range n {
+			chaosChannels[i] = make(chan chaos.ChaosAction, 1)
+		}
+	}
+
 	// Shared event channel with generous buffer.
 	events := make(chan peer.Event, n*1000)
 
-	// Launch all peer simulators.
+	// Launch per-peer goroutines.
 	var wg sync.WaitGroup
 	for _, p := range profiles {
 		wg.Add(1)
 		go func(prof scenario.PeerProfile) {
 			defer wg.Done()
-			peer.RunSimulator(ctx, peer.SimulatorConfig{
+
+			// Chaos channel for this peer (nil when chaos is disabled).
+			var chaosCh <-chan chaos.ChaosAction
+			if chaosEnabled {
+				chaosCh = chaosChannels[prof.Index]
+			}
+
+			simCfg := peer.SimulatorConfig{
 				Profile: peer.SimProfile{
 					Index:      prof.Index,
 					ASN:        prof.ASN,
@@ -277,13 +307,29 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 				Seed:    seed,
 				Addr:    addr,
 				Events:  events,
+				Chaos:   chaosCh,
+				ZePID:   zePID,
 				Verbose: verbose,
 				Quiet:   quiet,
-			})
+			}
+
+			if !chaosEnabled {
+				// Single-shot mode (Phase 1/2 behavior).
+				peer.RunSimulator(ctx, simCfg)
+				return
+			}
+
+			// Reconnection loop: restart simulator after chaos disconnects.
+			runPeerLoop(ctx, simCfg, prof.Index, events)
 		}(p)
 	}
 
-	// Close events channel when all simulators finish.
+	// Launch scheduler goroutine (only when chaos is enabled).
+	if chaosEnabled {
+		go runScheduler(ctx, chaosCfg, seed, n, established, chaosChannels, quiet)
+	}
+
+	// Close events channel when all peer goroutines finish.
 	go func() {
 		wg.Wait()
 		close(events)
@@ -291,6 +337,18 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 
 	// Process events from all peers.
 	for ev := range events {
+		// Update established state for scheduler.
+		switch ev.Type {
+		case peer.EventEstablished:
+			established.Set(ev.PeerIndex, true)
+		case peer.EventDisconnected:
+			established.Set(ev.PeerIndex, false)
+		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
+			peer.EventEORSent, peer.EventError,
+			peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent:
+			// Other events don't affect established state.
+		}
+
 		ep.Process(ev)
 
 		if verbose && ev.Type == peer.EventError {
@@ -305,19 +363,85 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 
 	// Build and print summary.
 	summary := report.Summary{
-		Seed:       seed,
-		Duration:   time.Since(start).Truncate(time.Millisecond),
-		PeerCount:  n,
-		Announced:  ep.Announced,
-		Received:   ep.Received,
-		Missing:    result.TotalMissing,
-		Extra:      result.TotalExtra,
-		MinLatency: convStats.Min,
-		AvgLatency: convStats.Avg,
-		MaxLatency: convStats.Max,
-		P99Latency: convStats.P99,
-		SlowRoutes: len(slow),
+		Seed:          seed,
+		Duration:      time.Since(start).Truncate(time.Millisecond),
+		PeerCount:     n,
+		Announced:     ep.Announced,
+		Received:      ep.Received,
+		Missing:       result.TotalMissing,
+		Extra:         result.TotalExtra,
+		MinLatency:    convStats.Min,
+		AvgLatency:    convStats.Avg,
+		MaxLatency:    convStats.Max,
+		P99Latency:    convStats.P99,
+		SlowRoutes:    len(slow),
+		ChaosEvents:   ep.ChaosEvents,
+		Reconnections: ep.Reconnections,
+		Withdrawn:     ep.Withdrawn,
 	}
 
 	return summary.Write(os.Stderr)
+}
+
+// runPeerLoop runs a peer simulator with reconnection after chaos disconnects.
+// It loops until the context is cancelled, restarting the simulator each time.
+func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, events chan<- peer.Event) {
+	for {
+		peer.RunSimulator(ctx, cfg)
+
+		// Exit if context is cancelled (clean shutdown).
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Emit reconnecting event.
+		select {
+		case events <- peer.Event{Type: peer.EventReconnecting, PeerIndex: peerIndex, Time: time.Now()}:
+		case <-ctx.Done():
+			return
+		}
+
+		// Brief backoff before reconnecting.
+		select {
+		case <-time.After(reconnectBackoff):
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// runScheduler runs the chaos scheduler goroutine. It ticks at the configured
+// interval and dispatches chaos actions to per-peer channels.
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, quiet bool) {
+	sched := chaos.NewScheduler(chaos.SchedulerConfig{
+		Seed:      seed,
+		PeerCount: peerCount,
+		Rate:      cfg.Rate,
+		Interval:  cfg.Interval,
+		Warmup:    cfg.Warmup,
+	})
+
+	ticker := time.NewTicker(cfg.Interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case now := <-ticker.C:
+			actions := sched.Tick(now, es.Snapshot())
+			for _, a := range actions {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | %s -> peer %d\n",
+						a.Action.Type, a.PeerIndex)
+				}
+				// Non-blocking send: if the peer is busy with a previous
+				// action, skip this one rather than blocking the scheduler.
+				select {
+				case channels[a.PeerIndex] <- a.Action:
+				default:
+				}
+			}
+		}
+	}
 }

@@ -41,7 +41,15 @@ Add production-quality reporting and remaining polish to `ze-bgp-chaos`: live te
   → Constraint: Must integrate with existing event bus and data structures
 
 **Key insights:**
-- _To be filled after Phase 4 completes_
+- _Phase 4 insights to be filled after Phase 4 completes_
+
+**Phase 3 chaos insights:**
+- Chaos event log: events emitted as `peer.EventChaosExecuted` with `ChaosAction` string field (e.g. "tcp-disconnect", "reconnect-storm")
+- Chaos stats in exit summary: `ChaosEvents`, `Reconnections`, `Withdrawn` counters in `report.Summary`
+- Summary already conditionally shows chaos section when `ChaosEvents > 0` (see `report/summary.go`)
+- Events channel carries all lifecycle events: `EventEstablished`, `EventDisconnected`, `EventChaosExecuted`, `EventReconnecting`, `EventWithdrawalSent`, etc.
+- Chaos scheduler logs to stderr: `"ze-bgp-chaos | scheduler | <action-type> -> peer <N>"`
+- 10 action types with kebab-case string names (tcp-disconnect, notification-cease, hold-timer-expiry, partial-withdraw, full-withdraw, disconnect-during-burst, reconnect-storm, connection-collision, malformed-update, config-reload)
 
 ## Current Behavior (MANDATORY)
 

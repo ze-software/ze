@@ -133,6 +133,52 @@ func TestSummaryZeroLatency(t *testing.T) {
 	assert.Contains(t, output, "0 announced")
 }
 
+// TestSummaryChaosStats verifies that chaos injection stats appear
+// in the output when ChaosEvents > 0.
+//
+// VALIDATES: Chaos line printed with event, reconnection, and withdrawal counts.
+// PREVENTS: Chaos stats silently missing from summary.
+func TestSummaryChaosStats(t *testing.T) {
+	s := Summary{
+		Seed:          42,
+		Duration:      60 * time.Second,
+		PeerCount:     4,
+		Announced:     100,
+		Received:      280,
+		ChaosEvents:   8,
+		Reconnections: 3,
+		Withdrawn:     45,
+	}
+
+	var buf bytes.Buffer
+	exitCode := s.Write(&buf)
+
+	output := buf.String()
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, output, "chaos: 8 events, 3 reconnections, 45 withdrawn")
+}
+
+// TestSummaryChaosStatsHiddenWhenZero verifies that the chaos line
+// is omitted when no chaos events occurred.
+//
+// VALIDATES: No chaos line when chaos is disabled.
+// PREVENTS: Noisy output showing "0 events, 0 reconnections, 0 withdrawn".
+func TestSummaryChaosStatsHiddenWhenZero(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  50,
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.NotContains(t, output, "chaos:")
+}
+
 // TestSummaryWriteError verifies that a write failure returns exit code 1
 // even when the validation itself passes.
 //

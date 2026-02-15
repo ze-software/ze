@@ -5,11 +5,14 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"net/netip"
 	"os"
+	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
@@ -39,12 +42,34 @@ type SimulatorConfig struct {
 	// Events is the channel to send lifecycle and route events on.
 	Events chan<- Event
 
+	// Chaos receives chaos actions from the scheduler. Nil means no chaos.
+	Chaos <-chan chaos.ChaosAction
+
+	// ZePID is the Ze process ID for config-reload chaos events.
+	// Zero means config-reload actions are skipped.
+	ZePID int
+
 	// Verbose enables extra debug output.
 	Verbose bool
 
 	// Quiet suppresses non-error output.
 	Quiet bool
 }
+
+// ChaosResult describes the outcome of a chaos action on this simulator.
+type ChaosResult struct {
+	// Disconnected is true if the action caused a session teardown.
+	Disconnected bool
+
+	// WithdrawnPrefixes lists prefixes explicitly withdrawn by the action.
+	WithdrawnPrefixes []netip.Prefix
+}
+
+// stormCycles is the number of rapid reconnect cycles in a reconnect storm.
+const stormCycles = 2
+
+// stormDelay is the pause between storm reconnect cycles.
+const stormDelay = 200 * time.Millisecond
 
 // RunSimulator runs a single BGP peer simulator. It connects to Ze, performs
 // the OPEN/KEEPALIVE handshake, sends routes, reads incoming messages, and
@@ -158,10 +183,16 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		readLoop(ctx, conn, p.Index, cfg.Events)
 	}()
 
-	// KEEPALIVE loop.
+	// KEEPALIVE loop with optional chaos handling.
 	keepaliveInterval := time.Duration(p.HoldTime/3) * time.Second
 	ticker := time.NewTicker(keepaliveInterval)
 	defer ticker.Stop()
+
+	// Nil-safe chaos channel: if nil, create a never-firing channel.
+	chaosCh := cfg.Chaos
+	if chaosCh == nil {
+		chaosCh = make(<-chan chaos.ChaosAction)
+	}
 
 	for {
 		select {
@@ -186,8 +217,194 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				emit(Event{Type: EventError, Err: fmt.Errorf("sending KEEPALIVE: %w", writeErr)})
 				return
 			}
+		case action := <-chaosCh:
+			result := executeChaos(ctx, action, conn, routes, ticker, p, cfg, emit)
+			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String()})
+			if result.Disconnected {
+				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
+				<-readerDone
+				emit(Event{Type: EventDisconnected})
+				return
+			}
 		}
 	}
+}
+
+// executeChaos handles a single chaos action on the simulator's live connection.
+func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, routes []netip.Prefix,
+	ticker *time.Ticker, p SimProfile, cfg SimulatorConfig, emit func(Event),
+) ChaosResult {
+	switch action.Type {
+	case chaos.ActionTCPDisconnect:
+		// Abrupt disconnect — no NOTIFICATION.
+		return ChaosResult{Disconnected: true}
+
+	case chaos.ActionNotificationCease:
+		// Clean disconnect with NOTIFICATION.
+		sendCease(conn, p.Index, cfg.Quiet)
+		return ChaosResult{Disconnected: true}
+
+	case chaos.ActionHoldTimerExpiry:
+		// Stop sending KEEPALIVEs — Ze will detect hold-timer expiry.
+		ticker.Stop()
+		return ChaosResult{Disconnected: false}
+
+	case chaos.ActionPartialWithdraw:
+		withdrawn := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
+		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn)})
+		return ChaosResult{WithdrawnPrefixes: withdrawn}
+
+	case chaos.ActionFullWithdraw:
+		if err := sendWithdrawal(conn, routes); err != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
+		}
+		emit(Event{Type: EventWithdrawalSent, Count: len(routes)})
+		return ChaosResult{WithdrawnPrefixes: routes}
+
+	case chaos.ActionDisconnectDuringBurst:
+		// During steady-state this acts like a TCP disconnect.
+		// The "during burst" aspect is handled by orchestrator scheduling
+		// the action before EOR is sent.
+		return ChaosResult{Disconnected: true}
+
+	case chaos.ActionReconnectStorm:
+		// Rapid reconnect storm: close this connection, then rapidly
+		// open/close mini-sessions to stress Ze's session handling.
+		// The final reconnection is handled by runPeerLoop.
+		conn.Close() //nolint:errcheck,gosec // intentional close to start storm
+		executeReconnectStorm(ctx, cfg.Addr, p, emit)
+		return ChaosResult{Disconnected: true}
+
+	case chaos.ActionConnectionCollision:
+		// Open a second TCP connection with the same RouterID while
+		// the first is active. Tests RFC 4271 Section 6.8 collision handling.
+		executeConnectionCollision(ctx, cfg.Addr, p, emit)
+		return ChaosResult{Disconnected: false}
+
+	case chaos.ActionMalformedUpdate:
+		// Send an UPDATE with invalid ORIGIN value (0xFF).
+		// Tests RFC 7606 revised error handling (treat-as-withdraw).
+		data := BuildMalformedUpdate()
+		if _, writeErr := conn.Write(data); writeErr != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending malformed UPDATE: %w", writeErr)})
+		}
+		return ChaosResult{Disconnected: false}
+
+	case chaos.ActionConfigReload:
+		// Send SIGHUP to the Ze process to trigger config reload.
+		// No-op if ZePID is not configured.
+		if cfg.ZePID > 0 {
+			proc, err := os.FindProcess(cfg.ZePID)
+			if err == nil {
+				if sigErr := proc.Signal(syscall.SIGHUP); sigErr != nil {
+					emit(Event{Type: EventError, Err: fmt.Errorf("SIGHUP to Ze (pid %d): %w", cfg.ZePID, sigErr)})
+				}
+			}
+		}
+		return ChaosResult{Disconnected: false}
+
+	default:
+		return ChaosResult{}
+	}
+}
+
+// executeReconnectStorm performs rapid connect/disconnect cycles to stress
+// Ze's session handling. Each cycle does a minimal OPEN/KEEPALIVE handshake.
+func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, emit func(Event)) {
+	d := net.Dialer{Timeout: 5 * time.Second}
+	for range stormCycles {
+		time.Sleep(stormDelay)
+
+		stormConn, err := d.DialContext(ctx, "tcp", addr)
+		if err != nil {
+			break
+		}
+
+		// Minimal OPEN/KEEPALIVE handshake.
+		open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime})
+		if writeErr := writeMsg(stormConn, open); writeErr != nil {
+			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
+			break
+		}
+		if readErr := readMsg(stormConn); readErr != nil {
+			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
+			break
+		}
+		if writeErr := writeMsg(stormConn, message.NewKeepalive()); writeErr != nil {
+			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
+			break
+		}
+		if readErr := readMsg(stormConn); readErr != nil {
+			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
+			break
+		}
+
+		emit(Event{Type: EventEstablished})
+
+		time.Sleep(stormDelay)
+		stormConn.Close() //nolint:errcheck,gosec // intentional close for storm cycle
+		emit(Event{Type: EventDisconnected})
+	}
+}
+
+// executeConnectionCollision opens a second TCP connection with the same
+// RouterID to trigger RFC 4271 Section 6.8 connection collision handling.
+func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, emit func(Event)) {
+	d := net.Dialer{Timeout: 5 * time.Second}
+	collisionConn, err := d.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		emit(Event{Type: EventError, Err: fmt.Errorf("collision connection: %w", err)})
+		return
+	}
+
+	// Send OPEN with the same RouterID to trigger collision detection.
+	open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime})
+	if writeErr := writeMsg(collisionConn, open); writeErr != nil {
+		collisionConn.Close() //nolint:errcheck,gosec // closing failed connection
+		return
+	}
+
+	// Brief pause for Ze to detect the collision.
+	time.Sleep(500 * time.Millisecond)
+	collisionConn.Close() //nolint:errcheck,gosec // intentional close after collision test
+}
+
+// sendWithdrawal sends a withdrawal UPDATE for the given prefixes.
+func sendWithdrawal(conn net.Conn, prefixes []netip.Prefix) error {
+	data := BuildWithdrawal(prefixes)
+	if data == nil {
+		return nil
+	}
+	_, err := conn.Write(data)
+	return err
+}
+
+// withdrawFraction withdraws a random subset of routes and returns the
+// withdrawn prefixes. Uses a deterministic PRNG derived from the seed.
+func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
+	seed uint64, peerIndex int, emit func(Event),
+) []netip.Prefix {
+	if len(routes) == 0 || fraction <= 0 {
+		return nil
+	}
+
+	count := min(max(int(float64(len(routes))*fraction), 1), len(routes))
+
+	// Shuffle and pick first 'count' routes using deterministic PRNG.
+	//nolint:gosec // Deterministic PRNG intentional for reproducibility.
+	rng := rand.New(rand.NewSource(int64(seed) + int64(peerIndex)))
+	indices := rng.Perm(len(routes))
+
+	selected := make([]netip.Prefix, count)
+	for i := range count {
+		selected[i] = routes[indices[i]]
+	}
+
+	if err := sendWithdrawal(conn, selected); err != nil {
+		emit(Event{Type: EventError, Err: fmt.Errorf("sending partial withdrawal: %w", err)})
+	}
+
+	return selected
 }
 
 // readLoop reads BGP messages from conn and emits route events.

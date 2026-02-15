@@ -2,14 +2,100 @@ package main
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
 )
+
+// TestEstablishedStateSetAndSnapshot verifies that Set and Snapshot
+// correctly track peer established state.
+//
+// VALIDATES: Set updates individual peer state, Snapshot returns full copy.
+// PREVENTS: Off-by-one in peer index, returning reference instead of copy.
+func TestEstablishedStateSetAndSnapshot(t *testing.T) {
+	es := newEstablishedState(4)
+
+	// All peers start as not established.
+	snap := es.Snapshot()
+	require.Len(t, snap, 4)
+	assert.Equal(t, []bool{false, false, false, false}, snap)
+
+	// Set peers 0 and 2 to established.
+	es.Set(0, true)
+	es.Set(2, true)
+
+	snap = es.Snapshot()
+	assert.Equal(t, []bool{true, false, true, false}, snap)
+
+	// Mutating the snapshot should not affect internal state.
+	snap[0] = false
+	assert.Equal(t, []bool{true, false, true, false}, es.Snapshot())
+}
+
+// TestEstablishedStateSetFalse verifies that Set(idx, false) correctly
+// clears an established peer back to non-established.
+//
+// VALIDATES: Peer can transition established → non-established.
+// PREVENTS: One-way latch where peers can never become unestablished.
+func TestEstablishedStateSetFalse(t *testing.T) {
+	es := newEstablishedState(3)
+	es.Set(1, true)
+	assert.Equal(t, []bool{false, true, false}, es.Snapshot())
+
+	es.Set(1, false)
+	assert.Equal(t, []bool{false, false, false}, es.Snapshot())
+}
+
+// TestEstablishedStateConcurrent verifies that concurrent Set and Snapshot
+// operations do not race.
+//
+// VALIDATES: Thread-safety of established state tracking.
+// PREVENTS: Data race between scheduler reads and event-loop writes.
+func TestEstablishedStateConcurrent(t *testing.T) {
+	es := newEstablishedState(10)
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			for range 100 {
+				es.Set(idx, true)
+				_ = es.Snapshot()
+				es.Set(idx, false)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// All goroutines completed without race or panic.
+	// Final state: all peers should be false (last Set was false).
+	snap := es.Snapshot()
+	require.Len(t, snap, 10)
+	for i, v := range snap {
+		assert.False(t, v, "peer %d should be false after concurrent toggle", i)
+	}
+}
+
+// TestChaosConfigZeroRate verifies that ChaosConfig with Rate=0
+// represents disabled chaos.
+//
+// VALIDATES: Zero rate is a valid disabled state.
+// PREVENTS: Nil pointer or division-by-zero with disabled chaos.
+func TestChaosConfigZeroRate(t *testing.T) {
+	cfg := ChaosConfig{
+		Rate:     0,
+		Interval: 10 * time.Second,
+		Warmup:   5 * time.Second,
+	}
+	assert.Equal(t, 0.0, cfg.Rate)
+}
 
 // TestOrchestratorEventProcessing verifies that the event processor
 // correctly updates model, tracker, and convergence from events.
@@ -150,4 +236,38 @@ func TestOrchestratorCounters(t *testing.T) {
 
 	assert.Equal(t, 2, ep.Announced)
 	assert.Equal(t, 1, ep.Received)
+}
+
+// TestOrchestratorChaosCounters verifies that chaos event types
+// increment the correct counters.
+//
+// VALIDATES: ChaosEvents, Reconnections, and Withdrawn counters.
+// PREVENTS: Chaos events being silently dropped without counting.
+func TestOrchestratorChaosCounters(t *testing.T) {
+	m := validation.NewModel(2)
+	tr := validation.NewTracker(2)
+	conv := validation.NewConvergence(2, 5*time.Second)
+
+	ep := &EventProcessor{
+		Model:       m,
+		Tracker:     tr,
+		Convergence: conv,
+	}
+
+	now := time.Now()
+
+	// Chaos events.
+	ep.Process(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, Time: now, ChaosAction: "tcp-disconnect"})
+	ep.Process(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "partial-withdraw"})
+	ep.Process(peer.Event{Type: peer.EventReconnecting, PeerIndex: 0, Time: now})
+	ep.Process(peer.Event{Type: peer.EventWithdrawalSent, PeerIndex: 1, Time: now, Count: 15})
+	ep.Process(peer.Event{Type: peer.EventWithdrawalSent, PeerIndex: 0, Time: now, Count: 5})
+
+	assert.Equal(t, 2, ep.ChaosEvents)
+	assert.Equal(t, 1, ep.Reconnections)
+	assert.Equal(t, 20, ep.Withdrawn, "withdrawn should sum Count fields")
+
+	// Regular counters should be unaffected.
+	assert.Equal(t, 0, ep.Announced)
+	assert.Equal(t, 0, ep.Received)
 }

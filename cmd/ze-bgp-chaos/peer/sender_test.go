@@ -86,3 +86,120 @@ func TestMultipleRoutesDifferent(t *testing.T) {
 	require.NotNil(t, data2)
 	assert.NotEqual(t, data1, data2, "different prefixes should produce different UPDATEs")
 }
+
+// TestBuildWithdrawalSingle verifies a single-prefix withdrawal UPDATE.
+//
+// VALIDATES: Withdrawal UPDATE contains the prefix in WithdrawnRoutes section.
+// PREVENTS: Withdrawal encoded as announcement instead of withdrawal.
+func TestBuildWithdrawalSingle(t *testing.T) {
+	data := BuildWithdrawal([]netip.Prefix{netip.MustParsePrefix("10.0.1.0/24")})
+
+	require.NotNil(t, data)
+	assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
+
+	// After header (19 bytes): withdrawn-len (2) + withdrawn data + attr-len (2, value 0).
+	// Withdrawn: /24 = 1 (len) + 3 (bytes) = 4 bytes.
+	// Total: 19 + 2 + 4 + 2 = 27.
+	assert.Equal(t, 27, len(data), "single /24 withdrawal should be 27 bytes")
+
+	// Verify withdrawn routes length field.
+	withdrawnLen := int(data[19])<<8 | int(data[20])
+	assert.Equal(t, 4, withdrawnLen, "withdrawn routes length should be 4")
+
+	// Verify path attributes length is 0.
+	attrOff := 19 + 2 + withdrawnLen
+	attrLen := int(data[attrOff])<<8 | int(data[attrOff+1])
+	assert.Equal(t, 0, attrLen, "path attributes length should be 0")
+}
+
+// TestBuildWithdrawalMultiple verifies multiple prefixes in one withdrawal.
+//
+// VALIDATES: All prefixes encoded in withdrawn section.
+// PREVENTS: Only first prefix being withdrawn.
+func TestBuildWithdrawalMultiple(t *testing.T) {
+	prefixes := []netip.Prefix{
+		netip.MustParsePrefix("10.0.1.0/24"),
+		netip.MustParsePrefix("10.0.2.0/24"),
+		netip.MustParsePrefix("10.0.3.0/24"),
+	}
+	data := BuildWithdrawal(prefixes)
+
+	require.NotNil(t, data)
+	// 3 x /24 = 3 x 4 bytes = 12 bytes withdrawn.
+	// Total: 19 + 2 + 12 + 2 = 35.
+	assert.Equal(t, 35, len(data))
+
+	withdrawnLen := int(data[19])<<8 | int(data[20])
+	assert.Equal(t, 12, withdrawnLen)
+}
+
+// TestBuildWithdrawalEmpty verifies empty prefix list returns nil.
+//
+// VALIDATES: No UPDATE produced for zero withdrawals.
+// PREVENTS: Sending empty UPDATEs that confuse Ze.
+func TestBuildWithdrawalEmpty(t *testing.T) {
+	data := BuildWithdrawal(nil)
+	assert.Nil(t, data)
+
+	data = BuildWithdrawal([]netip.Prefix{})
+	assert.Nil(t, data)
+}
+
+// TestBuildMalformedUpdate verifies malformed UPDATE construction.
+//
+// VALIDATES: Malformed UPDATE has valid BGP framing but invalid ORIGIN value.
+// PREVENTS: Malformed message rejected by Ze before reaching error handling.
+func TestBuildMalformedUpdate(t *testing.T) {
+	data := BuildMalformedUpdate()
+
+	require.NotNil(t, data)
+	require.Greater(t, len(data), 19, "must be larger than header")
+
+	// Valid BGP marker (16 bytes of 0xFF).
+	for i := range 16 {
+		assert.Equal(t, byte(0xFF), data[i], "marker byte %d", i)
+	}
+
+	// Message type should be UPDATE (2).
+	assert.Equal(t, byte(2), data[18])
+
+	// Length field should match actual length.
+	msgLen := int(data[16])<<8 | int(data[17])
+	assert.Equal(t, len(data), msgLen)
+
+	// After header: withdrawn-len = 0.
+	assert.Equal(t, byte(0), data[19])
+	assert.Equal(t, byte(0), data[20])
+
+	// Total path attribute length > 0 (has the malformed attribute).
+	attrLen := int(data[21])<<8 | int(data[22])
+	assert.Greater(t, attrLen, 0, "should have path attributes")
+}
+
+// TestBuildWithdrawalRoundTrip verifies withdrawn prefixes can be parsed back.
+//
+// VALIDATES: Wire encoding matches the format parseIPv4Prefix expects.
+// PREVENTS: Incompatible encoding between sender and receiver.
+func TestBuildWithdrawalRoundTrip(t *testing.T) {
+	original := []netip.Prefix{
+		netip.MustParsePrefix("10.0.1.0/24"),
+		netip.MustParsePrefix("172.16.0.0/16"),
+	}
+	data := BuildWithdrawal(original)
+	require.NotNil(t, data)
+
+	// Parse the withdrawn routes section.
+	withdrawnLen := int(data[19])<<8 | int(data[20])
+	withdrawn := data[21 : 21+withdrawnLen]
+
+	var parsed []netip.Prefix
+	off := 0
+	for off < len(withdrawn) {
+		prefix, n := parseIPv4Prefix(withdrawn[off:])
+		require.Greater(t, n, 0, "should parse a prefix")
+		parsed = append(parsed, prefix)
+		off += n
+	}
+
+	assert.Equal(t, original, parsed)
+}
