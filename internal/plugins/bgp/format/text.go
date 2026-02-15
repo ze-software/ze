@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
@@ -348,7 +349,7 @@ type familyOperation struct {
 // RFC 8955: FlowSpec NLRI includes match components.
 func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 	// Core type: LabeledUnicast lives in nlri package, not a plugin
-	if lu, ok := n.(*nlri.LabeledUnicast); ok {
+	if lu, ok := n.(*labeled.LabeledUnicast); ok {
 		formatLabeledUnicastJSON(sb, lu)
 		return
 	}
@@ -383,7 +384,7 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 
 // formatLabeledUnicastJSON formats a LabeledUnicast NLRI as structured JSON.
 // RFC 8277: {"prefix":"10.0.0.0/24", "labels":[100]}.
-func formatLabeledUnicastJSON(sb *strings.Builder, v *nlri.LabeledUnicast) {
+func formatLabeledUnicastJSON(sb *strings.Builder, v *labeled.LabeledUnicast) {
 	sb.WriteString(`{"prefix":"`)
 	sb.WriteString(v.Prefix().String())
 	sb.WriteString(`"`)

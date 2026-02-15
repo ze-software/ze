@@ -124,7 +124,7 @@ func TestBuildLabeledUnicastNLRIBytes_MultiLabel(t *testing.T) {
 				Labels: tt.labels,
 			}
 
-			result := ub.buildLabeledUnicastNLRIBytes(params)
+			result := ub.BuildLabeledUnicastNLRIBytes(params)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantLength, len(result), "NLRI length mismatch")
 

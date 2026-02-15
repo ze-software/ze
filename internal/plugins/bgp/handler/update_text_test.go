@@ -15,9 +15,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
-	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
+	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-evpn"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
+	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
+	vplspkg "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpls"
+	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
@@ -1989,7 +1991,7 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*nlri.LabeledUnicast)
+	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
 	require.True(t, ok, "expected LabeledUnicast NLRI")
 	require.Len(t, labeledNLRI.Labels(), 1)
 	assert.Equal(t, uint32(1000), labeledNLRI.Labels()[0])
@@ -2041,7 +2043,7 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*nlri.LabeledUnicast)
+	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
 	require.True(t, ok)
 	assert.Equal(t, "2001:db8:1::/48", labeledNLRI.Prefix().String())
 }
@@ -2208,7 +2210,7 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*nlri.LabeledUnicast)
+	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
 	require.True(t, ok, "expected LabeledUnicast NLRI")
 	require.Len(t, labeledNLRI.Labels(), 1)
 	assert.Equal(t, uint32(1000), labeledNLRI.Labels()[0])
@@ -3545,7 +3547,7 @@ func TestParseUpdateText_VPLSBasic(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
 
-	vpls, ok := result.Groups[0].Announce[0].(*nlri.VPLS)
+	vpls, ok := result.Groups[0].Announce[0].(*vplspkg.VPLS)
 	require.True(t, ok, "expected VPLS NLRI, got %T", result.Groups[0].Announce[0])
 	assert.Equal(t, uint16(1), vpls.VEID())
 	assert.Equal(t, uint16(0), vpls.VEBlockOffset())

@@ -2086,18 +2086,14 @@ func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildEVPNWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid EVPN routes.
 func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
-
 	ub := NewUpdateBuilder(65001, false, true, false)
 
+	rd := nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}}
+
 	params := EVPNParams{
-		RouteType:   2, // MAC/IP Advertisement
-		RD:          nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}},
-		NextHop:     netip.MustParseAddr("192.168.1.1"),
-		ESI:         [10]byte{},
-		EthernetTag: 0,
-		MAC:         [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
-		Labels:      []uint32{100},
-		Origin:      attribute.OriginIGP,
+		NLRI:    testEVPNType2Bytes(rd, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, netip.Addr{}),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
 	}
 
 	update, err := ub.BuildEVPNWithMaxSize(params, 4096)
@@ -2114,18 +2110,14 @@ func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildEVPNWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for EVPN routes.
 func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
-
 	ub := NewUpdateBuilder(65001, false, true, false)
 
+	rd := nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}}
+
 	params := EVPNParams{
-		RouteType:   2,
-		RD:          nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}},
-		NextHop:     netip.MustParseAddr("192.168.1.1"),
-		ESI:         [10]byte{},
-		EthernetTag: 0,
-		MAC:         [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
-		Labels:      []uint32{100},
-		Origin:      attribute.OriginIGP,
+		NLRI:    testEVPNType2Bytes(rd, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, netip.Addr{}),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
 	}
 
 	_, err := ub.BuildEVPNWithMaxSize(params, 30)

@@ -50,6 +50,13 @@ type Registration struct {
 	InProcessNLRIDecoder func(family, hex string) (string, error)           // (family, hex) → JSON
 	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
 
+	// In-process route encoder: builds a full UPDATE message for a given family.
+	// Used by `ze bgp encode` to delegate family-specific encoding to plugins,
+	// replacing the hardcoded switch in encode.go.
+	// Parameters: routeCmd (text args), family, localAS, isIBGP, asn4, addPath.
+	// Returns: (packed UPDATE bytes, NLRI bytes for --nlri-only, error).
+	InProcessRouteEncoder func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)
+
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
@@ -238,6 +245,17 @@ func EncodeNLRIByFamily(family string, args []string) (string, error) {
 		}
 	}
 	return "", fmt.Errorf("no NLRI encoder for family %s", family)
+}
+
+// RouteEncoderByFamily finds the plugin registered for a family and returns
+// its in-process route encoder. Returns nil if no encoder is registered.
+func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
+	for _, reg := range plugins {
+		if reg.InProcessRouteEncoder != nil && slices.Contains(reg.Families, family) {
+			return reg.InProcessRouteEncoder
+		}
+	}
+	return nil
 }
 
 // WriteUsage writes a formatted plugin list to w for help text.

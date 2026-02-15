@@ -81,48 +81,7 @@ func TestWireFormat_AddPath(t *testing.T) {
 }
 
 // Note: TestWireFormat_IPVPN moved to internal/plugin/vpn/vpn_test.go
-
-// TestWireFormat_LabeledUnicast verifies labeled unicast wire format.
-//
-// RFC 8277 Section 2.2: Labeled NLRI = [length][labels][prefix]
-// RFC 7911: ADD-PATH prepends 4-byte path ID.
-// Labels: 3 bytes each, label 16000 = 0x3E80 << 4 | BOS = 0x3E8001
-//
-// VALIDATES: Labeled wire format is [pathID][length][labels][prefix].
-// PREVENTS: Label bytes in wrong position.
-func TestWireFormat_LabeledUnicast(t *testing.T) {
-	tests := []struct {
-		name    string
-		nlri    NLRI
-		addPath bool
-		wantHex string
-	}{
-		{
-			name:    "LabeledUnicast_10.0.0.0/24_noAddPath",
-			nlri:    NewLabeledUnicast(IPv4LabeledUnicast, netip.MustParsePrefix("10.0.0.0/24"), []uint32{16000}, 0),
-			addPath: false,
-			wantHex: "30" + "03e801" + "0a0000", // [len=48][label 3B][prefix 3B]
-		},
-		{
-			name:    "LabeledUnicast_10.0.0.0/24_withAddPath",
-			nlri:    NewLabeledUnicast(IPv4LabeledUnicast, netip.MustParsePrefix("10.0.0.0/24"), []uint32{16000}, 77),
-			addPath: true,
-			wantHex: "0000004d" + "30" + "03e801" + "0a0000", // [pathID=77 4B][len][label][prefix]
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
-			got := hex.EncodeToString(buf[:n])
-			if got != tt.wantHex {
-				t.Errorf("wire format:\n  got:  %s\n  want: %s", got, tt.wantHex)
-			}
-		})
-	}
-}
-
+// Note: TestWireFormat_LabeledUnicast moved to internal/plugins/bgp-nlri-labeled/
 // Note: TestWireFormat_EVPN moved to internal/plugin/evpn/types_test.go
 
 // TestRoundTrip_INET verifies encode → decode → encode produces identical bytes.

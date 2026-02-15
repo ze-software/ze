@@ -67,51 +67,7 @@ func TestLen_INET(t *testing.T) {
 }
 
 // Note: TestLen_IPVPN moved to internal/plugin/vpn/vpn_test.go
-
-// TestLen_LabeledUnicast verifies Len returns payload length without path ID.
-//
-// VALIDATES: Len() returns payload-only length for labeled unicast.
-// PREVENTS: Size mismatch in MPLS-labeled route encoding.
-func TestLen_LabeledUnicast(t *testing.T) {
-	tests := []struct {
-		name    string
-		prefix  netip.Prefix
-		labels  []uint32
-		pathID  uint32
-		wantLen int
-	}{
-		{
-			name:    "IPv4/24 one label no path",
-			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-			labels:  []uint32{16000},
-			pathID:  0,
-			wantLen: 1 + 3 + 3, // length + labels + prefix
-		},
-		{
-			name:    "IPv4/24 one label with path",
-			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-			labels:  []uint32{16000},
-			pathID:  1,
-			wantLen: 1 + 3 + 3, // Same! Len() excludes path ID
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			family := IPv4LabeledUnicast
-			if tt.prefix.Addr().Is6() {
-				family = IPv6LabeledUnicast
-			}
-
-			lu := NewLabeledUnicast(family, tt.prefix, tt.labels, tt.pathID)
-
-			got := lu.Len()
-			if got != tt.wantLen {
-				t.Errorf("Len() = %d, want %d", got, tt.wantLen)
-			}
-		})
-	}
-}
+// Note: TestLen_LabeledUnicast moved to internal/plugins/bgp-nlri-labeled/
 
 // TestWriteTo_INET verifies WriteTo writes payload without path ID.
 //

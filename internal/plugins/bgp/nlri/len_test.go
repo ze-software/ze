@@ -34,15 +34,7 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 			nlri: mustParseINET(t, "2001:db8::/32", true, 100),
 		},
 		// Note: VPN tests moved to internal/plugin/vpn/
-		// LabeledUnicast (RFC 8277)
-		{
-			name: "LabeledUnicast_noPath",
-			nlri: mustParseLabeledUnicast(t, "10.0.0.0/24", false, 0),
-		},
-		{
-			name: "LabeledUnicast_withPath",
-			nlri: mustParseLabeledUnicast(t, "10.0.0.0/24", true, 77),
-		},
+		// Note: LabeledUnicast tests moved to internal/plugins/bgp-nlri-labeled/
 	}
 
 	// Test all context combinations
@@ -95,9 +87,7 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 		{"INET_IPv6_noPath", mustParseINET(t, "fe80::/10", false, 0), true},
 		{"INET_IPv6_withPath", mustParseINET(t, "fe80::/10", true, 2), true},
 		// VPN - supports ADD-PATH (tests moved to internal/plugin/vpn)
-		// LabeledUnicast - supports ADD-PATH
-		{"LabeledUnicast_noPath", mustParseLabeledUnicast(t, "172.16.0.0/16", false, 0), true},
-		{"LabeledUnicast_withPath", mustParseLabeledUnicast(t, "172.16.0.0/16", true, 4), true},
+		// Note: LabeledUnicast tests moved to internal/plugins/bgp-nlri-labeled/
 		// Note: EVPN tests moved to internal/plugin/evpn/types_test.go
 	}
 
@@ -145,24 +135,5 @@ func mustParseINET(t *testing.T, prefix string, _ bool, pathID uint32) *INET {
 			prefix: p,
 			pathID: pathID,
 		},
-	}
-}
-
-// mustParseLabeledUnicast creates LabeledUnicast NLRI for testing.
-// hasPath parameter is kept for API compatibility but ignored - pathID!=0 implies path exists.
-func mustParseLabeledUnicast(t *testing.T, prefix string, _ bool, pathID uint32) *LabeledUnicast {
-	t.Helper()
-	p := netip.MustParsePrefix(prefix)
-	family := IPv4Unicast
-	if p.Addr().Is6() {
-		family = IPv6Unicast
-	}
-	return &LabeledUnicast{
-		PrefixNLRI: PrefixNLRI{
-			family: family,
-			prefix: p,
-			pathID: pathID,
-		},
-		labels: []uint32{16000}, // Single label
 	}
 }

@@ -38,6 +38,8 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
+	vplspkg "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpls"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -1472,7 +1474,7 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
 	}
 
-	return nlri.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
+	return labeled.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
 }
 
 // isFlowSpecBoundary returns true if token ends FlowSpec section (next section starts).
@@ -1950,7 +1952,7 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	}
 
 	// Create VPLS NLRI
-	vplsNLRI := nlri.NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
+	vplsNLRI := vplspkg.NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
 
 	// Add to appropriate list
 	switch mode {

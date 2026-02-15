@@ -9,7 +9,6 @@ import (
 	"slices"
 	"sort"
 
-	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -967,7 +966,7 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 	nhBytes := p.NextHop.AsSlice()
 
 	// Build Labeled Unicast NLRI: Length + Label + Prefix
-	labeledNLRI := ub.buildLabeledUnicastNLRIBytes(p)
+	labeledNLRI := ub.BuildLabeledUnicastNLRIBytes(p)
 
 	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
 	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(labeledNLRI)
@@ -987,12 +986,12 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 	}
 }
 
-// buildLabeledUnicastNLRIBytes builds the labeled unicast NLRI bytes.
+// BuildLabeledUnicastNLRIBytes builds the labeled unicast NLRI bytes.
 //
 // RFC 8277 Section 2 - NLRI format:
 // Length (1 octet, bits) + Labels (3 octets each) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
-func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []byte {
+func (ub *UpdateBuilder) BuildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []byte {
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -1612,51 +1611,14 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 // EVPNParams contains parameters for building EVPN route UPDATEs.
 //
 // RFC 7432 - BGP MPLS-Based Ethernet VPN.
-// Supports all 5 EVPN route types.
+// NLRI bytes must be pre-built by the caller (same pattern as FlowSpecParams/MUPParams).
 type EVPNParams struct {
-	// RouteType is the EVPN route type (1-5).
-	// RFC 7432 Section 7 defines route types.
-	RouteType uint8
-
-	// RD is the Route Distinguisher.
-	RD nlri.RouteDistinguisher
+	// NLRI is the pre-built EVPN NLRI bytes.
+	// Caller constructs these using evpn.NewEVPNType1-5() then Bytes().
+	NLRI []byte
 
 	// NextHop is the next-hop address (PE address).
 	NextHop netip.Addr
-
-	// PathID is the ADD-PATH path identifier (RFC 7911).
-	PathID uint32
-
-	// ESI is the Ethernet Segment Identifier (Types 1, 2, 4, 5).
-	// RFC 7432 Section 5 - 10-byte ESI.
-	ESI [10]byte
-
-	// EthernetTag is the Ethernet Tag ID (Types 1, 2, 3, 5).
-	// RFC 7432 Section 7 - 4-byte ethernet tag.
-	EthernetTag uint32
-
-	// MAC is the MAC address (Type 2 only).
-	// RFC 7432 Section 7.2 - 6-byte MAC.
-	MAC [6]byte
-
-	// IP is the IP address (Type 2 optional).
-	// RFC 7432 Section 7.2 - IPv4 or IPv6.
-	IP netip.Addr
-
-	// OriginatorIP is the originating router's IP (Types 3, 4).
-	// RFC 7432 Sections 7.3, 7.4.
-	OriginatorIP netip.Addr
-
-	// Prefix is the IP prefix (Type 5 only).
-	// RFC 9136 Section 3.1.
-	Prefix netip.Prefix
-
-	// Gateway is the gateway IP (Type 5 only).
-	// RFC 9136 Section 3.1 - 0.0.0.0 or :: if not set.
-	Gateway netip.Addr
-
-	// Labels is the MPLS label stack (Types 1, 2, 5).
-	Labels []uint32
 
 	// Path attributes
 	Origin            attribute.Origin
@@ -1780,22 +1742,9 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 }
 
 // buildMPReachEVPN builds MP_REACH_NLRI for EVPN routes.
+// NLRI bytes must be pre-built by the caller in p.NLRI.
 func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
-	// Build EVPN NLRI based on route type
-	var evpnNLRI evpn.EVPN
-	switch p.RouteType {
-	case 1:
-		evpnNLRI = evpn.NewEVPNType1(p.RD, p.ESI, p.EthernetTag, p.Labels)
-	case 2:
-		evpnNLRI = evpn.NewEVPNType2(p.RD, p.ESI, p.EthernetTag, p.MAC, p.IP, p.Labels)
-	case 3:
-		evpnNLRI = evpn.NewEVPNType3(p.RD, p.EthernetTag, p.OriginatorIP)
-	case 4:
-		evpnNLRI = evpn.NewEVPNType4(p.RD, p.ESI, p.OriginatorIP)
-	case 5:
-		evpnNLRI = evpn.NewEVPNType5(p.RD, p.ESI, p.EthernetTag, p.Prefix, p.Gateway, p.Labels)
-	default:
-		// Unknown type - return empty
+	if len(p.NLRI) == 0 {
 		return &rawAttribute{
 			flags: attribute.FlagOptional,
 			code:  attribute.AttrMPReachNLRI,
@@ -1803,29 +1752,25 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 		}
 	}
 
-	// Calculate NLRI size
-	nlriLen := nlri.LenWithContext(evpnNLRI, ub.AddPath)
-
 	// Build next-hop bytes
 	var nhBytes []byte
-	switch {
-	case p.NextHop.Is4(), p.NextHop.Is6():
+	if p.NextHop.Is4() || p.NextHop.Is6() {
 		nhBytes = p.NextHop.AsSlice()
-	default:
-		nhBytes = []byte{0, 0, 0, 0} // Default IPv4 0.0.0.0
+	} else {
+		nhBytes = []byte{0, 0, 0, 0} // No next-hop: IPv4 0.0.0.0
 	}
 	nhLen := len(nhBytes)
 
 	// MP_REACH_NLRI format:
 	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
-	value := ub.alloc(2 + 1 + 1 + nhLen + 1 + nlriLen)
+	value := ub.alloc(2 + 1 + 1 + nhLen + 1 + len(p.NLRI))
 	value[0] = 0x00
 	value[1] = byte(nlri.AFIL2VPN) // AFI 25
 	value[2] = byte(nlri.SAFIEVPN) // SAFI 70
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved
-	nlri.WriteNLRI(evpnNLRI, value, 5+nhLen, ub.AddPath)
+	copy(value[5+nhLen:], p.NLRI)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,

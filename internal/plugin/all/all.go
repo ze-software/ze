@@ -7,15 +7,20 @@
 package all
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-gr"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-llnh"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-ls"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-evpn"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-ls"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mvpn"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-rtc"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpls"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpn"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-role"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rr"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
 )
 

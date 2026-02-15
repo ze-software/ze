@@ -68,12 +68,14 @@ type SAFI uint8
 // RFC 4760 Section 6 defines base values. Additional values from IANA registry.
 // See: https://www.iana.org/assignments/safi-namespace/
 const (
-	SAFIUnicast   SAFI = 1   // RFC 4760 Section 6
-	SAFIMulticast SAFI = 2   // RFC 4760 Section 6
-	SAFIMPLSLabel SAFI = 4   // RFC 8277
-	SAFIEVPN      SAFI = 70  // RFC 7432
-	SAFIVPN       SAFI = 128 // RFC 4364 (VPNv4), RFC 4659 (VPNv6)
-	SAFIFlowSpec  SAFI = 133 // RFC 8955
+	SAFIUnicast         SAFI = 1   // RFC 4760 Section 6
+	SAFIMulticast       SAFI = 2   // RFC 4760 Section 6
+	SAFIMPLSLabel       SAFI = 4   // RFC 8277
+	SAFIEVPN            SAFI = 70  // RFC 7432
+	SAFIVPN             SAFI = 128 // RFC 4364 (VPNv4), RFC 4659 (VPNv6)
+	SAFIFlowSpec        SAFI = 133 // RFC 8955
+	SAFIBGPLinkState    SAFI = 71  // RFC 7752
+	SAFIBGPLinkStateVPN SAFI = 72  // RFC 7752
 )
 
 // String returns a human-readable SAFI name.

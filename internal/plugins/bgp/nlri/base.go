@@ -5,7 +5,6 @@ package nlri
 
 import (
 	"net/netip"
-	"sync"
 )
 
 // PrefixNLRI provides common fields for prefix-based NLRI types.
@@ -44,15 +43,12 @@ func (p *PrefixNLRI) SupportsAddPath() bool {
 
 // RDNLRIBase provides common fields for RD-based NLRI types.
 //
-// Embedded by MVPN and MUP to share:
+// Shared by VPN, MVPN, and MUP plugin types:
 //   - rd: Route Distinguisher (8 bytes, RFC 4364)
 //   - data: Route-type specific data after RD
-//   - cached: Wire format cache (protected by cacheOnce)
 type RDNLRIBase struct {
-	rd        RouteDistinguisher
-	data      []byte
-	cached    []byte
-	cacheOnce sync.Once
+	rd   RouteDistinguisher
+	data []byte
 }
 
 // RD returns the Route Distinguisher per RFC 4364 Section 4.1.

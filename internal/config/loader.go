@@ -12,7 +12,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
+	mup "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
@@ -1341,16 +1342,16 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 // Returns an error if any address/prefix parsing fails.
 func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 	// Determine route type code
-	var routeType nlri.MUPRouteType
+	var routeType mup.MUPRouteType
 	switch mr.RouteType {
 	case "mup-isd":
-		routeType = nlri.MUPISD
+		routeType = mup.MUPISD
 	case "mup-dsd":
-		routeType = nlri.MUPDSD
+		routeType = mup.MUPDSD
 	case "mup-t1st":
-		routeType = nlri.MUPT1ST
+		routeType = mup.MUPT1ST
 	case "mup-t2st":
-		routeType = nlri.MUPT2ST
+		routeType = mup.MUPT2ST
 	default:
 		return nil, fmt.Errorf("unknown MUP route type: %s", mr.RouteType)
 	}
@@ -1372,7 +1373,7 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 	// Build route-type-specific data
 	var data []byte
 	switch routeType {
-	case nlri.MUPISD:
+	case mup.MUPISD:
 		// ISD: prefix-len (1 byte) + prefix (variable)
 		if mr.Prefix == "" {
 			return nil, fmt.Errorf("MUP ISD requires prefix")
@@ -1384,7 +1385,7 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		data = make([]byte, mupPrefixLen(prefix))
 		writeMUPPrefix(data, 0, prefix)
 
-	case nlri.MUPDSD:
+	case mup.MUPDSD:
 		// DSD: address (4 or 16 bytes)
 		if mr.Address == "" {
 			return nil, fmt.Errorf("MUP DSD requires address")
@@ -1395,7 +1396,7 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		}
 		data = addr.AsSlice()
 
-	case nlri.MUPT1ST:
+	case mup.MUPT1ST:
 		// T1ST: prefix + TEID (4) + QFI (1) + endpoint-len + endpoint + [source-len + source]
 		if mr.Prefix == "" {
 			return nil, fmt.Errorf("MUP T1ST requires prefix")
@@ -1432,7 +1433,7 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 			data = append(data, srcBytes...)
 		}
 
-	case nlri.MUPT2ST:
+	case mup.MUPT2ST:
 		// T2ST: combined-len + endpoint + TEID (variable based on teid/bits)
 		// The "Endpoint Address Length" field is the COMBINED bit length of
 		// endpoint IP address + TEID prefix bits (per draft-ietf-idr-mup-safi).
@@ -1458,7 +1459,7 @@ func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 		afi = nlri.AFIIPv6
 	}
 
-	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
+	mup := mup.NewMUPFull(afi, mup.MUPArch3GPP5G, routeType, rd, data)
 	return mup.Bytes(), nil
 }
 

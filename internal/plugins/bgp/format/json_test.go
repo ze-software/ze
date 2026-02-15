@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-flowspec"
-	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
+	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-evpn"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
+	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
+	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpn"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
@@ -1308,7 +1309,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create LabeledUnicast NLRI
-			lu := nlri.NewLabeledUnicast(
+			lu := labeled.NewLabeledUnicast(
 				nlri.IPv4LabeledUnicast,
 				netip.MustParsePrefix(tc.prefix),
 				tc.labels,

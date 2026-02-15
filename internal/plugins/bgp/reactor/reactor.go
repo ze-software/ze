@@ -26,7 +26,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-vpn"
+	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
+	mup "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
+	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -1773,7 +1775,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route bgptypes.LabeledUn
 		labels = []uint32{0}
 	}
 
-	n := nlri.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+	n := labeled.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
 
 	// 2. Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute
@@ -1845,7 +1847,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route bg
 		labels = []uint32{0x800000} // RFC 8277 withdrawal label
 	}
 
-	n := nlri.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+	n := labeled.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
 
 	var lastErr error
 	for _, peer := range peers {
@@ -4431,38 +4433,16 @@ func (r *Reactor) stopAllListeners() {
 	}
 }
 
-// nativeFamilies are RFC families handled natively by the engine without plugins.
-// These don't require decoder plugins - the engine decodes them directly.
-//
-// TODO: Migrate non-RFC-4271 families to plugins as we implement family plugins.
-// Only ipv4/unicast is truly "native" per RFC 4271. Others are here temporarily
-// until we have plugins for them (like we do for flowspec).
+// nativeFamilies are families decoded natively by the engine without plugins.
+// Only INET-format families (same prefix encoding as ipv4/unicast) are native.
+// All other families are handled by their respective plugins via the registry.
 var nativeFamilies = map[string]bool{
 	// RFC 4271 - BGP-4 (IPv4 unicast) - truly native
 	"ipv4/unicast": true,
-	// RFC 4760 - Multiprotocol Extensions - TODO: migrate to plugin
+	// RFC 4760 - Multiprotocol Extensions (same INET prefix format)
 	"ipv6/unicast":   true,
 	"ipv4/multicast": true,
 	"ipv6/multicast": true,
-	// RFC 8277 - MPLS Labels (labeled unicast) - TODO: migrate to plugin
-	"ipv4/mpls-label": true,
-	"ipv6/mpls-label": true,
-	// RFC 4364/4659 - VPN (MPLS VPN) - TODO: migrate to plugin
-	"ipv4/vpn": true,
-	"ipv6/vpn": true,
-	// RFC 7752 - BGP-LS - TODO: migrate to plugin
-	"bgp-ls/bgp-ls":    true,
-	"bgp-ls/bgp-ls-sr": true,
-	// RFC 6514 - MVPN - TODO: migrate to plugin
-	"ipv4/mvpn": true,
-	"ipv6/mvpn": true,
-	// RFC 7432 - EVPN - TODO: migrate to plugin
-	"l2vpn/evpn": true,
-	// RFC 4761/4762 - VPLS - TODO: migrate to plugin
-	"l2vpn/vpls": true,
-	// draft-ietf-bess-mup - MUP - TODO: migrate to plugin
-	"ipv4/mup": true,
-	"ipv6/mup": true,
 }
 
 // validatePeerFamilies checks that all explicitly configured peer families have decoders.
@@ -4886,16 +4866,16 @@ func convertAPIMUPRoute(spec bgptypes.MUPRouteSpec) (MUPRoute, error) {
 // buildAPIMUPNLRI builds MUP NLRI bytes from API spec.
 func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 	// Determine route type code
-	var routeType nlri.MUPRouteType
+	var routeType mup.MUPRouteType
 	switch spec.RouteType {
 	case "mup-isd":
-		routeType = nlri.MUPISD
+		routeType = mup.MUPISD
 	case "mup-dsd":
-		routeType = nlri.MUPDSD
+		routeType = mup.MUPDSD
 	case "mup-t1st":
-		routeType = nlri.MUPT1ST
+		routeType = mup.MUPT1ST
 	case "mup-t2st":
-		routeType = nlri.MUPT2ST
+		routeType = mup.MUPT2ST
 	default:
 		return nil, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
 	}
@@ -4913,7 +4893,7 @@ func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 	// Build route-type-specific data
 	var data []byte
 	switch routeType {
-	case nlri.MUPISD:
+	case mup.MUPISD:
 		if spec.Prefix == "" {
 			return nil, fmt.Errorf("MUP ISD requires prefix")
 		}
@@ -4932,7 +4912,7 @@ func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 		data = make([]byte, mupPrefixLen(prefix))
 		writeMUPPrefix(data, 0, prefix)
 
-	case nlri.MUPDSD:
+	case mup.MUPDSD:
 		if spec.Address == "" {
 			return nil, fmt.Errorf("MUP DSD requires address")
 		}
@@ -4950,7 +4930,7 @@ func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 		}
 		data = addr.AsSlice()
 
-	case nlri.MUPT1ST:
+	case mup.MUPT1ST:
 		if spec.Prefix == "" {
 			return nil, fmt.Errorf("MUP T1ST requires prefix")
 		}
@@ -4970,7 +4950,7 @@ func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 		writeMUPPrefix(data, 0, prefix)
 		// TODO: Add TEID, QFI, endpoint if needed
 
-	case nlri.MUPT2ST:
+	case mup.MUPT2ST:
 		if spec.Address == "" {
 			return nil, fmt.Errorf("MUP T2ST requires address")
 		}
@@ -5001,7 +4981,7 @@ func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
 		afi = nlri.AFIIPv6
 	}
 
-	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
+	mup := mup.NewMUPFull(afi, mup.MUPArch3GPP5G, routeType, rd, data)
 	buf := make([]byte, mup.Len())
 	mup.WriteTo(buf, 0)
 	return buf, nil

@@ -1,16 +1,16 @@
 # Family with no plugin failure test
-# Verifies: Startup fails when a family is configured but no plugin exists for it
+# Verifies: Config loading fails when a family is configured but doesn't exist
 #
-# This tests the runtime validation:
-# - Config specifies ipv4/rtc (Route Target Constraint, SAFI 132)
-# - This family is NOT in nativeFamilies and has no auto-load plugin
-# - Startup should fail with "no decoder plugin" error
+# This tests config validation:
+# - Config specifies ipv4/fake-safi (not a real address family)
+# - ParseFamily rejects it as unknown
+# - Startup should fail with "unknown address family" error
 
 # ze-peer expectations (won't be reached - ze fails to start)
 stdin=peer:terminator=EOF_PEER
 EOF_PEER
 
-# ze bgp configuration with family that has no plugin
+# ze bgp configuration with unknown family
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
@@ -20,8 +20,8 @@ bgp {
 		peer-as 1;
 
 		family {
-			# Route Target Constraint (SAFI 132) - no native support, no plugin
-			ipv4/rtc;
+			# fake-safi - not a real SAFI, should be rejected
+			ipv4/fake-safi;
 		}
 	}
 }
@@ -31,4 +31,4 @@ EOF_CONF
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=5s
 expect=exit:code=1
-expect=stderr:contains=no decoder plugin
+expect=stderr:contains=unknown address family
