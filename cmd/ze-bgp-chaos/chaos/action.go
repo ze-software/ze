@@ -20,7 +20,7 @@ const (
 	ActionFullWithdraw
 	// ActionDisconnectDuringBurst closes the connection during initial route sending.
 	ActionDisconnectDuringBurst
-	// ActionReconnectStorm disconnects and rapidly reconnects 3 times.
+	// ActionReconnectStorm disconnects and rapidly reconnects 2 times.
 	ActionReconnectStorm
 	// ActionConnectionCollision opens a second TCP connection while the first is active.
 	ActionConnectionCollision
