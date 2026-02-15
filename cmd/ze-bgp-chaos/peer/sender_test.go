@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +58,7 @@ func TestUpdateBuildIBGP(t *testing.T) {
 // VALIDATES: EOR is an empty UPDATE per RFC 4724.
 // PREVENTS: Wrong EOR format causing Ze to misinterpret the marker.
 func TestEORBuild(t *testing.T) {
-	data := BuildEORIPv4Unicast()
+	data := BuildEOR("ipv4/unicast")
 
 	require.NotNil(t, data)
 	// Message type should be UPDATE (2).
@@ -174,6 +175,113 @@ func TestBuildMalformedUpdate(t *testing.T) {
 	// Total path attribute length > 0 (has the malformed attribute).
 	attrLen := int(data[21])<<8 | int(data[22])
 	assert.Greater(t, attrLen, 0, "should have path attributes")
+}
+
+// TestBuildVPNRoute verifies building a VPN UPDATE.
+//
+// VALIDATES: VPN UPDATE produces valid wire bytes with NLRI in MP_REACH.
+// PREVENTS: VPN route construction failure breaking multi-family support.
+func TestBuildVPNRoute(t *testing.T) {
+	sender := NewSender(SenderConfig{
+		ASN:     65001,
+		IsIBGP:  true,
+		NextHop: netip.MustParseAddr("10.255.0.1"),
+	})
+
+	route := scenario.VPNRoute{
+		RDBytes: [8]byte{0, 0, 0, 0, 0, 0, 0, 1},
+		Labels:  []uint32{100},
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		Key:     "vpn-test",
+	}
+
+	data := sender.BuildVPNRoute(route)
+
+	require.NotNil(t, data)
+	assert.Greater(t, len(data), 19, "VPN UPDATE must be larger than header")
+	assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
+}
+
+// TestBuildEVPNRoute verifies building an EVPN Type-2 UPDATE.
+//
+// VALIDATES: EVPN UPDATE produces valid wire bytes with Type-2 NLRI.
+// PREVENTS: EVPN NLRI construction failure from RD encoding errors.
+func TestBuildEVPNRoute(t *testing.T) {
+	sender := NewSender(SenderConfig{
+		ASN:     65001,
+		IsIBGP:  true,
+		NextHop: netip.MustParseAddr("10.255.0.1"),
+	})
+
+	route := scenario.EVPNRoute{
+		RDBytes:     [8]byte{0, 0, 0, 0, 0, 0, 0, 1},
+		MAC:         [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		IP:          netip.MustParseAddr("10.0.0.1"),
+		EthernetTag: 0,
+		Labels:      []uint32{200},
+		Key:         "evpn-test",
+	}
+
+	data := sender.BuildEVPNRoute(route)
+
+	require.NotNil(t, data)
+	assert.Greater(t, len(data), 19, "EVPN UPDATE must be larger than header")
+	assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
+}
+
+// TestBuildFlowSpecRoute verifies building a FlowSpec UPDATE.
+//
+// VALIDATES: FlowSpec UPDATE produces valid wire bytes with flow components.
+// PREVENTS: FlowSpec component encoding errors breaking the UPDATE.
+func TestBuildFlowSpecRoute(t *testing.T) {
+	sender := NewSender(SenderConfig{
+		ASN:     65001,
+		IsIBGP:  true,
+		NextHop: netip.MustParseAddr("10.255.0.1"),
+	})
+
+	route := scenario.FlowSpecRoute{
+		DestPrefix:   netip.MustParsePrefix("10.0.0.0/24"),
+		SourcePrefix: netip.MustParsePrefix("192.168.1.0/24"),
+		IsIPv6:       false,
+		Key:          "flow-test",
+	}
+
+	data := sender.BuildFlowSpecRoute(route)
+
+	require.NotNil(t, data)
+	assert.Greater(t, len(data), 19, "FlowSpec UPDATE must be larger than header")
+	assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
+}
+
+// TestBuildEORGeneric verifies the generic BuildEOR for all families.
+//
+// VALIDATES: EOR construction works for all 7 supported families.
+// PREVENTS: Missing family in familyToNLRI map causing nil EOR.
+func TestBuildEORGeneric(t *testing.T) {
+	families := []string{
+		"ipv4/unicast", "ipv6/unicast",
+		"ipv4/vpn", "ipv6/vpn",
+		"l2vpn/evpn",
+		"ipv4/flow", "ipv6/flow",
+	}
+
+	for _, f := range families {
+		t.Run(f, func(t *testing.T) {
+			data := BuildEOR(f)
+			require.NotNil(t, data, "EOR should not be nil for %s", f)
+			assert.Equal(t, byte(2), data[18], "message type should be UPDATE")
+		})
+	}
+}
+
+// TestBuildEORUnknownFamily verifies BuildEOR returns nil for unknown families.
+//
+// VALIDATES: Unknown family strings are handled gracefully.
+// PREVENTS: Panic or invalid message from unsupported family.
+func TestBuildEORUnknownFamily(t *testing.T) {
+	data := BuildEOR("bogus/family")
+	assert.Nil(t, data)
 }
 
 // TestBuildWithdrawalRoundTrip verifies withdrawn prefixes can be parsed back.

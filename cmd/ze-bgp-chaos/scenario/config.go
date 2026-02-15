@@ -49,9 +49,16 @@ func writePeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) {
 		fmt.Fprintf(b, "    passive true;\n")
 	}
 
-	// Family block — ipv4 unicast only for Phase 1.
+	// Family block — per-peer families from profile.
+	families := p.Families
+	if len(families) == 0 {
+		families = []string{"ipv4/unicast"}
+	}
 	fmt.Fprintf(b, "\n    family {\n")
-	fmt.Fprintf(b, "        ipv4 unicast;\n")
+	for _, f := range families {
+		// Convert "ipv4/unicast" → "ipv4 unicast" for config syntax.
+		fmt.Fprintf(b, "        %s;\n", strings.ReplaceAll(f, "/", " "))
+	}
 	fmt.Fprintf(b, "    }\n")
 
 	// API block for route-reflector process.

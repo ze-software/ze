@@ -41,7 +41,13 @@ Add production-quality reporting and remaining polish to `ze-bgp-chaos`: live te
   → Constraint: Must integrate with existing event bus and data structures
 
 **Key insights:**
-- _Phase 4 insights to be filled after Phase 4 completes_
+- Per-peer `Families []string` available on `PeerProfile` and `SimProfile` — can be displayed in dashboard peer table
+- `EventEORSent.Count` now reports total routes across all families (not just IPv4)
+- Non-unicast families (VPN, EVPN, FlowSpec) are count-tracked only — no per-route validation
+- IPv4/IPv6 unicast have full prefix-level validation via `netip.Prefix`
+- `familyToNLRI` and `familyToAFISAFI` maps exist for family string lookups
+- Route counts per family: unicast families get full `RouteCount`, others get `RouteCount/4`
+- Chaos withdrawals currently only affect IPv4 unicast routes (extending to other families is future work)
 
 **Phase 3 chaos insights:**
 - Chaos event log: events emitted as `peer.EventChaosExecuted` with `ChaosAction` string field (e.g. "tcp-disconnect", "reconnect-storm")

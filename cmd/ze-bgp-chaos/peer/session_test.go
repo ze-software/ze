@@ -121,3 +121,52 @@ func TestSerializeMessage(t *testing.T) {
 	assert.Equal(t, 19, len(data))
 	assert.Equal(t, byte(4), data[18]) // KEEPALIVE type
 }
+
+// TestOpenMultiFamily verifies that BuildOpen includes Multiprotocol
+// capabilities for all specified families.
+//
+// VALIDATES: Multi-family OPEN includes one Multiprotocol cap per family.
+// PREVENTS: Missing capabilities causing family negotiation failure.
+func TestOpenMultiFamily(t *testing.T) {
+	cfg := SessionConfig{
+		ASN:      65001,
+		RouterID: netip.MustParseAddr("10.255.0.1"),
+		HoldTime: 90,
+		Families: []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn"},
+	}
+
+	open := BuildOpen(cfg)
+
+	// Serialized OPEN should be larger than one with just ipv4/unicast.
+	singleCfg := SessionConfig{
+		ASN:      65001,
+		RouterID: netip.MustParseAddr("10.255.0.1"),
+		HoldTime: 90,
+	}
+	singleOpen := BuildOpen(singleCfg)
+
+	assert.Greater(t, len(open.OptionalParams), len(singleOpen.OptionalParams),
+		"multi-family OPEN should have more capability bytes")
+
+	// Should serialize without error.
+	buf := make([]byte, open.Len(nil))
+	n := open.WriteTo(buf, 0, nil)
+	assert.Equal(t, len(buf), n)
+}
+
+// TestOpenDefaultFamily verifies that empty Families defaults to ipv4/unicast.
+//
+// VALIDATES: Backward compatibility when Families is nil.
+// PREVENTS: Empty OPEN when no families specified.
+func TestOpenDefaultFamily(t *testing.T) {
+	withFamilies := BuildOpen(SessionConfig{
+		ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), HoldTime: 90,
+		Families: []string{"ipv4/unicast"},
+	})
+	withoutFamilies := BuildOpen(SessionConfig{
+		ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), HoldTime: 90,
+	})
+
+	assert.Equal(t, len(withFamilies.OptionalParams), len(withoutFamilies.OptionalParams),
+		"nil families should produce same OPEN as explicit ipv4/unicast")
+}

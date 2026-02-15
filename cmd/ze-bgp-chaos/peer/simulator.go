@@ -26,6 +26,7 @@ type SimProfile struct {
 	IsIBGP     bool
 	HoldTime   uint16
 	RouteCount int
+	Families   []string
 }
 
 // SimulatorConfig holds all parameters for running a single peer simulator.
@@ -115,6 +116,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		ASN:      p.ASN,
 		RouterID: p.RouterID,
 		HoldTime: p.HoldTime,
+		Families: p.Families,
 	})
 	if writeErr := writeMsg(conn, open); writeErr != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("sending OPEN: %w", writeErr)})
@@ -143,38 +145,154 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | session established\n", p.Index)
 	}
 
-	// Send routes.
-	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount)
+	// Send routes for all negotiated families.
 	sender := NewSender(SenderConfig{
 		ASN:     p.ASN,
 		IsIBGP:  p.IsIBGP,
 		NextHop: p.RouterID,
 	})
 
-	for _, prefix := range routes {
-		select {
-		case <-ctx.Done():
+	families := p.Families
+	if len(families) == 0 {
+		families = []string{"ipv4/unicast"}
+	}
+
+	// IPv4 unicast routes are used for chaos withdrawals.
+	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount)
+	totalSent := 0
+
+	// Route count per family: unicast families get the full RouteCount,
+	// non-unicast families (VPN, EVPN, FlowSpec) get RouteCount/4 to keep
+	// total route volume manageable while still exercising all code paths.
+	for _, family := range families {
+		if ctx.Err() != nil {
 			sendCease(conn, p.Index, cfg.Quiet)
 			emit(Event{Type: EventDisconnected})
 			return
-		default:
 		}
 
-		data := sender.BuildRoute(prefix)
-		if _, writeErr := conn.Write(data); writeErr != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending UPDATE: %w", writeErr)})
+		var writeErr error
+		switch family {
+		case "ipv4/unicast":
+			for _, prefix := range routes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildRoute(prefix)
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				emit(Event{Type: EventRouteSent, Prefix: prefix})
+				totalSent++
+			}
+		case "ipv6/unicast":
+			ipv6Routes := scenario.GenerateIPv6Routes(cfg.Seed, p.Index, p.RouteCount)
+			for _, prefix := range ipv6Routes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildRoute(prefix)
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				emit(Event{Type: EventRouteSent, Prefix: prefix})
+				totalSent++
+			}
+		case "ipv4/vpn":
+			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, false)
+			for _, r := range vpnRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildVPNRoute(r)
+				if data == nil {
+					continue
+				}
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				totalSent++
+			}
+		case "ipv6/vpn":
+			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, true)
+			for _, r := range vpnRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildVPNRoute(r)
+				if data == nil {
+					continue
+				}
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				totalSent++
+			}
+		case "l2vpn/evpn":
+			evpnRoutes := scenario.GenerateEVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4)
+			for _, r := range evpnRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildEVPNRoute(r)
+				if data == nil {
+					continue
+				}
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				totalSent++
+			}
+		case "ipv4/flow":
+			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, false)
+			for _, r := range flowRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildFlowSpecRoute(r)
+				if data == nil {
+					continue
+				}
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				totalSent++
+			}
+		case "ipv6/flow":
+			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, true)
+			for _, r := range flowRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildFlowSpecRoute(r)
+				if data == nil {
+					continue
+				}
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				totalSent++
+			}
+		}
+		if writeErr != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s UPDATE: %w", family, writeErr)})
 			return
 		}
-		emit(Event{Type: EventRouteSent, Prefix: prefix})
 	}
 
-	// Send End-of-RIB.
-	eor := BuildEORIPv4Unicast()
-	if _, writeErr := conn.Write(eor); writeErr != nil {
-		emit(Event{Type: EventError, Err: fmt.Errorf("sending EOR: %w", writeErr)})
-		return
+	// Send End-of-RIB for each negotiated family.
+	for _, family := range families {
+		eor := BuildEOR(family)
+		if eor == nil {
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | skipping EOR for unknown family %s\n", p.Index, family)
+			continue
+		}
+		if _, writeErr := conn.Write(eor); writeErr != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s EOR: %w", family, writeErr)})
+			return
+		}
 	}
-	emit(Event{Type: EventEORSent, Count: len(routes)})
+	emit(Event{Type: EventEORSent, Count: totalSent})
 
 	// Start reader goroutine for incoming messages from RR.
 	readerDone := make(chan struct{})
@@ -321,7 +439,7 @@ func executeReconnectStorm(ctx context.Context, addr string, p SimProfile, emit 
 		}
 
 		// Minimal OPEN/KEEPALIVE handshake.
-		open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime})
+		open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
 		if writeErr := writeMsg(stormConn, open); writeErr != nil {
 			stormConn.Close() //nolint:errcheck,gosec // closing failed connection
 			break
@@ -358,7 +476,7 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 	}
 
 	// Send OPEN with the same RouterID to trigger collision detection.
-	open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime})
+	open := BuildOpen(SessionConfig{ASN: p.ASN, RouterID: p.RouterID, HoldTime: p.HoldTime, Families: p.Families})
 	if writeErr := writeMsg(collisionConn, open); writeErr != nil {
 		collisionConn.Close() //nolint:errcheck,gosec // closing failed connection
 		return

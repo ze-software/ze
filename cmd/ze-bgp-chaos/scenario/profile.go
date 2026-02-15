@@ -39,4 +39,8 @@ type PeerProfile struct {
 
 	// Port is the TCP port for this peer's BGP session.
 	Port int
+
+	// Families is the list of address families this peer supports.
+	// Always includes "ipv4/unicast".
+	Families []string
 }

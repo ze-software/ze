@@ -1,15 +1,24 @@
 # Spec: bgp-chaos (Master Design Document)
 
 **This is the master architecture document. It is NOT an active implementation spec.**
-**Implementation is split into 5 sub-specs, worked sequentially:**
+**Implementation is split into 9 sub-specs, worked sequentially:**
 
-| # | Spec | Status |
-|---|------|--------|
-| 1 | `spec-bgp-chaos-session.md` | Pending |
-| 2 | `spec-bgp-chaos-validation.md` | Skeleton |
-| 3 | `spec-bgp-chaos-chaos.md` | Skeleton |
-| 4 | `spec-bgp-chaos-families.md` | Skeleton |
-| 5 | `spec-bgp-chaos-reporting.md` | Skeleton |
+| # | Spec | Status | Focus |
+|---|------|--------|-------|
+| 1 | `spec-bgp-chaos-session.md` | Done (255) | Single-peer BGP session |
+| 2 | `spec-bgp-chaos-validation.md` | Done (256) | Multi-peer validation |
+| 3 | `spec-bgp-chaos-chaos.md` | Done (257) | Chaos event injection |
+| 4 | `spec-bgp-chaos-families.md` | Skeleton | Multi-family support |
+| 5 | `spec-bgp-chaos-reporting.md` | Skeleton | Dashboard, JSON log, Prometheus |
+| 6 | `spec-bgp-chaos-eventlog.md` | Skeleton | Replayable event log |
+| 7 | `spec-bgp-chaos-properties.md` | Skeleton | RFC property assertions |
+| 8 | `spec-bgp-chaos-shrink.md` | Skeleton | Test case minimization |
+| 9 | `spec-bgp-chaos-inprocess.md` | Skeleton | In-process mode (DST bridge) |
+
+**Phases 1-5:** Core chaos tool (external, black-box TCP testing)
+**Phases 6-9:** DST bridge (toward deterministic simulation, see `deterministic-simulation-analysis.md`)
+
+**Dependencies:** Phase 9 requires Ze clock + network abstractions (implemented separately)
 
 ## Post-Compaction Recovery
 

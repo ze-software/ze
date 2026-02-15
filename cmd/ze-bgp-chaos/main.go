@@ -20,6 +20,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -171,22 +172,31 @@ Control:
 
 	// Suppress unused-variable warnings for flags not yet wired (later phases).
 	_ = churnRate
-	_ = families
-	_ = excludeFamilies
 	_ = eventFile
 	_ = metricsAddr
 
+	// Parse family filters.
+	var familyList, excludeList []string
+	if *families != "" {
+		familyList = strings.Split(*families, ",")
+	}
+	if *excludeFamilies != "" {
+		excludeList = strings.Split(*excludeFamilies, ",")
+	}
+
 	// Generate scenario from seed.
 	profiles, err := scenario.Generate(scenario.GeneratorParams{
-		Seed:        *seed,
-		Peers:       *peers,
-		IBGPRatio:   *ibgpRatio,
-		LocalAS:     65000,
-		Routes:      *routes,
-		HeavyPeers:  *heavyPeers,
-		HeavyRoutes: *heavyRoutes,
-		BasePort:    *port,
-		ListenBase:  *listenBase,
+		Seed:            *seed,
+		Peers:           *peers,
+		IBGPRatio:       *ibgpRatio,
+		LocalAS:         65000,
+		Routes:          *routes,
+		HeavyPeers:      *heavyPeers,
+		HeavyRoutes:     *heavyRoutes,
+		BasePort:        *port,
+		ListenBase:      *listenBase,
+		Families:        familyList,
+		ExcludeFamilies: excludeList,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: generating scenario: %v\n", err)
@@ -303,6 +313,7 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 					IsIBGP:     prof.IsIBGP,
 					HoldTime:   prof.HoldTime,
 					RouteCount: prof.RouteCount,
+					Families:   prof.Families,
 				},
 				Seed:    seed,
 				Addr:    addr,

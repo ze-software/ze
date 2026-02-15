@@ -197,3 +197,69 @@ func TestConfigGenConnectionMode(t *testing.T) {
 	// (we check the count: only 1 passive statement for 1 passive peer)
 	assert.Equal(t, 1, strings.Count(config, "passive true;"))
 }
+
+// TestConfigGenMultiFamily verifies that per-peer family blocks use the
+// peer's Families list instead of hardcoded ipv4 unicast.
+//
+// VALIDATES: Config family block matches peer's assigned families.
+// PREVENTS: Hardcoded ipv4 unicast ignoring multi-family assignment.
+func TestConfigGenMultiFamily(t *testing.T) {
+	profiles := []PeerProfile{
+		{
+			Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"),
+			Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890,
+			Families: []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn"},
+		},
+		{
+			Index: 1, ASN: 65002, RouterID: netip.MustParseAddr("10.255.0.2"),
+			Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1891,
+			Families: []string{"ipv4/unicast"},
+		},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	// Peer 0 should have all three families.
+	assert.Contains(t, config, "ipv6 unicast;")
+	assert.Contains(t, config, "l2vpn evpn;")
+
+	// Both peers have ipv4 unicast (2 occurrences).
+	assert.Equal(t, 2, strings.Count(config, "ipv4 unicast;"))
+
+	// Only 1 peer has ipv6 unicast.
+	assert.Equal(t, 1, strings.Count(config, "ipv6 unicast;"))
+
+	// Only 1 peer has l2vpn evpn.
+	assert.Equal(t, 1, strings.Count(config, "l2vpn evpn;"))
+}
+
+// TestConfigGenFallbackToIPv4 verifies that peers with no Families field
+// get ipv4 unicast by default (backward compatibility with Phase 1).
+//
+// VALIDATES: Empty Families defaults to ipv4/unicast.
+// PREVENTS: Missing family block when Families is nil.
+func TestConfigGenFallbackToIPv4(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"),
+			Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+	assert.Contains(t, config, "ipv4 unicast;")
+}

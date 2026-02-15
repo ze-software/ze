@@ -1,6 +1,7 @@
 package scenario
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -338,5 +339,109 @@ func TestProfileHoldTime(t *testing.T) {
 	for i, p := range profiles {
 		assert.GreaterOrEqual(t, p.HoldTime, uint16(3),
 			"peer %d hold time must be >= 3 (RFC 4271)", i)
+	}
+}
+
+// TestFamilyAssignment verifies that each peer is assigned a non-empty family
+// set including ipv4/unicast, deterministically from the seed.
+//
+// VALIDATES: Peers get family assignments including mandatory ipv4/unicast.
+// PREVENTS: Empty family sets or missing mandatory family.
+func TestFamilyAssignment(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	for i, p := range profiles {
+		require.NotEmpty(t, p.Families, "peer %d should have families assigned", i)
+
+		// ipv4/unicast is always included.
+		assert.True(t, slices.Contains(p.Families, "ipv4/unicast"), "peer %d must include ipv4/unicast", i)
+	}
+
+	// At least one peer should have more than just ipv4/unicast (with 10 peers
+	// and default probabilities, this is statistically certain).
+	hasMulti := false
+	for _, p := range profiles {
+		if len(p.Families) > 1 {
+			hasMulti = true
+			break
+		}
+	}
+	assert.True(t, hasMulti, "at least one peer should have multiple families")
+}
+
+// TestFamilyAssignmentDeterministic verifies family assignment is deterministic.
+//
+// VALIDATES: Same seed → same family assignments.
+// PREVENTS: Non-deterministic family assignment.
+func TestFamilyAssignmentDeterministic(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+	}
+
+	profiles1, err := Generate(params)
+	require.NoError(t, err)
+	profiles2, err := Generate(params)
+	require.NoError(t, err)
+
+	for i := range profiles1 {
+		assert.Equal(t, profiles1[i].Families, profiles2[i].Families,
+			"peer %d families should be deterministic", i)
+	}
+}
+
+// TestFamilyFilterInclude verifies --families limits which families are assigned.
+//
+// VALIDATES: Only specified families can appear in profiles.
+// PREVENTS: Families outside the include list being assigned.
+func TestFamilyFilterInclude(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		Families: []string{"ipv4/unicast", "ipv6/unicast"},
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	allowed := map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true}
+	for i, p := range profiles {
+		for _, f := range p.Families {
+			assert.True(t, allowed[f],
+				"peer %d has family %s not in include list", i, f)
+		}
+	}
+}
+
+// TestFamilyFilterExclude verifies --exclude-families removes families.
+//
+// VALIDATES: Excluded families never appear in profiles.
+// PREVENTS: Excluded families being assigned despite filter.
+func TestFamilyFilterExclude(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		ExcludeFamilies: []string{"l2vpn/evpn", "ipv4/flow", "ipv6/flow"},
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	excluded := map[string]bool{"l2vpn/evpn": true, "ipv4/flow": true, "ipv6/flow": true}
+	for i, p := range profiles {
+		for _, f := range p.Families {
+			assert.False(t, excluded[f],
+				"peer %d has excluded family %s", i, f)
+		}
 	}
 }

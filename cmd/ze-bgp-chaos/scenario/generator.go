@@ -4,19 +4,22 @@ import (
 	"fmt"
 	"math/rand"
 	"net/netip"
+	"slices"
 )
 
 // GeneratorParams holds all inputs needed to generate a scenario.
 type GeneratorParams struct {
-	Seed        uint64
-	Peers       int
-	IBGPRatio   float64
-	LocalAS     uint32
-	Routes      int
-	HeavyPeers  int
-	HeavyRoutes int
-	BasePort    int
-	ListenBase  int
+	Seed            uint64
+	Peers           int
+	IBGPRatio       float64
+	LocalAS         uint32
+	Routes          int
+	HeavyPeers      int
+	HeavyRoutes     int
+	BasePort        int
+	ListenBase      int
+	Families        []string // Include filter: only these families (empty = all).
+	ExcludeFamilies []string // Exclude filter: remove these families.
 }
 
 // Generate creates a deterministic set of PeerProfiles from the given parameters.
@@ -73,6 +76,10 @@ func Generate(params GeneratorParams) ([]PeerProfile, error) {
 	// Assign heavy route counts to randomly selected peers.
 	assignHeavyPeers(rng, profiles, params.HeavyPeers, params.HeavyRoutes)
 
+	// Assign address families to each peer.
+	pool := buildFamilyPool(params.Families, params.ExcludeFamilies)
+	assignFamilies(rng, profiles, pool)
+
 	return profiles, nil
 }
 
@@ -101,6 +108,94 @@ func generateEBGPASNs(rng *rand.Rand, count int, localAS uint32) []uint32 {
 	}
 
 	return available[:count]
+}
+
+// familyIPv4Unicast is the mandatory family present on all peers.
+const familyIPv4Unicast = "ipv4/unicast"
+
+// allFamilies is the full set of supported address families.
+var allFamilies = []string{
+	"ipv4/unicast",
+	"ipv6/unicast",
+	"ipv4/vpn",
+	"ipv6/vpn",
+	"l2vpn/evpn",
+	"ipv4/flow",
+	"ipv6/flow",
+}
+
+// optionalFamilyWeights maps each optional family to its assignment probability.
+// ipv4/unicast is mandatory and always assigned.
+var optionalFamilyWeights = map[string]float64{
+	"ipv6/unicast": 0.7,
+	"ipv4/vpn":     0.4,
+	"ipv6/vpn":     0.3,
+	"l2vpn/evpn":   0.35,
+	"ipv4/flow":    0.3,
+	"ipv6/flow":    0.2,
+}
+
+// buildFamilyPool returns the set of families available for assignment after
+// applying include and exclude filters.
+func buildFamilyPool(include, exclude []string) []string {
+	var base []string
+	if len(include) > 0 {
+		// Include filter: only these families.
+		allowed := make(map[string]bool, len(include))
+		for _, f := range include {
+			allowed[f] = true
+		}
+		for _, f := range allFamilies {
+			if allowed[f] {
+				base = append(base, f)
+			}
+		}
+	} else {
+		base = append(base, allFamilies...)
+	}
+
+	if len(exclude) > 0 {
+		excluded := make(map[string]bool, len(exclude))
+		for _, f := range exclude {
+			excluded[f] = true
+		}
+		filtered := base[:0]
+		for _, f := range base {
+			if !excluded[f] {
+				filtered = append(filtered, f)
+			}
+		}
+		base = filtered
+	}
+
+	// Ensure ipv4/unicast is always present.
+	if !slices.Contains(base, familyIPv4Unicast) {
+		base = append([]string{familyIPv4Unicast}, base...)
+	}
+
+	return base
+}
+
+// assignFamilies assigns a random subset of families to each peer.
+// ipv4/unicast is always included. Other families are assigned with
+// weighted probability from optionalFamilyWeights.
+func assignFamilies(rng *rand.Rand, profiles []PeerProfile, pool []string) {
+	for i := range profiles {
+		families := []string{familyIPv4Unicast}
+		for _, f := range pool {
+			if f == familyIPv4Unicast {
+				continue // Already included.
+			}
+			weight, ok := optionalFamilyWeights[f]
+			if !ok {
+				weight = 0.3 // Default for unknown families.
+			}
+			if rng.Float64() < weight {
+				families = append(families, f)
+			}
+		}
+		profiles[i].Families = families
+	}
 }
 
 // assignHeavyPeers selects heavyCount peers to receive heavyRoutes instead of

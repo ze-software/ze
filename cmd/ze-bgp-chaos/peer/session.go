@@ -22,16 +22,52 @@ type SessionConfig struct {
 
 	// HoldTime is the proposed hold time in seconds.
 	HoldTime uint16
+
+	// Families is the list of address families to negotiate.
+	// Empty defaults to ["ipv4/unicast"].
+	Families []string
+}
+
+// familyAFISAFI holds an AFI/SAFI pair for Multiprotocol capability construction.
+type familyAFISAFI struct {
+	afi  nlri.AFI
+	safi nlri.SAFI
+}
+
+// familyToAFISAFI maps family strings to (AFI, SAFI) pairs for Multiprotocol capabilities.
+// SYNC: Must stay in sync with familyToNLRI in sender.go — both maps
+// must cover the same set of family strings.
+var familyToAFISAFI = map[string]familyAFISAFI{
+	"ipv4/unicast": {nlri.AFIIPv4, nlri.SAFIUnicast},
+	"ipv6/unicast": {nlri.AFIIPv6, nlri.SAFIUnicast},
+	"ipv4/vpn":     {nlri.AFIIPv4, nlri.SAFIVPN},
+	"ipv6/vpn":     {nlri.AFIIPv6, nlri.SAFIVPN},
+	"l2vpn/evpn":   {nlri.AFIL2VPN, nlri.SAFIEVPN},
+	"ipv4/flow":    {nlri.AFIIPv4, nlri.SAFIFlowSpec},
+	"ipv6/flow":    {nlri.AFIIPv6, nlri.SAFIFlowSpec},
 }
 
 // BuildOpen constructs a BGP OPEN message from the session config.
-// It includes ASN4, multiprotocol (ipv4/unicast), and route-refresh capabilities.
+// It includes ASN4, multiprotocol capabilities for each family, and route-refresh.
 func BuildOpen(cfg SessionConfig) *message.Open {
-	caps := []capability.Capability{
-		&capability.Multiprotocol{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
-		&capability.ASN4{ASN: cfg.ASN},
-		&capability.RouteRefresh{},
+	families := cfg.Families
+	if len(families) == 0 {
+		families = []string{"ipv4/unicast"}
 	}
+
+	var caps []capability.Capability
+	for _, f := range families {
+		pair, ok := familyToAFISAFI[f]
+		if !ok {
+			continue
+		}
+		caps = append(caps, &capability.Multiprotocol{
+			AFI:  pair.afi,
+			SAFI: pair.safi,
+		})
+	}
+	caps = append(caps, &capability.ASN4{ASN: cfg.ASN})
+	caps = append(caps, &capability.RouteRefresh{})
 
 	optParams := buildOptionalParams(caps)
 
