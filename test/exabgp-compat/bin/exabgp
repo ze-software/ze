@@ -35,6 +35,11 @@ def find_ze_binary() -> str:
     if ze_path.exists():
         return str(ze_path)
 
+    # Check bin/ directory (make build output)
+    bin_path = script_dir / 'bin' / 'ze'
+    if bin_path.exists():
+        return str(bin_path)
+
     # Fallback: check if ze is in PATH
     result = subprocess.run(['which', 'ze'], capture_output=True, text=True)
     if result.returncode == 0:

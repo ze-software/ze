@@ -139,7 +139,7 @@ functional-editor: bin/ze-test
 	bin/ze-test editor
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
-functional-exabgp:
+functional-exabgp: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
 	./test/exabgp-compat/bin/functional encoding --timeout 60
 
