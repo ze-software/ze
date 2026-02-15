@@ -17,17 +17,17 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
-	"net"
 	"net/netip"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
 )
 
 func main() {
@@ -224,8 +224,9 @@ Control:
 		defer cancel()
 	}
 
-	// Phase 1: run first peer only (multi-peer in Phase 2).
-	return runPeer(ctx, profiles[0], *seed, *localAddr, *port, *verbose, *quiet)
+	// Launch multi-peer orchestrator.
+	start := time.Now()
+	return runOrchestrator(ctx, profiles, *seed, *localAddr, *port, *verbose, *quiet, start)
 }
 
 // writeConfig writes the Ze config to the specified file or stderr.
@@ -240,161 +241,83 @@ func writeConfig(config, path string, quiet bool) error {
 	return nil
 }
 
-// runPeer runs a single BGP peer session against Ze.
-func runPeer(ctx context.Context, p scenario.PeerProfile, seed uint64, localAddr string, zePort int, verbose, quiet bool) int {
+// runOrchestrator launches N peer simulators and validates route propagation.
+func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed uint64, localAddr string, zePort int, verbose, quiet bool, start time.Time) int {
+	n := len(profiles)
 	addr := fmt.Sprintf("%s:%d", localAddr, zePort)
 
-	if !quiet {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d (AS%d) connecting to %s\n", p.Index, p.ASN, addr)
+	// Create validation components.
+	model := validation.NewModel(n)
+	tracker := validation.NewTracker(n)
+	convergence := validation.NewConvergence(n, 5*time.Second)
+	ep := &EventProcessor{
+		Model:       model,
+		Tracker:     tracker,
+		Convergence: convergence,
 	}
 
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, "tcp", addr)
-	if err != nil {
-		if ctx.Err() != nil {
-			return 0
-		}
-		fmt.Fprintf(os.Stderr, "error: connecting to %s: %v\n", addr, err)
-		return 1
-	}
-	defer func() { _ = conn.Close() }()
+	// Shared event channel with generous buffer.
+	events := make(chan peer.Event, n*1000)
 
-	// Build and send OPEN.
-	open := peer.BuildOpen(peer.SessionConfig{
-		ASN:      p.ASN,
-		RouterID: p.RouterID,
-		HoldTime: p.HoldTime,
-	})
-	if writeErr := writeMsg(conn, open); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: sending OPEN: %v\n", writeErr)
-		return 1
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | sent OPEN\n", p.Index)
-	}
-
-	// Read Ze's OPEN.
-	if readErr := readMessage(conn); readErr != nil {
-		fmt.Fprintf(os.Stderr, "error: reading OPEN: %v\n", readErr)
-		return 1
+	// Launch all peer simulators.
+	var wg sync.WaitGroup
+	for _, p := range profiles {
+		wg.Add(1)
+		go func(prof scenario.PeerProfile) {
+			defer wg.Done()
+			peer.RunSimulator(ctx, peer.SimulatorConfig{
+				Profile: peer.SimProfile{
+					Index:      prof.Index,
+					ASN:        prof.ASN,
+					RouterID:   prof.RouterID,
+					IsIBGP:     prof.IsIBGP,
+					HoldTime:   prof.HoldTime,
+					RouteCount: prof.RouteCount,
+				},
+				Seed:    seed,
+				Addr:    addr,
+				Events:  events,
+				Verbose: verbose,
+				Quiet:   quiet,
+			})
+		}(p)
 	}
 
-	if verbose {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | received OPEN\n", p.Index)
-	}
+	// Close events channel when all simulators finish.
+	go func() {
+		wg.Wait()
+		close(events)
+	}()
 
-	// Send KEEPALIVE to complete handshake.
-	if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: sending KEEPALIVE: %v\n", writeErr)
-		return 1
-	}
+	// Process events from all peers.
+	for ev := range events {
+		ep.Process(ev)
 
-	// Read Ze's KEEPALIVE.
-	if readErr := readMessage(conn); readErr != nil {
-		fmt.Fprintf(os.Stderr, "error: reading KEEPALIVE: %v\n", readErr)
-		return 1
-	}
-
-	if !quiet {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | session established\n", p.Index)
-	}
-
-	// Send routes.
-	routes := scenario.GenerateIPv4Routes(seed, p.Index, p.RouteCount)
-	sender := peer.NewSender(peer.SenderConfig{
-		ASN:     p.ASN,
-		IsIBGP:  p.IsIBGP,
-		NextHop: p.RouterID,
-	})
-
-	for i, prefix := range routes {
-		select {
-		case <-ctx.Done():
-			sendCease(conn, p.Index, quiet)
-			return 0
-		default:
-		}
-
-		data := sender.BuildRoute(prefix)
-		if _, writeErr := conn.Write(data); writeErr != nil {
-			fmt.Fprintf(os.Stderr, "error: sending UPDATE %d: %v\n", i, writeErr)
-			return 1
+		if verbose && ev.Type == peer.EventError {
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
 		}
 	}
 
-	if !quiet {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | sent %d routes\n", p.Index, len(routes))
+	// Final validation.
+	result := validation.Check(model, tracker)
+	convStats := convergence.Stats()
+	slow := convergence.CheckDeadline(time.Now())
+
+	// Build and print summary.
+	summary := report.Summary{
+		Seed:       seed,
+		Duration:   time.Since(start).Truncate(time.Millisecond),
+		PeerCount:  n,
+		Announced:  ep.Announced,
+		Received:   ep.Received,
+		Missing:    result.TotalMissing,
+		Extra:      result.TotalExtra,
+		MinLatency: convStats.Min,
+		AvgLatency: convStats.Avg,
+		MaxLatency: convStats.Max,
+		P99Latency: convStats.P99,
+		SlowRoutes: len(slow),
 	}
 
-	// Send End-of-RIB.
-	eor := peer.BuildEORIPv4Unicast()
-	if _, writeErr := conn.Write(eor); writeErr != nil {
-		fmt.Fprintf(os.Stderr, "error: sending EOR: %v\n", writeErr)
-		return 1
-	}
-
-	if verbose {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | sent EOR\n", p.Index)
-	}
-
-	// KEEPALIVE loop until context cancelled.
-	keepaliveInterval := time.Duration(p.HoldTime/3) * time.Second
-	ticker := time.NewTicker(keepaliveInterval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			sendCease(conn, p.Index, quiet)
-			return 0
-		case <-ticker.C:
-			if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
-				if ctx.Err() != nil {
-					return 0
-				}
-				fmt.Fprintf(os.Stderr, "error: sending KEEPALIVE: %v\n", writeErr)
-				return 1
-			}
-		}
-	}
-}
-
-// writeMsg serializes and sends a BGP message on a connection.
-func writeMsg(conn net.Conn, msg message.Message) error {
-	data := peer.SerializeMessage(msg)
-	_, err := conn.Write(data)
-	return err
-}
-
-// readMessage reads and discards a single BGP message from the connection.
-func readMessage(conn net.Conn) error {
-	header := make([]byte, message.HeaderLen)
-	if _, err := io.ReadFull(conn, header); err != nil {
-		return fmt.Errorf("reading header: %w", err)
-	}
-
-	msgLen := int(binary.BigEndian.Uint16(header[16:18]))
-	if msgLen < message.HeaderLen {
-		return fmt.Errorf("invalid message length: %d", msgLen)
-	}
-
-	if msgLen > message.HeaderLen {
-		body := make([]byte, msgLen-message.HeaderLen)
-		if _, err := io.ReadFull(conn, body); err != nil {
-			return fmt.Errorf("reading body: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// sendCease sends a NOTIFICATION Cease (best-effort on shutdown).
-func sendCease(conn net.Conn, peerIndex int, quiet bool) {
-	notif := peer.BuildCeaseNotification()
-	_ = writeMsg(conn, notif)
-
-	if !quiet {
-		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | sent NOTIFICATION cease\n", peerIndex)
-	}
+	return summary.Write(os.Stderr)
 }
