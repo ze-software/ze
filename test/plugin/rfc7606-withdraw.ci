@@ -1,0 +1,108 @@
+# RFC 7606 treat-as-withdraw test
+# Verifies: Peer sends UPDATE with malformed ORIGIN (length=2 instead of 1).
+# Expected: ze treats UPDATE as withdrawn (not dispatched to plugins), session stays up.
+# Proof: A subsequent valid route from the plugin reaches the peer successfully.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+
+# Step 1: Expect automatic EOR (empty UPDATE for IPv4/unicast) after session establishment
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Step 2: Expect first valid route from plugin (10.0.0.0/24 via 10.0.0.1)
+# UPDATE: withdrawn=0, attrs=[ORIGIN(IGP)+AS_PATH(empty)+NEXT_HOP(10.0.0.1)+LOCAL_PREF(100)], NLRI=10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0000
+
+# Step 3: Send malformed UPDATE with ORIGIN length=2 (RFC 7606 Section 7.1: must be 1)
+# UPDATE: withdrawn=0, attrs=[ORIGIN(len=2,MALFORMED)+AS_PATH(empty)+NEXT_HOP(10.0.0.1)], NLRI=10.0.0.0/24
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A020000000F40010200004002004003040A000001180A0000
+
+# Step 4: Expect second valid route from plugin (10.0.1.0/24) — proves session survived
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00000140050400000064180A0001
+EOF_PEER
+
+# Python plugin script
+tmpfs=rfc7606-withdraw.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""RFC 7606 treat-as-withdraw test plugin.
+
+Sends two routes: one before and one after the peer sends a malformed UPDATE.
+If the second route reaches the peer, the session survived the malformed UPDATE.
+"""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+    api.declare_done()
+    api.wait_for_config(timeout=10.0)
+    api.capability_done()
+    api.wait_for_registry(timeout=10.0)
+    api.subscribe(['state'])
+    api.ready()
+
+    # Wait for peer up
+    start = time.time()
+    while time.time() - start < 5:
+        line = api.read_line(0.5)
+        if line is None:
+            continue
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        bgp = event.get('bgp', {})
+        msg = bgp.get('message', {})
+        if msg.get('type') == 'state' and bgp.get('state') == 'up':
+            break
+
+    # Route 1: sent immediately after peer up
+    api.send('bgp peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24')
+
+    # Wait for malformed UPDATE from peer to be processed by ze
+    time.sleep(1.0)
+
+    # Route 2: proves session survived the malformed UPDATE
+    api.send('bgp peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24')
+
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration (IBGP)
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rfc7606-test {
+		run ./rfc7606-withdraw.run;
+		encoder json;
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		process rfc7606-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

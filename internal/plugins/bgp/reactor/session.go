@@ -814,6 +814,30 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 	if hdr.Type == message.TypeUPDATE {
 		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
+
+		// RFC 7606: Validate BEFORE dispatching to plugins.
+		// Enforcement must happen before callback so malformed UPDATEs
+		// are never delivered to plugins as valid routes.
+		action, err := s.enforceRFC7606(wireUpdate)
+		if err != nil {
+			// session-reset: error propagated, no dispatch
+			return err, false
+		}
+		if action == message.RFC7606ActionTreatAsWithdraw {
+			// RFC 7606 Section 2: "MUST be handled as though all of the routes
+			// contained in an UPDATE message ... had been withdrawn"
+			// Do not dispatch to plugins — the routes are treated as withdrawn.
+			s.timers.ResetHoldTimer()
+			// RFC 4271 Section 8.2.2: FSM must process Event 27 (UpdateMsg)
+			// for any received UPDATE, even if treated as withdrawal.
+			_ = s.fsm.Event(fsm.EventUpdateMsg)
+			return nil, false
+		}
+		// ActionNone or ActionAttributeDiscard: continue to dispatch.
+		// For attribute-discard, the malformed attributes are logged but the
+		// UPDATE is still dispatched — the attribute bytes are still present
+		// in the wire format, but plugins receiving this UPDATE should not
+		// rely on the discarded attribute values for route selection.
 	}
 
 	// Notify callback for all message types.
@@ -997,7 +1021,7 @@ func (s *Session) handleKeepalive() error {
 
 // handleUpdate processes a received UPDATE message.
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
-// RFC 7606: validates path attributes with revised error handling.
+// RFC 7606 validation is done earlier in processMessage() via enforceRFC7606().
 // Accepts WireUpdate for zero-copy processing.
 func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 	// Reset hold timer.
@@ -1011,41 +1035,41 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 		return err
 	}
 
-	// RFC 7606: Validate path attributes with revised error handling.
-	if err := s.validateUpdateRFC7606(body); err != nil {
-		return err
-	}
-
 	return s.fsm.Event(fsm.EventUpdateMsg)
 }
 
-// validateUpdateRFC7606 performs RFC 7606 attribute validation.
-// Returns nil for treat-as-withdraw (session stays up), error for session reset.
-func (s *Session) validateUpdateRFC7606(body []byte) error {
+// enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
+//
+// Returns the action taken and an error if session-reset is required.
+// Called from processMessage() BEFORE callback dispatch so that malformed
+// UPDATEs are never delivered to plugins as valid routes.
+func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, error) {
+	body := wu.Payload()
+
 	// Parse UPDATE structure
 	if len(body) < 4 {
-		return nil // Let other validation handle
+		return message.RFC7606ActionNone, nil // Let other validation handle
 	}
 
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	offset := 2 + withdrawnLen
 	if offset+2 > len(body) {
-		return nil
+		return message.RFC7606ActionNone, nil
 	}
 
 	// RFC 7606 Section 5.3: Validate withdrawn routes NLRI syntax (IPv4)
 	if withdrawnLen > 0 {
 		withdrawn := body[2 : 2+withdrawnLen]
 		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
-			sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", 0, "description", result.Description)
-			return nil // treat-as-withdraw
+			sessionLogger().Debug("RFC 7606 treat-as-withdraw (withdrawn NLRI syntax)", "description", result.Description)
+			return message.RFC7606ActionTreatAsWithdraw, nil
 		}
 	}
 
 	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
 	offset += 2
 	if offset+attrLen > len(body) {
-		return nil
+		return message.RFC7606ActionNone, nil
 	}
 
 	pathAttrs := body[offset : offset+attrLen]
@@ -1056,15 +1080,13 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 	if nlriLen > 0 {
 		nlri := body[offset+attrLen:]
 		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
-			sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", 0, "description", result.Description)
-			return nil // treat-as-withdraw
+			sessionLogger().Debug("RFC 7606 treat-as-withdraw (NLRI syntax)", "description", result.Description)
+			return message.RFC7606ActionTreatAsWithdraw, nil
 		}
 	}
 
 	// Validate path attributes per RFC 7606
-	// IBGP is determined by comparing local and peer AS numbers
 	isIBGP := s.settings.LocalAS == s.settings.PeerAS
-	// Get asn4 from negotiated capabilities (defaults to false if not negotiated)
 	asn4 := false
 	if neg := s.Negotiated(); neg != nil {
 		asn4 = neg.ASN4
@@ -1073,26 +1095,47 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 
 	switch result.Action {
 	case message.RFC7606ActionNone:
-		// No error, continue normally
-		return nil
-
-	case message.RFC7606ActionTreatAsWithdraw:
-		// RFC 7606: Log and continue (routes treated as withdrawn)
-		sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", result.AttrCode, "description", result.Description)
-		return nil // Session stays up
+		return message.RFC7606ActionNone, nil
 
 	case message.RFC7606ActionAttributeDiscard:
-		// RFC 7606: Log and continue (malformed attribute discarded)
-		sessionLogger().Debug("RFC 7606 attribute-discard", "attr", result.AttrCode, "description", result.Description)
-		return nil // Session stays up
+		// RFC 7606 Section 2: "The attribute MUST be discarded ... and the UPDATE
+		// message continues to be processed."
+		sessionLogger().Debug("RFC 7606 attribute-discard",
+			"attr", result.AttrCode,
+			"discard-codes", result.DiscardCodes,
+			"description", result.Description)
+		return message.RFC7606ActionAttributeDiscard, nil
+
+	case message.RFC7606ActionTreatAsWithdraw:
+		// RFC 7606 Section 2: "MUST be handled as though all of the routes
+		// contained in an UPDATE message ... had been withdrawn"
+		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
+			"attr", result.AttrCode,
+			"description", result.Description)
+		return message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
-		// RFC 7606: Session reset required (e.g., multiple MP_REACH)
+		// RFC 7606: Session reset — send NOTIFICATION with UPDATE Message Error.
 		sessionLogger().Warn("RFC 7606 session-reset", "description", result.Description)
-		return fmt.Errorf("RFC 7606 session reset: %s", result.Description)
+
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+
+		// RFC 4271 Section 6.3: "If any ... error ... is detected ... a NOTIFICATION
+		// message MUST be sent with the Error Code UPDATE Message Error."
+		_ = s.sendNotification(conn,
+			message.NotifyUpdateMessage,
+			message.NotifyUpdateMalformedAttr,
+			nil,
+		)
+		_ = s.fsm.Event(fsm.EventUpdateMsgErr)
+		s.closeConn()
+
+		return message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", result.Description)
 	}
 
-	return nil
+	return message.RFC7606ActionNone, nil
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.

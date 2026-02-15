@@ -8,13 +8,16 @@ import (
 // RFC7606Action represents the error handling action per RFC 7606.
 type RFC7606Action int
 
+// RFC 7606 Section 2: action strength ordering (strongest to weakest):
+// session-reset > treat-as-withdraw > attribute-discard > none
+// Iota values match this ordering so numeric comparison gives strongest action.
 const (
 	// RFC7606ActionNone - No error detected.
 	RFC7606ActionNone RFC7606Action = iota
-	// RFC7606ActionTreatAsWithdraw - Treat UPDATE as withdrawal (RFC 7606 Section 2).
-	RFC7606ActionTreatAsWithdraw
 	// RFC7606ActionAttributeDiscard - Discard malformed attribute, continue (RFC 7606 Section 2).
 	RFC7606ActionAttributeDiscard
+	// RFC7606ActionTreatAsWithdraw - Treat UPDATE as withdrawal (RFC 7606 Section 2).
+	RFC7606ActionTreatAsWithdraw
 	// RFC7606ActionSessionReset - Reset session (RFC 4271 behavior).
 	RFC7606ActionSessionReset
 )
@@ -36,9 +39,10 @@ func (a RFC7606Action) String() string {
 
 // RFC7606ValidationResult contains the result of UPDATE validation.
 type RFC7606ValidationResult struct {
-	Action      RFC7606Action
-	AttrCode    uint8  // Attribute code that caused the error (0 if N/A)
-	Description string // Human-readable error description
+	Action       RFC7606Action
+	AttrCode     uint8   // Attribute code that caused the strongest error (0 if N/A)
+	Description  string  // Human-readable error description for the strongest error
+	DiscardCodes []uint8 // Attribute codes to strip when Action is AttributeDiscard
 }
 
 // Attribute type codes per RFC 4271.
@@ -113,17 +117,17 @@ func validateAttributeFlags(code uint8, flags uint8) *RFC7606ValidationResult {
 // ValidateUpdateRFC7606 validates an UPDATE message per RFC 7606.
 //
 // RFC 7606 revises error handling for UPDATE messages to minimize session resets.
-// This function checks path attributes for common malformations and returns the
-// appropriate error handling action.
+// This function checks ALL path attributes for malformations and returns the
+// strongest error handling action per RFC 7606 Section 3.h.
 //
 // Parameters:
 //   - pathAttrs: Raw path attributes bytes from UPDATE message
-//   - hasNLRI: Whether the UPDATE has NLRI (for mandatory attribute checking)
+//   - hasNLRI: Whether the UPDATE has traditional IPv4 NLRI field
 //   - isIBGP: Whether this is an IBGP session (affects LOCAL_PREF, ORIGINATOR_ID, CLUSTER_LIST)
 //   - asn4: Whether 4-octet AS capability is negotiated (affects AS_PATH, AGGREGATOR length)
 //
 // Returns:
-//   - ValidationResult with action to take and error details
+//   - ValidationResult with strongest action, error details, and attribute codes to discard
 func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 bool) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
@@ -143,14 +147,36 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 	// RFC 7606 Section 3.g: Track seen attribute codes to detect duplicates
 	seenCodes := make(map[uint8]bool)
 
+	// RFC 7606 Section 3.h: "If multiple errors are found, use the strongest action."
+	// Collect all errors to determine the strongest action.
+	strongest := RFC7606ActionNone
+	var strongestCode uint8
+	var strongestDesc string
+	var discardCodes []uint8
+
+	// recordError updates the strongest action and tracks discard codes.
+	recordError := func(r *RFC7606ValidationResult) {
+		if r.Action == RFC7606ActionAttributeDiscard {
+			discardCodes = append(discardCodes, r.AttrCode)
+		}
+		if r.Action > strongest {
+			strongest = r.Action
+			strongestCode = r.AttrCode
+			strongestDesc = r.Description
+		}
+	}
+
 	// Parse attributes
 	pos := 0
 	for pos < len(pathAttrs) {
 		// Need at least flags + type code
 		if pos+2 > len(pathAttrs) {
-			// RFC 7606 Section 4: treat-as-withdraw for attribute parsing errors
+			// RFC 7606 Section 4: "If the remaining number of octets ... is less than three
+			// (or less than four if the Attribute Flags field has the Extended Length bit set)"
+			// MUST use treat-as-withdraw — structural error, can't continue parsing.
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    strongestCode,
 				Description: "RFC 7606 Section 4: insufficient data for attribute header",
 			}
 		}
@@ -183,6 +209,8 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 
 		// Check attribute data bounds
 		if pos+attrLen > len(pathAttrs) {
+			// RFC 7606 Section 4: "attribute length ... exceeds the amount of data"
+			// Structural error — can't continue parsing remaining attributes.
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCode,
@@ -195,14 +223,14 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 
 		// RFC 7606 Section 3.c: Validate attribute flags
 		if flagsResult := validateAttributeFlags(attrCode, flags); flagsResult != nil {
-			return flagsResult
+			recordError(flagsResult)
+			continue // Collect more errors
 		}
 
 		// RFC 7606 Section 3.g: Handle duplicate attributes
 		// MP_REACH/MP_UNREACH duplicates are handled below with session-reset
 		// Other duplicates: discard all but first (skip validation/tracking)
 		if seenCodes[attrCode] && attrCode != attrCodeMPReachNLRI && attrCode != attrCodeMPUnreachNLRI {
-			// Skip duplicate - already processed first occurrence
 			continue
 		}
 		seenCodes[attrCode] = true
@@ -210,7 +238,12 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 		// Validate specific attributes per RFC 7606 Section 7
 		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
 		if result != nil && result.Action != RFC7606ActionNone {
-			return result
+			// RFC 7606 Section 3.h: session-reset is immediate — no point collecting more
+			if result.Action == RFC7606ActionSessionReset {
+				return result
+			}
+			recordError(result)
+			// Don't return — continue to collect all errors
 		}
 
 		// Track mandatory attributes and MP attribute counts
@@ -229,7 +262,9 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 		}
 	}
 
-	// RFC 7606 Section 3.g: Multiple MP_REACH or MP_UNREACH is session reset
+	// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
+	// attribute appears more than once in the UPDATE message, then a NOTIFICATION
+	// message MUST be sent with the Error Subcode 'Malformed Attribute List'."
 	if mpReachCount > 1 || mpUnreachCount > 1 {
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionSessionReset,
@@ -241,49 +276,69 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 	// For UPDATE with NLRI: ORIGIN, AS_PATH, NEXT_HOP are mandatory
 	// (NEXT_HOP can be in MP_REACH_NLRI instead of explicit attribute)
 	if hasNLRI && mpReachCount == 0 {
-		// Traditional IPv4 UPDATE needs explicit NEXT_HOP
 		if !hasOrigin {
-			return &RFC7606ValidationResult{
+			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeOrigin,
 				Description: "RFC 7606 Section 3.d: missing ORIGIN attribute",
-			}
+			})
 		}
 		if !hasASPath {
-			return &RFC7606ValidationResult{
+			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeASPath,
 				Description: "RFC 7606 Section 3.d: missing AS_PATH attribute",
-			}
+			})
 		}
 		if !hasNextHop {
-			return &RFC7606ValidationResult{
+			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeNextHop,
 				Description: "RFC 7606 Section 3.d: missing NEXT_HOP attribute",
-			}
+			})
 		}
 	}
 
 	// For MP_REACH_NLRI UPDATE: ORIGIN and AS_PATH are mandatory
 	if mpReachCount > 0 {
 		if !hasOrigin {
-			return &RFC7606ValidationResult{
+			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeOrigin,
 				Description: "RFC 7606 Section 3.d: missing ORIGIN attribute",
-			}
+			})
 		}
 		if !hasASPath {
-			return &RFC7606ValidationResult{
+			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
 				AttrCode:    attrCodeASPath,
 				Description: "RFC 7606 Section 3.d: missing AS_PATH attribute",
-			}
+			})
 		}
 	}
 
-	return &RFC7606ValidationResult{Action: RFC7606ActionNone}
+	// RFC 7606 Section 5.2: "An UPDATE message with only path attributes and no associated
+	// NLRI ... if any path attribute fails the checks ... and the error action is not
+	// 'attribute discard' ... the session-reset action MUST be used."
+	// No reachable NLRI means: no traditional NLRI AND no MP_REACH_NLRI.
+	if !hasNLRI && mpReachCount == 0 && len(pathAttrs) > 0 && strongest > RFC7606ActionAttributeDiscard {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    strongestCode,
+			Description: fmt.Sprintf("RFC 7606 Section 5.2: %s (escalated — attrs with no NLRI)", strongestDesc),
+		}
+	}
+
+	if strongest == RFC7606ActionNone {
+		return &RFC7606ValidationResult{Action: RFC7606ActionNone}
+	}
+
+	return &RFC7606ValidationResult{
+		Action:       strongest,
+		AttrCode:     strongestCode,
+		Description:  strongestDesc,
+		DiscardCodes: discardCodes,
+	}
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
@@ -446,8 +501,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 		}
 
 	case attrCodeMPReachNLRI:
-		// RFC 7606 Section 5.3: MP_REACH_NLRI must be at least 5 bytes
-		// (AFI=2 + SAFI=1 + NH_LEN=1 + Reserved=1 minimum)
+		// RFC 7606 Section 5.3: "The length of the MP_REACH_NLRI ... shall be no less than 5"
 		if length < 5 {
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionSessionReset,
@@ -458,6 +512,17 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 		// RFC 7606 Section 7.11: Validate next-hop length per AFI/SAFI
 		if result := validateMPReachNextHop(attrData); result != nil {
 			return result
+		}
+
+	case attrCodeMPUnreachNLRI:
+		// RFC 7606 Section 5.3: "The length of the MP_UNREACH_NLRI ... shall be no less than 3"
+		// Minimum: AFI (2 bytes) + SAFI (1 byte) = 3 bytes.
+		if length < 3 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionSessionReset,
+				AttrCode:    code,
+				Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_UNREACH_NLRI length %d < 3", length),
+			}
 		}
 	}
 
@@ -678,11 +743,14 @@ func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
 		// Calculate bytes needed for this prefix: ceiling(prefixLen / 8)
 		prefixBytes := (prefixLen + 7) / 8
 
-		// RFC 7606 Section 5.3: Check for overrun
+		// RFC 7606 Section 3(j): "in order to use the approach of 'treat-as-withdraw',
+		// the entire NLRI field ... need to be successfully parsed ... If this is not
+		// possible ... the 'session reset' approach ... MUST be followed."
+		// Overrun means the field cannot be fully parsed — session-reset required.
 		if pos+prefixBytes > len(nlri) {
 			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				Description: fmt.Sprintf("RFC 7606 Section 5.3: NLRI overrun (need %d bytes, have %d)", prefixBytes, len(nlri)-pos),
+				Action:      RFC7606ActionSessionReset,
+				Description: fmt.Sprintf("RFC 7606 Section 5.3/3(j): NLRI overrun (need %d bytes, have %d)", prefixBytes, len(nlri)-pos),
 			}
 		}
 

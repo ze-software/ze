@@ -1,0 +1,70 @@
+# RFC 7606 session-reset test
+# Verifies: Peer sends UPDATE with MP_REACH_NLRI too short (length=2, minimum is 5).
+# Expected: ze sends NOTIFICATION (code=3 UPDATE Message Error, subcode=1 Malformed Attribute List)
+#           and resets the session per RFC 7606 Section 5.3.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: Expect automatic EOR (empty UPDATE for IPv4/unicast) after session establishment
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Step 2: Send malformed UPDATE with MP_REACH_NLRI length=2 (minimum is 5 per Section 5.3)
+# UPDATE: withdrawn=0, attrs=[ORIGIN(IGP)+AS_PATH(empty)+MP_REACH_NLRI(len=2,data=0001)]
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0023020000000C40010100400200800E020001
+
+# Step 3: Expect NOTIFICATION (code=3 UPDATE Message Error, subcode=1 Malformed Attribute List)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030301
+EOF_PEER
+
+# Minimal plugin (ze needs at least one plugin process)
+tmpfs=rfc7606-reset.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Minimal plugin for RFC 7606 session-reset test."""
+
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+    api.declare_done()
+    api.wait_for_config(timeout=10.0)
+    api.capability_done()
+    api.wait_for_registry(timeout=10.0)
+    api.ready()
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration (IBGP)
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rfc7606-test {
+		run ./rfc7606-reset.run;
+		encoder json;
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		process rfc7606-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

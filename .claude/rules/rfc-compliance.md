@@ -69,17 +69,71 @@ type VPLS struct { ... }
 func parseOpenMessage(data []byte) (*OpenMessage, error) { ... }
 ```
 
-### RFC Constraint Comments
+### RFC MUST Requirement Comments (BLOCKING)
 
-When code enforces an RFC rule, document it:
+**BLOCKING:** Every RFC MUST/MUST NOT requirement implemented in code MUST have a comment directly above the enforcing code that:
+
+1. Cites the RFC number and section
+2. Quotes the requirement text (or paraphrases with "MUST"/"MUST NOT")
+3. Is placed immediately above the code that enforces it
+
+**This applies to:**
+- Validation checks (field ranges, required values, format constraints)
+- Error conditions and responses (NOTIFICATION codes, session resets)
+- State machine transitions (FSM event ordering, timer behavior)
+- Message ordering requirements (OPEN before UPDATE, etc.)
+- Wire format constraints (minimum lengths, field sizes, flag bits)
+- Any code path triggered by a MUST/MUST NOT/SHALL/SHALL NOT from an RFC
+
+**Format:**
 
 ```go
-// RFC 4271 Section 6.3: "If the UPDATE message is received from an external peer"
-// MUST check that AS_PATH first segment is neighbor's AS
-if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
-    return ErrInvalidASPath
-}
+// RFC NNNN Section X.Y: "quoted requirement text"
+// Brief explanation if the connection between quote and code isn't obvious.
+<code that enforces it>
 ```
+
+**Examples:**
+
+```go
+// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values of one or two seconds."
+if holdTime == 1 || holdTime == 2 {
+    return ErrInvalidHoldTime
+}
+
+// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI attribute
+// appears more than once in the UPDATE message, then a NOTIFICATION message MUST be sent"
+if mpReachCount > 1 || mpUnreachCount > 1 {
+    return sessionReset("multiple MP_REACH/MP_UNREACH")
+}
+
+// RFC 7606 Section 2: treat-as-withdraw "MUST be handled as though all of the routes
+// contained in an UPDATE message ... had been withdrawn"
+// Do not dispatch to plugins — the routes are treated as withdrawn.
+return nil
+```
+
+**Anti-patterns (FORBIDDEN):**
+
+```go
+// BAD: No RFC citation
+if length != 4 {
+    return ErrBadLength
+}
+
+// BAD: Citation but no quoted requirement
+// RFC 7606 Section 7.4
+if length != 4 {
+    return ErrBadMED
+}
+
+// BAD: Comment far from enforcing code
+// RFC 7606 Section 7.1: ORIGIN must be length 1
+... 20 lines of other code ...
+if length != 1 {  // <- too far from comment
+```
+
+**When reviewing code:** If you see RFC-enforcing logic without a quoted MUST comment, add one before proceeding.
 
 ## RFC MAY Clauses
 

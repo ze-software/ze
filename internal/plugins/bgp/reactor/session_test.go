@@ -11,8 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading
@@ -614,11 +616,14 @@ func TestSessionFamilyValidation(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8,
 	}
 
-	// Path attributes: ORIGIN IGP (required), MP_REACH_NLRI
-	pathAttrs := make([]byte, 0, 7+len(mpReach))
+	// Path attributes: ORIGIN IGP, AS_PATH, MP_REACH_NLRI
+	// AS_PATH is mandatory when MP_REACH_NLRI is present (RFC 7606 Section 3.d)
+	pathAttrs := make([]byte, 0, 10+len(mpReach))
 	pathAttrs = append(pathAttrs,
 		// ORIGIN = IGP
 		0x40, 0x01, 0x01, 0x00,
+		// AS_PATH (empty — valid for originating router)
+		0x40, 0x02, 0x00,
 		// MP_REACH_NLRI (optional non-transitive)
 		0x80, 0x0e, byte(len(mpReach)),
 	)
@@ -969,8 +974,9 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 		0x00, 0x20, 0x20, 0x01, 0x0d, 0xb8,
 	}
 
-	pathAttrs := make([]byte, 0, 7+len(mpReach))
-	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00, 0x80, 0x0e, byte(len(mpReach)))
+	// AS_PATH is mandatory when MP_REACH_NLRI is present (RFC 7606 Section 3.d)
+	pathAttrs := make([]byte, 0, 10+len(mpReach))
+	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
 
 	update := make([]byte, 0, 100)
@@ -1384,6 +1390,319 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	err := session.ReadAndProcess()
 	require.NoError(t, err, "RFC 7606: missing mandatory attribute should trigger treat-as-withdraw, not session reset")
 	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// setupEstablishedSessionEBGP creates an established EBGP session (LocalAS != PeerAS)
+// with a callback tracker. Returns session, client conn, callback call count, and cleanup.
+func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()) {
+	t.Helper()
+
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+
+	// Track callback invocations
+	callbackCount := new(int)
+	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction string, _ []byte) bool {
+		if direction == "received" {
+			*callbackCount++
+		}
+		return false
+	}
+
+	startSession(t, session)
+
+	client, server := net.Pipe()
+	cleanup := func() {
+		client.Close() //nolint:errcheck // test cleanup
+		server.Close() //nolint:errcheck // test cleanup
+	}
+
+	readOpen(t, session, server, client)
+	exchangeOpenKeepalive(t, session, client)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Reset callback count (OPEN and KEEPALIVE may have triggered it)
+	*callbackCount = 0
+
+	return session, client, callbackCount, cleanup
+}
+
+// startSession starts the session and asserts no error.
+func startSession(t *testing.T, session *Session) {
+	t.Helper()
+	err := session.Start()
+	require.NoError(t, err)
+}
+
+// readOpen accepts a connection and reads the OPEN message.
+func readOpen(t *testing.T, session *Session, server, client net.Conn) {
+	t.Helper()
+	acceptWithReader(t, session, server, client)
+}
+
+// exchangeOpenKeepalive sends peer OPEN and KEEPALIVE to reach Established.
+func exchangeOpenKeepalive(t *testing.T, session *Session, client net.Conn) {
+	t.Helper()
+
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA,
+			1, 4, 0, 1, 0, 1,
+		},
+	}
+	openBytes := message.PackTo(peerOpen, nil)
+
+	go func() {
+		client.Write(openBytes) //nolint:errcheck // test goroutine
+		buf := make([]byte, 4096)
+		client.Read(buf) //nolint:errcheck // drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+
+	keepalive := message.NewKeepalive()
+	keepaliveBytes := message.PackTo(keepalive, nil)
+
+	go func() {
+		client.Write(keepaliveBytes) //nolint:errcheck // test goroutine
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+}
+
+// buildUpdateMsg constructs a full BGP UPDATE message from raw UPDATE body bytes.
+func buildUpdateMsg(update []byte) []byte {
+	hdr := make([]byte, 19, 19+len(update))
+	for i := range 16 {
+		hdr[i] = 0xff
+	}
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+	return append(hdr, update...)
+}
+
+// sendUpdateAndDrain writes an UPDATE message and drains any response.
+func sendUpdateAndDrain(client net.Conn, updateMsg []byte) {
+	client.Write(updateMsg) //nolint:errcheck // test goroutine
+	buf := make([]byte, 4096)
+	client.Read(buf) //nolint:errcheck // drain response
+}
+
+// TestSessionRFC7606SessionResetNotification verifies RFC 7606 session-reset enforcement.
+//
+// RFC 7606 Section 3.g: "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI
+// attribute appears more than once in the UPDATE message, then a NOTIFICATION
+// message MUST be sent with the Error Subcode 'Malformed Attribute List'."
+//
+// VALIDATES: Duplicate MP_REACH_NLRI triggers session-reset with NOTIFICATION (code 3, subcode 1).
+// PREVENTS: Session staying up after structural errors that require session-reset.
+func TestSessionRFC7606SessionResetNotification(t *testing.T) {
+	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// Build UPDATE with TWO MP_REACH_NLRI attributes (duplicate → session-reset per Section 3.g)
+	mpReach := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x01,                   // SAFI = 1 (Unicast)
+		0x04,                   // Next-hop length = 4
+		0xc0, 0x00, 0x02, 0x01, // Next-hop = 192.0.2.1
+		0x00,       // Reserved
+		0x08, 0x0a, // NLRI: 10.0.0.0/8
+	}
+
+	pathAttrs := make([]byte, 0, 100)
+	// ORIGIN = IGP
+	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00)
+	// AS_PATH (empty)
+	pathAttrs = append(pathAttrs, 0x40, 0x02, 0x00)
+	// First MP_REACH_NLRI
+	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
+	pathAttrs = append(pathAttrs, mpReach...)
+	// Second MP_REACH_NLRI (DUPLICATE — triggers session-reset)
+	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
+	pathAttrs = append(pathAttrs, mpReach...)
+
+	update := make([]byte, 0, 100)
+	update = append(update, 0x00, 0x00) // Withdrawn routes length = 0
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+
+	updateMsg := buildUpdateMsg(update)
+
+	// Read any NOTIFICATION the session sends back
+	var received []byte
+	done := make(chan struct{})
+	go func() {
+		client.Write(updateMsg) //nolint:errcheck // test goroutine
+		buf := make([]byte, 4096)
+		n, _ := client.Read(buf) //nolint:errcheck // read NOTIFICATION
+		received = buf[:n]
+		close(done)
+	}()
+
+	// ReadAndProcess should return error (session-reset)
+	err := session.ReadAndProcess()
+	require.Error(t, err, "RFC 7606: duplicate MP_REACH_NLRI must trigger session-reset")
+	require.Contains(t, err.Error(), "session reset")
+
+	// Session should be Idle after reset
+	require.Equal(t, fsm.StateIdle, session.State(), "session must be Idle after session-reset")
+
+	// Callback should NOT have been called (validation runs before dispatch)
+	require.Equal(t, 0, *callbackCount, "callback must not fire for session-reset UPDATE")
+
+	// Verify NOTIFICATION was sent
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for NOTIFICATION")
+	}
+
+	require.GreaterOrEqual(t, len(received), message.HeaderLen+2, "NOTIFICATION too short")
+	hdr, hdrErr := message.ParseHeader(received[:message.HeaderLen])
+	require.NoError(t, hdrErr)
+	require.Equal(t, message.TypeNOTIFICATION, hdr.Type, "must send NOTIFICATION")
+	notifBody := received[message.HeaderLen:]
+	// RFC 4271 Section 6.3: UPDATE Message Error = code 3
+	require.Equal(t, byte(message.NotifyUpdateMessage), notifBody[0],
+		"NOTIFICATION error code must be 3 (UPDATE Message Error)")
+	// RFC 7606: Malformed Attribute List = subcode 1
+	require.Equal(t, message.NotifyUpdateMalformedAttr, notifBody[1],
+		"NOTIFICATION subcode must be 1 (Malformed Attribute List)")
+}
+
+// TestSessionRFC7606TreatAsWithdrawSuppressesCallback verifies callback suppression.
+//
+// RFC 7606 Section 2: treat-as-withdraw "MUST be handled as though all of the
+// routes contained in an UPDATE message ... had been withdrawn"
+//
+// VALIDATES: Malformed UPDATE triggers treat-as-withdraw; callback is NOT invoked.
+// PREVENTS: Plugins receiving malformed UPDATEs that should be treated as withdrawn.
+func TestSessionRFC7606TreatAsWithdrawSuppressesCallback(t *testing.T) {
+	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// Build UPDATE with MALFORMED ORIGIN (length=2 instead of 1)
+	pathAttrs := []byte{
+		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN with length 2 (invalid)
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP = 192.0.2.1
+	}
+
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	updateMsg := buildUpdateMsg(update)
+
+	go func() {
+		sendUpdateAndDrain(client, updateMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "treat-as-withdraw must not return error")
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Key assertion: callback must NOT fire for treat-as-withdraw
+	require.Equal(t, 0, *callbackCount, "callback must NOT fire for treat-as-withdraw UPDATE")
+}
+
+// TestSessionRFC7606AttributeDiscardContinues verifies attribute-discard enforcement.
+//
+// RFC 7606 Section 7.5: "If [LOCAL_PREF] is received from an external neighbor,
+// it SHALL be discarded using the approach of 'attribute discard'."
+//
+// VALIDATES: LOCAL_PREF from EBGP triggers attribute-discard; session stays up; callback fires.
+// PREVENTS: Session reset from EBGP LOCAL_PREF; ensures UPDATE still dispatched.
+func TestSessionRFC7606AttributeDiscardContinues(t *testing.T) {
+	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// Build UPDATE with LOCAL_PREF from EBGP peer (attribute-discard per Section 7.5)
+	pathAttrs := []byte{
+		// ORIGIN = IGP
+		0x40, 0x01, 0x01, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002]
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+		// LOCAL_PREF = 200 (from EBGP — must be discarded per Section 7.5)
+		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0xc8,
+	}
+
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	updateMsg := buildUpdateMsg(update)
+
+	go func() {
+		sendUpdateAndDrain(client, updateMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "attribute-discard must not return error")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session must stay Established")
+
+	// Key assertion: callback MUST fire (attribute-discard continues processing)
+	require.Equal(t, 1, *callbackCount, "callback MUST fire for attribute-discard (UPDATE still dispatched)")
+}
+
+// TestSessionRFC7606ValidUpdateUnchanged verifies valid UPDATEs are unaffected.
+//
+// VALIDATES: Valid UPDATE is dispatched to callback; session stays Established.
+// PREVENTS: RFC 7606 enforcement incorrectly rejecting valid UPDATEs.
+func TestSessionRFC7606ValidUpdateUnchanged(t *testing.T) {
+	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// Build a perfectly valid UPDATE
+	pathAttrs := []byte{
+		// ORIGIN = IGP
+		0x40, 0x01, 0x01, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002]
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+	}
+
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	updateMsg := buildUpdateMsg(update)
+
+	go func() {
+		sendUpdateAndDrain(client, updateMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "valid UPDATE must not return error")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session must stay Established")
+
+	// Key assertion: callback fires exactly once for valid UPDATE
+	require.Equal(t, 1, *callbackCount, "callback must fire exactly once for valid UPDATE")
 }
 
 // TestSendRawUpdateBody verifies raw UPDATE body sending with BGP header.

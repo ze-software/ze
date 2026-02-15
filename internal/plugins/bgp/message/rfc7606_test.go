@@ -610,10 +610,13 @@ func TestRFC7606NLRIPrefixLengthTooLongIPv6(t *testing.T) {
 	require.Contains(t, result.Description, "5.3")
 }
 
-// TestRFC7606NLRIOverrun verifies RFC 7606 Section 5.3.
+// TestRFC7606NLRIOverrun verifies RFC 7606 Section 3(j) + Section 5.3.
 //
-// VALIDATES: NLRI with prefix bytes exceeding field triggers treat-as-withdraw.
-// PREVENTS: Buffer overflow from malformed NLRI.
+// VALIDATES: NLRI overrun triggers session-reset (entire field not parseable).
+// PREVENTS: Using treat-as-withdraw when NLRI can't be fully parsed.
+//
+// RFC 7606 Section 3(j): treat-as-withdraw requires the entire NLRI field to be
+// successfully parsed. If not possible, session-reset MUST be followed.
 func TestRFC7606NLRIOverrun(t *testing.T) {
 	// Invalid NLRI: claims /24 but only 2 bytes follow (needs 3)
 	nlri := []byte{
@@ -622,7 +625,7 @@ func TestRFC7606NLRIOverrun(t *testing.T) {
 
 	result := ValidateNLRISyntax(nlri, false)
 	require.NotNil(t, result)
-	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Contains(t, result.Description, "overrun")
 }
 
@@ -1033,6 +1036,134 @@ func TestRFC7606ASPath4ByteASN(t *testing.T) {
 	// asn4=true - should validate correctly
 	result := ValidateUpdateRFC7606(pathAttrs, true, false, true)
 	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// =============================================================================
+// RFC 7606 Validation Gap Tests (new — Section 5.2, 5.3, 3.h)
+// =============================================================================
+
+// TestRFC7606MPUnreachTooShort verifies RFC 7606 Section 5.3.
+//
+// VALIDATES: MP_UNREACH_NLRI with length < 3 triggers session-reset.
+// PREVENTS: Accepting truncated MP_UNREACH that can't contain AFI+SAFI.
+// BOUNDARY: 2 (invalid, minimum is 3), 3 (valid).
+func TestRFC7606MPUnreachTooShort(t *testing.T) {
+	// MP_UNREACH_NLRI with length 2 (needs at least 3: AFI=2 + SAFI=1)
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		// MP_UNREACH_NLRI: code=15, len=2 (too short, minimum 3)
+		0x80, 0x0f, 0x02,
+		0x00, 0x01, // AFI=1 (only 2 bytes, missing SAFI)
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+	require.Equal(t, RFC7606ActionSessionReset, result.Action)
+	require.Equal(t, uint8(15), result.AttrCode)
+	require.Contains(t, result.Description, "5.3")
+}
+
+// TestRFC7606MPUnreachMinValid verifies MP_UNREACH_NLRI with length exactly 3 is valid.
+//
+// VALIDATES: MP_UNREACH_NLRI with minimum valid length (3) passes.
+// PREVENTS: False positives at the boundary.
+// BOUNDARY: 3 (valid, exactly AFI+SAFI).
+func TestRFC7606MPUnreachMinValid(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		// MP_UNREACH_NLRI: code=15, len=3 (minimum valid: AFI=2 + SAFI=1)
+		0x80, 0x0f, 0x03,
+		0x00, 0x01, // AFI=1
+		0x01, // SAFI=1
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606NoNLRIEscalation verifies RFC 7606 Section 5.2.
+//
+// VALIDATES: UPDATE with attrs but no NLRI + treat-as-withdraw error → session-reset.
+// PREVENTS: Accepting malformed attrs when NLRI can't be confirmed parseable.
+func TestRFC7606NoNLRIEscalation(t *testing.T) {
+	// UPDATE with path attributes but no NLRI, and a malformed ORIGIN (treat-as-withdraw)
+	// Section 5.2: "session reset" MUST be used since we can't confirm NLRI parsed correctly
+	pathAttrs := []byte{
+		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN len=2 (malformed → treat-as-withdraw)
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+	}
+
+	// hasNLRI=false, no MP_REACH → Section 5.2 escalation
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+	require.Equal(t, RFC7606ActionSessionReset, result.Action)
+	require.Contains(t, result.Description, "5.2")
+}
+
+// TestRFC7606NoNLRIAttributeDiscardNoEscalation verifies Section 5.2 exception.
+//
+// VALIDATES: UPDATE with attrs but no NLRI + only attribute-discard errors → NOT escalated.
+// PREVENTS: Over-escalating when the only errors are harmless discards.
+func TestRFC7606NoNLRIAttributeDiscardNoEscalation(t *testing.T) {
+	// UPDATE with path attributes but no NLRI, only attribute-discard error
+	// Section 5.2 says: escalate only for errors OTHER than attribute-discard
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x06, 0x01, 0x00, // ATOMIC_AGG len=1 (attribute-discard)
+	}
+
+	// hasNLRI=false, only attribute-discard → NOT escalated
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
+	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
+}
+
+// TestRFC7606MultipleErrorsStrongest verifies RFC 7606 Section 3.h.
+//
+// VALIDATES: When multiple errors exist, strongest action (treat-as-withdraw) wins.
+// PREVENTS: Using weaker action when stronger is required.
+func TestRFC7606MultipleErrorsStrongest(t *testing.T) {
+	// UPDATE with:
+	// - ATOMIC_AGG wrong length → attribute-discard (weaker)
+	// - Community wrong length → treat-as-withdraw (stronger)
+	// Section 3.h: use strongest action
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0x40, 0x06, 0x01, 0x00, // ATOMIC_AGG len=1 (attribute-discard)
+		0xc0, 0x08, 0x05, 0x00, 0x01, 0x00, 0x02, 0x03, // Community len=5 (treat-as-withdraw)
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, uint8(8), result.AttrCode) // Community caused the strongest error
+}
+
+// TestRFC7606CollectAllErrors verifies all attribute-discard codes are collected.
+//
+// VALIDATES: Multiple attribute-discard errors populate DiscardCodes with all codes.
+// PREVENTS: Stripping only the first bad attribute when multiple need stripping.
+func TestRFC7606CollectAllErrors(t *testing.T) {
+	// UPDATE with two attribute-discard errors:
+	// - ATOMIC_AGG wrong length → discard
+	// - AGGREGATOR wrong length → discard
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0x40, 0x06, 0x01, 0x00, // ATOMIC_AGG len=1 (discard)
+		// AGGREGATOR wrong length (asn4=false, expects 6 but got 8)
+		0xc0, 0x07, 0x08,
+		0x00, 0x00, 0xfd, 0xe9,
+		0xc0, 0x00, 0x02, 0x01,
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
+	require.Len(t, result.DiscardCodes, 2)
+	require.Contains(t, result.DiscardCodes, uint8(6)) // ATOMIC_AGG
+	require.Contains(t, result.DiscardCodes, uint8(7)) // AGGREGATOR
 }
 
 // TestRFC7606ASPath4ByteASNOverrun verifies AS_PATH overrun with 4-byte ASNs.
