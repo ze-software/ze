@@ -153,6 +153,36 @@ func TestRemoveOutOfBounds(t *testing.T) {
 	assert.Len(t, RemoveWithDependents(events, 5), 1)
 }
 
+// TestRemoveMultiLevelCascade verifies cascade across a full session lifecycle:
+// Established → Route → Disconnect → Reconnect → Re-Established → Route.
+// Removing the initial Established cascades through Route and Disconnect,
+// but the Reconnecting (informational) and second Established (no precondition)
+// survive, creating a valid new session for the second route.
+//
+// VALIDATES: Multi-level causal cascade stops at new session boundary.
+// PREVENTS: Over-cascade that removes valid events from a new session.
+func TestRemoveMultiLevelCascade(t *testing.T) {
+	t5 := t0.Add(500 * time.Millisecond)
+	events := []peer.Event{
+		{Type: peer.EventEstablished, PeerIndex: 0, Time: t0},                // 0: establish
+		{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t1}, // 1: route (needs 0)
+		{Type: peer.EventDisconnected, PeerIndex: 0, Time: t2},               // 2: disconnect (needs 0)
+		{Type: peer.EventReconnecting, PeerIndex: 0, Time: t3},               // 3: reconnecting (informational)
+		{Type: peer.EventEstablished, PeerIndex: 0, Time: t4},                // 4: re-establish (no precondition)
+		{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix2, Time: t5}, // 5: route (needs 4)
+	}
+
+	// Remove the initial Established at index 0.
+	// Cascade removes: RouteSent(1, needs established), Disconnected(2, needs established).
+	// Survives: Reconnecting(3, informational), Established(4), RouteSent(5, needs 4).
+	result := RemoveWithDependents(events, 0)
+	assert.Len(t, result, 3, "cascade removes first session, new session survives")
+	assert.Equal(t, peer.EventReconnecting, result[0].Type)
+	assert.Equal(t, peer.EventEstablished, result[1].Type)
+	assert.Equal(t, peer.EventRouteSent, result[2].Type)
+	assert.Equal(t, prefix2, result[2].Prefix)
+}
+
 // TestRemoveReEstablishedPreservesLaterRoutes verifies that removing a
 // re-establishment doesn't remove routes from the earlier establishment.
 //

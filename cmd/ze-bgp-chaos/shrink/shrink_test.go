@@ -125,7 +125,15 @@ func TestShrinkDeterministic(t *testing.T) {
 	require.NoError(t, err2)
 
 	assert.Equal(t, r1.Events, r2.Events, "same input should produce identical output")
-	assert.Equal(t, r1.Property, r2.Property)
+	assert.Equal(t, r1.Property, r2.Property, "same property violated both times")
+	assert.Equal(t, r1.Iterations, r2.Iterations, "same iteration count both times")
+	assert.Equal(t, len(r1.Events), len(r2.Events), "same event count both times")
+
+	// Verify the shrunk result actually still fails.
+	assert.True(t, hasViolation(r1.Events, r1.Property, defaultCfg),
+		"first shrunk result must still trigger violation")
+	assert.True(t, hasViolation(r2.Events, r2.Property, defaultCfg),
+		"second shrunk result must still trigger violation")
 }
 
 // TestShrinkMessageOrdering verifies shrinking with a message-ordering violation.

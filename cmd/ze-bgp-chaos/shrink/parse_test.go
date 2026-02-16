@@ -1,6 +1,8 @@
 package shrink
 
 import (
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -8,6 +10,31 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// failAfterReader wraps a reader and returns an error after n bytes.
+type failAfterReader struct {
+	r     io.Reader
+	limit int
+	read  int
+}
+
+func (f *failAfterReader) Read(p []byte) (int, error) {
+	if f.read >= f.limit {
+		return 0, errors.New("simulated I/O error")
+	}
+	// Read up to limit bytes.
+	remaining := f.limit - f.read
+	if len(p) > remaining {
+		p = p[:remaining]
+	}
+	n, err := f.r.Read(p)
+	f.read += n
+	if f.read >= f.limit && err == nil {
+		// Return the bytes read so far, next call will return error.
+		return n, nil
+	}
+	return n, err
+}
 
 // TestParseLogValid verifies parsing a well-formed NDJSON event log.
 //
@@ -98,4 +125,22 @@ func TestParseLogAllEventTypes(t *testing.T) {
 	assert.Equal(t, peer.EventWithdrawalSent, events[9].Type)
 	assert.Equal(t, 5, events[9].Count)
 	assert.Equal(t, "disconnect", events[7].ChaosAction)
+}
+
+// TestParseLogReadError verifies that I/O errors during event scanning are reported.
+//
+// VALIDATES: scanner.Err() is checked after the scan loop.
+// PREVENTS: Silent truncation of event log on read error.
+func TestParseLogReadError(t *testing.T) {
+	input := `{"record-type":"header","version":1,"seed":1,"peers":2,"chaos-rate":0,"start-time":"2024-01-01T00:00:00Z"}
+{"record-type":"event","seq":1,"time-offset-ms":0,"event-type":"established","peer-index":0}
+{"record-type":"event","seq":2,"time-offset-ms":100,"event-type":"route-sent","peer-index":0,"prefix":"10.0.0.0/24"}
+`
+	// Allow the header line to be read, then fail mid-events.
+	// Header line is ~100 bytes, so fail at 150 to cut off during events.
+	r := &failAfterReader{r: strings.NewReader(input), limit: 150}
+
+	_, _, err := ParseLog(r)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reading event log")
 }

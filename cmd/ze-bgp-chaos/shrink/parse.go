@@ -122,5 +122,9 @@ func ParseLog(r io.Reader) (*LogMeta, []peer.Event, error) {
 		})
 	}
 
+	if err := scanner.Err(); err != nil {
+		return nil, nil, fmt.Errorf("reading event log: %w", err)
+	}
+
 	return meta, events, nil
 }

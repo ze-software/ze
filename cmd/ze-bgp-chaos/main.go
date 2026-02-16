@@ -160,6 +160,27 @@ Control:
 		return 0
 	}
 
+	// Validate mutually exclusive modes.
+	modeCount := 0
+	if *shrinkFile != "" {
+		modeCount++
+	}
+	if *replayFile != "" {
+		modeCount++
+	}
+	if *diffFile1 != "" {
+		modeCount++
+	}
+	if modeCount > 1 {
+		fmt.Fprintf(os.Stderr, "error: --shrink, --replay, and --diff are mutually exclusive\n")
+		return 1
+	}
+
+	// Warn if --properties is set in non-live modes (it has no effect there).
+	if *properties != "" && modeCount > 0 {
+		fmt.Fprintf(os.Stderr, "warning: --properties is ignored in shrink/replay/diff modes\n")
+	}
+
 	// Shrink mode: minimize a failing event log.
 	if *shrinkFile != "" {
 		return runShrink(*shrinkFile, *convergenceDeadline, *verbose)
@@ -351,7 +372,17 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		if cfg.properties == "all" {
 			propEngine = validation.NewPropertyEngine(all)
 		} else {
-			names := strings.Split(cfg.properties, ",")
+			var names []string
+			for n := range strings.SplitSeq(cfg.properties, ",") {
+				n = strings.TrimSpace(n)
+				if n != "" {
+					names = append(names, n)
+				}
+			}
+			if len(names) == 0 {
+				fmt.Fprintf(os.Stderr, "error: --properties requires at least one property name\n")
+				return 1
+			}
 			selected, selErr := validation.SelectProperties(all, names)
 			if selErr != nil {
 				fmt.Fprintf(os.Stderr, "error: %v\n", selErr)
