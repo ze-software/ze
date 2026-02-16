@@ -194,3 +194,53 @@ func TestSummaryWriteError(t *testing.T) {
 	exitCode := s.Write(failWriter{})
 	assert.Equal(t, 1, exitCode, "write failure should return exit code 1")
 }
+
+// TestSummaryIBGPEBGP verifies iBGP/eBGP counts appear when both types are present.
+//
+// VALIDATES: Summary shows iBGP/eBGP breakdown when mixed.
+// PREVENTS: Missing peer type info in mixed deployments.
+func TestSummaryIBGPEBGP(t *testing.T) {
+	s := Summary{
+		Seed:       42,
+		Duration:   30 * time.Second,
+		PeerCount:  4,
+		IBGPCount:  1,
+		EBGPCount:  3,
+		Announced:  100,
+		Received:   300,
+		MinLatency: 10 * time.Millisecond,
+		AvgLatency: 50 * time.Millisecond,
+		MaxLatency: 200 * time.Millisecond,
+		P99Latency: 180 * time.Millisecond,
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.Contains(t, output, "1 iBGP")
+	assert.Contains(t, output, "3 eBGP")
+}
+
+// TestSummaryIBGPEBGPHidden verifies iBGP/eBGP line omitted when all same type.
+//
+// VALIDATES: No iBGP/eBGP line when all peers are the same type.
+// PREVENTS: Noisy output for pure iBGP or pure eBGP deployments.
+func TestSummaryIBGPEBGPHidden(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 4,
+		IBGPCount: 0,
+		EBGPCount: 4,
+		Announced: 50,
+		Received:  150,
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.NotContains(t, output, "iBGP")
+	assert.NotContains(t, output, "eBGP")
+}

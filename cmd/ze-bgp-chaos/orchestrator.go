@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
 )
 
@@ -19,6 +20,21 @@ type ChaosConfig struct {
 
 	// Warmup is the delay before chaos events begin firing.
 	Warmup time.Duration
+}
+
+// orchestratorConfig holds all parameters for runOrchestrator.
+type orchestratorConfig struct {
+	profiles    []scenario.PeerProfile
+	seed        uint64
+	localAddr   string
+	zePort      int
+	verbose     bool
+	quiet       bool
+	start       time.Time
+	chaosCfg    ChaosConfig
+	zePID       int
+	eventFile   string
+	metricsAddr string
 }
 
 // establishedState tracks which peers are currently in Established state.

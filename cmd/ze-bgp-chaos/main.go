@@ -15,8 +15,10 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/binary"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/netip"
 	"os"
 	"os/signal"
@@ -30,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
+	"golang.org/x/term"
 )
 
 // reconnectBackoff is the delay before a peer reconnects after a chaos disconnect.
@@ -170,10 +173,8 @@ Control:
 
 	fmt.Fprintf(os.Stderr, "ze-bgp-chaos | seed: %d | peers: %d\n", *seed, *peers)
 
-	// Suppress unused-variable warnings for flags not yet wired (later phases).
+	// churnRate: steady-state route churn is parsed but not wired to peer simulators.
 	_ = churnRate
-	_ = eventFile
-	_ = metricsAddr
 
 	// Parse family filters.
 	var familyList, excludeList []string
@@ -244,7 +245,20 @@ Control:
 		Interval: *chaosInterval,
 		Warmup:   *warmup,
 	}
-	return runOrchestrator(ctx, profiles, *seed, *localAddr, *port, *verbose, *quiet, start, chaosCfg, *zePID)
+	orchCfg := orchestratorConfig{
+		profiles:    profiles,
+		seed:        *seed,
+		localAddr:   *localAddr,
+		zePort:      *port,
+		verbose:     *verbose,
+		quiet:       *quiet,
+		start:       start,
+		chaosCfg:    chaosCfg,
+		zePID:       *zePID,
+		eventFile:   *eventFile,
+		metricsAddr: *metricsAddr,
+	}
+	return runOrchestrator(ctx, orchCfg)
 }
 
 // writeConfig writes the Ze config to the specified file or stderr.
@@ -262,10 +276,11 @@ func writeConfig(config, path string, quiet bool) error {
 // runOrchestrator launches N peer simulators and validates route propagation.
 // When chaos is enabled (chaosCfg.Rate > 0), it also starts the chaos scheduler
 // and wraps each peer in a reconnection loop.
-func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed uint64, localAddr string, zePort int, verbose, quiet bool, start time.Time, chaosCfg ChaosConfig, zePID int) int {
+func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
+	profiles := cfg.profiles
 	n := len(profiles)
-	addr := fmt.Sprintf("%s:%d", localAddr, zePort)
-	chaosEnabled := chaosCfg.Rate > 0
+	addr := fmt.Sprintf("%s:%d", cfg.localAddr, cfg.zePort)
+	chaosEnabled := cfg.chaosCfg.Rate > 0
 
 	// Create validation components.
 	model := validation.NewModel(n)
@@ -276,6 +291,14 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 		Tracker:     tracker,
 		Convergence: convergence,
 	}
+
+	// Set up reporting consumers based on CLI flags.
+	reporter, cleanup, err := setupReporting(cfg, n)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: setting up reporting: %v\n", err)
+		return 1
+	}
+	defer cleanup()
 
 	// Established state tracking (shared with scheduler goroutine).
 	established := newEstablishedState(n)
@@ -315,13 +338,13 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 					RouteCount: prof.RouteCount,
 					Families:   prof.Families,
 				},
-				Seed:    seed,
+				Seed:    cfg.seed,
 				Addr:    addr,
 				Events:  events,
 				Chaos:   chaosCh,
-				ZePID:   zePID,
-				Verbose: verbose,
-				Quiet:   quiet,
+				ZePID:   cfg.zePID,
+				Verbose: cfg.verbose,
+				Quiet:   cfg.quiet,
 			}
 
 			if !chaosEnabled {
@@ -337,7 +360,7 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 
 	// Launch scheduler goroutine (only when chaos is enabled).
 	if chaosEnabled {
-		go runScheduler(ctx, chaosCfg, seed, n, established, chaosChannels, quiet)
+		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, chaosChannels, cfg.quiet)
 	}
 
 	// Close events channel when all peer goroutines finish.
@@ -361,9 +384,25 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 		}
 
 		ep.Process(ev)
+		reporter.Process(ev)
 
-		if verbose && ev.Type == peer.EventError {
+		if cfg.verbose && ev.Type == peer.EventError {
 			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
+		}
+	}
+
+	// Close reporter (flush files, clear dashboard).
+	if closeErr := reporter.Close(); closeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: closing reporter: %v\n", closeErr)
+	}
+
+	// Count iBGP/eBGP peers for summary.
+	var ibgpCount, ebgpCount int
+	for _, p := range profiles {
+		if p.IsIBGP {
+			ibgpCount++
+		} else {
+			ebgpCount++
 		}
 	}
 
@@ -374,9 +413,11 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 
 	// Build and print summary.
 	summary := report.Summary{
-		Seed:          seed,
-		Duration:      time.Since(start).Truncate(time.Millisecond),
+		Seed:          cfg.seed,
+		Duration:      time.Since(cfg.start).Truncate(time.Millisecond),
 		PeerCount:     n,
+		IBGPCount:     ibgpCount,
+		EBGPCount:     ebgpCount,
 		Announced:     ep.Announced,
 		Received:      ep.Received,
 		Missing:       result.TotalMissing,
@@ -392,6 +433,71 @@ func runOrchestrator(ctx context.Context, profiles []scenario.PeerProfile, seed 
 	}
 
 	return summary.Write(os.Stderr)
+}
+
+// setupReporting creates the Reporter with optional consumers based on CLI flags.
+// Returns the reporter, a cleanup function, and any error.
+func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, func(), error) {
+	var consumers []report.Consumer
+	var cleanups []func()
+
+	// Dashboard: enabled when TTY and not --quiet.
+	if !cfg.quiet {
+		isTTY := term.IsTerminal(int(os.Stderr.Fd()))
+		dash := report.NewDashboard(os.Stderr, report.DashboardConfig{
+			IsTTY:     isTTY,
+			PeerCount: peerCount,
+		})
+		consumers = append(consumers, dash)
+	}
+
+	// NDJSON event log: enabled when --event-file is set.
+	if cfg.eventFile != "" {
+		f, err := os.Create(cfg.eventFile)
+		if err != nil {
+			return nil, nil, fmt.Errorf("opening event file %s: %w", cfg.eventFile, err)
+		}
+		jlog := report.NewJSONLog(f)
+		consumers = append(consumers, jlog)
+		cleanups = append(cleanups, func() {
+			if err := f.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "error: closing event file: %v\n", err)
+			}
+		})
+	}
+
+	// Prometheus metrics: enabled when --metrics is set.
+	if cfg.metricsAddr != "" {
+		m := report.NewMetrics()
+		consumers = append(consumers, m)
+
+		mux := http.NewServeMux()
+		mux.Handle("/metrics", m.Handler())
+		srv := &http.Server{Addr: cfg.metricsAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+
+		go func() {
+			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				fmt.Fprintf(os.Stderr, "error: metrics server: %v\n", err)
+			}
+		}()
+
+		cleanups = append(cleanups, func() {
+			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer shutCancel()
+			if err := srv.Shutdown(shutCtx); err != nil {
+				fmt.Fprintf(os.Stderr, "error: shutting down metrics server: %v\n", err)
+			}
+		})
+	}
+
+	r := report.NewReporter(consumers...)
+	cleanup := func() {
+		for _, fn := range cleanups {
+			fn()
+		}
+	}
+
+	return r, cleanup, nil
 }
 
 // runPeerLoop runs a peer simulator with reconnection after chaos disconnects.

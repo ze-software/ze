@@ -8,8 +8,8 @@
 | 1 | `spec-bgp-chaos-session.md` | Done (255) | Single-peer BGP session |
 | 2 | `spec-bgp-chaos-validation.md` | Done (256) | Multi-peer validation |
 | 3 | `spec-bgp-chaos-chaos.md` | Done (257) | Chaos event injection |
-| 4 | `spec-bgp-chaos-families.md` | Skeleton | Multi-family support |
-| 5 | `spec-bgp-chaos-reporting.md` | Skeleton | Dashboard, JSON log, Prometheus |
+| 4 | `spec-bgp-chaos-families.md` | Done (258) | Multi-family support |
+| 5 | `spec-bgp-chaos-reporting.md` | Done | Dashboard, JSON log, Prometheus |
 | 6 | `spec-bgp-chaos-eventlog.md` | Skeleton | Replayable event log |
 | 7 | `spec-bgp-chaos-properties.md` | Skeleton | RFC property assertions |
 | 8 | `spec-bgp-chaos-shrink.md` | Skeleton | Test case minimization |
@@ -465,7 +465,7 @@ main goroutine
     │   │   └── Route scheduler (goroutine)
     │   ├── ChaosScheduler goroutine (picks events, dispatches to peers)
     │   ├── ValidationEngine goroutine (periodic expected vs actual comparison)
-    │   └── Reporter goroutine (dashboard refresh, JSON log writes)
+    │   └── Reporter (synchronous in event loop — dashboard, JSON log, metrics)
     └── Signal handler (SIGINT/SIGTERM → graceful shutdown)
 ```
 
@@ -548,10 +548,12 @@ On SIGINT/SIGTERM or `--duration` expiry:
 - `cmd/ze-bgp-chaos/validation/tracker.go` - Actual received route state
 - `cmd/ze-bgp-chaos/validation/checker.go` - Expected vs actual comparison
 - `cmd/ze-bgp-chaos/validation/convergence.go` - Latency tracking
-- `cmd/ze-bgp-chaos/report/dashboard.go` - Live terminal output
-- `cmd/ze-bgp-chaos/report/jsonlog.go` - JSON event logging
-- `cmd/ze-bgp-chaos/report/summary.go` - Exit summary
-- `cmd/ze-bgp-chaos/report/metrics.go` - Prometheus endpoint (optional)
+- `cmd/ze-bgp-chaos/report/dashboard.go` - Live terminal output (ANSI TTY + line fallback)
+- `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON event logging
+- `cmd/ze-bgp-chaos/report/summary.go` - Exit summary (iBGP/eBGP counts)
+- `cmd/ze-bgp-chaos/report/metrics.go` - Prometheus endpoint (per-instance registry)
+- `cmd/ze-bgp-chaos/report/reporter.go` - Reporter struct (synchronous event multiplexer)
+- `cmd/ze-bgp-chaos/peer/event_string.go` - EventType.String() method
 - Test files for all packages above
 
 ## Files to Modify
@@ -609,15 +611,20 @@ This is a large tool. Implementation should be phased:
 5. Per-peer family assignment
 6. Family-aware validation
 
-### Phase 5: Advanced Chaos + Polish
-1. Connection collision
-2. Malformed UPDATE injection
-3. Reconnect storm
-4. Config reload (SIGHUP)
-5. iBGP + eBGP mixed mode testing
-6. Live dashboard with terminal escape codes
-7. JSON event log
-8. Prometheus metrics endpoint
+### Phase 5: Reporting (Done)
+
+**As-designed:** Combined advanced chaos actions + reporting polish.
+**As-built:** Connection collision, reconnect storm, and malformed UPDATE were implemented in Phase 3. iBGP/eBGP was done in Phase 1. Phase 5 focused purely on reporting:
+
+1. EventType.String() — kebab-case names for all 10 event types
+2. Reporter struct — synchronous event multiplexer with Consumer interface
+3. Live dashboard — raw ANSI escape codes (not bubbletea), TTY detection, line-based fallback
+4. NDJSON event log — `--event-file` flag, json.Encoder, kebab-case keys
+5. Prometheus metrics — `--metrics` flag, per-instance registry, 6 metrics (4 counters + 1 gauge + 1 withdrawal counter)
+6. Enhanced summary — IBGPCount/EBGPCount conditional display
+7. orchestratorConfig struct — consolidated 12 parameters into single config
+
+**Not implemented from original Phase 5 design:** Config reload (SIGHUP) — deferred to future work.
 
 Each phase ends with a Self-Critical Review.
 

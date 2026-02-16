@@ -12,6 +12,8 @@ type Summary struct {
 	Seed      uint64
 	Duration  time.Duration
 	PeerCount int
+	IBGPCount int
+	EBGPCount int
 
 	// Route counts.
 	Announced int
@@ -63,7 +65,11 @@ func (s *Summary) Write(w io.Writer) int {
 
 	rw.printf("── ze-bgp-chaos ──────────────────────────\n")
 	rw.printf("  seed:  %d\n", s.Seed) //nolint:gosec // seed is display-only
-	rw.printf("  run:   %s, %d peers\n", s.Duration, s.PeerCount)
+	if s.IBGPCount > 0 && s.EBGPCount > 0 {
+		rw.printf("  run:   %s, %d peers (%d iBGP, %d eBGP)\n", s.Duration, s.PeerCount, s.IBGPCount, s.EBGPCount)
+	} else {
+		rw.printf("  run:   %s, %d peers\n", s.Duration, s.PeerCount)
+	}
 	rw.printf("  routes: %d announced, %d received, %d missing, %d extra",
 		s.Announced, s.Received, s.Missing, s.Extra)
 	if s.SlowRoutes > 0 {
