@@ -3,6 +3,8 @@ package fsm
 import (
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // Default timer values per RFC 4271 Section 10.
@@ -52,14 +54,17 @@ type TimerCallback func()
 type Timers struct {
 	mu sync.Mutex
 
+	// Clock for injectable time operations.
+	clock sim.Clock
+
 	// Timer durations
 	holdTime         time.Duration
 	connectRetryTime time.Duration
 
 	// Active timers
-	holdTimer         *time.Timer
-	keepaliveTimer    *time.Timer
-	connectRetryTimer *time.Timer
+	holdTimer         sim.Timer
+	keepaliveTimer    sim.Timer
+	connectRetryTimer sim.Timer
 
 	// Callbacks
 	onHoldExpires         TimerCallback
@@ -75,9 +80,18 @@ type Timers struct {
 // NewTimers creates a new timer manager with default values.
 func NewTimers() *Timers {
 	return &Timers{
+		clock:            sim.RealClock{},
 		holdTime:         DefaultHoldTime,
 		connectRetryTime: DefaultConnectRetryTime,
 	}
+}
+
+// SetClock sets the clock used for timer operations.
+// Must be called before starting any timers (typically via Session.SetClock).
+func (t *Timers) SetClock(c sim.Clock) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.clock = c
 }
 
 // SetHoldTime sets the hold time duration.
@@ -148,7 +162,7 @@ func (t *Timers) StartHoldTimer() {
 
 	t.stopHoldTimerLocked()
 
-	t.holdTimer = time.AfterFunc(t.holdTime, func() {
+	t.holdTimer = t.clock.AfterFunc(t.holdTime, func() {
 		t.mu.Lock()
 		t.holdRunning = false
 		cb := t.onHoldExpires
@@ -185,7 +199,7 @@ func (t *Timers) ResetHoldTimer() {
 	// Stop and restart
 	t.stopHoldTimerLocked()
 
-	t.holdTimer = time.AfterFunc(t.holdTime, func() {
+	t.holdTimer = t.clock.AfterFunc(t.holdTime, func() {
 		t.mu.Lock()
 		t.holdRunning = false
 		cb := t.onHoldExpires
@@ -266,12 +280,12 @@ func (t *Timers) StartKeepaliveTimer() {
 		// Reschedule for periodic firing
 		t.mu.Lock()
 		if t.keepaliveRunning {
-			t.keepaliveTimer = time.AfterFunc(keepaliveInterval, timerFunc)
+			t.keepaliveTimer = t.clock.AfterFunc(keepaliveInterval, timerFunc)
 		}
 		t.mu.Unlock()
 	}
 
-	t.keepaliveTimer = time.AfterFunc(keepaliveInterval, timerFunc)
+	t.keepaliveTimer = t.clock.AfterFunc(keepaliveInterval, timerFunc)
 	t.keepaliveRunning = true
 }
 
@@ -316,7 +330,7 @@ func (t *Timers) StartConnectRetryTimer() {
 
 	t.stopConnectRetryTimerLocked()
 
-	t.connectRetryTimer = time.AfterFunc(t.connectRetryTime, func() {
+	t.connectRetryTimer = t.clock.AfterFunc(t.connectRetryTime, func() {
 		t.mu.Lock()
 		t.connectRetryRunning = false
 		cb := t.onConnectRetryExpires

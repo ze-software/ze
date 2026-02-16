@@ -6,6 +6,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // Listener errors.
@@ -23,8 +25,10 @@ type ConnectionHandler func(conn net.Conn)
 // accepted connection. The handler is responsible for determining
 // if the connection is from a configured peer.
 type Listener struct {
-	addr    string
-	handler ConnectionHandler
+	addr            string
+	handler         ConnectionHandler
+	clock           sim.Clock
+	listenerFactory sim.ListenerFactory
 
 	listener net.Listener
 	running  bool
@@ -40,8 +44,22 @@ type Listener struct {
 // Address format: "host:port" (e.g., "0.0.0.0:179", "127.0.0.1:1179").
 func NewListener(addr string) *Listener {
 	return &Listener{
-		addr: addr,
+		addr:            addr,
+		clock:           sim.RealClock{},
+		listenerFactory: sim.RealListenerFactory{},
 	}
+}
+
+// SetClock sets the clock used for deadline calculations.
+// Must be called before Start.
+func (l *Listener) SetClock(c sim.Clock) {
+	l.clock = c
+}
+
+// SetListenerFactory sets the factory used to create listeners.
+// Must be called before Start.
+func (l *Listener) SetListenerFactory(f sim.ListenerFactory) {
+	l.listenerFactory = f
 }
 
 // SetHandler sets the connection handler.
@@ -82,7 +100,7 @@ func (l *Listener) StartWithContext(ctx context.Context) error {
 		return ErrAlreadyListening
 	}
 
-	ln, err := net.Listen("tcp", l.addr) //nolint:noctx // Context managed via stopCh
+	ln, err := l.listenerFactory.Listen(ctx, "tcp", l.addr)
 	if err != nil {
 		return err
 	}
@@ -133,8 +151,12 @@ func (l *Listener) acceptLoop() {
 	defer l.wg.Done()
 	defer l.cleanup()
 
-	// Type assert to set deadline - required for context cancellation
-	tcpListener, ok := l.listener.(*net.TCPListener)
+	// Use interface check for SetDeadline so mock listeners work in simulation.
+	// *net.TCPListener satisfies this; mock listeners can too.
+	type deadlineSetter interface {
+		SetDeadline(t time.Time) error
+	}
+	dl, ok := l.listener.(deadlineSetter)
 	if !ok {
 		return
 	}
@@ -148,7 +170,7 @@ func (l *Listener) acceptLoop() {
 		}
 
 		// Set short deadline to allow context polling
-		_ = tcpListener.SetDeadline(time.Now().Add(100 * time.Millisecond))
+		_ = dl.SetDeadline(l.clock.Now().Add(100 * time.Millisecond))
 
 		conn, err := l.listener.Accept()
 		if err != nil {

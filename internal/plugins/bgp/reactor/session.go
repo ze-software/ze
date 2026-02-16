@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 )
@@ -114,6 +115,8 @@ type Session struct {
 	settings   *PeerSettings
 	fsm        *fsm.FSM
 	timers     *fsm.Timers
+	clock      sim.Clock
+	dialer     sim.Dialer
 	conn       net.Conn
 	negotiated *capability.Negotiated
 
@@ -176,10 +179,17 @@ type Session struct {
 
 // NewSession creates a new BGP session for a peer.
 func NewSession(settings *PeerSettings) *Session {
+	dialer := &sim.RealDialer{}
+	if settings.LocalAddress.IsValid() {
+		dialer.LocalAddr = &net.TCPAddr{IP: settings.LocalAddress.AsSlice()}
+	}
+
 	s := &Session{
 		settings: settings,
 		fsm:      fsm.New(),
 		timers:   fsm.NewTimers(),
+		clock:    sim.RealClock{},
+		dialer:   dialer,
 		writeBuf: wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:  make(chan error, 2),          // Buffer 2: normal error + teardown
 		done:     make(chan struct{}),
@@ -213,6 +223,19 @@ func NewSession(settings *PeerSettings) *Session {
 	})
 
 	return s
+}
+
+// SetClock sets the clock used for deadline and sleep operations.
+// Must be called before Run.
+func (s *Session) SetClock(c sim.Clock) {
+	s.clock = c
+	s.timers.SetClock(c)
+}
+
+// SetDialer sets the dialer used for outbound connections.
+// Must be called before Connect.
+func (s *Session) SetDialer(d sim.Dialer) {
+	s.dialer = d
 }
 
 // State returns the current FSM state.
@@ -387,14 +410,7 @@ func (s *Session) Connect(ctx context.Context) error {
 
 	addr := net.JoinHostPort(s.settings.Address.String(), fmt.Sprintf("%d", s.settings.Port))
 
-	d := net.Dialer{}
-
-	// Bind to local address if configured
-	if s.settings.LocalAddress.IsValid() {
-		d.LocalAddr = &net.TCPAddr{IP: s.settings.LocalAddress.AsSlice()}
-	}
-
-	conn, err := d.DialContext(ctx, "tcp", addr)
+	conn, err := s.dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		_ = s.fsm.Event(fsm.EventTCPConnectionFails)
 		return fmt.Errorf("connect to %s: %w", addr, err)
@@ -706,12 +722,12 @@ func (s *Session) Run(ctx context.Context) error {
 
 		if conn == nil {
 			// No connection, nothing to do.
-			time.Sleep(10 * time.Millisecond)
+			s.clock.Sleep(10 * time.Millisecond)
 			continue
 		}
 
 		// Set read deadline to allow context checking.
-		_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		_ = conn.SetReadDeadline(s.clock.Now().Add(100 * time.Millisecond))
 
 		err := s.readAndProcessMessage(conn)
 		if err != nil {
@@ -736,7 +752,7 @@ func (s *Session) ReadAndProcess() error {
 	}
 
 	// Set read deadline.
-	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = conn.SetReadDeadline(s.clock.Now().Add(5 * time.Second))
 
 	return s.readAndProcessMessage(conn)
 }

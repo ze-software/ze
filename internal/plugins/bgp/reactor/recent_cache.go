@@ -4,6 +4,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // ErrUpdateExpired is returned when an update-id is expired or not found.
@@ -20,6 +22,7 @@ var ErrUpdateExpired = errors.New("update-id expired or not found")
 // Performance: O(n) scan on each Add(). Keep maxEntries reasonable (1000-10000).
 type RecentUpdateCache struct {
 	mu         sync.RWMutex
+	clock      sim.Clock
 	entries    map[uint64]*cacheEntry
 	ttl        time.Duration
 	maxEntries int
@@ -41,10 +44,18 @@ func NewRecentUpdateCache(ttl time.Duration, maxEntries int) *RecentUpdateCache 
 		capacity = 1000 // Default capacity for hint
 	}
 	return &RecentUpdateCache{
+		clock:      sim.RealClock{},
 		entries:    make(map[uint64]*cacheEntry, capacity),
 		ttl:        ttl,
 		maxEntries: maxEntries,
 	}
+}
+
+// SetClock sets the clock used for TTL calculations.
+func (c *RecentUpdateCache) SetClock(clk sim.Clock) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.clock = clk
 }
 
 // Add inserts an update into the cache.
@@ -56,7 +67,7 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	now := time.Now()
+	now := c.clock.Now()
 
 	// Lazy cleanup: evict expired entries on each Add
 	// BGP keepalives ensure regular Add activity
@@ -95,7 +106,7 @@ func (c *RecentUpdateCache) Take(id uint64) (*ReceivedUpdate, bool) {
 	}
 
 	// Check expiry (retained entries never expire)
-	if !entry.retained && time.Now().After(entry.expiresAt) {
+	if !entry.retained && c.clock.Now().After(entry.expiresAt) {
 		// Expired - return buffer and remove
 		ReturnReadBuffer(entry.update.poolBuf)
 		delete(c.entries, id)
@@ -119,7 +130,7 @@ func (c *RecentUpdateCache) Contains(id uint64) bool {
 		return false
 	}
 	// Retained entries are always valid; others must not be expired
-	return entry.retained || !time.Now().After(entry.expiresAt)
+	return entry.retained || !c.clock.Now().After(entry.expiresAt)
 }
 
 // Delete removes an update from the cache and returns its buffer to pool.
@@ -146,7 +157,7 @@ func (c *RecentUpdateCache) ResetTTL(id uint64) bool {
 	defer c.mu.Unlock()
 
 	if e, ok := c.entries[id]; ok {
-		e.expiresAt = time.Now().Add(c.ttl)
+		e.expiresAt = c.clock.Now().Add(c.ttl)
 		return true
 	}
 	return false
@@ -160,7 +171,7 @@ func (c *RecentUpdateCache) Len() int {
 	defer c.mu.RUnlock()
 
 	// Count retained entries and non-expired entries
-	now := time.Now()
+	now := c.clock.Now()
 	count := 0
 	for _, e := range c.entries {
 		if e.retained || !now.After(e.expiresAt) {
@@ -193,7 +204,7 @@ func (c *RecentUpdateCache) Release(id uint64) bool {
 
 	if e, ok := c.entries[id]; ok {
 		e.retained = false
-		e.expiresAt = time.Now().Add(c.ttl)
+		e.expiresAt = c.clock.Now().Add(c.ttl)
 		return true
 	}
 	return false
@@ -205,7 +216,7 @@ func (c *RecentUpdateCache) List() []uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	now := time.Now()
+	now := c.clock.Now()
 	var ids []uint64
 	for id, e := range c.entries {
 		if e.retained || !now.After(e.expiresAt) {

@@ -91,7 +91,7 @@ func (r *Reactor) WaitForAPIReady() {
 	select {
 	case <-r.apiReady:
 		return
-	case <-time.After(r.apiTimeout):
+	case <-r.clock.After(r.apiTimeout):
 		slog.Warn("api timeout", "ready", r.readyCount.Load(), "expected", r.processCount)
 		r.signalAllReady()
 	}
@@ -144,7 +144,7 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 	select {
 	case <-r.startupComplete:
 		return
-	case <-time.After(startupTimeout):
+	case <-r.clock.After(startupTimeout):
 		slog.Warn("plugin startup timeout", "timeout", startupTimeout)
 	}
 }

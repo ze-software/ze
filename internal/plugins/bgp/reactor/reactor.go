@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -221,6 +222,11 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 //   - Watchdog pools for API-controlled route groups
 type Reactor struct {
 	config *Config
+
+	// Injectable abstractions for simulation.
+	clock           sim.Clock
+	dialer          sim.Dialer
+	listenerFactory sim.ListenerFactory
 
 	peers     map[string]*Peer         // keyed by peer address
 	listener  *Listener                // deprecated: single listener for backward compat
@@ -3744,15 +3750,37 @@ func New(config *Config) *Reactor {
 	}
 
 	return &Reactor{
-		config:        config,
-		peers:         make(map[string]*Peer),
-		listeners:     make(map[netip.Addr]*Listener),
-		ribIn:         rib.NewIncomingRIB(),
-		ribStore:      rib.NewRouteStore(100), // Buffer size for dedup workers
-		watchdog:      NewWatchdogManager(),
-		recentUpdates: NewRecentUpdateCache(ttl, maxEntries),
-		configTree:    config.ConfigTree,
+		config:          config,
+		clock:           sim.RealClock{},
+		dialer:          &sim.RealDialer{},
+		listenerFactory: sim.RealListenerFactory{},
+		peers:           make(map[string]*Peer),
+		listeners:       make(map[netip.Addr]*Listener),
+		ribIn:           rib.NewIncomingRIB(),
+		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
+		watchdog:        NewWatchdogManager(),
+		recentUpdates:   NewRecentUpdateCache(ttl, maxEntries),
+		configTree:      config.ConfigTree,
 	}
+}
+
+// SetClock sets the clock used by the reactor and all child components.
+// Must be called before StartWithContext.
+func (r *Reactor) SetClock(c sim.Clock) {
+	r.clock = c
+	r.recentUpdates.SetClock(c)
+}
+
+// SetDialer sets the dialer used for outbound connections.
+// Must be called before StartWithContext.
+func (r *Reactor) SetDialer(d sim.Dialer) {
+	r.dialer = d
+}
+
+// SetListenerFactory sets the factory used to create listeners.
+// Must be called before StartWithContext.
+func (r *Reactor) SetListenerFactory(f sim.ListenerFactory) {
+	r.listenerFactory = f
 }
 
 // WatchdogManager returns the global watchdog pool manager.
@@ -4010,7 +4038,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Assign message ID for all message types
 	messageID := nextMsgID()
-	timestamp := time.Now()
+	timestamp := r.clock.Now()
 
 	var msg bgptypes.RawMessage
 	var kept bool
@@ -4128,6 +4156,8 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	}
 
 	peer := NewPeer(settings)
+	peer.SetClock(r.clock)
+	peer.SetDialer(r.dialer)
 	peer.SetGlobalWatchdog(r.watchdog)
 	peer.SetReactor(r)
 	// Set message callback to forward raw bytes to reactor's message receiver
@@ -4239,11 +4269,13 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	}
 
 	r.ctx, r.cancel = context.WithCancel(ctx)
-	r.startTime = time.Now()
+	r.startTime = r.clock.Now()
 
 	// Start legacy listener if ListenAddr is configured (backward compatibility)
 	if r.config.ListenAddr != "" {
 		r.listener = NewListener(r.config.ListenAddr)
+		r.listener.SetClock(r.clock)
+		r.listener.SetListenerFactory(r.listenerFactory)
 		r.listener.SetHandler(r.handleConnection)
 		if err := r.listener.StartWithContext(r.ctx); err != nil {
 			r.cancel()
@@ -4412,6 +4444,8 @@ func (r *Reactor) startListenerForAddress(addr netip.Addr) error {
 	// Production configs should set Port explicitly (typically 179)
 	listenAddr := net.JoinHostPort(addr.String(), strconv.Itoa(r.config.Port))
 	listener := NewListener(listenAddr)
+	listener.SetClock(r.clock)
+	listener.SetListenerFactory(r.listenerFactory)
 
 	// Capture addr in closure so handleConnectionWithContext knows which listener accepted
 	localAddr := addr
@@ -4733,7 +4767,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	if holdTime == 0 {
 		holdTime = 90 * time.Second
 	}
-	_ = conn.SetReadDeadline(time.Now().Add(holdTime))
+	_ = conn.SetReadDeadline(r.clock.Now().Add(holdTime))
 
 	// Read BGP header
 	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
@@ -4794,12 +4828,12 @@ func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *messa
 	// Wait for existing session to fully close
 	// The CloseWithNotification was called in ResolvePendingCollision
 	if waitSession != nil {
-		timer := time.NewTimer(collisionResolutionTimeout)
+		timer := r.clock.NewTimer(collisionResolutionTimeout)
 		defer timer.Stop()
 		select {
 		case <-waitSession:
 			// Session closed
-		case <-timer.C:
+		case <-timer.C():
 			reactorLogger().Warn("session teardown timed out during collision resolution", "peer", peer.Settings().Address)
 		}
 	}

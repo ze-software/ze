@@ -1,7 +1,7 @@
 # Spec: bgp-chaos (Master Design Document)
 
 **This is the master architecture document. It is NOT an active implementation spec.**
-**Implementation is split into 10 sub-specs, worked sequentially:**
+**Implementation is split into 11 sub-specs, worked sequentially:**
 
 | # | Spec | Status | Focus |
 |---|------|--------|-------|
@@ -13,14 +13,16 @@
 | 6 | `spec-bgp-chaos-eventlog.md` | Done | Replayable event log |
 | 7 | `spec-bgp-chaos-properties.md` | Done (261) | RFC property assertions |
 | 8 | `spec-bgp-chaos-shrink.md` | Done (262) | Test case minimization |
-| 9 | `spec-bgp-chaos-inprocess.md` | Blocked | In-process mode (requires Ze Clock/Network abstractions) |
-| 10 | `spec-bgp-chaos-integration.md` | Blocked | End-to-end Ze testing (depends on Phase 9) |
+| 9 | `spec-bgp-chaos-inprocess.md` | Blocked | In-process mode (sim interfaces exist in `internal/sim/`, injection completeness gap closed — FakeClock + integration test proved wiring) |
+| 10 | `spec-bgp-chaos-selftest.md` | Blocked | Self-chaos mode: Ze injects faults into its own infrastructure (depends on Phase 9) |
+| 11 | `spec-bgp-chaos-integration.md` | Blocked | End-to-end Ze testing (depends on Phases 9-10) |
 
 **Phases 1-5:** Core chaos tool (external, black-box TCP testing)
 **Phases 6-9:** DST bridge (toward deterministic simulation, see `deterministic-simulation-analysis.md`)
-**Phase 10:** Integration — `--managed` mode, `make functional-chaos`, smoke tests against real Ze
+**Phase 10:** Self-chaos — `ze bgp server --chaos-seed` wraps real Clock/Dialer/Listener with fault-injecting wrappers
+**Phase 11:** Integration — `--managed` mode, `make functional-chaos`, smoke tests against real Ze
 
-**Dependencies:** Phase 9 requires Ze clock + network abstractions (implemented separately)
+**Dependencies:** Phase 9 requires Ze clock + network abstractions. Interfaces exist in `internal/sim/` (Clock, Timer, Dialer, ListenerFactory) with setters on Reactor, Peer, Session, Listener, FSM Timers. **Injection completeness gap:** no smoke test proves the injection path works end-to-end — must be closed before Phase 9 begins. See `rules/integration-completeness.md`.
 
 ## Post-Compaction Recovery
 

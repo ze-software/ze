@@ -8,6 +8,7 @@ import (
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // emptyPayload is a minimal valid UPDATE payload for cache tests.
@@ -22,6 +23,77 @@ func newTestUpdate(id uint64) *ReceivedUpdate {
 		WireUpdate:   wu,
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
 		ReceivedAt:   time.Now(),
+	}
+}
+
+// TestRecentCacheWithFakeClock verifies FakeClock injection into RecentUpdateCache.
+//
+// VALIDATES: SetClock() injection works — cache uses injected clock for TTL decisions.
+// PREVENTS: "Bridge to nowhere" — injection interfaces exist but don't work end-to-end.
+func TestRecentCacheWithFakeClock(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(time.Minute, 100)
+	cache.SetClock(fc)
+
+	// Add entry at fake time t=0
+	cache.Add(newTestUpdate(42))
+
+	// Should exist (TTL not expired at t=0)
+	if !cache.Contains(42) {
+		t.Fatal("expected entry to exist at t=0")
+	}
+
+	// Advance 30s — still within 60s TTL
+	fc.Add(30 * time.Second)
+	if !cache.Contains(42) {
+		t.Fatal("expected entry to exist at t=30s (TTL=60s)")
+	}
+
+	// Advance past TTL (total: 61s > 60s TTL)
+	fc.Add(31 * time.Second)
+	if cache.Contains(42) {
+		t.Error("expected entry to expire at t=61s (TTL=60s)")
+	}
+
+	// Verify Len also uses fake clock
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0 after expiry", cache.Len())
+	}
+}
+
+// TestRecentCacheFakeClockResetTTL verifies TTL reset with FakeClock.
+//
+// VALIDATES: ResetTTL uses injected clock, not real time.
+// PREVENTS: Mixed clock usage between Add and ResetTTL.
+func TestRecentCacheFakeClockResetTTL(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(time.Minute, 100)
+	cache.SetClock(fc)
+
+	cache.Add(newTestUpdate(1))
+
+	// Advance 50s (10s before expiry)
+	fc.Add(50 * time.Second)
+
+	// Reset TTL — should extend by another 60s from t=50s
+	if !cache.ResetTTL(1) {
+		t.Fatal("ResetTTL returned false")
+	}
+
+	// Advance 20s more (total t=70s — past original TTL but within reset TTL)
+	fc.Add(20 * time.Second)
+	if !cache.Contains(1) {
+		t.Error("expected entry to exist after TTL reset (t=70s, reset at t=50s, new expiry t=110s)")
+	}
+
+	// Advance past reset TTL (total t=111s > reset expiry t=110s)
+	fc.Add(41 * time.Second)
+	if cache.Contains(1) {
+		t.Error("expected entry to expire after reset TTL elapsed")
 	}
 }
 

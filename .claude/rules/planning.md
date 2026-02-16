@@ -694,6 +694,7 @@ If you had to investigate/debug something, ask:
 - [ ] Tests pass (`make test`)
 - [ ] No regressions (`make functional`)
 - [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
+- [ ] Integration completeness: every new feature proven to work from its intended usage point, not just in isolation (see `rules/integration-completeness.md`)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
 - [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
@@ -843,6 +844,7 @@ Reading architecture docs BEFORE implementation prevents:
 
 This rule works with:
 - `implementation-audit.md` - Line-by-line verification that spec was fully implemented
+- `integration-completeness.md` - New features must be proven integrated, not just tested in isolation
 - `data-flow-tracing.md` - Verify changes fit architecture via data flow analysis
 - `design-principles.md` - Scalability, maintainability, YAGNI
 - `tdd.md` - TDD cycle enforcement

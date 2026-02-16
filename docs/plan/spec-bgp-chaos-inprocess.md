@@ -5,7 +5,11 @@
 **Next spec:** None (final phase)
 **DST reference:** `docs/plan/deterministic-simulation-analysis.md` (Sections 5, 11)
 
-**Status:** Blocked — requires Ze Clock and Network abstraction interfaces (not yet implemented).
+**Status:** Blocked — Ze Clock and Network interfaces exist in `internal/sim/` (spec-ze-sim-abstractions) but injection completeness gap remains: no round-trip smoke test proves the injection path works end-to-end. See `rules/integration-completeness.md`.
+
+**Pre-requisite before starting this spec:**
+1. Close the injection completeness gap in spec-ze-sim-abstractions (add FakeClock + injection smoke tests)
+2. Verify Reactor.SetClock() propagates correctly through Peer → Session → FSM Timers with a real injection test
 
 ## Post-Compaction Recovery
 
@@ -48,9 +52,10 @@ What it intentionally does NOT include (deferred to full DST):
 This means in-process mode is "mostly deterministic" (Polar Signals terminology) — the scenario and validation are fully deterministic, but Go's select statement and goroutine scheduling introduce minor non-determinism in timing. For chaos testing purposes this is acceptable: the goal is fast property checking, not bit-exact replay of reactor internals.
 
 **External dependencies:**
-- Ze's Clock interface must exist (being implemented elsewhere)
-- Ze's Dialer/Listener interfaces must exist (being implemented elsewhere)
-- Reactor must accept injected Clock and network interfaces
+- Ze's Clock interface: `internal/sim/clock.go` — Clock, Timer, RealClock (exists)
+- Ze's Dialer/Listener interfaces: `internal/sim/network.go` — Dialer, ListenerFactory, RealDialer, RealListenerFactory (exists)
+- Reactor injection setters: `SetClock()`, `SetDialer()`, `SetListenerFactory()` on Reactor, Peer, Session, Listener, FSM Timers (exists)
+- **MISSING:** Injection smoke tests proving the wiring works end-to-end (see `rules/integration-completeness.md`)
 
 ## Required Reading
 
@@ -64,12 +69,13 @@ This means in-process mode is "mostly deterministic" (Polar Signals terminology)
   → Constraint: HoldTimer, KeepaliveTimer, ConnectRetryTimer all use Clock interface
 
 ### Source Code
-- [ ] Ze Clock interface implementation (path TBD — being done elsewhere)
-- [ ] Ze network abstraction implementation (path TBD — being done elsewhere)
-- [ ] `internal/plugins/bgp/reactor/reactor.go` — reactor lifecycle, `New()` constructor
-- [ ] `internal/plugins/bgp/reactor/peer.go` — peer creation, session management
-- [ ] `internal/plugins/bgp/reactor/session.go` — TCP dialing, connection handling
-- [ ] `internal/bgp/fsm/timer.go` — FSM timers (hold, keepalive, connect-retry)
+- [ ] `internal/sim/clock.go` — Clock, Timer interfaces + RealClock implementation
+- [ ] `internal/sim/network.go` — Dialer, ListenerFactory interfaces + RealDialer, RealListenerFactory
+- [ ] `internal/sim/audit_test.go` — grep-based audit verifying no direct time/net calls in reactor/fsm
+- [ ] `internal/plugins/bgp/reactor/reactor.go` — reactor lifecycle, `New()` constructor, `SetClock`/`SetDialer`/`SetListenerFactory`
+- [ ] `internal/plugins/bgp/reactor/peer.go` — peer creation, session management, `SetClock`/`SetDialer`
+- [ ] `internal/plugins/bgp/reactor/session.go` — TCP dialing, connection handling, `SetClock`/`SetDialer`
+- [ ] `internal/plugins/bgp/fsm/timer.go` — FSM timers (hold, keepalive, connect-retry), `SetClock`
 - [ ] Phase 6-8 implementation (event log, properties, shrinking)
 
 **Key insights:**
@@ -175,19 +181,26 @@ chaos tool ──mock conn──> reactor (same process)
 
 ### Mock Clock
 
-Uses Ze's VirtualClock implementation (from clock abstraction spec):
+Implements `sim.Clock` interface (defined in `internal/sim/clock.go`):
 - `Now()` returns simulated time
-- `AfterFunc(d, cb)` schedules callback at simulated time + d
+- `AfterFunc(d, cb)` schedules callback at simulated time + d, returns `sim.Timer`
+- `After(d)` returns channel that fires at simulated time + d
+- `NewTimer(d)` returns `sim.Timer` that fires at simulated time + d
+- `Sleep(d)` blocks until simulated time advances past d
 - `Advance(d)` moves time forward, firing timers in order
 - Advancement strategy: advance to next pending timer when all goroutines blocked
 
+Injected via `reactor.SetClock(virtualClock)` which cascades to Peer → Session → FSM Timers, RecentCache, API Sync.
+
 ### Mock Network
 
-Uses Ze's mock network implementation (from network abstraction spec):
-- `MockDialer.DialContext()` returns one end of a `MockConn` pair
-- `MockListener.Accept()` returns the other end
+Implements `sim.Dialer` and `sim.ListenerFactory` interfaces (defined in `internal/sim/network.go`):
+- `MockDialer.DialContext()` returns one end of a `MockConn` pair (implements `sim.Dialer`)
+- `MockListener.Accept()` returns the other end (via `sim.ListenerFactory.Listen()`)
 - `MockConn.Read/Write()` are bidirectional byte streams (like `net.Pipe()`)
 - Optional: fault injection hooks for partial reads, delays, resets
+
+Injected via `reactor.SetDialer(mockDialer)` + `reactor.SetListenerFactory(mockListenerFactory)` which cascade to Session and Listener respectively.
 
 ### Mock Connection Pair
 
@@ -263,8 +276,8 @@ For active peers (tool connects in): MockListener returns server end, chaos peer
 
 ## Implementation Steps
 
-1. **Verify Ze abstractions exist** — Clock and network interfaces available
-   → If not: this spec blocks until they are
+1. **Verify Ze injection completeness** — Clock/network interfaces exist in `internal/sim/`, injection setters wired, AND injection smoke tests pass (see `rules/integration-completeness.md`)
+   → If smoke tests don't exist: close the gap first (add FakeClock + injection round-trip tests to sim package)
 
 2. **Read Phase 6-8 learnings** — event log, properties, shrinking APIs
    → Review: What needs to change for in-process execution?

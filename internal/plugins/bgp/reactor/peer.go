@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 )
@@ -130,6 +131,8 @@ const MaxOpQueueSize = 10000
 // See capability contract for route-refresh handling.
 type Peer struct {
 	settings *PeerSettings
+	clock    sim.Clock
+	dialer   sim.Dialer
 	session  *Session
 
 	// Negotiated capabilities: tracks which families are enabled.
@@ -206,6 +209,8 @@ type Peer struct {
 func NewPeer(settings *PeerSettings) *Peer {
 	p := &Peer{
 		settings:      settings,
+		clock:         sim.RealClock{},
+		dialer:        &sim.RealDialer{},
 		reconnectMin:  DefaultReconnectMin,
 		reconnectMax:  DefaultReconnectMax,
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
@@ -233,6 +238,18 @@ func (p *Peer) Settings() *PeerSettings {
 // SourceID returns the unique source ID for this peer.
 func (p *Peer) SourceID() source.SourceID {
 	return p.sourceID
+}
+
+// SetClock sets the clock used for delay and timeout operations.
+// Propagated to sessions created by this peer. Must be called before Start.
+func (p *Peer) SetClock(c sim.Clock) {
+	p.clock = c
+}
+
+// SetDialer sets the dialer used for outbound connections.
+// Propagated to sessions created by this peer. Must be called before Start.
+func (p *Peer) SetDialer(d sim.Dialer) {
+	p.dialer = d
 }
 
 // ResetAPISync resets the per-session API synchronization state.
@@ -287,7 +304,7 @@ func (p *Peer) waitForAPISync(timeout time.Duration) {
 	case <-ready:
 		routesLogger().Debug("API sync complete", "peer", addr)
 		return
-	case <-time.After(timeout):
+	case <-p.clock.After(timeout):
 		// Timeout - proceed anyway to avoid blocking forever
 		routesLogger().Debug("API sync timeout", "peer", addr)
 		return
@@ -874,7 +891,7 @@ func (p *Peer) run() {
 			select {
 			case <-p.ctx.Done():
 				return
-			case <-time.After(delay):
+			case <-p.clock.After(delay):
 			}
 
 			// Exponential backoff
@@ -896,6 +913,8 @@ func (p *Peer) run() {
 func (p *Peer) runOnce() error {
 	// Create session
 	session := NewSession(p.settings)
+	session.SetClock(p.clock)
+	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
@@ -1415,7 +1434,7 @@ func (p *Peer) sendInitialRoutes() {
 	p.mu.RUnlock()
 	if needsAPIWait {
 		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
-		time.Sleep(500 * time.Millisecond)
+		p.clock.Sleep(500 * time.Millisecond)
 		routesLogger().Debug("woke from sleep, processing queue", "peer", addr)
 	}
 
