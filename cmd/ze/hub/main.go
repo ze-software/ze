@@ -12,11 +12,14 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/hub"
 	"codeberg.org/thomas-mangin/ze/internal/pidfile"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // Run executes the hub with the given config file path and optional CLI plugins.
+// chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(configPath string, plugins []string) int {
+func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64) int {
 	// Read config content first (to probe type without parsing)
 	var data []byte
 	var err error
@@ -34,7 +37,7 @@ func Run(configPath string, plugins []string) int {
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(configPath, data, plugins)
+		return runBGPInProcess(configPath, data, plugins, chaosSeed, chaosRate)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -68,12 +71,37 @@ func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
 }
 
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
-func runBGPInProcess(configPath string, data []byte, plugins []string) int {
+func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64) int {
 	// Use YANG-based config parser with CLI plugins
 	reactor, err := zeconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
+	}
+
+	// Inject chaos wrappers if chaos mode is enabled.
+	// CLI flags override env vars/config; seed=0 means disabled, -1 means time-based.
+	if chaosSeed != 0 {
+		chaosSeed = sim.ResolveSeed(chaosSeed)
+		if chaosRate < 0 {
+			chaosRate = 0.1 // Default rate when not specified by CLI
+		}
+		logger := slogutil.Logger("chaos")
+		cfg := sim.ChaosConfig{
+			Seed:   chaosSeed,
+			Rate:   chaosRate,
+			Logger: logger,
+		}
+		clock, dialer, listenerFactory := sim.NewChaosWrappers(
+			sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, cfg,
+		)
+		reactor.SetClock(clock)
+		reactor.SetDialer(dialer)
+		reactor.SetListenerFactory(listenerFactory)
+		logger.Info("chaos self-test mode enabled",
+			"seed", chaosSeed,
+			"rate", chaosRate,
+		)
 	}
 
 	// Acquire PID file (prevents duplicate instances)

@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -355,6 +356,19 @@ func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.Plugi
 	reactorCfg.APISocketPath = env.SocketPath()
 
 	r := reactor.New(reactorCfg)
+
+	// Inject chaos wrappers from config environment block.
+	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.
+	if env.Chaos.Seed != 0 {
+		resolved := sim.ResolveSeed(env.Chaos.Seed)
+		chaosLogger := slogutil.Logger("chaos")
+		chaosCfg := sim.ChaosConfig{Seed: resolved, Rate: env.Chaos.Rate, Logger: chaosLogger}
+		clock, dialer, lf := sim.NewChaosWrappers(sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, chaosCfg)
+		r.SetClock(clock)
+		r.SetDialer(dialer)
+		r.SetListenerFactory(lf)
+		chaosLogger.Info("chaos self-test mode enabled (config)", "seed", resolved, "rate", env.Chaos.Rate)
+	}
 
 	// Add peers
 	for _, ps := range peers {

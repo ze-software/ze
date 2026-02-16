@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
@@ -27,17 +28,61 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Parse --plugin flags before command dispatch
+	// Parse global flags before command dispatch
 	var plugins []string
+	var chaosSeed int64
+	var chaosRate float64 = -1 // -1 means "not set by CLI"
 	args := os.Args[1:]
-	for len(args) > 0 && args[0] == "--plugin" {
-		if len(args) < 2 {
-			fmt.Fprintf(os.Stderr, "error: --plugin requires an argument\n")
-			os.Exit(1)
+	for len(args) > 0 && strings.HasPrefix(args[0], "--") {
+		switch args[0] {
+		case "--plugin":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --plugin requires an argument\n")
+				os.Exit(1)
+			}
+			plugins = append(plugins, args[1])
+			args = args[2:]
+		case "--chaos-seed":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --chaos-seed requires an argument\n")
+				os.Exit(1)
+			}
+			n, err := strconv.ParseInt(args[1], 10, 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: invalid --chaos-seed: %v\n", err)
+				os.Exit(1)
+			}
+			chaosSeed = n
+			args = args[2:]
+		case "--chaos-rate":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --chaos-rate requires an argument\n")
+				os.Exit(1)
+			}
+			f, err := strconv.ParseFloat(args[1], 64)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "error: invalid --chaos-rate: %v\n", err)
+				os.Exit(1)
+			}
+			if f < 0 || f > 1.0 {
+				fmt.Fprintf(os.Stderr, "error: --chaos-rate must be 0.0-1.0, got %.2f\n", f)
+				os.Exit(1)
+			}
+			chaosRate = f
+			args = args[2:]
+		case "--plugins":
+			// Handle here to avoid breaking the loop — this is a standalone flag
+			args = args[0:] // Keep it for dispatch below
+			goto dispatch
+		case "--help", "-h":
+			args = args[0:]
+			goto dispatch
+		default:
+			// Unknown flag — stop parsing, let dispatch handle it
+			goto dispatch
 		}
-		plugins = append(plugins, args[1])
-		args = args[2:]
 	}
+dispatch:
 
 	if len(args) < 1 {
 		usage()
@@ -79,17 +124,17 @@ func main() {
 	if looksLikeConfig(arg) {
 		// For stdin, skip detection - hub.Run reads and probes internally
 		if arg == "-" {
-			os.Exit(hub.Run(arg, plugins))
+			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
 		}
 		// Search XDG config paths if not found locally
 		arg = config.ResolveConfigPath(arg)
 		switch detectConfigType(arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(arg, plugins))
+			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(arg, plugins))
+			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -148,8 +193,10 @@ Usage:
   ze <command> [options]             Execute command
 
 Options:
-  --plugin <name>   Load plugin before starting (repeatable)
-  --plugins         List available internal plugins
+  --plugin <name>       Load plugin before starting (repeatable)
+  --plugins             List available internal plugins
+  --chaos-seed <N>      Enable chaos self-test mode with PRNG seed N (-1 = time-based)
+  --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 
 Commands:
   validate  Validate configuration file

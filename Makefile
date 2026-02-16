@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy generate functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-reload functional-editor functional-exabgp verify help
+.PHONY: all build test lint clean fmt vet tidy generate functional functional-all functional-encode functional-plugin functional-decode functional-parse functional-reload functional-editor functional-exabgp chaos verify help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -62,7 +62,7 @@ tidy:
 # Clean build artifacts
 clean:
 	@echo "Cleaning..."
-	rm -rf bin/
+	rm -rf bin/ tmp/
 	rm -f coverage.out coverage.html
 
 # Run verification (use during development)
@@ -121,6 +121,24 @@ functional-exabgp: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
 	./test/exabgp-compat/bin/functional encoding --timeout 60
 
+# Chaos testing: in-process BGP chaos simulation with virtual clock.
+# Seed is random by default (printed for reproduction). Override:
+#   make chaos CHAOS_SEED=12345 CHAOS_DURATION=60s CHAOS_PEERS=8
+CHAOS_SEED     ?= 0
+CHAOS_DURATION ?= 30s
+CHAOS_PEERS    ?= 4
+CHAOS_ROUTES   ?= 10
+
+chaos: bin/ze-bgp-chaos
+	@bin/ze-bgp-chaos --in-process --duration $(CHAOS_DURATION) \
+		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
+		--seed $(CHAOS_SEED) --quiet
+
+bin/ze-bgp-chaos: $(shell find cmd/ze-bgp-chaos internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-bgp-chaos..."
+	@mkdir -p bin
+	go build -o bin/ze-bgp-chaos ./cmd/ze-bgp-chaos
+
 # Quick check (fast feedback during development)
 check: fmt vet
 	@echo "Quick check passed"
@@ -148,6 +166,7 @@ help:
 	@echo "  functional-reload    - Run reload functional tests only"
 	@echo "  functional-editor    - Run editor functional tests only"
 	@echo "  functional-exabgp    - Run ExaBGP compatibility tests only"
+	@echo "  chaos                - Run in-process chaos test (override: CHAOS_SEED, CHAOS_DURATION, CHAOS_PEERS)"
 	@echo "  lint                 - Run golangci-lint"
 	@echo "  fmt                  - Format code (gofmt + goimports)"
 	@echo "  vet                  - Run go vet"

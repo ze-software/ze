@@ -8,9 +8,13 @@ import (
 	"io"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // isChildMode returns true if ze bgp should run as a hub child process.
@@ -174,6 +178,14 @@ func runChildModeWithArgs(args []string) int {
 		return 1
 	}
 
+	// Inject chaos wrappers from environment variables (child processes
+	// inherit env vars from the parent, but not CLI flags).
+	if seed := os.Getenv("ze.bgp.chaos.seed"); seed != "" {
+		injectChaosFromEnv(reactor, seed, os.Getenv("ze.bgp.chaos.rate"))
+	} else if seed := os.Getenv("ze_bgp_chaos_seed"); seed != "" {
+		injectChaosFromEnv(reactor, seed, os.Getenv("ze_bgp_chaos_rate"))
+	}
+
 	if err := reactor.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: start reactor: %v\n", err)
 		return 1
@@ -209,4 +221,39 @@ func runChildModeWithArgs(args []string) int {
 	_ = reactor.Wait(ctx)
 
 	return 0
+}
+
+// injectChaosFromEnv configures chaos wrappers on the reactor from env var values.
+// seedStr is the string value of the chaos seed env var.
+// rateStr is the string value of the chaos rate env var (empty = default 0.1).
+func injectChaosFromEnv(r *reactor.Reactor, seedStr, rateStr string) {
+	seed, err := strconv.ParseInt(seedStr, 10, 64)
+	if err != nil || seed == 0 {
+		return
+	}
+	seed = sim.ResolveSeed(seed)
+
+	rate := 0.1
+	if rateStr != "" {
+		if f, parseErr := strconv.ParseFloat(rateStr, 64); parseErr == nil && f >= 0 && f <= 1.0 {
+			rate = f
+		}
+	}
+
+	logger := slogutil.Logger("chaos")
+	cfg := sim.ChaosConfig{
+		Seed:   seed,
+		Rate:   rate,
+		Logger: logger,
+	}
+	clock, dialer, listenerFactory := sim.NewChaosWrappers(
+		sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, cfg,
+	)
+	r.SetClock(clock)
+	r.SetDialer(dialer)
+	r.SetListenerFactory(listenerFactory)
+	logger.Info("chaos self-test mode enabled (child)",
+		"seed", seed,
+		"rate", rate,
+	)
 }

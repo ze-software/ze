@@ -13,7 +13,7 @@ import (
 // VALIDATES: Hub returns error for non-existent config.
 // PREVENTS: Silent failure when config file not found.
 func TestRunMissingConfig(t *testing.T) {
-	exit := Run("/nonexistent/config.conf", nil)
+	exit := Run("/nonexistent/config.conf", nil, 0, -1)
 	assert.Equal(t, 1, exit)
 }
 
@@ -30,6 +30,6 @@ func TestRunInvalidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exit := Run(configPath, nil)
+	exit := Run(configPath, nil, 0, -1)
 	assert.Equal(t, 1, exit)
 }

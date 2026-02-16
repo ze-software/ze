@@ -31,6 +31,7 @@ type Environment struct {
 	API     APIEnv
 	Reactor ReactorEnv
 	Debug   DebugEnv
+	Chaos   ChaosEnv
 }
 
 // DaemonEnv holds daemon-related settings.
@@ -102,6 +103,14 @@ type ReactorEnv struct {
 	Speed float64 // Reactor loop time multiplier
 }
 
+// ChaosEnv holds chaos fault injection settings.
+// When Seed is non-zero, Ze wraps its Clock, Dialer, and ListenerFactory
+// with chaos-injecting wrappers that introduce seed-driven random failures.
+type ChaosEnv struct {
+	Seed int64   // PRNG seed (0 = disabled)
+	Rate float64 // Fault probability per operation (0.0-1.0, default 0.1)
+}
+
 // DebugEnv holds debug-related settings.
 type DebugEnv struct {
 	PDB           bool   // Enable pdb on errors (N/A in Go)
@@ -160,6 +169,9 @@ func (e *Environment) loadDefaults() {
 
 	// Reactor defaults
 	e.Reactor.Speed = 1.0
+
+	// Chaos defaults (disabled by default)
+	e.Chaos.Rate = 0.1 // Default rate when chaos IS enabled (seed > 0)
 }
 
 // OpenWaitDuration returns the OpenWait as a time.Duration.
@@ -382,6 +394,18 @@ func validateOpenWait(value string) error {
 	return nil
 }
 
+// validateChaosRate checks chaos rate is in valid range (0.0-1.0).
+func validateChaosRate(value string) error {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fmt.Errorf("invalid chaos rate %q: %w", value, err)
+	}
+	if f < 0 || f > 1.0 {
+		return fmt.Errorf("chaos rate %.2f out of range: must be 0.0-1.0", f)
+	}
+	return nil
+}
+
 // validateSpeed checks reactor speed is in valid range (0.1-10.0).
 func validateSpeed(value string) error {
 	f, err := strconv.ParseFloat(value, 64)
@@ -523,6 +547,29 @@ var envOptions = map[string]map[string]envOption{
 		"defensive":     {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Defensive })},
 		"rotate":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Rotate })},
 		"timing":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Timing })},
+	},
+	"chaos": {
+		"seed": {
+			setter: func(e *Environment, v string) error {
+				n, err := strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid chaos seed %q: %w", v, err)
+				}
+				e.Chaos.Seed = n
+				return nil
+			},
+		},
+		"rate": {
+			setter: func(e *Environment, v string) error {
+				f, err := parseFloatStrict(v)
+				if err != nil {
+					return err
+				}
+				e.Chaos.Rate = f
+				return nil
+			},
+			validate: validateChaosRate,
+		},
 	},
 }
 
