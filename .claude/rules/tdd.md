@@ -248,9 +248,20 @@ func TestPoolWithIdx(t *testing.T) {
 
 ```bash
 go test -race ./internal/bgp/message/... -v   # Single package
-make test                                  # All tests
-go test -fuzz=FuzzParseNLRI -fuzztime=30s ./internal/bgp/nlri/...  # Fuzz
+make unit-test                                 # Unit tests
+make fuzz-test                                 # Fuzz tests
+go test -fuzz=FuzzParseNLRI -fuzztime=30s ./internal/bgp/nlri/...  # Single fuzz target
 ```
+
+## Investigation → Test Rule
+
+If you investigate or debug something, add a test so future developers don't have to re-investigate the same issue.
+
+Ask:
+- Why wasn't this obvious from existing tests or docs?
+- What test would make the expected behavior explicit?
+
+A bug you debugged without adding a test WILL recur.
 
 ## Forbidden
 

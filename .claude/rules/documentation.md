@@ -85,6 +85,24 @@ docs/plan/
 
 **If exceeding: compress, don't split**
 
+## Single Source of Truth
+
+Never duplicate information across documentation files. When multiple files need the same content:
+
+1. **Pick one canonical location** — the file closest to the topic owns it
+2. **Point, don't copy** — other files reference it with a path, not a summary
+3. **Index files are pointers** — `CLAUDE.md`, `AGENT.md`, `INDEX.md` link to rules, they don't restate them
+
+| Content | Canonical Location | Others Should |
+|---------|-------------------|---------------|
+| Make targets | `Makefile` + `.claude/rules/testing.md` | Reference, not list |
+| Architecture doc paths | `.claude/INDEX.md` | Point to INDEX |
+| Rule content | `.claude/rules/<name>.md` | Point to rule file |
+| CLI patterns | `.claude/rules/cli-patterns.md` | Point to rule file |
+| RFC keyword mapping | `.claude/rules/planning.md` | Point to planning |
+
+**Why:** Duplicated content drifts. AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lowercase and TOP 6. The fix cost a full session.
+
 ## Forbidden
 
 - Docs in `docs/architecture/` (moved to `docs/`)

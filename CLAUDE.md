@@ -1,281 +1,85 @@
 # Ze - Claude Instructions
 
-## ⛔ TOP 6 RULES (READ EVERY SESSION)
+All rules live in `.claude/rules/` and are auto-loaded. This file explains what each rule does and why it exists.
 
-**These rules are BLOCKING. Violating them wastes time and money.**
+For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 
-| # | Rule | Why | Check |
-|---|------|-----|-------|
-| 1 | **Read selected spec FIRST** | Spec contains decisions already made | `cat .claude/selected-spec` → `docs/plan/<name>` |
-| 2 | **Read source before writing code** | You will invent conflicting designs without seeing existing code | Read ALL files in spec's "Files to Modify" |
-| 3 | **No code without understanding** | Duplicate code, wrong patterns, broken integrations | Can you name 3 related files? |
-| 4 | **TDD: Test must FAIL first** | Proves test actually validates something | `go test` shows RED before implementation |
-| 5 | **Preserve existing behavior** | Breaking changes waste debugging time | Document current output format BEFORE changing |
-| 6 | **Confirm file paths before editing** | Wrong-file edits waste correction cycles | Use Glob/Grep to verify target exists and is correct |
+## Session Discipline
 
-**Session start checklist:**
-```
-1. [ ] Read .claude/selected-spec
-2. [ ] Read docs/plan/<spec-name> (if selected)
-3. [ ] Read .claude/session-state.md (if exists)
-4. [ ] Check git status for modified files
-5. [ ] ONLY THEN start working
-```
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **Session Start** | `session-start.md` | The TOP 6 rules that prevent the most expensive mistakes: reading specs first, understanding before coding, TDD, preserving behavior |
+| **Post-Compaction** | `post-compaction.md` | After context compaction you lose memory of what you read. Forces re-reading source files and specs before resuming |
+| **Before Writing Code** | `before-writing-code.md` | Prevents writing code that duplicates existing patterns or conflicts with architecture |
 
----
+## Code Quality
 
-## File Editing Rules
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **TDD** | `tdd.md` | Tests must fail before implementation — proves they actually validate something |
+| **Go Standards** | `go-standards.md` | slog logging, error wrapping, fail-early — the coding baseline |
+| **Quality** | `quality.md` | Never disable linters, never skip reviews, paste proof of completion |
+| **Design Principles** | `design-principles.md` | YAGNI, no premature abstraction, single responsibility, 3-fix escalation rule |
+| **Anti-Rationalization** | `anti-rationalization.md` | Pre-addresses known excuses for skipping TDD, ignoring test failures, or claiming completion without evidence |
 
-Before editing any file, READ the repository structure and confirm you have the correct file path. Never assume file locations from context — use Glob/Grep to find the actual target file first. If the user references a specific file type (e.g., 'article guidelines'), search for it rather than guessing it's CLAUDE.md or MEMORY.md.
+## BGP Protocol
 
-## Commits
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **RFC Compliance** | `rfc-compliance.md` | Ze must be a fully RFC 4271 compliant BGP speaker. All protocol code needs RFC citations with quoted MUST requirements |
+| **Buffer-First** | `buffer-first.md` | Wire encoding must use `WriteTo(buf, off)`, never allocate and return — prevents GC pressure on hot paths |
+| **JSON Format** | `json-format.md` | All JSON output uses kebab-case, follows ze-bgp IPC protocol envelope |
+| **Architecture Summary** | `architecture-summary.md` | Condensed system overview always in context: Engine/Plugin boundary, negotiated capabilities, WireUpdate vs RIB |
 
-When committing, only include files related to the current task unless explicitly told otherwise. Always confirm the scope of the commit with a `git diff --stat` before running `git commit`. Never include unrelated changes (e.g., spec files when fixing editor bugs).
+## Planning & Specs
 
-## Spec Workflow
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **Planning** | `planning.md` | Full planning workflow: research → design → implement → verify. Keyword→doc mapping, spec template, completion checklist |
+| **Spec No Code** | `spec-no-code.md` | Specs describe WHAT/WHY in tables and prose. Code in specs becomes stale and misleading |
+| **Spec Preservation** | `spec-preservation.md` | Completed specs are institutional memory — strip scaffolding, keep knowledge |
+| **Implementation Audit** | `implementation-audit.md` | Line-by-line verification that every spec item was implemented. Tests passing ≠ spec complete |
+| **Integration Completeness** | `integration-completeness.md` | Features must be proven integrated end-to-end, not just tested in isolation |
+| **Data Flow Tracing** | `data-flow-tracing.md` | Trace data through all layers before modifying specs — prevents architectural boundary violations |
 
-1. Before implementing, run an implementation audit to check what's already done
-2. Trace data flow through the actual code — don't assume from spec descriptions
-3. After implementation, request a critical review that checks spec conformance
-4. Never mark items as deferred/external without confirming with the user
+## Infrastructure
 
-## Critical Reviews
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **Plugin Design** | `plugin-design.md` | Plugin architecture: registry, 5-stage protocol, SDK callbacks, registration via `init()` |
+| **CLI Patterns** | `cli-patterns.md` | Consistent CLI dispatch, flag handling, exit codes, usage text |
+| **Config Design** | `config-design.md` | No version numbers in config, fail on unknown keys |
+| **Naming** | `naming.md` | Ze naming convention: `ze-bgp-conf`, `ZeBGPConf*`, "ze" where "the" works |
 
-When asked for a critical review, validate your understanding of the existing architecture BEFORE agreeing with or proposing changes. Read the actual code/specs first — never assume from memory. Check git history for recent changes to avoid proposing work that's already done.
+## Process
 
----
+| Rule | File | Why It Exists |
+|------|------|---------------|
+| **Git Safety** | `git-safety.md` | Only commit when asked, scope commits to task, never force-push, save before destructive actions. Includes Codeberg CLI (`tea`) |
+| **No Layering** | `no-layering.md` | When replacing X with Y, delete X first. No "keep both for safety" |
+| **No Backwards Compat** | `compatibility.md` | Ze has never been released — no users to break, no legacy shims needed |
+| **No Test Deletion** | `no-test-deletion.md` | Ask before deleting tests — prevents hiding bugs instead of fixing them |
+| **Testing** | `testing.md` | No throw-away tests, functional test locations, make targets, linter list |
+| **Documentation** | `documentation.md` | File naming, doc placement, single source of truth — never duplicate content across files |
+| **Hook Errors** | `hook-errors.md` | Hook validation errors must be fixed before proceeding — never ignore exit codes |
+| **Memory** | `memory.md` | Project knowledge: YANG conventions, flaky test policy, config pipeline, file splits |
 
-## Naming Convention
+## Reference
 
-**"Ze" = "The" with a French accent.** It's a pun.
-
-| Context | Use | Example |
-|---------|-----|---------|
-| Application name | `ze` | "Start ze BGP daemon" |
-| CLI binary | `ze` | `ze bgp server config.conf` |
-| BGP config YANG | `ze-bgp-conf` | `module ze-bgp-conf { ... }` |
-| BGP JSON format | `ze-bgp` | `"format": "ze-bgp"` |
-| Go variables for BGP | `ZeBGPConf*` | `ZeBGPConfYANG` |
-| Prose/docs | `Ze` or `ze` | "Ze BGP running" |
-
-**Rule:** Use "ze" where "the" would work grammatically.
-
-## ⛔ Post-Compaction Recovery
-
-**If you see "continued from a previous conversation":** Follow the session start checklist in TOP 5 RULES above, then see `.claude/rules/post-compaction.md` for the full recovery procedure.
-
-## Core Architecture (MUST UNDERSTAND)
-
-**READ `docs/architecture/core-design.md` for full details.**
-
-### System Components
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ZeBGP ENGINE                                    │
-│                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
-│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
-│   │  FSM    │  │  FSM    │  │  FSM    │                                    │
-│   └────┬────┘  └────┬────┘  └────┬────┘                                    │
-│        │            │            │                                          │
-│        └────────────┼────────────┘                                          │
-│                     ▼                                                       │
-│              ┌─────────────┐                                                │
-│              │   Reactor   │  (event loop, BGP cache)                      │
-│              └─────────────┘                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                              │                 ▲
-          JSON events (down)  │                 │  commands (up)
-          + base64 wire bytes │                 │  update/forward/withdraw
-                              ▼                 │
-═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
-                              │                 ▲
-                              ▼                 │
-                      ┌───────────────┐
-                      │    Plugin     │  (Go/Python/Rust/etc.)
-                      │  (RIB / RR)   │
-                      └───────────────┘
-```
-
-**Key insight:** Engine passes wire bytes to plugins. Plugins implement RIB, deduplication, policy.
-
-### Peer Context & Negotiated Capabilities
-
-Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Negotiated (per-peer)                        │
-│         See internal/bgp/capability/negotiated.go for full struct    │
-├─────────────────────────────────────────────────────────────────┤
-│ ASN4            bool                 → 4-byte ASN support       │
-│ AddPath         map[Family]Mode      → Receive/Send/Both        │
-│ ExtendedMsg     bool                 → 65535 byte messages      │
-│ ExtendedNextHop map[Family]AFI       → Per-family NH mapping    │
-│ Families()      []Family             → Negotiated families      │
-│ GracefulRestart *GracefulRestart     → RFC 4724 GR state        │
-│ RouteRefresh    bool                 → RFC 2918 support         │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Why it matters:**
-- Same wire bytes parse differently based on negotiated caps
-- `AS_PATH [00 01 FD E8]` = ASN 65000 (ASN4) or two ASNs 1, 64488 (ASN2)
-- NLRI `[00 00 00 01 18 0a 00 00]` = path-id + prefix (ADD-PATH) or two prefixes (no ADD-PATH)
-
-**ContextID:** Identifies encoding context for zero-copy decisions. Same ContextID = same caps = can forward wire bytes unchanged.
-
-**Wire Writing:** All wire types implement `BufWriter` interface:
-- `WriteTo(buf, off) int` - write to pre-allocated buffer (caller guarantees capacity)
-- `CheckedWriteTo(buf, off) (int, error)` - validates capacity first
-- Context-dependent types (NLRI, ASPath) take `*PackContext` for ADD-PATH/ASN4 handling
-
-### BGP UPDATE = Container
-
-```
-UPDATE Message (wire bytes)
-├── Header (19 bytes)
-├── Withdrawn Routes (IPv4 unicast)
-├── Path Attributes
-│   ├── ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ...
-│   ├── MP_REACH_NLRI (NLRI for non-IPv4-unicast)
-│   └── MP_UNREACH_NLRI (withdrawals for non-IPv4-unicast)
-└── NLRI (IPv4 unicast only)
-```
-
-### WireUpdate vs RIB
-
-```
-WireUpdate (transport)              RIB (storage)
-┌─────────────────────┐             ┌────────────────────────────────────┐
-│ Attributes (shared) │             │ NLRI 10.0.0.0/24 → origin_ref ─────┼─→ Pool: IGP
-│ NLRI: 10.0.0.0/24   │   ────▶     │                    aspath_ref ─────┼─→ Pool: [65001]
-│ NLRI: 10.0.1.0/24   │             │                    localpref_ref ──┼─→ Pool: 100
-│ NLRI: 10.0.2.0/24   │             │ NLRI 10.0.1.0/24 → (same refs) ────┼─→ (shared)
-└─────────────────────┘             └────────────────────────────────────┘
-```
-
-**Key points:**
-- `WireUpdate` = transport (UPDATE bytes, lazy parse via iterators)
-- `RIB` = storage (NLRI → attribute refs, NOT WireUpdate)
-- Per-attribute-type pools (ORIGIN, AS_PATH, LOCAL_PREF, MED, COMMUNITY, etc.)
-- Per-family NLRI pools (`map[Family]*Pool[NLRI]`)
-- Next-hop: special encoding (attribute vs MP_REACH_NLRI depending on family)
-
-### API Command Syntax
-
-```
-Text mode:   update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
-Binary mode: update hex attr set 400101... nlri ipv4/unicast add 180a00
-```
-
-Both produce WireUpdate with wire bytes.
-- Full syntax: `docs/architecture/api/update-syntax.md`
-- Full design: `docs/architecture/core-design.md`
-
----
+- **Architecture docs:** `.claude/INDEX.md` for full doc→topic and RFC→keyword mappings
+- **RFC summaries:** `rfc/short/` (implementation-ready markdown)
+- **Full RFCs:** `rfc/full/` (text files)
+- **ExaBGP reference:** `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 
 ## Commands
-- `make test` - Run unit tests
-- `make lint` - Run golangci-lint
-- `make functional` - Run functional tests (80 tests)
 
-## Workflow
-0. **UNDERSTAND FIRST** - No coding until you understand the code structure
-1. **DESIGN FIRST** - Search for existing code. Extend, don't duplicate. Think deeply.
-2. For BGP code: read RFC from `rfc/` folder first
-3. Write test, see it FAIL, implement, see it PASS (TDD)
-4. Run `make verify` (test + lint + functional) before claiming done
-5. Only commit when explicitly requested
-
-## Planning (see `.claude/rules/planning.md` for full details)
-
-**Re-read planning.md before starting AND before asking to commit.**
-
-1. Write spec to `docs/plan/spec-<task>.md`
-2. `git add` the spec immediately (track early)
-3. Unit tests BEFORE implementation (strict TDD)
-4. Functional tests AFTER feature works
-5. On completion:
-   - Update architecture docs with learnings
-   - Update spec with Implementation Summary
-   - Move spec to `docs/plan/done/NNN-<name>.md`
-   - Commit ALL files together (code + tests + docs + spec)
-
-**Investigation → Test Rule:** If you investigate/debug something, add a test so future devs don't have to re-investigate.
-
-## ⛔ Before Writing ANY Spec
-
-**BLOCKING - ENFORCED AT EVERY START:**
-
-Before writing or editing ANY spec file (`docs/plan/spec-*.md`):
-
-1. **READ the source files that will be modified** - Not docs, the ACTUAL CODE
-2. **Document current behavior** - What does the code do NOW?
-3. **Preserve behavior by default** - Unless user explicitly says to change it
-
-**Why:** I invented a new JSON format instead of reading `decode.go` and preserving the existing one. This wasted money and broke tests.
-
-**Verification question before spec writing:**
-> "Have I read the actual source files listed in 'Files to Modify'? Can I describe what they currently do?"
-
-If NO → READ THE CODE FIRST. Do not proceed.
-
-## Key Rules
-- **Read source before spec** - BLOCKING: Read actual code files before writing specs. Document current behavior. Preserve it unless told otherwise.
-- **No code without understanding** - BLOCKING: Do not write any code until you have read relevant existing code and understand the architecture. Search, read, analyze BEFORE proposing changes.
-- **Design before code** - Search codebase first. Reuse/extend existing code. Think deeply before implementing.
-- **TDD MANDATORY** - Test must exist and fail before implementation
-- **RFC compliance** - BGP code must follow RFCs, add `// RFC NNNN` comments
-- **Verify before claiming** - Paste command output as proof
-- **Git safety** - Never commit/push without explicit request
-
-## Spec Selection
-
-Only ONE spec at a time. Track in `.claude/selected-spec`:
 ```bash
-echo "spec-rfc9234-role.md" > .claude/selected-spec  # Select
-echo "" > .claude/selected-spec                       # Clear after done
+make unit-test         # Unit tests with race detector
+make lint              # 26 linters via golangci-lint
+make functional-test   # Functional tests (encode, plugin, decode, parse, reload, editor)
+make exabgp-test       # ExaBGP compatibility tests
+make fuzz-test         # Fuzz tests (10s per target)
+make chaos-test        # In-process BGP chaos simulation
+make verify            # lint + unit-test + functional-test
+make test-all          # lint + unit-test + functional-test + exabgp-test
 ```
-
-**Session state:** Track progress in `.claude/session-state.md` (copy from `.template`).
-
-**Checkboxes are lies.** `[x]` means read in PREVIOUS session. Re-read everything.
-
-## Reference Paths
-- ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
-- RFCs: `rfc/` directory
-- RFC summaries: `rfc/short/`
-
-## Codeberg CLI
-
-Use `tea` for Codeberg interactions (PRs, issues):
-```bash
-tea pr list                      # List PRs
-tea pr create --title "..." --description "..."
-tea issue list
-tea issue create --title "..."
-```
-
-## Architecture Docs
-Read when working on specific areas:
-- **Core design: `docs/architecture/core-design.md` (START HERE)**
-- Buffer-first: `docs/architecture/buffer-architecture.md`
-- Wire formats: `docs/architecture/wire/messages.md`
-- NLRI types: `docs/architecture/wire/nlri.md`
-- Attributes: `docs/architecture/wire/attributes.md`
-- Capabilities: `docs/architecture/wire/capabilities.md`
-- UPDATE building: `docs/architecture/update-building.md` (Build vs Forward paths)
-- Memory pools: `docs/architecture/pool-architecture.md`
-- Zero-copy: `docs/architecture/encoding-context.md`
-- ExaBGP compat: `docs/exabgp/exabgp-code-map.md`
-- FSM: `docs/architecture/behavior/fsm.md`
-- API: `docs/architecture/api/architecture.md`
-- API Capabilities: `docs/architecture/api/capability-contract.md`
-- Config: `docs/architecture/config/syntax.md`
-
-## Style
-- Terse, emoji-prefixed status lines
-- No fluff, no reassurance
-- Paste command output as proof

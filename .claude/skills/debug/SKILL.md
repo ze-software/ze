@@ -24,7 +24,7 @@ The user will paste failing test output as context.
    - Form a hypothesis
    - Implement a fix
    - Run `go test ./...` to verify the specific fix
-5. **Run full verification:** `make lint && make test && make functional` — the fix must not break anything else
+5. **Run full verification:** `make lint && make unit-test && make functional-test` — the fix must not break anything else
 6. **Report back** with: root cause, which hypothesis was correct, and full test suite passing
 
 ## Rules

@@ -66,7 +66,7 @@ func main() {
 2. **Plugin test:** Create `test/plugin/<name>.ci`
 3. **Parse test:** Create `test/parse/<name>.ci` with embedded config, `ze bgp validate`, and exit expectations
 4. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
-5. **Run:** `make functional` or `ze-test bgp <type> --list` to verify
+5. **Run:** `make functional-test` or `ze-test bgp <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -84,23 +84,24 @@ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304...
 ❌ Manual testing without saving the test
 
 ✅ Save to `test/` appropriate subdirectory
-✅ Verify with `make functional`
+✅ Verify with `make functional-test`
 ✅ Commit with the feature
 
 ## Required Test Sequence
 
 ```bash
-make verify      # Development: lint + test + functional
-make test-all    # Before commit: lint + test + functional-all (includes ExaBGP)
+make verify      # Development: lint + unit-test + functional-test
+make test-all    # Before commit: lint + unit-test + functional-test + exabgp-test
 ```
 
 | Target | Command | Purpose |
 |--------|---------|---------|
-| `make test` | `go test -race -v ./...` | Unit tests |
+| `make unit-test` | `go test -race ./...` | Unit tests |
 | `make lint` | `golangci-lint run` | Linting (26 linters, see below) |
 | `make vet` | `go vet ./...` | Go vet only (subset of lint) |
-| `make functional` | All functional tests | Encoding, plugin, parsing, decoding |
-| `make ci` | lint + test + build | Full CI check |
+| `make functional-test` | All functional tests | Encoding, plugin, parsing, decoding |
+| `make exabgp-test` | ExaBGP compat tests | Ze encoding matches ExaBGP |
+| `make ci` | lint + unit-test + build | Full CI check |
 
 ### Linters in `make lint`
 
@@ -131,9 +132,9 @@ go test -bench=. -benchmem ./internal/...          # Benchmarks
 ## Fuzzing
 
 ```bash
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...
-go test -fuzz=. -fuzztime=10s ./internal/bgp/...  # All fuzz tests (CI)
-go test -list='Fuzz.*' ./...                  # List fuzz tests
+make fuzz-test                                         # All fuzz tests (10s each)
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...  # Single target
+go test -list='Fuzz.*' ./...                           # List fuzz tests
 ```
 
 Corpus location: `test/fuzz/<FuzzName>/`
@@ -228,9 +229,9 @@ go tool cover -func=coverage.out              # Summary
 
 ## Pre-Commit Checklist
 
-- [ ] `make test` passes
+- [ ] `make unit-test` passes
 - [ ] `make lint` passes with **zero issues** (fix pre-existing issues first)
-- [ ] `make functional` passes
+- [ ] `make functional-test` passes
 - [ ] User approval
 
 **BLOCKING:** Never commit with ANY lint issues, even pre-existing ones. Fix lint issues first or ask user for guidance.

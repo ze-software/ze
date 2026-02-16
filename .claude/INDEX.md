@@ -26,23 +26,42 @@ Read when working on specific areas:
 | Config syntax | `docs/architecture/config/syntax.md` |
 | YANG design | `docs/architecture/config/yang-config-design.md` |
 
-## Rules (auto-loaded by path)
+## Rules (auto-loaded, full list)
+
+See `CLAUDE.md` for why each rule exists.
 
 | Rule | Applies To |
 |------|------------|
+| `rules/session-start.md` | `*` (BLOCKING - TOP 6 RULES, session checklist) |
 | `rules/post-compaction.md` | `*` (BLOCKING - after compaction, read FIRST) |
 | `rules/before-writing-code.md` | `*` (BLOCKING - before any code) |
 | `rules/design-principles.md` | `*` (scalability, maintainability) |
+| `rules/anti-rationalization.md` | `*` (pre-addressed excuses) |
+| `rules/quality.md` | `*` (no shortcuts, critical reviews, proof) |
 | `rules/planning.md` | `*` (non-trivial features) |
+| `rules/implementation-audit.md` | `*` (spec completion verification) |
+| `rules/integration-completeness.md` | `*` (end-to-end proof) |
+| `rules/data-flow-tracing.md` | `*` (architectural boundary checks) |
 | `rules/spec-no-code.md` | `docs/plan/spec-*.md` (BLOCKING - NO CODE IN SPECS) |
+| `rules/spec-preservation.md` | `docs/plan/done/` (preserve knowledge) |
 | `rules/tdd.md` | `**/*.go` |
 | `rules/testing.md` | `*` (CI, functional tests) |
 | `rules/go-standards.md` | `**/*.go` |
 | `rules/rfc-compliance.md` | `internal/bgp/**/*.go` |
-| `rules/git-safety.md` | `*` |
+| `rules/buffer-first.md` | Wire encoding (`**/*.go`) |
+| `rules/json-format.md` | JSON output (`**/*.go`) |
+| `rules/architecture-summary.md` | `*` (condensed system overview) |
+| `rules/plugin-design.md` | `internal/plugins/**/*.go` |
+| `rules/cli-patterns.md` | `cmd/ze/**/*.go` |
 | `rules/config-design.md` | Config changes |
-| `rules/quality.md` | `*` (no shortcuts) |
+| `rules/naming.md` | `*` (Ze naming convention) |
+| `rules/git-safety.md` | `*` (commits, Codeberg CLI) |
+| `rules/no-layering.md` | `*` (delete before replacing) |
+| `rules/compatibility.md` | `*` (no backwards compat) |
+| `rules/no-test-deletion.md` | `**/*_test.go`, `**/*.ci` |
 | `rules/documentation.md` | `**/*.md` |
+| `rules/hook-errors.md` | `*` (fix hook errors) |
+| `rules/memory.md` | `*` (project knowledge) |
 
 ## Session State
 

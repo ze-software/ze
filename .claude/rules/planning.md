@@ -78,7 +78,8 @@ Complete IN ORDER. Do not skip steps. Steps are grouped into four phases.
 ```
 ── RESEARCH phase ──────────────────────────────────────────────
    Read, search, understand. No spec writing, no implementation.
-   Gate: Can name 3 related files and describe current behavior.
+   Gate: Can name 3 related files, describe current behavior,
+         and have read ALL architecture docs matched by keyword table.
 
 [ ] 1. Check existing spec: `docs/plan/spec-<task>.md`
       → If exists: read it, resume from last progress
@@ -91,6 +92,8 @@ Complete IN ORDER. Do not skip steps. Steps are grouped into four phases.
 [ ] 4. Match task keywords to docs (see table below)
 
 [ ] 5. Read ALL identified architecture docs
+      → **BLOCKING:** Cannot proceed to DESIGN phase without reading these
+      → Cross-reference with `.claude/INDEX.md` Architecture Docs table
 
 [ ] 6. RFC Summary Check (for protocol work)
       → Identify ALL RFCs needed for implementation
@@ -550,7 +553,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Functional tests** - Create functional tests AFTER feature works
    → **Review:** Do tests cover the user-visible behavior? Error cases included?
 
-8. **Verify all** - `make lint && make test && make functional` (paste output)
+8. **Verify all** - `make lint && make unit-test && make functional-test` (paste output)
    → **Review:** Zero lint issues? All tests deterministic? No race conditions?
 
 9. **Final self-review** - Before claiming done:
@@ -591,6 +594,16 @@ When a step fails, use this table to determine where to route back:
 <!-- Fill at VERIFY phase. Check MEMORY.md for recurrence. Promote if seen before. -->
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+
+## Design Insights
+
+<!-- LIVE section — write IMMEDIATELY when you learn something, not at the end. -->
+<!-- Only record insights that improve the project going forward. -->
+<!-- Include enough context for the insight to be useful after compaction. -->
+<!-- At completion, route each insight to its destination: -->
+<!--   - Subsystem behavior → architecture doc (Post-Implementation Updates table) -->
+<!--   - Process lesson → `.claude/rules/` relevant file -->
+<!--   - Project knowledge → `.claude/rules/memory.md` -->
 
 ## RFC Documentation
 
@@ -643,12 +656,9 @@ If you had to investigate/debug something, ask:
 - Add a test that makes the expected behavior explicit
 - Future devs should never have to re-investigate the same issue
 
-### Design Insights
-- [Key learnings that should be documented elsewhere]
-
 ### Documentation Updates
-<!-- Check the Post-Implementation Updates table below. If your task changed any listed area, update the corresponding docs and record what you updated here. -->
-- [List docs updated, or "None — no architectural changes"]
+<!-- Check the Post-Implementation Updates table below. Record ALL docs updated (architecture + rules + memory). -->
+- [List docs updated, or "None — no changes"]
 
 ### Deviations from Plan
 - [Any differences from original plan and why]
@@ -691,14 +701,14 @@ If you had to investigate/debug something, ask:
 
 ### Goal Gates (MUST pass — cannot defer)
 - [ ] Acceptance criteria AC-1..AC-N all demonstrated
-- [ ] Tests pass (`make test`)
-- [ ] No regressions (`make functional`)
+- [ ] Tests pass (`make unit-test`)
+- [ ] No regressions (`make functional-test`)
 - [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
 - [ ] Integration completeness: every new feature proven to work from its intended usage point, not just in isolation (see `rules/integration-completeness.md`)
+- [ ] Architecture docs updated with learnings and changes (see Post-Implementation Updates table)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
 - [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
-- [ ] Architecture docs updated with learnings
 - [ ] RFC constraint comments added (quoted requirement + explanation)
 - [ ] Implementation Audit fully completed (all items have status + location)
 - [ ] Mistake Log escalation candidates reviewed
@@ -737,9 +747,11 @@ If you had to investigate/debug something, ask:
 
 ```
 [ ] 1. Review architecture docs and integration points
-      → Did we learn something not documented?
-      → Add design insights, gotchas, or patterns discovered
-      → Update docs in "Post-Implementation Updates" table below
+      → Did we learn something that improves the project going forward?
+      → If yes: document with enough context to be useful standalone
+        - Subsystem behavior → architecture doc (Post-Implementation Updates table)
+        - Process lesson → `.claude/rules/` relevant file
+        - Project knowledge → `.claude/rules/memory.md`
       → **YANG schemas:** If new RPCs were added, update the YANG module + RPC count in architecture.md
       → **CLI:** If new user-facing features, update cmd/ze/ dispatch + usage text + commands.md
       → **Editor:** YANG-driven autocomplete auto-updates, but verify if non-YANG completions needed

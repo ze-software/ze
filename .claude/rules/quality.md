@@ -47,6 +47,16 @@ If there are many lint issues:
 
 No exceptions. Do the work.
 
+## Critical Reviews
+
+When asked for a critical review, validate your understanding of the existing architecture BEFORE agreeing with or proposing changes. Read the actual code/specs first — never assume from memory. Check git history for recent changes to avoid proposing work that's already done.
+
+## Proof of Completion
+
+- Paste command output as proof when claiming something works
+- `make verify` output is required before claiming done
+- "Should work" is not evidence — run it, paste it
+
 ## Anti-Rationalization
 
 See `rules/anti-rationalization.md` for pre-addressed excuses covering TDD, test failures, completion claims, and review responses. If you catch yourself thinking any phrase from those tables, **STOP** — the answer is already "no."

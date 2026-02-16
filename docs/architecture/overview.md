@@ -289,13 +289,12 @@ process announce-routes {
 
 ### Unit Tests
 ```bash
-make test                     # All unit tests
-go test ./internal/plugins/bgp/message/...  # Single package
+make unit-test                # All unit tests
 ```
 
 ### Functional Tests
 ```bash
-make functional               # All functional tests
+make functional-test          # All functional tests
 ze-test bgp encode --list     # List encoding tests
 ze-test bgp encode 0 1 2      # Run specific tests
 ```

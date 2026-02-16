@@ -6,10 +6,10 @@ Functional tests verify ZeBGP's BGP message encoding by comparing actual wire ou
 
 ```bash
 # Quick start
-make functional           # Run all tests
-make functional-encode    # Encoding tests only
-make functional-plugin    # Plugin tests only
-make functional-reload    # Reload tests only
+make functional-test      # Run all tests
+make encode-test          # Encoding tests only
+make plugin-test          # Plugin tests only
+make reload-test          # Reload tests only
 ```
 
 ---

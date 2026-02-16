@@ -4,14 +4,17 @@
 
 ```
 .claude/
-├── rules/              # Auto-loaded by file path
-│   ├── planning.md     # Pre-implementation planning (*)
-│   ├── tdd.md          # TDD rules (**/*.go)
-│   ├── go-standards.md # Go coding standards (**/*.go)
-│   ├── rfc-compliance.md # RFC rules (internal/bgp/**/*.go)
-│   ├── config-design.md # Config design rules
-│   ├── testing.md      # Test commands and patterns
-│   └── git-safety.md   # Git protection (*)
+├── rules/              # Auto-loaded by file path (30 files)
+│   ├── session-start.md      # TOP 6 RULES + session checklist (*)
+│   ├── post-compaction.md    # Recovery after context compaction (*)
+│   ├── before-writing-code.md # Pre-code checks (*)
+│   ├── planning.md           # Pre-implementation planning (*)
+│   ├── tdd.md                # TDD rules (**/*.go)
+│   ├── go-standards.md       # Go coding standards (**/*.go)
+│   ├── rfc-compliance.md     # RFC rules (internal/bgp/**/*.go)
+│   ├── architecture-summary.md # Condensed system overview (*)
+│   ├── naming.md             # Ze naming convention (*)
+│   └── ...                   # See CLAUDE.md for full list + rationale
 ├── hooks/              # Automation scripts
 │   ├── session-start.sh      # Git status, active specs (SessionStart)
 │   ├── compaction-reminder.sh # Detect compaction (UserPromptSubmit)
@@ -34,7 +37,7 @@
 1. Rules auto-load based on file path
 2. Hooks automate git check, linting, spec validation
 3. Read `INDEX.md` to find architecture docs
-4. Run `make lint && make test && make functional` before claiming done
+4. Run `make lint && make unit-test && make functional-test` before claiming done
 
 ## Architecture Docs
 

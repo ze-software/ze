@@ -26,6 +26,7 @@
 [ ] 5. Verify file paths
       - Use Glob/Grep to confirm the target file exists and is correct
       - Never guess file locations from context
+      - If user references a file type (e.g., 'article guidelines'), search for it — don't assume it's CLAUDE.md or MEMORY.md
 
 [ ] 6. Buffer-first encoding check (see `rules/buffer-first.md`)
       - If writing wire encoding: use WriteTo(buf, off), NOT Pack()/make([]byte)
@@ -40,6 +41,21 @@ Before writing code, you MUST be able to answer:
 1. **What existing code relates to this task?** (file paths and function names)
 2. **What patterns does the codebase use?** (naming, error handling, testing)
 3. **How will your changes integrate?** (callers, callees, shared data structures)
+
+## Before Writing ANY Spec
+
+Before writing or editing ANY spec file (`docs/plan/spec-*.md`):
+
+1. **READ the source files that will be modified** - Not docs, the ACTUAL CODE
+2. **Document current behavior** - What does the code do NOW?
+3. **Preserve behavior by default** - Unless user explicitly says to change it
+
+**Historical lesson:** Invented a new JSON format instead of reading `decode.go` and preserving the existing one. This wasted money and broke tests.
+
+**Verification question before spec writing:**
+> "Have I read the actual source files listed in 'Files to Modify'? Can I describe what they currently do?"
+
+If NO → READ THE CODE FIRST. Do not proceed.
 
 ## Red Flags
 
