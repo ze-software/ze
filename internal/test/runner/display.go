@@ -9,12 +9,20 @@ import (
 	"time"
 )
 
+const (
+	// clearLine: carriage return + erase to end of line (repositions cursor and clears).
+	clearLine = "\r\033[K"
+	// cr: carriage return only (repositions cursor to column 0, no erase).
+	cr = "\r"
+)
+
 // Display manages test status output.
 type Display struct {
 	tests     *Tests
 	colors    *Colors
 	output    io.Writer
 	quiet     bool
+	label     string // test suite label (e.g., "encode", "plugin")
 	startTime time.Time
 	timeout   time.Duration
 	parallel  int // for batch display (0 = all at once)
@@ -28,6 +36,11 @@ func NewDisplay(tests *Tests, colors *Colors) *Display {
 		colors: colors,
 		output: os.Stdout,
 	}
+}
+
+// SetLabel sets the test suite label (e.g., "encode", "plugin").
+func (d *Display) SetLabel(label string) {
+	d.label = label
 }
 
 // SetQuiet enables quiet mode.
@@ -49,6 +62,31 @@ func (d *Display) SetTimeout(timeout time.Duration) {
 func (d *Display) SetParallel(parallel, total int) {
 	d.parallel = parallel
 	d.total = total
+}
+
+// headerLine builds a centered header line.
+func headerLine(colors *Colors, label string) string {
+	l := fmt.Sprintf(" %s ", label)
+	padTotal := summaryWidth - len(l)
+	padLeft := padTotal / 3 // shorter left side
+	padRight := padTotal - padLeft
+	return colors.Cyan(strings.Repeat("═", padLeft)) + l + colors.Cyan(strings.Repeat("═", padRight))
+}
+
+// Header prints a section header for the test suite.
+func (d *Display) Header() {
+	if d.quiet || d.label == "" {
+		return
+	}
+	d.println("")
+	d.println(headerLine(d.colors, d.label))
+}
+
+// PrintHeader prints a section header without needing a Display.
+func PrintHeader(label string) {
+	colors := NewColors()
+	fmt.Println()
+	fmt.Println(headerLine(colors, label))
 }
 
 // Start marks the beginning of test execution.
@@ -78,13 +116,13 @@ func (d *Display) Status() {
 			passed++
 		case StateFail:
 			failed++
-			failedTests = append(failedTests, fmt.Sprintf("%s:%s", nick, r.Name))
+			failedTests = append(failedTests, nick)
 		case StateTimeout:
 			timedOut++
-			timedOutTests = append(timedOutTests, fmt.Sprintf("%s:%s", nick, r.Name))
+			timedOutTests = append(timedOutTests, nick)
 		case StateRunning, StateStarting:
 			running++
-			runningTests = append(runningTests, fmt.Sprintf("%s:%s", nick, r.Name))
+			runningTests = append(runningTests, nick)
 			if !r.StartTime.IsZero() {
 				elapsed := now.Sub(r.StartTime)
 				if elapsed > maxRunningElapsed {
@@ -102,7 +140,7 @@ func (d *Display) Status() {
 		case StateNone:
 			if r.Active {
 				pending++
-				pendingTests = append(pendingTests, fmt.Sprintf("%s:%s", nick, r.Name))
+				pendingTests = append(pendingTests, nick)
 			}
 		}
 	}
@@ -177,7 +215,7 @@ func (d *Display) Status() {
 	// Clear line and print status
 	if d.colors.Enabled() {
 		// TTY mode: update in place
-		_, _ = fmt.Fprint(d.output, "\r\033[K"+status+d.colors.Reset()+"\r")
+		d.print(clearLine + status + d.colors.Reset() + cr)
 	}
 	// Non-TTY: skip intermediate updates (final summary will show results)
 }
@@ -189,106 +227,70 @@ func (d *Display) Newline() {
 	}
 	if d.colors.Enabled() {
 		// TTY: move past the in-place status line
-		_, _ = fmt.Fprintln(d.output)
+		d.println("")
 	}
 	// Non-TTY: no status line to move past (BuildStatus already ended with newline)
 }
 
-// FinalStatus prints the final test status (for non-TTY mode).
-func (d *Display) FinalStatus() {
-	if d.quiet || d.colors.Enabled() {
-		return // TTY mode uses in-place updates, quiet mode shows nothing
-	}
-
-	d.tests.mu.RLock()
-	defer d.tests.mu.RUnlock()
-
-	var passed, failed, timedOut int
-	var failedTests, timedOutTests []string
-
-	for _, nick := range d.tests.ordered {
-		r := d.tests.byNick[nick]
-		switch r.State {
-		case StateSuccess:
-			passed++
-		case StateFail:
-			failed++
-			failedTests = append(failedTests, fmt.Sprintf("%s:%s", nick, r.Name))
-		case StateTimeout:
-			timedOut++
-			timedOutTests = append(timedOutTests, fmt.Sprintf("%s:%s", nick, r.Name))
-		case StateNone, StateSkip, StateStarting, StateRunning:
-			// Not terminal states - ignore
-		}
-	}
-
-	// Build status parts
-	var parts []string
-	parts = append(parts, fmt.Sprintf("passed %d", passed))
-
-	if failed > 0 {
-		failedStr := fmt.Sprintf("failed %d", failed)
-		if len(failedTests) > 0 {
-			shown := failedTests
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			failedStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
-		}
-		parts = append(parts, failedStr)
-	}
-
-	if timedOut > 0 {
-		timedOutStr := fmt.Sprintf("timed out %d", timedOut)
-		if len(timedOutTests) > 0 {
-			shown := timedOutTests
-			if len(shown) > 5 {
-				shown = shown[:5]
-			}
-			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
-		}
-		parts = append(parts, timedOutStr)
-	}
-
-	_, _ = fmt.Fprintln(d.output, strings.Join(parts, " "))
-}
-
 // Printf prints formatted output.
 func (d *Display) Printf(format string, args ...any) {
-	_, _ = fmt.Fprintf(d.output, format, args...)
+	fmt.Fprintf(d.output, format, args...) //nolint:errcheck // display output
 }
 
-// Summary prints the test summary.
+// println writes a line to the display output.
+func (d *Display) println(s string) {
+	fmt.Fprintln(d.output, s) //nolint:errcheck // display output
+}
+
+// print writes to the display output without a trailing newline.
+func (d *Display) print(s string) {
+	fmt.Fprint(d.output, s) //nolint:errcheck // display output
+}
+
+// summaryWidth is the total character width of the summary line.
+const summaryWidth = 79
+
+// Summary prints a single-line test summary that is easy to scan for humans and parse for tools.
+//
+// Format:
+//
+//	═══ PASS  42/42  100.0%  3.2s
+//	═══ FAIL  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
 func (d *Display) Summary() {
-	passed, failed, timedOut, skipped := d.tests.Summary()
-	failedNicks := d.tests.FailedNicks()
-
-	_, _ = fmt.Fprintln(d.output)
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
-	_, _ = fmt.Fprintln(d.output, "TEST SUMMARY")
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
-
-	if passed > 0 {
-		_, _ = fmt.Fprintf(d.output, "%s    %d\n", d.colors.Green("passed"), passed)
-	}
-	if failed > 0 {
-		_, _ = fmt.Fprintf(d.output, "%s    %d [%s]\n", d.colors.Red("failed"), failed, strings.Join(failedNicks, ", "))
-	}
-	if timedOut > 0 {
-		_, _ = fmt.Fprintf(d.output, "%s %d\n", d.colors.Yellow("timed out"), timedOut)
-	}
-	if skipped > 0 {
-		_, _ = fmt.Fprintf(d.output, "%s   %d\n", d.colors.Gray("skipped"), skipped)
-	}
-
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
-
+	passed, failed, timedOut, _ := d.tests.Summary()
 	total := passed + failed + timedOut
-	if total > 0 {
-		rate := float64(passed) / float64(total) * 100
-		_, _ = fmt.Fprintf(d.output, "Total: %d test(s) run, %.1f%% passed\n", total, rate)
+	if total == 0 {
+		return
 	}
-	_, _ = fmt.Fprintln(d.output)
+
+	elapsed := time.Since(d.startTime)
+	allPassed := failed == 0 && timedOut == 0
+	rate := float64(passed) / float64(total) * 100
+
+	var b strings.Builder
+
+	b.WriteString(d.colors.Cyan("═══ "))
+
+	if allPassed {
+		b.WriteString(d.colors.Green("PASS"))
+	} else {
+		b.WriteString(d.colors.Red("FAIL"))
+	}
+
+	b.WriteString(fmt.Sprintf("  %d/%d  %.1f%%  %s", passed, total, rate, formatDurationShort(elapsed)))
+
+	if failed > 0 {
+		nicks := d.tests.FailedNicks()
+		b.WriteString(fmt.Sprintf("  %s %d [%s]", d.colors.Red("failed"), failed, strings.Join(nicks, ", ")))
+	}
+
+	if timedOut > 0 {
+		nicks := d.tests.TimedOutNicks()
+		b.WriteString(fmt.Sprintf("  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", ")))
+	}
+
+	d.println("")
+	d.println(b.String())
 }
 
 // PortInfo prints port allocation info.
@@ -298,10 +300,10 @@ func (d *Display) PortInfo(pr PortRange, shifted bool) {
 	}
 
 	if shifted {
-		_, _ = fmt.Fprintf(d.output, "%s %s (base in use, shifted)\n",
+		d.Printf("%s %s (base in use, shifted)\n",
 			d.colors.Yellow("ports:"), pr.String())
 	} else {
-		_, _ = fmt.Fprintf(d.output, "%s %s (%d tests)\n",
+		d.Printf("%s %s (%d tests)\n",
 			d.colors.Cyan("ports:"), pr.String(), pr.Count)
 	}
 }
@@ -313,7 +315,7 @@ func (d *Display) UlimitInfo(check *LimitCheck) {
 	}
 
 	if check.Raised {
-		_, _ = fmt.Fprintf(d.output, "%s raised to %d\n",
+		d.Printf("%s raised to %d\n",
 			d.colors.Yellow("ulimit:"), check.RaisedTo)
 	}
 }
@@ -326,16 +328,16 @@ func (d *Display) BuildStatus(building bool, err error) {
 
 	switch {
 	case building:
-		_, _ = fmt.Fprint(d.output, d.colors.Cyan("building...")+" ")
+		d.print(d.colors.Cyan("building...") + " ")
 	case err != nil:
-		_, _ = fmt.Fprintf(d.output, "%s %v\n", d.colors.Red("build failed:"), err)
+		d.Printf("%s %v\n", d.colors.Red("build failed:"), err)
 	default:
 		if d.colors.Enabled() {
 			// TTY: status updates will overwrite this line
-			_, _ = fmt.Fprint(d.output, d.colors.Green("ready")+" ")
+			d.print(d.colors.Green("ready") + " ")
 		} else {
 			// Non-TTY: end line since no status updates follow
-			_, _ = fmt.Fprintln(d.output, d.colors.Green("ready"))
+			d.println(d.colors.Green("ready"))
 		}
 	}
 }
@@ -344,16 +346,16 @@ func (d *Display) BuildStatus(building bool, err error) {
 func (d *Display) StressSummary(result *StressResult, count int) {
 	stats := result.Stats
 
-	_, _ = fmt.Fprintln(d.output)
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
-	_, _ = fmt.Fprintln(d.output, "STRESS TEST SUMMARY")
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
-	_, _ = fmt.Fprintf(d.output, "Iterations: %d\n\n", count)
+	d.println("")
+	d.println(d.colors.DoubleSeparator())
+	d.println("STRESS TEST SUMMARY")
+	d.println(d.colors.DoubleSeparator())
+	d.Printf("Iterations: %d\n\n", count)
 
 	// Per-test stats header
-	_, _ = fmt.Fprintf(d.output, "%-6s %6s %6s %6s %10s %10s %10s %7s\n",
+	d.Printf("%-6s %6s %6s %6s %10s %10s %10s %7s\n",
 		"Nick", "Pass", "Fail", "T/O", "Min", "Avg", "Max", "Rate")
-	_, _ = fmt.Fprintln(d.output, strings.Repeat("-", 75))
+	d.println(strings.Repeat("-", 75))
 
 	// Collect nicks in order
 	nicks := make([]string, 0, len(stats))
@@ -386,7 +388,7 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 			rateStr = d.colors.Red(fmt.Sprintf("%6.1f%%", rate))
 		}
 
-		_, _ = fmt.Fprintf(d.output, "%-6s %6d %6d %6d %10s %10s %10s %s\n",
+		d.Printf("%-6s %6d %6d %6d %10s %10s %10s %s\n",
 			nick,
 			s.Passed, s.Failed, s.TimedOut,
 			formatDuration(s.Min()),
@@ -395,11 +397,11 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 			rateStr)
 	}
 
-	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
+	d.println(d.colors.DoubleSeparator())
 
 	// Iteration timing summary
 	if len(result.IterationDurations) > 0 {
-		_, _ = fmt.Fprintf(d.output, "Iteration timing: min=%s avg=%s max=%s total=%s\n",
+		d.Printf("Iteration timing: min=%s avg=%s max=%s total=%s\n",
 			formatDuration(result.IterationMin()),
 			formatDuration(result.IterationAvg()),
 			formatDuration(result.IterationMax()),
@@ -410,10 +412,10 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 	total := totalPassed + totalFailed + totalTimedOut
 	if total > 0 {
 		rate := float64(totalPassed) / float64(total) * 100
-		_, _ = fmt.Fprintf(d.output, "Total: %d iterations, %d passed, %d failed, %d timed out (%.1f%% pass rate)\n",
+		d.Printf("Total: %d iterations, %d passed, %d failed, %d timed out (%.1f%% pass rate)\n",
 			total, totalPassed, totalFailed, totalTimedOut, rate)
 	}
-	_, _ = fmt.Fprintln(d.output)
+	d.println("")
 }
 
 // formatDuration formats a duration for display.

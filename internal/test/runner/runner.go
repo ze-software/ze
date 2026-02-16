@@ -94,7 +94,7 @@ type RunOptions struct {
 // DefaultRunOptions returns sensible defaults.
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
-		Timeout:  15 * time.Second,
+		Timeout:  20 * time.Second,
 		Parallel: DefaultParallelConcurrent,
 		Verbose:  false,
 		Quiet:    false,
@@ -131,6 +131,11 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		display:  NewDisplay(tests.Tests, colors),
 		report:   NewReport(colors),
 	}, nil
+}
+
+// Display returns the runner's display for summary output.
+func (r *Runner) Display() *Display {
+	return r.display
 }
 
 // Cleanup removes temporary files.
@@ -245,7 +250,6 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 
 	close(done)
 	r.display.Newline()
-	r.display.FinalStatus() // For non-TTY mode
 
 	// Print failure reports
 	if !allSuccess && !opts.Quiet {

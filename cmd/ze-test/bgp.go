@@ -218,6 +218,11 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 		return nil
 	}
 
+	// Section header
+	if !cli.quiet {
+		runner.PrintHeader(cli.command)
+	}
+
 	// Build ze
 	zePath, err := buildZe(ctx, baseDir)
 	if err != nil {
@@ -238,7 +243,6 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 // runEncodingOrAPI handles encode and API tests (original behavior).
 func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) error {
 	// Initialize
-	colors := runner.NewColors()
 	runner.ResetNickCounter()
 
 	// Discover tests first (needed for --server/--client modes)
@@ -263,16 +267,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		return runClientOnly(ctx, cli, tests, baseDir)
 	}
 
-	// Check ulimit (only for normal test runs)
-	limitCheck, err := runner.CheckUlimit(cli.parallel)
-	if err != nil {
-		return fmt.Errorf("ulimit check: %w", err)
-	}
-	if limitCheck.Raised && !cli.quiet {
-		fmt.Printf("%s raised to %d\n", colors.Yellow("ulimit:"), limitCheck.RaisedTo)
-	}
-
-	// Handle list mode
+	// Handle list mode (before any output)
 	if cli.list {
 		tests.List()
 		return nil
@@ -284,29 +279,6 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		}
 		fmt.Println()
 		return nil
-	}
-
-	// Allocate ports
-	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count())
-	if err != nil {
-		return fmt.Errorf("allocate ports: %w", err)
-	}
-
-	// Update test ports based on allocation
-	basePort := pr.Start
-	for _, r := range tests.Registered() {
-		r.Port = basePort
-		basePort++
-	}
-
-	if !cli.quiet {
-		if shifted {
-			fmt.Printf("%s %s (base %d in use, shifted)\n",
-				colors.Yellow("ports:"), pr.String(), cli.port)
-		} else {
-			fmt.Printf("%s %s (%d tests)\n",
-				colors.Cyan("ports:"), pr.String(), tests.Count())
-		}
 	}
 
 	// Select tests
@@ -339,6 +311,32 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 	defer r.Cleanup()
 
+	// Section header first, then all info within it
+	r.Display().SetLabel(cli.command)
+	r.Display().Header()
+
+	// Check ulimit
+	limitCheck, err := runner.CheckUlimit(cli.parallel)
+	if err != nil {
+		return fmt.Errorf("ulimit check: %w", err)
+	}
+	r.Display().UlimitInfo(limitCheck)
+
+	// Allocate ports
+	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count())
+	if err != nil {
+		return fmt.Errorf("allocate ports: %w", err)
+	}
+
+	// Update test ports based on allocation
+	basePort := pr.Start
+	for _, rr := range tests.Registered() {
+		rr.Port = basePort
+		basePort++
+	}
+
+	r.Display().PortInfo(pr, shifted)
+
 	// Build
 	if err := r.Build(ctx); err != nil {
 		return err
@@ -353,20 +351,17 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		SaveDir:  cli.saveDir,
 	}
 
-	// Print summary
-	display := runner.NewDisplay(tests.Tests, colors)
-	display.SetQuiet(cli.quiet)
-
+	// Run and print summary via runner's display (which tracks start time)
 	var success bool
 	if cli.count > 1 {
 		// Stress test mode
 		result := r.RunWithCount(ctx, opts, cli.count)
 		success = result.AllPassed
-		display.StressSummary(result, cli.count)
+		r.Display().StressSummary(result, cli.count)
 	} else {
 		// Normal mode
 		success = r.Run(ctx, opts)
-		display.Summary()
+		r.Display().Summary()
 	}
 
 	if !success {

@@ -441,18 +441,48 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 
 ## Display Output
 
-ExaBGP-style progress display:
+### Progress (during execution)
 
 ```
-timeout [5/30] running 4 passed 12 failed 2 [S, V]
+[5/20s] passed 12 running 4 [S:open, V:update] failed 2 [A, B]
 ```
 
 | Field | Meaning |
 |-------|---------|
-| `timeout [N/M]` | Longest running test: N seconds elapsed, M timeout |
-| `running N` | N tests currently executing |
+| `[N/Ms]` | Longest running test: N seconds elapsed, M timeout |
 | `passed N` | N tests passed |
+| `running N [IDs]` | N tests currently executing (names shown when <= 5) |
 | `failed N [IDs]` | N tests failed, with nicks |
+
+### Section Header
+
+Each test suite is framed by a section header:
+```
+═══════════════════════ encode ════════════════════════════════════════════════
+```
+
+### Summary (single line, parseable)
+
+On success:
+```
+═══ PASS  42/42  100.0%  3.2s
+```
+
+On failure:
+```
+═══ FAIL  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
+```
+
+| Field | Format | Meaning |
+|-------|--------|---------|
+| Verdict | `PASS` or `FAIL` | Green if all passed, red otherwise |
+| Ratio | `N/M` | Passed / total |
+| Rate | `N.N%` | Pass percentage |
+| Time | `N.Ns` or `Nms` | Wall-clock elapsed |
+| Failed | `failed N [nicks]` | Only shown when > 0, red |
+| Timeout | `timeout N [nicks]` | Only shown when > 0, yellow |
+
+**Regex for parsing:** `═══ (PASS|FAIL)\s+(\d+)/(\d+)\s+([0-9.]+%)\s+(\S+)`
 
 ### Stress Test Mode
 

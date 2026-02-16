@@ -76,33 +76,17 @@ test-all: lint test functional-all
 # Run functional tests (all types, continue on failure to show all results)
 functional: bin/ze bin/ze-test
 	@failed=0; \
-	echo "Running encode functional tests..."; \
 	bin/ze-test bgp encode --all || failed=$$((failed + 1)); \
-	echo ""; \
-	echo "Running plugin functional tests..."; \
 	bin/ze-test bgp plugin --all || failed=$$((failed + 1)); \
-	echo ""; \
-	echo "Running parse functional tests..."; \
 	bin/ze-test bgp parse --all || failed=$$((failed + 1)); \
-	echo ""; \
-	echo "Running decode functional tests..."; \
 	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
-	echo ""; \
-	echo "Running reload functional tests..."; \
 	bin/ze-test bgp reload --all || failed=$$((failed + 1)); \
-	echo ""; \
-	echo "Running editor functional tests..."; \
 	bin/ze-test editor || failed=$$((failed + 1)); \
-	echo ""; \
 	if [ $$failed -gt 0 ]; then \
-		echo "═══════════════════════════════════════════════════════════════════════════════"; \
-		echo "FUNCTIONAL TESTS: $$failed test suite(s) failed"; \
-		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+		printf "\n\033[31m═══ FAIL  %d suite(s) failed\033[0m\n\n" $$failed; \
 		exit 1; \
 	else \
-		echo "═══════════════════════════════════════════════════════════════════════════════"; \
-		echo "All functional tests passed"; \
-		echo "═══════════════════════════════════════════════════════════════════════════════"; \
+		printf "\n\033[32m═══ PASS  all suites\033[0m\n\n"; \
 	fi
 
 # Run all tests including ExaBGP compatibility (use before commits)
@@ -110,33 +94,27 @@ functional-all: functional functional-exabgp
 
 # Run encode functional tests
 functional-encode: bin/ze-test
-	@echo "Running encode functional tests..."
-	bin/ze-test bgp encode --all
+	@bin/ze-test bgp encode --all
 
 # Run plugin functional tests
 functional-plugin: bin/ze-test
-	@echo "Running plugin functional tests..."
-	bin/ze-test bgp plugin --all
+	@bin/ze-test bgp plugin --all
 
 # Run decode functional tests
 functional-decode: bin/ze-test
-	@echo "Running decode functional tests..."
-	bin/ze-test bgp decode --all
+	@bin/ze-test bgp decode --all
 
 # Run parse functional tests
 functional-parse: bin/ze-test
-	@echo "Running parse functional tests..."
-	bin/ze-test bgp parse --all
+	@bin/ze-test bgp parse --all
 
 # Run reload functional tests
 functional-reload: bin/ze-test
-	@echo "Running reload functional tests..."
-	bin/ze-test bgp reload --all
+	@bin/ze-test bgp reload --all
 
 # Run editor functional tests
 functional-editor: bin/ze-test
-	@echo "Running editor functional tests..."
-	bin/ze-test editor
+	@bin/ze-test editor
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
 functional-exabgp: bin/ze

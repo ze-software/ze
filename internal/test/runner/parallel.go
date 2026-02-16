@@ -28,6 +28,7 @@ type ParallelRunner[T any] struct {
 	colors  *Colors
 	quiet   bool
 	verbose bool
+	label   string         // test suite label for header
 	onFail  func(T, error) // Called for each failed test (for verbose output)
 }
 
@@ -46,6 +47,11 @@ func (r *ParallelRunner[T]) SetQuiet(quiet bool) {
 // SetVerbose enables verbose output for failures.
 func (r *ParallelRunner[T]) SetVerbose(verbose bool) {
 	r.verbose = verbose
+}
+
+// SetLabel sets the test suite label for the header.
+func (r *ParallelRunner[T]) SetLabel(label string) {
+	r.label = label
 }
 
 // SetOnFail sets the callback for failed tests.
@@ -84,6 +90,10 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	}
 
 	// Configure display
+	if r.label != "" {
+		r.display.SetLabel(r.label)
+		r.display.Header()
+	}
 	r.display.SetParallel(DefaultParallelConcurrent, len(r.tests))
 	r.display.Start()
 

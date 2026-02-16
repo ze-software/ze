@@ -468,7 +468,7 @@ func (ts *Tests) FailedRecords() []*Record {
 	return result
 }
 
-// FailedNicks returns nicks of failed tests.
+// FailedNicks returns nicks of failed tests (not including timed out).
 func (ts *Tests) FailedNicks() []string {
 	ts.mu.RLock()
 	defer ts.mu.RUnlock()
@@ -476,7 +476,22 @@ func (ts *Tests) FailedNicks() []string {
 	var result []string
 	for _, nick := range ts.ordered {
 		r := ts.byNick[nick]
-		if r.State == StateFail || r.State == StateTimeout {
+		if r.State == StateFail {
+			result = append(result, nick)
+		}
+	}
+	return result
+}
+
+// TimedOutNicks returns nicks of timed out tests.
+func (ts *Tests) TimedOutNicks() []string {
+	ts.mu.RLock()
+	defer ts.mu.RUnlock()
+
+	var result []string
+	for _, nick := range ts.ordered {
+		r := ts.byNick[nick]
+		if r.State == StateTimeout {
 			result = append(result, nick)
 		}
 	}

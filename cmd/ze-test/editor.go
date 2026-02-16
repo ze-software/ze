@@ -143,6 +143,7 @@ func runEditorTests(tests *runner.EditorTests, verbose, quiet bool) error {
 
 	// Create parallel runner with generic type for direct test access
 	pr := runner.NewParallelRunner[*runner.EditorTest](colors)
+	pr.SetLabel("editor")
 	pr.SetQuiet(quiet)
 	pr.SetVerbose(verbose)
 
