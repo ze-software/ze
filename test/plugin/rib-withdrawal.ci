@@ -55,12 +55,12 @@ def main() -> None:
 
     # Send one route
     send('bgp peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
-    time.sleep(0.3)
+    time.sleep(1.0)
     wait_for_ack(expected_count=1)
 
     # Withdraw the route
     send('bgp peer * update text nlri ipv4/unicast del 192.168.1.0/24')
-    time.sleep(0.3)
+    time.sleep(1.0)
     wait_for_ack(expected_count=1)
 
     # Wait for reconnect cycle to complete
