@@ -32,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/replay"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
 	"golang.org/x/term"
 )
@@ -77,10 +78,15 @@ func run(args []string) int {
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
 
-	// Replay/diff flags
+	// Replay/diff/shrink flags
 	replayFile := fs.String("replay", "", "Replay an event log through validation model")
 	diffFile1 := fs.String("diff", "", "First event log for comparison (requires --diff2)")
 	diffFile2 := fs.String("diff2", "", "Second event log for comparison")
+	shrinkFile := fs.String("shrink", "", "Shrink a failing event log to minimal reproduction")
+
+	// Property flags
+	properties := fs.String("properties", "", "Comma-sep property names, or 'all' (default: disabled), 'list' to show available")
+	convergenceDeadline := fs.Duration("convergence-deadline", 5*time.Second, "Convergence deadline for property checks")
 
 	// Control flags
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
@@ -128,6 +134,11 @@ Replay:
   --replay <path>            Replay event log through validation model
   --diff <path>              Compare two event logs (first log)
   --diff2 <path>             Compare two event logs (second log)
+  --shrink <path>            Shrink failing event log to minimal reproduction
+
+Properties:
+  --properties <names>       Comma-sep property names, 'all', or 'list'
+  --convergence-deadline <d> Deadline for convergence property (default: 5s)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -138,6 +149,20 @@ Control:
 
 	if err := fs.Parse(args); err != nil {
 		return 1
+	}
+
+	// List properties mode: show available properties and exit.
+	if *properties == "list" {
+		all := validation.AllProperties(2, *convergenceDeadline)
+		for _, line := range validation.ListProperties(all) {
+			fmt.Println(line)
+		}
+		return 0
+	}
+
+	// Shrink mode: minimize a failing event log.
+	if *shrinkFile != "" {
+		return runShrink(*shrinkFile, *convergenceDeadline, *verbose)
 	}
 
 	// Replay mode: feed recorded event log through validation model.
@@ -271,17 +296,19 @@ Control:
 		Warmup:   *warmup,
 	}
 	orchCfg := orchestratorConfig{
-		profiles:    profiles,
-		seed:        *seed,
-		localAddr:   *localAddr,
-		zePort:      *port,
-		verbose:     *verbose,
-		quiet:       *quiet,
-		start:       start,
-		chaosCfg:    chaosCfg,
-		zePID:       *zePID,
-		eventLog:    *eventLog,
-		metricsAddr: *metricsAddr,
+		profiles:            profiles,
+		seed:                *seed,
+		localAddr:           *localAddr,
+		zePort:              *port,
+		verbose:             *verbose,
+		quiet:               *quiet,
+		start:               start,
+		chaosCfg:            chaosCfg,
+		zePID:               *zePID,
+		eventLog:            *eventLog,
+		metricsAddr:         *metricsAddr,
+		properties:          *properties,
+		convergenceDeadline: *convergenceDeadline,
 	}
 	return runOrchestrator(ctx, orchCfg)
 }
@@ -310,11 +337,28 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	// Create validation components.
 	model := validation.NewModel(n)
 	tracker := validation.NewTracker(n)
-	convergence := validation.NewConvergence(n, 5*time.Second)
+	convergence := validation.NewConvergence(n, cfg.convergenceDeadline)
 	ep := &EventProcessor{
 		Model:       model,
 		Tracker:     tracker,
 		Convergence: convergence,
+	}
+
+	// Create property engine (nil when --properties is not set).
+	var propEngine *validation.PropertyEngine
+	if cfg.properties != "" {
+		all := validation.AllProperties(n, cfg.convergenceDeadline)
+		if cfg.properties == "all" {
+			propEngine = validation.NewPropertyEngine(all)
+		} else {
+			names := strings.Split(cfg.properties, ",")
+			selected, selErr := validation.SelectProperties(all, names)
+			if selErr != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", selErr)
+				return 1
+			}
+			propEngine = validation.NewPropertyEngine(selected)
+		}
 	}
 
 	// Set up reporting consumers based on CLI flags.
@@ -409,6 +453,9 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		}
 
 		ep.Process(ev)
+		if propEngine != nil {
+			propEngine.ProcessEvent(ev)
+		}
 		reporter.Process(ev)
 
 		if cfg.verbose && ev.Type == peer.EventError {
@@ -436,6 +483,17 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	convStats := convergence.Stats()
 	slow := convergence.CheckDeadline(time.Now())
 
+	// Collect property results (nil-safe: empty slice when engine not active).
+	var propResults []report.PropertyLine
+	if propEngine != nil {
+		for _, r := range propEngine.Results() {
+			propResults = append(propResults, report.PropertyLine{
+				Name: r.Name,
+				Pass: r.Pass,
+			})
+		}
+	}
+
 	// Build and print summary.
 	summary := report.Summary{
 		Seed:          cfg.seed,
@@ -455,6 +513,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		ChaosEvents:   ep.ChaosEvents,
 		Reconnections: ep.Reconnections,
 		Withdrawn:     ep.Withdrawn,
+		Properties:    propResults,
 	}
 
 	return summary.Write(os.Stderr)
@@ -606,6 +665,55 @@ func runReplay(path string) int {
 		}
 	}()
 	return replay.Run(f, os.Stderr)
+}
+
+// runShrink reads a failing event log and minimizes it to the smallest
+// subsequence that still triggers the same property violation.
+func runShrink(path string, deadline time.Duration, verbose bool) int {
+	f, err := os.Open(path) // #nosec G304 - path is from CLI flag
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening shrink file: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing shrink file: %v\n", err)
+		}
+	}()
+
+	meta, events, parseErr := shrink.ParseLog(f)
+	if parseErr != nil {
+		fmt.Fprintf(os.Stderr, "error: parsing event log: %v\n", parseErr)
+		return 2
+	}
+
+	cfg := shrink.Config{
+		PeerCount: meta.Peers,
+		Deadline:  deadline,
+	}
+	if verbose {
+		cfg.Verbose = os.Stderr
+	}
+
+	result, shrinkErr := shrink.Run(events, cfg)
+	if shrinkErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", shrinkErr)
+		return 1
+	}
+
+	// Print human-readable summary.
+	fmt.Fprintf(os.Stderr, "shrink: %d → %d events (%d iterations), property: %s\n",
+		result.Original, len(result.Events), result.Iterations, result.Property)
+	fmt.Fprintf(os.Stderr, "\nMinimal reproduction (%d steps):\n", len(result.Events))
+	for i, ev := range result.Events {
+		line := fmt.Sprintf("  %d. [peer %d] %s", i+1, ev.PeerIndex, ev.Type)
+		if ev.Prefix.IsValid() {
+			line += " " + ev.Prefix.String()
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+
+	return 0
 }
 
 // runDiff opens two event log files and reports the first divergence.

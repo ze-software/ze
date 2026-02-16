@@ -222,6 +222,78 @@ func TestSummaryIBGPEBGP(t *testing.T) {
 	assert.Contains(t, output, "3 eBGP")
 }
 
+// TestSummaryPropertiesOutput verifies per-property pass/fail lines in output.
+//
+// VALIDATES: Property lines appear with PASS/FAIL status when properties are set.
+// PREVENTS: Missing property results in summary output.
+func TestSummaryPropertiesOutput(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  30 * time.Second,
+		PeerCount: 4,
+		Announced: 100,
+		Received:  300,
+		Properties: []PropertyLine{
+			{Name: "route-consistency", Pass: true},
+			{Name: "message-ordering", Pass: false},
+		},
+	}
+
+	var buf bytes.Buffer
+	exitCode := s.Write(&buf)
+
+	output := buf.String()
+	assert.Equal(t, 1, exitCode, "failing property should produce exit code 1")
+	assert.Contains(t, output, "FAIL")
+	assert.Contains(t, output, "properties:")
+	assert.Contains(t, output, "route-consistency")
+	assert.Contains(t, output, "PASS")
+	assert.Contains(t, output, "message-ordering")
+}
+
+// TestSummaryPropertiesHiddenWhenEmpty verifies no properties section when empty.
+//
+// VALIDATES: No properties line when --properties not used.
+// PREVENTS: Noisy output when properties are disabled.
+func TestSummaryPropertiesHiddenWhenEmpty(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  50,
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.NotContains(t, output, "properties:")
+}
+
+// TestSummaryPropertiesAllPass verifies PASS when all properties pass.
+//
+// VALIDATES: All-pass properties still produce overall PASS.
+// PREVENTS: Property section causing false FAIL.
+func TestSummaryPropertiesAllPass(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  50,
+		Properties: []PropertyLine{
+			{Name: "route-consistency", Pass: true},
+			{Name: "no-duplicate-routes", Pass: true},
+		},
+	}
+
+	var buf bytes.Buffer
+	exitCode := s.Write(&buf)
+
+	assert.Equal(t, 0, exitCode, "all-pass properties should produce exit code 0")
+}
+
 // TestSummaryIBGPEBGPHidden verifies iBGP/eBGP line omitted when all same type.
 //
 // VALIDATES: No iBGP/eBGP line when all peers are the same type.

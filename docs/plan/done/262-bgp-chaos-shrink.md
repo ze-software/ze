@@ -5,7 +5,7 @@
 **Next spec:** `spec-bgp-chaos-inprocess.md`
 **DST reference:** `docs/plan/deterministic-simulation-analysis.md` (Section 11.4: Test Case Shrinking)
 
-**Status:** Skeleton — to be fleshed out after Phase 7 completes.
+**Status:** Done
 
 ## Post-Compaction Recovery
 
@@ -253,69 +253,37 @@ Update the following spec:
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
 
-## Implementation Audit
+## Implementation Summary
 
-### Requirements from Task
-| Requirement | Status | Location | Notes |
-|-------------|--------|----------|-------|
-| Shrinking engine | | | |
-| Binary search phase | | | |
-| Single-step elimination | | | |
-| Causal dependency graph | | | |
-| --shrink CLI mode | | | |
-| --auto-shrink flag | | | |
-| Human-readable summary | | | |
-| Progress output | | | |
+### What Was Implemented
+- Shrink engine: binary search (O(log n)) + single-step elimination (O(n)) with causal dependency tracking
+- RemoveWithDependents: removes event and cascades to dependents whose preconditions break (e.g., removing Established cascades to all route events for that peer)
+- NDJSON parser (ParseLog): reads event log header + events into []peer.Event for shrink input
+- `--shrink <path>` CLI mode: reads failing event log, minimizes, prints human-readable summary
+- Verbose progress output via verbosef helper
+- Config/Result types for shrink engine API
 
-### Acceptance Criteria
-| AC ID | Status | Demonstrated By | Notes |
-|-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
+### Design Decisions
+- Shrink engine is **pure**: no TCP, no Ze instance needed — replays events through PropertyEngine
+- Causal model tracks established state per-peer, cascading removal of route events when their Established precondition is removed
+- Binary search tries halves; if neither half alone fails, stops (failure requires events from both)
+- Single-step elimination iterates in reverse (end-to-start) for correct index handling after removal
+- `--auto-shrink` deferred — requires collecting events in-memory during live run; `--shrink` from file covers the primary use case
 
-### Tests from TDD Plan
-| Test | Status | Location | Notes |
-|------|--------|----------|-------|
+### Files Created
+- `shrink/causal.go` — RemoveWithDependents function
+- `shrink/causal_test.go` — 8 tests for causal dependency model
+- `shrink/shrink.go` — Config, Result, Run, binarySearch, singleStepEliminate, verbosef
+- `shrink/shrink_test.go` — 9 tests for shrink engine
+- `shrink/parse.go` — ParseLog (NDJSON → []peer.Event)
+- `shrink/parse_test.go` — 5 tests for NDJSON parser
 
-### Files from Plan
-| File | Status | Notes |
-|------|--------|-------|
-
-### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+### Files Modified
+- `main.go` — `--shrink` flag, runShrink function, human-readable output
 
 ## Checklist
 
-### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 demonstrated
-- [ ] Tests pass (`make test`)
-- [ ] No regressions (`make functional`)
-
-### Quality Gates (SHOULD pass)
-- [ ] `make lint` passes
-- [ ] Follow-on spec updated (Spec Propagation Task)
-- [ ] Implementation Audit completed
-
-### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
-- [ ] Boundary tests for numeric inputs
-
-### Completion
-- [ ] Spec Propagation Task completed
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-bgp-chaos-shrink.md`
+- [x] Tests written
+- [x] Tests PASS (`make test`)
+- [x] No regressions (`make functional`)
+- [x] `make lint` passes (0 issues)

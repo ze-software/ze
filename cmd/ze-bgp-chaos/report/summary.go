@@ -7,6 +7,12 @@ import (
 	"time"
 )
 
+// PropertyLine holds per-property pass/fail for the summary.
+type PropertyLine struct {
+	Name string
+	Pass bool
+}
+
 // Summary holds all metrics for the final exit report.
 type Summary struct {
 	Seed      uint64
@@ -32,11 +38,22 @@ type Summary struct {
 	ChaosEvents   int
 	Reconnections int
 	Withdrawn     int
+
+	// Property check results (empty when --properties not used).
+	Properties []PropertyLine
 }
 
 // Pass returns true when there are no validation failures.
 func (s *Summary) Pass() bool {
-	return s.Missing == 0 && s.Extra == 0 && s.SlowRoutes == 0
+	if s.Missing != 0 || s.Extra != 0 || s.SlowRoutes != 0 {
+		return false
+	}
+	for _, p := range s.Properties {
+		if !p.Pass {
+			return false
+		}
+	}
+	return true
 }
 
 // reportWriter wraps an io.Writer and tracks the first error.
@@ -88,6 +105,17 @@ func (s *Summary) Write(w io.Writer) int {
 	if s.ChaosEvents > 0 {
 		rw.printf("  chaos: %d events, %d reconnections, %d withdrawn\n",
 			s.ChaosEvents, s.Reconnections, s.Withdrawn)
+	}
+
+	if len(s.Properties) > 0 {
+		rw.printf("  properties:\n")
+		for _, p := range s.Properties {
+			status := "PASS"
+			if !p.Pass {
+				status = "FAIL"
+			}
+			rw.printf("    %-25s %s\n", p.Name, status)
+		}
 	}
 
 	rw.printf("  result: %s\n", verdict)

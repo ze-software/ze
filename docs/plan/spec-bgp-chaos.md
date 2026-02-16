@@ -1,7 +1,7 @@
 # Spec: bgp-chaos (Master Design Document)
 
 **This is the master architecture document. It is NOT an active implementation spec.**
-**Implementation is split into 9 sub-specs, worked sequentially:**
+**Implementation is split into 10 sub-specs, worked sequentially:**
 
 | # | Spec | Status | Focus |
 |---|------|--------|-------|
@@ -11,12 +11,14 @@
 | 4 | `spec-bgp-chaos-families.md` | Done (258) | Multi-family support |
 | 5 | `spec-bgp-chaos-reporting.md` | Done | Dashboard, JSON log, Prometheus |
 | 6 | `spec-bgp-chaos-eventlog.md` | Done | Replayable event log |
-| 7 | `spec-bgp-chaos-properties.md` | Skeleton | RFC property assertions |
-| 8 | `spec-bgp-chaos-shrink.md` | Skeleton | Test case minimization |
-| 9 | `spec-bgp-chaos-inprocess.md` | Skeleton | In-process mode (DST bridge) |
+| 7 | `spec-bgp-chaos-properties.md` | Done (261) | RFC property assertions |
+| 8 | `spec-bgp-chaos-shrink.md` | Done (262) | Test case minimization |
+| 9 | `spec-bgp-chaos-inprocess.md` | Blocked | In-process mode (requires Ze Clock/Network abstractions) |
+| 10 | `spec-bgp-chaos-integration.md` | Blocked | End-to-end Ze testing (depends on Phase 9) |
 
 **Phases 1-5:** Core chaos tool (external, black-box TCP testing)
 **Phases 6-9:** DST bridge (toward deterministic simulation, see `deterministic-simulation-analysis.md`)
+**Phase 10:** Integration — `--managed` mode, `make functional-chaos`, smoke tests against real Ze
 
 **Dependencies:** Phase 9 requires Ze clock + network abstractions (implemented separately)
 

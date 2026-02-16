@@ -24,17 +24,19 @@ type ChaosConfig struct {
 
 // orchestratorConfig holds all parameters for runOrchestrator.
 type orchestratorConfig struct {
-	profiles    []scenario.PeerProfile
-	seed        uint64
-	localAddr   string
-	zePort      int
-	verbose     bool
-	quiet       bool
-	start       time.Time
-	chaosCfg    ChaosConfig
-	zePID       int
-	eventLog    string
-	metricsAddr string
+	profiles            []scenario.PeerProfile
+	seed                uint64
+	localAddr           string
+	zePort              int
+	verbose             bool
+	quiet               bool
+	start               time.Time
+	chaosCfg            ChaosConfig
+	zePID               int
+	eventLog            string
+	metricsAddr         string
+	properties          string
+	convergenceDeadline time.Duration
 }
 
 // establishedState tracks which peers are currently in Established state.
