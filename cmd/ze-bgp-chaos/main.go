@@ -29,6 +29,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/replay"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
@@ -71,10 +72,15 @@ func run(args []string) int {
 
 	// Output flags
 	configOut := fs.String("config-out", "", "Write Ze config here (default: stdout before start)")
-	eventFile := fs.String("event-file", "", "JSON event file")
+	eventLog := fs.String("event-log", "", "NDJSON event log file")
 	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
+
+	// Replay/diff flags
+	replayFile := fs.String("replay", "", "Replay an event log through validation model")
+	diffFile1 := fs.String("diff", "", "First event log for comparison (requires --diff2)")
+	diffFile2 := fs.String("diff2", "", "Second event log for comparison")
 
 	// Control flags
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
@@ -113,10 +119,15 @@ Network:
 
 Output:
   --config-out <path>        Write Ze config here (default: stdout before start)
-  --event-file <path>        JSON event file
+  --event-log <path>         NDJSON event log file (replayable)
   --metrics <addr:port>      Prometheus metrics endpoint
   --quiet                    Only errors and summary
   --verbose                  Extra debug output
+
+Replay:
+  --replay <path>            Replay event log through validation model
+  --diff <path>              Compare two event logs (first log)
+  --diff2 <path>             Compare two event logs (second log)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -127,6 +138,20 @@ Control:
 
 	if err := fs.Parse(args); err != nil {
 		return 1
+	}
+
+	// Replay mode: feed recorded event log through validation model.
+	if *replayFile != "" {
+		return runReplay(*replayFile)
+	}
+
+	// Diff mode: compare two event logs.
+	if *diffFile1 != "" {
+		if *diffFile2 == "" {
+			fmt.Fprintf(os.Stderr, "error: --diff requires --diff2\n")
+			return 1
+		}
+		return runDiff(*diffFile1, *diffFile2)
 	}
 
 	// Validate peer count.
@@ -255,7 +280,7 @@ Control:
 		start:       start,
 		chaosCfg:    chaosCfg,
 		zePID:       *zePID,
-		eventFile:   *eventFile,
+		eventLog:    *eventLog,
 		metricsAddr: *metricsAddr,
 	}
 	return runOrchestrator(ctx, orchCfg)
@@ -451,13 +476,18 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, fu
 		consumers = append(consumers, dash)
 	}
 
-	// NDJSON event log: enabled when --event-file is set.
-	if cfg.eventFile != "" {
-		f, err := os.Create(cfg.eventFile)
+	// NDJSON event log: enabled when --event-log is set.
+	if cfg.eventLog != "" {
+		f, err := os.Create(cfg.eventLog)
 		if err != nil {
-			return nil, nil, fmt.Errorf("opening event file %s: %w", cfg.eventFile, err)
+			return nil, nil, fmt.Errorf("opening event file %s: %w", cfg.eventLog, err)
 		}
-		jlog := report.NewJSONLog(f)
+		jlog := report.NewJSONLog(f, report.JSONLogConfig{
+			Start:     cfg.start,
+			Seed:      cfg.seed,
+			Peers:     peerCount,
+			ChaosRate: cfg.chaosCfg.Rate,
+		})
 		consumers = append(consumers, jlog)
 		cleanups = append(cleanups, func() {
 			if err := f.Close(); err != nil {
@@ -561,4 +591,46 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			}
 		}
 	}
+}
+
+// runReplay opens an event log file and replays it through the validation model.
+func runReplay(path string) int {
+	f, err := os.Open(path) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening replay file: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing replay file: %v\n", err)
+		}
+	}()
+	return replay.Run(f, os.Stderr)
+}
+
+// runDiff opens two event log files and reports the first divergence.
+func runDiff(path1, path2 string) int {
+	f1, err := os.Open(path1) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening diff file 1: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f1.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing diff file 1: %v\n", err)
+		}
+	}()
+
+	f2, err := os.Open(path2) // #nosec G304 - path is from CLI flag, not user-controlled web input
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: opening diff file 2: %v\n", err)
+		return 2
+	}
+	defer func() {
+		if err := f2.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: closing diff file 2: %v\n", err)
+		}
+	}()
+
+	return replay.Diff(f1, f2, os.Stderr)
 }

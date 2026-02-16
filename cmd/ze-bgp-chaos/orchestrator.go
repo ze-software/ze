@@ -33,7 +33,7 @@ type orchestratorConfig struct {
 	start       time.Time
 	chaosCfg    ChaosConfig
 	zePID       int
-	eventFile   string
+	eventLog    string
 	metricsAddr string
 }
 

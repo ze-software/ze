@@ -10,7 +10,7 @@
 | 3 | `spec-bgp-chaos-chaos.md` | Done (257) | Chaos event injection |
 | 4 | `spec-bgp-chaos-families.md` | Done (258) | Multi-family support |
 | 5 | `spec-bgp-chaos-reporting.md` | Done | Dashboard, JSON log, Prometheus |
-| 6 | `spec-bgp-chaos-eventlog.md` | Skeleton | Replayable event log |
+| 6 | `spec-bgp-chaos-eventlog.md` | Done | Replayable event log |
 | 7 | `spec-bgp-chaos-properties.md` | Skeleton | RFC property assertions |
 | 8 | `spec-bgp-chaos-shrink.md` | Skeleton | Test case minimization |
 | 9 | `spec-bgp-chaos-inprocess.md` | Skeleton | In-process mode (DST bridge) |
