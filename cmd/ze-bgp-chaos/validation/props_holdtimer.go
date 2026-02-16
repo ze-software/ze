@@ -35,12 +35,16 @@ func (p *HoldTimerEnforcement) Description() string {
 func (p *HoldTimerEnforcement) RFC() string { return "RFC 4271 Section 4.4" }
 
 func (p *HoldTimerEnforcement) ProcessEvent(ev peer.Event) {
-	switch ev.Type { //nolint:exhaustive // only chaos-executed and disconnected are relevant
+	switch ev.Type { //nolint:exhaustive // only chaos-executed, disconnected, and established are relevant
 	case peer.EventChaosExecuted:
 		if ev.ChaosAction == "hold-timer-expiry" {
 			p.pendingExpiry[ev.PeerIndex] = ev.Time
 		}
 	case peer.EventDisconnected:
+		delete(p.pendingExpiry, ev.PeerIndex)
+	case peer.EventEstablished:
+		// Defensive: clear any stale pending expiry on re-establishment.
+		// This handles edge cases where a disconnect event was lost.
 		delete(p.pendingExpiry, ev.PeerIndex)
 	}
 }

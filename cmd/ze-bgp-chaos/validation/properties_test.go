@@ -145,6 +145,19 @@ func TestNoDuplicateRoutesAfterDisconnect(t *testing.T) {
 	assert.Empty(t, p.Violations())
 }
 
+// TestNoDuplicateRoutesAfterWithdrawal verifies that re-announce after withdrawal is allowed.
+//
+// VALIDATES: Withdrawal clears the announced state for a prefix.
+// PREVENTS: False duplicate violation after explicit withdrawal.
+func TestNoDuplicateRoutesAfterWithdrawal(t *testing.T) {
+	p := NewNoDuplicateRoutes(2)
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t0})
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteWithdrawn, PeerIndex: 0, Prefix: prefix1, Time: t1})
+	p.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Prefix: prefix1, Time: t2}) // re-announce after withdrawal
+
+	assert.Empty(t, p.Violations())
+}
+
 // --- HoldTimerEnforcement ---
 
 // TestHoldTimerEnforcementPass verifies no violation when session tears down after hold-timer chaos.
@@ -181,6 +194,19 @@ func TestHoldTimerEnforcementFail(t *testing.T) {
 func TestHoldTimerIgnoresOtherChaos(t *testing.T) {
 	p := NewHoldTimerEnforcement(2)
 	p.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, ChaosAction: "tcp-disconnect", Time: t0})
+
+	assert.Empty(t, p.Violations())
+}
+
+// TestHoldTimerClearedOnReEstablished verifies that re-establishment clears stale pending expiry.
+//
+// VALIDATES: EventEstablished defensively clears pending hold-timer expiry.
+// PREVENTS: Stale violations when disconnect event was lost but peer re-establishes.
+func TestHoldTimerClearedOnReEstablished(t *testing.T) {
+	p := NewHoldTimerEnforcement(2)
+	p.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, ChaosAction: "hold-timer-expiry", Time: t0})
+	// No disconnect observed, but peer re-establishes (implies disconnect happened).
+	p.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: t1})
 
 	assert.Empty(t, p.Violations())
 }

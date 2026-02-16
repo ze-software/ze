@@ -127,6 +127,33 @@ func TestParseLogAllEventTypes(t *testing.T) {
 	assert.Equal(t, "disconnect", events[7].ChaosAction)
 }
 
+// TestParseLogBadStartTime verifies error on malformed start-time in header.
+//
+// VALIDATES: Invalid start-time produces descriptive error instead of silent fallback.
+// PREVENTS: Non-deterministic replay when start-time defaults to time.Now().
+func TestParseLogBadStartTime(t *testing.T) {
+	input := `{"record-type":"header","version":1,"seed":1,"peers":2,"chaos-rate":0,"start-time":"not-a-time"}
+{"record-type":"event","seq":1,"time-offset-ms":0,"event-type":"established","peer-index":0}
+`
+	_, _, err := ParseLog(strings.NewReader(input))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing start-time")
+}
+
+// TestParseLogBadPrefix verifies error on malformed prefix in event.
+//
+// VALIDATES: Invalid CIDR prefix produces descriptive error with seq number.
+// PREVENTS: Silent zero-value prefix from malformed event log data.
+func TestParseLogBadPrefix(t *testing.T) {
+	input := `{"record-type":"header","version":1,"seed":1,"peers":2,"chaos-rate":0,"start-time":"2024-01-01T00:00:00Z"}
+{"record-type":"event","seq":1,"time-offset-ms":0,"event-type":"route-sent","peer-index":0,"prefix":"not-a-cidr"}
+`
+	_, _, err := ParseLog(strings.NewReader(input))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing prefix")
+	assert.Contains(t, err.Error(), "seq 1")
+}
+
 // TestParseLogReadError verifies that I/O errors during event scanning are reported.
 //
 // VALIDATES: scanner.Err() is checked after the scan loop.

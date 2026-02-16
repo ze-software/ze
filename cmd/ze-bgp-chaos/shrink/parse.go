@@ -79,7 +79,7 @@ func ParseLog(r io.Reader) (*LogMeta, []peer.Event, error) {
 
 	startTime, err := time.Parse(time.RFC3339Nano, hdr.StartTime)
 	if err != nil {
-		startTime = time.Now()
+		return nil, nil, fmt.Errorf("parsing start-time %q: %w", hdr.StartTime, err)
 	}
 
 	meta := &LogMeta{
@@ -109,7 +109,11 @@ func ParseLog(r io.Reader) (*LogMeta, []peer.Event, error) {
 
 		var prefix netip.Prefix
 		if ev.Prefix != "" {
-			prefix, _ = netip.ParsePrefix(ev.Prefix)
+			var pfxErr error
+			prefix, pfxErr = netip.ParsePrefix(ev.Prefix)
+			if pfxErr != nil {
+				return nil, nil, fmt.Errorf("parsing prefix %q at seq %d: %w", ev.Prefix, ev.Seq, pfxErr)
+			}
 		}
 
 		events = append(events, peer.Event{

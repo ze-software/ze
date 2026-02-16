@@ -129,6 +129,9 @@ func newEngine(cfg Config) *validation.PropertyEngine {
 func binarySearch(events []peer.Event, property string, cfg Config) ([]peer.Event, int) {
 	iterations := 0
 
+	// 3 is the minimum viable event set for most violations
+	// (e.g., Established(peer0) + Established(peer1) + RouteSent).
+	// Below this threshold, binary search cannot meaningfully halve.
 	for len(events) > 3 {
 		mid := len(events) / 2
 

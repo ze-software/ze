@@ -35,7 +35,7 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 	if ev.PeerIndex < 0 || ev.PeerIndex >= p.n {
 		return
 	}
-	switch ev.Type { //nolint:exhaustive // only route-sent and disconnected are relevant
+	switch ev.Type { //nolint:exhaustive // only route-sent, route-withdrawn, and disconnected are relevant
 	case peer.EventRouteSent:
 		if p.announced[ev.PeerIndex][ev.Prefix] {
 			p.violations = append(p.violations, Violation{
@@ -46,6 +46,8 @@ func (p *NoDuplicateRoutes) ProcessEvent(ev peer.Event) {
 			})
 		}
 		p.announced[ev.PeerIndex][ev.Prefix] = true
+	case peer.EventRouteWithdrawn:
+		delete(p.announced[ev.PeerIndex], ev.Prefix)
 	case peer.EventDisconnected:
 		p.announced[ev.PeerIndex] = make(map[netip.Prefix]bool)
 	}

@@ -155,7 +155,7 @@ func (s *Scheduler) selectAction() ChaosAction {
 
 // establishedPeers returns indices of peers that are currently established.
 func (s *Scheduler) establishedPeers(established []bool) []int {
-	var peers []int
+	peers := make([]int, 0, len(established))
 	for i, est := range established {
 		if est {
 			peers = append(peers, i)

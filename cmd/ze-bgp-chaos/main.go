@@ -191,6 +191,12 @@ Control:
 		return runReplay(*replayFile)
 	}
 
+	// Validate --diff2 requires --diff.
+	if *diffFile2 != "" && *diffFile1 == "" {
+		fmt.Fprintf(os.Stderr, "error: --diff2 requires --diff\n")
+		return 1
+	}
+
 	// Diff mode: compare two event logs.
 	if *diffFile1 != "" {
 		if *diffFile2 == "" {
@@ -677,6 +683,10 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 				select {
 				case channels[a.PeerIndex] <- a.Action:
 				default:
+					if !quiet {
+						fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | dropped %s for peer %d (busy)\n",
+							a.Action.Type, a.PeerIndex)
+					}
 				}
 			}
 		}
