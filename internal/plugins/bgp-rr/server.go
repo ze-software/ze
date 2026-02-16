@@ -18,6 +18,19 @@ import (
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
 
+// Event type constants matching ze-bgp message.type values.
+//
+// Note: The engine also sends "borr" (Beginning of Route Refresh, RFC 7313 subtype 1)
+// and "eorr" (End of Route Refresh, RFC 7313 subtype 2) as message.type values.
+// These are intentionally not handled — a forward-all route server does not need
+// to track refresh cycle boundaries. Only standard refresh is forwarded.
+const (
+	eventUpdate  = "update"
+	eventState   = "state"
+	eventOpen    = "open"
+	eventRefresh = "refresh"
+)
+
 // loggerPtr is the package-level logger, disabled by default.
 // Stored as atomic.Pointer to avoid data races when tests start
 // multiple in-process plugin instances concurrently.
@@ -77,7 +90,11 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rr sees every event from the very first route.
-	p.SetStartupSubscriptions([]string{"update", "state", "open", "refresh"}, nil, "")
+	//
+	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)
+	// because the engine maps all TypeROUTEREFRESH wire messages to the "refresh"
+	// subscription type. These subtypes are silently ignored by dispatch().
+	p.SetStartupSubscriptions([]string{eventUpdate, eventState, eventOpen, eventRefresh}, nil, "")
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
@@ -105,66 +122,82 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 }
 
 // dispatch routes an event to the appropriate handler.
+//
+// Events with unrecognised types are silently ignored. This includes "borr" and "eorr"
+// (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
+// subscription but encodes with distinct message.type values. A forward-all route server
+// has no use for refresh-cycle boundaries — it only forwards standard refresh requests.
 func (rs *RouteServer) dispatch(event *Event) {
 	switch event.Type {
-	case "update":
+	case eventUpdate:
 		rs.handleUpdate(event)
-	case "state":
+	case eventState:
 		rs.handleState(event)
-	case "refresh":
+	case eventRefresh:
 		rs.handleRefresh(event)
-	case "open":
+	case eventOpen:
 		rs.handleOpen(event)
 	}
 }
 
 // handleUpdate processes UPDATE events (announcements and withdrawals).
+// Parses ze-bgp JSON family operations: {"ipv4/unicast": [{"action":"add","nlri":[...]}]}.
 func (rs *RouteServer) handleUpdate(event *Event) {
-	peerAddr := event.Peer.Address.Peer
+	peerAddr := event.PeerAddr
 	msgID := event.MsgID
 
-	// Validate input
 	if peerAddr == "" {
-		return // Ignore events with empty peer address
-	}
-
-	if event.Message == nil || event.Message.Update == nil {
 		return
 	}
 
-	update := event.Message.Update
+	if len(event.FamilyOps) == 0 {
+		return
+	}
 
-	// Collect families in this UPDATE
 	families := make(map[string]bool)
 
-	// Process announcements
-	for family, nexthops := range update.Announce {
+	for family, ops := range event.FamilyOps {
 		families[family] = true
-		for _, prefixes := range nexthops {
-			prefixMap, ok := prefixes.(map[string]any)
-			if !ok {
-				continue
-			}
-			for prefix := range prefixMap {
-				rs.rib.Insert(peerAddr, &Route{
-					MsgID:  msgID,
-					Family: family,
-					Prefix: prefix,
-				})
+		for _, op := range ops {
+			switch op.Action {
+			case "add":
+				for _, n := range op.NLRIs {
+					prefix := nlriToPrefix(n)
+					if prefix != "" {
+						rs.rib.Insert(peerAddr, &Route{
+							MsgID:  msgID,
+							Family: family,
+							Prefix: prefix,
+						})
+					}
+				}
+			case "del":
+				for _, n := range op.NLRIs {
+					prefix := nlriToPrefix(n)
+					if prefix != "" {
+						rs.rib.Remove(peerAddr, family, prefix)
+					}
+				}
 			}
 		}
 	}
 
-	// Process withdrawals
-	for family, prefixes := range update.Withdraw {
-		families[family] = true
-		for _, prefix := range prefixes {
-			rs.rib.Remove(peerAddr, family, prefix)
-		}
-	}
-
-	// Forward to compatible peers
 	rs.forwardUpdate(peerAddr, msgID, families)
+}
+
+// nlriToPrefix extracts a prefix string from an NLRI value.
+// Simple NLRIs are strings ("10.0.0.0/24"). Complex NLRIs (ADD-PATH, VPN)
+// are objects with a "prefix" field ({"prefix":"10.0.0.0/24","path-id":1}).
+func nlriToPrefix(n any) string {
+	switch v := n.(type) {
+	case string:
+		return v
+	case map[string]any:
+		if p, ok := v["prefix"].(string); ok {
+			return p
+		}
+	}
+	return ""
 }
 
 // forwardUpdate sends UPDATE to peers that support the given families.
@@ -199,9 +232,14 @@ func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families m
 }
 
 // handleState processes peer state changes.
+// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}.
 func (rs *RouteServer) handleState(event *Event) {
-	peerAddr := event.Peer.Address.Peer
-	state := event.Peer.State
+	peerAddr := event.PeerAddr
+	state := event.State
+
+	if peerAddr == "" {
+		return
+	}
 
 	rs.mu.Lock()
 	if rs.peers[peerAddr] == nil {
@@ -220,10 +258,8 @@ func (rs *RouteServer) handleState(event *Event) {
 
 // handleStateDown processes peer session teardown.
 func (rs *RouteServer) handleStateDown(peerAddr string) {
-	// Get and clear all routes from this peer
 	routes := rs.rib.ClearPeer(peerAddr)
 
-	// Send withdrawals for each route to other peers using update text syntax
 	for _, route := range routes {
 		rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
 	}
@@ -231,20 +267,17 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 
 // handleStateUp processes peer session establishment.
 func (rs *RouteServer) handleStateUp(peerAddr string) {
-	// Get peer's supported families
 	rs.mu.RLock()
 	peer := rs.peers[peerAddr]
 	rs.mu.RUnlock()
 
-	// Replay all routes from other peers to this peer
 	allPeers := rs.rib.GetAllPeers()
 
 	for sourcePeer, routes := range allPeers {
 		if sourcePeer == peerAddr {
-			continue // Don't send peer's own routes back
+			continue
 		}
 		for _, route := range routes {
-			// Filter by family if peer has capability info
 			if peer != nil && peer.Families != nil && !peer.SupportsFamily(route.Family) {
 				continue
 			}
@@ -254,8 +287,9 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.
+// ze-bgp JSON capabilities are objects: [{"code":1,"name":"multiprotocol","value":"ipv4/unicast"}].
 func (rs *RouteServer) handleOpen(event *Event) {
-	peerAddr := event.Peer.Address.Peer
+	peerAddr := event.PeerAddr
 	if peerAddr == "" {
 		return
 	}
@@ -268,56 +302,47 @@ func (rs *RouteServer) handleOpen(event *Event) {
 	}
 	peer := rs.peers[peerAddr]
 
-	// Store ASN
-	peer.ASN = event.Peer.ASN.Peer
+	peer.ASN = event.PeerASN
 
-	// Store capabilities and extract families from capability strings
 	if event.Open != nil {
 		peer.Capabilities = make(map[string]bool)
 		peer.Families = make(map[string]bool)
 
 		for _, cap := range event.Open.Capabilities {
-			// New format: "<code> <name> <value>" (e.g., "1 multiprotocol ipv4/unicast")
-			parts := strings.Fields(cap)
-			if len(parts) < 2 {
-				continue
-			}
-			// parts[0] is code (numeric), parts[1] is name
-			name := parts[1]
-			peer.Capabilities[name] = true
+			peer.Capabilities[cap.Name] = true
 
-			// Extract family from multiprotocol capability
-			// Format: "1 multiprotocol ipv4/unicast"
-			if name == "multiprotocol" && len(parts) > 2 {
-				peer.Families[parts[2]] = true
+			if cap.Name == "multiprotocol" && cap.Value != "" {
+				peer.Families[cap.Value] = true
 			}
 		}
 	}
 }
 
 // handleRefresh processes route refresh requests.
+// ze-bgp JSON: AFI/SAFI nested under refresh object.
 func (rs *RouteServer) handleRefresh(event *Event) {
-	peerAddr := event.Peer.Address.Peer
-	afi := event.AFI
-	safi := event.SAFI
-	family := afi + "/" + safi
+	peerAddr := event.PeerAddr
+	family := event.AFI + "/" + event.SAFI
+
+	if peerAddr == "" {
+		return
+	}
 
 	rs.mu.RLock()
 	defer rs.mu.RUnlock()
 
-	// Request refresh from peers that support route-refresh and the family
 	for addr, peer := range rs.peers {
 		if addr == peerAddr {
-			continue // Don't request from requesting peer
+			continue
 		}
 		if !peer.Up {
-			continue // Skip down peers
+			continue
 		}
 		if !peer.HasCapability("route-refresh") {
-			continue // Skip peers without route-refresh
+			continue
 		}
 		if peer.Families != nil && !peer.SupportsFamily(family) {
-			continue // Skip peers that don't support this family
+			continue
 		}
 
 		rs.updateRoute(addr, "refresh "+family)
@@ -355,66 +380,157 @@ func (rs *RouteServer) peersJSON() string {
 	return string(data)
 }
 
-// parseEvent parses a JSON event from ze.
+// --- Event parsing ---
+
+// parseEvent parses a ze-bgp JSON event from the engine.
+// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},...}}.
+// Event type comes from message.type inside the bgp wrapper, NOT from the top-level type.
 func parseEvent(data []byte) (*Event, error) {
-	var event Event
-	if err := json.Unmarshal(data, &event); err != nil {
-		return nil, err
+	// Step 1: Unwrap ze-bgp envelope {"type":"bgp","bgp":{...}}
+	var wrapper struct {
+		Type string          `json:"type"`
+		BGP  json.RawMessage `json:"bgp"`
 	}
-	return &event, nil
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return nil, fmt.Errorf("unmarshal envelope: %w", err)
+	}
+
+	payload := data
+	if wrapper.Type == "bgp" && len(wrapper.BGP) > 0 {
+		payload = wrapper.BGP
+	}
+
+	// Step 2: Parse bgp-level fields (message metadata, peer, event-specific data)
+	var bgp struct {
+		Message *messageInfo    `json:"message"`
+		Peer    peerFlat        `json:"peer"`
+		State   string          `json:"state"`
+		Update  json.RawMessage `json:"update"`
+		Open    json.RawMessage `json:"open"`
+		Refresh json.RawMessage `json:"refresh"`
+	}
+	if err := json.Unmarshal(payload, &bgp); err != nil {
+		return nil, fmt.Errorf("unmarshal payload: %w", err)
+	}
+
+	event := &Event{
+		PeerAddr: bgp.Peer.Address,
+		PeerASN:  bgp.Peer.ASN,
+		State:    bgp.State,
+	}
+
+	// Determine event type from message.type
+	if bgp.Message != nil {
+		event.Type = bgp.Message.Type
+		event.MsgID = bgp.Message.ID
+	}
+
+	// Step 3: Parse event-specific data
+	switch event.Type {
+	case eventUpdate:
+		if len(bgp.Update) > 0 {
+			parseUpdateData(event, bgp.Update)
+		}
+	case eventOpen:
+		if len(bgp.Open) > 0 {
+			var openInfo OpenInfo
+			if err := json.Unmarshal(bgp.Open, &openInfo); err == nil {
+				event.Open = &openInfo
+			}
+		}
+	case eventRefresh:
+		if len(bgp.Refresh) > 0 {
+			var refresh struct {
+				AFI  string `json:"afi"`
+				SAFI string `json:"safi"`
+			}
+			if err := json.Unmarshal(bgp.Refresh, &refresh); err == nil {
+				event.AFI = refresh.AFI
+				event.SAFI = refresh.SAFI
+			}
+		}
+	}
+
+	return event, nil
 }
 
-// Event represents a JSON event from ze.
+// parseUpdateData extracts family operations from the UPDATE payload.
+// ze-bgp JSON: {"attr":{...},"nlri":{"ipv4/unicast":[{"action":"add","nlri":[...]}]}}.
+func parseUpdateData(event *Event, data json.RawMessage) {
+	var update struct {
+		NLRI json.RawMessage `json:"nlri"`
+	}
+	if err := json.Unmarshal(data, &update); err != nil || len(update.NLRI) == 0 {
+		return
+	}
+
+	var familyMap map[string]json.RawMessage
+	if err := json.Unmarshal(update.NLRI, &familyMap); err != nil {
+		return
+	}
+
+	event.FamilyOps = make(map[string][]FamilyOperation, len(familyMap))
+	for family, opsData := range familyMap {
+		if !strings.Contains(family, "/") {
+			continue
+		}
+		var ops []FamilyOperation
+		if err := json.Unmarshal(opsData, &ops); err == nil {
+			event.FamilyOps[family] = ops
+		}
+	}
+}
+
+// --- Event types ---
+
+// Event represents a parsed ze-bgp JSON event.
+// Fields are extracted from the nested ze-bgp format during parseEvent.
 type Event struct {
-	Type    string       `json:"type"`
-	MsgID   uint64       `json:"msg-id"`
-	Peer    PeerInfo     `json:"peer"`
-	Message *MessageInfo `json:"message,omitempty"`
-	AFI     string       `json:"afi,omitempty"`
-	SAFI    string       `json:"safi,omitempty"`
-	// Request fields
-	Serial  string `json:"serial,omitempty"`
-	Command string `json:"command,omitempty"`
-	// Open fields
-	Open *OpenInfo `json:"open,omitempty"`
+	Type      string                       // Event type from message.type: "update", "state", "open", "refresh"
+	MsgID     uint64                       // Message ID from message.id (for cache-forward)
+	PeerAddr  string                       // Peer address from peer.address (flat string)
+	PeerASN   uint32                       // Peer ASN from peer.asn
+	State     string                       // State for state events ("up", "down", "connected")
+	FamilyOps map[string][]FamilyOperation // UPDATE: family → operations (from update.nlri)
+	Open      *OpenInfo                    // OPEN: decoded open data
+	AFI       string                       // Refresh: AFI (from refresh.afi)
+	SAFI      string                       // Refresh: SAFI (from refresh.safi)
 }
 
-// OpenInfo contains OPEN message details.
-// Note: Families are extracted from "multiprotocol <family>" capability strings.
+// FamilyOperation represents a single add or del operation for a family.
+// ze-bgp JSON: {"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}.
+type FamilyOperation struct {
+	NextHop string `json:"next-hop,omitempty"` // Only for "add" operations
+	Action  string `json:"action"`             // "add" or "del"
+	NLRIs   []any  `json:"nlri"`               // Strings or {"prefix":"...","path-id":N}
+}
+
+// OpenInfo contains OPEN message details from ze-bgp JSON.
 type OpenInfo struct {
-	Capabilities []string `json:"capabilities,omitempty"`
+	ASN          uint32           `json:"asn"`
+	RouterID     string           `json:"router-id"`
+	HoldTime     uint16           `json:"hold-time"`
+	Capabilities []CapabilityInfo `json:"capabilities,omitempty"`
 }
 
-// PeerInfo contains peer identification.
-type PeerInfo struct {
-	Address AddressInfo `json:"address"`
-	ASN     ASNInfo     `json:"asn"`
-	State   string      `json:"state,omitempty"`
+// CapabilityInfo represents a single capability from the OPEN message.
+// ze-bgp JSON: {"code":1,"name":"multiprotocol","value":"ipv4/unicast"}.
+type CapabilityInfo struct {
+	Code  int    `json:"code"`
+	Name  string `json:"name"`
+	Value string `json:"value,omitempty"`
 }
 
-// AddressInfo contains IP addresses.
-type AddressInfo struct {
-	Local string `json:"local"`
-	Peer  string `json:"peer"`
+// messageInfo is the internal representation of the message metadata wrapper.
+type messageInfo struct {
+	Type      string `json:"type"`
+	ID        uint64 `json:"id,omitempty"`
+	Direction string `json:"direction,omitempty"`
 }
 
-// ASNInfo contains AS numbers.
-type ASNInfo struct {
-	Local uint32 `json:"local"`
-	Peer  uint32 `json:"peer"`
-}
-
-// MessageInfo contains the BGP message.
-type MessageInfo struct {
-	Update *UpdateInfo `json:"update,omitempty"`
-}
-
-// UpdateInfo contains UPDATE message details.
-//
-// Deprecated: This parsed representation will be removed in a future version.
-// Use WireUpdate with iterator methods for zero-copy access.
-// See docs/architecture/buffer-architecture.md for the migration path.
-type UpdateInfo struct {
-	Announce map[string]map[string]any `json:"announce,omitempty"`
-	Withdraw map[string][]string       `json:"withdraw,omitempty"`
+// peerFlat is the flat peer format used in ze-bgp JSON events.
+// Engine always sends: {"address":"10.0.0.1","asn":65001}.
+type peerFlat struct {
+	Address string `json:"address"`
+	ASN     uint32 `json:"asn"`
 }
