@@ -37,7 +37,7 @@ func NewBGPHooks() *plugin.BGPHooks {
 				logger().Warn("OnMessageSent: invalid msg type", "type", fmt.Sprintf("%T", msg))
 				return
 			}
-			onMessageSent(s, peer, typedMsg)
+			onMessageSent(s, encoder, peer, typedMsg)
 		},
 		BroadcastValidateOpen: broadcastValidateOpen,
 		CodecRPCHandler:       codecRPCHandler,

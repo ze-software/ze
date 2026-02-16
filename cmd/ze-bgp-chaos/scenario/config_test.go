@@ -30,10 +30,10 @@ func TestConfigGenStructure(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	assert.Contains(t, config, "process route-reflector")
-	assert.Contains(t, config, "neighbor 127.0.0.1")
-	// Should have 2 neighbor blocks
-	assert.Equal(t, 2, strings.Count(config, "neighbor 127.0.0.1 {"), "expected 2 neighbor blocks")
+	assert.Contains(t, config, "bgp {")
+	assert.Contains(t, config, "peer 127.0.0.1")
+	// Should have 2 peer blocks
+	assert.Equal(t, 2, strings.Count(config, "peer 127.0.0.1 {"), "expected 2 peer blocks")
 }
 
 // TestConfigGenPeerBlock verifies each peer block has correct ASN, families,
@@ -64,7 +64,7 @@ func TestConfigGenPeerBlock(t *testing.T) {
 	// local-as always present
 	assert.Contains(t, config, "local-as 65000;")
 	// Family block
-	assert.Contains(t, config, "ipv4 unicast;")
+	assert.Contains(t, config, "ipv4/unicast;")
 	// Passive peer should have passive flag
 	assert.Contains(t, config, "passive true;")
 }
@@ -165,9 +165,9 @@ func TestConfigGenMultiplePeers(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// Count neighbor blocks
-	count := strings.Count(config, "neighbor 127.0.0.1 {")
-	require.Equal(t, 10, count, "expected 10 neighbor blocks")
+	// Count peer blocks
+	count := strings.Count(config, "peer 127.0.0.1 {")
+	require.Equal(t, 10, count, "expected 10 peer blocks")
 }
 
 // TestConfigGenConnectionMode verifies active peers connect to Ze's port
@@ -228,17 +228,17 @@ func TestConfigGenMultiFamily(t *testing.T) {
 	config := GenerateConfig(params)
 
 	// Peer 0 should have all three families.
-	assert.Contains(t, config, "ipv6 unicast;")
-	assert.Contains(t, config, "l2vpn evpn;")
+	assert.Contains(t, config, "ipv6/unicast;")
+	assert.Contains(t, config, "l2vpn/evpn;")
 
 	// Both peers have ipv4 unicast (2 occurrences).
-	assert.Equal(t, 2, strings.Count(config, "ipv4 unicast;"))
+	assert.Equal(t, 2, strings.Count(config, "ipv4/unicast;"))
 
 	// Only 1 peer has ipv6 unicast.
-	assert.Equal(t, 1, strings.Count(config, "ipv6 unicast;"))
+	assert.Equal(t, 1, strings.Count(config, "ipv6/unicast;"))
 
 	// Only 1 peer has l2vpn evpn.
-	assert.Equal(t, 1, strings.Count(config, "l2vpn evpn;"))
+	assert.Equal(t, 1, strings.Count(config, "l2vpn/evpn;"))
 }
 
 // TestConfigGenFallbackToIPv4 verifies that peers with no Families field
@@ -261,5 +261,5 @@ func TestConfigGenFallbackToIPv4(t *testing.T) {
 	}
 
 	config := GenerateConfig(params)
-	assert.Contains(t, config, "ipv4 unicast;")
+	assert.Contains(t, config, "ipv4/unicast;")
 }

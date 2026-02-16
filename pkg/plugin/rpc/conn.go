@@ -33,8 +33,9 @@ type Conn struct {
 	writer   *ipc.FrameWriter
 	readConn net.Conn
 
-	mu    sync.Mutex // Protects writes
-	idSeq atomic.Uint64
+	mu     sync.Mutex // Protects writes
+	callMu sync.Mutex // Serializes CallRPC (write + read must be atomic)
+	idSeq  atomic.Uint64
 }
 
 // NewConn creates a Conn that reads from readConn and writes to writeConn.
@@ -134,7 +135,13 @@ func (c *Conn) SendError(ctx context.Context, id json.RawMessage, errorName stri
 
 // CallRPC sends an RPC request and waits for the response.
 // Returns the raw response frame for the caller to interpret.
+// Serialized via callMu: concurrent callers block until the previous call completes.
+// This is necessary because the read side (FrameReader/bufio.Scanner) is not safe
+// for concurrent use, and responses must be matched to the correct request.
 func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+
 	id := c.NextID()
 
 	// Marshal params.

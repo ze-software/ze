@@ -29,6 +29,9 @@ Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. To
 - Smoke tests at three levels: propagation-only, basic chaos, multi-family
 - Integration with CI (exit code 0 = pass, 1 = validation failure, 2 = runtime error)
 
+**Deferred from Phase 9 (spec-bgp-chaos-inprocess):**
+- `.ci` functional tests for in-process mode (`test/chaos/inprocess-basic.ci`, `inprocess-properties.ci`, `inprocess-chaos.ci`) — requires CLI `--in-process` entry point and `test/chaos/` directory, both part of this spec's integration infrastructure
+
 ## Required Reading
 
 ### Architecture Docs

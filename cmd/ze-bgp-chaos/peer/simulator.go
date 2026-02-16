@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // SimProfile holds the peer identity and route parameters for a simulator.
@@ -55,6 +56,16 @@ type SimulatorConfig struct {
 
 	// Quiet suppresses non-error output.
 	Quiet bool
+
+	// Conn is an optional pre-connected connection for in-process mode.
+	// When non-nil, RunSimulator uses this connection instead of dialing
+	// cfg.Addr via TCP. The connection must be ready for BGP message exchange.
+	Conn net.Conn
+
+	// Clock is an optional virtual clock for in-process mode.
+	// When non-nil, the keepalive loop uses this clock instead of real time.
+	// This allows VirtualClock.Advance() to drive keepalive timing deterministically.
+	Clock sim.Clock
 }
 
 // ChaosResult describes the outcome of a chaos action on this simulator.
@@ -98,16 +109,23 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		}
 	}
 
-	// Connect to Ze.
-	var d net.Dialer
-	conn, err := d.DialContext(ctx, "tcp", cfg.Addr)
-	if err != nil {
-		if ctx.Err() != nil {
-			emit(Event{Type: EventDisconnected})
+	// Connect to Ze: use pre-connected Conn if provided (in-process mode),
+	// otherwise dial via TCP (external mode).
+	var conn net.Conn
+	if cfg.Conn != nil {
+		conn = cfg.Conn
+	} else {
+		var d net.Dialer
+		var err error
+		conn, err = d.DialContext(ctx, "tcp", cfg.Addr)
+		if err != nil {
+			if ctx.Err() != nil {
+				emit(Event{Type: EventDisconnected})
+				return
+			}
+			emit(Event{Type: EventError, Err: fmt.Errorf("connecting to %s: %w", cfg.Addr, err)})
 			return
 		}
-		emit(Event{Type: EventError, Err: fmt.Errorf("connecting to %s: %w", cfg.Addr, err)})
-		return
 	}
 	defer func() { _ = conn.Close() }()
 
@@ -302,9 +320,28 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}()
 
 	// KEEPALIVE loop with optional chaos handling.
+	// When cfg.Clock is set (in-process mode), use a virtual timer that fires
+	// when VirtualClock.Advance() reaches the deadline. Otherwise use real time.
 	keepaliveInterval := time.Duration(p.HoldTime/3) * time.Second
-	ticker := time.NewTicker(keepaliveInterval)
-	defer ticker.Stop()
+
+	var keepaliveCh <-chan time.Time
+	var keepaliveStop func()
+	var keepaliveReset func()
+
+	if cfg.Clock != nil {
+		// Virtual time: one-shot timer, manually reset after each fire.
+		vt := cfg.Clock.NewTimer(keepaliveInterval)
+		keepaliveCh = vt.C()
+		keepaliveStop = func() { vt.Stop() }
+		keepaliveReset = func() { vt.Reset(keepaliveInterval) }
+	} else {
+		// Real time: auto-repeating ticker.
+		ticker := time.NewTicker(keepaliveInterval)
+		keepaliveCh = ticker.C
+		keepaliveStop = ticker.Stop
+		keepaliveReset = func() {} // Ticker auto-repeats.
+	}
+	defer keepaliveStop()
 
 	// Nil-safe chaos channel: if nil, create a never-firing channel.
 	chaosCh := cfg.Chaos
@@ -324,7 +361,8 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			// Reader closed — connection lost.
 			emit(Event{Type: EventDisconnected})
 			return
-		case <-ticker.C:
+		case <-keepaliveCh:
+			keepaliveReset()
 			if writeErr := writeMsg(conn, message.NewKeepalive()); writeErr != nil {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
 				<-readerDone
@@ -336,7 +374,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				return
 			}
 		case action := <-chaosCh:
-			result := executeChaos(ctx, action, conn, routes, ticker, p, cfg, emit)
+			result := executeChaos(ctx, action, conn, routes, keepaliveStop, p, cfg, emit)
 			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String()})
 			if result.Disconnected {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
@@ -349,8 +387,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 }
 
 // executeChaos handles a single chaos action on the simulator's live connection.
+// stopKeepalive stops the keepalive timer/ticker (works with both real and virtual time).
 func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, routes []netip.Prefix,
-	ticker *time.Ticker, p SimProfile, cfg SimulatorConfig, emit func(Event),
+	stopKeepalive func(), p SimProfile, cfg SimulatorConfig, emit func(Event),
 ) ChaosResult {
 	switch action.Type {
 	case chaos.ActionTCPDisconnect:
@@ -364,7 +403,7 @@ func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, 
 
 	case chaos.ActionHoldTimerExpiry:
 		// Stop sending KEEPALIVEs — Ze will detect hold-timer expiry.
-		ticker.Stop()
+		stopKeepalive()
 		return ChaosResult{Disconnected: false}
 
 	case chaos.ActionPartialWithdraw:

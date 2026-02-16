@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/chaos"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/inprocess"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/replay"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
@@ -92,6 +93,7 @@ func run(args []string) int {
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
 	warmup := fs.Duration("warmup", 5*time.Second, "Time before chaos starts")
 	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
+	inProcess := fs.Bool("in-process", false, "Run reactor in-process with mock network and virtual clock")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `ze-bgp-chaos - Chaos monkey for Ze BGP route server testing
@@ -144,6 +146,7 @@ Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
   --warmup <dur>             Time before chaos starts (default: 5s)
   --ze-pid <N>               Ze process PID (for config-reload chaos events)
+  --in-process               Run reactor in-process (mock network, virtual clock)
 `)
 	}
 
@@ -293,6 +296,31 @@ Control:
 	if writeErr := writeConfig(zeConfig, *configOut, *quiet); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
 		return 1
+	}
+
+	// In-process mode: run reactor and peers in the same process with
+	// mock network and virtual clock. Requires --duration.
+	if *inProcess {
+		if *duration == 0 {
+			fmt.Fprintf(os.Stderr, "error: --in-process requires --duration\n")
+			return 1
+		}
+		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
+		defer ipCancel()
+		result, ipErr := inprocess.Run(ipCtx, inprocess.RunConfig{
+			Profiles:  profiles,
+			Seed:      *seed,
+			Duration:  *duration,
+			LocalAS:   65000,
+			RouterID:  netip.MustParseAddr("10.0.0.1"),
+			LocalAddr: *localAddr,
+		})
+		if ipErr != nil {
+			fmt.Fprintf(os.Stderr, "error: in-process run: %v\n", ipErr)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "ze-bgp-chaos | in-process complete | events: %d\n", len(result.Events))
+		return 0
 	}
 
 	// Set up context with cancellation for clean shutdown.

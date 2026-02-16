@@ -43,4 +43,10 @@ type PeerProfile struct {
 	// Families is the list of address families this peer supports.
 	// Always includes "ipv4/unicast".
 	Families []string
+
+	// Address is an optional per-peer neighbor address.
+	// When valid, used instead of ConfigParams.LocalAddr in GenerateConfig.
+	// This enables unique per-peer addresses for in-process mode where
+	// the reactor needs distinct peer addresses for its peer map lookup.
+	Address netip.Addr
 }

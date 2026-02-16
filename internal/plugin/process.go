@@ -145,6 +145,15 @@ func (p *Process) Running() bool {
 	return p.running.Load()
 }
 
+// ConnA returns the plugin→engine RPC connection under the mutex.
+// Returns nil if the connection has been closed (e.g. by Stop() or monitor()).
+// Callers must check for nil before use to avoid racing with shutdown.
+func (p *Process) ConnA() *PluginConn {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.engineConnA
+}
+
 // ConnB returns the engine→plugin callback connection under the mutex.
 // Returns nil if the connection has been closed (e.g. by Stop() or monitor()).
 // Callers must check for nil before use to avoid racing with shutdown.

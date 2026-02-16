@@ -3765,10 +3765,14 @@ func New(config *Config) *Reactor {
 }
 
 // SetClock sets the clock used by the reactor and all child components.
-// Must be called before StartWithContext.
+// Must be called before StartWithContext. Propagates to all existing peers
+// so that reconnect timers and session polling use the correct clock.
 func (r *Reactor) SetClock(c sim.Clock) {
 	r.clock = c
 	r.recentUpdates.SetClock(c)
+	for _, p := range r.peers {
+		p.SetClock(c)
+	}
 }
 
 // SetDialer sets the dialer used for outbound connections.

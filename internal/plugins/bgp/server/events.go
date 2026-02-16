@@ -157,7 +157,9 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 
 // onMessageSent handles BGP messages sent to peers.
 // Forwards to processes that subscribed to sent events.
-func onMessageSent(s *plugin.Server, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+// Uses the JSONEncoder for non-UPDATE messages (same as onMessageReceived),
+// and FormatSentMessage for UPDATEs (which adds the "type":"sent" marker).
+func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	eventType := messageTypeToEventType(msg.Type)
 	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
 
@@ -169,11 +171,20 @@ func onMessageSent(s *plugin.Server, peer plugin.PeerInfo, msg bgptypes.RawMessa
 	logger().Debug("OnMessageSent matched", "count", len(procs))
 
 	for _, proc := range procs {
-		content := bgptypes.ContentConfig{
-			Encoding: plugin.EncodingJSON,
-			Format:   proc.Format(),
+		var output string
+		if msg.Type == message.TypeUPDATE {
+			// UPDATE sent events use FormatSentMessage for the "type":"sent" marker.
+			content := bgptypes.ContentConfig{
+				Encoding: plugin.EncodingJSON,
+				Format:   proc.Format(),
+			}
+			output = format.FormatSentMessage(peer, msg, content)
+		} else {
+			// Non-UPDATE sent events use the same JSON formatters as received events.
+			// formatMessageForSubscription dispatches to encoder.Open(), encoder.Notification(),
+			// etc., which always produce JSON. msg.Direction is already "sent".
+			output = formatMessageForSubscription(encoder, peer, msg, proc.Format())
 		}
-		output := format.FormatSentMessage(peer, msg, content)
 		logger().Debug("OnMessageSent writing", "proc", proc.Name())
 
 		connB := proc.ConnB()

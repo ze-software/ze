@@ -701,7 +701,11 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		}
 	}()
 
-	connA := proc.engineConnA
+	connA := proc.ConnA()
+	if connA == nil {
+		logger().Debug("rpc startup: no connection (startup failed?)", "plugin", proc.Name())
+		return
+	}
 
 	// Stage 1: Read declare-registration from plugin (Socket A)
 	req, err := connA.ReadRequest(s.ctx)
@@ -920,7 +924,7 @@ func (s *Server) deliverRegistryRPC(proc *Process) {
 func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 	defer s.cleanupProcess(proc)
 
-	connA := proc.engineConnA
+	connA := proc.ConnA()
 	if connA == nil {
 		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
 		return
