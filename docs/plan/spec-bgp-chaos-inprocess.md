@@ -1,26 +1,28 @@
-# Spec: bgp-chaos-inprocess (Phase 9 of 9) — SKELETON
+# Spec: bgp-chaos-inprocess (Phase 9 of 11)
 
 **Master design:** `docs/plan/spec-bgp-chaos.md`
-**Previous spec:** `spec-bgp-chaos-shrink.md`
-**Next spec:** None (final phase)
-**DST reference:** `docs/plan/deterministic-simulation-analysis.md` (Sections 5, 11)
+**Previous spec:** `spec-bgp-chaos-shrink.md` (done/262)
+**Next spec:** `spec-bgp-chaos-selftest.md` (Phase 10)
+**DST reference:** `docs/plan/deterministic-simulation-analysis.md` (Sections 4.4, 5, 11)
 
-**Status:** Blocked — Ze Clock and Network interfaces exist in `internal/sim/` (spec-ze-sim-abstractions) but injection completeness gap remains: no round-trip smoke test proves the injection path works end-to-end. See `rules/integration-completeness.md`.
-
-**Pre-requisite before starting this spec:**
-1. Close the injection completeness gap in spec-ze-sim-abstractions (add FakeClock + injection smoke tests)
-2. Verify Reactor.SetClock() propagates correctly through Peer → Session → FSM Timers with a real injection test
+**Status:** Ready — Injection completeness gap closed (FakeClock + integration smoke tests in spec-ze-sim-abstractions, committed 7cf6b56d).
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `docs/plan/spec-bgp-chaos.md` - master design
-3. `docs/plan/deterministic-simulation-analysis.md` Sections 5, 11 - seeded randomness, simulator architecture
-4. Phase 6-8 done specs - event log, properties, shrinking
-5. Ze clock abstraction implementation (wherever it lands)
-6. Ze network abstraction implementation (wherever it lands)
-7. `.claude/rules/planning.md` - workflow rules
+2. `docs/plan/spec-bgp-chaos.md` - master design (11 phases)
+3. `.claude/rules/planning.md` - workflow rules
+4. `internal/sim/clock.go` - Clock, Timer interfaces
+5. `internal/sim/network.go` - Dialer, ListenerFactory interfaces
+6. `internal/sim/fake.go` - FakeClock (inert timers), FakeDialer, FakeListenerFactory
+7. `cmd/ze-bgp-chaos/main.go` - CLI flags, runOrchestrator, runPeerLoop, runScheduler
+8. `cmd/ze-bgp-chaos/orchestrator.go` - orchestratorConfig, EventProcessor, establishedState
+9. `cmd/ze-bgp-chaos/peer/simulator.go` - RunSimulator (connects via net.Dialer, sends BGP msgs)
+10. `internal/plugins/bgp/reactor/reactor.go` - New(), SetClock/SetDialer/SetListenerFactory, StartWithContext
+11. `docs/plan/done/260-bgp-chaos-eventlog.md` - event log format (NDJSON)
+12. `docs/plan/done/261-bgp-chaos-properties.md` - property engine API
+13. `docs/plan/done/262-bgp-chaos-shrink.md` - shrink algorithm
 
 ## Task
 
@@ -30,16 +32,16 @@ This is the convergence point where the external chaos tool becomes a lightweigh
 
 **Scope:**
 - `--in-process` flag that runs Ze reactor in-process with mock connections
-- Virtual clock drives all timers (hold-timer, keepalive, connect-retry)
-- Mock network layer connects chaos peers to Ze without TCP
+- VirtualClock drives all timers (hold-timer, keepalive, connect-retry) — extends FakeClock with timer-firing capability
+- Mock network layer connects chaos peers to Ze without TCP using `net.Pipe()`
 - Seed controls everything: scenario generation, timer jitter, connection ordering
 - Event log from in-process mode is identical in format to external mode (Phase 6)
 - Properties (Phase 7) and shrinking (Phase 8) work unchanged
-- Determinism verification: same seed → identical event log (byte-for-byte)
+- Mostly deterministic: scenario and validation are fully deterministic, Go select/scheduler introduce minor non-determinism
 
 **Relationship to DST:**
 This is the practical realization of the DST analysis's "Interface Injection" approach (Section 4.4). It combines:
-- Clock abstraction (DST Phase 1) — virtual clock for timers
+- Clock abstraction (DST Phase 1) — VirtualClock for timers
 - Network abstraction (DST Phase 2) — mock connections for I/O
 - Seeded randomness (DST Section 5) — seed controls all non-determinism
 - Property testing (DST Section 9) — RFC properties checked continuously
@@ -49,285 +51,416 @@ What it intentionally does NOT include (deferred to full DST):
 - FSM event queue serialization
 - Complete replay from event log (replay via validation model, not reactor re-execution)
 
-This means in-process mode is "mostly deterministic" (Polar Signals terminology) — the scenario and validation are fully deterministic, but Go's select statement and goroutine scheduling introduce minor non-determinism in timing. For chaos testing purposes this is acceptable: the goal is fast property checking, not bit-exact replay of reactor internals.
-
-**External dependencies:**
-- Ze's Clock interface: `internal/sim/clock.go` — Clock, Timer, RealClock (exists)
-- Ze's Dialer/Listener interfaces: `internal/sim/network.go` — Dialer, ListenerFactory, RealDialer, RealListenerFactory (exists)
-- Reactor injection setters: `SetClock()`, `SetDialer()`, `SetListenerFactory()` on Reactor, Peer, Session, Listener, FSM Timers (exists)
-- **MISSING:** Injection smoke tests proving the wiring works end-to-end (see `rules/integration-completeness.md`)
+**External dependencies (all exist):**
+- Ze's Clock interface: `internal/sim/clock.go` — Clock, Timer, RealClock
+- Ze's Dialer/Listener interfaces: `internal/sim/network.go` — Dialer, ListenerFactory
+- Reactor injection setters: `SetClock()`, `SetDialer()`, `SetListenerFactory()` on Reactor (reactor.go:3769-3784), which cascade to Peer, Session, Listener, FSM Timers, RecentCache
+- FakeClock + injection smoke tests: `internal/sim/fake.go`, `reactor/recent_cache_test.go`
 
 ## Required Reading
 
 ### Architecture Docs
 - [ ] `docs/plan/deterministic-simulation-analysis.md` Section 4.4, 5, 11 - interface injection, seeded randomness, simulator
-  → Decision: Interface injection for Clock, Dialer, Listener
+  → Decision: Interface injection for Clock, Dialer, Listener (Section 4.4 "Option D")
   → Constraint: Default to real implementations; mock only in simulation mode
+  → Constraint: VirtualClock needs timer heap for ordered firing (Section 11.2)
 - [ ] `docs/architecture/core-design.md` - reactor lifecycle, peer management
-  → Constraint: Reactor creates peers, peers create sessions — injection must flow through
+  → Constraint: Reactor creates peers via config, peers create sessions — injection cascades via SetClock/SetDialer
+  → Constraint: Reactor.New() defaults to sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}
 - [ ] `docs/architecture/behavior/fsm.md` - FSM timers
-  → Constraint: HoldTimer, KeepaliveTimer, ConnectRetryTimer all use Clock interface
+  → Constraint: HoldTimer, KeepaliveTimer, ConnectRetryTimer all use Clock.AfterFunc() and Clock.NewTimer()
 
-### Source Code
-- [ ] `internal/sim/clock.go` — Clock, Timer interfaces + RealClock implementation
-- [ ] `internal/sim/network.go` — Dialer, ListenerFactory interfaces + RealDialer, RealListenerFactory
-- [ ] `internal/sim/audit_test.go` — grep-based audit verifying no direct time/net calls in reactor/fsm
-- [ ] `internal/plugins/bgp/reactor/reactor.go` — reactor lifecycle, `New()` constructor, `SetClock`/`SetDialer`/`SetListenerFactory`
-- [ ] `internal/plugins/bgp/reactor/peer.go` — peer creation, session management, `SetClock`/`SetDialer`
-- [ ] `internal/plugins/bgp/reactor/session.go` — TCP dialing, connection handling, `SetClock`/`SetDialer`
-- [ ] `internal/plugins/bgp/fsm/timer.go` — FSM timers (hold, keepalive, connect-retry), `SetClock`
-- [ ] Phase 6-8 implementation (event log, properties, shrinking)
+### Source Code (chaos tool)
+- [ ] `cmd/ze-bgp-chaos/main.go` - CLI entry, runOrchestrator (line 352), runPeerLoop (line 625), runScheduler (line 652)
+  → Decision: orchestratorConfig holds all execution params; runOrchestrator creates validation model, tracker, property engine, reporter, then launches per-peer goroutines
+  → Constraint: Peer goroutines use net.Dialer directly (simulator.go:102); in-process mode must bypass this
+- [ ] `cmd/ze-bgp-chaos/orchestrator.go` - ChaosConfig, EventProcessor, establishedState
+  → Constraint: EventProcessor routes peer.Event to Model, Tracker, Convergence — format must be identical for in-process
+- [ ] `cmd/ze-bgp-chaos/peer/simulator.go` - RunSimulator connects via net.Dialer (line 102-103), performs OPEN/KEEPALIVE handshake, sends routes, handles chaos
+  → Constraint: RunSimulator takes SimulatorConfig with Addr string for TCP dial; in-process needs Conn field instead
+- [ ] `cmd/ze-bgp-chaos/peer/session.go` - BuildOpen, SerializeMessage
+  → Constraint: Session logic is pure BGP message construction — works with any net.Conn, no TCP-specific code
+- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - seed-driven PRNG, weighted action selection
+  → Decision: Scheduler produces ChaosAction per tick; in-process uses same scheduler, just mock execution
+- [ ] `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON event log format
+  → Constraint: In-process event log must use identical format
+
+### Source Code (Ze internals)
+- [ ] `internal/sim/clock.go` — Clock interface: Now, Sleep, After, AfterFunc, NewTimer; Timer interface: Stop, Reset, C
+  → Constraint: VirtualClock must implement sim.Clock; its timers must implement sim.Timer
+- [ ] `internal/sim/network.go` — Dialer: DialContext; ListenerFactory: Listen
+  → Constraint: MockDialer/MockListener must implement these interfaces
+- [ ] `internal/sim/fake.go` — FakeClock with Add/Set/Now, inert timers (AfterFunc never fires, NewTimer channel never fires)
+  → Decision: VirtualClock is separate from FakeClock — FakeClock stays minimal for unit tests, VirtualClock adds timer-firing for simulation
+- [ ] `internal/plugins/bgp/reactor/reactor.go` — New() at line 3741: creates Reactor with sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}; SetClock/SetDialer/SetListenerFactory at lines 3769-3784; StartWithContext at line 4263
+  → Constraint: SetClock propagates to recentUpdates.SetClock(); peer/session/listener get clock at creation time in the event loop
+- [ ] `internal/plugins/bgp/reactor/peer.go` — Peer.SetClock, Peer.SetDialer; peer passes clock/dialer to Session at creation
+- [ ] `internal/plugins/bgp/reactor/session.go` — Session.SetClock, Session.SetDialer; dialer used for outbound connections
+- [ ] `internal/plugins/bgp/reactor/listener.go` — Listener.SetClock, Listener.SetListenerFactory; listener factory used for bind
+- [ ] `internal/plugins/bgp/fsm/timer.go` — FSM timers use clock.AfterFunc and clock.NewTimer for hold, keepalive, connect-retry
+- [ ] `internal/plugin/inprocess.go` — InternalPluginRunner type; in-process plugins run as goroutines with Unix socket pairs
 
 **Key insights:**
-- The reactor currently creates real TCP connections and real timers — in-process mode must inject mocks at construction time
-- Mock connections need bidirectional byte streams (not just channels) — `net.Pipe()` semantics but with optional fault injection
-- Virtual clock must advance only when all goroutines are blocked on I/O or timers — otherwise events arrive before their time
-- The chaos tool's peer simulators become the "other end" of mock connections — they write BGP messages directly into the byte stream
-- RR plugin runs as a real goroutine inside the same process — it receives UPDATE events from reactor and issues forward commands
-- Config generation still needed (reactor reads config) but uses in-memory config, not file I/O
+- RunSimulator (simulator.go) uses `net.Dialer` at line 102 — passing a pre-connected `net.Conn` in SimulatorConfig avoids needing to change the dialer
+- net.Pipe() provides synchronous, ordered, bidirectional byte streams — perfect for mock connections, no custom MockConn needed
+- The reactor's plugin server already supports in-process plugins — RR plugin can run as goroutine with `ze.rr` prefix
+- VirtualClock is the only new sim component needed — FakeClock's inert timers are insufficient for driving FSM timers
+- scenario.GenerateConfig() produces a config string → parse to Tree → pass to reactor.Config.ConfigTree
 
 ## Current Behavior (MANDATORY)
 
-**Source files read:** (to be re-read when clock/network abstractions are available)
-- [ ] `internal/plugins/bgp/reactor/reactor.go` — reactor construction and lifecycle
-- [ ] `internal/plugins/bgp/reactor/session.go` — session creation with real net.Dial
-- [ ] `internal/bgp/fsm/timer.go` — timer creation with real time.AfterFunc
-- [ ] Ze Clock interface (path TBD)
-- [ ] Ze network interface (path TBD)
+**Source files read:**
+- [x] `cmd/ze-bgp-chaos/main.go` — CLI entry, validates flags, generates scenario from seed, creates config, launches runOrchestrator which manages N peer goroutines + event processing loop + optional chaos scheduler
+- [x] `cmd/ze-bgp-chaos/orchestrator.go` — orchestratorConfig holds all params; EventProcessor dispatches peer.Event to validation.Model, validation.Tracker, validation.Convergence; PropertyEngine checks RFC properties
+- [x] `cmd/ze-bgp-chaos/peer/simulator.go` — RunSimulator: creates net.Dialer (line 102), dials TCP, performs OPEN/KEEPALIVE exchange, sends routes per family, runs keepalive loop + chaos action handler
+- [x] `cmd/ze-bgp-chaos/peer/session.go` — BuildOpen/SerializeMessage: pure BGP wire construction, works with any net.Conn
+- [x] `cmd/ze-bgp-chaos/chaos/scheduler.go` — NewScheduler(SchedulerConfig) → Scheduler.Tick(now, established) → []TargetedAction
+- [x] `internal/sim/clock.go` — Clock/Timer interfaces, RealClock/realTimer implementations
+- [x] `internal/sim/fake.go` — FakeClock (Add/Set/Now, inert timers), FakeDialer, FakeListenerFactory
+- [x] `internal/plugins/bgp/reactor/reactor.go` — New(config) at line 3741 defaults to real impls; SetClock/SetDialer/SetListenerFactory at lines 3769-3784; StartWithContext at line 4263
 
 **Behavior to preserve:**
-- All Phase 1-8 chaos tool functionality
-- External TCP mode remains the default
-- Event log format identical between modes
-- Properties and shrinking work unchanged
+- All Phase 1-8 chaos tool functionality — external TCP mode unchanged
+- Event log NDJSON format (Phase 6): `{"type":"...", "peer_index":N, "time":"...", ...}`
+- Property engine interface (Phase 7): ProcessEvent() + Results()
+- Shrink algorithm (Phase 8): ParseLog() + Run()
+- Validation model: Model.Announce/Disconnect, Tracker.RecordReceive/RecordWithdraw, Check()
+- Convergence tracking: RecordAnnounce/RecordReceive, Stats(), CheckDeadline()
+- Peer reconnection loop with 2s backoff (runPeerLoop, line 625)
+- Chaos scheduler tick-based dispatch (runScheduler, line 652)
 
 **Behavior to change:**
-- Add `--in-process` mode that uses mock clock + mock network
-- Reactor instantiated in-process instead of as separate OS process
+- Add `--in-process` flag: reactor runs in same process with injected VirtualClock + mock network
+- RunSimulator modified: accept optional pre-connected net.Conn (skip dialing when provided)
+- Orchestrator: new in-process path creates reactor, injects mocks, manages mock connection pairs
+- Clock: advance via VirtualClock instead of wall-clock waiting
 
 ## Data Flow (MANDATORY)
 
 ### Entry Point
-- Same as external mode: seed + CLI flags → scenario generator → peer profiles + chaos schedule
-- Difference: reactor started in-process with injected mocks
+- Same as external mode: `ze-bgp-chaos --in-process --seed 42 --peers 4` → flag parsing → scenario generation → config generation
+- Difference: instead of assuming a running Ze process, instantiate reactor in-process with injected mocks
 
 ### Transformation Path
 
-**External mode (existing):**
+**External mode (existing — unchanged):**
 ```
-chaos tool ──TCP──> Ze process (reactor + RR plugin)
+CLI flags → scenario.Generate() → profiles
+         → scenario.GenerateConfig() → config string → printed for external Ze
+         → runOrchestrator:
+             per-peer: RunSimulator → net.Dial(TCP) → OPEN/KEEPALIVE → routes → chaos loop
+             events → EventProcessor → Model/Tracker/Convergence/Properties
+             → reporter (dashboard + jsonlog + metrics)
+             → summary
 ```
 
 **In-process mode (new):**
 ```
-chaos tool ──mock conn──> reactor (same process)
-                            ↕
-                         RR plugin (same process)
-                            ↕
-                      virtual clock (drives timers)
+CLI flags → scenario.Generate() → profiles
+         → scenario.GenerateConfig() → config string → parse to Tree
+         → runInProcess:
+             1. Create VirtualClock, MockDialer, MockListener
+             2. Create Reactor(config), inject mocks via SetClock/SetDialer/SetListenerFactory
+             3. Start RR plugin in-process (goroutine + socket pair)
+             4. reactor.StartWithContext()
+             5. For each chaos peer:
+                - net.Pipe() → (peerEnd, reactorEnd)
+                - Register reactorEnd with MockListener for Accept()
+                - RunSimulator with peerEnd as pre-connected Conn
+             6. VirtualClock.Advance() drives timers (hold, keepalive, connect-retry)
+             7. Events flow to same EventProcessor pipeline
+             8. Properties checked, violations trigger shrink
+             → summary
 ```
-
-1. Scenario generated from seed (same as external)
-2. Reactor instantiated with mock Clock, mock Dialer, mock Listener
-3. RR plugin started as goroutine (using Unix socket pair or in-process channels)
-4. Chaos peer simulators connected via mock connections (no TCP)
-5. Virtual clock advanced to drive timers (hold, keepalive, connect-retry)
-6. Events recorded to same event log format
-7. Properties checked continuously
-8. On violation: auto-shrink (Phase 8) runs at in-process speed
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Chaos peers ↔ Reactor | Mock connections (bidirectional byte streams) | [ ] |
-| Reactor ↔ RR Plugin | Unix socket pair or in-process pipe | [ ] |
-| Timer system ↔ Virtual clock | Clock interface injection | [ ] |
-| Event log ↔ Reporter | Same channel as external mode | [ ] |
+| Chaos peers ↔ Reactor | net.Pipe() connections — bidirectional, synchronous, ordered bytes | [ ] |
+| Reactor ↔ RR Plugin | Unix socket pair (same as normal in-process mode: `ze.rr`) | [ ] |
+| Timer system ↔ Virtual clock | sim.Clock injection via SetClock (cascades to peer → session → FSM timers, cache, api_sync) | [ ] |
+| Event log ↔ Reporter | Same peer.Event channel as external mode | [ ] |
+| Config ↔ Reactor | scenario.GenerateConfig() → config.ParseString() → reactor.Config.ConfigTree | [ ] |
 
 ### Integration Points
-- Ze's Clock interface — injected into reactor, peer, session, FSM timers
-- Ze's Dialer/Listener interface — injected into session (mock returns mock conns)
-- Ze's reactor `New()` — must accept optional Clock and network overrides
-- Ze's RR plugin — runs as goroutine, communicates via socket pair
-- Phase 6 event log — identical format
-- Phase 7 properties — identical interface
-- Phase 8 shrinking — identical algorithm, much faster iteration
+- `reactor.New(config)` — accepts Config struct, defaults to real impls (reactor.go:3741)
+- `reactor.SetClock(vc)` — cascades to recentUpdates; peers get clock at creation time (reactor.go:3769)
+- `reactor.SetDialer(md)` — peers get dialer at creation time (reactor.go:3776)
+- `reactor.SetListenerFactory(ml)` — listeners get factory at creation time (reactor.go:3782)
+- `reactor.StartWithContext(ctx)` — starts event loop, creates listeners from config (reactor.go:4263)
+- `peer.RunSimulator(ctx, cfg)` — chaos peer entry point; needs optional Conn field (simulator.go:80)
+- `report.NewJSONLog()` — NDJSON event log writer, same for both modes (jsonlog.go)
+- `validation.NewPropertyEngine()` — property checker, same for both modes (property.go)
+- `shrink.Run()` — shrink algorithm, same for both modes (shrink.go)
 
 ### Architectural Verification
-- [ ] Reactor code unchanged (only injection points used)
-- [ ] Mock connections behave like real TCP (ordered bytes, EOF, errors)
-- [ ] Virtual clock advances correctly (timers fire in order, no wall-clock leaks)
-- [ ] RR plugin operates normally (receives events, issues forwards)
-- [ ] No `time.Now()`, `net.Dial()`, `net.Listen()` calls leak past mocks
-- [ ] Event log indistinguishable from external mode (same format, same fields)
+- [ ] Reactor code unchanged — only injection setters called before StartWithContext
+- [ ] net.Pipe() connections behave like real TCP (ordered bytes, EOF on Close, concurrent Read/Write safe)
+- [ ] VirtualClock fires timers in deadline order when Advance() is called
+- [ ] RR plugin operates normally via in-process socket pair (same as `ze.rr` prefix)
+- [ ] No time.Now/net.Dial/net.Listen calls leak past mocks (audit_test.go verifies reactor/fsm)
+- [ ] Event log format identical between modes (same peer.Event types, same NDJSON structure)
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `--in-process --seed 42 --peers 4` | Runs to completion, produces event log + summary |
-| AC-2 | 30-second external run | Equivalent in-process run completes in <1 second |
-| AC-3 | Same seed, in-process mode | Event log has same event types and ordering as external (timing may differ) |
-| AC-4 | Route propagation | Routes forwarded by RR plugin to correct peers |
-| AC-5 | Hold-timer expiry chaos | Virtual clock advanced past hold-time → session torn down |
-| AC-6 | Disconnect + reconnect chaos | Mock connection closed, new mock connection established |
-| AC-7 | Properties pass | All Phase 7 properties checked, pass for correct scenarios |
-| AC-8 | `--auto-shrink --in-process` | Violation → shrink completes in seconds (not minutes) |
-| AC-9 | 50-peer in-process run | Completes without deadlock or resource exhaustion |
-| AC-10 | `--in-process` without clock/network abstractions | Clear error: "in-process mode requires Ze with clock/network injection" |
-| AC-11 | External mode unchanged | `ze-bgp-chaos` without `--in-process` works exactly as before |
+| AC-1 | `--in-process --seed 42 --peers 4 --duration 30s` | Runs to completion, produces event log + summary |
+| AC-2 | 30-second external scenario | Equivalent in-process run completes in <1 second |
+| AC-3 | Same seed, same peers, in-process mode, two runs | Both runs produce same property results (event types match, ordering mostly matches) |
+| AC-4 | 4 peers with RR plugin in-process | Routes announced by peer A are forwarded by RR to peers B, C, D |
+| AC-5 | VirtualClock advanced past hold-time | Reactor tears down session (hold-timer expiry detected) |
+| AC-6 | Mock connection closed (disconnect chaos) | Reactor detects disconnect; new mock connection established on reconnect |
+| AC-7 | `--properties all --in-process` | All Phase 7 properties checked, pass for correct scenarios |
+| AC-8 | `--shrink <failing-log> --in-process` | Shrink completes in seconds (not minutes) |
+| AC-9 | `--in-process --peers 50` | Completes without deadlock, goroutine leak, or resource exhaustion |
+| AC-10 | External mode (no `--in-process`) | Unchanged behavior — all existing tests pass |
 
 ## Mock Components
 
-### Mock Clock
+### VirtualClock
 
-Implements `sim.Clock` interface (defined in `internal/sim/clock.go`):
-- `Now()` returns simulated time
-- `AfterFunc(d, cb)` schedules callback at simulated time + d, returns `sim.Timer`
-- `After(d)` returns channel that fires at simulated time + d
-- `NewTimer(d)` returns `sim.Timer` that fires at simulated time + d
-- `Sleep(d)` blocks until simulated time advances past d
-- `Advance(d)` moves time forward, firing timers in order
-- Advancement strategy: advance to next pending timer when all goroutines blocked
+Implements `sim.Clock` interface. Unlike FakeClock (inert timers), VirtualClock maintains a min-heap of pending timer events and fires them in order when time advances.
 
-Injected via `reactor.SetClock(virtualClock)` which cascades to Peer → Session → FSM Timers, RecentCache, API Sync.
+**State:**
+| Field | Type | Description |
+|-------|------|-------------|
+| now | time.Time | Current simulated time |
+| heap | min-heap of timerEntry | Pending timers sorted by deadline |
+| mu | sync.Mutex | Protects all state |
+
+**Timer entry:**
+| Field | Type | Description |
+|-------|------|-------------|
+| deadline | time.Time | When this timer fires |
+| callback | func() | For AfterFunc timers |
+| ch | chan time.Time | For NewTimer/After timers |
+| stopped | bool | Whether Stop() was called |
+
+**Operations:**
+- `Now()` — returns current simulated time
+- `AfterFunc(d, f)` — adds timerEntry{deadline: now+d, callback: f} to heap, returns VirtualTimer
+- `NewTimer(d)` — adds timerEntry{deadline: now+d, ch: make(chan time.Time, 1)} to heap, returns VirtualTimer
+- `After(d)` — wraps NewTimer, returns channel
+- `Sleep(d)` — blocks on After(d) channel
+- `Advance(d)` — moves now forward by d, pops and fires all timers with deadline ≤ new now in order. Callbacks run synchronously in the caller's goroutine. Channel timers send to buffered channel.
+- `AdvanceTo(t)` — like Advance but to absolute time
+
+**Timer firing order:** When multiple timers have the same deadline, fire in insertion order (FIFO). This provides determinism even when Go's timer resolution would make ordering ambiguous.
+
+**VirtualTimer:** Implements sim.Timer with Stop() and Reset() backed by the heap.
+
+**Location:** `internal/sim/virtualclock.go` — part of the sim package since it implements sim.Clock and is reusable beyond just the chaos tool.
 
 ### Mock Network
 
-Implements `sim.Dialer` and `sim.ListenerFactory` interfaces (defined in `internal/sim/network.go`):
-- `MockDialer.DialContext()` returns one end of a `MockConn` pair (implements `sim.Dialer`)
-- `MockListener.Accept()` returns the other end (via `sim.ListenerFactory.Listen()`)
-- `MockConn.Read/Write()` are bidirectional byte streams (like `net.Pipe()`)
-- Optional: fault injection hooks for partial reads, delays, resets
+Uses `net.Pipe()` from the standard library — no custom MockConn implementation needed.
 
-Injected via `reactor.SetDialer(mockDialer)` + `reactor.SetListenerFactory(mockListenerFactory)` which cascade to Session and Listener respectively.
+**ConnPairManager:** Manages the creation and pairing of mock connections.
 
-### Mock Connection Pair
+| Operation | Description |
+|-----------|-------------|
+| NewPair() | Creates net.Pipe() → returns (peerEnd, reactorEnd) |
+| RegisterForDial(addr, reactorEnd) | Registers a connection for the MockDialer to return |
+| RegisterForAccept(addr, reactorEnd) | Registers a connection for the MockListener to accept |
 
-Each chaos peer ↔ reactor connection needs a pair of connected mock conns:
+**MockDialer:** Implements sim.Dialer. DialContext(ctx, network, addr) returns a pre-registered net.Conn for that address (from the ConnPairManager). Error if no connection registered.
 
-| End | Holder | Reads From | Writes To |
-|-----|--------|------------|-----------|
-| Client end | Chaos peer simulator | Reactor's writes | Reactor's reads |
-| Server end | Reactor session | Chaos peer's writes | Chaos peer's reads |
+**MockListener:** Implements net.Listener (returned by MockListenerFactory.Listen). Accept() returns pre-registered connections. Close() stops accepting.
 
-For passive peers (Ze connects out): MockDialer returns client end, chaos peer holds server end.
-For active peers (tool connects in): MockListener returns server end, chaos peer holds client end.
+**MockListenerFactory:** Implements sim.ListenerFactory. Listen(ctx, network, addr) creates and returns a MockListener for that address.
+
+**Location:** `cmd/ze-bgp-chaos/inprocess/mocknet.go` — chaos tool specific, not in internal/sim/ (net.Pipe() is the mock conn; only the pairing logic is chaos-specific).
+
+### Connection Pairing
+
+Each chaos peer ↔ reactor connection uses one net.Pipe() pair:
+
+| Peer type | Who initiates | MockDialer returns | MockListener accepts |
+|-----------|---------------|--------------------|-----------------------|
+| Passive (Ze connects out) | Reactor's session dials via MockDialer | reactorEnd | — |
+| Active (peer connects in) | Chaos peer connects, MockListener accepts | — | reactorEnd |
+
+The chaos tool holds the peerEnd and passes it to RunSimulator via SimulatorConfig.Conn.
+
+In the current chaos tool, ALL peers are passive (the tool connects TO Ze). In-process keeps this model: the runner creates net.Pipe() pairs, gives peerEnd to RunSimulator, and registers reactorEnd with MockDialer for the reactor's outbound dial.
+
+Wait — actually in the current tool, the chaos peers CONNECT TO Ze (simulator.go:102-103 dials `cfg.Addr`). So Ze is the listener, peers are the dialers. In-process reversal: the reactor listens via MockListener, and the chaos peers' connections arrive via MockListener.Accept().
+
+Corrected pairing:
+
+| Side | Holder | Role |
+|------|--------|------|
+| peerEnd | Chaos peer (RunSimulator) | Reads reactor's messages, writes peer's messages |
+| reactorEnd | MockListener.Accept() → reactor session | Reads peer's messages, writes reactor's messages |
+
+Runner creates net.Pipe() for each peer, queues reactorEnd on the MockListener, passes peerEnd to RunSimulator via SimulatorConfig.Conn.
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 
+**VirtualClock tests (`internal/sim/virtualclock_test.go`):**
+
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestInProcessBasic` | `inprocess/inprocess_test.go` | 2 peers, route exchange via RR, no chaos | |
-| `TestInProcessClock` | `inprocess/inprocess_test.go` | Virtual clock drives hold-timer correctly | |
-| `TestInProcessDisconnect` | `inprocess/inprocess_test.go` | Mock conn close → reactor detects disconnect | |
-| `TestInProcessReconnect` | `inprocess/inprocess_test.go` | New mock conn after disconnect → session re-established | |
-| `TestInProcessChaos` | `inprocess/inprocess_test.go` | Chaos events execute via mock connections | |
-| `TestInProcessProperties` | `inprocess/inprocess_test.go` | Properties checked, pass for correct behavior | |
-| `TestInProcessEventLog` | `inprocess/inprocess_test.go` | Event log format identical to external mode | |
-| `TestInProcessSpeed` | `inprocess/inprocess_test.go` | 4-peer 30s scenario completes in <1s | |
-| `TestInProcessDeterminism` | `inprocess/inprocess_test.go` | Same seed → same property results | |
-| `TestInProcessShrink` | `inprocess/inprocess_test.go` | Shrinking works at in-process speed | |
-| `TestInProcessNoLeakedTime` | `inprocess/inprocess_test.go` | No real `time.Now()` calls during in-process run | |
-| `TestInProcessFallback` | `inprocess/inprocess_test.go` | Missing Ze abstractions → clear error message | |
+| `TestVirtualClockNow` | `internal/sim/virtualclock_test.go` | Now returns start time, doesn't auto-advance | |
+| `TestVirtualClockAdvance` | `internal/sim/virtualclock_test.go` | Advance moves Now forward by the given duration | |
+| `TestVirtualClockAfterFuncFires` | `internal/sim/virtualclock_test.go` | AfterFunc callback fires when Advance passes deadline | |
+| `TestVirtualClockAfterFuncOrder` | `internal/sim/virtualclock_test.go` | Multiple AfterFunc timers fire in deadline order | |
+| `TestVirtualClockAfterFuncFIFO` | `internal/sim/virtualclock_test.go` | Same-deadline timers fire in insertion order (FIFO) | |
+| `TestVirtualClockNewTimerFires` | `internal/sim/virtualclock_test.go` | NewTimer channel receives when Advance passes deadline | |
+| `TestVirtualClockTimerStop` | `internal/sim/virtualclock_test.go` | Stopped timer does not fire on Advance | |
+| `TestVirtualClockTimerReset` | `internal/sim/virtualclock_test.go` | Reset timer fires at new deadline, not original | |
+| `TestVirtualClockSleepBlocks` | `internal/sim/virtualclock_test.go` | Sleep blocks until another goroutine calls Advance | |
+| `TestVirtualClockImplementsClock` | `internal/sim/virtualclock_test.go` | Compile-time interface conformance: var _ sim.Clock = &VirtualClock{} | |
+| `TestVirtualClockAdvanceTo` | `internal/sim/virtualclock_test.go` | AdvanceTo jumps to absolute time, fires intervening timers | |
+
+**MockNet tests (`cmd/ze-bgp-chaos/inprocess/mocknet_test.go`):**
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestConnPairReadWrite` | `inprocess/mocknet_test.go` | net.Pipe pair: write on one end, read on other | |
+| `TestConnPairClose` | `inprocess/mocknet_test.go` | Close one end → Read on other returns io.EOF | |
+| `TestMockDialerReturnsConn` | `inprocess/mocknet_test.go` | MockDialer.DialContext returns registered connection | |
+| `TestMockDialerNoConn` | `inprocess/mocknet_test.go` | MockDialer.DialContext returns error when nothing registered | |
+| `TestMockListenerAccept` | `inprocess/mocknet_test.go` | MockListener.Accept returns queued connections in order | |
+| `TestMockListenerClose` | `inprocess/mocknet_test.go` | MockListener.Close → Accept returns error | |
+| `TestMockListenerFactoryImplements` | `inprocess/mocknet_test.go` | Compile-time: var _ sim.ListenerFactory = &MockListenerFactory{} | |
+| `TestMockDialerImplements` | `inprocess/mocknet_test.go` | Compile-time: var _ sim.Dialer = &MockDialer{} | |
+
+**In-process runner tests (`cmd/ze-bgp-chaos/inprocess/runner_test.go`):**
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestInProcessBasicRoute` | `inprocess/runner_test.go` | 2 peers, route announced by one, received by other via RR | |
+| `TestInProcessHoldTimerExpiry` | `inprocess/runner_test.go` | VirtualClock past hold-time → session torn down | |
+| `TestInProcessDisconnectReconnect` | `inprocess/runner_test.go` | Mock conn closed → new mock conn → session re-established | |
+| `TestInProcessEventLogFormat` | `inprocess/runner_test.go` | NDJSON output matches external mode structure | |
+| `TestInProcessSpeed` | `inprocess/runner_test.go` | 4-peer 30s scenario completes in <2s wall-clock | |
+| `TestInProcessDeterminism` | `inprocess/runner_test.go` | Same seed → same property results on two runs | |
+| `TestInProcessProperties` | `inprocess/runner_test.go` | Properties checked, pass for correct scenario (no chaos) | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | Peers (in-process) | 1-50 | 50 | 0 | 51 |
-| Virtual time advance | 1ms granularity | N/A | 0 | N/A |
+| Advance duration | > 0 | 1ms | 0 (no-op) | N/A |
 
 ### Functional Tests
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `chaos-inprocess-basic` | `test/chaos/inprocess-basic.ci` | 4 peers, seed 42, in-process, no chaos → PASS | |
-| `chaos-inprocess-chaos` | `test/chaos/inprocess-chaos.ci` | 4 peers, chaos-rate 0.3, in-process → PASS | |
-| `chaos-inprocess-shrink` | `test/chaos/inprocess-shrink.ci` | In-process with auto-shrink | |
+| `chaos-inprocess-basic` | `test/chaos/inprocess-basic.ci` | `ze-bgp-chaos --in-process --seed 42 --peers 4 --duration 10s` → exits 0 with summary | |
+| `chaos-inprocess-properties` | `test/chaos/inprocess-properties.ci` | `--in-process --properties all --peers 4` → all properties pass | |
+| `chaos-inprocess-chaos` | `test/chaos/inprocess-chaos.ci` | `--in-process --chaos-rate 0.3 --peers 4 --duration 10s` → exits 0 | |
 
 ## Files to Create
 
-- `cmd/ze-bgp-chaos/inprocess/runner.go` — in-process execution engine
-- `cmd/ze-bgp-chaos/inprocess/runner_test.go`
-- `cmd/ze-bgp-chaos/inprocess/mockpeer.go` — mock connection management for chaos peers
-- `cmd/ze-bgp-chaos/inprocess/mockpeer_test.go`
-- `cmd/ze-bgp-chaos/inprocess/clockdriver.go` — virtual clock advancement strategy
-- `cmd/ze-bgp-chaos/inprocess/clockdriver_test.go`
+- `internal/sim/virtualclock.go` — VirtualClock: timer heap + Advance-driven firing (implements sim.Clock)
+- `internal/sim/virtualclock_test.go` — VirtualClock unit tests (TDD)
+- `cmd/ze-bgp-chaos/inprocess/mocknet.go` — ConnPairManager, MockDialer, MockListener, MockListenerFactory
+- `cmd/ze-bgp-chaos/inprocess/mocknet_test.go` — MockNet unit tests (TDD)
+- `cmd/ze-bgp-chaos/inprocess/runner.go` — in-process execution engine (creates reactor, injects mocks, manages peers)
+- `cmd/ze-bgp-chaos/inprocess/runner_test.go` — Runner integration tests (TDD)
 
 ## Files to Modify
 
-- `cmd/ze-bgp-chaos/main.go` — add `--in-process` flag, dispatch to in-process runner
-- `cmd/ze-bgp-chaos/orchestrator.go` — abstract over external/in-process execution
-- `cmd/ze-bgp-chaos/peer/simulator.go` — accept mock conn instead of TCP conn
-- `cmd/ze-bgp-chaos/peer/session.go` — use injected conn (mock or TCP)
+- `cmd/ze-bgp-chaos/main.go` — add `--in-process` flag; dispatch to `inprocess.Run()` when set
+- `cmd/ze-bgp-chaos/peer/simulator.go` — add optional `Conn net.Conn` field to SimulatorConfig; use Conn instead of net.Dial when provided
 
 ### Integration Checklist
 
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema | No | N/A |
-| Makefile | No | Already has ze-bgp-chaos target |
-| Ze Clock interface | Yes (external dep) | Wherever clock abstraction lands |
-| Ze network interface | Yes (external dep) | Wherever network abstraction lands |
-| Reactor constructor | Maybe | May need option pattern for injection |
+| YANG schema | No | N/A — chaos tool is external |
+| Makefile | No | Already has `ze-bgp-chaos` target |
+| Ze sim.Clock | Yes (existing) | `internal/sim/clock.go` — VirtualClock implements this |
+| Ze sim.Dialer | Yes (existing) | `internal/sim/network.go` — MockDialer implements this |
+| Ze sim.ListenerFactory | Yes (existing) | `internal/sim/network.go` — MockListenerFactory implements this |
+| Reactor constructor | No changes | SetClock/SetDialer/SetListenerFactory already exist |
+| Peer simulator | Yes (modify) | `cmd/ze-bgp-chaos/peer/simulator.go` — add optional Conn |
+| RR plugin in-process | No changes | `internal/plugin/inprocess.go` already supports `ze.rr` mode |
+| Functional test runner | Maybe | `test/chaos/` directory may need creation |
 
 ## Implementation Steps
 
-1. **Verify Ze injection completeness** — Clock/network interfaces exist in `internal/sim/`, injection setters wired, AND injection smoke tests pass (see `rules/integration-completeness.md`)
-   → If smoke tests don't exist: close the gap first (add FakeClock + injection round-trip tests to sim package)
+Each step ends with a **Self-Critical Review**.
 
-2. **Read Phase 6-8 learnings** — event log, properties, shrinking APIs
-   → Review: What needs to change for in-process execution?
+1. **Write VirtualClock tests** — Create `internal/sim/virtualclock_test.go` with tests for Now, Advance, AfterFunc firing, timer ordering, Stop, Reset, Sleep
+   → Run: Tests FAIL (VirtualClock doesn't exist)
+   → **Review:** Does the test cover timer ordering edge cases? Same-deadline FIFO?
 
-3. **Design connection pair management** — how mock conns are created and paired
-   → Review: Does Ze's mock network support paired connections?
-
-4. **Write basic in-process test** (2 peers, route exchange, no chaos)
-   → Run: Tests FAIL
-
-5. **Implement in-process runner** — reactor instantiation with mocks
+2. **Implement VirtualClock** — `internal/sim/virtualclock.go` with min-heap, Advance firing timers in order
    → Run: Tests PASS
+   → **Review:** Is the heap implementation correct? Mutex usage safe for concurrent access?
 
-6. **Write clock driver tests** — virtual clock advancement
+3. **Write MockNet tests** — Create `cmd/ze-bgp-chaos/inprocess/mocknet_test.go` for ConnPairManager, MockDialer, MockListener
    → Run: Tests FAIL
+   → **Review:** Does it test the full lifecycle (create pair → register → dial/accept → read/write → close)?
 
-7. **Implement clock driver** — advance when all blocked, fire timers in order
+4. **Implement MockNet** — `cmd/ze-bgp-chaos/inprocess/mocknet.go` using net.Pipe()
    → Run: Tests PASS
+   → **Review:** Error cases handled? Closed listener returns proper error?
 
-8. **Write chaos in-process tests** — disconnect, reconnect via mock conns
+5. **Modify RunSimulator** — Add `Conn net.Conn` field to SimulatorConfig; if non-nil, skip dialing and use it
+   → **Review:** No behavior change when Conn is nil (backward compatible)?
+
+6. **Write runner tests** — Create `cmd/ze-bgp-chaos/inprocess/runner_test.go` starting with TestInProcessBasicRoute
    → Run: Tests FAIL
+   → **Review:** Does the test actually verify route propagation through the reactor and RR plugin?
 
-9. **Implement chaos via mock connections**
+7. **Implement runner** — Create `cmd/ze-bgp-chaos/inprocess/runner.go`: instantiate reactor, inject mocks, create mock connection pairs, launch RunSimulator per peer, advance VirtualClock
    → Run: Tests PASS
+   → **Review:** Resource cleanup? Context cancellation propagates? No goroutine leaks?
 
-10. **Wire event log, properties, shrinking** — verify they work unchanged
+8. **Add clock-driving tests** — TestInProcessHoldTimerExpiry, TestInProcessDisconnectReconnect
+   → Run: Tests FAIL, then PASS after implementation
+   → **Review:** Does VirtualClock advance strategy avoid deadlocks?
 
-11. **Performance test** — 30s scenario in <1s
+9. **Wire into CLI** — Add `--in-process` flag to main.go, dispatch to inprocess.Run()
+   → **Review:** External mode entirely unchanged? Flag conflicts checked?
 
-12. **Wire into CLI** — `--in-process` flag
+10. **Write remaining tests** — Speed, determinism, properties, event log format
+    → Run: Tests PASS
+    → **Review:** Speed test isn't flaky? Determinism test accounts for Go select non-determinism?
 
-13. **Verify** — `make lint && make test`
+11. **Write functional tests** — `test/chaos/inprocess-*.ci` files
+    → Run: `make functional` passes
+
+12. **Verify** — `make lint && make test && make functional`
+    → **Review:** Zero lint issues? All tests deterministic? No race conditions?
+
+13. **Final self-review** — Re-read all code changes, check for unused code, debug statements, TODO items
+
+### Failure Routing
+
+| Failure | Symptom | Route To |
+|---------|---------|----------|
+| VirtualClock timer ordering wrong | Timers fire out of order | Step 2 — fix heap comparison |
+| MockDialer returns wrong conn | Reactor connects to wrong peer | Step 4 — fix address→conn mapping |
+| Reactor hangs on startup | StartWithContext blocks | Step 7 — check MockListener has enough queued conns |
+| Hold timer doesn't fire | Session stays up past hold-time | Step 2 — verify VirtualClock.Advance fires AfterFunc timers |
+| Goroutine leak | Test hangs or race detector fires | Step 7 — check context cancellation, connection Close |
+| RR plugin doesn't forward routes | Routes announced but not received by other peers | Step 7 — verify RR plugin config includes correct families |
 
 ## Spec Propagation Task
 
-**MANDATORY at end of this phase (final chaos phase):**
+**At end of this phase:**
 
 1. **Update `docs/plan/spec-bgp-chaos.md`** (master design) with:
-   - Final 9-phase architecture as-built
-   - External vs in-process mode comparison
-   - Performance observations
-   - Known limitations and future work (full DST: scheduler control, FSM queue)
+   - Phase 9 completion status
+   - External vs in-process mode comparison table
+   - Performance observations (speedup factor)
+   - Known limitations (Go select non-determinism)
 
 2. **Update `docs/architecture/`** if architectural insights discovered
 
 3. **Consider adding to MEMORY.md:**
-   - In-process testing patterns
-   - Mock connection pair management
-   - Virtual clock advancement strategies
-   - Performance characteristics
+   - VirtualClock timer heap pattern
+   - net.Pipe() for mock connections
+   - In-process reactor instantiation pattern
 
 ## Mistake Log
 
@@ -349,15 +482,15 @@ For active peers (tool connects in): MockListener returns server end, chaos peer
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | --in-process flag | | | |
-| Virtual clock drives timers | | | |
-| Mock network connections | | | |
+| VirtualClock drives timers | | | |
+| Mock network connections (net.Pipe) | | | |
 | Seed-controlled execution | | | |
 | Event log format identical | | | |
 | Properties work unchanged | | | |
 | Shrinking at in-process speed | | | |
 | 100x+ speedup over external | | | |
 | No leaked real time/network calls | | | |
-| Graceful fallback if abstractions missing | | | |
+| External mode unchanged | | | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -372,7 +505,6 @@ For active peers (tool connects in): MockListener returns server end, chaos peer
 | AC-8 | | | |
 | AC-9 | | | |
 | AC-10 | | | |
-| AC-11 | | | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
@@ -392,7 +524,7 @@ For active peers (tool connects in): MockListener returns server end, chaos peer
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-11 demonstrated
+- [ ] AC-1..AC-10 demonstrated
 - [ ] Tests pass (`make test`)
 - [ ] No regressions (`make functional`)
 
@@ -407,6 +539,7 @@ For active peers (tool connects in): MockListener returns server end, chaos peer
 - [ ] Implementation complete
 - [ ] Tests PASS
 - [ ] Boundary tests for numeric inputs
+- [ ] Functional tests for end-to-end behavior
 
 ### Completion
 - [ ] Spec Propagation Task completed

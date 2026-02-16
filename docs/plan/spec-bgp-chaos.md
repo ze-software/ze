@@ -13,7 +13,7 @@
 | 6 | `spec-bgp-chaos-eventlog.md` | Done | Replayable event log |
 | 7 | `spec-bgp-chaos-properties.md` | Done (261) | RFC property assertions |
 | 8 | `spec-bgp-chaos-shrink.md` | Done (262) | Test case minimization |
-| 9 | `spec-bgp-chaos-inprocess.md` | Blocked | In-process mode (sim interfaces exist in `internal/sim/`, injection completeness gap closed — FakeClock + integration test proved wiring) |
+| 9 | `spec-bgp-chaos-inprocess.md` | Ready | In-process mode — full spec written, injection gap closed (sim interfaces + FakeClock integration test in 7cf6b56d) |
 | 10 | `spec-bgp-chaos-selftest.md` | Blocked | Self-chaos mode: Ze injects faults into its own infrastructure (depends on Phase 9) |
 | 11 | `spec-bgp-chaos-integration.md` | Blocked | End-to-end Ze testing (depends on Phases 9-10) |
 
@@ -22,7 +22,7 @@
 **Phase 10:** Self-chaos — `ze bgp server --chaos-seed` wraps real Clock/Dialer/Listener with fault-injecting wrappers
 **Phase 11:** Integration — `--managed` mode, `make functional-chaos`, smoke tests against real Ze
 
-**Dependencies:** Phase 9 requires Ze clock + network abstractions. Interfaces exist in `internal/sim/` (Clock, Timer, Dialer, ListenerFactory) with setters on Reactor, Peer, Session, Listener, FSM Timers. **Injection completeness gap:** no smoke test proves the injection path works end-to-end — must be closed before Phase 9 begins. See `rules/integration-completeness.md`.
+**Dependencies:** Phase 9 requires Ze clock + network abstractions. Interfaces exist in `internal/sim/` (Clock, Timer, Dialer, ListenerFactory) with setters on Reactor, Peer, Session, Listener, FSM Timers. **Injection gap closed** (commit 7cf6b56d): FakeClock integration test in `reactor/recent_cache_test.go` proves the injection path works end-to-end. Phase 9 full spec written and ready for implementation.
 
 ## Post-Compaction Recovery
 
