@@ -1140,14 +1140,14 @@ func TestRFC7606MultipleErrorsStrongest(t *testing.T) {
 	require.Equal(t, uint8(8), result.AttrCode) // Community caused the strongest error
 }
 
-// TestRFC7606CollectAllErrors verifies all attribute-discard codes are collected.
+// TestRFC7606CollectAllErrors verifies all attribute-discard entries are collected.
 //
-// VALIDATES: Multiple attribute-discard errors populate DiscardCodes with all codes.
+// VALIDATES: Multiple attribute-discard errors populate DiscardEntries with all codes and reasons.
 // PREVENTS: Stripping only the first bad attribute when multiple need stripping.
 func TestRFC7606CollectAllErrors(t *testing.T) {
 	// UPDATE with two attribute-discard errors:
-	// - ATOMIC_AGG wrong length → discard
-	// - AGGREGATOR wrong length → discard
+	// - ATOMIC_AGG wrong length → discard (reason: invalid length)
+	// - AGGREGATOR wrong length → discard (reason: invalid length)
 	pathAttrs := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
 		0x40, 0x02, 0x00, // AS_PATH (empty)
@@ -1161,9 +1161,14 @@ func TestRFC7606CollectAllErrors(t *testing.T) {
 
 	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
-	require.Len(t, result.DiscardCodes, 2)
-	require.Contains(t, result.DiscardCodes, uint8(6)) // ATOMIC_AGG
-	require.Contains(t, result.DiscardCodes, uint8(7)) // AGGREGATOR
+	require.Len(t, result.DiscardEntries, 2)
+	// Both should have reason code DiscardReasonInvalidLength (2).
+	codes := make(map[uint8]uint8)
+	for _, e := range result.DiscardEntries {
+		codes[e.Code] = e.Reason
+	}
+	require.Equal(t, DiscardReasonInvalidLength, codes[6]) // ATOMIC_AGG
+	require.Equal(t, DiscardReasonInvalidLength, codes[7]) // AGGREGATOR
 }
 
 // TestRFC7606ASPath4ByteASNOverrun verifies AS_PATH overrun with 4-byte ASNs.

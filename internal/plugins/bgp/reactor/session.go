@@ -834,7 +834,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 		// RFC 7606: Validate BEFORE dispatching to plugins.
 		// Enforcement must happen before callback so malformed UPDATEs
 		// are never delivered to plugins as valid routes.
-		action, err := s.enforceRFC7606(wireUpdate)
+		var action message.RFC7606Action
+		var err error
+		wireUpdate, action, err = s.enforceRFC7606(wireUpdate)
 		if err != nil {
 			// session-reset: error propagated, no dispatch
 			return err, false
@@ -1056,21 +1058,23 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
 //
-// Returns the action taken and an error if session-reset is required.
+// Returns the (potentially new) WireUpdate, the action taken, and an error if
+// session-reset is required. When attribute-discard applies, ATTR_DISCARD markers
+// are written into the wire bytes per draft-mangin-idr-attr-discard-00.
 // Called from processMessage() BEFORE callback dispatch so that malformed
 // UPDATEs are never delivered to plugins as valid routes.
-func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, error) {
+func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	body := wu.Payload()
 
 	// Parse UPDATE structure
 	if len(body) < 4 {
-		return message.RFC7606ActionNone, nil // Let other validation handle
+		return wu, message.RFC7606ActionNone, nil // Let other validation handle
 	}
 
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	offset := 2 + withdrawnLen
 	if offset+2 > len(body) {
-		return message.RFC7606ActionNone, nil
+		return wu, message.RFC7606ActionNone, nil
 	}
 
 	// RFC 7606 Section 5.3: Validate withdrawn routes NLRI syntax (IPv4)
@@ -1078,14 +1082,14 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, e
 		withdrawn := body[2 : 2+withdrawnLen]
 		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
 			sessionLogger().Debug("RFC 7606 treat-as-withdraw (withdrawn NLRI syntax)", "description", result.Description)
-			return message.RFC7606ActionTreatAsWithdraw, nil
+			return wu, message.RFC7606ActionTreatAsWithdraw, nil
 		}
 	}
 
 	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
 	offset += 2
 	if offset+attrLen > len(body) {
-		return message.RFC7606ActionNone, nil
+		return wu, message.RFC7606ActionNone, nil
 	}
 
 	pathAttrs := body[offset : offset+attrLen]
@@ -1097,7 +1101,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, e
 		nlri := body[offset+attrLen:]
 		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
 			sessionLogger().Debug("RFC 7606 treat-as-withdraw (NLRI syntax)", "description", result.Description)
-			return message.RFC7606ActionTreatAsWithdraw, nil
+			return wu, message.RFC7606ActionTreatAsWithdraw, nil
 		}
 	}
 
@@ -1111,16 +1115,38 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, e
 
 	switch result.Action {
 	case message.RFC7606ActionNone:
-		return message.RFC7606ActionNone, nil
+		return wu, message.RFC7606ActionNone, nil
 
 	case message.RFC7606ActionAttributeDiscard:
 		// RFC 7606 Section 2: "The attribute MUST be discarded ... and the UPDATE
 		// message continues to be processed."
+		// draft-mangin-idr-attr-discard-00: Apply ATTR_DISCARD markers.
 		sessionLogger().Debug("RFC 7606 attribute-discard",
 			"attr", result.AttrCode,
-			"discard-codes", result.DiscardCodes,
+			"discard-entries", result.DiscardEntries,
 			"description", result.Description)
-		return message.RFC7606ActionAttributeDiscard, nil
+
+		// draft-mangin-idr-attr-discard-00 Section 5.1: log upstream pairs before merge.
+		if upstream := message.ExtractUpstreamAttrDiscard(pathAttrs); len(upstream) > 0 {
+			sessionLogger().Debug("RFC 7606 upstream ATTR_DISCARD before merge",
+				"upstream-entries", upstream,
+				"local-entries", result.DiscardEntries)
+		}
+
+		newAttrs, rebuilt := message.ApplyAttrDiscard(pathAttrs, result.DiscardEntries)
+		if rebuilt {
+			// Path attributes section changed size — rebuild the full UPDATE body.
+			// Save identifiers before replacing wu.
+			oldCtxID := wu.SourceCtxID()
+			oldSourceID := wu.SourceID()
+			newBody := message.RebuildUpdateBody(body, newAttrs)
+			wu = wireu.NewWireUpdate(newBody, oldCtxID)
+			wu.SetSourceID(oldSourceID)
+		}
+		// If not rebuilt, pathAttrs (a slice of body) was modified in-place,
+		// so wu.Payload() already reflects the change.
+
+		return wu, message.RFC7606ActionAttributeDiscard, nil
 
 	case message.RFC7606ActionTreatAsWithdraw:
 		// RFC 7606 Section 2: "MUST be handled as though all of the routes
@@ -1128,7 +1154,7 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, e
 		sessionLogger().Debug("RFC 7606 treat-as-withdraw",
 			"attr", result.AttrCode,
 			"description", result.Description)
-		return message.RFC7606ActionTreatAsWithdraw, nil
+		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
 		// RFC 7606: Session reset — send NOTIFICATION with UPDATE Message Error.
@@ -1148,10 +1174,10 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (message.RFC7606Action, e
 		_ = s.fsm.Event(fsm.EventUpdateMsgErr)
 		s.closeConn()
 
-		return message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", result.Description)
+		return wu, message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", result.Description)
 	}
 
-	return message.RFC7606ActionNone, nil
+	return wu, message.RFC7606ActionNone, nil
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.

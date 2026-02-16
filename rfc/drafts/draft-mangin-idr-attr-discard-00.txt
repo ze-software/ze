@@ -2,38 +2,37 @@
 
 
 
+Inter-Domain Routing                                           T. Mangin
+Internet-Draft                                               Independent
+Intended status: Standards Track                        15 February 2026
+Expires: 19 August 2026
 
-Internet Engineering Task Force                               T. Mangin
-Internet-Draft                                         February 15, 2026
-Intended status: Standards Track
-Expires: August 19, 2026
 
-
-         The ATTR_DISCARD Path Attribute for BGP UPDATE Messages
-                   draft-mangin-idr-attr-discard-00
+        The ATTR_DISCARD Path Attribute for BGP UPDATE Messages
+                    draft-mangin-idr-attr-discard-00
 
 Abstract
 
    RFC 7606 defines revised error handling for BGP UPDATE messages,
    including an "attribute discard" action where a malformed optional
    attribute is removed and the UPDATE continues to be processed.
-   However, RFC 7606 does not specify a wire-level mechanism for this
-   operation.  Implementations must either rebuild the path attributes
-   section of the UPDATE (expensive) or leave malformed bytes in place
-   (risking misinterpretation by downstream consumers).
+   Complying with this requirement means removing the attribute by
+   reconstructing the path attributes section.
 
    This document defines the ATTR_DISCARD path attribute, an optional
-   attribute that serves as an in-place tombstone marker.  When a BGP
-   speaker applies attribute-discard per RFC 7606, it overwrites the
-   malformed attribute's flags, type code, and (when present) first
-   value byte, preserving the wire buffer layout without reallocation.
-   The first value byte, when present, records the original attribute
-   type code for diagnostic purposes.  The Transitive bit is inherited
-   from the original attribute, allowing implementations to choose
-   whether the marker propagates to peers or remains local.
+   attribute that serves as an in-place marker.  When a BGP speaker
+   applies attribute-discard per RFC 7606, it overwrites the malformed
+   attribute's flags, type code, and first two value bytes, preserving
+   the wire buffer layout without data movement.  The value contains one
+   or more 2-byte (code, reason) pairs identifying each discarded
+   attribute and the reason for its removal; when multiple attributes
+   are discarded from the same UPDATE, a single ATTR_DISCARD carries all
+   pairs.  The Transitive bit is inherited from the original attribute,
+   allowing implementations to choose whether the marker propagates to
+   peers or remains local.
 
-   ATTR_DISCARD is a wire-level construct.  It is not stored in the
-   Adj-RIB-In and MUST NOT affect route selection.
+   ATTR_DISCARD is a wire-level construct.  It is not stored in the Adj-
+   RIB-In and does not affect route selection.
 
 Status of This Memo
 
@@ -50,56 +49,84 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on August 19, 2026.
+   This Internet-Draft will expire on 19 August 2026.
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 1]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
 Copyright Notice
 
    Copyright (c) 2026 IETF Trust and the persons identified as the
    document authors.  All rights reserved.
 
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
 Table of Contents
 
-   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . .   2
-   2.  Requirements Language . . . . . . . . . . . . . . . . . . .   3
-   3.  Problem Statement . . . . . . . . . . . . . . . . . . . . .   3
-   4.  ATTR_DISCARD Path Attribute . . . . . . . . . . . . . . . .   5
-     4.1.  Attribute Properties  . . . . . . . . . . . . . . . . .   5
-     4.2.  Transitivity Inheritance  . . . . . . . . . . . . . . .   5
-     4.3.  Wire Format . . . . . . . . . . . . . . . . . . . . . .   6
-   5.  Processing Rules  . . . . . . . . . . . . . . . . . . . . .   7
-     5.1.  Generating ATTR_DISCARD (Sender)  . . . . . . . . . . .   7
-     5.2.  Receiving ATTR_DISCARD  . . . . . . . . . . . . . . . .   8
-       5.2.1.  Non-Recognizing Speakers . . . . . . . . . . . . .   8
-       5.2.2.  Recognizing Speakers . . . . . . . . . . . . . . .   9
-       5.2.3.  Malformed ATTR_DISCARD  . . . . . . . . . . . . . .   9
-     5.3.  Forwarding Policy . . . . . . . . . . . . . . . . . . .   9
-     5.4.  Interaction with Route Reflectors . . . . . . . . . . .  10
-     5.5.  Interaction with Confederation Boundaries . . . . . . .  10
-     5.6.  Interaction with ATTR_SET . . . . . . . . . . . . . . .  10
-     5.7.  Duplicate Markers in the Same UPDATE  . . . . . . . . .  11
-   6.  Operational Considerations  . . . . . . . . . . . . . . . .  11
-     6.1.  Diagnostic Visibility . . . . . . . . . . . . . . . . .  11
-     6.2.  Counting Discarded Attributes . . . . . . . . . . . . .  12
-     6.3.  Backward Compatibility  . . . . . . . . . . . . . . . .  12
-     6.4.  RIB Storage . . . . . . . . . . . . . . . . . . . . . .  13
-     6.5.  Route Selection . . . . . . . . . . . . . . . . . . . .  13
-     6.6.  Route Filtering . . . . . . . . . . . . . . . . . . . .  13
-     6.7.  Interaction with BMP  . . . . . . . . . . . . . . . . .  14
-     6.8.  Interaction with Extended Messages . . . . . . . . . . .  14
-     6.9.  Interaction with BGP Role . . . . . . . . . . . . . . .  14
-   7.  Security Considerations . . . . . . . . . . . . . . . . . .  14
-   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . .  14
-   9.  References  . . . . . . . . . . . . . . . . . . . . . . . .  15
-     9.1.  Normative References  . . . . . . . . . . . . . . . . .  15
-     9.2.  Informative References  . . . . . . . . . . . . . . . .  15
-   Appendix A.  Design Rationale . . . . . . . . . . . . . . . . .  16
-     A.1.  Why Not Strip and Rebuild?  . . . . . . . . . . . . . .  16
-     A.2.  Why Not Leave the Original Bytes? . . . . . . . . . . .  16
-     A.3.  Why a New Attribute Code? . . . . . . . . . . . . . . .  17
-     A.4.  Why Inherit Transitivity? . . . . . . . . . . . . . . .  17
-     A.5.  Why Overwrite the First Value Byte? . . . . . . . . . .  18
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . .  18
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Requirements Language . . . . . . . . . . . . . . . . . . . .   4
+   3.  Problem Statement . . . . . . . . . . . . . . . . . . . . . .   4
+   4.  ATTR_DISCARD Path Attribute . . . . . . . . . . . . . . . . .   5
+     4.1.  Attribute Properties  . . . . . . . . . . . . . . . . . .   5
+     4.2.  Transitivity Inheritance  . . . . . . . . . . . . . . . .   5
+     4.3.  Wire Format . . . . . . . . . . . . . . . . . . . . . . .   6
+     4.4.  Reason Codes  . . . . . . . . . . . . . . . . . . . . . .   9
+   5.  Processing Rules  . . . . . . . . . . . . . . . . . . . . . .  11
+     5.1.  Generating ATTR_DISCARD (Sender)  . . . . . . . . . . . .  11
+     5.2.  Receiving ATTR_DISCARD  . . . . . . . . . . . . . . . . .  14
+       5.2.1.  Non-Recognizing Speakers  . . . . . . . . . . . . . .  14
+       5.2.2.  Recognizing Speakers  . . . . . . . . . . . . . . . .  14
+       5.2.3.  Malformed ATTR_DISCARD  . . . . . . . . . . . . . . .  14
+     5.3.  Forwarding Policy . . . . . . . . . . . . . . . . . . . .  15
+     5.4.  Interaction with Route Reflectors . . . . . . . . . . . .  17
+     5.5.  Interaction with Confederation Boundaries . . . . . . . .  17
+     5.6.  Interaction with ATTR_SET . . . . . . . . . . . . . . . .  17
+     5.7.  Multiple Discards in the Same UPDATE  . . . . . . . . . .  18
+   6.  Operational Considerations  . . . . . . . . . . . . . . . . .  18
+     6.1.  Diagnostic Visibility . . . . . . . . . . . . . . . . . .  18
+     6.2.  Counting Discarded Attributes . . . . . . . . . . . . . .  19
+     6.3.  Backward Compatibility  . . . . . . . . . . . . . . . . .  20
+     6.4.  RIB Storage . . . . . . . . . . . . . . . . . . . . . . .  20
+     6.5.  Route Selection . . . . . . . . . . . . . . . . . . . . .  20
+     6.6.  Route Filtering . . . . . . . . . . . . . . . . . . . . .  20
+     6.7.  Interaction with BMP  . . . . . . . . . . . . . . . . . .  21
+     6.8.  Interaction with Extended Messages  . . . . . . . . . . .  21
+     6.9.  Interaction with BGP Role . . . . . . . . . . . . . . . .  21
+     6.10. Interaction with ADD-PATH . . . . . . . . . . . . . . . .  21
+     6.11. Interaction with Graceful Restart . . . . . . . . . . . .  22
+     6.12. Interaction with Route Refresh  . . . . . . . . . . . . .  22
 
+
+
+Mangin                   Expires 19 August 2026                 [Page 2]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+   7.  Security Considerations . . . . . . . . . . . . . . . . . . .  22
+   8.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .  23
+   9.  References  . . . . . . . . . . . . . . . . . . . . . . . . .  24
+     9.1.  Normative References  . . . . . . . . . . . . . . . . . .  24
+     9.2.  Informative References  . . . . . . . . . . . . . . . . .  25
+   Appendix A.  Design Rationale . . . . . . . . . . . . . . . . . .  26
+     A.1.  Why Not Strip and Rebuild?  . . . . . . . . . . . . . . .  26
+     A.2.  Why Not Leave the Original Bytes? . . . . . . . . . . . .  27
+     A.3.  Why a New Attribute Code? . . . . . . . . . . . . . . . .  27
+     A.4.  Why Inherit Transitivity? . . . . . . . . . . . . . . . .  27
+     A.5.  Why Overwrite the First Two Value Bytes?  . . . . . . . .  28
+   Acknowledgments . . . . . . . . . . . . . . . . . . . . . . . . .  29
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  29
 
 1.  Introduction
 
@@ -107,69 +134,53 @@ Table of Contents
    between peers.  Each UPDATE message may contain a set of path
    attributes that describe properties of the advertised routes.
 
-   RFC 7606 [RFC7606] revised the error handling for BGP UPDATE messages
-   to reduce unnecessary session resets.  Section 2 of RFC 7606 defines
-   four graduated error-handling actions:
+   RFC 7606 [RFC7606] Section 2 defines graduated error-handling actions
+   for UPDATE messages.  The mildest, "attribute discard," states:
 
-     - Session reset: terminate the BGP session (strongest)
-     - AFI/SAFI disable: cease to use a particular AFI/SAFI
-       with the peer
-     - Treat-as-withdraw: treat the UPDATE as a route withdrawal
-     - Attribute discard: discard the malformed attribute and continue
+   |  "The attribute MUST be discarded, and the UPDATE message continues
+   |  to be processed."
 
-   The "attribute discard" action is the mildest response.  It applies
-   to optional attributes whose malformation does not affect the
-   ability to parse the remainder of the UPDATE.  RFC 7606 Section 2
-   states:
+   This document defines an alternative mechanism that satisfies the
+   MUST without requiring data movement, while also informing downstream
+   peers that an attribute was discarded: overwrite the malformed
+   attribute's header and first two value bytes in place with a
+   standardized marker, the ATTR_DISCARD path attribute.  The original
+   attribute ceases to exist in the wire representation.
 
-     "The attribute MUST be discarded, and the UPDATE message
-      continues to be processed."
+   ATTR_DISCARD inherits the Transitive bit from the original attribute.
+   This produces two behaviors:
 
-   However, RFC 7606 does not specify HOW the attribute is discarded
-   at the wire level.  This leaves implementations with two choices,
-   both unsatisfactory:
+   *  If the original attribute was transitive (e.g., COMMUNITY,
+      AGGREGATOR), the marker propagates along the AS path.
 
-     1. Rebuild the path attributes section, removing the malformed
-        attribute.  This requires reallocating the buffer and shifting
-        all subsequent bytes -- expensive on high-throughput routers.
+   *  If the original attribute was non-transitive (e.g., ORIGINATOR_ID,
+      CLUSTER_LIST), the marker remains local.
 
-     2. Leave the malformed bytes in place and rely on per-attribute
-        "skip" logic in all downstream consumers.  This is fragile:
-        any code path that reads the raw bytes (logging, forwarding,
-        caching) may encounter the malformed data.
+   Implementations MAY clear the Transitive bit at generation time,
+   ensuring the marker never propagates regardless of the original
+   attribute's transitivity.  Implementations MUST NOT set the
+   Transitive bit if it was not set in the original attribute.
 
-   This document defines a third option: overwrite the malformed
-   attribute's header and first value byte in place with a standardized
-   tombstone marker, the ATTR_DISCARD path attribute.
 
-   A key design feature is that ATTR_DISCARD inherits the Transitive
-   bit from the original malformed attribute.  This provides two
-   behaviors:
 
-     - If the original attribute was transitive (e.g., COMMUNITY,
-       AGGREGATOR), the marker propagates along the AS path, providing
-       network-wide visibility that a malformation was corrected.
 
-     - If the original attribute was non-transitive (e.g.,
-       ORIGINATOR_ID, CLUSTER_LIST), the marker remains local,
-       matching the original attribute's propagation scope.
 
-   Additionally, the first byte of the ATTR_DISCARD value records the
-   original attribute's type code, enabling diagnostic tools to
-   identify which attribute was discarded without interpreting the
-   remaining value bytes.
+Mangin                   Expires 19 August 2026                 [Page 3]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
 
-   Implementations MAY override this default behavior through local
-   policy, forcing the marker to always propagate or never propagate
-   regardless of the original attribute's transitivity.
+
+   This document uses "attribute discard" (lowercase) to refer to the
+   error-handling action defined in RFC 7606, and "ATTR_DISCARD"
+   (uppercase) to refer to the path attribute defined herein.
 
 2.  Requirements Language
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
-   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY",
-   and "OPTIONAL" in this document are to be interpreted as described
-   in BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in
-   all capitals, as shown here.
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
 
 3.  Problem Statement
 
@@ -191,328 +202,550 @@ Table of Contents
    implementation must "discard" the AGGREGATOR attribute while
    preserving the UPDATE for continued processing.
 
-   The path attributes section is a contiguous byte sequence.  Removing
-   the AGGREGATOR (header + 5 value bytes) requires:
+   Removing the AGGREGATOR requires rebuilding the path attributes
+   section (see Appendix A.1).
 
-     - Shifting COMMUNITY bytes backward
-     - Updating the Total Path Attribute Length field
-     - Potentially invalidating any cached offsets, iterators, or
-       pointers into the buffer
-
-   On a router processing hundreds of thousands of UPDATEs per second,
-   this reallocation and byte-shifting is undesirable.  Modern BGP
-   implementations use zero-copy techniques where wire bytes are
-   referenced directly by iterators and caches.  Buffer rebuilding
-   defeats these optimizations.
-
-   The ATTR_DISCARD attribute solves this by overwriting 3 bytes in
-   place: the flags byte, the type code byte, and the first value byte
-   (which records the original attribute's type code for diagnostic
-   purposes).  No bytes are shifted.  No buffers are reallocated.  The
-   remaining value bytes are untouched and will never be interpreted
-   because no conforming implementation parses the ATTR_DISCARD value
-   beyond the first byte.  (The zero-copy benefit applies primarily
-   to the receive path and intra-AS forwarding; see Appendix A.1 for
-   trade-offs on the outbound path under non-default forwarding
-   policies.)
+   The ATTR_DISCARD attribute solves this by overwriting the attribute
+   in place: the flags byte, the type code byte, the first two value
+   bytes (which record the original type code and a reason code), and
+   the remaining value bytes (which are zeroed).  No bytes are shifted.
+   The zeroed bytes ensure that no remnant of the malformed attribute's
+   data persists in the wire buffer.  (The zero-copy benefit applies
+   primarily to the receive path and intra-AS forwarding; see
+   Appendix A.1 for trade-offs on the outbound path under non-default
+   forwarding policies.)
 
    After applying ATTR_DISCARD to the malformed AGGREGATOR:
 
-     +--------+--------+--------+----------------------------+
-     | Flags  |  Code  | Length |          Value             |
-     +--------+--------+--------+----------------------------+
-     |  0x40  |   1    |   1    | 0x00 (ORIGIN = IGP)        |
-     |  0x40  |   2    |   6    | AS_PATH (valid)            |
-     |  0x40  |   3    |   4    | NEXT_HOP (valid)           |
-     |  0xC0  |  TBD   |   5    | 0x07, <4 bytes>            |
-     |  0xC0  |   8    |   8    | COMMUNITY (valid)          |
-     +--------+--------+--------+----------------------------+
+
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 4]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+     +--------+--------+--------+-------------------------------+
+     | Flags  |  Code  | Length |          Value                |
+     +--------+--------+--------+-------------------------------+
+     |  0x40  |   1    |   1    | 0x00 (ORIGIN = IGP)           |
+     |  0x40  |   2    |   6    | AS_PATH (valid)               |
+     |  0x40  |   3    |   4    | NEXT_HOP (valid)              |
+     |  0xC0  |  TBD   |   5    | 0x07, 0x02, 0x00, 0x00, 0x00 |
+     |  0xC0  |   8    |   8    | COMMUNITY (valid)             |
+     +--------+--------+--------+-------------------------------+
 
    The formula produces 0x80 | (0xC0 & 0x50) = 0xC0, which happens to
    match the original flags because AGGREGATOR is already optional and
-   transitive.  The type code is overwritten with TBD.  The first
-   value byte now contains 0x07 (the original AGGREGATOR type code).
-   The marker inherits the Transitive bit, so downstream speakers
-   will forward it (with Partial bit set per RFC 4271 Section 5),
-   providing network-wide visibility of the discard event.
+   transitive.  The type code is overwritten with TBD.  The first value
+   byte contains 0x07 (the original AGGREGATOR type code); the second
+   value byte contains 0x02 (reason: invalid length).  The marker
+   inherits the Transitive bit, so downstream speakers will forward it
+   with Partial bit set per RFC 4271 Section 5.
 
 4.  ATTR_DISCARD Path Attribute
 
 4.1.  Attribute Properties
 
-     Attribute Name:    ATTR_DISCARD
-     Attribute Code:    TBD (see Section 8)
-     Attribute Flags:   Optional; Transitivity inherited (see 4.2)
-     Attribute Length:   Variable (inherited from overwritten attribute)
-     Attribute Value:    If value length >= 1, byte 0 is the original
-                         attribute type code; remaining bytes are
-                         opaque (MUST NOT be interpreted by receivers
-                         beyond byte 0).  If value length is 0, no
-                         value bytes are present and the original
-                         type code is not recorded (see Section 5.1).
+   Attribute Name:  ATTR_DISCARD
+
+   Attribute Code:  TBD (see Section 8)
+
+   Attribute Flags:  Optional; Transitivity inherited (see Section 4.2)
+
+   Attribute Length:  Variable.  When generated by in-place overwrite,
+      inherited from the overwritten attribute.  When generated by
+      rebuild (Section 5.7), equal to 2 * N where N is the number of
+      discarded attributes.
+
+   Attribute Value:  A sequence of 2-byte (code, reason) pairs.  Each
+      pair's first byte is the original attribute type code; each pair's
+      second byte is the reason code (see Section 4.4).  When generated
+      by in-place overwrite, trailing bytes beyond the first pair are
+      zeroed.
 
 4.2.  Transitivity Inheritance
 
-   Unlike most BGP path attributes, ATTR_DISCARD does not have a
-   fixed Transitive bit.  Instead, the Transitive bit is inherited
+   ATTR_DISCARD is always Optional, regardless of whether the original
+   attribute was well-known or optional.  The Optional bit must be set
+   so that a non-recognizing speaker can process the attribute safely: a
+   well-known attribute code that is not recognized triggers a
+   NOTIFICATION ([RFC4271], Section 5), which would tear down the
+   session.  Unlike most BGP path attributes, ATTR_DISCARD does not have
+   a fixed Transitive bit.  Instead, the Transitive bit is inherited
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 5]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
    from the original attribute that was overwritten.
 
-   This produces two propagation behaviors:
-
-     a) Original attribute was transitive:
-
-        The ATTR_DISCARD marker is optional and transitive.  Per
-        RFC 4271 Section 5, BGP speakers that do not recognize an
-        optional transitive attribute MUST accept it and pass it
-        along to other BGP speakers, setting the Partial bit.
-
-        This means the marker propagates along the AS path.
-        Downstream speakers (and their operators) can observe that
-        an attribute was discarded upstream.
-
-     b) Original attribute was non-transitive:
-
-        The ATTR_DISCARD marker is optional and non-transitive.  Per
-        RFC 4271 Section 5, BGP speakers that do not recognize an
-        optional non-transitive attribute silently ignore it.
-
-        The marker remains local to the speaker that performed the
-        discard, matching the original attribute's scope.
+   When the original attribute was transitive, the marker is forwarded
+   per RFC 4271 Section 5.  When non-transitive, the marker is silently
+   ignored by non-recognizing speakers.
 
    The flag requirements for ATTR_DISCARD are:
 
-     Optional bit (bit 0):       MUST be 1
-     Transitive bit (bit 1):     Inherited from the original attribute
-     Partial bit (bit 2):        MUST be 0 at generation
-     Extended Length bit (bit 3): Preserved from the original attribute
+   Optional bit (bit 0):  MUST be 1
+
+   Transitive bit (bit 1):  Inherited from the original attribute
+
+   Partial bit (bit 2):  MUST be 0 at generation
+
+   Extended Length bit (bit 3):  MUST match the length field encoding
+      (set if length > 255)
 
    The general formula for computing the overwritten flags byte:
 
-     new_flags = 0x80 | (original_flags & 0x50)
+   new_flags = 0x80 | (original_flags & 0x50)
 
    Where:
-     - 0x80 sets the Optional bit
-     - 0x50 is the mask for Transitive (0x40) and Extended Length
-       (0x10) bits; Partial (0x20) is excluded so that the Partial
-       bit is cleared (see below)
 
-   The Partial bit is cleared at generation.  When a downstream
-   speaker forwards an unrecognized optional transitive attribute,
-   it sets the Partial bit per RFC 4271 Section 5.  This allows
-   receivers to distinguish between "generated by the discarding
-   speaker" (Partial=0) and "forwarded through intermediate
-   speakers" (Partial=1).
+   *  0x80 sets the Optional bit
+
+   *  0x50 is the mask for Transitive (0x40) and Extended Length (0x10)
+      bits; Partial (0x20) is excluded so that the Partial bit is
+      cleared (see below)
+
+   The Partial bit is cleared at generation.  When a downstream speaker
+   forwards an unrecognized optional transitive attribute, it sets the
+   Partial bit per RFC 4271 Section 5.  This allows receivers to
+   distinguish between "generated by the discarding speaker" (Partial=0)
+   and "forwarded through intermediate speakers" (Partial=1).
 
 4.3.  Wire Format
 
-   In all examples, three bytes are modified: the flags byte (if
-   the Optional bit must be set), the type code byte, and the first
-   value byte (overwritten with the original type code).  The length
-   field and remaining value bytes are untouched.
+   The ATTR_DISCARD value consists of zero or more 2-byte pairs.  Each
+   pair contains one type-code octet (the original attribute type code)
+   followed by one reason-code octet (Section 4.4).  Trailing octets
+   from in-place overwrite are zeroed.
+
+
+
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 6]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+     In-place overwrite (single discard, value length >= 2):
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |O|T|P|E| Rsvd  |   TBD Code    |    Length (unchanged)         |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     | Original Code | Reason Code   |         Zeroed ...            |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+     Rebuild (N discarded attributes):
+
+      0                   1                   2                   3
+      0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |O|T|P|E| Rsvd  |   TBD Code    |    Length (2 * N)             |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     | Orig Code 1   | Reason Code 1 | Orig Code 2   | Reason Code 2 |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     | ...                                                           |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+     Flags: O=Optional (MUST be 1), T=Transitive (inherited),
+            P=Partial (MUST be 0 at generation), E=Extended Length
+     Length: 1 byte if value <= 255, 2 bytes if E=1
+
+   When a single attribute is discarded and its value length is at least
+   2, the implementation MAY overwrite the attribute in place: modify
+   the flags byte (applying the formula from Section 4.2), overwrite the
+   type code with TBD, write the (code, reason) pair into the first two
+   value bytes, and zero the remainder.  The length field is not
+   modified; consequently the value length is inherited from the
+   original attribute and may not be a multiple of 2.  Trailing bytes
+   beyond the first pair are zeroed.
+
+   When multiple attributes are discarded, or when the original
+   attribute has fewer than 2 value bytes, the implementation MUST
+   remove the affected attributes by rebuilding the path attributes
+   section and insert a single ATTR_DISCARD attribute whose value
+   contains one (code, reason) pair per discarded attribute.  The value
+   length is exactly 2 * N where N is the number of pairs (see
+   Section 5.1 and Section 5.7).
 
    Example 1: Transitive original (AGGREGATOR, flags 0xC0)
 
    Before overwrite:
 
-     +------+------+------+------+-----------+
-     | 0xC0 | 0x07 | 0x05 | 0xNN | <4 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    val[0]  val[1..4]
+
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 7]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+     +------+------+------+---------------+
+     | 0xC0 | 0x07 | 0x05 | <5 bytes>     |
+     +------+------+------+---------------+
+      flags   code   len    value
 
    After overwrite:
 
-     +------+------+------+------+-----------+
-     | 0xC0 | TBD  | 0x05 | 0x07 | <4 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    orig    (opaque)
+     +------+------+------+------+------+--------------------+
+     | 0xC0 | TBD  | 0x05 | 0x07 | 0x02 | 0x00 0x00 0x00     |
+     +------+------+------+------+------+--------------------+
+      flags   code   len    orig  reason     (zeroed)
 
-   The flags byte is unchanged (0xC0 = optional, transitive);
-   the type code is overwritten with TBD; the first value byte is
-   overwritten with 0x07 (original AGGREGATOR code).  The marker
-   is transitive and will propagate to peers.
+   Flags unchanged (AGGREGATOR is already optional transitive).  Reason
+   0x02: invalid length.
 
    Example 2: Non-transitive original (ORIGINATOR_ID, flags 0x80)
 
    Before overwrite:
 
-     +------+------+------+------+-----------+
-     | 0x80 | 0x09 | 0x04 | 0xNN | <3 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    val[0]  val[1..3]
+     +------+------+------+---------------+
+     | 0x80 | 0x09 | 0x04 | <4 bytes>     |
+     +------+------+------+---------------+
+      flags   code   len    value
 
    After overwrite:
 
-     +------+------+------+------+-----------+
-     | 0x80 | TBD  | 0x04 | 0x09 | <3 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    orig    (opaque)
+     +------+------+------+------+------+------------+
+     | 0x80 | TBD  | 0x04 | 0x09 | 0x01 | 0x00 0x00  |
+     +------+------+------+------+------+------------+
+      flags   code   len    orig  reason   (zeroed)
 
-   The flags byte is unchanged (0x80 = optional, non-transitive).
-   The marker remains local and will not propagate.
+   Flags unchanged (optional non-transitive).  Reason 0x01: EBGP
+   invalid.  ORIGINATOR_ID is used by route reflectors on IBGP sessions;
+   its presence on an EBGP session is invalid per RFC 7606 Section 7.9.
+   The marker remains local (non-transitive).
 
    Example 3: Well-known transitive original (LOCAL_PREF from EBGP,
    flags 0x40)
 
    Before overwrite:
 
-     +------+------+------+------+-----------+
-     | 0x40 | 0x05 | 0x04 | 0xNN | <3 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    val[0]  val[1..3]
+     +------+------+------+---------------+
+     | 0x40 | 0x05 | 0x04 | <4 bytes>     |
+     +------+------+------+---------------+
+      flags   code   len    value
 
    After overwrite:
 
-     +------+------+------+------+-----------+
-     | 0xC0 | TBD  | 0x04 | 0x05 | <3 bytes> |
-     +------+------+------+------+-----------+
-      flags   code   len    orig    (opaque)
 
-   Here the flags change from 0x40 (well-known, transitive) to 0xC0
-   (optional, transitive).  The Optional bit is set because
-   ATTR_DISCARD is always optional.  The Transitive bit is preserved
-   from the original attribute.  The first value byte records 0x05
-   (original LOCAL_PREF code).  The marker will propagate to peers,
-   signaling that a well-known attribute was discarded.  Note:
-   LOCAL_PREF from an EBGP peer is a policy-based discard per
-   RFC 7606 Section 7.5 (the attribute is removed regardless of
-   whether it is well-formed), not a malformation detection.
 
-   Example 4: Extended length attribute (flags with bit 3 set)
+
+Mangin                   Expires 19 August 2026                 [Page 8]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+     +------+------+------+------+------+------------+
+     | 0xC0 | TBD  | 0x04 | 0x05 | 0x01 | 0x00 0x00  |
+     +------+------+------+------+------+------------+
+      flags   code   len    orig  reason   (zeroed)
+
+   Flags change from 0x40 to 0xC0 (Optional bit set).  Reason 0x01: EBGP
+   invalid.  LOCAL_PREF from an EBGP peer is a discard per RFC 7606
+   Section 7.5.
+
+   Example 4: Extended length non-transitive attribute (AIGP, flags
+   0x90)
 
    Before overwrite:
 
-     +------+------+--------+------+-----------+
-     | 0xD0 | 0x10 | 0x0100 | 0xNN | <255 B>   |
-     +------+------+--------+------+-----------+
-      flags   code   len      val[0]  val[1..255]
+     +------+------+--------+---------------+
+     | 0x90 | 0x1A | 0x0100 | <256 bytes>   |
+     +------+------+--------+---------------+
+      flags   code   len      value
 
    After overwrite:
 
-     +------+------+--------+------+-----------+
-     | 0xD0 | TBD  | 0x0100 | 0x10 | <255 B>   |
-     +------+------+--------+------+-----------+
-      flags   code   len      orig    (opaque)
+     +------+------+--------+------+------+-----------+
+     | 0x90 | TBD  | 0x0100 | 0x1A | 0x03 | <254 x 0> |
+     +------+------+--------+------+------+-----------+
+      flags   code   len      orig  reason   (zeroed)
 
-   The Extended Length bit (0x10) is preserved, so the 2-byte
-   length field is correctly parsed by all speakers.  The first
-   value byte records 0x10 (attribute type code 16, Extended
-   Community).  Note that the value 0x10 also appears in the flags
-   byte as the Extended Length bit; the two uses are unrelated and
-   distinguished by their position in the attribute header.
+   Formula: 0x80 | (0x90 & 0x50) = 0x80 | 0x10 = 0x90.  Flags unchanged
+   because AIGP is already optional non-transitive.  Extended Length bit
+   preserved; 2-byte length field is unchanged.  Original type code 0x1A
+   (AIGP).  Reason 0x03: malformed value.  The marker is non-transitive
+   and will not propagate.
+
+4.4.  Reason Codes
+
+   The following reason codes are defined:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                 [Page 9]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+     +=======+=============+=========================================+
+     | Code  | Name        | Description                             |
+     +=======+=============+=========================================+
+     | 0     | Unspecified | Reason not recorded or not applicable   |
+     +-------+-------------+-----------------------------------------+
+     | 1     | EBGP        | Attribute discarded because it was      |
+     |       | Invalid     | received from an external peer and is   |
+     |       |             | not valid in EBGP context (e.g.,        |
+     |       |             | LOCAL_PREF per RFC 7606 Section 7.5,    |
+     |       |             | ORIGINATOR_ID per RFC 7606 Section 7.9, |
+     |       |             | CLUSTER_LIST per RFC 7606 Section 7.10) |
+     +-------+-------------+-----------------------------------------+
+     | 2     | Invalid     | Attribute length does not match the     |
+     |       | Length      | expected length for the attribute type  |
+     |       |             | (e.g., AGGREGATOR with wrong length per |
+     |       |             | RFC 7606 Section 7.7, ATOMIC_AGGREGATE  |
+     |       |             | with non-zero length per Section 7.6,   |
+     |       |             | LARGE COMMUNITY with length not a       |
+     |       |             | multiple of 12 per [RFC8092])           |
+     +-------+-------------+-----------------------------------------+
+     | 3     | Malformed   | Attribute value is syntactically        |
+     |       | Value       | invalid despite a correct length (e.g., |
+     |       |             | unrecognized AIGP TLV type per          |
+     |       |             | [RFC7311] Section 3)                    |
+     +-------+-------------+-----------------------------------------+
+     | 4     | Local       | Attribute deliberately removed by local |
+     |       | Policy      | policy (e.g., filtering an unknown      |
+     |       |             | optional transitive attribute that the  |
+     |       |             | operator does not wish to propagate)    |
+     +-------+-------------+-----------------------------------------+
+     | 5-254 | Unassigned  | Available for future allocation by IANA |
+     +-------+-------------+-----------------------------------------+
+     | 255   | Reserved    | Reserved for future use                 |
+     +-------+-------------+-----------------------------------------+
+
+                     Table 1: ATTR_DISCARD Reason Codes
+
+   Implementations MUST set the reason code to the most specific
+   applicable value.  If no specific code applies, implementations MUST
+   use 0 (Unspecified).
+
+   Receivers that encounter an unrecognized reason code MUST treat it as
+   Unspecified for logging and counter purposes; the unrecognized value
+   MUST NOT cause the ATTR_DISCARD marker to be treated as malformed.
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 10]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
 5.  Processing Rules
 
 5.1.  Generating ATTR_DISCARD (Sender)
 
-   A BGP speaker that determines an attribute requires the
-   "attribute discard" action per RFC 7606 MAY use the following
-   procedure instead of rebuilding the path attributes section:
+   If the UPDATE is subject to a more severe error-handling action than
+   attribute discard (e.g., treat-as-withdraw per RFC 7606 Section 3.h),
+   the ATTR_DISCARD mechanism MUST NOT be applied.  The more severe
+   action subsumes the attribute discard.
 
-     1. Locate the malformed attribute's header in the path attributes
-        byte sequence.  The header starts at the flags byte.
+   When one or more attributes require discarding, the speaker first
+   determines which procedure to use:
 
-     2. Overwrite the flags byte:
+   *  If exactly one attribute requires discarding and its value length
+      is at least 2: the in-place overwrite procedure below MAY be used.
 
-          new_flags = 0x80 | (original_flags & 0x50)
+   *  Otherwise (multiple attributes, or value length less than 2): the
+      rebuild procedure in Section 5.7 MUST be used.
 
-        This sets the Optional bit, preserves the Transitive bit
-        and Extended Length bit, and clears the Partial bit.
+   The in-place overwrite procedure for a single attribute:
 
-     3. Save the original type code byte (for use in step 5 or local
-        logging).
+   1.  Locate the malformed attribute's header in the path attributes
+       byte sequence.  The header starts at the flags byte.
 
-     4. Overwrite the type code byte with the ATTR_DISCARD code (TBD).
+   2.  Overwrite the flags byte:
 
-     5. If the attribute value length is zero (i.e., the length field
-        is 0), skip this step -- there is no value byte to overwrite.
-        The original type code is not recorded in the marker; the
-        implementation SHOULD log it locally instead.  Otherwise,
-        overwrite the first byte of the attribute value with the
-        original type code saved in step 3.
+       new_flags = 0x80 | (original_flags & 0x50)
 
-     6. Do NOT modify the length field or any value bytes beyond
-        the first.
+       This sets the Optional bit, preserves the Transitive bit and
+       Extended Length bit, and clears the Partial bit.
 
-     7. Continue processing the UPDATE message normally.
+   3.  Save the original type code byte (for use in step 5 or local
+       logging).
 
-   Note: Zero-length attribute-discard cases are uncommon but possible.
-   RFC 7606 Section 7.5 specifies attribute-discard for LOCAL_PREF
-   received from an external neighbor regardless of length; Sections
-   7.9 and 7.10 do the same for ORIGINATOR_ID and CLUSTER_LIST.
-   Section 7.7 specifies attribute-discard for AGGREGATOR with an
-   incorrect length, which includes length zero.  In all these cases,
-   the attribute value may be empty, and the overwrite of the first
-   value byte MUST be skipped to avoid corrupting adjacent attribute
-   data.
+   4.  Overwrite the type code byte with the ATTR_DISCARD code (TBD).
 
-   The following table summarizes which RFC 7606 attribute-discard
-   triggers may produce zero-length ATTR_DISCARD markers (where the
-   original type code cannot be recorded in the first value byte):
+   5.  Overwrite the first byte of the attribute value with the original
+       type code saved in step 3.  (The precondition for the in-place
+       procedure guarantees value length >= 2.)
 
-     +-----------------+--------+----------------+------------------+
-     | Attribute       | RFC    | Trigger        | Zero-length      |
-     |                 | 7606   |                | possible?        |
-     +-----------------+--------+----------------+------------------+
-     | LOCAL_PREF      | 7.5    | EBGP policy    | Yes (any length) |
-     | ATOMIC_AGGREGATE| 7.6    | Length != 0    | No (len > 0)     |
-     | AGGREGATOR      | 7.7    | Wrong length   | Yes (len = 0)    |
-     | ORIGINATOR_ID   | 7.9    | EBGP policy    | Yes (any length) |
-     | CLUSTER_LIST    | 7.10   | EBGP policy    | Yes (any length) |
-     +-----------------+--------+----------------+------------------+
+   6.  Overwrite the second value byte with the reason code
+       (Section 4.4): 1 for EBGP invalid, 2 for invalid length, 3 for
+       malformed value, 4 for local policy, or 0 if no specific reason
+       applies.
 
-   Note: Certain "attribute discard" actions in RFC 7606 are policy-
-   based rather than error-based: LOCAL_PREF from an external neighbor
-   (Section 7.5), ORIGINATOR_ID from an external neighbor (Section
-   7.9), and CLUSTER_LIST from an external neighbor (Section 7.10)
-   are discarded regardless of whether the attribute value is well-
-   formed.  These are routine policy actions, not protocol errors.
-   Implementations SHOULD distinguish between policy-based discards
-   and malformation-based discards in their logging and counters
-   (Section 6.2).  Applying ATTR_DISCARD to policy-based discards
-   generates markers on every affected UPDATE (transitive for
-   LOCAL_PREF, non-transitive for ORIGINATOR_ID and CLUSTER_LIST),
-   which may be frequent in networks where external peers routinely
-   include these attributes.  Implementations MAY choose to apply
-   ATTR_DISCARD only to genuine malformation cases (e.g., AGGREGATOR
-   with incorrect length, ATOMIC_AGGREGATE with non-zero length) and
-   use conventional attribute removal for policy-based discards
-   that do not indicate a protocol error.
+   7.  Zero all remaining value bytes (bytes 2 through N-1, where N is
+       the attribute value length).  The length field MUST NOT be
+       modified.
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 11]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+   8.  Continue processing the UPDATE message normally per RFC 7606.
+
+   The following table shows the minimum value length when each
+   attribute-discard trigger fires:
+
+   +==================+======+============+============+==============+
+   | Attribute        | RFC  | Trigger    | Min value  | ATTR_DISCARD |
+   |                  | 7606 |            | len at     | usable?      |
+   |                  |      |            | trigger    |              |
+   +==================+======+============+============+==============+
+   | LOCAL_PREF (5)   | 7.5  | EBGP       | 0 (any     | Only if len  |
+   |                  |      | invalid    | length)    | >= 2         |
+   +------------------+------+------------+------------+--------------+
+   | ATOMIC_AGGREGATE | 7.6  | Length !=  | 1          | Only if len  |
+   | (6)              |      | 0          |            | >= 2         |
+   +------------------+------+------------+------------+--------------+
+   | AGGREGATOR (7)   | 7.7  | Wrong      | 0 (any     | Only if len  |
+   |                  |      | length     | wrong      | >= 2         |
+   |                  |      |            | length)    |              |
+   +------------------+------+------------+------------+--------------+
+   | ORIGINATOR_ID    | 7.9  | EBGP       | 0 (any     | Only if len  |
+   | (9)              |      | invalid    | length)    | >= 2         |
+   +------------------+------+------------+------------+--------------+
+   | CLUSTER_LIST     | 7.10 | EBGP       | 0 (any     | Only if len  |
+   | (10)             |      | invalid    | length)    | >= 2         |
+   +------------------+------+------------+------------+--------------+
+   | AIGP (26)        | RFC  | Malformed  | 3 (minimum | Yes (always  |
+   |                  | 7311 | TLV        | TLV        | >= 2)        |
+   |                  |      |            | header)    |              |
+   +------------------+------+------------+------------+--------------+
+   | LARGE COMMUNITY  | RFC  | Length not | 1 (any     | Only if len  |
+   | (32)             | 8092 | multiple   | non-zero   | >= 2         |
+   |                  |      | of 12      | wrong len) |              |
+   +------------------+------+------------+------------+--------------+
+
+      Table 2: Attribute-Discard Triggers and Minimum Value Lengths
+
+   Certain attribute-discard triggers are error-based (reason codes 2
+   and 3) while others are contextual (reason code 1).  Implementations
+   MAY choose to use conventional removal for contextual discards and
+   reserve ATTR_DISCARD for genuine malformation cases.
+
+   An implementation MAY also use the ATTR_DISCARD mechanism to remove
+   unknown optional transitive attributes that local policy does not
+   wish to propagate.  In this case, the original attribute is
+   overwritten using the same procedure (Section 5.1) with reason code 4
+   (Local Policy).  This informs downstream speakers that an attribute
+   was deliberately filtered rather than silently dropped.
+
+
+
+Mangin                   Expires 19 August 2026                [Page 12]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
    An implementation MAY override the inherited Transitive bit at
    generation time by clearing it:
 
-     new_flags = 0x80 | (original_flags & 0x10)
+   new_flags = 0x80 | (original_flags & 0x10)
 
    This produces a non-transitive marker regardless of the original
-   attribute's transitivity, confining the marker to the local
-   speaker.  This is useful when the operator does not want to
-   propagate error-handling artifacts to peers.  Conversely, an
-   implementation MUST NOT set the Transitive bit if it was not set
-   in the original attribute; promoting a non-transitive attribute
-   to transitive scope at generation time would violate the original
+   attribute's transitivity.  This is useful when the operator does not
+   want to propagate error-handling artifacts to peers.  Conversely, an
+   implementation MUST NOT set the Transitive bit if it was not set in
+   the original attribute; promoting a non-transitive attribute to
+   transitive scope at generation time would violate the original
    attribute's propagation intent.  (Note: the "propagate" forwarding
-   policy in Section 5.3c may set the Transitive bit at forwarding
-   time on a received marker; this restriction applies only to the
-   initial generation of the ATTR_DISCARD overwrite.)
+   policy in Section 5.3, Paragraph 4, Item 3 may set the Transitive bit
+   at forwarding time on a received marker; this restriction applies
+   only to the initial generation of the ATTR_DISCARD overwrite.)
 
-   The choice between inheriting and clearing the Transitive bit
-   SHOULD be configurable, with the default being to inherit.
+   The choice between inheriting and clearing the Transitive bit SHOULD
+   be configurable, with the default being to inherit.
 
-   A BGP speaker MUST NOT generate an ATTR_DISCARD attribute except
-   as a result of applying the "attribute discard" action defined in
-   RFC 7606.  That is, ATTR_DISCARD is not an attribute that an
-   originating speaker includes in a fresh UPDATE; it is strictly an
-   error-handling artifact.
+   A BGP speaker MUST NOT generate ATTR_DISCARD except when applying the
+   "attribute discard" action per RFC 7606 or when local policy removes
+   an attribute from a received UPDATE (see reason code 4 in
+   Section 4.4).  In particular, ATTR_DISCARD MUST NOT appear in a
+   freshly originated UPDATE.
+
+   When a well-known attribute is discarded (e.g., LOCAL_PREF received
+   from an EBGP peer per RFC 7606 Section 7.5), the implementation MUST
+   ensure that any attributes required by the destination session type
+   are present before forwarding.  For example, LOCAL_PREF MUST be added
+   with an appropriate default value when forwarding to IBGP peers, per
+   [RFC4271] Section 5.1.1.  This requirement applies regardless of
+   whether ATTR_DISCARD or conventional removal was used.
 
    A BGP speaker SHOULD log the original attribute code and the reason
-   for discard when generating an ATTR_DISCARD marker.  This aids
-   operational debugging without requiring the discarded data to remain
-   parseable.
+   for discard when generating an ATTR_DISCARD marker.
 
-   A BGP speaker MAY apply ATTR_DISCARD to multiple attributes within
-   the same UPDATE if multiple attributes independently require the
-   "attribute discard" action.  See Section 5.7 for the implications
-   of multiple markers sharing the same type code.
+   If multiple attributes independently require the "attribute discard"
+   action, the speaker MUST remove all of them and insert a single
+   ATTR_DISCARD whose value contains one (code, reason) pair per
+   discarded attribute.  See Section 5.7.
+
+   ATTR_DISCARD has no attribute ordering requirement.  When generated
+   by in-place overwrite, it occupies the position of the original
+   attribute, which may result in path attributes not appearing in
+   ascending type code order.  Implementations MUST NOT reject an UPDATE
+   solely because an ATTR_DISCARD attribute appears out of type code
+   order.  When generated by rebuild, ATTR_DISCARD MAY be placed at any
+   position in the path attributes section.
+
+
+
+Mangin                   Expires 19 August 2026                [Page 13]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+   [RFC4271] Section 5 prohibits multiple instances of the same
+   attribute type code in a single UPDATE.  If the received UPDATE
+   already contains an ATTR_DISCARD attribute from an upstream speaker,
+   and the local speaker needs to discard additional attributes, the
+   local speaker MUST use the rebuild procedure: remove the upstream
+   ATTR_DISCARD and all locally- discarded attributes, then insert a
+   single ATTR_DISCARD whose value contains all (code, reason) pairs --
+   upstream pairs followed by local pairs.  The transitivity of the
+   merged ATTR_DISCARD follows the rules in Section 5.7; in particular,
+   the upstream ATTR_DISCARD's Transitive bit and the local originals'
+   Transitive bits must ALL agree for the result to be transitive.
+
+   Merging upstream and local pairs into a single ATTR_DISCARD loses the
+   Partial bit provenance signal (which pairs originated locally vs.
+   upstream).  Implementations SHOULD log the upstream pairs separately
+   before merging to preserve diagnostic traceability.
 
 5.2.  Receiving ATTR_DISCARD
 
@@ -521,73 +754,59 @@ Table of Contents
 
 5.2.1.  Non-Recognizing Speakers
 
-   A BGP speaker that does not recognize the ATTR_DISCARD attribute
-   code applies standard RFC 4271 Section 5 processing based on the
-   attribute's flags:
-
-     - If the Transitive bit is set (the original attribute was
-       transitive): the speaker MUST accept the attribute and pass it
-       along to other BGP speakers, setting the Partial bit.
-
-     - If the Transitive bit is clear (the original attribute was
-       non-transitive): the speaker silently ignores the attribute.
-
-   No implementation changes are required for non-recognizing speakers.
-   The existing RFC 4271 machinery handles both cases correctly.
+   Standard RFC 4271 Section 5 processing applies: transitive markers
+   are forwarded with Partial set; non-transitive markers are silently
+   ignored.  No implementation changes are required.
 
 5.2.2.  Recognizing Speakers
 
    A BGP speaker that recognizes the ATTR_DISCARD attribute code:
 
-     - MUST NOT attempt to interpret the value bytes beyond the first
-       byte.  Bytes 1 through N-1 of the value are opaque and have no
-       defined structure.
+   *  SHOULD parse the value as a sequence of 2-byte (code, reason)
+      pairs.  Each pair identifies one discarded attribute and the
+      reason for its removal.  The number of pairs is value_length / 2.
+      Any trailing byte (odd value length) is ignored.
 
-     - SHOULD read the first value byte, if present (value length
-       >= 1), to determine the original attribute type code that was
-       discarded.  This enables per-attribute-code counters and more
-       specific diagnostic output.  A zero-length ATTR_DISCARD does
-       not carry this information (see Section 5.1, step 5).
+   *  SHOULD maintain per-peer counters (see Section 6.2) and log each
+      (code, reason) pair.
 
-     - SHOULD increment a counter for discarded attributes received,
-       broken down by peer and by original attribute code (from the
-       first value byte), for operational monitoring (see Section 6.2).
-
-     - SHOULD log the presence of ATTR_DISCARD attributes for
-       diagnostic purposes, including the original attribute code
-       (first value byte, if value length >= 1), the inherited
-       length (which reveals the original attribute's size), and
-       whether the Partial bit is set (indicating the marker was
-       forwarded through intermediate speakers).
-
-     - For forwarding behavior, see Section 5.3.
+   *  For forwarding behavior, see Section 5.3.
 
 5.2.3.  Malformed ATTR_DISCARD
 
    Per the guidance of RFC 7606 Section 8, this section defines what
    constitutes a malformed ATTR_DISCARD attribute and how it is handled.
 
-   ATTR_DISCARD has no currently defined malformation conditions.
-   Any value length (including zero) is valid: a zero-length
-   ATTR_DISCARD is legitimately generated when the overwritten
-   attribute had no value bytes (see Section 5.1, step 5).
-   Receivers MUST NOT treat any ATTR_DISCARD as malformed based
-   solely on its length.
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 14]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+   ATTR_DISCARD has no currently defined malformation conditions.  Any
+   value length (including zero) is valid.  A value length of zero or
+   one may indicate a non-conforming implementation or a future
+   extension; there are no complete (code, reason) pairs to parse.  An
+   odd value length indicates a trailing byte that receivers ignore.
+   Receivers MUST NOT treat any ATTR_DISCARD as malformed based solely
+   on its length.
 
    ATTR_DISCARD has no effect on route selection or installation
-   (Section 6.5).  Therefore, per RFC 7606 Section 2, should any
-   future revision define malformation conditions for ATTR_DISCARD,
-   such a malformed marker SHALL be handled using the approach of
-   "attribute discard" (i.e., the marker itself is discarded and
-   the UPDATE continues to be processed).
+   (Section 6.5).  Therefore, per RFC 7606 Section 2, should any future
+   revision define malformation conditions for ATTR_DISCARD, such a
+   malformed marker SHALL be handled using the approach of "attribute
+   discard" (i.e., the marker itself is discarded and the UPDATE
+   continues to be processed).
 
-   If an implementation applies the ATTR_DISCARD overwrite mechanism
-   to discard a received ATTR_DISCARD marker, the first value byte
-   of the resulting marker will contain the ATTR_DISCARD type code
-   (TBD) rather than the original attribute's type code.  The
-   original diagnostic information is lost from the wire.
-   Implementations SHOULD log the first value byte of the received
-   ATTR_DISCARD marker before overwriting it.
+   If an implementation applies the ATTR_DISCARD overwrite mechanism to
+   discard a received ATTR_DISCARD marker, the first (code, reason) pair
+   of the resulting marker will contain the ATTR_DISCARD type code (TBD)
+   rather than the original attribute's type code.  The original
+   diagnostic information is lost from the wire.  Implementations SHOULD
+   log the received (code, reason) pairs before overwriting.
 
 5.3.  Forwarding Policy
 
@@ -596,84 +815,114 @@ Table of Contents
    forwarding behavior follows the Transitive bit as with any optional
    attribute:
 
-     - Transitive ATTR_DISCARD: forwarded to peers with Partial bit
-       set (RFC 4271 Section 5).
+   *  Transitive ATTR_DISCARD: forwarded to peers with Partial bit set
+      (RFC 4271 Section 5).
 
-     - Non-transitive ATTR_DISCARD: not forwarded.
+   *  Non-transitive ATTR_DISCARD: not forwarded.
 
-   Implementations SHOULD provide a configurable policy to override
-   this default, with at least the following options:
+   Implementations SHOULD provide a configurable policy to override this
+   default, with at least the following options:
 
-     a) "inherit" (default):
+   a.  "inherit" (default):
 
-        Transitive ATTR_DISCARD markers are forwarded within the AS
-        via IBGP, providing diagnostic visibility to all speakers
-        (including non-recognizing route reflectors, which forward
-        them per RFC 4271 Section 5).
+       Transitive ATTR_DISCARD markers are forwarded within the AS via
+       IBGP (including by non-recognizing route reflectors, which
+       forward unrecognized optional transitive attributes per standard
+       BGP processing).
 
-        At the originating AS's EBGP boundary, the sending speaker
-        controls propagation.  A recognizing EBGP speaker SHOULD
-        clear the Transitive bit before forwarding the marker to
-        the EBGP peer.  This prevents the peer from propagating
-        the marker further.  However, because the marker becomes
-        non-transitive, a non-recognizing peer will silently ignore
-        it per RFC 4271 Section 5 -- it will not be visible at the
-        BGP layer on that peer.  The marker remains observable via
-        BMP [RFC7854] or packet-level inspection at the receiving
-        AS.  A recognizing peer will process it normally
-        (Section 5.2.2).
+       At the originating AS's EBGP boundary, the sending speaker
+       controls propagation.  Under the "inherit" policy, a recognizing
+       EBGP speaker MUST clear the Transitive bit before forwarding the
+       marker to the EBGP peer.  This prevents the peer from propagating
 
-        Non-recognizing EBGP speakers in the originating AS will
-        forward the marker as any unrecognized optional transitive
-        attribute, without containment.  Operators who cannot ensure
-        that all their EBGP speakers recognize ATTR_DISCARD SHOULD
-        clear the Transitive bit at generation time (Section 5.1)
-        to prevent uncontrolled propagation.  This trades intra-AS
-        visibility via non-recognizing route reflectors for reliable
-        containment at the AS boundary.
 
-        A recognizing speaker that receives a transitive ATTR_DISCARD
-        from an EBGP peer SHOULD also clear the Transitive bit after
-        processing, as defense in depth.  However, the originating AS
-        MUST NOT rely on the receiver's behavior for containment, as
-        the receiver may not support this specification.
 
-        Non-transitive ATTR_DISCARD markers are silently ignored by
-        non-recognizing speakers per RFC 4271 Section 5 and are not
-        forwarded by recognizing speakers under the default "inherit"
-        policy.  (The "propagate" policy overrides this; see 5.3c.)
+Mangin                   Expires 19 August 2026                [Page 15]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
 
-     b) "strip":
 
-        Remove ALL ATTR_DISCARD markers before forwarding, regardless
-        of transitivity.  This prevents marker propagation beyond the
-        local speaker, useful when operators do not want to expose
-        error-handling artifacts to peers.
+       the marker further.  However, because the marker becomes non-
+       transitive, a non-recognizing peer will silently ignore it per
+       RFC 4271 Section 5 -- it will not be visible at the BGP layer on
+       that peer.  The marker remains observable via BMP [RFC7854] or
+       packet-level inspection at the receiving AS.  A recognizing peer
+       will process it normally (Section 5.2.2).
 
-        When "strip" is active, the implementation MUST exclude
-        ATTR_DISCARD attributes from forwarded path attributes.  If
-        the implementation uses zero-copy forwarding, it MUST either
-        clear the Transitive bit (converting to non-transitive, which
-        will then be silently ignored by non-recognizing speakers) or
-        rebuild the affected portion of the path attributes.
+       Non-recognizing EBGP speakers in the originating AS will forward
+       the marker as any unrecognized optional transitive attribute,
+       without containment.  Operators who cannot ensure that all their
+       EBGP speakers recognize ATTR_DISCARD SHOULD clear the Transitive
+       bit at generation time (Section 5.1) to prevent uncontrolled
+       propagation.  This trades intra-AS visibility via non-recognizing
+       route reflectors for reliable containment at the AS boundary.
 
-     c) "propagate":
+       A recognizing speaker that receives a transitive ATTR_DISCARD
+       from an EBGP peer SHOULD also clear the Transitive bit after
+       processing, as defense in depth.  However, the originating AS
+       MUST NOT rely on the receiver's behavior for containment, as the
+       receiver may not support this specification.
 
-        Forward ALL ATTR_DISCARD markers as transitive, overriding
-        the default containment behavior of "inherit" and setting the
-        Transitive bit to 1 if necessary.  This provides maximum
-        diagnostic visibility across the network, even across AS
-        boundaries and even for attributes that were originally
-        non-transitive.
+       Non-transitive ATTR_DISCARD markers are silently ignored by non-
+       recognizing speakers per RFC 4271 Section 5 and are not forwarded
+       by recognizing speakers under the default "inherit" policy.  (The
+       "propagate" policy overrides this; see Section 5.3, Paragraph 4,
+       Item 3.)
 
-        When "propagate" is active and the ATTR_DISCARD marker has
-        the Transitive bit clear, the implementation MUST set the
-        Transitive bit before forwarding.  The Partial bit SHOULD
-        NOT be set by a recognizing speaker that explicitly forwards
-        the attribute, as the Partial bit per RFC 4271 Section 5
-        indicates the attribute was not recognized.  Non-recognizing
-        speakers that subsequently forward the marker will set the
-        Partial bit per standard processing.
+   b.  "strip":
+
+       Remove ALL ATTR_DISCARD markers before forwarding, regardless of
+       transitivity.  This prevents marker propagation beyond the local
+       speaker, useful when operators do not want to expose error-
+       handling artifacts to peers.
+
+       When "strip" is active, the implementation MUST prevent
+       ATTR_DISCARD markers from propagating further.  This MAY be
+       achieved by removing ATTR_DISCARD attributes from the forwarded
+       path attributes (requires rebuild), or by clearing the Transitive
+       bit (converting to non-transitive so that non-recognizing
+       speakers silently ignore it per RFC 4271 Section 5).  Note that
+       clearing the Transitive bit does not remove the marker from the
+       wire; a recognizing peer will still see it.  If complete removal
+       is required, the implementation MUST rebuild the path attributes.
+
+   c.  "propagate":
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 16]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+       Forward ALL ATTR_DISCARD markers as transitive, overriding the
+       default containment behavior of "inherit" and setting the
+       Transitive bit to 1 if necessary.  All markers propagate across
+       AS boundaries, including those for originally non-transitive
+       attributes.
+
+       When "propagate" is active and the ATTR_DISCARD marker has the
+       Transitive bit clear, the implementation MUST set the Transitive
+       bit before forwarding.  A recognizing speaker that explicitly
+       forwards the attribute MUST clear the Partial bit (setting it to
+       0), even if it was set by an intermediate non-recognizing
+       speaker, because the forwarding speaker recognizes the attribute
+       (RFC 4271 Section 5 requires Partial only for unrecognized
+       attributes).  Non-recognizing speakers that subsequently forward
+       the marker will set the Partial bit per standard processing.
+
+       Note: When the "propagate" policy promotes a non-transitive
+       marker to transitive, the resulting marker has Partial=0 (not set
+       by the recognizing forwarder) and Transitive=1.  The flags alone
+       do not indicate whether the marker was originally transitive or
+       promoted by policy.  However, a receiver that knows the
+       transitivity of the original attribute type code (recorded in the
+       value) can infer that promotion occurred.  For example, a
+       transitive ATTR_DISCARD carrying (ORIGINATOR_ID, reason) reveals
+       that a non-transitive attribute was promoted.
 
    The policy SHOULD be configurable per peer-group or per neighbor,
    allowing operators to strip markers on external sessions while
@@ -681,420 +930,390 @@ Table of Contents
 
 5.4.  Interaction with Route Reflectors
 
-   A route reflector [RFC4456] that applies ATTR_DISCARD to an
-   attribute in a received UPDATE reflects the marker to clients and
-   non-clients according to the Transitive bit and the configured
-   forwarding policy (Section 5.3).
-
-   Under the default "inherit" policy:
-
-     - Transitive ATTR_DISCARD markers are reflected to clients and
-       non-clients, preserving the existing Partial bit value.
-
-     - Non-transitive ATTR_DISCARD markers are not reflected.
-
-   A route reflector that validates inbound UPDATEs and applies
-   attribute-discard MAY choose to use the "propagate" policy to
-   ensure all clients receive visibility of the discard event,
-   regardless of the original attribute's transitivity.
-
-   If the route reflector forwards UPDATE messages using zero-copy
-   techniques (referencing the original wire bytes) and the configured
-   policy is "strip", it MUST ensure that ATTR_DISCARD markers are
-   excluded from the forwarded path attributes.
+   Route reflectors [RFC4456] reflect ATTR_DISCARD markers according to
+   the Transitive bit and the configured forwarding policy
+   (Section 5.3).
 
 5.5.  Interaction with Confederation Boundaries
 
-   At confederation boundaries [RFC5065], ATTR_DISCARD attributes are
-   handled according to their Transitive bit:
-
-     - Transitive ATTR_DISCARD: propagated across the confederation
-       boundary, preserving the existing Partial bit value.
-
-     - Non-transitive ATTR_DISCARD: not propagated across the
-       confederation boundary.
-
-   This behavior follows naturally from RFC 5065 and requires no
-   special implementation.  The forwarding policy (Section 5.3) MAY
-   be applied at confederation boundaries to override this default.
+   At confederation boundaries [RFC5065], ATTR_DISCARD markers are
+   handled according to their Transitive bit, per standard RFC 5065
+   processing.  The forwarding policy (Section 5.3) MAY be applied.
 
 5.6.  Interaction with ATTR_SET
 
-   RFC 6368 [RFC6368] defines the ATTR_SET attribute, which contains
-   an embedded set of path attributes.  If a malformed attribute is
-   found inside an ATTR_SET value, the ATTR_DISCARD mechanism defined
-   in this document MUST NOT be applied to the embedded attribute.
+   RFC 6368 [RFC6368] defines the ATTR_SET attribute, which contains an
+   embedded set of path attributes.  If a malformed attribute is found
+   inside an ATTR_SET value, the ATTR_DISCARD mechanism defined in this
+   document MUST NOT be applied to the embedded attribute.
 
-   ATTR_DISCARD operates on top-level path attributes only.  It
-   relies on overwriting the attribute header at a known offset in
-   the path attributes byte sequence; embedded attributes within
-   ATTR_SET have a different encapsulation and may be subject to
-   additional validation by the ATTR_SET consumer.
 
-   Malformed attributes inside ATTR_SET SHOULD be handled per the
-   error handling rules of RFC 6368 and RFC 7606.  If the ATTR_SET
-   itself is malformed (e.g., its contained attributes cannot be
-   parsed), the error handling action for ATTR_SET as a whole applies.
 
-5.7.  Duplicate Markers in the Same UPDATE
+Mangin                   Expires 19 August 2026                [Page 17]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
 
-   When multiple attributes in the same UPDATE independently require
-   the "attribute discard" action, the sender generates multiple
-   ATTR_DISCARD markers, each in the position of its respective
-   original attribute.  All markers share the same type code (TBD).
 
-   RFC 7606 Section 3.g states that when the same attribute type
-   code appears more than once in an UPDATE (excluding MP_REACH_NLRI
-   and MP_UNREACH_NLRI), a receiver SHALL discard all occurrences
-   except the first.  This rule applies to ATTR_DISCARD markers:
-   a conforming receiver will retain only the first ATTR_DISCARD
-   marker and discard the rest.
+   ATTR_DISCARD operates on top-level path attributes only.  It relies
+   on overwriting the attribute header at a known offset in the path
+   attributes byte sequence; embedded attributes within ATTR_SET have a
+   different encapsulation and may be subject to additional validation
+   by the ATTR_SET consumer.
 
-   The surviving marker is the one that appears at the earliest byte
-   position in the path attributes section.  Since the ATTR_DISCARD
-   overwrite preserves attribute positions, this is the original
-   attribute that appeared earliest in the UPDATE.  The sender has no
-   control over which marker survives at the receiver beyond the
-   attribute ordering already present in the received UPDATE.
+   Malformed attributes inside ATTR_SET SHOULD be handled per the error
+   handling rules of RFC 6368 and RFC 7606.  If the ATTR_SET itself is
+   malformed (e.g., its contained attributes cannot be parsed), the
+   error handling action for ATTR_SET as a whole applies.
 
-   Note: An UPDATE containing multiple ATTR_DISCARD markers has
-   duplicate attribute type codes.  While RFC 4271 Section 6.3
-   originally treated duplicate attributes as an error, RFC 7606
-   Section 3.g replaces this with "retain first, discard rest" for
-   non-MP attributes.  The sender is aware that only the first marker
-   survives at the receiver.
+5.7.  Multiple Discards in the Same UPDATE
 
-   Consequences:
+   When multiple attributes in the same UPDATE independently require the
+   "attribute discard" action, the speaker MUST remove all affected
+   attributes by rebuilding the path attributes section and insert a
+   single ATTR_DISCARD attribute whose value contains one (code, reason)
+   pair per discarded attribute.  The value length is 2 * N where N is
+   the number of discarded attributes.  If the value length exceeds 255,
+   the Extended Length bit (0x10) MUST be set and the length field MUST
+   use two bytes.
 
-     - Receivers see at most one ATTR_DISCARD marker per UPDATE,
-       regardless of how many attributes were discarded by the sender.
+   If all discarded attributes were transitive, the flags MUST be set to
+   0xC0 (optional transitive).  If all were non-transitive, the flags
+   MUST be set to 0x80 (optional non-transitive).  If the discarded
+   attributes have mixed transitivity, the flags SHOULD be set to 0x80
+   (optional non-transitive) as the conservative default; the
+   "propagate" forwarding policy (Section 5.3, Paragraph 4, Item 3) can
+   override this at forwarding time if broader visibility is desired.
+   In all cases, the Extended Length bit (0x10) MUST be OR'd into the
+   flags if the value length exceeds 255.
 
-     - The first value byte of the surviving marker identifies the
-       original attribute code from the positionally earliest
-       discarded attribute; information about other discarded
-       attributes is lost at the receiver.
-
-     - Counters at the receiver (Section 6.2) reflect the first
-       discarded attribute only, not the total count.
-
-   The sender still benefits from overwriting all malformed attributes
-   in place (preventing misinterpretation of malformed bytes by local
-   consumers), even though remote receivers see only one marker.
-
-   Implementations that generate ATTR_DISCARD markers SHOULD log all
-   discard events locally, including the original attribute code and
-   reason for each, so that the full diagnostic information is
-   available at the point of detection.
-
-   Implementations should be aware that an UPDATE containing multiple
-   ATTR_DISCARD markers has duplicate attribute type codes, which some
-   BGP speakers may log as anomalies.  In deployments where
-   ATTR_DISCARD is used, operators SHOULD configure their monitoring
-   systems to recognize duplicate ATTR_DISCARD type codes as expected
-   behavior rather than protocol errors.
+   When merging with an upstream ATTR_DISCARD (Section 5.1), "all
+   discarded attributes" includes both the upstream speaker's original
+   discards -- whose aggregate transitivity is represented by the
+   upstream ATTR_DISCARD's Transitive bit -- and the locally discarded
+   attributes.  The merged ATTR_DISCARD is transitive (0xC0) only if the
+   upstream ATTR_DISCARD was transitive AND all locally discarded
+   attributes were also transitive.  Any disagreement between upstream
+   and local transitivity constitutes mixed transitivity and the
+   conservative default (0x80) applies.
 
 6.  Operational Considerations
 
 6.1.  Diagnostic Visibility
 
-   The presence of ATTR_DISCARD attributes in received UPDATEs
-   provides valuable operational information:
+   ATTR_DISCARD attributes in received UPDATEs carry the following
+   information:
 
-     - It signals that an upstream speaker detected and corrected a
-       malformed attribute per RFC 7606.
 
-     - When the marker has non-zero length, the first value byte
-       identifies the original attribute type code that was discarded,
-       enabling operators to determine which attribute was malformed
-       without inspecting the remaining opaque bytes.  A zero-length
-       marker (Section 5.1, step 5) does not carry this information.
 
-     - The Partial bit distinguishes locally-generated markers
-       (Partial=0) from forwarded markers (Partial=1), indicating
-       whether the discard occurred at the immediate peer or further
-       upstream.
+Mangin                   Expires 19 August 2026                [Page 18]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
 
-     - The inherited length field reveals the size of the original
-       malformed attribute, which may aid diagnosis.
 
-     - Transitive markers provide network-wide visibility: an operator
-       at any point along the AS path can observe that a discard event
-       occurred, even if it happened many hops away.
+   *  An upstream speaker applied the attribute-discard action per RFC
+      7606.
+
+   *  The Partial bit distinguishes locally-generated markers
+      (Partial=0) from forwarded markers (Partial=1).
+
+   *  For in-place overwrites, the inherited length field indicates the
+      size of the original attribute.
+
+   *  Transitive markers are visible at any point along the AS path.
 
    Implementations SHOULD make ATTR_DISCARD attributes visible in
    diagnostic outputs (route dumps, packet traces, monitoring systems)
    with clear labeling, for example:
 
-     ATTR_DISCARD (original=AGGREGATOR(7), length=5, transitive,
-                   partial, remaining data not interpreted)
+     ATTR_DISCARD (original=AGGREGATOR(7), reason=invalid-length(2),
+                   length=5, transitive, partial)
 
 6.2.  Counting Discarded Attributes
 
    Implementations SHOULD maintain the following counters:
 
-     - attr-discard-applied: Number of attributes overwritten with
-       ATTR_DISCARD on received UPDATEs (per peer, per original
-       attribute code).
+   *  attr-discard-applied: Number of attributes overwritten with
+      ATTR_DISCARD on received UPDATEs (per peer, per original attribute
+      code, per reason code).
 
-     - attr-discard-received: Number of ATTR_DISCARD attributes
-       observed in received UPDATEs (per peer, per original attribute
-       code as read from the first value byte).  A non-zero value
-       for this counter indicates that an upstream speaker is
-       performing RFC 7606 attribute-discard with this mechanism.
+   *  attr-discard-received: Number of (code, reason) pairs observed in
+      received ATTR_DISCARD attributes (per peer, per original attribute
+      code, per reason code).  A non-zero value indicates that an
+      upstream speaker is performing RFC 7606 attribute-discard with
+      this mechanism.
 
-     - attr-discard-received-partial: Subset of attr-discard-received
-       where the Partial bit is set, indicating the marker was
-       forwarded through at least one intermediate speaker (the
-       discard did not occur at the immediate peer).
+   *  attr-discard-received-partial: Subset of attr-discard-received
+      where the Partial bit is set, indicating the marker was forwarded
+      through at least one intermediate speaker (the discard did not
+      occur at the immediate peer).
 
-   These counters enable operators to identify persistent
-   malformation sources without requiring packet-level debugging.
+   Note: Per Section 5.7, a single ATTR_DISCARD marker carries one
+   (code, reason) pair per discarded attribute.  The attr-discard-
+   received counter SHOULD be incremented once per pair.  The attr-
+   discard-applied counter tracks all local attribute-discard actions
+   per RFC 7606, regardless of whether the ATTR_DISCARD wire mechanism
+   or conventional removal was used.
 
-   Note: Due to the duplicate-marker deduplication described in
-   Section 5.7, the attr-discard-received counter reflects only the
-   first discarded attribute per UPDATE.  The attr-discard-applied
-   counter (locally generated) is not affected by deduplication.
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 19]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
 6.3.  Backward Compatibility
 
-   The ATTR_DISCARD attribute is fully backward compatible:
+   ATTR_DISCARD requires no capability negotiation.  Non-recognizing
+   speakers apply standard RFC 4271 Section 5 processing to the
+   attribute based on its flags.  The wire format of the UPDATE is
+   unchanged: the total path attributes length and all attribute
+   boundaries are preserved.
 
-     - BGP speakers that do not recognize the attribute code apply
-       standard RFC 4271 Section 5 processing: transitive markers
-       are forwarded with Partial set; non-transitive markers are
-       silently ignored.
-
-     - The wire format of the UPDATE message is unchanged: the total
-       path attributes length is preserved, and all attribute
-       boundaries remain valid.
-
-     - No new capability negotiation is required.  A BGP speaker MAY
-       use ATTR_DISCARD regardless of the peer's capabilities.
-
-     - The propagation behavior of transitive markers through
-       non-recognizing speakers is identical to that of any other
-       unrecognized optional transitive attribute -- a well-established
-       BGP mechanism used by many extensions.
-
-   In mixed deployments where some speakers recognize ATTR_DISCARD
-   and others do not:
-
-     - Transitive markers propagate through non-recognizing speakers
-       unchanged (except for the Partial bit being set), including
-       across AS boundaries.  Non-recognizing speakers forward them
-       per RFC 4271 Section 5 with no containment.
-
-     - The originating AS controls propagation at its own EBGP
-       boundary: recognizing EBGP speakers clear the Transitive bit
-       before forwarding ("inherit" policy) or remove markers
-       entirely ("strip" policy).  Non-recognizing EBGP speakers in
-       the originating AS forward markers without containment.
-
-     - Non-transitive markers are naturally confined to speakers
-       that recognize them (or to the generating AS if IBGP route
-       reflectors forward them), regardless of peer capabilities.
-
-   In a fully-recognizing deployment within the originating AS,
-   transitive markers are contained at the AS boundary: the AS's
-   EBGP speakers clear the Transitive bit before forwarding.
-   A recognizing peer will process the marker normally
-   (Section 5.2.2); a non-recognizing peer will silently ignore
-   it (the marker remains observable via BMP or packet capture).
-
-   When the originating AS cannot guarantee that all its EBGP
-   speakers recognize ATTR_DISCARD, the generating speaker should
-   clear the Transitive bit at generation time (Section 5.1) or
-   operators should use the "strip" policy on those EBGP sessions
-   that do support it.
-
-   Non-recognizing speakers will also apply the duplicate-attribute
-   rule (Section 5.7), retaining only the first ATTR_DISCARD marker
-   if multiple are present.
+   In mixed deployments, the originating AS controls propagation via the
+   forwarding policy (Section 5.3).  When not all EBGP speakers in the
+   AS recognize ATTR_DISCARD, the generating speaker SHOULD clear the
+   Transitive bit at generation time (Section 5.1) to prevent
+   uncontrolled propagation.
 
 6.4.  RIB Storage
 
-   ATTR_DISCARD is a wire-level construct.  Implementations SHOULD
-   NOT store ATTR_DISCARD markers in the Adj-RIB-In or Loc-RIB.
-
-   Most RIB implementations decompose path attributes into typed
-   pools (e.g., separate pools for ORIGIN, AS_PATH, COMMUNITY).
-   An ATTR_DISCARD marker does not belong to any typed pool and
-   would require special-case storage as raw bytes, defeating the
-   efficiency of pool-based architectures.
-
-   The diagnostic value of ATTR_DISCARD is captured at receive time
-   through logging and counters (Section 6.1, Section 6.2).  Once
-   this information is recorded, the marker serves no further purpose
-   in the RIB.
+   ATTR_DISCARD is a wire-level construct.  Implementations SHOULD NOT
+   store ATTR_DISCARD markers in the Adj-RIB-In or Loc-RIB (an
+   implementation MAY retain them temporarily for diagnostic purposes).
 
    When forwarding a route whose wire bytes contain ATTR_DISCARD
-   markers, the forwarding policy (Section 5.3) determines whether
-   the marker is included in the outbound UPDATE.  Implementations
-   that build outbound UPDATEs from RIB entries (rather than
-   forwarding wire bytes) will naturally omit ATTR_DISCARD since
-   it is not stored in the RIB.
+   markers, the forwarding policy (Section 5.3) determines whether the
+   marker is included in the outbound UPDATE.
 
 6.5.  Route Selection
 
-   ATTR_DISCARD MUST NOT affect the BGP best path selection process.
-   It is an informational marker, not a route attribute that
-   participates in path comparison.
-
-   Implementations MUST NOT use the presence or absence of
-   ATTR_DISCARD markers as a tiebreaker or preference criterion.
+   ATTR_DISCARD MUST NOT affect BGP best path selection or be used as a
+   tiebreaker.
 
 6.6.  Route Filtering
 
-   Operators MAY configure route filters that match on the presence
-   of ATTR_DISCARD markers.  This allows policies such as:
+   Operators MAY configure route filters that match on the presence of
+   ATTR_DISCARD markers.  This allows policies such as:
 
-     - Rejecting routes where an upstream speaker detected a
-       malformation (preferring routes with clean attribute sets).
+   *  Rejecting routes where an upstream speaker detected a malformation
+      (preferring routes with clean attribute sets).
 
-     - Accepting routes with ATTR_DISCARD but logging an alert for
-       operator review.
+   *  Accepting routes with ATTR_DISCARD but logging an alert for
+      operator review.
 
-     - Filtering based on the original attribute code (first value
-       byte), for example rejecting routes where ORIGIN or AS_PATH
-       was discarded (which would indicate treat-as-withdraw was
-       not applied when it should have been).
+   *  Filtering based on the (code, reason) pairs, for example rejecting
+      routes where ORIGIN or AS_PATH was discarded, as RFC 7606
+      specifies treat-as-withdraw (not attribute discard) for these
+      attributes and such a marker indicates a non-conforming upstream
+      implementation.  Alternatively, filtering only on malformation-
+      based discards (reason codes 2-3) while ignoring EBGP invalid
+      discards (reason code 1).
 
-   Such filtering is a local policy decision and not mandated by
-   this specification.
+
+
+
+Mangin                   Expires 19 August 2026                [Page 20]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+   Note: An ATTR_DISCARD marker whose (code, reason) pair references a
+   well-known mandatory attribute — such as ORIGIN (1), AS_PATH (2), or
+   NEXT_HOP (3) — with a malformation-based reason code (2 or 3)
+   indicates a non-conforming upstream implementation.  [RFC7606]
+   specifies treat-as-withdraw, not attribute discard, for these
+   attributes.  Operators SHOULD treat such markers as evidence of
+   upstream misconfiguration or software defects.
+
+   Such filtering is a local policy decision and not mandated by this
+   specification.
 
 6.7.  Interaction with BMP
 
    Implementations that export UPDATE messages via the BGP Monitoring
    Protocol (BMP) [RFC7854] will include ATTR_DISCARD markers in the
    exported Route Monitoring messages, since BMP preserves the wire
-   format of received UPDATEs.  Route monitoring stations and
-   analytics tools consuming BMP feeds SHOULD recognize the
-   ATTR_DISCARD attribute code to provide accurate diagnostics rather
-   than reporting it as an unknown attribute.
-
-   The first value byte of ATTR_DISCARD markers in BMP feeds carries
-   the original attribute type code, enabling monitoring tools to
-   report which attributes were discarded upstream.  A zero-length
-   ATTR_DISCARD (see Section 5.1) will appear in BMP feeds without
-   the original type code.
+   format of received UPDATEs.  Route monitoring stations and analytics
+   tools consuming BMP feeds SHOULD recognize the ATTR_DISCARD attribute
+   code to provide accurate diagnostics rather than reporting it as an
+   unknown attribute.
 
 6.8.  Interaction with Extended Messages
 
-   RFC 8654 [RFC8654] allows BGP messages up to 65535 bytes when
-   the Extended Message capability has been negotiated.  The
-   ATTR_DISCARD mechanism operates on individual attribute headers
-   within the path attributes section and is independent of the
-   overall message size.  No special handling is required for
-   extended messages; the overwrite procedure is identical.
+   RFC 8654 [RFC8654] allows BGP messages up to 65535 bytes when the
+   Extended Message capability has been negotiated.  The ATTR_DISCARD
+   mechanism operates on individual attribute headers within the path
+   attributes section and is independent of the overall message size.
+   No special handling is required for extended messages; the overwrite
+   procedure is identical.
 
 6.9.  Interaction with BGP Role
 
-   RFC 9234 [RFC9234] defines the BGP Role capability and the Only
-   To Customer (OTC) attribute for route leak prevention.  OTC
-   validation operates independently of ATTR_DISCARD: OTC violations
-   require route rejection (treat-as-withdraw per RFC 9234 Section
-   6), not attribute discard.  The two mechanisms do not conflict.
-   If an UPDATE triggers both a malformed attribute (requiring
-   attribute discard) and an OTC violation (requiring treat-as-
-   withdraw), the strongest action applies per RFC 7606 Section 3.h,
-   resulting in treat-as-withdraw for the entire UPDATE.
+   RFC 9234 [RFC9234] defines the BGP Role capability and the Only To
+   Customer (OTC) attribute for route leak prevention.  OTC validation
+   operates independently of ATTR_DISCARD: OTC violations require route
+   rejection (treat-as-withdraw per RFC 9234 Section 6), not attribute
+   discard.  The two mechanisms do not conflict.  If an UPDATE triggers
+   both a malformed attribute (requiring attribute discard) and an OTC
+   violation (requiring treat-as- withdraw), the strongest action
+   applies per RFC 7606 Section 3.h, resulting in treat-as-withdraw for
+   the entire UPDATE.
+
+6.10.  Interaction with ADD-PATH
+
+   RFC 7911 [RFC7911] adds a Path Identifier to NLRI entries.
+   ATTR_DISCARD operates on path attributes, not NLRI, and has no
+   interaction with ADD-PATH.
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 21]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+6.11.  Interaction with Graceful Restart
+
+   ATTR_DISCARD has no effect on Graceful Restart [RFC4724] processing.
+   ATTR_DISCARD markers do not affect the End-of-RIB marker or stale
+   route handling.
+
+6.12.  Interaction with Route Refresh
+
+   When a BGP speaker re-advertises routes in response to a Route
+   Refresh request [RFC2918], ATTR_DISCARD markers are subject to the
+   forwarding policy (Section 5.3) like any other outbound UPDATE.
 
 7.  Security Considerations
 
-   The value bytes of an ATTR_DISCARD attribute (beyond the first
-   byte) contain the original data from the overwritten malformed
-   attribute.  Implementations MUST NOT interpret this data.  If an
-   implementation logs or displays the raw bytes for diagnostic
-   purposes, it SHOULD clearly label them as "discarded, not
-   interpreted" to prevent operators from treating the values as
-   authoritative.
+   When generated by in-place overwrite, the value bytes beyond the
+   (code, reason) pair are zeroed by the generating speaker
+   (Section 5.1, step 7).  When generated by rebuild (Section 5.7), all
+   value bytes contain (code, reason) pairs and there are no trailing
+   zeroed bytes.  In both cases, no remnant of the original malformed
+   data is propagated.
 
-   Transitive ATTR_DISCARD markers carry the original malformed data
-   bytes across the network.  While no conforming implementation will
-   interpret these bytes (the type code is unrecognized), the data is
-   visible to any speaker that inspects raw attribute bytes.
-   Operators who are concerned about propagating potentially malformed
-   or sensitive data SHOULD use the "strip" forwarding policy
-   (Section 5.3) on external sessions.
-
-   Even under the default "inherit" policy, where the originating AS's
-   EBGP speaker clears the Transitive bit before forwarding, the
-   opaque value bytes are still carried to the direct EBGP peer.  If the
-   discarded attribute contained values that the operator considers
-   sensitive (e.g., community values encoding internal policy), these
-   bytes are visible to the peer's diagnostic tools despite being
-   nominally "not interpreted."  Operators who handle sensitive
-   attributes SHOULD consider the "strip" policy on EBGP sessions.
-
-   The "propagate" forwarding policy (Section 5.3c) converts
-   non-transitive ATTR_DISCARD markers to transitive, causing opaque
-   value bytes from originally non-transitive attributes to propagate
-   beyond their intended scope.  Non-transitive attributes such as
-   ORIGINATOR_ID and CLUSTER_LIST contain internal topology
-   information (router-ids, cluster-ids) that was intended to remain
-   within the local AS.  Operators deploying the "propagate" policy
-   SHOULD be aware that this may expose such information to external
-   peers via the opaque value bytes of the forwarded marker.
+   However, an ATTR_DISCARD marker received from a peer may not have
+   been generated by a conforming implementation of this specification.
+   Non-conforming or earlier implementations might leave the original
+   value bytes in place.  When an in-place-overwritten marker is
+   received, implementations SHOULD only parse the first (code, reason)
+   pair and SHOULD NOT assume trailing bytes are zeroed.
 
    An attacker who can inject BGP UPDATE messages could include
    ATTR_DISCARD attributes:
 
-     - Non-transitive injections are silently dropped by the first
-       conforming speaker, limiting impact.
+   *  Non-transitive injections are silently dropped by the first
+      conforming speaker, limiting impact.
 
-     - Transitive injections propagate like any unrecognized optional
-       transitive attribute.  This is no worse than injecting any
-       other unrecognized optional transitive attribute, which is
-       already possible without this specification.
+   *  Transitive injections propagate like any unrecognized optional
+      transitive attribute.  This is no worse than injecting any other
+      unrecognized optional transitive attribute, which is already
+      possible without this specification.
 
-   The ATTR_DISCARD attribute does not weaken any existing BGP
-   security guarantees.  It uses the same propagation mechanics
-   (optional transitive forwarding per RFC 4271 Section 5) that have
-   been in use since the original BGP-4 specification.
+   Reason code 4 (Local Policy) indicates deliberate attribute removal.
+   Receivers MUST NOT treat reason code 4 as evidence that the removal
+   was operationally justified or authorized.  Any BGP speaker can claim
+   reason code 4; the reason code provides diagnostic context, not
+   trust.  Operators SHOULD treat all received ATTR_DISCARD markers as
+   advisory.
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 22]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
    Implementations that compute cryptographic signatures over UPDATE
    messages (e.g., BGPsec [RFC8205]) MUST apply ATTR_DISCARD AFTER
    signature verification but BEFORE any re-signing or forwarding.
-   Modifying attribute bytes before verification would invalidate
-   the signature.  Note that applying ATTR_DISCARD to a BGPsec-
-   signed UPDATE also invalidates the signature for downstream
-   verification, requiring the speaker to re-sign the UPDATE.
-   In BGPsec deployments, the zero-copy benefit of ATTR_DISCARD
-   is limited to local processing; outbound forwarding requires
-   re-signing regardless.  The re-signed UPDATE will include the
-   ATTR_DISCARD marker and its opaque value bytes as authenticated
-   content; downstream BGPsec receivers will see the tombstone as a
-   signed attribute whose value they MUST NOT interpret beyond the
-   first byte.
+   Modifying attribute bytes before verification would invalidate the
+   signature.  Note that applying ATTR_DISCARD to a BGPsec- signed
+   UPDATE also invalidates the signature for downstream verification,
+   requiring the speaker to re-sign the UPDATE.  In BGPsec deployments,
+   the zero-copy benefit of ATTR_DISCARD is limited to local processing;
+   outbound forwarding requires re-signing regardless.  The re-signed
+   UPDATE will include the ATTR_DISCARD marker as authenticated content;
+   downstream BGPsec receivers will see the marker as a signed attribute
+   and SHOULD parse the (code, reason) pairs normally.
 
 8.  IANA Considerations
 
-   This document requests IANA to allocate a code point from the
-   "BGP Path Attributes" registry:
+   This document requests IANA to allocate a code point from the "BGP
+   Path Attributes" registry:
 
-     +-------+---------------+------------+-----------+
-     | Value | Code          | Reference  |           |
-     +-------+---------------+------------+-----------+
-     | TBD   | ATTR_DISCARD  | [this doc] |           |
-     +-------+---------------+------------+-----------+
+                   +=======+==============+============+
+                   | Value | Code         | Reference  |
+                   +=======+==============+============+
+                   | TBD   | ATTR_DISCARD | [this doc] |
+                   +-------+--------------+------------+
 
-   Any unassigned value from the BGP Path Attributes registry is
+                     Table 3: IANA BGP Path Attributes
+                              Registry Request
+
+   This allocation is requested under the "Standards Action" policy per
+   the existing BGP Path Attributes registry.  Any unassigned value is
    acceptable.
 
-   Unlike most BGP path attributes, ATTR_DISCARD does not have a
-   fixed value for the Transitive bit.  The Transitive bit is
-   inherited from the original overwritten attribute (Section 4.2).
-   The IANA registry entry MUST note that the attribute is
-   "Optional; Transitive bit varies" to prevent implementations from
-   applying RFC 7606 Section 3.c Attribute Flags validation against
-   a fixed expected value.  A non-transitive ATTR_DISCARD is valid
-   (it indicates the original attribute was non-transitive), and
-   MUST NOT be rejected as a flags error.
+   Unlike most BGP path attributes, ATTR_DISCARD does not have a fixed
+   value for the Transitive bit.  The Transitive bit is inherited from
+   the original overwritten attribute (Section 4.2).  The IANA registry
+   entry MUST note that the attribute is "Optional; Transitive bit
+   varies" to prevent implementations from applying RFC 7606 Section 3.c
+   Attribute Flags validation against a fixed expected value.  A non-
+   transitive ATTR_DISCARD is valid (it indicates the original attribute
+   was non-transitive), and MUST NOT be rejected as a flags error.
 
-   Note: Value 255 is marked "Reserved for development" per
-   RFC 2042 [RFC2042] and is NOT requested by this document.
-   Implementations that use 255 for experimental purposes would
-   conflict with a permanent assignment.
+   Note: Value 255 is marked "Reserved for development" per RFC 2042
+   [RFC2042] and is not requested by this document.  Implementations
+   that use 255 for experimental purposes would conflict with a
+   permanent assignment.
+
+   This document also requests IANA to create a new registry titled
+   "ATTR_DISCARD Reason Codes" with the following initial entries:
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 23]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+                 +=======+=================+============+
+                 | Value | Name            | Reference  |
+                 +=======+=================+============+
+                 | 0     | Unspecified     | [this doc] |
+                 +-------+-----------------+------------+
+                 | 1     | EBGP Invalid    | [this doc] |
+                 +-------+-----------------+------------+
+                 | 2     | Invalid Length  | [this doc] |
+                 +-------+-----------------+------------+
+                 | 3     | Malformed Value | [this doc] |
+                 +-------+-----------------+------------+
+                 | 4     | Local Policy    | [this doc] |
+                 +-------+-----------------+------------+
+                 | 5-254 | Unassigned      |            |
+                 +-------+-----------------+------------+
+                 | 255   | Reserved        | [this doc] |
+                 +-------+-----------------+------------+
+
+                    Table 4: IANA ATTR_DISCARD Reason
+                              Codes Registry
+
+   The registration policy for values 5-254 is "IETF Review" [RFC8126].
+   Value 0 is the default when no specific reason applies and MUST NOT
+   be reassigned.
 
 9.  References
 
@@ -1115,16 +1334,41 @@ Table of Contents
               RFC 7606, DOI 10.17487/RFC7606, August 2015,
               <https://www.rfc-editor.org/info/rfc7606>.
 
+   [RFC8126]  Cotton, M., Leiba, B., and T. Narten, "Guidelines for
+              Writing an IANA Considerations Section in RFCs", BCP 26,
+              RFC 8126, DOI 10.17487/RFC8126, June 2017,
+              <https://www.rfc-editor.org/info/rfc8126>.
+
+
+
+Mangin                   Expires 19 August 2026                [Page 24]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
    [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
-              2119 Key Words", BCP 14, RFC 8174,
-              DOI 10.17487/RFC8174, May 2017,
-              <https://www.rfc-editor.org/info/rfc8174>.
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
 
 9.2.  Informative References
 
    [RFC2042]  Manning, B., "Registering New BGP Attribute Types",
               RFC 2042, DOI 10.17487/RFC2042, January 1997,
               <https://www.rfc-editor.org/info/rfc2042>.
+
+   [RFC2918]  Chen, E., "Route Refresh Capability for BGP-4", RFC 2918,
+              DOI 10.17487/RFC2918, September 2000,
+              <https://www.rfc-editor.org/info/rfc2918>.
+
+   [RFC4724]  Sangli, S., Chen, E., Fernando, R., Scudder, J., and Y.
+              Rekhter, "Graceful Restart Mechanism for BGP", RFC 4724,
+              DOI 10.17487/RFC4724, January 2007,
+              <https://www.rfc-editor.org/info/rfc4724>.
+
+   [RFC7911]  Walton, D., Retana, A., Chen, E., and J. Scudder,
+              "Advertisement of Multiple Paths in BGP", RFC 7911,
+              DOI 10.17487/RFC7911, July 2016,
+              <https://www.rfc-editor.org/info/rfc7911>.
 
    [RFC4456]  Bates, T., Chen, E., and R. Chandra, "BGP Route
               Reflection: An Alternative to Full Mesh Internal BGP
@@ -1136,24 +1380,45 @@ Table of Contents
               DOI 10.17487/RFC5065, August 2007,
               <https://www.rfc-editor.org/info/rfc5065>.
 
-   [RFC6368]  Marques, P., Raszuk, R., Patel, K., Kumaki, K., and
-              T. Yamagata, "Internal BGP as the Provider/Customer
-              Edge Protocol for BGP/MPLS IP Virtual Private Networks
-              (VPNs)", RFC 6368, DOI 10.17487/RFC6368, September 2011,
+   [RFC6368]  Marques, P., Raszuk, R., Patel, K., Kumaki, K., and T.
+              Yamagata, "Internal BGP as the Provider/Customer Edge
+              Protocol for BGP/MPLS IP Virtual Private Networks (VPNs)",
+              RFC 6368, DOI 10.17487/RFC6368, September 2011,
               <https://www.rfc-editor.org/info/rfc6368>.
+
+   [RFC7311]  Mohapatra, P., Fernando, R., Rosen, E., and J. Uttaro,
+              "The Accumulated IGP Metric Attribute for BGP", RFC 7311,
+              DOI 10.17487/RFC7311, August 2014,
+              <https://www.rfc-editor.org/info/rfc7311>.
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 25]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
    [RFC7854]  Scudder, J., Ed., Fernando, R., and S. Stuart, "BGP
               Monitoring Protocol (BMP)", RFC 7854,
               DOI 10.17487/RFC7854, June 2016,
               <https://www.rfc-editor.org/info/rfc7854>.
 
-   [RFC8205]  Lepinski, M., Ed., and K. Sriram, Ed., "BGPsec Protocol
-              Specification", RFC 8205, DOI 10.17487/RFC8205,
-              September 2017, <https://www.rfc-editor.org/info/rfc8205>.
+   [RFC8092]  Heitz, J., Ed., Snijders, J., Ed., Patel, K., Bagdonas,
+              I., and N. Hilliard, "BGP Large Communities Attribute",
+              RFC 8092, DOI 10.17487/RFC8092, February 2017,
+              <https://www.rfc-editor.org/info/rfc8092>.
+
+   [RFC8205]  Lepinski, M., Ed. and K. Sriram, Ed., "BGPsec Protocol
+              Specification", RFC 8205, DOI 10.17487/RFC8205, September
+              2017, <https://www.rfc-editor.org/info/rfc8205>.
 
    [RFC8654]  Bush, R., Patel, K., and D. Ward, "Extended Message
-              Support for BGP", RFC 8654, DOI 10.17487/RFC8654,
-              October 2019, <https://www.rfc-editor.org/info/rfc8654>.
+              Support for BGP", RFC 8654, DOI 10.17487/RFC8654, October
+              2019, <https://www.rfc-editor.org/info/rfc8654>.
 
    [RFC9234]  Azimov, A., Bogomazov, E., Bush, R., Patel, K., and K.
               Sriram, "Route Leak Prevention and Detection Using Roles
@@ -1165,144 +1430,195 @@ Appendix A.  Design Rationale
 
 A.1.  Why Not Strip and Rebuild?
 
-   The straightforward implementation of attribute-discard is to
-   remove the malformed attribute from the path attributes byte
-   sequence and update the Total Path Attribute Length field.  This
-   requires:
+   The straightforward implementation of attribute-discard is to rebuild
+   the path attributes section (shifting bytes, updating lengths,
+   invalidating caches).
 
-     - Allocating a new buffer (or shifting bytes within the existing
-       buffer)
-     - Updating the length field (2 bytes at a fixed offset)
-     - Invalidating any cached attribute positions
-     - Breaking zero-copy optimizations where wire bytes are
-       referenced by multiple consumers (iterators, caches, logging)
+   The ATTR_DISCARD approach overwrites the attribute in place: the
+   header bytes (flags, type code) plus the entire value (first byte set
+   to the original type code, second byte set to the reason code,
+   remaining bytes zeroed).  The write cost is proportional to the
+   attribute's value length, but this is bounded by the individual
+   attribute size (typically a few bytes to a few hundred bytes), not
+   the total path attributes section.  No shifting, no cache
+   invalidation.  Since attribute- discard is an error-handling path
+   (not every UPDATE), the cost of zeroing is negligible compared to the
+   cost of rebuilding the buffer.
 
-   High-performance BGP implementations process hundreds of thousands
-   of UPDATEs per second.  Buffer reallocation on the hot path creates
-   garbage collection pressure (in managed-memory languages) or
-   fragmentation (in manual-memory languages).
+   Note that the zero-copy benefit applies primarily to the receive path
+   and intra-AS forwarding.  The "strip" and "propagate" forwarding
+   policies (Section 5.3) may require modifying flags or rebuilding path
+   attributes on the outbound path.  BGPsec deployments require re-
+   signing regardless (Section 7).
 
-   The ATTR_DISCARD approach modifies exactly 3 bytes per discarded
-   attribute (flags, type code, first value byte).  No allocation,
-   no shifting, no cache invalidation.
 
-   Note that the zero-copy benefit applies primarily to the receive
-   path and intra-AS forwarding.  The "strip" and "propagate"
-   forwarding policies (Section 5.3) may require modifying flags or
-   rebuilding path attributes on the outbound path.  BGPsec
-   deployments require re-signing regardless (Section 7).
+
+Mangin                   Expires 19 August 2026                [Page 26]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
 
 A.2.  Why Not Leave the Original Bytes?
 
-   An alternative is to leave the malformed bytes in place and add
-   the attribute code to a per-UPDATE "discard set" that is checked
-   by every consumer.  This has several drawbacks:
+   An alternative is to leave the malformed bytes in place and add the
+   attribute code to a per-UPDATE "discard set" that is checked by every
+   consumer.
 
-     - Every code path that reads path attributes must check the
-       discard set.  Missing a check silently re-introduces the
-       malformed data.
+   RFC 7606 states that "The attribute MUST be discarded."  An attribute
+   whose bytes remain in the wire buffer has not been discarded.
 
-     - The discard set must be threaded through all function calls
-       that access the path attributes -- a pervasive API change.
+   The approach also has practical drawbacks:
 
-     - Forwarding code that copies wire bytes directly would
-       inadvertently forward the malformed attribute unless it
-       also checks the discard set.
+   *  Every code path that reads path attributes must check the discard
+      set.  Missing a check silently re-introduces the malformed data.
 
-   The ATTR_DISCARD approach modifies the wire bytes once at the
-   point of detection.  All downstream consumers see a clean buffer
-   with no malformed attributes.
+   *  The discard set must be threaded through all function calls that
+      access the path attributes -- a pervasive API change.
+
+   *  Forwarding code that copies wire bytes directly would
+      inadvertently forward the malformed attribute unless it also
+      checks the discard set.
+
+   The ATTR_DISCARD approach modifies the wire bytes once at the point
+   of detection.  The malformed attribute is replaced by a well-defined
+   marker: the flags, type code, and first two value bytes are
+   overwritten, so the malformed attribute ceases to exist in the wire
+   buffer.
 
 A.3.  Why a New Attribute Code?
 
-   One could argue that overwriting with any unrecognized code (e.g.,
-   0 or a random value) achieves the same effect.  However:
+   One could argue that overwriting with any unrecognized code (e.g., 0
+   or a random value) achieves the same effect.  However:
 
-     - A standardized code enables diagnostic tools to distinguish
-       "attribute was discarded by RFC 7606 enforcement" from
-       "unknown attribute received from peer."
+   *  A standardized code distinguishes "attribute was discarded per RFC
+      7606" from "unknown attribute received from peer."
 
-     - Counters and logging can specifically track ATTR_DISCARD
-       occurrences, enabling operators to identify malformation
-       sources.
+   *  Counters and logging can track ATTR_DISCARD occurrences
+      separately.
 
-     - The first value byte carries the original attribute type code,
-       providing diagnostic context without requiring value
-       interpretation.  This is only meaningful with a standardized
-       code; a random code would not signal that the first byte
-       has this defined semantics.
+   *  The value carries (code, reason) pairs.  This is only meaningful
+      with a standardized type code; a random code would not signal that
+      the value has defined semantics.
 
 A.4.  Why Inherit Transitivity?
 
    An earlier version of this design forced ATTR_DISCARD to be always
-   non-transitive, ensuring the marker never propagated.  Inheriting
-   the original attribute's Transitive bit was chosen instead for
-   several reasons:
+   non-transitive, ensuring the marker never propagated.  Inheriting the
+   original attribute's Transitive bit was chosen instead for several
+   reasons:
 
-     - It preserves the original attribute's propagation semantics.
-       A transitive attribute was intended to reach all speakers along
-       the path; replacing it with a non-transitive marker silently
-       changes the UPDATE's propagation characteristics.
 
-     - It provides network-wide diagnostic visibility.  When a
-       transitive attribute is discarded, operators at any point
-       along the AS path can observe the ATTR_DISCARD marker and
-       investigate the malformation source.
 
-     - It enables policy flexibility.  Operators who prefer local-
-       only markers can use the "strip" forwarding policy
-       (Section 5.3) to remove markers before forwarding.  Operators
-       who want maximum visibility can use "propagate" to forward
-       all markers.  The default "inherit" behavior is a reasonable
-       middle ground.
+Mangin                   Expires 19 August 2026                [Page 27]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
 
-     - It simplifies the overwrite operation.  When the Transitive
-       bit is inherited, only the Optional bit needs to be set and
-       the type code overwritten -- the flags byte may not need to
-       change at all if the original attribute was already optional
-       and transitive.
 
-A.5.  Why Overwrite the First Value Byte?
+   *  It preserves the original attribute's propagation semantics.  A
+      transitive attribute was intended to reach all speakers along the
+      path; replacing it with a non-transitive marker silently changes
+      the UPDATE's propagation characteristics.
 
-   The first value byte of the ATTR_DISCARD attribute is overwritten
-   with the original attribute's type code.  This adds one byte of
-   write overhead (3 bytes total instead of 2) but provides
-   significant diagnostic value:
+   *  Transitive markers are visible along the AS path.  Non-transitive
+      markers remain local.
 
-     - Receivers can identify which attribute was discarded without
-       relying on out-of-band information.
+   *  The forwarding policy (Section 5.3) allows operators to strip,
+      inherit, or propagate markers as needed.
 
-     - The original type code survives the duplicate-marker
-       deduplication described in Section 5.7: even though only one
-       ATTR_DISCARD marker survives per UPDATE at the receiver, that
-       marker identifies the specific attribute that was discarded.
+   *  It simplifies the overwrite operation.  When the Transitive bit is
+      inherited, only the Optional bit needs to be set, the type code
+      overwritten, and the first two value bytes written -- the flags
+      byte may not need to change at all if the original attribute was
+      already optional and transitive.
 
-     - It is safe for the vast majority of attribute-discard cases,
-       which involve attributes with at least 1 byte of value data.
-       Zero-length attributes (ATOMIC_AGGREGATE) trigger attribute-
-       discard only when their length is NOT zero (i.e., malformed),
-       guaranteeing at least one value byte to overwrite.  However,
-       certain attribute-discard triggers can fire on attributes
-       with zero value bytes: LOCAL_PREF from an EBGP peer (RFC 7606
-       Section 7.5), ORIGINATOR_ID from an EBGP peer (Section 7.9),
-       CLUSTER_LIST from an EBGP peer (Section 7.10), and AGGREGATOR
-       with a zero length (Section 7.7).  In these cases, the
-       first-value-byte overwrite is skipped (Section 5.1, step 5),
-       and the ATTR_DISCARD marker has a zero-length value.  The
-       original type code is lost from the wire marker but is
-       available in the sender's local log.
+A.5.  Why Overwrite the First Two Value Bytes?
 
-   The remaining value bytes (bytes 1 through N-1) are left
-   untouched.  Zeroing them would add writes proportional to the
-   attribute length, whereas the constant 3-byte overwrite preserves
-   the performance characteristics that motivate this mechanism.
+   The first two value bytes of the ATTR_DISCARD attribute are
+   overwritten with the original attribute's type code and a reason
+   code.  This adds two bytes of write overhead (4 bytes total instead
+   of 2 for the header):
 
-   Implementations with strict security requirements (e.g., avoiding
-   information leakage through diagnostic outputs) MAY choose to zero
-   the remaining value bytes as a local policy decision.
+   *  Receivers can identify which attributes were discarded and why
+      from the (code, reason) pairs without out-of-band information.
 
-Authors' Addresses
+   *  The reason code enables automated classification of discard events
+      into EBGP invalid, error-based (invalid length, malformed value),
+      and local policy categories.
+
+   *  The 2-byte minimum requirement is safe for the vast majority of
+      attribute-discard cases, which involve attributes with correct
+      lengths of 4 or more bytes.  For the rare cases where the value
+      length is less than 2 (zero-length or single-byte malformed
+      attributes), the implementation uses conventional removal and
+      inserts an ATTR_DISCARD attribute (Section 5.1, step 5).
+
+   The remaining value bytes (bytes 2 through N-1) are zeroed
+   (Section 5.1, step 7).  This ensures that no remnant of the malformed
+   attribute's data persists in the wire buffer, eliminating information
+   leakage concerns (Section 7).  The write cost is proportional to the
+   attribute's value length, but since attribute- discard is an error-
+   handling path rather than normal UPDATE processing, this cost is
+   negligible.  No data movement or byte shifting is required regardless
+   of the zeroing cost.
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 28]
+
+Internet-Draft                ATTR_DISCARD                 February 2026
+
+
+Acknowledgments
+
+   The author thanks the members of the IDR working group for their
+   review and feedback.
+
+Author's Address
 
    Thomas Mangin
-
+   Independent
    Email: thomas.mangin@exa.net.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Mangin                   Expires 19 August 2026                [Page 29]

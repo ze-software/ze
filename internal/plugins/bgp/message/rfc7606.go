@@ -39,10 +39,11 @@ func (a RFC7606Action) String() string {
 
 // RFC7606ValidationResult contains the result of UPDATE validation.
 type RFC7606ValidationResult struct {
-	Action       RFC7606Action
-	AttrCode     uint8   // Attribute code that caused the strongest error (0 if N/A)
-	Description  string  // Human-readable error description for the strongest error
-	DiscardCodes []uint8 // Attribute codes to strip when Action is AttributeDiscard
+	Action         RFC7606Action
+	AttrCode       uint8          // Attribute code that caused the strongest error (0 if N/A)
+	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-discard-00 Section 4.4)
+	Description    string         // Human-readable error description for the strongest error
+	DiscardEntries []DiscardEntry // Attributes to discard with reason codes when Action is AttributeDiscard
 }
 
 // Attribute type codes per RFC 4271.
@@ -152,12 +153,12 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 	strongest := RFC7606ActionNone
 	var strongestCode uint8
 	var strongestDesc string
-	var discardCodes []uint8
+	var discardEntries []DiscardEntry
 
-	// recordError updates the strongest action and tracks discard codes.
+	// recordError updates the strongest action and tracks discard entries.
 	recordError := func(r *RFC7606ValidationResult) {
 		if r.Action == RFC7606ActionAttributeDiscard {
-			discardCodes = append(discardCodes, r.AttrCode)
+			discardEntries = append(discardEntries, DiscardEntry{Code: r.AttrCode, Reason: r.Reason})
 		}
 		if r.Action > strongest {
 			strongest = r.Action
@@ -334,10 +335,10 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 	}
 
 	return &RFC7606ValidationResult{
-		Action:       strongest,
-		AttrCode:     strongestCode,
-		Description:  strongestDesc,
-		DiscardCodes: discardCodes,
+		Action:         strongest,
+		AttrCode:       strongestCode,
+		Description:    strongestDesc,
+		DiscardEntries: discardEntries,
 	}
 }
 
@@ -394,6 +395,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
+				Reason:      DiscardReasonEBGPInvalid,
 				Description: "RFC 7606 Section 7.5: LOCAL_PREF from external neighbor must be discarded",
 			}
 		}
@@ -413,6 +415,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
+				Reason:      DiscardReasonInvalidLength,
 				Description: fmt.Sprintf("RFC 7606 Section 7.6: ATOMIC_AGGREGATE length %d != 0", length),
 			}
 		}
@@ -430,6 +433,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
+				Reason:      DiscardReasonInvalidLength,
 				Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d, expected %d (asn4=%t)", length, expectedLen, asn4),
 			}
 		}
@@ -450,6 +454,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
+				Reason:      DiscardReasonEBGPInvalid,
 				Description: "RFC 7606 Section 7.9: ORIGINATOR_ID from external neighbor must be discarded",
 			}
 		}
@@ -468,6 +473,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
+				Reason:      DiscardReasonEBGPInvalid,
 				Description: "RFC 7606 Section 7.10: CLUSTER_LIST from external neighbor must be discarded",
 			}
 		}
