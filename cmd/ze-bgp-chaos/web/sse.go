@@ -3,6 +3,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 )
@@ -135,7 +136,18 @@ func (b *SSEBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				_, err = fmt.Fprintf(w, "event: %s\n", ev.Event)
 			}
 			if err == nil {
-				_, err = fmt.Fprintf(w, "data: %s\n\n", ev.Data)
+				// SSE requires each line of multi-line data to be
+				// prefixed with "data: ". Newlines in HTML fragments
+				// would otherwise terminate the data field prematurely.
+				for line := range strings.SplitSeq(ev.Data, "\n") {
+					if err != nil {
+						break
+					}
+					_, err = fmt.Fprintf(w, "data: %s\n", line)
+				}
+				if err == nil {
+					_, err = fmt.Fprintf(w, "\n") // Blank line terminates the event.
+				}
 			}
 			if err != nil {
 				return

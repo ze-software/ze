@@ -27,10 +27,10 @@ func TestRouteMatrixRecordAndGet(t *testing.T) {
 	m.RecordSent(0, p2, now) // peer 0 announces 10.0.1.0/24
 
 	// peer 1 receives both prefixes from peer 0
-	if !m.RecordReceived(1, p1, now) {
+	if found, _ := m.RecordReceived(1, p1, now); !found {
 		t.Error("RecordReceived should return true for known prefix")
 	}
-	if !m.RecordReceived(1, p2, now) {
+	if found, _ := m.RecordReceived(1, p2, now); !found {
 		t.Error("RecordReceived should return true for known prefix")
 	}
 
@@ -52,7 +52,7 @@ func TestRouteMatrixUnknownPrefix(t *testing.T) {
 	m := NewRouteMatrix()
 	p := netip.MustParsePrefix("10.0.0.0/24")
 
-	if m.RecordReceived(1, p, time.Now()) {
+	if found, _ := m.RecordReceived(1, p, time.Now()); found {
 		t.Error("RecordReceived should return false for unknown prefix")
 	}
 	if m.Len() != 0 {
@@ -840,5 +840,73 @@ func TestPeerTransitionRecording(t *testing.T) {
 	}
 	if transitions[2].Status != PeerReconnecting {
 		t.Errorf("transition 2 = %v, want PeerReconnecting", transitions[2].Status)
+	}
+}
+
+// TestChaosHistoryCap verifies ChaosHistory is capped to prevent unbounded growth.
+//
+// VALIDATES: ChaosHistory never exceeds maxChaosHistory entries.
+// PREVENTS: Memory exhaustion during long-running chaos tests.
+func TestChaosHistoryCap(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+	for i := range maxChaosHistory + 100 {
+		d.ProcessEvent(peer.Event{
+			Type:        peer.EventChaosExecuted,
+			PeerIndex:   i % 5,
+			Time:        now.Add(time.Duration(i) * time.Millisecond),
+			ChaosAction: "disconnect",
+		})
+	}
+
+	d.state.RLock()
+	n := len(d.state.ChaosHistory)
+	d.state.RUnlock()
+
+	if n > maxChaosHistory {
+		t.Fatalf("ChaosHistory len = %d, want <= %d", n, maxChaosHistory)
+	}
+	if n == 0 {
+		t.Fatal("ChaosHistory is empty after many events")
+	}
+}
+
+// TestPeerTransitionsCap verifies per-peer transitions are capped.
+//
+// VALIDATES: PeerTransitions per peer never exceeds maxPeerTransitions.
+// PREVENTS: Memory exhaustion from rapidly flapping peers.
+func TestPeerTransitionsCap(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+	// Alternate between up and down to create transitions.
+	for i := range maxPeerTransitions + 100 {
+		evType := peer.EventEstablished
+		if i%2 == 1 {
+			evType = peer.EventDisconnected
+		}
+		d.ProcessEvent(peer.Event{
+			Type:      evType,
+			PeerIndex: 0,
+			Time:      now.Add(time.Duration(i) * time.Millisecond),
+		})
+	}
+
+	d.state.RLock()
+	n := len(d.state.PeerTransitions[0])
+	d.state.RUnlock()
+
+	if n > maxPeerTransitions {
+		t.Fatalf("PeerTransitions[0] len = %d, want <= %d", n, maxPeerTransitions)
+	}
+	if n == 0 {
+		t.Fatal("PeerTransitions[0] is empty after many transitions")
 	}
 }

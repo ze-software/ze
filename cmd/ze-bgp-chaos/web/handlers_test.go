@@ -473,6 +473,177 @@ func TestEventTypeLabel(t *testing.T) {
 	}
 }
 
+// TestHandlePeerPinOutOfRange verifies that pin rejects negative and too-large peer IDs.
+//
+// VALIDATES: Out-of-range peer IDs return 400 Bad Request.
+// PREVENTS: Panic or silent corruption when pinning non-existent peers.
+func TestHandlePeerPinOutOfRange(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5) // peers 0-4
+	defer d.broker.Close()
+
+	tests := []struct {
+		name string
+		id   string
+	}{
+		{"negative", "-1"},
+		{"too_large", "5"},
+		{"way_too_large", "9999"},
+		{"non_numeric", "abc"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/peers/"+tt.id+"/pin", nil)
+			req.SetPathValue("id", tt.id)
+			w := httptest.NewRecorder()
+			d.handlePeerPin(w, req)
+			if w.Code != http.StatusBadRequest {
+				t.Errorf("pin %s: status = %d, want 400", tt.id, w.Code)
+			}
+		})
+	}
+}
+
+// TestWriteTriggerFormXSSEscape verifies that action types with special characters
+// are safely escaped in hx-vals JSON attributes.
+//
+// VALIDATES: escapeJSONInAttr prevents XSS via crafted action type names.
+// PREVENTS: Attribute breakout or JSON injection in hx-vals.
+func TestWriteTriggerFormXSSEscape(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		action     string
+		mustNotHas string // raw string that must NOT appear
+		mustHas    string // escaped string that must appear
+	}{
+		{
+			name:       "double_quote",
+			action:     `a"b`,
+			mustNotHas: `"a"b"`,    // unescaped quote would break JSON
+			mustHas:    `a\&#34;b`, // JSON-escaped \" then HTML-escaped " → &#34;
+		},
+		{
+			name:       "single_quote",
+			action:     `a'b`,
+			mustNotHas: `a'b`, // raw single quote in HTML attribute
+			mustHas:    `a&#39;b`,
+		},
+		{
+			name:       "backslash",
+			action:     `a\b`,
+			mustNotHas: `"a\b"`, // unescaped backslash
+			mustHas:    `a\\b`,  // JSON-escaped
+		},
+		{
+			name:    "angle_brackets",
+			action:  `a<script>b`,
+			mustHas: `a&lt;script&gt;b`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf strings.Builder
+			writeTriggerForm(&buf, tt.action)
+			out := buf.String()
+
+			if tt.mustNotHas != "" && strings.Contains(out, tt.mustNotHas) {
+				t.Errorf("output contains unescaped %q:\n%s", tt.mustNotHas, out)
+			}
+			if tt.mustHas != "" && !strings.Contains(out, tt.mustHas) {
+				t.Errorf("output missing escaped %q:\n%s", tt.mustHas, out)
+			}
+		})
+	}
+}
+
+// TestProcessEventWithdrawnSplit verifies that TotalWithdrawn and TotalWdrawSent
+// are tracked independently.
+//
+// VALIDATES: EventRouteWithdrawn increments TotalWithdrawn, EventWithdrawalSent increments TotalWdrawSent.
+// PREVENTS: Conflating received and sent withdrawals in a single counter.
+func TestProcessEventWithdrawnSplit(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+
+	// Receive withdrawal events.
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteWithdrawn, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteWithdrawn, PeerIndex: 1, Time: now})
+
+	// Send withdrawal events.
+	d.ProcessEvent(peer.Event{Type: peer.EventWithdrawalSent, PeerIndex: 0, Time: now, Count: 5})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	if d.state.TotalWithdrawn != 2 {
+		t.Errorf("TotalWithdrawn = %d, want 2", d.state.TotalWithdrawn)
+	}
+	if d.state.TotalWdrawSent != 5 {
+		t.Errorf("TotalWdrawSent = %d, want 5", d.state.TotalWdrawSent)
+	}
+}
+
+// TestProcessEventMissing verifies that TotalMissing and per-peer Missing
+// are computed correctly as max(0, announced - received).
+//
+// VALIDATES: Missing counters track the gap between sent and received routes.
+// PREVENTS: Missing always showing 0 in the dashboard.
+func TestProcessEventMissing(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+
+	// Peer 0 sends 3 routes.
+	for range 3 {
+		d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now})
+	}
+
+	d.state.RLock()
+	if d.state.Peers[0].Missing != 3 {
+		t.Errorf("peer 0 Missing after 3 sent = %d, want 3", d.state.Peers[0].Missing)
+	}
+	if d.state.TotalMissing != 3 {
+		t.Errorf("TotalMissing after 3 sent = %d, want 3", d.state.TotalMissing)
+	}
+	d.state.RUnlock()
+
+	// Peer 0 receives 2 routes.
+	for range 2 {
+		d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 0, Time: now})
+	}
+
+	d.state.RLock()
+	if d.state.Peers[0].Missing != 1 {
+		t.Errorf("peer 0 Missing after 2 recv = %d, want 1", d.state.Peers[0].Missing)
+	}
+	if d.state.TotalMissing != 1 {
+		t.Errorf("TotalMissing after 2 recv = %d, want 1", d.state.TotalMissing)
+	}
+	d.state.RUnlock()
+
+	// Peer 0 receives 1 more — all caught up.
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 0, Time: now})
+
+	d.state.RLock()
+	if d.state.Peers[0].Missing != 0 {
+		t.Errorf("peer 0 Missing after all recv = %d, want 0", d.state.Peers[0].Missing)
+	}
+	if d.state.TotalMissing != 0 {
+		t.Errorf("TotalMissing after all recv = %d, want 0", d.state.TotalMissing)
+	}
+	d.state.RUnlock()
+}
+
 // TestProcessEventIntegration verifies that ProcessEvent updates state correctly
 // and the resulting state renders without errors.
 //

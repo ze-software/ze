@@ -14,6 +14,16 @@ import (
 // escapeAttr escapes a string for safe use in HTML attributes.
 var escapeAttr = html.EscapeString
 
+// escapeJSONInAttr escapes a string for safe interpolation as a JSON value
+// inside an HTML attribute. Two layers: JSON-escape (\" and \\) so the value
+// survives browser entity decoding + JSON parsing, then HTML-escape so the
+// attribute boundary isn't broken.
+func escapeJSONInAttr(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	s = strings.ReplaceAll(s, `"`, `\"`)
+	return html.EscapeString(s)
+}
+
 // handleVizEvents serves the event stream tab content.
 // Query params: peer (index), type (event type name).
 func (d *Dashboard) handleVizEvents(w http.ResponseWriter, r *http.Request) {

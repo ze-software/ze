@@ -66,6 +66,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
       <span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
       <span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
       <span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
+      <span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
       <span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
       <span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
     </div>
@@ -157,6 +158,9 @@ func writeLayout(w io.Writer, d *Dashboard) {
   </div>
 
   <div id="peer-detail"></div>
+
+  <div id="peer-swap" sse-swap="peer-update" hx-swap="innerHTML" style="display:none"></div>
+  <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
 
   <div class="tab-bar">
     <button class="active" hx-get="/viz/events" hx-target="#viz-content" hx-swap="outerHTML"

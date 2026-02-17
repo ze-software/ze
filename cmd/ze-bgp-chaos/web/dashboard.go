@@ -201,14 +201,20 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteSent:
 		ps.RoutesSent++
 		d.state.TotalAnnounced++
+		ps.Missing = max(0, ps.RoutesSent-ps.RoutesRecv)
+		d.state.TotalMissing = max(0, d.state.TotalAnnounced-d.state.TotalReceived)
 		if ev.Prefix.IsValid() {
 			d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time)
 		}
 	case peer.EventRouteReceived:
 		ps.RoutesRecv++
 		d.state.TotalReceived++
+		ps.Missing = max(0, ps.RoutesSent-ps.RoutesRecv)
+		d.state.TotalMissing = max(0, d.state.TotalAnnounced-d.state.TotalReceived)
 		if ev.Prefix.IsValid() {
-			d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time)
+			if found, latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); found && latency > 0 {
+				d.state.Convergence.Record(latency)
+			}
 		}
 	case peer.EventRouteWithdrawn:
 		d.state.TotalWithdrawn++
@@ -224,7 +230,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			d.state.ChaosHistory = d.state.ChaosHistory[len(d.state.ChaosHistory)-maxChaosHistory/2:]
 		}
 	case peer.EventWithdrawalSent:
-		d.state.TotalWithdrawn += ev.Count
+		d.state.TotalWdrawSent += ev.Count
 	case peer.EventEORSent:
 		// No specific counter.
 	case peer.EventError:
@@ -364,6 +370,7 @@ func (d *Dashboard) renderStats() string {
 		`<span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
 		`</div>`

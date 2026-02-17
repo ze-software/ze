@@ -536,11 +536,13 @@ func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time
 }
 
 // RecordReceived records that a peer received a prefix and updates the matrix.
-// Returns true if the source was found, false otherwise.
-func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.Time) bool {
+// Returns whether the source was found and the propagation latency (zero if
+// no send time is available). Callers use the latency to feed the convergence
+// histogram.
+func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.Time) (found bool, latency time.Duration) {
 	source, ok := m.routeOrigins[prefix]
 	if !ok {
-		return false
+		return false, 0
 	}
 	key := [2]int{source, destPeer}
 	m.cells[key]++
@@ -558,13 +560,15 @@ func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.T
 
 	// Track latency if we have the send time.
 	if sentAt, haveSent := m.sentTimes[prefix]; haveSent {
-		latency := t.Sub(sentAt)
+		latency = t.Sub(sentAt)
 		if latency >= 0 {
 			m.cellLatencySum[key] += latency
 			m.cellLatencyCount[key]++
+		} else {
+			latency = 0
 		}
 	}
-	return true
+	return true, latency
 }
 
 // prefixFamily infers the address family from a prefix.
@@ -705,7 +709,8 @@ type DashboardState struct {
 	TotalMissing    int
 	TotalChaos      int
 	TotalReconnects int
-	TotalWithdrawn  int
+	TotalWithdrawn  int // Withdrawals received (EventRouteWithdrawn).
+	TotalWdrawSent  int // Withdrawals sent by chaos peers (EventWithdrawalSent).
 	PeersUp         int
 
 	// Run metadata.

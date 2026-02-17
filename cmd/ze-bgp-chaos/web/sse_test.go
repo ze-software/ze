@@ -218,3 +218,59 @@ func TestSSEServeHTTP(t *testing.T) {
 		t.Errorf("response missing 'data: <div>test</div>', got: %q", body)
 	}
 }
+
+// TestSSEMultiLineData verifies multi-line data is sent with proper SSE framing.
+//
+// VALIDATES: Each line of multi-line data gets its own "data: " prefix.
+// PREVENTS: Newlines in HTML fragments breaking SSE event framing.
+func TestSSEMultiLineData(t *testing.T) {
+	t.Parallel()
+
+	broker := NewSSEBroker(200 * time.Millisecond)
+	defer broker.Close()
+
+	ts := httptest.NewServer(broker)
+	defer ts.Close()
+
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, nil)
+	if reqErr != nil {
+		t.Fatalf("new request: %v", reqErr)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET failed: %v", err)
+	}
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Log("close response body:", closeErr)
+		}
+	}()
+
+	// Send a multi-line HTML fragment (like convergence histogram output).
+	multiLine := "<div class=\"bar\">\n  <span>hello</span>\n</div>"
+	broker.Broadcast(SSEEvent{Event: "convergence", Data: multiLine})
+
+	buf := make([]byte, 4096)
+	n, _ := resp.Body.Read(buf)
+	body := string(buf[:n])
+
+	// Each line should have its own "data: " prefix.
+	if !strings.Contains(body, "data: <div class=\"bar\">") {
+		t.Errorf("missing first data line, got: %q", body)
+	}
+	if !strings.Contains(body, "data:   <span>hello</span>") {
+		t.Errorf("missing second data line, got: %q", body)
+	}
+	if !strings.Contains(body, "data: </div>") {
+		t.Errorf("missing third data line, got: %q", body)
+	}
+
+	// Must NOT have a bare newline breaking the data field.
+	lines := strings.Split(body, "\n")
+	for i, line := range lines {
+		// Every non-empty line should start with "event:" or "data:" (SSE fields).
+		if line != "" && !strings.HasPrefix(line, "event:") && !strings.HasPrefix(line, "data:") {
+			t.Errorf("line %d is not a valid SSE field: %q", i, line)
+		}
+	}
+}

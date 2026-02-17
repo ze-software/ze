@@ -131,7 +131,7 @@ func (d *Dashboard) handlePeerDetail(w http.ResponseWriter, r *http.Request) {
 func (d *Dashboard) handlePeerPin(w http.ResponseWriter, r *http.Request) {
 	idStr := r.PathValue("id")
 	idx, err := strconv.Atoi(idStr)
-	if err != nil {
+	if err != nil || idx < 0 || idx >= d.state.PeerCount {
 		http.Error(w, "invalid peer id", http.StatusBadRequest)
 		return
 	}

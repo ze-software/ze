@@ -292,7 +292,7 @@ func writeTriggerForm(w io.Writer, actionType string) {
 	_, _ = fmt.Fprintf(w, `
 <span class="badge" hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML"
       hx-include="[name='action'],[name='peers'],[name='fraction']"
-      hx-vals='{"action":"%s"}'>Execute</span>`, actionType)
+      hx-vals='{"action":"%s"}'>Execute</span>`, escapeJSONInAttr(actionType))
 	_, _ = fmt.Fprint(w, `</div>`)
 }
 
