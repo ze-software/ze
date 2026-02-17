@@ -61,6 +61,10 @@ func TestCheckerMissingRoutes(t *testing.T) {
 	// Peer 1 should have one missing route.
 	assert.Equal(t, 1, result.Peers[1].Missing.Len())
 	assert.True(t, result.Peers[1].Missing.Contains(p("10.0.1.0/24")))
+
+	// Verify expected/actual counts.
+	assert.Equal(t, 2, result.Peers[1].ExpectedCount, "peer 1 should expect 2 routes from peer 0")
+	assert.Equal(t, 1, result.Peers[1].ActualCount, "peer 1 has only 1 route")
 }
 
 // TestCheckerExtraRoutes verifies detection of routes in actual but

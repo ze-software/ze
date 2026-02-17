@@ -6,6 +6,10 @@ type PeerResult struct {
 	Missing *PrefixSet
 	// Extra contains routes received but not expected.
 	Extra *PrefixSet
+	// ExpectedCount is the total number of routes the peer should have.
+	ExpectedCount int
+	// ActualCount is the total number of routes the peer actually has.
+	ActualCount int
 }
 
 // CheckResult holds the overall validation result.
@@ -53,8 +57,10 @@ func Check(m *Model, t *Tracker) CheckResult {
 		}
 
 		result.Peers[peer] = PeerResult{
-			Missing: missing,
-			Extra:   extra,
+			Missing:       missing,
+			Extra:         extra,
+			ExpectedCount: expected.Len(),
+			ActualCount:   actual.Len(),
 		}
 
 		result.TotalMissing += missing.Len()

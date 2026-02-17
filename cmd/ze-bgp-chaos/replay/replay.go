@@ -158,6 +158,22 @@ func Run(r io.Reader, w io.Writer) int {
 	result := validation.Check(model, tracker)
 	convStats := convergence.Stats()
 
+	// Build per-peer failure details from check result.
+	var peerFailures []report.PeerFailure
+	for i, pr := range result.Peers {
+		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
+			continue
+		}
+		pf := report.PeerFailure{
+			PeerIndex:     i,
+			ExpectedCount: pr.ExpectedCount,
+			ActualCount:   pr.ActualCount,
+		}
+		pf.Missing = pr.Missing.SortedStrings()
+		pf.Extra = pr.Extra.SortedStrings()
+		peerFailures = append(peerFailures, pf)
+	}
+
 	summary := report.Summary{
 		Seed:          hdr.Seed,
 		PeerCount:     n,
@@ -172,6 +188,7 @@ func Run(r io.Reader, w io.Writer) int {
 		ChaosEvents:   chaosEvents,
 		Reconnections: reconnections,
 		Withdrawn:     withdrawn,
+		PeerFailures:  peerFailures,
 	}
 
 	return summary.Write(w)

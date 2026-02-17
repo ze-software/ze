@@ -623,14 +623,34 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	convStats := convergence.Stats()
 	slow := convergence.CheckDeadline(time.Now())
 
+	// Build per-peer failure details from check result.
+	var peerFailures []report.PeerFailure
+	for i, pr := range result.Peers {
+		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
+			continue
+		}
+		pf := report.PeerFailure{
+			PeerIndex:     i,
+			ExpectedCount: pr.ExpectedCount,
+			ActualCount:   pr.ActualCount,
+		}
+		pf.Missing = pr.Missing.SortedStrings()
+		pf.Extra = pr.Extra.SortedStrings()
+		peerFailures = append(peerFailures, pf)
+	}
+
 	// Collect property results (nil-safe: empty slice when engine not active).
 	var propResults []report.PropertyLine
 	if propEngine != nil {
 		for _, r := range propEngine.Results() {
-			propResults = append(propResults, report.PropertyLine{
+			pl := report.PropertyLine{
 				Name: r.Name,
 				Pass: r.Pass,
-			})
+			}
+			for _, v := range r.Violations {
+				pl.Violations = append(pl.Violations, v.Message)
+			}
+			propResults = append(propResults, pl)
 		}
 	}
 
@@ -653,6 +673,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		ChaosEvents:   ep.ChaosEvents,
 		Reconnections: ep.Reconnections,
 		Withdrawn:     ep.Withdrawn,
+		PeerFailures:  peerFailures,
 		Properties:    propResults,
 	}
 

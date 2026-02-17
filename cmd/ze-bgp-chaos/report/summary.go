@@ -4,13 +4,30 @@ package report
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
+// maxPrefixesShown limits prefix lists in failure output to avoid noise.
+const maxPrefixesShown = 10
+
+// maxViolationsShown limits violation messages per property.
+const maxViolationsShown = 5
+
+// PeerFailure holds route discrepancies for a single peer.
+type PeerFailure struct {
+	PeerIndex     int
+	ExpectedCount int
+	ActualCount   int
+	Missing       []string
+	Extra         []string
+}
+
 // PropertyLine holds per-property pass/fail for the summary.
 type PropertyLine struct {
-	Name string
-	Pass bool
+	Name       string
+	Pass       bool
+	Violations []string
 }
 
 // Summary holds all metrics for the final exit report.
@@ -38,6 +55,9 @@ type Summary struct {
 	ChaosEvents   int
 	Reconnections int
 	Withdrawn     int
+
+	// Per-peer failure details (empty when all routes match).
+	PeerFailures []PeerFailure
 
 	// Property check results (empty when --properties not used).
 	Properties []PropertyLine
@@ -112,6 +132,24 @@ func (s *Summary) Write(w io.Writer) int {
 			s.ChaosEvents, s.Reconnections, s.Withdrawn)
 	}
 
+	// Per-peer failure details: show expected vs actual with prefix lists.
+	if len(s.PeerFailures) > 0 {
+		rw.printf("  failures:\n")
+		for _, pf := range s.PeerFailures {
+			var parts []string
+			if len(pf.Missing) > 0 {
+				parts = append(parts, fmt.Sprintf("%d missing", len(pf.Missing)))
+			}
+			if len(pf.Extra) > 0 {
+				parts = append(parts, fmt.Sprintf("%d extra", len(pf.Extra)))
+			}
+			rw.printf("    peer %d: %s (expected %d, have %d)\n",
+				pf.PeerIndex, strings.Join(parts, ", "), pf.ExpectedCount, pf.ActualCount)
+			writePrefixList(rw, "missing", pf.Missing)
+			writePrefixList(rw, "extra", pf.Extra)
+		}
+	}
+
 	if len(s.Properties) > 0 {
 		rw.printf("  properties:\n")
 		for _, p := range s.Properties {
@@ -120,6 +158,9 @@ func (s *Summary) Write(w io.Writer) int {
 				status = "FAIL"
 			}
 			rw.printf("    %-25s %s\n", p.Name, status)
+			if !p.Pass {
+				writeViolations(rw, p.Violations)
+			}
 		}
 	}
 
@@ -130,6 +171,43 @@ func (s *Summary) Write(w io.Writer) int {
 		return 1
 	}
 	return exitCode
+}
+
+// writePrefixList prints a capped list of prefixes under a label.
+func writePrefixList(rw *reportWriter, label string, prefixes []string) {
+	if len(prefixes) == 0 {
+		return
+	}
+	shown := prefixes
+	remaining := 0
+	if len(shown) > maxPrefixesShown {
+		shown = shown[:maxPrefixesShown]
+		remaining = len(prefixes) - maxPrefixesShown
+	}
+	rw.printf("      %s: %s", label, strings.Join(shown, ", "))
+	if remaining > 0 {
+		rw.printf(" ... and %d more", remaining)
+	}
+	rw.printf("\n")
+}
+
+// writeViolations prints capped violation messages under a property.
+func writeViolations(rw *reportWriter, violations []string) {
+	if len(violations) == 0 {
+		return
+	}
+	shown := violations
+	remaining := 0
+	if len(shown) > maxViolationsShown {
+		shown = shown[:maxViolationsShown]
+		remaining = len(violations) - maxViolationsShown
+	}
+	for _, v := range shown {
+		rw.printf("      - %s\n", v)
+	}
+	if remaining > 0 {
+		rw.printf("      ... and %d more\n", remaining)
+	}
 }
 
 // formatDuration formats a duration in a compact human-readable form.

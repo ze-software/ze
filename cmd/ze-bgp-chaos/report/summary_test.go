@@ -3,6 +3,7 @@ package report
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -330,4 +331,179 @@ func TestSummaryIBGPEBGPHidden(t *testing.T) {
 	output := buf.String()
 	assert.NotContains(t, output, "iBGP")
 	assert.NotContains(t, output, "eBGP")
+}
+
+// TestSummaryPeerFailures verifies that per-peer failure details appear
+// with expected/actual counts and prefix lists.
+//
+// VALIDATES: Per-peer expected vs actual and prefix lists in output.
+// PREVENTS: Failures showing only counts without actionable detail.
+func TestSummaryPeerFailures(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  30 * time.Second,
+		PeerCount: 3,
+		Announced: 50,
+		Received:  140,
+		Missing:   3,
+		Extra:     2,
+		PeerFailures: []PeerFailure{
+			{
+				PeerIndex:     0,
+				ExpectedCount: 30,
+				ActualCount:   27,
+				Missing:       []string{"10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"},
+			},
+			{
+				PeerIndex:     2,
+				ExpectedCount: 30,
+				ActualCount:   30,
+				Missing:       []string{"10.1.0.0/24"},
+				Extra:         []string{"10.99.0.0/24", "10.99.1.0/24"},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.Contains(t, output, "failures:")
+	assert.Contains(t, output, "peer 0: 3 missing (expected 30, have 27)")
+	assert.Contains(t, output, "10.0.1.0/24")
+	assert.Contains(t, output, "10.0.2.0/24")
+	assert.Contains(t, output, "10.0.3.0/24")
+	assert.Contains(t, output, "peer 2: 1 missing, 2 extra (expected 30, have 30)")
+	assert.Contains(t, output, "10.99.0.0/24")
+}
+
+// TestSummaryPeerFailuresHiddenWhenEmpty verifies no failures section
+// when all routes match.
+//
+// VALIDATES: No failures section in passing output.
+// PREVENTS: Noisy output when validation passes.
+func TestSummaryPeerFailuresHiddenWhenEmpty(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  50,
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.NotContains(t, output, "failures:")
+}
+
+// TestSummaryPeerFailuresTruncation verifies that long prefix lists
+// are capped with a "... and N more" suffix.
+//
+// VALIDATES: Prefix lists capped at maxPrefixesShown.
+// PREVENTS: Unbounded output flooding the terminal.
+func TestSummaryPeerFailuresTruncation(t *testing.T) {
+	// Build a list longer than maxPrefixesShown (10).
+	missing := make([]string, 15)
+	for i := range missing {
+		missing[i] = fmt.Sprintf("10.0.%d.0/24", i)
+	}
+
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  35,
+		Missing:   15,
+		PeerFailures: []PeerFailure{
+			{
+				PeerIndex:     1,
+				ExpectedCount: 50,
+				ActualCount:   35,
+				Missing:       missing,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.Contains(t, output, "... and 5 more")
+	// First prefix should appear, 11th should not.
+	assert.Contains(t, output, "10.0.0.0/24")
+	assert.NotContains(t, output, "10.0.10.0/24")
+}
+
+// TestSummaryPropertyViolations verifies that violation messages appear
+// under failing properties.
+//
+// VALIDATES: Violation detail shown under FAIL properties.
+// PREVENTS: Opaque FAIL status without explanation.
+func TestSummaryPropertyViolations(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  30 * time.Second,
+		PeerCount: 4,
+		Announced: 100,
+		Received:  300,
+		Properties: []PropertyLine{
+			{Name: "route-consistency", Pass: true},
+			{
+				Name: "no-duplicate-routes",
+				Pass: false,
+				Violations: []string{
+					"peer 1 received duplicate 10.0.0.0/24",
+					"peer 3 received duplicate 172.16.0.0/24",
+				},
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.Contains(t, output, "no-duplicate-routes")
+	assert.Contains(t, output, "FAIL")
+	assert.Contains(t, output, "- peer 1 received duplicate 10.0.0.0/24")
+	assert.Contains(t, output, "- peer 3 received duplicate 172.16.0.0/24")
+}
+
+// TestSummaryPropertyViolationsTruncation verifies that long violation
+// lists are capped with a "... and N more" suffix.
+//
+// VALIDATES: Violation list capped at maxViolationsShown.
+// PREVENTS: Unbounded violation output.
+func TestSummaryPropertyViolationsTruncation(t *testing.T) {
+	violations := make([]string, 8)
+	for i := range violations {
+		violations[i] = fmt.Sprintf("peer %d has issue", i)
+	}
+
+	s := Summary{
+		Seed:      42,
+		Duration:  10 * time.Second,
+		PeerCount: 2,
+		Announced: 50,
+		Received:  50,
+		Properties: []PropertyLine{
+			{
+				Name:       "message-ordering",
+				Pass:       false,
+				Violations: violations,
+			},
+		},
+	}
+
+	var buf bytes.Buffer
+	s.Write(&buf)
+
+	output := buf.String()
+	assert.Contains(t, output, "... and 3 more")
+	assert.Contains(t, output, "peer 0 has issue")
+	assert.Contains(t, output, "peer 4 has issue")
+	assert.NotContains(t, output, "peer 5 has issue")
 }

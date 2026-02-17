@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
@@ -71,6 +72,16 @@ func (c *Config) defaults() {
 	}
 }
 
+const (
+	// maxChaosHistory is the maximum number of chaos history entries retained.
+	// When exceeded, the oldest half is discarded.
+	maxChaosHistory = 10_000
+
+	// maxPeerTransitions is the maximum number of state transitions per peer.
+	// When exceeded, the oldest half is discarded.
+	maxPeerTransitions = 1_000
+)
+
 // Dashboard implements report.Consumer for the web dashboard.
 // It tracks per-peer state, manages the active set, and drives an SSE broker
 // for live updates.
@@ -88,6 +99,9 @@ type Dashboard struct {
 	// ownServer is true when the Dashboard created its own HTTP server
 	// (as opposed to sharing one via Config.Mux).
 	ownServer bool
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // New creates a Dashboard and starts the HTTP server and SSE broadcast loop.
@@ -206,6 +220,9 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			PeerIndex: ev.PeerIndex,
 			Action:    ev.ChaosAction,
 		})
+		if len(d.state.ChaosHistory) > maxChaosHistory {
+			d.state.ChaosHistory = d.state.ChaosHistory[len(d.state.ChaosHistory)-maxChaosHistory/2:]
+		}
 	case peer.EventWithdrawalSent:
 		d.state.TotalWithdrawn += ev.Count
 	case peer.EventEORSent:
@@ -219,10 +236,12 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 
 	// Record peer state transitions for timeline visualization.
 	if ps.Status != prevStatus {
-		d.state.PeerTransitions[ev.PeerIndex] = append(
-			d.state.PeerTransitions[ev.PeerIndex],
-			PeerStateTransition{Time: ev.Time, Status: ps.Status},
-		)
+		trans := d.state.PeerTransitions[ev.PeerIndex]
+		trans = append(trans, PeerStateTransition{Time: ev.Time, Status: ps.Status})
+		if len(trans) > maxPeerTransitions {
+			trans = trans[len(trans)-maxPeerTransitions/2:]
+		}
+		d.state.PeerTransitions[ev.PeerIndex] = trans
 	}
 
 	ps.LastEvent = ev.Type
@@ -240,15 +259,18 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 
 // Close implements report.Consumer. It stops the SSE broadcast loop,
 // shuts down the HTTP server (if owned), and closes the broker.
+// Safe to call multiple times — only the first call takes effect.
 func (d *Dashboard) Close() error {
-	d.cancel()
-	d.broker.Close()
-	if d.ownServer && d.server != nil {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		return d.server.Shutdown(ctx)
-	}
-	return nil
+	d.closeOnce.Do(func() {
+		d.cancel()
+		d.broker.Close()
+		if d.ownServer && d.server != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			d.closeErr = d.server.Shutdown(ctx)
+		}
+	})
+	return d.closeErr
 }
 
 // State returns the dashboard state for read access by handlers.

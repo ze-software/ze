@@ -2,7 +2,10 @@
 // for verifying route reflector propagation correctness.
 package validation
 
-import "net/netip"
+import (
+	"net/netip"
+	"slices"
+)
 
 // PrefixSet is a set of IPv4/IPv6 prefixes.
 type PrefixSet struct {
@@ -29,11 +32,28 @@ func (s *PrefixSet) Contains(p netip.Prefix) bool {
 // Len returns the number of prefixes in the set.
 func (s *PrefixSet) Len() int { return len(s.m) }
 
-// All returns all prefixes in the set.
+// All returns all prefixes in the set (unordered).
 func (s *PrefixSet) All() []netip.Prefix {
 	result := make([]netip.Prefix, 0, len(s.m))
 	for p := range s.m {
 		result = append(result, p)
+	}
+	return result
+}
+
+// SortedStrings returns all prefixes as sorted string representations.
+// Sorted by address first, then prefix length.
+func (s *PrefixSet) SortedStrings() []string {
+	prefixes := s.All()
+	slices.SortFunc(prefixes, func(a, b netip.Prefix) int {
+		if c := a.Addr().Compare(b.Addr()); c != 0 {
+			return c
+		}
+		return a.Bits() - b.Bits()
+	})
+	result := make([]string, len(prefixes))
+	for i, p := range prefixes {
+		result[i] = p.String()
 	}
 	return result
 }
