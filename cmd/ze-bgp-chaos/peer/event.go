@@ -54,4 +54,7 @@ type Event struct {
 
 	// ChaosAction is the action name for EventChaosExecuted events.
 	ChaosAction string
+
+	// Families is set for EventEORSent with the list of families sent.
+	Families []string
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"net/netip"
+	"sync"
 	"testing"
 	"time"
 
@@ -239,6 +240,70 @@ func TestJSONLogOptionalFields(t *testing.T) {
 	})
 }
 
+// TestJSONLogControlRecord verifies LogControl writes a "control" record type.
+//
+// VALIDATES: Control events have record-type "control", seq, command, and value fields.
+// PREVENTS: Control events being serialized as "event" records (breaking replay).
+func TestJSONLogControlRecord(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Date(2025, 1, 15, 10, 30, 0, 0, time.UTC)
+	jlog := NewJSONLog(&buf, JSONLogConfig{Start: start, Seed: 1, Peers: 4})
+
+	// Log a control event.
+	jlog.LogControl("pause", "", start.Add(2*time.Second))
+	jlog.LogControl("rate", "0.50", start.Add(3*time.Second))
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	require.Len(t, parsed, 3, "header + 2 control records")
+
+	// First control record: pause.
+	ctrl1 := parsed[1]
+	assert.Equal(t, "control", ctrl1["record-type"])
+	assert.Equal(t, float64(1), ctrl1["seq"])
+	assert.Equal(t, float64(2000), ctrl1["time-offset-ms"])
+	assert.Equal(t, "pause", ctrl1["command"])
+	assert.NotContains(t, ctrl1, "value", "empty value should be omitted")
+
+	// Second control record: rate with value.
+	ctrl2 := parsed[2]
+	assert.Equal(t, "control", ctrl2["record-type"])
+	assert.Equal(t, float64(2), ctrl2["seq"])
+	assert.Equal(t, float64(3000), ctrl2["time-offset-ms"])
+	assert.Equal(t, "rate", ctrl2["command"])
+	assert.Equal(t, "0.50", ctrl2["value"])
+}
+
+// TestJSONLogControlSequenceShared verifies control and event records share a single sequence.
+//
+// VALIDATES: Sequence numbers are global across events and controls.
+// PREVENTS: Duplicate seq values causing ordering ambiguity in replay.
+func TestJSONLogControlSequenceShared(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Now()
+	jlog := NewJSONLog(&buf, JSONLogConfig{Start: start, Seed: 1, Peers: 2})
+
+	jlog.ProcessEvent(peer.Event{
+		Type: peer.EventEstablished, PeerIndex: 0, Time: start,
+	})
+	jlog.LogControl("pause", "", start.Add(time.Second))
+	jlog.ProcessEvent(peer.Event{
+		Type: peer.EventRouteSent, PeerIndex: 0, Time: start.Add(2 * time.Second),
+		Prefix: netip.MustParsePrefix("10.0.0.0/24"),
+	})
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	require.Len(t, parsed, 4, "header + event + control + event")
+
+	assert.Equal(t, float64(1), parsed[1]["seq"])
+	assert.Equal(t, "event", parsed[1]["record-type"])
+	assert.Equal(t, float64(2), parsed[2]["seq"])
+	assert.Equal(t, "control", parsed[2]["record-type"])
+	assert.Equal(t, float64(3), parsed[3]["seq"])
+	assert.Equal(t, "event", parsed[3]["record-type"])
+}
+
 // TestJSONLogMultipleEvents verifies multiple events produce header + N event lines.
 //
 // VALIDATES: N events produce 1 header + N event lines of NDJSON.
@@ -265,4 +330,59 @@ func TestJSONLogMultipleEvents(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		assert.Equal(t, "event", parsed[i]["record-type"])
 	}
+}
+
+// TestJSONLogConcurrentSafety verifies ProcessEvent and LogControl are safe
+// for concurrent use from multiple goroutines.
+//
+// VALIDATES: No data race when event loop and HTTP handlers write simultaneously.
+// PREVENTS: Corrupted NDJSON output, duplicate/missing sequence numbers, panics.
+func TestJSONLogConcurrentSafety(t *testing.T) {
+	var buf bytes.Buffer
+	start := time.Now()
+	jlog := NewJSONLog(&buf, JSONLogConfig{Start: start, Seed: 1, Peers: 4})
+
+	const numEvents = 50
+	const numControls = 20
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Simulate event loop goroutine.
+	go func() {
+		defer wg.Done()
+		for i := range numEvents {
+			jlog.ProcessEvent(peer.Event{
+				Type:      peer.EventRouteSent,
+				PeerIndex: i % 4,
+				Time:      start.Add(time.Duration(i) * time.Millisecond),
+				Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
+			})
+		}
+	}()
+
+	// Simulate HTTP handler goroutine.
+	go func() {
+		defer wg.Done()
+		for i := range numControls {
+			jlog.LogControl("pause", "", start.Add(time.Duration(i)*time.Second))
+		}
+	}()
+
+	wg.Wait()
+	require.NoError(t, jlog.Close())
+
+	parsed := parseNDJSON(t, &buf)
+	// header + numEvents + numControls
+	require.Len(t, parsed, 1+numEvents+numControls)
+
+	// Collect all sequence numbers — must be unique and cover 1..N.
+	seqs := make(map[float64]bool)
+	for i := 1; i < len(parsed); i++ {
+		seq, ok := parsed[i]["seq"].(float64)
+		require.True(t, ok, "line %d missing seq", i)
+		require.False(t, seqs[seq], "duplicate seq %v at line %d", seq, i)
+		seqs[seq] = true
+	}
+	assert.Len(t, seqs, numEvents+numControls, "all sequence numbers unique")
 }

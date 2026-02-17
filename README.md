@@ -125,30 +125,35 @@ ze-test peer --mode check test.ci  # validate wire output against expected
 
 ### ze-bgp-chaos — Chaos Testing
 
-`ze-bgp-chaos` is a chaos monkey that simulates multiple BGP peers against a Ze route server, validates route propagation correctness, and injects faults:
+`ze-bgp-chaos` is a chaos monkey that simulates multiple BGP peers against a Ze route server, validates route propagation correctness, and injects faults.
+
+The tool outputs the Ze config on **stdout** and all diagnostics on **stderr**, so it can be piped directly to Ze:
 
 ```bash
-# Basic run: 4 peers, random seed, run until Ctrl-C
-ze-bgp-chaos
+# Pipeline mode: config flows to Ze via stdout, diagnostics on stderr
+ze-bgp-chaos --ze ./bin/ze --seed 42 --peers 8 --duration 60s | ./bin/ze -
 
-# Deterministic with specific parameters
-ze-bgp-chaos --seed 42 --peers 8 --duration 60s --routes 200
-
-# Multi-family with chaos control
-ze-bgp-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2
+# Write config to file, start Ze separately
+ze-bgp-chaos --config-out chaos.conf --seed 42 --peers 8
+ze chaos.conf
 
 # In-process mode: mock network + virtual clock (fully deterministic)
 ze-bgp-chaos --in-process --seed 42 --duration 30s
 
+# Multi-family with chaos control
+ze-bgp-chaos --families ipv4/unicast,ipv6/unicast --chaos-rate 0.2 | ./bin/ze -
+
 # Record event log, then replay or shrink a failure
-ze-bgp-chaos --event-log run.ndjson --seed 42
+ze-bgp-chaos --event-log run.ndjson --seed 42 | ./bin/ze -
 ze-bgp-chaos --replay run.ndjson
 ze-bgp-chaos --shrink run.ndjson
 
 # Property-based validation
-ze-bgp-chaos --properties all --convergence-deadline 5s
+ze-bgp-chaos --properties all --convergence-deadline 5s | ./bin/ze -
 ze-bgp-chaos --properties list   # show available properties
 ```
+
+The `--ze` flag specifies the path to the ze binary used in generated plugin `run` directives. This ensures the correct binary is used when ze is not installed in PATH or when testing a local build.
 
 Features include configurable iBGP/eBGP ratios, heavy-peer route flooding, route churn, replayable NDJSON event logs, automatic failure shrinking to minimal reproduction, property-based validation, and Prometheus metrics export.
 
@@ -159,7 +164,7 @@ Features include configurable iBGP/eBGP ratios, heavy-peer route flooding, route
 ```bash
 git clone https://codeberg.org/thomas-mangin/ze.git
 cd ze
-make build    # produces bin/ze
+make build    # produces bin/ze, bin/ze-test, bin/ze-bgp-chaos
 ```
 
 Requires **Go 1.25+**.

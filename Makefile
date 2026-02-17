@@ -12,7 +12,7 @@ generate:
 	@go run scripts/gen-plugin-imports.go
 
 # Build all binaries
-build: generate bin/ze bin/ze-test
+build: generate bin/ze bin/ze-test bin/ze-bgp-chaos
 	@echo "All binaries built"
 
 # Individual binary targets

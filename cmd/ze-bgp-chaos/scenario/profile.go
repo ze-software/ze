@@ -37,8 +37,13 @@ type PeerProfile struct {
 	// HoldTime is the peer's BGP hold time in seconds.
 	HoldTime uint16
 
-	// Port is the TCP port for this peer's BGP session.
+	// Port is the TCP port the simulator listens on (for Ze→peer active connections).
 	Port int
+
+	// ZePort is the TCP port Ze listens on for this specific peer.
+	// Each peer gets a unique port (BasePort + Index) so all peers
+	// can run on 127.0.0.1 without needing loopback aliases.
+	ZePort int
 
 	// Families is the list of address families this peer supports.
 	// Always includes "ipv4/unicast".

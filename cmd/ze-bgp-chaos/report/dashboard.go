@@ -3,119 +3,120 @@ package report
 import (
 	"fmt"
 	"io"
+	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
 )
 
 // DashboardConfig configures the live terminal dashboard.
 type DashboardConfig struct {
-	// IsTTY enables ANSI escape codes for in-place updates.
-	// When false, falls back to one-line-per-event output.
+	// IsTTY is retained for API compatibility but no longer affects behavior.
+	// All output uses scrolling one-line-per-event format.
 	IsTTY bool
 
 	// PeerCount is the total number of peers being simulated.
 	PeerCount int
+
+	// StatusInterval controls how often the aggregate status line is printed.
+	// Zero defaults to 2 seconds.
+	StatusInterval time.Duration
 }
 
-// peerState tracks the display state of a single peer.
-type peerState struct {
-	status     string // "idle", "established", "disconnected"
-	routesSent int
-	routesRecv int
-	lastEvent  string
-}
-
-// Dashboard renders a live per-peer status table to a writer.
-// In TTY mode, it uses ANSI escape codes to update in-place.
-// In non-TTY mode, it prints one line per event.
-// Implements the Consumer interface.
+// Dashboard prints lifecycle events immediately and a periodic aggregate
+// status line for route activity. Implements the Consumer interface.
 type Dashboard struct {
-	rw    reportWriter
-	cfg   DashboardConfig
-	peers []peerState
+	rw  reportWriter
+	cfg DashboardConfig
+
+	// Aggregate counters for the periodic status line.
+	sent      int
+	received  int
+	withdrawn int
+
+	// Per-peer state for the status line.
+	established int
+
+	// Timer for periodic status output.
+	lastStatus time.Time
+	interval   time.Duration
 }
 
 // NewDashboard creates a Dashboard writing to w.
 func NewDashboard(w io.Writer, cfg DashboardConfig) *Dashboard {
-	peers := make([]peerState, cfg.PeerCount)
-	for i := range peers {
-		peers[i].status = "idle"
+	interval := cfg.StatusInterval
+	if interval == 0 {
+		interval = 2 * time.Second
 	}
-	return &Dashboard{rw: reportWriter{w: w}, cfg: cfg, peers: peers}
+	return &Dashboard{
+		rw:       reportWriter{w: w},
+		cfg:      cfg,
+		interval: interval,
+	}
 }
 
-// ProcessEvent updates peer state and renders the dashboard.
+// ProcessEvent handles a single event. Lifecycle events are printed
+// immediately; route events update aggregate counters and trigger a
+// periodic status line.
 func (d *Dashboard) ProcessEvent(ev peer.Event) {
-	if ev.PeerIndex >= 0 && ev.PeerIndex < len(d.peers) {
-		d.updatePeer(ev)
-	}
-
-	if d.cfg.IsTTY {
-		d.renderTTY()
-	} else {
-		d.renderLine(ev)
-	}
-}
-
-// updatePeer updates the internal state for the event's peer.
-func (d *Dashboard) updatePeer(ev peer.Event) {
-	p := &d.peers[ev.PeerIndex]
-	p.lastEvent = ev.Type.String()
-
 	switch ev.Type {
-	case peer.EventEstablished:
-		p.status = "established"
-	case peer.EventDisconnected:
-		p.status = "disconnected"
 	case peer.EventRouteSent:
-		p.routesSent++
+		d.sent++
+		d.maybeStatus(ev.Time)
 	case peer.EventRouteReceived:
-		p.routesRecv++
-	case peer.EventChaosExecuted:
-		p.lastEvent = ev.ChaosAction
-	case peer.EventReconnecting:
-		p.status = "reconnecting"
-	case peer.EventRouteWithdrawn, peer.EventEORSent, peer.EventError, peer.EventWithdrawalSent:
-		// These events update lastEvent only (set above).
+		d.received++
+		d.maybeStatus(ev.Time)
+	case peer.EventRouteWithdrawn:
+		d.withdrawn++
+		d.maybeStatus(ev.Time)
+	case peer.EventWithdrawalSent:
+		d.withdrawn += ev.Count
+		d.maybeStatus(ev.Time)
+	case peer.EventEstablished:
+		d.established++
+		d.rw.printf("peer %d | established (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
+	case peer.EventDisconnected:
+		d.established--
+		d.rw.printf("peer %d | disconnected (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
+	case peer.EventEORSent:
+		if len(ev.Families) > 0 {
+			d.rw.printf("peer %d | eor-sent | %d routes [%s]\n", ev.PeerIndex, ev.Count, strings.Join(ev.Families, ", "))
+		} else {
+			d.rw.printf("peer %d | eor-sent | %d routes\n", ev.PeerIndex, ev.Count)
+		}
+	case peer.EventError, peer.EventChaosExecuted, peer.EventReconnecting:
+		d.printLifecycle(ev)
 	}
 }
 
-// renderTTY redraws the entire dashboard using ANSI escape codes.
-func (d *Dashboard) renderTTY() {
-	// Cursor home + clear below.
-	d.rw.printf("\033[H\033[J")
-	d.rw.printf("── ze-bgp-chaos dashboard (%d peers) ──\n", d.cfg.PeerCount)
-
-	for i, p := range d.peers {
-		d.rw.printf("  peer %d  %-14s  sent:%-6d recv:%-6d  %s\n",
-			i, p.status, p.routesSent, p.routesRecv, p.lastEvent)
-	}
-}
-
-// renderLine prints a single-line event summary (non-TTY fallback).
-func (d *Dashboard) renderLine(ev peer.Event) {
+// printLifecycle prints a single-line event for non-route events.
+func (d *Dashboard) printLifecycle(ev peer.Event) {
 	line := fmt.Sprintf("peer %d | %s", ev.PeerIndex, ev.Type.String())
-
-	if ev.Prefix.IsValid() {
-		line += " | " + ev.Prefix.String()
-	}
 
 	if ev.ChaosAction != "" {
 		line += " | " + ev.ChaosAction
 	}
 
 	if ev.Err != nil {
-		line += " | error: " + ev.Err.Error()
+		line += " | " + ev.Err.Error()
 	}
 
 	d.rw.printf("%s\n", line)
 }
 
-// Close clears the dashboard area in TTY mode.
-func (d *Dashboard) Close() error {
-	if d.cfg.IsTTY {
-		// Move cursor to home and clear the screen area used by the dashboard.
-		d.rw.printf("\033[H\033[J")
+// maybeStatus prints an aggregate status line if enough time has passed.
+func (d *Dashboard) maybeStatus(now time.Time) {
+	if now.Sub(d.lastStatus) < d.interval {
+		return
 	}
+	d.lastStatus = now
+	d.rw.printf("  routes: %d sent, %d received, %d withdrawn | peers: %d/%d\n",
+		d.sent, d.received, d.withdrawn, d.established, d.cfg.PeerCount)
+}
+
+// Close prints a final status line.
+func (d *Dashboard) Close() error {
+	d.rw.printf("  routes: %d sent, %d received, %d withdrawn | peers: %d/%d (final)\n",
+		d.sent, d.received, d.withdrawn, d.established, d.cfg.PeerCount)
 	return d.rw.err
 }

@@ -69,6 +69,15 @@ func Generate(params GeneratorParams) ([]PeerProfile, error) {
 		// Port assignment: each peer gets a unique port starting from ListenBase.
 		p.Port = params.ListenBase + i
 
+		// Ze-facing port: each peer gets a unique Ze listen port.
+		// This allows all peers to run on 127.0.0.1 without loopback aliases.
+		p.ZePort = params.BasePort + i
+
+		// Unique address per peer: 127.0.0.{2+i}.
+		// Required for config key uniqueness (YANG list key = address).
+		// Simulators don't bind to these — they dial Ze's per-peer port instead.
+		p.Address = netip.AddrFrom4([4]byte{127, 0, 0, byte(2 + i)})
+
 		// Route count: first HeavyPeers peers (by RNG selection) get heavy routes.
 		p.RouteCount = params.Routes
 	}

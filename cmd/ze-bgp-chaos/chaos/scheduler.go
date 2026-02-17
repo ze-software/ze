@@ -153,6 +153,13 @@ func (s *Scheduler) selectAction() ChaosAction {
 	return ChaosAction{Type: ActionTCPDisconnect}
 }
 
+// SetRate updates the chaos rate. Safe to call from another goroutine
+// only if the caller ensures no concurrent Tick calls (scheduler loop
+// processes control commands and ticks sequentially).
+func (s *Scheduler) SetRate(rate float64) {
+	s.cfg.Rate = rate
+}
+
 // establishedPeers returns indices of peers that are currently established.
 func (s *Scheduler) establishedPeers(established []bool) []int {
 	peers := make([]int, 0, len(established))

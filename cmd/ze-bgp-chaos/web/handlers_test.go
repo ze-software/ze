@@ -1,0 +1,544 @@
+package web
+
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
+)
+
+// newTestDashboard creates a minimal Dashboard for handler tests.
+func newTestDashboard(peerCount int) *Dashboard {
+	state := NewDashboardState(peerCount, 40, 100)
+	broker := NewSSEBroker(200 * time.Millisecond)
+	cfg := Config{Logger: nil}
+	cfg.defaults()
+	return &Dashboard{
+		state:  state,
+		broker: broker,
+		logger: cfg.Logger,
+	}
+}
+
+// TestHandleIndex verifies the dashboard index page renders full HTML.
+//
+// VALIDATES: Index page returns valid HTML with HTMX script tags and SSE connection.
+// PREVENTS: Missing layout elements breaking the dashboard.
+func TestHandleIndex(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	d.handleIndex(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	for _, want := range []string{
+		"<!DOCTYPE html>",
+		"htmx.min.js",
+		"sse.js",
+		"style.css",
+		"sse-connect=\"/events\"",
+		"Ze BGP Chaos",
+		"peer-tbody",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("index page missing %q", want)
+		}
+	}
+}
+
+// TestHandlePeers verifies the peer table fragment endpoint.
+//
+// VALIDATES: Peers endpoint returns tbody with peer rows for active set members.
+// PREVENTS: Empty table when peers exist in the active set.
+func TestHandlePeers(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(10)
+	defer d.broker.Close()
+
+	// Promote some peers to the active set.
+	now := time.Now()
+	d.state.Active.Promote(0, PriorityHigh, now)
+	d.state.Active.Promote(3, PriorityMedium, now)
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[3].Status = PeerDown
+
+	req := httptest.NewRequest(http.MethodGet, "/peers", nil)
+	w := httptest.NewRecorder()
+
+	d.handlePeers(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `<tbody id="peer-tbody">`) {
+		t.Error("response missing tbody wrapper")
+	}
+	if !strings.Contains(body, `id="peer-0"`) {
+		t.Error("response missing peer-0 row")
+	}
+	if !strings.Contains(body, `id="peer-3"`) {
+		t.Error("response missing peer-3 row")
+	}
+}
+
+// TestHandlePeersStatusFilter verifies filtering peers by status.
+//
+// VALIDATES: Status query parameter filters peers correctly.
+// PREVENTS: Filter returning all peers regardless of status parameter.
+func TestHandlePeersStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(10)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.state.Active.Promote(0, PriorityHigh, now)
+	d.state.Active.Promote(1, PriorityHigh, now)
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerDown
+
+	req := httptest.NewRequest(http.MethodGet, "/peers?status=up", nil)
+	w := httptest.NewRecorder()
+
+	d.handlePeers(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-0"`) {
+		t.Error("response should contain peer-0 (status up)")
+	}
+	if strings.Contains(body, `id="peer-1"`) {
+		t.Error("response should NOT contain peer-1 (status down)")
+	}
+}
+
+// TestHandlePeerDetail verifies the peer detail endpoint.
+//
+// VALIDATES: Detail endpoint returns peer information including status, counters, and events.
+// PREVENTS: Detail pane showing wrong peer data or crashing on missing peers.
+func TestHandlePeerDetail(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Set up peer state.
+	d.state.Peers[2].Status = PeerUp
+	d.state.Peers[2].RoutesSent = 42
+	d.state.Peers[2].ChaosCount = 3
+	d.state.Active.Promote(2, PriorityHigh, time.Now())
+
+	req := httptest.NewRequest(http.MethodGet, "/peer/2", nil)
+	req.SetPathValue("id", "2")
+	w := httptest.NewRecorder()
+
+	d.handlePeerDetail(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Peer 2") {
+		t.Error("response missing peer title")
+	}
+	if !strings.Contains(body, "42") {
+		t.Error("response missing routes sent count")
+	}
+}
+
+// TestHandlePeerDetailNotFound verifies 404 for unknown peers.
+//
+// VALIDATES: Non-existent peer returns 404.
+// PREVENTS: Panic or empty response for invalid peer IDs.
+func TestHandlePeerDetailNotFound(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/peer/999", nil)
+	req.SetPathValue("id", "999")
+	w := httptest.NewRecorder()
+
+	d.handlePeerDetail(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", w.Code)
+	}
+}
+
+// TestHandlePeerDetailInvalidID verifies 400 for non-numeric IDs.
+//
+// VALIDATES: Non-numeric peer ID returns 400.
+// PREVENTS: Panic on strconv.Atoi failure.
+func TestHandlePeerDetailInvalidID(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/peer/abc", nil)
+	req.SetPathValue("id", "abc")
+	w := httptest.NewRecorder()
+
+	d.handlePeerDetail(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", w.Code)
+	}
+}
+
+// TestHandlePeerPin verifies pin toggling.
+//
+// VALIDATES: POST to pin endpoint toggles pin state and returns updated row.
+// PREVENTS: Pin state not persisting or response missing updated row HTML.
+func TestHandlePeerPin(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Promote peer 1 first.
+	d.state.Active.Promote(1, PriorityMedium, time.Now())
+
+	// Pin.
+	req := httptest.NewRequest(http.MethodPost, "/peers/1/pin", nil)
+	req.SetPathValue("id", "1")
+	w := httptest.NewRecorder()
+
+	d.handlePeerPin(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("pin status = %d, want 200", w.Code)
+	}
+	if !d.state.Active.IsPinned(1) {
+		t.Error("peer 1 should be pinned after POST")
+	}
+
+	// Unpin.
+	req = httptest.NewRequest(http.MethodPost, "/peers/1/pin", nil)
+	req.SetPathValue("id", "1")
+	w = httptest.NewRecorder()
+
+	d.handlePeerPin(w, req)
+
+	if d.state.Active.IsPinned(1) {
+		t.Error("peer 1 should be unpinned after second POST")
+	}
+}
+
+// TestHandlePeerClose verifies the close endpoint returns empty detail div.
+//
+// VALIDATES: Close endpoint returns an empty peer-detail div.
+// PREVENTS: Detail pane not clearing when close button is clicked.
+func TestHandlePeerClose(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/peer/close", nil)
+	w := httptest.NewRecorder()
+
+	d.handlePeerClose(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if body != `<div id="peer-detail"></div>` {
+		t.Errorf("unexpected body: %q", body)
+	}
+}
+
+// TestPeersUpCounterAccuracy verifies PeersUp is decremented on error and reconnecting.
+//
+// VALIDATES: PeersUp tracks only peers with PeerUp status.
+// PREVENTS: Counter drift when peers transition via error or reconnecting events.
+func TestPeersUpCounterAccuracy(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+
+	// Establish two peers.
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: now})
+
+	d.state.RLock()
+	if d.state.PeersUp != 2 {
+		t.Fatalf("PeersUp after 2 established = %d, want 2", d.state.PeersUp)
+	}
+	d.state.RUnlock()
+
+	// Peer 0 gets an error — should decrement.
+	d.ProcessEvent(peer.Event{Type: peer.EventError, PeerIndex: 0, Time: now})
+	d.state.RLock()
+	if d.state.PeersUp != 1 {
+		t.Fatalf("PeersUp after error = %d, want 1", d.state.PeersUp)
+	}
+	d.state.RUnlock()
+
+	// Peer 1 reconnecting — should decrement.
+	d.ProcessEvent(peer.Event{Type: peer.EventReconnecting, PeerIndex: 1, Time: now})
+	d.state.RLock()
+	if d.state.PeersUp != 0 {
+		t.Fatalf("PeersUp after reconnecting = %d, want 0", d.state.PeersUp)
+	}
+	d.state.RUnlock()
+
+	// Error on already-down peer should NOT go negative.
+	d.ProcessEvent(peer.Event{Type: peer.EventError, PeerIndex: 0, Time: now})
+	d.state.RLock()
+	if d.state.PeersUp != 0 {
+		t.Fatalf("PeersUp after duplicate error = %d, want 0", d.state.PeersUp)
+	}
+	d.state.RUnlock()
+}
+
+// mockControlLogger captures LogControl calls for testing.
+type mockControlLogger struct {
+	calls []controlLogEntry
+}
+
+type controlLogEntry struct {
+	command string
+	value   string
+}
+
+func (m *mockControlLogger) LogControl(command, value string, _ time.Time) {
+	m.calls = append(m.calls, controlLogEntry{command: command, value: value})
+}
+
+// TestControlHandlersLogToNDJSON verifies all control handlers log to the ControlLogger.
+//
+// VALIDATES: Pause, resume, rate, trigger, and stop all produce control log entries.
+// PREVENTS: Control events silently missing from NDJSON event log.
+func TestControlHandlersLogToNDJSON(t *testing.T) {
+	t.Parallel()
+
+	logger := &mockControlLogger{}
+	controlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.control = controlCh
+	d.controlLogger = logger
+	defer d.broker.Close()
+
+	// Pause.
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	w := httptest.NewRecorder()
+	d.handleControlPause(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("pause status = %d, want 200", w.Code)
+	}
+
+	// Resume.
+	req = httptest.NewRequest(http.MethodPost, "/control/resume", nil)
+	w = httptest.NewRecorder()
+	d.handleControlResume(w, req)
+
+	// Rate.
+	req = httptest.NewRequest(http.MethodPost, "/control/rate", strings.NewReader("rate=0.75"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w = httptest.NewRecorder()
+	d.handleControlRate(w, req)
+
+	// Trigger.
+	req = httptest.NewRequest(http.MethodPost, "/control/trigger", strings.NewReader("action=tcp-disconnect"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w = httptest.NewRecorder()
+	d.handleControlTrigger(w, req)
+
+	// Stop.
+	req = httptest.NewRequest(http.MethodPost, "/control/stop", nil)
+	w = httptest.NewRecorder()
+	d.handleControlStop(w, req)
+
+	// Verify all 5 control events were logged.
+	if len(logger.calls) != 5 {
+		t.Fatalf("got %d log calls, want 5: %+v", len(logger.calls), logger.calls)
+	}
+
+	expected := []controlLogEntry{
+		{command: "pause", value: ""},
+		{command: "resume", value: ""},
+		{command: "rate", value: "0.75"},
+		{command: "trigger", value: "tcp-disconnect"},
+		{command: "stop", value: ""},
+	}
+	for i, want := range expected {
+		got := logger.calls[i]
+		if got.command != want.command || got.value != want.value {
+			t.Errorf("call[%d] = {%q, %q}, want {%q, %q}", i, got.command, got.value, want.command, want.value)
+		}
+	}
+}
+
+// TestControlHandlersNoLoggerNoPanic verifies control handlers work without a ControlLogger.
+//
+// VALIDATES: nil ControlLogger doesn't cause panics in control handlers.
+// PREVENTS: NilPointerException when --event-log is not set.
+func TestControlHandlersNoLoggerNoPanic(t *testing.T) {
+	t.Parallel()
+
+	controlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.control = controlCh
+	// d.controlLogger is nil (default).
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	w := httptest.NewRecorder()
+	d.handleControlPause(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("pause status = %d, want 200", w.Code)
+	}
+}
+
+// TestSortPeers verifies peer sorting by different columns.
+//
+// VALIDATES: Sort by status, sent, received, chaos, and default (index).
+// PREVENTS: Wrong sort order or panic on nil peers.
+func TestSortPeers(t *testing.T) {
+	t.Parallel()
+
+	state := NewDashboardState(5, 40, 100)
+	state.Peers[0].RoutesSent = 10
+	state.Peers[1].RoutesSent = 30
+	state.Peers[2].RoutesSent = 20
+
+	indices := []int{0, 1, 2}
+
+	// Sort by sent ascending.
+	sortPeers(indices, state, "sent", "asc")
+	if indices[0] != 0 || indices[1] != 2 || indices[2] != 1 {
+		t.Errorf("sort by sent asc: got %v, want [0,2,1]", indices)
+	}
+
+	// Sort by sent descending.
+	sortPeers(indices, state, "sent", "desc")
+	if indices[0] != 1 || indices[1] != 2 || indices[2] != 0 {
+		t.Errorf("sort by sent desc: got %v, want [1,2,0]", indices)
+	}
+
+	// Default sort (by index).
+	indices = []int{2, 0, 1}
+	sortPeers(indices, state, "", "asc")
+	if indices[0] != 0 || indices[1] != 1 || indices[2] != 2 {
+		t.Errorf("sort by default: got %v, want [0,1,2]", indices)
+	}
+}
+
+// TestEventTypeLabel verifies all event types have labels.
+//
+// VALIDATES: Every EventType has a non-empty label.
+// PREVENTS: "unknown" showing up in the UI for known events.
+func TestEventTypeLabel(t *testing.T) {
+	t.Parallel()
+
+	types := []peer.EventType{
+		peer.EventEstablished,
+		peer.EventDisconnected,
+		peer.EventError,
+		peer.EventChaosExecuted,
+		peer.EventReconnecting,
+		peer.EventRouteSent,
+		peer.EventRouteReceived,
+		peer.EventRouteWithdrawn,
+		peer.EventEORSent,
+		peer.EventWithdrawalSent,
+	}
+	for _, et := range types {
+		label := eventTypeLabel(et)
+		if label == "" || label == "unknown" {
+			t.Errorf("eventTypeLabel(%d) = %q, want non-empty known label", et, label)
+		}
+	}
+}
+
+// TestProcessEventIntegration verifies that ProcessEvent updates state correctly
+// and the resulting state renders without errors.
+//
+// VALIDATES: Full event processing → state update → rendering pipeline works.
+// PREVENTS: Rendering panics on state populated by real events.
+func TestProcessEventIntegration(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	events := []peer.Event{
+		{Type: peer.EventEstablished, PeerIndex: 0, Time: now},
+		{Type: peer.EventRouteSent, PeerIndex: 0, Time: now},
+		{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "disconnect"},
+		{Type: peer.EventDisconnected, PeerIndex: 1, Time: now},
+		{Type: peer.EventReconnecting, PeerIndex: 1, Time: now},
+	}
+
+	for _, ev := range events {
+		d.ProcessEvent(ev)
+	}
+
+	// Verify state.
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	if d.state.Peers[0].Status != PeerUp {
+		t.Errorf("peer 0 status = %v, want PeerUp", d.state.Peers[0].Status)
+	}
+	if d.state.Peers[1].Status != PeerReconnecting {
+		t.Errorf("peer 1 status = %v, want PeerReconnecting", d.state.Peers[1].Status)
+	}
+	if d.state.Peers[1].ChaosCount != 1 {
+		t.Errorf("peer 1 chaos count = %d, want 1", d.state.Peers[1].ChaosCount)
+	}
+
+	// Verify active set has auto-promoted peers (chaos, disconnect, reconnect are promotable).
+	if !d.state.Active.Contains(1) {
+		t.Error("peer 1 should be in active set after chaos/disconnect events")
+	}
+
+	// Verify rendering doesn't panic.
+	row := d.renderPeerRow(1)
+	if row == "" {
+		t.Error("renderPeerRow returned empty for active peer")
+	}
+	stats := d.renderStats()
+	if stats == "" {
+		t.Error("renderStats returned empty")
+	}
+	// Stats must preserve SSE attributes for future updates.
+	if !strings.Contains(stats, `sse-swap="stats"`) {
+		t.Error("renderStats must preserve sse-swap attribute")
+	}
+	if !strings.Contains(stats, `hx-swap="outerHTML"`) {
+		t.Error("renderStats must preserve hx-swap attribute")
+	}
+
+	// Recent events rendering must include SSE attributes.
+	eventsHTML := d.renderRecentEvents()
+	if eventsHTML == "" {
+		t.Error("renderRecentEvents returned empty")
+	}
+	if !strings.Contains(eventsHTML, `sse-swap="events"`) {
+		t.Error("renderRecentEvents must preserve sse-swap attribute")
+	}
+}

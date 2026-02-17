@@ -12,6 +12,7 @@ type ConfigParams struct {
 	RouterID  netip.Addr
 	LocalAddr string
 	BasePort  int
+	ZeBinary  string // Path to ze binary for plugin run directives (default: "ze").
 	Profiles  []PeerProfile
 }
 
@@ -20,18 +21,67 @@ type ConfigParams struct {
 func GenerateConfig(params ConfigParams) string {
 	var b strings.Builder
 
+	zeBin := params.ZeBinary
+	if zeBin == "" {
+		zeBin = "ze"
+	}
+
+	// Route reflector plugin — required for route forwarding between peers.
+	fmt.Fprintf(&b, "plugin {\n")
+	fmt.Fprintf(&b, "    external rr {\n")
+	fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
+	fmt.Fprintf(&b, "    }\n")
+	fmt.Fprintf(&b, "}\n\n")
+
 	// bgp block with all peer definitions.
 	fmt.Fprintf(&b, "bgp {\n")
 	for _, p := range params.Profiles {
-		writePeerBlock(&b, params, p)
+		writeFullPeerBlock(&b, params, p)
 	}
 	fmt.Fprintf(&b, "}\n")
 
 	return b.String()
 }
 
-// writePeerBlock writes a single peer block inside the bgp container.
-func writePeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) {
+// PeerSummary returns a compact one-line-per-peer summary for stderr display.
+func PeerSummary(params ConfigParams) string {
+	var b strings.Builder
+	for _, p := range params.Profiles {
+		peerAddr := params.LocalAddr
+		if p.Address.IsValid() {
+			peerAddr = p.Address.String()
+		}
+
+		peerType := "eBGP"
+		if p.IsIBGP {
+			peerType = "iBGP"
+		}
+
+		families := p.Families
+		if len(families) == 0 {
+			families = []string{"ipv4/unicast"}
+		}
+
+		mode := ""
+		if p.Mode == ModePassive {
+			mode = " passive"
+		}
+
+		portInfo := ""
+		if p.ZePort > 0 {
+			portInfo = fmt.Sprintf("  port=%-5d", p.ZePort)
+		}
+
+		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d peer-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n",
+			p.Index, peerAddr, params.LocalAS, p.ASN, peerType, p.HoldTime, portInfo,
+			strings.Join(families, ", "), p.RouteCount, mode)
+	}
+	return b.String()
+}
+
+// writeFullPeerBlock writes a single peer block inside the bgp container.
+// This produces valid Ze config syntax.
+func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) {
 	peerAddr := params.LocalAddr
 	if p.Address.IsValid() {
 		peerAddr = p.Address.String()
@@ -44,9 +94,14 @@ func writePeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) {
 	fmt.Fprintf(b, "        peer-as %d;\n", p.ASN)
 	fmt.Fprintf(b, "        hold-time %d;\n", p.HoldTime)
 
-	if p.Mode == ModePassive {
-		fmt.Fprintf(b, "        passive true;\n")
+	// Per-peer port: Ze listens on a unique port for each peer.
+	if p.ZePort > 0 {
+		fmt.Fprintf(b, "        port %d;\n", p.ZePort)
 	}
+
+	// All chaos peers are passive from Ze's perspective: Ze never dials out.
+	// This avoids needing loopback aliases for the fake peer addresses.
+	fmt.Fprintf(b, "        passive true;\n")
 
 	// Family block — per-peer families from profile.
 	families := p.Families

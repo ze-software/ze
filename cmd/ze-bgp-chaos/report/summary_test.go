@@ -128,9 +128,24 @@ func TestSummaryZeroLatency(t *testing.T) {
 	exitCode := s.Write(&buf)
 
 	output := buf.String()
-	assert.Equal(t, 0, exitCode)
-	assert.Contains(t, output, "PASS")
+	assert.Equal(t, 1, exitCode, "zero announced routes must FAIL — the test exercised nothing")
+	assert.Contains(t, output, "FAIL")
 	assert.Contains(t, output, "0 announced")
+}
+
+// TestSummaryZeroAnnouncedFails verifies that a run with zero announced
+// routes is always a failure regardless of other metrics.
+//
+// VALIDATES: Zero announced routes → FAIL, even with zero missing/extra.
+// PREVENTS: False PASS when peers never connected (the original bug).
+func TestSummaryZeroAnnouncedFails(t *testing.T) {
+	s := Summary{
+		Announced: 0,
+		Received:  0,
+		Missing:   0,
+		Extra:     0,
+	}
+	assert.False(t, s.Pass(), "zero announced should never pass")
 }
 
 // TestSummaryChaosStats verifies that chaos injection stats appear

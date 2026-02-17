@@ -44,7 +44,12 @@ type Summary struct {
 }
 
 // Pass returns true when there are no validation failures.
+// A run with zero announced routes is always a failure — it means
+// no peers connected and the test exercised nothing.
 func (s *Summary) Pass() bool {
+	if s.Announced == 0 {
+		return false
+	}
 	if s.Missing != 0 || s.Extra != 0 || s.SlowRoutes != 0 {
 		return false
 	}

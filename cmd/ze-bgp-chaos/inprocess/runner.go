@@ -183,8 +183,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	// Give real time for the BGP handshake and route exchange to complete
 	// over the synchronous net.Pipe() connections. The handshake happens
-	// in real goroutines even though timers use virtual time. Under -race
-	// detector overhead, 500ms was too short — 2s is safe.
+	// in real goroutines even though timers use virtual time.
 	time.Sleep(2 * time.Second)
 
 	// Advance virtual time in 1-second steps with brief real-time pauses

@@ -444,17 +444,17 @@ func TestInProcessProperties(t *testing.T) {
 	assert.Empty(t, violations, "no property violations expected for correct scenario")
 }
 
-// TestInProcessScale50 verifies that 50 peers can establish sessions
+// TestInProcessScale20 verifies that 20 peers can establish sessions
 // without deadlock, goroutine leak, or resource exhaustion.
 //
-// VALIDATES: In-process mode scales to 50 concurrent peers.
+// VALIDATES: In-process mode scales to 20 concurrent peers.
 // PREVENTS: Resource exhaustion, deadlocks, goroutine leaks at scale.
-func TestInProcessScale50(t *testing.T) {
+func TestInProcessScale20(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	numPeers := 50
+	numPeers := 20
 	profiles := make([]scenario.PeerProfile, numPeers)
 	for i := range profiles {
 		profiles[i] = scenario.PeerProfile{

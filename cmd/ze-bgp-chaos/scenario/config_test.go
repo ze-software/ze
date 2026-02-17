@@ -170,12 +170,12 @@ func TestConfigGenMultiplePeers(t *testing.T) {
 	require.Equal(t, 10, count, "expected 10 peer blocks")
 }
 
-// TestConfigGenConnectionMode verifies active peers connect to Ze's port
-// while passive peers have Ze connect to their listen port.
+// TestConfigGenAllPeersPassive verifies all chaos peers are passive from Ze's
+// perspective. Per-port mode eliminates the need for Ze to dial out.
 //
-// VALIDATES: Active peers use Ze's base port; passive peers advertise their port.
-// PREVENTS: Port assignment confusion between active and passive modes.
-func TestConfigGenConnectionMode(t *testing.T) {
+// VALIDATES: All peers have passive true regardless of Mode field.
+// PREVENTS: Ze trying to dial fake loopback addresses that don't exist.
+func TestConfigGenAllPeersPassive(t *testing.T) {
 	profiles := []PeerProfile{
 		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890},
 		{Index: 1, ASN: 65002, RouterID: netip.MustParseAddr("10.255.0.2"), Mode: ModePassive, RouteCount: 100, HoldTime: 90, Port: 1891},
@@ -191,11 +191,33 @@ func TestConfigGenConnectionMode(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// Passive peer should have passive true in its block
-	assert.Contains(t, config, "passive true;")
-	// Active peer's block should NOT have passive
-	// (we check the count: only 1 passive statement for 1 passive peer)
-	assert.Equal(t, 1, strings.Count(config, "passive true;"))
+	// All peers have passive true (Ze never dials out in per-port mode).
+	assert.Equal(t, 2, strings.Count(config, "passive true;"))
+}
+
+// TestConfigGenPerPeerPort verifies each peer gets a unique Ze listen port.
+//
+// VALIDATES: Per-peer port directive emitted when ZePort is set.
+// PREVENTS: All peers sharing a single port (which breaks per-port mode).
+func TestConfigGenPerPeerPort(t *testing.T) {
+	profiles := []PeerProfile{
+		{Index: 0, ASN: 65001, RouterID: netip.MustParseAddr("10.255.0.1"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1890, ZePort: 1790},
+		{Index: 1, ASN: 65002, RouterID: netip.MustParseAddr("10.255.0.2"), Mode: ModeActive, RouteCount: 100, HoldTime: 90, Port: 1891, ZePort: 1791},
+	}
+
+	params := ConfigParams{
+		LocalAS:   65000,
+		RouterID:  netip.MustParseAddr("10.0.0.1"),
+		LocalAddr: "127.0.0.1",
+		BasePort:  1790,
+		Profiles:  profiles,
+	}
+
+	config := GenerateConfig(params)
+
+	assert.Contains(t, config, "port 1790;")
+	assert.Contains(t, config, "port 1791;")
+	assert.Equal(t, 2, strings.Count(config, "port "))
 }
 
 // TestConfigGenMultiFamily verifies that per-peer family blocks use the

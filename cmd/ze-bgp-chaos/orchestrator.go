@@ -35,6 +35,7 @@ type orchestratorConfig struct {
 	zePID               int
 	eventLog            string
 	metricsAddr         string
+	webAddr             string
 	properties          string
 	convergenceDeadline time.Duration
 }
@@ -91,7 +92,12 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 
 	case peer.EventRouteSent:
 		ep.Model.Announce(ev.PeerIndex, ev.Prefix)
-		ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time)
+		// Only track convergence for IPv4 unicast — the readLoop can only
+		// parse IPv4 NLRI from the trailing UPDATE section, so IPv6 routes
+		// would create permanently unresolved pending entries.
+		if ev.Prefix.Addr().Is4() {
+			ep.Convergence.RecordAnnounce(ev.PeerIndex, ev.Prefix, ev.Time)
+		}
 		ep.Announced++
 
 	case peer.EventRouteReceived:

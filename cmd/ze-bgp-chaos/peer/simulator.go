@@ -41,6 +41,11 @@ type SimulatorConfig struct {
 	// Addr is the TCP address to connect to (host:port).
 	Addr string
 
+	// LocalAddr is the local address to bind when dialing (e.g. "127.0.0.2").
+	// BGP identifies peers by source address, so each simulated peer needs
+	// a distinct local address. Empty means use OS default.
+	LocalAddr string
+
 	// Events is the channel to send lifecycle and route events on.
 	Events chan<- Event
 
@@ -115,7 +120,10 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	if cfg.Conn != nil {
 		conn = cfg.Conn
 	} else {
-		var d net.Dialer
+		d := net.Dialer{}
+		if cfg.LocalAddr != "" {
+			d.LocalAddr = &net.TCPAddr{IP: net.ParseIP(cfg.LocalAddr)}
+		}
 		var err error
 		conn, err = d.DialContext(ctx, "tcp", cfg.Addr)
 		if err != nil {
@@ -129,7 +137,35 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	// OPEN exchange.
+	// Context watcher: close connection when ctx is cancelled, regardless
+	// of which phase the simulator is in. Without this, readMsg() calls
+	// during the handshake block forever on io.ReadFull with no way to
+	// unblock them (the main select loop that handles ctx.Done is only
+	// reachable after the handshake completes).
+	connClosed := make(chan struct{})
+	go func() {
+		select {
+		case <-ctx.Done():
+			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock handshake reads
+		case <-connClosed:
+		}
+	}()
+	defer close(connClosed)
+
+	// OPEN exchange — apply a read deadline so we don't hang forever
+	// if the remote side accepts TCP but never sends a BGP OPEN.
+	// In in-process mode (Clock != nil), skip the deadline: the context
+	// watcher goroutine above already closes the connection on cancellation,
+	// and the real-time deadline can expire during runner.Run()'s initial
+	// sleep, causing spurious handshake failures at scale.
+	if cfg.Clock == nil {
+		handshakeDeadline := 10 * time.Second
+		if err := conn.SetReadDeadline(time.Now().Add(handshakeDeadline)); err != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("setting handshake deadline: %w", err)})
+			return
+		}
+	}
+
 	open := BuildOpen(SessionConfig{
 		ASN:      p.ASN,
 		RouterID: p.RouterID,
@@ -157,6 +193,12 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		return
 	}
 
+	// Clear read deadline for the session phase (keepalive loop handles its own).
+	if err := conn.SetReadDeadline(time.Time{}); err != nil {
+		emit(Event{Type: EventError, Err: fmt.Errorf("clearing read deadline: %w", err)})
+		return
+	}
+
 	emit(Event{Type: EventEstablished})
 
 	if cfg.Verbose {
@@ -164,10 +206,24 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 
 	// Send routes for all negotiated families.
+	// IPv4 next-hop for IPv4 families, IPv6 next-hop for IPv6 families.
+	// RFC 4760: MP_REACH_NLRI next-hop length must match the AFI.
 	sender := NewSender(SenderConfig{
 		ASN:     p.ASN,
 		IsIBGP:  p.IsIBGP,
 		NextHop: p.RouterID,
+	})
+	// Derive an IPv6 next-hop from the RouterID for IPv6 families.
+	// Maps 10.255.P.Q → 2001:db8::P:Q (deterministic, unique per peer).
+	rid4 := p.RouterID.As4()
+	ipv6NextHop := netip.AddrFrom16([16]byte{
+		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, rid4[2], rid4[3],
+	})
+	senderV6 := NewSender(SenderConfig{
+		ASN:     p.ASN,
+		IsIBGP:  p.IsIBGP,
+		NextHop: ipv6NextHop,
 	})
 
 	families := p.Families
@@ -209,7 +265,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildRoute(prefix)
+				data := senderV6.BuildRoute(prefix)
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
@@ -237,7 +293,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildVPNRoute(r)
+				data := senderV6.BuildVPNRoute(r)
 				if data == nil {
 					continue
 				}
@@ -282,7 +338,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if ctx.Err() != nil {
 					break
 				}
-				data := sender.BuildFlowSpecRoute(r)
+				data := senderV6.BuildFlowSpecRoute(r)
 				if data == nil {
 					continue
 				}
@@ -310,7 +366,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			return
 		}
 	}
-	emit(Event{Type: EventEORSent, Count: totalSent})
+	emit(Event{Type: EventEORSent, Count: totalSent, Families: families})
 
 	// Start reader goroutine for incoming messages from RR.
 	readerDone := make(chan struct{})

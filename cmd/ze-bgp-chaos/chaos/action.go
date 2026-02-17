@@ -58,6 +58,35 @@ func (a ActionType) String() string {
 	}
 }
 
+// ActionTypeFromString parses a kebab-case action name into an ActionType.
+// Returns the zero value (ActionTCPDisconnect) and false if the name is unknown.
+func ActionTypeFromString(s string) (ActionType, bool) {
+	switch s {
+	case "tcp-disconnect":
+		return ActionTCPDisconnect, true
+	case "notification-cease":
+		return ActionNotificationCease, true
+	case "hold-timer-expiry":
+		return ActionHoldTimerExpiry, true
+	case "partial-withdraw":
+		return ActionPartialWithdraw, true
+	case "full-withdraw":
+		return ActionFullWithdraw, true
+	case "disconnect-during-burst":
+		return ActionDisconnectDuringBurst, true
+	case "reconnect-storm":
+		return ActionReconnectStorm, true
+	case "connection-collision":
+		return ActionConnectionCollision, true
+	case "malformed-update":
+		return ActionMalformedUpdate, true
+	case "config-reload":
+		return ActionConfigReload, true
+	default:
+		return 0, false
+	}
+}
+
 // NeedsReconnect returns true if this action type causes a session teardown
 // that requires the peer to reconnect afterwards.
 func (a ActionType) NeedsReconnect() bool {

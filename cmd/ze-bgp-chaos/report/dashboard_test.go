@@ -12,97 +12,104 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDashboardRenderTTY verifies ANSI output contains escape codes and peer table.
+// TestDashboardLifecycleEvents verifies lifecycle events are printed immediately.
 //
-// VALIDATES: TTY mode produces ANSI escape codes with per-peer status.
-// PREVENTS: Dashboard producing plain text when TTY mode is expected.
-func TestDashboardRenderTTY(t *testing.T) {
+// VALIDATES: Established, disconnected, error, eor events produce output lines.
+// PREVENTS: Lifecycle events silently dropped.
+func TestDashboardLifecycleEvents(t *testing.T) {
 	var buf bytes.Buffer
-	d := NewDashboard(&buf, DashboardConfig{
-		IsTTY:     true,
-		PeerCount: 2,
-	})
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 4})
 
-	d.ProcessEvent(peer.Event{
-		Type:      peer.EventEstablished,
-		PeerIndex: 0,
-		Time:      time.Now(),
-	})
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventError, PeerIndex: 2, Time: now, Err: assert.AnError})
 
 	output := buf.String()
-
-	// Must contain ANSI escape codes for cursor positioning.
-	assert.Contains(t, output, "\033[", "should contain ANSI escape codes")
-
-	// Must mention peer 0.
-	assert.Contains(t, output, "peer 0")
+	assert.Contains(t, output, "peer 0 | established (1/4)")
+	assert.Contains(t, output, "peer 1 | established (2/4)")
+	assert.Contains(t, output, "peer 0 | eor-sent")
+	assert.Contains(t, output, "peer 2 | error")
+	assert.Contains(t, output, assert.AnError.Error())
 }
 
-// TestDashboardFallback verifies line-based output when not a TTY.
+// TestDashboardRoutesSuppressed verifies individual route events are not printed.
 //
-// VALIDATES: Non-TTY mode produces one line per event with no escape codes.
-// PREVENTS: ANSI codes corrupting piped output.
-func TestDashboardFallback(t *testing.T) {
+// VALIDATES: Route events update counters without per-route output lines.
+// PREVENTS: Thousands of route-sent lines drowning lifecycle events.
+func TestDashboardRoutesSuppressed(t *testing.T) {
 	var buf bytes.Buffer
-	d := NewDashboard(&buf, DashboardConfig{
-		IsTTY:     false,
-		PeerCount: 2,
-	})
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 2, StatusInterval: time.Hour})
 
-	d.ProcessEvent(peer.Event{
-		Type:      peer.EventEstablished,
-		PeerIndex: 0,
-		Time:      time.Now(),
-	})
-
-	d.ProcessEvent(peer.Event{
-		Type:      peer.EventRouteSent,
-		PeerIndex: 1,
-		Time:      time.Now(),
-		Prefix:    netip.MustParsePrefix("10.0.0.0/24"),
-	})
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now, Prefix: mustPrefix("10.0.0.0/24")})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now, Prefix: mustPrefix("10.0.1.0/24")})
 
 	output := buf.String()
+	assert.NotContains(t, output, "10.0.0.0/24", "individual routes should not be printed")
+	assert.Equal(t, 2, d.sent, "sent counter should be updated")
+}
 
-	// Must NOT contain ANSI escape codes.
-	assert.NotContains(t, output, "\033[", "should not contain ANSI escape codes")
+// TestDashboardPeriodicStatus verifies the aggregate status line is emitted periodically.
+//
+// VALIDATES: Status line shows sent/received/withdrawn counts at intervals.
+// PREVENTS: No feedback during long route-sending phases.
+func TestDashboardPeriodicStatus(t *testing.T) {
+	var buf bytes.Buffer
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 2, StatusInterval: 100 * time.Millisecond})
 
-	// Must contain event info on separate lines.
+	t0 := time.Now()
+	// First route — triggers status (no previous status).
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: t0})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: t0})
+	// Route within interval — no status.
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: t0.Add(50 * time.Millisecond)})
+	// Route after interval — triggers status.
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: t0.Add(200 * time.Millisecond)})
+
+	output := buf.String()
 	lines := strings.Split(strings.TrimSpace(output), "\n")
-	require.GreaterOrEqual(t, len(lines), 2, "should have at least 2 lines")
+
+	// Should have: established, first status, second status = 3+ lines.
+	statusCount := 0
+	for _, l := range lines {
+		if strings.Contains(l, "routes:") {
+			statusCount++
+		}
+	}
+	require.GreaterOrEqual(t, statusCount, 2, "expected at least 2 status lines, got:\n%s", output)
+	assert.Contains(t, output, "3 sent")
 }
 
-// TestDashboardPeerTracking verifies per-peer state updates.
+// TestDashboardEstablishedCount tracks the running peer count.
 //
-// VALIDATES: Dashboard tracks established/disconnected state per peer.
-// PREVENTS: All peers showing same state regardless of events.
-func TestDashboardPeerTracking(t *testing.T) {
+// VALIDATES: Established/disconnected events increment/decrement the counter.
+// PREVENTS: Stale peer count in status output.
+func TestDashboardEstablishedCount(t *testing.T) {
 	var buf bytes.Buffer
-	d := NewDashboard(&buf, DashboardConfig{
-		IsTTY:     true,
-		PeerCount: 3,
-	})
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 3})
 
-	// Establish peer 0, disconnect peer 1.
-	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: time.Now()})
-	d.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 1, Time: time.Now()})
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 0, Time: now})
 
 	output := buf.String()
-
-	// After the last render, peer 0 should show as established.
-	assert.Contains(t, output, "established")
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	require.Len(t, lines, 3)
+	assert.Contains(t, lines[0], "(1/3)")
+	assert.Contains(t, lines[1], "(2/3)")
+	assert.Contains(t, lines[2], "(1/3)")
 }
 
 // TestDashboardChaosEvent verifies chaos events appear in output.
 //
 // VALIDATES: Chaos actions are displayed with their type.
-// PREVENTS: Chaos events silently dropped from dashboard.
+// PREVENTS: Chaos events silently dropped from output.
 func TestDashboardChaosEvent(t *testing.T) {
 	var buf bytes.Buffer
-	d := NewDashboard(&buf, DashboardConfig{
-		IsTTY:     false,
-		PeerCount: 2,
-	})
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 2})
 
 	d.ProcessEvent(peer.Event{
 		Type:        peer.EventChaosExecuted,
@@ -115,23 +122,27 @@ func TestDashboardChaosEvent(t *testing.T) {
 	assert.Contains(t, output, "tcp-disconnect")
 }
 
-// TestDashboardCloseClears verifies Close clears the terminal in TTY mode.
+// TestDashboardCloseFinalStatus verifies Close prints a final status line.
 //
-// VALIDATES: Close produces a final clear sequence in TTY mode.
-// PREVENTS: Dashboard artifacts remaining after shutdown.
-func TestDashboardCloseClears(t *testing.T) {
+// VALIDATES: Final aggregate counts are printed on close.
+// PREVENTS: Missing summary when run ends.
+func TestDashboardCloseFinalStatus(t *testing.T) {
 	var buf bytes.Buffer
-	d := NewDashboard(&buf, DashboardConfig{
-		IsTTY:     true,
-		PeerCount: 1,
-	})
+	d := NewDashboard(&buf, DashboardConfig{PeerCount: 2, StatusInterval: time.Hour})
 
-	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: time.Now()})
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: now})
+
+	buf.Reset()
 	require.NoError(t, d.Close())
 
 	output := buf.String()
-	// The last escape sequence should clear the screen.
-	assert.True(t, strings.HasSuffix(strings.TrimSpace(output), "\033[J") ||
-		strings.Contains(output, "\033[2J"),
-		"Close should clear the dashboard area")
+	assert.Contains(t, output, "1 sent")
+	assert.Contains(t, output, "1 received")
+	assert.Contains(t, output, "(final)")
+}
+
+func mustPrefix(s string) netip.Prefix {
+	return netip.MustParsePrefix(s)
 }

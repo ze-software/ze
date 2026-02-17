@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"net/netip"
 	"os"
@@ -35,6 +36,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/validation"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/web"
 	"golang.org/x/term"
 )
 
@@ -73,9 +75,10 @@ func run(args []string) int {
 	localAddr := fs.String("local-addr", "127.0.0.1", "Local address")
 
 	// Output flags
-	configOut := fs.String("config-out", "", "Write Ze config here (default: stdout before start)")
+	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
 	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
+	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8080)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
 
@@ -93,13 +96,15 @@ func run(args []string) int {
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
 	warmup := fs.Duration("warmup", 5*time.Second, "Time before chaos starts")
 	zePID := fs.Int("ze-pid", 0, "Ze process PID (for config-reload chaos events)")
+	zeBinary := fs.String("ze", "", "Path to ze binary for plugin run directives (default: ze from PATH)")
 	inProcess := fs.Bool("in-process", false, "Run reactor in-process with mock network and virtual clock")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `ze-bgp-chaos - Chaos monkey for Ze BGP route server testing
 
 Usage:
-  ze-bgp-chaos [options]
+  ze-bgp-chaos [options] | ze -         Pipe config to Ze, diagnostics on stderr
+  ze-bgp-chaos --config-out chaos.conf  Write config to file (start Ze separately)
 
 Scenario:
   --seed <uint64>            Deterministic seed (default: random, always printed)
@@ -126,9 +131,10 @@ Network:
   --local-addr <addr>        Local address (default: 127.0.0.1)
 
 Output:
-  --config-out <path>        Write Ze config here (default: stdout before start)
+  --config-out <path>        Write Ze config to file instead of stdout
   --event-log <path>         NDJSON event log file (replayable)
   --metrics <addr:port>      Prometheus metrics endpoint
+  --web <addr:port>          Live web dashboard (e.g. :8080)
   --quiet                    Only errors and summary
   --verbose                  Extra debug output
 
@@ -146,6 +152,7 @@ Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
   --warmup <dur>             Time before chaos starts (default: 5s)
   --ze-pid <N>               Ze process PID (for config-reload chaos events)
+  --ze <path>                Path to ze binary for plugin run directives (default: ze from PATH)
   --in-process               Run reactor in-process (mock network, virtual clock)
 `)
 	}
@@ -285,15 +292,30 @@ Control:
 	}
 
 	// Generate and output Ze config.
-	zeConfig := scenario.GenerateConfig(scenario.ConfigParams{
+	configParams := scenario.ConfigParams{
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: *localAddr,
 		BasePort:  *port,
+		ZeBinary:  *zeBinary,
 		Profiles:  profiles,
-	})
+	}
+	zeConfig := scenario.GenerateConfig(configParams)
 
-	if writeErr := writeConfig(zeConfig, *configOut, *quiet); writeErr != nil {
+	// Per-peer ports eliminate the need for loopback aliases.
+	// Each peer gets a unique Ze listen port on 127.0.0.1.
+
+	// Pre-flight: verify the base port is free before starting Ze.
+	// Catches conflicts early instead of producing confusing BGP errors later.
+	zeAddr := fmt.Sprintf("%s:%d", *localAddr, *port)
+	if !*inProcess {
+		if err := checkPortFree(zeAddr); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+	}
+
+	if writeErr := writeConfig(zeConfig, configParams, *configOut, *quiet); writeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: writing config: %v\n", writeErr)
 		return 1
 	}
@@ -324,6 +346,7 @@ Control:
 	}
 
 	// Set up context with cancellation for clean shutdown.
+	// Must be before probe so Ctrl-C works during startup.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -337,6 +360,14 @@ Control:
 		}
 		cancel()
 	}()
+
+	// Wait for Ze to start listening. In pipeline mode, Ze is reading
+	// piped config and needs time to initialize — retry with backoff.
+	pipeline := *configOut == ""
+	if err := waitForZe(ctx, zeAddr, pipeline); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
 	if *duration > 0 {
 		ctx, cancel = context.WithTimeout(ctx, *duration)
@@ -362,19 +393,37 @@ Control:
 		zePID:               *zePID,
 		eventLog:            *eventLog,
 		metricsAddr:         *metricsAddr,
+		webAddr:             *webAddr,
 		properties:          *properties,
 		convergenceDeadline: *convergenceDeadline,
 	}
 	return runOrchestrator(ctx, orchCfg)
 }
 
-// writeConfig writes the Ze config to the specified file or stderr.
-func writeConfig(config, path string, quiet bool) error {
+// writeConfig writes the full Ze config to stdout (for piping to `ze -`)
+// or to a file (--config-out), then prints a compact peer summary to stderr.
+// When writing to stdout, a NUL byte sentinel follows the config so Ze can
+// start parsing immediately. Stdout stays open — when this process exits,
+// the pipe closes and Ze treats the EOF as a shutdown signal.
+func writeConfig(config string, params scenario.ConfigParams, path string, quiet bool) error {
 	if path != "" {
-		return os.WriteFile(path, []byte(config), 0o600)
+		// Explicit file: write config there, stdout is unused.
+		if err := os.WriteFile(path, []byte(config), 0o600); err != nil {
+			return err
+		}
+	} else {
+		// Default: write config to stdout for piping (ze-bgp-chaos | ze -).
+		if _, err := fmt.Fprint(os.Stdout, config); err != nil {
+			return err
+		}
+		// Write NUL sentinel so Ze can stop reading config without EOF.
+		// Stdout stays open — Ze monitors it for EOF as a shutdown signal.
+		if _, err := os.Stdout.Write([]byte{0}); err != nil {
+			return fmt.Errorf("writing config sentinel: %w", err)
+		}
 	}
 	if !quiet {
-		_, err := fmt.Fprint(os.Stderr, config)
+		_, err := fmt.Fprint(os.Stderr, scenario.PeerSummary(params))
 		return err
 	}
 	return nil
@@ -386,7 +435,6 @@ func writeConfig(config, path string, quiet bool) error {
 func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	profiles := cfg.profiles
 	n := len(profiles)
-	addr := fmt.Sprintf("%s:%d", cfg.localAddr, cfg.zePort)
 	chaosEnabled := cfg.chaosCfg.Rate > 0
 
 	// Create validation components.
@@ -427,12 +475,12 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	}
 
 	// Set up reporting consumers based on CLI flags.
-	reporter, cleanup, err := setupReporting(cfg, n)
+	rr, err := setupReporting(cfg, n)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: setting up reporting: %v\n", err)
 		return 1
 	}
-	defer cleanup()
+	defer rr.cleanup()
 
 	// Established state tracking (shared with scheduler goroutine).
 	established := newEstablishedState(n)
@@ -462,6 +510,9 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 				chaosCh = chaosChannels[prof.Index]
 			}
 
+			// Each peer dials its unique Ze-facing port on localhost.
+			peerAddr := fmt.Sprintf("%s:%d", cfg.localAddr, prof.ZePort)
+
 			simCfg := peer.SimulatorConfig{
 				Profile: peer.SimProfile{
 					Index:      prof.Index,
@@ -473,7 +524,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 					Families:   prof.Families,
 				},
 				Seed:    cfg.seed,
-				Addr:    addr,
+				Addr:    peerAddr,
 				Events:  events,
 				Chaos:   chaosCh,
 				ZePID:   cfg.zePID,
@@ -494,7 +545,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Launch scheduler goroutine (only when chaos is enabled).
 	if chaosEnabled {
-		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, chaosChannels, cfg.quiet)
+		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, chaosChannels, rr.controlCh, cfg.quiet)
 	}
 
 	// Close events channel when all peer goroutines finish.
@@ -502,6 +553,9 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		wg.Wait()
 		close(events)
 	}()
+
+	// Property badge update counter (push every ~50 events to avoid overhead).
+	propUpdateCounter := 0
 
 	// Process events from all peers.
 	for ev := range events {
@@ -521,7 +575,28 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		if propEngine != nil {
 			propEngine.ProcessEvent(ev)
 		}
-		reporter.Process(ev)
+		rr.reporter.Process(ev)
+
+		// Push property results to web dashboard periodically.
+		if propEngine != nil && rr.webDash != nil {
+			propUpdateCounter++
+			if propUpdateCounter%50 == 0 {
+				results := propEngine.Results()
+				badges := make([]web.PropertyBadge, len(results))
+				for i, r := range results {
+					var violations []string
+					for _, v := range r.Violations {
+						violations = append(violations, v.Message)
+					}
+					badges[i] = web.PropertyBadge{
+						Name:       r.Name,
+						Pass:       r.Pass,
+						Violations: violations,
+					}
+				}
+				rr.webDash.SetPropertyResults(badges)
+			}
+		}
 
 		if cfg.verbose && ev.Type == peer.EventError {
 			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
@@ -529,7 +604,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	}
 
 	// Close reporter (flush files, clear dashboard).
-	if closeErr := reporter.Close(); closeErr != nil {
+	if closeErr := rr.reporter.Close(); closeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: closing reporter: %v\n", closeErr)
 	}
 
@@ -584,11 +659,21 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	return summary.Write(os.Stderr)
 }
 
+// reportingResult holds everything returned from setupReporting.
+type reportingResult struct {
+	reporter  *report.Reporter
+	cleanup   func()
+	controlCh chan web.ControlCommand
+	webDash   *web.Dashboard
+}
+
 // setupReporting creates the Reporter with optional consumers based on CLI flags.
-// Returns the reporter, a cleanup function, and any error.
-func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, func(), error) {
+func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, error) {
 	var consumers []report.Consumer
 	var cleanups []func()
+	var controlCh chan web.ControlCommand
+	var webDashRef *web.Dashboard
+	var controlLogger web.ControlLogger
 
 	// Dashboard: enabled when TTY and not --quiet.
 	if !cfg.quiet {
@@ -604,7 +689,7 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, fu
 	if cfg.eventLog != "" {
 		f, err := os.Create(cfg.eventLog)
 		if err != nil {
-			return nil, nil, fmt.Errorf("opening event file %s: %w", cfg.eventLog, err)
+			return nil, fmt.Errorf("opening event file %s: %w", cfg.eventLog, err)
 		}
 		jlog := report.NewJSONLog(f, report.JSONLogConfig{
 			Start:     cfg.start,
@@ -613,6 +698,7 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, fu
 			ChaosRate: cfg.chaosCfg.Rate,
 		})
 		consumers = append(consumers, jlog)
+		controlLogger = jlog
 		cleanups = append(cleanups, func() {
 			if err := f.Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "error: closing event file: %v\n", err)
@@ -620,38 +706,110 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*report.Reporter, fu
 		})
 	}
 
-	// Prometheus metrics: enabled when --metrics is set.
-	if cfg.metricsAddr != "" {
+	// Control channel for web dashboard → scheduler communication.
+	if cfg.webAddr != "" && cfg.chaosCfg.Rate > 0 {
+		controlCh = make(chan web.ControlCommand, 16)
+	}
+
+	// Helper to create a web dashboard with common config.
+	newWebDash := func(mux *http.ServeMux) (*web.Dashboard, error) {
+		return web.New(web.Config{
+			Addr:                cfg.webAddr,
+			PeerCount:           peerCount,
+			Mux:                 mux,
+			Control:             controlCh,
+			ChaosRate:           cfg.chaosCfg.Rate,
+			WarmupDuration:      cfg.chaosCfg.Warmup,
+			ConvergenceDeadline: cfg.convergenceDeadline,
+			ControlLogger:       controlLogger,
+		})
+	}
+
+	// Shared mux: when both --metrics and --web are set, share a single HTTP server.
+	if cfg.metricsAddr != "" && cfg.webAddr != "" {
+		sharedMux := http.NewServeMux()
+
 		m := report.NewMetrics()
 		consumers = append(consumers, m)
+		sharedMux.Handle("/metrics", m.Handler())
 
-		mux := http.NewServeMux()
-		mux.Handle("/metrics", m.Handler())
-		srv := &http.Server{Addr: cfg.metricsAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+		wd, webErr := newWebDash(sharedMux)
+		if webErr != nil {
+			return nil, fmt.Errorf("starting web dashboard: %w", webErr)
+		}
+		webDashRef = wd
+		consumers = append(consumers, wd)
 
+		// Single server for both metrics and dashboard.
+		srv := &http.Server{Addr: cfg.webAddr, Handler: sharedMux, ReadHeaderTimeout: 10 * time.Second}
 		go func() {
 			if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				fmt.Fprintf(os.Stderr, "error: metrics server: %v\n", err)
+				fmt.Fprintf(os.Stderr, "error: shared server: %v\n", err)
 			}
 		}()
 
 		cleanups = append(cleanups, func() {
+			if err := wd.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "error: closing web dashboard: %v\n", err)
+			}
 			shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer shutCancel()
 			if err := srv.Shutdown(shutCtx); err != nil {
-				fmt.Fprintf(os.Stderr, "error: shutting down metrics server: %v\n", err)
+				fmt.Fprintf(os.Stderr, "error: shutting down shared server: %v\n", err)
 			}
 		})
-	}
+	} else {
+		// Prometheus metrics: standalone server when --web is not set.
+		if cfg.metricsAddr != "" {
+			m := report.NewMetrics()
+			consumers = append(consumers, m)
 
-	r := report.NewReporter(consumers...)
-	cleanup := func() {
-		for _, fn := range cleanups {
-			fn()
+			mux := http.NewServeMux()
+			mux.Handle("/metrics", m.Handler())
+			srv := &http.Server{Addr: cfg.metricsAddr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
+
+			go func() {
+				if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+					fmt.Fprintf(os.Stderr, "error: metrics server: %v\n", err)
+				}
+			}()
+
+			cleanups = append(cleanups, func() {
+				shutCtx, shutCancel := context.WithTimeout(context.Background(), 2*time.Second)
+				defer shutCancel()
+				if err := srv.Shutdown(shutCtx); err != nil {
+					fmt.Fprintf(os.Stderr, "error: shutting down metrics server: %v\n", err)
+				}
+			})
+		}
+
+		// Web dashboard: standalone server when --metrics is not set.
+		if cfg.webAddr != "" {
+			wd, webErr := newWebDash(nil)
+			if webErr != nil {
+				return nil, fmt.Errorf("starting web dashboard: %w", webErr)
+			}
+			webDashRef = wd
+			consumers = append(consumers, wd)
+			cleanups = append(cleanups, func() {
+				if err := wd.Close(); err != nil {
+					fmt.Fprintf(os.Stderr, "error: closing web dashboard: %v\n", err)
+				}
+			})
 		}
 	}
 
-	return r, cleanup, nil
+	r := report.NewReporter(consumers...)
+	return &reportingResult{
+		reporter:  r,
+		controlCh: controlCh,
+		webDash:   webDashRef,
+		cleanup: func() {
+			for _, fn := range cleanups {
+				fn()
+			}
+		},
+	}, nil
 }
 
 // runPeerLoop runs a peer simulator with reconnection after chaos disconnects.
@@ -683,7 +841,9 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 
 // runScheduler runs the chaos scheduler goroutine. It ticks at the configured
 // interval and dispatches chaos actions to per-peer channels.
-func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, quiet bool) {
+// When controlCh is non-nil, it also processes dashboard control commands
+// (pause, resume, rate change, manual trigger, stop).
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := chaos.NewScheduler(chaos.SchedulerConfig{
 		Seed:      seed,
 		PeerCount: peerCount,
@@ -695,27 +855,116 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 	ticker := time.NewTicker(cfg.Interval)
 	defer ticker.Stop()
 
+	paused := false
+
+	// dispatchAction sends a chaos action to the peer's channel (non-blocking).
+	dispatchAction := func(a chaos.ScheduledAction) {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | %s -> peer %d\n",
+				a.Action.Type, a.PeerIndex)
+		}
+		select {
+		case channels[a.PeerIndex] <- a.Action:
+		default:
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | dropped %s for peer %d (busy)\n",
+					a.Action.Type, a.PeerIndex)
+			}
+		}
+	}
+
+	// handleControl processes a single control command. Returns true if stop requested.
+	handleControl := func(cmd web.ControlCommand) bool {
+		switch cmd.Type {
+		case "pause":
+			paused = true
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | paused\n")
+			}
+		case "resume":
+			paused = false
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | resumed\n")
+			}
+		case "rate":
+			sched.SetRate(cmd.Rate)
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | rate -> %.2f\n", cmd.Rate)
+			}
+		case "trigger":
+			if cmd.Trigger != nil {
+				handleManualTrigger(cmd.Trigger, peerCount, es, channels, quiet)
+			}
+		case "stop":
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | stopped by dashboard\n")
+			}
+			return true
+		}
+		return false
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
+		case cmd, ok := <-controlCh:
+			if !ok {
+				return
+			}
+			if handleControl(cmd) {
+				return
+			}
 		case now := <-ticker.C:
+			if paused {
+				continue
+			}
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
-				if !quiet {
-					fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | %s -> peer %d\n",
-						a.Action.Type, a.PeerIndex)
-				}
-				// Non-blocking send: if the peer is busy with a previous
-				// action, skip this one rather than blocking the scheduler.
-				select {
-				case channels[a.PeerIndex] <- a.Action:
-				default:
-					if !quiet {
-						fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | dropped %s for peer %d (busy)\n",
-							a.Action.Type, a.PeerIndex)
-					}
-				}
+				dispatchAction(a)
+			}
+		}
+	}
+}
+
+// handleManualTrigger dispatches a manually-triggered chaos action.
+func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, quiet bool) {
+	actionType, ok := chaos.ActionTypeFromString(t.ActionType)
+	if !ok {
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | unknown trigger action: %s\n", t.ActionType)
+		}
+		return
+	}
+
+	// Determine target peers.
+	targets := t.Peers
+	if len(targets) == 0 {
+		// Pick the first established peer.
+		snap := es.Snapshot()
+		for i, est := range snap {
+			if est {
+				targets = []int{i}
+				break
+			}
+		}
+	}
+
+	for _, idx := range targets {
+		if idx < 0 || idx >= peerCount {
+			continue
+		}
+		action := chaos.ChaosAction{Type: actionType}
+		if !quiet {
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | manual %s -> peer %d\n",
+				actionType, idx)
+		}
+		select {
+		case channels[idx] <- action:
+		default:
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-bgp-chaos | scheduler | dropped manual %s for peer %d (busy)\n",
+					actionType, idx)
 			}
 		}
 	}
@@ -810,4 +1059,50 @@ func runDiff(path1, path2 string) int {
 	}()
 
 	return replay.Diff(f1, f2, os.Stderr)
+}
+
+// checkPortFree verifies that nothing is listening on addr.
+// Called before starting Ze to fail fast on port conflicts.
+func checkPortFree(addr string) error {
+	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
+	if err != nil {
+		return nil // connection refused = port is free
+	}
+	conn.Close() //nolint:errcheck // best-effort close on probe connection
+	return fmt.Errorf("port %s is already in use — stop the existing process first", addr)
+}
+
+// waitForZe waits for Ze to start listening on addr.
+// In pipeline mode, Ze is reading piped config and needs time to initialize.
+// Uses TCP connect only — no BGP OPEN, to avoid corrupting the peer session
+// on the probed port.
+func waitForZe(ctx context.Context, addr string, pipeline bool) error {
+	maxAttempts := 1
+	if pipeline {
+		maxAttempts = 15
+	}
+
+	var lastErr error
+	for attempt := range maxAttempts {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+
+		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+		if err == nil {
+			conn.Close() //nolint:errcheck // best-effort close on probe connection
+			return nil
+		}
+		lastErr = err
+
+		if attempt < maxAttempts-1 {
+			select {
+			case <-time.After(time.Duration(attempt+1) * 200 * time.Millisecond):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+	}
+
+	return fmt.Errorf("Ze did not start within timeout on %s: %w", addr, lastErr)
 }
