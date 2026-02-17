@@ -327,16 +327,37 @@ Control:
 			fmt.Fprintf(os.Stderr, "error: --in-process requires --duration\n")
 			return 1
 		}
+
+		// When --web is set, start the web dashboard before the simulation
+		// so HTTP endpoints are accessible during the run.
+		var wd *web.Dashboard
+		if *webAddr != "" {
+			var webErr error
+			wd, webErr = web.New(web.Config{
+				Addr:      *webAddr,
+				PeerCount: len(profiles),
+			})
+			if webErr != nil {
+				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
+				return 1
+			}
+			defer func() { _ = wd.Close() }()
+		}
+
 		ipCtx, ipCancel := context.WithTimeout(context.Background(), *duration+30*time.Second)
 		defer ipCancel()
-		result, ipErr := inprocess.Run(ipCtx, inprocess.RunConfig{
+		ipCfg := inprocess.RunConfig{
 			Profiles:  profiles,
 			Seed:      *seed,
 			Duration:  *duration,
 			LocalAS:   65000,
 			RouterID:  netip.MustParseAddr("10.0.0.1"),
 			LocalAddr: *localAddr,
-		})
+		}
+		if wd != nil {
+			ipCfg.Consumer = wd
+		}
+		result, ipErr := inprocess.Run(ipCtx, ipCfg)
 		if ipErr != nil {
 			fmt.Fprintf(os.Stderr, "error: in-process run: %v\n", ipErr)
 			return 1
@@ -345,10 +366,9 @@ Control:
 		return 0
 	}
 
-	// Set up context with cancellation for clean shutdown.
-	// Must be before probe so Ctrl-C works during startup.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	// Set up parent context for signal handling (process lifetime).
+	parentCtx, parentCancel := context.WithCancel(context.Background())
+	defer parentCancel()
 
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -358,46 +378,92 @@ Control:
 		if !*quiet {
 			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | shutting down...\n")
 		}
-		cancel()
+		parentCancel()
 	}()
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
 	// piped config and needs time to initialize — retry with backoff.
 	pipeline := *configOut == ""
-	if err := waitForZe(ctx, zeAddr, pipeline); err != nil {
+	if err := waitForZe(parentCtx, zeAddr, pipeline); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	if *duration > 0 {
-		ctx, cancel = context.WithTimeout(ctx, *duration)
-		defer cancel()
-	}
+	// Restart channel: web dashboard sends new seeds here.
+	restartCh := make(chan uint64, 1)
 
-	// Launch multi-peer orchestrator.
-	start := time.Now()
 	chaosCfg := ChaosConfig{
 		Rate:     *chaosRate,
 		Interval: *chaosInterval,
 		Warmup:   *warmup,
 	}
-	orchCfg := orchestratorConfig{
-		profiles:            profiles,
-		seed:                *seed,
-		localAddr:           *localAddr,
-		zePort:              *port,
-		verbose:             *verbose,
-		quiet:               *quiet,
-		start:               start,
-		chaosCfg:            chaosCfg,
-		zePID:               *zePID,
-		eventLog:            *eventLog,
-		metricsAddr:         *metricsAddr,
-		webAddr:             *webAddr,
-		properties:          *properties,
-		convergenceDeadline: *convergenceDeadline,
+
+	// Restart loop: each iteration runs the full orchestrator with a (possibly new) seed.
+	// On restart, only the seed and profiles change — all other config stays the same.
+	for {
+		if parentCtx.Err() != nil {
+			return 0
+		}
+
+		// Child context for this run. The web dashboard cancels it via onStop.
+		runCtx, runCancel := context.WithCancel(parentCtx)
+		if *duration > 0 {
+			runCtx, runCancel = context.WithTimeout(parentCtx, *duration)
+		}
+
+		start := time.Now()
+		orchCfg := orchestratorConfig{
+			profiles:            profiles,
+			seed:                *seed,
+			localAddr:           *localAddr,
+			zePort:              *port,
+			verbose:             *verbose,
+			quiet:               *quiet,
+			start:               start,
+			chaosCfg:            chaosCfg,
+			zePID:               *zePID,
+			eventLog:            *eventLog,
+			metricsAddr:         *metricsAddr,
+			webAddr:             *webAddr,
+			properties:          *properties,
+			convergenceDeadline: *convergenceDeadline,
+			restartCh:           restartCh,
+			onStop:              runCancel,
+		}
+
+		exitCode := runOrchestrator(runCtx, orchCfg)
+		runCancel()
+
+		// Check for pending restart.
+		select {
+		case newSeed := <-restartCh:
+			fmt.Fprintf(os.Stderr, "ze-bgp-chaos | restarting with seed: %d\n", newSeed)
+			*seed = newSeed
+
+			// Regenerate scenario with new seed.
+			newProfiles, genErr := scenario.Generate(scenario.GeneratorParams{
+				Seed:            newSeed,
+				Peers:           len(profiles),
+				IBGPRatio:       *ibgpRatio,
+				LocalAS:         65000,
+				Routes:          *routes,
+				HeavyPeers:      *heavyPeers,
+				HeavyRoutes:     *heavyRoutes,
+				BasePort:        *port,
+				ListenBase:      *listenBase,
+				Families:        familyList,
+				ExcludeFamilies: excludeList,
+			})
+			if genErr != nil {
+				fmt.Fprintf(os.Stderr, "error: regenerating scenario: %v\n", genErr)
+				return 1
+			}
+			profiles = newProfiles
+			continue
+		default:
+			return exitCode
+		}
 	}
-	return runOrchestrator(ctx, orchCfg)
 }
 
 // writeConfig writes the full Ze config to stdout (for piping to `ze -`)
@@ -746,6 +812,8 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 			WarmupDuration:      cfg.chaosCfg.Warmup,
 			ConvergenceDeadline: cfg.convergenceDeadline,
 			ControlLogger:       controlLogger,
+			RestartCh:           cfg.restartCh,
+			OnStop:              cfg.onStop,
 		})
 	}
 

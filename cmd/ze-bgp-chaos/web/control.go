@@ -163,6 +163,10 @@ func (d *Dashboard) handleControlTrigger(w http.ResponseWriter, r *http.Request)
 }
 
 // handleControlStop handles POST /control/stop.
+// Note: stop only halts the chaos scheduler (via the control channel), not the
+// entire run. Peers continue running so the user can observe convergence.
+// This is intentionally different from restart, which cancels the run context
+// via onStop() to tear down everything.
 func (d *Dashboard) handleControlStop(w http.ResponseWriter, _ *http.Request) {
 	if d.control == nil {
 		http.Error(w, "no control channel", http.StatusServiceUnavailable)
@@ -182,6 +186,58 @@ func (d *Dashboard) handleControlStop(w http.ResponseWriter, _ *http.Request) {
 	d.state.RLock()
 	defer d.state.RUnlock()
 	writeControlPanel(w, &d.state.Control)
+}
+
+// handleControlRestart handles POST /control/restart.
+// It validates the seed, sends it to the restart channel, and calls onStop
+// to cancel the current run.
+func (d *Dashboard) handleControlRestart(w http.ResponseWriter, r *http.Request) {
+	if d.restartCh == nil {
+		http.Error(w, "restart not supported", http.StatusServiceUnavailable)
+		return
+	}
+
+	seed := parseRestartSeed(r.FormValue("seed"))
+	if seed == 0 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		h := &htmlWriter{w: w}
+		h.write(`<div id="control-error" class="event-type event-type-disconnected">invalid seed (must be non-zero integer)</div>`)
+		return
+	}
+
+	// Send restart seed (non-blocking).
+	select {
+	case d.restartCh <- seed:
+	default:
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Update state to "restarting".
+	d.state.mu.Lock()
+	d.state.Control.Status = "restarting"
+	d.state.mu.Unlock()
+
+	d.logControl("restart", fmt.Sprintf("%d", seed))
+
+	// Cancel the current run.
+	if d.onStop != nil {
+		d.onStop()
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeControlPanel(w, &d.state.Control)
+}
+
+// parseRestartSeed parses a seed string, returning 0 on any error.
+func parseRestartSeed(s string) uint64 {
+	v, e := strconv.ParseUint(s, 10, 64)
+	if e != nil {
+		return 0
+	}
+	return v
 }
 
 // handleControlTriggerForm serves the parameter form for a specific action type.
@@ -209,13 +265,16 @@ func (d *Dashboard) ControlChannel() <-chan ControlCommand {
 func writeControlPanel(w io.Writer, cs *ControlState) {
 	statusClass := "status-up"
 	statusLabel := "Running"
-	if cs.Paused {
+	switch {
+	case cs.Status == "restarting":
 		statusClass = "status-reconnecting"
-		statusLabel = "Paused"
-	}
-	if cs.Status == statusStopped {
+		statusLabel = "Restarting..."
+	case cs.Status == statusStopped:
 		statusClass = "status-down"
 		statusLabel = "Stopped"
+	case cs.Paused:
+		statusClass = "status-reconnecting"
+		statusLabel = "Paused"
 	}
 
 	_, _ = fmt.Fprintf(w, `<div id="control-panel" class="card">
@@ -266,8 +325,26 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 <div id="trigger-result"></div>`)
 	}
 
-	_, _ = fmt.Fprint(w, `
-</div>`)
+	// Restart with new seed (only when restart channel is configured).
+	if cs.RestartAvailable {
+		writeRestartSection(w)
+	}
+
+	h := &htmlWriter{w: w}
+	h.write("\n</div>")
+}
+
+// writeRestartSection renders the seed input and restart button.
+func writeRestartSection(w io.Writer) {
+	h := &htmlWriter{w: w}
+	h.write(`
+<div class="control-row">
+  <label class="stat-label">Seed: </label>
+  <input type="number" name="seed" min="1" placeholder="new seed" class="control-input">
+  <span class="badge" hx-post="/control/restart" hx-target="#control-panel" hx-swap="outerHTML"
+        hx-include="[name='seed']">New Seed</span>
+</div>
+<div id="control-error"></div>`)
 }
 
 // writeTriggerForm renders the parameter form for a specific action type.

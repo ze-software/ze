@@ -55,6 +55,14 @@ type Config struct {
 	// ControlLogger logs control events (pause/resume/rate/trigger/stop)
 	// to the NDJSON event log. When nil, control events are not logged.
 	ControlLogger ControlLogger
+
+	// RestartCh receives a new seed when the user requests a restart.
+	// When nil, the restart button is hidden.
+	RestartCh chan<- uint64
+
+	// OnStop is called when the dashboard triggers a stop or restart.
+	// It should cancel the current run's context.
+	OnStop func()
 }
 
 func (c *Config) defaults() {
@@ -96,6 +104,14 @@ type Dashboard struct {
 	// controlLogger logs control events to NDJSON (nil when --event-log not set).
 	controlLogger ControlLogger
 
+	// restartCh receives a new seed when the user requests a restart.
+	// When nil, the restart UI element is hidden.
+	restartCh chan<- uint64
+
+	// onStop is called when the dashboard triggers a stop or restart.
+	// It should cancel the current run's context.
+	onStop func()
+
 	// ownServer is true when the Dashboard created its own HTTP server
 	// (as opposed to sharing one via Config.Mux).
 	ownServer bool
@@ -124,12 +140,17 @@ func New(cfg Config) (*Dashboard, error) {
 		logger:        cfg.Logger,
 		control:       cfg.Control,
 		controlLogger: cfg.ControlLogger,
+		restartCh:     cfg.RestartCh,
+		onStop:        cfg.OnStop,
 		ownServer:     ownServer,
 	}
 
 	// Initialize control state from config.
 	if cfg.Control != nil {
 		state.Control = ControlState{Rate: cfg.ChaosRate, Status: "running"}
+	}
+	if cfg.RestartCh != nil {
+		state.Control.RestartAvailable = true
 	}
 	state.WarmupDuration = cfg.WarmupDuration
 	state.ConvergenceDeadline = cfg.ConvergenceDeadline

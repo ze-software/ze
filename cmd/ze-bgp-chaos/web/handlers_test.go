@@ -644,6 +644,184 @@ func TestProcessEventMissing(t *testing.T) {
 	d.state.RUnlock()
 }
 
+// TestControlChannelFull verifies that HTTP 503 is returned when the control
+// channel is at capacity.
+//
+// VALIDATES: Non-blocking send returns "busy" when control channel at capacity (16).
+// PREVENTS: Handler blocking indefinitely when scheduler is busy.
+func TestControlChannelFull(t *testing.T) {
+	t.Parallel()
+
+	controlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.control = controlCh
+	defer d.broker.Close()
+
+	// Fill the channel to capacity.
+	for i := range 16 {
+		controlCh <- ControlCommand{Type: "test", Rate: float64(i)}
+	}
+
+	// 17th command should return 503.
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	w := httptest.NewRecorder()
+	d.handleControlPause(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 when channel full", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "busy") {
+		t.Error("response should contain 'busy'")
+	}
+}
+
+// TestHandlerRestart verifies POST /control/restart sends the new seed to
+// the restart channel and calls onStop.
+//
+// VALIDATES: Restart command with valid seed triggers restart sequence (AC-6).
+// PREVENTS: Restart silently failing or using wrong seed.
+func TestHandlerRestart(t *testing.T) {
+	t.Parallel()
+
+	controlCh := make(chan ControlCommand, 16)
+	restartCh := make(chan uint64, 1)
+	stopped := make(chan struct{})
+
+	d := newTestDashboard(5)
+	d.control = controlCh
+	d.restartCh = restartCh
+	d.onStop = func() { close(stopped) }
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+		strings.NewReader("seed=12345"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	d.handleControlRestart(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	// Verify restart seed was sent.
+	select {
+	case seed := <-restartCh:
+		if seed != 12345 {
+			t.Fatalf("restart seed = %d, want 12345", seed)
+		}
+	default:
+		t.Fatal("restart channel should have received seed")
+	}
+
+	// Verify onStop was called.
+	select {
+	case <-stopped:
+	default:
+		t.Fatal("onStop should have been called")
+	}
+
+	// Verify control state.
+	d.state.RLock()
+	if d.state.Control.Status != "restarting" {
+		t.Errorf("status = %q, want 'restarting'", d.state.Control.Status)
+	}
+	d.state.RUnlock()
+}
+
+// TestHandlerRestartInvalidSeed verifies invalid seed returns an error fragment.
+//
+// VALIDATES: Non-numeric seed is rejected with error message.
+// PREVENTS: Panic or restart with zero seed on invalid input.
+func TestHandlerRestartInvalidSeed(t *testing.T) {
+	t.Parallel()
+
+	controlCh := make(chan ControlCommand, 16)
+	restartCh := make(chan uint64, 1)
+
+	d := newTestDashboard(5)
+	d.control = controlCh
+	d.restartCh = restartCh
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+		strings.NewReader("seed=not-a-number"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	d.handleControlRestart(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "invalid") {
+		t.Errorf("response should contain 'invalid': %s", body)
+	}
+
+	// Restart channel should be empty.
+	select {
+	case seed := <-restartCh:
+		t.Fatalf("restart channel should be empty, got %d", seed)
+	default:
+	}
+}
+
+// TestHandlerRestartMissingSeed verifies empty seed returns an error fragment.
+//
+// VALIDATES: Empty seed parameter is rejected.
+// PREVENTS: Restart with zero seed when user submits empty form.
+func TestHandlerRestartMissingSeed(t *testing.T) {
+	t.Parallel()
+
+	controlCh := make(chan ControlCommand, 16)
+	restartCh := make(chan uint64, 1)
+
+	d := newTestDashboard(5)
+	d.control = controlCh
+	d.restartCh = restartCh
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+		strings.NewReader("seed="))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	d.handleControlRestart(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "invalid") && !strings.Contains(body, "missing") {
+		t.Errorf("response should contain 'invalid' or 'missing': %s", body)
+	}
+
+	// Restart channel should be empty.
+	select {
+	case seed := <-restartCh:
+		t.Fatalf("restart channel should be empty, got %d", seed)
+	default:
+	}
+}
+
+// TestHandlerRestartNoChannel verifies restart returns 503 when no restart channel.
+//
+// VALIDATES: Restart without restart channel configured returns 503.
+// PREVENTS: Panic when restart is attempted without web dashboard restart support.
+func TestHandlerRestartNoChannel(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	// d.restartCh is nil.
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodPost, "/control/restart",
+		strings.NewReader("seed=42"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	d.handleControlRestart(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 when no restart channel", w.Code)
+	}
+}
+
 // TestProcessEventIntegration verifies that ProcessEvent updates state correctly
 // and the resulting state renders without errors.
 //

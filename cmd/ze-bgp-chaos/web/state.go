@@ -36,9 +36,10 @@ type ManualTrigger struct {
 
 // ControlState tracks the current control status for UI rendering.
 type ControlState struct {
-	Paused bool
-	Rate   float64
-	Status string // "running", "paused", "stopped"
+	Paused           bool
+	Rate             float64
+	Status           string // "running", "paused", "stopped", "restarting"
+	RestartAvailable bool   // true when restart channel is configured
 }
 
 // ControlLogger logs dashboard control events to the NDJSON event log.

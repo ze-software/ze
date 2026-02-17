@@ -231,7 +231,7 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 | AC-3 | ✅ Done | `control.go:67-101` handleControlRate | Validates 0.0-1.0, sends to channel |
 | AC-4 | ✅ Done | `control.go:67-101` rate=0.0 | Equivalent to pause (no chaos events) |
 | AC-5 | ✅ Done | `control.go:165-185` handleControlStop | Sends stop command |
-| AC-6 | ❌ Skipped | — | "New Seed" / restart-run not implemented |
+| AC-6 | ✅ Done | `control.go:190-228` handleControlRestart, `main.go` restart loop | Seed input + "New Seed" button, parent/child context pattern |
 | AC-7 | ⚠️ Partial | `control.go:187-297` writeTriggerForm | Shows parameter forms per action type, but only for existing 10 actions (no v2 actions) |
 | AC-8 | ✅ Done | `control.go:187-297` | TCPDisconnect has no extra params |
 | AC-9 | ❌ Skipped | — | RouteBurst/parameterized v2 actions not implemented (depends on spec-chaos-actions-v2) |
@@ -251,7 +251,7 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 | TestSchedulerIsPaused | 🔄 Changed | — | Paused state tracked in runScheduler, not Scheduler struct |
 | TestControlChannelPause | ✅ Done | `handlers_test.go` | Control command sent and received |
 | TestControlChannelTrigger | ✅ Done | `handlers_test.go` | Trigger with peer + action tested |
-| TestControlChannelFull | ⚠️ Partial | — | Channel capacity 16 set, but no explicit full-channel test |
+| TestControlChannelFull | ✅ Done | `handlers_test.go` TestControlChannelFull | Fills channel to 16, verifies 17th returns 503 |
 | TestHandlerPauseChaos | ✅ Done | `handlers_test.go` | POST /control/pause tested |
 | TestHandlerTriggerChaos | ✅ Done | `handlers_test.go` | POST /control/trigger tested |
 | TestHandlerSetRate | ✅ Done | `handlers_test.go` | POST /control/rate tested |
@@ -263,14 +263,15 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 | File | Status | Notes |
 |------|--------|-------|
 | `chaos/scheduler.go` | ⚠️ Partial | SetRate added, but Pause/Resume/IsPaused NOT added (handled in main.go runScheduler) |
-| `orchestrator.go` | 🔄 Changed | Control not in orchestrator event loop — in runScheduler goroutine |
-| `main.go` | ✅ Modified | Control channel created, passed to web + runScheduler |
+| `orchestrator.go` | ✅ Modified | restartCh + onStop fields added to orchestratorConfig |
+| `main.go` | ✅ Modified | Control channel, restart channel, parent/child context restart loop |
 | `report/jsonlog.go` | ✅ Modified | LogControl for "control" record type |
 | `web/handlers.go` | ✅ Modified | POST control handlers added |
-| `web/dashboard.go` | ✅ Modified | Accepts control channel |
+| `web/dashboard.go` | ✅ Modified | Accepts control channel, RestartCh, OnStop; wires to Dashboard |
 | `web/sse.go` | ✅ Modified | Control state SSE events |
-| `web/control.go` | ✅ Created | Control command types, handlers, trigger forms |
-| `web/control_test.go` | ❌ Skipped | No separate control_test.go — control tests in handlers_test.go |
+| `web/control.go` | ✅ Created | Control command types, handlers, trigger forms, restart handler, restart UI |
+| `web/state.go` | ✅ Modified | RestartAvailable field on ControlState |
+| `web/handlers_test.go` | ✅ Modified | 5 new tests: TestControlChannelFull, TestHandlerRestart{,InvalidSeed,MissingSeed,NoChannel} |
 | `web/templates/controls.html` | 🔄 Changed | Not created — inline in render.go:writeControlPanel |
 | `web/templates/trigger_params.html` | 🔄 Changed | Not created — inline in control.go:writeTriggerForm |
 | `web/templates/property_detail.html` | 🔄 Changed | Not created — inline in control.go:writePropertyBadges |
@@ -279,9 +280,9 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 
 ### Audit Summary
 - **Total items:** 40
-- **Done:** 24
-- **Partial:** 4 (trigger form limited to existing 10 actions, full-channel test, trigger validation)
-- **Skipped:** 6 (AC-6 new seed, AC-9/AC-10 v2 actions, functional tests, control_test.go)
+- **Done:** 26
+- **Partial:** 3 (trigger form limited to existing 10 actions, trigger validation)
+- **Skipped:** 5 (AC-9/AC-10 v2 actions, functional tests, control_test.go)
 - **Changed:** 6 (Pause/Resume via channel not methods, orchestrator not modified, templates inline)
 
 ## Checklist

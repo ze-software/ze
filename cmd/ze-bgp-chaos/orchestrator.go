@@ -38,6 +38,13 @@ type orchestratorConfig struct {
 	webAddr             string
 	properties          string
 	convergenceDeadline time.Duration
+
+	// restartCh receives a new seed from the web dashboard when restart is requested.
+	// When nil, restart is not supported.
+	restartCh chan uint64
+
+	// onStop is called by the web dashboard to cancel the current run's context.
+	onStop func()
 }
 
 // establishedState tracks which peers are currently in Established state.

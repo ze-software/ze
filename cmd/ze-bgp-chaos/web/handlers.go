@@ -49,6 +49,7 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("POST /control/rate", d.handleControlRate)
 	mux.HandleFunc("POST /control/trigger", d.handleControlTrigger)
 	mux.HandleFunc("POST /control/stop", d.handleControlStop)
+	mux.HandleFunc("POST /control/restart", d.handleControlRestart)
 	mux.HandleFunc("GET /control/trigger-form", d.handleControlTriggerForm)
 
 	return nil
