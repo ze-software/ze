@@ -261,7 +261,7 @@ def cyan() -> str:
 
 
 class Port:
-    base: int = 1790
+    base: int = 1900
 
     @classmethod
     def get(cls) -> int:
@@ -2722,7 +2722,7 @@ def add_test(
             default=20,
         )
     if 'port' in extra:
-        sub.add_argument('--port', help='base port to use', type=int, default=1790)
+        sub.add_argument('--port', help='base port to use', type=int, default=1900)
     if 'save' in extra:
         sub.add_argument(
             '--save', help='save run logs to directory (for debugging intermittent failures)', type=str, default=None

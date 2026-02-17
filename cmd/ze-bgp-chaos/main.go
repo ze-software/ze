@@ -70,8 +70,8 @@ func run(args []string) int {
 	chaosInterval := fs.Duration("chaos-interval", 10*time.Second, "Time between chaos checks")
 
 	// Network flags
-	port := fs.Int("port", 1790, "Base BGP port for Ze to listen on")
-	listenBase := fs.Int("listen-base", 1890, "Base port for tool to listen on")
+	port := fs.Int("port", 1850, "Base BGP port for Ze to listen on")
+	listenBase := fs.Int("listen-base", 1950, "Base port for tool to listen on")
 	localAddr := fs.String("local-addr", "127.0.0.1", "Local address")
 
 	// Output flags
@@ -126,8 +126,8 @@ Chaos:
   --chaos-interval <dur>     Time between chaos checks (default: 10s)
 
 Network:
-  --port <N>                 Base BGP port for Ze to listen on (default: 1790)
-  --listen-base <N>          Base port for tool to listen on (default: 1890)
+  --port <N>                 Base BGP port for Ze to listen on (default: 1850)
+  --listen-base <N>          Base port for tool to listen on (default: 1950)
   --local-addr <addr>        Local address (default: 127.0.0.1)
 
 Output:

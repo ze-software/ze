@@ -918,8 +918,10 @@ func (p *Peer) run() {
 				return
 			case <-p.clock.After(delay):
 			case <-p.inboundNotify:
-				// Inbound connection arrived while session was nil — skip backoff
+				// Inbound connection arrived while session was nil.
+				// Restart runOnce immediately without doubling delay.
 				delay = p.reconnectMin
+				continue
 			}
 
 			// Exponential backoff
@@ -986,11 +988,14 @@ func (p *Peer) runOnce() error {
 
 	// For passive peers, check if an inbound connection arrived while session was nil.
 	// This handles the race where a remote peer reconnects faster than our backoff.
+	// If Accept fails (stale connection), return error so run() retries with a clean
+	// session rather than entering Run() with a partially-initialized FSM state.
 	if p.settings.Passive {
 		if conn := p.takeInboundConnection(); conn != nil {
 			if err := session.Accept(conn); err != nil {
 				peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)
 				closeConnQuietly(conn)
+				return fmt.Errorf("accepting buffered connection: %w", err)
 			}
 		}
 	}
