@@ -27,7 +27,8 @@ const (
 type BGPHooks struct {
 	// OnMessageReceived handles BGP message delivery to subscribed plugins.
 	// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
-	OnMessageReceived func(s *Server, peer PeerInfo, msg any)
+	// Returns the number of subscribed plugins that received the event.
+	OnMessageReceived func(s *Server, peer PeerInfo, msg any) int
 
 	// OnPeerStateChange handles peer state change delivery to subscribed plugins.
 	OnPeerStateChange func(s *Server, peer PeerInfo, state string)

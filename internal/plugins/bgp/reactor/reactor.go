@@ -156,7 +156,8 @@ type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
 	// peer contains full peer information for proper JSON encoding.
 	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
-	OnMessageReceived(peer plugin.PeerInfo, msg any)
+	// Returns the number of subscribed plugins that received the event (consumer count).
+	OnMessageReceived(peer plugin.PeerInfo, msg any) int
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
@@ -3153,13 +3154,13 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
 func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64) error {
-	// Take ownership of update from cache (removes from cache)
-	// Caller must call Release() when done
-	update, ok := a.r.recentUpdates.Take(updateID)
+	// Get read-only access to cached update (non-destructive)
+	// Cache retains buffer ownership; Decrement() when done
+	update, ok := a.r.recentUpdates.Get(updateID)
 	if !ok {
 		return ErrUpdateExpired
 	}
-	defer update.Release() // Return buffer to pool when done
+	defer a.r.recentUpdates.Decrement(updateID)
 
 	// Get matching peers
 	a.r.mu.RLock()
@@ -3267,7 +3268,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 	}
 
-	// Buffer released by deferred update.Release()
+	// Buffer stays in cache; released on cache eviction (Decrement or lazy cleanup)
 
 	if sentCount == 0 {
 		return fmt.Errorf("no established peers to forward to")
@@ -4160,30 +4161,33 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Cache BEFORE event delivery (only received UPDATEs).
-	// OnMessageReceived is a synchronous RPC — the plugin processes the event
-	// (including sending forward commands) before responding. If we cache after
-	// delivery, "bgp cache <id> forward" arrives before the cache entry exists,
-	// causing every forward to fail with ErrUpdateExpired.
-	//
-	// Safety: buf remains valid during event delivery regardless of cache outcome.
-	// If accepted (kept=true): cache holds buf reference; formatMessageForSubscription
-	// reads buf synchronously before SendDeliverEvent blocks, so data is consumed
-	// before any Take()+Release() can free it.
-	// If rejected (kept=false): session still owns buf, returned to pool after this call.
+	// Entry is inserted with pending=true so it exists when plugins receive the
+	// message-id. After dispatch, Activate(id, N) sets the consumer count.
+	// If a fast plugin calls "forward" before Activate(), Get() still works
+	// (pending entries are accessible) and Decrement() adjusts the count
+	// (negative is corrected when Activate adds N).
 	if direction == "received" && wireUpdate != nil && buf != nil {
-		kept = r.recentUpdates.Add(&ReceivedUpdate{
+		r.recentUpdates.Add(&ReceivedUpdate{
 			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
-			poolBuf:      buf,        // Cache owns buf if accepted
+			poolBuf:      buf,        // Cache owns buf
 			SourcePeerIP: peerAddr,
 			ReceivedAt:   timestamp,
 		})
+		kept = true // Cache always accepts
 	}
 
 	// Deliver to plugin subscribers (may trigger forward commands that use the cache).
+	var consumers int
 	if direction == "sent" {
 		receiver.OnMessageSent(peerInfo, msg)
 	} else {
-		receiver.OnMessageReceived(peerInfo, msg)
+		consumers = receiver.OnMessageReceived(peerInfo, msg)
+	}
+
+	// Activate the cache entry with the actual consumer count.
+	// If no consumers subscribed, entry becomes normally TTL-evictable.
+	if kept {
+		r.recentUpdates.Activate(messageID, consumers)
 	}
 
 	return kept

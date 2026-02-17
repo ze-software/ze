@@ -17,13 +17,13 @@ func NewBGPHooks() *plugin.BGPHooks {
 	encoder := format.NewJSONEncoder("0.0.1")
 
 	return &plugin.BGPHooks{
-		OnMessageReceived: func(s *plugin.Server, peer plugin.PeerInfo, msg any) {
+		OnMessageReceived: func(s *plugin.Server, peer plugin.PeerInfo, msg any) int {
 			typedMsg, ok := msg.(bgptypes.RawMessage)
 			if !ok {
 				logger().Warn("OnMessageReceived: invalid msg type", "type", fmt.Sprintf("%T", msg))
-				return
+				return 0
 			}
-			onMessageReceived(s, encoder, peer, typedMsg)
+			return onMessageReceived(s, encoder, peer, typedMsg)
 		},
 		OnPeerStateChange: func(s *plugin.Server, peer plugin.PeerInfo, state string) {
 			onPeerStateChange(s, peer, state)

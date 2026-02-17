@@ -43,8 +43,11 @@ func TestRouterIDConflictError(t *testing.T) {
 
 // makeEstablishedPeerWithID creates a peer with an ESTABLISHED session
 // and a known remote BGP Identifier. Used for router-ID uniqueness tests.
-func makeEstablishedPeerWithID(t *testing.T, addr string, localAS, peerAS, localRID, remoteRID uint32) (*Peer, func()) {
+func makeEstablishedPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint32) (*Peer, func()) {
 	t.Helper()
+
+	const localAS uint32 = 65001
+	const localRID uint32 = 0x01020301
 
 	settings := NewPeerSettings(netip.MustParseAddr(addr), localAS, peerAS, localRID)
 	settings.Passive = true
@@ -106,8 +109,11 @@ func makeEstablishedPeerWithID(t *testing.T, addr string, localAS, peerAS, local
 }
 
 // makeOpenConfirmPeerWithID creates a peer with a session in OPENCONFIRM state.
-func makeOpenConfirmPeerWithID(t *testing.T, addr string, localAS, peerAS, localRID, remoteRID uint32) (*Peer, func()) {
+func makeOpenConfirmPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint32) (*Peer, func()) {
 	t.Helper()
+
+	const localAS uint32 = 65001
+	const localRID uint32 = 0x01020301
 
 	settings := NewPeerSettings(netip.MustParseAddr(addr), localAS, peerAS, localRID)
 	settings.Passive = true
@@ -166,7 +172,7 @@ func makeOpenConfirmPeerWithID(t *testing.T, addr string, localAS, peerAS, local
 func TestRouterIDConflictIBGPDuplicate(t *testing.T) {
 	// Peer A: iBGP (local=65001, peer=65001), remote BGP ID = 1.2.3.4
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65001, 0x01020301, 0x01020304)
+		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
 	peers := map[string]*Peer{
@@ -187,7 +193,7 @@ func TestRouterIDConflictIBGPDuplicate(t *testing.T) {
 func TestRouterIDConflictEBGPSameAS(t *testing.T) {
 	// Peer A: eBGP (local=65001, peer=65002), remote BGP ID = 5.6.7.8
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65002, 0x01020301, 0x05060708)
+		"192.0.2.1", 65002, 0x05060708)
 	defer cleanupA()
 
 	peers := map[string]*Peer{
@@ -208,7 +214,7 @@ func TestRouterIDConflictEBGPSameAS(t *testing.T) {
 func TestRouterIDConflictDifferentAS(t *testing.T) {
 	// Peer A: in AS 65002, router-ID 1.2.3.4
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65002, 0x01020301, 0x01020304)
+		"192.0.2.1", 65002, 0x01020304)
 	defer cleanupA()
 
 	peers := map[string]*Peer{
@@ -228,7 +234,7 @@ func TestRouterIDConflictDifferentAS(t *testing.T) {
 func TestRouterIDConflictDifferentRouterID(t *testing.T) {
 	// Peer A: in AS 65001, router-ID 1.2.3.4
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65001, 0x01020301, 0x01020304)
+		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
 	peers := map[string]*Peer{
@@ -248,7 +254,7 @@ func TestRouterIDConflictDifferentRouterID(t *testing.T) {
 func TestRouterIDConflictNotEstablished(t *testing.T) {
 	// Peer A: same AS, same router-ID, but only in OPENCONFIRM.
 	peerA, cleanupA := makeOpenConfirmPeerWithID(t,
-		"192.0.2.1", 65001, 65001, 0x01020301, 0x01020304)
+		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
 	peers := map[string]*Peer{
@@ -268,7 +274,7 @@ func TestRouterIDConflictNotEstablished(t *testing.T) {
 func TestRouterIDConflictSelfExcluded(t *testing.T) {
 	// Peer A: established with router-ID 1.2.3.4
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65001, 0x01020301, 0x01020304)
+		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
 	peerKey := peerA.settings.PeerKey()
@@ -308,17 +314,17 @@ func TestRouterIDConflictNilSession(t *testing.T) {
 func TestRouterIDConflictMultiplePeers(t *testing.T) {
 	// Peer A: AS 65002, router-ID 1.2.3.4 (different from check).
 	peerA, cleanupA := makeEstablishedPeerWithID(t,
-		"192.0.2.1", 65001, 65002, 0x01020301, 0x01020304)
+		"192.0.2.1", 65002, 0x01020304)
 	defer cleanupA()
 
 	// Peer B: AS 65003, router-ID 5.6.7.8 (different AS from check).
 	peerB, cleanupB := makeEstablishedPeerWithID(t,
-		"192.0.2.2", 65001, 65003, 0x01020301, 0x05060708)
+		"192.0.2.2", 65003, 0x05060708)
 	defer cleanupB()
 
 	// Peer C: AS 65002, router-ID 5.6.7.8 (THIS one conflicts).
 	peerC, cleanupC := makeEstablishedPeerWithID(t,
-		"192.0.2.3", 65001, 65002, 0x01020301, 0x05060708)
+		"192.0.2.3", 65002, 0x05060708)
 	defer cleanupC()
 
 	peers := map[string]*Peer{

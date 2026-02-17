@@ -1951,12 +1951,13 @@ type testMessageReceiver struct {
 	onSent     func(plugin.PeerInfo, bgptypes.RawMessage)
 }
 
-func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) {
+func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) int {
 	if r.onReceived != nil {
 		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
 			r.onReceived(peer, typedMsg)
 		}
 	}
+	return 0 // Test receiver reports zero consumers
 }
 
 func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {

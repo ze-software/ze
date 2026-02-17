@@ -40,7 +40,8 @@ type ReceivedUpdate struct {
 }
 
 // Release returns the pool buffer to the appropriate pool.
-// Must be called after Take() when done with the ReceivedUpdate.
+// Called by cache eviction (lazy cleanup, Delete, Decrement with zero TTL).
+// Not called by ForwardUpdate — cache owns the buffer until eviction.
 // Safe to call multiple times (idempotent).
 func (ru *ReceivedUpdate) Release() {
 	if ru.poolBuf != nil {

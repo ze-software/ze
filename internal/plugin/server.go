@@ -1295,14 +1295,14 @@ func (s *Server) removeClient(client *Client) {
 // OnMessageReceived handles raw BGP messages from peers.
 // msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 // Delegates to BGPHooks.OnMessageReceived when set.
-func (s *Server) OnMessageReceived(peer PeerInfo, msg any) {
+func (s *Server) OnMessageReceived(peer PeerInfo, msg any) int {
 	if s.bgpHooks == nil || s.bgpHooks.OnMessageReceived == nil {
-		return
+		return 0
 	}
 	if s.procManager == nil || s.subscriptions == nil {
-		return
+		return 0
 	}
-	s.bgpHooks.OnMessageReceived(s, peer, msg)
+	return s.bgpHooks.OnMessageReceived(s, peer, msg)
 }
 
 // OnPeerStateChange handles peer state transitions.

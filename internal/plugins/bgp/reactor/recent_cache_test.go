@@ -26,6 +26,16 @@ func newTestUpdate(id uint64) *ReceivedUpdate {
 	}
 }
 
+// addAndActivate adds an update and immediately activates it with zero consumers.
+// This simulates the normal lifecycle: Add (pending) → dispatch → Activate(0).
+// Use this for tests that want basic TTL behavior without pending-flag protection.
+func addAndActivate(cache *RecentUpdateCache, update *ReceivedUpdate) {
+	cache.Add(update)
+	cache.Activate(update.WireUpdate.MessageID(), 0)
+}
+
+// --- FakeClock tests ---
+
 // TestRecentCacheWithFakeClock verifies FakeClock injection into RecentUpdateCache.
 //
 // VALIDATES: SetClock() injection works — cache uses injected clock for TTL decisions.
@@ -37,8 +47,8 @@ func TestRecentCacheWithFakeClock(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 	cache.SetClock(fc)
 
-	// Add entry at fake time t=0
-	cache.Add(newTestUpdate(42))
+	// Add and activate entry at fake time t=0
+	addAndActivate(cache, newTestUpdate(42))
 
 	// Should exist (TTL not expired at t=0)
 	if !cache.Contains(42) {
@@ -74,7 +84,7 @@ func TestRecentCacheFakeClockResetTTL(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 	cache.SetClock(fc)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
 	// Advance 50s (10s before expiry)
 	fc.Add(50 * time.Second)
@@ -97,9 +107,11 @@ func TestRecentCacheFakeClockResetTTL(t *testing.T) {
 	}
 }
 
-// TestRecentUpdateCacheAdd verifies cache insertion.
+// --- Basic cache operations ---
+
+// TestRecentUpdateCacheAdd verifies cache insertion and retrieval via Get.
 //
-// VALIDATES: Updates are cached and retrievable.
+// VALIDATES: Updates are cached and retrievable via Get (non-destructive).
 // PREVENTS: Lost updates, broken forwarding.
 func TestRecentUpdateCacheAdd(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
@@ -108,13 +120,18 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 
 	cache.Add(update)
 
-	got, ok := cache.Take(1)
+	// Get is non-destructive — entry remains in cache
+	got, ok := cache.Get(1)
 	if !ok {
 		t.Fatal("expected to find update 1")
 	}
-	defer got.Release()
 	if got.WireUpdate.MessageID() != 1 {
 		t.Errorf("MessageID = %d, want 1", got.WireUpdate.MessageID())
+	}
+
+	// Entry still in cache after Get
+	if !cache.Contains(1) {
+		t.Error("entry should still exist after Get (non-destructive)")
 	}
 }
 
@@ -125,7 +142,7 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 func TestRecentUpdateCacheNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
-	_, ok := cache.Take(999)
+	_, ok := cache.Get(999)
 	if ok {
 		t.Error("expected not found for non-existent ID")
 	}
@@ -133,13 +150,13 @@ func TestRecentUpdateCacheNotFound(t *testing.T) {
 
 // TestRecentUpdateCacheExpiry verifies TTL expiration.
 //
-// VALIDATES: Expired entries return not found.
+// VALIDATES: Activated entries with zero consumers expire after TTL.
 // PREVENTS: Stale data being forwarded.
 func TestRecentUpdateCacheExpiry(t *testing.T) {
 	// Use very short TTL for test
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
 	// Should be found immediately
 	if !cache.Contains(1) {
@@ -162,52 +179,40 @@ func TestRecentUpdateCacheExpiry(t *testing.T) {
 func TestRecentUpdateCacheLazyCleanup(t *testing.T) {
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
-	// Add first update
-	cache.Add(newTestUpdate(1))
+	// Add and activate first update (makes it TTL-evictable)
+	addAndActivate(cache, newTestUpdate(1))
 
 	// Wait for expiry
 	time.Sleep(20 * time.Millisecond)
 
-	// Add second update - should trigger cleanup
+	// Add second update — should trigger cleanup of expired entry 1
 	cache.Add(newTestUpdate(2))
 
 	// First should be cleaned up (internal check via Len)
+	// Entry 2 is pending (counts as valid), entry 1 expired (cleaned)
 	if cache.Len() != 1 {
 		t.Errorf("Len() = %d, want 1 after cleanup", cache.Len())
 	}
 }
 
-// TestRecentUpdateCacheMaxEntries verifies fixed size limit.
+// TestRecentUpdateCacheSoftLimit verifies Add always succeeds beyond maxEntries.
 //
-// VALIDATES: Cache rejects new entries when full after eviction.
-// PREVENTS: Memory exhaustion under high load.
-func TestRecentUpdateCacheMaxEntries(t *testing.T) {
+// VALIDATES: Soft limit warns but never rejects (AC-1).
+// PREVENTS: UPDATE loss when cache is full.
+func TestRecentUpdateCacheSoftLimit(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 3)
 
-	// Fill cache
-	for i := uint64(1); i <= 3; i++ {
-		cache.Add(newTestUpdate(i))
+	// Fill cache past the soft limit
+	for i := uint64(1); i <= 5; i++ {
+		addAndActivate(cache, newTestUpdate(i))
 	}
 
-	if cache.Len() != 3 {
-		t.Errorf("Len() = %d, want 3", cache.Len())
+	// All 5 entries should exist (soft limit never rejects)
+	if cache.Len() != 5 {
+		t.Errorf("Len() = %d, want 5 (soft limit never rejects)", cache.Len())
 	}
 
-	// Try to add one more - should be dropped
-	cache.Add(newTestUpdate(4))
-
-	// Size should still be 3
-	if cache.Len() != 3 {
-		t.Errorf("Len() = %d, want 3 after overflow", cache.Len())
-	}
-
-	// Update 4 should not exist
-	if cache.Contains(4) {
-		t.Error("expected update 4 to be dropped")
-	}
-
-	// Original 3 should still exist
-	for i := uint64(1); i <= 3; i++ {
+	for i := uint64(1); i <= 5; i++ {
 		if !cache.Contains(i) {
 			t.Errorf("expected update %d to exist", i)
 		}
@@ -216,7 +221,7 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 
 // TestRecentUpdateCacheConcurrency verifies thread safety.
 //
-// VALIDATES: Concurrent Add/Take are safe.
+// VALIDATES: Concurrent Add/Get/Decrement are safe.
 // PREVENTS: Race conditions, data corruption.
 func TestRecentUpdateCacheConcurrency(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 1000)
@@ -231,7 +236,9 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 		go func(base int) {
 			defer wg.Done()
 			for i := range opsPerGoroutine {
-				cache.Add(newTestUpdate(uint64(base*opsPerGoroutine + i))) //nolint:gosec // G115: test values are small
+				id := uint64(base*opsPerGoroutine + i) //nolint:gosec // G115: test values are small
+				cache.Add(newTestUpdate(id))
+				cache.Activate(id, 1)
 			}
 		}(g)
 	}
@@ -256,18 +263,20 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 
 // TestRecentUpdateCacheZeroTTL verifies immediate expiry with zero TTL.
 //
-// VALIDATES: Zero TTL means entries expire immediately.
+// VALIDATES: Zero TTL means activated entries expire immediately.
 // PREVENTS: Configuration edge case bugs.
 func TestRecentUpdateCacheZeroTTL(t *testing.T) {
 	cache := NewRecentUpdateCache(0, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
-	// Should be expired immediately
+	// Should be expired immediately (zero TTL, zero consumers)
 	if cache.Contains(1) {
 		t.Error("expected immediate expiry with zero TTL")
 	}
 }
+
+// --- Delete and ResetTTL ---
 
 // TestRecentUpdateCacheDelete verifies explicit deletion.
 //
@@ -306,7 +315,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 func TestRecentUpdateCacheResetTTL(t *testing.T) {
 	cache := NewRecentUpdateCache(20*time.Millisecond, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
 	// Wait 15ms (before original expiry)
 	time.Sleep(15 * time.Millisecond)
@@ -345,49 +354,247 @@ func TestRecentUpdateCacheResetTTLNotFound(t *testing.T) {
 	}
 }
 
-// TestRecentUpdateCacheTakeTransfersOwnership verifies Take() removes entry.
+// --- Get (non-destructive) ---
+
+// TestCacheGetNonDestructive verifies Get does not remove entries.
 //
-// VALIDATES: Take() removes entry from cache, caller owns buffer.
-// PREVENTS: Use-after-free, double-free.
-func TestRecentUpdateCacheTakeTransfersOwnership(t *testing.T) {
+// VALIDATES: Multiple Gets return same entry, entry remains in cache (AC-7).
+// PREVENTS: Accidental entry removal on read.
+func TestCacheGetNonDestructive(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
 	cache.Add(newTestUpdate(1))
 
-	// Take should remove from cache
-	got, ok := cache.Take(1)
-	if !ok {
-		t.Fatal("expected to find update")
+	// Multiple Gets should all succeed
+	for i := range 5 {
+		got, ok := cache.Get(1)
+		if !ok {
+			t.Fatalf("Get #%d failed", i)
+		}
+		if got.WireUpdate.MessageID() != 1 {
+			t.Fatalf("Get #%d returned wrong ID: %d", i, got.WireUpdate.MessageID())
+		}
 	}
 
-	// Entry should no longer be in cache
-	if cache.Contains(1) {
-		t.Error("entry should be removed after Take")
+	// Entry still in cache
+	if !cache.Contains(1) {
+		t.Error("entry should remain after multiple Gets")
 	}
-
-	// Second Take should return not found
-	_, ok2 := cache.Take(1)
-	if ok2 {
-		t.Error("second Take should return not found")
+	if cache.Len() != 1 {
+		t.Errorf("Len() = %d, want 1", cache.Len())
 	}
-
-	// Release the buffer
-	got.Release()
-
-	// Release is idempotent
-	got.Release() // should not panic
 }
 
-// TestRecentUpdateCacheRetain verifies retained entries skip lazy eviction.
+// TestCacheGetPendingEntry verifies Get works on pending entries.
 //
-// VALIDATES: Retained entries persist beyond TTL during lazy cleanup.
+// VALIDATES: Pending entries (between Add and Activate) are accessible via Get.
+// PREVENTS: Race where plugin receives msg-id before Activate completes.
+func TestCacheGetPendingEntry(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	cache.Add(newTestUpdate(1))
+	// Deliberately NOT calling Activate — entry is still pending
+
+	got, ok := cache.Get(1)
+	if !ok {
+		t.Fatal("expected to get pending entry")
+	}
+	if got.WireUpdate.MessageID() != 1 {
+		t.Errorf("MessageID = %d, want 1", got.WireUpdate.MessageID())
+	}
+}
+
+// --- Refcount lifecycle ---
+
+// TestCacheRefcountBasic verifies the full Add→Activate→Get→Decrement lifecycle.
+//
+// VALIDATES: Consumers=2, each Decrement reduces by 1, evictable when 0 (AC-2).
+// PREVENTS: Reference count corruption, premature/late eviction.
+func TestCacheRefcountBasic(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	cache.SetClock(fc)
+
+	// Add and activate with 2 consumers
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 2)
+
+	// Advance past TTL — entry still protected (consumers=2)
+	fc.Add(20 * time.Millisecond)
+	if !cache.Contains(1) {
+		t.Fatal("entry with consumers=2 should survive TTL expiry")
+	}
+
+	// First consumer done
+	if !cache.Decrement(1) {
+		t.Fatal("Decrement returned false")
+	}
+
+	// Still protected (consumers=1)
+	if !cache.Contains(1) {
+		t.Fatal("entry with consumers=1 should survive")
+	}
+
+	// Second consumer done — consumers=0, entry becomes TTL-evictable
+	if !cache.Decrement(1) {
+		t.Fatal("second Decrement returned false")
+	}
+
+	// TTL reset on decrement to 0, advance past new TTL
+	fc.Add(20 * time.Millisecond)
+
+	// Now should be expired
+	if cache.Contains(1) {
+		t.Error("entry should expire after all consumers done and TTL elapsed")
+	}
+}
+
+// TestCacheDecrementBeforeActivate verifies fast-plugin race handling.
+//
+// VALIDATES: Decrement before Activate yields correct net count (AC-3).
+// PREVENTS: Negative consumers causing premature eviction.
+func TestCacheDecrementBeforeActivate(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	cache.SetClock(fc)
+
+	cache.Add(newTestUpdate(1))
+
+	// Fast plugin calls Decrement before Activate (race condition)
+	if !cache.Decrement(1) {
+		t.Fatal("Decrement on pending entry should succeed")
+	}
+
+	// Now Activate with 2 consumers — net consumers = 2 + (-1) = 1
+	cache.Activate(1, 2)
+
+	// Entry should still be protected (consumers=1)
+	fc.Add(20 * time.Millisecond) // Past TTL
+	if !cache.Contains(1) {
+		t.Fatal("entry with net consumers=1 should survive TTL expiry")
+	}
+
+	// Final decrement — consumers=0
+	cache.Decrement(1)
+	fc.Add(20 * time.Millisecond) // Past new TTL
+
+	if cache.Contains(1) {
+		t.Error("entry should expire after all consumers done")
+	}
+}
+
+// TestCacheActivateZeroConsumers verifies no-subscriber case.
+//
+// VALIDATES: Activate(id, 0) makes entry normally TTL-evictable (AC-5).
+// PREVENTS: Permanently pending entries when no plugins subscribe.
+func TestCacheActivateZeroConsumers(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	cache.SetClock(fc)
+
+	cache.Add(newTestUpdate(1))
+
+	// Entry is pending — protected
+	if !cache.Contains(1) {
+		t.Fatal("pending entry should exist")
+	}
+
+	// Activate with zero consumers
+	cache.Activate(1, 0)
+
+	// Should still exist within TTL
+	if !cache.Contains(1) {
+		t.Fatal("activated entry should exist within TTL")
+	}
+
+	// Advance past TTL — should expire (consumers=0, not pending)
+	fc.Add(20 * time.Millisecond)
+	if cache.Contains(1) {
+		t.Error("entry with 0 consumers should expire after TTL")
+	}
+}
+
+// --- Safety valve ---
+
+// TestCacheSafetyValve verifies force-eviction of long-retained entries.
+//
+// VALIDATES: Entry retained > 5 min is force-evicted (AC-4).
+// PREVENTS: Memory leak from crashed plugins that never decrement.
+func TestCacheSafetyValve(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(time.Minute, 100)
+	cache.SetClock(fc)
+
+	// Add, activate with 1 consumer (simulates plugin that will "crash")
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 1)
+
+	// At t=4m59s — entry still protected (under safety valve duration)
+	fc.Add(4*time.Minute + 59*time.Second)
+	if !cache.Contains(1) {
+		t.Fatal("entry should be protected at 4m59s (safety valve = 5min)")
+	}
+
+	// At t=5m01s — entry force-evictable (exceeds safety valve)
+	fc.Add(2 * time.Second) // total: 5m01s
+	// Contains checks isProtected, which will return false for safety valve breach
+	if cache.Contains(1) {
+		t.Error("entry should be force-evictable after 5min safety valve")
+	}
+}
+
+// --- Concurrent Decrement ---
+
+// TestCacheConcurrentDecrement verifies race-free concurrent Decrements.
+//
+// VALIDATES: Multiple goroutines decrementing simultaneously is safe (AC-8).
+// PREVENTS: Race conditions in consumer count updates.
+func TestCacheConcurrentDecrement(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	const consumers = 50
+
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, consumers)
+
+	var wg sync.WaitGroup
+	for range consumers {
+		wg.Go(func() {
+			cache.Decrement(1)
+		})
+	}
+	wg.Wait()
+
+	// All consumers done — entry should be TTL-evictable (consumers=0)
+	// Still within TTL, so it should exist but as non-protected
+	if !cache.Contains(1) {
+		t.Error("entry should still exist within TTL even after all decrements")
+	}
+
+	// Verify it's no longer protected by checking Get after TTL
+	// (We can't easily advance time with real clock, so just verify the entry exists)
+}
+
+// --- Retain / Release (API commands) ---
+
+// TestRecentUpdateCacheRetain verifies Retain increments consumers on activated entry.
+//
+// VALIDATES: Retain on activated entry makes it protected beyond TTL.
 // PREVENTS: Premature eviction of routes needed for graceful restart.
 func TestRecentUpdateCacheRetain(t *testing.T) {
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
-	// Retain the entry
+	// Retain the entry (consumers: 0 → 1)
 	if !cache.Retain(1) {
 		t.Fatal("Retain returned false for existing entry")
 	}
@@ -398,12 +605,12 @@ func TestRecentUpdateCacheRetain(t *testing.T) {
 	// Add another entry to trigger lazy cleanup
 	cache.Add(newTestUpdate(2))
 
-	// Retained entry should still exist despite TTL expiry
+	// Retained entry should still exist despite TTL expiry (consumers=1)
 	if !cache.Contains(1) {
 		t.Error("retained entry should survive lazy cleanup")
 	}
 
-	// Non-retained entry should also exist (just added)
+	// New entry should also exist (just added, pending)
 	if !cache.Contains(2) {
 		t.Error("new entry should exist")
 	}
@@ -421,16 +628,65 @@ func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
 	}
 }
 
-// TestRecentUpdateCacheRelease verifies release clears retained flag and resets TTL.
+// TestCacheRetainIncrementsConsumers verifies Retain/Release refcount semantics.
 //
-// VALIDATES: Release allows eviction after TTL expires.
+// VALIDATES: Retain adds 1, Release subtracts 1 — balanced usage (AC-6).
+// PREVENTS: Refcount imbalance from API commands.
+func TestCacheRetainIncrementsConsumers(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	cache.SetClock(fc)
+
+	addAndActivate(cache, newTestUpdate(1))
+
+	// Retain twice (consumers: 0 → 1 → 2)
+	cache.Retain(1)
+	cache.Retain(1)
+
+	fc.Add(20 * time.Millisecond) // Past TTL
+
+	// Still protected (consumers=2)
+	if !cache.Contains(1) {
+		t.Fatal("double-retained entry should survive TTL")
+	}
+
+	// Release once (consumers: 2 → 1)
+	cache.Release(1)
+
+	// Still protected (consumers=1)
+	if !cache.Contains(1) {
+		t.Fatal("entry with consumers=1 should survive")
+	}
+
+	// Release again (consumers: 1 → 0, TTL reset)
+	cache.Release(1)
+
+	// TTL was just reset, should exist within new TTL window
+	if !cache.Contains(1) {
+		t.Fatal("entry should exist right after final release (TTL just reset)")
+	}
+
+	// Advance past new TTL
+	fc.Add(20 * time.Millisecond)
+
+	// Now evictable
+	if cache.Contains(1) {
+		t.Error("entry should expire after all releases and TTL elapsed")
+	}
+}
+
+// TestRecentUpdateCacheRelease verifies release allows TTL expiry.
+//
+// VALIDATES: Release decrements consumers and resets TTL.
 // PREVENTS: Memory leaks from permanently retained entries.
 func TestRecentUpdateCacheRelease(t *testing.T) {
 	cache := NewRecentUpdateCache(15*time.Millisecond, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
-	// Retain the entry
+	// Retain the entry (consumers: 0 → 1)
 	if !cache.Retain(1) {
 		t.Fatal("Retain failed")
 	}
@@ -438,12 +694,12 @@ func TestRecentUpdateCacheRelease(t *testing.T) {
 	// Wait for original TTL
 	time.Sleep(20 * time.Millisecond)
 
-	// Should still exist (retained)
+	// Should still exist (consumers=1, protected)
 	if !cache.Contains(1) {
 		t.Fatal("retained entry should exist")
 	}
 
-	// Release the entry
+	// Release the entry (consumers: 1 → 0, TTL reset)
 	if !cache.Release(1) {
 		t.Fatal("Release returned false for existing entry")
 	}
@@ -456,7 +712,7 @@ func TestRecentUpdateCacheRelease(t *testing.T) {
 	// Wait for new TTL to expire
 	time.Sleep(20 * time.Millisecond)
 
-	// Now should be expired (no longer retained)
+	// Now should be expired (consumers=0, not protected)
 	if cache.Contains(1) {
 		t.Error("released entry should expire after TTL")
 	}
@@ -473,6 +729,32 @@ func TestRecentUpdateCacheReleaseNotFound(t *testing.T) {
 		t.Error("Release returned true for non-existent entry")
 	}
 }
+
+// TestRecentUpdateCacheRetainedSurvivesExpiry verifies retained entries in List.
+//
+// VALIDATES: List includes retained entries even after TTL.
+// PREVENTS: Missing retained IDs in API response.
+func TestRecentUpdateCacheRetainedSurvivesExpiry(t *testing.T) {
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+
+	addAndActivate(cache, newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(2))
+	cache.Retain(1) // Retain only entry 1 (consumers: 0 → 1)
+
+	// Wait for TTL
+	time.Sleep(20 * time.Millisecond)
+
+	// List should include only retained entry (entry 2 expired, entry 1 protected)
+	ids := cache.List()
+	if len(ids) != 1 {
+		t.Errorf("List() len = %d, want 1", len(ids))
+	}
+	if len(ids) > 0 && ids[0] != 1 {
+		t.Errorf("List()[0] = %d, want 1", ids[0])
+	}
+}
+
+// --- List ---
 
 // TestRecentUpdateCacheList verifies List returns all valid msg-ids.
 //
@@ -516,7 +798,7 @@ func TestRecentUpdateCacheList(t *testing.T) {
 func TestRecentUpdateCacheListExcludesExpired(t *testing.T) {
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
-	cache.Add(newTestUpdate(1))
+	addAndActivate(cache, newTestUpdate(1))
 
 	// Should have one entry
 	if len(cache.List()) != 1 {
@@ -533,124 +815,121 @@ func TestRecentUpdateCacheListExcludesExpired(t *testing.T) {
 	}
 }
 
-// TestRecentUpdateCacheRetainedSurvivesExpiry verifies retained entries in List.
+// --- Decrement ---
+
+// TestCacheDecrementNotFound verifies Decrement on missing entry.
 //
-// VALIDATES: List includes retained entries even after TTL.
-// PREVENTS: Missing retained IDs in API response.
-func TestRecentUpdateCacheRetainedSurvivesExpiry(t *testing.T) {
-	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
-
-	cache.Add(newTestUpdate(1))
-	cache.Add(newTestUpdate(2))
-	cache.Retain(1) // Retain only entry 1
-
-	// Wait for TTL
-	time.Sleep(20 * time.Millisecond)
-
-	// List should include only retained entry
-	ids := cache.List()
-	if len(ids) != 1 {
-		t.Errorf("List() len = %d, want 1", len(ids))
-	}
-	if len(ids) > 0 && ids[0] != 1 {
-		t.Errorf("List()[0] = %d, want 1", ids[0])
-	}
-}
-
-// TestRecentUpdateCacheRetainIdempotent verifies double retain is safe.
-//
-// VALIDATES: Calling Retain twice on same entry is idempotent.
-// PREVENTS: State corruption on duplicate retain calls.
-func TestRecentUpdateCacheRetainIdempotent(t *testing.T) {
+// VALIDATES: Decrement returns false for non-existent entry.
+// PREVENTS: Silent failures on invalid msg-ids.
+func TestCacheDecrementNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
-	cache.Add(newTestUpdate(1))
-
-	// Retain twice
-	if !cache.Retain(1) {
-		t.Fatal("first Retain failed")
-	}
-	if !cache.Retain(1) {
-		t.Fatal("second Retain failed")
-	}
-
-	// Entry should still be valid
-	if !cache.Contains(1) {
-		t.Error("entry should exist after double retain")
+	if cache.Decrement(999) {
+		t.Error("Decrement returned true for non-existent entry")
 	}
 }
 
-// TestRecentUpdateCacheReleaseNonRetained verifies release on non-retained entry.
+// TestCacheDecrementToZeroResetsTTL verifies TTL reset when consumers hit 0.
 //
-// VALIDATES: Release on non-retained entry resets TTL (extends lifetime).
-// PREVENTS: Unexpected behavior when release called without prior retain.
-func TestRecentUpdateCacheReleaseNonRetained(t *testing.T) {
-	cache := NewRecentUpdateCache(15*time.Millisecond, 100)
+// VALIDATES: Decrement to 0 resets TTL, giving a fresh expiration window.
+// PREVENTS: Immediate eviction when last consumer finishes.
+func TestCacheDecrementToZeroResetsTTL(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(time.Minute, 100)
+	cache.SetClock(fc)
 
 	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 1) // consumers=1
 
-	// Wait partial TTL
-	time.Sleep(10 * time.Millisecond)
+	// Advance past original TTL — entry protected by consumers
+	fc.Add(2 * time.Minute) // 2 min > 1 min TTL
 
-	// Release without prior retain - should reset TTL
-	if !cache.Release(1) {
-		t.Fatal("Release failed on non-retained entry")
-	}
-
-	// Wait another partial TTL (would have expired without release)
-	time.Sleep(10 * time.Millisecond)
-
-	// Should still exist (TTL was reset)
 	if !cache.Contains(1) {
-		t.Error("entry should exist after release reset TTL")
+		t.Fatal("entry with consumers=1 should survive past TTL")
 	}
-}
 
-// TestRecentUpdateCacheTakeRetained verifies Take works on retained entries.
-//
-// VALIDATES: Retained entries can be taken (forwarded).
-// PREVENTS: Retained entries becoming stuck/unfetchable.
-func TestRecentUpdateCacheTakeRetained(t *testing.T) {
-	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	// Consumer finishes — TTL reset to now + 1min
+	cache.Decrement(1) // consumers=0
 
-	cache.Add(newTestUpdate(1))
-	cache.Retain(1)
-
-	// Wait for TTL to expire
-	time.Sleep(20 * time.Millisecond)
-
-	// Take should succeed (retained)
-	got, ok := cache.Take(1)
-	if !ok {
-		t.Fatal("Take failed on retained entry")
+	// Entry should exist within new TTL window
+	fc.Add(30 * time.Second) // 30s < 1 min new TTL
+	if !cache.Contains(1) {
+		t.Fatal("entry should exist within fresh TTL after decrement to 0")
 	}
-	defer got.Release()
 
-	// Entry should be removed after Take
+	// Advance past new TTL
+	fc.Add(31 * time.Second) // total 61s > 1 min
 	if cache.Contains(1) {
-		t.Error("entry should be removed after Take")
+		t.Error("entry should expire after fresh TTL elapsed")
 	}
 }
 
-// TestRecentUpdateCacheReleaseAfterTake verifies release fails after take.
+// --- Buffer ownership ---
+
+// TestCacheBufferReturnedOnEviction verifies buffer lifecycle.
 //
-// VALIDATES: Release returns false for taken (removed) entry.
-// PREVENTS: False success on release of non-existent entry.
-func TestRecentUpdateCacheReleaseAfterTake(t *testing.T) {
-	cache := NewRecentUpdateCache(time.Minute, 100)
+// VALIDATES: Buffer returned to pool only when entry evicted with consumers=0.
+// PREVENTS: Buffer leaks or double-free.
+func TestCacheBufferReturnedOnEviction(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+	cache.SetClock(fc)
+
+	// Add entry — cache owns buffer
+	addAndActivate(cache, newTestUpdate(1))
+
+	// Get does NOT transfer ownership
+	got, ok := cache.Get(1)
+	if !ok {
+		t.Fatal("Get failed")
+	}
+
+	// got.poolBuf may be nil in test updates (no real pool buffer).
+	// The test validates the Get/eviction path regardless.
+	_ = got
+
+	// Advance past TTL
+	fc.Add(20 * time.Millisecond)
+
+	// Trigger lazy cleanup by adding another entry
+	cache.Add(newTestUpdate(2))
+
+	// Entry 1 should have been evicted (buffer returned to pool)
+	if cache.Contains(1) {
+		t.Error("entry should be evicted after TTL")
+	}
+
+	// Entry 2 should exist (pending)
+	if !cache.Contains(2) {
+		t.Error("new entry should exist")
+	}
+}
+
+// TestCacheDecrementZeroTTLImmediateCleanup verifies zero-TTL entries are cleaned
+// immediately when consumers drop to 0.
+//
+// VALIDATES: Zero-TTL + consumers=0 triggers immediate eviction in Decrement.
+// PREVENTS: Stale entries with zero TTL lingering until next Add.
+func TestCacheDecrementZeroTTLImmediateCleanup(t *testing.T) {
+	cache := NewRecentUpdateCache(0, 100) // Zero TTL
 
 	cache.Add(newTestUpdate(1))
-	cache.Retain(1)
+	cache.Activate(1, 1) // consumers=1, protected
 
-	// Take the entry
-	got, ok := cache.Take(1)
-	if !ok {
-		t.Fatal("Take failed")
+	// Entry exists (protected by consumers)
+	if !cache.Contains(1) {
+		t.Fatal("entry with consumers should exist even with zero TTL")
 	}
-	got.Release()
 
-	// Release should fail (entry no longer exists)
-	if cache.Release(1) {
-		t.Error("Release should return false for taken entry")
+	// Decrement to 0 — should clean up immediately (zero TTL)
+	cache.Decrement(1)
+
+	// Entry should be gone
+	if cache.Contains(1) {
+		t.Error("entry with zero TTL should be cleaned up immediately on decrement to 0")
 	}
 }

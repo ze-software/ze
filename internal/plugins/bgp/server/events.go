@@ -20,15 +20,15 @@ var logger = slogutil.LazyLogger("bgp.server")
 
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
-func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if s.Context().Err() != nil {
-		return // Server shutting down, skip event delivery
+		return 0 // Server shutting down, skip event delivery
 	}
 
 	eventType := messageTypeToEventType(msg.Type)
 	if eventType == "" {
 		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
-		return
+		return 0
 	}
 
 	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction)
@@ -52,6 +52,8 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
 		}
 	}
+
+	return len(procs)
 }
 
 // messageTypeToEventType converts BGP message type to event type string.
