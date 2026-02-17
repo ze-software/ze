@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -344,4 +345,222 @@ expect=bgp:conn=1:hex=FFFFFFFF`
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing seq")
+}
+
+// TestNextMarker verifies the nextMarker helper finds the earliest marker.
+//
+// VALIDATES: nextMarker returns the position of the earliest marker after offset.
+// PREVENTS: Incorrect value boundary detection in marker-based parsing.
+func TestNextMarker(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		offset  int
+		markers []string
+		want    int
+	}{
+		{
+			name:    "no_markers",
+			line:    "hello world",
+			offset:  0,
+			markers: []string{":foo=", ":bar="},
+			want:    11, // len(line)
+		},
+		{
+			name:    "single_marker",
+			line:    "abc:foo=123",
+			offset:  0,
+			markers: []string{":foo="},
+			want:    3,
+		},
+		{
+			name:    "earliest_of_two",
+			line:    "abc:bar=x:foo=y",
+			offset:  0,
+			markers: []string{":foo=", ":bar="},
+			want:    3, // :bar= at 3 is earlier than :foo= at 9
+		},
+		{
+			name:    "offset_skips_earlier",
+			line:    "abc:bar=x:foo=y",
+			offset:  4,
+			markers: []string{":foo=", ":bar="},
+			want:    9, // :foo= at 9 (skipped :bar= at 3)
+		},
+		{
+			name:    "empty_markers",
+			line:    "abc:foo=123",
+			offset:  0,
+			markers: nil,
+			want:    11, // len(line)
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := nextMarker(tt.line, tt.offset, tt.markers...)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestParseCmdExec verifies marker-based parsing of cmd=background/foreground lines.
+//
+// VALIDATES: parseCmdExec correctly extracts seq, exec (with colons), stdin, timeout.
+// PREVENTS: Colons in exec values being misinterpreted as field delimiters.
+func TestParseCmdExec(t *testing.T) {
+	tests := []struct {
+		name    string
+		mode    string
+		line    string
+		want    RunCommand
+		wantErr string
+	}{
+		{
+			name: "basic_exec",
+			mode: "background",
+			line: "cmd=background:seq=1:exec=ze-bgp-chaos --quiet",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-bgp-chaos --quiet"},
+		},
+		{
+			name: "exec_with_colon_port",
+			mode: "background",
+			line: "cmd=background:seq=1:exec=ze-bgp-chaos --web :8080 --quiet",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-bgp-chaos --web :8080 --quiet"},
+		},
+		{
+			name: "exec_with_stdin",
+			mode: "background",
+			line: "cmd=background:seq=1:exec=ze-peer --port 1790:stdin=peer",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-peer --port 1790", Stdin: "peer"},
+		},
+		{
+			name: "foreground_with_timeout",
+			mode: "foreground",
+			line: "cmd=foreground:seq=2:exec=ze server -:stdin=config:timeout=10s",
+			want: RunCommand{Mode: "foreground", Seq: 2, Exec: "ze server -", Stdin: "config", Timeout: "10s"},
+		},
+		{
+			name: "exec_with_colon_and_stdin",
+			mode: "background",
+			line: "cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s:stdin=data",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-bgp-chaos --in-process --web :$PORT --duration 10s", Stdin: "data"},
+		},
+		{
+			name:    "missing_seq",
+			mode:    "background",
+			line:    "cmd=background:exec=something",
+			wantErr: "missing seq=",
+		},
+		{
+			name:    "missing_exec",
+			mode:    "background",
+			line:    "cmd=background:seq=1",
+			wantErr: "missing exec=",
+		},
+		{
+			name:    "invalid_seq_zero",
+			mode:    "background",
+			line:    "cmd=background:seq=0:exec=something",
+			wantErr: "invalid seq=",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseCmdExec(tt.mode, tt.line)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestParseHTTP verifies marker-based parsing of http= lines.
+//
+// VALIDATES: parseHTTP correctly handles URLs with colons, optional contains, and any marker order.
+// PREVENTS: Panics on reordered markers, colons in URLs truncating values.
+func TestParseHTTP(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		want    HTTPCheck
+		wantErr string
+	}{
+		{
+			name: "basic_get",
+			line: "http=get:seq=1:url=http://127.0.0.1:8080/:status=200",
+			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8080/", Status: 200},
+		},
+		{
+			name: "with_contains",
+			line: "http=get:seq=2:url=http://127.0.0.1:8080/peers:status=200:contains=peer-0",
+			want: HTTPCheck{Seq: 2, Method: "get", URL: "http://127.0.0.1:8080/peers", Status: 200, Contains: "peer-0"},
+		},
+		{
+			name: "url_with_query_params",
+			line: "http=get:seq=3:url=http://127.0.0.1:9090/cell?src=0&dst=1:status=200",
+			want: HTTPCheck{Seq: 3, Method: "get", URL: "http://127.0.0.1:9090/cell?src=0&dst=1", Status: 200},
+		},
+		{
+			name: "url_with_port_variable",
+			line: "http=get:seq=1:url=http://127.0.0.1:$PORT/viz/events:status=200",
+			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:$PORT/viz/events", Status: 200},
+		},
+		{
+			name:    "missing_seq",
+			line:    "http=get:url=http://host/:status=200",
+			wantErr: "missing seq=",
+		},
+		{
+			name:    "missing_url",
+			line:    "http=get:seq=1:status=200",
+			wantErr: "missing url=",
+		},
+		{
+			name:    "missing_status",
+			line:    "http=get:seq=1:url=http://host/",
+			wantErr: "missing status=",
+		},
+		{
+			name:    "invalid_seq_zero",
+			line:    "http=get:seq=0:url=http://host/:status=200",
+			wantErr: "invalid seq=",
+		},
+		{
+			name:    "invalid_status",
+			line:    "http=get:seq=1:url=http://host/:status=abc",
+			wantErr: "invalid status=",
+		},
+		{
+			name:    "unsupported_method",
+			line:    "http=delete:seq=1:url=http://host/:status=200",
+			wantErr: "unsupported HTTP method",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			et := NewEncodingTests(t.TempDir())
+			rec := NewRecord("test")
+
+			// Extract method from the line (http=METHOD:...)
+			parts := strings.SplitN(tt.line, ":", 2)
+			method := strings.TrimPrefix(parts[0], "http=")
+
+			err := et.parseHTTP(rec, method, tt.line)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, rec.HTTPChecks, 1)
+			assert.Equal(t, tt.want, rec.HTTPChecks[0])
+		})
+	}
 }

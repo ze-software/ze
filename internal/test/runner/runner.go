@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1078,8 +1079,11 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 
 // isConnectionRefused checks if an error is due to connection refused.
 func isConnectionRefused(err error) bool {
-	return strings.Contains(err.Error(), "connection refused") ||
-		strings.Contains(err.Error(), "connect: connection refused")
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		return errors.Is(opErr.Err, syscall.ECONNREFUSED)
+	}
+	return false
 }
 
 // truncate shortens a string to maxLen, adding "..." if truncated.

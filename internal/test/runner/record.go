@@ -1020,13 +1020,14 @@ func nextMarker(line string, offset int, markers ...string) int {
 }
 
 // parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT] lines.
-// Uses marker-based parsing instead of ParseKVPairs because URLs contain colons.
+// Uses marker-based parsing (nextMarker) because URLs contain colons that would
+// confuse simple colon-splitting. Each marker's value extends to the next known
+// marker or end-of-line, so marker order in the input does not matter.
 func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 	if method != "get" && method != "post" {
 		return fmt.Errorf("unsupported HTTP method %q (use get or post)", method)
 	}
 
-	// Find known markers in the raw line.
 	seqMarker := ":seq="
 	urlMarker := ":url="
 	statusMarker := ":status="
@@ -1047,33 +1048,35 @@ func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
 		return fmt.Errorf("http= missing status=")
 	}
 
-	// Extract seq: from ":seq=" to next marker (":url=").
-	seqEnd := urlIdx
-	seqStr := line[seqIdx+len(seqMarker) : seqEnd]
+	// Extract seq value: from after ":seq=" to next known marker or end.
+	seqStart := seqIdx + len(seqMarker)
+	seqEnd := nextMarker(line, seqStart, urlMarker, statusMarker, containsMarker)
+	seqStr := line[seqStart:seqEnd]
 	seq, err := strconv.Atoi(seqStr)
 	if err != nil || seq < 1 {
 		return fmt.Errorf("http= invalid seq=%q", seqStr)
 	}
 
-	// Extract url: from ":url=" to ":status=".
-	url := line[urlIdx+len(urlMarker) : statusIdx]
+	// Extract url value: from after ":url=" to next known marker or end.
+	urlStart := urlIdx + len(urlMarker)
+	urlEnd := nextMarker(line, urlStart, seqMarker, statusMarker, containsMarker)
+	url := line[urlStart:urlEnd]
 
-	// Extract status: from ":status=" to ":contains=" or end of line.
-	var statusStr string
-	if containsIdx > 0 {
-		statusStr = line[statusIdx+len(statusMarker) : containsIdx]
-	} else {
-		statusStr = line[statusIdx+len(statusMarker):]
-	}
+	// Extract status value: from after ":status=" to next known marker or end.
+	statusStart := statusIdx + len(statusMarker)
+	statusEnd := nextMarker(line, statusStart, seqMarker, urlMarker, containsMarker)
+	statusStr := line[statusStart:statusEnd]
 	status, err := strconv.Atoi(statusStr)
 	if err != nil {
 		return fmt.Errorf("http= invalid status=%q", statusStr)
 	}
 
-	// Extract optional contains.
+	// Extract optional contains value.
 	var contains string
-	if containsIdx > 0 {
-		contains = line[containsIdx+len(containsMarker):]
+	if containsIdx >= 0 {
+		containsStart := containsIdx + len(containsMarker)
+		containsEnd := nextMarker(line, containsStart, seqMarker, urlMarker, statusMarker)
+		contains = line[containsStart:containsEnd]
 	}
 
 	r.HTTPChecks = append(r.HTTPChecks, HTTPCheck{

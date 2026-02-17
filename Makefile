@@ -160,7 +160,7 @@ chaos-test: chaos-unit-test chaos-functional-test chaos-web-test
 	@echo "All chaos tests passed"
 
 # Chaos verification
-chaos-verify: chaos-lint chaos-unit-test chaos-functional-test
+chaos-verify: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test
 	@echo "Chaos verification passed"
 
 # ─── Aggregates ──────────────────────────────────────────────────────────────
