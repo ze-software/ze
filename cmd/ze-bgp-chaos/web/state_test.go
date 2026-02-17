@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/netip"
 	"testing"
 	"time"
 
@@ -504,6 +505,57 @@ func TestFormatDuration(t *testing.T) {
 		if got != tt.want {
 			t.Errorf("FormatDuration(%v) = %q, want %q", tt.input, got, tt.want)
 		}
+	}
+}
+
+// TestRouteMatrixPrefixEviction verifies that routeOrigins and sentTimes
+// are evicted when they exceed maxPrefixTracking.
+//
+// VALIDATES: Maps are cleared when prefix tracking exceeds the cap.
+// PREVENTS: Unbounded memory growth in long-running sessions with route churn.
+func TestRouteMatrixPrefixEviction(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+	now := time.Now()
+
+	// Fill up to the max. Use unique /32 prefixes from different addresses.
+	for i := range maxPrefixTracking {
+		a := uint8(i >> 16)
+		b := uint8(i >> 8)
+		c := uint8(i)
+		addr := netip.AddrFrom4([4]byte{10, a, b, c})
+		m.RecordSent(i%4, netip.PrefixFrom(addr, 32), now)
+	}
+
+	if len(m.routeOrigins) != maxPrefixTracking {
+		t.Fatalf("routeOrigins len = %d, want %d", len(m.routeOrigins), maxPrefixTracking)
+	}
+
+	// One more should trigger eviction — maps get cleared and only the new entry remains.
+	overflow := netip.MustParsePrefix("192.168.0.1/32")
+	m.RecordSent(0, overflow, now)
+
+	if len(m.routeOrigins) != 1 {
+		t.Fatalf("routeOrigins len after eviction = %d, want 1", len(m.routeOrigins))
+	}
+	if len(m.sentTimes) != 1 {
+		t.Fatalf("sentTimes len after eviction = %d, want 1", len(m.sentTimes))
+	}
+
+	// The new entry should still be queryable.
+	if m.routeOrigins[overflow] != 0 {
+		t.Fatalf("overflow prefix origin = %d, want 0", m.routeOrigins[overflow])
+	}
+
+	// Cumulative cell counters should be unaffected by eviction.
+	// Record a receive for the overflow prefix — should correlate correctly.
+	found := m.RecordReceived(1, overflow, now.Add(time.Millisecond))
+	if !found {
+		t.Fatal("RecordReceived should find overflow prefix after eviction")
+	}
+	if m.Get(0, 1) != 1 {
+		t.Fatalf("Get(0,1) = %d, want 1", m.Get(0, 1))
 	}
 }
 

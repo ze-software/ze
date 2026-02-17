@@ -476,6 +476,12 @@ type PeerStateTransition struct {
 	Status PeerStatus
 }
 
+// maxPrefixTracking is the maximum number of prefixes tracked in routeOrigins
+// and sentTimes. When exceeded, both maps are cleared to reclaim memory.
+// Cumulative cell counters are unaffected — only new source correlations are
+// temporarily lost until re-populated by subsequent EventRouteSent events.
+const maxPrefixTracking = 100_000
+
 // RouteMatrix tracks source→destination route counts for the heatmap.
 // Uses a sparse map to handle 200+ peers without allocating a 200×200 array.
 type RouteMatrix struct {
@@ -493,9 +499,11 @@ type RouteMatrix struct {
 
 	// routeOrigins maps each announced prefix to the peer that sent it.
 	// Populated on EventRouteSent, queried on EventRouteReceived.
+	// Evicted when size exceeds maxPrefixTracking.
 	routeOrigins map[netip.Prefix]int
 
 	// sentTimes maps each prefix to when it was sent (for latency computation).
+	// Evicted when size exceeds maxPrefixTracking.
 	sentTimes map[netip.Prefix]time.Time
 
 	// peerTotals tracks total route involvement per peer (for top-N sorting).
@@ -516,7 +524,13 @@ func NewRouteMatrix() *RouteMatrix {
 }
 
 // RecordSent records that a peer announced a prefix (for source inference).
+// Evicts all prefix tracking data when the map exceeds maxPrefixTracking to
+// bound memory. Cumulative cell counters are preserved.
 func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time) {
+	if len(m.routeOrigins) >= maxPrefixTracking {
+		m.routeOrigins = make(map[netip.Prefix]int, maxPrefixTracking/2)
+		m.sentTimes = make(map[netip.Prefix]time.Time, maxPrefixTracking/2)
+	}
 	m.routeOrigins[prefix] = peerIndex
 	m.sentTimes[prefix] = t
 }
