@@ -20,11 +20,14 @@ import (
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
 func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64) int {
-	// Read config content first (to probe type without parsing)
+	// Read config content first (to probe type without parsing).
+	// When reading from stdin, we look for a NUL sentinel that signals
+	// "config complete but pipe stays open for liveness monitoring."
 	var data []byte
+	var stdinOpen bool
 	var err error
 	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
+		data, stdinOpen, err = readStdinConfig()
 	} else {
 		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from user
 	}
@@ -37,7 +40,7 @@ func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(configPath, data, plugins, chaosSeed, chaosRate)
+		return runBGPInProcess(configPath, data, plugins, chaosSeed, chaosRate, stdinOpen)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -48,6 +51,38 @@ func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64
 	}
 
 	return 1
+}
+
+// readStdinConfig reads config from stdin, stopping at a NUL byte sentinel
+// or EOF. Returns the config data and whether stdin remains open (NUL found).
+//
+// When stdin remains open, the caller can monitor it for EOF to detect
+// upstream process exit — e.g., in a pipeline like "ze-bgp-chaos | ze -",
+// when the chaos tool exits, stdin closes, and Ze initiates clean shutdown.
+//
+// When no NUL is found (plain "cat config.conf | ze -"), reading stops at
+// EOF with stdinOpen=false — the normal case.
+func readStdinConfig() (data []byte, stdinOpen bool, err error) {
+	var buf []byte
+	tmp := make([]byte, 4096)
+	for {
+		n, readErr := os.Stdin.Read(tmp)
+		if n > 0 {
+			for i := range n {
+				if tmp[i] == 0 {
+					buf = append(buf, tmp[:i]...)
+					return buf, true, nil
+				}
+			}
+			buf = append(buf, tmp[:n]...)
+		}
+		if readErr != nil {
+			if readErr == io.EOF {
+				return buf, false, nil
+			}
+			return nil, false, readErr
+		}
+	}
 }
 
 // acquirePIDFile attempts to acquire a PID file for the given config path.
@@ -71,7 +106,9 @@ func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
 }
 
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
-func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64) int {
+// When stdinOpen is true, a background goroutine monitors stdin for EOF and
+// triggers shutdown when the upstream process exits (pipe mode).
+func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
 	// Use YANG-based config parser with CLI plugins
 	reactor, err := zeconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
 	if err != nil {
@@ -116,6 +153,14 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
+	// Monitor stdin for EOF when running in pipe mode (ze-bgp-chaos | ze -).
+	// After reading config (delimited by NUL), stdin stays open. When the
+	// upstream process exits, the pipe closes and this goroutine triggers
+	// clean shutdown — no Ctrl-C needed.
+	if stdinOpen {
+		go monitorStdinEOF(sigCh)
+	}
+
 	fmt.Printf("Starting ze BGP with config: %s\n", configPath)
 
 	if err := reactor.Start(); err != nil {
@@ -149,6 +194,21 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 
 	fmt.Println("Ze BGP stopped.")
 	return 0
+}
+
+// monitorStdinEOF blocks until stdin is closed (EOF or error), then sends
+// SIGTERM to sigCh to trigger reactor shutdown.
+func monitorStdinEOF(sigCh chan<- os.Signal) {
+	b := make([]byte, 1)
+	if _, err := os.Stdin.Read(b); err != nil {
+		fmt.Fprintf(os.Stderr, "\nUpstream pipe closed (%v), shutting down...\n", err)
+	} else {
+		fmt.Fprintln(os.Stderr, "\nUpstream pipe closed, shutting down...")
+	}
+	select {
+	case sigCh <- syscall.SIGTERM:
+	default:
+	}
 }
 
 // runOrchestratorWithData parses hub config and runs the orchestrator.
