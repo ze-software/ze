@@ -92,15 +92,17 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	sortPeers(indices, d.state, sortCol, sortDir)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, `<tbody id="peer-tbody">`)
+	h := &htmlWriter{w: w}
+	h.write(`<tbody id="peer-tbody">`)
 	writePeerRows(w, d.state, indices)
-	fmt.Fprint(w, `</tbody>`)
+	h.write(`</tbody>`)
 }
 
 // handlePeerClose returns an empty detail div, clearing the detail pane.
 func (d *Dashboard) handlePeerClose(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, `<div id="peer-detail"></div>`)
+	h := &htmlWriter{w: w}
+	h.write(`<div id="peer-detail"></div>`)
 }
 
 // handlePeerDetail serves the detail pane fragment for a single peer.
@@ -174,9 +176,10 @@ func (d *Dashboard) handlePeerPromote(w http.ResponseWriter, r *http.Request) {
 	sortPeers(indices, d.state, "id", "asc")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprint(w, `<tbody id="peer-tbody">`)
+	h := &htmlWriter{w: w}
+	h.write(`<tbody id="peer-tbody">`)
 	writePeerRows(w, d.state, indices)
-	fmt.Fprint(w, `</tbody>`)
+	h.write(`</tbody>`)
 }
 
 // sortPeers sorts peer indices by the given column and direction.

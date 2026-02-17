@@ -54,7 +54,6 @@ func TestReadStdinConfigWithNUL(t *testing.T) {
 	// Keep the write end open until test completes (simulates long-lived upstream).
 	done := make(chan struct{})
 	go func() {
-		defer w.Close()
 		if _, wErr := w.WriteString(config); wErr != nil {
 			return
 		}
@@ -71,7 +70,12 @@ func TestReadStdinConfigWithNUL(t *testing.T) {
 	assert.True(t, stdinOpen, "stdin should remain open after NUL sentinel")
 	assert.Equal(t, config, string(data))
 
-	r.Close()
+	if closeErr := w.Close(); closeErr != nil {
+		t.Log("close pipe writer:", closeErr)
+	}
+	if closeErr := r.Close(); closeErr != nil {
+		t.Log("close pipe reader:", closeErr)
+	}
 }
 
 // TestReadStdinConfigEOF verifies that plain EOF (no NUL) returns the
@@ -93,7 +97,9 @@ func TestReadStdinConfigEOF(t *testing.T) {
 	if _, wErr := w.WriteString(config); wErr != nil {
 		t.Fatal(wErr)
 	}
-	w.Close()
+	if closeErr := w.Close(); closeErr != nil {
+		t.Log("close pipe writer:", closeErr)
+	}
 
 	os.Stdin = r
 
@@ -102,7 +108,9 @@ func TestReadStdinConfigEOF(t *testing.T) {
 	assert.False(t, stdinOpen, "stdin should be closed after EOF")
 	assert.Equal(t, config, string(data))
 
-	r.Close()
+	if closeErr := r.Close(); closeErr != nil {
+		t.Log("close pipe reader:", closeErr)
+	}
 }
 
 // TestReadStdinConfigEmpty verifies empty stdin returns empty data.
@@ -118,7 +126,9 @@ func TestReadStdinConfigEmpty(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	w.Close() // Immediate EOF.
+	if closeErr := w.Close(); closeErr != nil {
+		t.Log("close pipe writer:", closeErr)
+	}
 	os.Stdin = r
 
 	data, stdinOpen, readErr := readStdinConfig()
@@ -126,5 +136,7 @@ func TestReadStdinConfigEmpty(t *testing.T) {
 	assert.False(t, stdinOpen)
 	assert.Empty(t, data)
 
-	r.Close()
+	if closeErr := r.Close(); closeErr != nil {
+		t.Log("close pipe reader:", closeErr)
+	}
 }

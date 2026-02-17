@@ -12,12 +12,34 @@ import (
 // escapeHTML escapes HTML special characters for safe interpolation into templates.
 var escapeHTML = html.EscapeString
 
+// htmlWriter wraps an io.Writer and captures the first write error.
+// Subsequent writes after an error are no-ops. This avoids per-call error
+// checks when rendering HTML fragments to an http.ResponseWriter where
+// write failures (client disconnect) are unrecoverable.
+type htmlWriter struct {
+	w   io.Writer
+	err error
+}
+
+func (h *htmlWriter) write(s string) {
+	if h.err == nil {
+		_, h.err = io.WriteString(h.w, s)
+	}
+}
+
+func (h *htmlWriter) writef(format string, args ...any) {
+	if h.err == nil {
+		_, h.err = fmt.Fprintf(h.w, format, args...)
+	}
+}
+
 // writeLayout renders the full HTML page for the dashboard.
 func writeLayout(w io.Writer, d *Dashboard) {
+	h := &htmlWriter{w: w}
 	s := d.state
 	uptime := FormatDuration(time.Since(s.StartTime))
 
-	fmt.Fprint(w, `<!DOCTYPE html>
+	h.write(`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -32,7 +54,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
 <div class="header">
   <h1>Ze BGP Chaos</h1>
-  <span class="run-info">peers: `+itoa(s.PeerCount)+` | uptime: `+uptime+`</span>
+  <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: ` + uptime + `</span>
 </div>
 
 <div class="content">
@@ -40,27 +62,27 @@ func writeLayout(w io.Writer, d *Dashboard) {
   <div class="card">
     <h3>Stats</h3>
     <div id="stats" sse-swap="stats" hx-swap="outerHTML">
-      <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">`+itoa(s.PeersUp)+`/`+itoa(s.PeerCount)+`</span></span>
-      <span class="stat"><span class="stat-label">Announced </span><span class="stat-value">`+itoa(s.TotalAnnounced)+`</span></span>
-      <span class="stat"><span class="stat-label">Received </span><span class="stat-value">`+itoa(s.TotalReceived)+`</span></span>
-      <span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">`+itoa(s.TotalWithdrawn)+`</span></span>
-      <span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">`+itoa(s.TotalChaos)+`</span></span>
-      <span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">`+itoa(s.TotalReconnects)+`</span></span>
+      <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
+      <span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
+      <span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
+      <span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
+      <span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
+      <span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
     </div>
   </div>
 
   <div class="card">
     <h3>Active Set</h3>
     <div id="active-set-info">
-      <span class="stat"><span class="stat-label">Visible </span><span class="stat-value">`+itoa(s.Active.Len())+`/`+itoa(s.Active.MaxVisible)+`</span></span>
-      <span class="stat"><span class="stat-label">TTL </span><span class="stat-value">`+FormatDuration(s.Active.AdaptiveTTL())+`</span></span>
+      <span class="stat"><span class="stat-label">Visible </span><span class="stat-value">` + itoa(s.Active.Len()) + `/` + itoa(s.Active.MaxVisible) + `</span></span>
+      <span class="stat"><span class="stat-label">TTL </span><span class="stat-value">` + FormatDuration(s.Active.AdaptiveTTL()) + `</span></span>
     </div>
   </div>
 
   <div class="card">
     <h3>Peer Picker</h3>
     <div class="control-row">
-      <input type="number" id="promote-id" name="id" min="0" max="`+itoa(s.PeerCount-1)+`" placeholder="peer #" class="control-input">
+      <input type="number" id="promote-id" name="id" min="0" max="` + itoa(s.PeerCount-1) + `" placeholder="peer #" class="control-input">
       <span class="badge" hx-post="/peers/promote" hx-target="#peer-tbody" hx-swap="outerHTML"
             hx-include="#promote-id">Add</span>
     </div>
@@ -73,22 +95,22 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
 	// Property badges.
 	if len(s.Properties) > 0 {
-		fmt.Fprint(w, `
+		h.write(`
   <div class="card">
     <h3>Properties</h3>`)
 		writePropertyBadges(w, s.Properties)
-		fmt.Fprint(w, `
+		h.write(`
   </div>`)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
   <div class="card">
     <h3>Recent Events</h3>
     <div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML">`)
 
 	writeRecentEvents(w, s)
 
-	fmt.Fprint(w, `
+	h.write(`
     </div>
   </div>
 </div>
@@ -129,7 +151,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 	sortPeers(indices, s, "id", "asc")
 	writePeerRows(w, s, indices)
 
-	fmt.Fprint(w, `
+	h.write(`
       </tbody>
     </table>
   </div>
@@ -159,6 +181,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
 // writePeerRows renders table rows for the given peer indices.
 func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
+	h := &htmlWriter{w: w}
 	for _, idx := range indices {
 		ps := state.Peers[idx]
 		if ps == nil {
@@ -169,25 +192,26 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 		if pinned {
 			pinClass = "pin pinned"
 		}
-		fmt.Fprintf(w, `<tr id="peer-%d" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML">`, idx, idx)
-		fmt.Fprintf(w, `<td><span class="%s" hx-post="/peers/%d/pin" hx-swap="none" hx-trigger="click" onclick="event.stopPropagation()"></span></td>`, pinClass, idx)
-		fmt.Fprintf(w, `<td>%d</td>`, idx)
-		fmt.Fprintf(w, `<td><span class="dot %s"></span> %s</td>`, ps.Status.CSSClass(), ps.Status.String())
-		fmt.Fprintf(w, `<td>%d</td>`, ps.RoutesSent)
-		fmt.Fprintf(w, `<td>%d</td>`, ps.RoutesRecv)
-		fmt.Fprintf(w, `<td>%d</td>`, ps.ChaosCount)
-		fmt.Fprint(w, `</tr>`)
+		h.writef(`<tr id="peer-%d" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML">`, idx, idx)
+		h.writef(`<td><span class="%s" hx-post="/peers/%d/pin" hx-swap="none" hx-trigger="click" onclick="event.stopPropagation()"></span></td>`, pinClass, idx)
+		h.writef(`<td>%d</td>`, idx)
+		h.writef(`<td><span class="dot %s"></span> %s</td>`, ps.Status.CSSClass(), ps.Status.String())
+		h.writef(`<td>%d</td>`, ps.RoutesSent)
+		h.writef(`<td>%d</td>`, ps.RoutesRecv)
+		h.writef(`<td>%d</td>`, ps.ChaosCount)
+		h.write(`</tr>`)
 	}
 }
 
 // writePeerDetail renders the detail pane for a single peer.
 func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
+	h := &htmlWriter{w: w}
 	pinLabel := "Pin"
 	if pinned {
 		pinLabel = "Unpin"
 	}
 
-	fmt.Fprintf(w, `<div class="detail-pane" id="peer-detail">
+	h.writef(`<div class="detail-pane" id="peer-detail">
 <h2>
   <span>Peer %d</span>
   <span>
@@ -196,7 +220,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
   </span>
 </h2>`, ps.Index, ps.Index, pinLabel)
 
-	fmt.Fprintf(w, `
+	h.writef(`
 <div class="detail-section">
   <h4>State</h4>
   <div class="detail-grid">
@@ -212,7 +236,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
 		ps.ChaosCount, ps.Reconnects)
 
 	// Recent events for this peer.
-	fmt.Fprint(w, `
+	h.write(`
 <div class="detail-section">
   <h4>Recent Events</h4>
   <div class="event-list">`)
@@ -225,11 +249,11 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
 		elapsed := FormatDuration(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
-		fmt.Fprintf(w, `<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">%s</span><span>%s</span></div>`,
+		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">%s</span><span>%s</span></div>`,
 			elapsed, evClass, label, detail)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
   </div>
 </div>
 </div>`)
@@ -237,6 +261,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
 
 // writeRecentEvents renders the global recent events list.
 func writeRecentEvents(w io.Writer, s *DashboardState) {
+	h := &htmlWriter{w: w}
 	events := s.GlobalEvents.All()
 	// Show most recent first, limit to last 30.
 	start := 0
@@ -248,7 +273,7 @@ func writeRecentEvents(w io.Writer, s *DashboardState) {
 		evClass := eventTypeClass(ev.Type)
 		elapsed := FormatDuration(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
-		fmt.Fprintf(w, `<div class="event-row"><span class="event-time">%s</span><span class="event-type %s">p%d %s</span></div>`,
+		h.writef(`<div class="event-row"><span class="event-time">%s</span><span class="event-type %s">p%d %s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, label)
 	}
 }

@@ -64,7 +64,8 @@ func (d *Dashboard) handleVizChaosTimeline(w http.ResponseWriter, _ *http.Reques
 
 // writeEventStream renders the event stream feed with optional filtering.
 func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter string) {
-	fmt.Fprint(w, `<div class="viz-panel">
+	h := &htmlWriter{w: w}
+	h.write(`<div class="viz-panel">
 <div class="viz-header">
   <h3>Event Stream</h3>
   <div class="filters">
@@ -74,10 +75,10 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
       <option value="">All</option>`)
 
 	for i := range s.PeerCount {
-		fmt.Fprintf(w, `<option value="%d"%s>Peer %d</option>`, i, selAttr(peerFilter == itoa(i)), i)
+		h.writef(`<option value="%d"%s>Peer %d</option>`, i, selAttr(peerFilter == itoa(i)), i)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
     </select>
     <label>Type:</label>
     <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="outerHTML"
@@ -85,10 +86,10 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
       <option value="">All</option>`)
 
 	for _, name := range eventTypeNames() {
-		fmt.Fprintf(w, `<option value="%s"%s>%s</option>`, name, selAttr(typeFilter == name), name)
+		h.writef(`<option value="%s"%s>%s</option>`, name, selAttr(typeFilter == name), name)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
     </select>
     <label class="auto-scroll-toggle">
       <input type="checkbox" id="auto-scroll" checked onchange="window._autoScroll=this.checked"> Auto-scroll
@@ -118,27 +119,28 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		elapsed := FormatDuration(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
-		fmt.Fprintf(w, `<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">p%d</span><span class="event-type %s">%s</span><span>%s</span></div>`,
+		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">p%d</span><span class="event-type %s">%s</span><span>%s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, evClass, label, detail)
 	}
 
-	fmt.Fprint(w, `</div></div>`)
+	h.write(`</div></div>`)
 }
 
 // writeConvergenceHistogram renders the CSS bar chart for convergence latency.
-func writeConvergenceHistogram(w io.Writer, h *ConvergenceHistogram, deadline time.Duration) {
-	fmt.Fprint(w, `<div class="viz-panel" id="viz-convergence">
+func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline time.Duration) {
+	hw := &htmlWriter{w: w}
+	hw.write(`<div class="viz-panel" id="viz-convergence">
 <h3>Convergence Histogram</h3>
 <div class="histogram" style="position:relative">`)
 
-	maxCount := h.MaxCount()
+	maxCount := ch.MaxCount()
 	bucketColors := []string{
 		"#3fb950", "#3fb950", "#7cc647", // green (fast)
 		"#b8cc3e", "#d29922", "#db8928", // yellow (moderate)
 		"#db6d28", "#f85149", "#f85149", // red (slow)
 	}
 
-	for i, b := range h.Buckets {
+	for i, b := range ch.Buckets {
 		pct := 0
 		if maxCount > 0 {
 			pct = b.Count * 100 / maxCount
@@ -147,7 +149,7 @@ func writeConvergenceHistogram(w io.Writer, h *ConvergenceHistogram, deadline ti
 			pct = 2 // Minimum visible height.
 		}
 		color := bucketColors[i]
-		fmt.Fprintf(w, `<div class="histogram-bar-wrapper">
+		hw.writef(`<div class="histogram-bar-wrapper">
   <div class="histogram-bar" style="height:%d%%;background:%s" title="%s: %d routes"></div>
   <div class="histogram-label">%s</div>
   <div class="histogram-count">%d</div>
@@ -158,10 +160,10 @@ func writeConvergenceHistogram(w io.Writer, h *ConvergenceHistogram, deadline ti
 	if deadline > 0 {
 		// Find which bucket the deadline falls in (as a percentage across the 9 buckets).
 		deadlinePct := 0
-		for i, b := range h.Buckets {
+		for i, b := range ch.Buckets {
 			if deadline >= b.Min && (b.Max == 0 || deadline < b.Max) {
 				// Interpolate within the bucket.
-				bucketWidth := 100 / len(h.Buckets)
+				bucketWidth := 100 / len(ch.Buckets)
 				deadlinePct = i*bucketWidth + bucketWidth/2
 				break
 			}
@@ -170,30 +172,31 @@ func writeConvergenceHistogram(w io.Writer, h *ConvergenceHistogram, deadline ti
 			}
 		}
 		if deadlinePct > 0 && deadlinePct <= 100 {
-			fmt.Fprintf(w, `<div class="deadline-marker" style="left:%d%%" title="Deadline: %s"></div>`,
+			hw.writef(`<div class="deadline-marker" style="left:%d%%" title="Deadline: %s"></div>`,
 				deadlinePct, FormatDuration(deadline))
 		}
 	}
 
-	fmt.Fprint(w, `</div>
+	hw.write(`</div>
 <div class="histogram-stats">`)
 
-	fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Total </span><span class="stat-value">%d</span></span>`, h.Total)
-	fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Avg </span><span class="stat-value">%s</span></span>`, FormatDuration(h.Avg()))
-	if h.Total > 0 {
-		fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Min </span><span class="stat-value">%s</span></span>`, FormatDuration(h.Min))
-		fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%s</span></span>`, FormatDuration(h.Max))
+	hw.writef(`<span class="stat"><span class="stat-label">Total </span><span class="stat-value">%d</span></span>`, ch.Total)
+	hw.writef(`<span class="stat"><span class="stat-label">Avg </span><span class="stat-value">%s</span></span>`, FormatDuration(ch.Avg()))
+	if ch.Total > 0 {
+		hw.writef(`<span class="stat"><span class="stat-label">Min </span><span class="stat-value">%s</span></span>`, FormatDuration(ch.Min))
+		hw.writef(`<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%s</span></span>`, FormatDuration(ch.Max))
 	}
-	if h.SlowCount > 0 {
-		fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Slow (&gt;1s) </span><span class="stat-value" style="color:var(--red)">%d</span></span>`, h.SlowCount)
+	if ch.SlowCount > 0 {
+		hw.writef(`<span class="stat"><span class="stat-label">Slow (&gt;1s) </span><span class="stat-value" style="color:var(--red)">%d</span></span>`, ch.SlowCount)
 	}
 
-	fmt.Fprint(w, `</div></div>`)
+	hw.write(`</div></div>`)
 }
 
 // writePeerTimeline renders horizontal bars showing per-peer state over time.
 // Paginated at 30 peers per page.
 func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
+	h := &htmlWriter{w: w}
 	const peersPerPage = 30
 	elapsed := time.Since(s.StartTime)
 	if elapsed == 0 {
@@ -226,22 +229,22 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
 	startIdx := (page - 1) * peersPerPage
 	endIdx := min(startIdx+peersPerPage, totalPeers)
 
-	fmt.Fprint(w, `<div class="viz-panel">
+	h.write(`<div class="viz-panel">
 <div class="viz-header">
   <h3>Peer State Timeline</h3>
   <div class="filters">`)
 
 	if totalPages > 1 {
-		fmt.Fprintf(w, `<span class="stat-label">Page %d/%d</span>`, page, totalPages)
+		h.writef(`<span class="stat-label">Page %d/%d</span>`, page, totalPages)
 		if page > 1 {
-			fmt.Fprintf(w, ` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Prev</span>`, page-1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Prev</span>`, page-1)
 		}
 		if page < totalPages {
-			fmt.Fprintf(w, ` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Next</span>`, page+1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Next</span>`, page+1)
 		}
 	}
 
-	fmt.Fprintf(w, `
+	h.writef(`
   </div>
 </div>
 <div class="timeline-container" style="--timeline-duration:%d">`, int(elapsed.Seconds()))
@@ -251,7 +254,7 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
 		writeTimelineRow(w, s, idx, elapsed)
 	}
 
-	fmt.Fprint(w, `</div></div>`)
+	h.write(`</div></div>`)
 }
 
 // writeTimelineRow renders a single peer's timeline bar.
@@ -261,13 +264,14 @@ func writeTimelineRow(w io.Writer, s *DashboardState, idx int, elapsed time.Dura
 		return
 	}
 
-	fmt.Fprintf(w, `<div class="timeline-row"><span class="timeline-label">p%d</span><div class="timeline-bar">`, idx)
+	h := &htmlWriter{w: w}
+	h.writef(`<div class="timeline-row"><span class="timeline-label">p%d</span><div class="timeline-bar">`, idx)
 
 	transitions := s.PeerTransitions[idx]
 	if len(transitions) == 0 {
 		// No transitions — show current status for the full bar.
 		color := statusColor(ps.Status)
-		fmt.Fprintf(w, `<div class="timeline-segment" style="left:0%%;width:100%%;background:%s" title="%s"></div>`, color, ps.Status.String())
+		h.writef(`<div class="timeline-segment" style="left:0%%;width:100%%;background:%s" title="%s"></div>`, color, ps.Status.String())
 	} else {
 		// Render segments between transitions.
 		for i, tr := range transitions {
@@ -280,22 +284,23 @@ func writeTimelineRow(w io.Writer, s *DashboardState, idx int, elapsed time.Dura
 			}
 			width := max(endPct-startPct, 1)
 			color := statusColor(tr.Status)
-			fmt.Fprintf(w, `<div class="timeline-segment" style="left:%d%%;width:%d%%;background:%s" title="%s at %s"></div>`,
+			h.writef(`<div class="timeline-segment" style="left:%d%%;width:%d%%;background:%s" title="%s at %s"></div>`,
 				startPct, width, color, tr.Status.String(), FormatDuration(tr.Time.Sub(s.StartTime)))
 		}
 	}
 
-	fmt.Fprint(w, `</div></div>`)
+	h.write(`</div></div>`)
 }
 
 // writeChaosTimeline renders horizontal timeline with chaos event markers.
 func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
+	h := &htmlWriter{w: w}
 	elapsed := time.Since(s.StartTime)
 	if elapsed == 0 {
 		elapsed = time.Second
 	}
 
-	fmt.Fprint(w, `<div class="viz-panel">
+	h.write(`<div class="viz-panel">
 <h3>Chaos Timeline</h3>
 <div class="chaos-timeline">
 <div class="chaos-timeline-track" style="position:relative">`)
@@ -304,7 +309,7 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 	if warmup > 0 {
 		warmupPct := pctOfDuration(warmup, elapsed)
 		if warmupPct > 0 {
-			fmt.Fprintf(w, `<div class="warmup-region" style="width:%d%%" title="Warmup: %s"></div>`,
+			h.writef(`<div class="warmup-region" style="width:%d%%" title="Warmup: %s"></div>`,
 				warmupPct, FormatDuration(warmup))
 		}
 	}
@@ -338,18 +343,18 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 		if !ok {
 			color = "#8b949e"
 		}
-		fmt.Fprintf(w, `<div class="chaos-marker" style="left:%d%%;background:%s" title="p%d: %s at %s" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML"></div>`,
+		h.writef(`<div class="chaos-marker" style="left:%d%%;background:%s" title="p%d: %s at %s" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML"></div>`,
 			leftPct, color, entry.PeerIndex, escapeAttr(entry.Action), FormatDuration(entry.Time.Sub(s.StartTime)), entry.PeerIndex)
 	}
 
-	fmt.Fprint(w, `</div></div>
+	h.write(`</div></div>
 <div class="chaos-legend">`)
 
 	for _, ac := range actionColors {
-		fmt.Fprintf(w, `<span class="legend-item"><span class="legend-swatch" style="background:%s"></span>%s</span>`, ac.color, ac.name)
+		h.writef(`<span class="legend-item"><span class="legend-swatch" style="background:%s"></span>%s</span>`, ac.color, ac.name)
 	}
 
-	fmt.Fprintf(w, `</div>
+	h.writef(`</div>
 <div class="histogram-stats">
   <span class="stat"><span class="stat-label">Total actions </span><span class="stat-value">%d</span></span>
   <span class="stat"><span class="stat-label">Duration </span><span class="stat-value">%s</span></span>
@@ -424,7 +429,8 @@ func (d *Dashboard) handleVizRouteMatrixCell(w http.ResponseWriter, r *http.Requ
 	avg := d.state.RouteMatrix.AvgLatency(src, dst)
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, `<div class="cell-detail" id="cell-detail">
+	h := &htmlWriter{w: w}
+	h.writef(`<div class="cell-detail" id="cell-detail">
 <h4>p%d → p%d</h4>
 <div class="detail-grid">
   <div class="detail-item"><span class="label">Routes: </span><span class="value">%d</span></div>
@@ -480,6 +486,7 @@ type routeMatrixOpts struct {
 
 // writeRouteMatrix renders the N×N heatmap grid for route flow.
 func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
+	h := &htmlWriter{w: w}
 	peers := opts.customPeers
 	if len(peers) == 0 {
 		peers = m.TopNPeers(opts.topN)
@@ -487,7 +494,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 
 	latencyMode := opts.mode == "latency"
 
-	fmt.Fprint(w, `<div class="viz-panel">
+	h.write(`<div class="viz-panel">
 <div class="viz-header">
   <h3>Route Flow Matrix</h3>
   <div class="filters">
@@ -496,28 +503,28 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
             name="top" hx-include="[name='mode'],[name='family'],[name='peers']">`)
 
 	for _, n := range []int{10, 20, 30, 50} {
-		fmt.Fprintf(w, `<option value="%d"%s>%d</option>`, n, selAttr(n == opts.topN), n)
+		h.writef(`<option value="%d"%s>%d</option>`, n, selAttr(n == opts.topN), n)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
     </select>
     <label>Mode:</label>
     <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
             name="mode" hx-include="[name='top'],[name='family'],[name='peers']">`)
-	fmt.Fprintf(w, `<option value=""%s>Count</option>`, selAttr(!latencyMode))
-	fmt.Fprintf(w, `<option value="latency"%s>Latency</option>`, selAttr(latencyMode))
+	h.writef(`<option value=""%s>Count</option>`, selAttr(!latencyMode))
+	h.writef(`<option value="latency"%s>Latency</option>`, selAttr(latencyMode))
 
-	fmt.Fprint(w, `
+	h.write(`
     </select>
     <label>Family:</label>
     <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
             name="family" hx-include="[name='top'],[name='mode'],[name='peers']">
       <option value="">All</option>`)
 	for _, fam := range m.Families() {
-		fmt.Fprintf(w, `<option value="%s"%s>%s</option>`, escapeAttr(fam), selAttr(fam == opts.family), fam)
+		h.writef(`<option value="%s"%s>%s</option>`, escapeAttr(fam), selAttr(fam == opts.family), fam)
 	}
 
-	fmt.Fprint(w, `
+	h.write(`
     </select>
     <label>Peers:</label>
     <input type="text" name="peers" placeholder="e.g. 0,1,3" class="control-input"
@@ -527,17 +534,17 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	if len(opts.customPeers) > 0 {
 		for i, p := range opts.customPeers {
 			if i > 0 {
-				fmt.Fprint(w, ",")
+				h.write(",")
 			}
-			fmt.Fprintf(w, "%d", p)
+			h.writef("%d", p)
 		}
 	}
-	fmt.Fprint(w, `">
+	h.write(`">
   </div>
 </div>`)
 
 	if len(peers) == 0 {
-		fmt.Fprint(w, `<div class="stat-label" style="padding:16px">No route flow data yet.</div></div>`)
+		h.write(`<div class="stat-label" style="padding:16px">No route flow data yet.</div></div>`)
 		return
 	}
 
@@ -563,17 +570,17 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 
 	// Build the heatmap grid.
 	cols := len(peers) + 1 // +1 for row header column
-	fmt.Fprintf(w, `<div class="heatmap-grid" style="grid-template-columns:40px repeat(%d, 1fr)">`, cols-1)
+	h.writef(`<div class="heatmap-grid" style="grid-template-columns:40px repeat(%d, 1fr)">`, cols-1)
 
 	// Header row: empty corner + column headers (destinations).
-	fmt.Fprint(w, `<div class="heatmap-corner"></div>`)
+	h.write(`<div class="heatmap-corner"></div>`)
 	for _, dst := range peers {
-		fmt.Fprintf(w, `<div class="heatmap-col-header">p%d</div>`, dst)
+		h.writef(`<div class="heatmap-col-header">p%d</div>`, dst)
 	}
 
 	// Data rows: row header (source) + cells.
 	for _, src := range peers {
-		fmt.Fprintf(w, `<div class="heatmap-row-header">p%d</div>`, src)
+		h.writef(`<div class="heatmap-row-header">p%d</div>`, src)
 		for _, dst := range peers {
 			if latencyMode {
 				writeLatencyCell(w, m, src, dst, maxLatency)
@@ -583,28 +590,29 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 		}
 	}
 
-	fmt.Fprint(w, `</div>`)
+	h.write(`</div>`)
 
 	// Cell detail target.
-	fmt.Fprint(w, `<div id="cell-detail"></div>`)
+	h.write(`<div id="cell-detail"></div>`)
 
 	// Stats footer.
-	fmt.Fprintf(w, `<div class="histogram-stats">
+	h.writef(`<div class="histogram-stats">
   <span class="stat"><span class="stat-label">Cells </span><span class="stat-value">%d</span></span>`,
 		m.Len())
 	if latencyMode {
-		fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Max Avg Latency </span><span class="stat-value">%s</span></span>`,
+		h.writef(`<span class="stat"><span class="stat-label">Max Avg Latency </span><span class="stat-value">%s</span></span>`,
 			FormatDuration(maxLatency))
 	} else {
-		fmt.Fprintf(w, `<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%d</span></span>`, maxVal)
+		h.writef(`<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%d</span></span>`, maxVal)
 	}
-	fmt.Fprintf(w, `
+	h.writef(`
   <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">%d</span></span>
 </div></div>`, len(peers))
 }
 
 // writeCountCell renders a single heatmap cell in count mode.
 func writeCountCell(w io.Writer, m *RouteMatrix, src, dst, maxVal int, family string) {
+	h := &htmlWriter{w: w}
 	count := m.GetByFamily(src, dst, family)
 	intensity := 0
 	if maxVal > 0 && count > 0 {
@@ -615,15 +623,16 @@ func writeCountCell(w io.Writer, m *RouteMatrix, src, dst, maxVal int, family st
 		style = fmt.Sprintf(` style="background:rgba(88,166,255,%.2f)"`, float64(intensity)/100.0)
 	}
 	title := fmt.Sprintf("p%d→p%d: %d routes", src, dst, count)
-	fmt.Fprintf(w, `<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)
+	h.writef(`<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)
 	if count > 0 {
-		fmt.Fprintf(w, `%d`, count)
+		h.writef(`%d`, count)
 	}
-	fmt.Fprint(w, `</div>`)
+	h.write(`</div>`)
 }
 
 // writeLatencyCell renders a single heatmap cell in latency mode.
 func writeLatencyCell(w io.Writer, m *RouteMatrix, src, dst int, maxLatency time.Duration) {
+	h := &htmlWriter{w: w}
 	avg := m.AvgLatency(src, dst)
 	intensity := 0
 	if maxLatency > 0 && avg > 0 {
@@ -635,11 +644,11 @@ func writeLatencyCell(w io.Writer, m *RouteMatrix, src, dst int, maxLatency time
 		style = fmt.Sprintf(` style="background:rgba(219,109,40,%.2f)"`, float64(intensity)/100.0)
 	}
 	title := fmt.Sprintf("p%d→p%d: avg %s", src, dst, FormatDuration(avg))
-	fmt.Fprintf(w, `<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)
+	h.writef(`<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)
 	if avg > 0 {
-		fmt.Fprint(w, FormatDuration(avg))
+		h.write(FormatDuration(avg))
 	}
-	fmt.Fprint(w, `</div>`)
+	h.write(`</div>`)
 }
 
 // selAttr returns ` selected` if cond is true, empty string otherwise.

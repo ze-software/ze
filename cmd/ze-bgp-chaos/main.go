@@ -1064,12 +1064,29 @@ func runDiff(path1, path2 string) int {
 // checkPortFree verifies that nothing is listening on addr.
 // Called before starting Ze to fail fast on port conflicts.
 func checkPortFree(addr string) error {
-	conn, err := net.DialTimeout("tcp", addr, 500*time.Millisecond)
-	if err != nil {
-		return nil // connection refused = port is free
+	dialer := net.Dialer{Timeout: 500 * time.Millisecond}
+	conn, err := dialer.DialContext(context.Background(), "tcp", addr)
+	if err == nil {
+		// Port is in use — connection succeeded.
+		if closeErr := conn.Close(); closeErr != nil {
+			return fmt.Errorf("port %s in use (close: %w)", addr, closeErr)
+		}
+		return fmt.Errorf("port %s is already in use — stop the existing process first", addr)
 	}
-	conn.Close() //nolint:errcheck // best-effort close on probe connection
-	return fmt.Errorf("port %s is already in use — stop the existing process first", addr)
+
+	// Connection refused or timeout means nothing is listening — port is free.
+	// Other errors (permission denied, network unreachable) should propagate.
+	var opErr *net.OpError
+	if errors.As(err, &opErr) {
+		if errors.Is(opErr.Err, syscall.ECONNREFUSED) {
+			return nil
+		}
+		if opErr.Timeout() {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("checking port %s: %w", addr, err)
 }
 
 // waitForZe waits for Ze to start listening on addr.
@@ -1088,9 +1105,12 @@ func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 			return ctx.Err()
 		}
 
-		conn, err := net.DialTimeout("tcp", addr, 1*time.Second)
+		dialer := net.Dialer{Timeout: time.Second}
+		conn, err := dialer.DialContext(ctx, "tcp", addr)
 		if err == nil {
-			conn.Close() //nolint:errcheck // best-effort close on probe connection
+			if closeErr := conn.Close(); closeErr != nil {
+				return fmt.Errorf("probe close: %w", closeErr)
+			}
 			return nil
 		}
 		lastErr = err
@@ -1104,5 +1124,5 @@ func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 		}
 	}
 
-	return fmt.Errorf("Ze did not start within timeout on %s: %w", addr, lastErr)
+	return fmt.Errorf("ze did not start within timeout on %s: %w", addr, lastErr)
 }

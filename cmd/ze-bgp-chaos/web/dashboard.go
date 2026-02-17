@@ -125,11 +125,15 @@ func New(cfg Config) (*Dashboard, error) {
 	}
 
 	if ownServer {
-		ln, err := net.Listen("tcp", cfg.Addr)
+		lc := net.ListenConfig{}
+		ln, err := lc.Listen(context.Background(), "tcp", cfg.Addr)
 		if err != nil {
 			return nil, err
 		}
-		d.server = &http.Server{Handler: mux}
+		d.server = &http.Server{
+			Handler:           mux,
+			ReadHeaderTimeout: 10 * time.Second,
+		}
 		go func() {
 			if err := d.server.Serve(ln); err != nil && err != http.ErrServerClosed {
 				cfg.Logger.Error("http server error", "error", err)

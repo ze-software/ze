@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -184,11 +185,19 @@ func TestSSEServeHTTP(t *testing.T) {
 	// Send an event before connecting (should not matter).
 	broker.Broadcast(SSEEvent{Event: "early", Data: "skip"})
 
-	resp, err := http.Get(ts.URL)
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, nil)
+	if reqErr != nil {
+		t.Fatalf("new request: %v", reqErr)
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET failed: %v", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			t.Log("close response body:", closeErr)
+		}
+	}()
 
 	if ct := resp.Header.Get("Content-Type"); ct != "text/event-stream" {
 		t.Fatalf("Content-Type = %q, want text/event-stream", ct)
