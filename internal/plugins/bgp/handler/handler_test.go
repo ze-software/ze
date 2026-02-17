@@ -17,8 +17,8 @@ import (
 func TestBgpHandlerRPCs(t *testing.T) {
 	rpcs := BgpHandlerRPCs()
 
-	// 5 peer ops + 8 introspection + 1 cache + 1 commit + 1 raw + 2 refresh + 1 update + 2 watchdog = 21
-	assert.Len(t, rpcs, 21, "expected 21 BGP handler RPCs")
+	// 5 peer ops + 8 introspection + 1 cache + 1 commit + 1 raw + 3 refresh + 1 update + 2 watchdog = 22
+	assert.Len(t, rpcs, 22, "expected 22 BGP handler RPCs")
 
 	// Verify all have required fields
 	wireMethodsSeen := make(map[string]bool)
@@ -98,6 +98,20 @@ func TestHandlerRawMissingPeer(t *testing.T) {
 	resp, err := handleRaw(ctx, []string{"update", "hex", "DEADBEEF"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
+// TestHandlerRefresh verifies handleRefresh sends ROUTE-REFRESH.
+//
+// VALIDATES: Refresh handler parses family and calls reactor.SendRefresh.
+// PREVENTS: Route refresh requests not reaching reactor (RFC 2918).
+func TestHandlerRefresh(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleRefresh(ctx, []string{"ipv4/unicast"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.True(t, reactor.sendRefreshCalled)
 }
 
 // TestHandlerBoRR verifies handleBoRR sends BoRR marker.

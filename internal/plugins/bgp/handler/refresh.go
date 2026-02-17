@@ -10,9 +10,21 @@ import (
 // RefreshRPCs returns RPC registrations for route refresh handlers.
 func RefreshRPCs() []plugin.RPCRegistration {
 	return []plugin.RPCRegistration{
+		{WireMethod: "ze-bgp:peer-refresh", CLICommand: "bgp peer refresh", Handler: handleRefresh, Help: "Send ROUTE-REFRESH to peer (RFC 2918)"},
 		{WireMethod: "ze-bgp:peer-borr", CLICommand: "bgp peer borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh"},
 		{WireMethod: "ze-bgp:peer-eorr", CLICommand: "bgp peer eorr", Handler: handleEoRR, Help: "Send End of Route Refresh"},
 	}
+}
+
+// handleRefresh sends a normal ROUTE-REFRESH message.
+// RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
+// its peer only if it has received the Route Refresh Capability from its peer.".
+func handleRefresh(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+	r, errResp, err := requireBGPReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	return handleRefreshMarker(ctx, args, "refresh", r.SendRefresh)
 }
 
 // handleBoRR sends a Beginning of Route Refresh marker.

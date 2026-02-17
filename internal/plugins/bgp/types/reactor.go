@@ -88,6 +88,10 @@ type BGPReactor interface {
 	// RFC 7313 Section 4.
 	SendEoRR(peerSelector string, afi uint16, safi uint8) error
 
+	// SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
+	// RFC 2918 Section 3.
+	SendRefresh(peerSelector string, afi uint16, safi uint8) error
+
 	// SendRawMessage sends raw bytes to a peer.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
 

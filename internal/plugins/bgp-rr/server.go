@@ -201,19 +201,20 @@ func nlriToPrefix(n any) string {
 }
 
 // forwardUpdate sends UPDATE to peers that support the given families.
+//
+// Uses a single cache-forward command with a comma-separated peer selector.
+// ForwardUpdate in the reactor uses Take() which removes the cache entry after
+// forwarding — it is a one-shot pipeline, not a persistent store. Calling it
+// per-peer would fail: the first forward consumes the entry, subsequent calls
+// get ErrUpdateExpired. A single multi-peer selector ensures all compatible
+// peers receive the UPDATE in one atomic operation.
 func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families map[string]bool) {
 	rs.mu.RLock()
-	defer rs.mu.RUnlock()
-
+	var targets []string
 	for addr, peer := range rs.peers {
-		if addr == sourcePeer {
-			continue // Don't send back to source
+		if addr == sourcePeer || !peer.Up {
+			continue
 		}
-		if !peer.Up {
-			continue // Skip down peers
-		}
-
-		// Check if peer supports all families in this UPDATE
 		if peer.Families != nil {
 			compatible := true
 			for family := range families {
@@ -226,9 +227,16 @@ func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families m
 				continue
 			}
 		}
-
-		rs.updateRoute(addr, fmt.Sprintf("cache %d forward", msgID))
+		targets = append(targets, addr)
 	}
+	rs.mu.RUnlock()
+
+	if len(targets) == 0 {
+		return
+	}
+
+	sel := strings.Join(targets, ",")
+	rs.updateRoute("*", fmt.Sprintf("bgp cache %d forward %s", msgID, sel))
 }
 
 // handleState processes peer state changes.
@@ -266,22 +274,66 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 }
 
 // handleStateUp processes peer session establishment.
+//
+// Requests route re-advertisement from established peers via ROUTE-REFRESH
+// (RFC 2918) so the newly-up peer receives existing routes. We cannot use
+// cache-forward for replay because ForwardUpdate's Take() is destructive —
+// cache entries from prior forwards are already consumed. ROUTE-REFRESH
+// asks source peers to re-send their Adj-RIB-Out; the resulting UPDATEs
+// flow through handleUpdate → forwardUpdate and reach all connected peers
+// including the new one. Duplicate announcements to already-connected peers
+// are idempotent in BGP.
 func (rs *RouteServer) handleStateUp(peerAddr string) {
 	rs.mu.RLock()
 	peer := rs.peers[peerAddr]
-	rs.mu.RUnlock()
 
-	allPeers := rs.rib.GetAllPeers()
+	// Determine families the new peer supports.
+	// If Families is nil (no OPEN received yet), fall back to families
+	// present in the RIB so we don't skip the refresh entirely.
+	var families []string
+	if peer != nil && peer.Families != nil {
+		for family := range peer.Families {
+			families = append(families, family)
+		}
+	}
 
-	for sourcePeer, routes := range allPeers {
-		if sourcePeer == peerAddr {
+	// Collect established peers that support route-refresh.
+	var refreshPeers []string
+	for addr, other := range rs.peers {
+		if addr == peerAddr || !other.Up {
 			continue
 		}
-		for _, route := range routes {
-			if peer != nil && peer.Families != nil && !peer.SupportsFamily(route.Family) {
+		if !other.HasCapability("route-refresh") {
+			continue
+		}
+		refreshPeers = append(refreshPeers, addr)
+	}
+	rs.mu.RUnlock()
+
+	// If no explicit families from OPEN, derive from RIB contents.
+	if len(families) == 0 {
+		familySet := make(map[string]bool)
+		for sourcePeer, routes := range rs.rib.GetAllPeers() {
+			if sourcePeer == peerAddr {
 				continue
 			}
-			rs.updateRoute(peerAddr, fmt.Sprintf("cache %d forward", route.MsgID))
+			for _, route := range routes {
+				familySet[route.Family] = true
+			}
+		}
+		for f := range familySet {
+			families = append(families, f)
+		}
+	}
+
+	if len(families) == 0 || len(refreshPeers) == 0 {
+		return
+	}
+
+	// Request route re-advertisement from each established peer.
+	for _, addr := range refreshPeers {
+		for _, family := range families {
+			rs.updateRoute(addr, "refresh "+family)
 		}
 	}
 }
@@ -320,6 +372,10 @@ func (rs *RouteServer) handleOpen(event *Event) {
 
 // handleRefresh processes route refresh requests.
 // ze-bgp JSON: AFI/SAFI nested under refresh object.
+//
+// Collects eligible peers under the lock, then sends refresh commands after
+// releasing — updateRoute does an SDK RPC with a 10 s timeout, so holding
+// the lock during network I/O would block all state updates.
 func (rs *RouteServer) handleRefresh(event *Event) {
 	peerAddr := event.PeerAddr
 	family := event.AFI + "/" + event.SAFI
@@ -329,8 +385,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	}
 
 	rs.mu.RLock()
-	defer rs.mu.RUnlock()
-
+	var targets []string
 	for addr, peer := range rs.peers {
 		if addr == peerAddr {
 			continue
@@ -344,7 +399,11 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 		if peer.Families != nil && !peer.SupportsFamily(family) {
 			continue
 		}
+		targets = append(targets, addr)
+	}
+	rs.mu.RUnlock()
 
+	for _, addr := range targets {
 		rs.updateRoute(addr, "refresh "+family)
 	}
 }

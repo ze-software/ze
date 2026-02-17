@@ -44,7 +44,7 @@ bin/ze-bgp-chaos: $(shell find cmd/ze-bgp-chaos internal -name '*.go' 2>/dev/nul
 # Run ze linter (excludes chaos packages)
 ze-lint:
 	@echo "Running ze linter..."
-	@golangci-lint run --exclude-dirs cmd/ze-bgp-chaos
+	@golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./research/... ./test/...
 
 # Run ze unit tests with race detector (excludes chaos packages)
 ze-unit-test:

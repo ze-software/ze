@@ -2435,6 +2435,13 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	return a.sendToMatchingPeers(peerSelector, update)
 }
 
+// SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
+// RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
+// its peer only if it has received the Route Refresh Capability from its peer.".
+func (a *reactorAPIAdapter) SendRefresh(peerSelector string, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshNormal)
+}
+
 // SendBoRR sends a Beginning of Route Refresh marker to matching peers.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".

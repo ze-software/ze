@@ -23,8 +23,9 @@ type mockReactor struct {
 		payload []byte
 	}
 
-	sendBoRRCalled bool
-	sendEoRRCalled bool
+	sendRefreshCalled bool
+	sendBoRRCalled    bool
+	sendEoRRCalled    bool
 
 	// Peer operations tracking
 	teardownCalls []struct {
@@ -191,6 +192,11 @@ func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []b
 		msgType uint8
 		payload []byte
 	}{addr, msgType, payload})
+	return nil
+}
+
+func (m *mockReactor) SendRefresh(_ string, _ uint16, _ uint8) error {
+	m.sendRefreshCalled = true
 	return nil
 }
 
