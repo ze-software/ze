@@ -456,14 +456,14 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Goal Gates (MUST pass — cannot defer)
 - [ ] Acceptance criteria AC-1..AC-34 all demonstrated
-- [ ] Tests pass (`make unit-test`)
-- [ ] No regressions (`make functional-test`)
+- [ ] Tests pass (`make ze-unit-test`)
+- [ ] No regressions (`make ze-functional-test`)
 - [ ] Feature code integrated into codebase (`cmd/ze-bgp-chaos/web/`)
 - [ ] Integration completeness: dashboard proven to work from `--web` flag through to live browser view
 - [ ] Architecture docs updated with learnings and changes
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
-- [ ] `make lint` passes (26 linters)
+- [ ] `make ze-lint` passes (26 linters)
 - [ ] Implementation Audit fully completed
 - [ ] Mistake Log escalation candidates reviewed
 

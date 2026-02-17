@@ -226,9 +226,10 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 
 ### Goal Gates
 - [ ] AC-1..AC-12 demonstrated
-- [ ] `make unit-test` passes
-- [ ] `make functional-test` passes
-- [ ] `make lint` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] `make ze-lint` passes
+
 - [ ] Existing chaos tests still pass (no regressions)
 
 ### TDD

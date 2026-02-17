@@ -212,7 +212,7 @@ None - audit task.
 - [x] Functional tests (N/A - audit)
 
 ### Verification
-- [ ] `make lint` passes (N/A - doc changes only)
+- [ ] `make ze-lint` passes (N/A - doc changes only)
 - [ ] `make test` passes (N/A - doc changes only)
 - [ ] `make functional` passes (N/A - doc changes only)
 

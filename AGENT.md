@@ -82,14 +82,17 @@ All rules are in `.claude/rules/`. Read the ones relevant to your task.
 ## Commands
 
 ```bash
-make unit-test         # Unit tests with race detector
-make lint              # 26 linters via golangci-lint
-make functional-test   # Functional tests (encode, plugin, decode, parse, reload, editor)
-make exabgp-test       # ExaBGP compatibility tests
-make fuzz-test         # Fuzz tests (10s per target)
-make chaos-test        # In-process BGP chaos simulation
-make verify            # lint + unit-test + functional-test
-make test-all          # lint + unit-test + functional-test + exabgp-test
+make ze-unit-test         # Ze unit tests with race detector (excludes chaos)
+make ze-functional-test   # Ze functional tests (encode, plugin, decode, parse, reload, editor)
+make ze-exabgp-test       # ExaBGP compatibility tests
+make ze-fuzz-test         # Fuzz tests (10s per target)
+make chaos-unit-test      # Chaos unit tests with race detector
+make chaos-functional-test # In-process BGP chaos simulation
+make ze-test              # All ze tests (unit + functional + exabgp + fuzz)
+make chaos-test           # All chaos tests (unit + functional)
+make lint                 # 26 linters via golangci-lint
+make verify               # lint + ze-unit-test + ze-functional-test
+make test-all             # lint + ze-test
 ```
 
 ## Key Architecture

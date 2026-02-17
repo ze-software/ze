@@ -205,9 +205,9 @@ Each tab is lazily loaded via HTMX GET on first click, and updated via SSE for l
 
 ### Goal Gates
 - [ ] AC-1..AC-14 demonstrated
-- [ ] `make unit-test` passes
-- [ ] `make functional-test` passes
-- [ ] `make lint` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] `make ze-lint` passes
 - [ ] All 4 tabs render correctly in browser
 
 ### TDD

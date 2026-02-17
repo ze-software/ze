@@ -19,5 +19,5 @@ Create a commit with explicit scope verification.
 
 - Never include spec files unless the user explicitly asks
 - Never include documentation changes unless they're part of the task
-- If `make lint` hasn't been run this session, run it before committing
+- If `make ze-lint` hasn't been run this session, run it before committing
 - If in doubt about scope, ask. The cost of asking is low; the cost of a bad commit is high.

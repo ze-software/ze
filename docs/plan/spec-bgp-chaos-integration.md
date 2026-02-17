@@ -258,7 +258,7 @@ expect=exit:code=0
 9. **Run smoke tests** — `make functional-chaos`
    → Verify: All three pass against real Ze
 
-10. **Verify** — `make lint && make test && make functional-chaos`
+10. **Verify** — `make ze-lint && make test && make functional-chaos`
 
 ## Managed Mode Design
 
@@ -385,7 +385,7 @@ expect=exit:code=0
 - [ ] `make functional-chaos` passes
 
 ### Quality Gates (SHOULD pass)
-- [ ] `make lint` passes
+- [ ] `make ze-lint` passes
 - [ ] Master design doc updated (Spec Propagation Task)
 - [ ] Implementation Audit completed
 

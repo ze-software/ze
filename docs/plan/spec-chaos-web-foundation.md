@@ -265,9 +265,9 @@ This is **Phase 1** of the chaos web dashboard. It delivers a fully functional v
 
 ### Goal Gates
 - [ ] AC-1..AC-15, AC-21, AC-23..AC-25 demonstrated
-- [ ] `make unit-test` passes
-- [ ] `make functional-test` passes
-- [ ] `make lint` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] `make ze-lint` passes
 - [ ] Dashboard loads in browser with live SSE updates
 
 ### TDD

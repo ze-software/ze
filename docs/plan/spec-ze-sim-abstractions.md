@@ -132,7 +132,7 @@ Replace all direct `time.*` and `net.*` calls in Ze's reactor and FSM code with 
 |-------|-------------------|-------------------|
 | AC-1 | Default reactor (no injection) | Behaves identically to current code |
 | AC-2 | All existing tests | Pass without modification |
-| AC-3 | `make verify` | All tests + lint + functional pass |
+| AC-3 | `make ze-verify` | All tests + lint + functional pass |
 | AC-4 | Injected mock clock with `Now()` returning fixed time | `recent_cache` uses that fixed time for TTL |
 | AC-5 | Injected mock clock with controllable `AfterFunc` | FSM hold timer fires when mock advances past hold-time |
 | AC-6 | Injected mock dialer | Session uses mock dialer instead of real TCP |
@@ -354,7 +354,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 12. **Write audit test** — grep for leaked direct calls
     → Run: Tests PASS (no direct time/net calls remain)
 
-13. **Run full verification** — `make verify`
+13. **Run full verification** — `make ze-verify`
     → Paste output
 
 ## Mistake Log
@@ -441,14 +441,14 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Reactor injection (3+1 calls) | ✅ Done | `internal/plugins/bgp/reactor/reactor.go` | clock + dialer + listenerFactory, 3×Now + 1×NewTimer + wiring |
 | Audit: no direct time calls | ✅ Done | `internal/sim/audit_test.go:15` | TestNoDirectTimeCalls |
 | Audit: no direct net calls | ✅ Done | `internal/sim/audit_test.go:65` | TestNoDirectNetCalls |
-| All existing tests pass | ✅ Done | `make verify` output | 0 lint issues, all tests pass, 245 functional tests pass |
+| All existing tests pass | ✅ Done | `make ze-verify` output | 0 lint issues, all tests pass, 245 functional tests pass |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | ✅ Done | `make verify` — all tests pass with default (real) implementations | |
-| AC-2 | ✅ Done | `make verify` — no existing test modified | |
-| AC-3 | ✅ Done | `make verify` output: 0 lint, all tests pass, 245 functional pass | |
+| AC-1 | ✅ Done | `make ze-verify` — all tests pass with default (real) implementations | |
+| AC-2 | ✅ Done | `make ze-verify` — no existing test modified | |
+| AC-3 | ✅ Done | `make ze-verify` output: 0 lint, all tests pass, 245 functional pass | |
 | AC-4 | ✅ Done | `TestRecentCacheWithFakeClock` in `reactor/recent_cache_test.go` | FakeClock injected, TTL controlled by fake time |
 | AC-5 | ⚠️ Deferred | FakeDialer exists; Session integration deferred to chaos Phase 9 | Session has many deps |
 | AC-6 | ⚠️ Deferred | FakeListenerFactory exists; Listener integration deferred to chaos Phase 9 | |
@@ -483,7 +483,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | TestRealDialerWithLocalAddr | ✅ Done | `sim/network_test.go:53` | Additional: not in plan |
 | TestDialerInterfaceSatisfied | ✅ Done | `sim/network_test.go:120` | Additional: not in plan |
 | TestListenerFactoryInterfaceSatisfied | ✅ Done | `sim/network_test.go:128` | Additional: not in plan |
-| All existing functional tests | ✅ Done | `make verify` — 245 pass | |
+| All existing functional tests | ✅ Done | `make ze-verify` — 245 pass | |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -521,7 +521,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [x] Integration completeness: FakeClock injected into RecentUpdateCache proves bridge works (see `rules/integration-completeness.md`)
 
 ### Quality Gates (SHOULD pass)
-- [x] `make lint` passes (0 issues)
+- [x] `make ze-lint` passes (0 issues)
 - [ ] Architecture docs updated (deferred — will add when chaos Phase 9 uses injection)
 - [x] Implementation Audit completed
 

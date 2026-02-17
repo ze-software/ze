@@ -289,12 +289,12 @@ process announce-routes {
 
 ### Unit Tests
 ```bash
-make unit-test                # All unit tests
+make ze-unit-test             # Ze unit tests
 ```
 
 ### Functional Tests
 ```bash
-make functional-test          # All functional tests
+make ze-functional-test       # All functional tests
 ze-test bgp encode --list     # List encoding tests
 ze-test bgp encode 0 1 2      # Run specific tests
 ```

@@ -102,11 +102,11 @@ ze config migrate exabgp.conf > ze.conf
 
 ### Testing
 
-- **3700+ test functions** with race detector (`make unit-test`)
-- **26 linters** via golangci-lint (`make lint`)
-- **Functional tests** — encoding, decoding, plugin communication, config parsing, dynamic reload (`make functional-test`)
-- **ExaBGP compatibility tests** — wire format validation against ExaBGP 5.0 (`make exabgp-test`)
-- **Fuzz testing** — message parsing, attribute handling, NLRI decoding, config tokenisation (`make fuzz-test`)
+- **3700+ test functions** with race detector (`make ze-unit-test`)
+- **26 linters** via golangci-lint (`make ze-lint`)
+- **Functional tests** — encoding, decoding, plugin communication, config parsing, dynamic reload (`make ze-functional-test`)
+- **ExaBGP compatibility tests** — wire format validation against ExaBGP 5.0 (`make ze-exabgp-test`)
+- **Fuzz testing** — message parsing, attribute handling, NLRI decoding, config tokenisation (`make ze-fuzz-test`)
 - **Chaos testing** — in-process BGP simulation (`make chaos-test`)
 
 ### ze-test — Functional Test Runner

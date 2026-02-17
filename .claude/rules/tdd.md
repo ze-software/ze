@@ -248,9 +248,9 @@ func TestPoolWithIdx(t *testing.T) {
 
 ```bash
 go test -race ./internal/bgp/message/... -v   # Single package
-make unit-test                                 # Unit tests
-make fuzz-test                                 # Fuzz tests
-go test -fuzz=FuzzParseNLRI -fuzztime=30s ./internal/bgp/nlri/...  # Single fuzz target
+make ze-unit-test                              # Ze unit tests
+make ze-fuzz-test                              # All fuzz tests (10s each)
+make ze-fuzz-one FUZZ=FuzzParseNLRIs TIME=30s  # Single fuzz target
 ```
 
 ## Investigation → Test Rule

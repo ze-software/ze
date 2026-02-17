@@ -102,7 +102,7 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 3. **Update rr plugin** - Use ForZeroCopy() view
 4. **Update API output** - Use ForAPI() view
 5. **Remove duplicates** - If safe
-6. **Run tests** - `make test && make lint && make functional`
+6. **Run tests** - `make test && make ze-lint && make functional`
 
 ## Design Principles
 
@@ -126,7 +126,7 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 - [ ] Tests PASS (output below)
 
 ### Verification
-- [ ] `make lint` passes
+- [ ] `make ze-lint` passes
 - [ ] `make test` passes
 - [ ] `make functional` passes
 

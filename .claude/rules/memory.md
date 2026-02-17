@@ -60,7 +60,7 @@
 
 ## Bash Timeout Rule
 - Default bash timeout: 15000ms (15 seconds) for most commands
-- Only use longer for genuinely long operations (`make verify`, `make unit-test`)
+- Only use longer for genuinely long operations (`make ze-verify`, `make ze-unit-test`)
 - ExaBGP functional tests complete in seconds — 15s is plenty
 - Do NOT pass `--timeout` flags to test runners — use their defaults
 

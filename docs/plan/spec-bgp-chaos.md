@@ -718,7 +718,7 @@ Each phase ends with a Self-Critical Review.
 - [ ] Binary builds and runs
 
 ### Quality Gates (SHOULD pass)
-- [ ] `make lint` passes
+- [ ] `make ze-lint` passes
 - [ ] Architecture docs updated with learnings
 - [ ] Implementation Audit fully completed
 

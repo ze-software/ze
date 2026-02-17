@@ -37,7 +37,7 @@
 1. Rules auto-load based on file path
 2. Hooks automate git check, linting, spec validation
 3. Read `INDEX.md` to find architecture docs
-4. Run `make lint && make unit-test && make functional-test` before claiming done
+4. Run `make lint && make ze-unit-test && make ze-functional-test` before claiming done
 
 ## Architecture Docs
 

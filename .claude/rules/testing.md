@@ -66,7 +66,7 @@ func main() {
 2. **Plugin test:** Create `test/plugin/<name>.ci`
 3. **Parse test:** Create `test/parse/<name>.ci` with embedded config, `ze bgp validate`, and exit expectations
 4. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
-5. **Run:** `make functional-test` or `ze-test bgp <type> --list` to verify
+5. **Run:** `make ze-functional-test` or `ze-test bgp <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -84,26 +84,26 @@ FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304...
 ❌ Manual testing without saving the test
 
 ✅ Save to `test/` appropriate subdirectory
-✅ Verify with `make functional-test`
+✅ Verify with `make ze-functional-test`
 ✅ Commit with the feature
 
 ## Required Test Sequence
 
 ```bash
-make verify      # Development: lint + unit-test + functional-test
-make test-all    # Before commit: lint + unit-test + functional-test + exabgp-test
+make ze-verify   # Development: ze-lint + ze-unit-test + ze-functional-test
+make test-all    # Before commit: ze-lint + ze-test
 ```
 
 | Target | Command | Purpose |
 |--------|---------|---------|
-| `make unit-test` | `go test -race ./...` | Unit tests |
-| `make lint` | `golangci-lint run` | Linting (26 linters, see below) |
+| `make ze-unit-test` | `go test -race` (excludes chaos) | Ze unit tests |
+| `make ze-lint` | `golangci-lint run` (excludes chaos) | Ze linting (26 linters, see below) |
 | `make vet` | `go vet ./...` | Go vet only (subset of lint) |
-| `make functional-test` | All functional tests | Encoding, plugin, parsing, decoding |
-| `make exabgp-test` | ExaBGP compat tests | Ze encoding matches ExaBGP |
-| `make ci` | lint + unit-test + build | Full CI check |
+| `make ze-functional-test` | All functional tests | Encoding, plugin, parsing, decoding |
+| `make ze-exabgp-test` | ExaBGP compat tests | Ze encoding matches ExaBGP |
+| `make ze-ci` | ze-lint + ze-unit-test + build | Full CI check |
 
-### Linters in `make lint`
+### Linters in `make ze-lint`
 
 `golangci-lint` runs 26 linters including `govet`. Key linters:
 
@@ -132,8 +132,8 @@ go test -bench=. -benchmem ./internal/...          # Benchmarks
 ## Fuzzing
 
 ```bash
-make fuzz-test                                         # All fuzz tests (10s each)
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...  # Single target
+make ze-fuzz-test                                      # All fuzz tests (10s per package)
+make ze-fuzz-one FUZZ=FuzzParseNLRIs TIME=30s          # Single target, longer
 go test -list='Fuzz.*' ./...                           # List fuzz tests
 ```
 
@@ -229,9 +229,9 @@ go tool cover -func=coverage.out              # Summary
 
 ## Pre-Commit Checklist
 
-- [ ] `make unit-test` passes
-- [ ] `make lint` passes with **zero issues** (fix pre-existing issues first)
-- [ ] `make functional-test` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-lint` passes with **zero issues** (fix pre-existing issues first)
+- [ ] `make ze-functional-test` passes
 - [ ] User approval
 
 **BLOCKING:** Never commit with ANY lint issues, even pre-existing ones. Fix lint issues first or ask user for guidance.

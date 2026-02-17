@@ -74,12 +74,18 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 ## Commands
 
 ```bash
-make unit-test         # Unit tests with race detector
-make lint              # 26 linters via golangci-lint
-make functional-test   # Functional tests (encode, plugin, decode, parse, reload, editor)
-make exabgp-test       # ExaBGP compatibility tests
-make fuzz-test         # Fuzz tests (10s per target)
-make chaos-test        # In-process BGP chaos simulation
-make verify            # lint + unit-test + functional-test
-make test-all          # lint + unit-test + functional-test + exabgp-test
+make ze-unit-test         # Ze unit tests with race detector (excludes chaos)
+make ze-functional-test   # Ze functional tests (encode, plugin, decode, parse, reload, editor)
+make ze-exabgp-test       # ExaBGP compatibility tests
+make ze-fuzz-test         # Fuzz tests (10s per target)
+make chaos-unit-test      # Chaos unit tests with race detector
+make chaos-functional-test # In-process BGP chaos simulation
+make ze-test              # All ze tests (unit + functional + exabgp + fuzz)
+make chaos-test           # All chaos tests (unit + functional)
+make ze-lint              # 26 linters on ze packages
+make chaos-lint           # Linter on chaos packages
+make ze-verify            # ze-lint + ze-unit-test + ze-functional-test
+make chaos-verify         # chaos-lint + chaos-unit-test + chaos-functional-test
+make ze-ci                # ze-lint + ze-unit-test + build
+make test-all             # ze-lint + ze-test
 ```

@@ -65,7 +65,7 @@ Complete the Implementation Audit table in the spec:
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
 | AC-1 | ✅ Done | `TestFoo` in `foo_test.go:50` | |
-| AC-2 | ✅ Done | Manual: `make functional-test` output | |
+| AC-2 | ✅ Done | Manual: `make ze-functional-test` output | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |

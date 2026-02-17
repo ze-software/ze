@@ -275,7 +275,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 14. **Write functional tests** - End-to-end listen socket handoff
     → **Review:** Tests cover both with and without connection-handler?
 
-15. **Verify all** - `make lint && make test && make functional` (paste output)
+15. **Verify all** - `make ze-lint && make test && make functional` (paste output)
     → **Review:** Zero lint issues? All tests deterministic?
 
 ---
@@ -366,7 +366,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] Functional tests verify end-user behavior (`.ci` files)
 
 ### Verification
-- [ ] `make lint` passes
+- [ ] `make ze-lint` passes
 - [ ] `make test` passes
 - [ ] `make functional` passes
 

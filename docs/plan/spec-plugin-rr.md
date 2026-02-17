@@ -280,7 +280,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 15. **Create functional tests** for persist reconnect scenario
 
-16. **Run `make verify`** — lint + test + functional (paste output)
+16. **Run `make ze-verify`** — lint + test + functional (paste output)
 
 ## Design: Forward-All with Last-Wins
 
@@ -521,7 +521,7 @@ Route key format: `family + "|" + prefix`
 - [ ] Feature code integrated into codebase (`internal/plugins/bgp-rr/`, `internal/plugins/bgp-persist/`)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
-- [ ] `make lint` passes
+- [ ] `make ze-lint` passes
 - [ ] Architecture docs updated with learnings
 - [ ] Implementation Audit fully completed
 - [ ] Mistake Log escalation candidates reviewed

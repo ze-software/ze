@@ -14,7 +14,7 @@ paths:
 
 ## Before Any Commit
 ```bash
-make test-all           # ALL must pass (lint + unit-test + functional-test + exabgp-test)
+make test-all           # ALL must pass (ze-lint + ze-test)
 git status              # Review changes
 git diff --staged       # Review what's staged
 git diff --stat         # Confirm scope matches task

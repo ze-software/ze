@@ -144,9 +144,9 @@ REQUIRED_CHECKLIST=(
     "Tests written"
     "Tests FAIL"
     "Tests PASS"
-    "make lint"
-    "make unit-test"
-    "make functional-test"
+    "make ze-lint"
+    "make ze-unit-test"
+    "make ze-functional-test"
 )
 
 for item in "${REQUIRED_CHECKLIST[@]}"; do

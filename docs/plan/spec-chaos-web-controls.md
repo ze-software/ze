@@ -252,9 +252,9 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 
 ### Goal Gates
 - [ ] AC-1..AC-15 demonstrated
-- [ ] `make unit-test` passes
-- [ ] `make functional-test` passes
-- [ ] `make lint` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] `make ze-lint` passes
 - [ ] Controls work in browser during live chaos run
 
 ### TDD

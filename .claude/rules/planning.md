@@ -116,7 +116,7 @@ Complete IN ORDER. Do not skip steps. Steps are grouped into four phases.
 
 ── VERIFY phase ────────────────────────────────────────────────
    Audit, docs, completion. No new code.
-   Gate: Audit complete, `make verify` passes.
+   Gate: Audit complete, `make ze-verify` passes.
 
 [ ] 16. Post-implementation completion (see "Completion Checklist" below)
       → Review Mistake Log escalation candidates
@@ -392,7 +392,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Functional tests** - Create functional tests AFTER feature works
    → **Review:** Do tests cover the user-visible behavior? Error cases included?
 
-8. **Verify all** - `make lint && make unit-test && make functional-test` (paste output)
+8. **Verify all** - `make ze-lint && make ze-unit-test && make ze-functional-test` (paste output)
    → **Review:** Zero lint issues? All tests deterministic? No race conditions?
 
 9. **Final self-review** - Before claiming done:
@@ -410,7 +410,7 @@ When a step fails, use this table to determine where to route back:
 | Compilation error | `go build` fails | Step 3 (Implement) — fix syntax or type errors |
 | Test fails, wrong reason | Test errors on setup, not behavior | Step 1 (Write tests) — test itself is wrong |
 | Test fails, behavior mismatch | Code does X, test expects Y | Re-read source files from Current Behavior. Was behavior misunderstood? If yes, back to RESEARCH phase |
-| Lint failure | `make lint` reports issues | Fix inline. If architectural (e.g., import cycle), back to DESIGN phase |
+| Lint failure | `make ze-lint` reports issues | Fix inline. If architectural (e.g., import cycle), back to DESIGN phase |
 | Functional test fails | `.ci` test expects wrong output | Check Acceptance Criteria. If AC wrong, update spec (DESIGN). If AC correct, fix implementation (IMPLEMENT) |
 | Audit finds missing AC | Acceptance criterion not demonstrated | Back to IMPLEMENT for that specific criterion |
 
@@ -540,14 +540,14 @@ If you had to investigate/debug something, ask:
 
 ### Goal Gates (MUST pass — cannot defer)
 - [ ] Acceptance criteria AC-1..AC-N all demonstrated
-- [ ] Tests pass (`make unit-test`)
-- [ ] No regressions (`make functional-test`)
+- [ ] Tests pass (`make ze-unit-test`)
+- [ ] No regressions (`make ze-functional-test`)
 - [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
 - [ ] Integration completeness: every new feature proven to work from its intended usage point, not just in isolation (see `rules/integration-completeness.md`)
 - [ ] Architecture docs updated with learnings and changes (see Post-Implementation Updates table)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
-- [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
+- [ ] `make ze-lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
 - [ ] RFC constraint comments added (quoted requirement + explanation)
 - [ ] Implementation Audit fully completed (all items have status + location)
 - [ ] Mistake Log escalation candidates reviewed

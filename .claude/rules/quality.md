@@ -71,7 +71,7 @@ When asked for a critical review, validate your understanding of the existing ar
 ## Proof of Completion
 
 - Paste command output as proof when claiming something works
-- `make verify` output is required before claiming done
+- `make ze-verify` output is required before claiming done
 - "Should work" is not evidence — run it, paste it
 
 ## Anti-Rationalization

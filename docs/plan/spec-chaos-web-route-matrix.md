@@ -195,9 +195,9 @@ This is the most complex visualization because a 200×200 matrix is 40,000 cells
 
 ### Goal Gates
 - [ ] AC-1..AC-9 demonstrated
-- [ ] `make unit-test` passes
-- [ ] `make functional-test` passes
-- [ ] `make lint` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] `make ze-lint` passes
 - [ ] Heatmap renders correctly in browser for 20+ peers
 
 ### TDD

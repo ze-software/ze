@@ -4,7 +4,7 @@
 **Previous spec:** `spec-bgp-chaos-families.md`
 **Next spec:** None (final phase)
 
-**Status:** Complete — all implementation steps done, verified with `make lint && make test`.
+**Status:** Complete — all implementation steps done, verified with `make ze-lint && make test`.
 
 ## Post-Compaction Recovery
 
@@ -272,7 +272,7 @@ Each step follows TDD: write test → see FAIL → implement → see PASS.
    - Start/stop Prometheus HTTP server around the run
    → Review: Dashboard respects --quiet? File closed on exit? HTTP server shutdown?
 
-8. **Verify** — `make lint && make test`
+8. **Verify** — `make ze-lint && make test`
    → Review: Zero lint issues? All existing tests still pass?
 
 9. **Spec Propagation** — Update master design doc with as-built architecture
@@ -431,7 +431,7 @@ Instead of updating follow-on specs, complete these:
 - [x] No regressions (`make functional`) — all 127 tests pass
 
 ### Quality Gates (SHOULD pass)
-- [x] `make lint` passes — 0 issues
+- [x] `make ze-lint` passes — 0 issues
 - [x] Master design doc updated
 - [x] Implementation Audit completed
 
