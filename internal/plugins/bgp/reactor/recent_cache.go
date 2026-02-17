@@ -173,13 +173,15 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 		return nil, false
 	}
 
+	now := c.clock.Now()
+
 	// Protected entries (pending or consumers > 0) are always accessible
-	if entry.isProtected(c.clock.Now()) {
+	if entry.isProtected(now) {
 		return entry.update, true
 	}
 
 	// Non-protected: check TTL expiry
-	if c.clock.Now().After(entry.expiresAt) {
+	if now.After(entry.expiresAt) {
 		return nil, false
 	}
 

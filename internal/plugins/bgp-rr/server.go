@@ -206,10 +206,9 @@ func nlriToPrefix(n any) string {
 // forwardUpdate sends UPDATE to peers that support the given families.
 //
 // Uses a single cache-forward command with a comma-separated peer selector.
-// ForwardUpdate in the reactor uses Take() which removes the cache entry after
-// forwarding — it is a one-shot pipeline, not a persistent store. Calling it
-// per-peer would fail: the first forward consumes the entry, subsequent calls
-// get ErrUpdateExpired. A single multi-peer selector ensures all compatible
+// ForwardUpdate in the reactor uses Get() to read the cache entry and
+// Decrement() to count down consumers — the entry expires once all consumers
+// have decremented. A single multi-peer selector ensures all compatible
 // peers receive the UPDATE in one atomic operation.
 func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families map[string]bool) {
 	rs.mu.RLock()
