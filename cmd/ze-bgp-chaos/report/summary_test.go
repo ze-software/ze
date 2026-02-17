@@ -507,3 +507,50 @@ func TestSummaryPropertyViolationsTruncation(t *testing.T) {
 	assert.Contains(t, output, "peer 4 has issue")
 	assert.NotContains(t, output, "peer 5 has issue")
 }
+
+// TestSummaryPeerFailuresAndProperties verifies that both failures
+// and properties appear together in the same output.
+//
+// VALIDATES: Both sections render without interference.
+// PREVENTS: One section suppressing or corrupting the other.
+func TestSummaryPeerFailuresAndProperties(t *testing.T) {
+	s := Summary{
+		Seed:      42,
+		Duration:  30 * time.Second,
+		PeerCount: 3,
+		Announced: 50,
+		Received:  140,
+		Missing:   2,
+		Extra:     0,
+		PeerFailures: []PeerFailure{
+			{
+				PeerIndex:     1,
+				ExpectedCount: 20,
+				ActualCount:   18,
+				Missing:       []string{"10.0.1.0/24", "10.0.2.0/24"},
+			},
+		},
+		Properties: []PropertyLine{
+			{Name: "route-consistency", Pass: false, Violations: []string{
+				"peer 1 missing route 10.0.1.0/24",
+			}},
+			{Name: "no-duplicate-routes", Pass: true},
+		},
+	}
+
+	var buf bytes.Buffer
+	exitCode := s.Write(&buf)
+
+	output := buf.String()
+	assert.Equal(t, 1, exitCode)
+	// Failures section present.
+	assert.Contains(t, output, "failures:")
+	assert.Contains(t, output, "peer 1: 2 missing (expected 20, have 18)")
+	// Properties section present.
+	assert.Contains(t, output, "properties:")
+	assert.Contains(t, output, "route-consistency")
+	assert.Contains(t, output, "- peer 1 missing route 10.0.1.0/24")
+	assert.Contains(t, output, "no-duplicate-routes")
+	// Result line present.
+	assert.Contains(t, output, "result: FAIL")
+}

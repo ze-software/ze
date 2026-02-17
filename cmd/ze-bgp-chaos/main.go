@@ -625,6 +625,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Build per-peer failure details from check result.
 	var peerFailures []report.PeerFailure
+	var missingCount, extraCount int
 	for i, pr := range result.Peers {
 		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
 			continue
@@ -636,6 +637,8 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		}
 		pf.Missing = pr.Missing.SortedStrings()
 		pf.Extra = pr.Extra.SortedStrings()
+		missingCount += len(pf.Missing)
+		extraCount += len(pf.Extra)
 		peerFailures = append(peerFailures, pf)
 	}
 
@@ -663,8 +666,8 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		EBGPCount:     ebgpCount,
 		Announced:     ep.Announced,
 		Received:      ep.Received,
-		Missing:       result.TotalMissing,
-		Extra:         result.TotalExtra,
+		Missing:       missingCount,
+		Extra:         extraCount,
 		MinLatency:    convStats.Min,
 		AvgLatency:    convStats.Avg,
 		MaxLatency:    convStats.Max,

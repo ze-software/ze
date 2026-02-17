@@ -136,6 +136,9 @@ func (s *Summary) Write(w io.Writer) int {
 	if len(s.PeerFailures) > 0 {
 		rw.printf("  failures:\n")
 		for _, pf := range s.PeerFailures {
+			if len(pf.Missing) == 0 && len(pf.Extra) == 0 {
+				continue
+			}
 			var parts []string
 			if len(pf.Missing) > 0 {
 				parts = append(parts, fmt.Sprintf("%d missing", len(pf.Missing)))
@@ -173,7 +176,7 @@ func (s *Summary) Write(w io.Writer) int {
 	return exitCode
 }
 
-// writePrefixList prints a capped list of prefixes under a label.
+// writePrefixList prints a capped list of prefixes, one per line.
 func writePrefixList(rw *reportWriter, label string, prefixes []string) {
 	if len(prefixes) == 0 {
 		return
@@ -184,11 +187,13 @@ func writePrefixList(rw *reportWriter, label string, prefixes []string) {
 		shown = shown[:maxPrefixesShown]
 		remaining = len(prefixes) - maxPrefixesShown
 	}
-	rw.printf("      %s: %s", label, strings.Join(shown, ", "))
-	if remaining > 0 {
-		rw.printf(" ... and %d more", remaining)
+	rw.printf("      %s:\n", label)
+	for _, p := range shown {
+		rw.printf("        %s\n", p)
 	}
-	rw.printf("\n")
+	if remaining > 0 {
+		rw.printf("        ... and %d more\n", remaining)
+	}
 }
 
 // writeViolations prints capped violation messages under a property.

@@ -160,6 +160,7 @@ func Run(r io.Reader, w io.Writer) int {
 
 	// Build per-peer failure details from check result.
 	var peerFailures []report.PeerFailure
+	var missingCount, extraCount int
 	for i, pr := range result.Peers {
 		if pr.Missing.Len() == 0 && pr.Extra.Len() == 0 {
 			continue
@@ -171,6 +172,8 @@ func Run(r io.Reader, w io.Writer) int {
 		}
 		pf.Missing = pr.Missing.SortedStrings()
 		pf.Extra = pr.Extra.SortedStrings()
+		missingCount += len(pf.Missing)
+		extraCount += len(pf.Extra)
 		peerFailures = append(peerFailures, pf)
 	}
 
@@ -179,8 +182,8 @@ func Run(r io.Reader, w io.Writer) int {
 		PeerCount:     n,
 		Announced:     announced,
 		Received:      received,
-		Missing:       result.TotalMissing,
-		Extra:         result.TotalExtra,
+		Missing:       missingCount,
+		Extra:         extraCount,
 		MinLatency:    convStats.Min,
 		AvgLatency:    convStats.Avg,
 		MaxLatency:    convStats.Max,
