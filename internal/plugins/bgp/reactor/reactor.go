@@ -4657,50 +4657,58 @@ func (r *Reactor) monitor() {
 }
 
 // cleanup stops all components.
+// Signals all components to stop first, then waits for everything concurrently
+// under a single shared deadline. This prevents sequential timeouts from
+// compounding (e.g., api(1s) + listener(2s) + peers(N×2s) = unbounded).
 func (r *Reactor) cleanup() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Stop API server
+	// Phase 1: Signal everything to stop (non-blocking).
 	if r.api != nil {
 		r.api.Stop()
-		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = r.api.Wait(waitCtx)
-		cancel()
 	}
-
-	// Stop legacy listener
 	if r.listener != nil {
 		r.listener.Stop()
-		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = r.listener.Wait(waitCtx)
-		cancel()
 	}
-
-	// Stop all multi-listeners
 	r.stopAllListeners()
-
-	// Stop signal handler
 	if r.signals != nil {
 		r.signals.Stop()
-		waitCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		_ = r.signals.Wait(waitCtx)
-		cancel()
 	}
-
-	// Stop all peers
 	for _, peer := range r.peers {
 		peer.Stop()
 	}
 
-	// Wait for all peers
+	// Phase 2: Wait for everything concurrently under a single deadline.
+	// Components should exit quickly since their contexts are already cancelled.
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	var wg sync.WaitGroup
+
+	if r.api != nil {
+		wg.Go(func() {
+			_ = r.api.Wait(waitCtx)
+		})
+	}
+	if r.listener != nil {
+		wg.Go(func() {
+			_ = r.listener.Wait(waitCtx)
+		})
+	}
+	if r.signals != nil {
+		wg.Go(func() {
+			_ = r.signals.Wait(waitCtx)
+		})
+	}
 	for _, peer := range r.peers {
-		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		_ = peer.Wait(waitCtx)
-		cancel()
+		wg.Go(func() {
+			_ = peer.Wait(waitCtx)
+		})
 	}
 
-	// Stop RIB store workers
+	wg.Wait()
+	waitCancel()
+
+	// Phase 3: Cleanup remaining resources.
 	if r.ribStore != nil {
 		r.ribStore.Stop()
 	}

@@ -591,23 +591,15 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 }
 
 // Stop stops all processes.
-// Signals shutdown to each process before termination to allow graceful exit.
-// Bye signals and waits are concurrent to avoid stacking sequential timeouts.
+// Cancels context and closes connections immediately, which unblocks plugin
+// reads on net.Pipe and causes prompt exit. No bye round-trip — closing the
+// connection is the shutdown signal for internal plugins, and context
+// cancellation kills external plugins via exec.CommandContext.
 func (pm *ProcessManager) Stop() {
-	// Signal shutdown to all processes concurrently before cancelling context.
-	pm.mu.RLock()
-	var byeWg sync.WaitGroup
-	for _, proc := range pm.processes {
-		byeWg.Add(1)
-		go func(p *Process) {
-			defer byeWg.Done()
-			p.SendShutdown()
-		}(proc)
-	}
-	pm.mu.RUnlock()
-	byeWg.Wait()
-
-	// Cancel context and stop all processes
+	// Cancel context and close all connections immediately.
+	// For internal plugins: closing engine-side net.Pipe unblocks the plugin's
+	// ReadRequest, causing it to return an error and exit the event loop.
+	// For external plugins: context cancellation kills the subprocess.
 	if pm.cancel != nil {
 		pm.cancel()
 	}
@@ -618,9 +610,10 @@ func (pm *ProcessManager) Stop() {
 	}
 	pm.mu.Unlock()
 
-	// Wait for all processes concurrently with a shared deadline.
+	// Wait briefly for processes to exit. Should be near-instant since
+	// closing connections immediately unblocks plugin reads.
 	pm.mu.RLock()
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	var waitWg sync.WaitGroup
 	for _, proc := range pm.processes {
 		waitWg.Add(1)
