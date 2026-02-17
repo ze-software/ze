@@ -203,6 +203,12 @@ type Peer struct {
 	// we queue it here and wait for its OPEN to resolve the collision.
 	pendingConn net.Conn      // Pending incoming connection
 	pendingOpen *message.Open // OPEN received on pending connection
+
+	// Inbound connection buffering for passive peers:
+	// When a connection arrives while the session is nil (between runOnce iterations),
+	// store it here so the next runOnce() can accept it immediately.
+	inboundConn   net.Conn
+	inboundNotify chan struct{}
 }
 
 // NewPeer creates a new peer for the given settings.
@@ -216,6 +222,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
 		watchdogState: make(map[string]map[string]bool),
 		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
+		inboundNotify: make(chan struct{}, 1),
 	}
 
 	// Initialize watchdog state from config
@@ -910,6 +917,9 @@ func (p *Peer) run() {
 			case <-p.ctx.Done():
 				return
 			case <-p.clock.After(delay):
+			case <-p.inboundNotify:
+				// Inbound connection arrived while session was nil — skip backoff
+				delay = p.reconnectMin
 			}
 
 			// Exponential backoff
@@ -971,6 +981,17 @@ func (p *Peer) runOnce() error {
 	if !p.settings.Passive {
 		if err := session.Connect(p.ctx); err != nil {
 			return err
+		}
+	}
+
+	// For passive peers, check if an inbound connection arrived while session was nil.
+	// This handles the race where a remote peer reconnects faster than our backoff.
+	if p.settings.Passive {
+		if conn := p.takeInboundConnection(); conn != nil {
+			if err := session.Accept(conn); err != nil {
+				peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)
+				closeConnQuietly(conn)
+			}
 		}
 	}
 
@@ -1084,6 +1105,34 @@ func (p *Peer) ClearPendingConnection() {
 	defer p.mu.Unlock()
 	p.pendingConn = nil
 	p.pendingOpen = nil
+}
+
+// SetInboundConnection stores a connection that arrived while the session was nil.
+// Used for passive peers where the remote reconnects before our backoff expires.
+// If a previous inbound connection exists, it is closed and replaced.
+func (p *Peer) SetInboundConnection(conn net.Conn) {
+	p.mu.Lock()
+	old := p.inboundConn
+	p.inboundConn = conn
+	p.mu.Unlock()
+
+	if old != nil {
+		closeConnQuietly(old)
+	}
+
+	// Wake up the run() backoff — buffered channel (size 1), skip if already signaled.
+	if len(p.inboundNotify) == 0 {
+		p.inboundNotify <- struct{}{}
+	}
+}
+
+// takeInboundConnection returns and clears any stored inbound connection.
+func (p *Peer) takeInboundConnection() net.Conn {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	conn := p.inboundConn
+	p.inboundConn = nil
+	return conn
 }
 
 // HasPendingConnection returns true if there's a pending incoming connection.
@@ -1260,11 +1309,19 @@ func (p *Peer) cleanup() {
 	p.clearEncodingContexts()
 	p.mu.Lock()
 	if p.session != nil {
-		_ = p.session.Close()
+		if err := p.session.Close(); err != nil {
+			peerLogger().Debug("session close error", "error", err)
+		}
 		p.session = nil
 	}
+	inbound := p.inboundConn
+	p.inboundConn = nil
 	p.cancel = nil
 	p.mu.Unlock()
+
+	if inbound != nil {
+		closeConnQuietly(inbound)
+	}
 
 	p.setState(PeerStateStopped)
 }

@@ -4845,6 +4845,13 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 
 	// Accept connection on peer's session.
 	if err := peer.AcceptConnection(conn); err != nil {
+		// If session is nil and peer is passive, buffer the connection for the next
+		// runOnce() cycle instead of closing it. This handles the race where the
+		// remote reconnects faster than our backoff delay.
+		if errors.Is(err, ErrNotConnected) && peer.Settings().Passive {
+			peer.SetInboundConnection(conn)
+			return
+		}
 		closeConnQuietly(conn)
 	}
 }
