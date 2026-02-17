@@ -439,14 +439,32 @@ func (p *Peer) getPluginFamilies() []string {
 	return r.api.GetDecodeFamilies()
 }
 
-// validateOpen delegates OPEN validation to registered plugins via Server.BroadcastValidateOpen.
+// validateOpen checks router-ID uniqueness and delegates OPEN validation to plugins.
 // Used as callback for Session.SetOpenValidator().
 func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error {
 	p.mu.RLock()
 	r := p.reactor
 	p.mu.RUnlock()
 
-	if r == nil || r.api == nil {
+	if r == nil {
+		return nil
+	}
+
+	// RFC 4271 Section 4.2: BGP Identifier MUST be unique within an AS.
+	// Reject if another ESTABLISHED peer in the same ASN has the same router-ID.
+	r.mu.RLock()
+	conflictAddr, conflict := checkRouterIDConflict(
+		r.peers, p.settings.PeerKey(), p.settings.PeerAS, remote.BGPIdentifier)
+	r.mu.RUnlock()
+	if conflict {
+		return &routerIDConflictError{
+			conflictAddr: conflictAddr,
+			peerAS:       p.settings.PeerAS,
+			bgpID:        remote.BGPIdentifier,
+		}
+	}
+
+	if r.api == nil {
 		return nil
 	}
 
