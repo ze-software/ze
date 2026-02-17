@@ -1,7 +1,7 @@
 .PHONY: all build clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
-.PHONY: chaos-lint chaos-unit-test chaos-functional-test chaos-test chaos-verify
+.PHONY: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test chaos-test chaos-verify
 .PHONY: test-all check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -151,8 +151,12 @@ chaos-functional-test: bin/ze-bgp-chaos
 		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
 		--seed $(CHAOS_SEED) --quiet
 
+# Chaos web dashboard tests: HTTP endpoint checks against --in-process --web.
+chaos-web-test: bin/ze-test
+	@bin/ze-test bgp chaos-web --all
+
 # Run all chaos tests
-chaos-test: chaos-unit-test chaos-functional-test
+chaos-test: chaos-unit-test chaos-functional-test chaos-web-test
 	@echo "All chaos tests passed"
 
 # Chaos verification
@@ -223,7 +227,8 @@ help:
 	@echo "  chaos-lint            - Run linter on chaos packages"
 	@echo "  chaos-unit-test       - Run chaos unit tests with race detector"
 	@echo "  chaos-functional-test - Run in-process chaos simulation"
-	@echo "  chaos-test            - All chaos tests (unit + functional)"
+	@echo "  chaos-web-test        - Run chaos web dashboard HTTP tests"
+	@echo "  chaos-test            - All chaos tests (unit + functional + web)"
 	@echo "  chaos-verify          - chaos-lint + chaos-unit-test + chaos-functional-test"
 	@echo ""
 	@echo "  Aggregates:"

@@ -1,0 +1,11 @@
+# chaos-web-route-matrix - verify route matrix endpoints
+# Tests GET /viz/route-matrix, /viz/route-matrix/cell
+# Covers spec 268: chaos-web-route-matrix
+
+cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Route matrix heatmap
+http=get:seq=1:url=http://127.0.0.1:$PORT/viz/route-matrix:status=200
+
+# Route matrix cell detail (src=0, dst=1)
+http=get:seq=2:url=http://127.0.0.1:$PORT/viz/route-matrix/cell?src=0&dst=1:status=200

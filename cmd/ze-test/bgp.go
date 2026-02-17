@@ -56,7 +56,7 @@ func bgpMain() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encode", "plugin", "reload":
+	case "encode", "plugin", "reload", "chaos-web":
 		return runEncodingOrAPI(ctx, cli, baseDir)
 	case "decode":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
@@ -253,6 +253,8 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		testDir = filepath.Join(baseDir, "test/plugin")
 	case "reload":
 		testDir = filepath.Join(baseDir, "test/reload")
+	case "chaos-web":
+		testDir = filepath.Join(baseDir, "test/chaos-web")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -310,6 +312,13 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		return fmt.Errorf("create runner: %w", err)
 	}
 	defer r.Cleanup()
+
+	// chaos-web tests need ze-bgp-chaos binary built alongside ze.
+	if cli.command == "chaos-web" {
+		r.SetExtraBinaries(map[string]string{
+			"ze-bgp-chaos": "./cmd/ze-bgp-chaos",
+		})
+	}
 
 	// Section header first, then all info within it
 	r.Display().SetLabel(cli.command)
@@ -554,11 +563,12 @@ func parseRunCLI() *runCLIFlags {
 	}
 
 	validCommands := map[string]bool{
-		"encode": true,
-		"plugin": true,
-		"decode": true,
-		"parse":  true,
-		"reload": true,
+		"encode":    true,
+		"plugin":    true,
+		"decode":    true,
+		"parse":     true,
+		"reload":    true,
+		"chaos-web": true,
 	}
 
 	if !validCommands[command] {
@@ -609,6 +619,7 @@ Types:
   decode    Run decode tests (BGP message hex to JSON)
   parse     Run parse tests (config file validation)
   reload    Run reload tests (SIGHUP config reload)
+  chaos-web Run chaos web dashboard tests (HTTP endpoint checks)
 
 Modes:
   -l, --list          List available tests

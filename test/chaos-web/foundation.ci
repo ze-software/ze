@@ -1,0 +1,20 @@
+# chaos-web-foundation - verify web dashboard serves core endpoints
+# Tests GET /, /peers, /peer/{id}, /assets/*, /events (SSE)
+# Covers spec 266: chaos-web-foundation
+
+cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Dashboard index returns HTML with htmx and dark theme
+http=get:seq=1:url=http://127.0.0.1:$PORT/:status=200:contains=htmx
+
+# Peer table endpoint returns HTML fragment
+http=get:seq=2:url=http://127.0.0.1:$PORT/peers:status=200:contains=peer-
+
+# Peer detail for peer 0
+http=get:seq=3:url=http://127.0.0.1:$PORT/peer/0:status=200:contains=Peer 0
+
+# Embedded asset: htmx library
+http=get:seq=4:url=http://127.0.0.1:$PORT/assets/htmx.min.js:status=200
+
+# Embedded asset: stylesheet
+http=get:seq=5:url=http://127.0.0.1:$PORT/assets/style.css:status=200

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -111,6 +113,11 @@ type Runner struct {
 	display  *Display
 	report   *Report
 	colors   *Colors
+
+	// extraBinaries maps binary name → Go package path for additional
+	// binaries that should be built alongside ze and ze-test.
+	// Example: {"ze-bgp-chaos": "./cmd/ze-bgp-chaos"}
+	extraBinaries map[string]string
 }
 
 // NewRunner creates a test runner.
@@ -136,6 +143,13 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 // Display returns the runner's display for summary output.
 func (r *Runner) Display() *Display {
 	return r.display
+}
+
+// SetExtraBinaries configures additional Go binaries to build alongside ze.
+// The map keys are binary names and values are Go package paths.
+// Example: runner.SetExtraBinaries(map[string]string{"ze-bgp-chaos": "./cmd/ze-bgp-chaos"})
+func (r *Runner) SetExtraBinaries(binaries map[string]string) {
+	r.extraBinaries = binaries
 }
 
 // Cleanup removes temporary files.
@@ -165,6 +179,18 @@ func (r *Runner) Build(ctx context.Context) error {
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
 		return fmt.Errorf("build ze-test: %w", err)
+	}
+
+	// Build extra binaries (e.g., ze-bgp-chaos for chaos-web tests).
+	for name, pkg := range r.extraBinaries {
+		outPath := filepath.Join(r.tmpDir, name)
+		cmd = exec.CommandContext(ctx, "go", "build", "-o", outPath, pkg) //nolint:gosec // paths from internal runner
+		cmd.Dir = r.baseDir
+		cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+		if output, err := cmd.CombinedOutput(); err != nil {
+			r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
+			return fmt.Errorf("build %s: %w", name, err)
+		}
 	}
 
 	r.display.BuildStatus(false, nil)
@@ -653,7 +679,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case "ze":
 			binPath = r.zePath
 		default:
-			binPath = binName // Use as-is for other commands
+			// Check if the binary was built as an extra binary in the temp dir.
+			tmpBin := filepath.Join(r.tmpDir, binName)
+			if _, err := os.Stat(tmpBin); err == nil {
+				binPath = tmpBin
+			} else {
+				binPath = binName // Use as-is (PATH lookup)
+			}
 		}
 
 		args := make([]string, 0, len(extraArgs)+len(cmdParts)-1)
@@ -800,6 +832,21 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
 				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 			}
+		}
+	}
+
+	// Execute HTTP checks (after background processes have started).
+	if len(rec.HTTPChecks) > 0 {
+		if httpErr := r.executeHTTPChecks(testCtx, rec); httpErr != nil {
+			rec.Error = httpErr
+			rec.FailureType = "http_check_failed"
+			rec.Duration = time.Since(rec.StartTime)
+			return false
+		}
+		// If HTTP checks are the only assertions (no peer, no exit code), pass.
+		if len(rec.Expects) == 0 && rec.ExpectExitCode == nil {
+			rec.Duration = time.Since(rec.StartTime)
+			return true
 		}
 	}
 
@@ -951,6 +998,96 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		rec.Error = err
 	}
 	return false
+}
+
+// executeHTTPChecks runs HTTP assertions in seq order with retry+backoff.
+// Returns nil if all checks pass, or the first error encountered.
+func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
+	checks := make([]HTTPCheck, len(rec.HTTPChecks))
+	copy(checks, rec.HTTPChecks)
+	sort.Slice(checks, func(i, j int) bool {
+		return checks[i].Seq < checks[j].Seq
+	})
+
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	for _, chk := range checks {
+		url := strings.ReplaceAll(chk.URL, "$PORT", fmt.Sprintf("%d", rec.Port))
+		if err := r.executeOneHTTPCheck(ctx, client, chk, url); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// executeOneHTTPCheck performs a single HTTP request with retry+backoff.
+// Retries up to 20 times with 200ms intervals for connection-refused errors
+// (server may still be starting). Non-connection errors fail immediately.
+func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, chk HTTPCheck, url string) error {
+	const maxRetries = 20
+	const retryInterval = 200 * time.Millisecond
+
+	var lastErr error
+	for attempt := range maxRetries {
+		if ctx.Err() != nil {
+			return fmt.Errorf("http %s %s: context cancelled", chk.Method, url)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, strings.ToUpper(chk.Method), url, nil)
+		if err != nil {
+			return fmt.Errorf("http %s %s: invalid request: %w", chk.Method, url, err)
+		}
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			// Retry on connection refused (server not ready yet).
+			if isConnectionRefused(err) && attempt < maxRetries-1 {
+				select {
+				case <-time.After(retryInterval):
+					continue
+				case <-ctx.Done():
+					return fmt.Errorf("http %s %s: %w (after %d retries)", chk.Method, url, lastErr, attempt+1)
+				}
+			}
+			return fmt.Errorf("http %s %s: %w", chk.Method, url, err)
+		}
+
+		body, readErr := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if readErr != nil {
+			return fmt.Errorf("http %s %s: reading body: %w", chk.Method, url, readErr)
+		}
+
+		// Check status code.
+		if resp.StatusCode != chk.Status {
+			return fmt.Errorf("http %s %s: expected status %d, got %d (body: %s)",
+				chk.Method, url, chk.Status, resp.StatusCode, truncate(string(body), 200))
+		}
+
+		// Check body contains (optional).
+		if chk.Contains != "" && !strings.Contains(string(body), chk.Contains) {
+			return fmt.Errorf("http %s %s: body does not contain %q (body: %s)",
+				chk.Method, url, chk.Contains, truncate(string(body), 200))
+		}
+
+		return nil
+	}
+	return fmt.Errorf("http %s %s: %w (after %d retries)", chk.Method, url, lastErr, maxRetries)
+}
+
+// isConnectionRefused checks if an error is due to connection refused.
+func isConnectionRefused(err error) bool {
+	return strings.Contains(err.Error(), "connection refused") ||
+		strings.Contains(err.Error(), "connect: connection refused")
+}
+
+// truncate shortens a string to maxLen, adding "..." if truncated.
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // writeExpectFile writes expected messages to a temp file.

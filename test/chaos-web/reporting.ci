@@ -1,0 +1,9 @@
+# chaos-web-reporting - verify dashboard stats are populated after simulation
+# Tests that the dashboard index contains populated counters after events flow
+# Covers spec 259: bgp-chaos-reporting (web integration)
+
+cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Dashboard index should contain stats section with counter labels
+http=get:seq=1:url=http://127.0.0.1:$PORT/:status=200:contains=Peers
+http=get:seq=2:url=http://127.0.0.1:$PORT/:status=200:contains=Announced

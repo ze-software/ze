@@ -1,0 +1,17 @@
+# chaos-web-viz - verify visualization endpoints serve HTML
+# Tests GET /viz/events, /viz/convergence, /viz/peer-timeline, /viz/chaos-timeline
+# Covers spec 267: chaos-web-viz
+
+cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+
+# Event feed
+http=get:seq=1:url=http://127.0.0.1:$PORT/viz/events:status=200
+
+# Convergence histogram
+http=get:seq=2:url=http://127.0.0.1:$PORT/viz/convergence:status=200
+
+# Peer timeline
+http=get:seq=3:url=http://127.0.0.1:$PORT/viz/peer-timeline:status=200
+
+# Chaos timeline
+http=get:seq=4:url=http://127.0.0.1:$PORT/viz/chaos-timeline:status=200

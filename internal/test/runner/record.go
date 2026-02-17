@@ -144,6 +144,9 @@ type Record struct {
 
 	// Run commands for process orchestration
 	RunCommands []RunCommand // run= commands in order
+
+	// HTTP checks for web endpoint assertions
+	HTTPChecks []HTTPCheck // http= assertions in seq order
 }
 
 // RunCommand represents a process to run during test execution.
@@ -153,6 +156,17 @@ type RunCommand struct {
 	Exec    string // Command to execute
 	Stdin   string // Name of stdin block to pipe
 	Timeout string // Timeout for foreground processes (e.g., "10s")
+}
+
+// HTTPCheck represents an HTTP request assertion in a .ci test.
+// Format: http=get:seq=N:url=URL:status=CODE[:contains=TEXT]
+// Executed after all cmd= processes start, with retry+backoff for startup.
+type HTTPCheck struct {
+	Seq      int    // Execution order (lower first, among HTTP checks)
+	Method   string // HTTP method: "get" or "post"
+	URL      string // Request URL (supports $PORT substitution)
+	Status   int    // Expected HTTP status code
+	Contains string // Expected body substring (optional, empty = skip body check)
 }
 
 // NewRecord creates a new test record.
@@ -663,7 +677,9 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	case "action":
 		return et.parseAction(r, lineType, kvPairs)
 	case "cmd":
-		return et.parseCmd(r, lineType, kvPairs)
+		return et.parseCmd(r, lineType, kvPairs, line)
+	case "http":
+		return et.parseHTTP(r, lineType, line)
 	default:
 		return fmt.Errorf("unknown action %q in %q", action, line)
 	}
@@ -902,7 +918,7 @@ func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]st
 }
 
 // parseCmd handles cmd:type:... lines.
-func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string) error {
+func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string, rawLine string) error {
 	switch cmdType {
 	case "api":
 		conn, seq, err := parseConnSeq(kv)
@@ -915,32 +931,158 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 		msg.Cmd = text
 
 	case "background", "foreground":
-		seqStr := kv["seq"]
-		if seqStr == "" {
-			return fmt.Errorf("cmd:%s missing seq=", cmdType)
-		}
-		seq, err := strconv.Atoi(seqStr)
-		if err != nil || seq < 1 {
-			return fmt.Errorf("cmd:%s invalid seq=%q", cmdType, seqStr)
-		}
-
-		exec := kv["exec"]
-		if exec == "" {
-			return fmt.Errorf("cmd:%s missing exec=", cmdType)
-		}
-
-		rc := RunCommand{
-			Mode:    cmdType,
-			Seq:     seq,
-			Exec:    exec,
-			Stdin:   kv["stdin"],
-			Timeout: kv["timeout"],
+		// Use marker-based parsing because exec= values may contain colons
+		// (e.g., --web :8080). The standard KV parser splits on colons and
+		// would truncate the exec value.
+		rc, err := parseCmdExec(cmdType, rawLine)
+		if err != nil {
+			return err
 		}
 		r.RunCommands = append(r.RunCommands, rc)
 
 	default:
 		return fmt.Errorf("unknown cmd type %q", cmdType)
 	}
+	return nil
+}
+
+// parseCmdExec extracts fields from a cmd=background/foreground line using
+// marker-based parsing. This handles exec= values containing colons correctly.
+//
+// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR]
+func parseCmdExec(mode, line string) (RunCommand, error) {
+	seqMarker := ":seq="
+	execMarker := ":exec="
+	stdinMarker := ":stdin="
+	timeoutMarker := ":timeout="
+
+	seqIdx := strings.Index(line, seqMarker)
+	execIdx := strings.Index(line, execMarker)
+
+	if seqIdx < 0 {
+		return RunCommand{}, fmt.Errorf("cmd:%s missing seq=", mode)
+	}
+	if execIdx < 0 {
+		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
+	}
+
+	// Extract seq value: from after ":seq=" to the next known marker or end.
+	seqStart := seqIdx + len(seqMarker)
+	seqEnd := nextMarker(line, seqStart, execMarker, stdinMarker, timeoutMarker)
+	seqStr := line[seqStart:seqEnd]
+	seq, err := strconv.Atoi(seqStr)
+	if err != nil || seq < 1 {
+		return RunCommand{}, fmt.Errorf("cmd:%s invalid seq=%q", mode, seqStr)
+	}
+
+	// Extract exec value: from after ":exec=" to the next known marker or end.
+	// This correctly preserves colons inside the exec value.
+	execStart := execIdx + len(execMarker)
+	execEnd := nextMarker(line, execStart, stdinMarker, timeoutMarker)
+	execVal := line[execStart:execEnd]
+	if execVal == "" {
+		return RunCommand{}, fmt.Errorf("cmd:%s missing exec=", mode)
+	}
+
+	rc := RunCommand{
+		Mode: mode,
+		Seq:  seq,
+		Exec: execVal,
+	}
+
+	// Extract optional stdin= and timeout= values.
+	if idx := strings.Index(line, stdinMarker); idx >= 0 {
+		start := idx + len(stdinMarker)
+		end := nextMarker(line, start, timeoutMarker)
+		rc.Stdin = line[start:end]
+	}
+	if idx := strings.Index(line, timeoutMarker); idx >= 0 {
+		start := idx + len(timeoutMarker)
+		end := nextMarker(line, start) // no more markers
+		rc.Timeout = line[start:end]
+	}
+
+	return rc, nil
+}
+
+// nextMarker returns the index of the earliest occurrence of any marker
+// in line starting from offset, or len(line) if none found.
+func nextMarker(line string, offset int, markers ...string) int {
+	best := len(line)
+	for _, m := range markers {
+		if idx := strings.Index(line[offset:], m); idx >= 0 {
+			if offset+idx < best {
+				best = offset + idx
+			}
+		}
+	}
+	return best
+}
+
+// parseHTTP handles http=method:seq=N:url=URL:status=CODE[:contains=TEXT] lines.
+// Uses marker-based parsing instead of ParseKVPairs because URLs contain colons.
+func (et *EncodingTests) parseHTTP(r *Record, method, line string) error {
+	if method != "get" && method != "post" {
+		return fmt.Errorf("unsupported HTTP method %q (use get or post)", method)
+	}
+
+	// Find known markers in the raw line.
+	seqMarker := ":seq="
+	urlMarker := ":url="
+	statusMarker := ":status="
+	containsMarker := ":contains="
+
+	seqIdx := strings.Index(line, seqMarker)
+	urlIdx := strings.Index(line, urlMarker)
+	statusIdx := strings.Index(line, statusMarker)
+	containsIdx := strings.Index(line, containsMarker)
+
+	if seqIdx < 0 {
+		return fmt.Errorf("http= missing seq=")
+	}
+	if urlIdx < 0 {
+		return fmt.Errorf("http= missing url=")
+	}
+	if statusIdx < 0 {
+		return fmt.Errorf("http= missing status=")
+	}
+
+	// Extract seq: from ":seq=" to next marker (":url=").
+	seqEnd := urlIdx
+	seqStr := line[seqIdx+len(seqMarker) : seqEnd]
+	seq, err := strconv.Atoi(seqStr)
+	if err != nil || seq < 1 {
+		return fmt.Errorf("http= invalid seq=%q", seqStr)
+	}
+
+	// Extract url: from ":url=" to ":status=".
+	url := line[urlIdx+len(urlMarker) : statusIdx]
+
+	// Extract status: from ":status=" to ":contains=" or end of line.
+	var statusStr string
+	if containsIdx > 0 {
+		statusStr = line[statusIdx+len(statusMarker) : containsIdx]
+	} else {
+		statusStr = line[statusIdx+len(statusMarker):]
+	}
+	status, err := strconv.Atoi(statusStr)
+	if err != nil {
+		return fmt.Errorf("http= invalid status=%q", statusStr)
+	}
+
+	// Extract optional contains.
+	var contains string
+	if containsIdx > 0 {
+		contains = line[containsIdx+len(containsMarker):]
+	}
+
+	r.HTTPChecks = append(r.HTTPChecks, HTTPCheck{
+		Seq:      seq,
+		Method:   method,
+		URL:      url,
+		Status:   status,
+		Contains: contains,
+	})
 	return nil
 }
 

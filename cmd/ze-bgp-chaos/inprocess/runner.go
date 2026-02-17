@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/peer"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-bgp-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
@@ -52,6 +53,11 @@ type RunConfig struct {
 	// (> DefaultReconnectMin = 5s) gives the reactor time to complete
 	// the reconnect cycle and accept the new connection cleanly.
 	ReconnectDelay time.Duration
+
+	// Consumer receives events in real-time during the simulation.
+	// When non-nil, events are forwarded as they arrive (before Run returns).
+	// Used by --web to feed the dashboard during in-process mode.
+	Consumer report.Consumer
 }
 
 // RunResult holds the output from an in-process chaos run.
@@ -181,6 +187,23 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		}(profile, peerEnd)
 	}
 
+	// Drain events in real-time so the channel buffer doesn't fill up.
+	// When a Consumer is set (e.g., web dashboard), forward events as they arrive.
+	var collectedEvents []peer.Event
+	var eventsMu sync.Mutex
+	eventsDone := make(chan struct{})
+	go func() {
+		defer close(eventsDone)
+		for ev := range events {
+			if cfg.Consumer != nil {
+				cfg.Consumer.ProcessEvent(ev)
+			}
+			eventsMu.Lock()
+			collectedEvents = append(collectedEvents, ev)
+			eventsMu.Unlock()
+		}
+	}()
+
 	// Give real time for the BGP handshake and route exchange to complete
 	// over the synchronous net.Pipe() connections. The handshake happens
 	// in real goroutines even though timers use virtual time.
@@ -275,12 +298,13 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	defer waitCancel()
 	_ = reactor.Wait(waitCtx)
 
-	// Drain events channel.
+	// Close events channel and wait for the drain goroutine to finish.
 	close(events)
-	var result RunResult
-	for ev := range events {
-		result.Events = append(result.Events, ev)
-	}
+	<-eventsDone
+
+	eventsMu.Lock()
+	result := RunResult{Events: collectedEvents}
+	eventsMu.Unlock()
 
 	return &result, nil
 }
