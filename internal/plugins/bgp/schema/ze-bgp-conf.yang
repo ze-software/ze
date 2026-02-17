@@ -143,6 +143,13 @@ module ze-bgp-conf {
             description "Wait for peer to connect";
         }
 
+        leaf port {
+            type uint16 {
+                range "1..65535";
+            }
+            description "Per-peer listen port (overrides global tcp.port for this peer)";
+        }
+
         leaf group-updates {
             type boolean;
             default true;

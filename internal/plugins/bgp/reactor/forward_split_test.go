@@ -76,7 +76,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 	})
 
 	r.mu.Lock()
-	r.peers[settings.Address.String()] = peer
+	r.peers[settings.PeerKey()] = peer
 	r.mu.Unlock()
 
 	// Get max message size for peer

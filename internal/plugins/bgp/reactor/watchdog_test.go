@@ -492,7 +492,7 @@ func TestPeerGetsGlobalWatchdog(t *testing.T) {
 
 	// Get the peer and verify it has global watchdog set
 	r.mu.RLock()
-	peer := r.peers["192.168.1.1"]
+	peer := r.peers[PeerKeyFromAddrPort(netip.MustParseAddr("192.168.1.1"), DefaultBGPPort)]
 	r.mu.RUnlock()
 
 	require.NotNil(t, peer)

@@ -72,6 +72,14 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 		ps.Passive = v
 	}
 
+	// Per-peer listen port (overrides global tcp.port for this peer).
+	if v, ok := mapUint32(tree, "port"); ok {
+		if v < 1 || v > 65535 {
+			return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", addr, v)
+		}
+		ps.Port = uint16(v)
+	}
+
 	// Group updates (default true from NewPeerSettings).
 	if v, ok := mapBool(tree, "group-updates"); ok {
 		ps.GroupUpdates = v

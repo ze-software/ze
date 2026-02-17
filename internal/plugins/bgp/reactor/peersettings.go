@@ -293,6 +293,22 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 	}
 }
 
+// PeerKey returns the map key for this peer: "addr:port".
+// This uniquely identifies a peer even when multiple peers share the same IP.
+// Uses DefaultBGPPort when Port is zero (unset).
+func (n *PeerSettings) PeerKey() string {
+	port := n.Port
+	if port == 0 {
+		port = DefaultBGPPort
+	}
+	return PeerKeyFromAddrPort(n.Address, port)
+}
+
+// PeerKeyFromAddrPort builds a peer map key from address and port.
+func PeerKeyFromAddrPort(addr netip.Addr, port uint16) string {
+	return fmt.Sprintf("%s:%d", addr.String(), port)
+}
+
 // IsIBGP returns true if this is an internal BGP session (same AS).
 func (n *PeerSettings) IsIBGP() bool {
 	return n.LocalAS == n.PeerAS
