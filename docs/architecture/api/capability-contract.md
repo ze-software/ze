@@ -52,7 +52,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Engine delegates all route storage to API. Reference implementations: `ze bgp plugin rr`, `ze bgp plugin rib`.
+Engine delegates all route storage to API. Reference implementations: `ze plugin rr`, `ze plugin rib`.
 
 ---
 
@@ -195,8 +195,8 @@ When `encoding json`:
 
 | Plugin | Use Case | RIB Type |
 |--------|----------|----------|
-| `ze bgp plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
-| `ze bgp plugin rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
+| `ze plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
+| `ze plugin rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
 
 See `docs/plan/spec-api-rr.md` for implementation details.
 

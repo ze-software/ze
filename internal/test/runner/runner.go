@@ -739,7 +739,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
 
 		// Set up environment
-		// Add ze binary directory to PATH so child processes can find "ze bgp plugin ..." commands
+		// Add ze binary directory to PATH so child processes can find "ze plugin ..." commands
 		zeDir := filepath.Dir(r.zePath)
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),

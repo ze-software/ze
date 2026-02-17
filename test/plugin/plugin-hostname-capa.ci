@@ -3,7 +3,7 @@
 # Capability code 73: hostname "router1" (7 bytes) + domain "lab" (3 bytes)
 # Wire: 07 (len) "router1" 03 (len) "lab"
 
-cmd=foreground:seq=1:exec=ze bgp plugin bgp-hostname --capa 07726f7574657231036c6162
+cmd=foreground:seq=1:exec=ze plugin bgp-hostname --capa 07726f7574657231036c6162
 expect=exit:code=0
 expect=stdout:contains=hostname
 expect=stdout:contains=router1

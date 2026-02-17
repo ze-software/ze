@@ -313,5 +313,5 @@ const (
 	StatusError = "error"
 )
 
-// cmdPlugin is the "plugin" token in command strings like "ze bgp plugin <name>".
+// cmdPlugin is the "plugin" token in command strings like "ze plugin <name>".
 const cmdPlugin = "plugin"

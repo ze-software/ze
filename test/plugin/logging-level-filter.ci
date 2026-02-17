@@ -26,7 +26,7 @@ stdin=ze-bgp:terminator=EOF_CONF
 
 plugin {
     external gr {
-        run "ze bgp plugin bgp-gr";
+        run "ze plugin bgp-gr";
         encoder json;
     }
 }

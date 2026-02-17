@@ -2,14 +2,14 @@
 
 Tools for testing plugin YANG schemas, config delivery, and capability injection.
 
-## `ze bgp plugin test`
+## `ze plugin test`
 
 Tests plugin configuration without starting a full BGP server.
 
 ### Usage
 
 ```bash
-ze bgp plugin test [options] <config-file>
+ze plugin test [options] <config-file>
 ```
 
 ### Options
@@ -26,7 +26,7 @@ ze bgp plugin test [options] <config-file>
 
 **Verify plugin YANG schema is loaded:**
 ```bash
-ze bgp plugin test --plugin ze.hostname --schema config.conf
+ze plugin test --plugin ze.hostname --schema config.conf
 ```
 
 Output shows schema structure including augmented fields:
@@ -44,7 +44,7 @@ Output shows schema structure including augmented fields:
 
 **Show config tree structure:**
 ```bash
-ze bgp plugin test --plugin ze.hostname --tree config.conf
+ze plugin test --plugin ze.hostname --tree config.conf
 ```
 
 Output shows the parsed config as JSON:
@@ -67,7 +67,7 @@ Output shows the parsed config as JSON:
 
 **Show exact JSON delivery format:**
 ```bash
-ze bgp plugin test --plugin ze.hostname --json config.conf
+ze plugin test --plugin ze.hostname --json config.conf
 ```
 
 Output shows the exact line sent to plugins:
@@ -145,7 +145,7 @@ export ze_log_server=debug
 export ze_log_config=debug
 
 # Hostname plugin (if using --log-level flag)
-ze bgp plugin hostname --log-level debug
+ze plugin hostname --log-level debug
 ```
 
 ### Log Subsystems
@@ -162,19 +162,19 @@ When plugin capabilities aren't appearing in OPEN messages:
 
 1. **Verify YANG loads:**
    ```bash
-   ze bgp plugin test --plugin ze.hostname --schema config.conf
+   ze plugin test --plugin ze.hostname --schema config.conf
    ```
    Look for plugin fields in capability container.
 
 2. **Verify config parses:**
    ```bash
-   ze bgp plugin test --plugin ze.hostname --tree config.conf
+   ze plugin test --plugin ze.hostname --tree config.conf
    ```
    Check hostname values appear in tree.
 
 3. **Verify JSON format:**
    ```bash
-   ze bgp plugin test --plugin ze.hostname --json config.conf
+   ze plugin test --plugin ze.hostname --json config.conf
    ```
    Compare with plugin's expected format.
 

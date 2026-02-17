@@ -17,8 +17,8 @@ Two plugins sharing common RIB infrastructure:
 
 | Plugin | Binary Name | Use Case | RIB | Events |
 |--------|-------------|----------|-----|--------|
-| Route Server | `ze bgp plugin bgp-rr` | IX route server (multi-peer) | ribIn | `update`, `state`, `open`, `refresh` |
-| Persist | `ze bgp plugin bgp-persist` | State persistence (single-peer) | ribOut | `update direction sent`, `state` |
+| Route Server | `ze plugin bgp-rr` | IX route server (multi-peer) | ribIn | `update`, `state`, `open`, `refresh` |
+| Persist | `ze plugin bgp-persist` | State persistence (single-peer) | ribOut | `update direction sent`, `state` |
 
 **RR plugin** forwards all UPDATEs to all peers except source (forward-all model, no best-path).
 Stores routes in Adj-RIB-In for replay when a new peer comes up.
@@ -216,7 +216,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 |-------------------|---------|------|
 | YANG schema (new RPCs) | [ ] No | N/A (uses existing SDK RPCs) |
 | RPC count in architecture docs | [ ] No | No new RPCs |
-| CLI commands/flags | [ ] No | Uses existing `ze bgp plugin` dispatch |
+| CLI commands/flags | [ ] No | Uses existing `ze plugin` dispatch |
 | CLI usage/help text | [ ] No | Auto-generated from registration |
 | API commands doc | [ ] No | `rr status`, `rr peers` already documented |
 | Plugin SDK docs | [ ] No | No new SDK methods |

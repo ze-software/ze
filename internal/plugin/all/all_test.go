@@ -72,7 +72,7 @@ func TestAllPluginsHaveCLIHandler(t *testing.T) {
 // TestAllPluginsHaveDescription verifies that every registered plugin has a description.
 //
 // VALIDATES: Help text will have descriptions for all plugins.
-// PREVENTS: Empty lines in `ze bgp plugin help` output.
+// PREVENTS: Empty lines in `ze plugin help` output.
 func TestAllPluginsHaveDescription(t *testing.T) {
 	for _, reg := range registry.All() {
 		if reg.Description == "" {

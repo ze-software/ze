@@ -220,7 +220,7 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 2. Fork plugins from config (EXISTING - uses SubsystemManager)          │
 │    - ze-subsystem --mode=bgp                                            │
-│    - ze bgp plugin rib                                                  │
+│    - ze plugin rib                                                  │
 │    - /path/to/third-party-plugin                                        │
 └─────────────────────────────────────────────────────────────────────────┘
                                 │

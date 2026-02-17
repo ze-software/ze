@@ -280,7 +280,7 @@ ze <domain> <command> [subcommand] [options] [args]
 
 ze bgp server config.conf          # domain=bgp, command=server
 ze bgp decode --open FFFF...       # domain=bgp, command=decode
-ze bgp plugin gr                   # domain=bgp, command=plugin, subcommand=gr
+ze plugin bgp-gr               # domain=plugin, subcommand=gr
 ze config check config.conf        # domain=config, command=check
 ```
 

@@ -1029,7 +1029,7 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 │                        GR PLUGIN MESSAGE FLOW                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   Ze Engine                              GR Plugin (ze bgp plugin gr)     │
+│   Ze Engine                              GR Plugin (ze plugin gr)     │
 │   ────────────                              ────────────────────────────    │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
@@ -1100,7 +1100,7 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 │                        RIB PLUGIN MESSAGE FLOW                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   Ze Engine                              RIB Plugin (ze bgp plugin rib)   │
+│   Ze Engine                              RIB Plugin (ze plugin rib)   │
 │   ────────────                              ─────────────────────────────   │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
@@ -1205,12 +1205,12 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 ```
 plugin {
     external gr {
-        run "ze bgp plugin gr";
+        run "ze plugin gr";
         encoder json;
     }
 
     external rib {
-        run "ze bgp plugin rib";
+        run "ze plugin rib";
         encoder json;
     }
 }
@@ -1347,7 +1347,7 @@ If plugin cannot decode:
 Plugin entry point with `--decode` flag:
 
 ```bash
-ze bgp plugin hostname --decode
+ze plugin hostname --decode
 ```
 
 Plugin reads decode requests from stdin, writes responses to stdout, exits on EOF.

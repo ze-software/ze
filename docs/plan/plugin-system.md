@@ -3493,16 +3493,16 @@ Test external plugins from command line:
 
 ```bash
 # Test gRPC plugin
-ze bgp plugin test grpc:///var/run/my-plugin.sock
+ze plugin test grpc:///var/run/my-plugin.sock
 
 # Test JSON-RPC plugin
-ze bgp plugin test jsonrpc://localhost:9000
+ze plugin test jsonrpc://localhost:9000
 
 # Test stdio plugin
-ze bgp plugin test stdio:///usr/bin/python3 /path/to/plugin.py
+ze plugin test stdio:///usr/bin/python3 /path/to/plugin.py
 
 # Verbose output
-ze bgp plugin test --verbose grpc:///var/run/my-plugin.sock
+ze plugin test --verbose grpc:///var/run/my-plugin.sock
 ```
 
 **Test sequence:**

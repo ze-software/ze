@@ -30,7 +30,7 @@ func writeStr(w io.Writer, format string, args ...any) {
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
-// This is for human use: `ze bgp plugin role --capa <hex>` or with `--text`.
+// This is for human use: `ze plugin role --capa <hex>` or with `--text`.
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	if hexData == "" {
 		writeStr(stderr, "error: empty input\n")

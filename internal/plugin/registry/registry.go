@@ -31,7 +31,7 @@ type Registration struct {
 	Name        string                                      // Plugin name (e.g., "flowspec", "gr")
 	Description string                                      // Human-readable description for help text
 	RunEngine   func(engineConn, callbackConn net.Conn) int // Engine mode handler (RPC)
-	CLIHandler  func(args []string) int                     // CLI handler for `ze bgp plugin <name>`
+	CLIHandler  func(args []string) int                     // CLI handler for `ze plugin <name>`
 
 	// Optional metadata.
 	RFCs            []string // Related RFC numbers (e.g., ["8955", "8956"])

@@ -1478,9 +1478,9 @@ func TestInvokePluginForkPath(t *testing.T) {
 	// Use shared pre-built binary (built once via sync.Once).
 	binPath := setupTestZeBinary(t)
 
-	// Create a wrapper script that calls ze bgp plugin flowspec --decode.
+	// Create a wrapper script that calls ze plugin flowspec --decode.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"
-	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s bgp plugin bgp-flowspec \"$@\"\n", binPath)
+	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s plugin bgp-flowspec \"$@\"\n", binPath)
 	if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755); err != nil { //nolint:gosec // executable script
 		t.Fatalf("failed to write wrapper: %v", err)
 	}

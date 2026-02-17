@@ -65,10 +65,10 @@ func TestResolvePlugin(t *testing.T) {
 		// Command with args
 		{
 			name:     "command_with_args",
-			input:    "ze bgp plugin rib",
+			input:    "ze plugin rib",
 			wantType: PluginTypeExternal,
 			wantName: "rib",
-			wantCmd:  []string{"ze", "bgp", "plugin", "rib"},
+			wantCmd:  []string{"ze", "plugin", "rib"},
 		},
 		{
 			name:     "command_single",

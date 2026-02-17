@@ -315,7 +315,7 @@ func decodeFQDN(data []byte) (hostname, domain string) {
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
-// This is for human use: `ze bgp plugin hostname --capa <hex>` or with `--text`.
+// This is for human use: `ze plugin hostname --capa <hex>` or with `--text`.
 // Returns exit code (0 = success, 1 = error).
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
 	// Decode hex

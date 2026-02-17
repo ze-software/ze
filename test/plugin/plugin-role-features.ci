@@ -1,7 +1,7 @@
 # plugin-role-features - verify role plugin --features output
-# Tests that ze bgp plugin role --features lists supported features
+# Tests that ze plugin role --features lists supported features
 
-cmd=foreground:seq=1:exec=ze bgp plugin role --features
+cmd=foreground:seq=1:exec=ze plugin role --features
 expect=exit:code=0
 expect=stdout:contains=capa
 expect=stdout:contains=yang

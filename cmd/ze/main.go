@@ -13,6 +13,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
@@ -95,6 +96,8 @@ dispatch:
 	switch arg {
 	case "bgp":
 		os.Exit(bgp.Run(args[1:]))
+	case "plugin":
+		os.Exit(zeplugin.Run(args[1:]))
 	case "cli":
 		os.Exit(cli.Run(args[1:]))
 	case "config":
@@ -203,7 +206,8 @@ Commands:
   config    Configuration management
   schema    Schema discovery
   cli      Interactive CLI for running daemons
-  bgp      BGP protocol tools (decode, encode, plugin)
+  bgp      BGP protocol tools (decode, encode)
+  plugin   Plugin system (rib, rr, gr, etc.)
   signal   Send signals to running daemon (reload, stop, status)
   exabgp   ExaBGP bridge tools
   version  Show version

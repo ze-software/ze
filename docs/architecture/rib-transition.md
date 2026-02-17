@@ -254,9 +254,9 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
         ↓
 3. Engine: Add "peer X announce raw <attrs> nlri <nlri>" command
         ↓
-4. API: Update ze bgp plugin rr to use wire bytes + pool
+4. API: Update ze plugin rr to use wire bytes + pool
         ↓
-5. API: Update ze bgp plugin rib with msg-id control
+5. API: Update ze plugin rib with msg-id control
         ↓
 6. Engine: Remove RIB storage from reactor (API owns)
         ↓

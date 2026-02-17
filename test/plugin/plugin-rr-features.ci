@@ -1,5 +1,5 @@
 # plugin-rr-features - verify route-reflector plugin --features output
-# Tests that ze bgp plugin bgp-rr --features lists supported features
+# Tests that ze plugin bgp-rr --features lists supported features
 
-cmd=foreground:seq=1:exec=ze bgp plugin bgp-rr --features
+cmd=foreground:seq=1:exec=ze plugin bgp-rr --features
 expect=exit:code=0

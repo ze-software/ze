@@ -145,7 +145,7 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 // merging CLI-specified plugins with config-declared plugins.
 //
 // CLI plugins are resolved using plugin.ResolvePlugin():
-//   - "ze.X" -> internal plugin (run "ze bgp plugin X")
+//   - "ze.X" -> internal plugin (run "ze plugin X")
 //   - "./path" -> fork local binary
 //   - "/path" -> fork absolute path binary
 //   - "cmd args..." -> fork command with args

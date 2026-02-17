@@ -97,7 +97,7 @@ func GetBGPLSYANG() string {
 }
 
 // RunBGPLSCLIDecode decodes BGP-LS NLRI from hex string for CLI mode.
-// This is for direct CLI invocation: ze bgp plugin bgpls --nlri <hex>
+// This is for direct CLI invocation: ze plugin bgpls --nlri <hex>
 // Output is plain JSON or text (no "decoded json" prefix).
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {

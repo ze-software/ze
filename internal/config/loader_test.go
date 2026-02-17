@@ -397,11 +397,11 @@ func TestPluginOnlySchema(t *testing.T) {
 	input := `
 plugin {
     external gr {
-        run "ze bgp plugin gr";
+        run "ze plugin gr";
         encoder json;
     }
     external rib {
-        run "ze bgp plugin rib";
+        run "ze plugin rib";
     }
 }
 `
@@ -421,7 +421,7 @@ plugin {
 	require.NotNil(t, grPlugin)
 	run, ok := grPlugin.Get("run")
 	require.True(t, ok)
-	require.Equal(t, "ze bgp plugin gr", run)
+	require.Equal(t, "ze plugin gr", run)
 
 	encoder, ok := grPlugin.Get("encoder")
 	require.True(t, ok)
@@ -432,7 +432,7 @@ plugin {
 	require.NotNil(t, ribPlugin)
 	run, ok = ribPlugin.Get("run")
 	require.True(t, ok)
-	require.Equal(t, "ze bgp plugin rib", run)
+	require.Equal(t, "ze plugin rib", run)
 }
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.
@@ -748,7 +748,7 @@ func TestMergeCliPlugins(t *testing.T) {
 		{
 			name: "dedup_cli_matches_config",
 			configPlugs: []reactor.PluginConfig{
-				{Name: "bgp-rib", Run: "ze bgp plugin bgp-rib"},
+				{Name: "bgp-rib", Run: "ze plugin bgp-rib"},
 			},
 			cliPlugs:  []string{"ze.bgp-rib"},
 			wantNames: []string{"bgp-rib"}, // Only one rib
@@ -756,7 +756,7 @@ func TestMergeCliPlugins(t *testing.T) {
 		{
 			name:        "cli_command_with_args",
 			configPlugs: nil,
-			cliPlugs:    []string{"ze bgp plugin rr"},
+			cliPlugs:    []string{"ze plugin rr"},
 			wantNames:   []string{"rr"},
 		},
 		{

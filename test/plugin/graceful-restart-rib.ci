@@ -29,11 +29,11 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external gr {
-		run "ze bgp plugin bgp-gr";
+		run "ze plugin bgp-gr";
 		encoder json;
 	}
 	external rib {
-		run "ze bgp plugin bgp-rib";
+		run "ze plugin bgp-rib";
 		encoder json;
 	}
 }

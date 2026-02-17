@@ -1,4 +1,4 @@
-package bgp
+package plugin
 
 import (
 	"encoding/json"
@@ -10,6 +10,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
+
+// pluginFlags collects multiple --plugin flag values.
+type pluginFlags []string
+
+func (p *pluginFlags) String() string {
+	return strings.Join(*p, ",")
+}
+
+func (p *pluginFlags) Set(value string) error {
+	*p = append(*p, value)
+	return nil
+}
 
 // rootFlags supports repeatable --root flag.
 type rootFlags []string
@@ -31,7 +43,7 @@ func cmdPluginTest(args []string) int {
 	showJSON := fs.Bool("json", false, "show JSON that would be sent to each plugin")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin test [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: ze plugin test [options] <config-file>
 
 Test plugin configuration and protocol behavior.
 Useful for debugging plugin YANG schema loading and config delivery.
@@ -41,11 +53,11 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze bgp plugin test --plugin ze.hostname --schema config.conf
-  ze bgp plugin test --plugin ze.hostname --tree config.conf
-  ze bgp plugin test --plugin ze.hostname --json config.conf
-  ze bgp plugin test --plugin ze.hostname --json --root bgp --root rib config.conf
-  ze bgp plugin test --json --root bgp/peer config.conf
+  ze plugin test --plugin ze.hostname --schema config.conf
+  ze plugin test --plugin ze.hostname --tree config.conf
+  ze plugin test --plugin ze.hostname --json config.conf
+  ze plugin test --plugin ze.hostname --json --root bgp --root rib config.conf
+  ze plugin test --json --root bgp/peer config.conf
 `)
 	}
 

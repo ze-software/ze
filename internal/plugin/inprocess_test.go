@@ -66,8 +66,8 @@ func TestDeriveName(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"ze_bgp_plugin_rib", "ze bgp plugin rib", "rib"},
-		{"ze_bgp_plugin_gr", "ze bgp plugin gr", "gr"},
+		{"ze_plugin_rib", "ze plugin rib", "rib"},
+		{"ze_plugin_gr", "ze plugin gr", "gr"},
 		{"local_path", "./myplugin", "myplugin"},
 		{"local_nested", "./path/to/plugin", "plugin"},
 		{"absolute_path", "/usr/lib/ze/myplugin", "myplugin"},
@@ -94,7 +94,7 @@ func TestDeriveNameEdgeCases(t *testing.T) {
 		parts []string
 		want  string
 	}{
-		{"ze_bgp_plugin_missing_name", []string{"ze", "bgp", "plugin"}, "ze"},
+		{"ze_plugin_missing_name", []string{"ze", "plugin"}, "ze"},
 		{"trailing_slash", []string{"./path/to/"}, "to"}, // filepath.Base of "./path/to/" is "to"
 		{"single_dot", []string{"."}, "."},               // Current dir
 		{"double_dot", []string{".."}, ".."},             // Parent dir

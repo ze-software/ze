@@ -392,10 +392,10 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 	}
 
 	// Build plugin command - pluginName comes from fixed maps (pluginCapabilityMap, pluginFamilyMap)
-	args := []string{"bgp", "plugin", pluginName, "--decode"}
+	args := []string{"plugin", pluginName, "--decode"}
 
 	// Create command with timeout context for subprocess decode operation.
-	// 5s allows for process startup chain (sh -> wrapper -> ze bgp plugin --decode).
+	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map
@@ -563,9 +563,9 @@ func invokePluginSubprocess(pluginName, request string) any {
 		return nil // Fall back to in-process via invokePluginNLRIDecodeRequest
 	}
 
-	args := []string{"bgp", "plugin", pluginName, "--decode"}
+	args := []string{"plugin", pluginName, "--decode"}
 
-	// 5s allows for process startup chain (sh -> wrapper -> ze bgp plugin --decode).
+	// 5s allows for process startup chain (sh -> wrapper -> ze plugin --decode).
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, os.Args[0], args...) //nolint:gosec // pluginName from fixed map

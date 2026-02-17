@@ -2,7 +2,7 @@
 # Tests Role capability decoding via plugin CLI
 # Wire values: provider=0x00, rs=0x01, rs-client=0x02, customer=0x03, peer=0x04
 
-cmd=foreground:seq=1:exec=ze bgp plugin role --capa 03
+cmd=foreground:seq=1:exec=ze plugin role --capa 03
 expect=exit:code=0
 expect=stdout:contains="name":"role"
 expect=stdout:contains="value":"customer"

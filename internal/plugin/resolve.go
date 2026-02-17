@@ -120,9 +120,9 @@ func ResolvePlugin(s string) (*ResolvedPlugin, error) {
 // deriveName extracts a plugin name from command parts.
 // Uses last argument if it looks like a plugin name, otherwise basename of binary.
 func deriveName(parts []string) string {
-	// If command is "ze bgp plugin X", use X as name.
-	if len(parts) >= 4 && parts[0] == "ze" && parts[1] == "bgp" && parts[2] == cmdPlugin {
-		return parts[3]
+	// If command is "ze plugin X", use X as name.
+	if len(parts) >= 3 && parts[0] == "ze" && parts[1] == cmdPlugin {
+		return parts[2]
 	}
 
 	// Otherwise use basename of binary.
@@ -136,7 +136,7 @@ func IsInternalPlugin(name string) bool {
 }
 
 // InternalPluginCommand returns the command to run an internal plugin.
-// For internal plugins, this is "ze bgp plugin <name>".
+// For internal plugins, this is "ze plugin <name>".
 func InternalPluginCommand(name string) []string {
-	return []string{"ze", "bgp", cmdPlugin, name}
+	return []string{"ze", cmdPlugin, name}
 }
