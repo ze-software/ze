@@ -13,9 +13,9 @@
 | 6 | `spec-bgp-chaos-eventlog.md` | Done | Replayable event log |
 | 7 | `spec-bgp-chaos-properties.md` | Done (261) | RFC property assertions |
 | 8 | `spec-bgp-chaos-shrink.md` | Done (262) | Test case minimization |
-| 9 | `spec-bgp-chaos-inprocess.md` | Ready | In-process mode — full spec written, injection gap closed (sim interfaces + FakeClock integration test in 7cf6b56d) |
-| 10 | `spec-bgp-chaos-selftest.md` | Blocked | Self-chaos mode: Ze injects faults into its own infrastructure (depends on Phase 9) |
-| 11 | `spec-bgp-chaos-integration.md` | Blocked | End-to-end Ze testing (depends on Phases 9-10) |
+| 9 | `spec-bgp-chaos-inprocess.md` | Done (264) | In-process mode — full spec written, injection gap closed (sim interfaces + FakeClock integration test in 7cf6b56d) |
+| 10 | `spec-bgp-chaos-selftest.md` | Done (265) | Self-chaos mode: Ze injects faults into its own infrastructure |
+| 11 | `spec-bgp-chaos-integration.md` | Not started | End-to-end Ze testing (--managed mode, make functional-chaos) |
 
 **Phases 1-5:** Core chaos tool (external, black-box TCP testing)
 **Phases 6-9:** DST bridge (toward deterministic simulation, see `deterministic-simulation-analysis.md`)
@@ -651,70 +651,80 @@ Each phase ends with a Self-Critical Review.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Single Go binary, multiple peers | | | |
-| Seed-based deterministic generation | | | |
-| Predictable UPDATEs (announce + withdraw) | | | |
-| Route propagation validation | | | |
-| Chaos events (disconnect, etc.) | | | |
-| Long-lived + CI/CD modes | | | |
-| Multi-family support | | | |
-| Varied OPEN capabilities per peer | | | |
-| iBGP + eBGP mix | | | |
-| Configurable chaos rate | | | |
-| Generate Ze config | | | |
-| Live dashboard output | | | |
-| JSON log + summary + Prometheus | | | |
-| Print seed, accept as CLI arg | | | |
-| Max runtime option | | | |
-| Family include/exclude CLI | | | |
+| Single Go binary, multiple peers | ✅ Done | `cmd/ze-bgp-chaos/` | Phases 1-4 (specs 255-258) |
+| Seed-based deterministic generation | ✅ Done | `scenario/generator.go` | Phase 1 (spec 255) |
+| Predictable UPDATEs (announce + withdraw) | ✅ Done | `scenario/routes.go`, `peer/sender.go` | Phase 1 |
+| Route propagation validation | ✅ Done | `validation/model.go`, `validation/tracker.go` | Phase 2 (spec 256) |
+| Chaos events (disconnect, etc.) | ✅ Done | `chaos/scheduler.go`, `peer/simulator.go` | Phase 3 (spec 257), 10 action types |
+| Long-lived + CI/CD modes | ✅ Done | `--duration` flag, graceful shutdown | Phase 1 |
+| Multi-family support | ✅ Done | `scenario/routes.go` per-family generation | Phase 4 (spec 258) |
+| Varied OPEN capabilities per peer | ✅ Done | `scenario/profile.go` | Phase 1 |
+| iBGP + eBGP mix | ✅ Done | `--ibgp-ratio` flag | Phase 1 |
+| Configurable chaos rate | ✅ Done | `--chaos-rate` flag | Phase 3 |
+| Generate Ze config | ✅ Done | `scenario/config.go` | Phase 1 |
+| Live dashboard output | ✅ Done | `report/dashboard.go` (terminal) + `web/` (browser) | Phase 5 (spec 259) + web dashboard |
+| JSON log + summary + Prometheus | ✅ Done | `report/jsonlog.go`, `report/summary.go`, `report/metrics.go` | Phase 5 (spec 259) |
+| Print seed, accept as CLI arg | ✅ Done | `--seed` flag | Phase 1 |
+| Max runtime option | ✅ Done | `--duration` flag | Phase 1 |
+| Family include/exclude CLI | ✅ Done | `--families`, `--exclude-families` | Phase 4 |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
-| AC-11 | | | |
-| AC-12 | | | |
-| AC-13 | | | |
-| AC-14 | | | |
-| AC-15 | | | |
-| AC-16 | | | |
-| AC-17 | | | |
-| AC-18 | | | |
-| AC-19 | | | |
+| AC-1 | ✅ Done | Phase 1 unit/functional tests | 4 peers, seed, duration, summary |
+| AC-2 | ✅ Done | `TestScenarioGenDeterministic` | Same seed = same scenario |
+| AC-3 | ✅ Done | Phase 2 validation model | Route propagation verified |
+| AC-4 | ✅ Done | Phase 2 validation model | Withdrawals propagated |
+| AC-5 | ✅ Done | Phase 3 chaos + validation | Disconnected peer routes withdrawn |
+| AC-6 | ✅ Done | Phase 3 reconnect logic | Reconnected peer receives all routes |
+| AC-7 | ✅ Done | Phase 3 disconnect-during-burst | Partial routes handled |
+| AC-8 | ✅ Done | Phase 1 iBGP/eBGP support | Both peer types work |
+| AC-9 | ✅ Done | Phase 4 multi-family validation | Family filtering works |
+| AC-10 | ✅ Done | Phase 3 hold-timer-expiry action | Ze detects expiry |
+| AC-11 | ✅ Done | Phase 4 --families flag | Family inclusion works |
+| AC-12 | ✅ Done | Phase 4 --exclude-families flag | Family exclusion works |
+| AC-13 | ✅ Done | Phase 1 --config-out | Valid Ze config written |
+| AC-14 | ✅ Done | Phase 3 --chaos-rate 0 | No chaos events fired |
+| AC-15 | ✅ Done | Phase 3 --chaos-rate 1.0 | Maximum chaos |
+| AC-16 | ✅ Done | Phase 5 live dashboard | Per-peer status table |
+| AC-17 | ✅ Done | Phase 5 exit summary | Convergence stats reported |
+| AC-18 | ✅ Done | Phase 4 multi-family | Routes per family validated |
+| AC-19 | ✅ Done | Phase 3 connection collision | ActionConnectionCollision |
 
-### Tests from TDD Plan
-| Test | Status | Location | Notes |
-|------|--------|----------|-------|
-| All unit tests | | | |
-| All functional tests | | | |
-
-### Files from Plan
-| File | Status | Notes |
-|------|--------|-------|
-| All files listed in "Files to Create" | | |
+### Phase Status Summary
+| Phase | Spec | Status |
+|-------|------|--------|
+| 1. Session | 255-bgp-chaos-session | ✅ Done |
+| 2. Validation | 256-bgp-chaos-validation | ✅ Done |
+| 3. Chaos | 257-bgp-chaos-chaos | ✅ Done |
+| 4. Families | 258-bgp-chaos-families | ✅ Done |
+| 5. Reporting | 259-bgp-chaos-reporting | ✅ Done |
+| 6. Event Log | 260-bgp-chaos-eventlog | ✅ Done |
+| 7. Properties | 261-bgp-chaos-properties | ✅ Done |
+| 8. Shrink | 262-bgp-chaos-shrink | ✅ Done |
+| 9. In-Process | 264-bgp-chaos-inprocess | ✅ Done |
+| 10. Selftest | 265-bgp-chaos-selftest | ✅ Done |
+| 11. Integration | spec-bgp-chaos-integration | ❌ Not started |
+| Web Dashboard | spec-chaos-web-foundation | ✅ Done |
+| Web Viz | spec-chaos-web-viz | ✅ Done |
+| Web Route Matrix | spec-chaos-web-route-matrix | ✅ Done |
+| Web Controls | spec-chaos-web-controls | ⚠️ Partial (no v2 actions, no restart) |
+| Actions V2 | spec-chaos-actions-v2 | ❌ Not started |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 35 (16 requirements + 19 ACs)
+- **Done:** 35
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
+- **Note:** This covers the core tool (phases 1-10). Web dashboard and v2 actions tracked in sub-specs.
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] Acceptance criteria AC-1..AC-19 all demonstrated
-- [ ] Tests pass (`make test`)
-- [ ] No regressions (`make functional`)
+- [ ] Tests pass (`make ze-unit-test`)
+- [ ] No regressions (`make ze-functional-test`)
 - [ ] Binary builds and runs
 
 ### Quality Gates (SHOULD pass)

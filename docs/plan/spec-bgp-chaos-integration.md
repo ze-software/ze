@@ -334,54 +334,64 @@ expect=exit:code=0
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| `--config-only` flag | | | |
-| `--managed` flag | | | |
-| Ze subprocess lifecycle | | | |
-| Ready detection (port polling) | | | |
-| Clean shutdown (SIGTERM → SIGKILL) | | | |
-| Ze crash detection | | | |
-| `make functional-chaos` target | | | |
-| Smoke test: propagation | | | |
-| Smoke test: disconnect | | | |
-| Smoke test: chaos | | | |
-| Test runner registration | | | |
-| Port auto-allocation | | | |
+| `--config-only` flag | ❌ Not implemented | — | |
+| `--managed` flag | ❌ Not implemented | — | |
+| Ze subprocess lifecycle | ❌ Not implemented | — | |
+| Ready detection (port polling) | ❌ Not implemented | — | |
+| Clean shutdown (SIGTERM → SIGKILL) | ❌ Not implemented | — | |
+| Ze crash detection | ❌ Not implemented | — | |
+| `make functional-chaos` target | ❌ Not implemented | — | |
+| Smoke test: propagation | ❌ Not implemented | — | |
+| Smoke test: disconnect | ❌ Not implemented | — | |
+| Smoke test: chaos | ❌ Not implemented | — | |
+| Test runner registration | ❌ Not implemented | — | |
+| Port auto-allocation | ❌ Not implemented | — | |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
+| AC-1 | ❌ Not implemented | — | --config-only not built |
+| AC-2 | ❌ Not implemented | — | --config-only + --config-out not built |
+| AC-3 | ❌ Not implemented | — | Config validation not tested |
+| AC-4 | ❌ Not implemented | — | --managed mode not built |
+| AC-5 | ❌ Not implemented | — | --managed with chaos not built |
+| AC-6 | ❌ Not implemented | — | Ze crash detection not built |
+| AC-7 | ❌ Not implemented | — | Ctrl-C clean shutdown not built |
+| AC-8 | ❌ Not implemented | — | make functional-chaos not built |
+| AC-9 | ❌ Not implemented | — | Port conflict avoidance not built |
+| AC-10 | ❌ Not implemented | — | --port 0 auto-allocate not built |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| All unit tests | ❌ Not implemented | — | Entire spec not started |
+| All functional tests | ❌ Not implemented | — | No .ci files created |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `managed.go` | ❌ Not created | |
+| `managed_test.go` | ❌ Not created | |
+| `test/chaos/smoke-propagation.ci` | ❌ Not created | |
+| `test/chaos/smoke-disconnect.ci` | ❌ Not created | |
+| `test/chaos/smoke-chaos.ci` | ❌ Not created | |
+| `main.go` | ❌ Not modified | --config-only/--managed not added |
+| `orchestrator.go` | ❌ Not modified | |
+| `cmd/ze-test/bgp.go` | ❌ Not modified | chaos suite not registered |
+| `Makefile` | ❌ Not modified | functional-chaos target not added |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 33
+- **Done:** 0
+- **Partial:** 0
+- **Not implemented:** 33 (entire spec not started)
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 demonstrated
-- [ ] Tests pass (`make test`)
-- [ ] No regressions (`make functional`)
+- [ ] Tests pass (`make ze-unit-test`)
+- [ ] No regressions (`make ze-functional-test`)
 - [ ] `make functional-chaos` passes
 
 ### Quality Gates (SHOULD pass)

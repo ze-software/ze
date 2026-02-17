@@ -165,31 +165,52 @@ This is the most complex visualization because a 200×200 matrix is 40,000 cells
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Route flow heatmap | | | |
-| Source peer inference | | | |
-| Top-N filtering (200+) | | | |
-| Family filter | | | |
-| Count/latency toggle | | | |
-| Cell detail popup | | | |
+| Route flow heatmap | ✅ Done | `viz.go:497-621` writeRouteMatrix | CSS grid with opacity-based coloring |
+| Source peer inference | ✅ Done | `dashboard.go:207-217` ProcessEvent route tracking | Records sent/received per peer |
+| Top-N filtering (200+) | ✅ Done | `viz.go:459-464` top= param (default 20) | Sorts peers by total route count |
+| Family filter | ✅ Done | `viz.go:466` family= param | Filters matrix cells by family |
+| Count/latency toggle | ✅ Done | `viz.go:466` mode=latency param | Defaults to count, toggles to latency |
+| Cell detail popup | ✅ Done | `viz.go:425-451` handleVizRouteMatrixCell | src/dst query params, shows detail |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
+| AC-1 | ✅ Done | `viz.go:453-487` handleVizRouteMatrix | Heatmap renders with top 20 peers |
+| AC-2 | ✅ Done | `viz.go:497-621` opacity-based coloring | Color intensity proportional to count |
+| AC-3 | ✅ Done | `viz.go:425-451` handleVizRouteMatrixCell | Cell click shows detail popup |
+| AC-4 | ✅ Done | `viz.go:466` mode=latency param | Cells show avg latency instead of count |
+| AC-5 | ✅ Done | `viz.go:466` family= param | Filter to specific family |
+| AC-6 | ⚠️ Partial | `viz.go:459-464` top= param only | Top-N dropdown exists but no arbitrary peer picker |
+| AC-7 | ✅ Done | `viz.go:459-464` top= param defaults to 20 | Handles 200+ peers |
+| AC-8 | ✅ Done | `viz.go:497-621` | Empty cells not rendered with color |
+| AC-9 | ✅ Done | `viz.go` tab activation refresh | Refreshed on tab click (not continuous SSE) |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestRouteMatrixUpdate | ✅ Done | `state_test.go` | Matrix increment tested |
+| TestRouteMatrixSourceInference | ✅ Done | `viz_test.go` | Source peer inference tested |
+| TestRouteMatrixTopN | ✅ Done | `viz_test.go` | Top-N selection tested |
+| TestRouteMatrixFamilyFilter | ✅ Done | `viz_test.go` | Family filter tested |
+| TestRouteMatrixLatencyToggle | ✅ Done | `viz_test.go` | Latency mode tested |
+| TestRouteMatrixEmptyCells | ✅ Done | `viz_test.go` | Zero-count cells not rendered |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `web/state.go` | ✅ Modified | N×N route matrix state added |
+| `web/dashboard.go` | ✅ Modified | ProcessEvent updates matrix on route events |
+| `web/handlers.go` | ✅ Modified | /viz/route-matrix and /viz/route-matrix/cell handlers |
+| `web/viz.go` | ✅ Modified | writeRouteMatrix + writeMatrixCell rendering |
+| `web/templates/route_matrix.html` | 🔄 Changed | Not created — inline in viz.go |
+| `test/chaos/web-route-matrix.ci` | ❌ Skipped | No functional tests created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
+- **Total items:** 18
+- **Done:** 15
+- **Partial:** 1 (AC-6: top-N but no arbitrary peer picker dropdown)
+- **Skipped:** 1 (functional test)
+- **Changed:** 1 (template file replaced by inline rendering)
 
 ## Checklist
 

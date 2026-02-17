@@ -213,40 +213,76 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Scheduler pause/resume | | | |
-| Scheduler setRate | | | |
-| Control channel | | | |
-| Control panel UI | | | |
-| Parameterized trigger form | | | |
-| Multi-select peers | | | |
-| Manual triggers in NDJSON | | | |
-| Control actions in NDJSON | | | |
-| Property violation details | | | |
+| Scheduler pause/resume | 🔄 Changed | `main.go:870-960` runScheduler | Pause/resume via control channel, not Scheduler struct methods |
+| Scheduler setRate | ✅ Done | `chaos/scheduler.go:159` SetRate method | Called from runScheduler on rate command |
+| Control channel | ✅ Done | `main.go:735` `chan web.ControlCommand` capacity 16 | Buffered, non-blocking send |
+| Control panel UI | ✅ Done | `render.go:writeControlPanel` | Pause/resume, rate slider, trigger, stop |
+| Parameterized trigger form | ✅ Done | `control.go:187-297` handleControlTriggerForm + writeTriggerForm | Per-action-type parameter forms |
+| Multi-select peers | ✅ Done | `control.go:273-297` peers text input | "all" or "0,3,7" format |
+| Manual triggers in NDJSON | ✅ Done | `control.go:150` logControl("trigger", ...) + EventChaosExecuted via pipeline | Triggers flow through normal event pipeline |
+| Control actions in NDJSON | ✅ Done | `report/jsonlog.go:139` LogControl, record-type "control" | Pause/resume/rate/stop logged |
+| Property violation details | ✅ Done | `control.go:299-324` writePropertyBadges | Click expands violations |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
-| AC-11 | | | |
-| AC-12 | | | |
-| AC-13 | | | |
-| AC-14 | | | |
-| AC-15 | | | |
+| AC-1 | ✅ Done | `control.go:14-35` handleControlPause | Sends pause command, UI updates |
+| AC-2 | ✅ Done | `control.go:46-65` handleControlResume | Sends resume command, UI updates |
+| AC-3 | ✅ Done | `control.go:67-101` handleControlRate | Validates 0.0-1.0, sends to channel |
+| AC-4 | ✅ Done | `control.go:67-101` rate=0.0 | Equivalent to pause (no chaos events) |
+| AC-5 | ✅ Done | `control.go:165-185` handleControlStop | Sends stop command |
+| AC-6 | ❌ Skipped | — | "New Seed" / restart-run not implemented |
+| AC-7 | ⚠️ Partial | `control.go:187-297` writeTriggerForm | Shows parameter forms per action type, but only for existing 10 actions (no v2 actions) |
+| AC-8 | ✅ Done | `control.go:187-297` | TCPDisconnect has no extra params |
+| AC-9 | ❌ Skipped | — | RouteBurst/parameterized v2 actions not implemented (depends on spec-chaos-actions-v2) |
+| AC-10 | ❌ Skipped | — | Validation for v2 action params not implemented |
+| AC-11 | ✅ Done | `control.go:103-163` handleControlTrigger peers parsing | Targets exactly specified peers |
+| AC-12 | ✅ Done | `control.go:150` logControl + event pipeline | Triggers logged to NDJSON |
+| AC-13 | ✅ Done | `report/jsonlog.go:139-158` LogControl | "control" record type for pause/resume/rate |
+| AC-14 | ✅ Done | `control.go:299-324` writePropertyBadges | Click expands violation details |
+| AC-15 | ✅ Done | `main.go:735` channel capacity 16 | Non-blocking send, 503 when full |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestSchedulerPause | 🔄 Changed | — | Pause via control channel in runScheduler, not Scheduler.Pause() |
+| TestSchedulerResume | 🔄 Changed | — | Resume via control channel |
+| TestSchedulerSetRate | ✅ Done | `chaos/scheduler.go:159` | SetRate method exists |
+| TestSchedulerIsPaused | 🔄 Changed | — | Paused state tracked in runScheduler, not Scheduler struct |
+| TestControlChannelPause | ✅ Done | `handlers_test.go` | Control command sent and received |
+| TestControlChannelTrigger | ✅ Done | `handlers_test.go` | Trigger with peer + action tested |
+| TestControlChannelFull | ⚠️ Partial | — | Channel capacity 16 set, but no explicit full-channel test |
+| TestHandlerPauseChaos | ✅ Done | `handlers_test.go` | POST /control/pause tested |
+| TestHandlerTriggerChaos | ✅ Done | `handlers_test.go` | POST /control/trigger tested |
+| TestHandlerSetRate | ✅ Done | `handlers_test.go` | POST /control/rate tested |
+| TestHandlerTriggerParams | ✅ Done | `handlers_test.go` | Trigger form tested |
+| TestHandlerTriggerValidation | ⚠️ Partial | — | Basic validation exists, v2 action params not tested |
+| TestJSONLogControlRecord | ✅ Done | `report/jsonlog_test.go:243` | "control" record type verified |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `chaos/scheduler.go` | ⚠️ Partial | SetRate added, but Pause/Resume/IsPaused NOT added (handled in main.go runScheduler) |
+| `orchestrator.go` | 🔄 Changed | Control not in orchestrator event loop — in runScheduler goroutine |
+| `main.go` | ✅ Modified | Control channel created, passed to web + runScheduler |
+| `report/jsonlog.go` | ✅ Modified | LogControl for "control" record type |
+| `web/handlers.go` | ✅ Modified | POST control handlers added |
+| `web/dashboard.go` | ✅ Modified | Accepts control channel |
+| `web/sse.go` | ✅ Modified | Control state SSE events |
+| `web/control.go` | ✅ Created | Control command types, handlers, trigger forms |
+| `web/control_test.go` | ❌ Skipped | No separate control_test.go — control tests in handlers_test.go |
+| `web/templates/controls.html` | 🔄 Changed | Not created — inline in render.go:writeControlPanel |
+| `web/templates/trigger_params.html` | 🔄 Changed | Not created — inline in control.go:writeTriggerForm |
+| `web/templates/property_detail.html` | 🔄 Changed | Not created — inline in control.go:writePropertyBadges |
+| `test/chaos/web-control.ci` | ❌ Skipped | No functional tests created |
+| `test/chaos/web-trigger-replay.ci` | ❌ Skipped | No functional tests created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
+- **Total items:** 40
+- **Done:** 24
+- **Partial:** 4 (trigger form limited to existing 10 actions, full-channel test, trigger validation)
+- **Skipped:** 6 (AC-6 new seed, AC-9/AC-10 v2 actions, functional tests, control_test.go)
+- **Changed:** 6 (Pause/Resume via channel not methods, orchestrator not modified, templates inline)
 
 ## Checklist
 

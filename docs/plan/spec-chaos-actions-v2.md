@@ -190,37 +190,37 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| ClockDrift action | | | |
-| RouteBurst action | | | |
-| WithdrawalBurst action | | | |
-| RouteFlap action | | | |
-| SlowPeer action | | | |
-| ZeroWindow action | | | |
-| Parameterized NDJSON logging | | | |
-| Replay support for params | | | |
-| --chaos-actions filter | | | |
+| ClockDrift action | ❌ Not implemented | — | No v2 actions built |
+| RouteBurst action | ❌ Not implemented | — | |
+| WithdrawalBurst action | ❌ Not implemented | — | |
+| RouteFlap action | ❌ Not implemented | — | |
+| SlowPeer action | ❌ Not implemented | — | |
+| ZeroWindow action | ❌ Not implemented | — | |
+| Parameterized NDJSON logging | ⚠️ Partial | `report/jsonlog.go:139` LogControl | "control" record type exists for control events, but no chaos-params field for parameterized actions |
+| Replay support for params | ❌ Not implemented | — | No parameterized action replay |
+| --chaos-actions filter | ❌ Not implemented | — | No opt-in flag for new action types |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
-| AC-11 | | | |
-| AC-12 | | | |
+| AC-1 | ❌ Not implemented | — | ClockDrift not built |
+| AC-2 | ❌ Not implemented | — | ClockDrift validation not built |
+| AC-3 | ❌ Not implemented | — | RouteBurst not built |
+| AC-4 | ❌ Not implemented | — | WithdrawalBurst not built |
+| AC-5 | ❌ Not implemented | — | WithdrawalBurst clamping not built |
+| AC-6 | ❌ Not implemented | — | RouteFlap not built |
+| AC-7 | ❌ Not implemented | — | SlowPeer not built |
+| AC-8 | ❌ Not implemented | — | ZeroWindow not built |
+| AC-9 | ❌ Not implemented | — | chaos-params NDJSON field not built |
+| AC-10 | ❌ Not implemented | — | Parameterized replay not built |
+| AC-11 | ❌ Not implemented | — | --chaos-actions filter not built |
+| AC-12 | ✅ Done (existing) | — | Without --chaos-actions, existing behavior unchanged (backwards compat) |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
+- **Total items:** 21
+- **Done:** 1 (AC-12 — existing behavior preserved by default)
+- **Partial:** 1 (NDJSON control records exist but no chaos-params)
+- **Not implemented:** 19 (entire spec not started)
 
 ## Checklist
 

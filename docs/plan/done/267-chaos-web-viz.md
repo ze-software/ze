@@ -167,39 +167,69 @@ Each tab is lazily loaded via HTMX GET on first click, and updated via SSE for l
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Event stream feed | | | |
-| Event filtering (peer, type) | | | |
-| Auto-scroll with toggle | | | |
-| Convergence histogram | | | |
-| Deadline marker | | | |
-| Peer state timeline | | | |
-| Timeline pagination (200+) | | | |
-| Chaos event timeline | | | |
-| Warmup region | | | |
+| Event stream feed | ✅ Done | `viz.go:27-38` handleVizEvents, `viz.go:75-137` writeEventStream | Scrollable feed, newest first |
+| Event filtering (peer, type) | ✅ Done | `viz.go:27-38` peer= and type= query params | Both filters work |
+| Auto-scroll with toggle | ✅ Done | `viz.go:104-106` JS checkbox | `window._autoScroll` toggle |
+| Convergence histogram | ✅ Done | `viz.go:140-204` writeConvergenceHistogram | 9 buckets, CSS bar chart, color gradient |
+| Deadline marker | ✅ Done | `viz.go:140-204` | Vertical dashed line at deadline position |
+| Peer state timeline | ✅ Done | `viz.go:206-303` writePeerTimeline | Horizontal bars, green/red/yellow segments |
+| Timeline pagination (200+) | ✅ Done | `viz.go:49-64` page= param | Prev/Next navigation links |
+| Chaos event timeline | ✅ Done | `viz.go:305-372` writeChaosTimeline | Markers by action type |
+| Warmup region | ✅ Done | `viz.go:318-325` | Shaded warmup period at start |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
-| AC-8 | | | |
-| AC-9 | | | |
-| AC-10 | | | |
-| AC-11 | | | |
-| AC-12 | | | |
-| AC-13 | | | |
-| AC-14 | | | |
+| AC-1 | ✅ Done | `render.go:writeLayout` tab bar + `handlers.go` /viz/* routes | 5 tabs (Events, Timeline, Convergence, Chaos, Route Matrix) |
+| AC-2 | ✅ Done | `viz.go:75-137` writeEventStream | Scrollable feed, ring buffer backed |
+| AC-3 | ✅ Done | `dashboard.go:broadcastDirty` SSE events | New events prepended via SSE |
+| AC-4 | ✅ Done | `viz.go:27-38` peer= param | Filters to single peer |
+| AC-5 | ✅ Done | `viz.go:27-38` type= param | Filters by event type |
+| AC-6 | ✅ Done | `viz.go:104-106` JS auto-scroll checkbox | Toggle button in UI |
+| AC-7 | ✅ Done | `viz.go:206-303` writePeerTimeline | Horizontal state bars per peer |
+| AC-8 | ✅ Done | `viz.go:49-64` page= param | Paginated at configurable page size |
+| AC-9 | ✅ Done | `viz.go:140-204` writeConvergenceHistogram | 9 latency buckets with color gradient |
+| AC-10 | ✅ Done | `viz.go:140-204` deadline marker | Dashed vertical line at deadline |
+| AC-11 | ✅ Done | `dashboard.go:broadcastDirty` convergence SSE | Updates via SSE on convergence events |
+| AC-12 | ✅ Done | `viz.go:305-372` writeChaosTimeline | Markers positioned by time, colored by type |
+| AC-13 | ⚠️ Partial | `viz.go:305-372` | Markers rendered but no explicit click-to-highlight peer behavior found |
+| AC-14 | ✅ Done | `viz.go:318-325` | Shaded warmup region at start |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestConvergenceHistogramBuckets | ✅ Done | `state_test.go` | Bucket insertion tested |
+| TestConvergenceHistogramStats | ✅ Done | `state_test.go` | Min/avg/max stats |
+| TestEventStreamFiltering | ✅ Done | `viz_test.go` | peer= filter tested |
+| TestEventStreamTypeFilter | ✅ Done | `viz_test.go` | type= filter tested |
+| TestPeerTimelinePagination | ✅ Done | `viz_test.go` | page= param tested |
+| TestChaosTimelineMarkers | ✅ Done | `viz_test.go` | Markers rendered |
+| TestChaosTimelineWarmup | ✅ Done | `viz_test.go` | Warmup region tested |
+| TestSSEConvergenceEvent | ⚠️ Partial | — | Convergence broadcasts tested via broadcastDirty, no specific 2s interval test |
+| TestSSEEventFeedThrottle | ⚠️ Partial | — | SSE debounce tested but no explicit 10/s throttle test |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| `web/state.go` | ✅ Modified | Convergence histogram buckets, chaos history added |
+| `web/dashboard.go` | ✅ Modified | ProcessEvent updates histogram and chaos history |
+| `web/sse.go` | ✅ Modified | Convergence + event SSE events via broadcastDirty |
+| `web/handlers.go` | ✅ Modified | /viz/* endpoint handlers added |
+| `web/viz.go` | ✅ Created | All visualization rendering (670 lines) |
+| `web/viz_test.go` | ✅ Created | 912 lines of viz tests |
+| `web/templates/tabs.html` | 🔄 Changed | Not created — tabs rendered inline in render.go |
+| `web/templates/event_feed.html` | 🔄 Changed | Not created — inline in viz.go |
+| `web/templates/convergence.html` | 🔄 Changed | Not created — inline in viz.go |
+| `web/templates/peer_timeline.html` | 🔄 Changed | Not created — inline in viz.go |
+| `web/templates/chaos_timeline.html` | 🔄 Changed | Not created — inline in viz.go |
+| `test/chaos/web-viz.ci` | ❌ Skipped | No functional tests created |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
+- **Total items:** 30
+- **Done:** 23
+- **Partial:** 3 (AC-13 click-to-highlight, SSE convergence interval, SSE throttle test)
+- **Skipped:** 1 (functional test)
+- **Changed:** 5 (template files replaced by inline rendering in viz.go)
 
 ## Checklist
 
