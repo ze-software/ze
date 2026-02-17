@@ -4159,15 +4159,17 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
-	// Route to handler FIRST (while buf is definitely valid)
-	if direction == "sent" {
-		receiver.OnMessageSent(peerInfo, msg)
-	} else {
-		receiver.OnMessageReceived(peerInfo, msg)
-	}
-
-	// THEN cache for later forwarding (only received UPDATEs)
-	// Add() returns true if accepted (cache owns buf), false if rejected (caller keeps buf)
+	// Cache BEFORE event delivery (only received UPDATEs).
+	// OnMessageReceived is a synchronous RPC — the plugin processes the event
+	// (including sending forward commands) before responding. If we cache after
+	// delivery, "bgp cache <id> forward" arrives before the cache entry exists,
+	// causing every forward to fail with ErrUpdateExpired.
+	//
+	// Safety: buf remains valid during event delivery regardless of cache outcome.
+	// If accepted (kept=true): cache holds buf reference; formatMessageForSubscription
+	// reads buf synchronously before SendDeliverEvent blocks, so data is consumed
+	// before any Take()+Release() can free it.
+	// If rejected (kept=false): session still owns buf, returned to pool after this call.
 	if direction == "received" && wireUpdate != nil && buf != nil {
 		kept = r.recentUpdates.Add(&ReceivedUpdate{
 			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
@@ -4175,7 +4177,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			SourcePeerIP: peerAddr,
 			ReceivedAt:   timestamp,
 		})
-		// If rejected (kept=false), session returns buf after handleUpdate completes
+	}
+
+	// Deliver to plugin subscribers (may trigger forward commands that use the cache).
+	if direction == "sent" {
+		receiver.OnMessageSent(peerInfo, msg)
+	} else {
+		receiver.OnMessageReceived(peerInfo, msg)
 	}
 
 	return kept

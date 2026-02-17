@@ -182,7 +182,10 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 		}
 	}
 
-	rs.forwardUpdate(peerAddr, msgID, families)
+	// Forward asynchronously so the deliver-event callback responds immediately.
+	// OnEvent is a synchronous RPC — blocking here stalls all subsequent event
+	// deliveries, causing "context deadline exceeded" under load.
+	go rs.forwardUpdate(peerAddr, msgID, families)
 }
 
 // nlriToPrefix extracts a prefix string from an NLRI value.
@@ -268,9 +271,12 @@ func (rs *RouteServer) handleState(event *Event) {
 func (rs *RouteServer) handleStateDown(peerAddr string) {
 	routes := rs.rib.ClearPeer(peerAddr)
 
-	for _, route := range routes {
-		rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
-	}
+	// Send withdrawals asynchronously to avoid blocking event delivery.
+	go func() {
+		for _, route := range routes {
+			rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
+		}
+	}()
 }
 
 // handleStateUp processes peer session establishment.
@@ -330,12 +336,14 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 		return
 	}
 
-	// Request route re-advertisement from each established peer.
-	for _, addr := range refreshPeers {
-		for _, family := range families {
-			rs.updateRoute(addr, "refresh "+family)
+	// Request route re-advertisement asynchronously to avoid blocking event delivery.
+	go func() {
+		for _, addr := range refreshPeers {
+			for _, family := range families {
+				rs.updateRoute(addr, "refresh "+family)
+			}
 		}
-	}
+	}()
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.
@@ -403,9 +411,12 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	}
 	rs.mu.RUnlock()
 
-	for _, addr := range targets {
-		rs.updateRoute(addr, "refresh "+family)
-	}
+	// Send refreshes asynchronously to avoid blocking event delivery.
+	go func() {
+		for _, addr := range targets {
+			rs.updateRoute(addr, "refresh "+family)
+		}
+	}()
 }
 
 // handleCommand processes command requests via SDK execute-command callback.

@@ -1135,6 +1135,11 @@ func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 			if closeErr := conn.Close(); closeErr != nil {
 				return fmt.Errorf("probe close: %w", closeErr)
 			}
+			// Brief delay to let ze process the probe's EOF.
+			// The probe hits a per-peer BGP port, creating a session that
+			// immediately gets EOF. This sleep gives ze's FSM time to
+			// reset to Idle before the real peer connects on this port.
+			time.Sleep(200 * time.Millisecond)
 			return nil
 		}
 		lastErr = err
