@@ -38,14 +38,3 @@ type ReceivedUpdate struct {
 	// ReceivedAt is when this UPDATE was received.
 	ReceivedAt time.Time
 }
-
-// Release returns the pool buffer to the appropriate pool.
-// Called by cache eviction (lazy cleanup, Delete, Decrement with zero TTL).
-// Not called by ForwardUpdate — cache owns the buffer until eviction.
-// Safe to call multiple times (idempotent).
-func (ru *ReceivedUpdate) Release() {
-	if ru.poolBuf != nil {
-		ReturnReadBuffer(ru.poolBuf)
-		ru.poolBuf = nil
-	}
-}

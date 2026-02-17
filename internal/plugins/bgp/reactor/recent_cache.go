@@ -110,6 +110,12 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 	// Skip protected entries (consumers > 0 or pending)
 	for id, e := range c.entries {
 		if !e.isProtected(now) && now.After(e.expiresAt) {
+			// Log safety valve evictions (consumers > 0 means a plugin never decremented)
+			if e.consumers > 0 {
+				cacheLogger().Warn("safety valve: force-evicting retained entry",
+					"id", id, "consumers", e.consumers,
+					"retained-for", now.Sub(e.retainedAt))
+			}
 			ReturnReadBuffer(e.update.poolBuf)
 			delete(c.entries, id)
 		}
@@ -153,6 +159,11 @@ func (c *RecentUpdateCache) Activate(id uint64, consumers int) {
 // Get retrieves an update by ID without removing it from the cache.
 // Returns (nil, false) if not found or expired (with zero consumers and not pending).
 // Thread-safe for concurrent access — multiple consumers can Get() simultaneously.
+//
+// Caller must ensure the entry remains in cache while using the returned pointer.
+// For consumer-tracked entries (consumers > 0), the entry is protected from eviction
+// until Decrement() is called. For zero-consumer entries accessed via API, the caller
+// should Retain() before Get() or accept a narrow race with lazy cleanup in Add().
 func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -213,9 +224,9 @@ func (c *RecentUpdateCache) Decrement(id uint64) bool {
 // Does NOT remove the entry or transfer ownership.
 func (c *RecentUpdateCache) Contains(id uint64) bool {
 	c.mu.RLock()
-	entry, ok := c.entries[id]
-	c.mu.RUnlock()
+	defer c.mu.RUnlock()
 
+	entry, ok := c.entries[id]
 	if !ok {
 		return false
 	}

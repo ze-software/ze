@@ -3144,7 +3144,8 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 
 // ForwardUpdate forwards a cached UPDATE to peers matching the selector.
 // Looks up the update by ID from the cache and sends to matching peers.
-// One-shot: deletes from cache after forwarding completes.
+// Decrements consumer count after forwarding; cache retains the entry
+// until all consumers are done and TTL expires.
 //
 // Zero-copy optimization: When source and destination encoding contexts match
 // (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
