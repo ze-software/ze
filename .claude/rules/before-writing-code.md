@@ -2,10 +2,6 @@
 
 **BLOCKING:** Complete these checks BEFORE writing any code, tests, or documentation.
 
-## Core Principle
-
-**You are NOT ALLOWED to write any code until you understand the existing code structure.**
-
 ## Pre-Code Checklist
 
 ```
@@ -13,34 +9,19 @@
       - Use Grep/Glob to find similar patterns, tests, and functionality
       - If found: STOP. Use it, extend it, or document why new code is needed.
 
-[ ] 2. Read the relevant source files
+[ ] 2. Read the source files you will modify
       - Understand current implementation and patterns
-      - Identify extension points
+      - Identify extension points and callers
 
-[ ] 3. Check architecture docs
-      - Read docs matching task keywords (see planning.md keyword table)
-
-[ ] 4. Understand data flow
-      - Entry points, transformations, exit points
-
-[ ] 5. Verify file paths
+[ ] 3. Verify file paths
       - Use Glob/Grep to confirm the target file exists and is correct
       - Never guess file locations from context
-      - If user references a file type (e.g., 'article guidelines'), search for it — don't assume it's CLAUDE.md or MEMORY.md
 
-[ ] 6. Buffer-first encoding check (see `rules/buffer-first.md`)
-      - If writing wire encoding: use WriteTo(buf, off), NOT Pack()/make([]byte)
-      - If calling an encoding function: check if WriteTo exists on the type first
-      - If adding a new wire type: implement wire.BufWriter from the start
+[ ] 4. Buffer-first encoding check (if writing wire encoding)
+      - Use WriteTo(buf, off), NOT Pack()/make([]byte)
+      - Check if WriteTo exists on the type first
+      - New wire types: implement wire.BufWriter from the start
 ```
-
-## Verification
-
-Before writing code, you MUST be able to answer:
-
-1. **What existing code relates to this task?** (file paths and function names)
-2. **What patterns does the codebase use?** (naming, error handling, testing)
-3. **How will your changes integrate?** (callers, callees, shared data structures)
 
 ## Before Writing ANY Spec
 
@@ -50,12 +31,7 @@ Before writing or editing ANY spec file (`docs/plan/spec-*.md`):
 2. **Document current behavior** - What does the code do NOW?
 3. **Preserve behavior by default** - Unless user explicitly says to change it
 
-**Historical lesson:** Invented a new JSON format instead of reading `decode.go` and preserving the existing one. This wasted money and broke tests.
-
-**Verification question before spec writing:**
-> "Have I read the actual source files listed in 'Files to Modify'? Can I describe what they currently do?"
-
-If NO → READ THE CODE FIRST. Do not proceed.
+**Historical lesson:** Invented a new JSON format instead of reading `decode.go` and preserving the existing one.
 
 ## Red Flags
 
@@ -63,7 +39,6 @@ Stop and investigate if:
 - Creating a new file without checking for similar existing files
 - Writing a function that might duplicate existing functionality
 - You can't name 3 existing files your code relates to
-- Creating a new test file when a test case could be added to an existing file
 
 ## Document New Understanding
 

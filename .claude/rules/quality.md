@@ -47,6 +47,23 @@ If there are many lint issues:
 
 No exceptions. Do the work.
 
+## Self-Critical Review
+
+After each implementation step and before claiming "done":
+
+| Check | Question |
+|-------|----------|
+| Correctness | Does it actually work? Edge cases handled? |
+| Simplicity | Is this the simplest solution? Over-engineered? |
+| Consistency | Does it follow existing patterns in the codebase? |
+| Completeness | Any TODOs, FIXMEs, or unfinished work? |
+| Quality | Debug statements removed? Error messages clear? |
+| Tests | Tests cover the change? Any flaky tests introduced? |
+
+When issues are found: **FIX immediately**, document in spec if significant, add a test if the bug could have been caught.
+
+Common issues: unused variables/imports, error paths without cleanup, race conditions, missing validation, inconsistent naming.
+
 ## Critical Reviews
 
 When asked for a critical review, validate your understanding of the existing architecture BEFORE agreeing with or proposing changes. Read the actual code/specs first — never assume from memory. Check git history for recent changes to avoid proposing work that's already done.

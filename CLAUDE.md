@@ -9,7 +9,7 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 | Rule | File | Why It Exists |
 |------|------|---------------|
 | **Session Start** | `session-start.md` | The TOP 6 rules that prevent the most expensive mistakes: reading specs first, understanding before coding, TDD, preserving behavior |
-| **Post-Compaction** | `post-compaction.md` | After context compaction you lose memory of what you read. Forces re-reading source files and specs before resuming |
+| **Post-Compaction** | `post-compaction.md` | Tiered recovery after compaction: essential reads first (spec, modified files), architecture docs only when needed |
 | **Before Writing Code** | `before-writing-code.md` | Prevents writing code that duplicates existing patterns or conflicts with architecture |
 
 ## Code Quality
@@ -35,7 +35,7 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 
 | Rule | File | Why It Exists |
 |------|------|---------------|
-| **Planning** | `planning.md` | Full planning workflow: research → design → implement → verify. Keyword→doc mapping, spec template, completion checklist |
+| **Planning** | `planning.md` | Full planning workflow: research → design → implement → verify. Spec template, completion checklist. Keyword→doc table moved to INDEX.md |
 | **Spec No Code** | `spec-no-code.md` | Specs describe WHAT/WHY in tables and prose. Code in specs becomes stale and misleading |
 | **Spec Preservation** | `spec-preservation.md` | Completed specs are institutional memory — strip scaffolding, keep knowledge |
 | **Implementation Audit** | `implementation-audit.md` | Line-by-line verification that every spec item was implemented. Tests passing ≠ spec complete |

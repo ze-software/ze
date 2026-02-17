@@ -19,7 +19,7 @@ Read when working on specific areas:
 | RIB transition | `docs/architecture/rib-transition.md` |
 | Route types | `docs/architecture/route-types.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
-| ExaBGP compat | `docs/exabgp/exabgp-compatibility.md` |
+| ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
 | FSM | `docs/architecture/behavior/fsm.md` |
 | API | `docs/architecture/api/architecture.md` |
 | API Capabilities | `docs/architecture/api/capability-contract.md` |
@@ -69,6 +69,54 @@ Track session progress in `.claude/session-state.md` (not committed):
 - Copy from `.claude/session-state.md.template`
 - Update as you read docs and make decisions
 - Survives compaction as reference
+
+## Keyword → Architecture Doc Mapping
+
+**Consult during RESEARCH phase only — not needed on every session start.**
+
+Start with `docs/architecture/core-design.md` (canonical reference), then read docs matching your task keywords:
+
+| Keywords in task | Required docs |
+|------------------|---------------|
+| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `rules/buffer-first.md` |
+| encode, Pack, WriteTo, make, alloc | `rules/buffer-first.md`, `buffer-architecture.md` |
+| UPDATE, message, build, route, announce | `core-design.md`, `update-building.md`, `encoding-context.md`, `rules/buffer-first.md` |
+| attribute, AS_PATH, NEXT_HOP, MED, LOCAL_PREF | `core-design.md`, `wire/attributes.md`, `update-building.md`, `rules/buffer-first.md` |
+| community | `wire/attributes.md` |
+| extended community, RT, RD | `wire/attributes.md` |
+| large community | `wire/attributes.md` |
+| NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` |
+| multiprotocol, MP-BGP, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
+| capability, OPEN, negotiate | `wire/capabilities.md` |
+| multiple labels capability | `wire/capabilities.md` |
+| pool, memory, dedup, zero-copy | `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
+| forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
+| route, rib, storage, duplication | `core-design.md`, `route-types.md`, `rib-transition.md` |
+| factory, family, builder | `core-design.md` |
+| FSM, state, session, peer | `behavior/fsm.md` |
+| keepalive, hold timer | `behavior/fsm.md` |
+| notification, error, cease | `behavior/fsm.md` |
+| shutdown, reset, admin | `behavior/fsm.md` |
+| API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md` |
+| config, YAML, load | `config/syntax.md` |
+| FlowSpec, traffic filter | `wire/nlri.md`, `wire/nlri-flowspec.md` |
+| VPN, L3VPN, VPNv4, VPNv6, MPLS-VPN, 6PE, 6VPE | `wire/nlri.md` |
+| labeled unicast, label, MPLS, label stack | `wire/nlri.md` |
+| EVPN, MAC-IP, ethernet, VXLAN | `wire/nlri.md`, `wire/nlri-evpn.md` |
+| VPLS, L2VPN, pseudowire, PW | `wire/nlri.md` |
+| RT constraint | `wire/nlri.md` |
+| BGP-LS, link-state | `wire/nlri-bgpls.md` |
+| segment routing, SR, SID, prefix-SID | `wire/nlri-bgpls.md`, `wire/attributes.md` |
+| SRv6 | `wire/nlri-bgpls.md` |
+| ExaBGP, compatibility | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md` |
+| design, transition, architecture | `rib-transition.md` |
+| ASN4, AS4, 4-byte AS | `edge-cases/as4.md` |
+| ADD-PATH, path-id | `edge-cases/addpath.md` |
+| extended message, >4096 | `edge-cases/extended-message.md` |
+| graceful restart, GR | `behavior/fsm.md` |
+| test, functional, .ci, ze-peer, VFS | `functional-tests.md`, `testing/ci-format.md` |
+
+All architecture docs are in `docs/architecture/` unless otherwise specified.
 
 ## Edge Cases
 
