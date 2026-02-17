@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/hub"
@@ -185,7 +186,7 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 		fmt.Println("\nShutting down...")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*1e9)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	if err := reactor.Wait(ctx); err != nil {

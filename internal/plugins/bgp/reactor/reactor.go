@@ -4664,7 +4664,7 @@ func (r *Reactor) cleanup() {
 	// Stop API server
 	if r.api != nil {
 		r.api.Stop()
-		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = r.api.Wait(waitCtx)
 		cancel()
 	}
@@ -4672,7 +4672,7 @@ func (r *Reactor) cleanup() {
 	// Stop legacy listener
 	if r.listener != nil {
 		r.listener.Stop()
-		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = r.listener.Wait(waitCtx)
 		cancel()
 	}
@@ -4695,7 +4695,7 @@ func (r *Reactor) cleanup() {
 
 	// Wait for all peers
 	for _, peer := range r.peers {
-		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		waitCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 		_ = peer.Wait(waitCtx)
 		cancel()
 	}

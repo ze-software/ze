@@ -21,6 +21,10 @@ var logger = slogutil.LazyLogger("bgp.server")
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
 func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
 	eventType := messageTypeToEventType(msg.Type)
 	if eventType == "" {
 		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
@@ -103,6 +107,10 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerI
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
 func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
 	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state)
 
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventState, "", peer.Address.String())
@@ -130,6 +138,10 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 // onPeerNegotiated handles capability negotiation completion.
 // neg is format.DecodedNegotiated passed as any from the generic hook.
 func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, neg any) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
 	decoded, ok := neg.(format.DecodedNegotiated)
 	if !ok {
 		logger().Warn("OnPeerNegotiated: invalid neg type", "type", fmt.Sprintf("%T", neg))
@@ -160,6 +172,10 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 // Uses the JSONEncoder for non-UPDATE messages (same as onMessageReceived),
 // and FormatSentMessage for UPDATEs (which adds the "type":"sent" marker).
 func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
 	eventType := messageTypeToEventType(msg.Type)
 	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
 

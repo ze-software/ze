@@ -477,7 +477,7 @@ func (p *Process) SendShutdown() bool {
 	if connB == nil {
 		return true
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 	_ = connB.SendBye(ctx, "shutdown") //nolint:errcheck // best-effort graceful signal
 	return true
@@ -592,13 +592,20 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 
 // Stop stops all processes.
 // Signals shutdown to each process before termination to allow graceful exit.
+// Bye signals and waits are concurrent to avoid stacking sequential timeouts.
 func (pm *ProcessManager) Stop() {
-	// Signal shutdown to all processes before cancelling context.
+	// Signal shutdown to all processes concurrently before cancelling context.
 	pm.mu.RLock()
+	var byeWg sync.WaitGroup
 	for _, proc := range pm.processes {
-		proc.SendShutdown()
+		byeWg.Add(1)
+		go func(p *Process) {
+			defer byeWg.Done()
+			p.SendShutdown()
+		}(proc)
 	}
 	pm.mu.RUnlock()
+	byeWg.Wait()
 
 	// Cancel context and stop all processes
 	if pm.cancel != nil {
@@ -611,14 +618,20 @@ func (pm *ProcessManager) Stop() {
 	}
 	pm.mu.Unlock()
 
-	// Wait for all processes
+	// Wait for all processes concurrently with a shared deadline.
 	pm.mu.RLock()
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	var waitWg sync.WaitGroup
 	for _, proc := range pm.processes {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_ = proc.Wait(ctx)
-		cancel()
+		waitWg.Add(1)
+		go func(p *Process) {
+			defer waitWg.Done()
+			_ = p.Wait(waitCtx)
+		}(proc)
 	}
 	pm.mu.RUnlock()
+	waitWg.Wait()
+	waitCancel()
 
 	pm.mu.Lock()
 	pm.processes = make(map[string]*Process)
