@@ -75,9 +75,13 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Assign unique per-peer addresses (127.0.0.{2+i}) to avoid reactor map collision.
 	// Set all peers to passive so the reactor only accepts incoming connections
 	// (it won't try to dial out, which would fail with MockDialer).
+	// Clear ZePort: mock connections are queued directly on the MockListener,
+	// so per-peer TCP ports are meaningless. Without this, the reactor creates
+	// per-port listeners (tcp:127.0.0.1:1850, etc.) that the runner can't find.
 	for i := range cfg.Profiles {
 		cfg.Profiles[i].Address = netip.MustParseAddr(fmt.Sprintf("127.0.0.%d", 2+i))
 		cfg.Profiles[i].Mode = scenario.ModePassive
+		cfg.Profiles[i].ZePort = 0
 	}
 
 	// Generate Ze config from profiles.

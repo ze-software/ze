@@ -23,6 +23,7 @@ import (
 	"net/netip"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -289,6 +290,18 @@ Control:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: generating scenario: %v\n", err)
 		return 1
+	}
+
+	// Auto-discover ze binary: if --ze is not set, look for "ze" next to
+	// the running binary (e.g., ./bin/ze-chaos → ./bin/ze). This avoids
+	// requiring ze in PATH when both binaries are built to the same directory.
+	if *zeBinary == "" {
+		if exe, exeErr := os.Executable(); exeErr == nil {
+			candidate := filepath.Join(filepath.Dir(exe), "ze")
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				*zeBinary = candidate
+			}
+		}
 	}
 
 	// Generate and output Ze config.
