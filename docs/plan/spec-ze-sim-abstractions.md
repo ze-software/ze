@@ -15,8 +15,8 @@
 Replace all direct `time.*` and `net.*` calls in Ze's reactor and FSM code with injectable interfaces. Production code uses real implementations (zero overhead). Test and simulation code can inject virtual clocks and mock networks for deterministic, fast execution.
 
 **Why this matters:**
-- Unblocks `ze-bgp-chaos` Phase 9 (in-process mode): chaos tool runs against Ze in one process at 100-1000x speed
-- Unblocks `ze-bgp-chaos` Phase 10 (integration tests): managed mode with controlled timing
+- Unblocks `ze-chaos` Phase 9 (in-process mode): chaos tool runs against Ze in one process at 100-1000x speed
+- Unblocks `ze-chaos` Phase 10 (integration tests): managed mode with controlled timing
 - Enables future deterministic simulation testing (DST analysis Phases 1-2)
 - Eliminates `time.Sleep()` in unit tests — tests using virtual clock run instantly
 
@@ -115,7 +115,7 @@ Replace all direct `time.*` and `net.*` calls in Ze's reactor and FSM code with 
 | Reactor → RecentCache | Clock passed via constructor | [ ] |
 
 ### Integration Points
-- `ze-bgp-chaos` Phase 9: injects VirtualClock + MockDialer/MockListener
+- `ze-chaos` Phase 9: injects VirtualClock + MockDialer/MockListener
 - Future DST: injects deterministic scheduler-controlled clock
 - Existing tests: unchanged (use defaults)
 

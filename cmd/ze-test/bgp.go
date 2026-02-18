@@ -313,10 +313,10 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 	defer r.Cleanup()
 
-	// chaos-web tests need ze-bgp-chaos binary built alongside ze.
+	// chaos-web tests need ze-chaos binary built alongside ze.
 	if cli.command == "chaos-web" {
 		r.SetExtraBinaries(map[string]string{
-			"ze-bgp-chaos": "./cmd/ze-bgp-chaos",
+			"ze-chaos": "./cmd/ze-chaos",
 		})
 	}
 

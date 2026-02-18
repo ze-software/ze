@@ -6,17 +6,17 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/architecture/chaos-web-dashboard.md` - full design document (layout, HTMX, SSE, state, controls)
-4. `cmd/ze-bgp-chaos/report/reporter.go` - Consumer interface
-5. `cmd/ze-bgp-chaos/report/metrics.go` - existing HTTP server pattern
-6. `cmd/ze-bgp-chaos/main.go` - orchestrator wiring, setupReporting, flag definitions
-7. `cmd/ze-bgp-chaos/orchestrator.go` - EventProcessor, establishedState, ChaosConfig
-8. `cmd/ze-bgp-chaos/peer/event.go` - Event types
-9. `cmd/ze-bgp-chaos/chaos/scheduler.go` - scheduler Tick/actions
-10. `cmd/ze-bgp-chaos/validation/` - model, tracker, convergence, properties
+4. `cmd/ze-chaos/report/reporter.go` - Consumer interface
+5. `cmd/ze-chaos/report/metrics.go` - existing HTTP server pattern
+6. `cmd/ze-chaos/main.go` - orchestrator wiring, setupReporting, flag definitions
+7. `cmd/ze-chaos/orchestrator.go` - EventProcessor, establishedState, ChaosConfig
+8. `cmd/ze-chaos/peer/event.go` - Event types
+9. `cmd/ze-chaos/chaos/scheduler.go` - scheduler Tick/actions
+10. `cmd/ze-chaos/validation/` - model, tracker, convergence, properties
 
 ## Task
 
-Build a live web dashboard for ze-bgp-chaos that provides real-time visualization and interactive control of chaos test runs. The dashboard uses **HTMX** for dynamic updates via **Server-Sent Events (SSE)**, with all assets (HTMX JS, CSS) **embedded in the binary** via `go:embed`. The UI must handle **200+ peers** gracefully using an **active set** approach: only ~40 peers are visible at once, with auto-promotion on noteworthy events, adaptive decay, and user-pinning.
+Build a live web dashboard for ze-chaos that provides real-time visualization and interactive control of chaos test runs. The dashboard uses **HTMX** for dynamic updates via **Server-Sent Events (SSE)**, with all assets (HTMX JS, CSS) **embedded in the binary** via `go:embed`. The UI must handle **200+ peers** gracefully using an **active set** approach: only ~40 peers are visible at once, with auto-promotion on noteworthy events, adaptive decay, and user-pinning.
 
 The dashboard is activated via a `--web` CLI flag and runs as an additional `report.Consumer` alongside existing reporters (terminal dashboard, JSON log, Prometheus metrics).
 
@@ -36,23 +36,23 @@ The dashboard is activated via a `--web` CLI flag and runs as an additional `rep
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `cmd/ze-bgp-chaos/report/reporter.go` - Consumer interface that WebDashboard must implement
+- [ ] `cmd/ze-chaos/report/reporter.go` - Consumer interface that WebDashboard must implement
   -> Constraint: Consumer.ProcessEvent() runs synchronously on main event loop, must be fast
-- [ ] `cmd/ze-bgp-chaos/report/metrics.go` - Existing HTTP server pattern with per-instance registry
+- [ ] `cmd/ze-chaos/report/metrics.go` - Existing HTTP server pattern with per-instance registry
   -> Decision: Metrics uses a separate `http.Server` started in `setupReporting()`; web dashboard follows same pattern
-- [ ] `cmd/ze-bgp-chaos/main.go` - Orchestrator wiring, flag parsing, setupReporting()
+- [ ] `cmd/ze-chaos/main.go` - Orchestrator wiring, flag parsing, setupReporting()
   -> Constraint: Reporter consumers are created in setupReporting(); web consumer added there
   -> Decision: Metrics HTTP server lifecycle managed via cleanup function returned from setupReporting()
-- [ ] `cmd/ze-bgp-chaos/orchestrator.go` - EventProcessor, ChaosConfig, establishedState
+- [ ] `cmd/ze-chaos/orchestrator.go` - EventProcessor, ChaosConfig, establishedState
   -> Decision: EventProcessor accumulates counters (Announced, Received, ChaosEvents, etc.) on main loop
   -> Constraint: establishedState is mutex-protected for cross-goroutine access
-- [ ] `cmd/ze-bgp-chaos/peer/event.go` - 10 event types with their fields
+- [ ] `cmd/ze-chaos/peer/event.go` - 10 event types with their fields
   -> Constraint: Events are the only data source; all dashboard state derives from events
-- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - Scheduler.Tick() generates actions from established snapshot
+- [ ] `cmd/ze-chaos/chaos/scheduler.go` - Scheduler.Tick() generates actions from established snapshot
   -> Decision: Scheduler is currently fire-and-forget; needs pause/resume/trigger for interactive control
-- [ ] `cmd/ze-bgp-chaos/validation/convergence.go` - Convergence tracking with Stats() and CheckDeadline()
+- [ ] `cmd/ze-chaos/validation/convergence.go` - Convergence tracking with Stats() and CheckDeadline()
   -> Decision: Dashboard needs its own convergence tracking (cannot share the orchestrator's instance safely)
-- [ ] `cmd/ze-bgp-chaos/validation/properties.go` - PropertyEngine with Results()
+- [ ] `cmd/ze-chaos/validation/properties.go` - PropertyEngine with Results()
   -> Constraint: PropertyEngine.Results() returns snapshot of all property pass/fail + violations
 
 **Key insights:**
@@ -64,13 +64,13 @@ The dashboard is activated via a `--web` CLI flag and runs as an additional `rep
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [x] `cmd/ze-bgp-chaos/report/reporter.go` - Consumer interface: ProcessEvent(ev) + Close() error
-- [x] `cmd/ze-bgp-chaos/report/metrics.go` - Prometheus consumer with HTTP handler, per-instance registry
-- [x] `cmd/ze-bgp-chaos/report/dashboard.go` - Terminal dashboard: one line per event to io.Writer
-- [x] `cmd/ze-bgp-chaos/report/summary.go` - Summary struct with Pass(), Write(w) for exit report
-- [x] `cmd/ze-bgp-chaos/main.go` - Flag parsing, setupReporting(), runOrchestrator(), runScheduler()
-- [x] `cmd/ze-bgp-chaos/orchestrator.go` - EventProcessor, establishedState, ChaosConfig, orchestratorConfig
-- [x] `cmd/ze-bgp-chaos/peer/event.go` - 10 EventType constants, Event struct
+- [x] `cmd/ze-chaos/report/reporter.go` - Consumer interface: ProcessEvent(ev) + Close() error
+- [x] `cmd/ze-chaos/report/metrics.go` - Prometheus consumer with HTTP handler, per-instance registry
+- [x] `cmd/ze-chaos/report/dashboard.go` - Terminal dashboard: one line per event to io.Writer
+- [x] `cmd/ze-chaos/report/summary.go` - Summary struct with Pass(), Write(w) for exit report
+- [x] `cmd/ze-chaos/main.go` - Flag parsing, setupReporting(), runOrchestrator(), runScheduler()
+- [x] `cmd/ze-chaos/orchestrator.go` - EventProcessor, establishedState, ChaosConfig, orchestratorConfig
+- [x] `cmd/ze-chaos/peer/event.go` - 10 EventType constants, Event struct
 
 **Behavior to preserve:**
 - All existing CLI flags and behavior unchanged
@@ -234,7 +234,7 @@ The design doc covers:
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| test-web-startup | `test/chaos/web-startup.ci` | `--web :0` starts server, GET / returns 200 with HTML containing "ze-bgp-chaos" | |
+| test-web-startup | `test/chaos/web-startup.ci` | `--web :0` starts server, GET / returns 200 with HTML containing "ze-chaos" | |
 | test-web-sse | `test/chaos/web-sse.ci` | SSE endpoint streams events during a short chaos run | |
 | test-web-metrics-coexist | `test/chaos/web-metrics.ci` | `--web :0 --metrics :0` shares server, both / and /metrics respond | |
 | test-web-no-flag | `test/chaos/web-no-flag.ci` | Without --web, no HTTP server is started | |
@@ -243,12 +243,12 @@ The design doc covers:
 
 ## Files to Modify
 
-- `cmd/ze-bgp-chaos/main.go` - Add `--web` flag, wire WebDashboard into setupReporting(), add control channel plumbing
-- `cmd/ze-bgp-chaos/orchestrator.go` - Add control channel type and processing in main event loop, extend orchestratorConfig
-- `cmd/ze-bgp-chaos/chaos/scheduler.go` - Add Pause(), Resume(), SetRate(), IsPaused() methods
-- `cmd/ze-bgp-chaos/chaos/actions.go` - Add 6 new action types (ClockDrift, RouteBurst, WithdrawalBurst, RouteFlap, SlowPeer, ZeroWindow) with parameters
-- `cmd/ze-bgp-chaos/peer/simulator.go` - Handle new action types in the chaos action switch (execute clock drift, route burst, etc.)
-- `cmd/ze-bgp-chaos/report/summary.go` - (Minor) Export formatDuration for reuse in web templates
+- `cmd/ze-chaos/main.go` - Add `--web` flag, wire WebDashboard into setupReporting(), add control channel plumbing
+- `cmd/ze-chaos/orchestrator.go` - Add control channel type and processing in main event loop, extend orchestratorConfig
+- `cmd/ze-chaos/chaos/scheduler.go` - Add Pause(), Resume(), SetRate(), IsPaused() methods
+- `cmd/ze-chaos/chaos/actions.go` - Add 6 new action types (ClockDrift, RouteBurst, WithdrawalBurst, RouteFlap, SlowPeer, ZeroWindow) with parameters
+- `cmd/ze-chaos/peer/simulator.go` - Handle new action types in the chaos action switch (execute clock drift, route burst, etc.)
+- `cmd/ze-chaos/report/summary.go` - (Minor) Export formatDuration for reuse in web templates
 
 ### Integration Checklist
 
@@ -256,8 +256,8 @@ The design doc covers:
 |-------------------|---------|------|
 | YANG schema (new RPCs) | No | N/A |
 | RPC count in architecture docs | No | N/A |
-| CLI commands/flags | Yes | `cmd/ze-bgp-chaos/main.go` (--web flag) |
-| CLI usage/help text | Yes | `cmd/ze-bgp-chaos/main.go` (usage function) |
+| CLI commands/flags | Yes | `cmd/ze-chaos/main.go` (--web flag) |
+| CLI usage/help text | Yes | `cmd/ze-chaos/main.go` (usage function) |
 | API commands doc | No | N/A |
 | Plugin SDK docs | No | N/A |
 | Editor autocomplete | No | N/A |
@@ -265,29 +265,29 @@ The design doc covers:
 
 ## Files to Create
 
-- `cmd/ze-bgp-chaos/web/` - Package for web dashboard
-- `cmd/ze-bgp-chaos/web/dashboard.go` - WebDashboard consumer: state accumulation, SSE broadcast, HTTP handlers
-- `cmd/ze-bgp-chaos/web/handlers.go` - HTTP handler functions (peer table, detail, visualizations, control)
-- `cmd/ze-bgp-chaos/web/sse.go` - SSE broker: client registration, broadcast, debouncing
-- `cmd/ze-bgp-chaos/web/state.go` - Internal state types: per-peer state, ring buffer, histogram buckets, route matrix
-- `cmd/ze-bgp-chaos/web/templates.go` - Template loading via go:embed, template helper functions
-- `cmd/ze-bgp-chaos/web/control.go` - Control command types and channel interface
-- `cmd/ze-bgp-chaos/web/assets/htmx.min.js` - Vendored HTMX library
-- `cmd/ze-bgp-chaos/web/assets/sse.js` - Vendored HTMX SSE extension
-- `cmd/ze-bgp-chaos/web/assets/style.css` - Dark theme CSS
-- `cmd/ze-bgp-chaos/web/templates/layout.html` - Main page shell (head, body, script tags)
-- `cmd/ze-bgp-chaos/web/templates/header.html` - Header bar fragment
-- `cmd/ze-bgp-chaos/web/templates/sidebar.html` - Sidebar with summary cards, properties, controls
-- `cmd/ze-bgp-chaos/web/templates/peers.html` - Peer table with sorting/filtering
-- `cmd/ze-bgp-chaos/web/templates/peer_detail.html` - Peer detail pane
-- `cmd/ze-bgp-chaos/web/templates/event_feed.html` - Event stream feed
-- `cmd/ze-bgp-chaos/web/templates/convergence.html` - Convergence histogram
-- `cmd/ze-bgp-chaos/web/templates/peer_timeline.html` - Peer state timeline
-- `cmd/ze-bgp-chaos/web/templates/chaos_timeline.html` - Chaos event markers
-- `cmd/ze-bgp-chaos/web/templates/route_matrix.html` - Route flow heatmap
-- `cmd/ze-bgp-chaos/web/dashboard_test.go` - Unit tests for state accumulation
-- `cmd/ze-bgp-chaos/web/handlers_test.go` - HTTP handler tests
-- `cmd/ze-bgp-chaos/web/sse_test.go` - SSE broker tests
+- `cmd/ze-chaos/web/` - Package for web dashboard
+- `cmd/ze-chaos/web/dashboard.go` - WebDashboard consumer: state accumulation, SSE broadcast, HTTP handlers
+- `cmd/ze-chaos/web/handlers.go` - HTTP handler functions (peer table, detail, visualizations, control)
+- `cmd/ze-chaos/web/sse.go` - SSE broker: client registration, broadcast, debouncing
+- `cmd/ze-chaos/web/state.go` - Internal state types: per-peer state, ring buffer, histogram buckets, route matrix
+- `cmd/ze-chaos/web/templates.go` - Template loading via go:embed, template helper functions
+- `cmd/ze-chaos/web/control.go` - Control command types and channel interface
+- `cmd/ze-chaos/web/assets/htmx.min.js` - Vendored HTMX library
+- `cmd/ze-chaos/web/assets/sse.js` - Vendored HTMX SSE extension
+- `cmd/ze-chaos/web/assets/style.css` - Dark theme CSS
+- `cmd/ze-chaos/web/templates/layout.html` - Main page shell (head, body, script tags)
+- `cmd/ze-chaos/web/templates/header.html` - Header bar fragment
+- `cmd/ze-chaos/web/templates/sidebar.html` - Sidebar with summary cards, properties, controls
+- `cmd/ze-chaos/web/templates/peers.html` - Peer table with sorting/filtering
+- `cmd/ze-chaos/web/templates/peer_detail.html` - Peer detail pane
+- `cmd/ze-chaos/web/templates/event_feed.html` - Event stream feed
+- `cmd/ze-chaos/web/templates/convergence.html` - Convergence histogram
+- `cmd/ze-chaos/web/templates/peer_timeline.html` - Peer state timeline
+- `cmd/ze-chaos/web/templates/chaos_timeline.html` - Chaos event markers
+- `cmd/ze-chaos/web/templates/route_matrix.html` - Route flow heatmap
+- `cmd/ze-chaos/web/dashboard_test.go` - Unit tests for state accumulation
+- `cmd/ze-chaos/web/handlers_test.go` - HTTP handler tests
+- `cmd/ze-chaos/web/sse_test.go` - SSE broker tests
 - `test/chaos/web-startup.ci` - Functional test: server starts and serves dashboard
 - `test/chaos/web-assets.ci` - Functional test: embedded assets served correctly
 
@@ -321,7 +321,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 8. **Wire into main.go** - Add --web flag, create WebDashboard in setupReporting()
    -> Review: Server lifecycle correct? Cleanup on shutdown?
 
-9. **Test with real chaos run** - Run `ze-bgp-chaos --web :8080 --peers 10 --duration 60s`
+9. **Test with real chaos run** - Run `ze-chaos --web :8080 --peers 10 --duration 60s`
    -> Review: Dashboard loads? Updates live? Peer click works?
 
 ### Phase 2: Visualizations
@@ -510,7 +510,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] Acceptance criteria AC-1..AC-34 all demonstrated
 - [ ] Tests pass (`make ze-unit-test`)
 - [ ] No regressions (`make ze-functional-test`)
-- [ ] Feature code integrated into codebase (`cmd/ze-bgp-chaos/web/`)
+- [ ] Feature code integrated into codebase (`cmd/ze-chaos/web/`)
 - [ ] Integration completeness: dashboard proven to work from `--web` flag through to live browser view
 - [ ] Architecture docs updated with learnings and changes
 

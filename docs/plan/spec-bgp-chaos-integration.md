@@ -18,7 +18,7 @@
 
 ## Task
 
-Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. Today the chaos tool has extensive unit tests for its components (scenario generation, validation model, event log, properties, shrinking) but nothing that starts a real Ze instance, connects chaos peers to it, and verifies route propagation through the route reflector.
+Add end-to-end integration tests that prove `ze-chaos` actually tests Ze. Today the chaos tool has extensive unit tests for its components (scenario generation, validation model, event log, properties, shrinking) but nothing that starts a real Ze instance, connects chaos peers to it, and verifies route propagation through the route reflector.
 
 **The gap:** The whole purpose of the chaos tool is to test Ze, but there is no automated test that runs the tool against Ze.
 
@@ -45,9 +45,9 @@ Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. To
   → Constraint: Tests discovered by `ze-test`, run via `make functional`
 
 ### Source Code
-- [ ] `cmd/ze-bgp-chaos/main.go` - current CLI flags and startup flow
-- [ ] `cmd/ze-bgp-chaos/scenario/config.go` - config generation
-- [ ] `cmd/ze-bgp-chaos/orchestrator.go` - peer lifecycle coordination
+- [ ] `cmd/ze-chaos/main.go` - current CLI flags and startup flow
+- [ ] `cmd/ze-chaos/scenario/config.go` - config generation
+- [ ] `cmd/ze-chaos/orchestrator.go` - peer lifecycle coordination
 - [ ] `cmd/ze-test/bgp.go` - test runner: how test suites are registered
 - [ ] `internal/test/runner/` - `.ci` parsing, process orchestration, port allocation
 - [ ] `test/plugin/fast.ci` - reference: Ze + peer orchestration pattern
@@ -62,9 +62,9 @@ Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. To
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (to be re-read after Phase 9 completes)
-- [ ] `cmd/ze-bgp-chaos/main.go` — CLI entry, flag parsing, `--config-out` logic
-- [ ] `cmd/ze-bgp-chaos/orchestrator.go` — starts peer simulators, wires events
-- [ ] `cmd/ze-bgp-chaos/scenario/config.go` — generates Ze config from scenario
+- [ ] `cmd/ze-chaos/main.go` — CLI entry, flag parsing, `--config-out` logic
+- [ ] `cmd/ze-chaos/orchestrator.go` — starts peer simulators, wires events
+- [ ] `cmd/ze-chaos/scenario/config.go` — generates Ze config from scenario
 - [ ] `Makefile` — current functional test targets
 
 **Behavior to preserve:**
@@ -82,7 +82,7 @@ Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. To
 ### Entry Point
 - `--config-only`: CLI flags + seed → scenario generator → config to stdout → exit
 - `--managed`: CLI flags + seed → scenario generator → config to temp file → Ze subprocess → peer simulators → validation → summary → exit
-- `.ci` test: test runner invokes `ze-bgp-chaos --managed --port $PORT` as foreground process
+- `.ci` test: test runner invokes `ze-chaos --managed --port $PORT` as foreground process
 
 ### Transformation Path
 
@@ -109,7 +109,7 @@ Add end-to-end integration tests that prove `ze-bgp-chaos` actually tests Ze. To
 |----------|-----|----------|
 | Chaos tool → Ze subprocess | `os/exec.Command("ze", "bgp", "server", configPath)` | [ ] |
 | Chaos peers ↔ Ze | TCP (same as normal external mode) | [ ] |
-| Test runner → chaos tool | `cmd=foreground:exec=ze-bgp-chaos --managed ...` | [ ] |
+| Test runner → chaos tool | `cmd=foreground:exec=ze-chaos --managed ...` | [ ] |
 
 ### Integration Points
 - Ze binary must be in `$PATH` or buildable via `make` before chaos tests run
@@ -180,7 +180,7 @@ The `.ci` files use `--managed` mode for self-contained execution:
 # Smoke test: 3 peers, no chaos, verify route propagation through RR
 # Uses --managed to start Ze automatically
 
-cmd=foreground:seq=1:exec=ze-bgp-chaos --managed --seed 42 --peers 3 --duration 10s --chaos-rate 0 --quiet --port $PORT:timeout=20s
+cmd=foreground:seq=1:exec=ze-chaos --managed --seed 42 --peers 3 --duration 10s --chaos-rate 0 --quiet --port $PORT:timeout=20s
 expect=exit:code=0
 ```
 
@@ -190,7 +190,7 @@ expect=exit:code=0
 # Smoke test: 3 peers, one disconnect event, verify withdrawal propagation
 # Uses fixed seed that produces a disconnect at ~5s
 
-cmd=foreground:seq=1:exec=ze-bgp-chaos --managed --seed 100 --peers 3 --duration 15s --chaos-rate 0.5 --quiet --port $PORT:timeout=25s
+cmd=foreground:seq=1:exec=ze-chaos --managed --seed 100 --peers 3 --duration 15s --chaos-rate 0.5 --quiet --port $PORT:timeout=25s
 expect=exit:code=0
 ```
 
@@ -200,7 +200,7 @@ expect=exit:code=0
 # Smoke test: 4 peers with moderate chaos, verify no validation failures
 # Longer run to exercise reconnect and withdrawal paths
 
-cmd=foreground:seq=1:exec=ze-bgp-chaos --managed --seed 7777 --peers 4 --duration 20s --chaos-rate 0.3 --quiet --port $PORT:timeout=35s
+cmd=foreground:seq=1:exec=ze-chaos --managed --seed 7777 --peers 4 --duration 20s --chaos-rate 0.3 --quiet --port $PORT:timeout=35s
 expect=exit:code=0
 ```
 
@@ -210,16 +210,16 @@ expect=exit:code=0
 
 ## Files to Create
 
-- `cmd/ze-bgp-chaos/managed.go` — managed mode: Ze subprocess lifecycle
-- `cmd/ze-bgp-chaos/managed_test.go`
+- `cmd/ze-chaos/managed.go` — managed mode: Ze subprocess lifecycle
+- `cmd/ze-chaos/managed_test.go`
 - `test/chaos/smoke-propagation.ci` — propagation-only smoke test
 - `test/chaos/smoke-disconnect.ci` — disconnect + withdrawal smoke test
 - `test/chaos/smoke-chaos.ci` — moderate chaos smoke test
 
 ## Files to Modify
 
-- `cmd/ze-bgp-chaos/main.go` — add `--config-only` and `--managed` flags
-- `cmd/ze-bgp-chaos/orchestrator.go` — skip peer startup in `--config-only` mode
+- `cmd/ze-chaos/main.go` — add `--config-only` and `--managed` flags
+- `cmd/ze-chaos/orchestrator.go` — skip peer startup in `--config-only` mode
 - `cmd/ze-test/bgp.go` — register `chaos` test suite (discovers `test/chaos/*.ci`)
 - `Makefile` — add `functional-chaos` target
 

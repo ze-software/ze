@@ -117,7 +117,7 @@ type Runner struct {
 
 	// extraBinaries maps binary name → Go package path for additional
 	// binaries that should be built alongside ze and ze-test.
-	// Example: {"ze-bgp-chaos": "./cmd/ze-bgp-chaos"}
+	// Example: {"ze-chaos": "./cmd/ze-chaos"}
 	extraBinaries map[string]string
 }
 
@@ -148,7 +148,7 @@ func (r *Runner) Display() *Display {
 
 // SetExtraBinaries configures additional Go binaries to build alongside ze.
 // The map keys are binary names and values are Go package paths.
-// Example: runner.SetExtraBinaries(map[string]string{"ze-bgp-chaos": "./cmd/ze-bgp-chaos"})
+// Example: runner.SetExtraBinaries(map[string]string{"ze-chaos": "./cmd/ze-chaos"})
 func (r *Runner) SetExtraBinaries(binaries map[string]string) {
 	r.extraBinaries = binaries
 }
@@ -182,7 +182,7 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build ze-test: %w", err)
 	}
 
-	// Build extra binaries (e.g., ze-bgp-chaos for chaos-web tests).
+	// Build extra binaries (e.g., ze-chaos for chaos-web tests).
 	for name, pkg := range r.extraBinaries {
 		outPath := filepath.Join(r.tmpDir, name)
 		cmd = exec.CommandContext(ctx, "go", "build", "-o", outPath, pkg) //nolint:gosec // paths from internal runner

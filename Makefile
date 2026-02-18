@@ -9,8 +9,8 @@ export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 
 # Packages
-ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-bgp-chaos)
-CHAOS_PACKAGES = ./cmd/ze-bgp-chaos/...
+ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
+CHAOS_PACKAGES = ./cmd/ze-chaos/...
 
 # Default target
 all: ze-lint ze-unit-test build
@@ -20,7 +20,7 @@ generate:
 	@go run scripts/gen-plugin-imports.go
 
 # Build all binaries
-build: generate bin/ze bin/ze-test bin/ze-bgp-chaos
+build: generate bin/ze bin/ze-test bin/ze-chaos
 	@echo "All binaries built"
 
 # Individual binary targets
@@ -34,10 +34,10 @@ bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@mkdir -p bin
 	go build -o bin/ze-test ./cmd/ze-test
 
-bin/ze-bgp-chaos: $(shell find cmd/ze-bgp-chaos internal -name '*.go' 2>/dev/null)
-	@echo "Building ze-bgp-chaos..."
+bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
+	@echo "Building ze-chaos..."
 	@mkdir -p bin
-	go build -o bin/ze-bgp-chaos ./cmd/ze-bgp-chaos
+	go build -o bin/ze-chaos ./cmd/ze-chaos
 
 # ─── Ze tests ────────────────────────────────────────────────────────────────
 
@@ -146,8 +146,8 @@ CHAOS_DURATION ?= 30s
 CHAOS_PEERS    ?= 4
 CHAOS_ROUTES   ?= 10
 
-chaos-functional-test: bin/ze-bgp-chaos
-	@bin/ze-bgp-chaos --in-process --duration $(CHAOS_DURATION) \
+chaos-functional-test: bin/ze-chaos
+	@bin/ze-chaos --in-process --duration $(CHAOS_DURATION) \
 		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
 		--seed $(CHAOS_SEED) --quiet
 

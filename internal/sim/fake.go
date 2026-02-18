@@ -12,7 +12,7 @@ import (
 //
 // Minimal implementation: supports Now() and Advance(). Timer methods
 // (AfterFunc, NewTimer, After) return inert fakes sufficient for code
-// paths that only use Now(). ze-bgp-chaos will extend this with
+// paths that only use Now(). ze-chaos will extend this with
 // time-advancement-triggered timer firing.
 type FakeClock struct {
 	mu  sync.Mutex

@@ -1,6 +1,6 @@
 # Chaos Web Dashboard — Design
 
-Live web dashboard for ze-bgp-chaos providing real-time visualization and interactive control of chaos test runs. Uses HTMX + SSE for dynamic updates with all assets embedded in the binary via `go:embed`.
+Live web dashboard for ze-chaos providing real-time visualization and interactive control of chaos test runs. Uses HTMX + SSE for dynamic updates with all assets embedded in the binary via `go:embed`.
 
 ## Architecture Overview
 
@@ -87,7 +87,7 @@ Three-panel layout designed for desktop monitors. Peer table shows an active set
 
 | Element | Description |
 |---------|-------------|
-| Title | "ze-bgp-chaos" with run status badge (RUNNING / COMPLETED / FAILED) |
+| Title | "ze-chaos" with run status badge (RUNNING / COMPLETED / FAILED) |
 | Seed | Current seed value, copyable |
 | Elapsed | Running clock (mm:ss or hh:mm:ss) |
 | Peer gauge | "N/M established" with progress bar |
@@ -379,7 +379,7 @@ This gives ~5 SSE updates/second — smooth visual updates without overload.
 | style.css | Custom (this project) | web/assets/style.css | ~5KB |
 | HTML templates | Go templates (this project) | web/templates/*.html | ~10KB total |
 
-All files are vendored into `cmd/ze-bgp-chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
+All files are vendored into `cmd/ze-chaos/web/` and embedded via `go:embed` directives. The binary is self-contained — no CDN, no internet, works in air-gapped lab environments.
 
 Served at `/assets/htmx.min.js`, `/assets/sse.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
 

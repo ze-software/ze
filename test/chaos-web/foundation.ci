@@ -2,7 +2,7 @@
 # Tests GET /, /peers, /peer/{id}, /assets/*, /events (SSE)
 # Covers spec 266: chaos-web-foundation
 
-cmd=background:seq=1:exec=ze-bgp-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
+cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --duration 10s --peers 2 --seed 42 --routes 5 --quiet
 
 # Dashboard index returns HTML with htmx and dark theme
 http=get:seq=1:url=http://127.0.0.1:$PORT/:status=200:contains=htmx

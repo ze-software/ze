@@ -5,10 +5,10 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `docs/architecture/chaos-web-dashboard.md` - "New Chaos Action Types" and "Replay Constraint" sections
-3. `cmd/ze-bgp-chaos/chaos/` - scheduler, action types
-4. `cmd/ze-bgp-chaos/peer/simulator.go` - chaos action execution
-5. `cmd/ze-bgp-chaos/peer/event.go` - Event struct (ChaosAction field)
-6. `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON event log format
+3. `cmd/ze-chaos/chaos/` - scheduler, action types
+4. `cmd/ze-chaos/peer/simulator.go` - chaos action execution
+5. `cmd/ze-chaos/peer/event.go` - Event struct (ChaosAction field)
+6. `cmd/ze-chaos/report/jsonlog.go` - NDJSON event log format
 
 ## Task
 
@@ -27,11 +27,11 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 - [ ] `docs/architecture/chaos-web-dashboard.md` - New action definitions, parameters, weights, replay constraint
   -> Constraint: Manual triggers must be indistinguishable from scheduler events in the log
   -> Decision: chaos-params field added to NDJSON for parameterized actions
-- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - How Tick() selects and dispatches actions
+- [ ] `cmd/ze-chaos/chaos/scheduler.go` - How Tick() selects and dispatches actions
   -> Constraint: New actions disabled by default in scheduler; enabled via --chaos-actions
-- [ ] `cmd/ze-bgp-chaos/peer/simulator.go` - How chaos actions are executed
+- [ ] `cmd/ze-chaos/peer/simulator.go` - How chaos actions are executed
   -> Constraint: Actions received on chaos channel, executed in peer goroutine
-- [ ] `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON event format
+- [ ] `cmd/ze-chaos/report/jsonlog.go` - NDJSON event format
   -> Decision: Add chaos-params field for parameterized actions
 
 **Key insights:**
@@ -44,11 +44,11 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - Scheduler with 10 action types and weights
-- [ ] `cmd/ze-bgp-chaos/chaos/actions.go` - ChaosAction type definition (if exists)
-- [ ] `cmd/ze-bgp-chaos/peer/simulator.go` - Chaos action switch in peer goroutine
-- [ ] `cmd/ze-bgp-chaos/peer/event.go` - Event struct with ChaosAction string field
-- [ ] `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON format for chaos events
+- [ ] `cmd/ze-chaos/chaos/scheduler.go` - Scheduler with 10 action types and weights
+- [ ] `cmd/ze-chaos/chaos/actions.go` - ChaosAction type definition (if exists)
+- [ ] `cmd/ze-chaos/peer/simulator.go` - Chaos action switch in peer goroutine
+- [ ] `cmd/ze-chaos/peer/event.go` - Event struct with ChaosAction string field
+- [ ] `cmd/ze-chaos/report/jsonlog.go` - NDJSON format for chaos events
 
 **Behavior to preserve:**
 - Existing 10 chaos actions unchanged
@@ -151,18 +151,18 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 
 ## Files to Modify
 
-- `cmd/ze-bgp-chaos/chaos/scheduler.go` - Add --chaos-actions filter, new action weights
-- `cmd/ze-bgp-chaos/chaos/actions.go` - Extend ChaosAction with Params field (or create if not exists)
-- `cmd/ze-bgp-chaos/peer/simulator.go` - Handle 6 new action types in chaos switch
-- `cmd/ze-bgp-chaos/peer/event.go` - (Minor) Ensure Event can carry action params
-- `cmd/ze-bgp-chaos/report/jsonlog.go` - Add chaos-params field to event records
-- `cmd/ze-bgp-chaos/replay/replay.go` - Parse chaos-params from log records
-- `cmd/ze-bgp-chaos/main.go` - Add --chaos-actions flag
+- `cmd/ze-chaos/chaos/scheduler.go` - Add --chaos-actions filter, new action weights
+- `cmd/ze-chaos/chaos/actions.go` - Extend ChaosAction with Params field (or create if not exists)
+- `cmd/ze-chaos/peer/simulator.go` - Handle 6 new action types in chaos switch
+- `cmd/ze-chaos/peer/event.go` - (Minor) Ensure Event can carry action params
+- `cmd/ze-chaos/report/jsonlog.go` - Add chaos-params field to event records
+- `cmd/ze-chaos/replay/replay.go` - Parse chaos-params from log records
+- `cmd/ze-chaos/main.go` - Add --chaos-actions flag
 
 ## Files to Create
 
-- `cmd/ze-bgp-chaos/chaos/actions_v2.go` - New action type definitions with parameter validation
-- `cmd/ze-bgp-chaos/chaos/actions_v2_test.go` - Tests for new actions
+- `cmd/ze-chaos/chaos/actions_v2.go` - New action type definitions with parameter validation
+- `cmd/ze-chaos/chaos/actions_v2_test.go` - Tests for new actions
 - `test/chaos/route-burst.ci` - Functional test
 - `test/chaos/replay-params.ci` - Functional test
 

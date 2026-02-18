@@ -5,9 +5,9 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `docs/architecture/chaos-web-dashboard.md` - "Control Architecture", "Parameterized Manual Trigger UI", "Replay Constraint"
-3. `cmd/ze-bgp-chaos/web/` - foundation package
-4. `cmd/ze-bgp-chaos/chaos/scheduler.go` - scheduler (needs Pause/Resume/SetRate)
-5. `cmd/ze-bgp-chaos/orchestrator.go` - main event loop (needs control channel)
+3. `cmd/ze-chaos/web/` - foundation package
+4. `cmd/ze-chaos/chaos/scheduler.go` - scheduler (needs Pause/Resume/SetRate)
+5. `cmd/ze-chaos/orchestrator.go` - main event loop (needs control channel)
 
 ## Task
 
@@ -27,11 +27,11 @@ All manual triggers flow through the normal event pipeline and are recorded in t
   -> Decision: Per-action parameter forms loaded via HTMX on dropdown change
   -> Constraint: Manual triggers must produce standard EventChaosExecuted (replayable)
   -> Decision: Control actions (pause/resume) logged as "control" record type (informational)
-- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - Current scheduler (fire-and-forget)
+- [ ] `cmd/ze-chaos/chaos/scheduler.go` - Current scheduler (fire-and-forget)
   -> Decision: Add Pause(), Resume(), SetRate(), IsPaused() — mutex-protected
-- [ ] `cmd/ze-bgp-chaos/orchestrator.go` - Event loop processes events sequentially
+- [ ] `cmd/ze-chaos/orchestrator.go` - Event loop processes events sequentially
   -> Decision: Add select on both event channel and control channel
-- [ ] `cmd/ze-bgp-chaos/main.go` - runOrchestrator, runScheduler goroutines
+- [ ] `cmd/ze-chaos/main.go` - runOrchestrator, runScheduler goroutines
   -> Constraint: Scheduler runs in separate goroutine, needs mutex for new methods
 
 **Key insights:**
@@ -43,10 +43,10 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `cmd/ze-bgp-chaos/chaos/scheduler.go` - Tick() generates actions, no pause/resume
-- [ ] `cmd/ze-bgp-chaos/orchestrator.go` - Event loop with `for ev := range events`
-- [ ] `cmd/ze-bgp-chaos/main.go` - runScheduler goroutine, chaos channels
-- [ ] `cmd/ze-bgp-chaos/report/jsonlog.go` - NDJSON event format
+- [ ] `cmd/ze-chaos/chaos/scheduler.go` - Tick() generates actions, no pause/resume
+- [ ] `cmd/ze-chaos/orchestrator.go` - Event loop with `for ev := range events`
+- [ ] `cmd/ze-chaos/main.go` - runScheduler goroutine, chaos channels
+- [ ] `cmd/ze-chaos/report/jsonlog.go` - NDJSON event format
 
 **Behavior to preserve:**
 - Automatic scheduler behavior unchanged when not paused
@@ -170,21 +170,21 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 
 ## Files to Modify
 
-- `cmd/ze-bgp-chaos/chaos/scheduler.go` - Add Pause(), Resume(), SetRate(), IsPaused()
-- `cmd/ze-bgp-chaos/orchestrator.go` - Add control channel, select loop
-- `cmd/ze-bgp-chaos/main.go` - Create control channel, pass to web + orchestrator
-- `cmd/ze-bgp-chaos/report/jsonlog.go` - Add "control" record type
-- `cmd/ze-bgp-chaos/web/handlers.go` - Add POST control handlers, trigger-params handler
-- `cmd/ze-bgp-chaos/web/dashboard.go` - Accept control channel, expose to handlers
-- `cmd/ze-bgp-chaos/web/sse.go` - Property status change SSE event
+- `cmd/ze-chaos/chaos/scheduler.go` - Add Pause(), Resume(), SetRate(), IsPaused()
+- `cmd/ze-chaos/orchestrator.go` - Add control channel, select loop
+- `cmd/ze-chaos/main.go` - Create control channel, pass to web + orchestrator
+- `cmd/ze-chaos/report/jsonlog.go` - Add "control" record type
+- `cmd/ze-chaos/web/handlers.go` - Add POST control handlers, trigger-params handler
+- `cmd/ze-chaos/web/dashboard.go` - Accept control channel, expose to handlers
+- `cmd/ze-chaos/web/sse.go` - Property status change SSE event
 
 ## Files to Create
 
-- `cmd/ze-bgp-chaos/web/control.go` - Control command types, channel wrapper
-- `cmd/ze-bgp-chaos/web/control_test.go` - Control channel tests
-- `cmd/ze-bgp-chaos/web/templates/controls.html` - Control panel (pause, slider, trigger)
-- `cmd/ze-bgp-chaos/web/templates/trigger_params.html` - Per-action parameter forms (16 variants)
-- `cmd/ze-bgp-chaos/web/templates/property_detail.html` - Expandable violation details
+- `cmd/ze-chaos/web/control.go` - Control command types, channel wrapper
+- `cmd/ze-chaos/web/control_test.go` - Control channel tests
+- `cmd/ze-chaos/web/templates/controls.html` - Control panel (pause, slider, trigger)
+- `cmd/ze-chaos/web/templates/trigger_params.html` - Per-action parameter forms (16 variants)
+- `cmd/ze-chaos/web/templates/property_detail.html` - Expandable violation details
 - `test/chaos/web-control.ci` - Functional test
 - `test/chaos/web-trigger-replay.ci` - Functional test
 

@@ -182,8 +182,8 @@ func runChildModeWithArgs(args []string) int {
 	// inherit env vars from the parent, but not CLI flags).
 	if seed := os.Getenv("ze.bgp.chaos.seed"); seed != "" {
 		injectChaosFromEnv(reactor, seed, os.Getenv("ze.bgp.chaos.rate"))
-	} else if seed := os.Getenv("ze_bgp_chaos_seed"); seed != "" {
-		injectChaosFromEnv(reactor, seed, os.Getenv("ze_bgp_chaos_rate"))
+	} else if seed := os.Getenv("ze_chaos_seed"); seed != "" {
+		injectChaosFromEnv(reactor, seed, os.Getenv("ze_chaos_rate"))
 	}
 
 	if err := reactor.Start(); err != nil {

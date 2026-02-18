@@ -58,7 +58,7 @@ func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64
 // or EOF. Returns the config data and whether stdin remains open (NUL found).
 //
 // When stdin remains open, the caller can monitor it for EOF to detect
-// upstream process exit — e.g., in a pipeline like "ze-bgp-chaos | ze -",
+// upstream process exit — e.g., in a pipeline like "ze-chaos | ze -",
 // when the chaos tool exits, stdin closes, and Ze initiates clean shutdown.
 //
 // When no NUL is found (plain "cat config.conf | ze -"), reading stops at
@@ -154,7 +154,7 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
-	// Monitor stdin for EOF when running in pipe mode (ze-bgp-chaos | ze -).
+	// Monitor stdin for EOF when running in pipe mode (ze-chaos | ze -).
 	// After reading config (delimited by NUL), stdin stays open. When the
 	// upstream process exits, the pipe closes and this goroutine triggers
 	// clean shutdown — no Ctrl-C needed.
