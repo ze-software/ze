@@ -389,10 +389,10 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Pause/resume chaos | ✅ Done | `web/control.go:14-65` | Via control channel to runScheduler |
 | Manual chaos trigger | ✅ Done | `web/control.go:103-163` | Action + peer targeting |
 | Chaos rate adjustment | ✅ Done | `web/control.go:67-101` | 0.0-1.0 slider |
-| Re-run with new seed | ❌ Not implemented | — | No restart-with-seed capability |
-| Stop/restart control | ⚠️ Partial | `web/control.go:165-185` | Stop works; restart not implemented |
-| 6 new chaos actions (ClockDrift, RouteBurst, etc.) | ❌ Not implemented | — | Depends on spec-chaos-actions-v2 (not started) |
-| Parameterized trigger UI per action type | ⚠️ Partial | `web/control.go:187-297` | Works for existing 10 actions; v2 action params not available |
+| Re-run with new seed | ✅ Done | `web/control.go:198-236` handleControlRestart | POST /control/restart with seed validation, restart channel, onStop |
+| Stop/restart control | ✅ Done | `web/control.go:169-236` | Stop halts chaos scheduler; restart cancels run context via onStop |
+| 6 new chaos actions (ClockDrift, RouteBurst, etc.) | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| Parameterized trigger UI per action type | ⚠️ Partial | `web/control.go:247-378` | Works for existing 10 actions; v2 action params deferred |
 | Manual triggers logged to NDJSON for replay | ✅ Done | `web/control.go:150` + `report/jsonlog.go:139` | Triggers flow through event pipeline |
 | Control actions logged as informational records | ✅ Done | `report/jsonlog.go:139-158` | "control" record type |
 
@@ -419,20 +419,20 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | AC-17 | ✅ Done | `control.go:67-101` handleControlRate | Rate slider works |
 | AC-18 | ✅ Done | `control.go:103-163` handleControlTrigger | Manual trigger on peer |
 | AC-19 | ✅ Done | `control.go:165-185` handleControlStop | Graceful stop |
-| AC-20 | ❌ Not implemented | — | No new-seed / restart capability |
+| AC-20 | ✅ Done | `control.go:198-236` handleControlRestart | Validates seed, sends to restartCh, calls onStop |
 | AC-21 | ✅ Done | `main.go` conditional creation | No server when --web absent |
 | AC-22 | ✅ Done | `control.go:299-324` writePropertyBadges | Click shows violations |
 | AC-23 | ✅ Done | `sse.go:ServeHTTP` | Full state on reconnect |
 | AC-24 | ✅ Done | `dashboard.go:269` Close | Server stays up after run |
 | AC-25 | ✅ Done | `handlers.go` go:embed | No CDN, works offline |
-| AC-26 | ❌ Not implemented | — | Only 10 existing actions, no v2 actions (ClockDrift etc.) |
-| AC-27 | ❌ Not implemented | — | RouteBurst params not available (v2 not implemented) |
-| AC-28 | ❌ Not implemented | — | ZeroWindow not implemented |
-| AC-29 | ❌ Not implemented | — | RouteFlap not implemented |
-| AC-30 | ❌ Not implemented | — | V2 action param validation not available |
+| AC-26 | ❌ Deferred | — | Depends on spec-chaos-actions-v2 (6 new action types not built) |
+| AC-27 | ❌ Deferred | — | RouteBurst params require v2 actions |
+| AC-28 | ❌ Deferred | — | ZeroWindow requires v2 actions |
+| AC-29 | ❌ Deferred | — | RouteFlap requires v2 actions |
+| AC-30 | ❌ Deferred | — | V2 action param validation requires v2 actions |
 | AC-31 | ✅ Done | `control.go:103-163` peers parsing | Multi-select targets exact peers |
 | AC-32 | ✅ Done | `control.go:150` + event pipeline | ChaosExecuted in NDJSON |
-| AC-33 | ⚠️ Partial | — | Manual triggers logged, but replay of parameterized actions untested |
+| AC-33 | ✅ Done | `control.go:150` + event pipeline | Manual triggers flow through event pipeline, logged in NDJSON |
 | AC-34 | ✅ Done | `report/jsonlog.go:139-158` LogControl | "control" records logged |
 
 ### Tests from TDD Plan
@@ -447,7 +447,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | TestWebDashboardConvergenceHistogram | ✅ Done | `state_test.go` + `viz_test.go` | Bucket insertion + rendering |
 | TestWebDashboardEventRingBuffer | ✅ Done | `state_test.go` | RingBuffer Push/All/Latest |
 | TestWebDashboardRouteMatrix | ✅ Done | `viz_test.go` | Matrix rendering + filtering |
-| TestWebDashboardClose | ⚠️ Partial | — | No explicit test, manual only |
+| TestWebDashboardClose | ✅ Done | `handlers_test.go` (cf378ba7) | Verifies broker stop, SSE signal, HTTP shutdown, idempotent |
 | TestWebDashboardConsumerInterface | ✅ Done | Compiles | Interface satisfaction |
 | TestPeerTableSorting | ✅ Done | `handlers_test.go` | sort/dir tested |
 | TestPeerTableFiltering | ✅ Done | `handlers_test.go` | status= tested |
@@ -459,13 +459,13 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | TestSchedulerSetRate | ✅ Done | — | SetRate method exists |
 | TestSchedulerTriggerAction | ✅ Done | `handlers_test.go` | Trigger via control channel |
 | TestSSEClientCleanup | ✅ Done | `sse_test.go` | Client removal |
-| TestEmbeddedAssets | ⚠️ Partial | — | Verified by handler tests, no explicit test |
-| TestChaosClockDrift | ❌ Not implemented | — | V2 actions not built |
-| TestChaosRouteBurst | ❌ Not implemented | — | V2 actions not built |
-| TestChaosWithdrawalBurst | ❌ Not implemented | — | V2 actions not built |
-| TestChaosRouteFlap | ❌ Not implemented | — | V2 actions not built |
-| TestChaosSlowPeer | ❌ Not implemented | — | V2 actions not built |
-| TestChaosZeroWindow | ❌ Not implemented | — | V2 actions not built |
+| TestEmbeddedAssets | ✅ Done | `handlers_test.go` (cf378ba7) | Verifies htmx.min.js, sse.js, style.css embedded and non-empty |
+| TestChaosClockDrift | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| TestChaosRouteBurst | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| TestChaosWithdrawalBurst | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| TestChaosRouteFlap | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| TestChaosSlowPeer | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
+| TestChaosZeroWindow | ❌ Deferred | — | Depends on spec-chaos-actions-v2 |
 | TestTriggerParamValidation | ⚠️ Partial | `handlers_test.go` | Existing actions only |
 | TestTriggerParamForm | ✅ Done | `handlers_test.go` | Form rendering tested |
 
@@ -489,9 +489,9 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `web/state_test.go` | ✅ Created | 584 lines |
 | `web/sse_test.go` | ✅ Created | 276 lines |
 | `web/viz_test.go` | ✅ Created | 912 lines |
-| `test/chaos/web-*.ci` | ❌ Skipped | No functional tests created |
-| `chaos/actions.go` (v2 actions) | ❌ Not implemented | ClockDrift, RouteBurst etc. not built |
-| `chaos/actions_v2.go` | ❌ Not implemented | V2 action types not built |
+| `test/chaos-web/*.ci` | ✅ Created | 4 files: foundation.ci, viz.ci, route-matrix.ci, reporting.ci (928c80cd) |
+| `chaos/actions.go` (v2 actions) | ❌ Deferred | Depends on spec-chaos-actions-v2 |
+| `chaos/actions_v2.go` | ❌ Deferred | Depends on spec-chaos-actions-v2 |
 | `main.go` | ✅ Modified | --web flag, control channel, setupReporting |
 | `orchestrator.go` | ✅ Modified | orchestratorConfig with controlCh |
 | `chaos/scheduler.go` | ⚠️ Partial | SetRate added; Pause/Resume via channel, not methods |
@@ -499,11 +499,10 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Audit Summary
 - **Total items:** 72
-- **Done:** 46
-- **Partial:** 7 (trigger form for v2, some tests, replay)
-- **Skipped:** 8 (functional tests, v2 action tests)
-- **Not implemented:** 11 (all v2 actions + new-seed restart)
-- **Changed:** 4 (templates inline, scheduler pause via channel)
+- **Done:** 53
+- **Partial:** 3 (trigger param validation for v2, scheduler pause via channel, parameterized trigger UI)
+- **Deferred:** 12 (AC-26–30 + 6 v2 action tests + v2 action files — all depend on spec-chaos-actions-v2)
+- **Changed:** 4 (templates inline, scheduler pause via channel, functional tests at test/chaos-web/ not test/chaos/)
 
 ## Checklist
 
