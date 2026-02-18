@@ -205,10 +205,14 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		}
 	}()
 
-	// Give real time for the BGP handshake and route exchange to complete
-	// over the synchronous net.Pipe() connections. The handshake happens
-	// in real goroutines even though timers use virtual time.
-	time.Sleep(2 * time.Second)
+	// Give real time for reactor startup, BGP handshake, and route exchange.
+	// The base 3s covers reactor + plugin initialization (which is slower
+	// under the race detector). The per-peer 500ms covers each OPEN exchange
+	// competing for goroutine scheduling — the race detector adds 5-10x
+	// overhead per goroutine operation, and the reactor accepts connections
+	// sequentially.
+	handshakeWait := 3*time.Second + time.Duration(len(cfg.Profiles))*500*time.Millisecond
+	time.Sleep(handshakeWait)
 
 	// Advance virtual time in 1-second steps with brief real-time pauses
 	// to let goroutines process timer-fired callbacks.
@@ -229,27 +233,86 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 			simCancel()
 		}
 
-		// Phase 1: Disconnect peer 0 by closing its connection.
-		// The reactor detects the closed connection and tears down the session.
-		// The 500ms real-time wait gives the reactor time to process the
-		// read error and begin session cleanup.
-		if cfg.DisconnectAt > 0 && simulated >= cfg.DisconnectAt && !disconnected {
+		// Collision test (ReconnectDelay == 0): queue new connection BEFORE
+		// closing the old one so the session is still ESTABLISHED when the
+		// reactor's accept loop delivers the new connection. This triggers
+		// RFC 4271 §6.8 collision detection deterministically.
+		//
+		// ConnWithAddr.SetReadDeadline is a no-op, so the reactor's read
+		// goroutine blocks on ReadFull until data or close — there is no
+		// polling interval. Closing the old connection delivers EOF
+		// instantly, tearing down the session in microseconds. If we
+		// closed first and reconnected later (even 10ms later), the session
+		// would already be gone and no collision would occur.
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay == 0 && simulated >= cfg.DisconnectAt && !disconnected {
 			disconnected = true
-			_ = peerConns[0].Close()
+			reconnected = true
+			oldConn := peerConns[0]
+
+			// First: queue new connection while old session is still ESTABLISHED.
+			newPeerEnd, newReactorEnd, collisionErr := cpm.NewPair()
+			if collisionErr != nil {
+				fmt.Fprintf(os.Stderr, "collision reconnect pair: %v\n", collisionErr)
+			} else {
+				peerIP := net.ParseIP(fmt.Sprintf("127.0.0.%d", 2))
+				remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
+				wrappedEnd := NewConnWithAddr(newReactorEnd, localTCPAddr, remoteTCPAddr)
+				ml.QueueConn(wrappedEnd)
+				peerConns[0] = newPeerEnd
+
+				simWg.Add(1)
+				go func(p scenario.PeerProfile, conn net.Conn) {
+					defer simWg.Done()
+					peer.RunSimulator(simCtx, peer.SimulatorConfig{
+						Profile: peer.SimProfile{
+							Index:      p.Index,
+							ASN:        p.ASN,
+							RouterID:   p.RouterID,
+							IsIBGP:     p.IsIBGP,
+							HoldTime:   p.HoldTime,
+							RouteCount: p.RouteCount,
+							Families:   p.Families,
+						},
+						Seed:   cfg.Seed,
+						Addr:   "",
+						Events: events,
+						Conn:   conn,
+						Clock:  vc,
+					})
+				}(cfg.Profiles[0], newPeerEnd)
+			}
+
+			// Then close old connection — reactor now has two connections
+			// for the same peer, triggering collision detection.
+			if err := oldConn.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "collision close old conn: %v\n", err)
+			}
 			time.Sleep(500 * time.Millisecond)
 		}
 
-		// Phase 2: Reconnect peer 0 with a fresh mock connection.
-		// Whether this succeeds depends on ReconnectDelay:
-		// - Short delay (< peer's reconnect backoff): reactor may still have
-		//   an active session → BGP collision detection (RFC 4271 §6.8) rejects.
-		// - Long delay (> reconnect backoff): peer has cycled through its
-		//   reconnect loop and is ready for a new incoming connection.
+		// Normal disconnect (with delayed reconnect).
+		// The 500ms real-time wait gives the reactor time to process the
+		// EOF and tear down the session before the reconnect phase.
+		if cfg.DisconnectAt > 0 && cfg.ReconnectDelay > 0 && simulated >= cfg.DisconnectAt && !disconnected {
+			disconnected = true
+			if err := peerConns[0].Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "disconnect close: %v\n", err)
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+
+		// Delayed reconnect: queue a fresh connection after the delay.
+		// Whether this succeeds depends on ReconnectDelay relative to the
+		// reactor's reconnect backoff (DefaultReconnectMin = 5s virtual):
+		// - Short delay (< backoff): reactor may reject (session cycling).
+		// - Long delay (> backoff): peer has recycled, accepts cleanly.
 		if disconnected && !reconnected && cfg.ReconnectDelay > 0 && simulated >= cfg.DisconnectAt+cfg.ReconnectDelay {
 			reconnected = true
 
-			newPeerEnd, newReactorEnd, pairErr := cpm.NewPair()
-			if pairErr == nil {
+			newPeerEnd, newReactorEnd, reconnErr := cpm.NewPair()
+			if reconnErr != nil {
+				fmt.Fprintf(os.Stderr, "delayed reconnect pair: %v\n", reconnErr)
+			} else {
 				peerIP := net.ParseIP(fmt.Sprintf("127.0.0.%d", 2))
 				remoteTCPAddr := &net.TCPAddr{IP: peerIP, Port: 0}
 				wrappedEnd := NewConnWithAddr(newReactorEnd, localTCPAddr, remoteTCPAddr)
@@ -277,8 +340,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					})
 				}(cfg.Profiles[0], newPeerEnd)
 
-				// Wait for the new BGP handshake to complete over the
-				// synchronous connection, same as the initial startup wait.
+				// Wait for the new BGP handshake to complete.
 				time.Sleep(500 * time.Millisecond)
 			}
 		}

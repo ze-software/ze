@@ -164,7 +164,7 @@ func TestInProcessEventLogFormat(t *testing.T) {
 	result, err := Run(ctx, RunConfig{
 		Profiles:  profiles,
 		Seed:      42,
-		Duration:  5 * time.Second,
+		Duration:  30 * time.Second,
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
@@ -260,11 +260,11 @@ func TestInProcessDisconnectReconnect(t *testing.T) {
 	}{
 		{
 			name:            "short_gap_collision",
-			reconnectDelay:  1 * time.Second,
-			duration:        15 * time.Second,
-			minEstablished:  1, // collision rejects reconnect
-			maxEstablished:  1,
-			minDisconnected: 0, // both sims exit via error, no clean shutdown
+			reconnectDelay:  0,                // Collision mode: queue new conn before closing old.
+			duration:        15 * time.Second, // Session is ESTABLISHED when new conn arrives.
+			minEstablished:  1,                // Initial session only — collision rejects the new one.
+			maxEstablished:  1,                // RFC 4271 §6.8: ESTABLISHED state rejects incoming.
+			minDisconnected: 0,                // Disconnect events vary by timing.
 		},
 		{
 			name:            "borderline_gap",
@@ -316,7 +316,6 @@ func TestInProcessDisconnectReconnect(t *testing.T) {
 			var established, disconnected int
 			for _, ev := range result.Events {
 				if ev.PeerIndex == 0 {
-					t.Logf("[%s] event: type=%s time=%v err=%v", tt.name, ev.Type, ev.Time, ev.Err)
 					switch ev.Type { //nolint:exhaustive // Only checking specific event types
 					case peer.EventEstablished:
 						established++
@@ -336,10 +335,14 @@ func TestInProcessDisconnectReconnect(t *testing.T) {
 }
 
 // TestInProcessDeterminism verifies that two runs with the same seed
-// produce the same set of event types.
+// produce the same seed-controlled events (established, routes).
 //
 // VALIDATES: Seed-controlled execution produces consistent results.
-// PREVENTS: Non-determinism from leaking into event generation.
+// PREVENTS: Non-determinism from leaking into route generation.
+//
+// NOTE: Only compares seed-controlled event types (Established, RouteSent,
+// EORSent). Timing-dependent events like Disconnected and Error depend on
+// goroutine scheduling at shutdown, not the seed.
 func TestInProcessDeterminism(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -367,7 +370,7 @@ func TestInProcessDeterminism(t *testing.T) {
 			},
 		},
 		Seed:      42,
-		Duration:  5 * time.Second,
+		Duration:  30 * time.Second, // 30 virtual steps × 10ms = 300ms real time for consistent event production.
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
@@ -384,11 +387,18 @@ func TestInProcessDeterminism(t *testing.T) {
 	result2, err := Run(ctx2, cfg)
 	require.NoError(t, err)
 
-	// Compare event type distributions (not exact order — Go scheduler
-	// introduces minor non-determinism in event ordering).
-	counts1 := eventTypeCounts(result1.Events)
-	counts2 := eventTypeCounts(result2.Events)
-	assert.Equal(t, counts1, counts2, "same seed should produce same event type counts")
+	// Compare only seed-controlled event types. Timing-dependent events
+	// (Disconnected, Error) vary with goroutine scheduling at shutdown.
+	seedControlled := []peer.EventType{
+		peer.EventEstablished,
+		peer.EventRouteSent,
+		peer.EventEORSent,
+	}
+	for _, et := range seedControlled {
+		c1 := eventTypeCounts(result1.Events)[et]
+		c2 := eventTypeCounts(result2.Events)[et]
+		assert.Equal(t, c1, c2, "event type %v count should match between runs (got %d vs %d)", et, c1, c2)
+	}
 }
 
 // TestInProcessProperties verifies that RFC properties pass for a correct
@@ -474,7 +484,7 @@ func TestInProcessScale20(t *testing.T) {
 	result, err := Run(ctx, RunConfig{
 		Profiles:  profiles,
 		Seed:      42,
-		Duration:  5 * time.Second,
+		Duration:  30 * time.Second, // 30 virtual steps × 10ms = 300ms real time for late establishments.
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
 		LocalAddr: "127.0.0.1",
@@ -489,6 +499,9 @@ func TestInProcessScale20(t *testing.T) {
 		}
 	}
 	// At least 80% of peers should establish (some may fail due to timing).
+	// The scaled handshake wait in Run() gives enough time even under -race,
+	// and Duration=30s provides 300ms of additional real time in the virtual
+	// loop for any peers that establish slightly after the handshake wait.
 	minExpected := numPeers * 80 / 100
 	assert.GreaterOrEqual(t, len(established), minExpected,
 		"at least %d of %d peers should establish sessions", minExpected, numPeers)
