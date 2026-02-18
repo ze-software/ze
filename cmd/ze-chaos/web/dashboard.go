@@ -85,6 +85,9 @@ func (c *Config) defaults() {
 	if c.MaxVisible <= 0 {
 		c.MaxVisible = 40
 	}
+	if c.PeerCount > 0 && c.MaxVisible > c.PeerCount {
+		c.MaxVisible = c.PeerCount
+	}
 	if c.EventBufSize <= 0 {
 		c.EventBufSize = 500
 	}
