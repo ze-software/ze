@@ -1,4 +1,4 @@
-.PHONY: all build ze chaos clean fmt vet tidy generate help
+.PHONY: all build ze chaos test clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
 .PHONY: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test chaos-test chaos-verify
@@ -23,9 +23,17 @@ generate:
 build: generate bin/ze bin/ze-test bin/ze-chaos
 	@echo "All binaries built"
 
-ze: bin/ze
+ze:
+	@mkdir -p bin
+	go build -o bin/ze ./cmd/ze
 
-chaos: bin/ze-chaos
+chaos:
+	@mkdir -p bin
+	go build -o bin/ze-chaos ./cmd/ze-chaos
+
+test:
+	@mkdir -p bin
+	go build -o bin/ze-test ./cmd/ze-test
 
 # Individual binary targets
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
@@ -207,7 +215,10 @@ help:
 	@echo "Ze BGP Makefile targets:"
 	@echo ""
 	@echo "  all                   - ze-lint, ze-unit-test, build (default)"
-	@echo "  build                 - Build all binaries"
+	@echo "  build                 - Build all binaries (bin/ze, bin/ze-test, bin/ze-chaos)"
+	@echo "  ze                    - Build bin/ze"
+	@echo "  chaos                 - Build bin/ze-chaos"
+	@echo "  test                  - Build bin/ze-test"
 	@echo ""
 	@echo "  Ze tests:"
 	@echo "  ze-lint               - Run linter on ze packages"
