@@ -1154,6 +1154,54 @@ func TestSDKCloseUnblocksRead(t *testing.T) {
 	}
 }
 
+// TestSDKConnectionCloseCleanShutdown verifies that closing the callback connection
+// causes Run() to return nil (clean shutdown), not an error.
+//
+// VALIDATES: Connection close during event loop is treated as clean shutdown.
+// PREVENTS: Scary "plugin failed" ERROR logs when engine shuts down normally.
+func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
+	t.Parallel()
+
+	// Use raw net.Pipe so we can close the engine side independently.
+	aPlugin, aEngine := net.Pipe()
+	bPlugin, bEngine := net.Pipe()
+	t.Cleanup(func() {
+		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
+			if err := c.Close(); err != nil {
+				t.Logf("cleanup close: %v", err)
+			}
+		}
+	})
+
+	p := NewWithConn("test-plugin", aPlugin, bPlugin)
+	engine := &engineSide{
+		server: rpc.NewConn(aEngine, aEngine),
+		client: rpc.NewConn(bEngine, bEngine),
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Simulate engine shutdown: close the callback connection (Socket B engine side).
+	// This is what Process.Stop() does for internal plugins.
+	require.NoError(t, bEngine.Close())
+
+	select {
+	case err := <-errCh:
+		// Must be nil — connection close is a clean shutdown, not an error.
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit after connection close")
+	}
+}
+
 // externalTestPairs holds real socketpair FDs for testing NewFromFDs.
 type externalTestPairs struct {
 	engineFD       int       // Plugin's end of Socket A (FD for plugin→engine)

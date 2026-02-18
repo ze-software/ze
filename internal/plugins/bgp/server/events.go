@@ -48,7 +48,7 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 		err := connB.SendDeliverEvent(deliverCtx, output)
 		cancel()
 
-		if err != nil {
+		if err != nil && s.Context().Err() == nil {
 			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -131,7 +131,7 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 		err := connB.SendDeliverEvent(deliverCtx, output)
 		cancel()
 
-		if err != nil {
+		if err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -163,7 +163,7 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 		err := connB.SendDeliverEvent(deliverCtx, output)
 		cancel()
 
-		if err != nil {
+		if err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
 		}
 	}
@@ -214,7 +214,7 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 		err := connB.SendDeliverEvent(deliverCtx, output)
 		cancel()
 
-		if err != nil {
+		if err != nil && s.Context().Err() == nil {
 			logger().Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
 		}
 	}

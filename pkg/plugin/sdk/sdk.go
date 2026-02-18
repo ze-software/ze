@@ -20,10 +20,13 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
@@ -482,16 +485,29 @@ func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler fu
 	return p.callbackConn.SendOK(ctx, req.ID)
 }
 
+// isConnectionClosed reports whether err indicates a closed connection.
+// During shutdown the engine closes the socket, producing EOF or
+// "use of closed network connection" — both are clean exit signals.
+func isConnectionClosed(err error) bool {
+	if errors.Is(err, io.EOF) {
+		return true
+	}
+	// net.Pipe and Unix sockets surface this as an opaque string.
+	return strings.Contains(err.Error(), "use of closed network connection")
+}
+
 // eventLoop handles runtime RPCs from the engine on Socket B.
 func (p *Plugin) eventLoop(ctx context.Context) error {
 	for {
 		req, err := p.callbackConn.ReadRequest(ctx)
 		if err != nil {
-			// Context cancelled = clean shutdown
-			if ctx.Err() != nil {
-				return ctx.Err()
+			// Context cancelled or connection closed = clean shutdown.
+			// The engine closes the socket to signal internal plugins to exit;
+			// this races with context cancellation, so check both.
+			if ctx.Err() == nil && !isConnectionClosed(err) {
+				return fmt.Errorf("event loop read: %w", err)
 			}
-			return fmt.Errorf("event loop read: %w", err)
+			return nil //nolint:nilerr // EOF/context-cancel during shutdown is not an error
 		}
 
 		if err := p.dispatchCallback(ctx, req); err != nil {
