@@ -369,6 +369,7 @@ Control:
 		}
 		if wd != nil {
 			ipCfg.Consumer = wd
+			ipCfg.StepDelay = 1 * time.Second // Real-time pacing for web dashboard.
 		}
 		result, ipErr := inprocess.Run(ipCtx, ipCfg)
 		if ipErr != nil {
@@ -376,6 +377,15 @@ Control:
 			return 1
 		}
 		fmt.Fprintf(os.Stderr, "ze-chaos | in-process complete | events: %d\n", len(result.Events))
+
+		// When web dashboard is active, keep serving until Ctrl-C
+		// so the user can explore the final state.
+		if wd != nil {
+			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", *webAddr)
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+			<-sigCh
+		}
 		return 0
 	}
 

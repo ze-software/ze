@@ -58,6 +58,11 @@ type RunConfig struct {
 	// When non-nil, events are forwarded as they arrive (before Run returns).
 	// Used by --web to feed the dashboard during in-process mode.
 	Consumer report.Consumer
+
+	// StepDelay is the real-time pause between virtual clock advances.
+	// Default (0) uses 10ms for fast simulation. Set to 1s for real-time
+	// pacing when the web dashboard is active.
+	StepDelay time.Duration
 }
 
 // RunResult holds the output from an in-process chaos run.
@@ -218,9 +223,13 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	handshakeWait := 3*time.Second + time.Duration(len(cfg.Profiles))*500*time.Millisecond
 	time.Sleep(handshakeWait)
 
-	// Advance virtual time in 1-second steps with brief real-time pauses
+	// Advance virtual time in 1-second steps with real-time pauses
 	// to let goroutines process timer-fired callbacks.
 	step := 1 * time.Second
+	stepDelay := cfg.StepDelay
+	if stepDelay == 0 {
+		stepDelay = 10 * time.Millisecond
+	}
 	simulated := time.Duration(0)
 	disconnected := false
 	reconnected := false
@@ -352,8 +361,8 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		vc.Advance(step)
 		simulated += step
 
-		// Brief real-time pause to let goroutines process.
-		time.Sleep(10 * time.Millisecond)
+		// Real-time pause: 10ms for fast simulation, 1s for real-time pacing.
+		time.Sleep(stepDelay)
 	}
 
 	// Stop simulators and reactor.

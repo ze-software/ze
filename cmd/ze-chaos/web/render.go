@@ -179,6 +179,15 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
 </div>
 </div>
+<div id="conn-error" style="display:none;position:fixed;bottom:0;left:0;right:0;padding:8px 16px;background:#b91c1c;color:#fff;text-align:center;font-size:14px;z-index:999">
+  Server disconnected
+</div>
+<script>
+document.body.addEventListener('htmx:sendError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:responseError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:sseError',function(){document.getElementById('conn-error').style.display='block'});
+document.body.addEventListener('htmx:afterRequest',function(e){if(!e.detail.failed)document.getElementById('conn-error').style.display='none'});
+</script>
 </body>
 </html>`)
 }
