@@ -41,6 +41,8 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("GET /viz/chaos-timeline", d.handleVizChaosTimeline)
 	mux.HandleFunc("GET /viz/route-matrix", d.handleVizRouteMatrix)
 	mux.HandleFunc("GET /viz/route-matrix/cell", d.handleVizRouteMatrixCell)
+	mux.HandleFunc("GET /viz/families", d.handleVizFamilies)
+	mux.HandleFunc("GET /viz/all-peers", d.handleVizAllPeers)
 
 	// Sidebar polling fallbacks (supplement SSE).
 	mux.HandleFunc("GET /sidebar/stats", d.handleSidebarStats)

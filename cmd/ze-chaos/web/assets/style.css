@@ -912,6 +912,106 @@ html, body {
   border-left: 2px solid var(--yellow);
 }
 
+/* Family matrix table */
+.family-matrix-scroll {
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.family-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.family-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--bg-secondary);
+  border-bottom: 2px solid var(--border);
+  padding: 4px 8px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.family-matrix thead tr:nth-child(2) th {
+  top: 26px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fm-sub {
+  font-size: 9px !important;
+  color: var(--text-muted) !important;
+  font-weight: 400 !important;
+}
+
+.fm-peer-col { text-align: left !important; width: 50px; }
+.fm-status-col { text-align: left !important; width: 90px; }
+
+.family-matrix td {
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.family-matrix tr:hover td {
+  background: var(--bg-hover);
+}
+
+.fm-disabled {
+  color: var(--text-muted) !important;
+}
+
+.fm-pending {
+  color: var(--yellow) !important;
+}
+
+.fm-partial {
+  color: var(--orange) !important;
+}
+
+.fm-total {
+  font-weight: 600;
+  color: var(--text-primary);
+  border-left: 1px solid var(--border);
+}
+
+.fm-footer td {
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border-top: 2px solid var(--border);
+}
+
+.fm-families {
+  font-size: 11px;
+  color: var(--text-secondary);
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* All peers table scroll */
+.all-peers-scroll {
+  overflow-y: auto;
+  max-height: 500px;
+}
+
+.all-peers-scroll .peer-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .content {

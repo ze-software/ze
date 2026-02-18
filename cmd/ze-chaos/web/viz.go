@@ -952,3 +952,224 @@ func selAttr(cond bool) string {
 	}
 	return ""
 }
+
+// handleVizFamilies serves the per-family route matrix tab content.
+func (d *Dashboard) handleVizFamilies(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writeFamilyMatrix(w, d.state)
+}
+
+// handleVizAllPeers serves the complete peer list tab content.
+// Query params: sort (column), dir (asc/desc).
+func (d *Dashboard) handleVizAllPeers(w http.ResponseWriter, r *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	sortCol := r.URL.Query().Get("sort")
+	sortDir := r.URL.Query().Get("dir")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writeAllPeers(w, d.state, sortCol, sortDir)
+}
+
+// writeFamilyMatrix renders a peer × family table showing sent/recv per cell.
+// Auto-refreshes so users see propagation counters ticking live.
+func writeFamilyMatrix(w io.Writer, s *DashboardState) {
+	h := &htmlWriter{w: w}
+	families := s.SortedFamilies()
+
+	h.write(`<div class="viz-panel" hx-get="/viz/families" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<div class="viz-header">
+  <h3>Per-Family Routes</h3>
+</div>`)
+
+	if len(families) == 0 {
+		h.write(`<div class="stat-label" style="padding:16px">No address families negotiated yet.</div>
+<p class="viz-desc">Once peers establish sessions and negotiate address families, this table shows per-family sent/received route counts for every peer.</p>
+</div>`)
+		return
+	}
+
+	h.write(`<div class="family-matrix-scroll"><table class="family-matrix">
+<thead><tr>
+  <th class="fm-peer-col">Peer</th>
+  <th class="fm-status-col">Status</th>`)
+
+	for _, fam := range families {
+		h.writef(`<th class="fm-family-col" colspan="2">%s</th>`, escapeHTML(fam))
+	}
+	h.write(`<th class="fm-total-col" colspan="2">Total</th>
+</tr>
+<tr>
+  <th></th><th></th>`)
+	for range families {
+		h.write(`<th class="fm-sub">Sent</th><th class="fm-sub">Recv</th>`)
+	}
+	h.write(`<th class="fm-sub">Sent</th><th class="fm-sub">Recv</th>
+</tr></thead>
+<tbody>`)
+
+	// Build sorted list of all peer indices.
+	peerIndices := make([]int, 0, len(s.Peers))
+	for idx := range s.Peers {
+		peerIndices = append(peerIndices, idx)
+	}
+	sortIntSlice(peerIndices)
+
+	// Compute per-family totals for the footer.
+	famTotalSent := make(map[string]int, len(families))
+	famTotalRecv := make(map[string]int, len(families))
+	var grandSent, grandRecv int
+
+	for _, idx := range peerIndices {
+		ps := s.Peers[idx]
+		if ps == nil {
+			continue
+		}
+
+		// Build negotiated set for this peer.
+		negotiated := make(map[string]bool, len(ps.Families))
+		for _, f := range ps.Families {
+			negotiated[f] = true
+		}
+
+		h.writef(`<tr>`)
+		h.writef(`<td class="fm-peer-col">%d</td>`, idx)
+		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
+
+		for _, fam := range families {
+			if negotiated[fam] {
+				sent := ps.FamilySent[fam]
+				recv := ps.FamilyRecv[fam]
+				famTotalSent[fam] += sent
+				famTotalRecv[fam] += recv
+
+				sentClass := ""
+				recvClass := ""
+				if sent > 0 && recv == 0 {
+					recvClass = ` class="fm-pending"` // sent but nothing received yet
+				}
+				if recv > 0 && sent > 0 && recv < sent {
+					recvClass = ` class="fm-partial"` // partial propagation
+				}
+				h.writef(`<td%s>%d</td><td%s>%d</td>`, sentClass, sent, recvClass, recv)
+			} else {
+				h.write(`<td class="fm-disabled">-</td><td class="fm-disabled">-</td>`)
+			}
+		}
+
+		h.writef(`<td class="fm-total">%d</td><td class="fm-total">%d</td>`, ps.RoutesSent, ps.RoutesRecv)
+		grandSent += ps.RoutesSent
+		grandRecv += ps.RoutesRecv
+
+		h.write(`</tr>`)
+	}
+
+	// Footer row with per-family totals.
+	h.write(`</tbody><tfoot><tr class="fm-footer">
+  <td colspan="2">Total</td>`)
+	for _, fam := range families {
+		h.writef(`<td>%d</td><td>%d</td>`, famTotalSent[fam], famTotalRecv[fam])
+	}
+	h.writef(`<td>%d</td><td>%d</td>`, grandSent, grandRecv)
+	h.write(`</tr></tfoot></table></div>`)
+
+	h.writef(`<div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Families </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Announced </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Received </span><span class="stat-value">%d</span></span>
+</div>`, len(peerIndices), len(families), grandSent, grandRecv)
+
+	h.write(`<p class="viz-desc">Per-family route counts for every peer. Each family shows sent (announced) and received (propagated) counts. ` +
+		`Cells highlight when routes are sent but not yet received, showing propagation in progress. ` +
+		`A dash means the peer did not negotiate that family.</p>
+</div>`)
+}
+
+// writeAllPeers renders a complete sortable list of all peers.
+func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
+	h := &htmlWriter{w: w}
+
+	// Build sorted list of all peer indices.
+	indices := make([]int, 0, len(s.Peers))
+	for idx := range s.Peers {
+		indices = append(indices, idx)
+	}
+	sortPeers(indices, s, sortCol, sortDir)
+
+	h.write(`<div class="viz-panel" hx-get="/viz/all-peers" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+     hx-include="[name='sort'],[name='dir']">
+<div class="viz-header">
+  <h3>All Peers</h3>
+</div>
+<div class="all-peers-scroll"><table class="peer-table">
+<thead><tr>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"id","dir":"asc"}'>ID</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"status","dir":"asc"}'>Status</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"sent","dir":"desc"}'>Sent</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"received","dir":"desc"}'>Recv</th>
+  <th>Missing</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"chaos","dir":"desc"}'>Chaos</th>
+  <th>Reconn</th>
+  <th>Families</th>
+</tr></thead>
+<tbody>`)
+
+	var totalUp, totalDown, totalReconn, totalIdle int
+
+	for _, idx := range indices {
+		ps := s.Peers[idx]
+		if ps == nil {
+			continue
+		}
+
+		switch ps.Status {
+		case PeerUp:
+			totalUp++
+		case PeerDown:
+			totalDown++
+		case PeerReconnecting:
+			totalReconn++
+		case PeerIdle:
+			totalIdle++
+		}
+
+		famStr := ""
+		if len(ps.Families) > 0 {
+			famStr = strings.Join(ps.Families, ", ")
+		}
+
+		h.writef(`<tr hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML">`, idx)
+		h.writef(`<td>%d</td>`, idx)
+		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
+		h.writef(`<td>%d</td>`, ps.RoutesSent)
+		h.writef(`<td>%d</td>`, ps.RoutesRecv)
+		h.writef(`<td>%d</td>`, ps.Missing)
+		h.writef(`<td>%d</td>`, ps.ChaosCount)
+		h.writef(`<td>%d</td>`, ps.Reconnects)
+		h.writef(`<td class="fm-families">%s</td>`, escapeHTML(famStr))
+		h.write(`</tr>`)
+	}
+
+	h.write(`</tbody></table></div>`)
+
+	h.writef(`<div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Total </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Up </span><span class="stat-value" style="color:var(--green)">%d</span></span>
+  <span class="stat"><span class="stat-label">Down </span><span class="stat-value" style="color:var(--red)">%d</span></span>
+  <span class="stat"><span class="stat-label">Reconnecting </span><span class="stat-value" style="color:var(--yellow)">%d</span></span>
+  <span class="stat"><span class="stat-label">Idle </span><span class="stat-value">%d</span></span>
+</div>`, len(indices), totalUp, totalDown, totalReconn, totalIdle)
+
+	h.write(`<p class="viz-desc">Complete list of all peers, not just the active set. Click a row to view peer details. Sortable by column headers.</p>
+</div>`)
+}

@@ -202,6 +202,12 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
+    <button hx-get="/viz/families" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Per-family sent/received route counts for all peers">Families</button>
+    <button hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Complete list of all peers (not just the active set)">All Peers</button>
     <span class="tab-separator"></span>
     <span class="tab-group-label">Chaos</span>
     <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
