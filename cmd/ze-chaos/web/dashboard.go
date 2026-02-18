@@ -175,6 +175,15 @@ func New(cfg Config) (*Dashboard, error) {
 	state.WarmupDuration = cfg.WarmupDuration
 	state.ConvergenceDeadline = cfg.ConvergenceDeadline
 
+	// Auto-promote all peers when the total fits in the active set.
+	// This ensures small deployments show all peers immediately.
+	if cfg.PeerCount <= state.Active.MaxVisible {
+		now := time.Now()
+		for i := range cfg.PeerCount {
+			state.Active.Promote(i, PriorityLow, now)
+		}
+	}
+
 	if err := registerRoutes(mux, d); err != nil {
 		return nil, fmt.Errorf("register routes: %w", err)
 	}
@@ -298,9 +307,16 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	ps.Events.Push(ev)
 	d.state.GlobalEvents.Push(ev)
 
+	// Refresh LastActive for peers already in the active set (keeps them visible).
+	if e := d.state.Active.Entry(ev.PeerIndex); e != nil {
+		e.LastActive = ev.Time
+	}
+
 	// Auto-promote to active set on noteworthy events.
 	if prio, ok := PromotionPriorityForEvent(ev.Type); ok {
-		d.state.Active.Promote(ev.PeerIndex, prio, ev.Time)
+		if d.state.Active.Promote(ev.PeerIndex, prio, ev.Time) {
+			d.state.newlyPromoted[ev.PeerIndex] = true
+		}
 	}
 
 	d.state.MarkDirty(ev.PeerIndex)
@@ -357,13 +373,13 @@ func (d *Dashboard) runBroadcastLoop(ctx context.Context) {
 // When broadcastConvergence is true, also pushes convergence histogram updates.
 func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	d.state.mu.Lock()
-	dirtyPeers, dirtyGlobal := d.state.ConsumeDirty()
+	dirtyPeers, promotedPeers, dirtyGlobal := d.state.ConsumeDirty()
 
 	// Run active set decay.
 	removed := d.state.Active.Decay(time.Now())
 	d.state.mu.Unlock()
 
-	if !dirtyGlobal && len(removed) == 0 && !broadcastConvergence {
+	if !dirtyGlobal && len(removed) == 0 && len(promotedPeers) == 0 && !broadcastConvergence {
 		return
 	}
 
@@ -385,9 +401,20 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 		d.broker.Broadcast(SSEEvent{Event: "convergence", Data: convergence})
 	}
 
-	// Broadcast peer updates for dirty peers in the active set.
+	// Broadcast new rows for newly promoted peers.
+	// Remove-then-add pattern: delete any stale row, then insert fresh.
 	d.state.mu.RLock()
+	for idx := range promotedPeers {
+		d.broker.Broadcast(SSEEvent{Event: "peer-remove", Data: renderPeerRemoval(idx)})
+		row := d.renderPeerRowInsert(idx)
+		d.broker.Broadcast(SSEEvent{Event: "peer-add", Data: row})
+	}
+
+	// Broadcast updates for dirty peers already in the active set.
 	for idx := range dirtyPeers {
+		if promotedPeers[idx] {
+			continue // Already sent as peer-add above.
+		}
 		if !d.state.Active.Contains(idx) {
 			continue
 		}
@@ -446,12 +473,35 @@ func (d *Dashboard) renderPeerRow(idx int) string {
 		return ""
 	}
 	pinned := d.state.Active.IsPinned(idx)
-	pinClass := "pin"
+	pinClass := cssPinDefault
 	if pinned {
-		pinClass = "pin pinned"
+		pinClass = cssPinPinned
 	}
 	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"outerHTML\">" +
 		"<td><span class=\"" + pinClass + "\" hx-post=\"/peers/" + itoa(idx) + "/pin\" hx-swap=\"none\"></span></td>" +
+		"<td>" + itoa(idx) + "</td>" +
+		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
+		"<td>" + itoa(ps.RoutesSent) + "</td>" +
+		"<td>" + itoa(ps.RoutesRecv) + "</td>" +
+		"<td>" + itoa(ps.ChaosCount) + "</td>" +
+		"</tr>"
+}
+
+// renderPeerRowInsert returns a table row HTML fragment for inserting a new peer
+// into the table body via hx-swap-oob="beforeend". Unlike renderPeerRow (which
+// uses outerHTML to update an existing row), this appends a new row to #peer-tbody.
+func (d *Dashboard) renderPeerRowInsert(idx int) string {
+	ps := d.state.Peers[idx]
+	if ps == nil {
+		return ""
+	}
+	pinned := d.state.Active.IsPinned(idx)
+	pinClass := cssPinDefault
+	if pinned {
+		pinClass = cssPinPinned
+	}
+	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"beforeend:#peer-tbody\" hx-get=\"/peer/" + itoa(idx) + "\" hx-target=\"#peer-detail\" hx-swap=\"outerHTML\">" +
+		"<td><span class=\"" + pinClass + "\" hx-post=\"/peers/" + itoa(idx) + "/pin\" hx-swap=\"none\" hx-trigger=\"click\" onclick=\"event.stopPropagation()\"></span></td>" +
 		"<td>" + itoa(idx) + "</td>" +
 		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
 		"<td>" + itoa(ps.RoutesSent) + "</td>" +

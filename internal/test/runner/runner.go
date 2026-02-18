@@ -25,6 +25,8 @@ import (
 
 var logger = slogutil.LazyLogger("test.runner")
 
+const binNameZePeer = "ze-peer"
+
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.
 type syncWriter struct {
@@ -148,7 +150,7 @@ func (r *Runner) Display() *Display {
 
 // SetExtraBinaries configures additional Go binaries to build alongside ze.
 // The map keys are binary names and values are Go package paths.
-// Example: runner.SetExtraBinaries(map[string]string{"ze-chaos": "./cmd/ze-chaos"})
+// Example: runner.SetExtraBinaries(map[string]string{"ze-chaos": "./cmd/ze-chaos"}).
 func (r *Runner) SetExtraBinaries(binaries map[string]string) {
 	r.extraBinaries = binaries
 }
@@ -673,7 +675,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		var binPath string
 		var extraArgs []string
 		switch binName {
-		case "ze-peer":
+		case binNameZePeer:
 			// ze-peer is now ze-test peer
 			binPath = r.testPath
 			extraArgs = []string{"peer"}
@@ -706,7 +708,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		// ze-peer reads from file argument, not stdin.
 		// Write stdin content to temp file and pass as argument.
-		if binName == "ze-peer" && stdinContent != nil {
+		if binName == binNameZePeer && stdinContent != nil {
 			tmpFile, err := os.CreateTemp("", "ze-peer-expect-*.msg")
 			if err != nil {
 				rec.Error = fmt.Errorf("create temp file for peer: %w", err)
@@ -776,12 +778,17 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		zeDir := filepath.Dir(r.zePath)
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
-			fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
 			fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
 			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/scripts")),
 			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
+		// Only set ze_bgp_tcp_port for ze and ze-peer binaries. Other processes
+		// (e.g., ze-chaos --in-process) manage their own port configuration and
+		// the override breaks their mock network setup.
+		if binName == "ze" || binName == binNameZePeer {
+			proc.Env = append(proc.Env, fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port))
+		}
 
 		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)
 		if rec.TmpfsTempDir != "" {

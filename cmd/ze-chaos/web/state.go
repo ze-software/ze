@@ -343,6 +343,14 @@ func (a *ActiveSet) AdaptiveTTL() time.Duration {
 	return a.adaptiveTTL()
 }
 
+// SetMaxVisible updates the maximum number of visible peers.
+func (a *ActiveSet) SetMaxVisible(n int) {
+	if n < 1 {
+		n = 1
+	}
+	a.MaxVisible = n
+}
+
 // Len returns the number of peers in the active set.
 func (a *ActiveSet) Len() int {
 	return len(a.entries)
@@ -753,8 +761,9 @@ type DashboardState struct {
 	ConvergenceDeadline time.Duration
 
 	// Dirty flags for SSE — set by ProcessEvent, read by SSE goroutine.
-	dirtyPeers  map[int]bool
-	dirtyGlobal bool
+	dirtyPeers    map[int]bool
+	newlyPromoted map[int]bool // peers promoted since last broadcast
+	dirtyGlobal   bool
 }
 
 // NewDashboardState creates a new dashboard state.
@@ -773,6 +782,7 @@ func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState 
 		PeerTransitions: make(map[int][]PeerStateTransition, peerCount),
 		RouteMatrix:     NewRouteMatrix(),
 		dirtyPeers:      make(map[int]bool),
+		newlyPromoted:   make(map[int]bool),
 	}
 }
 
@@ -788,14 +798,17 @@ func (s *DashboardState) MarkDirty(peerIndex int) {
 	s.dirtyGlobal = true
 }
 
-// ConsumeDirty returns which peers are dirty and resets the flags.
+// ConsumeDirty returns which peers are dirty, which were newly promoted,
+// and whether global state changed. Resets all flags.
 // Must be called under write lock.
-func (s *DashboardState) ConsumeDirty() (peers map[int]bool, global bool) {
+func (s *DashboardState) ConsumeDirty() (peers map[int]bool, promoted map[int]bool, global bool) {
 	peers = s.dirtyPeers
+	promoted = s.newlyPromoted
 	global = s.dirtyGlobal
 	s.dirtyPeers = make(map[int]bool)
+	s.newlyPromoted = make(map[int]bool)
 	s.dirtyGlobal = false
-	return peers, global
+	return peers, promoted, global
 }
 
 // FormatDuration formats a duration in a compact human-readable form.

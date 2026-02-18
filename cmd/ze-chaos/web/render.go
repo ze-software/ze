@@ -9,6 +9,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
+// CSS class constants for pin state.
+const (
+	cssPinDefault = "pin"
+	cssPinPinned  = "pin pinned"
+)
+
 // escapeHTML escapes HTML special characters for safe interpolation into templates.
 var escapeHTML = html.EscapeString
 
@@ -78,6 +84,13 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
       <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">` + itoa(s.Active.Len()) + `/` + itoa(s.Active.MaxVisible) + `</span></span>
       <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">` + FormatDuration(s.Active.AdaptiveTTL()) + `</span></span>
+    </div>
+    <div class="control-row">
+      <label class="stat-label" for="max-visible-input">Max </label>
+      <input type="number" id="max-visible-input" name="n" min="1" max="` + itoa(s.PeerCount) + `" value="` + itoa(s.Active.MaxVisible) + `" class="control-input"
+             title="Maximum number of peers shown in the table">
+      <span class="badge" hx-post="/active-set/max-visible" hx-target="#active-set-info" hx-swap="outerHTML"
+            hx-include="#max-visible-input" title="Update the maximum visible peers">Set</span>
     </div>
   </div>
 
@@ -168,6 +181,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
   <div id="peer-swap" sse-swap="peer-update" hx-swap="innerHTML" style="display:none"></div>
   <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
+  <div id="peer-add-swap" sse-swap="peer-add" hx-swap="innerHTML" style="display:none"></div>
 
   <div class="tab-bar">
     <span class="tab-group-label">Peer</span>
@@ -224,9 +238,9 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 			continue
 		}
 		pinned := state.Active.IsPinned(idx)
-		pinClass := "pin"
+		pinClass := cssPinDefault
 		if pinned {
-			pinClass = "pin pinned"
+			pinClass = cssPinPinned
 		}
 		h.writef(`<tr id="peer-%d" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML">`, idx, idx)
 		h.writef(`<td><span class="%s" hx-post="/peers/%d/pin" hx-swap="none" hx-trigger="click" onclick="event.stopPropagation()"></span></td>`, pinClass, idx)

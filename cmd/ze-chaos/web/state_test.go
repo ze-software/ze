@@ -462,21 +462,27 @@ func TestDashboardStateDirtyFlags(t *testing.T) {
 	ds.MarkDirty(2)
 	ds.MarkDirty(4)
 
-	peers, global := ds.ConsumeDirty()
+	peers, promoted, global := ds.ConsumeDirty()
 	if !global {
 		t.Fatal("global dirty should be true")
 	}
 	if !peers[2] || !peers[4] {
 		t.Fatalf("dirty peers = %v, want {2: true, 4: true}", peers)
 	}
+	if len(promoted) != 0 {
+		t.Fatalf("promoted peers = %v, want empty", promoted)
+	}
 
 	// After consume, flags should be reset.
-	peers, global = ds.ConsumeDirty()
+	peers, promoted, global = ds.ConsumeDirty()
 	if global {
 		t.Fatal("global dirty should be false after consume")
 	}
 	if len(peers) != 0 {
 		t.Fatalf("dirty peers after consume = %v, want empty", peers)
+	}
+	if len(promoted) != 0 {
+		t.Fatalf("promoted peers after consume = %v, want empty", promoted)
 	}
 }
 

@@ -50,6 +50,9 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	// Peer promote (peer picker).
 	mux.HandleFunc("POST /peers/promote", d.handlePeerPromote)
 
+	// Active set configuration.
+	mux.HandleFunc("POST /active-set/max-visible", d.handleActiveSetMaxVisible)
+
 	// Control endpoints (active only when control channel is configured).
 	mux.HandleFunc("POST /control/pause", d.handleControlPause)
 	mux.HandleFunc("POST /control/resume", d.handleControlResume)
@@ -209,6 +212,34 @@ func (d *Dashboard) handleSidebarStats(w http.ResponseWriter, _ *http.Request) {
 
 // handleSidebarActiveSet returns the active set info fragment.
 func (d *Dashboard) handleSidebarActiveSet(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h := &htmlWriter{w: w}
+	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
+  <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">%d/%d</span></span>
+  <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">%s</span></span>
+</div>`, d.state.Active.Len(), d.state.Active.MaxVisible, FormatDuration(d.state.Active.AdaptiveTTL()))
+}
+
+// handleActiveSetMaxVisible updates the maximum number of visible peers.
+func (d *Dashboard) handleActiveSetMaxVisible(w http.ResponseWriter, r *http.Request) {
+	nStr := r.FormValue("n")
+	n, err := strconv.Atoi(nStr)
+	if err != nil || n < 1 {
+		http.Error(w, "invalid max-visible value", http.StatusBadRequest)
+		return
+	}
+	if n > d.state.PeerCount {
+		n = d.state.PeerCount
+	}
+
+	d.state.mu.Lock()
+	d.state.Active.SetMaxVisible(n)
+	d.state.mu.Unlock()
+
+	// Return updated active set info (same as polling fallback).
 	d.state.RLock()
 	defer d.state.RUnlock()
 
