@@ -563,7 +563,9 @@ func writeConfig(config string, params scenario.ConfigParams, path string, quiet
 func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	profiles := cfg.profiles
 	n := len(profiles)
-	chaosEnabled := cfg.chaosCfg.Rate > 0
+	// Chaos is enabled when rate > 0 OR the web dashboard is active
+	// (so the user can increase the rate from the UI later).
+	chaosEnabled := cfg.chaosCfg.Rate > 0 || cfg.webAddr != ""
 
 	// Create validation components.
 	model := validation.NewModel(n)
@@ -624,7 +626,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	}
 
 	// Per-peer route dynamics channels (only allocated when route dynamics is enabled).
-	routeEnabled := cfg.routeCfg.Rate > 0
+	routeEnabled := cfg.routeCfg.Rate > 0 || cfg.webAddr != ""
 	var routeChannels []chan route.Action
 	if routeEnabled {
 		routeChannels = make([]chan route.Action, n)
@@ -897,13 +899,16 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 	}
 
 	// Control channel for web dashboard → chaos scheduler communication.
-	if cfg.webAddr != "" && cfg.chaosCfg.Rate > 0 {
+	// Created whenever the web dashboard is active, even at rate 0,
+	// so the user can increase the rate from the UI later.
+	if cfg.webAddr != "" {
 		controlCh = make(chan web.ControlCommand, 16)
 	}
 
 	// Route control channel for web dashboard → route scheduler communication.
+	// Same logic: always created when web is active.
 	var routeControlCh chan web.ControlCommand
-	if cfg.webAddr != "" && cfg.routeCfg.Rate > 0 {
+	if cfg.webAddr != "" {
 		routeControlCh = make(chan web.ControlCommand, 16)
 	}
 

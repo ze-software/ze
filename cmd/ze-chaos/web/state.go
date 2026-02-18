@@ -120,13 +120,25 @@ type PeerState struct {
 	ChaosCount  int
 	Reconnects  int
 	Events      *RingBuffer[peer.Event]
+
+	// Families is the list of negotiated address families for this peer.
+	// Set when EventEstablished is received.
+	Families []string
+
+	// FamilySent tracks route-sent counts per address family.
+	FamilySent map[string]int
+
+	// FamilyRecv tracks route-received counts per address family.
+	FamilyRecv map[string]int
 }
 
 // NewPeerState creates a PeerState with the given index and event buffer size.
 func NewPeerState(index, bufSize int) *PeerState {
 	return &PeerState{
-		Index:  index,
-		Events: NewRingBuffer[peer.Event](bufSize),
+		Index:      index,
+		Events:     NewRingBuffer[peer.Event](bufSize),
+		FamilySent: make(map[string]int),
+		FamilyRecv: make(map[string]int),
 	}
 }
 
@@ -764,6 +776,10 @@ type DashboardState struct {
 	// ConvergenceDeadline for histogram deadline marker.
 	ConvergenceDeadline time.Duration
 
+	// AllFamilies is the set of all address families seen across all peers.
+	// Used to render per-family columns with red cross for non-negotiated.
+	AllFamilies map[string]bool
+
 	// Dirty flags for SSE — set by ProcessEvent, read by SSE goroutine.
 	dirtyPeers    map[int]bool
 	newlyPromoted map[int]bool // peers promoted since last broadcast
@@ -785,6 +801,7 @@ func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState 
 		Convergence:     NewConvergenceHistogram(),
 		PeerTransitions: make(map[int][]PeerStateTransition, peerCount),
 		RouteMatrix:     NewRouteMatrix(),
+		AllFamilies:     make(map[string]bool),
 		dirtyPeers:      make(map[int]bool),
 		newlyPromoted:   make(map[int]bool),
 	}
@@ -813,6 +830,16 @@ func (s *DashboardState) ConsumeDirty() (peers map[int]bool, promoted map[int]bo
 	s.newlyPromoted = make(map[int]bool)
 	s.dirtyGlobal = false
 	return peers, promoted, global
+}
+
+// SortedFamilies returns AllFamilies as a sorted slice for deterministic rendering.
+func (s *DashboardState) SortedFamilies() []string {
+	fams := make([]string, 0, len(s.AllFamilies))
+	for f := range s.AllFamilies {
+		fams = append(fams, f)
+	}
+	sortStringSlice(fams)
+	return fams
 }
 
 // FormatDuration formats a duration in a compact human-readable form.

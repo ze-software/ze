@@ -259,7 +259,8 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 }
 
 // writePeerDetail renders the detail pane for a single peer.
-func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
+// allFamilies is the sorted list of all families seen across all peers.
+func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []string) {
 	h := &htmlWriter{w: w}
 	pinLabel := "Pin"
 	if pinned {
@@ -289,6 +290,35 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
 </div>`, ps.Status.CSSClass(), ps.Status.String(),
 		ps.RoutesSent, ps.RoutesRecv, ps.Missing,
 		ps.ChaosCount, ps.Reconnects)
+
+	// Per-family route breakdown.
+	if len(allFamilies) > 0 {
+		// Build set of negotiated families for O(1) lookup.
+		negotiated := make(map[string]bool, len(ps.Families))
+		for _, f := range ps.Families {
+			negotiated[f] = true
+		}
+
+		h.write(`
+<div class="detail-section">
+  <h4>Families</h4>
+  <table class="family-table">
+    <tr><th>Family</th><th>Sent</th><th>Recv</th></tr>`)
+		for _, fam := range allFamilies {
+			sent := ps.FamilySent[fam]
+			recv := ps.FamilyRecv[fam]
+			if negotiated[fam] {
+				h.writef(`<tr><td>%s</td><td>%d</td><td>%d</td></tr>`,
+					escapeHTML(fam), sent, recv)
+			} else {
+				h.writef(`<tr class="family-disabled"><td><span class="family-cross">&#x2717;</span> %s</td><td>-</td><td>-</td></tr>`,
+					escapeHTML(fam))
+			}
+		}
+		h.write(`
+  </table>
+</div>`)
+	}
 
 	// Recent events for this peer.
 	h.write(`

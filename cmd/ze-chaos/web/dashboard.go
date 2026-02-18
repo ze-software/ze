@@ -285,6 +285,16 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		if prevStatus != PeerUp {
 			d.state.PeersUp++
 		}
+		// Record negotiated families from EventEstablished.
+		// Reset per-family counters so reconnected peers start fresh.
+		if len(ev.Families) > 0 {
+			ps.Families = ev.Families
+			clear(ps.FamilySent)
+			clear(ps.FamilyRecv)
+			for _, f := range ev.Families {
+				d.state.AllFamilies[f] = true
+			}
+		}
 	case peer.EventDisconnected:
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
@@ -302,6 +312,9 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.state.TotalAnnounced++
 		ps.Missing = max(0, ps.RoutesSent-ps.RoutesRecv)
 		d.state.TotalMissing = max(0, d.state.TotalAnnounced-d.state.TotalReceived)
+		if ev.Family != "" {
+			ps.FamilySent[ev.Family]++
+		}
 		if ev.Prefix.IsValid() {
 			d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time)
 		}
@@ -310,6 +323,11 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.state.TotalReceived++
 		ps.Missing = max(0, ps.RoutesSent-ps.RoutesRecv)
 		d.state.TotalMissing = max(0, d.state.TotalAnnounced-d.state.TotalReceived)
+		if ev.Family != "" {
+			ps.FamilyRecv[ev.Family]++
+		} else if ev.Prefix.IsValid() {
+			ps.FamilyRecv[prefixFamily(ev.Prefix)]++
+		}
 		if ev.Prefix.IsValid() {
 			if found, latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); found && latency > 0 {
 				d.state.Convergence.Record(latency)
@@ -333,7 +351,13 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteAction:
 		d.state.TotalRouteActions++
 	case peer.EventEORSent:
-		// No specific counter.
+		// Fallback: record families from EOR if not yet set.
+		if len(ps.Families) == 0 && len(ev.Families) > 0 {
+			ps.Families = ev.Families
+			for _, f := range ev.Families {
+				d.state.AllFamilies[f] = true
+			}
+		}
 	case peer.EventError:
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {

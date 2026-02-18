@@ -19,6 +19,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
+// Family string constants used in event tagging and NLRI dispatch.
+const (
+	familyIPv4Unicast = "ipv4/unicast"
+	familyIPv6Unicast = "ipv6/unicast"
+)
+
 // SimProfile holds the peer identity and route parameters for a simulator.
 // It mirrors the fields from scenario.PeerProfile needed at runtime.
 type SimProfile struct {
@@ -203,12 +209,6 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		return
 	}
 
-	emit(Event{Type: EventEstablished})
-
-	if cfg.Verbose {
-		fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | session established\n", p.Index)
-	}
-
 	// Send routes for all negotiated families.
 	// IPv4 next-hop for IPv4 families, IPv6 next-hop for IPv6 families.
 	// RFC 4760: MP_REACH_NLRI next-hop length must match the AFI.
@@ -232,7 +232,13 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 
 	families := p.Families
 	if len(families) == 0 {
-		families = []string{"ipv4/unicast"}
+		families = []string{familyIPv4Unicast}
+	}
+
+	emit(Event{Type: EventEstablished, Families: families})
+
+	if cfg.Verbose {
+		fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | session established\n", p.Index)
 	}
 
 	// IPv4 unicast routes are used for chaos withdrawals.
@@ -251,7 +257,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 
 		var writeErr error
 		switch family {
-		case "ipv4/unicast":
+		case familyIPv4Unicast:
 			for _, prefix := range routes {
 				if ctx.Err() != nil {
 					break
@@ -260,10 +266,10 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family})
 				totalSent++
 			}
-		case "ipv6/unicast":
+		case familyIPv6Unicast:
 			ipv6Routes := scenario.GenerateIPv6Routes(cfg.Seed, p.Index, p.RouteCount)
 			for _, prefix := range ipv6Routes {
 				if ctx.Err() != nil {
@@ -273,7 +279,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family})
 				totalSent++
 			}
 		case "ipv4/vpn":
@@ -289,6 +295,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
+				emit(Event{Type: EventRouteSent, Family: family})
 				totalSent++
 			}
 		case "ipv6/vpn":
@@ -304,6 +311,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
+				emit(Event{Type: EventRouteSent, Family: family})
 				totalSent++
 			}
 		case "l2vpn/evpn":
@@ -319,6 +327,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
+				emit(Event{Type: EventRouteSent, Family: family})
 				totalSent++
 			}
 		case "ipv4/flow":
@@ -334,6 +343,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
+				emit(Event{Type: EventRouteSent, Family: family})
 				totalSent++
 			}
 		case "ipv6/flow":
@@ -349,6 +359,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
+				emit(Event{Type: EventRouteSent, Family: family})
 				totalSent++
 			}
 		}
@@ -715,8 +726,10 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 	}
 }
 
-// parseUpdatePrefixes extracts IPv4/unicast announced and withdrawn prefixes
-// from an UPDATE message body (after the 19-byte header).
+// parseUpdatePrefixes extracts announced and withdrawn prefixes from an
+// UPDATE message body (after the 19-byte header). Handles both IPv4/unicast
+// NLRI (trailing field) and MP_REACH_NLRI / MP_UNREACH_NLRI attributes for
+// IPv6/unicast.
 func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx context.Context) {
 	if len(body) < 4 {
 		return
@@ -726,7 +739,7 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
 	off := 2
 
-	// Parse withdrawn prefixes.
+	// Parse IPv4/unicast withdrawn prefixes.
 	end := off + withdrawnLen
 	if end > len(body) {
 		return
@@ -738,7 +751,7 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 		}
 		off += n
 		select {
-		case events <- Event{Type: EventRouteWithdrawn, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix}:
+		case events <- Event{Type: EventRouteWithdrawn, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
 		case <-ctx.Done():
 			return
 		}
@@ -751,10 +764,43 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 	attrLen := int(binary.BigEndian.Uint16(body[off : off+2]))
 	off += 2
 
-	// Skip attributes.
-	off += attrLen
+	// Walk attributes looking for MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15).
+	attrEnd := min(off+attrLen, len(body))
+	for off < attrEnd {
+		if off+3 > attrEnd {
+			break
+		}
+		flags := body[off]
+		code := body[off+1]
+		off += 2
 
-	// Parse NLRI (announced prefixes).
+		// Attribute length: 1 byte normally, 2 bytes if extended-length flag set.
+		var aLen int
+		if flags&0x10 != 0 { // Extended length.
+			if off+2 > attrEnd {
+				break
+			}
+			aLen = int(binary.BigEndian.Uint16(body[off : off+2]))
+			off += 2
+		} else {
+			aLen = int(body[off])
+			off++
+		}
+		if off+aLen > attrEnd {
+			break
+		}
+
+		switch code {
+		case 14: // MP_REACH_NLRI
+			parseMPReachNLRI(body[off:off+aLen], peerIndex, events, ctx)
+		case 15: // MP_UNREACH_NLRI
+			parseMPUnreachNLRI(body[off:off+aLen], peerIndex, events, ctx)
+		}
+		off += aLen
+	}
+	off = attrEnd
+
+	// Parse trailing IPv4/unicast NLRI (announced prefixes).
 	for off < len(body) {
 		prefix, n := parseIPv4Prefix(body[off:])
 		if n <= 0 {
@@ -762,7 +808,112 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 		}
 		off += n
 		select {
-		case events <- Event{Type: EventRouteReceived, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix}:
+		case events <- Event{Type: EventRouteReceived, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+// afiSafiFamily maps AFI/SAFI to the family string used throughout chaos.
+// Returns empty string for unrecognized combinations.
+func afiSafiFamily(afi uint16, safi uint8) string {
+	switch {
+	case afi == 1 && safi == 1:
+		return familyIPv4Unicast
+	case afi == 2 && safi == 1:
+		return familyIPv6Unicast
+	case afi == 1 && safi == 128:
+		return "ipv4/vpn"
+	case afi == 2 && safi == 128:
+		return "ipv6/vpn"
+	case afi == 25 && safi == 70:
+		return "l2vpn/evpn"
+	case afi == 1 && safi == 133:
+		return "ipv4/flow"
+	case afi == 2 && safi == 133:
+		return "ipv6/flow"
+	default:
+		return ""
+	}
+}
+
+// parseMPReachNLRI parses MP_REACH_NLRI (type 14) and emits EventRouteReceived.
+// Format: AFI(2) + SAFI(1) + NH-len(1) + NH(variable) + reserved(1) + NLRI...
+//
+// For IPv4/IPv6 unicast: parses individual prefixes from the NLRI field.
+// For other families (VPN, EVPN, FlowSpec): emits one event per UPDATE
+// with the family tag. In the chaos simulator each UPDATE carries exactly
+// one non-unicast NLRI, so the count stays accurate.
+func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event, ctx context.Context) {
+	if len(data) < 5 { // AFI(2) + SAFI(1) + NH-len(1) + reserved(1) minimum
+		return
+	}
+	afi := binary.BigEndian.Uint16(data[0:2])
+	safi := data[2]
+	family := afiSafiFamily(afi, safi)
+	if family == "" {
+		return
+	}
+	nhLen := int(data[3])
+	off := 4 + nhLen + 1 // Skip next-hop + reserved byte.
+	if off > len(data) {
+		return
+	}
+
+	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, events, ctx)
+}
+
+// parseMPUnreachNLRI parses MP_UNREACH_NLRI (type 15) and emits EventRouteWithdrawn.
+// Format: AFI(2) + SAFI(1) + withdrawn-NLRI...
+//
+// For IPv4/IPv6 unicast: parses individual prefixes.
+// For other families: emits one event per UPDATE with the family tag.
+func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event, ctx context.Context) {
+	if len(data) < 3 { // AFI(2) + SAFI(1) minimum
+		return
+	}
+	afi := binary.BigEndian.Uint16(data[0:2])
+	safi := data[2]
+	family := afiSafiFamily(afi, safi)
+	if family == "" {
+		return
+	}
+	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, events, ctx)
+}
+
+// emitNLRIEvents dispatches NLRI parsing by family and sends events.
+// For unicast families, individual prefixes are parsed. For others (VPN,
+// EVPN, FlowSpec), one event per UPDATE is emitted since the chaos
+// simulator sends exactly one NLRI per UPDATE for non-unicast families.
+func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, events chan<- Event, ctx context.Context) {
+	switch family {
+	case familyIPv4Unicast:
+		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, events, ctx)
+	case familyIPv6Unicast:
+		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, events, ctx)
+	default:
+		// VPN, EVPN, FlowSpec: one NLRI per UPDATE in chaos simulator.
+		if len(data) > 0 {
+			select {
+			case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Family: family}:
+			case <-ctx.Done():
+			}
+		}
+	}
+}
+
+// emitPrefixEvents parses consecutive unicast prefixes and emits an event for each.
+func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, events chan<- Event, ctx context.Context) {
+	off := 0
+	for off < len(data) {
+		prefix, n := parse(data[off:])
+		if n <= 0 {
+			break
+		}
+		off += n
+		select {
+		case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: family}:
 		case <-ctx.Done():
 			return
 		}
@@ -789,6 +940,30 @@ func parseIPv4Prefix(data []byte) (netip.Prefix, int) {
 	var addr [4]byte
 	copy(addr[:], data[1:1+byteLen])
 	prefix := netip.PrefixFrom(netip.AddrFrom4(addr), prefixLen)
+
+	return prefix, 1 + byteLen
+}
+
+// parseIPv6Prefix parses a single IPv6 prefix from wire format.
+// Returns the prefix and the number of bytes consumed, or 0 on error.
+func parseIPv6Prefix(data []byte) (netip.Prefix, int) {
+	if len(data) < 1 {
+		return netip.Prefix{}, 0
+	}
+
+	prefixLen := int(data[0])
+	if prefixLen > 128 {
+		return netip.Prefix{}, 0
+	}
+
+	byteLen := (prefixLen + 7) / 8
+	if len(data) < 1+byteLen {
+		return netip.Prefix{}, 0
+	}
+
+	var addr [16]byte
+	copy(addr[:], data[1:1+byteLen])
+	prefix := netip.PrefixFrom(netip.AddrFrom16(addr), prefixLen)
 
 	return prefix, 1 + byteLen
 }

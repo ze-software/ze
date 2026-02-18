@@ -188,6 +188,8 @@ func buildFamilyPool(include, exclude []string) []string {
 // assignFamilies assigns a random subset of families to each peer.
 // ipv4/unicast is always included. Other families are assigned with
 // weighted probability from optionalFamilyWeights.
+// A post-assignment pass ensures every family in the pool has at least
+// 2 peers so that route transfer through the RR can be observed.
 func assignFamilies(rng *rand.Rand, profiles []PeerProfile, pool []string) {
 	for i := range profiles {
 		families := []string{familyIPv4Unicast}
@@ -204,6 +206,39 @@ func assignFamilies(rng *rand.Rand, profiles []PeerProfile, pool []string) {
 			}
 		}
 		profiles[i].Families = families
+	}
+
+	// Ensure at least 2 peers per family so routes can flow sender → RR → receiver.
+	ensureMinPeersPerFamily(rng, profiles, pool, 2)
+}
+
+// ensureMinPeersPerFamily adds families to random peers until every family
+// in the pool has at least minPeers peers assigned. Skipped when there are
+// fewer peers than minPeers (nothing useful to guarantee).
+func ensureMinPeersPerFamily(rng *rand.Rand, profiles []PeerProfile, pool []string, minPeers int) {
+	if len(profiles) < minPeers {
+		return
+	}
+	for _, fam := range pool {
+		// Count how many peers have this family.
+		var have []int // indices that have it
+		var lack []int // indices that don't
+		for i := range profiles {
+			if slices.Contains(profiles[i].Families, fam) {
+				have = append(have, i)
+			} else {
+				lack = append(lack, i)
+			}
+		}
+		for len(have) < minPeers && len(lack) > 0 {
+			// Pick a random peer from lack.
+			pick := rng.Intn(len(lack))
+			idx := lack[pick]
+			profiles[idx].Families = append(profiles[idx].Families, fam)
+			have = append(have, idx)
+			lack[pick] = lack[len(lack)-1]
+			lack = lack[:len(lack)-1]
+		}
 	}
 }
 

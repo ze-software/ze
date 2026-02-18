@@ -259,6 +259,41 @@ html, body {
   font-weight: 500;
 }
 
+/* Family table in detail pane */
+.family-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.family-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.family-table td {
+  padding: 2px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-primary);
+}
+
+.family-table tr.family-disabled td {
+  color: var(--text-muted);
+}
+
+.family-cross {
+  color: var(--red);
+  font-weight: 700;
+}
+
 /* Event list in detail pane */
 .event-list {
   max-height: 200px;

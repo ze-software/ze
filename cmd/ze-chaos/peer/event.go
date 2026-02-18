@@ -60,6 +60,10 @@ type Event struct {
 	// RouteAction is the action name for EventRouteAction events.
 	RouteAction string
 
-	// Families is set for EventEORSent with the list of families sent.
+	// Family is the address family (e.g., "ipv4/unicast").
+	// Set for EventRouteSent, EventRouteReceived, and EventRouteWithdrawn.
+	Family string
+
+	// Families is set for EventEstablished and EventEORSent with the list of families.
 	Families []string
 }

@@ -144,7 +144,7 @@ func (d *Dashboard) handlePeerDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerDetail(w, ps, d.state.Active.IsPinned(idx))
+	writePeerDetail(w, ps, d.state.Active.IsPinned(idx), d.state.SortedFamilies())
 }
 
 // handlePeerPin toggles the pin state for a peer.
