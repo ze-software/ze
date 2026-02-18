@@ -993,25 +993,6 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 		return
 	}
 
-	h.write(`<div class="family-matrix-scroll"><table class="family-matrix">
-<thead><tr>
-  <th class="fm-peer-col">Peer</th>
-  <th class="fm-status-col">Status</th>`)
-
-	for _, fam := range families {
-		h.writef(`<th class="fm-family-col" colspan="2">%s</th>`, escapeHTML(fam))
-	}
-	h.write(`<th class="fm-total-col" colspan="2">Total</th>
-</tr>
-<tr>
-  <th></th><th></th>`)
-	for range families {
-		h.write(`<th class="fm-sub">Sent</th><th class="fm-sub">Recv</th>`)
-	}
-	h.write(`<th class="fm-sub">Sent</th><th class="fm-sub">Recv</th>
-</tr></thead>
-<tbody>`)
-
 	// Build sorted list of all peer indices.
 	peerIndices := make([]int, 0, len(s.Peers))
 	for idx := range s.Peers {
@@ -1019,10 +1000,42 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 	}
 	sortIntSlice(peerIndices)
 
-	// Compute per-family totals for the footer.
+	// First pass: compute per-family total sent across all peers.
+	// Used to derive "expected" for each peer (total - this peer's sent).
 	famTotalSent := make(map[string]int, len(families))
-	famTotalRecv := make(map[string]int, len(families))
-	var grandSent, grandRecv int
+	var grandSent int
+	for _, idx := range peerIndices {
+		ps := s.Peers[idx]
+		if ps == nil {
+			continue
+		}
+		for _, fam := range families {
+			famTotalSent[fam] += ps.FamilySent[fam]
+		}
+		grandSent += ps.RoutesSent
+	}
+
+	h.write(`<div class="family-matrix-scroll"><table class="family-matrix">
+<thead><tr>
+  <th class="fm-peer-col">Peer</th>
+  <th class="fm-status-col">Status</th>`)
+
+	for _, fam := range families {
+		h.writef(`<th class="fm-family-col">%s</th>`, escapeHTML(fam))
+	}
+	h.write(`<th class="fm-total-col">Total</th>
+</tr>
+<tr>
+  <th></th><th></th>`)
+	for range families {
+		h.write(`<th class="fm-sub">Recv / Expected</th>`)
+	}
+	h.write(`<th class="fm-sub">Recv / Expected</th>
+</tr></thead>
+<tbody>`)
+
+	// Second pass: render rows with recv/expected.
+	var grandRecv int
 
 	for _, idx := range peerIndices {
 		ps := s.Peers[idx]
@@ -1036,33 +1049,24 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			negotiated[f] = true
 		}
 
-		h.writef(`<tr>`)
+		h.write(`<tr>`)
 		h.writef(`<td class="fm-peer-col">%d</td>`, idx)
 		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
 
 		for _, fam := range families {
 			if negotiated[fam] {
-				sent := ps.FamilySent[fam]
 				recv := ps.FamilyRecv[fam]
-				famTotalSent[fam] += sent
-				famTotalRecv[fam] += recv
-
-				sentClass := ""
-				recvClass := ""
-				if sent > 0 && recv == 0 {
-					recvClass = ` class="fm-pending"` // sent but nothing received yet
-				}
-				if recv > 0 && sent > 0 && recv < sent {
-					recvClass = ` class="fm-partial"` // partial propagation
-				}
-				h.writef(`<td%s>%d</td><td%s>%d</td>`, sentClass, sent, recvClass, recv)
+				expected := famTotalSent[fam] - ps.FamilySent[fam] // what all OTHER peers sent
+				cellClass := familyCellClass(recv, expected)
+				h.writef(`<td%s>%d / %d</td>`, cellClass, recv, expected)
 			} else {
-				h.write(`<td class="fm-disabled">-</td><td class="fm-disabled">-</td>`)
+				h.write(`<td class="fm-disabled">-</td>`)
 			}
 		}
 
-		h.writef(`<td class="fm-total">%d</td><td class="fm-total">%d</td>`, ps.RoutesSent, ps.RoutesRecv)
-		grandSent += ps.RoutesSent
+		totalExpected := grandSent - ps.RoutesSent
+		totalClass := familyCellClass(ps.RoutesRecv, totalExpected)
+		h.writef(`<td class="fm-total"%s>%d / %d</td>`, totalClass, ps.RoutesRecv, totalExpected)
 		grandRecv += ps.RoutesRecv
 
 		h.write(`</tr>`)
@@ -1072,9 +1076,9 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 	h.write(`</tbody><tfoot><tr class="fm-footer">
   <td colspan="2">Total</td>`)
 	for _, fam := range families {
-		h.writef(`<td>%d</td><td>%d</td>`, famTotalSent[fam], famTotalRecv[fam])
+		h.writef(`<td>%d sent</td>`, famTotalSent[fam])
 	}
-	h.writef(`<td>%d</td><td>%d</td>`, grandSent, grandRecv)
+	h.writef(`<td>%d sent</td>`, grandSent)
 	h.write(`</tr></tfoot></table></div>`)
 
 	h.writef(`<div class="histogram-stats">
@@ -1084,10 +1088,25 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
   <span class="stat"><span class="stat-label">Received </span><span class="stat-value">%d</span></span>
 </div>`, len(peerIndices), len(families), grandSent, grandRecv)
 
-	h.write(`<p class="viz-desc">Per-family route counts for every peer. Each family shows sent (announced) and received (propagated) counts. ` +
-		`Cells highlight when routes are sent but not yet received, showing propagation in progress. ` +
+	h.write(`<p class="viz-desc">Per-family route propagation for every peer. Each cell shows received / expected where expected is the total routes announced by all other peers for that family. ` +
+		`Green = fully propagated, yellow = pending (0 received), orange = partial propagation. ` +
 		`A dash means the peer did not negotiate that family.</p>
 </div>`)
+}
+
+// familyCellClass returns a CSS class attribute for a recv/expected cell.
+// Green when fully propagated, yellow when nothing received, orange when partial.
+func familyCellClass(recv, expected int) string {
+	if expected <= 0 {
+		return ""
+	}
+	if recv == 0 {
+		return ` class="fm-pending"`
+	}
+	if recv < expected {
+		return ` class="fm-partial"`
+	}
+	return ` class="fm-complete"`
 }
 
 // writeAllPeers renders a complete sortable list of all peers.

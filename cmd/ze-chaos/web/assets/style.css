@@ -120,6 +120,9 @@ html, body {
 /* Peer table */
 .peer-table-container {
   overflow-x: auto;
+  overflow-y: auto;
+  min-height: 180px;
+  max-height: 350px;
 }
 
 .peer-table {
@@ -142,6 +145,9 @@ html, body {
   cursor: pointer;
   user-select: none;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 .peer-table th:hover {
@@ -977,6 +983,10 @@ html, body {
 
 .fm-partial {
   color: var(--orange) !important;
+}
+
+.fm-complete {
+  color: var(--green) !important;
 }
 
 .fm-total {

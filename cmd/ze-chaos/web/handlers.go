@@ -99,7 +99,17 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	indices := d.state.Active.Indices()
 
 	// Filter by status if requested.
-	if statusFilter != "" {
+	if statusFilter == "fault" {
+		// "With Fault" mode: show all non-up peers.
+		var filtered []int
+		for _, idx := range indices {
+			ps := d.state.Peers[idx]
+			if ps != nil && ps.Status != PeerUp {
+				filtered = append(filtered, idx)
+			}
+		}
+		indices = filtered
+	} else if statusFilter != "" {
 		var filtered []int
 		for _, idx := range indices {
 			ps := d.state.Peers[idx]
