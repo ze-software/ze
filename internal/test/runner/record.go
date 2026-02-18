@@ -949,7 +949,7 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 // parseCmdExec extracts fields from a cmd=background/foreground line using
 // marker-based parsing. This handles exec= values containing colons correctly.
 //
-// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR]
+// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR].
 func parseCmdExec(mode, line string) (RunCommand, error) {
 	seqMarker := ":seq="
 	execMarker := ":exec="
