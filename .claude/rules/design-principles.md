@@ -228,6 +228,22 @@ Before implementing, verify:
 [ ] Testable design (can we unit test this in isolation?)
 ```
 
+## File Size
+
+**Prefer files under 600 lines. Consider splitting over 1000 lines.**
+
+| Lines | Action |
+|-------|--------|
+| < 600 | Fine |
+| 600–1000 | Acceptable if cohesive — monitor growth |
+| > 1000 | Split by responsibility |
+
+**Why:** Large files signal multiple responsibilities. The `model.go → 4 files` split (model, commands, render, load) is the pattern to follow.
+
+**How to split:** Group by responsibility, not by size. Each resulting file should have a clear noun or verb in its name describing what it owns.
+
+**Not a blocking rule.** Use judgment — a 1200-line file where every function relates to one concept is better than 4 files that import each other circularly.
+
 ## The Next Developer Test
 
 **Would a developer unfamiliar with this code understand it quickly?**

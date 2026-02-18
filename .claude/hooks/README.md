@@ -4,7 +4,7 @@ Automated enforcement of `.claude/rules/` requirements.
 
 ## Summary
 
-**Total: 32 hooks** (23 blocking, 9 advisory)
+**Total: 34 hooks** (23 blocking, 11 advisory)
 
 ## All Hooks
 
@@ -12,6 +12,8 @@ Automated enforcement of `.claude/rules/` requirements.
 |------|---------|------|------|
 | `session-start.sh` | SessionStart | - | Advisory |
 | `compaction-reminder.sh` | UserPromptSubmit | post-compaction.md | Advisory |
+| `pre-compact-save.sh` | PreCompact | post-compaction.md | Advisory |
+| `session-end-summary.sh` | Stop | - | Advisory |
 | `block-destructive-git.sh` | PreToolUse:Bash | git-safety.md | **Blocking** |
 | `block-claude-plans.sh` | PreToolUse:Write | documentation.md | **Blocking** |
 | `pre-write-go.sh` | PreToolUse:Write\|Edit | post-compaction.md | **Blocking** |
@@ -80,13 +82,20 @@ Automated enforcement of `.claude/rules/` requirements.
 | `check-existing-patterns.sh` | Duplicate types/functions |
 | `block-exabgp-in-engine.sh` | ExaBGP format in engine |
 
+### Session Lifecycle
+| Hook | What it does |
+|------|-------------|
+| `session-start.sh` | Status summary at session start |
+| `pre-compact-save.sh` | Auto-save session state before compaction |
+| `session-end-summary.sh` | Append git state summary at session end |
+| `compaction-reminder.sh` | Re-read reminder after compaction |
+
 ### Planning (planning.md, post-compaction.md)
 | Hook | What it enforces |
 |------|------------------|
 | `pre-write-go.sh` | Session state for Go work |
 | `require-docs-read.sh` | Arch docs before spec |
 | `validate-spec.sh` | Spec format + Current Behavior section |
-| `compaction-reminder.sh` | Re-read after compaction |
 
 ### Config (config-design.md)
 | Hook | What it blocks |
