@@ -1,4 +1,4 @@
-.PHONY: all build clean fmt vet tidy generate help
+.PHONY: all build ze chaos clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
 .PHONY: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test chaos-test chaos-verify
@@ -22,6 +22,10 @@ generate:
 # Build all binaries
 build: generate bin/ze bin/ze-test bin/ze-chaos
 	@echo "All binaries built"
+
+ze: bin/ze
+
+chaos: bin/ze-chaos
 
 # Individual binary targets
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
