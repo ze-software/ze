@@ -9,7 +9,11 @@ import (
 	"time"
 )
 
-const statusStopped = "stopped"
+const (
+	statusStopped    = "stopped"
+	statusRestarting = "restarting"
+	cssReconnecting  = "status-reconnecting"
+)
 
 // handleControlPause handles POST /control/pause.
 func (d *Dashboard) handleControlPause(w http.ResponseWriter, _ *http.Request) {
@@ -215,7 +219,7 @@ func (d *Dashboard) handleControlRestart(w http.ResponseWriter, r *http.Request)
 
 	// Update state to "restarting".
 	d.state.mu.Lock()
-	d.state.Control.Status = "restarting"
+	d.state.Control.Status = statusRestarting
 	d.state.mu.Unlock()
 
 	d.logControl("restart", fmt.Sprintf("%d", seed))
@@ -266,14 +270,14 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 	statusClass := "status-up"
 	statusLabel := "Running"
 	switch {
-	case cs.Status == "restarting":
-		statusClass = "status-reconnecting"
+	case cs.Status == statusRestarting:
+		statusClass = cssReconnecting
 		statusLabel = "Restarting..."
 	case cs.Status == statusStopped:
 		statusClass = "status-down"
 		statusLabel = "Stopped"
 	case cs.Paused:
-		statusClass = "status-reconnecting"
+		statusClass = cssReconnecting
 		statusLabel = "Paused"
 	}
 

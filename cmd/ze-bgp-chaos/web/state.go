@@ -94,7 +94,7 @@ func (s PeerStatus) CSSClass() string {
 	case PeerDown:
 		return "status-down"
 	case PeerReconnecting:
-		return "status-reconnecting"
+		return cssReconnecting
 	}
 	return "status-idle"
 }

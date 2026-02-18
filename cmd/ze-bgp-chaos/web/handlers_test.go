@@ -481,7 +481,7 @@ func TestHandlePeerPinOutOfRange(t *testing.T) {
 	t.Parallel()
 
 	d := newTestDashboard(5) // peers 0-4
-	defer d.broker.Close()
+	t.Cleanup(func() { d.broker.Close() })
 
 	tests := []struct {
 		name string
@@ -494,6 +494,7 @@ func TestHandlePeerPinOutOfRange(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequest(http.MethodPost, "/peers/"+tt.id+"/pin", nil)
 			req.SetPathValue("id", tt.id)
 			w := httptest.NewRecorder()
@@ -545,6 +546,7 @@ func TestWriteTriggerFormXSSEscape(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var buf strings.Builder
 			writeTriggerForm(&buf, tt.action)
 			out := buf.String()
