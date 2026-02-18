@@ -199,32 +199,32 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
   <div class="tab-bar">
     <span class="tab-group-label">Peer</span>
-    <button class="active" hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML" hx-trigger="load, click"
+    <button class="active" hx-get="/viz/families" hx-target="#viz-content" hx-swap="innerHTML" hx-trigger="load, click"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Live feed of all BGP session and routing events">Events</button>
-    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Peer session state changes over time">Timeline</button>
+            title="Per-family sent/received route counts for all peers">Families</button>
     <button hx-get="/viz/convergence" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Route propagation latency distribution">Convergence</button>
     <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
-    <button hx-get="/viz/families" hx-target="#viz-content" hx-swap="innerHTML"
+    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Per-family sent/received route counts for all peers">Families</button>
+            title="Peer session state changes over time">Timeline</button>
+    <button hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Live feed of all BGP session and routing events">Events</button>
     <button hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Complete list of all peers (not just the active set)">All Peers</button>
     <span class="tab-separator"></span>
     <span class="tab-group-label">Chaos</span>
-    <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Table of chaos actions injected during the run">Events</button>
     <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Visual timeline of chaos actions over time">Timeline</button>
+    <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Table of chaos actions injected during the run">Events</button>
     <label class="freeze-toggle" title="Pause all live updates (for screenshots or copy/paste)">
       <input type="checkbox" id="freeze-updates" onchange="window._frozen=this.checked"> Freeze
     </label>
