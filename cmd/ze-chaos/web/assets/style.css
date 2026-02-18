@@ -267,20 +267,33 @@ html, body {
   font-size: 12px;
 }
 
-.event-list .event-row {
+.event-list .event-row,
+.event-feed .event-row {
   padding: 2px 0;
   border-bottom: 1px solid var(--border);
   display: flex;
   gap: 8px;
 }
 
-.event-list .event-time {
+.event-list .event-time,
+.event-feed .event-time {
   color: var(--text-muted);
   min-width: 60px;
 }
 
-.event-list .event-type {
+.event-list .event-peer,
+.event-feed .event-peer {
+  min-width: 30px;
+}
+
+.event-list .event-type,
+.event-feed .event-type {
   min-width: 100px;
+}
+
+.event-list .event-detail,
+.event-feed .event-detail {
+  flex: 1;
 }
 
 .event-type-established { color: var(--green); }

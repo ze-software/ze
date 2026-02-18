@@ -62,30 +62,31 @@ func writeLayout(w io.Writer, d *Dashboard) {
   <div class="card">
     <h3>Stats</h3>
     <div id="stats" sse-swap="stats" hx-swap="outerHTML">
-      <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
-      <span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
-      <span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
-      <span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
-      <span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
-      <span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
-      <span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
+      <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
+      <span class="stat" title="Total routes announced to peers"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
+      <span class="stat" title="Total routes received from peers"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
+      <span class="stat" title="Total routes withdrawn by peers"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
+      <span class="stat" title="Total withdrawal messages sent to peers"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
+      <span class="stat" title="Total chaos actions executed (disconnects, route drops, etc.)"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
+      <span class="stat" title="Total peer reconnections after chaos events"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
     </div>
   </div>
 
   <div class="card">
-    <h3>Active Set</h3>
+    <h3 title="The table shows only the most active peers. Peers rotate in/out based on activity.">Active Set</h3>
     <div id="active-set-info">
-      <span class="stat"><span class="stat-label">Visible </span><span class="stat-value">` + itoa(s.Active.Len()) + `/` + itoa(s.Active.MaxVisible) + `</span></span>
-      <span class="stat"><span class="stat-label">TTL </span><span class="stat-value">` + FormatDuration(s.Active.AdaptiveTTL()) + `</span></span>
+      <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">` + itoa(s.Active.Len()) + `/` + itoa(s.Active.MaxVisible) + `</span></span>
+      <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">` + FormatDuration(s.Active.AdaptiveTTL()) + `</span></span>
     </div>
   </div>
 
   <div class="card">
-    <h3>Peer Picker</h3>
+    <h3 title="Manually add a peer to the table by entering its index number">Peer Picker</h3>
     <div class="control-row">
-      <input type="number" id="promote-id" name="id" min="0" max="` + itoa(s.PeerCount-1) + `" placeholder="peer #" class="control-input">
+      <input type="number" id="promote-id" name="id" min="0" max="` + itoa(s.PeerCount-1) + `" placeholder="peer #" class="control-input"
+             title="Enter a peer index (0 to ` + itoa(s.PeerCount-1) + `) to add it to the table">
       <span class="badge" hx-post="/peers/promote" hx-target="#peer-tbody" hx-swap="outerHTML"
-            hx-include="#promote-id">Add</span>
+            hx-include="#promote-id" title="Add this peer to the visible table">Add</span>
     </div>
   </div>`)
 
@@ -133,17 +134,17 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <table class="peer-table">
       <thead>
         <tr>
-          <th style="width:30px"></th>
+          <th style="width:30px" title="Pin a peer to keep it visible in the table"></th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"id","dir":"asc"}'>ID</th>
+              hx-vals='{"sort":"id","dir":"asc"}' title="Peer index — click to sort">ID</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"status","dir":"asc"}'>Status</th>
+              hx-vals='{"sort":"status","dir":"asc"}' title="BGP session state — click to sort">Status</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"sent","dir":"desc"}'>Sent</th>
+              hx-vals='{"sort":"sent","dir":"desc"}' title="Routes announced to this peer — click to sort">Sent</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"received","dir":"desc"}'>Recv</th>
+              hx-vals='{"sort":"received","dir":"desc"}' title="Routes received from this peer — click to sort">Recv</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"chaos","dir":"desc"}'>Chaos</th>
+              hx-vals='{"sort":"chaos","dir":"desc"}' title="Chaos events targeting this peer — click to sort">Chaos</th>
         </tr>
       </thead>
       <tbody id="peer-tbody">`)
@@ -163,16 +164,21 @@ func writeLayout(w io.Writer, d *Dashboard) {
   <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
 
   <div class="tab-bar">
-    <button class="active" hx-get="/viz/events" hx-target="#viz-content" hx-swap="outerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Events</button>
-    <button hx-get="/viz/convergence" hx-target="#viz-content" hx-swap="outerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Convergence</button>
-    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="outerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Peer Timeline</button>
-    <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="outerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Chaos Timeline</button>
-    <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')">Route Matrix</button>
+    <button class="active" hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML" hx-trigger="load, click"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Live feed of all BGP and chaos events">Events</button>
+    <button hx-get="/viz/convergence" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Route propagation latency distribution">Convergence</button>
+    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Peer session state changes over time">Peer Timeline</button>
+    <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="History of chaos actions executed during the run">Chaos Timeline</button>
+    <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
   </div>
   <div id="viz-content"></div>
 </div>

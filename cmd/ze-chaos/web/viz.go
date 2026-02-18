@@ -80,7 +80,7 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
   <h3>Event Stream</h3>
   <div class="filters">
     <label>Peer:</label>
-    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="outerHTML"
+    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
             name="peer" hx-include="[name='type']">
       <option value="">All</option>`)
 
@@ -91,7 +91,7 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 	h.write(`
     </select>
     <label>Type:</label>
-    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="outerHTML"
+    <select hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML"
             name="type" hx-include="[name='peer']">
       <option value="">All</option>`)
 
@@ -129,7 +129,7 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		elapsed := FormatDuration(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
-		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">p%d</span><span class="event-type %s">%s</span><span>%s</span></div>`,
+		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-peer %s">p%d</span><span class="event-type %s">%s</span><span class="event-detail">%s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, evClass, label, detail)
 	}
 
@@ -247,10 +247,10 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
 	if totalPages > 1 {
 		h.writef(`<span class="stat-label">Page %d/%d</span>`, page, totalPages)
 		if page > 1 {
-			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Prev</span>`, page-1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="innerHTML">Prev</span>`, page-1)
 		}
 		if page < totalPages {
-			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="outerHTML">Next</span>`, page+1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="innerHTML">Next</span>`, page+1)
 		}
 	}
 
@@ -509,7 +509,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
   <h3>Route Flow Matrix</h3>
   <div class="filters">
     <label>Top:</label>
-    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             name="top" hx-include="[name='mode'],[name='family'],[name='peers']">`)
 
 	for _, n := range []int{10, 20, 30, 50} {
@@ -519,7 +519,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	h.write(`
     </select>
     <label>Mode:</label>
-    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             name="mode" hx-include="[name='top'],[name='family'],[name='peers']">`)
 	h.writef(`<option value=""%s>Count</option>`, selAttr(!latencyMode))
 	h.writef(`<option value="latency"%s>Latency</option>`, selAttr(latencyMode))
@@ -527,7 +527,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	h.write(`
     </select>
     <label>Family:</label>
-    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
+    <select hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             name="family" hx-include="[name='top'],[name='mode'],[name='peers']">
       <option value="">All</option>`)
 	for _, fam := range m.Families() {
@@ -538,7 +538,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
     </select>
     <label>Peers:</label>
     <input type="text" name="peers" placeholder="e.g. 0,1,3" class="control-input"
-           hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="outerHTML"
+           hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
            hx-trigger="change" hx-include="[name='top'],[name='mode'],[name='family']"
            value="`)
 	if len(opts.customPeers) > 0 {

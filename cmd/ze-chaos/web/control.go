@@ -291,14 +291,14 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 		if cs.Paused {
 			_, _ = fmt.Fprint(w, `
 <div class="control-row">
-  <span class="badge" hx-post="/control/resume" hx-target="#control-panel" hx-swap="outerHTML">Resume</span>
-  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML">Stop</span>
+  <span class="badge" hx-post="/control/resume" hx-target="#control-panel" hx-swap="outerHTML" title="Resume chaos event generation">Resume</span>
+  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML" title="Stop the chaos run entirely">Stop</span>
 </div>`)
 		} else {
 			_, _ = fmt.Fprint(w, `
 <div class="control-row">
-  <span class="badge" hx-post="/control/pause" hx-target="#control-panel" hx-swap="outerHTML">Pause</span>
-  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML">Stop</span>
+  <span class="badge" hx-post="/control/pause" hx-target="#control-panel" hx-swap="outerHTML" title="Pause chaos event generation (BGP sessions stay up)">Pause</span>
+  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML" title="Stop the chaos run entirely">Stop</span>
 </div>`)
 		}
 
@@ -309,7 +309,8 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
   <input type="range" min="0" max="100" value="%d" class="rate-slider"
          hx-post="/control/rate" hx-target="#control-panel" hx-swap="outerHTML"
          hx-trigger="change" name="rate"
-         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'>
+         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'
+         title="Adjust chaos event frequency (0%% = no chaos, 100%% = maximum rate)">
   <span class="stat-value">%.0f%%</span>
 </div>`, int(cs.Rate*100), cs.Rate*100)
 
@@ -318,7 +319,7 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 <div class="control-row">
   <select name="action" hx-get="/control/trigger-form" hx-target="#trigger-params" hx-swap="innerHTML"
           hx-trigger="change" hx-include="this">
-    <option value="">Trigger...</option>`)
+    <option value="" title="Manually trigger a chaos action on selected peers">Trigger...</option>`)
 		for _, at := range chaosActionTypes() {
 			_, _ = fmt.Fprintf(w, `<option value="%s">%s</option>`, at, at)
 		}
