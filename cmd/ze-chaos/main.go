@@ -610,6 +610,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Established state tracking (shared with scheduler goroutine).
 	established := newEstablishedState(n)
+	guard := newPeerGuard(n)
 
 	// Per-peer chaos channels (only allocated when chaos is enabled).
 	var chaosChannels []chan chaos.ChaosAction
@@ -688,12 +689,12 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Launch scheduler goroutine (only when chaos is enabled).
 	if chaosEnabled {
-		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, chaosChannels, rr.controlCh, cfg.quiet)
+		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, guard, chaosChannels, rr.controlCh, cfg.quiet)
 	}
 
 	// Launch route dynamics scheduler goroutine (only when route dynamics is enabled).
 	if routeEnabled {
-		go runRouteScheduler(ctx, cfg.routeCfg, cfg.seed, n, established, routeChannels, rr.routeControlCh, cfg.quiet)
+		go runRouteScheduler(ctx, cfg.routeCfg, cfg.seed, n, established, guard, routeChannels, rr.routeControlCh, cfg.quiet)
 	}
 
 	// Close events channel when all peer goroutines finish.
@@ -707,17 +708,30 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Process events from all peers.
 	for ev := range events {
-		// Update established state for scheduler.
+		// Update established state and peer guard for schedulers.
 		switch ev.Type {
 		case peer.EventEstablished:
 			established.Set(ev.PeerIndex, true)
+			guard.OnEstablished(ev.PeerIndex)
 		case peer.EventDisconnected:
 			established.Set(ev.PeerIndex, false)
+			guard.OnDisconnected(ev.PeerIndex)
+		case peer.EventChaosExecuted:
+			if ev.ChaosAction == chaos.ActionHoldTimerExpiry.String() {
+				guard.OnHoldTimerExpiry(ev.PeerIndex)
+			}
+		case peer.EventRouteAction:
+			switch ev.RouteAction {
+			case route.ActionFullWithdraw.String():
+				guard.OnFullWithdraw(ev.PeerIndex)
+			case route.ActionChurn.String():
+				// Churn re-announces routes, so they're live again.
+				guard.OnRoutesRestored(ev.PeerIndex)
+			}
 		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 			peer.EventEORSent, peer.EventError,
-			peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent,
-			peer.EventRouteAction:
-			// Other events don't affect established state.
+			peer.EventReconnecting, peer.EventWithdrawalSent:
+			// Other events don't affect guard or established state.
 		}
 
 		ep.Process(ev)
@@ -1029,7 +1043,7 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 // interval and dispatches chaos actions to per-peer channels.
 // When controlCh is non-nil, it also processes dashboard control commands
 // (pause, resume, rate change, manual trigger, stop).
-func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *peerGuard, channels []chan chaos.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := chaos.NewScheduler(chaos.SchedulerConfig{
 		Seed:      seed,
 		PeerCount: peerCount,
@@ -1045,12 +1059,26 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 
 	// dispatchAction sends a chaos action to the peer's channel (non-blocking).
 	dispatchAction := func(a chaos.ScheduledAction) {
+		if ok, reason := guard.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | blocked %s for peer %d (%s)\n",
+					a.Action.Type, a.PeerIndex, reason)
+			}
+			return
+		}
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | %s -> peer %d\n",
 				a.Action.Type, a.PeerIndex)
 		}
 		select {
 		case channels[a.PeerIndex] <- a.Action:
+			// Update guard immediately on successful dispatch so the route
+			// scheduler sees the new state on its next tick, closing the
+			// cross-scheduler race window. Event-loop updates still serve
+			// as authoritative correction (establishment, disconnect).
+			if a.Action.Type == chaos.ActionHoldTimerExpiry {
+				guard.OnHoldTimerExpiry(a.PeerIndex)
+			}
 		default:
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | dropped %s for peer %d (busy)\n",
@@ -1079,7 +1107,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			}
 		case "trigger":
 			if cmd.Trigger != nil {
-				handleManualTrigger(cmd.Trigger, peerCount, es, channels, quiet)
+				handleManualTrigger(cmd.Trigger, peerCount, es, guard, channels, quiet)
 			}
 		case "stop":
 			if !quiet {
@@ -1114,7 +1142,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 }
 
 // handleManualTrigger dispatches a manually-triggered chaos action.
-func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, channels []chan chaos.ChaosAction, quiet bool) {
+func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, guard *peerGuard, channels []chan chaos.ChaosAction, quiet bool) {
 	actionType, ok := chaos.ActionTypeFromString(t.ActionType)
 	if !ok {
 		if !quiet {
@@ -1140,6 +1168,13 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 		if idx < 0 || idx >= peerCount {
 			continue
 		}
+		if ok, reason := guard.AllowChaos(idx, actionType); !ok {
+			if !quiet {
+				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | blocked manual %s for peer %d (%s)\n",
+					actionType, idx, reason)
+			}
+			continue
+		}
 		action := chaos.ChaosAction{Type: actionType}
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | manual %s -> peer %d\n",
@@ -1147,6 +1182,10 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 		}
 		select {
 		case channels[idx] <- action:
+			// Update guard immediately on successful dispatch.
+			if actionType == chaos.ActionHoldTimerExpiry {
+				guard.OnHoldTimerExpiry(idx)
+			}
 		default:
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | dropped manual %s for peer %d (busy)\n",
@@ -1160,7 +1199,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 // It mirrors runScheduler but dispatches route.Action instead of chaos.ChaosAction.
 // When controlCh is non-nil, it processes dashboard control commands
 // (pause, resume, rate change, stop).
-func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
+func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *peerGuard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := route.NewScheduler(route.SchedulerConfig{
 		Seed:       seed + 1, // Different seed from chaos to avoid correlated scheduling.
 		PeerCount:  peerCount,
@@ -1211,12 +1250,25 @@ func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCo
 			}
 			actions := sched.Tick(now, es.Snapshot())
 			for _, a := range actions {
+				if ok, reason := guard.AllowRoute(a.PeerIndex, a.Action.Type); !ok {
+					if !quiet {
+						fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | blocked %s for peer %d (%s)\n",
+							a.Action.Type, a.PeerIndex, reason)
+					}
+					continue
+				}
 				if !quiet {
 					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | %s -> peer %d\n",
 						a.Action.Type, a.PeerIndex)
 				}
 				select {
 				case channels[a.PeerIndex] <- a.Action:
+					// Update guard immediately on successful dispatch so the
+					// chaos scheduler sees the new state, closing the
+					// cross-scheduler race window.
+					if a.Action.Type == route.ActionFullWithdraw {
+						guard.OnFullWithdraw(a.PeerIndex)
+					}
 				default:
 					if !quiet {
 						fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | dropped %s for peer %d (busy)\n",
