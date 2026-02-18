@@ -179,6 +179,9 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
+    <label class="freeze-toggle" title="Pause all live updates (for screenshots or copy/paste)">
+      <input type="checkbox" id="freeze-updates" onchange="window._frozen=this.checked"> Freeze
+    </label>
   </div>
   <div id="viz-content"></div>
 </div>

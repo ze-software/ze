@@ -398,12 +398,11 @@ func (d *Dashboard) renderStats() string {
 }
 
 // renderConvergence returns the convergence histogram HTML fragment for SSE.
-// Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
+// writeConvergenceHistogram already includes sse-swap="convergence" on its outer div,
+// so no extra wrapper is needed — SSE outerHTML swap replaces the div in place.
 func (d *Dashboard) renderConvergence() string {
 	var b strings.Builder
-	b.WriteString(`<div id="viz-convergence" sse-swap="convergence" hx-swap="outerHTML">`)
 	writeConvergenceHistogram(&b, d.state.Convergence, d.state.ConvergenceDeadline)
-	b.WriteString(`</div>`)
 	return b.String()
 }
 

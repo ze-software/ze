@@ -137,9 +137,10 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 }
 
 // writeConvergenceHistogram renders the CSS bar chart for convergence latency.
+// The outer div carries sse-swap so SSE broadcasts can update it live.
 func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline time.Duration) {
 	hw := &htmlWriter{w: w}
-	hw.write(`<div class="viz-panel" id="viz-convergence">
+	hw.write(`<div class="viz-panel" id="viz-convergence" sse-swap="convergence" hx-swap="outerHTML">
 <h3>Convergence Histogram</h3>
 <div class="histogram" style="position:relative">`)
 
@@ -239,10 +240,10 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
 	startIdx := (page - 1) * peersPerPage
 	endIdx := min(startIdx+peersPerPage, totalPeers)
 
-	h.write(`<div class="viz-panel">
+	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
   <h3>Peer State Timeline</h3>
-  <div class="filters">`)
+  <div class="filters">`, page)
 
 	if totalPages > 1 {
 		h.writef(`<span class="stat-label">Page %d/%d</span>`, page, totalPages)
@@ -310,7 +311,7 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 		elapsed = time.Second
 	}
 
-	h.write(`<div class="viz-panel">
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
 <h3>Chaos Timeline</h3>
 <div class="chaos-timeline">
 <div class="chaos-timeline-track" style="position:relative">`)
@@ -504,7 +505,8 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 
 	latencyMode := opts.mode == "latency"
 
-	h.write(`<div class="viz-panel">
+	h.write(`<div class="viz-panel" hx-get="/viz/route-matrix" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+     hx-include="[name='top'],[name='mode'],[name='family'],[name='peers']">
 <div class="viz-header">
   <h3>Route Flow Matrix</h3>
   <div class="filters">

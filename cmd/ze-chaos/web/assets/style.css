@@ -304,8 +304,17 @@ html, body {
 /* Tabs */
 .tab-bar {
   display: flex;
+  align-items: center;
   border-bottom: 1px solid var(--border);
   margin-bottom: 8px;
+}
+
+.freeze-toggle {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
 }
 
 .tab-bar button {
