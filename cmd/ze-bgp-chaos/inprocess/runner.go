@@ -86,6 +86,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		RouterID:  cfg.RouterID,
 		LocalAddr: cfg.LocalAddr,
 		Profiles:  cfg.Profiles,
+		NoPlugin:  true, // In-process mode: plugins added via CLI args to LoadReactorWithPlugins.
 	})
 
 	// Create temp directory for API socket to avoid conflicts.

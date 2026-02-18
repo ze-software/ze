@@ -14,6 +14,7 @@ type ConfigParams struct {
 	BasePort  int
 	ZeBinary  string // Path to ze binary for plugin run directives (default: "ze").
 	Profiles  []PeerProfile
+	NoPlugin  bool // When true, omit the plugin block (in-process mode adds plugins via CLI args).
 }
 
 // GenerateConfig produces a Ze configuration string from the given parameters.
@@ -27,11 +28,16 @@ func GenerateConfig(params ConfigParams) string {
 	}
 
 	// Route reflector plugin — required for route forwarding between peers.
-	fmt.Fprintf(&b, "plugin {\n")
-	fmt.Fprintf(&b, "    external rr {\n")
-	fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
-	fmt.Fprintf(&b, "    }\n")
-	fmt.Fprintf(&b, "}\n\n")
+	// In-process mode adds plugins via CLI args to LoadReactorWithPlugins,
+	// so emitting an external plugin block would create a duplicate that
+	// tries to fork a subprocess and fails.
+	if !params.NoPlugin {
+		fmt.Fprintf(&b, "plugin {\n")
+		fmt.Fprintf(&b, "    external rr {\n")
+		fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
+		fmt.Fprintf(&b, "    }\n")
+		fmt.Fprintf(&b, "}\n\n")
+	}
 
 	// bgp block with all peer definitions.
 	fmt.Fprintf(&b, "bgp {\n")
