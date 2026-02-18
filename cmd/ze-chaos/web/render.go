@@ -196,6 +196,7 @@ document.body.addEventListener('htmx:sendError',function(){document.getElementBy
 document.body.addEventListener('htmx:responseError',function(){document.getElementById('conn-error').style.display='block'});
 document.body.addEventListener('htmx:sseError',function(){document.getElementById('conn-error').style.display='block'});
 document.body.addEventListener('htmx:afterRequest',function(e){if(!e.detail.failed)document.getElementById('conn-error').style.display='none'});
+document.body.addEventListener('htmx:sseOpen',function(){document.getElementById('conn-error').style.display='none'});
 </script>
 </body>
 </html>`)
