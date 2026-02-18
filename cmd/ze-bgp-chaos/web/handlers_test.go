@@ -893,3 +893,71 @@ func TestProcessEventIntegration(t *testing.T) {
 		t.Error("renderRecentEvents must preserve sse-swap attribute")
 	}
 }
+
+// TestWebDashboardClose verifies that Close() stops the SSE broker and
+// is safe to call multiple times.
+//
+// VALIDATES: Close cancels the broadcast loop, closes the broker, and is idempotent.
+// PREVENTS: Goroutine leaks from broadcast loop, panic on double-close.
+func TestWebDashboardClose(t *testing.T) {
+	t.Parallel()
+
+	d, err := New(Config{
+		Addr:      "127.0.0.1:0", // OS-assigned port.
+		PeerCount: 3,
+	})
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	// Subscribe an SSE client before closing.
+	client := d.broker.Subscribe()
+
+	// Close should stop broker and server.
+	if closeErr := d.Close(); closeErr != nil {
+		t.Fatalf("Close: %v", closeErr)
+	}
+
+	// Broker should have signaled the client's done channel.
+	select {
+	case <-client.done:
+		// Expected — broker closed all clients.
+	default:
+		t.Error("client.done should be closed after Dashboard.Close()")
+	}
+
+	// Broker should report zero clients.
+	if n := d.broker.ClientCount(); n != 0 {
+		t.Errorf("broker clients after Close = %d, want 0", n)
+	}
+
+	// Second Close should be safe (idempotent via sync.Once).
+	if closeErr := d.Close(); closeErr != nil {
+		t.Fatalf("second Close: %v", closeErr)
+	}
+}
+
+// TestEmbeddedAssets verifies that the go:embed directive includes all
+// required static assets and that they are non-empty.
+//
+// VALIDATES: htmx.min.js, sse.js, and style.css are embedded and non-empty.
+// PREVENTS: Missing or empty assets causing a broken dashboard UI.
+func TestEmbeddedAssets(t *testing.T) {
+	t.Parallel()
+
+	assets := []string{
+		"assets/htmx.min.js",
+		"assets/sse.js",
+		"assets/style.css",
+	}
+	for _, path := range assets {
+		data, err := assetsFS.ReadFile(path)
+		if err != nil {
+			t.Errorf("ReadFile(%q): %v", path, err)
+			continue
+		}
+		if len(data) == 0 {
+			t.Errorf("%s is empty", path)
+		}
+	}
+}
