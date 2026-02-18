@@ -410,7 +410,7 @@ type ConvergenceBucket struct {
 	Count int           // Number of routes in this bucket.
 }
 
-// convergenceBucketDefs defines the 9 histogram bucket ranges.
+// convergenceBucketDefs defines the 13 histogram bucket ranges.
 var convergenceBucketDefs = []struct {
 	Label string
 	Min   time.Duration
@@ -424,12 +424,19 @@ var convergenceBucketDefs = []struct {
 	{"100-250ms", 100 * time.Millisecond, 250 * time.Millisecond},
 	{"250-500ms", 250 * time.Millisecond, 500 * time.Millisecond},
 	{"500ms-1s", 500 * time.Millisecond, time.Second},
-	{">1s", time.Second, 0},
+	{"1-2s", time.Second, 2 * time.Second},
+	{"2-5s", 2 * time.Second, 5 * time.Second},
+	{"5-10s", 5 * time.Second, 10 * time.Second},
+	{"10-30s", 10 * time.Second, 30 * time.Second},
+	{">30s", 30 * time.Second, 0},
 }
+
+// convergenceBucketCount is the number of histogram buckets.
+const convergenceBucketCount = 13
 
 // ConvergenceHistogram tracks route propagation latency distribution.
 type ConvergenceHistogram struct {
-	Buckets   [9]ConvergenceBucket
+	Buckets   [convergenceBucketCount]ConvergenceBucket
 	Total     int
 	Sum       time.Duration // For computing average.
 	Min       time.Duration
@@ -437,7 +444,7 @@ type ConvergenceHistogram struct {
 	SlowCount int // Routes exceeding 1s.
 }
 
-// NewConvergenceHistogram creates an initialized histogram with the 9 bucket definitions.
+// NewConvergenceHistogram creates an initialized histogram with the bucket definitions.
 func NewConvergenceHistogram() *ConvergenceHistogram {
 	h := &ConvergenceHistogram{}
 	for i, def := range convergenceBucketDefs {

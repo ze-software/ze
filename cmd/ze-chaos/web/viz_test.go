@@ -381,23 +381,27 @@ func TestConvergenceHistogramBuckets(t *testing.T) {
 
 	// Record one value per bucket.
 	latencies := []time.Duration{
-		1 * time.Millisecond,   // 0-5ms
-		7 * time.Millisecond,   // 5-10ms
-		15 * time.Millisecond,  // 10-25ms
-		30 * time.Millisecond,  // 25-50ms
-		75 * time.Millisecond,  // 50-100ms
-		150 * time.Millisecond, // 100-250ms
-		300 * time.Millisecond, // 250-500ms
-		750 * time.Millisecond, // 500ms-1s
-		2 * time.Second,        // >1s
+		1 * time.Millisecond,    // 0-5ms
+		7 * time.Millisecond,    // 5-10ms
+		15 * time.Millisecond,   // 10-25ms
+		30 * time.Millisecond,   // 25-50ms
+		75 * time.Millisecond,   // 50-100ms
+		150 * time.Millisecond,  // 100-250ms
+		300 * time.Millisecond,  // 250-500ms
+		750 * time.Millisecond,  // 500ms-1s
+		1500 * time.Millisecond, // 1-2s
+		3 * time.Second,         // 2-5s
+		7 * time.Second,         // 5-10s
+		15 * time.Second,        // 10-30s
+		45 * time.Second,        // >30s
 	}
 
 	for _, lat := range latencies {
 		h.Record(lat)
 	}
 
-	if h.Total != 9 {
-		t.Fatalf("total = %d, want 9", h.Total)
+	if h.Total != convergenceBucketCount {
+		t.Fatalf("total = %d, want %d", h.Total, convergenceBucketCount)
 	}
 
 	for i, b := range h.Buckets {
@@ -425,10 +429,17 @@ func TestConvergenceHistogramBoundary(t *testing.T) {
 		t.Errorf("bucket 1 (%s) count = %d, want 1", h.Buckets[1].Label, h.Buckets[1].Count)
 	}
 
-	// 1s exactly should go to ">1s" bucket (index 8).
+	// 1s exactly should go to "1-2s" bucket (index 8).
 	h.Record(time.Second)
 	if h.Buckets[8].Count != 1 {
 		t.Errorf("bucket 8 (%s) count = %d, want 1", h.Buckets[8].Label, h.Buckets[8].Count)
+	}
+
+	// 45s should go to ">30s" bucket (last bucket).
+	h.Record(45 * time.Second)
+	last := convergenceBucketCount - 1
+	if h.Buckets[last].Count != 1 {
+		t.Errorf("bucket %d (%s) count = %d, want 1", last, h.Buckets[last].Label, h.Buckets[last].Count)
 	}
 }
 

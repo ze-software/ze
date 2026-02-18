@@ -165,7 +165,9 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 	bucketColors := []string{
 		"#3fb950", "#3fb950", "#7cc647", // green (fast)
 		"#b8cc3e", "#d29922", "#db8928", // yellow (moderate)
-		"#db6d28", "#f85149", "#f85149", // red (slow)
+		"#db6d28", "#f85149", // orange-red (slow)
+		"#f85149", "#da3633", "#b62324", // red (very slow)
+		"#8b1a1a", "#6e1212", // dark red (extremely slow)
 	}
 
 	for i, b := range ch.Buckets {
@@ -215,7 +217,7 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 		hw.writef(`<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%s</span></span>`, FormatDuration(ch.Max))
 	}
 	if ch.SlowCount > 0 {
-		hw.writef(`<span class="stat"><span class="stat-label">Slow (&gt;1s) </span><span class="stat-value" style="color:var(--red)">%d</span></span>`, ch.SlowCount)
+		hw.writef(`<span class="stat"><span class="stat-label">Slow (&gt;1s) </span><span class="stat-value" style="color:var(--yellow)">%d</span></span>`, ch.SlowCount)
 	}
 
 	hw.write(`</div>
@@ -1089,7 +1091,7 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 </div>`, len(peerIndices), len(families), grandSent, grandRecv)
 
 	h.write(`<p class="viz-desc">Per-family route propagation for every peer. Each cell shows received / expected where expected is the total routes announced by all other peers for that family. ` +
-		`Green = fully propagated, yellow = pending (0 received), orange = partial propagation. ` +
+		`Green = fully propagated, red = zero received, orange = partial propagation. ` +
 		`A dash means the peer did not negotiate that family.</p>
 </div>`)
 }

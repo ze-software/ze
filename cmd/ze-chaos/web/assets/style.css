@@ -978,7 +978,7 @@ html, body {
 }
 
 .fm-pending {
-  color: var(--yellow) !important;
+  color: var(--red) !important;
 }
 
 .fm-partial {
