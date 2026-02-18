@@ -75,7 +75,8 @@ func (d *Dashboard) handleVizChaosTimeline(w http.ResponseWriter, _ *http.Reques
 // writeEventStream renders the event stream feed with optional filtering.
 func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter string) {
 	h := &htmlWriter{w: w}
-	h.write(`<div class="viz-panel">
+	h.write(`<div class="viz-panel" hx-get="/viz/events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML"
+     hx-include="[name='peer'],[name='type']">
 <div class="viz-header">
   <h3>Event Stream</h3>
   <div class="filters">
