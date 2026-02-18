@@ -375,9 +375,10 @@ Control:
 		if *webAddr != "" {
 			var webErr error
 			wd, webErr = web.New(web.Config{
-				Addr:      *webAddr,
-				PeerCount: len(profiles),
-				Seed:      *seed,
+				Addr:               *webAddr,
+				PeerCount:          len(profiles),
+				Seed:               *seed,
+				InitialSpeedFactor: 1,
 			})
 			if webErr != nil {
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
@@ -398,7 +399,8 @@ Control:
 		}
 		if wd != nil {
 			ipCfg.Consumer = wd
-			ipCfg.StepDelay = 1 * time.Second // Real-time pacing for web dashboard.
+			ipCfg.StepDelay = 1 * time.Second  // Real-time pacing for web dashboard.
+			ipCfg.StepDelayFunc = wd.StepDelay // Dynamic speed control from dashboard.
 		}
 		result, ipErr := inprocess.Run(ipCtx, ipCfg)
 		if ipErr != nil {

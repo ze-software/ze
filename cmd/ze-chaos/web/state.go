@@ -45,6 +45,10 @@ type ControlState struct {
 	RoutePaused bool
 	RouteRate   float64
 	RouteStatus string // "running", "paused", "stopped", "disabled"
+
+	// Speed control state (in-process mode only).
+	SpeedFactor    int  // Current speed factor (1, 10, 100, 1000).
+	SpeedAvailable bool // true when speed control is enabled.
 }
 
 // ControlLogger logs dashboard control events to the NDJSON event log.

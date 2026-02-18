@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
@@ -73,6 +74,11 @@ type Config struct {
 	// OnStop is called when the dashboard triggers a stop or restart.
 	// It should cancel the current run's context.
 	OnStop func()
+
+	// InitialSpeedFactor is the initial time acceleration factor (1, 10, 100, 1000).
+	// When non-zero, enables the speed control UI in the dashboard.
+	// Only meaningful in in-process mode where virtual clock pacing is adjustable.
+	InitialSpeedFactor int
 }
 
 func (c *Config) defaults() {
@@ -130,8 +136,39 @@ type Dashboard struct {
 	// (as opposed to sharing one via Config.Mux).
 	ownServer bool
 
+	// speedNanos stores the current step delay in nanoseconds for dynamic
+	// speed control. Read atomically by the in-process runner each iteration.
+	// Zero means speed control is disabled (caller uses its static default).
+	speedNanos atomic.Int64
+
 	closeOnce sync.Once
 	closeErr  error
+}
+
+// StepDelay returns the current step delay for the simulation runner.
+// Called each iteration by the in-process runner to support dynamic speed control.
+// Returns 0 if speed control is not enabled (caller should use its static default).
+func (d *Dashboard) StepDelay() time.Duration {
+	n := d.speedNanos.Load()
+	if n <= 0 {
+		return 0
+	}
+	return time.Duration(n)
+}
+
+// SetSpeedFactor updates the time acceleration factor and the corresponding step delay.
+// Valid factors: 1, 10, 100, 1000. Returns false for invalid factors.
+func (d *Dashboard) SetSpeedFactor(factor int) bool {
+	switch factor {
+	case 1, 10, 100, 1000:
+	default:
+		return false
+	}
+	d.speedNanos.Store(int64(time.Second) / int64(factor))
+	d.state.mu.Lock()
+	d.state.Control.SpeedFactor = factor
+	d.state.mu.Unlock()
+	return true
 }
 
 // New creates a Dashboard and starts the HTTP server and SSE broadcast loop.
@@ -170,6 +207,15 @@ func New(cfg Config) (*Dashboard, error) {
 	}
 	if cfg.RestartCh != nil {
 		state.Control.RestartAvailable = true
+	}
+	switch cfg.InitialSpeedFactor {
+	case 0: // disabled
+	case 1, 10, 100, 1000:
+		state.Control.SpeedAvailable = true
+		state.Control.SpeedFactor = cfg.InitialSpeedFactor
+		d.speedNanos.Store(int64(time.Second) / int64(cfg.InitialSpeedFactor))
+	default:
+		return nil, fmt.Errorf("invalid InitialSpeedFactor %d (must be 1, 10, 100, or 1000)", cfg.InitialSpeedFactor)
 	}
 	state.Seed = cfg.Seed
 	state.WarmupDuration = cfg.WarmupDuration

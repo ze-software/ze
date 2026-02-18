@@ -114,6 +114,11 @@ func writeLayout(w io.Writer, d *Dashboard) {
 		writeRouteControlPanel(w, &s.Control)
 	}
 
+	// Speed control panel (only in in-process mode).
+	if s.Control.SpeedAvailable {
+		writeSpeedControl(w, &s.Control)
+	}
+
 	// Property badges.
 	if len(s.Properties) > 0 {
 		h.write(`

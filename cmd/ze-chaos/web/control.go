@@ -196,6 +196,39 @@ func (d *Dashboard) handleControlStop(w http.ResponseWriter, _ *http.Request) {
 	writeControlPanel(w, &d.state.Control)
 }
 
+// handleControlSpeed handles POST /control/speed.
+func (d *Dashboard) handleControlSpeed(w http.ResponseWriter, r *http.Request) {
+	d.state.mu.RLock()
+	available := d.state.Control.SpeedAvailable
+	d.state.mu.RUnlock()
+	if !available {
+		http.Error(w, "speed control not available", http.StatusServiceUnavailable)
+		return
+	}
+	var factor int
+	switch r.FormValue("factor") {
+	case "1":
+		factor = 1
+	case "10":
+		factor = 10
+	case "100":
+		factor = 100
+	case "1000":
+		factor = 1000
+	default:
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		h := &htmlWriter{w: w}
+		h.write(`<div id="speed-error" class="event-type event-type-disconnected">invalid speed (1, 10, 100, 1000)</div>`)
+		return
+	}
+	d.SetSpeedFactor(factor) // factor already validated by switch above
+	d.logControl("speed", r.FormValue("factor"))
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeSpeedControl(w, &d.state.Control)
+}
+
 // handleControlRestart handles POST /control/restart.
 // It validates the seed, sends it to the restart channel, and calls onStop
 // to cancel the current run.
@@ -565,6 +598,50 @@ func (d *Dashboard) handleRouteControlStop(w http.ResponseWriter, _ *http.Reques
 	d.state.RLock()
 	defer d.state.RUnlock()
 	writeRouteControlPanel(w, &d.state.Control)
+}
+
+// writeSpeedControl renders the speed control HTML fragment.
+// Shows discrete buttons for 1x/10x/100x/1000x speed factors.
+func writeSpeedControl(w io.Writer, cs *ControlState) {
+	if !cs.SpeedAvailable {
+		return
+	}
+	h := &htmlWriter{w: w}
+	h.writef(`<div id="speed-control" class="card">
+<h3>Speed</h3>
+<div class="control-row">
+  <span class="stat-label">%s</span>
+</div>
+<div class="control-row">`, speedTitle(cs.SpeedFactor))
+	for _, f := range []int{1, 10, 100, 1000} {
+		active := ""
+		if f == cs.SpeedFactor {
+			active = ` style="border-color:#22c55e;font-weight:bold"`
+		}
+		h.writef(`
+  <span class="badge"%s hx-post="/control/speed" hx-target="#speed-control" hx-swap="outerHTML"
+        hx-vals='{"factor":"%d"}' title="%s">%dx</span>`, active, f, speedTitle(f), f)
+	}
+	h.write(`
+</div>
+<div id="speed-error"></div>
+</div>`)
+}
+
+// speedTitle returns a human-readable description for a speed factor.
+func speedTitle(factor int) string {
+	switch factor {
+	case 1:
+		return "Real-time (1s/step)"
+	case 10:
+		return "10x (100ms/step)"
+	case 100:
+		return "100x (10ms/step)"
+	case 1000:
+		return "1000x (1ms/step)"
+	default:
+		return fmt.Sprintf("%dx", factor)
+	}
 }
 
 // writeRouteControlPanel renders the route dynamics control panel HTML fragment.

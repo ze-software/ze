@@ -62,6 +62,9 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("POST /control/restart", d.handleControlRestart)
 	mux.HandleFunc("GET /control/trigger-form", d.handleControlTriggerForm)
 
+	// Speed control endpoint (in-process mode only).
+	mux.HandleFunc("POST /control/speed", d.handleControlSpeed)
+
 	// Route dynamics control endpoints.
 	mux.HandleFunc("POST /control/route/pause", d.handleRouteControlPause)
 	mux.HandleFunc("POST /control/route/resume", d.handleRouteControlResume)

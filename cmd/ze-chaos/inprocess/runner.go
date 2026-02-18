@@ -63,6 +63,11 @@ type RunConfig struct {
 	// Default (0) uses 10ms for fast simulation. Set to 1s for real-time
 	// pacing when the web dashboard is active.
 	StepDelay time.Duration
+
+	// StepDelayFunc, when non-nil, is called each iteration to get the
+	// current step delay. This enables dynamic speed control from the web
+	// dashboard. If it returns 0, the static StepDelay is used instead.
+	StepDelayFunc func() time.Duration
 }
 
 // RunResult holds the output from an in-process chaos run.
@@ -361,8 +366,14 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		vc.Advance(step)
 		simulated += step
 
-		// Real-time pause: 10ms for fast simulation, 1s for real-time pacing.
-		time.Sleep(stepDelay)
+		// Dynamic speed: poll StepDelayFunc each iteration for dashboard control.
+		delay := stepDelay
+		if cfg.StepDelayFunc != nil {
+			if d := cfg.StepDelayFunc(); d > 0 {
+				delay = d
+			}
+		}
+		time.Sleep(delay)
 	}
 
 	// Stop simulators and reactor.
