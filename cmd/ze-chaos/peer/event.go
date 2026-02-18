@@ -30,6 +30,8 @@ const (
 	EventReconnecting
 	// EventWithdrawalSent is sent when explicit withdrawals are sent by chaos.
 	EventWithdrawalSent
+	// EventRouteAction is sent when a route dynamics action is executed on a peer.
+	EventRouteAction
 )
 
 // Event represents a simulator lifecycle or route event.
@@ -54,6 +56,9 @@ type Event struct {
 
 	// ChaosAction is the action name for EventChaosExecuted events.
 	ChaosAction string
+
+	// RouteAction is the action name for EventRouteAction events.
+	RouteAction string
 
 	// Families is set for EventEORSent with the list of families sent.
 	Families []string

@@ -3,6 +3,7 @@ package web
 import (
 	"embed"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/http"
 	"slices"
@@ -36,9 +37,15 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("GET /viz/events", d.handleVizEvents)
 	mux.HandleFunc("GET /viz/convergence", d.handleVizConvergence)
 	mux.HandleFunc("GET /viz/peer-timeline", d.handleVizPeerTimeline)
+	mux.HandleFunc("GET /viz/chaos-events", d.handleVizChaosEvents)
 	mux.HandleFunc("GET /viz/chaos-timeline", d.handleVizChaosTimeline)
 	mux.HandleFunc("GET /viz/route-matrix", d.handleVizRouteMatrix)
 	mux.HandleFunc("GET /viz/route-matrix/cell", d.handleVizRouteMatrixCell)
+
+	// Sidebar polling fallbacks (supplement SSE).
+	mux.HandleFunc("GET /sidebar/stats", d.handleSidebarStats)
+	mux.HandleFunc("GET /sidebar/active-set", d.handleSidebarActiveSet)
+	mux.HandleFunc("GET /sidebar/events", d.handleSidebarEvents)
 
 	// Peer promote (peer picker).
 	mux.HandleFunc("POST /peers/promote", d.handlePeerPromote)
@@ -51,6 +58,12 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("POST /control/stop", d.handleControlStop)
 	mux.HandleFunc("POST /control/restart", d.handleControlRestart)
 	mux.HandleFunc("GET /control/trigger-form", d.handleControlTriggerForm)
+
+	// Route dynamics control endpoints.
+	mux.HandleFunc("POST /control/route/pause", d.handleRouteControlPause)
+	mux.HandleFunc("POST /control/route/resume", d.handleRouteControlResume)
+	mux.HandleFunc("POST /control/route/rate", d.handleRouteControlRate)
+	mux.HandleFunc("POST /control/route/stop", d.handleRouteControlStop)
 
 	return nil
 }
@@ -181,6 +194,42 @@ func (d *Dashboard) handlePeerPromote(w http.ResponseWriter, r *http.Request) {
 	h.write(`<tbody id="peer-tbody">`)
 	writePeerRows(w, d.state, indices)
 	h.write(`</tbody>`)
+}
+
+// handleSidebarStats returns the stats card content (polling fallback for SSE).
+func (d *Dashboard) handleSidebarStats(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if _, err := io.WriteString(w, d.renderStats()); err != nil {
+		d.logger.Debug("write sidebar stats", "error", err)
+	}
+}
+
+// handleSidebarActiveSet returns the active set info fragment.
+func (d *Dashboard) handleSidebarActiveSet(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h := &htmlWriter{w: w}
+	h.writef(`<div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
+  <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">%d/%d</span></span>
+  <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">%s</span></span>
+</div>`, d.state.Active.Len(), d.state.Active.MaxVisible, FormatDuration(d.state.Active.AdaptiveTTL()))
+}
+
+// handleSidebarEvents returns the recent events fragment (polling fallback for SSE).
+func (d *Dashboard) handleSidebarEvents(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	h := &htmlWriter{w: w}
+	h.write(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
+	writeRecentEvents(w, d.state)
+	h.write(`</div>`)
 }
 
 // sortPeers sorts peer indices by the given column and direction.

@@ -47,7 +47,7 @@ func (d *Dashboard) handleVizConvergence(w http.ResponseWriter, _ *http.Request)
 }
 
 // handleVizPeerTimeline serves the peer state timeline tab content.
-// Query params: page (1-based).
+// Query params: page (1-based), window (time window: "all", "30s", "1m", "5m", "10m").
 func (d *Dashboard) handleVizPeerTimeline(w http.ResponseWriter, r *http.Request) {
 	d.state.RLock()
 	defer d.state.RUnlock()
@@ -59,8 +59,19 @@ func (d *Dashboard) handleVizPeerTimeline(w http.ResponseWriter, r *http.Request
 		}
 	}
 
+	window := r.URL.Query().Get("window")
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerTimeline(w, d.state, page)
+	writePeerTimeline(w, d.state, page, window)
+}
+
+// handleVizChaosEvents serves the chaos events table tab content.
+func (d *Dashboard) handleVizChaosEvents(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writeChaosEvents(w, d.state)
 }
 
 // handleVizChaosTimeline serves the chaos event timeline tab content.
@@ -127,14 +138,16 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		}
 
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatDuration(time.Since(ev.Time))
+		elapsed := FormatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-peer %s">p%d</span><span class="event-type %s">%s</span><span class="event-detail">%s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, evClass, label, detail)
 	}
 
-	h.write(`</div></div>`)
+	h.write(`</div>
+<p class="viz-desc">Live feed of BGP session and routing events across all peers. Filter by peer index or event type. Timestamps show how long ago each event occurred.</p>
+</div>`)
 }
 
 // writeConvergenceHistogram renders the CSS bar chart for convergence latency.
@@ -202,18 +215,68 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 		hw.writef(`<span class="stat"><span class="stat-label">Slow (&gt;1s) </span><span class="stat-value" style="color:var(--red)">%d</span></span>`, ch.SlowCount)
 	}
 
-	hw.write(`</div></div>`)
+	hw.write(`</div>
+<p class="viz-desc">Distribution of route propagation latency — time from when a route is announced by one peer until it is received by another. Bars show how many routes converged within each time bucket. The dashed line marks the convergence deadline.</p>
+</div>`)
+}
+
+// parseWindowDuration returns the duration for a window string, or 0 for "all".
+func parseWindowDuration(window string) time.Duration {
+	switch window {
+	case "30s":
+		return 30 * time.Second
+	case "1m":
+		return time.Minute
+	case "5m":
+		return 5 * time.Minute
+	case "10m":
+		return 10 * time.Minute
+	default:
+		return 0 // "all" or empty
+	}
+}
+
+// timelineWindow holds the computed visible time range for the peer timeline.
+type timelineWindow struct {
+	windowStart time.Time     // Left edge of the visible range.
+	windowEnd   time.Time     // Right edge (now).
+	visible     time.Duration // windowEnd - windowStart.
+}
+
+// timelineWindowFromState computes the visible window for the given window string.
+func timelineWindowFromState(s *DashboardState, window string) timelineWindow {
+	now := time.Now()
+	winDur := parseWindowDuration(window)
+	tw := timelineWindow{windowEnd: now}
+	if winDur > 0 {
+		tw.windowStart = now.Add(-winDur)
+		// Don't go before StartTime.
+		if tw.windowStart.Before(s.StartTime) {
+			tw.windowStart = s.StartTime
+		}
+	} else {
+		tw.windowStart = s.StartTime
+	}
+	tw.visible = tw.windowEnd.Sub(tw.windowStart)
+	if tw.visible <= 0 {
+		tw.visible = time.Second
+	}
+	return tw
+}
+
+// pctInWindow returns the percentage position of t within the visible window.
+func (tw timelineWindow) pctInWindow(t time.Time) int {
+	return pctOfDuration(t.Sub(tw.windowStart), tw.visible)
 }
 
 // writePeerTimeline renders horizontal bars showing per-peer state over time.
-// Paginated at 30 peers per page.
-func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
+// Paginated at 30 peers per page. The window parameter controls the visible
+// time range: "all" (default), "30s", "1m", "5m", "10m".
+func writePeerTimeline(w io.Writer, s *DashboardState, page int, window string) {
 	h := &htmlWriter{w: w}
 	const peersPerPage = 30
-	elapsed := time.Since(s.StartTime)
-	if elapsed == 0 {
-		elapsed = time.Second // Avoid division by zero.
-	}
+
+	tw := timelineWindowFromState(s, window)
 
 	// Build list of peers with transitions (sorted by peer index).
 	var peerIndices []int
@@ -241,36 +304,61 @@ func writePeerTimeline(w io.Writer, s *DashboardState, page int) {
 	startIdx := (page - 1) * peersPerPage
 	endIdx := min(startIdx+peersPerPage, totalPeers)
 
-	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+	// Build URL with both page and window params preserved.
+	h.writef(`<div class="viz-panel" hx-get="/viz/peer-timeline?page=%d&window=%s" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
 <div class="viz-header">
   <h3>Peer State Timeline</h3>
-  <div class="filters">`, page)
+  <div class="filters">
+    <label>Window:</label>
+    <select hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            name="window" hx-include="[name='page']">`, page, escapeAttr(window))
+
+	for _, opt := range []struct{ value, label string }{
+		{"all", "All"},
+		{"30s", "Last 30s"},
+		{"1m", "Last 1m"},
+		{"5m", "Last 5m"},
+		{"10m", "Last 10m"},
+	} {
+		sel := selAttr((window == opt.value) || (window == "" && opt.value == "all"))
+		h.writef(`<option value="%s"%s>%s</option>`, opt.value, sel, opt.label)
+	}
+
+	h.write(`</select>`)
+
+	// Hidden input to preserve page in hx-include.
+	h.writef(`<input type="hidden" name="page" value="%d">`, page)
 
 	if totalPages > 1 {
 		h.writef(`<span class="stat-label">Page %d/%d</span>`, page, totalPages)
 		if page > 1 {
-			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="innerHTML">Prev</span>`, page-1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d&window=%s" hx-target="#viz-content" hx-swap="innerHTML">Prev</span>`, page-1, escapeAttr(window))
 		}
 		if page < totalPages {
-			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d" hx-target="#viz-content" hx-swap="innerHTML">Next</span>`, page+1)
+			h.writef(` <span class="badge" hx-get="/viz/peer-timeline?page=%d&window=%s" hx-target="#viz-content" hx-swap="innerHTML">Next</span>`, page+1, escapeAttr(window))
 		}
 	}
 
 	h.writef(`
   </div>
 </div>
-<div class="timeline-container" style="--timeline-duration:%d">`, int(elapsed.Seconds()))
+<div class="timeline-container" style="--timeline-duration:%d">`, int(tw.visible.Seconds()))
 
 	pagePeers := peerIndices[startIdx:endIdx]
 	for _, idx := range pagePeers {
-		writeTimelineRow(w, s, idx, elapsed)
+		writeTimelineRow(w, s, idx, tw)
 	}
 
-	h.write(`</div></div>`)
+	// Time scale axis.
+	writeTimelineScale(w, tw, s.StartTime)
+
+	h.write(`</div>
+<p class="viz-desc">Each row shows one peer's BGP session state over time. Green = established, red = down, yellow = reconnecting, grey = idle. Use the window selector to zoom into recent activity. Hover over a segment for its state and timestamp.</p>
+</div>`)
 }
 
-// writeTimelineRow renders a single peer's timeline bar.
-func writeTimelineRow(w io.Writer, s *DashboardState, idx int, elapsed time.Duration) {
+// writeTimelineRow renders a single peer's timeline bar within the visible window.
+func writeTimelineRow(w io.Writer, s *DashboardState, idx int, tw timelineWindow) {
 	ps := s.Peers[idx]
 	if ps == nil {
 		return
@@ -285,23 +373,148 @@ func writeTimelineRow(w io.Writer, s *DashboardState, idx int, elapsed time.Dura
 		color := statusColor(ps.Status)
 		h.writef(`<div class="timeline-segment" style="left:0%%;width:100%%;background:%s" title="%s"></div>`, color, ps.Status.String())
 	} else {
-		// Render segments between transitions.
+		// Find the effective state at windowStart: the last transition before the window.
+		// This ensures we show the entering state for the left edge when windowed.
+		firstVisible := 0
 		for i, tr := range transitions {
-			startPct := pctOfDuration(tr.Time.Sub(s.StartTime), elapsed)
-			var endPct int
-			if i+1 < len(transitions) {
-				endPct = pctOfDuration(transitions[i+1].Time.Sub(s.StartTime), elapsed)
-			} else {
-				endPct = 100
+			if tr.Time.After(tw.windowStart) {
+				break
 			}
+			firstVisible = i
+		}
+
+		// Render segments from firstVisible onward, clipped to the window.
+		for i := firstVisible; i < len(transitions); i++ {
+			tr := transitions[i]
+
+			// Segment start: clip to window left edge.
+			segStart := tr.Time
+			if segStart.Before(tw.windowStart) {
+				segStart = tw.windowStart
+			}
+
+			// Segment end: next transition or window right edge.
+			segEnd := tw.windowEnd
+			if i+1 < len(transitions) {
+				segEnd = transitions[i+1].Time
+			}
+
+			// Skip segments entirely outside the window.
+			if segEnd.Before(tw.windowStart) || segStart.After(tw.windowEnd) {
+				continue
+			}
+			if segEnd.After(tw.windowEnd) {
+				segEnd = tw.windowEnd
+			}
+
+			startPct := tw.pctInWindow(segStart)
+			endPct := tw.pctInWindow(segEnd)
 			width := max(endPct-startPct, 1)
 			color := statusColor(tr.Status)
+			elapsed := FormatDuration(tr.Time.Sub(s.StartTime))
 			h.writef(`<div class="timeline-segment" style="left:%d%%;width:%d%%;background:%s" title="%s at %s"></div>`,
-				startPct, width, color, tr.Status.String(), FormatDuration(tr.Time.Sub(s.StartTime)))
+				startPct, width, color, tr.Status.String(), elapsed)
 		}
 	}
 
 	h.write(`</div></div>`)
+}
+
+// writeTimelineScale renders tick marks below the timeline bars showing elapsed time.
+func writeTimelineScale(w io.Writer, tw timelineWindow, startTime time.Time) {
+	h := &htmlWriter{w: w}
+	h.write(`<div class="timeline-row timeline-scale"><span class="timeline-label"></span><div class="timeline-bar timeline-axis">`)
+
+	// Choose tick interval based on visible duration.
+	tickInterval := chooseTickInterval(tw.visible)
+	if tickInterval <= 0 {
+		h.write(`</div></div>`)
+		return
+	}
+
+	// Compute the first tick time: round up from windowStart to the next tick boundary
+	// relative to startTime (so ticks align to clean elapsed-time values).
+	elapsedAtStart := tw.windowStart.Sub(startTime)
+	firstTickElapsed := ((elapsedAtStart + tickInterval - 1) / tickInterval) * tickInterval
+	// Handle the special case where windowStart == startTime (elapsed=0).
+	if firstTickElapsed == 0 {
+		firstTickElapsed = tickInterval
+	}
+	firstTickTime := startTime.Add(firstTickElapsed)
+
+	for t := firstTickTime; !t.After(tw.windowEnd); t = t.Add(tickInterval) {
+		pct := tw.pctInWindow(t)
+		if pct < 0 || pct > 100 {
+			continue
+		}
+		label := FormatDuration(t.Sub(startTime))
+		h.writef(`<div class="timeline-tick" style="left:%d%%"><span class="timeline-tick-label">%s</span></div>`, pct, label)
+	}
+
+	h.write(`</div></div>`)
+}
+
+// chooseTickInterval picks a sensible tick spacing for the given visible duration.
+func chooseTickInterval(visible time.Duration) time.Duration {
+	switch {
+	case visible <= 30*time.Second:
+		return 5 * time.Second
+	case visible <= time.Minute:
+		return 10 * time.Second
+	case visible <= 5*time.Minute:
+		return 30 * time.Second
+	case visible <= 10*time.Minute:
+		return time.Minute
+	case visible <= 30*time.Minute:
+		return 5 * time.Minute
+	default:
+		return 10 * time.Minute
+	}
+}
+
+// writeChaosEvents renders a scrollable table of recent chaos actions.
+func writeChaosEvents(w io.Writer, s *DashboardState) {
+	h := &htmlWriter{w: w}
+	const maxRows = 200
+
+	h.write(`<div class="viz-panel" hx-get="/viz/chaos-events" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
+<h3>Chaos Events</h3>`)
+
+	if len(s.ChaosHistory) == 0 {
+		h.write(`<div class="stat-label" style="padding:16px">No chaos actions recorded yet.</div>
+<p class="viz-desc">Table of chaos actions injected during the run. Shows the most recent actions with timestamps, target peer, and action type. Chaos events appear once the warmup period elapses and the chaos scheduler is active.</p>
+</div>`)
+		return
+	}
+
+	h.write(`<div class="chaos-events-table">
+<table class="peer-table">
+  <thead><tr>
+    <th>Time</th>
+    <th>Peer</th>
+    <th>Action</th>
+  </tr></thead>
+  <tbody>`)
+
+	// Show most recent first, capped at maxRows.
+	start := 0
+	if len(s.ChaosHistory) > maxRows {
+		start = len(s.ChaosHistory) - maxRows
+	}
+	for i := len(s.ChaosHistory) - 1; i >= start; i-- {
+		entry := s.ChaosHistory[i]
+		elapsed := FormatDuration(entry.Time.Sub(s.StartTime))
+		h.writef(`<tr><td>%s</td><td>p%d</td><td>%s</td></tr>`,
+			elapsed, entry.PeerIndex, escapeHTML(entry.Action))
+	}
+
+	h.writef(`</tbody></table></div>
+<div class="histogram-stats">
+  <span class="stat"><span class="stat-label">Total </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Showing </span><span class="stat-value">%d</span></span>
+</div>
+<p class="viz-desc">Table of chaos actions injected during the run. Shows the most recent %d actions with timestamps relative to run start, target peer, and action type.</p>
+</div>`, len(s.ChaosHistory), min(len(s.ChaosHistory), maxRows), maxRows)
 }
 
 // writeChaosTimeline renders horizontal timeline with chaos event markers.
@@ -313,8 +526,14 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 	}
 
 	h.write(`<div class="viz-panel" hx-get="/viz/chaos-timeline" hx-trigger="every 500ms [!window._frozen]" hx-target="#viz-content" hx-swap="innerHTML">
-<h3>Chaos Timeline</h3>
-<div class="chaos-timeline">
+<h3>Chaos Timeline</h3>`)
+
+	if len(s.ChaosHistory) == 0 {
+		h.write(`<p class="viz-desc">No chaos actions recorded yet. Chaos events appear here once the warmup period elapses and the chaos scheduler is active (--chaos-rate &gt; 0).</p></div>`)
+		return
+	}
+
+	h.write(`<div class="chaos-timeline">
 <div class="chaos-timeline-track" style="position:relative">`)
 
 	// Warmup region shading.
@@ -370,7 +589,9 @@ func writeChaosTimeline(w io.Writer, s *DashboardState, warmup time.Duration) {
 <div class="histogram-stats">
   <span class="stat"><span class="stat-label">Total actions </span><span class="stat-value">%d</span></span>
   <span class="stat"><span class="stat-label">Duration </span><span class="stat-value">%s</span></span>
-</div></div>`, len(s.ChaosHistory), FormatDuration(elapsed))
+</div>
+<p class="viz-desc">Shows when chaos actions (disconnects, delays, partitions, etc.) were injected during the run. Each vertical mark is one action; color indicates the action type. The shaded region on the left is the warmup period before chaos begins.</p>
+</div>`, len(s.ChaosHistory), FormatDuration(elapsed))
 }
 
 // eventTypeNames returns all known event type labels for filter dropdowns.
@@ -557,7 +778,9 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 </div>`)
 
 	if len(peers) == 0 {
-		h.write(`<div class="stat-label" style="padding:16px">No route flow data yet.</div></div>`)
+		h.write(`<div class="stat-label" style="padding:16px">No route flow data yet.</div>
+<p class="viz-desc">N×N heatmap showing route flow between peers. Rows are source peers, columns are destinations. In count mode, brighter cells mean more routes. In latency mode, warmer colors mean slower propagation. Click a cell for details.</p>
+</div>`)
 		return
 	}
 
@@ -620,7 +843,9 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	}
 	h.writef(`
   <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">%d</span></span>
-</div></div>`, len(peers))
+</div>
+<p class="viz-desc">N×N heatmap showing route flow between peers. Rows are source peers, columns are destinations. In count mode, brighter cells mean more routes. In latency mode, warmer colors mean slower propagation. Click a cell for details.</p>
+</div>`, len(peers))
 }
 
 // writeCountCell renders a single heatmap cell in count mode.

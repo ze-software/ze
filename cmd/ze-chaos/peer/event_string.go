@@ -26,6 +26,8 @@ func (et EventType) String() string {
 		return "reconnecting"
 	case EventWithdrawalSent:
 		return "withdrawal-sent"
+	case EventRouteAction:
+		return "route-action"
 	default:
 		return fmt.Sprintf("unknown-%d", int(et))
 	}

@@ -65,9 +65,10 @@ func TestSchedulerRateZero(t *testing.T) {
 	assert.Empty(t, actions, "rate 0 should produce no actions")
 }
 
-// TestSchedulerRateOne verifies that rate=1.0 fires every interval.
+// TestSchedulerRateOne verifies that rate=1.0 fires for every established peer
+// on every interval tick.
 //
-// VALIDATES: Maximum chaos rate produces an event every tick.
+// VALIDATES: Maximum chaos rate produces one event per established peer per tick.
 // PREVENTS: Rate=1.0 silently capping or missing events.
 func TestSchedulerRateOne(t *testing.T) {
 	cfg := SchedulerConfig{
@@ -89,7 +90,8 @@ func TestSchedulerRateOne(t *testing.T) {
 		fired += len(actions)
 	}
 
-	assert.Equal(t, 10, fired, "rate 1.0 should fire every tick")
+	// Per-peer rate: 4 established peers * 10 ticks * rate 1.0 = 40 actions.
+	assert.Equal(t, 40, fired, "rate 1.0 should fire once per established peer per tick")
 }
 
 // TestSchedulerWarmup verifies no events fire during the warmup period.
@@ -198,9 +200,9 @@ func TestSchedulerIntervalTiming(t *testing.T) {
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	established := []bool{true, true, true, true}
 
-	// Tick at 0s — should fire (first tick).
+	// Tick at 0s — should fire (first tick). Rate=1.0 with 4 peers = 4 actions.
 	a0 := s.Tick(start, established)
-	require.Len(t, a0, 1)
+	require.Len(t, a0, 4)
 
 	// Tick at 2s — too early for next interval.
 	a2 := s.Tick(start.Add(2*time.Second), established)
@@ -208,7 +210,7 @@ func TestSchedulerIntervalTiming(t *testing.T) {
 
 	// Tick at 5s — interval elapsed.
 	a5 := s.Tick(start.Add(5*time.Second), established)
-	assert.Len(t, a5, 1)
+	assert.Len(t, a5, 4)
 }
 
 // TestSchedulerActionTypes verifies that the scheduler produces valid action types.
@@ -232,8 +234,6 @@ func TestSchedulerActionTypes(t *testing.T) {
 		ActionTCPDisconnect:         true,
 		ActionNotificationCease:     true,
 		ActionHoldTimerExpiry:       true,
-		ActionPartialWithdraw:       true,
-		ActionFullWithdraw:          true,
 		ActionDisconnectDuringBurst: true,
 		ActionReconnectStorm:        true,
 		ActionConnectionCollision:   true,
@@ -248,38 +248,4 @@ func TestSchedulerActionTypes(t *testing.T) {
 				"action type %d should be valid", a.Action.Type)
 		}
 	}
-}
-
-// TestSchedulerPartialWithdrawFraction verifies that partial withdrawal
-// actions have a valid fraction (0, 1].
-//
-// VALIDATES: WithdrawFraction is in valid range for partial withdrawals.
-// PREVENTS: Withdrawing 0% (no-op) or >100% (impossible) of routes.
-func TestSchedulerPartialWithdrawFraction(t *testing.T) {
-	cfg := SchedulerConfig{
-		Seed:      999,
-		PeerCount: 4,
-		Rate:      1.0,
-		Interval:  1 * time.Second,
-		Warmup:    0,
-	}
-
-	s := NewScheduler(cfg)
-	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	established := []bool{true, true, true, true}
-
-	found := false
-	for i := range 200 {
-		now := start.Add(time.Duration(i) * time.Second)
-		for _, a := range s.Tick(now, established) {
-			if a.Action.Type == ActionPartialWithdraw {
-				found = true
-				assert.Greater(t, a.Action.WithdrawFraction, 0.0,
-					"fraction should be > 0")
-				assert.LessOrEqual(t, a.Action.WithdrawFraction, 1.0,
-					"fraction should be <= 1.0")
-			}
-		}
-	}
-	assert.True(t, found, "should have generated at least one partial withdrawal over 200 ticks")
 }

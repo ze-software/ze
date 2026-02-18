@@ -18,8 +18,6 @@ func TestActionTypeString(t *testing.T) {
 		{ActionTCPDisconnect, "tcp-disconnect"},
 		{ActionNotificationCease, "notification-cease"},
 		{ActionHoldTimerExpiry, "hold-timer-expiry"},
-		{ActionPartialWithdraw, "partial-withdraw"},
-		{ActionFullWithdraw, "full-withdraw"},
 		{ActionDisconnectDuringBurst, "disconnect-during-burst"},
 		{ActionReconnectStorm, "reconnect-storm"},
 		{ActionConnectionCollision, "connection-collision"},
@@ -56,8 +54,6 @@ func TestActionNeedsReconnect(t *testing.T) {
 		{ActionTCPDisconnect, true},
 		{ActionNotificationCease, true},
 		{ActionHoldTimerExpiry, true},
-		{ActionPartialWithdraw, false},
-		{ActionFullWithdraw, false},
 		{ActionDisconnectDuringBurst, true},
 		{ActionReconnectStorm, true},
 		{ActionConnectionCollision, false},
@@ -79,5 +75,4 @@ func TestActionNeedsReconnect(t *testing.T) {
 func TestChaosActionDefaults(t *testing.T) {
 	var action ChaosAction
 	assert.Equal(t, ActionTCPDisconnect, action.Type)
-	assert.Equal(t, float64(0), action.WithdrawFraction)
 }

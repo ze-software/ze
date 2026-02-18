@@ -84,6 +84,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		} else {
 			d.rw.printf("peer %d | eor-sent | %d routes\n", ev.PeerIndex, ev.Count)
 		}
+	case peer.EventRouteAction:
+		d.maybeStatus(ev.Time)
 	case peer.EventError, peer.EventChaosExecuted, peer.EventReconnecting:
 		d.printLifecycle(ev)
 	}

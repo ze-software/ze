@@ -39,12 +39,22 @@ type Config struct {
 	Mux *http.ServeMux
 
 	// Control is an optional channel for sending control commands
-	// (pause, resume, rate, trigger, stop) to the orchestrator.
-	// When nil, control UI elements are hidden.
+	// (pause, resume, rate, trigger, stop) to the chaos scheduler.
+	// When nil, chaos control UI elements are hidden.
 	Control chan ControlCommand
+
+	// RouteControl is an optional channel for sending control commands
+	// to the route dynamics scheduler. When nil, route control UI is hidden.
+	RouteControl chan ControlCommand
+
+	// Seed is the deterministic seed for this run (displayed in header).
+	Seed uint64
 
 	// ChaosRate is the initial chaos rate (for UI display).
 	ChaosRate float64
+
+	// RouteRate is the initial route dynamics rate (for UI display).
+	RouteRate float64
 
 	// WarmupDuration is the chaos warmup period (for timeline rendering).
 	WarmupDuration time.Duration
@@ -101,6 +111,10 @@ type Dashboard struct {
 	cancel  context.CancelFunc
 	control chan ControlCommand
 
+	// routeControl is the channel for route dynamics control commands.
+	// When nil, route dynamics control UI is hidden.
+	routeControl chan ControlCommand
+
 	// controlLogger logs control events to NDJSON (nil when --event-log not set).
 	controlLogger ControlLogger
 
@@ -139,6 +153,7 @@ func New(cfg Config) (*Dashboard, error) {
 		broker:        broker,
 		logger:        cfg.Logger,
 		control:       cfg.Control,
+		routeControl:  cfg.RouteControl,
 		controlLogger: cfg.ControlLogger,
 		restartCh:     cfg.RestartCh,
 		onStop:        cfg.OnStop,
@@ -149,9 +164,14 @@ func New(cfg Config) (*Dashboard, error) {
 	if cfg.Control != nil {
 		state.Control = ControlState{Rate: cfg.ChaosRate, Status: "running"}
 	}
+	if cfg.RouteControl != nil {
+		state.Control.RouteRate = cfg.RouteRate
+		state.Control.RouteStatus = "running"
+	}
 	if cfg.RestartCh != nil {
 		state.Control.RestartAvailable = true
 	}
+	state.Seed = cfg.Seed
 	state.WarmupDuration = cfg.WarmupDuration
 	state.ConvergenceDeadline = cfg.ConvergenceDeadline
 
@@ -252,6 +272,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		}
 	case peer.EventWithdrawalSent:
 		d.state.TotalWdrawSent += ev.Count
+	case peer.EventRouteAction:
+		d.state.TotalRouteActions++
 	case peer.EventEORSent:
 		// No specific counter.
 	case peer.EventError:
@@ -386,12 +408,13 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 // renderStats returns a minimal stats HTML fragment for SSE.
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderStats() string {
-	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML">` +
+	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
 		`<span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(d.state.PeersUp) + `/` + itoa(d.state.PeerCount) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
 		`</div>`
@@ -410,7 +433,7 @@ func (d *Dashboard) renderConvergence() string {
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderRecentEvents() string {
 	var b strings.Builder
-	b.WriteString(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML">`)
+	b.WriteString(`<div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 	writeRecentEvents(&b, d.state)
 	b.WriteString(`</div>`)
 	return b.String()

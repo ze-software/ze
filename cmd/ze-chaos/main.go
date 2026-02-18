@@ -18,6 +18,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/netip"
@@ -34,6 +35,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/replay"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/report"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/route"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
@@ -57,18 +59,22 @@ func run(args []string) int {
 	ibgpRatio := fs.Float64("ibgp-ratio", 0.3, "Fraction of peers that are iBGP (0.0-1.0)")
 
 	// Route flags
-	routes := fs.Int("routes", 100, "Base routes per peer")
-	heavyPeers := fs.Int("heavy-peers", 1, "Peers sending many routes")
-	heavyRoutes := fs.Int("heavy-routes", 2000, "Routes for heavy peers")
-	churnRate := fs.Float64("churn-rate", 5, "Route changes per second per peer in steady state")
+	routes := fs.Int("routes", 1000, "Base routes per peer")
+	heavyPeersPct := fs.Float64("heavy-peers", 10, "Percentage of peers sending many routes (0-100)")
+	heavyRoutes := fs.Int("heavy-routes", 1_000_000, "Routes for heavy peers (default: full table)")
+	churnRate := fs.Float64("churn-rate", 0.01, "Percentage of routes churning per second per peer")
 
 	// Family flags
 	families := fs.String("families", "", "Only these families (comma-sep)")
 	excludeFamilies := fs.String("exclude-families", "", "Exclude these families (comma-sep)")
 
 	// Chaos flags
-	chaosRate := fs.Float64("chaos-rate", 0.1, "Probability of chaos per interval (0.0-1.0)")
-	chaosInterval := fs.Duration("chaos-interval", 10*time.Second, "Time between chaos checks")
+	chaosRate := fs.Float64("chaos-rate", 0.1, "Per-peer probability of chaos per interval (0.0-1.0)")
+	chaosInterval := fs.Duration("chaos-interval", 1*time.Second, "Time between chaos checks")
+
+	// Route dynamics flags
+	routeRate := fs.Float64("route-rate", 0.0, "Per-peer probability of route action per interval (0.0-1.0, 0=disabled)")
+	routeInterval := fs.Duration("route-interval", 5*time.Second, "Time between route dynamics checks")
 
 	// Network flags
 	port := fs.Int("port", 1850, "Base BGP port for Ze to listen on")
@@ -113,18 +119,22 @@ Scenario:
   --ibgp-ratio <float>       Fraction of peers that are iBGP (default: 0.3)
 
 Routes:
-  --routes <N>               Base routes per peer (default: 100)
-  --heavy-peers <N>          Peers sending many routes (default: 1)
-  --heavy-routes <N>         Routes for heavy peers (default: 2000)
-  --churn-rate <N/s>         Route changes per second per peer (default: 5)
+  --routes <N>               Base routes per peer (default: 1000)
+  --heavy-peers <pct>        Percentage of peers sending many routes (default: 10%%)
+  --heavy-routes <N>         Routes for heavy peers (default: 1000000, full table)
+  --churn-rate <pct>         Percentage of routes churning/s/peer (default: 0.01%%)
 
 Families:
   --families <list>          Only these families (comma-sep, default: all)
   --exclude-families <list>  Exclude these families (comma-sep)
 
 Chaos:
-  --chaos-rate <float>       Probability of chaos per interval (default: 0.1)
-  --chaos-interval <dur>     Time between chaos checks (default: 10s)
+  --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
+  --chaos-interval <dur>     Time between chaos checks (default: 1s)
+
+Route Dynamics:
+  --route-rate <float>       Per-peer probability of route action per interval (default: 0, disabled)
+  --route-interval <dur>     Time between route dynamics checks (default: 5s)
 
 Network:
   --port <N>                 Base BGP port for Ze to listen on (default: 1850)
@@ -235,6 +245,12 @@ Control:
 		return 1
 	}
 
+	// Validate route-rate.
+	if *routeRate < 0 || *routeRate > 1.0 {
+		fmt.Fprintf(os.Stderr, "error: --route-rate must be 0.0-1.0, got %f\n", *routeRate)
+		return 1
+	}
+
 	// Validate ibgp-ratio (clamp silently).
 	if *ibgpRatio < 0 {
 		*ibgpRatio = 0
@@ -259,10 +275,22 @@ Control:
 		*seed = binary.BigEndian.Uint64(buf[:])
 	}
 
-	fmt.Fprintf(os.Stderr, "ze-chaos | seed: %d | peers: %d\n", *seed, *peers)
+	// Compute heavy peer count from percentage.
+	heavyPeers := int(math.Round(float64(*peers) * *heavyPeersPct / 100))
+	if *heavyPeersPct > 0 && heavyPeers < 1 {
+		heavyPeers = 1 // At least 1 heavy peer when percentage is non-zero.
+	}
 
-	// churnRate: steady-state route churn is parsed but not wired to peer simulators.
-	_ = churnRate
+	fmt.Fprintf(os.Stderr, "\n══════════════════════════════════════════\n")
+	fmt.Fprintf(os.Stderr, "  ze-chaos | seed: %d\n", *seed)
+	fmt.Fprintf(os.Stderr, "  peers: %d | routes: %d | heavy: %d×%d\n", *peers, *routes, heavyPeers, *heavyRoutes)
+	fmt.Fprintf(os.Stderr, "══════════════════════════════════════════\n\n")
+
+	// When --churn-rate is specified but --route-rate is not, derive route-rate
+	// from churn-rate (percentage to probability conversion).
+	if *routeRate == 0 && *churnRate > 0 {
+		*routeRate = *churnRate / 100 // churn-rate is a percentage, route-rate is 0.0-1.0
+	}
 
 	// Parse family filters.
 	var familyList, excludeList []string
@@ -280,7 +308,7 @@ Control:
 		IBGPRatio:       *ibgpRatio,
 		LocalAS:         65000,
 		Routes:          *routes,
-		HeavyPeers:      *heavyPeers,
+		HeavyPeers:      heavyPeers,
 		HeavyRoutes:     *heavyRoutes,
 		BasePort:        *port,
 		ListenBase:      *listenBase,
@@ -349,6 +377,7 @@ Control:
 			wd, webErr = web.New(web.Config{
 				Addr:      *webAddr,
 				PeerCount: len(profiles),
+				Seed:      *seed,
 			})
 			if webErr != nil {
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
@@ -421,6 +450,13 @@ Control:
 		Warmup:   *warmup,
 	}
 
+	routeCfg := RouteConfig{
+		Rate:       *routeRate,
+		Interval:   *routeInterval,
+		Warmup:     *warmup,
+		BaseRoutes: *routes,
+	}
+
 	// Restart loop: each iteration runs the full orchestrator with a (possibly new) seed.
 	// On restart, only the seed and profiles change — all other config stays the same.
 	for {
@@ -444,6 +480,7 @@ Control:
 			quiet:               *quiet,
 			start:               start,
 			chaosCfg:            chaosCfg,
+			routeCfg:            routeCfg,
 			zePID:               *zePID,
 			eventLog:            *eventLog,
 			metricsAddr:         *metricsAddr,
@@ -470,7 +507,7 @@ Control:
 				IBGPRatio:       *ibgpRatio,
 				LocalAS:         65000,
 				Routes:          *routes,
-				HeavyPeers:      *heavyPeers,
+				HeavyPeers:      heavyPeers,
 				HeavyRoutes:     *heavyRoutes,
 				BasePort:        *port,
 				ListenBase:      *listenBase,
@@ -583,6 +620,16 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		}
 	}
 
+	// Per-peer route dynamics channels (only allocated when route dynamics is enabled).
+	routeEnabled := cfg.routeCfg.Rate > 0
+	var routeChannels []chan route.Action
+	if routeEnabled {
+		routeChannels = make([]chan route.Action, n)
+		for i := range n {
+			routeChannels[i] = make(chan route.Action, 1)
+		}
+	}
+
 	// Shared event channel with generous buffer.
 	events := make(chan peer.Event, n*1000)
 
@@ -597,6 +644,12 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			var chaosCh <-chan chaos.ChaosAction
 			if chaosEnabled {
 				chaosCh = chaosChannels[prof.Index]
+			}
+
+			// Route dynamics channel for this peer (nil when route dynamics is disabled).
+			var routeCh <-chan route.Action
+			if routeEnabled {
+				routeCh = routeChannels[prof.Index]
 			}
 
 			// Each peer dials its unique Ze-facing port on localhost.
@@ -616,6 +669,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 				Addr:    peerAddr,
 				Events:  events,
 				Chaos:   chaosCh,
+				Routes:  routeCh,
 				ZePID:   cfg.zePID,
 				Verbose: cfg.verbose,
 				Quiet:   cfg.quiet,
@@ -637,6 +691,11 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		go runScheduler(ctx, cfg.chaosCfg, cfg.seed, n, established, chaosChannels, rr.controlCh, cfg.quiet)
 	}
 
+	// Launch route dynamics scheduler goroutine (only when route dynamics is enabled).
+	if routeEnabled {
+		go runRouteScheduler(ctx, cfg.routeCfg, cfg.seed, n, established, routeChannels, rr.routeControlCh, cfg.quiet)
+	}
+
 	// Close events channel when all peer goroutines finish.
 	go func() {
 		wg.Wait()
@@ -656,7 +715,8 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			established.Set(ev.PeerIndex, false)
 		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 			peer.EventEORSent, peer.EventError,
-			peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent:
+			peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent,
+			peer.EventRouteAction:
 			// Other events don't affect established state.
 		}
 
@@ -774,10 +834,11 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 // reportingResult holds everything returned from setupReporting.
 type reportingResult struct {
-	reporter  *report.Reporter
-	cleanup   func()
-	controlCh chan web.ControlCommand
-	webDash   *web.Dashboard
+	reporter       *report.Reporter
+	cleanup        func()
+	controlCh      chan web.ControlCommand
+	routeControlCh chan web.ControlCommand
+	webDash        *web.Dashboard
 }
 
 // setupReporting creates the Reporter with optional consumers based on CLI flags.
@@ -819,9 +880,15 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 		})
 	}
 
-	// Control channel for web dashboard → scheduler communication.
+	// Control channel for web dashboard → chaos scheduler communication.
 	if cfg.webAddr != "" && cfg.chaosCfg.Rate > 0 {
 		controlCh = make(chan web.ControlCommand, 16)
+	}
+
+	// Route control channel for web dashboard → route scheduler communication.
+	var routeControlCh chan web.ControlCommand
+	if cfg.webAddr != "" && cfg.routeCfg.Rate > 0 {
+		routeControlCh = make(chan web.ControlCommand, 16)
 	}
 
 	// Helper to create a web dashboard with common config.
@@ -829,9 +896,12 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 		return web.New(web.Config{
 			Addr:                cfg.webAddr,
 			PeerCount:           peerCount,
+			Seed:                cfg.seed,
 			Mux:                 mux,
 			Control:             controlCh,
+			RouteControl:        routeControlCh,
 			ChaosRate:           cfg.chaosCfg.Rate,
+			RouteRate:           cfg.routeCfg.Rate,
 			WarmupDuration:      cfg.chaosCfg.Warmup,
 			ConvergenceDeadline: cfg.convergenceDeadline,
 			ControlLogger:       controlLogger,
@@ -916,9 +986,10 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 
 	r := report.NewReporter(consumers...)
 	return &reportingResult{
-		reporter:  r,
-		controlCh: controlCh,
-		webDash:   webDashRef,
+		reporter:       r,
+		controlCh:      controlCh,
+		routeControlCh: routeControlCh,
+		webDash:        webDashRef,
 		cleanup: func() {
 			for _, fn := range cleanups {
 				fn()
@@ -1080,6 +1151,78 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | dropped manual %s for peer %d (busy)\n",
 					actionType, idx)
+			}
+		}
+	}
+}
+
+// runRouteScheduler runs the route dynamics scheduler in a goroutine.
+// It mirrors runScheduler but dispatches route.Action instead of chaos.ChaosAction.
+// When controlCh is non-nil, it processes dashboard control commands
+// (pause, resume, rate change, stop).
+func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
+	sched := route.NewScheduler(route.SchedulerConfig{
+		Seed:       seed + 1, // Different seed from chaos to avoid correlated scheduling.
+		PeerCount:  peerCount,
+		Rate:       cfg.Rate,
+		Interval:   cfg.Interval,
+		Warmup:     cfg.Warmup,
+		BaseRoutes: cfg.BaseRoutes,
+	})
+
+	ticker := time.NewTicker(cfg.Interval)
+	defer ticker.Stop()
+
+	paused := false
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case cmd, ok := <-controlCh:
+			if !ok {
+				return
+			}
+			switch cmd.Type {
+			case "pause":
+				paused = true
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | paused\n")
+				}
+			case "resume":
+				paused = false
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | resumed\n")
+				}
+			case "rate":
+				sched.SetRate(cmd.Rate)
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | rate -> %.2f\n", cmd.Rate)
+				}
+			case "stop":
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | stopped by dashboard\n")
+				}
+				return
+			}
+		case now := <-ticker.C:
+			if paused {
+				continue
+			}
+			actions := sched.Tick(now, es.Snapshot())
+			for _, a := range actions {
+				if !quiet {
+					fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | %s -> peer %d\n",
+						a.Action.Type, a.PeerIndex)
+				}
+				select {
+				case channels[a.PeerIndex] <- a.Action:
+				default:
+					if !quiet {
+						fmt.Fprintf(os.Stderr, "ze-chaos | route-sched | dropped %s for peer %d (busy)\n",
+							a.Action.Type, a.PeerIndex)
+					}
+				}
 			}
 		}
 	}

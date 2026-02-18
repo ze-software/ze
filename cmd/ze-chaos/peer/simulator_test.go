@@ -207,7 +207,7 @@ func TestSimulatorSendsRoutes(t *testing.T) {
 		case EventError:
 			t.Fatalf("simulator error: %v", ev.Err)
 		case EventEstablished, EventRouteReceived, EventRouteWithdrawn, EventDisconnected,
-			EventChaosExecuted, EventReconnecting, EventWithdrawalSent:
+			EventChaosExecuted, EventReconnecting, EventWithdrawalSent, EventRouteAction:
 			// Expected but not checked here.
 		}
 	}
@@ -268,7 +268,7 @@ func TestSimulatorShutdownClean(t *testing.T) {
 		case EventDisconnected:
 			disconnected = true
 		case EventRouteSent, EventRouteReceived, EventRouteWithdrawn, EventEORSent, EventError,
-			EventChaosExecuted, EventReconnecting, EventWithdrawalSent:
+			EventChaosExecuted, EventReconnecting, EventWithdrawalSent, EventRouteAction:
 			// Not checked in this test.
 		}
 	}

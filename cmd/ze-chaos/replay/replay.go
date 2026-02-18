@@ -149,6 +149,8 @@ func Run(r io.Reader, w io.Writer) int {
 			reconnections++
 		case peer.EventWithdrawalSent:
 			withdrawn += ev.Count
+		case peer.EventRouteAction:
+			// Route dynamics — no validation action.
 		case peer.EventEORSent, peer.EventError:
 			// Informational — no validation action.
 		}

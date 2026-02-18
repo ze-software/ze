@@ -178,7 +178,7 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 		case EventRouteReceived:
 			announcements = append(announcements, ev.Prefix)
 		case EventEstablished, EventRouteSent, EventEORSent, EventDisconnected, EventError,
-			EventChaosExecuted, EventReconnecting, EventWithdrawalSent:
+			EventChaosExecuted, EventReconnecting, EventWithdrawalSent, EventRouteAction:
 			// Not expected in this test.
 		}
 	}

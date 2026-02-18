@@ -44,7 +44,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ze BGP Chaos</title>
+<title>Ze Chaos</title>
 <link rel="stylesheet" href="/assets/style.css">
 <script src="/assets/htmx.min.js"></script>
 <script src="/assets/sse.js"></script>
@@ -53,20 +53,21 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <div class="layout" hx-ext="sse" sse-connect="/events">
 
 <div class="header">
-  <h1>Ze BGP Chaos</h1>
-  <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: ` + uptime + `</span>
+  <h1>Ze Chaos</h1>
+  <span class="run-info">seed: ` + fmt.Sprintf("%d", s.Seed) + ` | peers: ` + itoa(s.PeerCount) + ` | uptime: <span id="uptime" data-start="` + itoa(int(time.Since(s.StartTime).Seconds())) + `">` + uptime + `</span></span>
 </div>
 
 <div class="content">
 <div class="sidebar">
   <div class="card">
     <h3>Stats</h3>
-    <div id="stats" sse-swap="stats" hx-swap="outerHTML">
+    <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">
       <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
       <span class="stat" title="Total routes announced to peers"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
       <span class="stat" title="Total routes received from peers"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
       <span class="stat" title="Total routes withdrawn by peers"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
       <span class="stat" title="Total withdrawal messages sent to peers"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
+      <span class="stat" title="Total route dynamics actions (churn, partial-withdraw, full-withdraw)"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(s.TotalRouteActions) + `</span></span>
       <span class="stat" title="Total chaos actions executed (disconnects, route drops, etc.)"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
       <span class="stat" title="Total peer reconnections after chaos events"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
     </div>
@@ -74,7 +75,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 
   <div class="card">
     <h3 title="The table shows only the most active peers. Peers rotate in/out based on activity.">Active Set</h3>
-    <div id="active-set-info">
+    <div id="active-set-info" hx-get="/sidebar/active-set" hx-trigger="every 500ms" hx-swap="outerHTML">
       <span class="stat" title="Peers currently shown in the table / maximum visible"><span class="stat-label">Visible </span><span class="stat-value">` + itoa(s.Active.Len()) + `/` + itoa(s.Active.MaxVisible) + `</span></span>
       <span class="stat" title="Time before an inactive peer is removed from the table"><span class="stat-label">TTL </span><span class="stat-value">` + FormatDuration(s.Active.AdaptiveTTL()) + `</span></span>
     </div>
@@ -95,6 +96,11 @@ func writeLayout(w io.Writer, d *Dashboard) {
 		writeControlPanel(w, &s.Control)
 	}
 
+	// Route dynamics control panel (only when route control is configured).
+	if s.Control.RouteStatus != "" {
+		writeRouteControlPanel(w, &s.Control)
+	}
+
 	// Property badges.
 	if len(s.Properties) > 0 {
 		h.write(`
@@ -108,7 +114,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 	h.write(`
   <div class="card">
     <h3>Recent Events</h3>
-    <div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML">`)
+    <div id="events" class="event-list" sse-swap="events" hx-swap="outerHTML" hx-get="/sidebar/events" hx-trigger="every 500ms">`)
 
 	writeRecentEvents(w, s)
 
@@ -164,21 +170,27 @@ func writeLayout(w io.Writer, d *Dashboard) {
   <div id="peer-remove-swap" sse-swap="peer-remove" hx-swap="innerHTML" style="display:none"></div>
 
   <div class="tab-bar">
+    <span class="tab-group-label">Peer</span>
     <button class="active" hx-get="/viz/events" hx-target="#viz-content" hx-swap="innerHTML" hx-trigger="load, click"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Live feed of all BGP and chaos events">Events</button>
+            title="Live feed of all BGP session and routing events">Events</button>
+    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Peer session state changes over time">Timeline</button>
     <button hx-get="/viz/convergence" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Route propagation latency distribution">Convergence</button>
-    <button hx-get="/viz/peer-timeline" hx-target="#viz-content" hx-swap="innerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="Peer session state changes over time">Peer Timeline</button>
-    <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="innerHTML"
-            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
-            title="History of chaos actions executed during the run">Chaos Timeline</button>
     <button hx-get="/viz/route-matrix" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Heatmap of route announce/withdraw flow between peers">Route Matrix</button>
+    <span class="tab-separator"></span>
+    <span class="tab-group-label">Chaos</span>
+    <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Table of chaos actions injected during the run">Events</button>
+    <button hx-get="/viz/chaos-timeline" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Visual timeline of chaos actions over time">Timeline</button>
     <label class="freeze-toggle" title="Pause all live updates (for screenshots or copy/paste)">
       <input type="checkbox" id="freeze-updates" onchange="window._frozen=this.checked"> Freeze
     </label>
@@ -197,6 +209,7 @@ document.body.addEventListener('htmx:responseError',function(){document.getEleme
 document.body.addEventListener('htmx:sseError',function(){document.getElementById('conn-error').style.display='block'});
 document.body.addEventListener('htmx:afterRequest',function(e){if(!e.detail.failed)document.getElementById('conn-error').style.display='none'});
 document.body.addEventListener('htmx:sseOpen',function(){document.getElementById('conn-error').style.display='none'});
+(function(){var el=document.getElementById('uptime');if(!el)return;var s=parseInt(el.dataset.start,10)||0;function fmt(t){var h=Math.floor(t/3600),m=Math.floor((t%3600)/60),sec=t%60;if(h>0)return h+'h'+m+'m'+sec+'s';if(m>0)return m+'m'+sec+'s';return sec+'s';}setInterval(function(){s++;el.textContent=fmt(s)},1000)})();
 </script>
 </body>
 </html>`)
@@ -269,7 +282,7 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool) {
 	for i := len(events) - 1; i >= 0; i-- {
 		ev := events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatDuration(time.Since(ev.Time))
+		elapsed := FormatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
 		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-type %s">%s</span><span>%s</span></div>`,
@@ -294,7 +307,7 @@ func writeRecentEvents(w io.Writer, s *DashboardState) {
 	for i := len(events) - 1; i >= start; i-- {
 		ev := events[i]
 		evClass := eventTypeClass(ev.Type)
-		elapsed := FormatDuration(time.Since(ev.Time))
+		elapsed := FormatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		h.writef(`<div class="event-row"><span class="event-time">%s</span><span class="event-type %s">p%d %s</span></div>`,
 			elapsed, evClass, ev.PeerIndex, label)
@@ -313,6 +326,8 @@ func eventTypeClass(t peer.EventType) string {
 	case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 		peer.EventEORSent, peer.EventWithdrawalSent:
 		return "event-type-route"
+	case peer.EventRouteAction:
+		return "event-type-chaos"
 	}
 	return ""
 }
@@ -340,6 +355,8 @@ func eventTypeLabel(t peer.EventType) string {
 		return "eor"
 	case peer.EventWithdrawalSent:
 		return "withdrawal-sent"
+	case peer.EventRouteAction:
+		return "route-action"
 	}
 	return "unknown"
 }
@@ -361,6 +378,8 @@ func eventDetail(ev peer.Event) string {
 		if ev.Count > 0 {
 			return itoa(ev.Count)
 		}
+	case peer.EventRouteAction:
+		return escapeHTML(ev.ChaosAction)
 	case peer.EventEstablished, peer.EventDisconnected, peer.EventReconnecting:
 		// No extra detail.
 	}

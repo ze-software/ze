@@ -22,6 +22,22 @@ type ChaosConfig struct {
 	Warmup time.Duration
 }
 
+// RouteConfig holds route dynamics parameters passed from CLI flags.
+type RouteConfig struct {
+	// Rate is the probability of firing a route dynamics event per interval (0.0-1.0).
+	// Rate=0 disables route dynamics entirely.
+	Rate float64
+
+	// Interval is the time between route dynamics checks.
+	Interval time.Duration
+
+	// Warmup is the delay before route dynamics events begin firing.
+	Warmup time.Duration
+
+	// BaseRoutes is the base route count per peer (used for churn count calculation).
+	BaseRoutes int
+}
+
 // orchestratorConfig holds all parameters for runOrchestrator.
 type orchestratorConfig struct {
 	profiles            []scenario.PeerProfile
@@ -32,6 +48,7 @@ type orchestratorConfig struct {
 	quiet               bool
 	start               time.Time
 	chaosCfg            ChaosConfig
+	routeCfg            RouteConfig
 	zePID               int
 	eventLog            string
 	metricsAddr         string
@@ -130,5 +147,8 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 
 	case peer.EventWithdrawalSent:
 		ep.Withdrawn += ev.Count
+
+	case peer.EventRouteAction:
+		// Route dynamics actions are informational — counted by the web dashboard.
 	}
 }

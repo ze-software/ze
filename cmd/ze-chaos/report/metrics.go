@@ -83,7 +83,7 @@ func (m *Metrics) ProcessEvent(ev peer.Event) {
 		m.reconnections.Inc()
 	case peer.EventWithdrawalSent:
 		m.routesWithdrawn.Add(float64(ev.Count))
-	case peer.EventRouteWithdrawn, peer.EventEORSent, peer.EventError:
+	case peer.EventRouteWithdrawn, peer.EventEORSent, peer.EventError, peer.EventRouteAction:
 		// No specific metric for these event types.
 	}
 }

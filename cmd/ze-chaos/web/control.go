@@ -10,8 +10,12 @@ import (
 )
 
 const (
+	statusPaused     = "paused"
+	statusRunning    = "running"
 	statusStopped    = "stopped"
 	statusRestarting = "restarting"
+	cssStatusUp      = "status-up"
+	cssStatusDown    = "status-down"
 	cssReconnecting  = "status-reconnecting"
 )
 
@@ -25,7 +29,7 @@ func (d *Dashboard) handleControlPause(w http.ResponseWriter, _ *http.Request) {
 	case d.control <- ControlCommand{Type: "pause"}:
 		d.state.mu.Lock()
 		d.state.Control.Paused = true
-		d.state.Control.Status = "paused"
+		d.state.Control.Status = statusPaused
 		d.state.mu.Unlock()
 		d.logControl("pause", "")
 	default:
@@ -55,7 +59,7 @@ func (d *Dashboard) handleControlResume(w http.ResponseWriter, _ *http.Request) 
 	case d.control <- ControlCommand{Type: "resume"}:
 		d.state.mu.Lock()
 		d.state.Control.Paused = false
-		d.state.Control.Status = "running"
+		d.state.Control.Status = statusRunning
 		d.state.mu.Unlock()
 		d.logControl("resume", "")
 	default:
@@ -87,10 +91,10 @@ func (d *Dashboard) handleControlRate(w http.ResponseWriter, r *http.Request) {
 		d.state.Control.Rate = rate
 		if rate == 0 {
 			d.state.Control.Paused = true
-			d.state.Control.Status = "paused"
+			d.state.Control.Status = statusPaused
 		} else {
 			d.state.Control.Paused = false
-			d.state.Control.Status = "running"
+			d.state.Control.Status = statusRunning
 		}
 		d.state.mu.Unlock()
 		d.logControl("rate", fmt.Sprintf("%.2f", rate))
@@ -260,21 +264,26 @@ func (d *Dashboard) SetPropertyResults(results []PropertyBadge) {
 	d.state.mu.Unlock()
 }
 
-// ControlChannel returns the control command channel, or nil if not configured.
+// ControlChannel returns the chaos control command channel, or nil if not configured.
 func (d *Dashboard) ControlChannel() <-chan ControlCommand {
 	return d.control
 }
 
+// RouteControlChannel returns the route dynamics control command channel, or nil if not configured.
+func (d *Dashboard) RouteControlChannel() <-chan ControlCommand {
+	return d.routeControl
+}
+
 // writeControlPanel renders the control panel HTML fragment.
 func writeControlPanel(w io.Writer, cs *ControlState) {
-	statusClass := "status-up"
+	statusClass := cssStatusUp
 	statusLabel := "Running"
 	switch {
 	case cs.Status == statusRestarting:
 		statusClass = cssReconnecting
 		statusLabel = "Restarting..."
 	case cs.Status == statusStopped:
-		statusClass = "status-down"
+		statusClass = cssStatusDown
 		statusLabel = "Stopped"
 	case cs.Paused:
 		statusClass = cssReconnecting
@@ -406,17 +415,174 @@ func writePropertyBadges(w io.Writer, badges []PropertyBadge) {
 }
 
 // chaosActionTypes returns all known chaos action type names.
+// Route-related actions (partial-withdraw, full-withdraw) are handled by the
+// route dynamics scheduler and are NOT included here.
 func chaosActionTypes() []string {
 	return []string{
 		"tcp-disconnect",
 		"notification-cease",
 		"hold-timer-expiry",
-		"partial-withdraw",
-		"full-withdraw",
 		"disconnect-during-burst",
 		"reconnect-storm",
 		"connection-collision",
 		"malformed-update",
 		"config-reload",
 	}
+}
+
+// handleRouteControlPause handles POST /control/route/pause.
+func (d *Dashboard) handleRouteControlPause(w http.ResponseWriter, _ *http.Request) {
+	if d.routeControl == nil {
+		http.Error(w, "no route control channel", http.StatusServiceUnavailable)
+		return
+	}
+	select {
+	case d.routeControl <- ControlCommand{Type: "pause"}:
+		d.state.mu.Lock()
+		d.state.Control.RoutePaused = true
+		d.state.Control.RouteStatus = statusPaused
+		d.state.mu.Unlock()
+		d.logControl("route-pause", "")
+	default:
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeRouteControlPanel(w, &d.state.Control)
+}
+
+// handleRouteControlResume handles POST /control/route/resume.
+func (d *Dashboard) handleRouteControlResume(w http.ResponseWriter, _ *http.Request) {
+	if d.routeControl == nil {
+		http.Error(w, "no route control channel", http.StatusServiceUnavailable)
+		return
+	}
+	select {
+	case d.routeControl <- ControlCommand{Type: "resume"}:
+		d.state.mu.Lock()
+		d.state.Control.RoutePaused = false
+		d.state.Control.RouteStatus = statusRunning
+		d.state.mu.Unlock()
+		d.logControl("route-resume", "")
+	default:
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeRouteControlPanel(w, &d.state.Control)
+}
+
+// handleRouteControlRate handles POST /control/route/rate.
+func (d *Dashboard) handleRouteControlRate(w http.ResponseWriter, r *http.Request) {
+	if d.routeControl == nil {
+		http.Error(w, "no route control channel", http.StatusServiceUnavailable)
+		return
+	}
+	rateStr := r.FormValue("rate")
+	rate, err := strconv.ParseFloat(rateStr, 64)
+	if err != nil || rate < 0 || rate > 1 {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		h := &htmlWriter{w: w}
+		h.write(`<div id="route-control-error" class="event-type event-type-disconnected">invalid rate (0.0-1.0)</div>`)
+		return
+	}
+	select {
+	case d.routeControl <- ControlCommand{Type: "rate", Rate: rate}:
+		d.state.mu.Lock()
+		d.state.Control.RouteRate = rate
+		if rate == 0 {
+			d.state.Control.RoutePaused = true
+			d.state.Control.RouteStatus = statusPaused
+		} else {
+			d.state.Control.RoutePaused = false
+			d.state.Control.RouteStatus = statusRunning
+		}
+		d.state.mu.Unlock()
+		d.logControl("route-rate", fmt.Sprintf("%.2f", rate))
+	default:
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeRouteControlPanel(w, &d.state.Control)
+}
+
+// handleRouteControlStop handles POST /control/route/stop.
+func (d *Dashboard) handleRouteControlStop(w http.ResponseWriter, _ *http.Request) {
+	if d.routeControl == nil {
+		http.Error(w, "no route control channel", http.StatusServiceUnavailable)
+		return
+	}
+	select {
+	case d.routeControl <- ControlCommand{Type: "stop"}:
+		d.state.mu.Lock()
+		d.state.Control.RouteStatus = statusStopped
+		d.state.mu.Unlock()
+		d.logControl("route-stop", "")
+	default:
+		http.Error(w, "busy", http.StatusServiceUnavailable)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	d.state.RLock()
+	defer d.state.RUnlock()
+	writeRouteControlPanel(w, &d.state.Control)
+}
+
+// writeRouteControlPanel renders the route dynamics control panel HTML fragment.
+func writeRouteControlPanel(w io.Writer, cs *ControlState) {
+	h := &htmlWriter{w: w}
+
+	statusClass := cssStatusUp
+	statusLabel := "Running"
+	switch {
+	case cs.RouteStatus == statusStopped:
+		statusClass = cssStatusDown
+		statusLabel = "Stopped"
+	case cs.RoutePaused:
+		statusClass = cssReconnecting
+		statusLabel = "Paused"
+	}
+
+	h.writef(`<div id="route-control-panel" class="card">
+<h3>Route Dynamics</h3>
+<div class="control-row">
+  <span class="dot %s"></span> <span>%s</span>
+</div>`, statusClass, statusLabel)
+
+	if cs.RouteStatus != statusStopped {
+		if cs.RoutePaused {
+			h.write(`
+<div class="control-row">
+  <span class="badge" hx-post="/control/route/resume" hx-target="#route-control-panel" hx-swap="outerHTML" title="Resume route dynamics">Resume</span>
+  <span class="badge" hx-post="/control/route/stop" hx-target="#route-control-panel" hx-swap="outerHTML" title="Stop route dynamics entirely">Stop</span>
+</div>`)
+		} else {
+			h.write(`
+<div class="control-row">
+  <span class="badge" hx-post="/control/route/pause" hx-target="#route-control-panel" hx-swap="outerHTML" title="Pause route dynamics (no new route changes)">Pause</span>
+  <span class="badge" hx-post="/control/route/stop" hx-target="#route-control-panel" hx-swap="outerHTML" title="Stop route dynamics entirely">Stop</span>
+</div>`)
+		}
+
+		// Rate slider.
+		h.writef(`
+<div class="control-row">
+  <label class="stat-label">Rate: </label>
+  <input type="range" min="0" max="100" value="%d" class="rate-slider"
+         hx-post="/control/route/rate" hx-target="#route-control-panel" hx-swap="outerHTML"
+         hx-trigger="change" name="rate"
+         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'
+         title="Adjust route dynamics frequency (0%% = no changes, 100%% = maximum rate)">
+  <span class="stat-value">%.0f%%</span>
+</div>`, int(cs.RouteRate*100), cs.RouteRate*100)
+	}
+
+	h.write("\n</div>")
 }

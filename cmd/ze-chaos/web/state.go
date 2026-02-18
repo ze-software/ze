@@ -40,6 +40,11 @@ type ControlState struct {
 	Rate             float64
 	Status           string // "running", "paused", "stopped", "restarting"
 	RestartAvailable bool   // true when restart channel is configured
+
+	// Route dynamics control state.
+	RoutePaused bool
+	RouteRate   float64
+	RouteStatus string // "running", "paused", "stopped", "disabled"
 }
 
 // ControlLogger logs dashboard control events to the NDJSON event log.
@@ -363,7 +368,7 @@ func PromotionPriorityForEvent(evType peer.EventType) (PromotionPriority, bool) 
 	switch evType {
 	case peer.EventDisconnected, peer.EventError:
 		return PriorityHigh, true
-	case peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent:
+	case peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent, peer.EventRouteAction:
 		return PriorityMedium, true
 	case peer.EventRouteWithdrawn:
 		return PriorityLow, true
@@ -705,16 +710,18 @@ type DashboardState struct {
 	Active *ActiveSet
 
 	// Global counters.
-	TotalAnnounced  int
-	TotalReceived   int
-	TotalMissing    int
-	TotalChaos      int
-	TotalReconnects int
-	TotalWithdrawn  int // Withdrawals received (EventRouteWithdrawn).
-	TotalWdrawSent  int // Withdrawals sent by chaos peers (EventWithdrawalSent).
-	PeersUp         int
+	TotalAnnounced    int
+	TotalReceived     int
+	TotalMissing      int
+	TotalChaos        int
+	TotalReconnects   int
+	TotalWithdrawn    int // Withdrawals received (EventRouteWithdrawn).
+	TotalWdrawSent    int // Withdrawals sent by chaos peers (EventWithdrawalSent).
+	TotalRouteActions int // Route dynamics actions executed (EventRouteAction).
+	PeersUp           int
 
 	// Run metadata.
+	Seed      uint64
 	StartTime time.Time
 	PeerCount int
 
@@ -804,4 +811,24 @@ func FormatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dms", d.Milliseconds())
 	}
 	return d.Truncate(time.Millisecond).String()
+}
+
+// FormatElapsed formats a duration for "time ago" display.
+// Less precise than FormatDuration — sub-second precision is noise for elapsed times.
+func FormatElapsed(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	s := int(d.Seconds())
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	m := s / 60
+	s %= 60
+	if m < 60 {
+		return fmt.Sprintf("%dm%ds", m, s)
+	}
+	h := m / 60
+	m %= 60
+	return fmt.Sprintf("%dh%dm", h, m)
 }

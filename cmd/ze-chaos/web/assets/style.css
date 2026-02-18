@@ -278,17 +278,24 @@ html, body {
 .event-list .event-time,
 .event-feed .event-time {
   color: var(--text-muted);
-  min-width: 60px;
+  width: 90px;
+  min-width: 90px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .event-list .event-peer,
 .event-feed .event-peer {
-  min-width: 30px;
+  width: 36px;
+  min-width: 36px;
+  flex-shrink: 0;
 }
 
 .event-list .event-type,
 .event-feed .event-type {
-  min-width: 100px;
+  width: 110px;
+  min-width: 110px;
+  flex-shrink: 0;
 }
 
 .event-list .event-detail,
@@ -315,6 +322,24 @@ html, body {
   color: var(--text-muted);
   cursor: pointer;
   padding: 4px 8px;
+}
+
+.tab-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 4px 8px 8px;
+  user-select: none;
+}
+
+.tab-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
 .tab-bar button {
@@ -410,12 +435,37 @@ html, body {
 
 .viz-header h3 { margin-bottom: 0; }
 
+.viz-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  line-height: 1.4;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
 /* Event feed */
 .event-feed {
   max-height: 400px;
   overflow-y: auto;
   font-family: var(--font-mono);
   font-size: 12px;
+}
+
+/* Chaos events table */
+.chaos-events-table {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.chaos-events-table .peer-table {
+  font-size: 12px;
+}
+
+.chaos-events-table .peer-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
 }
 
 /* Convergence histogram */
@@ -501,6 +551,40 @@ html, body {
   top: 0;
   height: 100%;
   min-width: 1px;
+}
+
+/* Time scale axis */
+.timeline-scale {
+  height: 24px;
+  margin-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 2px;
+}
+
+.timeline-axis {
+  background: transparent !important;
+  height: 24px;
+  overflow: visible;
+}
+
+.timeline-tick {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 6px;
+  background: var(--text-muted);
+}
+
+.timeline-tick-label {
+  position: absolute;
+  top: 8px;
+  left: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
 }
 
 /* Chaos timeline */

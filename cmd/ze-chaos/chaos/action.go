@@ -14,10 +14,6 @@ const (
 	ActionNotificationCease
 	// ActionHoldTimerExpiry stops sending KEEPALIVEs so Ze detects expiry.
 	ActionHoldTimerExpiry
-	// ActionPartialWithdraw withdraws a random subset of routes (stays connected).
-	ActionPartialWithdraw
-	// ActionFullWithdraw withdraws all routes (stays connected).
-	ActionFullWithdraw
 	// ActionDisconnectDuringBurst closes the connection during initial route sending.
 	ActionDisconnectDuringBurst
 	// ActionReconnectStorm disconnects and rapidly reconnects 2 times.
@@ -39,10 +35,6 @@ func (a ActionType) String() string {
 		return "notification-cease"
 	case ActionHoldTimerExpiry:
 		return "hold-timer-expiry"
-	case ActionPartialWithdraw:
-		return "partial-withdraw"
-	case ActionFullWithdraw:
-		return "full-withdraw"
 	case ActionDisconnectDuringBurst:
 		return "disconnect-during-burst"
 	case ActionReconnectStorm:
@@ -68,10 +60,6 @@ func ActionTypeFromString(s string) (ActionType, bool) {
 		return ActionNotificationCease, true
 	case "hold-timer-expiry":
 		return ActionHoldTimerExpiry, true
-	case "partial-withdraw":
-		return ActionPartialWithdraw, true
-	case "full-withdraw":
-		return ActionFullWithdraw, true
 	case "disconnect-during-burst":
 		return ActionDisconnectDuringBurst, true
 	case "reconnect-storm":
@@ -93,7 +81,7 @@ func (a ActionType) NeedsReconnect() bool {
 	switch a {
 	case ActionTCPDisconnect, ActionNotificationCease, ActionHoldTimerExpiry, ActionDisconnectDuringBurst, ActionReconnectStorm:
 		return true
-	case ActionPartialWithdraw, ActionFullWithdraw, ActionConnectionCollision, ActionMalformedUpdate, ActionConfigReload:
+	case ActionConnectionCollision, ActionMalformedUpdate, ActionConfigReload:
 		return false
 	default:
 		return false
@@ -104,8 +92,4 @@ func (a ActionType) NeedsReconnect() bool {
 type ChaosAction struct {
 	// Type identifies what kind of chaos to perform.
 	Type ActionType
-
-	// WithdrawFraction is the fraction of routes to withdraw (0.0-1.0).
-	// Only used for ActionPartialWithdraw.
-	WithdrawFraction float64
 }

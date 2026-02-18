@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/chaos"
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/route"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
@@ -51,6 +52,9 @@ type SimulatorConfig struct {
 
 	// Chaos receives chaos actions from the scheduler. Nil means no chaos.
 	Chaos <-chan chaos.ChaosAction
+
+	// Routes receives route dynamics actions from the route scheduler. Nil means no route dynamics.
+	Routes <-chan route.Action
 
 	// ZePID is the Ze process ID for config-reload chaos events.
 	// Zero means config-reload actions are skipped.
@@ -405,6 +409,12 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 		chaosCh = make(<-chan chaos.ChaosAction)
 	}
 
+	// Nil-safe route dynamics channel: if nil, create a never-firing channel.
+	routeCh := cfg.Routes
+	if routeCh == nil {
+		routeCh = make(<-chan route.Action)
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -430,7 +440,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				return
 			}
 		case action := <-chaosCh:
-			result := executeChaos(ctx, action, conn, routes, keepaliveStop, p, cfg, emit)
+			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit)
 			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String()})
 			if result.Disconnected {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
@@ -438,13 +448,16 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				emit(Event{Type: EventDisconnected})
 				return
 			}
+		case action := <-routeCh:
+			executeRoute(action, conn, routes, sender, p, cfg, emit)
+			emit(Event{Type: EventRouteAction, RouteAction: action.Type.String()})
 		}
 	}
 }
 
 // executeChaos handles a single chaos action on the simulator's live connection.
 // stopKeepalive stops the keepalive timer/ticker (works with both real and virtual time).
-func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, routes []netip.Prefix,
+func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn,
 	stopKeepalive func(), p SimProfile, cfg SimulatorConfig, emit func(Event),
 ) ChaosResult {
 	switch action.Type {
@@ -461,18 +474,6 @@ func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, 
 		// Stop sending KEEPALIVEs — Ze will detect hold-timer expiry.
 		stopKeepalive()
 		return ChaosResult{Disconnected: false}
-
-	case chaos.ActionPartialWithdraw:
-		withdrawn := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
-		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn)})
-		return ChaosResult{WithdrawnPrefixes: withdrawn}
-
-	case chaos.ActionFullWithdraw:
-		if err := sendWithdrawal(conn, routes); err != nil {
-			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
-		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(routes)})
-		return ChaosResult{WithdrawnPrefixes: routes}
 
 	case chaos.ActionDisconnectDuringBurst:
 		// During steady-state this acts like a TCP disconnect.
@@ -519,6 +520,61 @@ func executeChaos(ctx context.Context, action chaos.ChaosAction, conn net.Conn, 
 	default:
 		return ChaosResult{}
 	}
+}
+
+// executeRoute handles a single route dynamics action on the simulator's live connection.
+// Route actions never disconnect the session — they only modify the route table.
+func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
+	sender *Sender, p SimProfile, cfg SimulatorConfig, emit func(Event),
+) {
+	switch action.Type {
+	case route.ActionChurn:
+		// Churn: withdraw N routes, then immediately re-announce them.
+		// Simulates normal internet route instability.
+		selected := pickRandomRoutes(routes, action.ChurnCount, cfg.Seed, p.Index)
+		if err := sendWithdrawal(conn, selected); err != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending churn withdrawal: %w", err)})
+			return
+		}
+		emit(Event{Type: EventWithdrawalSent, Count: len(selected)})
+		// Re-announce the churned routes.
+		for _, prefix := range selected {
+			data := sender.BuildRoute(prefix)
+			if _, writeErr := conn.Write(data); writeErr != nil {
+				emit(Event{Type: EventError, Err: fmt.Errorf("sending churn re-announce: %w", writeErr)})
+				return
+			}
+			emit(Event{Type: EventRouteSent, Prefix: prefix})
+		}
+
+	case route.ActionPartialWithdraw:
+		withdrawn := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
+		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn)})
+
+	case route.ActionFullWithdraw:
+		if err := sendWithdrawal(conn, routes); err != nil {
+			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
+		}
+		emit(Event{Type: EventWithdrawalSent, Count: len(routes)})
+	}
+}
+
+// pickRandomRoutes selects n random routes using a deterministic PRNG.
+func pickRandomRoutes(routes []netip.Prefix, n int, seed uint64, peerIndex int) []netip.Prefix {
+	if len(routes) == 0 || n <= 0 {
+		return nil
+	}
+	if n > len(routes) {
+		n = len(routes)
+	}
+	//nolint:gosec // Deterministic PRNG intentional for reproducibility.
+	rng := rand.New(rand.NewSource(int64(seed) + int64(peerIndex) + time.Now().UnixNano()))
+	indices := rng.Perm(len(routes))
+	selected := make([]netip.Prefix, n)
+	for i := range n {
+		selected[i] = routes[indices[i]]
+	}
+	return selected
 }
 
 // executeReconnectStorm performs rapid connect/disconnect cycles to stress

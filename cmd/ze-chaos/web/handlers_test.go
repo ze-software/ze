@@ -49,7 +49,7 @@ func TestHandleIndex(t *testing.T) {
 		"sse.js",
 		"style.css",
 		"sse-connect=\"/events\"",
-		"Ze BGP Chaos",
+		"Ze Chaos",
 		"peer-tbody",
 	} {
 		if !strings.Contains(body, want) {
@@ -464,6 +464,7 @@ func TestEventTypeLabel(t *testing.T) {
 		peer.EventRouteWithdrawn,
 		peer.EventEORSent,
 		peer.EventWithdrawalSent,
+		peer.EventRouteAction,
 	}
 	for _, et := range types {
 		label := eventTypeLabel(et)
@@ -959,5 +960,223 @@ func TestEmbeddedAssets(t *testing.T) {
 		if len(data) == 0 {
 			t.Errorf("%s is empty", path)
 		}
+	}
+}
+
+// TestRouteControlHandlers verifies route dynamics control handlers update state
+// and return route control panel HTML.
+//
+// VALIDATES: Pause, resume, rate, and stop handlers update route control state correctly.
+// PREVENTS: Route control handlers not wired, state not updating, or panel not rendering.
+func TestRouteControlHandlers(t *testing.T) {
+	t.Parallel()
+
+	logger := &mockControlLogger{}
+	routeControlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.routeControl = routeControlCh
+	d.controlLogger = logger
+	// Initialize route control state.
+	d.state.Control.RouteRate = 0.5
+	d.state.Control.RouteStatus = statusRunning
+	defer d.broker.Close()
+
+	// Pause.
+	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", nil)
+	w := httptest.NewRecorder()
+	d.handleRouteControlPause(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("pause status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, `id="route-control-panel"`) {
+		t.Error("pause response missing route-control-panel div")
+	}
+	d.state.RLock()
+	if !d.state.Control.RoutePaused {
+		t.Error("RoutePaused should be true after pause")
+	}
+	if d.state.Control.RouteStatus != statusPaused {
+		t.Errorf("RouteStatus = %q, want 'paused'", d.state.Control.RouteStatus)
+	}
+	d.state.RUnlock()
+
+	// Resume.
+	req = httptest.NewRequest(http.MethodPost, "/control/route/resume", nil)
+	w = httptest.NewRecorder()
+	d.handleRouteControlResume(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("resume status = %d, want 200", w.Code)
+	}
+	d.state.RLock()
+	if d.state.Control.RoutePaused {
+		t.Error("RoutePaused should be false after resume")
+	}
+	if d.state.Control.RouteStatus != statusRunning {
+		t.Errorf("RouteStatus = %q, want 'running'", d.state.Control.RouteStatus)
+	}
+	d.state.RUnlock()
+
+	// Rate.
+	req = httptest.NewRequest(http.MethodPost, "/control/route/rate", strings.NewReader("rate=0.30"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w = httptest.NewRecorder()
+	d.handleRouteControlRate(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("rate status = %d, want 200", w.Code)
+	}
+	d.state.RLock()
+	if d.state.Control.RouteRate != 0.30 {
+		t.Errorf("RouteRate = %f, want 0.30", d.state.Control.RouteRate)
+	}
+	d.state.RUnlock()
+
+	// Stop.
+	req = httptest.NewRequest(http.MethodPost, "/control/route/stop", nil)
+	w = httptest.NewRecorder()
+	d.handleRouteControlStop(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("stop status = %d, want 200", w.Code)
+	}
+	d.state.RLock()
+	if d.state.Control.RouteStatus != "stopped" {
+		t.Errorf("RouteStatus = %q, want 'stopped'", d.state.Control.RouteStatus)
+	}
+	d.state.RUnlock()
+
+	// Verify all 4 control events were logged.
+	if len(logger.calls) != 4 {
+		t.Fatalf("got %d log calls, want 4: %+v", len(logger.calls), logger.calls)
+	}
+	expected := []controlLogEntry{
+		{command: "route-pause", value: ""},
+		{command: "route-resume", value: ""},
+		{command: "route-rate", value: "0.30"},
+		{command: "route-stop", value: ""},
+	}
+	for i, want := range expected {
+		got := logger.calls[i]
+		if got.command != want.command || got.value != want.value {
+			t.Errorf("call[%d] = {%q, %q}, want {%q, %q}", i, got.command, got.value, want.command, want.value)
+		}
+	}
+}
+
+// TestRouteControlNoChannel verifies 503 when route control channel is nil.
+//
+// VALIDATES: Route control handlers return 503 when routeControl is nil.
+// PREVENTS: Panic on nil channel send.
+func TestRouteControlNoChannel(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	// d.routeControl is nil (default).
+	t.Cleanup(func() { d.broker.Close() })
+
+	handlers := []struct {
+		name    string
+		handler func(http.ResponseWriter, *http.Request)
+	}{
+		{"pause", d.handleRouteControlPause},
+		{"resume", d.handleRouteControlResume},
+		{"stop", d.handleRouteControlStop},
+	}
+	for _, h := range handlers {
+		t.Run(h.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodPost, "/control/route/"+h.name, nil)
+			w := httptest.NewRecorder()
+			h.handler(w, req)
+			if w.Code != http.StatusServiceUnavailable {
+				t.Errorf("%s: status = %d, want 503", h.name, w.Code)
+			}
+		})
+	}
+}
+
+// TestRouteControlRateInvalid verifies invalid rate values are rejected.
+//
+// VALIDATES: Rate handler rejects out-of-range and non-numeric values.
+// PREVENTS: Setting negative rate or crashing on bad input.
+func TestRouteControlRateInvalid(t *testing.T) {
+	t.Parallel()
+
+	routeControlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.routeControl = routeControlCh
+	d.state.Control.RouteStatus = statusRunning
+	t.Cleanup(func() { d.broker.Close() })
+
+	tests := []struct {
+		name string
+		rate string
+	}{
+		{"negative", "-0.1"},
+		{"over_one", "1.5"},
+		{"non_numeric", "abc"},
+		{"empty", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req := httptest.NewRequest(http.MethodPost, "/control/route/rate",
+				strings.NewReader("rate="+tt.rate))
+			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+			w := httptest.NewRecorder()
+			d.handleRouteControlRate(w, req)
+			body := w.Body.String()
+			if !strings.Contains(body, "invalid") {
+				t.Errorf("rate=%q: response should contain 'invalid': %s", tt.rate, body)
+			}
+		})
+	}
+}
+
+// TestRouteControlChannelFull verifies 503 when route control channel is at capacity.
+//
+// VALIDATES: Non-blocking send returns "busy" when route control channel full.
+// PREVENTS: Handler blocking when route scheduler is busy.
+func TestRouteControlChannelFull(t *testing.T) {
+	t.Parallel()
+
+	routeControlCh := make(chan ControlCommand, 16)
+	d := newTestDashboard(5)
+	d.routeControl = routeControlCh
+	d.state.Control.RouteStatus = statusRunning
+	defer d.broker.Close()
+
+	// Fill the channel.
+	for range 16 {
+		routeControlCh <- ControlCommand{Type: "test"}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", nil)
+	w := httptest.NewRecorder()
+	d.handleRouteControlPause(w, req)
+
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("status = %d, want 503 when channel full", w.Code)
+	}
+}
+
+// TestProcessEventRouteAction verifies TotalRouteActions counter increments.
+//
+// VALIDATES: EventRouteAction increments TotalRouteActions counter.
+// PREVENTS: Route actions not being counted in the dashboard.
+func TestProcessEventRouteAction(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteAction, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteAction, PeerIndex: 1, Time: now})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	if d.state.TotalRouteActions != 2 {
+		t.Errorf("TotalRouteActions = %d, want 2", d.state.TotalRouteActions)
 	}
 }
