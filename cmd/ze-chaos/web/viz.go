@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 // escapeAttr escapes a string for safe use in HTML attributes.
@@ -141,8 +143,9 @@ func writeEventStream(w io.Writer, s *DashboardState, peerFilter, typeFilter str
 		elapsed := FormatElapsed(time.Since(ev.Time))
 		label := eventTypeLabel(ev.Type)
 		detail := eventDetail(ev)
-		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-peer %s">p%d</span><span class="event-type %s">%s</span><span class="event-detail">%s</span></div>`,
-			elapsed, evClass, ev.PeerIndex, evClass, label, detail)
+		detailStyle := chaosDetailStyle(ev)
+		h.writef(`<div class="event-row"><span class="event-time">%s ago</span><span class="event-peer %s">p%d</span><span class="event-type %s">%s</span><span class="event-detail"%s>%s</span></div>`,
+			elapsed, evClass, ev.PeerIndex, evClass, label, detailStyle, detail)
 	}
 
 	h.write(`</div>
@@ -490,6 +493,7 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
   <tbody>`)
 
 	// Show most recent first, capped at maxRows.
+	_, colorMap := chaosActionColors()
 	start := 0
 	if len(s.ChaosHistory) > maxRows {
 		start = len(s.ChaosHistory) - maxRows
@@ -497,8 +501,12 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
 	for i := len(s.ChaosHistory) - 1; i >= start; i-- {
 		entry := s.ChaosHistory[i]
 		elapsed := FormatDuration(entry.Time.Sub(s.StartTime))
-		h.writef(`<tr><td>%s</td><td>p%d</td><td>%s</td></tr>`,
-			elapsed, entry.PeerIndex, escapeHTML(entry.Action))
+		color := colorMap[entry.Action]
+		if color == "" {
+			color = "var(--text-secondary)"
+		}
+		h.writef(`<tr><td>%s</td><td>p%d</td><td style="color:%s">%s</td></tr>`,
+			elapsed, entry.PeerIndex, color, escapeHTML(entry.Action))
 	}
 
 	h.writef(`</tbody></table></div>
@@ -508,6 +516,20 @@ func writeChaosEvents(w io.Writer, s *DashboardState) {
 </div>
 <p class="viz-desc">Table of chaos actions injected during the run. Shows the most recent %d actions with timestamps relative to run start, target peer, and action type.</p>
 </div>`, len(s.ChaosHistory), min(len(s.ChaosHistory), maxRows), maxRows)
+}
+
+// chaosDetailStyle returns an inline style attribute for chaos/route-action events,
+// coloring the detail text to match the chaos timeline markers. Returns empty string
+// for non-chaos events.
+func chaosDetailStyle(ev peer.Event) string {
+	if ev.Type != peer.EventChaosExecuted && ev.Type != peer.EventRouteAction {
+		return ""
+	}
+	_, colorMap := chaosActionColors()
+	if color := colorMap[ev.ChaosAction]; color != "" {
+		return fmt.Sprintf(` style="color:%s"`, color)
+	}
+	return ""
 }
 
 // chaosActionColors returns the ordered action→color mapping for chaos timeline
@@ -892,7 +914,7 @@ func writeCountCell(w io.Writer, m *RouteMatrix, src, dst, maxVal int, family st
 	}
 	var style string
 	if count > 0 {
-		style = fmt.Sprintf(` style="background:rgba(88,166,255,%.2f)"`, float64(intensity)/100.0)
+		style = fmt.Sprintf(` style="background:rgba(88,166,255,%.2f);color:#fff"`, float64(intensity)/100.0)
 	}
 	title := fmt.Sprintf("p%d→p%d: %d routes", src, dst, count)
 	h.writef(`<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)
@@ -913,7 +935,7 @@ func writeLatencyCell(w io.Writer, m *RouteMatrix, src, dst int, maxLatency time
 	// Use warm colors (orange→red) for latency instead of blue.
 	var style string
 	if avg > 0 {
-		style = fmt.Sprintf(` style="background:rgba(219,109,40,%.2f)"`, float64(intensity)/100.0)
+		style = fmt.Sprintf(` style="background:rgba(219,109,40,%.2f);color:#fff"`, float64(intensity)/100.0)
 	}
 	title := fmt.Sprintf("p%d→p%d: avg %s", src, dst, FormatDuration(avg))
 	h.writef(`<div class="heatmap-cell"%s title="%s" hx-get="/viz/route-matrix/cell?src=%d&dst=%d" hx-target="#cell-detail" hx-swap="outerHTML">`, style, title, src, dst)

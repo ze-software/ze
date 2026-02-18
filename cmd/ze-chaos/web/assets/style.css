@@ -865,6 +865,18 @@ html, body {
   cursor: pointer;
 }
 
+/* Action impact description */
+.action-impact {
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  padding: 4px 6px;
+  background: var(--bg-primary);
+  border-radius: 3px;
+  border-left: 2px solid var(--yellow);
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .content {

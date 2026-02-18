@@ -324,15 +324,16 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 </div>`, int(cs.Rate*100), cs.Rate*100)
 
 		// Trigger dropdown.
-		_, _ = fmt.Fprint(w, `
+		h := &htmlWriter{w: w}
+		h.write(`
 <div class="control-row">
   <select name="action" hx-get="/control/trigger-form" hx-target="#trigger-params" hx-swap="innerHTML"
           hx-trigger="change" hx-include="this">
     <option value="" title="Manually trigger a chaos action on selected peers">Trigger...</option>`)
 		for _, at := range chaosActionTypes() {
-			_, _ = fmt.Fprintf(w, `<option value="%s">%s</option>`, at, at)
+			h.writef(`<option value="%s" title="%s">%s</option>`, at, escapeHTML(chaosActionImpact(at)), at)
 		}
-		_, _ = fmt.Fprint(w, `
+		h.write(`
   </select>
 </div>
 <div id="trigger-params"></div>
@@ -366,25 +367,31 @@ func writeTriggerForm(w io.Writer, actionType string) {
 	if actionType == "" {
 		return
 	}
+	h := &htmlWriter{w: w}
 
-	_, _ = fmt.Fprint(w, `<div class="control-row">`)
+	// Show impact description for the selected action.
+	if desc := chaosActionImpact(actionType); desc != "" {
+		h.writef(`<div class="action-impact">%s</div>`, escapeHTML(desc))
+	}
+
+	h.write(`<div class="control-row">`)
 
 	// Peer selection.
-	_, _ = fmt.Fprint(w, `<label class="stat-label">Peers: </label>
+	h.write(`<label class="stat-label">Peers: </label>
 <input type="text" name="peers" placeholder="all (or 0,3,7)" class="control-input">`)
 
 	// Action-specific parameters.
 	if actionType == "partial-withdraw" {
-		_, _ = fmt.Fprint(w, `
+		h.write(`
 <label class="stat-label">Fraction: </label>
 <input type="number" name="fraction" value="0.3" step="0.1" min="0.1" max="1.0" class="control-input">`)
 	}
 
-	_, _ = fmt.Fprintf(w, `
+	h.writef(`
 <span class="badge" hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML"
       hx-include="[name='action'],[name='peers'],[name='fraction']"
       hx-vals='{"action":"%s"}'>Execute</span>`, escapeJSONInAttr(actionType))
-	_, _ = fmt.Fprint(w, `</div>`)
+	h.write(`</div>`)
 }
 
 // writePropertyBadges renders property result badges.
@@ -427,6 +434,31 @@ func chaosActionTypes() []string {
 		"connection-collision",
 		"malformed-update",
 		"config-reload",
+	}
+}
+
+// chaosActionImpact returns a short human-readable description of what each
+// chaos action does and its impact on BGP sessions and routes.
+func chaosActionImpact(action string) string {
+	switch action {
+	case "tcp-disconnect":
+		return "Drops the TCP connection immediately. Peer loses session and all routes until reconnection."
+	case "notification-cease":
+		return "Sends a BGP NOTIFICATION (Cease) then closes. Graceful shutdown \u2014 peer knows why the session ended."
+	case "hold-timer-expiry":
+		return "Stops sending KEEPALIVEs. Peer detects expiry after hold-time (typically 90s). Slow disruption."
+	case "disconnect-during-burst":
+		return "Drops connection while routes are still being announced (before EOR). Ze has partial routing state."
+	case "reconnect-storm":
+		return "Disconnects and rapidly reconnects 2 times. Stresses session setup and route re-announcement."
+	case "connection-collision":
+		return "Opens a second TCP connection while the first is active. Tests RFC 4271 collision resolution. No route loss."
+	case "malformed-update":
+		return "Sends an UPDATE with invalid attributes. Tests RFC 7606 error handling. Session may or may not drop."
+	case "config-reload":
+		return "Sends SIGHUP to the Ze process. Triggers config re-read. Sessions stay up unless config changed."
+	default:
+		return ""
 	}
 }
 
