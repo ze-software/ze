@@ -70,6 +70,8 @@ func (m *mockReactor) SignalAPIReady()                                          
 func (m *mockReactor) AddAPIProcessCount(_ int)                                        {}
 func (m *mockReactor) SignalPluginStartupComplete()                                    {}
 func (m *mockReactor) SignalPeerAPIReady(_ string)                                     {}
+func (m *mockReactor) RegisterCacheConsumer(_ string)                                  {}
+func (m *mockReactor) UnregisterCacheConsumer(_ string)                                {}
 
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8) error {
 	m.teardownCalls = append(m.teardownCalls, struct {
@@ -165,7 +167,7 @@ func (m *mockReactor) RetainUpdate(id uint64) error {
 	return nil
 }
 
-func (m *mockReactor) ReleaseUpdate(id uint64) error {
+func (m *mockReactor) ReleaseUpdate(id uint64, _ string) error {
 	m.releasedIDs = append(m.releasedIDs, id)
 	return nil
 }
@@ -175,7 +177,7 @@ func (m *mockReactor) DeleteUpdate(id uint64) error {
 	return nil
 }
 
-func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64) error {
+func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string) error {
 	m.forwardedUpdates = append(m.forwardedUpdates, struct {
 		sel *selector.Selector
 		id  uint64

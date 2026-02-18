@@ -57,7 +57,8 @@ type Process struct {
 
 	// Session state (per-process API connection state)
 	// Note: ACK is controlled by serial prefix (#N), not per-process state
-	syncEnabled atomic.Bool // Whether to wait for wire transmission (default: false)
+	syncEnabled   atomic.Bool // Whether to wait for wire transmission (default: false)
+	cacheConsumer atomic.Bool // Whether plugin participates in cache consumer tracking
 
 	// Wire encoding for API messages (default: WireEncodingHex = 0)
 	wireEncodingIn  atomic.Uint32 // Inbound: events ze→Process
@@ -172,6 +173,17 @@ func (p *Process) SyncEnabled() bool {
 // SetSync enables or disables sync mode for this process.
 func (p *Process) SetSync(enabled bool) {
 	p.syncEnabled.Store(enabled)
+}
+
+// IsCacheConsumer returns whether this plugin participates in cache consumer tracking.
+// Cache consumers must forward or release each UPDATE they receive.
+func (p *Process) IsCacheConsumer() bool {
+	return p.cacheConsumer.Load()
+}
+
+// SetCacheConsumer marks whether this plugin participates in cache consumer tracking.
+func (p *Process) SetCacheConsumer(enabled bool) {
+	p.cacheConsumer.Store(enabled)
 }
 
 // WireEncodingIn returns the inbound wire encoding (events ze→Process).

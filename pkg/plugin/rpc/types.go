@@ -20,6 +20,7 @@ type DeclareRegistrationInput struct {
 	WantsConfig       []string      `json:"wants-config,omitempty"`
 	Schema            *SchemaDecl   `json:"schema,omitempty"`
 	WantsValidateOpen bool          `json:"wants-validate-open,omitempty"`
+	CacheConsumer     bool          `json:"cache-consumer,omitempty"`
 }
 
 // FamilyDecl declares an address family the plugin handles.

@@ -85,3 +85,7 @@ func (m *mockReactor) AddAPIProcessCount(_ int) {}
 func (m *mockReactor) SignalPluginStartupComplete() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
+
+func (m *mockReactor) RegisterCacheConsumer(_ string) {}
+
+func (m *mockReactor) UnregisterCacheConsumer(_ string) {}

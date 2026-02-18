@@ -732,6 +732,10 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 	reg := registrationFromRPC(&regInput)
 	reg.Name = proc.config.Name
 	proc.registration = reg
+	proc.SetCacheConsumer(regInput.CacheConsumer)
+	if regInput.CacheConsumer && s.reactor != nil {
+		s.reactor.RegisterCacheConsumer(proc.Name())
+	}
 
 	// Register with registry
 	if err := s.registry.Register(reg); err != nil {
@@ -1204,6 +1208,13 @@ func (s *Server) cleanupProcess(proc *Process) {
 	if s.subscriptions != nil {
 		s.subscriptions.ClearProcess(proc)
 	}
+
+	// Remove cache consumer tracking for this plugin.
+	// UnregisterConsumer decrements pending counts for unacked entries
+	// so they can be evicted instead of leaking.
+	if proc.IsCacheConsumer() && s.reactor != nil {
+		s.reactor.UnregisterCacheConsumer(proc.Name())
+	}
 }
 
 // handleClient creates and manages a client connection.
@@ -1295,6 +1306,7 @@ func (s *Server) removeClient(client *Client) {
 // OnMessageReceived handles raw BGP messages from peers.
 // msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 // Delegates to BGPHooks.OnMessageReceived when set.
+// Returns the count of cache-consumer plugins that successfully received the event.
 func (s *Server) OnMessageReceived(peer PeerInfo, msg any) int {
 	if s.bgpHooks == nil || s.bgpHooks.OnMessageReceived == nil {
 		return 0

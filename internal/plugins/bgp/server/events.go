@@ -20,6 +20,10 @@ var logger = slogutil.LazyLogger("bgp.server")
 
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
+// Returns the count of cache-consumer plugins that successfully received the event.
+// Only plugins that declared cache-consumer: true during registration AND where
+// delivery succeeded are counted. Non-cache-consumer plugins receive the event
+// but are not counted (they don't participate in cache lifecycle tracking).
 func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if s.Context().Err() != nil {
 		return 0 // Server shutting down, skip event delivery
@@ -35,6 +39,7 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peer.Address.String())
 	logger().Debug("OnMessageReceived matched", "count", len(procs))
 
+	var cacheConsumerCount int
 	for _, proc := range procs {
 		output := formatMessageForSubscription(encoder, peer, msg, proc.Format())
 		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
@@ -50,10 +55,12 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 
 		if err != nil && s.Context().Err() == nil {
 			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
+		} else if err == nil && proc.IsCacheConsumer() {
+			cacheConsumerCount++
 		}
 	}
 
-	return len(procs)
+	return cacheConsumerCount
 }
 
 // messageTypeToEventType converts BGP message type to event type string.

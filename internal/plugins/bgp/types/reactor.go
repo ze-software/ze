@@ -169,7 +169,8 @@ type BGPReactor interface {
 	// --- UPDATE cache (5 methods) ---
 
 	// ForwardUpdate forwards a cached UPDATE to peers matching the selector.
-	ForwardUpdate(sel *selector.Selector, updateID uint64) error
+	// pluginName identifies which plugin is forwarding (for per-plugin ack tracking).
+	ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string) error
 
 	// DeleteUpdate removes an update from the cache without forwarding.
 	DeleteUpdate(updateID uint64) error
@@ -177,8 +178,10 @@ type BGPReactor interface {
 	// RetainUpdate prevents eviction of a cached UPDATE.
 	RetainUpdate(updateID uint64) error
 
-	// ReleaseUpdate allows eviction of a previously retained UPDATE.
-	ReleaseUpdate(updateID uint64) error
+	// ReleaseUpdate handles cache release with two paths based on caller identity.
+	// Cache consumer (pluginName non-empty): acks the entry (FIFO validated).
+	// Non-consumer (pluginName empty): decrements API-level retain count only.
+	ReleaseUpdate(updateID uint64, pluginName string) error
 
 	// ListUpdates returns all cached msg-ids.
 	ListUpdates() []uint64

@@ -83,7 +83,7 @@ func bgpCacheHelp() (*plugin.Response, error) {
 			"commands": []map[string]string{
 				{"command": "bgp cache list", "description": "List cached message IDs"},
 				{"command": "bgp cache <id> retain", "description": "Prevent eviction of cached message"},
-				{"command": "bgp cache <id> release", "description": "Allow eviction (reset TTL)"},
+				{"command": "bgp cache <id> release", "description": "Ack without forwarding (plugin) or undo retain (API)"},
 				{"command": "bgp cache <id> expire", "description": "Remove from cache immediately"},
 				{"command": "bgp cache <id> forward <sel>", "description": "Forward cached UPDATE to peers"},
 			},
@@ -130,13 +130,15 @@ func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Respon
 	}, nil
 }
 
-// handleBgpCacheRelease allows eviction of a cached message.
+// handleBgpCacheRelease acks without forwarding (cache consumer) or undoes retain (non-consumer).
+// Cache consumer: removes calling plugin from consumer set (FIFO validated).
+// Non-consumer (including non-cache-consumer plugins): decrements API-level retain count.
 func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
-	if err := r.ReleaseUpdate(id); err != nil {
+	if err := r.ReleaseUpdate(id, cacheConsumerNameFromCtx(ctx)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("release failed: %v", err),
@@ -174,7 +176,7 @@ func handleBgpCacheExpire(ctx *plugin.CommandContext, id uint64) (*plugin.Respon
 	}, nil
 }
 
-// handleBgpCacheForward forwards a cached UPDATE to peers.
+// handleBgpCacheForward forwards a cached UPDATE to peers and records plugin ack.
 func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
@@ -195,7 +197,7 @@ func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string)
 	if bgpErr != nil {
 		return errResp, bgpErr
 	}
-	if err := r.ForwardUpdate(sel, id); err != nil {
+	if err := r.ForwardUpdate(sel, id, cacheConsumerNameFromCtx(ctx)); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("forward failed: %v", err),
@@ -209,4 +211,15 @@ func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string)
 			"selector": sel.String(),
 		},
 	}, nil
+}
+
+// cacheConsumerNameFromCtx returns the plugin name if the caller is a cache consumer.
+// Returns empty string for non-plugin callers and for plugins that did not
+// declare cache-consumer: true during registration. Non-cache-consumer plugins
+// are treated the same as external callers for cache operations.
+func cacheConsumerNameFromCtx(ctx *plugin.CommandContext) string {
+	if ctx.Process != nil && ctx.Process.IsCacheConsumer() {
+		return ctx.Process.Name()
+	}
+	return ""
 }

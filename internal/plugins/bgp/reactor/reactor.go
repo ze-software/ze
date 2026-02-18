@@ -106,12 +106,8 @@ type Config struct {
 	// Plugins request specific roots (e.g., "bgp") and receive that subtree as JSON.
 	ConfigTree map[string]any
 
-	// RecentUpdateTTL is how long update-ids remain valid for forwarding.
-	// Default: 60s. Zero disables caching (forwarding won't work).
-	RecentUpdateTTL time.Duration
-
-	// RecentUpdateMax is the maximum number of cached updates.
-	// Default: 100000. Zero means no limit (not recommended).
+	// RecentUpdateMax is the maximum number of cached updates (soft limit).
+	// Default: 1000000. Zero means no limit (not recommended).
 	RecentUpdateMax int
 
 	// MaxSessions limits how many peer sessions can complete before shutdown.
@@ -156,7 +152,7 @@ type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
 	// peer contains full peer information for proper JSON encoding.
 	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
-	// Returns the number of subscribed plugins that received the event (consumer count).
+	// Returns the count of cache-consumer plugins that successfully received the event.
 	OnMessageReceived(peer plugin.PeerInfo, msg any) int
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
@@ -3144,8 +3140,9 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 
 // ForwardUpdate forwards a cached UPDATE to peers matching the selector.
 // Looks up the update by ID from the cache and sends to matching peers.
-// Decrements consumer count after forwarding; cache retains the entry
-// until all consumers are done and TTL expires.
+//
+// If pluginName is non-empty (cache consumer), records plugin ack after forwarding.
+// Non-cache-consumer callers can still forward but don't participate in ack tracking.
 //
 // Zero-copy optimization: When source and destination encoding contexts match
 // (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
@@ -3154,14 +3151,25 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
-func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64) error {
+func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string) error {
 	// Get read-only access to cached update (non-destructive)
-	// Cache retains buffer ownership; Decrement() when done
+	// Cache retains buffer ownership; Ack() when done to record plugin acknowledgment
 	update, ok := a.r.recentUpdates.Get(updateID)
 	if !ok {
 		return ErrUpdateExpired
 	}
-	defer a.r.recentUpdates.Decrement(updateID)
+	// Ack the entry after forwarding if caller is a cache consumer.
+	// Deferred so ack happens even on partial forwarding failures.
+	// Non-cache-consumer callers (pluginName == "") skip the ack — they
+	// are not tracked in the consumer set and must not pollute pluginLastAck.
+	if pluginName != "" {
+		defer func() {
+			if ackErr := a.r.recentUpdates.Ack(updateID, pluginName); ackErr != nil {
+				cacheLogger().Warn("cache ack after forward failed",
+					"id", updateID, "plugin", pluginName, "err", ackErr)
+			}
+		}()
+	}
 
 	// Get matching peers
 	a.r.mu.RLock()
@@ -3709,9 +3717,19 @@ func (a *reactorAPIAdapter) RetainUpdate(updateID uint64) error {
 	return nil
 }
 
-// ReleaseUpdate allows eviction of a previously retained UPDATE.
-// Resets TTL to default expiration time.
-func (a *reactorAPIAdapter) ReleaseUpdate(updateID uint64) error {
+// ReleaseUpdate handles cache release with two paths based on caller identity.
+// Cache consumer (pluginName non-empty): acks the entry (FIFO validated),
+// decrementing the pending consumer count. Does NOT decrement retain count.
+// Non-consumer (pluginName empty): decrements API-level retain count only.
+func (a *reactorAPIAdapter) ReleaseUpdate(updateID uint64, pluginName string) error {
+	// If called by a plugin, ack the entry (decrements pending consumer count, FIFO validated).
+	if pluginName != "" {
+		if err := a.r.recentUpdates.Ack(updateID, pluginName); err != nil {
+			return err
+		}
+		return nil
+	}
+	// Non-plugin caller: just decrement retain count
 	if !a.r.recentUpdates.Release(updateID) {
 		return ErrUpdateExpired
 	}
@@ -3743,6 +3761,16 @@ func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
 	a.r.SignalPeerAPIReady(peerAddr)
 }
 
+// RegisterCacheConsumer initializes FIFO tracking for a cache-consumer plugin.
+func (a *reactorAPIAdapter) RegisterCacheConsumer(name string) {
+	a.r.recentUpdates.RegisterConsumer(name)
+}
+
+// UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.
+func (a *reactorAPIAdapter) UnregisterCacheConsumer(name string) {
+	a.r.recentUpdates.UnregisterConsumer(name)
+}
+
 // SendRawMessage sends raw bytes to a peer.
 // If msgType is 0, payload is a full BGP packet (user provides marker+header).
 // If msgType is non-zero, payload is message body (we add the header).
@@ -3760,14 +3788,9 @@ func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, p
 
 // New creates a new reactor with the given configuration.
 func New(config *Config) *Reactor {
-	// Apply defaults for recent update cache
-	ttl := config.RecentUpdateTTL
-	if ttl == 0 {
-		ttl = 60 * time.Second // Default: 60 seconds
-	}
 	maxEntries := config.RecentUpdateMax
 	if maxEntries == 0 {
-		maxEntries = 100000 // Default: 100k entries
+		maxEntries = 1000000 // Default: 1M entries
 	}
 
 	return &Reactor{
@@ -3780,7 +3803,7 @@ func New(config *Config) *Reactor {
 		ribIn:           rib.NewIncomingRIB(),
 		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:        NewWatchdogManager(),
-		recentUpdates:   NewRecentUpdateCache(ttl, maxEntries),
+		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		configTree:      config.ConfigTree,
 	}
 }
@@ -4178,17 +4201,17 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Deliver to plugin subscribers (may trigger forward commands that use the cache).
-	var consumers int
+	var consumerCount int
 	if direction == "sent" {
 		receiver.OnMessageSent(peerInfo, msg)
 	} else {
-		consumers = receiver.OnMessageReceived(peerInfo, msg)
+		consumerCount = receiver.OnMessageReceived(peerInfo, msg)
 	}
 
-	// Activate the cache entry with the actual consumer count.
-	// If no consumers subscribed, entry becomes normally TTL-evictable.
+	// Activate the cache entry with the count of cache-consumer plugins that received the event.
+	// If no consumers received it, entry is evicted immediately.
 	if kept {
-		r.recentUpdates.Activate(messageID, consumers)
+		r.recentUpdates.Activate(messageID, consumerCount)
 	}
 
 	return kept

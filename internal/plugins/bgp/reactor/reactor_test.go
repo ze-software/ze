@@ -1957,7 +1957,7 @@ func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) i
 			r.onReceived(peer, typedMsg)
 		}
 	}
-	return 0 // Test receiver reports zero consumers
+	return 0 // Test receiver reports no consumers
 }
 
 func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {

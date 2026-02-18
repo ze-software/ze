@@ -27,7 +27,7 @@ const (
 type BGPHooks struct {
 	// OnMessageReceived handles BGP message delivery to subscribed plugins.
 	// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
-	// Returns the number of subscribed plugins that received the event.
+	// Returns the count of cache-consumer plugins that successfully received the event.
 	OnMessageReceived func(s *Server, peer PeerInfo, msg any) int
 
 	// OnPeerStateChange handles peer state change delivery to subscribed plugins.
@@ -159,6 +159,16 @@ type ReactorLifecycle interface {
 
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	SignalPeerAPIReady(peerAddr string)
+
+	// --- Cache consumer lifecycle (2 methods) ---
+
+	// RegisterCacheConsumer initializes FIFO tracking for a cache-consumer plugin.
+	// Called when a plugin declares cache-consumer: true during Stage 1 registration.
+	RegisterCacheConsumer(name string)
+
+	// UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.
+	// Called when a cache-consumer plugin disconnects or exits.
+	UnregisterCacheConsumer(name string)
 }
 
 // PeerProcessBinding describes which plugin receives messages from a peer.

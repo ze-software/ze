@@ -1168,18 +1168,20 @@ func (m *mockReactorBatch) FlushRIBOut() int                                    
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }
-func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
-func (m *mockReactorBatch) GetConfigTree() map[string]any                           { return nil }
-func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                          {}
-func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64) error      { return nil }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                             { return nil }
-func (m *mockReactorBatch) RetainUpdate(_ uint64) error                             { return nil }
-func (m *mockReactorBatch) ReleaseUpdate(_ uint64) error                            { return nil }
-func (m *mockReactorBatch) ListUpdates() []uint64                                   { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                                         {}
-func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                {}
-func (m *mockReactorBatch) SignalPluginStartupComplete()                            {}
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                             {}
+func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig      { return nil }
+func (m *mockReactorBatch) GetConfigTree() map[string]any                                { return nil }
+func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                               {}
+func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string) error { return nil }
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                                  { return nil }
+func (m *mockReactorBatch) RetainUpdate(_ uint64) error                                  { return nil }
+func (m *mockReactorBatch) ReleaseUpdate(_ uint64, _ string) error                       { return nil }
+func (m *mockReactorBatch) ListUpdates() []uint64                                        { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                                              {}
+func (m *mockReactorBatch) AddAPIProcessCount(_ int)                                     {}
+func (m *mockReactorBatch) SignalPluginStartupComplete()                                 {}
+func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                                  {}
+func (m *mockReactorBatch) RegisterCacheConsumer(_ string)                               {}
+func (m *mockReactorBatch) UnregisterCacheConsumer(_ string)                             {}
 func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil
 }
