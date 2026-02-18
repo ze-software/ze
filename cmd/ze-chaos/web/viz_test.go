@@ -706,8 +706,8 @@ func TestHandleVizChaosTimeline(t *testing.T) {
 	defer d.broker.Close()
 
 	now := time.Now()
-	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, Time: now, ChaosAction: "disconnect"})
-	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now.Add(time.Second), ChaosAction: "withdraw"})
+	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, Time: now, ChaosAction: "tcp-disconnect"})
+	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now.Add(time.Second), ChaosAction: "hold-timer-expiry"})
 
 	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", nil)
 	w := httptest.NewRecorder()
@@ -725,11 +725,67 @@ func TestHandleVizChaosTimeline(t *testing.T) {
 	if !strings.Contains(body, "chaos-marker") {
 		t.Error("response missing chaos markers")
 	}
-	if !strings.Contains(body, "disconnect") {
-		t.Error("response missing disconnect action in legend or tooltip")
+	if !strings.Contains(body, "tcp-disconnect") {
+		t.Error("response missing tcp-disconnect action in legend or tooltip")
 	}
-	if !strings.Contains(body, "withdraw") {
-		t.Error("response missing withdraw action")
+	if !strings.Contains(body, "hold-timer-expiry") {
+		t.Error("response missing hold-timer-expiry action")
+	}
+}
+
+// TestChaosTimelineColorsMatchActionTypes verifies each real chaos action gets
+// its designated color instead of falling through to default gray.
+//
+// VALIDATES: Timeline markers use action-specific colors from the color map.
+// PREVENTS: All markers rendering as gray due to mismatched action names.
+func TestChaosTimelineColorsMatchActionTypes(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Every real chaos.ActionType.String() value and its expected color.
+	actions := map[string]string{
+		"tcp-disconnect":          "#f85149",
+		"notification-cease":      "#ffa657",
+		"hold-timer-expiry":       "#d29922",
+		"disconnect-during-burst": "#ff7b72",
+		"reconnect-storm":         "#db6d28",
+		"connection-collision":    "#d2a8ff",
+		"malformed-update":        "#bc8cff",
+		"config-reload":           "#79c0ff",
+	}
+
+	now := time.Now()
+	i := 0
+	for action := range actions {
+		d.ProcessEvent(peer.Event{
+			Type:        peer.EventChaosExecuted,
+			PeerIndex:   i % 5,
+			Time:        now.Add(time.Duration(i) * time.Second),
+			ChaosAction: action,
+		})
+		i++
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", nil)
+	w := httptest.NewRecorder()
+
+	d.handleVizChaosTimeline(w, req)
+
+	body := w.Body.String()
+
+	for action, color := range actions {
+		// Check marker has the correct inline background color.
+		marker := "background:" + color
+		if !strings.Contains(body, marker) {
+			t.Errorf("action %q: expected marker with %s, not found in output", action, marker)
+		}
+		// Check legend swatch has the correct color.
+		swatch := `style="background:` + color + `"></span>` + action
+		if !strings.Contains(body, swatch) {
+			t.Errorf("action %q: expected legend swatch with color %s", action, color)
+		}
 	}
 }
 

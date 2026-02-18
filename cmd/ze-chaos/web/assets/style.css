@@ -588,8 +588,16 @@ html, body {
 }
 
 /* Chaos timeline */
+.chaos-timeline-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
 .chaos-timeline {
-  padding: 16px 0;
+  padding: 4px 0;
 }
 
 .chaos-timeline-track {
