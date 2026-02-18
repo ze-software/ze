@@ -350,6 +350,7 @@ func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.Plugi
 		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
 		ConfiguredFamilies: configuredFamilies,
 		Plugins:            plugins,
+		RecentUpdateMax:    env.Reactor.CacheMax,
 	}
 
 	// Always set API socket path so CLI can connect to the daemon

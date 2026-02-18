@@ -100,7 +100,9 @@ type APIEnv struct {
 
 // ReactorEnv holds reactor-related settings.
 type ReactorEnv struct {
-	Speed float64 // Reactor loop time multiplier
+	Speed    float64 // Reactor loop time multiplier
+	CacheTTL int     // Update cache TTL in seconds (0=immediate, default 60)
+	CacheMax int     // Update cache max entries (0=unlimited, default 1000000)
 }
 
 // ChaosEnv holds chaos fault injection settings.
@@ -169,6 +171,8 @@ func (e *Environment) loadDefaults() {
 
 	// Reactor defaults
 	e.Reactor.Speed = 1.0
+	e.Reactor.CacheTTL = 60      // 60 seconds
+	e.Reactor.CacheMax = 1000000 // 1M entries
 
 	// Chaos defaults (disabled by default)
 	e.Chaos.Rate = 0.1 // Default rate when chaos IS enabled (seed > 0)
@@ -406,6 +410,30 @@ func validateChaosRate(value string) error {
 	return nil
 }
 
+// validateCacheTTL checks cache TTL is in valid range (0-3600 seconds).
+func validateCacheTTL(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid cache-ttl %q: %w", value, err)
+	}
+	if n < 0 || n > 3600 {
+		return fmt.Errorf("cache-ttl %d out of range: must be 0-3600", n)
+	}
+	return nil
+}
+
+// validateCacheMax checks cache max is non-negative.
+func validateCacheMax(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid cache-max %q: %w", value, err)
+	}
+	if n < 0 {
+		return fmt.Errorf("cache-max %d must be >= 0", n)
+	}
+	return nil
+}
+
 // validateSpeed checks reactor speed is in valid range (0.1-10.0).
 func validateSpeed(value string) error {
 	f, err := strconv.ParseFloat(value, 64)
@@ -537,6 +565,8 @@ var envOptions = map[string]map[string]envOption{
 			},
 			validate: validateSpeed,
 		},
+		"cache-ttl": {setter: setIntField(func(e *Environment) *int { return &e.Reactor.CacheTTL }), validate: validateCacheTTL},
+		"cache-max": {setter: setIntField(func(e *Environment) *int { return &e.Reactor.CacheMax }), validate: validateCacheMax},
 	},
 	"debug": {
 		"pdb":           {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.PDB })},

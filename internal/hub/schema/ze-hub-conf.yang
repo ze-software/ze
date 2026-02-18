@@ -109,6 +109,8 @@ module ze-hub-conf {
         container reactor {
             description "Reactor settings";
             leaf speed { type string; }
+            leaf cache-ttl { type uint32; description "Update cache TTL in seconds (0=immediate, default 60)"; }
+            leaf cache-max { type uint32; description "Update cache max entries (0=unlimited, default 1000000)"; }
         }
 
         container debug {
