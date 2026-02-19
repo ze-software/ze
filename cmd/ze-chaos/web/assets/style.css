@@ -949,19 +949,20 @@ html, body {
   white-space: nowrap;
 }
 
-.family-matrix thead tr:nth-child(2) th {
-  top: 26px;
-  border-bottom: 1px solid var(--border);
-}
-
-.fm-sub {
-  font-size: 9px !important;
-  color: var(--text-muted) !important;
-  font-weight: 400 !important;
-}
 
 .fm-peer-col { text-align: left !important; width: 50px; }
 .fm-status-col { text-align: left !important; width: 90px; }
+.fm-dir-col { width: 42px; }
+.fm-dir {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: left !important;
+  white-space: nowrap;
+  padding-right: 4px !important;
+}
+.fm-send-row td { border-bottom: none !important; }
+.fm-recv-row td { border-bottom: 1px solid var(--border); }
 
 .family-matrix td {
   padding: 3px 8px;
@@ -975,12 +976,8 @@ html, body {
 }
 
 .fm-cell {
-  text-align: left !important;
-}
-
-.fm-row {
+  text-align: center !important;
   font-size: 11px;
-  line-height: 1.5;
 }
 
 .fm-val {

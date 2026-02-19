@@ -1089,23 +1089,17 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 	h.write(`<div class="family-matrix-scroll"><table class="family-matrix">
 <thead><tr>
   <th class="fm-peer-col">Peer</th>
-  <th class="fm-status-col">Status</th>`)
+  <th class="fm-status-col">Status</th>
+  <th class="fm-dir-col"></th>`)
 
 	for _, fam := range families {
 		h.writef(`<th class="fm-family-col">%s</th>`, escapeHTML(fam))
 	}
 	h.write(`<th class="fm-total-col">Total</th>
-</tr>
-<tr>
-  <th></th><th></th>`)
-	for range families {
-		h.write(`<th class="fm-sub">S: sent/target<br>R: recv/expected</th>`)
-	}
-	h.write(`<th class="fm-sub">S: sent/target<br>R: recv/expected</th>
 </tr></thead>
 <tbody>`)
 
-	// Second pass: render rows with sent/target and recv/expected.
+	// Second pass: render two rows per peer (SEND then RECV).
 	var grandRecv int
 
 	for _, idx := range peerIndices {
@@ -1120,11 +1114,18 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			negotiated[f] = true
 		}
 
-		h.write(`<tr>`)
-		h.writef(`<td class="fm-peer-col">%d</td>`, idx)
-		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
-
 		var peerSentTarget int
+		for _, fam := range families {
+			if negotiated[fam] {
+				peerSentTarget += ps.FamilySentTarget[fam]
+			}
+		}
+
+		// SEND row.
+		h.writef(`<tr class="fm-send-row"><td class="fm-peer-col" rowspan="2">%d</td>`, idx)
+		h.writef(`<td rowspan="2"><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
+		h.write(`<td class="fm-dir">SEND</td>`)
+
 		for _, fam := range families {
 			if !negotiated[fam] {
 				h.write(`<td></td>`)
@@ -1132,48 +1133,67 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			}
 			sent := ps.FamilySent[fam]
 			target := ps.FamilySentTarget[fam]
-			recv := ps.FamilyRecv[fam]
-			expected := famTotalSent[fam] - ps.FamilySent[fam]
-			peerSentTarget += target
 			wl := colWidthL[fam]
 			wr := colWidthR[fam]
-			h.writef(`<td class="fm-cell"><div class="fm-row">S: <span class="fm-val %s" style="min-width:%dch">%d</span>`,
+			h.writef(`<td class="fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
 				familyCellClass(sent, target), wl, sent)
 			if target > 0 {
 				h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, wr, target)
 			}
-			h.writef(`</div><div class="fm-row">R: <span class="fm-val %s" style="min-width:%dch">%d</span>`,
-				familyCellClass(recv, expected), wl, recv)
-			if expected > 0 {
-				h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, wr, expected)
-			}
-			h.write(`</div></td>`)
+			h.write(`</td>`)
 		}
 
 		totalExpected := grandSent - ps.RoutesSent
-		h.writef(`<td class="fm-total fm-cell"><div class="fm-row">S: <span class="fm-val %s" style="min-width:%dch">%d</span>`,
+		h.writef(`<td class="fm-total fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
 			familyCellClass(ps.RoutesSent, peerSentTarget), totalWidthL, ps.RoutesSent)
 		if peerSentTarget > 0 {
 			h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, totalWidthR, peerSentTarget)
 		}
-		h.writef(`</div><div class="fm-row">R: <span class="fm-val %s" style="min-width:%dch">%d</span>`,
+		h.write(`</td></tr>`)
+
+		// RECV row.
+		h.write(`<tr class="fm-recv-row"><td class="fm-dir">RECV</td>`)
+
+		for _, fam := range families {
+			if !negotiated[fam] {
+				h.write(`<td></td>`)
+				continue
+			}
+			sent := ps.FamilySent[fam]
+			recv := ps.FamilyRecv[fam]
+			expected := famTotalSent[fam] - sent
+			wl := colWidthL[fam]
+			wr := colWidthR[fam]
+			h.writef(`<td class="fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
+				familyCellClass(recv, expected), wl, recv)
+			if expected > 0 {
+				h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, wr, expected)
+			}
+			h.write(`</td>`)
+		}
+
+		h.writef(`<td class="fm-total fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
 			familyCellClass(ps.RoutesRecv, totalExpected), totalWidthL, ps.RoutesRecv)
 		if totalExpected > 0 {
 			h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, totalWidthR, totalExpected)
 		}
-		h.write(`</div></td>`)
+		h.write(`</td></tr>`)
 		grandRecv += ps.RoutesRecv
-
-		h.write(`</tr>`)
 	}
 
-	// Footer row with per-family totals.
+	// Footer row with per-family totals (same span structure as data rows for / alignment).
 	h.write(`</tbody><tfoot><tr class="fm-footer">
-  <td colspan="2">Total</td>`)
+  <td colspan="3">Total</td>`)
 	for _, fam := range families {
-		h.writef(`<td>%d / %d</td>`, famTotalSent[fam], famTotalTarget[fam])
+		wl := colWidthL[fam]
+		wr := colWidthR[fam]
+		h.writef(`<td class="fm-cell"><span class="fm-val" style="min-width:%dch">%d</span>`+
+			`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span></td>`,
+			wl, famTotalSent[fam], wr, famTotalTarget[fam])
 	}
-	h.writef(`<td>%d / %d</td>`, grandSent, grandTarget)
+	h.writef(`<td class="fm-total fm-cell"><span class="fm-val" style="min-width:%dch">%d</span>`+
+		`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span></td>`,
+		totalWidthL, grandSent, totalWidthR, grandTarget)
 	h.write(`</tr></tfoot></table></div>`)
 
 	h.writef(`<div class="histogram-stats">
@@ -1183,9 +1203,9 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
   <span class="stat"><span class="stat-label">Received </span><span class="stat-value">%d</span></span>
 </div>`, len(peerIndices), len(families), grandSent, grandRecv)
 
-	h.write(`<p class="viz-desc">Per-family route propagation for every peer. Each cell shows S: sent/target and R: received/expected. ` +
+	h.write(`<p class="viz-desc">Per-family route propagation for every peer. Each peer has a SEND row (sent/target) and RECV row (received/expected). ` +
 		`Green = complete, red = zero, orange = partial. Color applies to the count only. ` +
-		`A dash means the peer did not negotiate that family.</p>
+		`Empty cells mean the peer did not negotiate that family.</p>
 </div>`)
 }
 
