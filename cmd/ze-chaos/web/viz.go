@@ -1065,23 +1065,22 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			if !neg[fam] {
 				continue
 			}
-			sent := ps.FamilySent[fam]
 			target := ps.FamilySentTarget[fam]
 			recv := ps.FamilyRecv[fam]
-			expected := famTotalSent[fam] - sent
+			expected := famTotalTarget[fam] - target
 			pst += target
-			if wl := digitCount(max(sent, recv)); wl > colWidthL[fam] {
+			if wl := digitCount(max(ps.FamilySent[fam], recv)); wl > colWidthL[fam] {
 				colWidthL[fam] = wl
 			}
 			if wr := digitCount(max(target, expected)); wr > colWidthR[fam] {
 				colWidthR[fam] = wr
 			}
 		}
-		totalExpected := grandSent - ps.RoutesSent
+		totalExpectedTarget := grandTarget - pst
 		if wl := digitCount(max(ps.RoutesSent, ps.RoutesRecv)); wl > totalWidthL {
 			totalWidthL = wl
 		}
-		if wr := digitCount(max(pst, totalExpected)); wr > totalWidthR {
+		if wr := digitCount(max(pst, totalExpectedTarget)); wr > totalWidthR {
 			totalWidthR = wr
 		}
 	}
@@ -1143,7 +1142,7 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			h.write(`</td>`)
 		}
 
-		totalExpected := grandSent - ps.RoutesSent
+		recvExpectedTotal := grandTarget - peerSentTarget
 		h.writef(`<td class="fm-total fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
 			familyCellClass(ps.RoutesSent, peerSentTarget), totalWidthL, ps.RoutesSent)
 		if peerSentTarget > 0 {
@@ -1159,9 +1158,8 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 				h.write(`<td></td>`)
 				continue
 			}
-			sent := ps.FamilySent[fam]
 			recv := ps.FamilyRecv[fam]
-			expected := famTotalSent[fam] - sent
+			expected := famTotalTarget[fam] - ps.FamilySentTarget[fam]
 			wl := colWidthL[fam]
 			wr := colWidthR[fam]
 			h.writef(`<td class="fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
@@ -1173,9 +1171,9 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 		}
 
 		h.writef(`<td class="fm-total fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
-			familyCellClass(ps.RoutesRecv, totalExpected), totalWidthL, ps.RoutesRecv)
-		if totalExpected > 0 {
-			h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, totalWidthR, totalExpected)
+			familyCellClass(ps.RoutesRecv, recvExpectedTotal), totalWidthL, ps.RoutesRecv)
+		if recvExpectedTotal > 0 {
+			h.writef(`<span class="fm-dim"> / </span><span class="fm-val fm-dim" style="min-width:%dch">%d</span>`, totalWidthR, recvExpectedTotal)
 		}
 		h.write(`</td></tr>`)
 		grandRecv += ps.RoutesRecv
