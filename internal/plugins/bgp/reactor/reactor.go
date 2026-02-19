@@ -2960,10 +2960,24 @@ func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
 // Pattern "*" matches any IP (IPv4 or IPv6).
 // For IPv4, each octet can be "*" to match any value 0-255.
 // Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1".
+// Both pattern and ip may include a ":port" suffix, which is stripped before matching.
 func ipGlobMatch(pattern, ip string) bool {
 	// "*" or empty matches everything
 	if pattern == "*" || pattern == "" {
 		return true
+	}
+
+	// Strip port suffix from both pattern and ip (e.g., "127.0.0.1:179" → "127.0.0.1").
+	// Go formats IPv6+port as "[::1]:179", so LastIndex(":") correctly finds the port separator.
+	if idx := strings.LastIndex(pattern, ":"); idx >= 0 {
+		if _, err := strconv.Atoi(pattern[idx+1:]); err == nil {
+			pattern = pattern[:idx]
+		}
+	}
+	if idx := strings.LastIndex(ip, ":"); idx >= 0 {
+		if _, err := strconv.Atoi(ip[idx+1:]); err == nil {
+			ip = ip[:idx]
+		}
 	}
 
 	// Check if pattern looks like IPv4 glob (contains dots)
