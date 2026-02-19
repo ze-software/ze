@@ -163,8 +163,10 @@ type Peer struct {
 	// Processed on session establishment; teardowns act as batch separators.
 	opQueue []PeerOp
 
-	// sendingInitialRoutes prevents concurrent sendInitialRoutes goroutines.
-	// Set to 1 when sendInitialRoutes starts, 0 when it ends.
+	// sendingInitialRoutes gates route sending during session establishment.
+	// States: 0=idle, 1=flag set by FSM (queuing enabled), 2=goroutine running.
+	// Set to 1 by FSM callback BEFORE notifying plugins of state=up, ensuring
+	// routes from plugin commands are queued. Upgraded to 2 by sendInitialRoutes.
 	sendingInitialRoutes atomic.Int32
 
 	// API sync for EOR: wait for API processes to finish initial routes before EOR.
@@ -785,10 +787,10 @@ func (p *Peer) Teardown(subcode uint8) {
 	p.mu.Lock()
 	session := p.session
 
-	// If sendInitialRoutes is running, queue the teardown so it can send
-	// EOR before executing the teardown. This ensures proper BGP protocol
-	// sequencing: routes + EOR + NOTIFICATION.
-	if p.sendingInitialRoutes.Load() == 1 {
+	// If sendInitialRoutes is pending (1) or running (2), queue the teardown
+	// so it can send EOR before executing the teardown. This ensures proper
+	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
+	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < MaxOpQueueSize {
 			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
 		} else {
@@ -1022,6 +1024,15 @@ func (p *Peer) runOnce() error {
 				}
 			}
 			p.ResetAPISync(apiSendCount)
+
+			// Set sendingInitialRoutes flag BEFORE notifying plugins.
+			// This ensures ShouldQueue() returns true during event delivery,
+			// preventing a race where a plugin receives state=up, sends a route
+			// command, and the route bypasses the queue (because the flag wasn't
+			// set yet). Without this, the route could be sent to the peer before
+			// sendInitialRoutes runs, causing duplicates when the RIB plugin
+			// replays on state=up.
+			p.sendingInitialRoutes.Store(1)
 
 			// Notify reactor of peer established and negotiated capabilities
 			p.mu.RLock()
@@ -1338,11 +1349,14 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
 	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 
-	// Prevent concurrent sendInitialRoutes goroutines.
-	// If another instance is running, skip this one - the running instance
-	// will process any queued operations.
-	if !p.sendingInitialRoutes.CompareAndSwap(0, 1) {
-		peerLogger().Debug("sendInitialRoutes skipped (concurrent)", "peer", addr)
+	// The FSM callback sets sendingInitialRoutes to 1 before notifying plugins,
+	// ensuring ShouldQueue() returns true during event delivery. Here we upgrade
+	// 1→2 to indicate the goroutine is actively running. CAS guards against
+	// concurrent execution from rapid reconnects (flag would be 2 if another
+	// goroutine is already processing). If the flag is 0, the session was torn
+	// down before we started — don't run.
+	if !p.sendingInitialRoutes.CompareAndSwap(1, 2) {
+		peerLogger().Debug("sendInitialRoutes skipped", "peer", addr, "flag", p.sendingInitialRoutes.Load())
 		return
 	}
 	// Flag is cleared inside the mutex after the opQueue drain loop completes,
@@ -1356,6 +1370,7 @@ func (p *Peer) sendInitialRoutes() {
 	nc := p.negotiated.Load()
 	if nc == nil {
 		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
+		p.sendingInitialRoutes.Store(0) // Clear flag so ShouldQueue() returns false
 		return
 	}
 

@@ -106,6 +106,12 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "link-local": "bad"},
 			wantErr: "invalid link-local",
 		},
+		{
+			name:    "invalid_connection_mode",
+			addr:    "10.0.0.1",
+			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "connection": "maybe"},
+			wantErr: "invalid connection mode",
+		},
 	}
 
 	for _, tt := range tests {
@@ -923,6 +929,82 @@ func TestIpToUint32(t *testing.T) {
 
 	// IPv6 returns 0.
 	assert.Equal(t, uint32(0), ipToUint32(netip.MustParseAddr("::1")))
+}
+
+// TestParseConnectionMode verifies parse round-trip for all valid modes and error on invalid.
+//
+// VALIDATES: ParseConnectionMode accepts "both", "passive", "active", "" and rejects invalid strings.
+// PREVENTS: Silently accepting typos or unknown connection mode strings.
+func TestParseConnectionMode(t *testing.T) {
+	tests := []struct {
+		input   string
+		want    ConnectionMode
+		wantErr bool
+	}{
+		{"both", ConnectionBoth, false},
+		{"passive", ConnectionPassive, false},
+		{"active", ConnectionActive, false},
+		{"", ConnectionBoth, false}, // empty defaults to both
+		{"maybe", 0, true},
+		{"BOTH", 0, true},    // case-sensitive
+		{"Passive", 0, true}, // case-sensitive
+	}
+	for _, tt := range tests {
+		t.Run("input_"+tt.input, func(t *testing.T) {
+			got, err := ParseConnectionMode(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid connection mode")
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestConnectionModeString verifies String() returns the config-level name for each mode.
+//
+// VALIDATES: String() produces round-trippable output for valid modes and a safe default for zero value.
+// PREVENTS: Zero value (invalid) silently acting as a valid mode in log output or config generation.
+func TestConnectionModeString(t *testing.T) {
+	tests := []struct {
+		mode ConnectionMode
+		want string
+	}{
+		{ConnectionBoth, "both"},
+		{ConnectionPassive, "passive"},
+		{ConnectionActive, "active"},
+		{ConnectionMode(0), "both"}, // zero value defaults to "both" in String()
+	}
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.mode.String())
+		})
+	}
+}
+
+// TestConnectionModeIsActiveIsPassive verifies bitmask helpers.
+//
+// VALIDATES: IsActive/IsPassive correctly reflect the bitmask bits.
+// PREVENTS: Bitmask logic errors where Both doesn't report both capabilities.
+func TestConnectionModeIsActiveIsPassive(t *testing.T) {
+	tests := []struct {
+		mode      ConnectionMode
+		isActive  bool
+		isPassive bool
+	}{
+		{ConnectionBoth, true, true},
+		{ConnectionActive, true, false},
+		{ConnectionPassive, false, true},
+		{ConnectionMode(0), false, false}, // zero value: neither active nor passive
+	}
+	for _, tt := range tests {
+		t.Run(tt.mode.String(), func(t *testing.T) {
+			assert.Equal(t, tt.isActive, tt.mode.IsActive(), "IsActive")
+			assert.Equal(t, tt.isPassive, tt.mode.IsPassive(), "IsPassive")
+		})
+	}
 }
 
 // TestMapToJSON verifies JSON serialization helper.

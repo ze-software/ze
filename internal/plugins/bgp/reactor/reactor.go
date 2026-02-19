@@ -1171,7 +1171,10 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 			}
 		}
 		if v, ok := fields["connection"].(string); ok {
-			if mode, err := ParseConnectionMode(v); err == nil {
+			mode, err := ParseConnectionMode(v)
+			if err != nil {
+				reactorLogger().Warn("invalid connection mode in peer config, using default", "peer", addr, "value", v, "error", err)
+			} else {
 				settings.Connection = mode
 			}
 		}
