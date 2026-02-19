@@ -316,7 +316,11 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			ps.FamilySent[ev.Family]++
 		}
 		if ev.Prefix.IsValid() {
-			d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time)
+			// RecordSent returns latencies from pending receives that were
+			// queued before this EventRouteSent arrived (out-of-order events).
+			for _, lat := range d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time) {
+				d.state.Convergence.Record(lat)
+			}
 		}
 	case peer.EventRouteReceived:
 		ps.RoutesRecv++

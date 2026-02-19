@@ -60,6 +60,65 @@ func TestRouteMatrixUnknownPrefix(t *testing.T) {
 	}
 }
 
+// TestRouteMatrixPendingReceives verifies that receives arriving before
+// their matching send are correctly matched when the send arrives later.
+//
+// VALIDATES: Out-of-order events (EventRouteReceived before EventRouteSent)
+// are correctly correlated via the pending receives queue.
+// PREVENTS: Empty matrix columns when a peer's readLoop emits events before
+// other peers' EventRouteSent events are processed.
+func TestRouteMatrixPendingReceives(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+	p := netip.MustParsePrefix("10.0.0.0/24")
+	sentTime := time.Now()
+	recvTime := sentTime.Add(50 * time.Millisecond)
+
+	// Receive arrives BEFORE send (out-of-order).
+	found, _ := m.RecordReceived(1, p, recvTime)
+	if found {
+		t.Error("RecordReceived should return false when send not yet recorded")
+	}
+	if m.Len() != 0 {
+		t.Error("no cells should exist yet")
+	}
+
+	// Send arrives — should drain the pending receive.
+	latencies := m.RecordSent(0, p, sentTime)
+	if len(latencies) != 1 {
+		t.Fatalf("RecordSent should return 1 latency from pending, got %d", len(latencies))
+	}
+	if latencies[0] != 50*time.Millisecond {
+		t.Errorf("latency = %v, want 50ms", latencies[0])
+	}
+
+	// Cell should now exist: source=0, dest=1.
+	if got := m.Get(0, 1); got != 1 {
+		t.Errorf("Get(0,1) = %d, want 1", got)
+	}
+
+	// Multiple pending receives for the same prefix from different destinations.
+	p2 := netip.MustParsePrefix("10.0.1.0/24")
+	m.RecordReceived(1, p2, recvTime)
+	m.RecordReceived(2, p2, recvTime)
+	m.RecordReceived(3, p2, recvTime)
+
+	latencies = m.RecordSent(0, p2, sentTime)
+	if len(latencies) != 3 {
+		t.Fatalf("RecordSent should drain 3 pending, got %d", len(latencies))
+	}
+	if got := m.Get(0, 1); got != 2 { // 1 from p + 1 from p2
+		t.Errorf("Get(0,1) = %d, want 2", got)
+	}
+	if got := m.Get(0, 2); got != 1 {
+		t.Errorf("Get(0,2) = %d, want 1", got)
+	}
+	if got := m.Get(0, 3); got != 1 {
+		t.Errorf("Get(0,3) = %d, want 1", got)
+	}
+}
+
 // TestRouteMatrixTopNPeers verifies top-N sorting by activity.
 //
 // VALIDATES: TopNPeers returns peers sorted by total route involvement.

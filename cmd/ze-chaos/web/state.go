@@ -519,6 +519,13 @@ type PeerStateTransition struct {
 // temporarily lost until re-populated by subsequent EventRouteSent events.
 const maxPrefixTracking = 100_000
 
+// pendingReceive stores a receive event that arrived before the corresponding
+// RecordSent. Drained when RecordSent adds the prefix to routeOrigins.
+type pendingReceive struct {
+	destPeer int
+	recvTime time.Time
+}
+
 // RouteMatrix tracks source→destination route counts for the heatmap.
 // Uses a sparse map to handle 200+ peers without allocating a 200×200 array.
 type RouteMatrix struct {
@@ -543,6 +550,11 @@ type RouteMatrix struct {
 	// Evicted when size exceeds maxPrefixTracking.
 	sentTimes map[netip.Prefix]time.Time
 
+	// pendingReceives stores receive events that arrived before their
+	// matching RecordSent. Keyed by prefix. Drained by RecordSent.
+	// Bounded by maxPrefixTracking to prevent unbounded growth.
+	pendingReceives map[netip.Prefix][]pendingReceive
+
 	// peerTotals tracks total route involvement per peer (for top-N sorting).
 	peerTotals map[int]int
 }
@@ -556,6 +568,7 @@ func NewRouteMatrix() *RouteMatrix {
 		familyCells:      make(map[string]map[[2]int]int),
 		routeOrigins:     make(map[netip.Prefix]int),
 		sentTimes:        make(map[netip.Prefix]time.Time),
+		pendingReceives:  make(map[netip.Prefix][]pendingReceive),
 		peerTotals:       make(map[int]int),
 	}
 }
@@ -563,24 +576,63 @@ func NewRouteMatrix() *RouteMatrix {
 // RecordSent records that a peer announced a prefix (for source inference).
 // Evicts all prefix tracking data when the map exceeds maxPrefixTracking to
 // bound memory. Cumulative cell counters are preserved.
-func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time) {
+//
+// After registering the prefix, drains any pending receives that arrived
+// before this RecordSent (out-of-order events from the shared channel).
+// Returns matched latencies so the caller can feed the convergence histogram.
+func (m *RouteMatrix) RecordSent(peerIndex int, prefix netip.Prefix, t time.Time) []time.Duration {
 	if len(m.routeOrigins) >= maxPrefixTracking {
 		m.routeOrigins = make(map[netip.Prefix]int, maxPrefixTracking/2)
 		m.sentTimes = make(map[netip.Prefix]time.Time, maxPrefixTracking/2)
+		m.pendingReceives = make(map[netip.Prefix][]pendingReceive, len(m.pendingReceives)/2)
 	}
 	m.routeOrigins[prefix] = peerIndex
 	m.sentTimes[prefix] = t
+
+	// Drain pending receives for this prefix.
+	pending, ok := m.pendingReceives[prefix]
+	if !ok {
+		return nil
+	}
+	delete(m.pendingReceives, prefix)
+
+	var latencies []time.Duration
+	for _, pr := range pending {
+		lat := m.recordMatch(peerIndex, pr.destPeer, prefix, t, pr.recvTime)
+		if lat > 0 {
+			latencies = append(latencies, lat)
+		}
+	}
+	return latencies
 }
 
 // RecordReceived records that a peer received a prefix and updates the matrix.
 // Returns whether the source was found and the propagation latency (zero if
 // no send time is available). Callers use the latency to feed the convergence
 // histogram.
+//
+// When the source is not yet known (EventRouteSent not yet processed), the
+// receive is queued in pendingReceives and will be matched when RecordSent
+// arrives. This handles out-of-order events from the shared event channel.
 func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.Time) (found bool, latency time.Duration) {
 	source, ok := m.routeOrigins[prefix]
 	if !ok {
+		// Queue for later matching when RecordSent arrives.
+		if len(m.pendingReceives) < maxPrefixTracking {
+			m.pendingReceives[prefix] = append(m.pendingReceives[prefix], pendingReceive{
+				destPeer: destPeer,
+				recvTime: t,
+			})
+		}
 		return false, 0
 	}
+	return true, m.recordMatch(source, destPeer, prefix, m.sentTimes[prefix], t)
+}
+
+// recordMatch updates cells, family counts, and latency for a matched
+// source→dest route. Used by both RecordReceived (direct match) and
+// RecordSent (draining pending receives).
+func (m *RouteMatrix) recordMatch(source, destPeer int, prefix netip.Prefix, sentAt, recvAt time.Time) time.Duration {
 	key := [2]int{source, destPeer}
 	m.cells[key]++
 	m.peerTotals[source]++
@@ -596,16 +648,16 @@ func (m *RouteMatrix) RecordReceived(destPeer int, prefix netip.Prefix, t time.T
 	fc[key]++
 
 	// Track latency if we have the send time.
-	if sentAt, haveSent := m.sentTimes[prefix]; haveSent {
-		latency = t.Sub(sentAt)
-		if latency >= 0 {
-			m.cellLatencySum[key] += latency
-			m.cellLatencyCount[key]++
-		} else {
-			latency = 0
-		}
+	if sentAt.IsZero() {
+		return 0
 	}
-	return true, latency
+	latency := recvAt.Sub(sentAt)
+	if latency >= 0 {
+		m.cellLatencySum[key] += latency
+		m.cellLatencyCount[key]++
+		return latency
+	}
+	return 0
 }
 
 // prefixFamily infers the address family from a prefix.
