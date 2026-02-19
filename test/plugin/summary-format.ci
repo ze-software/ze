@@ -5,6 +5,8 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=update:value=send-default-route
+cmd=api:conn=1:seq=1:text=static route 127.0.0.1/32 from config template
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000240050400000064207F000001
 cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
