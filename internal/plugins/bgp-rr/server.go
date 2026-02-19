@@ -50,6 +50,16 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
+// forwardWork represents a unit of work for the forward worker goroutine.
+// Each UPDATE event produces one forwardWork item that the worker processes
+// sequentially, preserving FIFO ordering for cache forward/release commands.
+type forwardWork struct {
+	msgID      uint64
+	sourcePeer string
+	families   map[string]bool
+	release    bool // true = releaseCache, false = forwardUpdate
+}
+
 // RouteServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
 type RouteServer struct {
@@ -57,6 +67,7 @@ type RouteServer struct {
 	peers  map[string]*PeerState
 	rib    *RIB
 	mu     sync.RWMutex
+	workCh chan forwardWork // buffered channel for serializing cache forward/release
 }
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
@@ -69,7 +80,17 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		plugin: p,
 		peers:  make(map[string]*PeerState),
 		rib:    NewRIB(),
+		workCh: make(chan forwardWork, 4096),
 	}
+
+	// Start forward worker before event delivery begins.
+	// Single goroutine serializes all cache forward/release SDK RPCs,
+	// preserving FIFO message-ID ordering required by the engine's cache.
+	workerDone := make(chan struct{})
+	go func() {
+		rs.runForwardWorker()
+		close(workerDone)
+	}()
 
 	// Register event handler: dispatches BGP events (update, state, open, refresh)
 	p.OnEvent(func(jsonStr string) error {
@@ -100,14 +121,19 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	err := p.Run(ctx, sdk.Registration{
 		// CacheConsumer: true is required for bgp-cache-forward to work.
 		// Without it, Activate(id, 0) evicts cache entries immediately after
-		// event delivery, causing the async forwardUpdate goroutine to find
-		// the entry already gone (ErrUpdateExpired).
+		// event delivery, causing the forward worker to find the entry
+		// already gone (ErrUpdateExpired).
 		CacheConsumer: true,
 		Commands: []sdk.CommandDecl{
 			{Name: "rr status", Description: "Show RS status"},
 			{Name: "rr peers", Description: "Show peer states"},
 		},
 	})
+
+	// After p.Run returns (shutdown), close channel to drain remaining work.
+	close(rs.workCh)
+	<-workerDone
+
 	if err != nil {
 		logger().Error("rr plugin failed", "error", err)
 		return 1
@@ -133,6 +159,21 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
 		logger().Debug("update-route failed", "peer", peerSelector, "error", err)
+	}
+}
+
+// runForwardWorker is the single goroutine that processes all cache forward
+// and release commands. It ranges over workCh, processing items in FIFO order.
+// This serialization prevents the FIFO ordering violation that occurs when
+// per-UPDATE goroutines race to send SDK RPCs — acking message N out of order
+// implicitly evicts entries 1..N-1 from the engine's cache.
+func (rs *RouteServer) runForwardWorker() {
+	for w := range rs.workCh {
+		if w.release {
+			rs.releaseCache(w.msgID)
+		} else {
+			rs.forwardUpdate(w.sourcePeer, w.msgID, w.families)
+		}
 	}
 }
 
@@ -167,7 +208,7 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 
 	if len(event.FamilyOps) == 0 {
 		// No NLRI to process; release so the cache entry can be evicted.
-		go rs.releaseCache(msgID)
+		rs.workCh <- forwardWork{msgID: msgID, release: true}
 		return
 	}
 
@@ -199,10 +240,15 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 		}
 	}
 
-	// Forward asynchronously so the deliver-event callback responds immediately.
-	// OnEvent is a synchronous RPC — blocking here stalls all subsequent event
-	// deliveries, causing "context deadline exceeded" under load.
-	go rs.forwardUpdate(peerAddr, msgID, families)
+	// Send to forward worker channel. Blocks if buffer is full (4096 items),
+	// providing backpressure instead of unbounded goroutine creation.
+	// The single worker goroutine serializes SDK RPCs, preserving
+	// FIFO message-ID ordering required by the engine's cache.
+	rs.workCh <- forwardWork{
+		msgID:      msgID,
+		sourcePeer: peerAddr,
+		families:   families,
+	}
 }
 
 // nlriToPrefix extracts a prefix string from an NLRI value.

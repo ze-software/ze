@@ -27,6 +27,7 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		plugin: p,
 		peers:  make(map[string]*PeerState),
 		rib:    NewRIB(),
+		workCh: make(chan forwardWork, 1024),
 	}
 }
 

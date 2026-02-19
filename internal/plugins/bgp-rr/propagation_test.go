@@ -1,9 +1,565 @@
 package bgp_rr
 
 import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net"
 	"sort"
+	"strings"
 	"testing"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// --- Integration test: prove redistribution works through real SDK RPCs ---
+
+// TestRedistribution_ForwardReachesEngine verifies that UPDATE events dispatched
+// to the route server produce correctly ordered cache-forward SDK RPCs that
+// arrive at the engine side of the connection.
+//
+// VALIDATES: Full path: event → parse → handleUpdate → channel → worker →
+// forwardUpdate → SDK RPC → engine receives "bgp cache N forward peer1,peer2".
+// PREVENTS: Silent RPC failures masking a broken redistribution path.
+func TestRedistribution_ForwardReachesEngine(t *testing.T) {
+	// Create real net.Pipe connections that stay open.
+	enginePluginEnd, engineServerEnd := net.Pipe()
+	callbackPluginEnd, callbackServerEnd := net.Pipe()
+	t.Cleanup(func() {
+		if err := enginePluginEnd.Close(); err != nil {
+			t.Logf("cleanup enginePluginEnd: %v", err)
+		}
+		if err := engineServerEnd.Close(); err != nil {
+			t.Logf("cleanup engineServerEnd: %v", err)
+		}
+		if err := callbackPluginEnd.Close(); err != nil {
+			t.Logf("cleanup callbackPluginEnd: %v", err)
+		}
+		if err := callbackServerEnd.Close(); err != nil {
+			t.Logf("cleanup callbackServerEnd: %v", err)
+		}
+	})
+
+	// Plugin side: SDK plugin using the open connections.
+	p := sdk.NewWithConn("rr-integration", enginePluginEnd, callbackPluginEnd)
+	t.Cleanup(func() { _ = p.Close() })
+
+	// Engine side: reads RPCs from the plugin.
+	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
+
+	rs := &RouteServer{
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
+		workCh: make(chan forwardWork, 64),
+	}
+
+	// Register peers: 10.0.0.1 (source), 10.0.0.2 and 10.0.0.3 (targets).
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.3"] = &PeerState{
+		Address: "10.0.0.3", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	// Start forward worker.
+	workerDone := make(chan struct{})
+	go func() {
+		rs.runForwardWorker()
+		close(workerDone)
+	}()
+	t.Cleanup(func() {
+		close(rs.workCh)
+		<-workerDone
+	})
+
+	// Dispatch 3 UPDATE events from peer 10.0.0.1.
+	for i := 1; i <= 3; i++ {
+		input := fmt.Sprintf(
+			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			i, i,
+		)
+		event, err := parseEvent([]byte(input))
+		if err != nil {
+			t.Fatalf("parse error for msg %d: %v", i, err)
+		}
+		rs.dispatch(event)
+	}
+
+	// Read 3 RPCs from the engine side and verify them.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	var commands []string
+	for i := range 3 {
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			t.Fatalf("read RPC %d: %v", i, err)
+		}
+
+		if req.Method != "ze-plugin-engine:update-route" {
+			t.Errorf("RPC %d: method = %q, want ze-plugin-engine:update-route", i, req.Method)
+		}
+
+		var input rpc.UpdateRouteInput
+		if err := json.Unmarshal(req.Params, &input); err != nil {
+			t.Fatalf("RPC %d: unmarshal params: %v", i, err)
+		}
+		commands = append(commands, input.Command)
+
+		// Send success response so the worker unblocks.
+		if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{
+			PeersAffected: 2,
+			RoutesSent:    2,
+		}); err != nil {
+			t.Fatalf("send response %d: %v", i, err)
+		}
+	}
+
+	// Verify commands are cache-forward with strictly increasing message IDs
+	// and correct peer selectors (10.0.0.2 and 10.0.0.3, excluding source 10.0.0.1).
+	for i, cmd := range commands {
+		var msgID uint64
+		var selector string
+		_, err := fmt.Sscanf(cmd, "bgp cache %d forward %s", &msgID, &selector)
+		if err != nil {
+			t.Fatalf("command %d: failed to parse %q: %v", i, cmd, err)
+		}
+
+		if msgID != uint64(i+1) {
+			t.Errorf("command %d: msgID = %d, want %d", i, msgID, i+1)
+		}
+
+		// Selector should contain both targets (order may vary).
+		peers := strings.Split(selector, ",")
+		sort.Strings(peers)
+		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
+			t.Errorf("command %d: selector = %q, want 10.0.0.2,10.0.0.3", i, selector)
+		}
+	}
+}
+
+// TestRedistribution_ReleaseReachesEngine verifies that an UPDATE with no NLRI
+// produces a cache-release SDK RPC that reaches the engine.
+//
+// VALIDATES: Release path: empty UPDATE → channel → worker → releaseCache → SDK RPC.
+// PREVENTS: Cache entries stuck forever when no targets exist.
+func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
+	enginePluginEnd, engineServerEnd := net.Pipe()
+	callbackPluginEnd, callbackServerEnd := net.Pipe()
+	t.Cleanup(func() {
+		if err := enginePluginEnd.Close(); err != nil {
+			t.Logf("cleanup enginePluginEnd: %v", err)
+		}
+		if err := engineServerEnd.Close(); err != nil {
+			t.Logf("cleanup engineServerEnd: %v", err)
+		}
+		if err := callbackPluginEnd.Close(); err != nil {
+			t.Logf("cleanup callbackPluginEnd: %v", err)
+		}
+		if err := callbackServerEnd.Close(); err != nil {
+			t.Logf("cleanup callbackServerEnd: %v", err)
+		}
+	})
+
+	p := sdk.NewWithConn("rr-release", enginePluginEnd, callbackPluginEnd)
+	t.Cleanup(func() { _ = p.Close() })
+
+	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
+
+	rs := &RouteServer{
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
+		workCh: make(chan forwardWork, 64),
+	}
+
+	workerDone := make(chan struct{})
+	go func() {
+		rs.runForwardWorker()
+		close(workerDone)
+	}()
+	t.Cleanup(func() {
+		close(rs.workCh)
+		<-workerDone
+	})
+
+	// Dispatch UPDATE with no NLRI → should trigger release.
+	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":42},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"}}}}`
+	event, err := parseEvent([]byte(input))
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	rs.dispatch(event)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := engineConn.ReadRequest(ctx)
+	if err != nil {
+		t.Fatalf("read RPC: %v", err)
+	}
+
+	var rpcInput rpc.UpdateRouteInput
+	if err := json.Unmarshal(req.Params, &rpcInput); err != nil {
+		t.Fatalf("unmarshal params: %v", err)
+	}
+
+	if rpcInput.Command != "bgp cache 42 release" {
+		t.Errorf("command = %q, want %q", rpcInput.Command, "bgp cache 42 release")
+	}
+
+	if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{}); err != nil {
+		t.Fatalf("send response: %v", err)
+	}
+}
+
+// TestRedistribution_FamilyFiltering verifies that the forward command only
+// includes peers that support the UPDATE's families.
+//
+// VALIDATES: ipv6/unicast UPDATE only forwarded to peers supporting ipv6/unicast.
+// PREVENTS: Routes sent to peers that cannot process them (engine does no family filtering).
+func TestRedistribution_FamilyFiltering(t *testing.T) {
+	enginePluginEnd, engineServerEnd := net.Pipe()
+	callbackPluginEnd, callbackServerEnd := net.Pipe()
+	t.Cleanup(func() {
+		if err := enginePluginEnd.Close(); err != nil {
+			t.Logf("cleanup enginePluginEnd: %v", err)
+		}
+		if err := engineServerEnd.Close(); err != nil {
+			t.Logf("cleanup engineServerEnd: %v", err)
+		}
+		if err := callbackPluginEnd.Close(); err != nil {
+			t.Logf("cleanup callbackPluginEnd: %v", err)
+		}
+		if err := callbackServerEnd.Close(); err != nil {
+			t.Logf("cleanup callbackServerEnd: %v", err)
+		}
+	})
+
+	p := sdk.NewWithConn("rr-family", enginePluginEnd, callbackPluginEnd)
+	t.Cleanup(func() { _ = p.Close() })
+
+	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
+
+	rs := &RouteServer{
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
+		workCh: make(chan forwardWork, 64),
+	}
+
+	// 10.0.0.2 supports ipv4+ipv6, 10.0.0.3 supports only ipv4.
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+	}
+	rs.peers["10.0.0.3"] = &PeerState{
+		Address: "10.0.0.3", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	workerDone := make(chan struct{})
+	go func() {
+		rs.runForwardWorker()
+		close(workerDone)
+	}()
+	t.Cleanup(func() {
+		close(rs.workCh)
+		<-workerDone
+	})
+
+	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.2 should be a target.
+	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":7},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
+	event, err := parseEvent([]byte(input))
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	rs.dispatch(event)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	req, err := engineConn.ReadRequest(ctx)
+	if err != nil {
+		t.Fatalf("read RPC: %v", err)
+	}
+
+	var rpcInput rpc.UpdateRouteInput
+	if err := json.Unmarshal(req.Params, &rpcInput); err != nil {
+		t.Fatalf("unmarshal params: %v", err)
+	}
+
+	// Should forward to 10.0.0.2 only (not 10.0.0.3 which lacks ipv6/unicast).
+	expected := "bgp cache 7 forward 10.0.0.2"
+	if rpcInput.Command != expected {
+		t.Errorf("command = %q, want %q", rpcInput.Command, expected)
+	}
+
+	if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{
+		PeersAffected: 1, RoutesSent: 1,
+	}); err != nil {
+		t.Fatalf("send response: %v", err)
+	}
+}
+
+// --- Forward worker ordering tests ---
+
+// TestForwardWorker_OrderPreserved verifies that the channel-based worker
+// delivers cache forward commands in strictly increasing message-ID order.
+//
+// VALIDATES: 100 rapid UPDATE events produce work items in FIFO order (AC-1).
+// PREVENTS: FIFO ordering violation that caused 98% route loss under load —
+// the engine's cache requires acks in message-ID order, and out-of-order acks
+// implicitly evict earlier entries.
+func TestForwardWorker_OrderPreserved(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// Set up two peers so forwarding has targets
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	// Dispatch 100 UPDATE events — handleUpdate sends each to the work channel
+	// (worker is NOT running, so items accumulate in the buffered channel)
+	const numUpdates = 100
+	for i := 1; i <= numUpdates; i++ {
+		input := fmt.Sprintf(
+			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			i, i,
+		)
+		event, err := parseEvent([]byte(input))
+		if err != nil {
+			t.Fatalf("parse error for msg %d: %v", i, err)
+		}
+		rs.dispatch(event)
+	}
+
+	// Verify all routes were stored in RIB (dispatch is synchronous for RIB)
+	routes := rs.rib.GetPeerRoutes("10.0.0.1")
+	if len(routes) != numUpdates {
+		t.Errorf("expected %d routes in RIB, got %d", numUpdates, len(routes))
+	}
+
+	// Read work items from channel and verify strictly increasing message IDs.
+	// Channel is FIFO — this proves handleUpdate sends items in order.
+	var ids []uint64
+	for i := range numUpdates {
+		select {
+		case w := <-rs.workCh:
+			ids = append(ids, w.msgID)
+			if w.release {
+				t.Errorf("item %d: expected forward, got release", i)
+			}
+		default:
+			t.Fatalf("expected %d items in channel, only got %d", numUpdates, i)
+		}
+	}
+
+	for i := 1; i < len(ids); i++ {
+		if ids[i] <= ids[i-1] {
+			t.Errorf("FIFO violation: ids[%d]=%d <= ids[%d]=%d", i, ids[i], i-1, ids[i-1])
+		}
+	}
+}
+
+// TestForwardWorker_ReleaseInOrder verifies that release commands interleaved
+// with forward commands maintain strict message-ID ordering.
+//
+// VALIDATES: Mix of forward and release work items preserves FIFO order (AC-2).
+// PREVENTS: Release commands bypassing the channel and arriving out of order.
+func TestForwardWorker_ReleaseInOrder(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// Set up one peer that supports ipv4/unicast only.
+	// UPDATEs with ipv6/unicast will produce releases (no targets).
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	// Dispatch alternating forward/release events:
+	// Even msgIDs → ipv4/unicast (has targets → forward)
+	// Odd msgIDs → no NLRI (→ release)
+	const numUpdates = 20
+	for i := 1; i <= numUpdates; i++ {
+		var input string
+		if i%2 == 0 {
+			input = fmt.Sprintf(
+				`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+				i, i,
+			)
+		} else {
+			// Empty NLRI → triggers release path
+			input = fmt.Sprintf(
+				`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"}}}}`,
+				i,
+			)
+		}
+		event, err := parseEvent([]byte(input))
+		if err != nil {
+			t.Fatalf("parse error for msg %d: %v", i, err)
+		}
+		rs.dispatch(event)
+	}
+
+	// Read all items and verify strict ordering
+	var ids []uint64
+	for i := range numUpdates {
+		select {
+		case w := <-rs.workCh:
+			ids = append(ids, w.msgID)
+			expectRelease := (w.msgID%2 != 0)
+			if w.release != expectRelease {
+				t.Errorf("item msgID=%d: release=%v, want %v", w.msgID, w.release, expectRelease)
+			}
+		default:
+			t.Fatalf("expected %d items, only got %d", numUpdates, i)
+		}
+	}
+
+	for i := 1; i < len(ids); i++ {
+		if ids[i] <= ids[i-1] {
+			t.Errorf("FIFO violation: ids[%d]=%d <= ids[%d]=%d", i, ids[i], i-1, ids[i-1])
+		}
+	}
+}
+
+// TestForwardWorker_DrainOnClose verifies that closing the work channel
+// causes the worker to process all remaining items before exiting.
+//
+// VALIDATES: Worker drains buffered items on shutdown (AC-3).
+// PREVENTS: Lost forward/release commands during plugin shutdown.
+func TestForwardWorker_DrainOnClose(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	// Buffer items and close the channel BEFORE starting the worker.
+	// The worker must range-drain all items to exit — if it broke out early,
+	// the channel would still have items and this test would hang or fail.
+	const numItems = 10
+	for i := 1; i <= numItems; i++ {
+		rs.workCh <- forwardWork{
+			msgID:      uint64(i),
+			sourcePeer: "10.0.0.1",
+			families:   map[string]bool{"ipv4/unicast": true},
+		}
+	}
+	close(rs.workCh)
+
+	// Run worker synchronously — it ranges over the closed channel,
+	// processes all buffered items, then returns.
+	rs.runForwardWorker()
+
+	// If we get here, the worker drained all items and returned.
+	// Verify the channel is fully consumed.
+	select {
+	case _, ok := <-rs.workCh:
+		if ok {
+			t.Fatal("channel should be closed and empty after drain")
+		}
+		// ok==false means closed+empty — correct
+	default:
+		// Channel is closed and empty — this path is also correct
+	}
+}
+
+// TestForwardOrdering_SequentialPreservesOrder demonstrates that sequential
+// forwarding (no goroutines) preserves message ordering.
+//
+// VALIDATES: Sequential dispatch produces in-order cache commands.
+// PREVENTS: False positive from ordering tests.
+func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.peers["10.0.0.2"] = &PeerState{
+		Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	const numUpdates = 100
+	var commands []string
+
+	// Simulate sequential forwarding
+	for i := 1; i <= numUpdates; i++ {
+		msgID := uint64(i)
+		families := map[string]bool{"ipv4/unicast": true}
+
+		rs.mu.RLock()
+		targets := rs.selectForwardTargets("10.0.0.1", families)
+		rs.mu.RUnlock()
+
+		if len(targets) > 0 {
+			sel := strings.Join(targets, ",")
+			cmd := fmt.Sprintf("bgp cache %d forward %s", msgID, sel)
+			commands = append(commands, cmd)
+		}
+	}
+
+	if len(commands) != numUpdates {
+		t.Fatalf("expected %d commands, got %d", numUpdates, len(commands))
+	}
+
+	// Verify ordering: each command should have strictly increasing msg ID
+	for i := 1; i < len(commands); i++ {
+		var prevID, currID uint64
+		if _, err := fmt.Sscanf(commands[i-1], "bgp cache %d", &prevID); err != nil {
+			t.Fatalf("parse command[%d]: %v", i-1, err)
+		}
+		if _, err := fmt.Sscanf(commands[i], "bgp cache %d", &currID); err != nil {
+			t.Fatalf("parse command[%d]: %v", i, err)
+		}
+		if currID <= prevID {
+			t.Errorf("out of order: command %d (id=%d) followed by command %d (id=%d)",
+				i-1, prevID, i, currID)
+		}
+	}
+}
 
 // --- Target selection tests (forwardUpdate decision logic) ---
 
