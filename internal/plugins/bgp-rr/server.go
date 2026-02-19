@@ -98,6 +98,11 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
+		// CacheConsumer: true is required for bgp-cache-forward to work.
+		// Without it, Activate(id, 0) evicts cache entries immediately after
+		// event delivery, causing the async forwardUpdate goroutine to find
+		// the entry already gone (ErrUpdateExpired).
+		CacheConsumer: true,
 		Commands: []sdk.CommandDecl{
 			{Name: "rr status", Description: "Show RS status"},
 			{Name: "rr peers", Description: "Show peer states"},
@@ -109,6 +114,16 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	}
 
 	return 0
+}
+
+// releaseCache releases a cache entry that will not be forwarded.
+// Must be called when CacheConsumer: true and we decide not to forward an UPDATE,
+// otherwise the entry blocks eviction of subsequent cache entries.
+func (rs *RouteServer) releaseCache(msgID uint64) {
+	if msgID == 0 {
+		return
+	}
+	rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
@@ -151,6 +166,8 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 	}
 
 	if len(event.FamilyOps) == 0 {
+		// No NLRI to process; release so the cache entry can be evicted.
+		go rs.releaseCache(msgID)
 		return
 	}
 
@@ -234,6 +251,8 @@ func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families m
 	rs.mu.RUnlock()
 
 	if len(targets) == 0 {
+		// No compatible peers; release so the cache entry can be evicted.
+		rs.releaseCache(msgID)
 		return
 	}
 
