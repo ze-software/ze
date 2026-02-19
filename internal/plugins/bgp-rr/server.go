@@ -220,6 +220,32 @@ func nlriToPrefix(n any) string {
 	return ""
 }
 
+// selectForwardTargets returns peers that should receive an UPDATE with the given families.
+// A peer is included if it is up, is not the source, and supports at least one family
+// in the UPDATE (or has nil Families, meaning unknown/all-accepted).
+func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[string]bool) []string {
+	var targets []string
+	for addr, peer := range rs.peers {
+		if addr == sourcePeer || !peer.Up {
+			continue
+		}
+		if peer.Families != nil {
+			hasAny := false
+			for family := range families {
+				if peer.SupportsFamily(family) {
+					hasAny = true
+					break
+				}
+			}
+			if !hasAny {
+				continue
+			}
+		}
+		targets = append(targets, addr)
+	}
+	return targets
+}
+
 // forwardUpdate sends UPDATE to peers that support the given families.
 //
 // Uses a single cache-forward command with a comma-separated peer selector.
@@ -229,25 +255,7 @@ func nlriToPrefix(n any) string {
 // peers receive the UPDATE in one atomic operation.
 func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families map[string]bool) {
 	rs.mu.RLock()
-	var targets []string
-	for addr, peer := range rs.peers {
-		if addr == sourcePeer || !peer.Up {
-			continue
-		}
-		if peer.Families != nil {
-			compatible := true
-			for family := range families {
-				if !peer.SupportsFamily(family) {
-					compatible = false
-					break
-				}
-			}
-			if !compatible {
-				continue
-			}
-		}
-		targets = append(targets, addr)
-	}
+	targets := rs.selectForwardTargets(sourcePeer, families)
 	rs.mu.RUnlock()
 
 	if len(targets) == 0 {
@@ -386,12 +394,21 @@ func (rs *RouteServer) handleOpen(event *Event) {
 		peer.Capabilities = make(map[string]bool)
 		peer.Families = make(map[string]bool)
 
+		// RFC 4760 Section 1: ipv4/unicast is the implicit default only when
+		// the peer sends no Multiprotocol capability. If the peer advertises
+		// MP but omits ipv4/unicast, it explicitly declines it.
+		hasMP := capabilityPresent(event.Open.Capabilities, "multiprotocol")
+
 		for _, cap := range event.Open.Capabilities {
 			peer.Capabilities[cap.Name] = true
 
 			if cap.Name == "multiprotocol" && cap.Value != "" {
 				peer.Families[cap.Value] = true
 			}
+		}
+
+		if !hasMP {
+			peer.Families["ipv4/unicast"] = true
 		}
 	}
 }
@@ -599,6 +616,16 @@ type OpenInfo struct {
 	RouterID     string           `json:"router-id"`
 	HoldTime     uint16           `json:"hold-time"`
 	Capabilities []CapabilityInfo `json:"capabilities,omitempty"`
+}
+
+// capabilityPresent returns true if any capability in the list has the given name.
+func capabilityPresent(caps []CapabilityInfo, name string) bool {
+	for _, c := range caps {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // CapabilityInfo represents a single capability from the OPEN message.

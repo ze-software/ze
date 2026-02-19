@@ -18,9 +18,11 @@ func (p *PeerState) HasCapability(cap string) bool {
 }
 
 // SupportsFamily returns true if peer supports the given AFI/SAFI.
+// A nil Families map (no OPEN received yet) is treated as "accept all" to avoid
+// dropping routes during the window between state-up and OPEN processing.
 func (p *PeerState) SupportsFamily(family string) bool {
 	if p.Families == nil {
-		return false
+		return true
 	}
 	return p.Families[family]
 }
