@@ -837,7 +837,7 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 
 	if len(peers) == 0 {
 		h.write(`<div class="stat-label" style="padding:16px">No route flow data yet.</div>
-<p class="viz-desc">N×N heatmap showing route flow between peers. Rows are source peers, columns are destinations. In count mode, brighter cells mean more routes. In latency mode, warmer colors mean slower propagation. Click a cell for details.</p>
+<p class="viz-desc">Traffic volume between peers (cumulative). Counts increase after reconnections as routes are re-announced. In latency mode, warmer colors mean slower propagation.</p>
 </div>`)
 		return
 	}
@@ -899,11 +899,24 @@ func writeRouteMatrix(w io.Writer, m *RouteMatrix, opts routeMatrixOpts) {
 	} else {
 		h.writef(`<span class="stat"><span class="stat-label">Max </span><span class="stat-value">%d</span></span>`, maxVal)
 	}
+	stats := m.Stats()
 	h.writef(`
   <span class="stat"><span class="stat-label">Peers </span><span class="stat-value">%d</span></span>
+  <span class="stat" style="margin-left:16px"><span class="stat-label">Sent </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Recv </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Direct </span><span class="stat-value">%d</span></span>
+  <span class="stat"><span class="stat-label">Credit </span><span class="stat-value">%d</span></span>`,
+		len(peers), stats.SentCalls, stats.RecvCalls, stats.DirectMatch,
+		stats.CreditMatch)
+	if stats.Unmatched > 0 {
+		h.writef(`
+  <span class="stat"><span class="stat-label">Unmatched </span><span class="stat-value">%d</span></span>`,
+			stats.Unmatched)
+	}
+	h.write(`
 </div>
-<p class="viz-desc">N×N heatmap showing route flow between peers. Rows are source peers, columns are destinations. In count mode, brighter cells mean more routes. In latency mode, warmer colors mean slower propagation. Click a cell for details.</p>
-</div>`, len(peers))
+<p class="viz-desc">Traffic volume between peers (cumulative). Counts increase after reconnections as routes are re-announced. In latency mode, warmer colors mean slower propagation.</p>
+</div>`)
 }
 
 // writeCountCell renders a single heatmap cell in count mode.

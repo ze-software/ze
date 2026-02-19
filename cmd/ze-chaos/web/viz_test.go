@@ -27,11 +27,12 @@ func TestRouteMatrixRecordAndGet(t *testing.T) {
 	m.RecordSent(0, p2, now) // peer 0 announces 10.0.1.0/24
 
 	// peer 1 receives both prefixes from peer 0
-	if found, _ := m.RecordReceived(1, p1, now); !found {
-		t.Error("RecordReceived should return true for known prefix")
+	recvTime := now.Add(5 * time.Millisecond)
+	if lat := m.RecordReceived(1, p1, recvTime); lat == 0 {
+		t.Error("RecordReceived should return non-zero latency for known prefix")
 	}
-	if found, _ := m.RecordReceived(1, p2, now); !found {
-		t.Error("RecordReceived should return true for known prefix")
+	if lat := m.RecordReceived(1, p2, recvTime); lat == 0 {
+		t.Error("RecordReceived should return non-zero latency for known prefix")
 	}
 
 	if got := m.Get(0, 1); got != 2 {
@@ -52,70 +53,109 @@ func TestRouteMatrixUnknownPrefix(t *testing.T) {
 	m := NewRouteMatrix()
 	p := netip.MustParsePrefix("10.0.0.0/24")
 
-	if found, _ := m.RecordReceived(1, p, time.Now()); found {
-		t.Error("RecordReceived should return false for unknown prefix")
+	if lat := m.RecordReceived(1, p, time.Now()); lat != 0 {
+		t.Error("RecordReceived should return zero for unknown prefix")
 	}
 	if m.Len() != 0 {
 		t.Errorf("Len() = %d, want 0", m.Len())
 	}
 }
 
-// TestRouteMatrixPendingReceives verifies that receives arriving before
-// their matching send are correctly matched when the send arrives later.
+// TestRouteMatrixCreditFallback verifies that receives without a direct
+// prefix match fall back to credit-based matching using family send counts.
 //
-// VALIDATES: Out-of-order events (EventRouteReceived before EventRouteSent)
-// are correctly correlated via the pending receives queue.
-// PREVENTS: Empty matrix columns when a peer's readLoop emits events before
-// other peers' EventRouteSent events are processed.
-func TestRouteMatrixPendingReceives(t *testing.T) {
+// VALIDATES: When a prefix isn't in routeOrigins, RecordReceived uses the
+// credit mechanism to attribute the receive to the best sender.
+// PREVENTS: Empty matrix cells when prefix tracking has been evicted or
+// when receives arrive before sends.
+func TestRouteMatrixCreditFallback(t *testing.T) {
 	t.Parallel()
 
 	m := NewRouteMatrix()
-	p := netip.MustParsePrefix("10.0.0.0/24")
-	sentTime := time.Now()
-	recvTime := sentTime.Add(50 * time.Millisecond)
+	now := time.Now()
 
-	// Receive arrives BEFORE send (out-of-order).
-	found, _ := m.RecordReceived(1, p, recvTime)
-	if found {
-		t.Error("RecordReceived should return false when send not yet recorded")
-	}
-	if m.Len() != 0 {
-		t.Error("no cells should exist yet")
+	// p0 sends 3 IPv4 prefixes — tracked in both routeOrigins and familySent.
+	for i := range 3 {
+		p := netip.MustParsePrefix("10.0." + itoa(i) + ".0/24")
+		m.RecordSent(0, p, now)
 	}
 
-	// Send arrives — should drain the pending receive.
-	latencies := m.RecordSent(0, p, sentTime)
-	if len(latencies) != 1 {
-		t.Fatalf("RecordSent should return 1 latency from pending, got %d", len(latencies))
+	// p1 receives a prefix that IS in routeOrigins → direct match.
+	lat := m.RecordReceived(1, netip.MustParsePrefix("10.0.0.0/24"), now.Add(5*time.Millisecond))
+	if lat == 0 {
+		t.Error("direct match should return non-zero latency")
 	}
-	if latencies[0] != 50*time.Millisecond {
-		t.Errorf("latency = %v, want 50ms", latencies[0])
-	}
-
-	// Cell should now exist: source=0, dest=1.
 	if got := m.Get(0, 1); got != 1 {
-		t.Errorf("Get(0,1) = %d, want 1", got)
+		t.Errorf("Get(0,1) after direct = %d, want 1", got)
 	}
 
-	// Multiple pending receives for the same prefix from different destinations.
-	p2 := netip.MustParsePrefix("10.0.1.0/24")
-	m.RecordReceived(1, p2, recvTime)
-	m.RecordReceived(2, p2, recvTime)
-	m.RecordReceived(3, p2, recvTime)
-
-	latencies = m.RecordSent(0, p2, sentTime)
-	if len(latencies) != 3 {
-		t.Fatalf("RecordSent should drain 3 pending, got %d", len(latencies))
-	}
-	if got := m.Get(0, 1); got != 2 { // 1 from p + 1 from p2
-		t.Errorf("Get(0,1) = %d, want 2", got)
+	// p2 receives a prefix NOT in routeOrigins → credit fallback.
+	unknown := netip.MustParsePrefix("10.99.0.0/24")
+	lat = m.RecordReceived(2, unknown, now.Add(10*time.Millisecond))
+	// Credit match returns 0 latency (no timing info).
+	if lat != 0 {
+		t.Errorf("credit match should return 0 latency, got %v", lat)
 	}
 	if got := m.Get(0, 2); got != 1 {
-		t.Errorf("Get(0,2) = %d, want 1", got)
+		t.Errorf("Get(0,2) after credit = %d, want 1", got)
 	}
-	if got := m.Get(0, 3); got != 1 {
-		t.Errorf("Get(0,3) = %d, want 1", got)
+}
+
+// TestRouteMatrixDirectMatchConsumesCredit verifies that prefix-matched
+// receives consume credits so credit fallback doesn't double-count them
+// after prefix eviction.
+//
+// VALIDATES: Direct prefix matches decrement the credit budget. After
+// eviction forces credit fallback, remaining budget is correct.
+// PREVENTS: Over-counting when prefix maps are evicted mid-session and
+// credit fallback re-counts routes already matched by prefix.
+func TestRouteMatrixDirectMatchConsumesCredit(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+	now := time.Now()
+
+	// p0 sends 3 prefixes — budget: familySent["ipv4/unicast"][0] = 3.
+	p1 := netip.MustParsePrefix("10.0.0.0/24")
+	p2 := netip.MustParsePrefix("10.0.1.0/24")
+	p3 := netip.MustParsePrefix("10.0.2.0/24")
+	m.RecordSent(0, p1, now)
+	m.RecordSent(0, p2, now)
+	m.RecordSent(0, p3, now)
+
+	// p1 receives 2 via direct prefix match — should consume 2 credits.
+	m.RecordReceived(1, p1, now.Add(time.Millisecond))
+	m.RecordReceived(1, p2, now.Add(time.Millisecond))
+
+	if got := m.Get(0, 1); got != 2 {
+		t.Fatalf("Get(0,1) after direct = %d, want 2", got)
+	}
+
+	// Now receive an unknown prefix — credit fallback should only have
+	// 1 remaining credit (3 sent - 2 consumed by direct matches).
+	unknown1 := netip.MustParsePrefix("10.99.0.0/24")
+	m.RecordReceived(1, unknown1, now.Add(2*time.Millisecond))
+	if got := m.Get(0, 1); got != 3 {
+		t.Errorf("Get(0,1) after 1 credit = %d, want 3", got)
+	}
+
+	// Budget exhausted: another unknown should NOT credit.
+	unknown2 := netip.MustParsePrefix("10.99.1.0/24")
+	m.RecordReceived(1, unknown2, now.Add(3*time.Millisecond))
+	if got := m.Get(0, 1); got != 3 {
+		t.Errorf("Get(0,1) after exhaustion = %d, want 3 (no more credits)", got)
+	}
+
+	// Verify stats.
+	stats := m.Stats()
+	if stats.DirectMatch != 2 {
+		t.Errorf("DirectMatch = %d, want 2", stats.DirectMatch)
+	}
+	if stats.CreditMatch != 1 {
+		t.Errorf("CreditMatch = %d, want 1", stats.CreditMatch)
+	}
+	if stats.Unmatched != 1 {
+		t.Errorf("Unmatched = %d, want 1", stats.Unmatched)
 	}
 }
 
@@ -149,12 +189,15 @@ func TestRouteMatrixTopNPeers(t *testing.T) {
 	if len(top) != 3 {
 		t.Fatalf("TopNPeers(3) len = %d, want 3", len(top))
 	}
-	// peer 3 receives 17 routes, peer 0 sends 10, peer 2 sends 5
-	if top[0] != 3 {
-		t.Errorf("top[0] = %d, want 3 (most active)", top[0])
+	// Top 3 by activity are peers 3, 0, 2 — sorted by index: 0, 2, 3.
+	if top[0] != 0 {
+		t.Errorf("top[0] = %d, want 0 (sorted by index)", top[0])
 	}
-	if top[1] != 0 {
-		t.Errorf("top[1] = %d, want 0 (second most active)", top[1])
+	if top[1] != 2 {
+		t.Errorf("top[1] = %d, want 2 (sorted by index)", top[1])
+	}
+	if top[2] != 3 {
+		t.Errorf("top[2] = %d, want 3 (sorted by index)", top[2])
 	}
 }
 
@@ -905,6 +948,231 @@ func TestPctOfDuration(t *testing.T) {
 				t.Errorf("pctOfDuration(%v, %v) = %d, want %d", tt.d, tt.total, got, tt.want)
 			}
 		})
+	}
+}
+
+// TestRouteMatrixCellPlacement verifies that route counts are stored in the
+// correct [source, dest] cell in a multi-peer RR topology.
+//
+// VALIDATES: In a 4-peer scenario where p0 sends to p1/p2/p3 and p3 sends
+// to p0/p1/p2, each cell [source, dest] contains the right count.
+// PREVENTS: Swapped source/dest indices placing values in wrong cells.
+func TestRouteMatrixCellPlacement(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+	now := time.Now()
+
+	// p0 sends 3 prefixes, reflected (received) by p1, p2, p3.
+	prefixes0 := []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/24"),
+		netip.MustParsePrefix("10.0.1.0/24"),
+		netip.MustParsePrefix("10.0.2.0/24"),
+	}
+	for _, p := range prefixes0 {
+		m.RecordSent(0, p, now)
+		m.RecordReceived(1, p, now)
+		m.RecordReceived(2, p, now)
+		m.RecordReceived(3, p, now)
+	}
+
+	// p3 sends 2 prefixes, reflected (received) by p0, p1, p2.
+	prefixes3 := []netip.Prefix{
+		netip.MustParsePrefix("10.3.0.0/24"),
+		netip.MustParsePrefix("10.3.1.0/24"),
+	}
+	for _, p := range prefixes3 {
+		m.RecordSent(3, p, now)
+		m.RecordReceived(0, p, now)
+		m.RecordReceived(1, p, now)
+		m.RecordReceived(2, p, now)
+	}
+
+	// Verify exact cell values. Row = source, Col = dest.
+	tests := []struct {
+		src, dst, want int
+	}{
+		{0, 1, 3}, {0, 2, 3}, {0, 3, 3}, // p0 sent 3 to each
+		{3, 0, 2}, {3, 1, 2}, {3, 2, 2}, // p3 sent 2 to each
+		{1, 0, 0}, {1, 2, 0}, {1, 3, 0}, // p1 sent nothing
+		{2, 0, 0}, {2, 1, 0}, {2, 3, 0}, // p2 sent nothing
+		{0, 0, 0}, {1, 1, 0}, {2, 2, 0}, {3, 3, 0}, // diagonal = 0
+	}
+	for _, tt := range tests {
+		if got := m.Get(tt.src, tt.dst); got != tt.want {
+			t.Errorf("Get(%d,%d) = %d, want %d", tt.src, tt.dst, got, tt.want)
+		}
+	}
+}
+
+// TestRouteMatrixNonUnicastCellPlacement verifies that non-unicast credit
+// matching places route counts in the correct [source, dest] cells.
+//
+// VALIDATES: RecordNonUnicastSent + RecordNonUnicastReceived correctly
+// credits the sender→receiver pair and tracks per-family counts.
+// PREVENTS: Non-unicast routes counted in wrong matrix cell or missing
+// from family-filtered view.
+func TestRouteMatrixNonUnicastCellPlacement(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+
+	// Only ONE sender to eliminate Go map iteration non-determinism.
+	// p0 sends 3 VPN routes.
+	for range 3 {
+		m.RecordNonUnicastSent(0, "ipv4/vpn")
+	}
+
+	// p1 receives 2 VPN routes → should credit p0→p1.
+	for range 2 {
+		m.RecordNonUnicastReceived(1, "ipv4/vpn")
+	}
+
+	// p2 receives 1 VPN route → should credit p0→p2.
+	m.RecordNonUnicastReceived(2, "ipv4/vpn")
+
+	if got := m.Get(0, 1); got != 2 {
+		t.Errorf("Get(0,1) = %d, want 2 (p0→p1)", got)
+	}
+	if got := m.Get(0, 2); got != 1 {
+		t.Errorf("Get(0,2) = %d, want 1 (p0→p2)", got)
+	}
+
+	// Self-credit prevention: p0 receiving should not credit p0→p0.
+	m.RecordNonUnicastReceived(0, "ipv4/vpn")
+	if got := m.Get(0, 0); got != 0 {
+		t.Errorf("Get(0,0) = %d, want 0 (self-credit prevented)", got)
+	}
+
+	// Credits are per (sender, receiver) pair: p0 sent 3, so each receiver
+	// can independently receive up to 3 from p0 (RR reflects to each peer).
+	// p3 receives should credit p0→p3 (p0 still has capacity for p3).
+	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	if got := m.Get(0, 3); got != 1 {
+		t.Errorf("Get(0,3) = %d, want 1 (p0→p3 credited)", got)
+	}
+
+	// Exhaust p0→p3: send 2 more receives for p3.
+	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	if got := m.Get(0, 3); got != 3 {
+		t.Errorf("Get(0,3) = %d, want 3 (all p0 credits used for p3)", got)
+	}
+
+	// Now p0→p3 is exhausted (3/3). One more receive should not credit.
+	m.RecordNonUnicastReceived(3, "ipv4/vpn")
+	if got := m.Get(0, 3); got != 3 {
+		t.Errorf("Get(0,3) = %d, want 3 (no more credits from p0)", got)
+	}
+
+	// Family tracking: non-unicast routes should appear in GetByFamily.
+	if got := m.GetByFamily(0, 1, "ipv4/vpn"); got != 2 {
+		t.Errorf("GetByFamily(0,1,ipv4/vpn) = %d, want 2", got)
+	}
+	if got := m.GetByFamily(0, 2, "ipv4/vpn"); got != 1 {
+		t.Errorf("GetByFamily(0,2,ipv4/vpn) = %d, want 1", got)
+	}
+
+	// Families list should include ipv4/vpn.
+	fams := m.Families()
+	found := false
+	for _, f := range fams {
+		if f == "ipv4/vpn" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Families() should include ipv4/vpn")
+	}
+}
+
+// TestRouteMatrixRenderedCellTitles verifies that the rendered HTML heatmap
+// places cell title attributes matching source→dest with correct counts.
+//
+// VALIDATES: Rendered cell title "pX→pY: N routes" matches actual cell values
+// for asymmetric flows where p0→p1 ≠ p1→p0.
+// PREVENTS: Row/column swap in grid rendering causing misplaced values.
+func TestRouteMatrixRenderedCellTitles(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+
+	// p0 sends 2 prefixes, reflected to p1 (asymmetric: p0→p1 = 2).
+	pa := netip.MustParsePrefix("10.0.0.0/24")
+	pb := netip.MustParsePrefix("10.0.1.0/24")
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now, Prefix: pa, Family: "ipv4/unicast"})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now, Prefix: pb, Family: "ipv4/unicast"})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: now, Prefix: pa, Family: "ipv4/unicast"})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: now, Prefix: pb, Family: "ipv4/unicast"})
+
+	// p1 sends 1 prefix, reflected to p0 (asymmetric: p1→p0 = 1).
+	pc := netip.MustParsePrefix("10.1.0.0/24")
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 1, Time: now, Prefix: pc, Family: "ipv4/unicast"})
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 0, Time: now, Prefix: pc, Family: "ipv4/unicast"})
+
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", nil)
+	w := httptest.NewRecorder()
+	d.handleVizRouteMatrix(w, req)
+
+	body := w.Body.String()
+
+	// p0→p1: 2 routes (row p0, column p1). Asymmetric — NOT swapped.
+	if !strings.Contains(body, `p0→p1: 2 routes`) {
+		t.Error("cell p0→p1 should show 2 routes")
+	}
+
+	// p1→p0: 1 routes (row p1, column p0). Opposite direction.
+	if !strings.Contains(body, `p1→p0: 1 routes`) {
+		t.Error("cell p1→p0 should show 1 routes")
+	}
+
+	// Diagonal cells should show 0.
+	if !strings.Contains(body, `p0→p0: 0 routes`) {
+		t.Error("diagonal cell p0→p0 should show 0 routes")
+	}
+	if !strings.Contains(body, `p1→p1: 0 routes`) {
+		t.Error("diagonal cell p1→p1 should show 0 routes")
+	}
+}
+
+// TestRouteMatrixCreditCellPlacement verifies that credit-based matching
+// places route counts in the correct [source, dest] cell.
+//
+// VALIDATES: When credit matching attributes a receive to the best sender,
+// the cell is stored as [sender, receiver] not [receiver, sender].
+// PREVENTS: Swapped source/dest indices in credit-matched cells.
+func TestRouteMatrixCreditCellPlacement(t *testing.T) {
+	t.Parallel()
+
+	m := NewRouteMatrix()
+	now := time.Now()
+
+	// p0 sends 3 prefixes (tracked in routeOrigins + familySent).
+	for i := range 3 {
+		p := netip.MustParsePrefix("10.0." + itoa(i) + ".0/24")
+		m.RecordSent(0, p, now)
+	}
+
+	// p1 and p2 receive unknown prefixes → credit fallback to p0.
+	m.RecordReceived(1, netip.MustParsePrefix("10.99.0.0/24"), now)
+	m.RecordReceived(2, netip.MustParsePrefix("10.99.1.0/24"), now)
+
+	// Cells should be p0→p1 and p0→p2 (source=p0, not dest=p0).
+	if got := m.Get(0, 1); got != 1 {
+		t.Errorf("Get(0,1) = %d, want 1 (p0→p1)", got)
+	}
+	if got := m.Get(0, 2); got != 1 {
+		t.Errorf("Get(0,2) = %d, want 1 (p0→p2)", got)
+	}
+	// Reverse should be empty.
+	if got := m.Get(1, 0); got != 0 {
+		t.Errorf("Get(1,0) = %d, want 0 (no reverse flow)", got)
+	}
+	if got := m.Get(2, 0); got != 0 {
+		t.Errorf("Get(2,0) = %d, want 0 (no reverse flow)", got)
 	}
 }
 

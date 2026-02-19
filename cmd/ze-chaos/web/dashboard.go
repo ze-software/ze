@@ -327,11 +327,9 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			ps.FamilySent[ev.Family]++
 		}
 		if ev.Prefix.IsValid() {
-			// RecordSent returns latencies from pending receives that were
-			// queued before this EventRouteSent arrived (out-of-order events).
-			for _, lat := range d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time) {
-				d.state.Convergence.Record(lat)
-			}
+			d.state.RouteMatrix.RecordSent(ev.PeerIndex, ev.Prefix, ev.Time)
+		} else if ev.Family != "" {
+			d.state.RouteMatrix.RecordNonUnicastSent(ev.PeerIndex, ev.Family)
 		}
 	case peer.EventRouteReceived:
 		ps.RoutesRecv++
@@ -344,9 +342,11 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			ps.FamilyRecv[prefixFamily(ev.Prefix)]++
 		}
 		if ev.Prefix.IsValid() {
-			if found, latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); found && latency > 0 {
+			if latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); latency > 0 {
 				d.state.Convergence.Record(latency)
 			}
+		} else if ev.Family != "" {
+			d.state.RouteMatrix.RecordNonUnicastReceived(ev.PeerIndex, ev.Family)
 		}
 	case peer.EventRouteWithdrawn:
 		d.state.TotalWithdrawn++

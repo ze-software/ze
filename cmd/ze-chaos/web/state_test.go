@@ -556,8 +556,8 @@ func TestRouteMatrixPrefixEviction(t *testing.T) {
 
 	// Cumulative cell counters should be unaffected by eviction.
 	// Record a receive for the overflow prefix — should correlate correctly.
-	found, _ := m.RecordReceived(1, overflow, now.Add(time.Millisecond))
-	if !found {
+	lat := m.RecordReceived(1, overflow, now.Add(time.Millisecond))
+	if lat == 0 {
 		t.Fatal("RecordReceived should find overflow prefix after eviction")
 	}
 	if m.Get(0, 1) != 1 {
