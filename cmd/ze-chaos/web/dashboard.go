@@ -463,8 +463,11 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	d.state.mu.Lock()
 	dirtyPeers, promotedPeers, dirtyGlobal := d.state.ConsumeDirty()
 
-	// Run active set decay.
-	removed := d.state.Active.Decay(time.Now())
+	// Run active set decay — skip for small deployments where all peers fit.
+	var removed []int
+	if d.state.PeerCount > d.state.Active.MaxVisible {
+		removed = d.state.Active.Decay(time.Now())
+	}
 	d.state.mu.Unlock()
 
 	if !dirtyGlobal && len(removed) == 0 && len(promotedPeers) == 0 && !broadcastConvergence {

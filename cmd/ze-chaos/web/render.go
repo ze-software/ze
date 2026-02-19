@@ -146,8 +146,8 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <label>Status:</label>
     <select hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML" name="status"
             hx-include="[name='sort'],[name='dir']">
-      <option value="fault" selected>With Fault</option>
-      <option value="">All</option>
+      <option value="" selected>Relevant</option>
+      <option value="fault">With Fault</option>
       <option value="up">Up</option>
       <option value="down">Down</option>
       <option value="reconnecting">Reconnecting</option>
@@ -175,16 +175,8 @@ func writeLayout(w io.Writer, d *Dashboard) {
       <tbody id="peer-tbody">`)
 
 	indices := s.Active.Indices()
-	// Default filter: show only non-up peers (matches "With Fault" dropdown default).
-	var faultIndices []int
-	for _, idx := range indices {
-		ps := s.Peers[idx]
-		if ps != nil && ps.Status != PeerUp {
-			faultIndices = append(faultIndices, idx)
-		}
-	}
-	sortPeers(faultIndices, s, "id", "asc")
-	writePeerRows(w, s, faultIndices)
+	sortPeers(indices, s, "id", "asc")
+	writePeerRows(w, s, indices)
 
 	h.write(`
       </tbody>
