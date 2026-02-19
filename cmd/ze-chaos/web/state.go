@@ -130,6 +130,11 @@ type PeerState struct {
 
 	// FamilyRecv tracks route-received counts per address family.
 	FamilyRecv map[string]int
+
+	// FamilySentTarget holds the expected route count per family for this peer.
+	// Computed from profile data at init: unicast families get full RouteCount,
+	// non-unicast (VPN, EVPN, FlowSpec) get RouteCount/4.
+	FamilySentTarget map[string]int
 }
 
 // NewPeerState creates a PeerState with the given index and event buffer size.

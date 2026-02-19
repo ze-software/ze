@@ -379,6 +379,7 @@ Control:
 				PeerCount:          len(profiles),
 				Seed:               *seed,
 				InitialSpeedFactor: 1,
+				PeerFamilyTargets:  peerFamilyTargets(profiles),
 			})
 			if webErr != nil {
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
@@ -928,6 +929,7 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 			ControlLogger:       controlLogger,
 			RestartCh:           cfg.restartCh,
 			OnStop:              cfg.onStop,
+			PeerFamilyTargets:   peerFamilyTargets(cfg.profiles),
 		})
 	}
 
@@ -1447,4 +1449,23 @@ func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 	}
 
 	return fmt.Errorf("ze did not start within timeout on %s: %w", addr, lastErr)
+}
+
+// peerFamilyTargets computes per-peer per-family expected route counts from profiles.
+// Mirrors the simulator logic: unicast families get full RouteCount,
+// non-unicast families (VPN, EVPN, FlowSpec) get RouteCount/4.
+func peerFamilyTargets(profiles []scenario.PeerProfile) map[int]map[string]int {
+	targets := make(map[int]map[string]int, len(profiles))
+	for _, p := range profiles {
+		fm := make(map[string]int, len(p.Families))
+		for _, fam := range p.Families {
+			if strings.Contains(fam, "unicast") {
+				fm[fam] = p.RouteCount
+			} else {
+				fm[fam] = p.RouteCount / 4
+			}
+		}
+		targets[p.Index] = fm
+	}
+	return targets
 }

@@ -79,6 +79,12 @@ type Config struct {
 	// When non-zero, enables the speed control UI in the dashboard.
 	// Only meaningful in in-process mode where virtual clock pacing is adjustable.
 	InitialSpeedFactor int
+
+	// PeerFamilyTargets maps peer index → family → expected route count.
+	// Used to show sent progress (nb/max) in the Families tab.
+	// Computed from profile data: unicast families get full RouteCount,
+	// non-unicast (VPN, EVPN, FlowSpec) get RouteCount/4.
+	PeerFamilyTargets map[int]map[string]int
 }
 
 func (c *Config) defaults() {
@@ -180,6 +186,11 @@ func New(cfg Config) (*Dashboard, error) {
 	cfg.defaults()
 
 	state := NewDashboardState(cfg.PeerCount, cfg.MaxVisible, cfg.EventBufSize)
+	for idx, targets := range cfg.PeerFamilyTargets {
+		if ps := state.Peers[idx]; ps != nil {
+			ps.FamilySentTarget = targets
+		}
+	}
 	broker := NewSSEBroker(cfg.DebounceInterval)
 
 	mux := cfg.Mux

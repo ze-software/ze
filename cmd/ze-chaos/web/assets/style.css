@@ -479,6 +479,7 @@ html, body {
 .viz-desc {
   font-size: 11px;
   color: var(--text-muted);
+  margin-top: 12px;
   margin-bottom: 8px;
   line-height: 1.4;
   overflow-wrap: break-word;
@@ -973,20 +974,42 @@ html, body {
   background: var(--bg-hover);
 }
 
+.fm-cell {
+  text-align: left !important;
+}
+
+.fm-row {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.fm-val {
+  display: inline-block;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.fm-dim {
+  color: var(--text-muted);
+}
+
 .fm-disabled {
   color: var(--text-muted) !important;
 }
 
-.fm-pending {
-  color: var(--red) !important;
+span.fm-pending {
+  color: var(--red);
+  font-weight: 600;
 }
 
-.fm-partial {
-  color: var(--orange) !important;
+span.fm-partial {
+  color: var(--orange);
+  font-weight: 600;
 }
 
-.fm-complete {
-  color: var(--green) !important;
+span.fm-complete {
+  color: var(--green);
+  font-weight: 600;
 }
 
 .fm-total {
