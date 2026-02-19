@@ -265,11 +265,12 @@ type ServerConfig struct {
 
 // Format constants for process output formatting.
 const (
-	FormatHex    = "hex"    // Wire bytes as hex string
-	FormatBase64 = "base64" // Wire bytes as base64
-	FormatParsed = "parsed" // Decoded/interpreted fields only (default)
-	FormatRaw    = "raw"    // Wire bytes only (hex) - alias for FormatHex
-	FormatFull   = "full"   // Both parsed content AND raw bytes
+	FormatHex     = "hex"     // Wire bytes as hex string
+	FormatBase64  = "base64"  // Wire bytes as base64
+	FormatParsed  = "parsed"  // Decoded/interpreted fields only (default)
+	FormatRaw     = "raw"     // Wire bytes only (hex) - alias for FormatHex
+	FormatFull    = "full"    // Both parsed content AND raw bytes
+	FormatSummary = "summary" // NLRI metadata only (families + announce/withdraw presence)
 )
 
 // WireEncoding specifies how wire bytes are encoded in API messages.

@@ -31,6 +31,12 @@ func FormatMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptyp
 		direction = overrideDir
 	}
 
+	// Summary format: lightweight NLRI metadata only (skip full attribute parsing).
+	// Must short-circuit before filter setup for performance.
+	if content.Format == plugin.FormatSummary && msg.Type == message.TypeUPDATE {
+		return formatSummary(peer, msg.RawBytes, msg.MessageID, direction)
+	}
+
 	// Get attribute filter (nil means all)
 	filter := content.Attributes
 	if filter == nil {
@@ -173,7 +179,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 					if hasContent {
 						rawObj.WriteString(",")
 					}
-					rawObj.WriteString(fmt.Sprintf(`"attributes":"%x"`, rawComps.Attributes))
+					fmt.Fprintf(&rawObj, `"attributes":"%x"`, rawComps.Attributes)
 					hasContent = true
 				}
 
@@ -189,7 +195,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 							rawObj.WriteString(",")
 						}
 						first = false
-						rawObj.WriteString(fmt.Sprintf(`"%s":"%x"`, family.String(), nlriBytes))
+						fmt.Fprintf(&rawObj, `"%s":"%x"`, family.String(), nlriBytes)
 					}
 					rawObj.WriteString(`}`)
 					hasContent = true
@@ -207,7 +213,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 							rawObj.WriteString(",")
 						}
 						first = false
-						rawObj.WriteString(fmt.Sprintf(`"%s":"%x"`, family.String(), wdBytes))
+						fmt.Fprintf(&rawObj, `"%s":"%x"`, family.String(), wdBytes)
 					}
 					rawObj.WriteString(`}`)
 					hasContent = true
@@ -219,7 +225,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 		if hasContent {
 			rawObj.WriteString(",")
 		}
-		rawObj.WriteString(fmt.Sprintf(`"update":"%s"`, rawHex))
+		fmt.Fprintf(&rawObj, `"update":"%s"`, rawHex)
 
 		rawObj.WriteString(`}`)
 
@@ -267,7 +273,7 @@ func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	// Message metadata with type inside
 	sb.WriteString(`"message":{"type":"update"`)
 	if msgID > 0 {
-		sb.WriteString(fmt.Sprintf(`,"id":%d`, msgID))
+		fmt.Fprintf(&sb, `,"id":%d`, msgID)
 	}
 	if direction != "" {
 		sb.WriteString(`,"direction":"`)
@@ -280,7 +286,7 @@ func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	sb.WriteString(`,"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
 	sb.WriteString(`","asn":`)
-	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
+	fmt.Fprintf(&sb, "%d", peer.PeerAS)
 	sb.WriteString(`}`)
 
 	// Update container with attr and nlri inside
@@ -769,8 +775,8 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
 func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("peer %s %s open %d asn %d router-id %s hold-time %d",
-		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime))
+	fmt.Fprintf(&sb, "peer %s %s open %d asn %d router-id %s hold-time %d",
+		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime)
 
 	for _, cap := range open.Capabilities {
 		if cap.Value != "" {

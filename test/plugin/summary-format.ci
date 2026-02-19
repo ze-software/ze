@@ -1,0 +1,165 @@
+# Test: subscription format "summary" delivers lightweight NLRI metadata
+# Plugin subscribes with format=summary, receives UPDATE, validates JSON structure,
+# sends success signal route if format is correct.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=update:value=send-default-route
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304
+EOF_PEER
+
+# Python plugin script
+tmpfs=summary-format.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""
+Plugin that subscribes with format=summary, validates summary JSON structure.
+Success: sends 1.2.3.4/32 (matched by ze-peer expect).
+Failure: sends 255.255.255.255/32 (not expected, test fails).
+"""
+
+import json
+import sys
+import time
+
+from ze_api import (
+    declare_done, wait_for_config, capability_done, wait_for_registry,
+    subscribe, send, wait_for_ack, wait_for_shutdown, _get_api
+)
+
+
+def main() -> None:
+    api = _get_api()
+
+    # Stages 1-4
+    declare_done()
+    wait_for_config()
+    capability_done()
+    wait_for_registry()
+
+    # Subscribe to UPDATE events with format "summary"
+    subscribe(['update'], fmt='summary')
+
+    # Stage 5: Ready (includes subscription)
+    api.ready()
+
+    # Wait for UPDATE event (default route from ze-peer)
+    start_time = time.time()
+    while time.time() - start_time < 5:
+        line = api.read_line(0.5)
+        if line is None:
+            continue
+
+        try:
+            event = json.loads(line)
+        except (json.JSONDecodeError, TypeError):
+            continue
+
+        bgp = event.get('bgp', {})
+        msg = bgp.get('message', {})
+        if msg.get('type') != 'update':
+            continue
+
+        # Validate summary format structure
+        nlri = bgp.get('nlri')
+        if not isinstance(nlri, dict):
+            print(f"FAIL: bgp.nlri not a dict: {type(nlri)}", file=sys.stderr)
+            continue
+
+        # Check all four keys exist
+        has_announce = 'announce' in nlri
+        has_withdrawn = 'withdrawn' in nlri
+        has_mp_reach = 'mp-reach' in nlri
+        has_mp_unreach = 'mp-unreach' in nlri
+
+        if not all([has_announce, has_withdrawn, has_mp_reach, has_mp_unreach]):
+            print(f"FAIL: missing keys: {list(nlri.keys())}", file=sys.stderr)
+            continue
+
+        # Check types
+        if not isinstance(nlri['announce'], bool):
+            print(f"FAIL: announce not bool: {type(nlri['announce'])}", file=sys.stderr)
+            continue
+        if not isinstance(nlri['withdrawn'], bool):
+            print(f"FAIL: withdrawn not bool: {type(nlri['withdrawn'])}", file=sys.stderr)
+            continue
+        if not isinstance(nlri['mp-reach'], str):
+            print(f"FAIL: mp-reach not str: {type(nlri['mp-reach'])}", file=sys.stderr)
+            continue
+        if not isinstance(nlri['mp-unreach'], str):
+            print(f"FAIL: mp-unreach not str: {type(nlri['mp-unreach'])}", file=sys.stderr)
+            continue
+
+        # Default route is IPv4 unicast legacy NLRI — announce must be true
+        if not nlri['announce']:
+            print(f"FAIL: announce should be true for default route", file=sys.stderr)
+            continue
+
+        # message.id must be present
+        if 'id' not in msg:
+            print(f"FAIL: message.id missing", file=sys.stderr)
+            continue
+
+        # All checks passed — send success signal
+        print(f"OK: summary format validated: {nlri}", file=sys.stderr)
+        send('bgp peer 127.0.0.1 update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32')
+        wait_for_ack()
+        break
+    else:
+        print("FAIL: timeout waiting for summary event", file=sys.stderr)
+        return
+
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external summary-check {
+		run ./summary-format.run;
+		encoder text;
+	}
+}
+template {
+	group test-peer {
+		family {
+			ipv4/unicast;
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 127.0.0.2;
+			}
+			nlri {
+				ipv4/unicast add 127.0.0.1/32;
+			}
+		}
+		process summary-check {
+			send {
+				update;
+			}
+		}
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		inherit test-peer;
+		router-id 10.0.0.139;
+		local-address 127.0.0.1;
+		local-as 65512;
+		peer-as 65512;
+		hold-time 30;
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

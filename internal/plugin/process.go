@@ -239,7 +239,7 @@ func (p *Process) Format() string {
 	return FormatHex // Default
 }
 
-// SetFormat sets the wire format (hex, base64, parsed, full).
+// SetFormat sets the wire format (hex, base64, parsed, full, summary).
 func (p *Process) SetFormat(format string) {
 	p.format.Store(format)
 }
