@@ -66,11 +66,17 @@ if command -v golangci-lint &> /dev/null; then
     # Get relative path for cleaner output
     REL_PATH="${FILE_PATH#$PROJECT_ROOT/}"
 
-    # Run linter on the specific file
-    OUTPUT=$(golangci-lint run --new-from-rev=HEAD --timeout=30s "$REL_PATH" 2>&1) || true
+    # Run linter on the package containing the file (not just the file).
+    # File-level linting causes typecheck failures for multi-file packages
+    # because cross-file types (e.g. PeerState in peer.go) appear undefined.
+    PACKAGE_DIR=$(dirname "$REL_PATH")
+    OUTPUT=$(golangci-lint run --new-from-rev=HEAD --timeout=30s "./${PACKAGE_DIR}/..." 2>&1) || true
 
-    if [[ -n "$OUTPUT" && ! "$OUTPUT" =~ "no issues" ]]; then
-        ISSUE_COUNT=$(echo "$OUTPUT" | grep -c ":" || echo "0")
+    if [[ -n "$OUTPUT" && ! "$OUTPUT" =~ "no issues" && ! "$OUTPUT" =~ "^0 issues" ]]; then
+        ISSUE_COUNT=$(echo "$OUTPUT" | grep -c ":")
+        if [[ "$ISSUE_COUNT" -eq 0 ]]; then
+            exit 0
+        fi
         echo -e "${YELLOW}⚠ lint: ${ISSUE_COUNT} issues${RESET}" >&2
         echo "$OUTPUT" | head -3 | while read -r line; do
             echo -e "  ${DIM}${line}${RESET}" >&2
