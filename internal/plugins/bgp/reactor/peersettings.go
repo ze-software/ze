@@ -15,6 +15,58 @@ import (
 // DefaultBGPPort is the standard BGP port per RFC 4271.
 const DefaultBGPPort = 179
 
+// ConnectionMode controls TCP connection establishment for a peer.
+// Bitmask: Active (bit 0) = dial out, Passive (bit 1) = accept inbound.
+// RFC 4271 Section 8.1.1: PassiveTcpEstablishment optional attribute.
+type ConnectionMode int
+
+const (
+	// ConnectionActive initiates only — does not bind/listen for inbound connections.
+	ConnectionActive ConnectionMode = 1 << iota
+	// ConnectionPassive accepts only — does not initiate outbound connections.
+	ConnectionPassive
+	// ConnectionBoth initiates and accepts connections (default).
+	ConnectionBoth = ConnectionActive | ConnectionPassive
+)
+
+const (
+	connBoth    = "both"
+	connPassive = "passive"
+	connActive  = "active"
+)
+
+// IsActive reports whether dialing out is enabled (active bit set).
+func (m ConnectionMode) IsActive() bool { return m&ConnectionActive != 0 }
+
+// IsPassive reports whether accepting inbound is enabled (passive bit set).
+func (m ConnectionMode) IsPassive() bool { return m&ConnectionPassive != 0 }
+
+// String returns the config-level name for the connection mode.
+func (m ConnectionMode) String() string {
+	switch m {
+	case ConnectionBoth:
+		return connBoth
+	case ConnectionPassive:
+		return connPassive
+	case ConnectionActive:
+		return connActive
+	}
+	return connBoth
+}
+
+// ParseConnectionMode parses a connection mode string from config.
+func ParseConnectionMode(s string) (ConnectionMode, error) {
+	switch s {
+	case connBoth, "":
+		return ConnectionBoth, nil
+	case connPassive:
+		return ConnectionPassive, nil
+	case connActive:
+		return ConnectionActive, nil
+	}
+	return 0, fmt.Errorf("invalid connection mode %q: must be %s, %s, or %s", s, connBoth, connPassive, connActive)
+}
+
 // DefaultHoldTime is the default hold time per RFC 4271.
 const DefaultHoldTime = 90 * time.Second
 
@@ -201,8 +253,11 @@ type PeerSettings struct {
 	// HoldTime is the proposed hold time (default 90s).
 	HoldTime time.Duration
 
-	// Passive indicates listen-only mode (no outgoing connections).
-	Passive bool
+	// Connection controls TCP connection establishment mode.
+	// ConnectionBoth (default): initiate and accept.
+	// ConnectionPassive: accept only (no dial out).
+	// ConnectionActive: dial only (no bind/listen).
+	Connection ConnectionMode
 
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
@@ -289,6 +344,7 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 		PeerAS:       peerAS,
 		RouterID:     routerID,
 		HoldTime:     DefaultHoldTime,
+		Connection:   ConnectionBoth,
 		GroupUpdates: true,
 	}
 }

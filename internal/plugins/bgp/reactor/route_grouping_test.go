@@ -207,6 +207,7 @@ func TestBuildGroupedMPReachWithLimit(t *testing.T) {
 // PREVENTS: Grouping when disabled.
 func TestGroupedSendDisabled(t *testing.T) {
 	settings := &PeerSettings{
+		Connection:   ConnectionBoth,
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAS:      65000,
 		PeerAS:       65001,
@@ -223,6 +224,7 @@ func TestGroupedSendDisabled(t *testing.T) {
 // PREVENTS: Grouping disabled by default.
 func TestGroupedSendEnabled(t *testing.T) {
 	settings := &PeerSettings{
+		Connection:   ConnectionBoth,
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAS:      65000,
 		PeerAS:       65001,

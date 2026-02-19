@@ -24,6 +24,7 @@ template {
 			inherit-name test;
 			local-as 65533;
 			peer-as 65533;
+			connection active;
 			hold-time 180;
 			group-updates disable;
 

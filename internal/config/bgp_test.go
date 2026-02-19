@@ -31,7 +31,7 @@ bgp {
         local-as 65000;
         peer-as 65001;
         hold-time 90;
-        passive false;
+        connection both;
     }
 }
 `

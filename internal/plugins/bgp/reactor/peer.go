@@ -968,10 +968,10 @@ func (p *Peer) runOnce() error {
 	}()
 
 	// Update state based on FSM mode
-	if p.settings.Passive {
-		p.setState(PeerStateActive)
-	} else {
+	if p.settings.Connection.IsActive() {
 		p.setState(PeerStateConnecting)
+	} else {
+		p.setState(PeerStateActive)
 	}
 
 	// Start FSM
@@ -979,18 +979,18 @@ func (p *Peer) runOnce() error {
 		return err
 	}
 
-	// Connect (for active mode)
-	if !p.settings.Passive {
+	// Dial out if active bit is set (active or both).
+	if p.settings.Connection.IsActive() {
 		if err := session.Connect(p.ctx); err != nil {
 			return err
 		}
 	}
 
-	// For passive peers, check if an inbound connection arrived while session was nil.
+	// For peers that accept inbound, check if a connection arrived while session was nil.
 	// This handles the race where a remote peer reconnects faster than our backoff.
 	// If Accept fails (stale connection), return error so run() retries with a clean
 	// session rather than entering Run() with a partially-initialized FSM state.
-	if p.settings.Passive {
+	if p.settings.Connection.IsPassive() {
 		if conn := p.takeInboundConnection(); conn != nil {
 			if err := session.Accept(conn); err != nil {
 				peerLogger().Debug("stale inbound connection", "peer", p.settings.Address, "error", err)

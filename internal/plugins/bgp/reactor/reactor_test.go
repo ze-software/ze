@@ -231,7 +231,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
@@ -1267,11 +1267,11 @@ func TestMultiListenerSameLocalAddress(t *testing.T) {
 	// Add two peers with same LocalAddress
 	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings1.LocalAddress = localAddr
-	settings1.Passive = true
+	settings1.Connection = ConnectionPassive
 
 	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
 	settings2.LocalAddress = localAddr
-	settings2.Passive = true
+	settings2.Connection = ConnectionPassive
 
 	err := reactor.AddPeer(settings1)
 	require.NoError(t, err)
@@ -1310,11 +1310,11 @@ func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
 	// Note: Peer Address must match LocalAddress family
 	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings1.LocalAddress = mustParseAddr("127.0.0.1") // IPv4 local for IPv4 peer
-	settings1.Passive = true
+	settings1.Connection = ConnectionPassive
 
 	settings2 := NewPeerSettings(mustParseAddr("2001:db8::3"), 65000, 65002, 0x01010101)
 	settings2.LocalAddress = mustParseAddr("::1") // IPv6 local for IPv6 peer
-	settings2.Passive = true
+	settings2.Connection = ConnectionPassive
 
 	err = reactor.AddPeer(settings1)
 	require.NoError(t, err)
@@ -1371,7 +1371,7 @@ func TestMultiListenerConnectionToCorrectListener(t *testing.T) {
 	// Note: Address != LocalAddress (peer is at 10.0.0.2, we listen on 127.0.0.1)
 	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = mustParseAddr("127.0.0.1")
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
@@ -1414,7 +1414,7 @@ func TestMultiListenerLegacyListenAddrFallback(t *testing.T) {
 
 	// Peer without LocalAddress (legacy behavior)
 	settings := NewPeerSettings(mustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	// Note: LocalAddress is zero value
 
 	err := reactor.AddPeer(settings)
@@ -1537,7 +1537,7 @@ func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
 	// Add peer with LocalAddress
 	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = mustParseAddr("127.0.0.1")
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	err = reactor.AddPeer(settings)
 	require.NoError(t, err)
@@ -1561,7 +1561,7 @@ func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 	// Add first peer
 	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings1.LocalAddress = mustParseAddr("127.0.0.1")
-	settings1.Passive = true
+	settings1.Connection = ConnectionPassive
 	err := reactor.AddPeer(settings1)
 	require.NoError(t, err)
 
@@ -1574,7 +1574,7 @@ func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
 	// Add second peer with SAME LocalAddress
 	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
 	settings2.LocalAddress = mustParseAddr("127.0.0.1") // Same!
-	settings2.Passive = true
+	settings2.Connection = ConnectionPassive
 
 	err = reactor.AddPeer(settings2)
 	require.NoError(t, err)
@@ -1598,7 +1598,7 @@ func TestDynamicListenerRemoveLastPeer(t *testing.T) {
 	// Add peer
 	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = mustParseAddr("127.0.0.1")
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
@@ -1633,13 +1633,13 @@ func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
 	// Add two peers with same LocalAddress
 	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings1.LocalAddress = localAddr
-	settings1.Passive = true
+	settings1.Connection = ConnectionPassive
 	err := reactor.AddPeer(settings1)
 	require.NoError(t, err)
 
 	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
 	settings2.LocalAddress = localAddr
-	settings2.Passive = true
+	settings2.Connection = ConnectionPassive
 	err = reactor.AddPeer(settings2)
 	require.NoError(t, err)
 
@@ -1676,7 +1676,7 @@ func TestAddPeerIPv4MappedNormalization(t *testing.T) {
 	// Add peer with IPv4-mapped IPv6 LocalAddress
 	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = netip.MustParseAddr("::ffff:127.0.0.1") // IPv4-mapped
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err, "IPv4-mapped LocalAddress should be accepted")
@@ -1725,7 +1725,7 @@ func TestAddPeerIPv4MappedAddressNormalization(t *testing.T) {
 	// Add peer with IPv4-mapped Address
 	settings := NewPeerSettings(netip.MustParseAddr("::ffff:10.0.0.2"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = mustParseAddr("127.0.0.1")
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	err := reactor.AddPeer(settings)
 	require.NoError(t, err)

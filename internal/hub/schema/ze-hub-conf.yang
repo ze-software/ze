@@ -84,7 +84,7 @@ module ze-hub-conf {
 
         container bgp {
             description "BGP protocol settings";
-            leaf passive { type boolean; }
+            leaf connection { type string; description "Connection mode: both, passive, active"; }
             leaf openwait { type int32; }
         }
 

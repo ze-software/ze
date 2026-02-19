@@ -230,6 +230,13 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 			if key == "local-link-local" {
 				outKey = "link-local"
 			}
+			// ExaBGP "passive true" → Ze "connection passive"
+			if key == "passive" {
+				if v == configTrue {
+					merged.Set("connection", "passive")
+				}
+				continue
+			}
 			merged.Set(outKey, v)
 		}
 	}
@@ -280,6 +287,13 @@ func copySimpleFields(src, dst *config.Tree) {
 			outField := field
 			if field == "local-link-local" {
 				outField = "link-local"
+			}
+			// ExaBGP "passive true" → Ze "connection passive"
+			if field == "passive" {
+				if v == configTrue {
+					dst.Set("connection", "passive")
+				}
+				continue
 			}
 			dst.Set(outField, v)
 		}

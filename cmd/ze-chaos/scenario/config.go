@@ -107,7 +107,7 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 
 	// All chaos peers are passive from Ze's perspective: Ze never dials out.
 	// This avoids needing loopback aliases for the fake peer addresses.
-	fmt.Fprintf(b, "        passive true;\n")
+	fmt.Fprintf(b, "        connection passive;\n")
 
 	// Family block — per-peer families from profile.
 	families := p.Families

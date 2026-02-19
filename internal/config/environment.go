@@ -76,8 +76,8 @@ type TCPEnv struct {
 
 // BGPEnv holds BGP-related settings.
 type BGPEnv struct {
-	Passive  bool // Make all peers passive
-	OpenWait int  // Seconds to wait for OPEN
+	Connection string // Connection mode for all peers: "both" (default), "passive", "active"
+	OpenWait   int    // Seconds to wait for OPEN
 }
 
 // CacheEnv holds caching-related settings.
@@ -536,7 +536,14 @@ var envOptions = map[string]map[string]envOption{
 		"connections": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
 	},
 	"bgp": {
-		"passive":  {setter: setBoolField(func(e *Environment) *bool { return &e.BGP.Passive })},
+		"connection": {setter: func(env *Environment, value string) error {
+			switch value {
+			case "both", "passive", "active":
+				env.BGP.Connection = value
+				return nil
+			}
+			return fmt.Errorf("invalid connection mode %q: must be both, passive, or active", value)
+		}},
 		"openwait": {setter: setIntField(func(e *Environment) *int { return &e.BGP.OpenWait }), validate: validateOpenWait},
 	},
 	"cache": {

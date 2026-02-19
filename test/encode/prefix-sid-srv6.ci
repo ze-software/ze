@@ -16,6 +16,7 @@ bgp {
 		local-address 127.0.0.1;
 		local-as 65000;
 		peer-as 65000;
+		connection active;
 		group-updates disable;
 
 		family {

@@ -20,7 +20,7 @@ import (
 // PREVENTS: Stored connection lost or returned to wrong caller.
 func TestInboundConnectionRoundTrip(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	// Initially nil
@@ -46,7 +46,7 @@ func TestInboundConnectionRoundTrip(t *testing.T) {
 // PREVENTS: Connection leak from rapid reconnects.
 func TestInboundConnectionReplacesOld(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	// Store first connection
@@ -77,7 +77,7 @@ func TestInboundConnectionReplacesOld(t *testing.T) {
 // PREVENTS: Peer sleeping through full backoff when a connection is waiting.
 func TestInboundNotifyWakesBackoff(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	client, server := net.Pipe()
@@ -102,7 +102,7 @@ func TestInboundNotifyWakesBackoff(t *testing.T) {
 // PREVENTS: Listener goroutine blocked indefinitely on channel send.
 func TestInboundNotifyIdempotent(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	c1, s1 := net.Pipe()
@@ -135,7 +135,7 @@ func TestInboundNotifyIdempotent(t *testing.T) {
 // PREVENTS: Leaked TCP connections when peer stops with a buffered connection.
 func TestInboundConnectionCleanup(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	client, server := net.Pipe()
@@ -160,7 +160,7 @@ func TestInboundConnectionCleanup(t *testing.T) {
 // PREVENTS: 5s+ delay before accepting a connection from a fast-reconnecting peer.
 func TestInboundConnectionSkipsBackoff(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020304)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 	clock := sim.NewFakeClock(time.Now())
 	peer.SetClock(clock)

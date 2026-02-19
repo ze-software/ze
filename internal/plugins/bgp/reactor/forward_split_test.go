@@ -62,6 +62,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	// Create peer WITHOUT ExtendedMessage
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,
@@ -198,6 +199,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 // PREVENTS: Replay failure when peer reconnects without Extended Message.
 func TestReplayUpdateSplitting(t *testing.T) {
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,

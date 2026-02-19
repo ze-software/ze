@@ -137,10 +137,14 @@ module ze-bgp-conf {
             description "Hold time in seconds (RFC 4271: 0 or >= 3)";
         }
 
-        leaf passive {
-            type boolean;
-            default false;
-            description "Wait for peer to connect";
+        leaf connection {
+            type enumeration {
+                enum both { description "Initiate and accept connections (default)"; }
+                enum passive { description "Accept only — do not initiate outbound"; }
+                enum active { description "Initiate only — do not accept inbound"; }
+            }
+            default both;
+            description "TCP connection establishment mode for this peer";
         }
 
         leaf port {

@@ -55,7 +55,7 @@ func TestSessionPassiveMode(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 
@@ -70,7 +70,7 @@ func TestSessionActiveMode(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = false
+	settings.Connection = ConnectionBoth
 
 	session := NewSession(settings)
 
@@ -85,7 +85,7 @@ func TestSessionAcceptConnection(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -110,7 +110,7 @@ func TestSessionSendOpen(t *testing.T) {
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 	}
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -168,7 +168,7 @@ func TestSessionSendOpenWithPluginFamilies(t *testing.T) {
 		65001, 65002, 0x01020301,
 	)
 	settings.HoldTime = 90 * time.Second
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 
@@ -226,7 +226,7 @@ func TestSessionSendOpenConfigFamiliesOverridePlugin(t *testing.T) {
 		65001, 65002, 0x01020301,
 	)
 	settings.HoldTime = 90 * time.Second
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	// Add IPv4 FlowSpec via config - this means config has families, plugin families ignored
 	settings.Capabilities = []capability.Capability{
 		&capability.Multiprotocol{AFI: 1, SAFI: 133}, // IPv4 FlowSpec
@@ -279,7 +279,7 @@ func TestSessionReceiveOpen(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -323,7 +323,7 @@ func TestSessionKeepaliveExchange(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -369,7 +369,7 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.HoldTime = 50 * time.Millisecond
 
 	session := NewSession(settings)
@@ -417,7 +417,7 @@ func TestSessionNotification(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -450,7 +450,7 @@ func TestSessionGracefulClose(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -495,7 +495,7 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.RouteRefresh{},
@@ -547,7 +547,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -675,7 +675,7 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -766,7 +766,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -863,7 +863,7 @@ func TestSessionOpenAlwaysBounded(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.ExtendedMessage{},
@@ -916,7 +916,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.IgnoreFamilyMismatch = true // Enable lenient mode
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
@@ -1033,7 +1033,7 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 				netip.MustParseAddr("192.0.2.1"),
 				65001, 65002, 0x01020301,
 			)
-			settings.Passive = true
+			settings.Connection = ConnectionPassive
 			settings.Capabilities = []capability.Capability{
 				&capability.ASN4{ASN: 65001},
 				&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -1102,7 +1102,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -1210,7 +1210,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -1309,7 +1309,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -1401,7 +1401,7 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -1714,7 +1714,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -1814,7 +1814,7 @@ func TestSendRawUpdateBodyNotEstablished(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -1865,7 +1865,7 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},

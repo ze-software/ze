@@ -93,7 +93,7 @@ type DynamicPeerConfig struct {
 	LocalAddress netip.Addr    // Local IP for this session (optional)
 	RouterID     uint32        // Router ID (optional, use reactor default if 0)
 	HoldTime     time.Duration // Hold time (optional, use default if 0)
-	Passive      bool          // Passive mode (listen-only)
+	Connection   string        // Connection mode: "both" (default), "passive", "active"
 }
 
 // ReactorLifecycle defines generic lifecycle operations for the reactor.

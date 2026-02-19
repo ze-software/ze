@@ -195,8 +195,8 @@ func NewSession(settings *PeerSettings) *Session {
 		done:     make(chan struct{}),
 	}
 
-	// Configure FSM passive mode.
-	s.fsm.SetPassive(settings.Passive)
+	// Configure FSM connection mode: passive if active bit is NOT set.
+	s.fsm.SetPassive(!settings.Connection.IsActive())
 
 	// Configure timers.
 	s.timers.SetHoldTime(settings.HoldTime)

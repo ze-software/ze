@@ -29,7 +29,7 @@ bgp {
 
     peer 192.0.2.2 {
         peer-as 65002;
-        passive true;
+        connection passive;
         local-address 192.168.1.1;
     }
 }
@@ -86,7 +86,7 @@ bgp {
 
     peer 192.0.2.1 {
         peer-as 65001;
-        passive true;
+        connection passive;
         local-address 192.168.1.1;
     }
 }
@@ -99,7 +99,7 @@ bgp {
 	require.Len(t, peers, 1)
 
 	n := peers[0].Settings()
-	require.True(t, n.Passive)
+	require.Equal(t, reactor.ConnectionPassive, n.Connection)
 }
 
 // TestLoadReactorRouteRefreshCapabilities verifies route-refresh capability loading.

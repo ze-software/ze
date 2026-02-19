@@ -36,10 +36,10 @@ func findFreePort(t *testing.T) uint16 {
 
 // peerConfig holds configuration for a test peer.
 type peerConfig struct {
-	localAS  uint32
-	peerAS   uint32
-	routerID uint32
-	passive  bool
+	localAS    uint32
+	peerAS     uint32
+	routerID   uint32
+	connection reactor.ConnectionMode
 }
 
 // setupPeers creates two reactors with configured neighbors.
@@ -62,23 +62,23 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 	})
 
 	neighbor1 := &reactor.PeerSettings{
-		Address:  netip.MustParseAddr("127.0.0.1"),
-		Port:     port2,
-		LocalAS:  cfg1.localAS,
-		PeerAS:   cfg1.peerAS,
-		RouterID: cfg1.routerID,
-		HoldTime: 30 * time.Second,
-		Passive:  cfg1.passive,
+		Address:    netip.MustParseAddr("127.0.0.1"),
+		Port:       port2,
+		LocalAS:    cfg1.localAS,
+		PeerAS:     cfg1.peerAS,
+		RouterID:   cfg1.routerID,
+		HoldTime:   30 * time.Second,
+		Connection: cfg1.connection,
 	}
 
 	neighbor2 := &reactor.PeerSettings{
-		Address:  netip.MustParseAddr("127.0.0.1"),
-		Port:     port1,
-		LocalAS:  cfg2.localAS,
-		PeerAS:   cfg2.peerAS,
-		RouterID: cfg2.routerID,
-		HoldTime: 30 * time.Second,
-		Passive:  cfg2.passive,
+		Address:    netip.MustParseAddr("127.0.0.1"),
+		Port:       port1,
+		LocalAS:    cfg2.localAS,
+		PeerAS:     cfg2.peerAS,
+		RouterID:   cfg2.routerID,
+		HoldTime:   30 * time.Second,
+		Connection: cfg2.connection,
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {
@@ -127,8 +127,8 @@ func TestSessionEstablishment(t *testing.T) {
 	defer cancel()
 
 	r1, r2 := setupPeers(t, ctx,
-		peerConfig{localAS: 65001, peerAS: 65002, routerID: 0x01010101, passive: false},
-		peerConfig{localAS: 65002, peerAS: 65001, routerID: 0x02020202, passive: true},
+		peerConfig{localAS: 65001, peerAS: 65002, routerID: 0x01010101, connection: reactor.ConnectionBoth},
+		peerConfig{localAS: 65002, peerAS: 65001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
 	defer r1.Stop()
 	defer r2.Stop()
@@ -157,8 +157,8 @@ func TestSessionIBGP(t *testing.T) {
 	defer cancel()
 
 	r1, r2 := setupPeers(t, ctx,
-		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x01010101, passive: false},
-		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x02020202, passive: true},
+		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x01010101, connection: reactor.ConnectionBoth},
+		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
 	defer r1.Stop()
 	defer r2.Stop()
@@ -176,8 +176,8 @@ func TestSession4ByteAS(t *testing.T) {
 	defer cancel()
 
 	r1, r2 := setupPeers(t, ctx,
-		peerConfig{localAS: 4200000001, peerAS: 4200000002, routerID: 0x01010101, passive: false},
-		peerConfig{localAS: 4200000002, peerAS: 4200000001, routerID: 0x02020202, passive: true},
+		peerConfig{localAS: 4200000001, peerAS: 4200000002, routerID: 0x01010101, connection: reactor.ConnectionBoth},
+		peerConfig{localAS: 4200000002, peerAS: 4200000001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
 	defer r1.Stop()
 	defer r2.Stop()
@@ -210,22 +210,23 @@ func TestSessionReconnect(t *testing.T) {
 	})
 
 	neighbor1 := &reactor.PeerSettings{
-		Address:  netip.MustParseAddr("127.0.0.1"),
-		Port:     port2,
-		LocalAS:  65001,
-		PeerAS:   65002,
-		RouterID: 0x01010101,
-		HoldTime: 30 * time.Second,
+		Address:    netip.MustParseAddr("127.0.0.1"),
+		Port:       port2,
+		LocalAS:    65001,
+		PeerAS:     65002,
+		RouterID:   0x01010101,
+		HoldTime:   30 * time.Second,
+		Connection: reactor.ConnectionBoth,
 	}
 
 	neighbor2 := &reactor.PeerSettings{
-		Address:  netip.MustParseAddr("127.0.0.1"),
-		Port:     port1,
-		LocalAS:  65002,
-		PeerAS:   65001,
-		RouterID: 0x02020202,
-		HoldTime: 30 * time.Second,
-		Passive:  true,
+		Address:    netip.MustParseAddr("127.0.0.1"),
+		Port:       port1,
+		LocalAS:    65002,
+		PeerAS:     65001,
+		RouterID:   0x02020202,
+		HoldTime:   30 * time.Second,
+		Connection: reactor.ConnectionPassive,
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {

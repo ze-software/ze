@@ -19,6 +19,7 @@ bgp {
 		local-address 127.0.0.1;
 		local-as 54591;
 		peer-as 54591;
+		connection active;
 		hold-time 180;
 		group-updates disable;
 

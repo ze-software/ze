@@ -31,6 +31,7 @@ func runPeerTest(t *testing.T, peerConfig *peer.Config) peer.Result {
 	time.Sleep(50 * time.Millisecond)
 
 	settings := &reactor.PeerSettings{
+		Connection: reactor.ConnectionBoth,
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     uint16(peerConfig.Port), //nolint:gosec // Port from test config, always valid
 		LocalAS:  65001,

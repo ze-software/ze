@@ -278,8 +278,16 @@ func handleBgpPeerAdd(ctx *plugin.CommandContext, args []string) (*plugin.Respon
 			}
 			config.HoldTime = time.Duration(seconds) * time.Second
 
-		case "passive":
-			config.Passive = true
+		case "connection":
+			if i+1 >= len(args) {
+				return &plugin.Response{Status: plugin.StatusError, Data: "connection requires a value (both, passive, active)"}, fmt.Errorf("connection requires a value")
+			}
+			i++
+			v := args[i] //nolint:gosec // bounds checked by i+1 >= len(args) guard above
+			if v != "both" && v != "passive" && v != "active" {
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid connection mode: %s", v)}, fmt.Errorf("invalid connection mode: %s", v)
+			}
+			config.Connection = v
 
 		default: // unknown option → return error
 			return &plugin.Response{

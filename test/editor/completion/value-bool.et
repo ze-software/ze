@@ -19,7 +19,7 @@ input=type:text=edit bgp peer 1.1.1.1
 input=enter
 expect=context:path=bgp.peer.1.1.1.1
 
-# Set passive should show boolean completions - need space after passive
-input=type:text=set passive
+# Set group-updates should show boolean completions - need space after group-updates
+input=type:text=set group-updates
 input=space
 expect=completion:contains=true,false

@@ -186,7 +186,7 @@ func TestResolveBGPTreePeerOverridesTemplate(t *testing.T) {
 	tmpl := NewTree()
 	tmplGroup := NewTree()
 	tmplGroup.Set("hold-time", "300") // Template sets 300, peer sets 90 — peer wins.
-	tmplGroup.Set("passive", "true")  // Only in template — should appear in resolved.
+	tmplGroup.Set("connection", "passive")  // Only in template — should appear in resolved.
 	tmpl.AddListEntry("group", "my-template", tmplGroup)
 	tree.SetContainer("template", tmpl)
 
@@ -195,7 +195,7 @@ func TestResolveBGPTreePeerOverridesTemplate(t *testing.T) {
 
 	peer := resolvedPeer(t, result, "10.0.0.1")
 	assert.Equal(t, "90", peer["hold-time"], "peer's own hold-time should win")
-	assert.Equal(t, "true", peer["passive"], "template's passive should be inherited")
+	assert.Equal(t, "passive", peer["connection"], "template's passive should be inherited")
 }
 
 // TestResolveBGPTreeGlobMatch verifies auto-matching glob templates.
@@ -244,7 +244,7 @@ func TestResolveBGPTreeGlobPlusPeerOverride(t *testing.T) {
 	tmpl := NewTree()
 	matchTree := NewTree()
 	matchTree.Set("hold-time", "300")
-	matchTree.Set("passive", "true") // Only in glob — should appear.
+	matchTree.Set("connection", "passive") // Only in glob — should appear.
 	tmpl.AddListEntry("match", "10.0.0.*", matchTree)
 	tree.SetContainer("template", tmpl)
 
@@ -253,7 +253,7 @@ func TestResolveBGPTreeGlobPlusPeerOverride(t *testing.T) {
 
 	peer := resolvedPeer(t, result, "10.0.0.1")
 	assert.Equal(t, "60", peer["hold-time"], "peer value should override glob")
-	assert.Equal(t, "true", peer["passive"], "glob's passive should be inherited")
+	assert.Equal(t, "passive", peer["connection"], "glob's passive should be inherited")
 }
 
 // TestResolveBGPTreeAllThreeLayers verifies glob → template → peer precedence.
@@ -277,7 +277,7 @@ func TestResolveBGPTreeAllThreeLayers(t *testing.T) {
 	// Glob match: layer 1.
 	matchTree := NewTree()
 	matchTree.Set("hold-time", "300") // Overridden by template, then peer.
-	matchTree.Set("passive", "true")  // Not overridden by template or peer.
+	matchTree.Set("connection", "passive")  // Not overridden by template or peer.
 	matchTree.Set("description", "from-glob")
 	tmpl.AddListEntry("match", "10.0.0.*", matchTree)
 
@@ -296,7 +296,7 @@ func TestResolveBGPTreeAllThreeLayers(t *testing.T) {
 	peer := resolvedPeer(t, result, "10.0.0.1")
 	assert.Equal(t, "45", peer["hold-time"], "peer value should win (layer 3)")
 	assert.Equal(t, "from-template", peer["description"], "template should override glob (layer 2)")
-	assert.Equal(t, "true", peer["passive"], "glob value should survive (layer 1)")
+	assert.Equal(t, "passive", peer["connection"], "glob value should survive (layer 1)")
 	assert.Equal(t, "false", peer["group-updates"], "template value should survive (layer 2)")
 }
 

@@ -150,7 +150,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 		"local-address", "10.0.0.1",
 		"router-id", "1.2.3.4",
 		"hold-time", "90",
-		"passive",
+		"connection", "passive",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
@@ -161,7 +161,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 	assert.Equal(t, uint32(65000), p.LocalAS)
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), p.LocalAddress)
 	assert.Equal(t, 90*time.Second, p.HoldTime)
-	assert.True(t, p.Passive)
+	assert.Equal(t, "passive", p.Connection)
 }
 
 // TestHandlerPeerAddMissingASN verifies peer add requires ASN.

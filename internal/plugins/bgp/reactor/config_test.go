@@ -21,7 +21,7 @@ func TestParsePeerFromTree(t *testing.T) {
 		"local-as":      "65000",
 		"router-id":     "10.0.0.1",
 		"hold-time":     "180",
-		"passive":       "true",
+		"connection":    "passive",
 		"group-updates": "false",
 		"local-address": "192.168.1.1",
 		"link-local":    "fe80::1",
@@ -35,7 +35,7 @@ func TestParsePeerFromTree(t *testing.T) {
 	assert.Equal(t, uint32(65000), ps.LocalAS) // Peer-level overrides global.
 	assert.Equal(t, ipToUint32(netip.MustParseAddr("10.0.0.1")), ps.RouterID)
 	assert.Equal(t, 180*time.Second, ps.HoldTime)
-	assert.True(t, ps.Passive)
+	assert.Equal(t, ConnectionPassive, ps.Connection)
 	assert.False(t, ps.GroupUpdates)
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), ps.LocalAddress)
 	assert.Equal(t, netip.MustParseAddr("fe80::1"), ps.LinkLocal)
@@ -59,7 +59,7 @@ func TestParsePeerFromTreeDefaults(t *testing.T) {
 	assert.Equal(t, uint32(65000), ps.LocalAS)       // Global default.
 	assert.Equal(t, uint32(0x01020304), ps.RouterID) // Global default.
 	assert.Equal(t, 90*time.Second, ps.HoldTime)     // Default.
-	assert.False(t, ps.Passive)                      // Default.
+	assert.Equal(t, ConnectionBoth, ps.Connection)   // Default.
 	assert.True(t, ps.GroupUpdates)                  // Default.
 	assert.Equal(t, netip.Addr{}, ps.LocalAddress)   // Unset ("auto").
 	assert.Equal(t, netip.Addr{}, ps.LinkLocal)      // Unset.
@@ -669,7 +669,7 @@ func TestPeersFromTree(t *testing.T) {
 			"192.0.2.2": map[string]any{
 				"peer-as":       "65002",
 				"local-address": "auto",
-				"passive":       "true",
+				"connection":    "passive",
 			},
 		},
 	}
@@ -691,14 +691,14 @@ func TestPeersFromTree(t *testing.T) {
 	assert.Equal(t, uint32(65000), p1.LocalAS)
 	assert.Equal(t, ipToUint32(netip.MustParseAddr("10.0.0.1")), p1.RouterID)
 	assert.Equal(t, 180*time.Second, p1.HoldTime)
-	assert.False(t, p1.Passive)
+	assert.Equal(t, ConnectionBoth, p1.Connection)
 
 	// Peer 2: also inherits globals.
 	p2 := byAddr["192.0.2.2"]
 	require.NotNil(t, p2)
 	assert.Equal(t, uint32(65002), p2.PeerAS)
 	assert.Equal(t, uint32(65000), p2.LocalAS)
-	assert.True(t, p2.Passive)
+	assert.Equal(t, ConnectionPassive, p2.Connection)
 }
 
 // TestPeersFromTreeNoPeers verifies empty peer map returns empty slice.

@@ -15,6 +15,7 @@ bgp {
 		local-address ::1;
 		local-as 12345;
 		peer-as 12345;
+		connection active;
 
 		family {
 			ipv6/unicast;

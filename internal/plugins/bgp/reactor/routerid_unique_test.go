@@ -50,7 +50,7 @@ func makeEstablishedPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint
 	const localRID uint32 = 0x01020301
 
 	settings := NewPeerSettings(netip.MustParseAddr(addr), localAS, peerAS, localRID)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	session := NewSession(settings)
@@ -116,7 +116,7 @@ func makeOpenConfirmPeerWithID(t *testing.T, addr string, peerAS, remoteRID uint
 	const localRID uint32 = 0x01020301
 
 	settings := NewPeerSettings(netip.MustParseAddr(addr), localAS, peerAS, localRID)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	session := NewSession(settings)

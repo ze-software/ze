@@ -67,9 +67,13 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 		ps.HoldTime = time.Duration(ht) * time.Second
 	}
 
-	// Passive mode.
-	if v, ok := mapBool(tree, "passive"); ok {
-		ps.Passive = v
+	// Connection mode (both/passive/active).
+	if v, ok := mapString(tree, "connection"); ok {
+		mode, err := ParseConnectionMode(v)
+		if err != nil {
+			return nil, fmt.Errorf("peer %s: %w", addr, err)
+		}
+		ps.Connection = mode
 	}
 
 	// Per-peer listen port (overrides global tcp.port for this peer).

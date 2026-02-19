@@ -66,7 +66,7 @@ func TestConfigGenPeerBlock(t *testing.T) {
 	// Family block
 	assert.Contains(t, config, "ipv4/unicast;")
 	// Passive peer should have passive flag
-	assert.Contains(t, config, "passive true;")
+	assert.Contains(t, config, "connection passive;")
 }
 
 // TestConfigGenDeterministic verifies that the same profiles always produce
@@ -192,7 +192,7 @@ func TestConfigGenAllPeersPassive(t *testing.T) {
 	config := GenerateConfig(params)
 
 	// All peers have passive true (Ze never dials out in per-port mode).
-	assert.Equal(t, 2, strings.Count(config, "passive true;"))
+	assert.Equal(t, 2, strings.Count(config, "connection passive;"))
 }
 
 // TestConfigGenPerPeerPort verifies each peer gets a unique Ze listen port.

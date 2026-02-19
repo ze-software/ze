@@ -17,12 +17,12 @@ func TestSchemaLeaf(t *testing.T) {
 	// Define a simple leaf
 	schema.Define("router-id", Leaf(TypeIPv4))
 	schema.Define("local-as", Leaf(TypeUint32))
-	schema.Define("passive", Leaf(TypeBool))
+	schema.Define("group-updates", Leaf(TypeBool))
 	schema.Define("description", Leaf(TypeString))
 
 	require.True(t, schema.Has("router-id"))
 	require.True(t, schema.Has("local-as"))
-	require.True(t, schema.Has("passive"))
+	require.True(t, schema.Has("group-updates"))
 	require.False(t, schema.Has("unknown"))
 
 	node := schema.Get("router-id")
@@ -73,7 +73,7 @@ func TestSchemaList(t *testing.T) {
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("router-id", Leaf(TypeIPv4)),
 		Field("hold-time", Leaf(TypeUint16)),
-		Field("passive", Leaf(TypeBool)),
+		Field("group-updates", Leaf(TypeBool)),
 	))
 
 	require.True(t, schema.Has("neighbor"))
@@ -200,13 +200,13 @@ func TestSchemaDefault(t *testing.T) {
 	schema := NewSchema()
 
 	schema.Define("hold-time", LeafWithDefault(TypeUint16, "90"))
-	schema.Define("passive", LeafWithDefault(TypeBool, "false"))
+	schema.Define("group-updates", LeafWithDefault(TypeBool, "false"))
 
 	holdTimeNode, ok := schema.Get("hold-time").(*LeafNode)
 	require.True(t, ok, "expected LeafNode")
 	require.Equal(t, "90", holdTimeNode.Default)
 
-	passiveNode, ok := schema.Get("passive").(*LeafNode)
+	groupUpdatesNode, ok := schema.Get("group-updates").(*LeafNode)
 	require.True(t, ok, "expected LeafNode")
-	require.Equal(t, "false", passiveNode.Default)
+	require.Equal(t, "false", groupUpdatesNode.Default)
 }

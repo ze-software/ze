@@ -1170,8 +1170,10 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 				settings.HoldTime = time.Duration(ht) * time.Second
 			}
 		}
-		if v, ok := fields["passive"].(string); ok {
-			settings.Passive = v == valTrue
+		if v, ok := fields["connection"].(string); ok {
+			if mode, err := ParseConnectionMode(v); err == nil {
+				settings.Connection = mode
+			}
 		}
 		if v, ok := fields["router-id"].(string); ok {
 			if rid, err := netip.ParseAddr(v); err == nil && rid.Is4() {
@@ -1223,7 +1225,7 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	// Compare connectivity fields.
 	if a.LocalAddress != b.LocalAddress ||
 		a.Port != b.Port ||
-		a.Passive != b.Passive {
+		a.Connection != b.Connection {
 		return false
 	}
 
@@ -4264,9 +4266,10 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
-	// If reactor is running, start the peer and create listener if needed
+	// If reactor is running, start the peer and create listener if needed.
+	// Active-only peers dial out and never accept inbound — skip listener.
 	if r.running {
-		if settings.LocalAddress.IsValid() {
+		if settings.LocalAddress.IsValid() && settings.Connection.IsPassive() {
 			listenPort := r.peerListenPort(settings)
 			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))
 			if _, hasListener := r.listeners[lkey]; !hasListener {
@@ -4354,7 +4357,9 @@ func (r *Reactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
 	if config.HoldTime > 0 {
 		settings.HoldTime = config.HoldTime
 	}
-	settings.Passive = config.Passive
+	if mode, err := ParseConnectionMode(config.Connection); err == nil {
+		settings.Connection = mode
+	}
 
 	return r.AddPeer(settings)
 }
@@ -4402,6 +4407,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	for _, peer := range r.peers {
 		s := peer.Settings()
 		if !s.LocalAddress.IsValid() {
+			continue
+		}
+		// Skip listener for peers that don't accept inbound (passive bit not set).
+		if !s.Connection.IsPassive() {
 			continue
 		}
 		listenPort := r.peerListenPort(s)
@@ -4848,6 +4857,12 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 		return
 	}
 
+	// Reject inbound if passive bit is not set (active-only peer).
+	if !settings.Connection.IsPassive() {
+		closeConnQuietly(conn)
+		return
+	}
+
 	// RFC 4271 §6.8: Check for collision with ESTABLISHED session.
 	// "collision with existing BGP connection that is in the Established
 	// state causes closing of the newly created connection"
@@ -4872,7 +4887,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 		// If the session is nil or tearing down and the peer is passive, buffer the
 		// connection for the next runOnce() cycle instead of closing it. This handles
 		// the race where the remote reconnects faster than our backoff delay.
-		if (errors.Is(err, ErrNotConnected) || errors.Is(err, ErrSessionTearingDown)) && peer.Settings().Passive {
+		if (errors.Is(err, ErrNotConnected) || errors.Is(err, ErrSessionTearingDown)) && peer.Settings().Connection.IsPassive() {
 			peer.SetInboundConnection(conn)
 			return
 		}

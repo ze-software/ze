@@ -112,6 +112,7 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 // PREVENTS: Silent failure when no peers support family.
 func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,
@@ -150,6 +151,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 // PREVENTS: Silent failure when no peers support family.
 func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,
@@ -187,6 +189,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 // PREVENTS: Routes lost when peer not yet connected.
 func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,
@@ -228,6 +231,7 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 // PREVENTS: Withdrawals lost when peer not yet connected.
 func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address:  netip.MustParseAddr("10.0.0.2"),
 		LocalAS:  65000,
 		PeerAS:   65001,

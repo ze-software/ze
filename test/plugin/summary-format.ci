@@ -155,6 +155,7 @@ bgp {
 		local-address 127.0.0.1;
 		local-as 65512;
 		peer-as 65512;
+		connection active;
 		hold-time 30;
 	}
 }

@@ -20,7 +20,7 @@ func testSchema() *Schema {
 		Field("local-as", Leaf(TypeUint32)),
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
-		Field("passive", LeafWithDefault(TypeBool, "false")),
+		Field("connection", LeafWithDefault(TypeString, "both")),
 		Field("family", Container(
 			Field("ipv4", Container(
 				Field("unicast", Leaf(TypeBool)),

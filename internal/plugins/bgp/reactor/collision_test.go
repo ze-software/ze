@@ -35,7 +35,7 @@ func setupOpenConfirmSession(t *testing.T, localID uint32) (*Session, net.Conn, 
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	session := NewSession(settings)
 
 	_ = session.Start()
@@ -73,7 +73,7 @@ func TestCollisionEstablished(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	session := NewSession(settings)
 
 	// Start session and accept connection
@@ -173,7 +173,7 @@ func TestCollisionOpenSentNoCollision(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	session := NewSession(settings)
 
 	// Start session and accept connection - puts us in OPENSENT
@@ -269,7 +269,7 @@ func TestCollisionNotificationSent(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	session := NewSession(settings)
 
 	_ = session.Start()
@@ -392,7 +392,7 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	// Create session and get to OpenConfirm
@@ -454,7 +454,7 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, localID,
 	)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	peer := NewPeer(settings)
 
 	// Create session and get to OpenConfirm
@@ -519,12 +519,12 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 	// For states that cannot have a connection (Idle/Connect/Active),
 	// DetectCollision should always return (true, false) - accept new, don't close existing
 	tests := []struct {
-		name    string
-		passive bool
+		name       string
+		connection ConnectionMode
 	}{
 		{
-			name:    "Idle state",
-			passive: true,
+			name:       "Idle state",
+			connection: ConnectionPassive,
 		},
 	}
 
@@ -534,7 +534,7 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 				netip.MustParseAddr("192.0.2.1"),
 				65001, 65002, 0x01020304,
 			)
-			settings.Passive = tc.passive
+			settings.Connection = tc.connection
 			session := NewSession(settings)
 
 			// Session starts in Idle - don't start it to stay in Idle

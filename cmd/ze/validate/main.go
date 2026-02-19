@@ -112,9 +112,9 @@ type ValidationSummary struct {
 
 // PeerSummary shows peer details.
 type PeerSummary struct {
-	Address string
-	PeerAS  uint32
-	Passive bool
+	Address    string
+	PeerAS     uint32
+	Connection string // "both", "passive", or "active"
 }
 
 func validateConfig(input, path string) *ValidationResult {
@@ -198,10 +198,14 @@ func buildSummary(bgpTree map[string]any, tree *config.Tree) *ValidationSummary 
 			if !ok {
 				continue
 			}
+			conn := "both"
+			if v, ok := peer["connection"]; ok {
+				conn = fmt.Sprint(v)
+			}
 			summary.PeerDetails = append(summary.PeerDetails, PeerSummary{
-				Address: addr,
-				PeerAS:  treeUint32(peer["peer-as"]),
-				Passive: fmt.Sprint(peer["passive"]) == "true",
+				Address:    addr,
+				PeerAS:     treeUint32(peer["peer-as"]),
+				Connection: conn,
 			})
 		}
 	}
@@ -301,11 +305,7 @@ func outputText(result *ValidationResult, verbose, quiet bool) int {
 				fmt.Println()
 				fmt.Println("Peers:")
 				for _, n := range result.Config.PeerDetails {
-					mode := "active"
-					if n.Passive {
-						mode = "passive"
-					}
-					fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, mode)
+					fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, n.Connection)
 				}
 			}
 		}

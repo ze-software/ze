@@ -21,6 +21,7 @@ bgp {
 		local-address 127.0.0.1;
 		local-as 55219;
 		peer-as 55219;
+		connection active;
 
 		family {
 			ipv4/unicast;

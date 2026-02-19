@@ -52,7 +52,10 @@ func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 		}
 
 		peer := NewPeerSettings(addr, localAS, peerAS, 0)
-		peer.Passive = passiveRe.MatchString(block)
+		peer.Connection = ConnectionBoth
+		if passiveRe.MatchString(block) {
+			peer.Connection = ConnectionPassive
+		}
 
 		if htMatch := holdTimeRe.FindStringSubmatch(block); len(htMatch) > 1 {
 			var ht uint32
@@ -155,7 +158,7 @@ func TestReloadRemovesPeer(t *testing.T) {
 
 	// Add the peer manually to simulate initial state.
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	_ = reactor.AddPeer(settings)
 
 	require.NoError(t, reactor.Start())
@@ -206,7 +209,7 @@ func TestReloadChangedSettings(t *testing.T) {
 
 	// Add the peer manually with initial settings.
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.HoldTime = 90 * time.Second
 	_ = reactor.AddPeer(settings)
 
@@ -357,7 +360,7 @@ func TestReloadFileNotFound(t *testing.T) {
 func TestPeerSettingsEqual(t *testing.T) {
 	base := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	base.HoldTime = 90 * time.Second
-	base.Passive = true
+	base.Connection = ConnectionPassive
 
 	tests := []struct {
 		name  string
@@ -368,7 +371,7 @@ func TestPeerSettingsEqual(t *testing.T) {
 		{"different_local_as", func(p *PeerSettings) { p.LocalAS = 65099 }, false},
 		{"different_peer_as", func(p *PeerSettings) { p.PeerAS = 65099 }, false},
 		{"different_hold_time", func(p *PeerSettings) { p.HoldTime = 30 * time.Second }, false},
-		{"different_passive", func(p *PeerSettings) { p.Passive = false }, false},
+		{"different_connection", func(p *PeerSettings) { p.Connection = ConnectionBoth }, false},
 		{"different_port", func(p *PeerSettings) { p.Port = 1179 }, false},
 	}
 
@@ -377,7 +380,7 @@ func TestPeerSettingsEqual(t *testing.T) {
 			// Create a copy of base settings.
 			other := NewPeerSettings(base.Address, base.LocalAS, base.PeerAS, base.RouterID)
 			other.HoldTime = base.HoldTime
-			other.Passive = base.Passive
+			other.Connection = base.Connection
 			other.Port = base.Port
 
 			// Apply modification.
@@ -457,7 +460,7 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 
 	// Add an existing peer.
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	_ = r.AddPeer(settings)
 
 	require.NoError(t, r.Start())
@@ -514,7 +517,7 @@ func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	_ = r.AddPeer(settings)
 
 	require.NoError(t, r.Start())
@@ -540,7 +543,7 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	settings.HoldTime = 90 * time.Second
 	_ = r.AddPeer(settings)
 
@@ -634,7 +637,7 @@ func TestReactorApplyConfigDiffNoPeerSection(t *testing.T) {
 	r := New(cfg)
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	settings.Passive = true
+	settings.Connection = ConnectionPassive
 	_ = r.AddPeer(settings)
 
 	require.NoError(t, r.Start())

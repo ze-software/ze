@@ -482,6 +482,7 @@ func TestPeerGetsGlobalWatchdog(t *testing.T) {
 	r := New(&Config{})
 
 	settings := &PeerSettings{
+		Connection: ConnectionBoth,
 		Address: netip.MustParseAddr("192.168.1.1"),
 		LocalAS: 65001,
 		PeerAS:  65002,
