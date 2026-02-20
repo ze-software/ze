@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md — API command handlers
+
 package handler
 
 import (

@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri.md — labeled unicast NLRI plugin
+// Design: rfc/short/rfc8277.md
+
 package bgp_nlri_labeled
 
 import (

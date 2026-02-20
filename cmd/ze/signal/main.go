@@ -1,3 +1,5 @@
+// Design: docs/architecture/behavior/signals.md — signal handling CLI
+//
 // Package signal provides the `ze signal` CLI command for sending OS signals
 // to running Ze daemon instances via PID file lookup.
 package signal

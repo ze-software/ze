@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — BGP message types
+
 package message
 
 // RFC 4271 Section 4.4 - KEEPALIVE Message Format

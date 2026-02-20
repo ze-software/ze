@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI storage
+
 package store
 
 import (

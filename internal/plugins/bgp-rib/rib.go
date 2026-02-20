@@ -1,3 +1,5 @@
+// Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin
+//
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
 //

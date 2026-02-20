@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md — API command handlers
+//
 // update_text.go provides the update text parser for the "update text" command format.
 //
 // Grammar:

@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/json-format.md — message formatting
+//
 // Package format provides format functions that write directly from wire bytes.
 // These functions avoid intermediate struct allocation by formatting directly
 // from buffer data using iterators.

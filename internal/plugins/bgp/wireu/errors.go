@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
+
 package wireu
 
 import "errors"

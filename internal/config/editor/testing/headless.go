@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — editor test infrastructure
+
 package testing
 
 import (

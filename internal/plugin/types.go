@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin process management
+//
 // Package plugin implements ze plugin infrastructure for external communication.
 //
 // This package provides:

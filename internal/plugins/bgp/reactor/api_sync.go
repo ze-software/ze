@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP reactor event loop
+
 package reactor
 
 import (

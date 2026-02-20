@@ -1,3 +1,5 @@
+// Design: docs/architecture/plugin/rib-storage-design.md — RIB storage internals
+
 package storage
 
 import (

@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin
+// Design: rfc/short/rfc7432.md
+
 package bgp_nlri_evpn
 
 import (

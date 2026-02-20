@@ -1,3 +1,5 @@
+// Design: docs/architecture/system-architecture.md — ze main entry point
+//
 // Package main provides the ze command entry point.
 package main
 

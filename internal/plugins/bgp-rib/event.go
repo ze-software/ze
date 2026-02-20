@@ -1,3 +1,5 @@
+// Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin
+
 package bgp_rib
 
 import (

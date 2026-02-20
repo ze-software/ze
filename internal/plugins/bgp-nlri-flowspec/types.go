@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
+// Design: rfc/short/rfc5575.md
+//
 // Package flowspec implements FlowSpec NLRI types for the flowspec plugin.
 // RFC 8955: Dissemination of Flow Specification Rules (IPv4 FlowSpec)
 // RFC 8956: Dissemination of Flow Specification Rules for IPv6

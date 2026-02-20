@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI storage
+//
 // Package store provides deduplication stores for BGP data structures.
 //
 // Key innovation: Uses per-attribute-type goroutines for concurrent interning,

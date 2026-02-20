@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — route action scheduling
+
 package route
 
 import (

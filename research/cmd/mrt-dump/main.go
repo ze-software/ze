@@ -1,3 +1,5 @@
+// Design: (none — research tool)
+//
 // mrt-dump reads MRT RIB dump files and outputs each route as BGP UPDATE hex
 package main
 

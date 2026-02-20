@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
+
 package ipc
 
 import (

@@ -1,3 +1,5 @@
+// Design: docs/architecture/encoding-context.md — encoding context
+
 package context
 
 import "sync"

@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP server events and hooks
+//
 // Package server provides BGP-specific hook implementations for the plugin server.
 // These functions are registered as BGPHooks callbacks, keeping BGP protocol
 // knowledge out of the generic plugin infrastructure.

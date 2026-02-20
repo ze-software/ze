@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — chaos reporting and metrics
+//
 // Package report provides the exit summary for ze-chaos validation runs.
 package report
 

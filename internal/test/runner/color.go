@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — test runner framework
+//
 // Package functional provides a functional test runner with AI-friendly diagnostics.
 package runner
 

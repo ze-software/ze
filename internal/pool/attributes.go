@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools
+
 package pool
 
 // Per-attribute-type pools for fine-grained deduplication.

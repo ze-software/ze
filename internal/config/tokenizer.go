@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — config parsing and loading
+
 package config
 
 // TokenType represents the type of token.

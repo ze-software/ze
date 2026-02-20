@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP CLI commands
+
 package bgp
 
 import (

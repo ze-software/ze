@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP CLI commands
+//
 // Package bgp provides the Ze BGP daemon subcommand.
 package bgp
 

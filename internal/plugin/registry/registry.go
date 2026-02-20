@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/architecture.md — plugin registry
+//
 // Package registry provides compile-time plugin registration.
 //
 // Plugins register themselves via init() functions, and the registry

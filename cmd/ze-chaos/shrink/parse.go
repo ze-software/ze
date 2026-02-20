@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — test case shrinking
+
 package shrink
 
 import (

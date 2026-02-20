@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — BGP message types
+//
 // Package message provides BGP message types and parsing.
 package message
 

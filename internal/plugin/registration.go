@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin process management
+//
 // Package plugin implements plugin registration types for ze.
 //
 // This file defines types and registry logic for the 5-stage plugin registration protocol.

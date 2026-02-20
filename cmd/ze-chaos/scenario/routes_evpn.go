@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — scenario generation
+
 package scenario
 
 import (

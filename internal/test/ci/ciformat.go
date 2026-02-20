@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — CI test format parsing
+//
 // Package ciformat provides shared utilities for parsing .ci test files.
 package ci
 

@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+//
 // Package nlri provides NLRI (Network Layer Reachability Information) types.
 //
 // This file contains SAFI constants, Family variables, and error variables

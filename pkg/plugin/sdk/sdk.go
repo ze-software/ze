@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin SDK
+//
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over dual socket pairs.
 //

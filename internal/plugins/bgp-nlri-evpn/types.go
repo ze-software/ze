@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin
+// Design: rfc/short/rfc7432.md
+//
 // Package evpn implements EVPN NLRI types for the evpn plugin.
 // RFC 7432: BGP MPLS-Based Ethernet VPN
 // RFC 9136: IP Prefix Advertisement in EVPN

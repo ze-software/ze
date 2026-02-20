@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin process management
+//
 // Package plugin provides plugin resolution and registry.
 package plugin
 

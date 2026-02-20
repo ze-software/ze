@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/attributes.md — path attribute encoding
+
 package attribute
 
 import "encoding/binary"

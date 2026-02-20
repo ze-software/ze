@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — peer selector
+//
 // Package selector provides peer selection patterns for ze.
 // The selector syntax is used throughout ze for targeting peers.
 //

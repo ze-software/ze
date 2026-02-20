@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin process management
+
 package plugin
 
 // Version is ze application version string.

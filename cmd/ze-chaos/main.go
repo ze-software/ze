@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
+//
 // Command ze-chaos is a chaos monkey tool for testing Ze BGP route server
 // (route reflector) route propagation behavior.
 //

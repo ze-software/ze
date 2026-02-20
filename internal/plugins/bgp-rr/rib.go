@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — route reflector plugin
+//
 // Package rr implements a BGP Route Server API plugin.
 package bgp_rr
 

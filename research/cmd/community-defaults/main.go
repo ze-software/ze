@@ -1,3 +1,5 @@
+// Design: (none — research tool)
+//
 // mrt-defaults analyzes MRT dumps to generate per-ASN community defaults
 // that can be used for pre-configured caching in BGP implementations.
 //

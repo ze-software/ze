@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
+// Design: rfc/short/rfc7752.md
+
 package bgp_nlri_ls
 
 import (

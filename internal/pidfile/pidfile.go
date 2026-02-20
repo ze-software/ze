@@ -1,3 +1,5 @@
+// Design: docs/architecture/system-architecture.md — PID file management
+//
 // Package pidfile manages PID files for Ze daemon instances.
 //
 // It provides mutual exclusion via flock(2) to prevent duplicate instances,

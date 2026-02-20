@@ -1,5 +1,7 @@
 //go:build ignore
 
+// Design: (none — build tool)
+//
 // analyze-writeto.go - Static analysis for WriteTo buffer safety
 //
 // Analyzes Go source files to find WriteTo functions and verify they have

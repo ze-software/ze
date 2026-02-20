@@ -1,3 +1,5 @@
+// Design: (none — research tool)
+//
 // count-attrs analyzes MRT TABLE_DUMP_V2 files to count attributes per route.
 // Outputs a distribution table showing how many routes have N attributes.
 //

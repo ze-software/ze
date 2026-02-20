@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — in-process chaos runner
+//
 // Package inprocess provides in-process execution of ze-chaos with mock
 // network connections and virtual clock, enabling fast deterministic simulation.
 package inprocess

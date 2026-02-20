@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+
 package nlri
 
 import (

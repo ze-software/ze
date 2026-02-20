@@ -1,3 +1,5 @@
+// Design: docs/architecture/behavior/fsm.md — BGP finite state machine
+//
 // Package fsm implements the BGP Finite State Machine (RFC 4271 Section 8).
 //
 // RFC 4271 Section 8 defines the BGP FSM with six states and 28 events.

@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — example plugin
+//
 // Example ze plugin that monitors an external HTTP endpoint.
 //
 // This plugin demonstrates:

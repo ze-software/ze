@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri.md — VPLS NLRI plugin
+// Design: rfc/short/rfc4761.md
+
 package bgp_nlri_vpls
 
 import (

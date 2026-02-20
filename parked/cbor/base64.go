@@ -1,3 +1,4 @@
+// Design: (none — parked code)
 package cbor
 
 import (

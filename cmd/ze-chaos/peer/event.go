@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — BGP peer simulation
+//
 // Package peer implements BGP session handling for the chaos testing tool.
 package peer
 

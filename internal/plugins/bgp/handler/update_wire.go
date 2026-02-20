@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/commands.md — API command handlers
+//
 // update_wire.go provides the wire-encoded update parser.
 // Handles hex and b64 encodings for peer update commands.
 package handler

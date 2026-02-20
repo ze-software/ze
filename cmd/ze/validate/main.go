@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — validation CLI
+//
 // Package validate provides the ze validate subcommand.
 package validate
 

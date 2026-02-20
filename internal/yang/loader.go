@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — YANG schema handling
+//
 // Package yang provides YANG schema loading and validation for ze.
 package yang
 

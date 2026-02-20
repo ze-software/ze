@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — config parsing and loading
+//
 // Package config provides configuration parsing and diffing for ze.
 package config
 

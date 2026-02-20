@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+//
 // Package nlri implements BGP Network Layer Reachability Information encoding.
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format:

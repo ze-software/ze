@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — test runner CLI
+//
 // Command ze-test provides test utilities for Ze BGP.
 //
 // Subcommands:

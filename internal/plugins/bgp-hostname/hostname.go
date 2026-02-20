@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — hostname capability plugin
+//
 // Package hostname implements a hostname (FQDN) capability plugin for ze.
 // It receives per-peer hostname/domain config and registers FQDN capabilities (code 73).
 //

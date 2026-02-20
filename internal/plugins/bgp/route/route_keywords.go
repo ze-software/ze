@@ -1,3 +1,5 @@
+// Design: docs/architecture/route-types.md — route definitions
+
 package route
 
 // KeywordSet defines which keywords are valid for a route family.

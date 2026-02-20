@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — external format bridge CLI
+//
 // Package exabgp provides the ze exabgp subcommand.
 package exabgp
 

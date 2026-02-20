@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — YANG schema handling
+
 package yang
 
 import (

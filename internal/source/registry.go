@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — source registry
+
 package source
 
 import (

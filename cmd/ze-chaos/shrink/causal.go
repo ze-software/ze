@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — test case shrinking
+//
 // Package shrink provides test case minimization for ze-chaos.
 //
 // Given a failing event log, the shrink engine finds the smallest

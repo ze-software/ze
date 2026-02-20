@@ -1,3 +1,5 @@
+// Design: docs/architecture/system-architecture.md — temporary filesystem management
+
 package tmpfs
 
 import (

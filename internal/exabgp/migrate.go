@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — external format translation
+
 package exabgp
 
 import (

@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
+// Design: rfc/short/rfc5575.md
+//
 // Package flowspec implements a FlowSpec family plugin for ze.
 // It handles decoding of FlowSpec NLRI (RFC 8955, 8956) for the decode mode protocol.
 //

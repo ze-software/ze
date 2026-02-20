@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — RIB wire storage
+
 package rib
 
 import (

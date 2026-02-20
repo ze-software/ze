@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — config editor
+
 package editor
 
 import (

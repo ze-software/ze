@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — config editor
+//
 // Package editor provides an interactive configuration editor.
 package editor
 

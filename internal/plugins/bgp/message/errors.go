@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — BGP message types
+
 package message
 
 import "errors"

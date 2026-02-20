@@ -1,3 +1,5 @@
+// Design: docs/architecture/route-types.md — route definitions
+
 //nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route
 

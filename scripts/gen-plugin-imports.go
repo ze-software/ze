@@ -1,3 +1,5 @@
+// Design: (none — build tool)
+//
 // gen-plugin-imports generates internal/plugin/all/all.go from register.go discovery.
 //
 // It scans internal/plugins/*/register.go to find plugin packages and generates

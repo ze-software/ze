@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin package
+//
 // Package plugin provides a high-level SDK for creating ze plugins.
 //
 // A plugin extends ze's configuration schema by declaring YANG modules,

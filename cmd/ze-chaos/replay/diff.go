@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — event replay and diff
+
 package replay
 
 import (

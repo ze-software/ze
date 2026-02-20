@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — editor test infrastructure
+//
 // Package testing provides a replay-based testing framework for the Ze configuration editor.
 package testing
 

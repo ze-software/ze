@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP reactor event loop
+//
 // Package reactor implements the BGP reactor - the main orchestrator
 // that manages peer sessions, connections, and signal handling.
 package reactor

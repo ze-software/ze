@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/capabilities.md — capability negotiation
+
 package capability
 
 // Plugin represents a capability provided by an external plugin.

@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — scenario generation
+//
 // Package scenario generates deterministic BGP peer profiles and routes
 // from a seed value for chaos testing.
 package scenario

@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — in-process chaos runner
+
 package inprocess
 
 import (

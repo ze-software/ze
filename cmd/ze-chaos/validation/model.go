@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — property-based validation
+//
 // Package validation implements the expected/actual route state model
 // for verifying route reflector propagation correctness.
 package validation

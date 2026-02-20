@@ -1,3 +1,5 @@
+// Design: docs/architecture/encoding-context.md — encoding context
+//
 // Package context provides capability-dependent encoding parameters.
 //
 // EncodingContext captures negotiated capability state that affects wire encoding.

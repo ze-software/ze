@@ -1,3 +1,5 @@
+// Design: docs/architecture/hub-architecture.md — hub coordination
+
 package hub
 
 import (

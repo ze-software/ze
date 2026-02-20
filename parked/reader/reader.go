@@ -1,3 +1,5 @@
+// Design: (none — parked code)
+//
 // Package reader provides zero-copy parsing utilities for network wire formats.
 package reader
 

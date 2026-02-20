@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — property-based validation
+
 package validation
 
 // PeerResult holds the validation result for a single peer.

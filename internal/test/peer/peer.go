@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — test BGP peer
+//
 // Package testpeer provides a BGP test peer for functional testing.
 //
 // It can operate in several modes:

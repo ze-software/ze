@@ -1,5 +1,7 @@
 //go:build !debug
 
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools
+
 package pool
 
 // validateHandle checks handle validity in release builds.

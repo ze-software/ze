@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/yang-config-design.md — schema CLI
+//
 // Package schema provides the ze schema subcommand.
 package schema
 

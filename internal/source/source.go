@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — source registry
+//
 // Package source provides a unified registry for message sources (peers, API processes, config).
 // Source type is encoded in the ID value for self-describing compact storage.
 package source

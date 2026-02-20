@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+//
 // Package nlri implements BGP Network Layer Reachability Information encoding.
 //
 // This file contains base types for NLRI struct embedding.

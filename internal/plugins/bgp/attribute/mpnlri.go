@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/attributes.md — path attribute encoding
+//
 // Package attribute implements BGP path attributes.
 package attribute
 

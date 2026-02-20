@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
+//
 // Package rpc defines the canonical wire-format types for the ze plugin RPC protocol.
 //
 // Both the engine (internal/plugin) and the SDK (pkg/plugin/sdk) import these types

@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — config migration
+
 package migration
 
 import (

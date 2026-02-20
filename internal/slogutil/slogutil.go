@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/environment.md — structured logging utilities
+//
 // Package slogutil provides per-subsystem logging configuration for Ze BGP.
 //
 // Environment variables use hierarchical ze.log.<path> convention:

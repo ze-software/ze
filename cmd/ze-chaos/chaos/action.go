@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — chaos action scheduling
+//
 // Package chaos implements chaos event scheduling and action types
 // for the ze-chaos testing tool.
 package chaos

@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — simulation infrastructure
+
 package sim
 
 import (

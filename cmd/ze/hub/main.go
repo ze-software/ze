@@ -1,3 +1,5 @@
+// Design: docs/architecture/hub-architecture.md — hub CLI entry point
+//
 // Package hub provides the ze hub subcommand.
 package hub
 

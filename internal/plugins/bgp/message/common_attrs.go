@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — BGP message types
+//
 // Package message provides BGP message building and parsing.
 //
 // This file contains shared attribute extraction helpers used by route

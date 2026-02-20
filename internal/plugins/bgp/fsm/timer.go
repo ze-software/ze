@@ -1,3 +1,5 @@
+// Design: docs/architecture/behavior/fsm.md — BGP finite state machine
+
 package fsm
 
 import (

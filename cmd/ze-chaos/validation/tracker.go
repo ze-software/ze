@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — property-based validation
+
 package validation
 
 import (

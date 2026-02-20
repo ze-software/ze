@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri.md — VPN NLRI plugin
+// Design: rfc/short/rfc4364.md
+
 package bgp_nlri_vpn
 
 import (

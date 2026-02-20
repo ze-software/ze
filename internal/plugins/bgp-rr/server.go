@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — route reflector plugin
+
 package bgp_rr
 
 import (

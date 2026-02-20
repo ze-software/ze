@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
+// Design: rfc/short/rfc5575.md
+
 package bgp_nlri_flowspec
 
 import (

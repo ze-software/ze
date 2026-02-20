@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — test runner framework
+
 package runner
 
 import (

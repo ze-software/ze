@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — parsing helpers
+//
 // Package parse provides shared value parsers for BGP attributes.
 // These parsers are used by both config parsing and API command parsing.
 package parse

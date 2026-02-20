@@ -1,3 +1,5 @@
+// Design: docs/architecture/behavior/fsm.md — BGP finite state machine
+//
 // Package fsm implements the BGP Finite State Machine per RFC 4271 Section 8.
 //
 // RFC 4271 VIOLATIONS:

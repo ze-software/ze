@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/buffer-writer.md — wire buffer utilities
+//
 // Package wire provides zero-allocation buffer writing for BGP messages.
 //
 // This package implements the Buffer Writer Architecture described in

@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
+//
 // Package ipc provides NUL-byte terminated JSON framing for Ze IPC protocol.
 //
 // Messages are UTF-8 JSON objects terminated by a NUL byte (0x00).

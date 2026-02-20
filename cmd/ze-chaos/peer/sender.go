@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — BGP peer simulation
+
 package peer
 
 import (

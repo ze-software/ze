@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — shared BGP types
+//
 // Package types defines BGP-specific route types and constants.
 //
 // These types are used across the codebase for route announcement,

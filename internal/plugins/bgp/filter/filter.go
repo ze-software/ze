@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — route filtering
+
 package filter
 
 import (

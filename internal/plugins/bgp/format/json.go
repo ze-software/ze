@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/json-format.md — message formatting
+
 package format
 
 import (

@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/environment.md — structured logging utilities
+
 package slogutil
 
 import (

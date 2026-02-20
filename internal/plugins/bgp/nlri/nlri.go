@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+//
 // Package nlri implements BGP Network Layer Reachability Information types.
 //
 // RFC 4271 Section 4.3 defines the base NLRI encoding for IPv4 prefixes as

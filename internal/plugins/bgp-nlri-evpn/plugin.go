@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin
+// Design: rfc/short/rfc7432.md
+//
 // Package evpn implements an EVPN family plugin for ze.
 // It handles decoding of EVPN NLRI (RFC 7432, 9136) for the decode mode protocol.
 package bgp_nlri_evpn

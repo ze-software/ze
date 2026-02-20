@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/nlri.md — MVPN NLRI plugin
+//
 // Package bgp_mvpn implements a Multicast VPN family plugin for ze.
 // It handles MVPN NLRI (RFC 6514, SAFI 5).
 package bgp_nlri_mvpn

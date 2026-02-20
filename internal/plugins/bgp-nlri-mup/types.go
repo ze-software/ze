@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri.md — MUP NLRI plugin
+// Design: rfc/short/draft-ietf-bess-mup-safi.md
+//
 // Package bgp_mup implements Mobile User Plane NLRI (draft-mpmz-bess-mup-safi, SAFI 85).
 package bgp_nlri_mup
 

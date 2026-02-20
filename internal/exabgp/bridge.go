@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — external format translation
+//
 // Package exabgp provides compatibility tools for ExaBGP plugins and configs.
 package exabgp
 

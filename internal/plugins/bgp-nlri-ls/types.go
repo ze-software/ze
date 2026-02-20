@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
+// Design: rfc/short/rfc7752.md
+//
 // Package bgp_ls implements BGP-LS family types and plugin for ze.
 // RFC 7752: North-Bound Distribution of Link-State and TE Information Using BGP
 // RFC 9085: BGP-LS Extensions for Segment Routing

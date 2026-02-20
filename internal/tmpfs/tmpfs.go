@@ -1,3 +1,5 @@
+// Design: docs/architecture/system-architecture.md — temporary filesystem management
+//
 // Package tmpfs provides a Virtual File System for embedding multiple files in a single stream.
 //
 // Tmpfs format:

@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — config CLI commands
+//
 // Package config provides the ze config subcommand.
 package config
 

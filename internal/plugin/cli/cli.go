@@ -1,3 +1,5 @@
+// Design: docs/architecture/cli/plugin-modes.md — plugin CLI framework
+//
 // Package cli provides the shared plugin CLI framework.
 //
 // This package is imported by both plugin packages (to build their CLI handlers

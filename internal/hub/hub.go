@@ -1,3 +1,5 @@
+// Design: docs/architecture/hub-architecture.md — hub coordination
+//
 // Package hub provides the hub/orchestrator process for ze.
 //
 // The hub forks and coordinates plugins (ze bgp, ze rib, ze gr) using

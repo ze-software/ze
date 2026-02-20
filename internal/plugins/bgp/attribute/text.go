@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/attributes.md — path attribute encoding
+//
 // Text format parsing and formatting for BGP attributes.
 // Used by plugin system and any component needing text serialization.
 //

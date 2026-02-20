@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — RIB wire storage
+//
 // Package rib implements the BGP Routing Information Base.
 //
 // Key innovation: AS-PATH is treated as part of route identity (like ADD-PATH

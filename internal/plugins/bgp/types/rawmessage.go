@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — shared BGP types
+
 package types
 
 import (

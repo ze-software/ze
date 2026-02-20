@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP server events and hooks
+
 package server
 
 import (

@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin CLI dispatch
+
 package plugin
 
 import (

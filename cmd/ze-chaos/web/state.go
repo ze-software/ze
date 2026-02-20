@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — web dashboard UI
+//
 // Package web implements a live HTMX dashboard for ze-chaos.
 package web
 

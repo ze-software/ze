@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — interactive CLI
+//
 // Package cli provides the ze cli subcommand.
 package cli
 

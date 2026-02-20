@@ -1,3 +1,5 @@
+// Design: docs/architecture/api/process-protocol.md — plugin process management
+
 package plugin
 
 // ValueValidator validates individual values against a schema (e.g., YANG).

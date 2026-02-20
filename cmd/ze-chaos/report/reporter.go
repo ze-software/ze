@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — chaos reporting and metrics
+
 package report
 
 import (

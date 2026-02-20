@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/capabilities.md — capability negotiation
+//
 // Package capability implements BGP capabilities (RFC 5492).
 //
 // RFC 5492 Section 4 defines the Capabilities Optional Parameter format:

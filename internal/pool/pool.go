@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools
+
 //nolint:gosec // G115: Pool has explicit size limits preventing overflow; unsafe usage audited
 package pool
 

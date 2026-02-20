@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — config parsing and loading
+//
 // Package config implements schema-driven configuration parsing.
 //
 // It supports multiple input formats (ExaBGP, set-style, KDL) that all

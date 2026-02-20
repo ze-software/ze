@@ -1,3 +1,5 @@
+// Design: (none — research tool)
+//
 // mrt-analyze reads MRT dumps and analyzes BGP attribute repetition patterns
 // for caching optimization decisions.
 //

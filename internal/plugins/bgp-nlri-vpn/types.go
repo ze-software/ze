@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri.md — VPN NLRI plugin
+// Design: rfc/short/rfc4364.md
+//
 // Package vpn implements VPN NLRI types for the vpn plugin.
 // RFC 4364: BGP/MPLS IP VPNs (VPNv4)
 // RFC 4659: BGP-MPLS IP VPN Extension for IPv6 VPN (VPNv6)

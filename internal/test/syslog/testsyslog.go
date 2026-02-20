@@ -1,3 +1,5 @@
+// Design: docs/architecture/testing/ci-format.md — syslog test helpers
+//
 // Package testsyslog provides a UDP syslog server for functional tests.
 //
 // Usage:

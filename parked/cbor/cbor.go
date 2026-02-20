@@ -1,3 +1,5 @@
+// Design: (none — parked code)
+//
 // Package cbor provides zero-allocation CBOR encoding/decoding with WriteTo pattern.
 //
 // RFC 8949 - Concise Binary Object Representation (CBOR)

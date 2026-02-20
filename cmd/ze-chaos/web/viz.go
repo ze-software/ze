@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — web dashboard UI
+
 package web
 
 import (

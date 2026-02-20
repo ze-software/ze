@@ -1,3 +1,5 @@
+// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools
+//
 // Package pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
 //
 // The pool uses reference counting and periodic compaction to efficiently store

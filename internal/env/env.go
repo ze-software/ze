@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/environment.md — environment variable handling
+//
 // Package env provides Ze BGP environment variable handling with dot/underscore support.
 //
 // Environment variables follow the naming pattern:

@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/capabilities.md — capability negotiation
+
 package capability
 
 // PeerIdentity holds peer identification data from OPEN message exchange.

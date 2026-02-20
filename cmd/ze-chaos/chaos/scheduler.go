@@ -1,3 +1,5 @@
+// Design: docs/architecture/chaos-web-dashboard.md — chaos action scheduling
+
 package chaos
 
 import (

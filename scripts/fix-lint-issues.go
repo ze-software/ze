@@ -1,3 +1,5 @@
+// Design: (none — build tool)
+//
 // fix-lint-issues.go - Automated lint fixes using AST
 package main
 
