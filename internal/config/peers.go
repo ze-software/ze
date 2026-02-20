@@ -91,6 +91,7 @@ func PeersFromConfigTree(tree *Tree) ([]*reactor.PeerSettings, error) {
 
 	// Step 4: Apply environment overrides.
 	applyPortOverride(peers)
+	applyConnectionOverride(peers)
 
 	// Step 5: Validate capability-process constraints.
 	if err := ValidatePeerProcessCaps(peers); err != nil {
@@ -337,5 +338,24 @@ func applyPortOverride(peers []*reactor.PeerSettings) {
 	port := uint16(v) //nolint:gosec // Validated above
 	for _, ps := range peers {
 		ps.Port = port
+	}
+}
+
+// applyConnectionOverride overrides peer connection mode from the
+// ze.bgp.bgp.connection (or ze_bgp_bgp_connection) environment variable.
+func applyConnectionOverride(peers []*reactor.PeerSettings) {
+	v := os.Getenv("ze.bgp.bgp.connection")
+	if v == "" {
+		v = os.Getenv("ze_bgp_bgp_connection")
+	}
+	if v == "" {
+		return
+	}
+	mode, err := reactor.ParseConnectionMode(v)
+	if err != nil {
+		return
+	}
+	for _, ps := range peers {
+		ps.Connection = mode
 	}
 }
