@@ -173,18 +173,38 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	}
 }
 
+// sendWork queues work to the forward worker without blocking the caller.
+// If the channel has space, the item is queued for ordered processing.
+// If the channel is full (4096 items), the work is processed in a goroutine
+// to prevent blocking OnEvent — which would cause the engine's 5-second
+// event delivery timeout to fire and drop the UPDATE entirely.
+// Out-of-order cache acks are safe since commit 14d6459e.
+func (rs *RouteServer) sendWork(w forwardWork) {
+	select {
+	case rs.workCh <- w:
+		// Queued for ordered processing by forward worker.
+	default: // Channel full — overflow to goroutine to avoid blocking OnEvent.
+		go rs.processWork(w)
+	}
+}
+
+// processWork executes a single forward or release operation.
+// Used by both the forward worker goroutine and overflow goroutines.
+func (rs *RouteServer) processWork(w forwardWork) {
+	if w.release {
+		rs.releaseCache(w.msgID)
+	} else {
+		rs.forwardUpdate(w.sourcePeer, w.msgID, w.families)
+	}
+}
+
 // runForwardWorker is the single goroutine that processes all cache forward
 // and release commands. It ranges over workCh, processing items in FIFO order.
-// This serialization prevents the FIFO ordering violation that occurs when
-// per-UPDATE goroutines race to send SDK RPCs — acking message N out of order
-// implicitly evicts entries 1..N-1 from the engine's cache.
+// Under normal load, all work flows through this goroutine for ordered processing.
+// Under heavy load, sendWork() may spawn overflow goroutines that run in parallel.
 func (rs *RouteServer) runForwardWorker() {
 	for w := range rs.workCh {
-		if w.release {
-			rs.releaseCache(w.msgID)
-		} else {
-			rs.forwardUpdate(w.sourcePeer, w.msgID, w.families)
-		}
+		rs.processWork(w)
 	}
 }
 
@@ -219,7 +239,7 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 
 	if len(event.FamilyOps) == 0 {
 		// No NLRI to process; release so the cache entry can be evicted.
-		rs.workCh <- forwardWork{msgID: msgID, release: true}
+		rs.sendWork(forwardWork{msgID: msgID, release: true})
 		return
 	}
 
@@ -251,15 +271,13 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 		}
 	}
 
-	// Send to forward worker channel. Blocks if buffer is full (4096 items),
-	// providing backpressure instead of unbounded goroutine creation.
-	// The single worker goroutine serializes SDK RPCs, preserving
-	// FIFO message-ID ordering required by the engine's cache.
-	rs.workCh <- forwardWork{
+	// Queue forward to worker. Non-blocking: if channel is full, sendWork
+	// spawns a goroutine to prevent blocking OnEvent (engine has 5s timeout).
+	rs.sendWork(forwardWork{
 		msgID:      msgID,
 		sourcePeer: peerAddr,
 		families:   families,
-	}
+	})
 }
 
 // nlriToPrefix extracts a prefix string from an NLRI value.
