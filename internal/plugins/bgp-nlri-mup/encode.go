@@ -1,14 +1,103 @@
+// Design: docs/architecture/wire/nlri.md — MUP NLRI wire encoding from route commands
+
 package bgp_nlri_mup
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
+
+// EncodeNLRIHex encodes MUP NLRI from CLI-style args and returns uppercase hex.
+// Args format: ["route-type", "mup-isd", "rd", "100:100", "prefix", "10.0.0.0/24"]
+// For T1ST: ["route-type", "mup-t1st", "rd", "...", "prefix", "...", "teid", "12345", "qfi", "1", "endpoint", "1.2.3.4"]
+// For T2ST: ["route-type", "mup-t2st", "rd", "...", "address", "1.2.3.4", "teid", "1234/32"]
+// The "ipv6" arg controls AFI selection: ["ipv6", "true"] means AFI=IPv6.
+// This implements the InProcessNLRIEncoder signature for the plugin registry.
+func EncodeNLRIHex(family string, args []string) (string, error) {
+	isIPv6 := strings.HasPrefix(family, "ipv6/")
+
+	// Parse CLI-style args into MUPRouteSpec fields
+	spec := bgptypes.MUPRouteSpec{IsIPv6: isIPv6}
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "route-type":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("route-type requires value")
+			}
+			spec.RouteType = args[i]
+		case "rd":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("rd requires value")
+			}
+			spec.RD = args[i]
+		case "prefix":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("prefix requires value")
+			}
+			spec.Prefix = args[i]
+		case "address":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("address requires value")
+			}
+			spec.Address = args[i]
+		case "teid":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("teid requires value")
+			}
+			spec.TEID = args[i]
+		case "qfi":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("qfi requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 8)
+			if err != nil {
+				return "", fmt.Errorf("invalid qfi: %w", err)
+			}
+			spec.QFI = uint8(v) //nolint:gosec // validated by ParseUint with bitSize 8
+		case "endpoint":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("endpoint requires value")
+			}
+			spec.Endpoint = args[i]
+		case "source":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("source requires value")
+			}
+			spec.Source = args[i]
+		case "ipv6":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("ipv6 requires value")
+			}
+			spec.IsIPv6 = args[i] == "true"
+		}
+	}
+
+	if spec.RouteType == "" {
+		return "", fmt.Errorf("route-type required for MUP")
+	}
+
+	nlriBytes, _, err := buildMUPNLRI(spec)
+	if err != nil {
+		return "", err
+	}
+	return strings.ToUpper(hex.EncodeToString(nlriBytes)), nil
+}
 
 // EncodeRoute encodes a MUP route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.
@@ -120,6 +209,33 @@ func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
 			return nil, 0, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
 		}
 		data = buildMUPPrefixBytes(prefix)
+		// Add TEID (4 bytes) if specified
+		if spec.TEID != "" {
+			teid, _ := parseTEIDWithBits(spec.TEID)
+			data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid)) //nolint:gosec // deliberate uint32→byte truncation for big-endian encoding
+		}
+		// Add QFI (1 byte)
+		data = append(data, spec.QFI)
+		// Add endpoint if specified
+		if spec.Endpoint != "" {
+			ep, epErr := netip.ParseAddr(spec.Endpoint)
+			if epErr != nil {
+				return nil, 0, fmt.Errorf("invalid T1ST endpoint %q: %w", spec.Endpoint, epErr)
+			}
+			epBytes := ep.AsSlice()
+			data = append(data, byte(len(epBytes)*8)) //nolint:gosec // epBytes is 4 or 16 bytes
+			data = append(data, epBytes...)
+		}
+		// Add source if specified
+		if spec.Source != "" {
+			src, srcErr := netip.ParseAddr(spec.Source)
+			if srcErr != nil {
+				return nil, 0, fmt.Errorf("invalid T1ST source %q: %w", spec.Source, srcErr)
+			}
+			srcBytes := src.AsSlice()
+			data = append(data, byte(len(srcBytes)*8)) //nolint:gosec // srcBytes is 4 or 16 bytes
+			data = append(data, srcBytes...)
+		}
 
 	case MUPT2ST:
 		if spec.Address == "" {
@@ -130,8 +246,12 @@ func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
 			return nil, 0, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
 		}
 		epBytes := ep.AsSlice()
-		data = append(data, byte(len(epBytes)*8))
-		data = append(data, epBytes...)
+		teid, bits := parseTEIDWithBits(spec.TEID)
+		teidLen := TEIDFieldLen(bits)
+		data = make([]byte, 1+len(epBytes)+teidLen)
+		data[0] = byte(len(epBytes)*8 + bits) //nolint:gosec // epBytes is 4 or 16 bytes, bits <= 32
+		copy(data[1:], epBytes)
+		writeTEIDWithBits(data, 1+len(epBytes), teid, bits)
 	}
 
 	// Determine AFI
@@ -148,12 +268,38 @@ func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
 
 // buildMUPPrefixBytes encodes a prefix for MUP NLRI.
 func buildMUPPrefixBytes(prefix netip.Prefix) []byte {
-	bits := prefix.Bits()
-	addr := prefix.Addr()
-	addrBytes := addr.AsSlice()
-	prefixBytes := (bits + 7) / 8
-	result := make([]byte, 1+prefixBytes)
-	result[0] = byte(bits)
-	copy(result[1:], addrBytes[:prefixBytes])
+	result := make([]byte, MUPPrefixLen(prefix))
+	WriteMUPPrefix(result, 0, prefix)
 	return result
+}
+
+// parseTEIDWithBits parses a TEID string "value/bits" into numeric TEID and bit length.
+// If no bit specifier, defaults to 32 bits. Empty string returns (0, 0).
+func parseTEIDWithBits(s string) (uint32, int) {
+	if s == "" {
+		return 0, 0
+	}
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		v, _ := strconv.ParseUint(s, 10, 32)
+		return uint32(v), 32 //nolint:gosec // validated by ParseUint with bitSize 32
+	}
+	v, _ := strconv.ParseUint(parts[0], 10, 32)
+	bits, err := strconv.Atoi(parts[1])
+	if err != nil {
+		bits = 32
+	}
+	return uint32(v), bits //nolint:gosec // validated by ParseUint with bitSize 32
+}
+
+// writeTEIDWithBits writes TEID with the specified bit length into buf at off.
+func writeTEIDWithBits(buf []byte, off int, teid uint32, bits int) {
+	if bits <= 0 {
+		return
+	}
+	byteLen := (bits + 7) / 8
+	for i := range byteLen {
+		shift := (byteLen - 1 - i) * 8
+		buf[off+i] = byte(teid >> shift) //nolint:gosec // shift is bounded by byteLen
+	}
 }

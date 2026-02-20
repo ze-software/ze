@@ -57,6 +57,12 @@ type Registration struct {
 	// Returns: (packed UPDATE bytes, NLRI bytes for --nlri-only, error).
 	InProcessRouteEncoder func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)
 
+	// In-process config NLRI builder: builds NLRI bytes from config-format match criteria.
+	// Used by config/loader.go to delegate family-specific NLRI construction to plugins,
+	// avoiding direct plugin imports. The match criteria map uses config-syntax keys
+	// (e.g., "destination", "protocol", "port") with string values.
+	InProcessConfigNLRIBuilder func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte
+
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
@@ -253,6 +259,17 @@ func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS u
 	for _, reg := range plugins {
 		if reg.InProcessRouteEncoder != nil && slices.Contains(reg.Families, family) {
 			return reg.InProcessRouteEncoder
+		}
+	}
+	return nil
+}
+
+// ConfigNLRIBuilder finds the plugin registered for a family and returns
+// its config NLRI builder. Returns nil if no builder is registered.
+func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []byte {
+	for _, reg := range plugins {
+		if reg.InProcessConfigNLRIBuilder != nil && slices.Contains(reg.Families, family) {
+			return reg.InProcessConfigNLRIBuilder
 		}
 	}
 	return nil

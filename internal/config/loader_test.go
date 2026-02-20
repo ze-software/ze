@@ -1,9 +1,11 @@
 package config
 
 import (
-	"encoding/hex"
+	"strings"
 	"testing"
 
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -312,7 +314,12 @@ func TestBuildMUPNLRI_T1ST_Source(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			nlri, err := buildMUPNLRI(tt.config)
+			mupFamily := "ipv4/mup"
+			if tt.config.IsIPv6 {
+				mupFamily = "ipv6/mup"
+			}
+			args := mupRouteConfigToArgs(tt.config)
+			nlriHex, err := registry.EncodeNLRIByFamily(mupFamily, args)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -321,12 +328,12 @@ func TestBuildMUPNLRI_T1ST_Source(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			require.NotEmpty(t, nlri)
+			require.NotEmpty(t, nlriHex)
 
-			// Check that the expected hex is present in the NLRI
-			nlriHex := hex.EncodeToString(nlri)
-			assert.Contains(t, nlriHex, tt.wantHex,
-				"NLRI should contain %s, got %s", tt.wantHex, nlriHex)
+			// Registry returns uppercase hex; wantHex is lowercase
+			nlriHexLower := strings.ToLower(nlriHex)
+			assert.Contains(t, nlriHexLower, tt.wantHex,
+				"NLRI should contain %s, got %s", tt.wantHex, nlriHexLower)
 		})
 	}
 }

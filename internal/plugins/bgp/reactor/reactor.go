@@ -1,3 +1,5 @@
+// Design: docs/architecture/core-design.md — BGP reactor event loop and peer management
+//
 // Package reactor implements the BGP reactor - the main orchestrator
 // that manages peer sessions, connections, and signal handling.
 package reactor
@@ -26,9 +28,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
-	mup "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
-	vpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-vpn"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -62,12 +61,6 @@ var (
 	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
 	ErrNoConfigPath          = errors.New("config path not set")
 	ErrNoReloadFunc          = errors.New("reload function not set")
-)
-
-// Address family names for error messages.
-const (
-	familyIPv4 = "IPv4"
-	familyIPv6 = "IPv6"
 )
 
 // Config holds reactor configuration.
@@ -1384,7 +1377,10 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route bgptypes.L3
 		family.AFI = nlri.AFIIPv6
 	}
 
-	n := vpn.NewVPN(family, rd, labels[:1], route.Prefix, 0) // Single label for withdrawal
+	n, err := encodeVPNNLRI(family, rd, labels[:1], route.Prefix)
+	if err != nil {
+		return fmt.Errorf("encode VPN withdrawal NLRI: %w", err)
+	}
 
 	// Build StaticRoute for withdrawal
 	staticRoute := StaticRoute{
@@ -1515,7 +1511,10 @@ func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route bgptypes.L3VPNRoute, isIBGP
 		family.AFI = nlri.AFIIPv6
 	}
 
-	n := vpn.NewVPN(family, rd, route.Labels, route.Prefix, 0)
+	n, err := encodeVPNNLRI(family, rd, route.Labels, route.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("encode VPN NLRI: %w", err)
+	}
 
 	// Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute
@@ -1783,7 +1782,10 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route bgptypes.LabeledUn
 		labels = []uint32{0}
 	}
 
-	n := labeled.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+	n, err := encodeLabeledNLRI(family, route.Prefix, labels, route.PathID)
+	if err != nil {
+		return nil, fmt.Errorf("encode labeled NLRI: %w", err)
+	}
 
 	// 2. Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute
@@ -1855,7 +1857,10 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route bg
 		labels = []uint32{0x800000} // RFC 8277 withdrawal label
 	}
 
-	n := labeled.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+	n, err := encodeLabeledNLRI(family, route.Prefix, labels, route.PathID)
+	if err != nil {
+		return fmt.Errorf("encode labeled withdrawal NLRI: %w", err)
+	}
 
 	var lastErr error
 	for _, peer := range peers {
@@ -5057,8 +5062,8 @@ func convertAPIMUPRoute(spec bgptypes.MUPRouteSpec) (MUPRoute, error) {
 		route.NextHop = ip
 	}
 
-	// Build MUP NLRI bytes (simplified - reuse from config/loader pattern)
-	nlriBytes, err := buildAPIMUPNLRI(spec)
+	// Build MUP NLRI bytes via plugin registry
+	nlriBytes, err := encodeMUPNLRIBytes(spec)
 	if err != nil {
 		return route, fmt.Errorf("build MUP NLRI: %w", err)
 	}
@@ -5083,188 +5088,6 @@ func convertAPIMUPRoute(spec bgptypes.MUPRouteSpec) (MUPRoute, error) {
 	}
 
 	return route, nil
-}
-
-// buildAPIMUPNLRI builds MUP NLRI bytes from API spec.
-func buildAPIMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, error) {
-	// Determine route type code
-	var routeType mup.MUPRouteType
-	switch spec.RouteType {
-	case "mup-isd":
-		routeType = mup.MUPISD
-	case "mup-dsd":
-		routeType = mup.MUPDSD
-	case "mup-t1st":
-		routeType = mup.MUPT1ST
-	case "mup-t2st":
-		routeType = mup.MUPT2ST
-	default:
-		return nil, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
-	}
-
-	// Parse RD
-	var rd nlri.RouteDistinguisher
-	if spec.RD != "" {
-		parsed, err := parseRD(spec.RD)
-		if err != nil {
-			return nil, fmt.Errorf("invalid RD %q: %w", spec.RD, err)
-		}
-		rd = parsed
-	}
-
-	// Build route-type-specific data
-	var data []byte
-	switch routeType {
-	case mup.MUPISD:
-		if spec.Prefix == "" {
-			return nil, fmt.Errorf("MUP ISD requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(spec.Prefix)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
-		}
-		// Validate family match
-		if spec.IsIPv6 != prefix.Addr().Is6() {
-			expected := familyIPv4
-			if spec.IsIPv6 {
-				expected = familyIPv6
-			}
-			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
-		}
-		data = make([]byte, mupPrefixLen(prefix))
-		writeMUPPrefix(data, 0, prefix)
-
-	case mup.MUPDSD:
-		if spec.Address == "" {
-			return nil, fmt.Errorf("MUP DSD requires address")
-		}
-		addr, err := netip.ParseAddr(spec.Address)
-		if err != nil {
-			return nil, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
-		}
-		// Validate family match
-		if spec.IsIPv6 != addr.Is6() {
-			expected := familyIPv4
-			if spec.IsIPv6 {
-				expected = familyIPv6
-			}
-			return nil, fmt.Errorf("address %q is not %s", spec.Address, expected)
-		}
-		data = addr.AsSlice()
-
-	case mup.MUPT1ST:
-		if spec.Prefix == "" {
-			return nil, fmt.Errorf("MUP T1ST requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(spec.Prefix)
-		if err != nil {
-			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
-		}
-		// Validate family match
-		if spec.IsIPv6 != prefix.Addr().Is6() {
-			expected := familyIPv4
-			if spec.IsIPv6 {
-				expected = familyIPv6
-			}
-			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
-		}
-		data = make([]byte, mupPrefixLen(prefix))
-		writeMUPPrefix(data, 0, prefix)
-		// TODO: Add TEID, QFI, endpoint if needed
-
-	case mup.MUPT2ST:
-		if spec.Address == "" {
-			return nil, fmt.Errorf("MUP T2ST requires address")
-		}
-		ep, err := netip.ParseAddr(spec.Address)
-		if err != nil {
-			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
-		}
-		// Validate family match
-		if spec.IsIPv6 != ep.Is6() {
-			expected := familyIPv4
-			if spec.IsIPv6 {
-				expected = familyIPv6
-			}
-			return nil, fmt.Errorf("address %q is not %s", spec.Address, expected)
-		}
-		epBytes := ep.AsSlice()
-		teid, bits := parseTEIDFieldWithBits(spec.TEID)
-		teidLen := teidFieldLen(bits)
-		data = make([]byte, 1+len(epBytes)+teidLen)
-		data[0] = byte(len(epBytes)*8 + bits) // combined: endpoint bits + TEID bits
-		copy(data[1:], epBytes)
-		writeTEIDFieldWithBits(data, 1+len(epBytes), teid, bits)
-	}
-
-	// Determine AFI
-	afi := nlri.AFIIPv4
-	if spec.IsIPv6 {
-		afi = nlri.AFIIPv6
-	}
-
-	mup := mup.NewMUPFull(afi, mup.MUPArch3GPP5G, routeType, rd, data)
-	buf := make([]byte, mup.Len())
-	mup.WriteTo(buf, 0)
-	return buf, nil
-}
-
-// writeMUPPrefix writes a MUP prefix into buf at off.
-func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) {
-	bits := prefix.Bits()
-	addr := prefix.Addr()
-	addrBytes := addr.AsSlice()
-	prefixBytes := (bits + 7) / 8
-	buf[off] = byte(bits)
-	copy(buf[off+1:], addrBytes[:prefixBytes])
-}
-
-// mupPrefixLen returns the encoded byte length of a MUP prefix.
-func mupPrefixLen(prefix netip.Prefix) int {
-	return 1 + (prefix.Bits()+7)/8
-}
-
-// parseTEIDFieldWithBits parses a TEID string "value/bits" into numeric TEID and bit length.
-func parseTEIDFieldWithBits(s string) (uint32, int) {
-	parts := strings.Split(s, "/")
-	if len(parts) != 2 {
-		v, _ := strconv.ParseUint(s, 10, 32)
-		return uint32(v), 32
-	}
-	v, _ := strconv.ParseUint(parts[0], 10, 32)
-	bits, err := strconv.Atoi(parts[1])
-	if err != nil {
-		bits = 32
-	}
-	return uint32(v), bits
-}
-
-// writeTEIDFieldWithBits writes TEID with the specified bit length into buf at off.
-// Returns bytes written.
-func writeTEIDFieldWithBits(buf []byte, off int, teid uint32, bits int) int {
-	if bits <= 0 {
-		return 0
-	}
-	byteLen := (bits + 7) / 8
-	for i := range byteLen {
-		shift := (byteLen - 1 - i) * 8
-		buf[off+i] = byte(teid >> shift)
-	}
-	return byteLen
-}
-
-// teidFieldLen returns the encoded byte length for a TEID field.
-func teidFieldLen(bits int) int {
-	if bits <= 0 {
-		return 0
-	}
-	return (bits + 7) / 8
-}
-
-// parseRD parses a Route Distinguisher string.
-// Delegates to nlri.ParseRDString for the actual parsing.
-func parseRD(s string) (nlri.RouteDistinguisher, error) {
-	return nlri.ParseRDString(s)
 }
 
 // parseAPIExtCommunity parses extended community string to bytes.

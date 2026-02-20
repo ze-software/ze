@@ -1,3 +1,5 @@
+// Design: docs/architecture/config/syntax.md — peer configuration extraction and route expansion
+
 package config
 
 import (
@@ -212,7 +214,7 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 		// Handle split: expand prefix into more-specific prefixes.
 		prefixes := []netip.Prefix{attrs.Prefix}
 		if splitLen := parseSplitLen(sr.Split); splitLen > 0 {
-			prefixes = splitPrefix(attrs.Prefix, splitLen)
+			prefixes = expandPrefix(attrs.Prefix, splitLen)
 		}
 
 		// Create a route for each prefix (usually just one, unless split).

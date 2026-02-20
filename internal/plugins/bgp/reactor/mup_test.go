@@ -5,9 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
-
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
+	mup "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // TestBuildAPIMUPNLRI_FamilyValidation verifies family mismatch is rejected.
@@ -127,7 +128,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := buildAPIMUPNLRI(tt.spec)
+			_, err := encodeMUPNLRIBytes(tt.spec)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Errorf("unexpected error: %v", err)
@@ -188,7 +189,7 @@ func TestParseRD(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rd, err := parseRD(tt.input)
+			rd, err := nlri.ParseRDString(tt.input)
 			if tt.wantErr {
 				if err == nil {
 					t.Errorf("expected error, got nil")
@@ -251,8 +252,8 @@ func TestBuildMUPPrefix(t *testing.T) {
 			if err != nil {
 				t.Fatalf("invalid test prefix: %v", err)
 			}
-			got := make([]byte, mupPrefixLen(prefix))
-			writeMUPPrefix(got, 0, prefix)
+			got := make([]byte, mup.MUPPrefixLen(prefix))
+			mup.WriteMUPPrefix(got, 0, prefix)
 			if len(got) != len(tt.want) {
 				t.Errorf("length = %d, want %d", len(got), len(tt.want))
 				return

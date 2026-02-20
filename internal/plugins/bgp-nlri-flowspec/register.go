@@ -27,9 +27,10 @@ func init() {
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunFlowSpecDecode(input, output)
 		},
-		InProcessNLRIDecoder:  DecodeNLRIHex,
-		InProcessNLRIEncoder:  EncodeNLRIHex,
-		InProcessRouteEncoder: EncodeRoute,
+		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessNLRIEncoder:       EncodeNLRIHex,
+		InProcessRouteEncoder:      EncodeRoute,
+		InProcessConfigNLRIBuilder: BuildFlowSpecNLRI,
 	}
 	reg.CLIHandler = func(args []string) int {
 		var family *string

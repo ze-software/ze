@@ -1,13 +1,83 @@
 package bgp_nlri_labeled
 
 import (
+	"encoding/hex"
 	"fmt"
+	"net/netip"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
+
+// EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.
+// Args format: ["prefix", "10.0.0.0/24", "label", "100", "path-id", "1"]
+// This implements the InProcessNLRIEncoder signature for the plugin registry.
+func EncodeNLRIHex(family string, args []string) (string, error) {
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		return "", fmt.Errorf("unknown family: %s", family)
+	}
+	if fam.SAFI != SAFIMPLSLabel {
+		return "", fmt.Errorf("unsupported family for labeled unicast: %s", family)
+	}
+
+	var prefix netip.Prefix
+	var labels []uint32
+	var pathID uint32
+	var hasPrefix bool
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "prefix":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("prefix requires value")
+			}
+			p, err := netip.ParsePrefix(args[i])
+			if err != nil {
+				return "", fmt.Errorf("invalid prefix: %w", err)
+			}
+			prefix = p
+			hasPrefix = true
+		case "label":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("label requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 32)
+			if err != nil {
+				return "", fmt.Errorf("invalid label: %w", err)
+			}
+			labels = append(labels, uint32(v)) //nolint:gosec // validated by ParseUint with bitSize 32
+		case "path-id":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("path-id requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 32)
+			if err != nil {
+				return "", fmt.Errorf("invalid path-id: %w", err)
+			}
+			pathID = uint32(v) //nolint:gosec // validated by ParseUint with bitSize 32
+		}
+	}
+
+	if !hasPrefix {
+		return "", fmt.Errorf("prefix required for labeled unicast")
+	}
+	if len(labels) == 0 {
+		return "", fmt.Errorf("label required for labeled unicast")
+	}
+
+	n := NewLabeledUnicast(fam, prefix, labels, pathID)
+	buf := make([]byte, n.Len())
+	n.WriteTo(buf, 0)
+	return strings.ToUpper(hex.EncodeToString(buf)), nil
+}
 
 // EncodeRoute encodes a labeled unicast (nlri-mpls) route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.

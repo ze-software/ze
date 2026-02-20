@@ -17,6 +17,7 @@ func init() {
 		Features:              "nlri",
 		Families:              []string{"ipv4/mpls-label", "ipv6/mpls-label"},
 		RunEngine:             RunLabeledPlugin,
+		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))

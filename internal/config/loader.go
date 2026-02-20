@@ -1,6 +1,9 @@
+// Design: docs/architecture/config/syntax.md — config file loading and BGP route encoding
+
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"io"
 	"maps"
@@ -14,8 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
-	mup "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-mup"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
@@ -649,7 +651,13 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 	// Build FlowSpec NLRI from match criteria (RFC 8955 Section 4)
 	// For VPN routes, use component bytes (no length prefix - VPN adds its own)
 	isVPN := fr.RD != ""
-	route.NLRI = buildFlowSpecNLRI(fr.NLRI, fr.IsIPv6, isVPN)
+	flowFamily := "ipv4/flow"
+	if fr.IsIPv6 {
+		flowFamily = "ipv6/flow"
+	}
+	if builder := registry.ConfigNLRIBuilder(flowFamily); builder != nil {
+		route.NLRI = builder(fr.NLRI, fr.IsIPv6, isVPN)
+	}
 
 	// Build communities (RFC 1997)
 	if c := fr.Community; c != "" {
@@ -766,550 +774,6 @@ func buildIPv6ExtCommunityFromString(ec string) []byte {
 	return result
 }
 
-// buildFlowSpecNLRI builds FlowSpec NLRI bytes from match criteria.
-// If forVPN is true, returns component bytes without length prefix (VPN adds its own).
-// RFC 8955 Section 4 defines the FlowSpec NLRI encoding.
-// RFC 8955 Section 4.2.2 defines component types 1-12.
-// RFC 8956 Section 3.7 defines component type 13 (Flow Label, IPv6 only).
-func buildFlowSpecNLRI(match map[string][]string, isIPv6 bool, forVPN bool) []byte {
-	family := nlri.IPv4FlowSpec
-	if isIPv6 {
-		family = nlri.IPv6FlowSpec
-	}
-
-	fs := flowspec.NewFlowSpec(family)
-
-	// Add destination prefix (first value only - prefix is singular)
-	if vals, ok := match["destination"]; ok && len(vals) > 0 {
-		prefix, offset := parseFlowPrefixWithOffset(vals[0])
-		if prefix.IsValid() {
-			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(flowspec.NewFlowDestPrefixComponentWithOffset(prefix, offset))
-			} else {
-				fs.AddComponent(flowspec.NewFlowDestPrefixComponent(prefix))
-			}
-		}
-	}
-
-	// Add source prefix (first value only - prefix is singular)
-	if vals, ok := match["source"]; ok && len(vals) > 0 {
-		prefix, offset := parseFlowPrefixWithOffset(vals[0])
-		if prefix.IsValid() {
-			if prefix.Addr().Is6() && offset > 0 {
-				fs.AddComponent(flowspec.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
-			} else {
-				fs.AddComponent(flowspec.NewFlowSourcePrefixComponent(prefix))
-			}
-		}
-	}
-
-	// Add protocol (supports multiple values like [ =tcp =udp ])
-	if vals, ok := match["protocol"]; ok {
-		matches := parseFlowProtocolMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
-		}
-	}
-
-	// Add next-header (IPv6 equivalent of protocol)
-	if vals, ok := match["next-header"]; ok {
-		matches := parseFlowProtocolMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowIPProtocol, matches))
-		}
-	}
-
-	// Add port (matches either source or destination)
-	if vals, ok := match["port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowPort, matches))
-		}
-	}
-
-	// Add destination port
-	if vals, ok := match["destination-port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowDestPort, matches))
-		}
-	}
-
-	// Add source port
-	if vals, ok := match["source-port"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowSourcePort, matches))
-		}
-	}
-
-	// Add packet length
-	if vals, ok := match["packet-length"]; ok {
-		matches := parseFlowMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowPacketLength, matches))
-		}
-	}
-
-	// Add DSCP
-	if vals, ok := match["dscp"]; ok {
-		octets := parseFlowOctetsSlice(vals)
-		if len(octets) > 0 {
-			fs.AddComponent(flowspec.NewFlowDSCPComponent(octets...))
-		}
-	}
-
-	// Add traffic-class (IPv6)
-	if vals, ok := match["traffic-class"]; ok {
-		octets := parseFlowOctetsSlice(vals)
-		if len(octets) > 0 {
-			fs.AddComponent(flowspec.NewFlowDSCPComponent(octets...))
-		}
-	}
-
-	// Add flow-label (IPv6)
-	if vals, ok := match["flow-label"]; ok {
-		labels := parseFlowLabelsSlice(vals)
-		if len(labels) > 0 {
-			fs.AddComponent(flowspec.NewFlowFlowLabelComponent(labels...))
-		}
-	}
-
-	// Add fragment
-	if vals, ok := match["fragment"]; ok {
-		flags := parseFlowFragmentSlice(vals)
-		if len(flags) > 0 {
-			fs.AddComponent(flowspec.NewFlowFragmentComponent(flags...))
-		}
-	}
-
-	// Add TCP flags
-	if vals, ok := match["tcp-flags"]; ok {
-		matches := parseFlowTCPFlagMatchesSlice(vals)
-		if len(matches) > 0 {
-			fs.AddComponent(flowspec.NewFlowNumericComponent(flowspec.FlowTCPFlags, matches))
-		}
-	}
-
-	// Add ICMP type
-	if vals, ok := match["icmp-type"]; ok {
-		types := parseFlowICMPTypesSlice(vals)
-		if len(types) > 0 {
-			fs.AddComponent(flowspec.NewFlowICMPTypeComponent(types...))
-		}
-	}
-
-	// Add ICMP code
-	if vals, ok := match["icmp-code"]; ok {
-		codes := parseFlowICMPCodesSlice(vals)
-		if len(codes) > 0 {
-			fs.AddComponent(flowspec.NewFlowICMPCodeComponent(codes...))
-		}
-	}
-
-	// For VPN, return component bytes without length prefix
-	if forVPN {
-		return fs.ComponentBytes()
-	}
-	return fs.Bytes()
-}
-
-// parseFlowPrefixWithOffset parses a FlowSpec prefix like "10.0.0.1/32" or "::1/128/120".
-// Returns the prefix and offset (0 if no offset).
-func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
-	// Handle IPv6 offset format: addr/len/offset
-	parts := strings.Split(s, "/")
-	if len(parts) >= 2 {
-		addrStr := parts[0]
-		lenStr := parts[1]
-		var offset uint8
-		if len(parts) >= 3 {
-			if off, err := strconv.Atoi(parts[2]); err == nil && off >= 0 && off <= 255 {
-				offset = uint8(off) // #nosec G115 -- bounds checked
-			}
-		}
-
-		addr, err := netip.ParseAddr(addrStr)
-		if err != nil {
-			return netip.Prefix{}, 0
-		}
-		prefixLen, err := strconv.Atoi(lenStr)
-		if err != nil {
-			return netip.Prefix{}, 0
-		}
-		return netip.PrefixFrom(addr, prefixLen), offset
-	}
-
-	// Try parsing as simple prefix
-	prefix, err := netip.ParsePrefix(s)
-	if err != nil {
-		return netip.Prefix{}, 0
-	}
-	return prefix, 0
-}
-
-// parseFlowProtocolMatches parses protocol values with operators.
-func parseFlowProtocolMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
-
-	protoMap := map[string]uint8{
-		"icmp": 1, "igmp": 2, "tcp": 6, "udp": 17, "gre": 47, "esp": 50, "ah": 51,
-	}
-
-	for _, p := range parts {
-		var op flowspec.FlowOperator
-
-		// Parse operator prefix
-		switch {
-		case strings.HasPrefix(p, "!="):
-			op = flowspec.FlowOpNotEq
-			p = strings.TrimPrefix(p, "!=")
-		case strings.HasPrefix(p, "="):
-			op = flowspec.FlowOpEqual
-			p = strings.TrimPrefix(p, "=")
-		default:
-			op = flowspec.FlowOpEqual
-		}
-
-		p = strings.ToLower(p)
-		if v, ok := protoMap[p]; ok {
-			result = append(result, flowspec.FlowMatch{Op: op, Value: uint64(v)})
-		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, flowspec.FlowMatch{Op: op, Value: n})
-		}
-	}
-	return result
-}
-
-// parseFlowMatches parses FlowSpec match expressions with operators.
-// Formats: "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088", "!=443".
-func parseFlowMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
-
-	for _, p := range parts {
-		// Handle range operators like ">8080&<8088" by splitting on &
-		rangeParts := strings.Split(p, "&")
-		for i, rp := range rangeParts {
-			var op flowspec.FlowOperator
-			isAnd := i > 0 // Parts after & are AND-ed with previous
-
-			// Parse operator prefix
-			switch {
-			case strings.HasPrefix(rp, "!="):
-				op = flowspec.FlowOpNotEq
-				rp = strings.TrimPrefix(rp, "!=")
-			case strings.HasPrefix(rp, ">="):
-				op = flowspec.FlowOpGreater | flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, ">=")
-			case strings.HasPrefix(rp, "<="):
-				op = flowspec.FlowOpLess | flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, "<=")
-			case strings.HasPrefix(rp, ">"):
-				op = flowspec.FlowOpGreater
-				rp = strings.TrimPrefix(rp, ">")
-			case strings.HasPrefix(rp, "<"):
-				op = flowspec.FlowOpLess
-				rp = strings.TrimPrefix(rp, "<")
-			case strings.HasPrefix(rp, "="):
-				op = flowspec.FlowOpEqual
-				rp = strings.TrimPrefix(rp, "=")
-			default:
-				op = flowspec.FlowOpEqual // Default to equality
-			}
-
-			if n, err := strconv.ParseUint(rp, 10, 32); err == nil {
-				result = append(result, flowspec.FlowMatch{
-					Op:    op,
-					And:   isAnd,
-					Value: n,
-				})
-			}
-		}
-	}
-	return result
-}
-
-// parseFlowOctets parses octet values (DSCP, traffic-class).
-func parseFlowOctets(s string) []uint8 {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
-		}
-	}
-	return result
-}
-
-// icmpTypeNames maps ICMP type symbolic names to values.
-// Per IANA ICMP Type Numbers: https://www.iana.org/assignments/icmp-parameters
-// ExaBGP compatible naming (lowercase, hyphens).
-var icmpTypeNames = map[string]uint8{
-	"echo-reply":            0,
-	"unreachable":           3,
-	"redirect":              5,
-	"echo-request":          8,
-	"router-advertisement":  9,
-	"router-solicit":        10,
-	"time-exceeded":         11,
-	"parameter-problem":     12,
-	"timestamp":             13,
-	"timestamp-reply":       14,
-	"photuris":              40,
-	"experimental-mobility": 41,
-	"extended-echo-request": 42,
-	"extended-echo-reply":   43,
-	"experimental-one":      253,
-	"experimental-two":      254,
-}
-
-// parseFlowICMPTypes parses ICMP type values or names.
-// Handles: [ unreachable echo-request echo-reply ] or [ 3 8 0 ] or [ =3 =8 =0 ].
-// Unknown names are logged as warnings and skipped.
-func parseFlowICMPTypes(s string) []uint8 {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		// Try numeric first
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
-			continue
-		}
-		// Try symbolic name
-		if n, ok := icmpTypeNames[strings.ToLower(p)]; ok {
-			result = append(result, n)
-			continue
-		}
-		// Unknown name - log warning
-		configLogger().Warn("unknown ICMP type name", "name", p)
-	}
-	return result
-}
-
-// icmpCodeNames maps ICMP code symbolic names to values.
-// Per IANA ICMP Type Numbers: https://www.iana.org/assignments/icmp-parameters
-// ExaBGP compatible naming (lowercase, hyphens).
-var icmpCodeNames = map[string]uint8{
-	// Destination Unreachable (type 3)
-	"network-unreachable":                   0,
-	"host-unreachable":                      1,
-	"protocol-unreachable":                  2,
-	"port-unreachable":                      3,
-	"fragmentation-needed":                  4,
-	"source-route-failed":                   5,
-	"destination-network-unknown":           6,
-	"destination-host-unknown":              7,
-	"source-host-isolated":                  8,
-	"destination-network-prohibited":        9,
-	"destination-host-prohibited":           10,
-	"network-unreachable-for-tos":           11,
-	"host-unreachable-for-tos":              12,
-	"communication-prohibited-by-filtering": 13,
-	"host-precedence-violation":             14,
-	"precedence-cutoff-in-effect":           15,
-	// Redirect (type 5)
-	"redirect-for-network":      0,
-	"redirect-for-host":         1,
-	"redirect-for-tos-and-net":  2,
-	"redirect-for-tos-and-host": 3,
-	// Time Exceeded (type 11)
-	"ttl-eq-zero-during-transit":    0,
-	"ttl-eq-zero-during-reassembly": 1,
-	// Parameter Problem (type 12)
-	"required-option-missing": 1,
-	"ip-header-bad":           2,
-}
-
-// parseFlowICMPCodes parses ICMP code values or names.
-// Handles: [ host-unreachable network-unreachable ] or [ 1 0 ] or [ =1 =0 ].
-// Unknown names are logged as warnings and skipped.
-func parseFlowICMPCodes(s string) []uint8 {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []uint8
-
-	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		// Try numeric first
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
-			continue
-		}
-		// Try symbolic name
-		if n, ok := icmpCodeNames[strings.ToLower(p)]; ok {
-			result = append(result, n)
-			continue
-		}
-		// Unknown name - log warning
-		configLogger().Warn("unknown ICMP code name", "name", p)
-	}
-	return result
-}
-
-// parseFlowFragment parses fragment flags like "[ first-fragment last-fragment ]".
-func parseFlowFragment(s string) []flowspec.FlowFragmentFlag {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowFragmentFlag
-
-	flagMap := map[string]flowspec.FlowFragmentFlag{
-		"dont-fragment":  flowspec.FlowFragDontFragment,
-		"is-fragment":    flowspec.FlowFragIsFragment,
-		"first-fragment": flowspec.FlowFragFirstFragment,
-		"last-fragment":  flowspec.FlowFragLastFragment,
-	}
-
-	for _, p := range parts {
-		if f, ok := flagMap[p]; ok {
-			result = append(result, f)
-		}
-	}
-	return result
-}
-
-// parseFlowTCPFlagMatches parses TCP flags with AND and NOT operators.
-// TCP flags use bitmask matching:
-//   - 0x01 = MATCH (exact match)
-//   - 0x02 = NOT (negate)
-//   - 0x40 = AND (AND with previous)
-func parseFlowTCPFlagMatches(s string) []flowspec.FlowMatch {
-	s = strings.Trim(s, "[]")
-	parts := strings.Fields(s)
-	var result []flowspec.FlowMatch
-
-	flagMap := map[string]uint8{
-		"fin": 0x01, "syn": 0x02, "rst": 0x04, "reset": 0x04,
-		"psh": 0x08, "push": 0x08,
-		"ack": 0x10, "urg": 0x20, "urgent": 0x20,
-		"ece": 0x40, "cwr": 0x80,
-	}
-
-	for _, p := range parts {
-		// Handle combined flags like "RST&FIN&!=push"
-		flagParts := strings.Split(p, "&")
-		for i, fp := range flagParts {
-			var op flowspec.FlowOperator
-			isAnd := i > 0 // Parts after & are AND-ed
-
-			// Check for != (NOT+MATCH)
-			if strings.HasPrefix(fp, "!=") {
-				op = 0x02 | 0x01 // NOT | MATCH
-				fp = strings.TrimPrefix(fp, "!=")
-			}
-			// For simple flags, use no operator (INCLUDE)
-
-			if isAnd {
-				op |= 0x40 // AND
-			}
-
-			fp = strings.ToLower(fp)
-			if f, ok := flagMap[fp]; ok {
-				result = append(result, flowspec.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
-			}
-		}
-	}
-	return result
-}
-
-// parseFlowLabels parses flow-label values like "2013" or "=2013".
-func parseFlowLabels(s string) []uint32 {
-	var result []uint32
-	s = strings.Trim(s, "[]")
-	parts := strings.FieldsSeq(s)
-	for p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		val, err := strconv.ParseUint(p, 10, 32)
-		if err == nil {
-			result = append(result, uint32(val))
-		}
-	}
-	return result
-}
-
-// --- Slice helpers for map[string][]string NLRI format ---
-
-// parseFlowProtocolMatchesSlice parses protocol values from a pre-split slice.
-func parseFlowProtocolMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowProtocolMatches(v)...)
-	}
-	return result
-}
-
-// parseFlowMatchesSlice parses numeric match expressions from a pre-split slice.
-func parseFlowMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowMatches(v)...)
-	}
-	return result
-}
-
-// parseFlowOctetsSlice parses octet values from a pre-split slice.
-func parseFlowOctetsSlice(vals []string) []uint8 {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowOctets(v)...)
-	}
-	return result
-}
-
-// parseFlowLabelsSlice parses flow-label values from a pre-split slice.
-func parseFlowLabelsSlice(vals []string) []uint32 {
-	result := make([]uint32, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowLabels(v)...)
-	}
-	return result
-}
-
-// parseFlowFragmentSlice parses fragment flags from a pre-split slice.
-func parseFlowFragmentSlice(vals []string) []flowspec.FlowFragmentFlag {
-	result := make([]flowspec.FlowFragmentFlag, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowFragment(v)...)
-	}
-	return result
-}
-
-// parseFlowTCPFlagMatchesSlice parses TCP flag matches from a pre-split slice.
-func parseFlowTCPFlagMatchesSlice(vals []string) []flowspec.FlowMatch {
-	result := make([]flowspec.FlowMatch, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowTCPFlagMatches(v)...)
-	}
-	return result
-}
-
-// parseFlowICMPTypesSlice parses ICMP types from a pre-split slice.
-func parseFlowICMPTypesSlice(vals []string) []uint8 {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowICMPTypes(v)...)
-	}
-	return result
-}
-
-// parseFlowICMPCodesSlice parses ICMP codes from a pre-split slice.
-func parseFlowICMPCodesSlice(vals []string) []uint8 {
-	result := make([]uint8, 0, len(vals))
-	for _, v := range vals {
-		result = append(result, parseFlowICMPCodes(v)...)
-	}
-	return result
-}
-
 // convertMUPRoute converts config MUP route to reactor MUP route.
 func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 	route := reactor.MUPRoute{
@@ -1348,10 +812,19 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 		route.ExtCommunityBytes = ec.Bytes
 	}
 
-	// Build MUP NLRI
-	nlriBytes, err := buildMUPNLRI(mr)
+	// Build MUP NLRI via registry (avoids direct plugin import)
+	mupFamily := "ipv4/mup"
+	if mr.IsIPv6 {
+		mupFamily = "ipv6/mup"
+	}
+	mupArgs := mupRouteConfigToArgs(mr)
+	nlriHex, err := registry.EncodeNLRIByFamily(mupFamily, mupArgs)
 	if err != nil {
 		return route, fmt.Errorf("build MUP NLRI: %w", err)
+	}
+	nlriBytes, err := hex.DecodeString(nlriHex)
+	if err != nil {
+		return route, fmt.Errorf("decode MUP NLRI hex: %w", err)
 	}
 	route.NLRI = nlriBytes
 
@@ -1367,192 +840,34 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 	return route, nil
 }
 
-// buildMUPNLRI builds MUP NLRI bytes from route config.
-// Returns an error if any address/prefix parsing fails.
-func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
-	// Determine route type code
-	var routeType mup.MUPRouteType
-	switch mr.RouteType {
-	case "mup-isd":
-		routeType = mup.MUPISD
-	case "mup-dsd":
-		routeType = mup.MUPDSD
-	case "mup-t1st":
-		routeType = mup.MUPT1ST
-	case "mup-t2st":
-		routeType = mup.MUPT2ST
-	default:
-		return nil, fmt.Errorf("unknown MUP route type: %s", mr.RouteType)
+// mupRouteConfigToArgs converts MUPRouteConfig to CLI-style args for registry.EncodeNLRIByFamily.
+func mupRouteConfigToArgs(mr MUPRouteConfig) []string {
+	var args []string
+	if mr.RouteType != "" {
+		args = append(args, "route-type", mr.RouteType)
 	}
-
-	// Parse RD
-	var rd nlri.RouteDistinguisher
 	if mr.RD != "" {
-		parsed, err := ParseRouteDistinguisher(mr.RD)
-		if err != nil {
-			return nil, fmt.Errorf("invalid RD %q: %w", mr.RD, err)
-		}
-		// Convert config.RouteDistinguisher to nlri.RouteDistinguisher
-		// Bytes[0:2] is the type, Bytes[2:8] is the value
-		rdType := uint16(parsed.Bytes[0])<<8 | uint16(parsed.Bytes[1])
-		rd.Type = nlri.RDType(rdType)
-		copy(rd.Value[:], parsed.Bytes[2:8])
+		args = append(args, "rd", mr.RD)
 	}
-
-	// Build route-type-specific data
-	var data []byte
-	switch routeType {
-	case mup.MUPISD:
-		// ISD: prefix-len (1 byte) + prefix (variable)
-		if mr.Prefix == "" {
-			return nil, fmt.Errorf("MUP ISD requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(mr.Prefix)
-		if err != nil {
-			return nil, fmt.Errorf("invalid ISD prefix %q: %w", mr.Prefix, err)
-		}
-		data = make([]byte, mupPrefixLen(prefix))
-		writeMUPPrefix(data, 0, prefix)
-
-	case mup.MUPDSD:
-		// DSD: address (4 or 16 bytes)
-		if mr.Address == "" {
-			return nil, fmt.Errorf("MUP DSD requires address")
-		}
-		addr, err := netip.ParseAddr(mr.Address)
-		if err != nil {
-			return nil, fmt.Errorf("invalid DSD address %q: %w", mr.Address, err)
-		}
-		data = addr.AsSlice()
-
-	case mup.MUPT1ST:
-		// T1ST: prefix + TEID (4) + QFI (1) + endpoint-len + endpoint + [source-len + source]
-		if mr.Prefix == "" {
-			return nil, fmt.Errorf("MUP T1ST requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(mr.Prefix)
-		if err != nil {
-			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", mr.Prefix, err)
-		}
-		data = make([]byte, mupPrefixLen(prefix))
-		writeMUPPrefix(data, 0, prefix)
-		// Add TEID (4 bytes)
-		teid := parseTEID(mr.TEID)
-		data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid))
-		// Add QFI (1 byte)
-		data = append(data, mr.QFI)
-		// Add endpoint
-		if mr.Endpoint != "" {
-			ep, err := netip.ParseAddr(mr.Endpoint)
-			if err != nil {
-				return nil, fmt.Errorf("invalid T1ST endpoint %q: %w", mr.Endpoint, err)
-			}
-			epBytes := ep.AsSlice()
-			data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
-			data = append(data, epBytes...)
-		}
-		// Add source (optional, for T1ST)
-		if mr.Source != "" {
-			src, err := netip.ParseAddr(mr.Source)
-			if err != nil {
-				return nil, fmt.Errorf("invalid T1ST source %q: %w", mr.Source, err)
-			}
-			srcBytes := src.AsSlice()
-			data = append(data, byte(len(srcBytes)*8)) // source length in bits
-			data = append(data, srcBytes...)
-		}
-
-	case mup.MUPT2ST:
-		// T2ST: combined-len + endpoint + TEID (variable based on teid/bits)
-		// The "Endpoint Address Length" field is the COMBINED bit length of
-		// endpoint IP address + TEID prefix bits (per draft-ietf-idr-mup-safi).
-		if mr.Address == "" {
-			return nil, fmt.Errorf("MUP T2ST requires address")
-		}
-		ep, err := netip.ParseAddr(mr.Address)
-		if err != nil {
-			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", mr.Address, err)
-		}
-		epBytes := ep.AsSlice()
-		teid, bits := parseTEIDWithBits(mr.TEID)
-		teidLen := teidFieldLen(bits)
-		data = make([]byte, 1+len(epBytes)+teidLen)
-		data[0] = byte(len(epBytes)*8 + bits) // combined length: endpoint bits + TEID bits
-		copy(data[1:], epBytes)
-		writeTEIDWithBits(data, 1+len(epBytes), teid, bits)
+	if mr.Prefix != "" {
+		args = append(args, "prefix", mr.Prefix)
 	}
-
-	// Determine AFI
-	afi := nlri.AFIIPv4
-	if mr.IsIPv6 {
-		afi = nlri.AFIIPv6
+	if mr.Address != "" {
+		args = append(args, "address", mr.Address)
 	}
-
-	mup := mup.NewMUPFull(afi, mup.MUPArch3GPP5G, routeType, rd, data)
-	return mup.Bytes(), nil
-}
-
-// writeMUPPrefix writes a MUP prefix into buf at off.
-func writeMUPPrefix(buf []byte, off int, prefix netip.Prefix) {
-	bits := prefix.Bits()
-	addr := prefix.Addr()
-	addrBytes := addr.AsSlice()
-	prefixBytes := (bits + 7) / 8
-	buf[off] = byte(bits)
-	copy(buf[off+1:], addrBytes[:prefixBytes])
-}
-
-// mupPrefixLen returns the encoded byte length of a MUP prefix.
-func mupPrefixLen(prefix netip.Prefix) int {
-	return 1 + (prefix.Bits()+7)/8
-}
-
-// parseTEID parses TEID from string, handling "12345" format.
-func parseTEID(s string) uint32 {
-	// Handle "12345/32" format - just get the value part
-	if idx := strings.Index(s, "/"); idx > 0 {
-		s = s[:idx]
+	if mr.TEID != "" {
+		args = append(args, "teid", mr.TEID)
 	}
-	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
-		return uint32(n)
+	if mr.QFI != 0 {
+		args = append(args, "qfi", strconv.FormatUint(uint64(mr.QFI), 10))
 	}
-	return 0
-}
-
-// parseTEIDWithBits parses TEID with bit length from "12345/32" format.
-func parseTEIDWithBits(s string) (uint32, int) {
-	parts := strings.Split(s, "/")
-	if len(parts) != 2 {
-		return parseTEID(s), 32
+	if mr.Endpoint != "" {
+		args = append(args, "endpoint", mr.Endpoint)
 	}
-	teid := parseTEID(parts[0])
-	bits, err := strconv.Atoi(parts[1])
-	if err != nil {
-		bits = 32
+	if mr.Source != "" {
+		args = append(args, "source", mr.Source)
 	}
-	return teid, bits
-}
-
-// writeTEIDWithBits writes TEID with the specified bit length into buf at off.
-// Returns bytes written.
-func writeTEIDWithBits(buf []byte, off int, teid uint32, bits int) int {
-	if bits <= 0 {
-		return 0
-	}
-	byteLen := (bits + 7) / 8
-	for i := range byteLen {
-		shift := (byteLen - 1 - i) * 8
-		buf[off+i] = byte(teid >> shift)
-	}
-	return byteLen
-}
-
-// teidFieldLen returns the encoded byte length for a TEID field.
-func teidFieldLen(bits int) int {
-	if bits <= 0 {
-		return 0
-	}
-	return (bits + 7) / 8
+	return args
 }
 
 // parseOrigin converts origin string to code.
@@ -1630,9 +945,11 @@ func parseSplitLen(s string) int {
 	return n
 }
 
-// splitPrefix splits a prefix into more-specific prefixes with the given length.
-// For example, 10.0.0.0/24 split to /25 produces two /25 prefixes.
-func splitPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
+// expandPrefix expands a prefix into more-specific prefixes with the given length.
+// For example, 10.0.0.0/24 expanded to /25 produces two /25 prefixes.
+// Returns the original prefix unchanged if targetLen is invalid.
+// Note: route.splitPrefix has the same logic but returns an error for invalid input.
+func expandPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
 	sourceBits := prefix.Bits()
 
 	// Validate target length
@@ -1659,6 +976,7 @@ func splitPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
 }
 
 // addToAddr adds an offset to an address at the given prefix boundary.
+// Identical to route.addToAddr — not consolidated because config must not import plugin packages.
 func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
 	if offset == 0 {
 		return addr

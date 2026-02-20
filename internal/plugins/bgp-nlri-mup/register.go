@@ -16,6 +16,7 @@ func init() {
 		Features:              "nlri",
 		Families:              []string{"ipv4/mup", "ipv6/mup"},
 		RunEngine:             RunMUPPlugin,
+		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
