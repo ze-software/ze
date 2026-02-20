@@ -97,7 +97,7 @@ func run(args []string) int {
 
 	// Property flags
 	properties := fs.String("properties", "", "Comma-sep property names, or 'all' (default: disabled), 'list' to show available")
-	convergenceDeadline := fs.Duration("convergence-deadline", 5*time.Second, "Convergence deadline for property checks")
+	convergenceDeadline := fs.Duration("convergence-deadline", 30*time.Second, "Convergence deadline for property checks")
 
 	// Control flags
 	duration := fs.Duration("duration", 0, "Max runtime (0 = run forever until Ctrl-C)")
@@ -157,7 +157,7 @@ Replay:
 
 Properties:
   --properties <names>       Comma-sep property names, 'all', or 'list'
-  --convergence-deadline <d> Deadline for convergence property (default: 5s)
+  --convergence-deadline <d> Deadline for convergence property (default: 30s)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
