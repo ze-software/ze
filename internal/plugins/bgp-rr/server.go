@@ -121,10 +121,17 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)
 	// because the engine maps all TypeROUTEREFRESH wire messages to the "refresh"
 	// subscription type. These subtypes are silently ignored by dispatch().
+	//
+	// OPEN subscription uses "direction received" to capture the remote peer's
+	// capabilities only. Without direction filtering, the engine also delivers
+	// the locally-sent OPEN which may contain different families — handleOpen
+	// overwrites Families each time, so the last OPEN wins. If the sent OPEN
+	// arrives last, the peer's families are wrong and selectForwardTargets
+	// excludes it from forwarding.
 	p.SetStartupSubscriptions([]string{
 		eventUpdate + " direction received",
 		eventState,
-		eventOpen,
+		eventOpen + " direction received",
 		eventRefresh,
 	}, nil, "")
 
