@@ -45,6 +45,18 @@ Track what's been changed:
 |------|--------|--------|
 | | | |
 
+## File Digests
+
+Compact summaries of source files read this session. After compaction, read these
+instead of re-reading full files. Only re-read the full file when the digest lacks
+detail needed for a specific edit.
+
+Write a digest immediately after reading a file for the first time:
+
+```
+- `path/to/file.go` (NL): What it does. Key types: X, Y. Key funcs: A(), B(). Notable: [pattern/constraint].
+```
+
 ## Notes
 
 (Any context that would be lost on compaction)

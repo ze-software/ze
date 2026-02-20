@@ -21,6 +21,7 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 | **Quality** | `quality.md` | Never disable linters, never skip reviews, paste proof of completion |
 | **Design Principles** | `design-principles.md` | YAGNI, no premature abstraction, single responsibility, 3-fix escalation rule |
 | **Anti-Rationalization** | `anti-rationalization.md` | Pre-addresses known excuses for skipping TDD, ignoring test failures, or claiming completion without evidence |
+| **Goroutine Lifecycle** | `goroutine-lifecycle.md` | All goroutines must be long-lived workers — never create per-event goroutines in hot paths |
 
 ## BGP Protocol
 

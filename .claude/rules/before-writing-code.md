@@ -9,9 +9,10 @@
       - Use Grep/Glob to find similar patterns, tests, and functionality
       - If found: STOP. Use it, extend it, or document why new code is needed.
 
-[ ] 2. Read the source files you will modify
-      - Understand current implementation and patterns
-      - Identify extension points and callers
+[ ] 2. Know the source files you will modify
+      - If file digest exists in session-state.md: use that (don't re-read full file)
+      - If no digest: read the file, then write a digest to session-state.md
+      - Only re-read full file when digest lacks detail needed for the specific edit
 
 [ ] 3. Verify file paths
       - Use Glob/Grep to confirm the target file exists and is correct

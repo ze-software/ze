@@ -7,7 +7,7 @@
 | # | Rule | Why | Check |
 |---|------|-----|-------|
 | 1 | **Read selected spec FIRST** | Spec contains decisions already made | `cat .claude/selected-spec` → `docs/plan/<name>` |
-| 2 | **Read source before writing code** | You will invent conflicting designs without seeing existing code | Read files you are about to modify |
+| 2 | **Know source before writing code** | You will invent conflicting designs without seeing existing code | Check file digests in session-state.md; re-read full file only when digest is insufficient |
 | 3 | **No code without understanding** | Duplicate code, wrong patterns, broken integrations | Can you name 3 related files? |
 | 4 | **TDD: Test must FAIL first** | Proves test actually validates something | `go test` shows RED before implementation |
 | 5 | **Preserve existing behavior** | Breaking changes waste debugging time | Document current output format BEFORE changing |
