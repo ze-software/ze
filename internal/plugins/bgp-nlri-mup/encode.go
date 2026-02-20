@@ -3,6 +3,7 @@
 package bgp_nlri_mup
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/netip"
@@ -151,126 +152,189 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 
 // buildMUPNLRI builds MUP NLRI bytes from MUPRouteSpec.
 // Returns (nlri bytes, route type code, error).
+//
+// All route-type data is pre-computed for size, allocated once, then written
+// at offsets — no append(). Final NLRI uses WriteTo into a single buffer.
 func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
-	// Determine route type code
-	var routeType MUPRouteType
-	switch spec.RouteType {
-	case route.MUPRouteTypeISD:
-		routeType = MUPISD
-	case route.MUPRouteTypeDSD:
-		routeType = MUPDSD
-	case route.MUPRouteTypeT1ST:
-		routeType = MUPT1ST
-	case route.MUPRouteTypeT2ST:
-		routeType = MUPT2ST
-	default:
-		return nil, 0, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
+	routeType, err := parseMUPRouteType(spec.RouteType)
+	if err != nil {
+		return nil, 0, err
 	}
 
 	// Parse RD
 	var rd RouteDistinguisher
 	if spec.RD != "" {
-		parsed, err := ParseRDString(spec.RD)
-		if err != nil {
-			return nil, 0, fmt.Errorf("invalid RD %q: %w", spec.RD, err)
+		parsed, rdErr := ParseRDString(spec.RD)
+		if rdErr != nil {
+			return nil, 0, fmt.Errorf("invalid RD %q: %w", spec.RD, rdErr)
 		}
 		rd = parsed
 	}
 
-	// Build route-type-specific data
+	// Build route-type-specific data into pre-allocated buffer.
 	var data []byte
 	switch routeType {
 	case MUPISD:
-		if spec.Prefix == "" {
-			return nil, 0, fmt.Errorf("MUP ISD requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(spec.Prefix)
-		if err != nil {
-			return nil, 0, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
-		}
-		data = buildMUPPrefixBytes(prefix)
-
+		data, err = buildISDData(spec)
 	case MUPDSD:
-		if spec.Address == "" {
-			return nil, 0, fmt.Errorf("MUP DSD requires address")
-		}
-		addr, err := netip.ParseAddr(spec.Address)
-		if err != nil {
-			return nil, 0, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
-		}
-		data = addr.AsSlice()
-
+		data, err = buildDSDData(spec)
 	case MUPT1ST:
-		if spec.Prefix == "" {
-			return nil, 0, fmt.Errorf("MUP T1ST requires prefix")
-		}
-		prefix, err := netip.ParsePrefix(spec.Prefix)
-		if err != nil {
-			return nil, 0, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
-		}
-		data = buildMUPPrefixBytes(prefix)
-		// Add TEID (4 bytes) if specified
-		if spec.TEID != "" {
-			teid, _ := parseTEIDWithBits(spec.TEID)
-			data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid)) //nolint:gosec // deliberate uint32→byte truncation for big-endian encoding
-		}
-		// Add QFI (1 byte)
-		data = append(data, spec.QFI)
-		// Add endpoint if specified
-		if spec.Endpoint != "" {
-			ep, epErr := netip.ParseAddr(spec.Endpoint)
-			if epErr != nil {
-				return nil, 0, fmt.Errorf("invalid T1ST endpoint %q: %w", spec.Endpoint, epErr)
-			}
-			epBytes := ep.AsSlice()
-			data = append(data, byte(len(epBytes)*8)) //nolint:gosec // epBytes is 4 or 16 bytes
-			data = append(data, epBytes...)
-		}
-		// Add source if specified
-		if spec.Source != "" {
-			src, srcErr := netip.ParseAddr(spec.Source)
-			if srcErr != nil {
-				return nil, 0, fmt.Errorf("invalid T1ST source %q: %w", spec.Source, srcErr)
-			}
-			srcBytes := src.AsSlice()
-			data = append(data, byte(len(srcBytes)*8)) //nolint:gosec // srcBytes is 4 or 16 bytes
-			data = append(data, srcBytes...)
-		}
-
+		data, err = buildT1STData(spec)
 	case MUPT2ST:
-		if spec.Address == "" {
-			return nil, 0, fmt.Errorf("MUP T2ST requires address")
-		}
-		ep, err := netip.ParseAddr(spec.Address)
-		if err != nil {
-			return nil, 0, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
-		}
-		epBytes := ep.AsSlice()
-		teid, bits := parseTEIDWithBits(spec.TEID)
-		teidLen := TEIDFieldLen(bits)
-		data = make([]byte, 1+len(epBytes)+teidLen)
-		data[0] = byte(len(epBytes)*8 + bits) //nolint:gosec // epBytes is 4 or 16 bytes, bits <= 32
-		copy(data[1:], epBytes)
-		writeTEIDWithBits(data, 1+len(epBytes), teid, bits)
+		data, err = buildT2STData(spec)
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 
-	// Determine AFI
-	afi := AFIIPv4
-	if spec.IsIPv6 {
-		afi = AFIIPv6
-	}
-
-	m := NewMUPFull(afi, MUPArch3GPP5G, routeType, rd, data)
-	nlriBytes := m.Bytes()
-
-	return nlriBytes, uint8(routeType), nil //nolint:gosec // MUP route type is always 0-4
+	return finishMUPNLRI(spec.IsIPv6, routeType, rd, data)
 }
 
-// buildMUPPrefixBytes encodes a prefix for MUP NLRI.
-func buildMUPPrefixBytes(prefix netip.Prefix) []byte {
-	result := make([]byte, MUPPrefixLen(prefix))
-	WriteMUPPrefix(result, 0, prefix)
-	return result
+// parseMUPRouteType converts route type string to MUPRouteType.
+func parseMUPRouteType(s string) (MUPRouteType, error) {
+	switch s {
+	case route.MUPRouteTypeISD:
+		return MUPISD, nil
+	case route.MUPRouteTypeDSD:
+		return MUPDSD, nil
+	case route.MUPRouteTypeT1ST:
+		return MUPT1ST, nil
+	case route.MUPRouteTypeT2ST:
+		return MUPT2ST, nil
+	}
+	return 0, fmt.Errorf("unknown MUP route type: %s", s)
+}
+
+// buildISDData builds ISD route-type data: prefix bytes only.
+func buildISDData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+	if spec.Prefix == "" {
+		return nil, fmt.Errorf("MUP ISD requires prefix")
+	}
+	prefix, err := netip.ParsePrefix(spec.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
+	}
+	data := make([]byte, MUPPrefixLen(prefix))
+	WriteMUPPrefix(data, 0, prefix)
+	return data, nil
+}
+
+// buildDSDData builds DSD route-type data: address bytes only.
+func buildDSDData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+	if spec.Address == "" {
+		return nil, fmt.Errorf("MUP DSD requires address")
+	}
+	addr, err := netip.ParseAddr(spec.Address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
+	}
+	data := make([]byte, addrByteLen(addr))
+	writeAddr(data, 0, addr)
+	return data, nil
+}
+
+// buildT1STData builds T1ST route-type data with pre-computed size, no append().
+func buildT1STData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+	if spec.Prefix == "" {
+		return nil, fmt.Errorf("MUP T1ST requires prefix")
+	}
+	prefix, err := netip.ParsePrefix(spec.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
+	}
+
+	// Parse optional addresses upfront for size computation.
+	var ep, src netip.Addr
+	if spec.Endpoint != "" {
+		ep, err = netip.ParseAddr(spec.Endpoint)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T1ST endpoint %q: %w", spec.Endpoint, err)
+		}
+	}
+	if spec.Source != "" {
+		src, err = netip.ParseAddr(spec.Source)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T1ST source %q: %w", spec.Source, err)
+		}
+	}
+
+	// Pre-compute total size: prefix + TEID(4 if set) + QFI(1) + endpoint + source.
+	size := MUPPrefixLen(prefix)
+	teid, teidBits := parseTEIDWithBits(spec.TEID)
+	if spec.TEID != "" {
+		size += 4
+	}
+	size++ // QFI
+	if ep.IsValid() {
+		size += 1 + addrByteLen(ep) // length byte + address
+	}
+	if src.IsValid() {
+		size += 1 + addrByteLen(src) // length byte + address
+	}
+
+	// Allocate once, write at offsets.
+	data := make([]byte, size)
+	off := 0
+
+	WriteMUPPrefix(data, off, prefix)
+	off += MUPPrefixLen(prefix)
+
+	if spec.TEID != "" {
+		binary.BigEndian.PutUint32(data[off:], teid)
+		off += 4
+	}
+
+	data[off] = spec.QFI
+	off++
+
+	if ep.IsValid() {
+		epLen := addrByteLen(ep)
+		data[off] = byte(epLen * 8) //nolint:gosec // epLen is 4 or 16
+		off++
+		off += writeAddr(data, off, ep)
+	}
+
+	if src.IsValid() {
+		srcLen := addrByteLen(src)
+		data[off] = byte(srcLen * 8) //nolint:gosec // srcLen is 4 or 16
+		off++
+		writeAddr(data, off, src)
+	}
+
+	_ = teidBits // bits not used for T1ST (always full 4-byte TEID)
+
+	return data, nil
+}
+
+// buildT2STData builds T2ST route-type data: endpoint + TEID with bit length.
+func buildT2STData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+	if spec.Address == "" {
+		return nil, fmt.Errorf("MUP T2ST requires address")
+	}
+	ep, err := netip.ParseAddr(spec.Address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
+	}
+	epLen := addrByteLen(ep)
+	teid, bits := parseTEIDWithBits(spec.TEID)
+	teidLen := TEIDFieldLen(bits)
+	data := make([]byte, 1+epLen+teidLen)
+	data[0] = byte(epLen*8 + bits) //nolint:gosec // epLen is 4 or 16, bits <= 32
+	writeAddr(data, 1, ep)
+	writeTEIDWithBits(data, 1+epLen, teid, bits)
+	return data, nil
+}
+
+// finishMUPNLRI wraps route-type data into a full MUP NLRI using WriteTo.
+func finishMUPNLRI(isIPv6 bool, routeType MUPRouteType, rd RouteDistinguisher, data []byte) ([]byte, uint8, error) {
+	afi := AFIIPv4
+	if isIPv6 {
+		afi = AFIIPv6
+	}
+	m := NewMUPFull(afi, MUPArch3GPP5G, routeType, rd, data)
+	buf := make([]byte, m.Len())
+	m.WriteTo(buf, 0)
+	return buf, uint8(routeType), nil //nolint:gosec // MUP route type is always 0-4
 }
 
 // parseTEIDWithBits parses a TEID string "value/bits" into numeric TEID and bit length.

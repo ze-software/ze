@@ -118,7 +118,8 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		label = parsed.Labels[0]
 	}
 	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, []uint32{label}, parsed.PathID)
-	nlriBytes := labeledNLRI.Bytes()
+	nlriBytes := make([]byte, labeledNLRI.Len())
+	labeledNLRI.WriteTo(nlriBytes, 0)
 
 	return updateBody, nlriBytes, nil
 }

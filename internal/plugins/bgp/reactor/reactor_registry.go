@@ -53,20 +53,24 @@ func encodeLabeledNLRI(family nlri.Family, prefix netip.Prefix, labels []uint32,
 		return nil, fmt.Errorf("encode labeled NLRI: %w", err)
 	}
 
-	data, err := hex.DecodeString(hexStr)
-	if err != nil {
-		return nil, fmt.Errorf("decode labeled NLRI hex: %w", err)
-	}
-
 	// Handle ADD-PATH: prepend path-id if non-zero.
 	// The encoder produces NLRI bytes without path-id; WireNLRI expects
 	// path-id as a 4-byte big-endian prefix when hasAddPath is true.
+	// Single allocation: decode hex directly into the right offset.
 	if pathID > 0 {
-		withPathID := make([]byte, 4+len(data))
-		binary.BigEndian.PutUint32(withPathID, pathID)
-		copy(withPathID[4:], data)
+		decodedLen := hex.DecodedLen(len(hexStr))
+		buf := make([]byte, 4+decodedLen)
+		binary.BigEndian.PutUint32(buf, pathID)
+		if _, err := hex.Decode(buf[4:], []byte(hexStr)); err != nil {
+			return nil, fmt.Errorf("decode labeled NLRI hex: %w", err)
+		}
 
-		return nlri.NewWireNLRI(family, withPathID, true)
+		return nlri.NewWireNLRI(family, buf, true)
+	}
+
+	data, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, fmt.Errorf("decode labeled NLRI hex: %w", err)
 	}
 
 	return nlri.NewWireNLRI(family, data, false)
