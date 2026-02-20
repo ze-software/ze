@@ -62,6 +62,7 @@ For architecture docs and RFC navigation, see `.claude/INDEX.md`.
 | **No Test Deletion** | `no-test-deletion.md` | Ask before deleting tests — prevents hiding bugs instead of fixing them |
 | **Testing** | `testing.md` | No throw-away tests, functional test locations, make targets, linter list |
 | **Documentation** | `documentation.md` | File naming, doc placement, single source of truth — never duplicate content across files |
+| **Design Doc References** | `design-doc-references.md` | Every source file must reference its governing design document — traceability from code to architecture |
 | **Hook Errors** | `hook-errors.md` | Hook validation errors must be fixed before proceeding — never ignore exit codes |
 | **Memory** | `memory.md` | Project knowledge: YANG conventions, flaky test policy, config pipeline, file splits |
 

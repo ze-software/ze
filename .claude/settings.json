@@ -288,6 +288,17 @@
             "blocking": true
           }
         ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-encoding-alloc.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
       }
     ],
     "PreCompact": [

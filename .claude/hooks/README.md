@@ -4,7 +4,7 @@ Automated enforcement of `.claude/rules/` requirements.
 
 ## Summary
 
-**Total: 34 hooks** (23 blocking, 11 advisory)
+**Total: 35 hooks** (24 blocking, 11 advisory)
 
 ## All Hooks
 
@@ -37,6 +37,7 @@ Automated enforcement of `.claude/rules/` requirements.
 | `block-init-register.sh` | PreToolUse:Write\|Edit | design-principles.md | **Blocking** |
 | `block-utils-package.sh` | PreToolUse:Write | design-principles.md | **Blocking** |
 | `block-temp-debug.sh` | PreToolUse:Write\|Edit | go-standards.md | **Blocking** |
+| `block-encoding-alloc.sh` | PreToolUse:Write\|Edit | buffer-first.md | **Blocking** |
 | `auto_linter.sh` | PostToolUse:Write\|Edit | go-standards.md | Advisory |
 | `validate-spec.sh` | PostToolUse:Write\|Edit | planning.md | **Blocking** |
 | `require-rfc-reference.sh` | PostToolUse:Write\|Edit | rfc-compliance.md | Advisory |
@@ -75,12 +76,13 @@ Automated enforcement of `.claude/rules/` requirements.
 | `block-utils-package.sh` | `utils/`, `helpers/`, `common/` packages |
 | `block-vague-names.sh` | `Data`, `Info`, `Result`, `Item`, `Thing` names |
 
-### Architecture (no-layering.md, before-writing-code.md, compatibility.md)
+### Architecture (no-layering.md, before-writing-code.md, compatibility.md, buffer-first.md)
 | Hook | What it blocks |
 |------|----------------|
 | `block-layering.sh` | "backwards compat", "hybrid", "fallback" |
 | `check-existing-patterns.sh` | Duplicate types/functions |
 | `block-exabgp-in-engine.sh` | ExaBGP format in engine |
+| `block-encoding-alloc.sh` | `append()`, `make([]byte`, `.Bytes()`, `.Pack()` in encoding paths |
 
 ### Session Lifecycle
 | Hook | What it does |
