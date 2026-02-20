@@ -722,7 +722,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 		}
 
 		// Parse IPv4/unicast UPDATE for announced and withdrawn prefixes.
-		parseUpdatePrefixes(body, peerIndex, events, ctx)
+		parseUpdatePrefixes(body, peerIndex, events)
 	}
 }
 
@@ -730,7 +730,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 // UPDATE message body (after the 19-byte header). Handles both IPv4/unicast
 // NLRI (trailing field) and MP_REACH_NLRI / MP_UNREACH_NLRI attributes for
 // IPv6/unicast.
-func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx context.Context) {
+func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event) {
 	if len(body) < 4 {
 		return
 	}
@@ -750,10 +750,11 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 			break
 		}
 		off += n
+		// Non-blocking send: readLoop must never block on event emission,
+		// otherwise TCP reads stall and backpressure deadlocks the engine.
 		select {
 		case events <- Event{Type: EventRouteWithdrawn, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
-		case <-ctx.Done():
-			return
+		default:
 		}
 	}
 
@@ -792,9 +793,9 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 
 		switch code {
 		case 14: // MP_REACH_NLRI
-			parseMPReachNLRI(body[off:off+aLen], peerIndex, events, ctx)
+			parseMPReachNLRI(body[off:off+aLen], peerIndex, events)
 		case 15: // MP_UNREACH_NLRI
-			parseMPUnreachNLRI(body[off:off+aLen], peerIndex, events, ctx)
+			parseMPUnreachNLRI(body[off:off+aLen], peerIndex, events)
 		}
 		off += aLen
 	}
@@ -807,10 +808,10 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, ctx co
 			break
 		}
 		off += n
+		// Non-blocking send: readLoop must never block on event emission.
 		select {
 		case events <- Event{Type: EventRouteReceived, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
-		case <-ctx.Done():
-			return
+		default:
 		}
 	}
 }
@@ -845,7 +846,7 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 // For other families (VPN, EVPN, FlowSpec): emits one event per UPDATE
 // with the family tag. In the chaos simulator each UPDATE carries exactly
 // one non-unicast NLRI, so the count stays accurate.
-func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event, ctx context.Context) {
+func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event) {
 	if len(data) < 5 { // AFI(2) + SAFI(1) + NH-len(1) + reserved(1) minimum
 		return
 	}
@@ -861,7 +862,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event, ctx conte
 		return
 	}
 
-	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, events, ctx)
+	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, events)
 }
 
 // parseMPUnreachNLRI parses MP_UNREACH_NLRI (type 15) and emits EventRouteWithdrawn.
@@ -869,7 +870,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event, ctx conte
 //
 // For IPv4/IPv6 unicast: parses individual prefixes.
 // For other families: emits one event per UPDATE with the family tag.
-func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event, ctx context.Context) {
+func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event) {
 	if len(data) < 3 { // AFI(2) + SAFI(1) minimum
 		return
 	}
@@ -879,32 +880,33 @@ func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event, ctx con
 	if family == "" {
 		return
 	}
-	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, events, ctx)
+	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, events)
 }
 
 // emitNLRIEvents dispatches NLRI parsing by family and sends events.
 // For unicast families, individual prefixes are parsed. For others (VPN,
 // EVPN, FlowSpec), one event per UPDATE is emitted since the chaos
 // simulator sends exactly one NLRI per UPDATE for non-unicast families.
-func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, events chan<- Event, ctx context.Context) {
+func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, events chan<- Event) {
 	switch family {
 	case familyIPv4Unicast:
-		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, events, ctx)
+		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, events)
 	case familyIPv6Unicast:
-		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, events, ctx)
+		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, events)
 	default:
 		// VPN, EVPN, FlowSpec: one NLRI per UPDATE in chaos simulator.
+		// Non-blocking send: readLoop must never block on event emission.
 		if len(data) > 0 {
 			select {
 			case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Family: family}:
-			case <-ctx.Done():
+			default:
 			}
 		}
 	}
 }
 
 // emitPrefixEvents parses consecutive unicast prefixes and emits an event for each.
-func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, events chan<- Event, ctx context.Context) {
+func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, events chan<- Event) {
 	off := 0
 	for off < len(data) {
 		prefix, n := parse(data[off:])
@@ -912,10 +914,11 @@ func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), famil
 			break
 		}
 		off += n
+		// Non-blocking send: readLoop must never block on event emission,
+		// otherwise TCP reads stall and backpressure deadlocks the engine.
 		select {
 		case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: family}:
-		case <-ctx.Done():
-			return
+		default:
 		}
 	}
 }

@@ -153,7 +153,17 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	// Create connection pairs and wire them up.
 	cpm := NewConnPairManager()
-	events := make(chan peer.Event, 1024)
+
+	// Size the events channel proportionally to expected route volume.
+	// Each route generates a send event; reflected routes generate receive events.
+	// The channel must be large enough to absorb bursts without blocking the
+	// readLoop (which would cause TCP backpressure deadlocks).
+	evBuf := 0
+	for _, p := range cfg.Profiles {
+		evBuf += p.RouteCount * max(len(p.Families), 1)
+	}
+	evBuf = min(max(evBuf, 65536), 500_000)
+	events := make(chan peer.Event, evBuf)
 
 	// Track simulator goroutines.
 	var simWg sync.WaitGroup

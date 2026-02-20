@@ -636,8 +636,16 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		}
 	}
 
-	// Shared event channel with generous buffer.
-	events := make(chan peer.Event, n*1000)
+	// Size the events channel proportionally to expected route volume.
+	// Each route generates a send event; reflected routes generate receive events.
+	// Must be large enough to absorb bursts without blocking readLoop
+	// (which would cause TCP backpressure deadlocks).
+	evBuf := 0
+	for _, p := range profiles {
+		evBuf += p.RouteCount * max(len(p.Families), 1)
+	}
+	evBuf = min(max(evBuf, 65536), 500_000)
+	events := make(chan peer.Event, evBuf)
 
 	// Launch per-peer goroutines.
 	var wg sync.WaitGroup

@@ -1,7 +1,6 @@
 package peer
 
 import (
-	"context"
 	"net/netip"
 	"testing"
 
@@ -98,9 +97,8 @@ func TestParseUpdatePrefixesAnnounce(t *testing.T) {
 	}
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 3, events, ctx)
+	parseUpdatePrefixes(body, 3, events)
 	close(events)
 
 	var received []Event
@@ -129,9 +127,8 @@ func TestParseUpdatePrefixesWithdraw(t *testing.T) {
 	}
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 5, events, ctx)
+	parseUpdatePrefixes(body, 5, events)
 	close(events)
 
 	var received []Event
@@ -165,9 +162,8 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 	}
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 0, events, ctx)
+	parseUpdatePrefixes(body, 0, events)
 	close(events)
 
 	var withdrawals, announcements []netip.Prefix
@@ -200,9 +196,8 @@ func TestParseUpdatePrefixesEOR(t *testing.T) {
 	body := []byte{0, 0, 0, 0}
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 0, events, ctx)
+	parseUpdatePrefixes(body, 0, events)
 	close(events)
 
 	count := 0
@@ -312,9 +307,8 @@ func TestParseUpdatePrefixesMPReach(t *testing.T) {
 	// No trailing IPv4 NLRI.
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 7, events, ctx)
+	parseUpdatePrefixes(body, 7, events)
 	close(events)
 
 	var received []netip.Prefix
@@ -354,9 +348,8 @@ func TestParseUpdatePrefixesMPUnreach(t *testing.T) {
 	body = append(body, attrs...)
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 2, events, ctx)
+	parseUpdatePrefixes(body, 2, events)
 	close(events)
 
 	var withdrawn []netip.Prefix
@@ -397,9 +390,8 @@ func TestParseUpdatePrefixesMPReachVPN(t *testing.T) {
 	body = append(body, attrs...)
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 0, events, ctx)
+	parseUpdatePrefixes(body, 0, events)
 	close(events)
 
 	var got []Event
@@ -480,9 +472,8 @@ func TestParseUpdatePrefixesMultipleAttrs(t *testing.T) {
 	body = append(body, attrs...)
 
 	events := make(chan Event, 10)
-	ctx := context.Background()
 
-	parseUpdatePrefixes(body, 5, events, ctx)
+	parseUpdatePrefixes(body, 5, events)
 	close(events)
 
 	var got []Event
