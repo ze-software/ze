@@ -327,6 +327,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 
 	// Section header first, then all info within it
 	r.Display().SetLabel(cli.command)
+	r.Report().SetLabel(cli.command)
 	r.Display().Header()
 
 	// Check ulimit

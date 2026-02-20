@@ -72,18 +72,18 @@ ze-unit-test-cover:
 
 # Run ze functional tests (all types, continue on failure to show all results)
 ze-functional-test: bin/ze bin/ze-test
-	@failed=0; \
-	bin/ze-test bgp encode --all || failed=$$((failed + 1)); \
-	bin/ze-test bgp plugin --all || failed=$$((failed + 1)); \
-	bin/ze-test bgp parse --all || failed=$$((failed + 1)); \
-	bin/ze-test bgp decode --all || failed=$$((failed + 1)); \
-	bin/ze-test bgp reload --all || failed=$$((failed + 1)); \
-	bin/ze-test editor || failed=$$((failed + 1)); \
+	@failed=0; failed_names=""; \
+	bin/ze-test bgp encode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }encode"; }; \
+	bin/ze-test bgp plugin --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }plugin"; }; \
+	bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
+	bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
+	bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
+	bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
 	if [ $$failed -gt 0 ]; then \
-		printf "\n\033[31m═══ FAIL  %d suite(s) failed\033[0m\n\n" $$failed; \
+		printf "\033[31m═══ FAIL  %d suite(s) failed: %s\033[0m\n\n" $$failed "$$failed_names"; \
 		exit 1; \
 	else \
-		printf "\n\033[32m═══ PASS  all suites\033[0m\n\n"; \
+		printf "\033[32m═══ PASS  all 6 suites\033[0m\n\n"; \
 	fi
 
 # Run ze functional test suites individually
@@ -106,9 +106,17 @@ ze-editor-test: bin/ze-test
 	@bin/ze-test editor
 
 # Run ze fuzz tests (all targets, 10s each)
+# Note: attribute package has 7 fuzz tests; -fuzz=. fails with "matches more than one".
+# Each must be enumerated individually. Other packages have 1-2 tests and work with -fuzz=.
 ze-fuzz-test:
 	@echo "Running ze fuzz tests..."
-	go test -fuzz=. -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseOrigin -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseMED -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseLocalPref -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseASPath -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseCommunity -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseLargeCommunity -fuzztime=10s ./internal/plugins/bgp/attribute/...
+	go test -fuzz=FuzzParseExtCommunity -fuzztime=10s ./internal/plugins/bgp/attribute/...
 	go test -fuzz=. -fuzztime=10s ./internal/plugins/bgp/wireu/...
 	go test -fuzz=. -fuzztime=10s ./internal/plugins/bgp-rib/storage/...
 	go test -fuzz=. -fuzztime=10s ./internal/pool/...

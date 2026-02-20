@@ -261,6 +261,63 @@ func TestComparePluginJSON_Mismatch(t *testing.T) {
 	assert.Contains(t, err.Error(), "mismatch")
 }
 
+// TestComparePluginJSON_MismatchFieldLevel verifies field-level diff in mismatch errors.
+// Instead of dumping two full JSON blobs, the error should name the differing fields.
+//
+// VALIDATES: AC-5 — JSON mismatch error names differing fields.
+// PREVENTS: Developer scanning two large JSON dumps to find differences.
+func TestComparePluginJSON_MismatchFieldLevel(t *testing.T) {
+	actual := map[string]any{
+		"message":          map[string]any{"type": "update"},
+		"origin":           "egp",
+		"local-preference": float64(300),
+		"extra-field":      "unexpected",
+	}
+
+	expected := `{"message":{"type":"update"},"origin":"igp","local-preference":200,"missing-field":"value"}`
+
+	err := comparePluginJSON(actual, expected)
+	require.Error(t, err)
+
+	errMsg := err.Error()
+	// Error must contain structured diff markers (changed/added/removed), not just two full dumps.
+	// The old format was "JSON mismatch:\nExpected:\n...\nActual:\n..." — reject that.
+	assert.NotContains(t, errMsg, "Expected:\n", "error should use field-level diff, not full dumps")
+	assert.NotContains(t, errMsg, "Actual:\n", "error should use field-level diff, not full dumps")
+
+	// Must identify the kind of difference for each field
+	assert.Contains(t, errMsg, "changed", "error should label changed fields")
+	assert.Contains(t, errMsg, "added", "error should label added fields (in actual but not expected)")
+	assert.Contains(t, errMsg, "removed", "error should label removed fields (in expected but not actual)")
+}
+
+// TestComparePluginJSON_ArrayElementDiff verifies field-level diff recurses into array elements.
+// When arrays differ in nested map fields, the diff should name the specific sub-field,
+// not dump the entire array element as "changed".
+//
+// VALIDATES: AC-5 — array element diff recurses into nested maps.
+// PREVENTS: Opaque "changed: ipv4/unicast[0] = {...} (expected {...})" dumps.
+func TestComparePluginJSON_ArrayElementDiff(t *testing.T) {
+	actual := map[string]any{
+		"message": map[string]any{"type": "update"},
+		"origin":  "igp",
+		"ipv4/unicast": []any{
+			map[string]any{"next-hop": "10.0.1.1", "action": "add", "nlri": []any{"10.0.0.0/24"}},
+		},
+	}
+
+	// Expected has different next-hop inside the array element
+	expected := `{"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"10.0.2.2","action":"add","nlri":["10.0.0.0/24"]}]}`
+
+	err := comparePluginJSON(actual, expected)
+	require.Error(t, err)
+
+	errMsg := err.Error()
+	// Diff must identify the specific field within the array element
+	assert.Contains(t, errMsg, "next-hop", "diff should name the differing field inside the array element")
+	assert.Contains(t, errMsg, "changed", "diff should label the field as changed")
+}
+
 // TestComparePluginJSON_IgnoresContextFields verifies peer/direction ignored.
 //
 // VALIDATES: Context-dependent fields don't affect comparison.

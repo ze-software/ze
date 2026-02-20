@@ -150,6 +150,11 @@ func (r *Runner) Display() *Display {
 	return r.display
 }
 
+// Report returns the runner's report generator.
+func (r *Runner) Report() *Report {
+	return r.report
+}
+
 // SetExtraBinaries configures additional Go binaries to build alongside ze.
 // The map keys are binary names and values are Go package paths.
 // Example: runner.SetExtraBinaries(map[string]string{"ze-chaos": "./cmd/ze-chaos"}).
@@ -336,7 +341,7 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 		result.IterationDurations = append(result.IterationDurations, iterDuration)
 
 		if !opts.Quiet {
-			fmt.Printf("%s Iteration %d: %s\n", r.colors.Cyan("==>"), i, formatDurationShort(iterDuration))
+			fmt.Printf("%s Iteration %d: %s\n", r.colors.Cyan("==>"), i, formatDuration(iterDuration))
 		}
 
 		if !success {
@@ -356,14 +361,6 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 
 	result.TotalDuration = time.Since(totalStart)
 	return result
-}
-
-// formatDurationShort formats a duration concisely.
-func formatDurationShort(d time.Duration) string {
-	if d < time.Second {
-		return fmt.Sprintf("%dms", d.Milliseconds())
-	}
-	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
 // runTest executes a single test.

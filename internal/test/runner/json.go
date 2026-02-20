@@ -192,12 +192,111 @@ func comparePluginJSON(actual map[string]any, expected string) error {
 	expectedNorm := normalizeForComparison(expectedMap)
 
 	if !reflect.DeepEqual(actualNorm, expectedNorm) {
-		actualJSON, _ := json.MarshalIndent(actualNorm, "", "  ")
-		expectedJSON, _ := json.MarshalIndent(expectedNorm, "", "  ")
-		return fmt.Errorf("JSON mismatch:\nExpected:\n%s\nActual:\n%s", expectedJSON, actualJSON)
+		return fmt.Errorf("JSON mismatch:\n%s", jsonFieldDiff(expectedNorm, actualNorm, ""))
 	}
 
 	return nil
+}
+
+// jsonFieldDiff produces a field-level diff between two normalized maps.
+// Labels each difference as changed/added/removed with the field path.
+func jsonFieldDiff(expected, actual map[string]any, prefix string) string {
+	var diffs []string
+
+	// Collect all keys from both maps
+	allKeys := make(map[string]bool)
+	for k := range expected {
+		allKeys[k] = true
+	}
+	for k := range actual {
+		allKeys[k] = true
+	}
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(allKeys))
+	for k := range allKeys {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+
+		expVal, inExp := expected[k]
+		actVal, inAct := actual[k]
+
+		switch {
+		case !inExp && inAct:
+			diffs = append(diffs, fmt.Sprintf("  added:   %s = %s", path, formatJSONValue(actVal)))
+		case inExp && !inAct:
+			diffs = append(diffs, fmt.Sprintf("  removed: %s = %s", path, formatJSONValue(expVal)))
+		case !reflect.DeepEqual(expVal, actVal):
+			// Both present but different — recurse into nested structures
+			expMap, expIsMap := expVal.(map[string]any)
+			actMap, actIsMap := actVal.(map[string]any)
+			expSlice, expIsSlice := expVal.([]any)
+			actSlice, actIsSlice := actVal.([]any)
+			switch {
+			case expIsMap && actIsMap:
+				if nested := jsonFieldDiff(expMap, actMap, path); nested != "" {
+					diffs = append(diffs, nested)
+				}
+			case expIsSlice && actIsSlice:
+				if nested := jsonSliceDiff(expSlice, actSlice, path); nested != "" {
+					diffs = append(diffs, nested)
+				}
+			default:
+				diffs = append(diffs, fmt.Sprintf("  changed: %s = %s (expected %s)", path, formatJSONValue(actVal), formatJSONValue(expVal)))
+			}
+		}
+	}
+
+	return strings.Join(diffs, "\n")
+}
+
+// jsonSliceDiff produces element-level diff between two slices.
+func jsonSliceDiff(expected, actual []any, path string) string {
+	var diffs []string
+	maxLen := max(len(expected), len(actual))
+	for i := range maxLen {
+		elemPath := fmt.Sprintf("%s[%d]", path, i)
+		switch {
+		case i >= len(expected):
+			diffs = append(diffs, fmt.Sprintf("  added:   %s = %s", elemPath, formatJSONValue(actual[i])))
+		case i >= len(actual):
+			diffs = append(diffs, fmt.Sprintf("  removed: %s = %s", elemPath, formatJSONValue(expected[i])))
+		case !reflect.DeepEqual(expected[i], actual[i]):
+			expMap, expIsMap := expected[i].(map[string]any)
+			actMap, actIsMap := actual[i].(map[string]any)
+			expSlice, expIsSlice := expected[i].([]any)
+			actSlice, actIsSlice := actual[i].([]any)
+			switch {
+			case expIsMap && actIsMap:
+				if nested := jsonFieldDiff(expMap, actMap, elemPath); nested != "" {
+					diffs = append(diffs, nested)
+				}
+			case expIsSlice && actIsSlice:
+				if nested := jsonSliceDiff(expSlice, actSlice, elemPath); nested != "" {
+					diffs = append(diffs, nested)
+				}
+			default:
+				diffs = append(diffs, fmt.Sprintf("  changed: %s = %s (expected %s)", elemPath, formatJSONValue(actual[i]), formatJSONValue(expected[i])))
+			}
+		}
+	}
+	return strings.Join(diffs, "\n")
+}
+
+// formatJSONValue formats a value for display in diff output.
+func formatJSONValue(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Sprintf("%v", v)
+	}
+	return string(b)
 }
 
 // normalizeForComparison normalizes a map for deep comparison.

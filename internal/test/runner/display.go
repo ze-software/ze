@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -66,13 +67,15 @@ func (d *Display) SetParallel(parallel, total int) {
 	d.total = total
 }
 
-// headerLine builds a centered header line.
+// headerLine builds a left-aligned header line matching the summary format.
+// Output: ═══ encode ═════════════════════════════════════════════════════════════
+// Aligns label position with PASS/FAIL in summary lines.
 func headerLine(colors *Colors, label string) string {
-	l := fmt.Sprintf(" %s ", label)
-	padTotal := summaryWidth - len(l)
-	padLeft := padTotal / 3 // shorter left side
-	padRight := padTotal - padLeft
-	return colors.Cyan(strings.Repeat("═", padLeft)) + l + colors.Cyan(strings.Repeat("═", padRight))
+	prefix := "═══ "
+	l := label + " "
+	// Use rune count, not byte length — ═ is 3 UTF-8 bytes but 1 visual column.
+	padRight := max(0, summaryWidth-utf8.RuneCountInString(prefix)-len(l))
+	return colors.Cyan(prefix) + l + colors.Cyan(strings.Repeat("═", padRight))
 }
 
 // Header prints a section header for the test suite.
@@ -279,7 +282,7 @@ func (d *Display) Summary() {
 		b.WriteString(d.colors.Red("FAIL"))
 	}
 
-	fmt.Fprintf(&b, "  %d/%d  %.1f%%  %s", passed, total, rate, formatDurationShort(elapsed))
+	fmt.Fprintf(&b, "  %d/%d  %.1f%%  %s", passed, total, rate, formatDuration(elapsed))
 
 	if failed > 0 {
 		nicks := d.tests.FailedNicks()

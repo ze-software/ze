@@ -313,11 +313,15 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 		})
 	}
 
-	// Set failure callback for verbose output
+	// Set failure callback for verbose output with reproduction command
 	runner.SetOnFail(func(test *ParsingTest, _ error) {
 		fmt.Fprintf(os.Stdout, "%s %s: %v\n", r.colors.Red("✗"), test.Name, test.Error) //nolint:errcheck // user output
 		if test.Output != "" {
 			fmt.Fprintf(os.Stdout, "  Output: %s\n", test.Output) //nolint:errcheck // user output
+		}
+		// Show reproduction command for file-based configs
+		if test.File != "" && test.InlineConfig == nil {
+			fmt.Fprintf(os.Stdout, "  %s %s validate %s\n", r.colors.Gray("Reproduce:"), r.zePath, test.File) //nolint:errcheck // user output
 		}
 	})
 
