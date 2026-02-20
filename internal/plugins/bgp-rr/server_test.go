@@ -24,10 +24,10 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 	p := sdk.NewWithConn("rr-test", engineConn, callbackConn)
 	t.Cleanup(func() { _ = p.Close() })
 	return &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
-		workCh: make(chan forwardWork, 1024),
+		plugin:  p,
+		peers:   make(map[string]*PeerState),
+		rib:     NewRIB(),
+		workSig: make(chan struct{}, 1),
 	}
 }
 

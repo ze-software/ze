@@ -50,10 +50,10 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
-		workCh: make(chan forwardWork, 64),
+		plugin:  p,
+		peers:   make(map[string]*PeerState),
+		rib:     NewRIB(),
+		workSig: make(chan struct{}, 1),
 	}
 
 	// Register peers: 10.0.0.1 (source), 10.0.0.2 and 10.0.0.3 (targets).
@@ -74,12 +74,13 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 
 	// Start forward worker.
 	workerDone := make(chan struct{})
+	workerStop := make(chan struct{})
 	go func() {
-		rs.runForwardWorker()
+		rs.runForwardWorker(workerStop)
 		close(workerDone)
 	}()
 	t.Cleanup(func() {
-		close(rs.workCh)
+		close(workerStop)
 		<-workerDone
 	})
 
@@ -178,19 +179,20 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
-		workCh: make(chan forwardWork, 64),
+		plugin:  p,
+		peers:   make(map[string]*PeerState),
+		rib:     NewRIB(),
+		workSig: make(chan struct{}, 1),
 	}
 
 	workerDone := make(chan struct{})
+	workerStop := make(chan struct{})
 	go func() {
-		rs.runForwardWorker()
+		rs.runForwardWorker(workerStop)
 		close(workerDone)
 	}()
 	t.Cleanup(func() {
-		close(rs.workCh)
+		close(workerStop)
 		<-workerDone
 	})
 
@@ -253,10 +255,10 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
-		workCh: make(chan forwardWork, 64),
+		plugin:  p,
+		peers:   make(map[string]*PeerState),
+		rib:     NewRIB(),
+		workSig: make(chan struct{}, 1),
 	}
 
 	// 10.0.0.2 supports ipv4+ipv6, 10.0.0.3 supports only ipv4.
@@ -276,12 +278,13 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	rs.mu.Unlock()
 
 	workerDone := make(chan struct{})
+	workerStop := make(chan struct{})
 	go func() {
-		rs.runForwardWorker()
+		rs.runForwardWorker(workerStop)
 		close(workerDone)
 	}()
 	t.Cleanup(func() {
-		close(rs.workCh)
+		close(workerStop)
 		<-workerDone
 	})
 
@@ -321,7 +324,7 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 
 // --- Forward worker ordering tests ---
 
-// TestForwardWorker_OrderPreserved verifies that the channel-based worker
+// TestForwardWorker_OrderPreserved verifies that the queue-based worker
 // delivers cache forward commands in strictly increasing message-ID order.
 //
 // VALIDATES: 100 rapid UPDATE events produce work items in FIFO order (AC-1).
@@ -343,8 +346,8 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// Dispatch 100 UPDATE events — handleUpdate sends each to the work channel
-	// (worker is NOT running, so items accumulate in the buffered channel)
+	// Dispatch 100 UPDATE events — handleUpdate sends each to the work queue
+	// (worker is NOT running, so items accumulate in the unbounded queue)
 	const numUpdates = 100
 	for i := 1; i <= numUpdates; i++ {
 		input := fmt.Sprintf(
@@ -364,18 +367,22 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 		t.Errorf("expected %d routes in RIB, got %d", numUpdates, len(routes))
 	}
 
-	// Read work items from channel and verify strictly increasing message IDs.
-	// Channel is FIFO — this proves handleUpdate sends items in order.
+	// Read work items from the queue and verify strictly increasing message IDs.
+	// Queue is FIFO — this proves handleUpdate sends items in order.
+	rs.workMu.Lock()
+	items := make([]forwardWork, len(rs.workQ))
+	copy(items, rs.workQ)
+	rs.workMu.Unlock()
+
+	if len(items) != numUpdates {
+		t.Fatalf("expected %d items in queue, got %d", numUpdates, len(items))
+	}
+
 	var ids []uint64
-	for i := range numUpdates {
-		select {
-		case w := <-rs.workCh:
-			ids = append(ids, w.msgID)
-			if w.release {
-				t.Errorf("item %d: expected forward, got release", i)
-			}
-		default:
-			t.Fatalf("expected %d items in channel, only got %d", numUpdates, i)
+	for i, w := range items {
+		ids = append(ids, w.msgID)
+		if w.release {
+			t.Errorf("item %d: expected forward, got release", i)
 		}
 	}
 
@@ -432,18 +439,22 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		rs.dispatch(event)
 	}
 
-	// Read all items and verify strict ordering
+	// Read all items from the queue and verify strict ordering
+	rs.workMu.Lock()
+	items := make([]forwardWork, len(rs.workQ))
+	copy(items, rs.workQ)
+	rs.workMu.Unlock()
+
+	if len(items) != numUpdates {
+		t.Fatalf("expected %d items in queue, got %d", numUpdates, len(items))
+	}
+
 	var ids []uint64
-	for i := range numUpdates {
-		select {
-		case w := <-rs.workCh:
-			ids = append(ids, w.msgID)
-			expectRelease := (w.msgID%2 != 0)
-			if w.release != expectRelease {
-				t.Errorf("item msgID=%d: release=%v, want %v", w.msgID, w.release, expectRelease)
-			}
-		default:
-			t.Fatalf("expected %d items, only got %d", numUpdates, i)
+	for _, w := range items {
+		ids = append(ids, w.msgID)
+		expectRelease := (w.msgID%2 != 0)
+		if w.release != expectRelease {
+			t.Errorf("item msgID=%d: release=%v, want %v", w.msgID, w.release, expectRelease)
 		}
 	}
 
@@ -454,10 +465,10 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 	}
 }
 
-// TestForwardWorker_DrainOnClose verifies that closing the work channel
-// causes the worker to process all remaining items before exiting.
+// TestForwardWorker_DrainOnClose verifies that stopping the worker
+// causes it to process all remaining queued items before exiting.
 //
-// VALIDATES: Worker drains buffered items on shutdown (AC-3).
+// VALIDATES: Worker drains queued items on shutdown (AC-3).
 // PREVENTS: Lost forward/release commands during plugin shutdown.
 func TestForwardWorker_DrainOnClose(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -473,33 +484,33 @@ func TestForwardWorker_DrainOnClose(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// Buffer items and close the channel BEFORE starting the worker.
-	// The worker must range-drain all items to exit — if it broke out early,
-	// the channel would still have items and this test would hang or fail.
+	// Enqueue items BEFORE starting the worker.
+	// The worker must drain all items on stop — if it broke out early,
+	// the queue would still have items and this test would fail.
 	const numItems = 10
 	for i := 1; i <= numItems; i++ {
-		rs.workCh <- forwardWork{
+		rs.sendWork(forwardWork{
 			msgID:      uint64(i),
 			sourcePeer: "10.0.0.1",
 			families:   map[string]bool{"ipv4/unicast": true},
-		}
+		})
 	}
-	close(rs.workCh)
 
-	// Run worker synchronously — it ranges over the closed channel,
-	// processes all buffered items, then returns.
-	rs.runForwardWorker()
+	// Signal stop immediately, then run worker synchronously.
+	// The worker receives the stop signal and calls drainWork() to
+	// process all queued items before returning.
+	workerStop := make(chan struct{})
+	close(workerStop)
+	rs.runForwardWorker(workerStop)
 
 	// If we get here, the worker drained all items and returned.
-	// Verify the channel is fully consumed.
-	select {
-	case _, ok := <-rs.workCh:
-		if ok {
-			t.Fatal("channel should be closed and empty after drain")
-		}
-		// ok==false means closed+empty — correct
-	default:
-		// Channel is closed and empty — this path is also correct
+	// Verify the queue is empty.
+	rs.workMu.Lock()
+	remaining := len(rs.workQ)
+	rs.workMu.Unlock()
+
+	if remaining != 0 {
+		t.Fatalf("expected empty queue after drain, got %d items", remaining)
 	}
 }
 

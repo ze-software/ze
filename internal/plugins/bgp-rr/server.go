@@ -67,7 +67,14 @@ type RouteServer struct {
 	peers  map[string]*PeerState
 	rib    *RIB
 	mu     sync.RWMutex
-	workCh chan forwardWork // buffered channel for serializing cache forward/release
+
+	// Unbounded FIFO work queue for cache forward/release commands.
+	// Never blocks the sender (prevents engine 5s event delivery timeout)
+	// while preserving strict ordering (prevents cumulative ack eviction
+	// of un-forwarded entries). See sendWork() and drainWork().
+	workMu  sync.Mutex
+	workQ   []forwardWork
+	workSig chan struct{} // signals worker that items are available
 }
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
@@ -77,18 +84,21 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
-		workCh: make(chan forwardWork, 4096),
+		plugin:  p,
+		peers:   make(map[string]*PeerState),
+		rib:     NewRIB(),
+		workSig: make(chan struct{}, 1),
 	}
 
 	// Start forward worker before event delivery begins.
-	// Single goroutine serializes all cache forward/release SDK RPCs,
-	// preserving FIFO message-ID ordering required by the engine's cache.
+	// Single goroutine processes all cache forward/release SDK RPCs in strict
+	// FIFO order. The unbounded queue (workQ) ensures sendWork never blocks
+	// the OnEvent handler, while FIFO ordering prevents cumulative ack
+	// eviction of un-forwarded cache entries.
 	workerDone := make(chan struct{})
+	workerStop := make(chan struct{})
 	go func() {
-		rs.runForwardWorker()
+		rs.runForwardWorker(workerStop)
 		close(workerDone)
 	}()
 
@@ -148,8 +158,8 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		},
 	})
 
-	// After p.Run returns (shutdown), close channel to drain remaining work.
-	close(rs.workCh)
+	// After p.Run returns (shutdown), signal worker to stop and drain.
+	close(workerStop)
 	<-workerDone
 
 	if err != nil {
@@ -180,23 +190,25 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	}
 }
 
-// sendWork queues work to the forward worker without blocking the caller.
-// If the channel has space, the item is queued for ordered processing.
-// If the channel is full (4096 items), the work is processed in a goroutine
-// to prevent blocking OnEvent — which would cause the engine's 5-second
-// event delivery timeout to fire and drop the UPDATE entirely.
-// Out-of-order cache acks are safe since commit 14d6459e.
+// sendWork appends work to the unbounded FIFO queue without blocking.
+// The queue grows dynamically if the forward worker can't keep up, ensuring
+// the OnEvent handler never blocks (which would trigger the engine's 5-second
+// event delivery timeout). Strict FIFO ordering is preserved — no overflow
+// goroutines that could cause out-of-order cumulative ack eviction.
 func (rs *RouteServer) sendWork(w forwardWork) {
+	rs.workMu.Lock()
+	rs.workQ = append(rs.workQ, w)
+	rs.workMu.Unlock()
+
+	// Non-blocking signal: wake the worker if it's idle.
+	// Buffer size 1 ensures at most one pending signal.
 	select {
-	case rs.workCh <- w:
-		// Queued for ordered processing by forward worker.
-	default: // Channel full — overflow to goroutine to avoid blocking OnEvent.
-		go rs.processWork(w)
+	case rs.workSig <- struct{}{}:
+	default: // Worker already signaled, will drain the queue.
 	}
 }
 
 // processWork executes a single forward or release operation.
-// Used by both the forward worker goroutine and overflow goroutines.
 func (rs *RouteServer) processWork(w forwardWork) {
 	if w.release {
 		rs.releaseCache(w.msgID)
@@ -206,11 +218,33 @@ func (rs *RouteServer) processWork(w forwardWork) {
 }
 
 // runForwardWorker is the single goroutine that processes all cache forward
-// and release commands. It ranges over workCh, processing items in FIFO order.
-// Under normal load, all work flows through this goroutine for ordered processing.
-// Under heavy load, sendWork() may spawn overflow goroutines that run in parallel.
-func (rs *RouteServer) runForwardWorker() {
-	for w := range rs.workCh {
+// and release commands in strict FIFO order. It waits on workSig for new items
+// and drains the entire queue each time. Stops when the stop channel is closed.
+func (rs *RouteServer) runForwardWorker(stop <-chan struct{}) {
+	for {
+		select {
+		case <-stop:
+			rs.drainWork()
+			return
+		case <-rs.workSig:
+			rs.drainWork()
+		}
+	}
+}
+
+// drainWork processes all items currently in the work queue.
+func (rs *RouteServer) drainWork() {
+	for {
+		rs.workMu.Lock()
+		if len(rs.workQ) == 0 {
+			rs.workMu.Unlock()
+			return
+		}
+		w := rs.workQ[0]
+		rs.workQ[0] = forwardWork{} // zero to avoid retaining references
+		rs.workQ = rs.workQ[1:]
+		rs.workMu.Unlock()
+
 		rs.processWork(w)
 	}
 }
@@ -278,8 +312,8 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 		}
 	}
 
-	// Queue forward to worker. Non-blocking: if channel is full, sendWork
-	// spawns a goroutine to prevent blocking OnEvent (engine has 5s timeout).
+	// Queue forward to worker. Non-blocking: the unbounded queue ensures
+	// OnEvent never blocks (engine has 5s timeout for event delivery).
 	rs.sendWork(forwardWork{
 		msgID:      msgID,
 		sourcePeer: peerAddr,
