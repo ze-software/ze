@@ -58,8 +58,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		label = parsed.Labels[0]
 	}
 	vpnNLRI := NewVPN(fam, rd, []uint32{label}, parsed.Prefix, 0)
-	nlriBytes := make([]byte, vpnNLRI.Len())
-	vpnNLRI.WriteTo(nlriBytes, 0)
+	nlriBytes := vpnNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil
 }

@@ -9,27 +9,11 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
-
-// nlriBufPool provides reusable scratch buffers for MUP NLRI encoding.
-// Max MUP NLRI: 4 header + 8 RD + 56 T1ST data = 68 bytes. 128 is plenty.
-var nlriBufPool = sync.Pool{
-	New: func() any {
-		return make([]byte, 128)
-	},
-}
-
-//nolint:forcetypeassert // pool New always returns []byte
-func getNLRIBuf() []byte { return nlriBufPool.Get().([]byte) }
-
-func putNLRIBuf(buf []byte) {
-	nlriBufPool.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-}
 
 // mupParsed holds parsed route-type fields and computed data size.
 // Populated by parse*Fields, consumed by write*Data. No allocation.
@@ -122,17 +106,14 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", fmt.Errorf("route-type required for MUP")
 	}
 
-	buf := getNLRIBuf()
-	n, _, err := writeMUPNLRI(buf, 0, spec)
+	// MUP NLRIs are small (max ~68 bytes for T1ST with IPv6).
+	var buf [128]byte
+	n, _, err := writeMUPNLRI(buf[:], 0, spec)
 	if err != nil {
-		putNLRIBuf(buf)
 		return "", err
 	}
 
-	result := strings.ToUpper(hex.EncodeToString(buf[:n]))
-	putNLRIBuf(buf)
-
-	return result, nil
+	return strings.ToUpper(hex.EncodeToString(buf[:n])), nil
 }
 
 // EncodeRoute encodes a MUP route command into UPDATE body bytes and NLRI bytes.
@@ -153,15 +134,14 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	// Build MUP NLRI into pool buffer.
-	buf := getNLRIBuf()
-	n, routeType, err := writeMUPNLRI(buf, 0, parsed)
+	// Build MUP NLRI — small (max ~68 bytes), stack array is sufficient.
+	var buf [128]byte
+	n, routeType, err := writeMUPNLRI(buf[:], 0, parsed)
 	if err != nil {
-		putNLRIBuf(buf)
 		return nil, nil, fmt.Errorf("build NLRI: %w", err)
 	}
 
-	// Copy NLRI bytes — caller needs owned memory.
+	// Own copy for the return value.
 	nlriBytes := make([]byte, n)
 	copy(nlriBytes, buf[:n])
 
@@ -170,12 +150,11 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	if parsed.NextHop != "" {
 		nextHop, err = netip.ParseAddr(parsed.NextHop)
 		if err != nil {
-			putNLRIBuf(buf)
 			return nil, nil, fmt.Errorf("invalid next-hop: %w", err)
 		}
 	}
 
-	// Build UPDATE using pool buf data (still valid until putNLRIBuf).
+	// Build UPDATE using stack buf data.
 	params := message.MUPParams{
 		RouteType: routeType,
 		IsIPv6:    isIPv6,
@@ -184,8 +163,6 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	}
 	update := ub.BuildMUP(params)
 	updateBody := message.PackTo(update, nil)
-
-	putNLRIBuf(buf)
 
 	return updateBody, nlriBytes, nil
 }

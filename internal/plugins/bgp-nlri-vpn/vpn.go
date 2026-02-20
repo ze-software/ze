@@ -163,9 +163,9 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	}
 
 	v := NewVPN(fam, rd, labels, prefix, pathID)
-	buf := make([]byte, v.Len())
-	v.WriteTo(buf, 0)
-	return strings.ToUpper(hex.EncodeToString(buf)), nil
+	nlriBytes := v.Bytes()
+
+	return strings.ToUpper(hex.EncodeToString(nlriBytes)), nil
 }
 
 // Protocol constants.

@@ -74,9 +74,9 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 	}
 
 	n := NewLabeledUnicast(fam, prefix, labels, pathID)
-	buf := make([]byte, n.Len())
-	n.WriteTo(buf, 0)
-	return strings.ToUpper(hex.EncodeToString(buf)), nil
+	nlriBytes := n.Bytes()
+
+	return strings.ToUpper(hex.EncodeToString(nlriBytes)), nil
 }
 
 // EncodeRoute encodes a labeled unicast (nlri-mpls) route command into UPDATE body bytes and NLRI bytes.
@@ -118,8 +118,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		label = parsed.Labels[0]
 	}
 	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, []uint32{label}, parsed.PathID)
-	nlriBytes := make([]byte, labeledNLRI.Len())
-	labeledNLRI.WriteTo(nlriBytes, 0)
+	nlriBytes := labeledNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil
 }

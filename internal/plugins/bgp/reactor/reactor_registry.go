@@ -6,7 +6,6 @@
 package reactor
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/netip"
@@ -56,16 +55,13 @@ func encodeLabeledNLRI(family nlri.Family, prefix netip.Prefix, labels []uint32,
 	// Handle ADD-PATH: prepend path-id if non-zero.
 	// The encoder produces NLRI bytes without path-id; WireNLRI expects
 	// path-id as a 4-byte big-endian prefix when hasAddPath is true.
-	// Single allocation: decode hex directly into the right offset.
 	if pathID > 0 {
-		decodedLen := hex.DecodedLen(len(hexStr))
-		buf := make([]byte, 4+decodedLen)
-		binary.BigEndian.PutUint32(buf, pathID)
-		if _, err := hex.Decode(buf[4:], []byte(hexStr)); err != nil {
+		data, err := hex.DecodeString(fmt.Sprintf("%08X", pathID) + hexStr)
+		if err != nil {
 			return nil, fmt.Errorf("decode labeled NLRI hex: %w", err)
 		}
 
-		return nlri.NewWireNLRI(family, buf, true)
+		return nlri.NewWireNLRI(family, data, true)
 	}
 
 	data, err := hex.DecodeString(hexStr)
