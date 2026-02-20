@@ -4,6 +4,7 @@ import (
 	"net"
 	"strings"
 	"testing"
+	"time"
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -22,13 +23,32 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		t.Logf("close callbackRemote: %v", err)
 	}
 	p := sdk.NewWithConn("rr-test", engineConn, callbackConn)
-	t.Cleanup(func() { _ = p.Close() })
-	return &RouteServer{
-		plugin:  p,
-		peers:   make(map[string]*PeerState),
-		rib:     NewRIB(),
-		workSig: make(chan struct{}, 1),
+	t.Cleanup(func() {
+		if err := p.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+	})
+	rs := &RouteServer{
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
 	}
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		rs.processForward(item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+	t.Cleanup(func() { rs.workers.Stop() })
+	return rs
+}
+
+// flushWorkers stops and recreates the worker pool, ensuring all pending
+// items are processed. Used by tests that check RIB state after dispatch,
+// since RIB updates now happen asynchronously in workers.
+func flushWorkers(t *testing.T, rs *RouteServer) {
+	t.Helper()
+	rs.workers.Stop()
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		rs.processForward(item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 }
 
 // --- parseEvent tests ---
@@ -253,12 +273,8 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":123,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp","as-path":[65001],"local-preference":100},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 1 {
@@ -291,12 +307,8 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":124,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 0 {
@@ -321,12 +333,8 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":125,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]},{"action":"del","nlri":["10.0.2.0/24"]}],"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 2 {
@@ -357,12 +365,7 @@ func TestHandleUpdate_IgnoreEmptyPeer(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":123,"direction":"received"},"peer":{"address":"","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	routes := rs.rib.GetPeerRoutes("")
 	if len(routes) != 0 {
@@ -382,12 +385,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 0 {
@@ -416,12 +414,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -446,12 +439,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -473,12 +461,7 @@ func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"},{"code":65,"name":"asn4","value":"65001"}]}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -529,13 +512,8 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"refresh"},"peer":{"address":"10.0.0.1","asn":65001},"refresh":{"afi":"ipv4","safi":"unicast"}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
 	// handleRefresh calls updateRoute which sends via SDK RPC (fails silently on closed conn).
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 }
 
 // --- Family/capability filtering tests ---
@@ -567,12 +545,8 @@ func TestFilterUpdateByFamily(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 1 {
@@ -615,13 +589,8 @@ func TestFilterRefreshByCapability(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"refresh"},"peer":{"address":"10.0.0.1","asn":65001},"refresh":{"afi":"ipv4","safi":"unicast"}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
 	// handleRefresh forwards to peers via updateRoute (fails silently on closed conn).
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 }
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
@@ -649,13 +618,8 @@ func TestFilterReplayByFamily(t *testing.T) {
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
 	// handleState/handleStateUp calls updateRoute for route replay.
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]

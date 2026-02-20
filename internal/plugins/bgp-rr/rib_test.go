@@ -1,8 +1,109 @@
 package bgp_rr
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 )
+
+// TestRIB_ConcurrentDifferentPeers verifies concurrent updates to different peers.
+//
+// VALIDATES: Multiple goroutines inserting/removing routes for different peers
+// don't corrupt each other's data (AC-16).
+// PREVENTS: Data race or deadlock under concurrent per-peer RIB access.
+func TestRIB_ConcurrentDifferentPeers(t *testing.T) {
+	rib := NewRIB()
+	const numPeers = 10
+	const routesPerPeer = 100
+
+	var wg sync.WaitGroup
+	wg.Add(numPeers)
+
+	for p := range numPeers {
+		go func() {
+			defer wg.Done()
+			peerID := fmt.Sprintf("10.0.0.%d", p+1)
+
+			// Insert routes.
+			for r := range routesPerPeer {
+				rib.Insert(peerID, &Route{
+					MsgID:  uint64(p*1000 + r),
+					Family: "ipv4/unicast",
+					Prefix: fmt.Sprintf("10.%d.%d.0/24", p, r),
+				})
+			}
+
+			// Read routes.
+			routes := rib.GetPeerRoutes(peerID)
+			if len(routes) != routesPerPeer {
+				t.Errorf("peer %s: expected %d routes, got %d", peerID, routesPerPeer, len(routes))
+			}
+
+			// Remove half.
+			for r := range routesPerPeer / 2 {
+				rib.Remove(peerID, "ipv4/unicast", fmt.Sprintf("10.%d.%d.0/24", p, r))
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	// Verify each peer has exactly half its routes remaining.
+	for p := range numPeers {
+		peerID := fmt.Sprintf("10.0.0.%d", p+1)
+		routes := rib.GetPeerRoutes(peerID)
+		expected := routesPerPeer / 2
+		if len(routes) != expected {
+			t.Errorf("peer %s: expected %d routes after removal, got %d", peerID, expected, len(routes))
+		}
+	}
+}
+
+// TestRIB_ConcurrentInsertAndClear verifies ClearPeer during concurrent inserts.
+//
+// VALIDATES: ClearPeer is safe during concurrent Insert from other goroutines.
+// PREVENTS: Race between Insert and ClearPeer for the same peer.
+func TestRIB_ConcurrentInsertAndClear(t *testing.T) {
+	rib := NewRIB()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Goroutine 1: continuously inserts routes for peer 1.
+	go func() {
+		defer wg.Done()
+		for i := range 200 {
+			rib.Insert("10.0.0.1", &Route{
+				MsgID:  uint64(i),
+				Family: "ipv4/unicast",
+				Prefix: fmt.Sprintf("10.0.%d.0/24", i%50),
+			})
+		}
+	}()
+
+	// Goroutine 2: inserts for peer 2 and periodically clears peer 1.
+	go func() {
+		defer wg.Done()
+		for i := range 200 {
+			rib.Insert("10.0.0.2", &Route{
+				MsgID:  uint64(i),
+				Family: "ipv4/unicast",
+				Prefix: fmt.Sprintf("10.1.%d.0/24", i%50),
+			})
+			if i%50 == 0 {
+				rib.ClearPeer("10.0.0.1")
+			}
+		}
+	}()
+
+	wg.Wait()
+
+	// Peer 2 should have routes (not cleared).
+	routes := rib.GetPeerRoutes("10.0.0.2")
+	if len(routes) == 0 {
+		t.Error("peer 2 should have routes")
+	}
+}
 
 // TestRIB_Insert verifies route insertion and retrieval.
 //

@@ -7,6 +7,8 @@ import (
 	"net"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -16,6 +18,49 @@ import (
 
 // --- Integration test: prove redistribution works through real SDK RPCs ---
 
+// newIntegrationRouteServer creates a RouteServer with live net.Pipe SDK
+// connections and an engine-side RPC conn for verifying RPCs.
+func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
+	t.Helper()
+	enginePluginEnd, engineServerEnd := net.Pipe()
+	callbackPluginEnd, callbackServerEnd := net.Pipe()
+	t.Cleanup(func() {
+		if err := enginePluginEnd.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+		if err := engineServerEnd.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+		if err := callbackPluginEnd.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+		if err := callbackServerEnd.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+	})
+
+	p := sdk.NewWithConn("rr-integration", enginePluginEnd, callbackPluginEnd)
+	t.Cleanup(func() {
+		if err := p.Close(); err != nil {
+			t.Logf("cleanup: %v", err)
+		}
+	})
+
+	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
+
+	rs := &RouteServer{
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
+	}
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		rs.processForward(item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+	t.Cleanup(func() { rs.workers.Stop() })
+
+	return rs, engineConn
+}
+
 // TestRedistribution_ForwardReachesEngine verifies that UPDATE events dispatched
 // to the route server produce correctly ordered cache-forward SDK RPCs that
 // arrive at the engine side of the connection.
@@ -24,37 +69,7 @@ import (
 // forwardUpdate → SDK RPC → engine receives "bgp cache N forward peer1,peer2".
 // PREVENTS: Silent RPC failures masking a broken redistribution path.
 func TestRedistribution_ForwardReachesEngine(t *testing.T) {
-	// Create real net.Pipe connections that stay open.
-	enginePluginEnd, engineServerEnd := net.Pipe()
-	callbackPluginEnd, callbackServerEnd := net.Pipe()
-	t.Cleanup(func() {
-		if err := enginePluginEnd.Close(); err != nil {
-			t.Logf("cleanup enginePluginEnd: %v", err)
-		}
-		if err := engineServerEnd.Close(); err != nil {
-			t.Logf("cleanup engineServerEnd: %v", err)
-		}
-		if err := callbackPluginEnd.Close(); err != nil {
-			t.Logf("cleanup callbackPluginEnd: %v", err)
-		}
-		if err := callbackServerEnd.Close(); err != nil {
-			t.Logf("cleanup callbackServerEnd: %v", err)
-		}
-	})
-
-	// Plugin side: SDK plugin using the open connections.
-	p := sdk.NewWithConn("rr-integration", enginePluginEnd, callbackPluginEnd)
-	t.Cleanup(func() { _ = p.Close() })
-
-	// Engine side: reads RPCs from the plugin.
-	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
-
-	rs := &RouteServer{
-		plugin:  p,
-		peers:   make(map[string]*PeerState),
-		rib:     NewRIB(),
-		workSig: make(chan struct{}, 1),
-	}
+	rs, engineConn := newIntegrationRouteServer(t)
 
 	// Register peers: 10.0.0.1 (source), 10.0.0.2 and 10.0.0.3 (targets).
 	rs.mu.Lock()
@@ -72,29 +87,13 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// Start forward worker.
-	workerDone := make(chan struct{})
-	workerStop := make(chan struct{})
-	go func() {
-		rs.runForwardWorker(workerStop)
-		close(workerDone)
-	}()
-	t.Cleanup(func() {
-		close(workerStop)
-		<-workerDone
-	})
-
 	// Dispatch 3 UPDATE events from peer 10.0.0.1.
 	for i := 1; i <= 3; i++ {
 		input := fmt.Sprintf(
 			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
 			i, i,
 		)
-		event, err := parseEvent([]byte(input))
-		if err != nil {
-			t.Fatalf("parse error for msg %d: %v", i, err)
-		}
-		rs.dispatch(event)
+		rs.dispatch([]byte(input))
 	}
 
 	// Read 3 RPCs from the engine side and verify them.
@@ -156,53 +155,11 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 // VALIDATES: Release path: empty UPDATE → channel → worker → releaseCache → SDK RPC.
 // PREVENTS: Cache entries stuck forever when no targets exist.
 func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
-	enginePluginEnd, engineServerEnd := net.Pipe()
-	callbackPluginEnd, callbackServerEnd := net.Pipe()
-	t.Cleanup(func() {
-		if err := enginePluginEnd.Close(); err != nil {
-			t.Logf("cleanup enginePluginEnd: %v", err)
-		}
-		if err := engineServerEnd.Close(); err != nil {
-			t.Logf("cleanup engineServerEnd: %v", err)
-		}
-		if err := callbackPluginEnd.Close(); err != nil {
-			t.Logf("cleanup callbackPluginEnd: %v", err)
-		}
-		if err := callbackServerEnd.Close(); err != nil {
-			t.Logf("cleanup callbackServerEnd: %v", err)
-		}
-	})
-
-	p := sdk.NewWithConn("rr-release", enginePluginEnd, callbackPluginEnd)
-	t.Cleanup(func() { _ = p.Close() })
-
-	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
-
-	rs := &RouteServer{
-		plugin:  p,
-		peers:   make(map[string]*PeerState),
-		rib:     NewRIB(),
-		workSig: make(chan struct{}, 1),
-	}
-
-	workerDone := make(chan struct{})
-	workerStop := make(chan struct{})
-	go func() {
-		rs.runForwardWorker(workerStop)
-		close(workerDone)
-	}()
-	t.Cleanup(func() {
-		close(workerStop)
-		<-workerDone
-	})
+	rs, engineConn := newIntegrationRouteServer(t)
 
 	// Dispatch UPDATE with no NLRI → should trigger release.
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":42},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"}}}}`
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -232,34 +189,7 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 // VALIDATES: ipv6/unicast UPDATE only forwarded to peers supporting ipv6/unicast.
 // PREVENTS: Routes sent to peers that cannot process them (engine does no family filtering).
 func TestRedistribution_FamilyFiltering(t *testing.T) {
-	enginePluginEnd, engineServerEnd := net.Pipe()
-	callbackPluginEnd, callbackServerEnd := net.Pipe()
-	t.Cleanup(func() {
-		if err := enginePluginEnd.Close(); err != nil {
-			t.Logf("cleanup enginePluginEnd: %v", err)
-		}
-		if err := engineServerEnd.Close(); err != nil {
-			t.Logf("cleanup engineServerEnd: %v", err)
-		}
-		if err := callbackPluginEnd.Close(); err != nil {
-			t.Logf("cleanup callbackPluginEnd: %v", err)
-		}
-		if err := callbackServerEnd.Close(); err != nil {
-			t.Logf("cleanup callbackServerEnd: %v", err)
-		}
-	})
-
-	p := sdk.NewWithConn("rr-family", enginePluginEnd, callbackPluginEnd)
-	t.Cleanup(func() { _ = p.Close() })
-
-	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
-
-	rs := &RouteServer{
-		plugin:  p,
-		peers:   make(map[string]*PeerState),
-		rib:     NewRIB(),
-		workSig: make(chan struct{}, 1),
-	}
+	rs, engineConn := newIntegrationRouteServer(t)
 
 	// 10.0.0.2 supports ipv4+ipv6, 10.0.0.3 supports only ipv4.
 	rs.mu.Lock()
@@ -277,24 +207,9 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	workerDone := make(chan struct{})
-	workerStop := make(chan struct{})
-	go func() {
-		rs.runForwardWorker(workerStop)
-		close(workerDone)
-	}()
-	t.Cleanup(func() {
-		close(workerStop)
-		<-workerDone
-	})
-
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.2 should be a target.
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":7},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -346,49 +261,39 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// Dispatch 100 UPDATE events — handleUpdate sends each to the work queue
-	// (worker is NOT running, so items accumulate in the unbounded queue)
+	// Replace the default worker pool with one that records processing order.
+	// Stop the existing pool first (created by newTestRouteServer).
+	rs.workers.Stop()
+
+	var mu sync.Mutex
+	var processed []uint64
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		mu.Lock()
+		processed = append(processed, item.msgID)
+		mu.Unlock()
+	}, poolConfig{chanSize: 128, idleTimeout: 5 * time.Second})
+
+	// Dispatch 100 UPDATE events — handleUpdate stores fwdCtx and dispatches
+	// to the per-source-peer worker. Channel preserves FIFO order per key.
 	const numUpdates = 100
 	for i := 1; i <= numUpdates; i++ {
 		input := fmt.Sprintf(
 			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
 			i, i,
 		)
-		event, err := parseEvent([]byte(input))
-		if err != nil {
-			t.Fatalf("parse error for msg %d: %v", i, err)
-		}
-		rs.dispatch(event)
+		rs.dispatch([]byte(input))
 	}
 
-	// Verify all routes were stored in RIB (dispatch is synchronous for RIB)
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != numUpdates {
-		t.Errorf("expected %d routes in RIB, got %d", numUpdates, len(routes))
+	// Stop workers — drains all pending items before returning.
+	rs.workers.Stop()
+
+	if len(processed) != numUpdates {
+		t.Fatalf("expected %d processed items, got %d", numUpdates, len(processed))
 	}
 
-	// Read work items from the queue and verify strictly increasing message IDs.
-	// Queue is FIFO — this proves handleUpdate sends items in order.
-	rs.workMu.Lock()
-	items := make([]forwardWork, len(rs.workQ))
-	copy(items, rs.workQ)
-	rs.workMu.Unlock()
-
-	if len(items) != numUpdates {
-		t.Fatalf("expected %d items in queue, got %d", numUpdates, len(items))
-	}
-
-	var ids []uint64
-	for i, w := range items {
-		ids = append(ids, w.msgID)
-		if w.release {
-			t.Errorf("item %d: expected forward, got release", i)
-		}
-	}
-
-	for i := 1; i < len(ids); i++ {
-		if ids[i] <= ids[i-1] {
-			t.Errorf("FIFO violation: ids[%d]=%d <= ids[%d]=%d", i, ids[i], i-1, ids[i-1])
+	for i := 1; i < len(processed); i++ {
+		if processed[i] <= processed[i-1] {
+			t.Errorf("FIFO violation: processed[%d]=%d <= processed[%d]=%d", i, processed[i], i-1, processed[i-1])
 		}
 	}
 }
@@ -402,7 +307,7 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// Set up one peer that supports ipv4/unicast only.
-	// UPDATEs with ipv6/unicast will produce releases (no targets).
+	// UPDATEs with no NLRI will produce releases.
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{
 		Address: "10.0.0.1", Up: true,
@@ -413,6 +318,32 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		Families: map[string]bool{"ipv4/unicast": true},
 	}
 	rs.mu.Unlock()
+
+	// Replace the default worker pool with one that records processing order
+	// and reads the forwarding context to determine forward vs release.
+	rs.workers.Stop()
+
+	type recordedItem struct {
+		msgID   uint64
+		release bool
+	}
+	var mu sync.Mutex
+	var items []recordedItem
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		val, ok := rs.fwdCtx.LoadAndDelete(item.msgID)
+		if !ok {
+			return
+		}
+		ctx, ok := val.(*forwardCtx)
+		if !ok {
+			return
+		}
+		event, parseErr := parseEvent(ctx.rawJSON)
+		isRelease := parseErr != nil || len(event.FamilyOps) == 0
+		mu.Lock()
+		items = append(items, recordedItem{msgID: item.msgID, release: isRelease})
+		mu.Unlock()
+	}, poolConfig{chanSize: 128, idleTimeout: 5 * time.Second})
 
 	// Dispatch alternating forward/release events:
 	// Even msgIDs → ipv4/unicast (has targets → forward)
@@ -432,29 +363,22 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 				i,
 			)
 		}
-		event, err := parseEvent([]byte(input))
-		if err != nil {
-			t.Fatalf("parse error for msg %d: %v", i, err)
-		}
-		rs.dispatch(event)
+		rs.dispatch([]byte(input))
 	}
 
-	// Read all items from the queue and verify strict ordering
-	rs.workMu.Lock()
-	items := make([]forwardWork, len(rs.workQ))
-	copy(items, rs.workQ)
-	rs.workMu.Unlock()
+	// Stop workers — drains all pending items.
+	rs.workers.Stop()
 
 	if len(items) != numUpdates {
-		t.Fatalf("expected %d items in queue, got %d", numUpdates, len(items))
+		t.Fatalf("expected %d items, got %d", numUpdates, len(items))
 	}
 
 	var ids []uint64
-	for _, w := range items {
-		ids = append(ids, w.msgID)
-		expectRelease := (w.msgID%2 != 0)
-		if w.release != expectRelease {
-			t.Errorf("item msgID=%d: release=%v, want %v", w.msgID, w.release, expectRelease)
+	for _, item := range items {
+		ids = append(ids, item.msgID)
+		expectRelease := (item.msgID%2 != 0)
+		if item.release != expectRelease {
+			t.Errorf("item msgID=%d: release=%v, want %v", item.msgID, item.release, expectRelease)
 		}
 	}
 
@@ -465,52 +389,32 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 	}
 }
 
-// TestForwardWorker_DrainOnClose verifies that stopping the worker
-// causes it to process all remaining queued items before exiting.
+// TestForwardWorker_DrainOnClose verifies that stopping the worker pool
+// causes it to process all remaining queued items before returning.
 //
-// VALIDATES: Worker drains queued items on shutdown (AC-3).
+// VALIDATES: Worker pool drains queued items on shutdown (AC-3).
 // PREVENTS: Lost forward/release commands during plugin shutdown.
 func TestForwardWorker_DrainOnClose(t *testing.T) {
-	rs := newTestRouteServer(t)
+	// Create a worker pool with a counting handler to verify drain behavior.
+	var count sync.WaitGroup
+	var processed atomic.Int32
+	pool := newWorkerPool(func(_ workerKey, item workItem) {
+		processed.Add(1)
+		count.Done()
+	}, poolConfig{chanSize: 128, idleTimeout: 5 * time.Second})
 
-	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{
-		Address: "10.0.0.1", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true},
-	}
-	rs.peers["10.0.0.2"] = &PeerState{
-		Address: "10.0.0.2", Up: true,
-		Families: map[string]bool{"ipv4/unicast": true},
-	}
-	rs.mu.Unlock()
-
-	// Enqueue items BEFORE starting the worker.
-	// The worker must drain all items on stop — if it broke out early,
-	// the queue would still have items and this test would fail.
+	// Dispatch items to the pool.
 	const numItems = 10
+	count.Add(numItems)
 	for i := 1; i <= numItems; i++ {
-		rs.sendWork(forwardWork{
-			msgID:      uint64(i),
-			sourcePeer: "10.0.0.1",
-			families:   map[string]bool{"ipv4/unicast": true},
-		})
+		pool.Dispatch(workerKey{sourcePeer: "10.0.0.1"}, workItem{msgID: uint64(i)})
 	}
 
-	// Signal stop immediately, then run worker synchronously.
-	// The worker receives the stop signal and calls drainWork() to
-	// process all queued items before returning.
-	workerStop := make(chan struct{})
-	close(workerStop)
-	rs.runForwardWorker(workerStop)
+	// Stop must drain all items before returning.
+	pool.Stop()
 
-	// If we get here, the worker drained all items and returned.
-	// Verify the queue is empty.
-	rs.workMu.Lock()
-	remaining := len(rs.workQ)
-	rs.workMu.Unlock()
-
-	if remaining != 0 {
-		t.Fatalf("expected empty queue after drain, got %d items", remaining)
+	if int(processed.Load()) != numItems {
+		t.Fatalf("expected %d processed items after drain, got %d", numItems, processed.Load())
 	}
 }
 
@@ -648,7 +552,7 @@ func TestSelectTargets_SingleFamily_PartialSupport(t *testing.T) {
 // TestSelectTargets_MultiFamilyUpdate_PartialOverlap verifies multi-family UPDATE forwarding.
 //
 // VALIDATES: When an UPDATE carries families A+B, a peer supporting only A still
-// receives the UPDATE (engine handles per-family splitting at wire level).
+// receives the UPDATE (known limitation — see spec Known Limitation section).
 // PREVENTS: All-or-nothing family check that drops the entire UPDATE for peers
 // with partial family overlap. This was the original bug: the code required ALL
 // families to match, so peers missing even one family got NOTHING.
@@ -675,8 +579,8 @@ func TestSelectTargets_MultiFamilyUpdate_PartialOverlap(t *testing.T) {
 	rs.mu.RUnlock()
 
 	sort.Strings(targets)
-	// BOTH peers should be targets: 10.0.0.1 supports both, 10.0.0.2 supports ipv4
-	// The engine's ForwardUpdate handles per-family wire splitting
+	// BOTH peers should be targets: 10.0.0.1 supports both, 10.0.0.2 supports ipv4.
+	// Known limitation: peer receives full UPDATE including unnegotiated families.
 	if len(targets) != 2 {
 		t.Fatalf("expected 2 targets (partial overlap should include peer), got %d: %v", len(targets), targets)
 	}
@@ -841,12 +745,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	// OPEN with capabilities but NO multiprotocol entries
 	input := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":2,"name":"route-refresh"},{"code":65,"name":"asn4","value":"65001"}]}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -895,11 +794,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 
 	// State up arrives first (before OPEN)
 	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-	event, err := parseEvent([]byte(stateInput))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(stateInput))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -934,19 +829,11 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
 	openInput := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"}]}}}`
-	event, err := parseEvent([]byte(openInput))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(openInput))
 
 	// Step 2: State up
 	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-	event, err = parseEvent([]byte(stateInput))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(stateInput))
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -1018,11 +905,8 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 
 	// Peer 1 sends an UPDATE with 10.0.0.0/24
 	updateInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp","as-path":[65001]},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	event, err := parseEvent([]byte(updateInput))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	rs.dispatch(event)
+	rs.dispatch([]byte(updateInput))
+	flushWorkers(t, rs)
 
 	// Verify RIB has the route
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
@@ -1209,12 +1093,8 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	// VPN UPDATE with object NLRIs containing "prefix" field
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":200,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/vpn":[{"next-hop":"192.168.1.1","action":"add","nlri":[{"prefix":"10.0.0.0/24","rd":"0:1:100","label":100000}]}]}}}}`
 
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-
-	rs.dispatch(event)
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
 
 	routes := rs.rib.GetPeerRoutes("10.0.0.1")
 	if len(routes) != 1 {
@@ -1253,8 +1133,8 @@ func TestPropagation_WithdrawClearsRIB(t *testing.T) {
 
 	// Add route
 	addInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	event, _ := parseEvent([]byte(addInput))
-	rs.dispatch(event)
+	rs.dispatch([]byte(addInput))
+	flushWorkers(t, rs)
 
 	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 1 {
 		t.Fatal("route not added")
@@ -1262,8 +1142,8 @@ func TestPropagation_WithdrawClearsRIB(t *testing.T) {
 
 	// Withdraw route
 	delInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":101,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
-	event, _ = parseEvent([]byte(delInput))
-	rs.dispatch(event)
+	rs.dispatch([]byte(delInput))
+	flushWorkers(t, rs)
 
 	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 0 {
 		t.Error("route not withdrawn")
@@ -1293,8 +1173,7 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 
 	// Peer goes down
 	downInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
-	event, _ := parseEvent([]byte(downInput))
-	rs.dispatch(event)
+	rs.dispatch([]byte(downInput))
 
 	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 0 {
 		t.Error("routes not cleared on peer down")

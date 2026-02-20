@@ -52,31 +52,30 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// forwardWork represents a unit of work for the forward worker goroutine.
-// Each UPDATE event produces one forwardWork item that the worker processes
-// sequentially, preserving FIFO ordering for cache forward/release commands.
-type forwardWork struct {
-	msgID      uint64
+// forwardCtx holds the source peer and raw JSON for a cached UPDATE.
+// sourcePeer is extracted by quickParseEvent in dispatch (cheap) to avoid
+// re-parsing the envelope in the worker, and to make the source-exclusion
+// data flow explicit. rawJSON is parsed by the worker for RIB + forwarding.
+// Stored in RouteServer.fwdCtx (sync.Map) keyed by msgID (uint64).
+type forwardCtx struct {
 	sourcePeer string
-	families   map[string]bool
-	release    bool // true = releaseCache, false = forwardUpdate
+	rawJSON    []byte
 }
 
 // RouteServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
+// UPDATEs are dispatched to per-source-peer workers for parallel processing
+// while preserving FIFO ordering within each source peer.
 type RouteServer struct {
-	plugin *sdk.Plugin
-	peers  map[string]*PeerState
-	rib    *RIB
-	mu     sync.RWMutex
+	plugin  *sdk.Plugin
+	peers   map[string]*PeerState
+	rib     *RIB
+	mu      sync.RWMutex
+	workers *workerPool
 
-	// Unbounded FIFO work queue for cache forward/release commands.
-	// Never blocks the sender (prevents engine 5s event delivery timeout)
-	// while preserving strict ordering (prevents cumulative ack eviction
-	// of un-forwarded entries). See sendWork() and drainWork().
-	workMu  sync.Mutex
-	workQ   []forwardWork
-	workSig chan struct{} // signals worker that items are available
+	// fwdCtx stores forwarding context (forwardCtx) keyed by msgID (uint64).
+	// Written by dispatch (OnEvent goroutine), read by worker handler.
+	fwdCtx sync.Map
 }
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
@@ -86,32 +85,27 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rs := &RouteServer{
-		plugin:  p,
-		peers:   make(map[string]*PeerState),
-		rib:     NewRIB(),
-		workSig: make(chan struct{}, 1),
+		plugin: p,
+		peers:  make(map[string]*PeerState),
+		rib:    NewRIB(),
 	}
 
-	// Start forward worker before event delivery begins.
-	// Single goroutine processes all cache forward/release SDK RPCs in strict
-	// FIFO order. The unbounded queue (workQ) ensures sendWork never blocks
-	// the OnEvent handler, while FIFO ordering prevents cumulative ack
-	// eviction of un-forwarded cache entries.
-	workerDone := make(chan struct{})
-	workerStop := make(chan struct{})
-	go func() {
-		rs.runForwardWorker(workerStop)
-		close(workerDone)
-	}()
+	// Create worker pool for parallel UPDATE forwarding.
+	// Each source peer gets its own worker goroutine (lazy creation, idle cooldown).
+	// FIFO ordering is preserved per source peer.
+	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
+		rs.processForward(item.msgID)
+	}, poolConfig{
+		chanSize:    64,
+		idleTimeout: 5 * time.Second,
+	})
+	defer rs.workers.Stop()
 
-	// Register event handler: dispatches BGP events (update, state, open, refresh)
+	// Register event handler: dispatches BGP events (update, state, open, refresh).
+	// Only a lightweight parse runs here (type + msgID + peerAddr); expensive
+	// JSON parsing and RIB updates are deferred to per-source-peer workers.
 	p.OnEvent(func(jsonStr string) error {
-		event, err := parseEvent([]byte(jsonStr))
-		if err != nil {
-			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
-			return nil // Don't fail on parse errors
-		}
-		rs.dispatch(event)
+		rs.dispatch([]byte(jsonStr))
 		return nil
 	})
 
@@ -160,10 +154,6 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		},
 	})
 
-	// After p.Run returns (shutdown), signal worker to stop and drain.
-	close(workerStop)
-	<-workerDone
-
 	if err != nil {
 		logger().Error("rr plugin failed", "error", err)
 		return 1
@@ -192,97 +182,48 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	}
 }
 
-// sendWork appends work to the unbounded FIFO queue without blocking.
-// The queue grows dynamically if the forward worker can't keep up, ensuring
-// the OnEvent handler never blocks (which would trigger the engine's 5-second
-// event delivery timeout). Strict FIFO ordering is preserved — no overflow
-// goroutines that could cause out-of-order cumulative ack eviction.
-func (rs *RouteServer) sendWork(w forwardWork) {
-	rs.workMu.Lock()
-	rs.workQ = append(rs.workQ, w)
-	rs.workMu.Unlock()
-
-	// Non-blocking signal: wake the worker if it's idle.
-	// Buffer size 1 ensures at most one pending signal.
-	select {
-	case rs.workSig <- struct{}{}:
-	default: // Worker already signaled, will drain the queue.
+// processForward handles a forwarding work item in a worker goroutine.
+// Loads raw JSON from fwdCtx, performs full parse, updates the RIB,
+// and forwards the UPDATE to compatible peers (or releases if no NLRI).
+func (rs *RouteServer) processForward(msgID uint64) {
+	val, ok := rs.fwdCtx.LoadAndDelete(msgID)
+	if !ok {
+		return
 	}
-}
-
-// processWork executes a single forward or release operation.
-func (rs *RouteServer) processWork(w forwardWork) {
-	if w.release {
-		rs.releaseCache(w.msgID)
-	} else {
-		rs.forwardUpdate(w.sourcePeer, w.msgID, w.families)
+	ctx, ok := val.(*forwardCtx)
+	if !ok {
+		rs.releaseCache(msgID)
+		return
 	}
-}
 
-// runForwardWorker is the single goroutine that processes all cache forward
-// and release commands in strict FIFO order. It waits on workSig for new items
-// and drains the entire queue each time. Stops when the stop channel is closed.
-func (rs *RouteServer) runForwardWorker(stop <-chan struct{}) {
-	for {
-		select {
-		case <-stop:
-			rs.drainWork()
-			return
-		case <-rs.workSig:
-			rs.drainWork()
+	// Guard: release cache entry on any early return or panic.
+	// forwardUpdate handles the entry when reached (forward or release),
+	// so the flag prevents double-release on the normal path.
+	forwarded := false
+	defer func() {
+		if !forwarded {
+			rs.releaseCache(msgID)
 		}
+	}()
+
+	// If the source peer is down, skip RIB update and forward — handleStateDown
+	// will withdraw all routes. This prevents PeerDown from blocking while
+	// workers process queued UPDATEs for a peer that is already gone.
+	rs.mu.RLock()
+	peer := rs.peers[ctx.sourcePeer]
+	peerDown := peer == nil || !peer.Up
+	rs.mu.RUnlock()
+	if peerDown {
+		return
 	}
-}
 
-// drainWork processes all items currently in the work queue.
-func (rs *RouteServer) drainWork() {
-	for {
-		rs.workMu.Lock()
-		if len(rs.workQ) == 0 {
-			rs.workMu.Unlock()
-			return
-		}
-		w := rs.workQ[0]
-		rs.workQ[0] = forwardWork{} // zero to avoid retaining references
-		rs.workQ = rs.workQ[1:]
-		rs.workMu.Unlock()
-
-		rs.processWork(w)
-	}
-}
-
-// dispatch routes an event to the appropriate handler.
-//
-// Events with unrecognized types are silently ignored. This includes "borr" and "eorr"
-// (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
-// subscription but encodes with distinct message.type values. A forward-all route server
-// has no use for refresh-cycle boundaries — it only forwards standard refresh requests.
-func (rs *RouteServer) dispatch(event *Event) {
-	switch event.Type {
-	case eventUpdate:
-		rs.handleUpdate(event)
-	case eventState:
-		rs.handleState(event)
-	case eventRefresh:
-		rs.handleRefresh(event)
-	case eventOpen:
-		rs.handleOpen(event)
-	}
-}
-
-// handleUpdate processes UPDATE events (announcements and withdrawals).
-// Parses ze-bgp JSON family operations: {"ipv4/unicast": [{"action":"add","nlri":[...]}]}.
-func (rs *RouteServer) handleUpdate(event *Event) {
-	peerAddr := event.PeerAddr
-	msgID := event.MsgID
-
-	if peerAddr == "" {
+	event, err := parseEvent(ctx.rawJSON)
+	if err != nil {
+		logger().Warn("worker parse error", "error", err, "msgID", msgID)
 		return
 	}
 
 	if len(event.FamilyOps) == 0 {
-		// No NLRI to process; release so the cache entry can be evicted.
-		rs.sendWork(forwardWork{msgID: msgID, release: true})
 		return
 	}
 
@@ -296,7 +237,7 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 				for _, n := range op.NLRIs {
 					prefix := nlriToPrefix(n)
 					if prefix != "" {
-						rs.rib.Insert(peerAddr, &Route{
+						rs.rib.Insert(ctx.sourcePeer, &Route{
 							MsgID:  msgID,
 							Family: family,
 							Prefix: prefix,
@@ -307,20 +248,102 @@ func (rs *RouteServer) handleUpdate(event *Event) {
 				for _, n := range op.NLRIs {
 					prefix := nlriToPrefix(n)
 					if prefix != "" {
-						rs.rib.Remove(peerAddr, family, prefix)
+						rs.rib.Remove(ctx.sourcePeer, family, prefix)
 					}
 				}
 			}
 		}
 	}
 
-	// Queue forward to worker. Non-blocking: the unbounded queue ensures
-	// OnEvent never blocks (engine has 5s timeout for event delivery).
-	rs.sendWork(forwardWork{
-		msgID:      msgID,
-		sourcePeer: peerAddr,
-		families:   families,
-	})
+	// forwardUpdate handles the cache entry in all cases (forward or release).
+	forwarded = true
+	rs.forwardUpdate(ctx.sourcePeer, msgID, families)
+}
+
+// quickParseEvent extracts only the event type, message ID, and peer address
+// from a ze-bgp JSON event without parsing the event-specific payload (UPDATE
+// NLRI, OPEN capabilities, refresh data). Used by dispatch to route events
+// to workers with minimal OnEvent latency.
+func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr string, err error) {
+	var wrapper struct {
+		Type string          `json:"type"`
+		BGP  json.RawMessage `json:"bgp"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
+		return "", 0, "", fmt.Errorf("unmarshal envelope: %w", err)
+	}
+
+	payload := data
+	if wrapper.Type == "bgp" && len(wrapper.BGP) > 0 {
+		payload = wrapper.BGP
+	}
+
+	var bgp struct {
+		Message *struct {
+			Type string `json:"type"`
+			ID   uint64 `json:"id,omitempty"`
+		} `json:"message"`
+		Peer struct {
+			Address string `json:"address"`
+		} `json:"peer"`
+	}
+	if err := json.Unmarshal(payload, &bgp); err != nil {
+		return "", 0, "", fmt.Errorf("unmarshal payload: %w", err)
+	}
+
+	if bgp.Message != nil {
+		return bgp.Message.Type, bgp.Message.ID, bgp.Peer.Address, nil
+	}
+	return "", 0, bgp.Peer.Address, nil
+}
+
+// dispatch routes a raw JSON event to the appropriate handler.
+//
+// UPDATE events are dispatched to the per-source-peer worker pool with
+// only a lightweight parse (type, msgID, peerAddr). The expensive JSON
+// parsing and RIB updates are deferred to the worker goroutine, keeping
+// OnEvent latency low (engine has a 5s event delivery timeout).
+//
+// Non-UPDATE events (state, open, refresh) are handled inline since
+// they are infrequent and need immediate state changes.
+//
+// Events with unrecognized types are silently ignored. This includes "borr" and "eorr"
+// (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
+// subscription but encodes with distinct message.type values.
+func (rs *RouteServer) dispatch(raw []byte) {
+	eventType, msgID, peerAddr, err := quickParseEvent(raw)
+	if err != nil {
+		logger().Warn("parse error", "error", err, "line", string(raw[:min(100, len(raw))]))
+		return
+	}
+
+	if eventType == eventUpdate {
+		if peerAddr == "" {
+			return
+		}
+		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, rawJSON: raw})
+		if !rs.workers.Dispatch(workerKey{sourcePeer: peerAddr}, workItem{msgID: msgID}) {
+			logger().Debug("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
+			rs.fwdCtx.Delete(msgID)
+			rs.releaseCache(msgID)
+		}
+		return
+	}
+
+	// Non-UPDATE: full parse + handle inline.
+	event, parseErr := parseEvent(raw)
+	if parseErr != nil {
+		logger().Warn("parse error", "error", parseErr, "line", string(raw[:min(100, len(raw))]))
+		return
+	}
+	switch event.Type {
+	case eventState:
+		rs.handleState(event)
+	case eventRefresh:
+		rs.handleRefresh(event)
+	case eventOpen:
+		rs.handleOpen(event)
+	}
 }
 
 // nlriToPrefix extracts a prefix string from an NLRI value.
@@ -412,10 +435,14 @@ func (rs *RouteServer) handleState(event *Event) {
 }
 
 // handleStateDown processes peer session teardown.
+// Sends withdrawals asynchronously — per-lifecycle goroutine (not hot path).
 func (rs *RouteServer) handleStateDown(peerAddr string) {
+	// Drain workers first: in-flight forwards may insert routes into the RIB.
+	// PeerDown waits for all workers to finish, so after this call no more
+	// inserts for this peer can occur. Then ClearPeer captures everything.
+	rs.workers.PeerDown(peerAddr)
 	routes := rs.rib.ClearPeer(peerAddr)
 
-	// Send withdrawals asynchronously to avoid blocking event delivery.
 	go func() {
 		for _, route := range routes {
 			rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
@@ -480,7 +507,7 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 		return
 	}
 
-	// Request route re-advertisement asynchronously to avoid blocking event delivery.
+	// Request route re-advertisement asynchronously — per-lifecycle goroutine (not hot path).
 	go func() {
 		for _, addr := range refreshPeers {
 			for _, family := range families {
@@ -564,7 +591,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	}
 	rs.mu.RUnlock()
 
-	// Send refreshes asynchronously to avoid blocking event delivery.
+	// Send refreshes asynchronously — per-lifecycle goroutine (not hot path).
 	go func() {
 		for _, addr := range targets {
 			rs.updateRoute(addr, "refresh "+family)
