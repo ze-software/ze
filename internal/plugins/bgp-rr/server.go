@@ -112,10 +112,21 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rr sees every event from the very first route.
 	//
+	// Subscribe to received-direction only for UPDATE events. Subscribing to
+	// "both" (the default) creates a circular deadlock: ForwardUpdate sends
+	// UPDATEs to peers → onMessageSent fires → tries to deliver sent-event
+	// to RR on Socket B → blocks on callMu → Socket A handler blocks →
+	// forward worker blocks → workCh fills → OnEvent blocks → deadlock.
+	//
 	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)
 	// because the engine maps all TypeROUTEREFRESH wire messages to the "refresh"
 	// subscription type. These subtypes are silently ignored by dispatch().
-	p.SetStartupSubscriptions([]string{eventUpdate, eventState, eventOpen, eventRefresh}, nil, "")
+	p.SetStartupSubscriptions([]string{
+		eventUpdate + " direction received",
+		eventState,
+		eventOpen,
+		eventRefresh,
+	}, nil, "")
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
