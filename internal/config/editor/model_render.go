@@ -104,13 +104,11 @@ func (m Model) View() string {
 	} else if len(m.validationWarnings) > 0 {
 		statusIndicator = dimStyle.Render(fmt.Sprintf(" ⚡ %d warning(s)", len(m.validationWarnings)))
 	}
-	lines = append(lines, dimStyle.Render(header)+statusIndicator+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"))
-	lines = append(lines, "")
+	lines = append(lines, dimStyle.Render(header)+statusIndicator+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"), "")
 
 	// Status message (temporary notification from commands)
 	if m.statusMessage != "" {
-		lines = append(lines, promptStyle.Render("► "+m.statusMessage))
-		lines = append(lines, "")
+		lines = append(lines, promptStyle.Render("► "+m.statusMessage), "")
 	}
 
 	// Viewport for scrollable content (show/compare output)

@@ -593,7 +593,8 @@ func toMUPParams(r MUPRoute) message.MUPParams {
 
 func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 	params := make([]message.MVPNParams, len(routes))
-	for i, r := range routes {
+	for i := range routes {
+		r := &routes[i]
 		params[i] = message.MVPNParams{
 			RouteType: r.RouteType, IsIPv6: r.IsIPv6, RD: r.RD,
 			SourceAS: r.SourceAS, Source: r.Source, Group: r.Group,
@@ -611,7 +612,7 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 // Used for IPv4/IPv6 unicast routes (not VPN).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
 // linkLocal is the peer's IPv6 link-local address for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
-func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
+func toStaticRouteUnicastParams(r *StaticRoute, nextHop, linkLocal netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
 	var useExtNH bool
 	if sendCtx != nil {
@@ -651,7 +652,7 @@ func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, linkLocal net
 // toStaticRouteLabeledUnicastParams converts a StaticRoute to LabeledUnicastParams.
 // Used for labeled unicast routes (SAFI 4).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
+func toStaticRouteLabeledUnicastParams(r *StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
 	// Write raw attributes into a single contiguous buffer
 	rawAttrs := packRawAttributes(r.RawAttributes)
 
@@ -681,7 +682,7 @@ func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) messag
 // toStaticRouteVPNParams converts a StaticRoute to VPNParams.
 // Used for VPN routes (SAFI 128).
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams {
+func toStaticRouteVPNParams(r *StaticRoute, nextHop netip.Addr) message.VPNParams {
 	return message.VPNParams{
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
@@ -709,15 +710,18 @@ func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams
 // This is the new implementation that will replace buildStaticRouteUpdate.
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
 // linkLocal is the peer's IPv6 link-local for 32-byte MP_REACH next-hop (RFC 2545 Section 3).
-func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, linkLocal netip.Addr, localAS uint32, isIBGP bool, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
+func buildStaticRouteUpdateNew(route *StaticRoute, nextHop, linkLocal netip.Addr, localAS uint32, isIBGP, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
 	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
 	if route.IsVPN() {
-		return ub.BuildVPN(toStaticRouteVPNParams(route, nextHop))
+		p := toStaticRouteVPNParams(route, nextHop)
+		return ub.BuildVPN(&p)
 	}
 	if route.IsLabeledUnicast() {
-		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route, nextHop))
+		p := toStaticRouteLabeledUnicastParams(route, nextHop)
+		return ub.BuildLabeledUnicast(&p)
 	}
-	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx))
+	p := toStaticRouteUnicastParams(route, nextHop, linkLocal, sendCtx)
+	return ub.BuildUnicast(&p)
 }
 
 // State returns the current peer state.
@@ -1424,17 +1428,17 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			addPath := p.addPathFor(routeFamily(routes[0]))
+			addPath := p.addPathFor(routeFamily(&routes[0]))
 			if len(routes) == 1 {
 				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
 				// Resolve next-hop from RouteNextHop policy
-				nextHop, nhErr := p.resolveNextHop(routes[0].NextHop, routeFamily(routes[0]))
+				nextHop, nhErr := p.resolveNextHop(routes[0].NextHop, routeFamily(&routes[0]))
 				if nhErr != nil {
 					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 					continue
 				}
-				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
-				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
+				update := buildStaticRouteUpdateNew(&routes[0], nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(&routes[0])); err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
@@ -1443,7 +1447,8 @@ func (p *Peer) sendInitialRoutes() {
 				// Use size-aware builder to respect max message size
 				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 				params := make([]message.UnicastParams, 0, len(routes))
-				for _, r := range routes {
+				for i := range routes {
+					r := &routes[i]
 					nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
 					if nhErr != nil {
 						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
@@ -1466,13 +1471,15 @@ func (p *Peer) sendInitialRoutes() {
 					}
 				}
 			}
-			for _, route := range routes {
+			for i := range routes {
+				route := &routes[i]
 				routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
 			}
 		}
 	} else {
 		// Send each route in its own UPDATE.
-		for _, route := range p.settings.StaticRoutes {
+		for i := range p.settings.StaticRoutes {
+			route := &p.settings.StaticRoutes[i]
 			// Resolve next-hop from RouteNextHop policy
 			nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
 			if nhErr != nil {
@@ -1508,14 +1515,14 @@ func (p *Peer) sendInitialRoutes() {
 				}
 
 				// Send the route - resolve next-hop from RouteNextHop policy
-				nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
+				nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(&wr.StaticRoute))
 				if nhErr != nil {
 					routesLogger().Debug("watchdog next-hop resolution failed", "peer", addr, "watchdog", name, "error", nhErr)
 					continue
 				}
-				addPath := p.addPathFor(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
-				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
+				addPath := p.addPathFor(routeFamily(&wr.StaticRoute))
+				update := buildStaticRouteUpdateNew(&wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(&wr.StaticRoute)); err != nil {
 					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
@@ -1543,7 +1550,7 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 				// Resolve next-hop from RouteNextHop policy
-				route := pr.StaticRoute
+				route := &pr.StaticRoute
 				nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
 				if nhErr != nil {
 					routesLogger().Debug("global pool next-hop resolution failed", "peer", addr, "pool", poolName, "error", nhErr)
@@ -1721,7 +1728,7 @@ func (p *Peer) sendInitialRoutes() {
 // Rebuilds the full set of required attributes since rib.Route may not store all.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP bool, asn4, addPath bool) *message.Update {
+func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
 	off := 0
 
 	// Create encoding context for ASPath encoding
@@ -1925,7 +1932,7 @@ func buildWithdrawNLRI(buf []byte, n nlri.NLRI, addPath bool) *message.Update {
 // Handles VPN, labeled-unicast, IPv4 unicast, and IPv6 unicast correctly.
 // buf is a caller-provided buffer (from buildBufPool) for zero-allocation encoding.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
-func buildStaticRouteWithdraw(buf []byte, route StaticRoute, addPath bool) *message.Update {
+func buildStaticRouteWithdraw(buf []byte, route *StaticRoute, addPath bool) *message.Update {
 	switch {
 	case route.IsVPN():
 		// VPN route: use MP_UNREACH_NLRI with RD + prefix
@@ -1967,7 +1974,7 @@ func buildStaticRouteWithdraw(buf []byte, route StaticRoute, addPath bool) *mess
 // buf is a caller-provided buffer for zero-allocation encoding.
 // NLRI is written into buf[nlriRegion:] (second half), then WriteAttrTo copies
 // it into buf[0:] as part of the MP_UNREACH_NLRI attribute.
-func buildMPUnreachVPN(buf []byte, route StaticRoute) *message.Update {
+func buildMPUnreachVPN(buf []byte, route *StaticRoute) *message.Update {
 	// Determine AFI from prefix
 	var afi nlri.AFI
 	if route.Prefix.Addr().Is4() {
@@ -1990,9 +1997,9 @@ func buildMPUnreachVPN(buf []byte, route StaticRoute) *message.Update {
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}
-	buf[off] = byte(label >> 16)
-	buf[off+1] = byte(label >> 8)
-	buf[off+2] = byte(label) | 0x01 // Bottom of stack
+	buf[off] = byte((label >> 16) & 0xFF)
+	buf[off+1] = byte((label >> 8) & 0xFF)
+	buf[off+2] = byte(label&0xFF) | 0x01 // Bottom of stack
 	off += 3
 
 	// RD (8 bytes)
@@ -2013,7 +2020,7 @@ func buildMPUnreachVPN(buf []byte, route StaticRoute) *message.Update {
 	off += prefixBytes
 
 	// Fill length byte: label(24) + RD(64) + prefix bits
-	buf[lengthPos] = byte(24 + 64 + prefixBits)
+	buf[lengthPos] = byte((24 + 64 + prefixBits) & 0xFF)
 
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFI(afi),
@@ -2030,7 +2037,7 @@ func buildMPUnreachVPN(buf []byte, route StaticRoute) *message.Update {
 // buildMPUnreachLabeledUnicast builds MP_UNREACH_NLRI for labeled unicast withdrawal.
 // buf is a caller-provided buffer for zero-allocation encoding.
 // RFC 8277: Labeled unicast uses SAFI 4 with label + prefix.
-func buildMPUnreachLabeledUnicast(buf []byte, route StaticRoute, addPath bool) *message.Update {
+func buildMPUnreachLabeledUnicast(buf []byte, route *StaticRoute, addPath bool) *message.Update {
 	// Determine AFI from prefix
 	var afi nlri.AFI
 	if route.Prefix.Addr().Is4() {
@@ -2045,17 +2052,17 @@ func buildMPUnreachLabeledUnicast(buf []byte, route StaticRoute, addPath bool) *
 
 	// Handle ADD-PATH: path-id (4 bytes) before length byte
 	if addPath && route.PathID != 0 {
-		buf[off] = byte(route.PathID >> 24)
-		buf[off+1] = byte(route.PathID >> 16)
-		buf[off+2] = byte(route.PathID >> 8)
-		buf[off+3] = byte(route.PathID)
+		buf[off] = byte((route.PathID >> 24) & 0xFF)
+		buf[off+1] = byte((route.PathID >> 16) & 0xFF)
+		buf[off+2] = byte((route.PathID >> 8) & 0xFF)
+		buf[off+3] = byte(route.PathID & 0xFF)
 		off += 4
 	}
 
 	// Length byte (label + prefix bits)
 	prefixBits := route.Prefix.Bits()
 	totalBits := 24 + prefixBits // 3 bytes label + prefix
-	buf[off] = byte(totalBits)
+	buf[off] = byte(totalBits & 0xFF)
 	off++
 
 	// Label: use route.SingleLabel() or withdraw label (0x800000)
@@ -2064,9 +2071,9 @@ func buildMPUnreachLabeledUnicast(buf []byte, route StaticRoute, addPath bool) *
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}
-	buf[off] = byte(label >> 12)
-	buf[off+1] = byte(label >> 4)
-	buf[off+2] = byte(label<<4) | 0x01 // BOS=1
+	buf[off] = byte((label >> 12) & 0xFF)
+	buf[off+1] = byte((label >> 4) & 0xFF)
+	buf[off+2] = byte((label<<4)&0xFF) | 0x01 // BOS=1
 	off += 3
 
 	// Prefix
@@ -2095,7 +2102,7 @@ func buildMPUnreachLabeledUnicast(buf []byte, route StaticRoute, addPath bool) *
 
 // routeFamily returns the NLRI family for a StaticRoute.
 // Used to track which families had routes sent for EOR purposes.
-func routeFamily(route StaticRoute) nlri.Family {
+func routeFamily(route *StaticRoute) nlri.Family {
 	if route.IsVPN() {
 		if route.Prefix.Addr().Is6() {
 			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128} // VPNv6
@@ -2125,15 +2132,15 @@ func writeRawAttribute(buf []byte, off int, ra RawAttribute) int {
 		flags |= 0x10 // Ensure extended length flag is set
 		buf[off] = flags
 		buf[off+1] = ra.Code
-		buf[off+2] = byte(valueLen >> 8)
-		buf[off+3] = byte(valueLen)
+		buf[off+2] = byte((valueLen >> 8) & 0xFF)
+		buf[off+3] = byte(valueLen & 0xFF)
 		copy(buf[off+4:], ra.Value)
 		return 4 + valueLen
 	}
 
 	buf[off] = flags
 	buf[off+1] = ra.Code
-	buf[off+2] = byte(valueLen)
+	buf[off+2] = byte(valueLen & 0xFF)
 	copy(buf[off+3:], ra.Value)
 	return 3 + valueLen
 }
@@ -2170,7 +2177,7 @@ func packRawAttributes(attrs []RawAttribute) [][]byte {
 
 // routeGroupKey generates a string key for grouping routes by attributes.
 // Routes with the same key can be combined into a single UPDATE.
-func routeGroupKey(r StaticRoute) string {
+func routeGroupKey(r *StaticRoute) string {
 	// Sort communities for consistent key.
 	comms := make([]uint32, len(r.Communities))
 	copy(comms, r.Communities)
@@ -2223,9 +2230,9 @@ func routeGroupKey(r StaticRoute) string {
 func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 	groups := make(map[string][]StaticRoute)
 
-	for _, r := range routes {
-		key := routeGroupKey(r)
-		groups[key] = append(groups[key], r)
+	for i := range routes {
+		key := routeGroupKey(&routes[i])
+		groups[key] = append(groups[key], routes[i])
 	}
 
 	// Collect groups into slice.
@@ -2267,16 +2274,17 @@ func (p *Peer) sendMVPNRoutes() {
 	var ipv4Routes, ipv6Routes []MVPNRoute
 	var skippedIPv4, skippedIPv6 int
 
-	for _, route := range p.settings.MVPNRoutes {
+	for i := range p.settings.MVPNRoutes {
+		route := &p.settings.MVPNRoutes[i]
 		if route.IsIPv6 {
 			if nc.Has(nlri.IPv6MVPN) {
-				ipv6Routes = append(ipv6Routes, route)
+				ipv6Routes = append(ipv6Routes, *route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
 			if nc.Has(nlri.IPv4MVPN) {
-				ipv4Routes = append(ipv4Routes, route)
+				ipv4Routes = append(ipv4Routes, *route)
 			} else {
 				skippedIPv4++
 			}
@@ -2377,9 +2385,9 @@ func mvpnRouteGroupKey(r MVPNRoute) string {
 // Routes with same key can share path attributes in a single UPDATE message.
 func groupMVPNRoutesByKey(routes []MVPNRoute) map[string][]MVPNRoute {
 	groups := make(map[string][]MVPNRoute)
-	for _, route := range routes {
-		key := mvpnRouteGroupKey(route)
-		groups[key] = append(groups[key], route)
+	for i := range routes {
+		key := mvpnRouteGroupKey(routes[i])
+		groups[key] = append(groups[key], routes[i])
 	}
 	return groups
 }
@@ -2414,8 +2422,8 @@ func (p *Peer) sendVPLSRoutes() {
 		vplsFamily := nlri.Family{AFI: 25, SAFI: 65}
 		addPath := p.addPathFor(vplsFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
-		for _, route := range p.settings.VPLSRoutes {
-			update := ub.BuildVPLS(toVPLSParams(route))
+		for i := range p.settings.VPLSRoutes {
+			update := ub.BuildVPLS(toVPLSParams(p.settings.VPLSRoutes[i]))
 			if err := p.SendUpdate(update); err != nil {
 				routesLogger().Debug("VPLS send error", "peer", addr, "error", err)
 			}
@@ -2442,7 +2450,8 @@ func (p *Peer) sendFlowSpecRoutes() {
 
 	// Send routes only for negotiated families
 	var sentCount int
-	for _, route := range p.settings.FlowSpecRoutes {
+	for i := range p.settings.FlowSpecRoutes {
+		route := &p.settings.FlowSpecRoutes[i]
 		// Check if this route's family is negotiated
 		isIPv6 := route.IsIPv6
 		isVPN := route.RD != [8]byte{}
@@ -2477,7 +2486,7 @@ func (p *Peer) sendFlowSpecRoutes() {
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
 		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
-		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(route), maxMsgSize)
+		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(*route), maxMsgSize)
 		if err != nil {
 			routesLogger().Debug("FlowSpec build error (too large?)", "peer", addr, "error", err)
 			continue
@@ -2623,14 +2632,14 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		}
 
 		// Send the route - resolve next-hop from RouteNextHop policy
-		nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
+		nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(&wr.StaticRoute))
 		if nhErr != nil {
 			routesLogger().Debug("watchdog next-hop resolution failed", "peer", addr, "watchdog", name, "error", nhErr)
 			continue
 		}
 		// RFC 7911: Get ADD-PATH encoding state
-		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
+		addPath := p.addPathFor(routeFamily(&wr.StaticRoute))
+		update := buildStaticRouteUpdateNew(&wr.StaticRoute, nextHop, p.settings.LinkLocal, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}
@@ -2708,9 +2717,9 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 
 		// Build withdrawal - handles VPN, IPv4 unicast, IPv6 unicast correctly
 		// RFC 7911: Get ADD-PATH encoding state
-		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
+		addPath := p.addPathFor(routeFamily(&wr.StaticRoute))
 		attrBuf := getBuildBuf()
-		update := buildStaticRouteWithdraw(attrBuf, wr.StaticRoute, addPath)
+		update := buildStaticRouteWithdraw(attrBuf, &wr.StaticRoute, addPath)
 		sendErr := p.SendUpdate(update)
 		putBuildBuf(attrBuf)
 		if sendErr != nil {

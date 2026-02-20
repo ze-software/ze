@@ -34,7 +34,7 @@ func NewConnPairManager() *ConnPairManager {
 // requires both sides to write simultaneously. net.Pipe() is synchronous
 // (unbuffered), so simultaneous writes deadlock. TCP has kernel write buffers
 // that allow writes to complete without the other side reading first.
-func (m *ConnPairManager) NewPair() (peerEnd net.Conn, reactorEnd net.Conn, err error) {
+func (m *ConnPairManager) NewPair() (peerEnd, reactorEnd net.Conn, err error) {
 	var lc net.ListenConfig
 	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
@@ -98,7 +98,7 @@ func (d *MockDialer) Register(network, address string, conn net.Conn) {
 }
 
 // DialContext returns a pre-registered connection for the given address.
-// Returns an error if no connection is registered or the context is cancelled.
+// Returns an error if no connection is registered or the context is canceled.
 func (d *MockDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err

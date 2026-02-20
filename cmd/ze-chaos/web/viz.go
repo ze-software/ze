@@ -170,7 +170,7 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 		"#8b1a1a", "#6e1212", // dark red (extremely slow)
 	}
 
-	for i, b := range ch.Buckets {
+	for i, b := range &ch.Buckets {
 		pct := 0
 		if maxCount > 0 {
 			pct = b.Count * 100 / maxCount
@@ -190,7 +190,7 @@ func writeConvergenceHistogram(w io.Writer, ch *ConvergenceHistogram, deadline t
 	if deadline > 0 {
 		// Find which bucket the deadline falls in (as a percentage across the 9 buckets).
 		deadlinePct := 0
-		for i, b := range ch.Buckets {
+		for i, b := range &ch.Buckets {
 			if deadline >= b.Min && (b.Max == 0 || deadline < b.Max) {
 				// Interpolate within the bucket.
 				bucketWidth := 100 / len(ch.Buckets)

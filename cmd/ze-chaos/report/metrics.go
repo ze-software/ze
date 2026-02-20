@@ -3,9 +3,10 @@ package report
 import (
 	"net/http"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 // Metrics tracks Prometheus counters, gauges, and histograms for chaos events.

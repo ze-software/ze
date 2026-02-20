@@ -161,15 +161,15 @@ func (l *LabeledUnicast) String() string {
 	sb.WriteString(l.prefix.String())
 	if len(l.labels) > 0 {
 		sb.WriteString(" label set ")
-		sb.WriteString(fmt.Sprintf("%d", l.labels[0]))
+		fmt.Fprintf(&sb, "%d", l.labels[0])
 		for _, lbl := range l.labels[1:] {
 			sb.WriteString(",")
-			sb.WriteString(fmt.Sprintf("%d", lbl))
+			fmt.Fprintf(&sb, "%d", lbl)
 		}
 	}
 	if l.pathID != 0 {
 		sb.WriteString(" path-id set ")
-		sb.WriteString(fmt.Sprintf("%d", l.pathID))
+		fmt.Fprintf(&sb, "%d", l.pathID)
 	}
 	return sb.String()
 }

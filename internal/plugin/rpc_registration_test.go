@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/ipc"
 )
 
 // TestRPCRegistrationTable verifies the builtin RPC registration table.

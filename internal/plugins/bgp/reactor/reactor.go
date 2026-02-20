@@ -557,7 +557,7 @@ func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
 	if valueLen > 255 {
 		buf[off] = byte(attribute.FlagTransitive | attribute.FlagExtLength)
 		buf[off+1] = byte(attribute.AttrASPath)
-		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec
+		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec // valueLen validated ≤ max attr len
 		off += 4
 	} else {
 		buf[off] = byte(attribute.FlagTransitive)
@@ -586,7 +586,7 @@ func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
 				if asn > 65535 {
 					binary.BigEndian.PutUint16(buf[off:], 23456) // AS_TRANS
 				} else {
-					binary.BigEndian.PutUint16(buf[off:], uint16(asn)) //nolint:gosec
+					binary.BigEndian.PutUint16(buf[off:], uint16(asn)) //nolint:gosec // asn checked ≤ 65535 in else branch
 				}
 				off += 2
 			}
@@ -645,7 +645,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 	if valueLen > 255 {
 		buf[off] = byte(flags | attribute.FlagExtLength)
 		buf[off+1] = byte(attribute.AttrCommunity)
-		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec
+		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec // valueLen validated ≤ max attr len
 		off += 4
 	} else {
 		buf[off] = byte(flags)
@@ -670,7 +670,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) int {
+func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS uint32, isIBGP, asn4, addPath bool) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -836,7 +836,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route bgptypes.RouteSpec, localAS 
 		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
 
 		// RFC 4760 Section 3 - Attribute header (Optional, non-transitive)
-		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPReachNLRI, uint16(mpValueLen)) //nolint:gosec
+		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPReachNLRI, uint16(mpValueLen)) //nolint:gosec // mpValueLen bounded by UPDATE max
 
 		// RFC 4760 Section 3 - AFI (2 octets)
 		buf[off] = 0
@@ -941,7 +941,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 		mpValueLen := 2 + 1 + nlriPayloadLen
 
 		// RFC 4760 Section 4 - Attribute header (Optional, non-transitive)
-		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPUnreachNLRI, uint16(mpValueLen)) //nolint:gosec
+		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPUnreachNLRI, uint16(mpValueLen)) //nolint:gosec // mpValueLen bounded by UPDATE max
 
 		// RFC 4760 Section 4 - AFI (2 octets)
 		buf[off] = 0
@@ -1324,7 +1324,7 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route bgptypes.L3
 
 			// Build UPDATE using UpdateBuilder for immediate send
 			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, asn4, addPath)
-			update := ub.BuildVPN(params)
+			update := ub.BuildVPN(&params)
 
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
@@ -1395,7 +1395,7 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route bgptypes.L3
 		if !peer.ShouldQueue() {
 			// Build MP_UNREACH_NLRI for VPN
 			attrBuf := getBuildBuf()
-			update := buildMPUnreachVPN(attrBuf, staticRoute)
+			update := buildMPUnreachVPN(attrBuf, &staticRoute)
 			sendErr := peer.SendUpdate(update)
 			putBuildBuf(attrBuf)
 			if sendErr != nil {
@@ -1624,22 +1624,22 @@ func parseRouteTarget(s string) ([]byte, error) {
 	// RFC 4360 Section 3 - Extended Community encoding
 	if asn <= 65535 {
 		// Type 0: 2-byte ASN, 4-byte value
-		return []byte{
-			ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
-			byte(asn >> 8), byte(asn),
-			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
-		}, nil
+		var buf [8]byte
+		buf[0], buf[1] = ecTypeTransitive2ByteAS, ecSubtypeRouteTarget
+		binary.BigEndian.PutUint16(buf[2:], uint16(asn))
+		binary.BigEndian.PutUint32(buf[4:], uint32(val))
+		return buf[:], nil
 	}
 
 	// ASN > 65535: Use Type 2 (4-byte ASN) if value fits in 16 bits
 	if val > 65535 {
 		return nil, fmt.Errorf("invalid rt: 4-byte ASN requires value <= 65535, got %d", val)
 	}
-	return []byte{
-		ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(val >> 8), byte(val),
-	}, nil
+	var buf [8]byte
+	buf[0], buf[1] = ecTypeTransitive4ByteAS, ecSubtypeRouteTarget
+	binary.BigEndian.PutUint32(buf[2:], uint32(asn))
+	binary.BigEndian.PutUint16(buf[6:], uint16(val))
+	return buf[:], nil
 }
 
 // AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
@@ -1683,7 +1683,7 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route bg
 			// Build UPDATE using UpdateBuilder for immediate send
 			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, asn4, addPath)
 			params := a.buildLabeledUnicastParams(route)
-			update := ub.BuildLabeledUnicast(params)
+			update := ub.BuildLabeledUnicast(&params)
 
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
@@ -1875,7 +1875,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route bg
 			}
 
 			attrBuf := getBuildBuf()
-			update := buildMPUnreachLabeledUnicast(attrBuf, staticRoute, addPath)
+			update := buildMPUnreachLabeledUnicast(attrBuf, &staticRoute, addPath)
 			sendErr := peer.SendUpdate(update)
 			putBuildBuf(attrBuf)
 			if sendErr != nil {
@@ -2132,7 +2132,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, asn4, addPath bool) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
@@ -2371,7 +2371,7 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 		buf[2] = 4    // Length: 2 (segment header) + 2 (ASN)
 		buf[3] = byte(attribute.ASSequence)
 		buf[4] = 1                                                      // Count = 1
-		binary.BigEndian.PutUint16(buf[5:], uint16(a.r.config.LocalAS)) //nolint:gosec
+		binary.BigEndian.PutUint16(buf[5:], uint16(a.r.config.LocalAS)) //nolint:gosec // LocalAS validated ≤ 65535 in ASN2 path
 		return 7
 	}
 }
@@ -2544,7 +2544,7 @@ func (a *reactorAPIAdapter) AnnounceWatchdog(peerSelector, name string) error {
 			routes := a.r.watchdog.AnnouncePool(name, peerAddr)
 			for _, pr := range routes {
 				// RFC 4271 Section 4.3 - Send UPDATE (zero-allocation path)
-				spec := staticRouteToSpec(pr.StaticRoute, localAddr)
+				spec := staticRouteToSpec(&pr.StaticRoute, localAddr)
 				if err := peer.SendAnnounce(spec, a.r.config.LocalAS); err != nil {
 					lastErr = err
 				}
@@ -2686,7 +2686,7 @@ func (a *reactorAPIAdapter) AddWatchdogRoute(route bgptypes.RouteSpec, poolName 
 		}
 	}
 
-	return a.r.AddWatchdogRoute(sr, poolName)
+	return a.r.AddWatchdogRoute(&sr, poolName)
 }
 
 // RemoveWatchdogRoute removes a route from a global watchdog pool.
@@ -2697,7 +2697,7 @@ func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error
 
 // staticRouteToSpec converts a StaticRoute to bgptypes.RouteSpec.
 // localAddress is used to resolve "next-hop self" routes.
-func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) bgptypes.RouteSpec {
+func staticRouteToSpec(route *StaticRoute, localAddress netip.Addr) bgptypes.RouteSpec {
 	// Resolve next-hop from RouteNextHop policy
 	var nextHop netip.Addr
 	if route.NextHop.IsSelf() && localAddress.IsValid() {
@@ -3547,7 +3547,7 @@ func nextHopLength(family nlri.Family, nh netip.Addr) int {
 // buildGroupedMPUpdate builds an UPDATE with MP_REACH_NLRI containing multiple NLRIs.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
-func (a *reactorAPIAdapter) buildGroupedMPUpdate(attrBuf []byte, templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, asn4 bool) *message.Update {
+func (a *reactorAPIAdapter) buildGroupedMPUpdate(attrBuf []byte, templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	off := 0
 
 	// Create encoding context for ASPath encoding
@@ -3918,7 +3918,7 @@ func (r *Reactor) SetConfigPath(path string) {
 // Creates the pool if it doesn't exist.
 // The route will be announced to all peers when "watchdog announce <name>" is called.
 // Returns ErrRouteExists if a route with the same key already exists in the pool.
-func (r *Reactor) AddWatchdogRoute(route StaticRoute, poolName string) error {
+func (r *Reactor) AddWatchdogRoute(route *StaticRoute, poolName string) error {
 	_, err := r.watchdog.AddRoute(poolName, route)
 	return err
 }
@@ -4755,7 +4755,7 @@ func (r *Reactor) cleanup() {
 	}
 
 	// Phase 2: Wait for everything concurrently under a single deadline.
-	// Components should exit quickly since their contexts are already cancelled.
+	// Components should exit quickly since their contexts are already canceled.
 	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	var wg sync.WaitGroup
 

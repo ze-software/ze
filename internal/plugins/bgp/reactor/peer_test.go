@@ -11,12 +11,13 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
-	"github.com/stretchr/testify/require"
 )
 
 func mustParseAddr(s string) netip.Addr {
@@ -137,7 +138,7 @@ func TestPeerReconnect(t *testing.T) {
 //
 // VALIDATES: Peer respects context cancellation for clean shutdown.
 //
-// PREVENTS: Orphaned goroutines when parent context is cancelled.
+// PREVENTS: Orphaned goroutines when parent context is canceled.
 func TestPeerContextCancellation(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
@@ -258,7 +259,7 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	update := buildStaticRouteUpdateNew(route, nextHop, netip.Addr{}, 65000, true, true, false, nil) // iBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
+	update := buildStaticRouteUpdateNew(&route, nextHop, netip.Addr{}, 65000, true, true, false, nil) // iBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -315,7 +316,7 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
-	update := buildStaticRouteUpdateNew(route, nextHop, netip.Addr{}, 65000, false, true, false, nil) // eBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
+	update := buildStaticRouteUpdateNew(&route, nextHop, netip.Addr{}, 65000, false, true, false, nil) // eBGP, ASN4, no ADD-PATH, no link-local, no ExtNH
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -772,7 +773,7 @@ func TestRouteFamilyIPv4Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 
-	family := routeFamily(route)
+	family := routeFamily(&route)
 
 	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
 	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
@@ -789,7 +790,7 @@ func TestRouteFamilyIPv6Unicast(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	family := routeFamily(route)
+	family := routeFamily(&route)
 
 	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
 	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
@@ -807,7 +808,7 @@ func TestRouteFamilyVPNv4(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	family := routeFamily(route)
+	family := routeFamily(&route)
 
 	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
 	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
@@ -825,7 +826,7 @@ func TestRouteFamilyVPNv6(t *testing.T) {
 		RD:      "100:100", // Has RD = VPN
 	}
 
-	family := routeFamily(route)
+	family := routeFamily(&route)
 
 	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
 	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
@@ -850,7 +851,7 @@ func TestFamiliesSentTracking(t *testing.T) {
 
 	// Track families as sendInitialRoutes does
 	for _, route := range routes {
-		familiesSent[routeFamily(route)] = true
+		familiesSent[routeFamily(&route)] = true
 	}
 
 	// Verify correct families are tracked
@@ -893,7 +894,7 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 	}
 
 	for _, route := range routes {
-		familiesSent[routeFamily(route)] = true
+		familiesSent[routeFamily(&route)] = true
 	}
 
 	// Only VPNv4 should be tracked
@@ -1216,7 +1217,7 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	params := toStaticRouteUnicastParams(route, nextHop, netip.Addr{}, nil) // no link-local, nil sendCtx - no ExtNH needed
+	params := toStaticRouteUnicastParams(&route, nextHop, netip.Addr{}, nil) // no link-local, nil sendCtx - no ExtNH needed
 
 	require.Equal(t, route.OriginatorID, params.OriginatorID,
 		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)
@@ -1244,8 +1245,8 @@ func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
 		OriginatorID: 0xC0A80102, // Different!
 	}
 
-	key1 := routeGroupKey(route1)
-	key2 := routeGroupKey(route2)
+	key1 := routeGroupKey(&route1)
+	key2 := routeGroupKey(&route2)
 
 	require.NotEqual(t, key1, key2,
 		"Routes with different OriginatorID should have different keys\nkey1: %s\nkey2: %s", key1, key2)
@@ -1267,8 +1268,8 @@ func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
 		ClusterList: []uint32{0xC0A80101, 0xC0A80102}, // Different!
 	}
 
-	key1 := routeGroupKey(route1)
-	key2 := routeGroupKey(route2)
+	key1 := routeGroupKey(&route1)
+	key2 := routeGroupKey(&route2)
 
 	require.NotEqual(t, key1, key2,
 		"Routes with different ClusterList should have different keys")

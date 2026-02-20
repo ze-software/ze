@@ -41,7 +41,7 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	params := l3vpnRouteToVPNParams(parsed, rd)
 
 	// Build UPDATE
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 
 	// Pack UPDATE body using PackTo
 	updateBody := message.PackTo(update, nil)

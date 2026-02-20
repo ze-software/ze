@@ -237,7 +237,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 			p.printf("\nwaiting for next connection (%d/%d)...\n", connCount, maxConns)
 			continue
 		case <-ctx.Done():
-			return Result{Success: false, Error: fmt.Errorf("context cancelled")}
+			return Result{Success: false, Error: fmt.Errorf("context canceled")}
 		}
 	}
 }
@@ -342,7 +342,7 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 	for {
 		select {
 		case <-ctx.Done():
-			return Result{Success: false, Error: fmt.Errorf("context cancelled")}
+			return Result{Success: false, Error: fmt.Errorf("context canceled")}
 		default:
 		}
 

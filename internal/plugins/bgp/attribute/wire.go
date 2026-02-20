@@ -104,17 +104,18 @@ func (a *AttributesWire) getAndParse(hint int, code AttributeCode) (Attribute, e
 
 	// Full search (hint invalid or index was rebuilt)
 	for i := range a.index {
-		if a.index[i].code == code {
-			if attr := a.index[i].parsed; attr != nil {
-				return attr, nil
-			}
-			attr, err := a.parseAtLocked(a.index[i])
-			if err != nil {
-				return nil, err
-			}
-			a.index[i].parsed = attr
+		if a.index[i].code != code {
+			continue
+		}
+		if attr := a.index[i].parsed; attr != nil {
 			return attr, nil
 		}
+		attr, err := a.parseAtLocked(a.index[i])
+		if err != nil {
+			return nil, err
+		}
+		a.index[i].parsed = attr
+		return attr, nil
 	}
 
 	return nil, nil //nolint:nilnil // nil means not found

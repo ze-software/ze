@@ -111,7 +111,7 @@ func (pc *PluginConn) SendEncodeNLRI(ctx context.Context, family string, args []
 }
 
 // SendDecodeNLRI requests NLRI decoding from the plugin. Returns JSON result.
-func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family string, hex string) (string, error) {
+func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string) (string, error) {
 	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex}
 	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-nlri", input)
 	if err != nil {

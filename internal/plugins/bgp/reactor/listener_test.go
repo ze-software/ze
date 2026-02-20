@@ -121,7 +121,7 @@ func TestListenerMultipleConnections(t *testing.T) {
 //
 // VALIDATES: Listener respects context cancellation for clean shutdown.
 //
-// PREVENTS: Orphaned goroutines when parent context is cancelled.
+// PREVENTS: Orphaned goroutines when parent context is canceled.
 func TestListenerContextCancellation(t *testing.T) {
 	listener := NewListener("127.0.0.1:0")
 

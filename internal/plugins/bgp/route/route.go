@@ -93,7 +93,7 @@ func splitPrefix(prefix netip.Prefix, targetLen int) ([]netip.Prefix, error) {
 
 // addToAddr adds an offset to an address at the given prefix boundary.
 // For example, for a /23 prefix, offset 1 means +512 addresses (2^(32-23) = 512).
-func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
+func addToAddr(addr netip.Addr, offset, prefixLen int) netip.Addr {
 	if offset == 0 {
 		return addr
 	}
@@ -168,17 +168,18 @@ func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
 // Returns (0, false) if not found or invalid.
 func parseSplitArg(args []string) (int, bool) {
 	for i := range len(args) - 1 {
-		if strings.EqualFold(args[i], "split") {
-			val := args[i+1]
-			if !strings.HasPrefix(val, "/") {
-				return 0, false
-			}
-			length, err := strconv.Atoi(val[1:])
-			if err != nil {
-				return 0, false
-			}
-			return length, true
+		if !strings.EqualFold(args[i], "split") {
+			continue
 		}
+		val := args[i+1]
+		if !strings.HasPrefix(val, "/") {
+			return 0, false
+		}
+		length, err := strconv.Atoi(val[1:])
+		if err != nil {
+			return 0, false
+		}
+		return length, true
 	}
 	return 0, false
 }

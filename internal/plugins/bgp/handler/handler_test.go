@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 // TestBgpHandlerRPCs verifies BgpHandlerRPCs returns the expected count and structure.

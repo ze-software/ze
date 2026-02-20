@@ -3,9 +3,10 @@ package plugin
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestConflictDetection verifies command/capability conflict detection.

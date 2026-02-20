@@ -113,10 +113,10 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -152,10 +152,10 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 	peer.state.Store(int32(PeerStateEstablished))
@@ -190,10 +190,10 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 	// NOT established - should queue
@@ -232,10 +232,10 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 	// NOT established - should queue

@@ -67,14 +67,14 @@ func runTestCase(tc *TestCase) *TestResult {
 
 		// Create parent directories if needed
 		if dir := filepath.Dir(filePath); dir != tmpDir {
-			if err := os.MkdirAll(dir, 0750); err != nil {
+			if err := os.MkdirAll(dir, 0o750); err != nil {
 				result.Error = fmt.Sprintf("creating dir for %s: %v", tf.Path, err)
 				return result
 			}
 		}
 
 		// Determine file mode
-		mode := os.FileMode(0600)
+		mode := os.FileMode(0o600)
 		if tf.Mode != "" {
 			if m, err := strconv.ParseUint(tf.Mode, 8, 32); err == nil {
 				mode = os.FileMode(m)

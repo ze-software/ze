@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"sync"
 	"testing"
 )
@@ -29,19 +30,19 @@ func TestFamilyStore_InternBasic(t *testing.T) {
 
 	// Intern n1
 	r1 := store.Intern(n1)
-	if string(r1.data) != string(n1.data) {
+	if !bytes.Equal(r1.data, n1.data) {
 		t.Error("interned data mismatch")
 	}
 
 	// Intern n2 (same as n1)
 	r2 := store.Intern(n2)
-	if string(r2.data) != string(n1.data) {
+	if !bytes.Equal(r2.data, n1.data) {
 		t.Error("interned data mismatch")
 	}
 
 	// Intern n3 (different)
 	r3 := store.Intern(n3)
-	if string(r3.data) != string(n3.data) {
+	if !bytes.Equal(r3.data, n3.data) {
 		t.Error("interned data mismatch")
 	}
 

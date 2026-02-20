@@ -228,7 +228,7 @@ func WriteHeaderTo(buf []byte, off int, flags AttributeFlags, code AttributeCode
 // Returns total bytes written.
 func WriteAttrTo(attr Attribute, buf []byte, off int) int {
 	valueLen := attr.Len()
-	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec
+	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec // G115: valueLen bounded by BGP attr max (65535)
 	n := attr.WriteTo(buf, off+hdrLen)
 	return hdrLen + n
 }
@@ -241,7 +241,7 @@ func WriteAttrToWithContext(attr Attribute, buf []byte, off int, srcCtx, dstCtx 
 	// For AS_PATH, length depends on ASN4 context; for others, Len() is sufficient
 	valueLen := attrLenWithContext(attr, dstCtx)
 
-	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec
+	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec // G115: valueLen bounded by BGP attr max (65535)
 	n := attr.WriteToWithContext(buf, off+hdrLen, srcCtx, dstCtx)
 	return hdrLen + n
 }

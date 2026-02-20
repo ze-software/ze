@@ -118,13 +118,13 @@ func base64EncodeInternal(buf []byte, off int, data []byte, alphabet string, pad
 // Base64Decode decodes standard base64 string to binary at buf[off:].
 // Returns (bytes_written, error).
 func Base64Decode(buf []byte, off int, b64 string) (int, error) {
-	return base64DecodeInternal(buf, off, b64, base64DecodeStd)
+	return base64DecodeInternal(buf, off, b64, &base64DecodeStd)
 }
 
 // Base64DecodeURL decodes URL-safe base64 string to binary at buf[off:].
 // Returns (bytes_written, error).
 func Base64DecodeURL(buf []byte, off int, b64 string) (int, error) {
-	return base64DecodeInternal(buf, off, b64, base64DecodeURL)
+	return base64DecodeInternal(buf, off, b64, &base64DecodeURL)
 }
 
 // Base64DecodeNoPadding decodes unpadded base64 string to binary at buf[off:].
@@ -138,7 +138,7 @@ func Base64DecodeNoPadding(buf []byte, off int, b64 string) (int, error) {
 	case 3:
 		b64 += "="
 	}
-	return base64DecodeInternal(buf, off, b64, base64DecodeStd)
+	return base64DecodeInternal(buf, off, b64, &base64DecodeStd)
 }
 
 // Base64DecodeURLNoPadding decodes unpadded URL-safe base64 to binary.
@@ -150,11 +150,11 @@ func Base64DecodeURLNoPadding(buf []byte, off int, b64 string) (int, error) {
 	case 3:
 		b64 += "="
 	}
-	return base64DecodeInternal(buf, off, b64, base64DecodeURL)
+	return base64DecodeInternal(buf, off, b64, &base64DecodeURL)
 }
 
-func base64DecodeInternal(buf []byte, off int, b64 string, table [256]byte) (int, error) {
-	if len(b64) == 0 {
+func base64DecodeInternal(buf []byte, off int, b64 string, table *[256]byte) (int, error) {
+	if b64 == "" {
 		return 0, nil
 	}
 

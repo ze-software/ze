@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 // TestMetricsEndpoint verifies /metrics returns valid Prometheus text format.
@@ -27,7 +28,7 @@ func TestMetricsEndpoint(t *testing.T) {
 
 	// Serve /metrics via httptest.
 	handler := m.Handler()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
@@ -112,7 +113,7 @@ func TestMetricsWithdrawals(t *testing.T) {
 func scrapeMetrics(t *testing.T, m *Metrics) string {
 	t.Helper()
 	handler := m.Handler()
-	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	req := httptest.NewRequest(http.MethodGet, "/metrics", http.NoBody)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 

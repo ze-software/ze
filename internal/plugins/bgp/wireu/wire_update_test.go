@@ -206,7 +206,7 @@ func TestWireUpdate_ErrorContext(t *testing.T) {
 
 // contains checks if s contains substr (simple helper to avoid import).
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
+	return len(s) >= len(substr) && (s == substr || s != "" && containsAt(s, substr))
 }
 
 func containsAt(s, substr string) bool {

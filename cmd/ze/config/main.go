@@ -10,10 +10,11 @@ import (
 	"os"
 	"strings"
 
+	tea "github.com/charmbracelet/bubbletea"
+
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/config/editor"
 	"codeberg.org/thomas-mangin/ze/internal/config/migration"
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 // Exit codes for config commands.

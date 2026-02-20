@@ -57,8 +57,8 @@ func GenerateConfig(params ConfigParams) string {
 
 	// bgp block with all peer definitions.
 	fmt.Fprintf(&b, "bgp {\n")
-	for _, p := range params.Profiles {
-		writeFullPeerBlock(&b, params, p)
+	for i := range params.Profiles {
+		writeFullPeerBlock(&b, params, params.Profiles[i])
 	}
 	fmt.Fprintf(&b, "}\n")
 
@@ -68,7 +68,8 @@ func GenerateConfig(params ConfigParams) string {
 // PeerSummary returns a compact one-line-per-peer summary for stderr display.
 func PeerSummary(params ConfigParams) string {
 	var b strings.Builder
-	for _, p := range params.Profiles {
+	for i := range params.Profiles {
+		p := &params.Profiles[i]
 		peerAddr := params.LocalAddr
 		if p.Address.IsValid() {
 			peerAddr = p.Address.String()

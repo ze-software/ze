@@ -631,8 +631,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 
 	// Build UPDATE message
 	update := make([]byte, 0, 100)
-	update = append(update, 0x00, 0x00)                                    // Withdrawn routes length = 0
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs))) // Path attrs length
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs))) // Withdrawn=0, Path attrs length
 	update = append(update, pathAttrs...)
 	// No IPv4 NLRI
 
@@ -980,8 +979,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	pathAttrs = append(pathAttrs, mpReach...)
 
 	update := make([]byte, 0, 100)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 
 	hdr := make([]byte, 19)
@@ -1166,8 +1164,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 
 	// Build UPDATE with IPv4 NLRI: 10.0.0.0/8
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00) // Withdrawn routes length = 0
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs))) // Withdrawn=0, Path attrs length
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -1268,8 +1265,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	}
 
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -1364,8 +1360,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	}
 
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -1526,20 +1521,15 @@ func TestSessionRFC7606SessionResetNotification(t *testing.T) {
 	}
 
 	pathAttrs := make([]byte, 0, 100)
-	// ORIGIN = IGP
-	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00)
-	// AS_PATH (empty)
-	pathAttrs = append(pathAttrs, 0x40, 0x02, 0x00)
-	// First MP_REACH_NLRI
-	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
+	// ORIGIN = IGP + AS_PATH (empty) + First MP_REACH_NLRI header
+	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
 	// Second MP_REACH_NLRI (DUPLICATE — triggers session-reset)
 	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
 
 	update := make([]byte, 0, 100)
-	update = append(update, 0x00, 0x00) // Withdrawn routes length = 0
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs))) // Withdrawn=0, Path attrs length
 	update = append(update, pathAttrs...)
 
 	updateMsg := buildUpdateMsg(update)
@@ -1605,8 +1595,7 @@ func TestSessionRFC7606TreatAsWithdrawSuppressesCallback(t *testing.T) {
 	}
 
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -1648,8 +1637,7 @@ func TestSessionRFC7606AttributeDiscardContinues(t *testing.T) {
 	}
 
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -1686,8 +1674,7 @@ func TestSessionRFC7606ValidUpdateUnchanged(t *testing.T) {
 	}
 
 	update := make([]byte, 0, 50)
-	update = append(update, 0x00, 0x00)
-	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, 0x00, 0x00, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
@@ -2113,7 +2100,7 @@ func TestHandleRouteRefreshBadLen(t *testing.T) {
 	}
 }
 
-// TestSessionCloseOnCancel verifies that cancelling the context exits Run() immediately.
+// TestSessionCloseOnCancel verifies that canceling the context exits Run() immediately.
 //
 // VALIDATES: AC-1: context cancel closes conn, Run() returns within 10ms (not 100ms).
 // PREVENTS: Slow 100ms polling delay on shutdown due to SetReadDeadline polling.

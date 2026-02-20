@@ -1214,7 +1214,7 @@ func findTestDataDir(t *testing.T) string {
 	// Try from module root
 	wd, _ := os.Getwd()
 	for range 5 {
-		testPath := filepath.Join(wd, "test/exabgp")
+		testPath := filepath.Join(wd, "test", "exabgp")
 		if _, err := os.Stat(testPath); err == nil {
 			return testPath
 		}

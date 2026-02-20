@@ -131,19 +131,18 @@ type RawAttribute struct {
 }
 
 // IsVPN returns true if this is a VPN route (has RD).
-func (r StaticRoute) IsVPN() bool {
+func (r *StaticRoute) IsVPN() bool {
 	return r.RD != ""
 }
 
 // IsLabeledUnicast returns true if this is a labeled unicast route (has labels but no RD).
 // RFC 8277 Section 2: Labeled routes have MPLS label stack but no Route Distinguisher.
-func (r StaticRoute) IsLabeledUnicast() bool {
+func (r *StaticRoute) IsLabeledUnicast() bool {
 	return len(r.Labels) > 0 && r.RD == ""
 }
 
-// SingleLabel returns the first label from the label stack for backward compatibility.
-// Returns 0 if no labels are present.
-func (r StaticRoute) SingleLabel() uint32 {
+// SingleLabel returns the first label from the label stack, or 0 if empty.
+func (r *StaticRoute) SingleLabel() uint32 {
 	if len(r.Labels) > 0 {
 		return r.Labels[0]
 	}
@@ -153,7 +152,7 @@ func (r StaticRoute) SingleLabel() uint32 {
 // RouteKey returns a unique key for this route, suitable for use as a map key.
 // Includes prefix, RD (for VPN), and PathID (for ADD-PATH).
 // PathID is always included since 0 is a valid path identifier.
-func (r StaticRoute) RouteKey() string {
+func (r *StaticRoute) RouteKey() string {
 	key := r.Prefix.String()
 	if r.RD != "" {
 		key = r.RD + ":" + key

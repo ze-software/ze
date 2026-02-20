@@ -117,32 +117,32 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *Tree) error {
 	}
 
 	// Convert and patch exotic routes.
-	for _, mr := range routes.MVPNRoutes {
-		route, err := convertMVPNRoute(mr)
+	for i := range routes.MVPNRoutes {
+		route, err := convertMVPNRoute(routes.MVPNRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s mvpn route: %w", addr, err)
 		}
 		ps.MVPNRoutes = append(ps.MVPNRoutes, route)
 	}
 
-	for _, vr := range routes.VPLSRoutes {
-		route, err := convertVPLSRoute(vr)
+	for i := range routes.VPLSRoutes {
+		route, err := convertVPLSRoute(routes.VPLSRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s vpls route: %w", addr, err)
 		}
 		ps.VPLSRoutes = append(ps.VPLSRoutes, route)
 	}
 
-	for _, fr := range routes.FlowSpecRoutes {
-		route, err := convertFlowSpecRoute(fr)
+	for i := range routes.FlowSpecRoutes {
+		route, err := convertFlowSpecRoute(routes.FlowSpecRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
 		}
 		ps.FlowSpecRoutes = append(ps.FlowSpecRoutes, route)
 	}
 
-	for _, mr := range routes.MUPRoutes {
-		route, err := convertMUPRoute(mr)
+	for i := range routes.MUPRoutes {
+		route, err := convertMUPRoute(routes.MUPRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s mup route: %w", addr, err)
 		}
@@ -150,32 +150,36 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *Tree) error {
 	}
 
 	// Extract exotic routes from legacy ExaBGP syntax blocks.
-	for _, mr := range extractMVPNRoutes(peerTree) {
-		route, err := convertMVPNRoute(mr)
+	mvpnRoutes := extractMVPNRoutes(peerTree)
+	for i := range mvpnRoutes {
+		route, err := convertMVPNRoute(mvpnRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s mvpn route: %w", addr, err)
 		}
 		ps.MVPNRoutes = append(ps.MVPNRoutes, route)
 	}
 
-	for _, vr := range extractVPLSRoutes(peerTree) {
-		route, err := convertVPLSRoute(vr)
+	vplsRoutes := extractVPLSRoutes(peerTree)
+	for i := range vplsRoutes {
+		route, err := convertVPLSRoute(vplsRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s vpls route: %w", addr, err)
 		}
 		ps.VPLSRoutes = append(ps.VPLSRoutes, route)
 	}
 
-	for _, fr := range extractFlowSpecRoutes(peerTree) {
-		route, err := convertFlowSpecRoute(fr)
+	flowSpecRoutes := extractFlowSpecRoutes(peerTree)
+	for i := range flowSpecRoutes {
+		route, err := convertFlowSpecRoute(flowSpecRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s flowspec route: %w", addr, err)
 		}
 		ps.FlowSpecRoutes = append(ps.FlowSpecRoutes, route)
 	}
 
-	for _, mr := range extractMUPRoutes(peerTree) {
-		route, err := convertMUPRoute(mr)
+	mupRoutes := extractMUPRoutes(peerTree)
+	for i := range mupRoutes {
+		route, err := convertMUPRoute(mupRoutes[i])
 		if err != nil {
 			return fmt.Errorf("peer %s mup route: %w", addr, err)
 		}
@@ -187,7 +191,8 @@ func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *Tree) error {
 
 // patchStaticRoutes converts StaticRouteConfig to reactor.StaticRoute and adds them to PeerSettings.
 func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, addr string) error {
-	for _, sr := range routes {
+	for i := range routes {
+		sr := &routes[i]
 		attrs, err := ParseRouteAttributes(sr)
 		if err != nil {
 			return fmt.Errorf("peer %s static route %s: %w", addr, sr.Prefix, err)

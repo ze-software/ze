@@ -31,6 +31,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/term"
+
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/inprocess"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
@@ -41,7 +43,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/web"
-	"golang.org/x/term"
 )
 
 // reconnectBackoff is the delay before a peer reconnects after a chaos disconnect.
@@ -658,15 +659,15 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	// Must be large enough to absorb bursts without blocking readLoop
 	// (which would cause TCP backpressure deadlocks).
 	evBuf := 0
-	for _, p := range profiles {
-		evBuf += p.RouteCount * max(len(p.Families), 1)
+	for i := range profiles {
+		evBuf += profiles[i].RouteCount * max(len(profiles[i].Families), 1)
 	}
 	evBuf = min(max(evBuf, 65536), 500_000)
 	events := make(chan peer.Event, evBuf)
 
 	// Launch per-peer goroutines.
 	var wg sync.WaitGroup
-	for _, p := range profiles {
+	for i := range profiles {
 		wg.Add(1)
 		go func(prof scenario.PeerProfile) {
 			defer wg.Done()
@@ -714,7 +715,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 			// Reconnection loop: restart simulator after chaos disconnects.
 			runPeerLoop(ctx, simCfg, prof.Index, events)
-		}(p)
+		}(profiles[i])
 	}
 
 	// Launch scheduler goroutine (only when chaos is enabled).
@@ -803,8 +804,8 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Count iBGP/eBGP peers for summary.
 	var ibgpCount, ebgpCount int
-	for _, p := range profiles {
-		if p.IsIBGP {
+	for i := range profiles {
+		if profiles[i].IsIBGP {
 			ibgpCount++
 		} else {
 			ebgpCount++
@@ -1047,12 +1048,12 @@ func setupReporting(cfg orchestratorConfig, peerCount int) (*reportingResult, er
 }
 
 // runPeerLoop runs a peer simulator with reconnection after chaos disconnects.
-// It loops until the context is cancelled, restarting the simulator each time.
+// It loops until the context is canceled, restarting the simulator each time.
 func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, events chan<- peer.Event) {
 	for {
 		peer.RunSimulator(ctx, cfg)
 
-		// Exit if context is cancelled (clean shutdown).
+		// Exit if context is canceled (clean shutdown).
 		if ctx.Err() != nil {
 			return
 		}
@@ -1367,10 +1368,10 @@ func runShrink(path string, deadline time.Duration, verbose bool) int {
 	fmt.Fprintf(os.Stderr, "shrink: %d → %d events (%d iterations), property: %s\n",
 		result.Original, len(result.Events), result.Iterations, result.Property)
 	fmt.Fprintf(os.Stderr, "\nMinimal reproduction (%d steps):\n", len(result.Events))
-	for i, ev := range result.Events {
-		line := fmt.Sprintf("  %d. [peer %d] %s", i+1, ev.PeerIndex, ev.Type)
-		if ev.Prefix.IsValid() {
-			line += " " + ev.Prefix.String()
+	for i := range result.Events {
+		line := fmt.Sprintf("  %d. [peer %d] %s", i+1, result.Events[i].PeerIndex, result.Events[i].Type)
+		if result.Events[i].Prefix.IsValid() {
+			line += " " + result.Events[i].Prefix.String()
 		}
 		fmt.Fprintln(os.Stderr, line)
 	}
@@ -1481,16 +1482,16 @@ func waitForZe(ctx context.Context, addr string, pipeline bool) error {
 // non-unicast families (VPN, EVPN, FlowSpec) get RouteCount/4.
 func peerFamilyTargets(profiles []scenario.PeerProfile) map[int]map[string]int {
 	targets := make(map[int]map[string]int, len(profiles))
-	for _, p := range profiles {
-		fm := make(map[string]int, len(p.Families))
-		for _, fam := range p.Families {
+	for i := range profiles {
+		fm := make(map[string]int, len(profiles[i].Families))
+		for _, fam := range profiles[i].Families {
 			if strings.Contains(fam, "unicast") {
-				fm[fam] = p.RouteCount
+				fm[fam] = profiles[i].RouteCount
 			} else {
-				fm[fam] = p.RouteCount / 4
+				fm[fam] = profiles[i].RouteCount / 4
 			}
 		}
-		targets[p.Index] = fm
+		targets[profiles[i].Index] = fm
 	}
 	return targets
 }

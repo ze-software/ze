@@ -174,7 +174,7 @@ func (m *MUP) Bytes() []byte {
 		m.cached = make([]byte, 4+len(totalData))
 		m.cached[0] = byte(m.archType)
 		binary.BigEndian.PutUint16(m.cached[1:3], uint16(m.routeType))
-		m.cached[3] = byte(len(totalData))
+		m.cached[3] = byte(len(totalData) & 0xFF)
 		copy(m.cached[4:], totalData)
 	})
 
@@ -216,7 +216,7 @@ func (m *MUP) WriteTo(buf []byte, off int) int {
 
 	buf[pos] = byte(m.archType)
 	binary.BigEndian.PutUint16(buf[pos+1:], uint16(m.routeType))
-	buf[pos+3] = byte(dataLen)
+	buf[pos+3] = byte(dataLen & 0xFF)
 	pos += 4
 
 	if hasRD(m.rd) {

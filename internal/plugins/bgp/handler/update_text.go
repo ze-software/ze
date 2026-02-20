@@ -339,6 +339,15 @@ type nlriAccum struct {
 	Labels []uint32
 }
 
+// nlriParseResult holds the return values from NLRI section parsing.
+type nlriParseResult struct {
+	Family   nlri.Family
+	Announce []nlri.NLRI
+	Withdraw []nlri.NLRI
+	Watchdog string
+	Consumed int
+}
+
 // snapshot returns a wire-format snapshot of the current attribute state.
 // Builds attributes using Builder for wire-first encoding.
 // Also returns the current NLRI accumulators (pathID, RD, labels).
@@ -773,29 +782,29 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 
 		case kwNLRI:
 			wire, nh, nlriAcc := accum.snapshot()
-			family, announce, withdraw, nlriWatchdog, consumed, err := parseNLRISection(args[i:], nlriAcc)
+			result, err := parseNLRISection(args[i:], nlriAcc)
 			if err != nil {
 				return nil, err
 			}
 
 			// RFC 4724: EOR is signaled by valid family with empty announce/withdraw lists
-			if len(announce) == 0 && len(withdraw) == 0 && family.AFI != 0 {
-				eorFamilies = append(eorFamilies, family)
+			if len(result.Announce) == 0 && len(result.Withdraw) == 0 && result.Family.AFI != 0 {
+				eorFamilies = append(eorFamilies, result.Family)
 			} else {
 				groups = append(groups, bgptypes.NLRIGroup{
-					Family:       family,
-					Announce:     announce,
-					Withdraw:     withdraw,
+					Family:       result.Family,
+					Announce:     result.Announce,
+					Withdraw:     result.Withdraw,
 					Wire:         wire,
 					NextHop:      nh,
-					WatchdogName: nlriWatchdog,
+					WatchdogName: result.Watchdog,
 				})
 				// Also set global watchdog if specified in nlri section (for backward compat)
-				if nlriWatchdog != "" {
-					watchdog = nlriWatchdog
+				if result.Watchdog != "" {
+					watchdog = result.Watchdog
 				}
 			}
-			i += consumed
+			i += result.Consumed
 
 		case kwWatchdog:
 			// Legacy standalone watchdog - still supported but deprecated
@@ -926,7 +935,7 @@ func parsePathInfoSection(args []string, accum *parsedAttrs) (int, error) {
 			if err != nil {
 				return 0, fmt.Errorf("invalid path-information: %w", err)
 			}
-			if accum.PathID != uint32(id) { //nolint:gosec // G115: bounded by ParseUint 32-bit
+			if uint64(accum.PathID) != id { //nolint:gosec // G115: bounded by ParseUint 32-bit
 				return 0, fmt.Errorf("path-information del: current value is %d, not %d", accum.PathID, id)
 			}
 			accum.PathID = 0
@@ -1019,7 +1028,7 @@ func parseLabelSection(args []string, accum *parsedAttrs) (int, error) {
 			if err != nil {
 				return 0, fmt.Errorf("invalid label: %w", err)
 			}
-			if len(accum.Labels) != 1 || accum.Labels[0] != uint32(label) { //nolint:gosec // G115: bounded by ParseUint
+			if len(accum.Labels) != 1 || uint64(accum.Labels[0]) != label { //nolint:gosec // G115: bounded by ParseUint
 				currentStr := "[]"
 				if len(accum.Labels) > 0 {
 					currentStr = fmt.Sprintf("[%d]", accum.Labels[0])
@@ -1189,27 +1198,27 @@ func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
 // accum contains NLRI accumulators: pathID, RD, labels.
 // In-NLRI modifiers (rd/label without 'set') override accumulated values.
 // Returns family, announce list, withdraw list, watchdog name, consumed token count, and any error.
-func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri"
 	if len(args) < 2 {
-		return nlri.Family{}, nil, nil, "", 0, route.ErrInvalidFamily
+		return nlriParseResult{}, route.ErrInvalidFamily
 	}
 
 	family, ok := nlri.ParseFamily(args[1])
 	if !ok {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
+		return nlriParseResult{}, fmt.Errorf("%w: %s", route.ErrInvalidFamily, args[1])
 	}
 
 	// Check if family is supported (EOR is supported for all families)
 	isEOR := len(args) > 2 && args[2] == kwEOR
 	if !isEOR && !isSupportedFamily(family) {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", route.ErrFamilyNotSupported, args[1])
+		return nlriParseResult{}, fmt.Errorf("%w: %s", route.ErrFamilyNotSupported, args[1])
 	}
 
 	// RFC 4724: End-of-RIB marker
 	// Syntax: nlri <family> eor
 	if isEOR {
-		return family, nil, nil, "", 3, nil // Return empty lists with family set - signals EOR
+		return nlriParseResult{Family: family, Consumed: 3}, nil // Return empty lists with family set - signals EOR
 	}
 
 	// FlowSpec families use different parsing (components instead of prefixes)
@@ -1241,7 +1250,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 		if token == kwRD {
 			// rd <value> (in-NLRI modifier, no 'set')
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value (ASN:NN or IP:NN)")
+				return nlriParseResult{}, errors.New("rd requires value (ASN:NN or IP:NN)")
 			}
 			next := args[i+1]
 			// If next token is 'set', this is accumulator syntax - don't handle here
@@ -1250,7 +1259,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 			}
 			rd, err := nlri.ParseRDString(next)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid rd: %w", err)
 			}
 			accum.RD = rd
 			i += 2
@@ -1261,7 +1270,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 		if token == kwLabel {
 			// label <value> (in-NLRI modifier, no 'set')
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("label requires value (0-1048575)")
+				return nlriParseResult{}, errors.New("label requires value (0-1048575)")
 			}
 			next := args[i+1]
 			// If next token is 'set', this is accumulator syntax - don't handle here
@@ -1270,10 +1279,10 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 			}
 			label, err := strconv.ParseUint(next, 10, 32)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid label: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid label: %w", err)
 			}
 			if label > 0xFFFFF { // 20-bit max
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("label out of range (max 1048575): %d", label)
+				return nlriParseResult{}, fmt.Errorf("label out of range (max 1048575): %d", label)
 			}
 			accum.Labels = []uint32{uint32(label)} //nolint:gosec // G115: bounded by check above
 			i += 2
@@ -1300,13 +1309,13 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 		// Watchdog inside nlri section: watchdog set <name>
 		if token == kwWatchdog {
 			if mode != kwAdd {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("watchdog only valid after 'add' in nlri section")
+				return nlriParseResult{}, errors.New("watchdog only valid after 'add' in nlri section")
 			}
 			if i+2 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("watchdog requires 'set <name>'")
+				return nlriParseResult{}, errors.New("watchdog requires 'set <name>'")
 			}
 			if args[i+1] != kwSet {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("watchdog requires 'set', got: %s", args[i+1])
+				return nlriParseResult{}, fmt.Errorf("watchdog requires 'set', got: %s", args[i+1])
 			}
 			watchdog = args[i+2]
 			i += 3
@@ -1330,13 +1339,13 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 
 		// Must have a mode before prefixes
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
+			return nlriParseResult{}, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse prefix based on family
 		n, extra, err := parseNLRI(token, family, accum)
 		if err != nil {
-			return nlri.Family{}, nil, nil, "", 0, err
+			return nlriParseResult{}, err
 		}
 
 		if mode == kwAdd {
@@ -1350,10 +1359,10 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 
 	// Must have at least one prefix
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
+		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	return family, announce, withdraw, watchdog, consumed, nil
+	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Watchdog: watchdog, Consumed: consumed}, nil
 }
 
 // parseINETNLRI parses a single prefix for unicast/multicast families.
@@ -1489,8 +1498,7 @@ func isFlowSpecBoundary(token string) bool {
 // parseFlowSpecSection parses nlri <flowspec-family> add [rd <value>] <components>+ | del <components>+
 // RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components.
 // For flow-vpn families, rd is required after add/del. For flow families, rd is invalid.
-// Returns family, announce list, withdraw list, watchdog name, consumed tokens, and error.
-func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = family string
 	consumed := 2
 	i := 2
@@ -1526,13 +1534,13 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlr
 
 		// Must have a mode before components
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
+			return nlriParseResult{}, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse FlowSpec components for this rule
 		fs, extra, err := parseFlowSpecComponents(args[i:], family)
 		if err != nil {
-			return nlri.Family{}, nil, nil, "", 0, err
+			return nlriParseResult{}, err
 		}
 
 		if mode == kwAdd {
@@ -1545,10 +1553,10 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlri.Family, []nlr
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
+		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	return family, announce, withdraw, "", consumed, nil
+	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
 }
 
 // parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
@@ -1835,9 +1843,8 @@ func isVPLSBoundary(token string) bool {
 
 // parseVPLSSection parses VPLS NLRI section.
 // RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
-// Syntax: nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
-// Returns family, announce list, withdraw list, watchdog name, consumed count, error.
-func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+// Syntax: nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>.
+func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = "l2vpn/vpls"
 	consumed := 2
 	i := 2
@@ -1875,19 +1882,19 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		// Must have mode before VPLS fields
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
+			return nlriParseResult{}, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Parse VPLS-specific fields
 		switch token {
 		case kwRD:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value")
+				return nlriParseResult{}, errors.New("rd requires value")
 			}
 			var err error
 			rd, err = nlri.ParseRDString(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid rd: %w", err)
 			}
 			hasRD = true
 			i += 2
@@ -1895,11 +1902,11 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwVEID:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-id requires value")
+				return nlriParseResult{}, errors.New("ve-id requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 16)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-id: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid ve-id: %w", err)
 			}
 			veID = uint16(val)
 			i += 2
@@ -1907,11 +1914,11 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwVEBlockOffset:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-block-offset requires value")
+				return nlriParseResult{}, errors.New("ve-block-offset requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 16)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-block-offset: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid ve-block-offset: %w", err)
 			}
 			veBlockOffset = uint16(val)
 			i += 2
@@ -1919,11 +1926,11 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwVEBlockSize:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-block-size requires value")
+				return nlriParseResult{}, errors.New("ve-block-size requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 16)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-block-size: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid ve-block-size: %w", err)
 			}
 			veBlockSize = uint16(val)
 			i += 2
@@ -1931,24 +1938,24 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwLabelBase, kwLabel:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("label-base requires value")
+				return nlriParseResult{}, errors.New("label-base requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 32)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid label-base: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid label-base: %w", err)
 			}
 			labelBase = uint32(val)
 			i += 2
 			consumed += 2
 
-		default:
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("unknown vpls keyword: %s", token)
+		default: // unknown VPLS keyword — reject with error
+			return nlriParseResult{}, fmt.Errorf("unknown vpls keyword: %s", token)
 		}
 	}
 
 	// Validate required fields
 	if !hasRD {
-		return nlri.Family{}, nil, nil, "", 0, errors.New("vpls requires rd")
+		return nlriParseResult{}, errors.New("vpls requires rd")
 	}
 
 	// Create VPLS NLRI
@@ -1963,10 +1970,10 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
+		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	return family, announce, withdraw, "", consumed, nil
+	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
 }
 
 // EVPN route type keywords.
@@ -1997,8 +2004,7 @@ func isEVPNBoundary(token string) bool {
 // parseEVPNSection parses EVPN NLRI section.
 // RFC 7432: EVPN route types.
 // Syntax: nlri l2vpn/evpn add <route-type> rd <rd> ...
-// Returns family, announce list, withdraw list, watchdog name, consumed count, error.
-func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri", args[1] = "l2vpn/evpn"
 	consumed := 2
 	i := 2
@@ -2048,7 +2054,7 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		// Must have mode before route type and fields
 		if mode == "" {
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
+			return nlriParseResult{}, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
 		// Route type (after add/del)
@@ -2059,8 +2065,8 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 				i++
 				consumed++
 				continue
-			default:
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn requires route type (mac-ip, ip-prefix, multicast), got: %s", token)
+			default: // unknown route type — reject with error
+				return nlriParseResult{}, fmt.Errorf("evpn requires route type (mac-ip, ip-prefix, multicast), got: %s", token)
 			}
 		}
 
@@ -2068,12 +2074,12 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		switch token {
 		case kwRD:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value")
+				return nlriParseResult{}, errors.New("rd requires value")
 			}
 			var err error
 			rd, err = nlri.ParseRDString(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid rd: %w", err)
 			}
 			hasRD = true
 			i += 2
@@ -2081,11 +2087,11 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwMAC:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("mac requires value")
+				return nlriParseResult{}, errors.New("mac requires value")
 			}
 			macBytes, err := parseMAC(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid mac: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid mac: %w", err)
 			}
 			mac = macBytes
 			hasMAC = true
@@ -2094,35 +2100,35 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwIP:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("ip requires value")
+				return nlriParseResult{}, errors.New("ip requires value")
 			}
 			var err error
 			ip, err = netip.ParseAddr(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ip: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid ip: %w", err)
 			}
 			i += 2
 			consumed += 2
 
 		case kwPrefix:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("prefix requires value")
+				return nlriParseResult{}, errors.New("prefix requires value")
 			}
 			var err error
 			prefix, err = netip.ParsePrefix(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid prefix: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid prefix: %w", err)
 			}
 			i += 2
 			consumed += 2
 
 		case kwLabel:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("label requires value")
+				return nlriParseResult{}, errors.New("label requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 32)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid label: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid label: %w", err)
 			}
 			labels = append(labels, uint32(val))
 			i += 2
@@ -2130,11 +2136,11 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwESI:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("esi requires value")
+				return nlriParseResult{}, errors.New("esi requires value")
 			}
 			esiBytes, err := parseESI(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid esi: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid esi: %w", err)
 			}
 			esi = esiBytes
 			i += 2
@@ -2142,11 +2148,11 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 		case kwEtag:
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("etag requires value")
+				return nlriParseResult{}, errors.New("etag requires value")
 			}
 			val, err := strconv.ParseUint(args[i+1], 10, 32)
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid etag: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid etag: %w", err)
 			}
 			ethernetTag = uint32(val)
 			i += 2
@@ -2155,27 +2161,27 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		case kwGateway:
 			// RFC 9136 Section 3.1: GW IP Address for Overlay Index resolution
 			if i+1 >= len(args) {
-				return nlri.Family{}, nil, nil, "", 0, errors.New("gateway requires value")
+				return nlriParseResult{}, errors.New("gateway requires value")
 			}
 			var err error
 			gateway, err = netip.ParseAddr(args[i+1])
 			if err != nil {
-				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid gateway: %w", err)
+				return nlriParseResult{}, fmt.Errorf("invalid gateway: %w", err)
 			}
 			i += 2
 			consumed += 2
 
-		default:
-			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("unknown evpn keyword: %s", token)
+		default: // unknown EVPN keyword — reject with error
+			return nlriParseResult{}, fmt.Errorf("unknown evpn keyword: %s", token)
 		}
 	}
 
 	// Validate required fields
 	if routeType == "" {
-		return nlri.Family{}, nil, nil, "", 0, errors.New("evpn requires route type")
+		return nlriParseResult{}, errors.New("evpn requires route type")
 	}
 	if !hasRD {
-		return nlri.Family{}, nil, nil, "", 0, errors.New("evpn requires rd")
+		return nlriParseResult{}, errors.New("evpn requires rd")
 	}
 
 	// Create EVPN NLRI via registry encoder
@@ -2184,12 +2190,12 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	switch routeType {
 	case kwMACIP:
 		if !hasMAC {
-			return nlri.Family{}, nil, nil, "", 0, errors.New("mac-ip route requires mac")
+			return nlriParseResult{}, errors.New("mac-ip route requires mac")
 		}
-		encodeArgs = append(encodeArgs, "type2", "rd", rd.String())
-		encodeArgs = append(encodeArgs, "esi", formatESIString(esi))
-		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
-		encodeArgs = append(encodeArgs, "mac", formatMACString(mac))
+		encodeArgs = append(encodeArgs, "type2", "rd", rd.String(),
+			"esi", formatESIString(esi),
+			"ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10),
+			"mac", formatMACString(mac))
 		if ip.IsValid() {
 			encodeArgs = append(encodeArgs, "ip", ip.String())
 		}
@@ -2199,21 +2205,21 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 
 	case kwIPPrefix:
 		if !prefix.IsValid() {
-			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route requires prefix")
+			return nlriParseResult{}, errors.New("ip-prefix route requires prefix")
 		}
 		// RFC 9136 Section 3.1: prefix and gateway MUST be same IP address family
 		if gateway.IsValid() && prefix.Addr().Is4() != gateway.Is4() {
-			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: gateway must be same IP family as prefix (RFC 9136)")
+			return nlriParseResult{}, errors.New("ip-prefix route: gateway must be same IP family as prefix (RFC 9136)")
 		}
 		// RFC 9136 Section 3.2: ESI and GW IP MUST NOT both be non-zero
 		esiNonZero := esi != [10]byte{}
 		if esiNonZero && gateway.IsValid() {
-			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
+			return nlriParseResult{}, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
 		}
-		encodeArgs = append(encodeArgs, "type5", "rd", rd.String())
-		encodeArgs = append(encodeArgs, "esi", formatESIString(esi))
-		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
-		encodeArgs = append(encodeArgs, "prefix", prefix.String())
+		encodeArgs = append(encodeArgs, "type5", "rd", rd.String(),
+			"esi", formatESIString(esi),
+			"ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10),
+			"prefix", prefix.String())
 		if gateway.IsValid() {
 			encodeArgs = append(encodeArgs, "gateway", gateway.String())
 		}
@@ -2225,24 +2231,24 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 		// Type 3: Inclusive Multicast Ethernet Tag route
 		originatorIP := ip
 		if !originatorIP.IsValid() {
-			return nlri.Family{}, nil, nil, "", 0, errors.New("multicast route requires ip (originator)")
+			return nlriParseResult{}, errors.New("multicast route requires ip (originator)")
 		}
-		encodeArgs = append(encodeArgs, "type3", "rd", rd.String())
-		encodeArgs = append(encodeArgs, "ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10))
-		encodeArgs = append(encodeArgs, "ip", originatorIP.String())
+		encodeArgs = append(encodeArgs, "type3", "rd", rd.String(),
+			"ethernet-tag", strconv.FormatUint(uint64(ethernetTag), 10),
+			"ip", originatorIP.String())
 	}
 
 	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
 	if err != nil {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn encode: %w", err)
+		return nlriParseResult{}, fmt.Errorf("evpn encode: %w", err)
 	}
 	evpnBytes, err := hex.DecodeString(strings.ToLower(hexStr))
 	if err != nil {
-		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn hex decode: %w", err)
+		return nlriParseResult{}, fmt.Errorf("evpn hex decode: %w", err)
 	}
 	evpnNLRI, err := nlri.NewWireNLRI(family, evpnBytes, false)
 	if err != nil {
-		return nlri.Family{}, nil, nil, "", 0, err
+		return nlriParseResult{}, err
 	}
 
 	// Add to appropriate list
@@ -2254,10 +2260,10 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	}
 
 	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlri.Family{}, nil, nil, "", 0, route.ErrEmptyNLRISection
+		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	return family, announce, withdraw, "", consumed, nil
+	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
 }
 
 // parseMAC parses a MAC address string (e.g., "00:11:22:33:44:55").

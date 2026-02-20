@@ -50,7 +50,7 @@ func TestModelValidationOnLoad(t *testing.T) {
     hold-time 1;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -81,7 +81,7 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
     hold-time 2;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -115,7 +115,7 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
     hold-time 90;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -143,7 +143,7 @@ func TestModelStatusMessageDisplay(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -172,7 +172,7 @@ func TestModelStatusMessageClearsOnCommand(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -207,7 +207,7 @@ func TestModelStatusMessageClearsOnError(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -243,7 +243,7 @@ func TestModelRevalidatesOnDiscard(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Start with valid config
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -274,7 +274,7 @@ func TestModelValidationDebounce(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Start with valid config
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -337,7 +337,7 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
     hold-time 1;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -365,7 +365,7 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)

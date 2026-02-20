@@ -4,9 +4,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 )
 
 // TestUpdateBuild verifies building a valid ipv4/unicast UPDATE

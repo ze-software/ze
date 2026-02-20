@@ -6,10 +6,11 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
 // collisionAcceptWithReader handles net.Pipe's synchronous behavior by reading

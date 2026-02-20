@@ -40,7 +40,7 @@ func New(port int) *Server {
 }
 
 // Start begins listening for UDP syslog messages.
-// The server runs until Close() is called or context is cancelled.
+// The server runs until Close() is called or context is canceled.
 func (s *Server) Start(ctx context.Context) error {
 	addr := &net.UDPAddr{
 		IP:   net.ParseIP("127.0.0.1"),
@@ -67,7 +67,7 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
-// receive reads messages until context is cancelled or connection is closed.
+// receive reads messages until context is canceled or connection is closed.
 func (s *Server) receive(ctx context.Context) {
 	defer close(s.done)
 

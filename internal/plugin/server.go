@@ -51,6 +51,38 @@ type RPCParams struct {
 	Args     []string `json:"args,omitempty"`     // Command arguments (optional)
 }
 
+// Server manages API connections and command dispatch.
+type Server struct {
+	config        *ServerConfig
+	reactor       ReactorLifecycle
+	dispatcher    *Dispatcher
+	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
+	bgpHooks      *BGPHooks
+	commitManager any
+	procManager   *ProcessManager
+	subscriptions *SubscriptionManager // API-driven event subscriptions
+
+	// Plugin registration protocol
+	coordinator *StartupCoordinator // Stage synchronization
+	registry    *PluginRegistry     // Command/capability registry
+	capInjector *CapabilityInjector // Capability injection for OPEN
+
+	listener net.Listener
+	clients  map[string]*Client
+	clientID atomic.Uint64
+
+	running atomic.Bool
+
+	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+	mu     sync.RWMutex
+
+	reloadMu sync.Mutex // Prevents concurrent config reloads
+}
+
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.
 // Creates a CommandContext from the server state and extracts args from JSON params.
 func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
@@ -164,38 +196,6 @@ func (s *Server) handlePluginConflict(proc *Process, name, msg string, err error
 	}
 	logger().Error(msg, "plugin", name, "error", err)
 	proc.Stop()
-}
-
-// Server manages API connections and command dispatch.
-type Server struct {
-	config        *ServerConfig
-	reactor       ReactorLifecycle
-	dispatcher    *Dispatcher
-	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
-	bgpHooks      *BGPHooks
-	commitManager any
-	procManager   *ProcessManager
-	subscriptions *SubscriptionManager // API-driven event subscriptions
-
-	// Plugin registration protocol
-	coordinator *StartupCoordinator // Stage synchronization
-	registry    *PluginRegistry     // Command/capability registry
-	capInjector *CapabilityInjector // Capability injection for OPEN
-
-	listener net.Listener
-	clients  map[string]*Client
-	clientID atomic.Uint64
-
-	running atomic.Bool
-
-	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
-
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-	mu     sync.RWMutex
-
-	reloadMu sync.Mutex // Prevents concurrent config reloads
 }
 
 // Client represents a connected API client.
@@ -412,7 +412,7 @@ func (s *Server) runPluginPhase(plugins []PluginConfig) error {
 }
 
 // handleProcessCommandsSync handles commands from all processes and waits for completion.
-// Blocks until all plugins reach StageRunning or context is cancelled.
+// Blocks until all plugins reach StageRunning or context is canceled.
 // After StageRunning, starts async handlers for continued operation.
 func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
 	// Get all processes from the manager
@@ -1405,7 +1405,7 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 // DecodeNLRI decodes NLRI by routing to the appropriate family plugin via RPC.
 // Returns the JSON representation of the decoded NLRI.
 // Returns error if no plugin registered or plugin not running.
-func (s *Server) DecodeNLRI(family string, hexData string) (string, error) {
+func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 	if s.registry == nil || s.procManager == nil {
 		return "", fmt.Errorf("server not configured for plugins")
 	}

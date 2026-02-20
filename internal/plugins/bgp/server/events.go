@@ -130,7 +130,7 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerI
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
 // waits for all deliveries to complete. Used by non-cache-consumer event functions.
-func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output string, eventName string) {
+func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output, eventName string) {
 	results := make(chan plugin.EventResult, len(procs))
 	sent := 0
 

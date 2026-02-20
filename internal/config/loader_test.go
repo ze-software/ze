@@ -4,11 +4,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.
@@ -314,9 +315,9 @@ func TestBuildMUPNLRI_T1ST_Source(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mupFamily := "ipv4/mup"
+			mupFamily := familyIPv4MUP
 			if tt.config.IsIPv6 {
-				mupFamily = "ipv6/mup"
+				mupFamily = familyIPv6MUP
 			}
 			args := mupRouteConfigToArgs(tt.config)
 			nlriHex, err := registry.EncodeNLRIByFamily(mupFamily, args)

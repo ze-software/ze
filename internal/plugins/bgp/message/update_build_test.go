@@ -65,7 +65,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -96,7 +96,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -130,7 +130,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal(t *testing.T) {
 		LocalPreference:  100,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -211,7 +211,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_NoLinkLocal(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -256,7 +256,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4_IgnoresLinkLocal(t *testing.T) {
 		Origin:           attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -319,7 +319,7 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 		LocalPreference: 200,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -370,7 +370,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
 		ASPath:  []uint32{65002, 65003}, // Configured path
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -433,7 +433,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_IBGP(t *testing.T) {
 		ASPath:  []uint32{65002, 65003}, // Configured path
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
 	}
@@ -485,7 +485,7 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1 RD: 100:100
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
 	}
@@ -524,7 +524,7 @@ func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
 	}
@@ -559,7 +559,7 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 		LocalPreference: 150,
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
 	}
@@ -599,7 +599,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 		ExtCommunityBytes: rtBytes,
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
 	}
@@ -823,7 +823,7 @@ func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
 		ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
 	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
@@ -855,7 +855,7 @@ func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
 		LocalPreference: 200, // Should be ignored for eBGP
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// LOCAL_PREF (type 5) should NOT be present for eBGP
 	// Attribute header: flags (1 byte) + type 0x05
@@ -877,7 +877,7 @@ func TestBuildUnicast_ASN4Disabled(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// AS_PATH with 2-byte ASN: 40 02 04 02 01 00 64
 	// flags=0x40 (transitive), type=2 (AS_PATH), len=4
@@ -908,7 +908,7 @@ func TestBuildUnicast_ASN4Enabled(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// AS_PATH with 4-byte ASN: 40 02 06 02 01 00 00 fd e9
 	// flags=0x40 (transitive), type=2 (AS_PATH), len=6
@@ -1110,7 +1110,7 @@ func TestBuildVPN_ASN4Disabled(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 
 	// AS_PATH with 2-byte ASN: 40 02 04 02 01 00 64
 	// flags=0x40 (transitive), type=2 (AS_PATH), len=4
@@ -1143,7 +1143,7 @@ func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	update := ub.BuildLabeledUnicast(params)
+	update := ub.BuildLabeledUnicast(&params)
 
 	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
 	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
@@ -1298,7 +1298,7 @@ func TestBuildUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 		AggregatorIP:  [4]byte{192, 168, 1, 1},
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// AGGREGATOR with 2-byte ASN: C0 07 06 00 64 C0 A8 01 01
 	// flags=0xC0 (optional+transitive), type=7, len=6, ASN=100 (2 bytes), IP=192.168.1.1
@@ -1334,7 +1334,7 @@ func TestBuildVPN_Aggregator_ASN4Disabled(t *testing.T) {
 		AggregatorIP:  [4]byte{192, 168, 1, 1},
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 
 	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
 	if !bytes.Contains(update.PathAttributes, expected6Byte) {
@@ -1361,7 +1361,7 @@ func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 		AggregatorIP:  [4]byte{192, 168, 1, 1},
 	}
 
-	update := ub.BuildLabeledUnicast(params)
+	update := ub.BuildLabeledUnicast(&params)
 
 	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
 	if !bytes.Contains(update.PathAttributes, expected6Byte) {
@@ -1896,7 +1896,7 @@ func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 	}
 
 	// Very small maxSize - should fail
-	_, err := ub.BuildUnicastWithMaxSize(params, 30)
+	_, err := ub.BuildUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 	}
@@ -1920,7 +1920,7 @@ func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
 	}
 
 	// Large maxSize - should fit
-	update, err := ub.BuildUnicastWithMaxSize(params, 4096)
+	update, err := ub.BuildUnicastWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1945,7 +1945,7 @@ func TestBuildVPN_MaxSize_Fits(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	update, err := ub.BuildVPNWithMaxSize(params, 4096)
+	update, err := ub.BuildVPNWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1970,7 +1970,7 @@ func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
-	_, err := ub.BuildVPNWithMaxSize(params, 30)
+	_, err := ub.BuildVPNWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 	}
@@ -1994,7 +1994,7 @@ func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	update, err := ub.BuildLabeledUnicastWithMaxSize(params, 4096)
+	update, err := ub.BuildLabeledUnicastWithMaxSize(&params, 4096)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -2018,7 +2018,7 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	_, err := ub.BuildLabeledUnicastWithMaxSize(params, 30)
+	_, err := ub.BuildLabeledUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
 	}
@@ -2194,8 +2194,8 @@ func TestUpdateBuilderReuse(t *testing.T) {
 	}
 
 	// Build twice with same parameters
-	update1 := ub.BuildUnicast(params)
-	update2 := ub.BuildUnicast(params)
+	update1 := ub.BuildUnicast(&params)
+	update2 := ub.BuildUnicast(&params)
 
 	if !bytes.Equal(update1.PathAttributes, update2.PathAttributes) {
 		t.Error("PathAttributes differ between reused builds")
@@ -2212,10 +2212,10 @@ func TestUpdateBuilderReuse(t *testing.T) {
 		MED:              200,
 		LargeCommunities: [][3]uint32{{65001, 1, 2}},
 	}
-	_ = ub.BuildUnicast(otherParams)
+	_ = ub.BuildUnicast(&otherParams)
 
 	// Build original again — must still match
-	update3 := ub.BuildUnicast(params)
+	update3 := ub.BuildUnicast(&params)
 	if !bytes.Equal(update1.PathAttributes, update3.PathAttributes) {
 		t.Error("PathAttributes differ after interleaved build")
 	}

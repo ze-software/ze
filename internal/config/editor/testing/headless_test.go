@@ -26,7 +26,7 @@ const testConfig = `bgp {
 func TestHeadlessModelCreate(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -44,7 +44,7 @@ func TestHeadlessModelCreate(t *testing.T) {
 func TestHeadlessModelSendKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -68,7 +68,7 @@ func TestHeadlessModelSendKey(t *testing.T) {
 func TestHeadlessModelContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -92,7 +92,7 @@ func TestHeadlessModelContext(t *testing.T) {
 func TestHeadlessModelCompletions(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -113,7 +113,7 @@ func TestHeadlessModelCompletions(t *testing.T) {
 func TestHeadlessModelGhostText(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -132,7 +132,7 @@ func TestHeadlessModelValidationErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	// Write valid config
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -149,7 +149,7 @@ func TestHeadlessModelValidationErrors(t *testing.T) {
 func TestHeadlessModelDirty(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -166,7 +166,7 @@ func TestHeadlessModelDirty(t *testing.T) {
 func TestHeadlessModelStatusMessage(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -183,7 +183,7 @@ func TestHeadlessModelStatusMessage(t *testing.T) {
 func TestHeadlessModelError(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -208,7 +208,7 @@ func TestHeadlessModelError(t *testing.T) {
 func TestHeadlessModelIsTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -225,7 +225,7 @@ func TestHeadlessModelIsTemplate(t *testing.T) {
 func TestHeadlessModelShowDropdown(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -242,7 +242,7 @@ func TestHeadlessModelShowDropdown(t *testing.T) {
 func TestHeadlessModelWorkingContent(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)
@@ -261,7 +261,7 @@ func TestHeadlessModelWorkingContent(t *testing.T) {
 func TestHeadlessModelTypeAndEnter(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	err := os.WriteFile(configPath, []byte(testConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testConfig), 0o600)
 	require.NoError(t, err)
 
 	hm, err := NewHeadlessModel(configPath)

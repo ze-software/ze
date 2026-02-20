@@ -6,12 +6,13 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // parseSummaryJSON parses summary format JSON and returns the bgp payload.
@@ -195,11 +196,9 @@ func TestFormatSummaryMixed(t *testing.T) {
 	withdrawn := []byte{24, 10, 0, 0} // 10.0.0.0/24
 
 	var attrs []byte
-	// ORIGIN + AS_PATH + NEXT_HOP (required for legacy NLRI)
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00)        // origin igp
-	attrs = append(attrs, 0x40, 0x02, 0x00)              // empty as-path
-	attrs = append(attrs, 0x40, 0x03, 0x04, 10, 0, 0, 1) // next-hop 10.0.0.1
-	attrs = append(attrs, buildMPReachAttr(25, 70)...)   // MP_REACH l2vpn/evpn
+	// ORIGIN (igp) + AS_PATH (empty) + NEXT_HOP (10.0.0.1)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00, 0x40, 0x03, 0x04, 10, 0, 0, 1)
+	attrs = append(attrs, buildMPReachAttr(25, 70)...) // MP_REACH l2vpn/evpn
 
 	nlriBytes := []byte{24, 192, 168, 1} // 192.168.1.0/24
 

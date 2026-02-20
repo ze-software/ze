@@ -23,7 +23,7 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -56,7 +56,7 @@ func TestModelCommitConfirmBoundaryLow(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -81,7 +81,7 @@ func TestModelCommitConfirmBoundaryHigh(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -106,7 +106,7 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -128,8 +128,8 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	require.NoError(t, err)
 	model.ApplyResult(result)
 
-	// Timer should be cancelled
-	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled after confirm")
+	// Timer should be canceled
+	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled after confirm")
 	assert.Contains(t, result.statusMessage, "confirmed", "status should mention confirmed")
 }
 
@@ -145,7 +145,7 @@ func TestModelAbortRollsBack(t *testing.T) {
   router-id 1.2.3.4;
   local-as 65000;
 }`
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -169,8 +169,8 @@ func TestModelAbortRollsBack(t *testing.T) {
 	require.NoError(t, err)
 	model.ApplyResult(result)
 
-	// Timer should be cancelled
-	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled after abort")
+	// Timer should be canceled
+	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled after abort")
 	assert.Contains(t, result.statusMessage, "rolled back", "status should mention rollback")
 
 	// Content should be restored to original
@@ -189,9 +189,9 @@ func TestModelLoadFile(t *testing.T) {
 	originalContent := `bgp { router-id 1.2.3.4; }`
 	loadContent := `bgp { router-id 5.6.7.8; local-as 65000; }`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(loadPath, []byte(loadContent), 0600)
+	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -234,9 +234,9 @@ func TestModelLoadMerge(t *testing.T) {
   }
 }`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(mergePath, []byte(mergeContent), 0600)
+	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -270,7 +270,7 @@ func TestModelLoadNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -293,15 +293,15 @@ func TestModelLoadNotFound(t *testing.T) {
 func TestModelLoadRelativePath(t *testing.T) {
 	tmpDir := t.TempDir()
 	subDir := filepath.Join(tmpDir, "subdir")
-	err := os.MkdirAll(subDir, 0750)
+	err := os.MkdirAll(subDir, 0o750)
 	require.NoError(t, err)
 
 	configPath := filepath.Join(tmpDir, "test.conf")
 	loadPath := filepath.Join(tmpDir, "load.conf")
 
-	err = os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err = os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(loadPath, []byte(`bgp { router-id 9.9.9.9; }`), 0600)
+	err = os.WriteFile(loadPath, []byte(`bgp { router-id 9.9.9.9; }`), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -492,9 +492,9 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 	originalContent := `bgp { router-id 1.2.3.4; }`
 	loadContent := `bgp { router-id 5.6.7.8; local-as 65000; }`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(loadPath, []byte(loadContent), 0600)
+	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -535,9 +535,9 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
   }
 }`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(mergePath, []byte(mergeContent), 0600)
+	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -582,9 +582,9 @@ func TestLoadFileRelativeReplace(t *testing.T) {
 	loadContent := `peer-as 65002;
 description "new peer";`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(loadPath, []byte(loadContent), 0600)
+	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -633,9 +633,9 @@ func TestLoadFileRelativeMerge(t *testing.T) {
 	mergeContent := `description "merged peer";
 hold-time 180;`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(mergePath, []byte(mergeContent), 0600)
+	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -672,7 +672,7 @@ func TestLoadOldSyntaxRejected(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -696,7 +696,7 @@ func TestLoadOldMergeSyntaxRejected(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -720,7 +720,7 @@ func TestLoadTerminalEntersPasteMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -760,9 +760,9 @@ peer 1.1.1.1 {
   peer-as 65001;
 }`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(loadPath, []byte(loadContent), 0600)
+	err = os.WriteFile(loadPath, []byte(loadContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -820,9 +820,9 @@ func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
 	mergeContent := `local-as 65000;
 description "merged content";`
 
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(mergePath, []byte(mergeContent), 0600)
+	err = os.WriteFile(mergePath, []byte(mergeContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -873,7 +873,7 @@ func TestCommitConfirmTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -906,7 +906,7 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -937,7 +937,7 @@ func TestConfirmTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -966,7 +966,7 @@ func TestConfirmTriggersReload(t *testing.T) {
 	model.ApplyResult(confirmResult)
 
 	assert.Equal(t, 2, reloadCount, "second reload during confirm")
-	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled")
+	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled")
 	assert.Contains(t, confirmResult.statusMessage, "confirmed", "status should mention confirmed")
 }
 
@@ -978,7 +978,7 @@ func TestAbortTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -1007,6 +1007,6 @@ func TestAbortTriggersReload(t *testing.T) {
 	model.ApplyResult(abortResult)
 
 	assert.Equal(t, 2, reloadCount, "second reload during abort")
-	assert.False(t, model.ConfirmTimerActive(), "timer should be cancelled")
+	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled")
 	assert.Contains(t, abortResult.statusMessage, "rolled back", "status should mention rollback")
 }

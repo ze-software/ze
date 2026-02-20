@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	evpn "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-flowspec"
@@ -18,8 +21,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // getBGPPayload extracts the bgp payload from ze-bgp JSON format.
@@ -944,14 +945,9 @@ func buildTestUpdateBodyWithNLRIAndWithdrawn(announcePrefix netip.Prefix, nextHo
 		withdrawn = append(withdrawn, addr[:prefixBytes]...)
 	}
 
-	// Build attributes
+	// Build attributes: ORIGIN (igp) + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP
 	if nextHop.Is4() {
@@ -964,9 +960,9 @@ func buildTestUpdateBodyWithNLRIAndWithdrawn(announcePrefix netip.Prefix, nextHo
 	var nlri []byte
 	if announcePrefix.Addr().Is4() {
 		bits := announcePrefix.Bits()
-		nlri = append(nlri, byte(bits))
 		prefixBytes := (bits + 7) / 8
 		addr := announcePrefix.Addr().As4()
+		nlri = append(nlri, byte(bits))
 		nlri = append(nlri, addr[:prefixBytes]...)
 	}
 
@@ -983,13 +979,9 @@ func buildTestUpdateBodyWithNLRIAndWithdrawn(announcePrefix netip.Prefix, nextHo
 
 // buildTestUpdateBodyWithPathID builds UPDATE with path-id in NLRI (ADD-PATH).
 func buildTestUpdateBodyWithPathID(prefix netip.Prefix, nextHop netip.Addr, pathID uint32) []byte {
+	// ORIGIN (igp) + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP
 	if nextHop.Is4() {
@@ -1176,7 +1168,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 			output := sb.String()
 
 			// Verify RD in JSON output
-			assert.Contains(t, output, fmt.Sprintf(`"rd":"%s"`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
 				"JSON should contain RD with type prefix")
 		})
 	}
@@ -1322,7 +1314,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			output := sb.String()
 
 			// Verify prefix
-			assert.Contains(t, output, fmt.Sprintf(`"prefix":"%s"`, tc.prefix),
+			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tc.prefix),
 				"JSON should contain prefix")
 
 			// Verify labels
@@ -1357,13 +1349,9 @@ func buildTestUpdateBodyWithDualIPv4NextHop(
 	legacyPrefix netip.Prefix, legacyNextHop netip.Addr,
 	mpPrefix netip.Prefix, mpNextHop netip.Addr,
 ) []byte {
+	// ORIGIN (igp) + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP for legacy IPv4 NLRI
 	if legacyNextHop.Is4() {
@@ -1375,23 +1363,19 @@ func buildTestUpdateBodyWithDualIPv4NextHop(
 	// MP_REACH_NLRI for IPv4/unicast with different next-hop
 	// AFI=1 (IPv4), SAFI=1 (unicast), NH len=4, next-hop, reserved=0, NLRI
 	mpReach := make([]byte, 0, 16)
-	mpReach = append(mpReach, 0x00, 0x01) // AFI IPv4
-	mpReach = append(mpReach, 0x01)       // SAFI unicast
-	mpReach = append(mpReach, 0x04)       // NH len = 4
+	mpReach = append(mpReach, 0x00, 0x01, 0x01, 0x04) // AFI IPv4, SAFI unicast, NH len = 4
 	nhBytes := mpNextHop.As4()
 	mpReach = append(mpReach, nhBytes[:]...)
-	mpReach = append(mpReach, 0x00) // reserved
 
-	// IPv4 NLRI in MP_REACH
+	// Reserved + IPv4 NLRI in MP_REACH
 	bits := mpPrefix.Bits()
-	mpReach = append(mpReach, byte(bits))
 	prefixBytes := (bits + 7) / 8
 	addr := mpPrefix.Addr().As4()
+	mpReach = append(mpReach, 0x00, byte(bits))
 	mpReach = append(mpReach, addr[:prefixBytes]...)
 
 	// MP_REACH_NLRI attribute (optional, transitive)
-	attrs = append(attrs, 0x90, 0x0e) // flags=0x90, type=14
-	attrs = append(attrs, byte(len(mpReach)>>8), byte(len(mpReach)))
+	attrs = append(attrs, 0x90, 0x0e, byte(len(mpReach)>>8), byte(len(mpReach)))
 	attrs = append(attrs, mpReach...)
 
 	// Legacy IPv4 NLRI (in body, not attributes)
@@ -1480,11 +1464,11 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			output := sb.String()
 
 			// Verify prefix
-			assert.Contains(t, output, fmt.Sprintf(`"prefix":"%s"`, tc.prefix),
+			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tc.prefix),
 				"JSON should contain prefix")
 
 			// Verify RD with type prefix
-			assert.Contains(t, output, fmt.Sprintf(`"rd":"%s"`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
 				"JSON should contain RD with type prefix")
 
 			// Verify labels
@@ -1571,11 +1555,11 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			output := sb.String()
 
 			// Verify RD with type prefix
-			assert.Contains(t, output, fmt.Sprintf(`"rd":"%s"`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
 				"JSON should contain RD with type prefix")
 
 			// Verify structured component key exists (plugin uses structured JSON, not spec string)
-			assert.Contains(t, output, fmt.Sprintf(`"%s"`, tc.wantKey),
+			assert.Contains(t, output, fmt.Sprintf("%q", tc.wantKey),
 				"JSON should contain component key")
 
 			// Verify valid JSON
@@ -1801,8 +1785,8 @@ func TestEventJSONBgpTypeField(t *testing.T) {
 			assert.Equal(t, "bgp", result["type"])
 
 			// Event type is in bgp.message.type
-			bgpPayload := result["bgp"].(map[string]any)     //nolint:forcetypeassert // test
-			msgObj := bgpPayload["message"].(map[string]any) //nolint:forcetypeassert // test
+			bgpPayload := result["bgp"].(map[string]any)     //nolint:forcetypeassert,errcheck // test
+			msgObj := bgpPayload["message"].(map[string]any) //nolint:forcetypeassert,errcheck // test
 			assert.Equal(t, tt.wantType, msgObj["type"])
 		})
 	}

@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 var (

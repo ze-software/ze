@@ -16,6 +16,9 @@ linters:
       - path: cmd/
         linters:
           - forbidigo
+      # Bubbletea tea.Model interface requires value receivers — cannot use pointer
+      - path: "(internal/config/editor/model[^/]*|cmd/ze/cli/main)\\.go"
+        text: "hugeParam"
 
   enable:
     # Core linters
@@ -48,66 +51,71 @@ linters:
     - intrange
     - modernize
 
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+
+    govet:
+      disable:
+        - fieldalignment
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+      disabled-checks:
+        - builtinShadow
+        - commentedOutCode
+        - importShadow
+        - unnamedResult
+      settings:
+        hugeParam:
+          sizeThreshold: 256
+        rangeValCopy:
+          sizeThreshold: 128
+
+    gosec:
+      excludes:
+        - G104 # Errors unhandled — checked by errcheck linter instead
+        - G115 # Integer overflow conversion — intentional byte extraction in wire encoding
+        - G602 # Slice index out of range — false positives on bounded loops
+        - G703 # Path traversal — XDG config resolution uses env vars by design
+        - G704 # SSRF via taint — false positive on URL construction from constants
+        - G705 # XSS via taint — false positive on fmt.Fprintf to os.Stderr / io.Writer
+        - G706 # Log injection via taint — false positive on slog structured logging
+
+    misspell:
+      locale: US
+
+    nakedret:
+      max-func-lines: 30
+
+    prealloc:
+      simple: true
+      range-loops: true
+
+    dupl:
+      threshold: 150
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    exhaustive:
+      default-signifies-exhaustive: true
+
 formatters:
   enable:
     - gofmt
     - goimports
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-
-  govet:
-    enable-all: true
-
-  goimports:
-    local-prefixes: codeberg.org/thomas-mangin/ze
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    enabled-checks:
-      - hugeParam
-      - rangeValCopy
-    settings:
-      hugeParam:
-        sizeThreshold: 80
-      rangeValCopy:
-        sizeThreshold: 128
-
-  gosec:
-    excludes:
-      - G104
-
-  misspell:
-    locale: US
-
-  nakedret:
-    max-func-lines: 30
-
-  prealloc:
-    simple: true
-    range-loops: true
-
-  dupl:
-    threshold: 150
-
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-
-  exhaustive:
-    default-signifies-exhaustive: true
+  settings:
+    goimports:
+      local-prefixes:
+        - codeberg.org/thomas-mangin/ze
 
 issues:
-
-
   max-issues-per-linter: 50
   max-same-issues: 10
-
-output:
-  format: colored-line-number
-  sort-results: true

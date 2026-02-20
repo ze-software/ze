@@ -135,7 +135,7 @@ func TestPIDFileRelease(t *testing.T) {
 	// Should be able to acquire again
 	pf2, err := Acquire(pidPath, configPath)
 	require.NoError(t, err)
-	defer pf2.Release()
+	pf2.Release()
 }
 
 // TestPIDFileStaleDetection verifies stale PID file detection.

@@ -169,7 +169,7 @@ option=file:path=test.conf
 expect=context:root
 `
 	etPath := filepath.Join(tmpDir, "test.et")
-	err := os.WriteFile(etPath, []byte(etContent), 0600)
+	err := os.WriteFile(etPath, []byte(etContent), 0o600)
 	require.NoError(t, err)
 
 	result := RunETFile(etPath)

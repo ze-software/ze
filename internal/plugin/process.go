@@ -580,7 +580,7 @@ func (p *Process) relayStderr() {
 }
 
 // Stop terminates the process.
-// For external plugins, cancelling context kills the process via exec.CommandContext.
+// For external plugins, canceling context kills the process via exec.CommandContext.
 // For internal plugins, closing RPC connections unblocks the plugin's reads and causes it to exit.
 func (p *Process) Stop() {
 	if p.cancel != nil {
@@ -588,7 +588,7 @@ func (p *Process) Stop() {
 	}
 
 	// Close event channel first — delivery goroutine drains remaining items
-	// (which fail fast since context is cancelled) then exits.
+	// (which fail fast since context is canceled) then exits.
 	p.stopEventChan()
 
 	// Close connections to unblock pending reads and writes.
@@ -649,7 +649,7 @@ func (p *Process) monitor() {
 
 	p.running.Store(false)
 
-	// Cancel context. Safe even if Stop() already cancelled it (cancel is idempotent).
+	// Cancel context. Safe even if Stop() already canceled it (cancel is idempotent).
 	if p.cancel != nil {
 		p.cancel()
 	}

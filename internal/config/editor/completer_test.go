@@ -3,9 +3,10 @@ package editor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 func TestCompleterCommands(t *testing.T) {

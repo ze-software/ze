@@ -94,8 +94,8 @@ func Run(events []peer.Event, cfg Config) (*Result, error) {
 // findViolation replays events through all properties and returns the first violation.
 func findViolation(events []peer.Event, cfg Config) *validation.Violation {
 	engine := newEngine(cfg)
-	for _, ev := range events {
-		engine.ProcessEvent(ev)
+	for i := range events {
+		engine.ProcessEvent(events[i])
 	}
 	violations := engine.AllViolations()
 	if len(violations) == 0 {
@@ -107,8 +107,8 @@ func findViolation(events []peer.Event, cfg Config) *validation.Violation {
 // hasViolation checks if replaying events triggers a violation for the named property.
 func hasViolation(events []peer.Event, property string, cfg Config) bool {
 	engine := newEngine(cfg)
-	for _, ev := range events {
-		engine.ProcessEvent(ev)
+	for i := range events {
+		engine.ProcessEvent(events[i])
 	}
 	for _, v := range engine.AllViolations() {
 		if v.Property == property {

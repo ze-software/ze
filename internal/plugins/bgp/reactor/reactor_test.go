@@ -11,13 +11,14 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // findMPAttribute scans attribute bytes for an MP attribute and validates AFI/SAFI.
@@ -262,7 +263,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 //
 // VALIDATES: Reactor respects context cancellation.
 //
-// PREVENTS: Orphaned resources when parent context is cancelled.
+// PREVENTS: Orphaned resources when parent context is canceled.
 func TestReactorContextCancellation(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",

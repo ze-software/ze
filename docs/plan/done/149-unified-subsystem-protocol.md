@@ -135,7 +135,7 @@ type Transport interface {
     // Send a text line to the other side
     Send(line string) error
 
-    // Receive blocks until a line arrives or context cancelled
+    // Receive blocks until a line arrives or context canceled
     Receive(ctx context.Context) (string, error)
 
     // Close terminates the transport

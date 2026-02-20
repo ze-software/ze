@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -48,7 +49,7 @@ func TestRouteStore_InternNLRI(t *testing.T) {
 	r2 := store.InternNLRI(n2)
 
 	// Should return equal NLRIs (same bytes)
-	if string(r1.Bytes()) != string(r2.Bytes()) {
+	if !bytes.Equal(r1.Bytes(), r2.Bytes()) {
 		t.Error("identical NLRIs should return same bytes")
 	}
 }

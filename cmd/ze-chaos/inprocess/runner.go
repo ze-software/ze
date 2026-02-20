@@ -80,7 +80,7 @@ type RunResult struct {
 // network and virtual clock, connects peer simulators via net.Pipe(), and
 // advances virtual time to drive the simulation to completion.
 //
-// The function blocks until Duration virtual time has elapsed or ctx is cancelled.
+// The function blocks until Duration virtual time has elapsed or ctx is canceled.
 func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Assign unique per-peer addresses (127.0.0.{2+i}) to avoid reactor map collision.
 	// Set all peers to passive so the reactor only accepts incoming connections
@@ -159,8 +159,8 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// The channel must be large enough to absorb bursts without blocking the
 	// readLoop (which would cause TCP backpressure deadlocks).
 	evBuf := 0
-	for _, p := range cfg.Profiles {
-		evBuf += p.RouteCount * max(len(p.Families), 1)
+	for i := range cfg.Profiles {
+		evBuf += cfg.Profiles[i].RouteCount * max(len(cfg.Profiles[i].Families), 1)
 	}
 	evBuf = min(max(evBuf, 65536), 500_000)
 	events := make(chan peer.Event, evBuf)
@@ -173,7 +173,8 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	localTCPAddr := &net.TCPAddr{IP: net.ParseIP(cfg.LocalAddr), Port: 179}
 	peerConns := make([]net.Conn, len(cfg.Profiles))
 
-	for i, profile := range cfg.Profiles {
+	for i := range cfg.Profiles {
+		profile := cfg.Profiles[i]
 		peerEnd, reactorEnd, pairErr := cpm.NewPair()
 		if pairErr != nil {
 			return nil, fmt.Errorf("create connection pair %d: %w", i, pairErr)

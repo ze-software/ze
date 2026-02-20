@@ -154,7 +154,7 @@ func TestServerClose(t *testing.T) {
 	}
 }
 
-// TestContextCancellation verifies server stops when context is cancelled.
+// TestContextCancellation verifies server stops when context is canceled.
 //
 // VALIDATES: Server respects context cancellation.
 // PREVENTS: Server running after test timeout.

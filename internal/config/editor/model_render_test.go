@@ -202,7 +202,7 @@ func TestModelContextHighlighting(t *testing.T) {
     hold-time notanumber;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -235,7 +235,7 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigOneLine), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)

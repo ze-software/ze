@@ -75,9 +75,9 @@ func TestTransaction_AnnounceThenWithdraw(t *testing.T) {
 	n := testNLRI("10.0.0.0/24")
 	tx.QueueWithdraw(n)
 
-	// Announce should be cancelled, net result is just withdrawal
+	// Announce should be canceled, net result is just withdrawal
 	if tx.Count() != 0 {
-		t.Errorf("expected 0 routes after withdraw cancelled announce, got %d", tx.Count())
+		t.Errorf("expected 0 routes after withdraw canceled announce, got %d", tx.Count())
 	}
 	if tx.WithdrawalCount() != 1 {
 		t.Errorf("expected 1 withdrawal, got %d", tx.WithdrawalCount())

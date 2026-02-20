@@ -4,9 +4,10 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 )
 
 // =============================================================================
@@ -351,8 +352,7 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	// Each /64 = 9 bytes (1 len + 8 prefix bytes)
 	var nlri []byte
 	for i := range 50 {
-		nlri = append(nlri, 0x40) // /64
-		nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
+		nlri = append(nlri, 0x40, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00) // /64
 	}
 
 	mp := &attribute.MPReachNLRI{
@@ -427,8 +427,7 @@ func TestSplitMPUnreachNLRI_Overflow(t *testing.T) {
 	// Create large NLRI
 	var nlri []byte
 	for i := range 50 {
-		nlri = append(nlri, 0x40)
-		nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
+		nlri = append(nlri, 0x40, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
 	}
 
 	mp := &attribute.MPUnreachNLRI{
@@ -468,11 +467,11 @@ func TestSplitMPReachNLRI_VPN(t *testing.T) {
 	for i := range 20 {
 		// /32 VPN prefix: len=88 (24 label + 64 RD + 32 prefix bits = 120 bits)
 		// Actually: 88 bits = 11 bytes payload
-		nlri = append(nlri, 88)                                // prefix len in bits
-		nlri = append(nlri, 0x00, 0x00, byte(i+1))             // label (3 bytes)
-		nlri = append(nlri, 0x00, 0x01, 0x00, 0x00, 0x00, 100) // RD type 1
-		nlri = append(nlri, 0x00, byte(i))                     // RD local
-		nlri = append(nlri, 10, 0, byte(i), 0)                 // /32 prefix
+		nlri = append(nlri, 88, // prefix len in bits
+			0x00, 0x00, byte(i+1), // label (3 bytes)
+			0x00, 0x01, 0x00, 0x00, 0x00, 100, // RD type 1
+			0x00, byte(i), // RD local
+			10, 0, byte(i), 0) // /32 prefix
 	}
 
 	mp := &attribute.MPReachNLRI{
@@ -507,10 +506,8 @@ func TestSplitUpdateWithAddPath_IPv4(t *testing.T) {
 	// Each /24 with path-id = 4 + 1 + 3 = 8 bytes
 	var nlri []byte
 	for i := range 20 {
-		// Path ID (4 bytes)
-		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
-		// /24 prefix
-		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
+		// Path ID (4 bytes) + /24 prefix
+		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1), 0x18, 0xC0, 0xA8, byte(i))
 	}
 
 	u := &Update{
@@ -547,10 +544,8 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 	// Each /64 with path-id = 4 + 1 + 8 = 13 bytes
 	var nlri []byte
 	for i := range 20 {
-		// Path ID (4 bytes)
-		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1))
-		// /64 prefix (1 + 8 bytes)
-		nlri = append(nlri, 0x40, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
+		// Path ID (4 bytes) + /64 prefix (1 + 8 bytes)
+		nlri = append(nlri, 0x00, 0x00, 0x00, byte(i+1), 0x40, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
 	}
 
 	mp := &attribute.MPReachNLRI{
@@ -582,10 +577,8 @@ func TestSplitUpdateWithAddPath_Withdrawal(t *testing.T) {
 	// Add-Path withdrawn NLRI
 	var withdrawn []byte
 	for i := range 20 {
-		// Path ID (4 bytes)
-		withdrawn = append(withdrawn, 0x00, 0x00, 0x00, byte(i+1))
-		// /24 prefix
-		withdrawn = append(withdrawn, 0x18, 0x0A, 0x00, byte(i))
+		// Path ID (4 bytes) + /24 prefix
+		withdrawn = append(withdrawn, 0x00, 0x00, 0x00, byte(i+1), 0x18, 0x0A, 0x00, byte(i))
 	}
 
 	u := &Update{
@@ -813,8 +806,7 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 
 	// AS_PATH: 50 ASNs = 200 bytes of AS numbers
 	asPath := make([]byte, 0, 205)
-	asPath = append(asPath, 0x40, 0x02, 0xC8) // Extended length, code 2, length 200
-	asPath = append(asPath, 0x02, 0x32)       // AS_SEQUENCE, 50 ASNs
+	asPath = append(asPath, 0x40, 0x02, 0xC8, 0x02, 0x32) // Extended length, code 2, len 200, AS_SEQUENCE, 50 ASNs
 	for i := range 50 {
 		asPath = append(asPath, 0x00, 0x00, byte(i>>8), byte(i))
 	}
@@ -1029,8 +1021,7 @@ func TestSplitUpdate_BGPLS_TooLarge(t *testing.T) {
 	// BGP-LS NLRI: [type:2][length:2][payload]
 	// Create single large NLRI that exceeds typical message size
 	bgplsNLRI := make([]byte, 0, 260)
-	bgplsNLRI = append(bgplsNLRI, 0, 1)                 // type = Node (2 bytes)
-	bgplsNLRI = append(bgplsNLRI, 0x01, 0x00)           // length = 256 bytes (2 bytes)
+	bgplsNLRI = append(bgplsNLRI, 0, 1, 0x01, 0x00)     // type=Node (2 bytes), length=256 (2 bytes)
 	bgplsNLRI = append(bgplsNLRI, make([]byte, 256)...) // payload
 	// Total: 4 + 256 = 260 bytes
 

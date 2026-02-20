@@ -4,10 +4,11 @@ import (
 	"encoding/binary"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // noAddPathCtx is an encoding context without ADD-PATH, for tests that don't need ADD-PATH.
@@ -188,8 +189,7 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	// Each /24 with path-id = 4 + 1 + 3 = 8 bytes
 	var nlriData []byte
 	for i := range 20 {
-		nlriData = append(nlriData, 0x00, 0x00, 0x00, byte(i+1)) // path-id
-		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i))   // /24
+		nlriData = append(nlriData, 0x00, 0x00, 0x00, byte(i+1), 0x18, 0xC0, 0xA8, byte(i)) // path-id + /24
 	}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 	payload := buildTestUpdatePayload(nil, attrs, nlriData)
@@ -295,9 +295,9 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 
 	var mpNLRIs []byte
 	for i := range 10 {
-		mpNLRIs = append(mpNLRIs, 0x00, 0x00, 0x00, byte(i+1)) // path-id
-		mpNLRIs = append(mpNLRIs, 0x40)                        // /64
-		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00)
+		mpNLRIs = append(mpNLRIs, 0x00, 0x00, 0x00, byte(i+1), // path-id
+			0x40, // /64
+			0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00)
 	}
 
 	// Build MP_REACH attribute
@@ -314,8 +314,7 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	mpReachValue = append(mpReachValue, mpNLRIs...)
 
 	mpReach := make([]byte, 0, 4+len(mpReachValue))
-	mpReach = append(mpReach, 0x90, 0x0E) // Optional, Extended
-	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
+	mpReach = append(mpReach, 0x90, 0x0E, byte(len(mpReachValue)>>8), byte(len(mpReachValue))) // Optional, Extended, length
 	mpReach = append(mpReach, mpReachValue...)
 
 	// Base attrs: just ORIGIN
@@ -520,8 +519,7 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	// Keep it small: 5 /64s = 45 bytes NLRI
 	mpNLRIs := make([]byte, 0, 5*9) // 5 * (1 prefix len + 8 prefix bytes)
 	for i := range 5 {
-		mpNLRIs = append(mpNLRIs, 0x40)                                              // /64
-		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
+		mpNLRIs = append(mpNLRIs, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // /64 prefix
 	}
 
 	mpReachHdr := []byte{
@@ -537,8 +535,7 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	mpReachValue = append(mpReachValue, mpNLRIs...)
 
 	mpReach := make([]byte, 0, 4+len(mpReachValue))
-	mpReach = append(mpReach, 0x90, 0x0E) // Optional, Extended
-	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
+	mpReach = append(mpReach, 0x90, 0x0E, byte(len(mpReachValue)>>8), byte(len(mpReachValue))) // Optional, Extended, length
 	mpReach = append(mpReach, mpReachValue...)
 
 	// Base attrs: ORIGIN + MP_REACH
@@ -824,8 +821,7 @@ func TestSplitMPReach_Split(t *testing.T) {
 	// Build MP_REACH with many NLRIs
 	var nlris []byte
 	for i := range 20 {
-		nlris = append(nlris, 0x40)                                              // /64
-		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
+		nlris = append(nlris, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // /64 prefix
 	}
 
 	mpReachHeaderData := []byte{
@@ -841,8 +837,7 @@ func TestSplitMPReach_Split(t *testing.T) {
 	mpReachValue = append(mpReachValue, nlris...)
 
 	mpReach := make([]byte, 0, 4+len(mpReachValue))
-	mpReach = append(mpReach, 0x90, 0x0E)
-	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
+	mpReach = append(mpReach, 0x90, 0x0E, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
 	mpReach = append(mpReach, mpReachValue...)
 
 	// Split with small maxBytes
@@ -915,8 +910,7 @@ func TestSplitMPUnreach_Split(t *testing.T) {
 	// Build MP_UNREACH with many NLRIs
 	var nlris []byte
 	for i := range 20 {
-		nlris = append(nlris, 0x40)                                              // /64
-		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
+		nlris = append(nlris, 0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // /64 prefix
 	}
 
 	mpUnreachHeaderData := []byte{
@@ -928,8 +922,7 @@ func TestSplitMPUnreach_Split(t *testing.T) {
 	mpUnreachValue = append(mpUnreachValue, nlris...)
 
 	mpUnreach := make([]byte, 0, 4+len(mpUnreachValue))
-	mpUnreach = append(mpUnreach, 0x90, 0x0F)
-	mpUnreach = append(mpUnreach, byte(len(mpUnreachValue)>>8), byte(len(mpUnreachValue)))
+	mpUnreach = append(mpUnreach, 0x90, 0x0F, byte(len(mpUnreachValue)>>8), byte(len(mpUnreachValue)))
 	mpUnreach = append(mpUnreach, mpUnreachValue...)
 
 	// Split with small maxBytes

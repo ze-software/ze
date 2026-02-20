@@ -105,7 +105,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 		for {
 			req, readErr := connA.ReadRequest(handlerCtx)
 			if readErr != nil {
-				return // Connection closed or context cancelled
+				return // Connection closed or context canceled
 			}
 
 			if req.Method == "ze-plugin-engine:update-route" {

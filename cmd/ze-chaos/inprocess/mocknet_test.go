@@ -140,11 +140,11 @@ func TestMockDialerNoConn(t *testing.T) {
 	}
 }
 
-// TestMockDialerContextCancelled verifies MockDialer respects context cancellation.
+// TestMockDialerContextcanceled verifies MockDialer respects context cancellation.
 //
-// VALIDATES: DialContext returns error when context is cancelled.
+// VALIDATES: DialContext returns error when context is canceled.
 // PREVENTS: Mock dialer ignoring context.
-func TestMockDialerContextCancelled(t *testing.T) {
+func TestMockDialerContextcanceled(t *testing.T) {
 	md := NewMockDialer()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -152,7 +152,7 @@ func TestMockDialerContextCancelled(t *testing.T) {
 
 	_, err := md.DialContext(ctx, "tcp", "127.0.0.1:1790")
 	if err == nil {
-		t.Fatal("DialContext should return error for cancelled context")
+		t.Fatal("DialContext should return error for canceled context")
 	}
 }
 

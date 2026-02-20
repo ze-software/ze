@@ -42,7 +42,7 @@ func newTestProcWithConn(t *testing.T, name string) (*plugin.Process, *plugin.Pl
 }
 
 // mockPluginResponder reads deliver-event RPCs and responds after a delay.
-// Exits when context is cancelled or connection closes.
+// Exits when context is canceled or connection closes.
 func mockPluginResponder(ctx context.Context, pluginConn *plugin.PluginConn, delay time.Duration) {
 	for {
 		req, err := pluginConn.ReadRequest(ctx)

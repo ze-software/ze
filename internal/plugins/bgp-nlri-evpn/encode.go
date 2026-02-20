@@ -95,9 +95,9 @@ func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 		evpnNLRI = NewEVPNType2(rd, esiArr, r.EthernetTag, mac, r.IP, labels)
 	case "multicast":
 		evpnNLRI = NewEVPNType3(rd, r.EthernetTag, r.NextHop)
-	case "ethernet-segment":
+	case RouteNameEthernetSegment:
 		evpnNLRI = NewEVPNType4(rd, esiArr, r.NextHop)
-	case "ip-prefix":
+	case RouteNameIPPrefix:
 		var labels []uint32
 		if r.Label1 != 0 {
 			labels = []uint32{r.Label1}
@@ -151,12 +151,12 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 	switch routeType {
 	case "mac-ip", "macip", "type2":
 		route.RouteType = "mac-ip"
-	case "ip-prefix", "ipprefix", "type5":
-		route.RouteType = "ip-prefix"
-	case "multicast", "inclusive-multicast", "type3":
+	case RouteNameIPPrefix, "ipprefix", "type5":
+		route.RouteType = RouteNameIPPrefix
+	case "multicast", RouteNameInclusiveMulticast, "type3":
 		route.RouteType = "multicast"
-	case "ethernet-segment", "es", "type4":
-		route.RouteType = "ethernet-segment"
+	case RouteNameEthernetSegment, "es", "type4":
+		route.RouteType = RouteNameEthernetSegment
 	case "ethernet-ad", "ead", "type1":
 		route.RouteType = "ethernet-ad"
 	default:
@@ -232,7 +232,7 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 		return route, fmt.Errorf("missing mac address")
 	}
 
-	if route.RouteType == "ip-prefix" && !route.Prefix.IsValid() {
+	if route.RouteType == RouteNameIPPrefix && !route.Prefix.IsValid() {
 		return route, fmt.Errorf("missing prefix")
 	}
 

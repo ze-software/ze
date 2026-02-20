@@ -46,7 +46,7 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := s.builder.BuildUnicast(params)
+	update := s.builder.BuildUnicast(&params)
 	if update == nil {
 		return nil
 	}
@@ -115,7 +115,7 @@ func (s *Sender) BuildVPNRoute(route scenario.VPNRoute) []byte {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := s.builder.BuildVPN(params)
+	update := s.builder.BuildVPN(&params)
 	if update == nil {
 		return nil
 	}

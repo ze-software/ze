@@ -53,7 +53,7 @@ func (sw *syncWriter) Write(p []byte) (int, error) {
 	return n, err
 }
 
-// WaitFor waits until the pattern is found or context is cancelled.
+// WaitFor waits until the pattern is found or context is canceled.
 // Returns true if pattern was found, false on timeout/cancel.
 func (sw *syncWriter) WaitFor(ctx context.Context) bool {
 	// Poll with small intervals to support context cancellation.
@@ -658,6 +658,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	var peerStderr strings.Builder
 	var clientStdout, clientStderr strings.Builder
 
+	// Track temp files for cleanup after loop (avoid defer in loop)
+	var tmpFilesToClean []string
+	defer func() {
+		for _, name := range tmpFilesToClean {
+			os.Remove(name) //nolint:errcheck // best-effort temp file cleanup
+		}
+	}()
+
 	// Execute commands in order
 	for _, cmd := range cmds {
 		// Expand $PORT in exec string
@@ -715,9 +723,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				return false
 			}
 			logger().Debug("writing peer expect file", "path", tmpFile.Name(), "size", len(stdinContent), "content", string(stdinContent))
-			defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
+			tmpFilesToClean = append(tmpFilesToClean, tmpFile.Name())
 			if _, err := tmpFile.Write(stdinContent); err != nil {
-				_ = tmpFile.Close()
+				tmpFile.Close() //nolint:errcheck,gosec // best-effort close on write error
 				rec.Error = fmt.Errorf("write peer expect file: %w", err)
 				return false
 			}
@@ -734,37 +742,38 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
 		if binName == "ze" && stdinContent != nil {
 			for i, arg := range args {
-				if arg == "-" {
-					var tmpFile *os.File
-					var err error
-					if rec.TmpfsTempDir != "" {
-						// Write config to tmpfs dir so relative plugin paths work
-						configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
-						tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
-					} else {
-						tmpFile, err = os.CreateTemp("", "ze-config-*.conf")
-					}
-					if err != nil {
-						rec.Error = fmt.Errorf("create temp config file: %w", err)
-						return false
-					}
-					if rec.TmpfsTempDir == "" {
-						// Only cleanup if not in tmpfs dir (tmpfs cleanup handles it)
-						defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
-					}
-					if _, err := tmpFile.Write(stdinContent); err != nil {
-						_ = tmpFile.Close()
-						rec.Error = fmt.Errorf("write config file: %w", err)
-						return false
-					}
-					if err := tmpFile.Close(); err != nil {
-						rec.Error = fmt.Errorf("close config file: %w", err)
-						return false
-					}
-					args[i] = tmpFile.Name()
-					stdinContent = nil // Don't pipe to stdin
-					break
+				if arg != "-" {
+					continue
 				}
+				var tmpFile *os.File
+				var err error
+				if rec.TmpfsTempDir != "" {
+					// Write config to tmpfs dir so relative plugin paths work
+					configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
+					tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
+				} else {
+					tmpFile, err = os.CreateTemp("", "ze-config-*.conf")
+				}
+				if err != nil {
+					rec.Error = fmt.Errorf("create temp config file: %w", err)
+					return false
+				}
+				if rec.TmpfsTempDir == "" {
+					// Only cleanup if not in tmpfs dir (tmpfs cleanup handles it)
+					tmpFilesToClean = append(tmpFilesToClean, tmpFile.Name())
+				}
+				if _, err := tmpFile.Write(stdinContent); err != nil {
+					tmpFile.Close() //nolint:errcheck,gosec // best-effort close on write error
+					rec.Error = fmt.Errorf("write config file: %w", err)
+					return false
+				}
+				if err := tmpFile.Close(); err != nil {
+					rec.Error = fmt.Errorf("close config file: %w", err)
+					return false
+				}
+				args[i] = tmpFile.Name()
+				stdinContent = nil // Don't pipe to stdin
+				break
 			}
 		}
 
@@ -779,7 +788,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
 			fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
-			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/scripts")),
+			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test", "scripts")),
 			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
 		)
@@ -1038,10 +1047,10 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 	var lastErr error
 	for attempt := range maxRetries {
 		if ctx.Err() != nil {
-			return fmt.Errorf("http %s %s: context cancelled", chk.Method, url)
+			return fmt.Errorf("http %s %s: context canceled", chk.Method, url)
 		}
 
-		req, err := http.NewRequestWithContext(ctx, strings.ToUpper(chk.Method), url, nil)
+		req, err := http.NewRequestWithContext(ctx, strings.ToUpper(chk.Method), url, http.NoBody)
 		if err != nil {
 			return fmt.Errorf("http %s %s: invalid request: %w", chk.Method, url, err)
 		}

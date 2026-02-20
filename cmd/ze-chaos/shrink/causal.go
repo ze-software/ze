@@ -22,7 +22,7 @@ func RemoveWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 
 	result := make([]peer.Event, 0, len(events))
 
-	for j, ev := range events {
+	for j := range events {
 		if j == removeIdx {
 			// Skip the removed event without updating state.
 			continue
@@ -31,17 +31,17 @@ func RemoveWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 		// For events after the removal point, check preconditions.
 		if j > removeIdx {
 			skip := false
-			switch ev.Type { //nolint:exhaustive // only relevant types checked
+			switch events[j].Type { //nolint:exhaustive // only relevant types checked
 			case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 				peer.EventEORSent, peer.EventWithdrawalSent, peer.EventChaosExecuted,
 				peer.EventError:
 				// These all require the peer to be established.
-				if !established[ev.PeerIndex] {
+				if !established[events[j].PeerIndex] {
 					skip = true
 				}
 			case peer.EventDisconnected:
 				// Can't disconnect a peer that isn't connected.
-				if !established[ev.PeerIndex] {
+				if !established[events[j].PeerIndex] {
 					skip = true
 				}
 			}
@@ -51,14 +51,14 @@ func RemoveWithDependents(events []peer.Event, removeIdx int) []peer.Event {
 		}
 
 		// Update tracked state.
-		switch ev.Type { //nolint:exhaustive // only state-changing types matter
+		switch events[j].Type { //nolint:exhaustive // only state-changing types matter
 		case peer.EventEstablished:
-			established[ev.PeerIndex] = true
+			established[events[j].PeerIndex] = true
 		case peer.EventDisconnected:
-			established[ev.PeerIndex] = false
+			established[events[j].PeerIndex] = false
 		}
 
-		result = append(result, ev)
+		result = append(result, events[j])
 	}
 
 	return result

@@ -251,7 +251,7 @@ func (rs *RouteServer) drainWork() {
 
 // dispatch routes an event to the appropriate handler.
 //
-// Events with unrecognised types are silently ignored. This includes "borr" and "eorr"
+// Events with unrecognized types are silently ignored. This includes "borr" and "eorr"
 // (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
 // subscription but encodes with distinct message.type values. A forward-all route server
 // has no use for refresh-cycle boundaries — it only forwards standard refresh requests.

@@ -66,8 +66,7 @@ func BuildOpen(cfg SessionConfig) *message.Open {
 			SAFI: pair.safi,
 		})
 	}
-	caps = append(caps, &capability.ASN4{ASN: cfg.ASN})
-	caps = append(caps, &capability.RouteRefresh{})
+	caps = append(caps, &capability.ASN4{ASN: cfg.ASN}, &capability.RouteRefresh{})
 
 	optParams := buildOptionalParams(caps)
 

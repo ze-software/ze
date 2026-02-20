@@ -185,7 +185,7 @@ func TestSSEServeHTTP(t *testing.T) {
 	// Send an event before connecting (should not matter).
 	broker.Broadcast(SSEEvent{Event: "early", Data: "skip"})
 
-	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, nil)
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, http.NoBody)
 	if reqErr != nil {
 		t.Fatalf("new request: %v", reqErr)
 	}
@@ -232,7 +232,7 @@ func TestSSEMultiLineData(t *testing.T) {
 	ts := httptest.NewServer(broker)
 	defer ts.Close()
 
-	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, nil)
+	req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, ts.URL, http.NoBody)
 	if reqErr != nil {
 		t.Fatalf("new request: %v", reqErr)
 	}

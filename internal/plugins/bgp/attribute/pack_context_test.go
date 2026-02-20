@@ -5,9 +5,10 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
-	"github.com/stretchr/testify/require"
 )
 
 // Test contexts for WriteToWithContext tests.

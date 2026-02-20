@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -465,7 +466,7 @@ func (r *DecodingRunner) compareJSON(test *DecodingTest) bool {
 	actualBytes, _ := json.Marshal(actual)
 	expectedBytes, _ := json.Marshal(expected)
 
-	if string(actualBytes) != string(expectedBytes) {
+	if !bytes.Equal(actualBytes, expectedBytes) {
 		diff := ColoredCharDiff(string(expectedBytes), string(actualBytes))
 		test.Error = fmt.Errorf("JSON mismatch\n%s", diff)
 		return false

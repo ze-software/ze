@@ -1,6 +1,7 @@
 package attribute
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -200,7 +201,7 @@ func TestWriteAttrToWithContext_Consistency(t *testing.T) {
 				}
 
 				actual := buf[:written]
-				if string(actual) != string(expected) {
+				if !bytes.Equal(actual, expected) {
 					t.Errorf("Wire format mismatch:\n  got:  %x\n  want: %x",
 						actual, expected)
 				}

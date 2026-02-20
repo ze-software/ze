@@ -3,6 +3,7 @@
 package config
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -813,9 +814,9 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 	}
 
 	// Build MUP NLRI via registry (avoids direct plugin import)
-	mupFamily := "ipv4/mup"
+	mupFamily := familyIPv4MUP
 	if mr.IsIPv6 {
-		mupFamily = "ipv6/mup"
+		mupFamily = familyIPv6MUP
 	}
 	mupArgs := mupRouteConfigToArgs(mr)
 	nlriHex, err := registry.EncodeNLRIByFamily(mupFamily, mupArgs)
@@ -977,7 +978,7 @@ func expandPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
 
 // addToAddr adds an offset to an address at the given prefix boundary.
 // Identical to route.addToAddr — not consolidated because config must not import plugin packages.
-func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
+func addToAddr(addr netip.Addr, offset, prefixLen int) netip.Addr {
 	if offset == 0 {
 		return addr
 	}
@@ -1013,10 +1014,8 @@ func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
 		lo = newLo
 	}
 
-	return netip.AddrFrom16([16]byte{
-		byte(hi >> 56), byte(hi >> 48), byte(hi >> 40), byte(hi >> 32),
-		byte(hi >> 24), byte(hi >> 16), byte(hi >> 8), byte(hi),
-		byte(lo >> 56), byte(lo >> 48), byte(lo >> 40), byte(lo >> 32),
-		byte(lo >> 24), byte(lo >> 16), byte(lo >> 8), byte(lo),
-	})
+	var b16 [16]byte
+	binary.BigEndian.PutUint64(b16[:8], hi)
+	binary.BigEndian.PutUint64(b16[8:], lo)
+	return netip.AddrFrom16(b16)
 }

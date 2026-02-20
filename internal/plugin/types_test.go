@@ -112,7 +112,7 @@ func TestResponseMarshalFormat(t *testing.T) {
 			assert.Len(t, result, 2, "top-level should only have 'type' and 'response'")
 
 			// Check nested response has expected keys
-			respObj := result["response"].(map[string]any) //nolint:forcetypeassert // test
+			respObj := result["response"].(map[string]any) //nolint:forcetypeassert,errcheck // test
 			for _, key := range tt.wantKeys {
 				assert.Contains(t, respObj, key, "response should contain %s", key)
 			}

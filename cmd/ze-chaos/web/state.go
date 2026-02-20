@@ -497,7 +497,7 @@ func (h *ConvergenceHistogram) Avg() time.Duration {
 // MaxCount returns the highest count across all buckets (for scaling bar heights).
 func (h *ConvergenceHistogram) MaxCount() int {
 	max := 0
-	for _, b := range h.Buckets {
+	for _, b := range &h.Buckets {
 		if b.Count > max {
 			max = b.Count
 		}
@@ -1001,7 +1001,7 @@ func (s *DashboardState) MarkDirty(peerIndex int) {
 // ConsumeDirty returns which peers are dirty, which were newly promoted,
 // and whether global state changed. Resets all flags.
 // Must be called under write lock.
-func (s *DashboardState) ConsumeDirty() (peers map[int]bool, promoted map[int]bool, global bool) {
+func (s *DashboardState) ConsumeDirty() (peers, promoted map[int]bool, global bool) {
 	peers = s.dirtyPeers
 	promoted = s.newlyPromoted
 	global = s.dirtyGlobal

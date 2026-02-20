@@ -1,6 +1,7 @@
 package bgp
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -1534,11 +1535,11 @@ func TestInvokePluginModeConsistency(t *testing.T) {
 		t.Fatalf("marshal fork failed: %v", err)
 	}
 
-	if string(directJSON) != string(internalJSON) {
+	if !bytes.Equal(directJSON, internalJSON) {
 		t.Errorf("direct vs internal mismatch:\n  direct: %s\n  internal: %s",
 			directJSON, internalJSON)
 	}
-	if string(directJSON) != string(forkJSON) {
+	if !bytes.Equal(directJSON, forkJSON) {
 		t.Errorf("direct vs fork mismatch:\n  direct: %s\n  fork: %s",
 			directJSON, forkJSON)
 	}

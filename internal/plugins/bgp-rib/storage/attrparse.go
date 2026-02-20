@@ -132,12 +132,9 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 // Format: [type_code(1)][flags(1)][length(2)][value(n)]
 // The type_code prefix enables sorted reconstruction by attribute type.
 func appendOtherAttr(dst []byte, flags attribute.AttributeFlags, code attribute.AttributeCode, value []byte) []byte {
-	// Prefix with type code for sorting.
-	dst = append(dst, byte(code))
-	// Store flags (preserve original including Partial bit).
-	dst = append(dst, byte(flags))
-	// Store length as 2 bytes (simplifies parsing).
-	dst = append(dst, byte(len(value)>>8), byte(len(value)))
+	// Prefix with type code for sorting, store flags (preserve original including Partial bit),
+	// and store length as 2 bytes (simplifies parsing).
+	dst = append(dst, byte(code), byte(flags), byte(len(value)>>8), byte(len(value)))
 	// Store value.
 	return append(dst, value...)
 }

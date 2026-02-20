@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
-	"github.com/stretchr/testify/require"
 )
 
 // TestForwardUpdateSplitting verifies UPDATE splitting on forward.
@@ -63,10 +64,10 @@ func TestForwardUpdateSplitting(t *testing.T) {
 	// Create peer WITHOUT ExtendedMessage
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 
@@ -200,10 +201,10 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 func TestReplayUpdateSplitting(t *testing.T) {
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address:  netip.MustParseAddr("10.0.0.2"),
-		LocalAS:  65000,
-		PeerAS:   65001,
-		RouterID: 0x01020301,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
 

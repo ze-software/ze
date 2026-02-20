@@ -16,7 +16,7 @@ import (
 // #nosec G306 - Test scripts must be executable
 func writeScript(t *testing.T, path, content string) {
 	t.Helper()
-	err := os.WriteFile(path, []byte(content), 0755) //nolint:gosec // Test scripts must be executable
+	err := os.WriteFile(path, []byte(content), 0o755) //nolint:gosec // Test scripts must be executable
 	require.NoError(t, err)
 }
 

@@ -37,7 +37,7 @@ func TestColoredCharDiff(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := ColoredCharDiff(tt.expected, tt.actual)
 			// Just verify it produces output without panicking
-			if len(result) == 0 && tt.expected != tt.actual {
+			if result == "" && tt.expected != tt.actual {
 				t.Error("expected non-empty diff")
 			}
 		})

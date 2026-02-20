@@ -9,7 +9,7 @@ import (
 )
 
 // Helper to create test routes with attributes.
-func testRouteWithAttrs(prefix string, nextHop string, attrs []attribute.Attribute) *Route {
+func testRouteWithAttrs(prefix, nextHop string, attrs []attribute.Attribute) *Route {
 	p := netip.MustParsePrefix(prefix)
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 	n := nlri.NewINET(family, p, 0)
@@ -207,7 +207,7 @@ func TestRouteGroup_NLRIs(t *testing.T) {
 // ==============================================================
 
 // Helper to create test routes with AS_PATH.
-func testRouteWithASPath(prefix string, nextHop string, attrs []attribute.Attribute, asPath *attribute.ASPath) *Route {
+func testRouteWithASPath(prefix, nextHop string, attrs []attribute.Attribute, asPath *attribute.ASPath) *Route {
 	p := netip.MustParsePrefix(prefix)
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 	n := nlri.NewINET(family, p, 0)

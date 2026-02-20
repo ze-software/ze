@@ -317,24 +317,26 @@ func (p *Plugin) handleCommand(serial, command string) string {
 
 	// Check registered commands.
 	for name, handler := range p.commandHandlers {
-		if after, ok := strings.CutPrefix(command, name); ok {
-			args := strings.Fields(after)
-			ctx := &CommandContext{
-				Command: name,
-				Args:    args,
-			}
-
-			result, err := handler(ctx)
-			if err != nil {
-				return fmt.Sprintf("@%s error %v", serial, err)
-			}
-
-			if result != nil {
-				data, _ := json.Marshal(result)
-				return fmt.Sprintf("@%s ok %s", serial, data)
-			}
-			return fmt.Sprintf("@%s ok", serial)
+		after, ok := strings.CutPrefix(command, name)
+		if !ok {
+			continue
 		}
+		args := strings.Fields(after)
+		ctx := &CommandContext{
+			Command: name,
+			Args:    args,
+		}
+
+		result, err := handler(ctx)
+		if err != nil {
+			return fmt.Sprintf("@%s error %v", serial, err)
+		}
+
+		if result != nil {
+			data, _ := json.Marshal(result)
+			return fmt.Sprintf("@%s ok %s", serial, data)
+		}
+		return fmt.Sprintf("@%s ok", serial)
 	}
 
 	return fmt.Sprintf("@%s error unknown command: %s", serial, command)

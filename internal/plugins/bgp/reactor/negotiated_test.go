@@ -3,8 +3,9 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // TestNegotiatedCapabilitiesHas_True verifies Has returns true for negotiated families.

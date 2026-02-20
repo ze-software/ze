@@ -181,7 +181,7 @@ func parseEncodingFamily(family string) (nlri.AFI, nlri.SAFI, error) {
 
 // encodeUnicastRoute parses and encodes a unicast route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, addPath bool) ([]byte, []byte, error) {
+func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6, _, addPath bool) ([]byte, []byte, error) {
 	// Parse route command - expects "route <prefix> next-hop <addr> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 || args[0] != "route" {
@@ -198,7 +198,7 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 	params := routeSpecToUnicastParams(parsed.Route)
 
 	// Build UPDATE
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Extract NLRI bytes
 	var nlriBytes []byte

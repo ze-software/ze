@@ -40,7 +40,7 @@ var coreModules = map[string]bool{
 // Run executes the schema subcommand with the given arguments.
 // plugins is an optional list of external plugin commands to query for YANG.
 // Returns exit code.
-func Run(args []string, plugins []string) int {
+func Run(args, plugins []string) int {
 	if len(args) < 1 {
 		usage()
 		return 1
@@ -95,7 +95,7 @@ Examples:
 }
 
 // cmdList lists all registered schemas.
-func cmdList(args []string, plugins []string) int {
+func cmdList(args, plugins []string) int {
 	fs := flag.NewFlagSet("schema list", flag.ExitOnError)
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -141,7 +141,7 @@ func cmdList(args []string, plugins []string) int {
 }
 
 // cmdShow shows YANG content for a specific module.
-func cmdShow(args []string, plugins []string) int {
+func cmdShow(args, plugins []string) int {
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Usage: ze schema show <module>\n")
 		return 1
@@ -173,7 +173,7 @@ func cmdShow(args []string, plugins []string) int {
 }
 
 // cmdHandlers lists handler → module mapping.
-func cmdHandlers(args []string, plugins []string) int {
+func cmdHandlers(args, plugins []string) int {
 	_ = args // unused
 
 	registry, err := buildSchemaRegistry(plugins)
@@ -237,7 +237,7 @@ type schemaEntry struct {
 }
 
 // printSchemaTable prints a sorted table of schema entries with the given header.
-func printSchemaTable(header string, kind string, entries []schemaEntry) {
+func printSchemaTable(header, kind string, entries []schemaEntry) {
 	if len(entries) == 0 {
 		fmt.Printf("No %ss registered\n", kind)
 		return
@@ -258,7 +258,7 @@ func printSchemaTable(header string, kind string, entries []schemaEntry) {
 }
 
 // cmdMethods lists RPCs from YANG API modules.
-func cmdMethods(args []string, plugins []string) int {
+func cmdMethods(args, plugins []string) int {
 	return cmdListSchema(args, plugins, "RPC", "Method", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
@@ -270,7 +270,7 @@ func cmdMethods(args []string, plugins []string) int {
 }
 
 // cmdEvents lists notifications from YANG API modules.
-func cmdEvents(args []string, plugins []string) int {
+func cmdEvents(args, plugins []string) int {
 	return cmdListSchema(args, plugins, "notification", "Event", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))

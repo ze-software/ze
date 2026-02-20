@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 // helper: split NDJSON output into parsed lines.

@@ -1204,14 +1204,11 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 	var innerValue []byte
 	innerValue = append(innerValue, 0) // reserved
 	innerValue = append(innerValue, ipv6.AsSlice()...)
-	innerValue = append(innerValue, 0)        // flags
-	innerValue = append(innerValue, 0)        // reserved
-	innerValue = append(innerValue, behavior) // behavior
+	innerValue = append(innerValue, 0, 0, behavior) // flags, reserved, behavior
 
 	// Add SID structure sub-sub-TLV if provided
 	if len(sidStruct) == 6 {
-		innerValue = append(innerValue, 0, 1)                    // sub-sub-TLV type 1
-		innerValue = append(innerValue, 0, byte(len(sidStruct))) // length
+		innerValue = append(innerValue, 0, 1, 0, byte(len(sidStruct))) // sub-sub-TLV type 1, length
 		innerValue = append(innerValue, sidStruct...)
 	}
 
@@ -1253,7 +1250,7 @@ type ParsedRouteAttributes struct {
 }
 
 // ParseRouteAttributes parses all attributes from a StaticRouteConfig.
-func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error) {
+func ParseRouteAttributes(src *StaticRouteConfig) (*ParsedRouteAttributes, error) {
 	attrs := &ParsedRouteAttributes{
 		Prefix:          src.Prefix,
 		LocalPreference: src.LocalPreference,

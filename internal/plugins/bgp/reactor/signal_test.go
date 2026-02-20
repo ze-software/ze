@@ -126,7 +126,7 @@ func TestSignalHandlerSIGUSR1(t *testing.T) {
 //
 // VALIDATES: SignalHandler respects context cancellation.
 //
-// PREVENTS: Orphaned goroutines when parent context is cancelled.
+// PREVENTS: Orphaned goroutines when parent context is canceled.
 func TestSignalHandlerContextCancellation(t *testing.T) {
 	handler := NewSignalHandler()
 

@@ -41,7 +41,7 @@ func (v *Tmpfs) WriteToTempWithContext(ctx context.Context) (dir string, cleanup
 			signal.Stop(sigCh)
 			// Don't os.Exit here - let the main program handle it
 		case <-ctx.Done():
-			// Context cancelled, signal handler no longer needed
+			// Context canceled, signal handler no longer needed
 			signal.Stop(sigCh)
 		}
 	}()

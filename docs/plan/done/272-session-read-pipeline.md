@@ -137,7 +137,7 @@ Note: cache.Add stays on the read goroutine (step 3) BEFORE enqueue — preserve
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Context cancelled while session idle | Session.Run() returns within 1ms (not 100ms) |
+| AC-1 | Context canceled while session idle | Session.Run() returns within 1ms (not 100ms) |
 | AC-2 | Hold timer expires | Session still receives ErrHoldTimerExpired and exits |
 | AC-3 | Teardown called | Session exits promptly, NOTIFICATION sent before close |
 | AC-4 | UPDATE received with slow plugin (>100ms) | Read goroutine returns to reading next message without waiting for plugin |
@@ -147,7 +147,7 @@ Note: cache.Add stays on the read goroutine (step 3) BEFORE enqueue — preserve
 | AC-8 | Delivery channel full (backpressure) | Read goroutine blocks on channel send (TCP flow control engages) |
 | AC-9 | Plugin delivery fails | Error logged, other plugins still receive event, consumer count reflects actual deliveries |
 | AC-10 | RFC 7606 treat-as-withdraw | UPDATE not enqueued to delivery channel, FSM event still fires |
-| AC-11 | Listener accept loop, context cancelled | Listener exits within 1ms (not 100ms) |
+| AC-11 | Listener accept loop, context canceled | Listener exits within 1ms (not 100ms) |
 | AC-12 | Non-UPDATE messages (OPEN, KEEPALIVE) | Still processed synchronously on read goroutine (no async delivery needed) |
 | AC-13 | Peer A delivery channel full, peer B sends UPDATE | Peer B's read goroutine is NOT blocked by peer A's backlog (per-peer isolation) |
 | AC-14 | 3 plugins with same format subscribed to UPDATE | JSON encoding happens once, not 3 times (pre-format optimization) |
@@ -196,7 +196,7 @@ Note: cache.Add stays on the read goroutine (step 3) BEFORE enqueue — preserve
 
 **Decision:** Launch a goroutine in `Session.Run()` that waits on ctx.Done() + errChan and closes the connection.
 
-**Rationale:** This is the standard Go pattern for cancelling blocking I/O. `net.Conn.Close()` unblocks any pending `Read()` immediately with `use of closed network connection` error. No polling, no deadlines, instant response.
+**Rationale:** This is the standard Go pattern for canceling blocking I/O. `net.Conn.Close()` unblocks any pending `Read()` immediately with `use of closed network connection` error. No polling, no deadlines, instant response.
 
 **Detail:**
 - A single goroutine per session `select`s on `ctx.Done()` and `errChan`

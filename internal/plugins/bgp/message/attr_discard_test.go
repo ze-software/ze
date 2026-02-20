@@ -65,7 +65,7 @@ func TestAttrDiscardFlags(t *testing.T) {
 }
 
 // makeAttr constructs a single attribute in wire format for testing.
-func makeAttr(flags uint8, code uint8, value []byte) []byte {
+func makeAttr(flags, code uint8, value []byte) []byte {
 	if len(value) > 255 {
 		buf := make([]byte, 4+len(value))
 		buf[0] = flags | 0x10 // Set extended length

@@ -277,16 +277,16 @@ func (d *Display) Summary() {
 		b.WriteString(d.colors.Red("FAIL"))
 	}
 
-	b.WriteString(fmt.Sprintf("  %d/%d  %.1f%%  %s", passed, total, rate, formatDurationShort(elapsed)))
+	fmt.Fprintf(&b, "  %d/%d  %.1f%%  %s", passed, total, rate, formatDurationShort(elapsed))
 
 	if failed > 0 {
 		nicks := d.tests.FailedNicks()
-		b.WriteString(fmt.Sprintf("  %s %d [%s]", d.colors.Red("failed"), failed, strings.Join(nicks, ", ")))
+		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Red("failed"), failed, strings.Join(nicks, ", "))
 	}
 
 	if timedOut > 0 {
 		nicks := d.tests.TimedOutNicks()
-		b.WriteString(fmt.Sprintf("  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", ")))
+		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", "))
 	}
 
 	d.println("")

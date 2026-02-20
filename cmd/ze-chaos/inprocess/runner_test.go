@@ -7,19 +7,20 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // eventTypeCounts returns a map of event type → count for determinism comparison.
 func eventTypeCounts(events []peer.Event) map[peer.EventType]int {
 	m := make(map[peer.EventType]int)
-	for _, ev := range events {
-		m[ev.Type]++
+	for i := range events {
+		m[events[i].Type]++
 	}
 	return m
 }

@@ -489,7 +489,7 @@ func (m Model) handlePasteModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		// Cancel paste mode
 		m.pasteMode = false
 		m.pasteBuffer.Reset()
-		m.statusMessage = "Paste mode cancelled"
+		m.statusMessage = "Paste mode canceled"
 		return m, nil
 
 	case tea.KeyEnter:
@@ -511,7 +511,7 @@ func (m Model) handlePasteModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyBackspace:
 		// Remove last character from buffer
 		s := m.pasteBuffer.String()
-		if len(s) > 0 {
+		if s != "" {
 			m.pasteBuffer.Reset()
 			m.pasteBuffer.WriteString(s[:len(s)-1])
 		}

@@ -138,7 +138,7 @@ func EncodeString(buf []byte, off int, s string) int {
 // EncodeArrayHeader encodes an array header (major type 4).
 // Caller must encode 'count' elements after this.
 // Returns bytes written.
-func EncodeArrayHeader(buf []byte, off int, count int) int {
+func EncodeArrayHeader(buf []byte, off, count int) int {
 	// #nosec G115 -- count is expected to be non-negative
 	return encodeHead(buf, off, MajorArray, uint64(count))
 }
@@ -146,7 +146,7 @@ func EncodeArrayHeader(buf []byte, off int, count int) int {
 // EncodeMapHeader encodes a map header (major type 5).
 // Caller must encode 'count' key-value pairs after this.
 // Returns bytes written.
-func EncodeMapHeader(buf []byte, off int, count int) int {
+func EncodeMapHeader(buf []byte, off, count int) int {
 	// #nosec G115 -- count is expected to be non-negative
 	return encodeHead(buf, off, MajorMap, uint64(count))
 }

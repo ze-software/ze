@@ -190,8 +190,7 @@ func GetVPNYANG() string {
 // Errors go to errOut (typically stderr), results go to output (typically stdout).
 func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
 	writeErr := func(format string, args ...any) {
-		_, err := io.WriteString(errOut, fmt.Sprintf(format, args...))
-		if err != nil {
+		if _, err := fmt.Fprintf(errOut, format, args...); err != nil {
 			return
 		}
 	}

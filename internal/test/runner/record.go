@@ -333,7 +333,7 @@ func (r *Record) ReceivedMessageOffset() int {
 			continue
 		}
 		prefix := parts[0]
-		if len(prefix) == 0 {
+		if prefix == "" {
 			continue
 		}
 		expFirst := prefix[0]

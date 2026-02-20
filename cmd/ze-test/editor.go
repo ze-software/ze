@@ -66,7 +66,7 @@ Examples:
 	}
 
 	// Determine test directory
-	testDir := filepath.Join(baseDir, "test/editor")
+	testDir := filepath.Join(baseDir, "test", "editor")
 	if fs.NArg() > 0 {
 		arg := fs.Arg(0)
 		if filepath.IsAbs(arg) {

@@ -252,8 +252,7 @@ func TestEVPNType1WithAddPath(t *testing.T) {
 	label := []byte{0x00, 0x01, 0x01}
 
 	data := pathID
-	data = append(data, byte(EVPNRouteType1))
-	data = append(data, byte(8+10+4+3))
+	data = append(data, byte(EVPNRouteType1), byte(8+10+4+3))
 	data = append(data, rd...)
 	data = append(data, esi...)
 	data = append(data, ethTag...)

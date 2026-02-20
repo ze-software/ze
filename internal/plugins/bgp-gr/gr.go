@@ -241,7 +241,7 @@ func decodeGR(data []byte) (*grResult, error) {
 // formatGRText formats GR capability as human-readable text.
 func formatGRText(r *grResult) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("%-20s restart-time=%d", "graceful-restart", r.RestartTime))
+	fmt.Fprintf(&sb, "%-20s restart-time=%d", "graceful-restart", r.RestartTime)
 	if r.Restarting {
 		sb.WriteString(" restarting")
 	}
@@ -249,7 +249,7 @@ func formatGRText(r *grResult) string {
 		sb.WriteString(" notification")
 	}
 	for _, f := range r.Families {
-		sb.WriteString(fmt.Sprintf(" afi=%d/safi=%d", f.AFI, f.SAFI))
+		fmt.Fprintf(&sb, " afi=%d/safi=%d", f.AFI, f.SAFI)
 		if f.ForwardState {
 			sb.WriteString("(F)")
 		}

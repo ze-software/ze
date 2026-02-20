@@ -1831,7 +1831,7 @@ func formatASPathHuman(sb *strings.Builder, asPath map[string]any) {
 		}
 		if values, ok := seg["value"].([]any); ok {
 			for _, v := range values {
-				asns = append(asns, fmt.Sprintf("%v", formatNumber(v)))
+				asns = append(asns, formatNumber(v))
 			}
 		}
 	}
@@ -1859,12 +1859,13 @@ func formatNLRIListHuman(sb *strings.Builder, data any) {
 
 // formatWithdrawnHuman formats withdrawn routes for human output.
 func formatWithdrawnHuman(sb *strings.Builder, data any) {
-	if prefixes, ok := data.([]string); ok {
-		for _, prefix := range prefixes {
+	switch v := data.(type) {
+	case []string:
+		for _, prefix := range v {
 			fmt.Fprintf(sb, "    %s\n", prefix)
 		}
-	} else if items, ok := data.([]any); ok {
-		for _, item := range items {
+	case []any:
+		for _, item := range v {
 			fmt.Fprintf(sb, "    %v\n", item)
 		}
 	}
@@ -1897,21 +1898,22 @@ func formatNLRIHuman(result map[string]any, family string) string {
 
 // formatNLRIFieldHuman formats a single NLRI field for human output.
 func formatNLRIFieldHuman(sb *strings.Builder, key string, value any, indent string) {
-	if vMap, ok := value.(map[string]any); ok {
+	switch v := value.(type) {
+	case map[string]any:
 		fmt.Fprintf(sb, "%s%s:\n", indent, key)
-		for k, val := range vMap {
+		for k, val := range v {
 			formatNLRIFieldHuman(sb, k, val, indent+"  ")
 		}
-	} else if vSlice, ok := value.([]any); ok {
+	case []any:
 		fmt.Fprintf(sb, "%s%-20s ", indent, key)
-		for i, item := range vSlice {
+		for i, item := range v {
 			if i > 0 {
 				sb.WriteString(", ")
 			}
 			fmt.Fprintf(sb, "%v", item)
 		}
 		sb.WriteString("\n")
-	} else {
+	default:
 		fmt.Fprintf(sb, "%s%-20s %v\n", indent, key, value)
 	}
 }

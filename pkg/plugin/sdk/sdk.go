@@ -501,7 +501,7 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 	for {
 		req, err := p.callbackConn.ReadRequest(ctx)
 		if err != nil {
-			// Context cancelled or connection closed = clean shutdown.
+			// Context canceled or connection closed = clean shutdown.
 			// The engine closes the socket to signal internal plugins to exit;
 			// this races with context cancellation, so check both.
 			if ctx.Err() == nil && !isConnectionClosed(err) {

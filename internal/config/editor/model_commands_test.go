@@ -23,7 +23,7 @@ func TestModelErrorsCommand(t *testing.T) {
 	content := `bgp {
   router-id invalid;
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -50,7 +50,7 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write valid config
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -75,7 +75,7 @@ func TestModelCmdTop(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -108,7 +108,7 @@ func TestModelCmdEditHierarchical(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -138,7 +138,7 @@ func TestModelCmdEditWildcardTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -162,7 +162,7 @@ func TestModelCmdEditNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -196,7 +196,7 @@ func TestModelCmdEditFromContext(t *testing.T) {
     }
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -234,7 +234,7 @@ func TestModelCmdEditExactMatch(t *testing.T) {
     peer-as 65002;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -261,7 +261,7 @@ func TestModelCmdUp(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -291,7 +291,7 @@ func TestModelCmdUpFromTemplate(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -323,7 +323,7 @@ func TestModelCmdUpAtRoot(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -362,7 +362,7 @@ func TestModelPipeShowGrep(t *testing.T) {
     peer-as 65002;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -398,7 +398,7 @@ func TestModelPipeShowHead(t *testing.T) {
     peer-as 65001;
   }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -431,7 +431,7 @@ func TestModelPipeChain(t *testing.T) {
   peer 1.1.1.3 { peer-as 65003; }
   peer 2.2.2.1 { peer-as 65004; }
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -471,7 +471,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 		peer-as 65001;
 	}
 }`
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -577,7 +577,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 		description "old value";
 	}
 }`
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -669,7 +669,7 @@ func TestEditQuotedListKey(t *testing.T) {
 		peer-as 65001;
 	}
 }`
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -705,7 +705,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 		peer-as 65001;
 	}
 }`
-	err := os.WriteFile(configPath, []byte(originalContent), 0600)
+	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -741,7 +741,7 @@ func TestCommitTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -777,7 +777,7 @@ func TestCommitReloadFailsGracefully(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -816,7 +816,7 @@ func TestCommitValidationFailsNoReload(t *testing.T) {
 	content := `bgp {
   router-id invalid;
 }`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -849,7 +849,7 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0600)
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)

@@ -36,7 +36,7 @@ const InvalidHandle Handle = 0xFFFFFFFF
 // flags must be 0-3 (2 bits).
 // slot must be 0-0xFFFFFF (24 bits).
 // BufferBit defaults to 0.
-func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle {
+func NewHandle(poolIdx, flags uint8, slot uint32) Handle {
 	return Handle(
 		uint32(poolIdx&0x1F)<<26 |
 			uint32(flags&0x3)<<24 |
@@ -49,7 +49,7 @@ func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle {
 // poolIdx must be 0-30 (31 is reserved for InvalidHandle).
 // flags must be 0-3 (2 bits).
 // slot must be 0-0xFFFFFF (24 bits).
-func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle {
+func NewHandleWithBuffer(bufferBit uint32, poolIdx, flags uint8, slot uint32) Handle {
 	return Handle(
 		(bufferBit&0x1)<<31 |
 			uint32(poolIdx&0x1F)<<26 |

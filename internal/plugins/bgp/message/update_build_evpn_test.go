@@ -5,10 +5,11 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // testEVPNType2Bytes builds EVPN Type 2 (MAC/IP) NLRI bytes inline with label=100.

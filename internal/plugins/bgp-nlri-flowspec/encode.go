@@ -100,8 +100,7 @@ func flowSpecRouteToParams(r bgptypes.FlowSpecRoute, nlriBytes []byte) (message.
 		// Type 0x80, Subtype 0x06, 2 reserved bytes, 4-byte IEEE 754 float
 		rate := float32(r.Actions.RateLimit)
 		bits := floatToIEEE754(rate)
-		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00)
-		extComms = append(extComms, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
+		extComms = append(extComms, 0x80, 0x06, 0x00, 0x00, byte(bits>>24), byte(bits>>16), byte(bits>>8), byte(bits))
 	}
 
 	// DSCP marking (RFC 5575)

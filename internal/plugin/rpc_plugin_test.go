@@ -14,7 +14,7 @@ import (
 
 // helper: create a connected PluginConn pair (engine side + plugin side)
 // using internal socket pairs (net.Pipe).
-func newTestPluginConn(t *testing.T) (engineConn *PluginConn, pluginConn *PluginConn) {
+func newTestPluginConn(t *testing.T) (engineConn, pluginConn *PluginConn) {
 	t.Helper()
 
 	pairs, err := NewInternalSocketPairs()

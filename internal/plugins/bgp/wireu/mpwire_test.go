@@ -23,19 +23,12 @@ func TestMPReachWireIPv6(t *testing.T) {
 	nhBytes := nextHop.As16()
 
 	data := make([]byte, 0, 64)
-	// AFI = 2 (IPv6)
-	data = append(data, 0x00, 0x02)
-	// SAFI = 1 (unicast)
-	data = append(data, 0x01)
-	// Next-hop length = 16
-	data = append(data, 0x10)
+	// AFI=2 (IPv6) + SAFI=1 (unicast) + Next-hop length=16
+	data = append(data, 0x00, 0x02, 0x01, 0x10)
 	// Next-hop address
 	data = append(data, nhBytes[:]...)
-	// Reserved = 0
-	data = append(data, 0x00)
-	// NLRI: 2001:db8:1::/48 = prefix_len(48) + 6 bytes
-	data = append(data, 48)                                 // prefix length
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01) // 2001:db8:1::
+	// Reserved=0 + NLRI: 2001:db8:1::/48 = prefix_len(48) + 6 bytes
+	data = append(data, 0x00, 48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
 
 	wire := MPReachWire(data)
 
@@ -85,19 +78,12 @@ func TestMPReachWireIPv4(t *testing.T) {
 	nhBytes := nextHop.As4()
 
 	data := make([]byte, 0, 32)
-	// AFI = 1 (IPv4)
-	data = append(data, 0x00, 0x01)
-	// SAFI = 1 (unicast)
-	data = append(data, 0x01)
-	// Next-hop length = 4
-	data = append(data, 0x04)
+	// AFI=1 (IPv4) + SAFI=1 (unicast) + Next-hop length=4
+	data = append(data, 0x00, 0x01, 0x01, 0x04)
 	// Next-hop address
 	data = append(data, nhBytes[:]...)
-	// Reserved = 0
-	data = append(data, 0x00)
-	// NLRI: 192.168.1.0/24 = prefix_len(24) + 3 bytes
-	data = append(data, 24)          // prefix length
-	data = append(data, 192, 168, 1) // 192.168.1.0
+	// Reserved=0 + NLRI: 192.168.1.0/24
+	data = append(data, 0x00, 24, 192, 168, 1)
 
 	wire := MPReachWire(data)
 
@@ -132,23 +118,13 @@ func TestMPReachWireMultiplePrefixes(t *testing.T) {
 	nhBytes := nextHop.As16()
 
 	data := make([]byte, 0, 64)
-	data = append(data, 0x00, 0x02) // AFI=2
-	data = append(data, 0x01)       // SAFI=1
-	data = append(data, 0x10)       // NH len=16
+	data = append(data, 0x00, 0x02, 0x01, 0x10) // AFI=2, SAFI=1, NH len=16
 	data = append(data, nhBytes[:]...)
-	data = append(data, 0x00) // Reserved
-
-	// NLRI 1: 2001:db8:1::/48
-	data = append(data, 48)
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
-
-	// NLRI 2: 2001:db8:2::/48
-	data = append(data, 48)
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x02)
-
-	// NLRI 3: 2001:db8:3::/64
-	data = append(data, 64)
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x03, 0x00, 0x00)
+	data = append(data,
+		0x00,                                   // Reserved
+		48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, // NLRI 1: 2001:db8:1::/48
+		48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x02, // NLRI 2: 2001:db8:2::/48
+		64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x03, 0x00, 0x00) // NLRI 3: 2001:db8:3::/64
 
 	wire := MPReachWire(data)
 	prefixes := wire.Prefixes()
@@ -202,12 +178,8 @@ func TestMPUnreachWireIPv6(t *testing.T) {
 	// AFI (2) + SAFI (1) + Withdrawn Routes
 
 	data := make([]byte, 0, 32)
-	data = append(data, 0x00, 0x02) // AFI=2 (IPv6)
-	data = append(data, 0x01)       // SAFI=1 (unicast)
-
-	// Withdrawn: 2001:db8:1::/48
-	data = append(data, 48)
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
+	// AFI=2 (IPv6), SAFI=1 (unicast), Withdrawn: 2001:db8:1::/48
+	data = append(data, 0x00, 0x02, 0x01, 48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
 
 	wire := MPUnreachWire(data)
 
@@ -592,14 +564,10 @@ func TestMPReachWireNLRIs_IPv6AddPath(t *testing.T) {
 	nhBytes := nextHop.As16()
 
 	data := make([]byte, 0, 64)
-	data = append(data, 0x00, 0x02) // AFI: IPv6
-	data = append(data, 0x01)       // SAFI: unicast
-	data = append(data, 0x10)       // NH length: 16
+	data = append(data, 0x00, 0x02, 0x01, 0x10) // AFI=IPv6, SAFI=unicast, NH length=16
 	data = append(data, nhBytes[:]...)
-	data = append(data, 0x00)                   // Reserved
-	data = append(data, 0x00, 0x00, 0x00, 0x05) // Path ID: 5
-	data = append(data, 48)                     // Prefix length: 48
-	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
+	// Reserved + Path ID=5 + Prefix length=48 + 2001:db8:1::/48
+	data = append(data, 0x00, 0x00, 0x00, 0x00, 0x05, 48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
 
 	wire := MPReachWire(data)
 	nlris, err := wire.NLRIs(true)

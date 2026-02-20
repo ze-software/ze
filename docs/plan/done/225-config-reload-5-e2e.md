@@ -152,7 +152,7 @@ Run `make functional` — all tests pass including new reload tests.
 - `make functional-reload` Makefile target (`Makefile`)
 
 **Bug fix discovered during testing:**
-- `Session.Run()` in `internal/plugin/bgp/reactor/session.go` did not call `closeConn()` on context cancellation. When the reactor cancelled a peer's context (during reload), the TCP connection leaked — the test peer never received EOF. Fix: call `s.closeConn()` in the `<-ctx.Done()` case.
+- `Session.Run()` in `internal/plugin/bgp/reactor/session.go` did not call `closeConn()` on context cancellation. When the reactor canceled a peer's context (during reload), the TCP connection leaked — the test peer never received EOF. Fix: call `s.closeConn()` in the `<-ctx.Done()` case.
 
 **`LoadReactorWithPlugins` signature change:**
 - Added `configPath` parameter so SIGHUP reload can re-read the config file. Updated all callers (`cmd/ze/hub/main.go`).

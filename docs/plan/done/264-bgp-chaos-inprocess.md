@@ -562,7 +562,7 @@ Each step ends with a **Self-Critical Review**.
 | TestConnPairClose | ✅ Done | `inprocess/mocknet_test.go` | |
 | TestMockDialerReturnsConn | ✅ Done | `inprocess/mocknet_test.go` | |
 | TestMockDialerNoConn | ✅ Done | `inprocess/mocknet_test.go` | |
-| TestMockDialerContextCancelled | ✅ Done | `inprocess/mocknet_test.go` | Added beyond spec |
+| TestMockDialerContextcanceled | ✅ Done | `inprocess/mocknet_test.go` | Added beyond spec |
 | TestMockListenerAccept | ✅ Done | `inprocess/mocknet_test.go` | |
 | TestMockListenerClose | ✅ Done | `inprocess/mocknet_test.go` | |
 | TestMockListenerFactoryImplements | ✅ Done | `inprocess/mocknet_test.go` | |

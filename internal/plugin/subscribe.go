@@ -31,7 +31,7 @@ func (pf *PeerFilter) Matches(peer string) bool {
 	if pf.Selector == "*" {
 		return true
 	}
-	if len(pf.Selector) > 0 && pf.Selector[0] == '!' {
+	if pf.Selector != "" && pf.Selector[0] == '!' {
 		// Exclusion selector
 		return peer != pf.Selector[1:]
 	}
@@ -243,10 +243,10 @@ func validatePeerSelector(selector string) error {
 
 	// Check for exclusion prefix
 	s := selector
-	if len(s) > 0 && s[0] == '!' {
+	if s != "" && s[0] == '!' {
 		s = s[1:]
 		// Check for double exclusion
-		if len(s) > 0 && s[0] == '!' {
+		if s != "" && s[0] == '!' {
 			return fmt.Errorf("invalid peer selector: %s (double exclusion)", selector)
 		}
 	}

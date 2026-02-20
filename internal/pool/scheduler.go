@@ -57,7 +57,7 @@ func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler {
 	}
 }
 
-// Run starts the scheduler loop. Blocks until context is cancelled.
+// Run starts the scheduler loop. Blocks until context is canceled.
 func (s *Scheduler) Run(ctx context.Context) {
 	if len(s.pools) == 0 {
 		<-ctx.Done()

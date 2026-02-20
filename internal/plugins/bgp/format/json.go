@@ -31,7 +31,7 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 // Returns the outer bgp payload and inner event payload.
 // ze-bgp JSON Format: {"message":{"type":"<msgType>"},"peer":{...},"<msgType>":{...}}.
 // Type is in message object, peer is at bgp level, event-specific data in inner map.
-func (e *JSONEncoder) message(peer plugin.PeerInfo, msgType string) (outer map[string]any, inner map[string]any) {
+func (e *JSONEncoder) message(peer plugin.PeerInfo, msgType string) (outer, inner map[string]any) {
 	inner = make(map[string]any)
 	outer = map[string]any{
 		"message": map[string]any{

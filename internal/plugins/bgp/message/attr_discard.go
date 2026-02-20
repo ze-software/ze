@@ -203,7 +203,7 @@ func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
 //   - pathAttrs: original path attributes bytes
 //   - localEntries: attributes being discarded in this pass (used to identify which to remove)
 //   - allEntries: merged upstream + local entries (written into the new ATTR_DISCARD value)
-func rebuildWithAttrDiscard(pathAttrs []byte, localEntries []DiscardEntry, allEntries []DiscardEntry) []byte {
+func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []DiscardEntry) []byte {
 	// Build set of codes to remove.
 	removeCodes := make(map[uint8]bool)
 	for _, e := range localEntries {
@@ -408,7 +408,7 @@ func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
 // UPDATE body layout (RFC 4271 Section 4.3):
 //
 //	[withdrawn-len: 2][withdrawn: N][attr-len: 2][attrs: M][nlri: R]
-func RebuildUpdateBody(body []byte, newPathAttrs []byte) []byte {
+func RebuildUpdateBody(body, newPathAttrs []byte) []byte {
 	if len(body) < 4 {
 		return body
 	}

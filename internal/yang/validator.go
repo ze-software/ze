@@ -222,7 +222,7 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 				Path:     path,
 				Type:     ErrTypeLength,
 				Message:  fmt.Sprintf("string length %d is outside allowed range", strLen),
-				Expected: fmt.Sprintf("%v", yangType.Length),
+				Expected: yangType.Length.String(),
 				Got:      fmt.Sprintf("%d", strLen),
 			}
 		}
@@ -310,7 +310,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 				Path:     path,
 				Type:     ErrTypeRange,
 				Message:  fmt.Sprintf("value %d is outside range", num),
-				Expected: fmt.Sprintf("%v", yangType.Range),
+				Expected: yangType.Range.String(),
 				Got:      fmt.Sprintf("%d", num),
 			}
 		}
@@ -361,7 +361,7 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 				Path:     path,
 				Type:     ErrTypeRange,
 				Message:  fmt.Sprintf("value %d is outside range", num),
-				Expected: fmt.Sprintf("%v", yangType.Range),
+				Expected: yangType.Range.String(),
 				Got:      fmt.Sprintf("%d", num),
 			}
 		}

@@ -88,26 +88,13 @@ func decodeOpen(msg *DecodedMessage, body []byte) {
 	routerID := netip.AddrFrom4([4]byte{body[5], body[6], body[7], body[8]})
 	optParamLen := body[9]
 
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "version",
-		Value: fmt.Sprintf("%d", version),
-	})
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "asn",
-		Value: fmt.Sprintf("%d", asn),
-	})
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "hold-time",
-		Value: fmt.Sprintf("%d", holdTime),
-	})
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "router-id",
-		Value: routerID.String(),
-	})
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "opt-param-len",
-		Value: fmt.Sprintf("%d", optParamLen),
-	})
+	msg.Attributes = append(msg.Attributes,
+		DecodedAttribute{Name: "version", Value: fmt.Sprintf("%d", version)},
+		DecodedAttribute{Name: "asn", Value: fmt.Sprintf("%d", asn)},
+		DecodedAttribute{Name: "hold-time", Value: fmt.Sprintf("%d", holdTime)},
+		DecodedAttribute{Name: "router-id", Value: routerID.String()},
+		DecodedAttribute{Name: "opt-param-len", Value: fmt.Sprintf("%d", optParamLen)},
+	)
 }
 
 func decodeUpdate(msg *DecodedMessage, body []byte) {
@@ -153,14 +140,10 @@ func decodeNotification(msg *DecodedMessage, body []byte) {
 	errCode := body[0]
 	errSubcode := body[1]
 
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "error-code",
-		Value: fmt.Sprintf("%d (%s)", errCode, notificationErrorName(errCode)),
-	})
-	msg.Attributes = append(msg.Attributes, DecodedAttribute{
-		Name:  "error-subcode",
-		Value: fmt.Sprintf("%d", errSubcode),
-	})
+	msg.Attributes = append(msg.Attributes,
+		DecodedAttribute{Name: "error-code", Value: fmt.Sprintf("%d (%s)", errCode, notificationErrorName(errCode))},
+		DecodedAttribute{Name: "error-subcode", Value: fmt.Sprintf("%d", errSubcode)},
+	)
 
 	if len(body) > 2 {
 		msg.Attributes = append(msg.Attributes, DecodedAttribute{

@@ -740,7 +740,7 @@ commit batch1 withdraw route 10.0.0.0/24
 
 **Behavior:** Net effect = withdrawal only. Announce is removed from queue.
 
-**Response on withdraw:** `{"status": "ok", "queued": 0, "cancelled": 1}`
+**Response on withdraw:** `{"status": "ok", "queued": 0, "canceled": 1}`
 
 ---
 

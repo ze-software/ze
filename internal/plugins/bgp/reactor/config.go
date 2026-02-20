@@ -291,8 +291,7 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 
 	// RFC 2918/7313: Route Refresh.
 	if v := flexString(capMap, "route-refresh"); v == valTrue || v == valEnable {
-		ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{})
-		ps.Capabilities = append(ps.Capabilities, &capability.EnhancedRouteRefresh{})
+		ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{}, &capability.EnhancedRouteRefresh{})
 	}
 
 	// Graceful restart.

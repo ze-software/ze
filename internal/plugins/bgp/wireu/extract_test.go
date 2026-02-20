@@ -4,9 +4,10 @@ import (
 	"encoding/hex"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // TestExtractRawAttributes verifies attribute extraction from UPDATE payload.

@@ -47,7 +47,7 @@ func bgpIDString(id uint32) string {
 //
 // excludeKey is the peer being checked (to skip self in the peers map).
 // Returns the conflicting peer's address if a conflict is found.
-func checkRouterIDConflict(peers map[string]*Peer, excludeKey string, peerAS uint32, bgpID uint32) (netip.Addr, bool) {
+func checkRouterIDConflict(peers map[string]*Peer, excludeKey string, peerAS, bgpID uint32) (netip.Addr, bool) {
 	for key, peer := range peers {
 		if key == excludeKey {
 			continue

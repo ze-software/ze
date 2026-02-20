@@ -15,14 +15,16 @@ func ParseKVPairs(parts []string) map[string]string {
 	complexKeys := []string{"json=", "text=", "hex=", "pattern="}
 
 	for _, ck := range complexKeys {
-		if idx := strings.Index(joined, ck); idx != -1 {
-			key := ck[:len(ck)-1] // Remove trailing =
-			value := joined[idx+len(ck):]
-			kv[key] = value
-			// Remove this from joined for further parsing
-			joined = joined[:idx]
-			break
+		idx := strings.Index(joined, ck)
+		if idx == -1 {
+			continue
 		}
+		key := ck[:len(ck)-1] // Remove trailing =
+		value := joined[idx+len(ck):]
+		kv[key] = value
+		// Remove this from joined for further parsing
+		joined = joined[:idx]
+		break
 	}
 
 	// Parse remaining simple key=value pairs

@@ -4,9 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/yang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // TestSchemaRegistry_Register verifies basic schema registration.

@@ -57,7 +57,7 @@ func NewOutgoingRIB() *OutgoingRIB {
 }
 
 // QueueAnnounce queues a route for announcement.
-// If a withdrawal for this NLRI is pending, it is cancelled.
+// If a withdrawal for this NLRI is pending, it is canceled.
 // During a transaction, routes are queued to the transaction pending queue.
 func (r *OutgoingRIB) QueueAnnounce(route *Route) {
 	r.mu.Lock()
@@ -94,7 +94,7 @@ func (r *OutgoingRIB) QueueAnnounce(route *Route) {
 }
 
 // QueueWithdraw queues a route withdrawal.
-// If an announcement for this NLRI is pending, it is cancelled.
+// If an announcement for this NLRI is pending, it is canceled.
 // During a transaction, withdrawals are queued to the transaction withdrawal queue.
 func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 	r.mu.Lock()

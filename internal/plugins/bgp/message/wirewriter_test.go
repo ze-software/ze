@@ -3,8 +3,9 @@ package message
 import (
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 	"github.com/stretchr/testify/assert"
+
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
 )
 
 // TestKeepaliveWireWriter verifies Keepalive implements WireWriter interface.

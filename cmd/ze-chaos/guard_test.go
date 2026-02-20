@@ -3,9 +3,10 @@ package main
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/chaos"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/route"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestGuardAllowsChaosOnFreshPeer verifies that all chaos actions are

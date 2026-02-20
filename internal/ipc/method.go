@@ -11,7 +11,7 @@ const MaxMethodLength = 256
 // ParseMethod splits a "module:rpc-name" method string into its components.
 // Returns an error if the format is invalid.
 func ParseMethod(method string) (module, rpc string, err error) {
-	if len(method) == 0 {
+	if method == "" {
 		return "", "", fmt.Errorf("empty method name")
 	}
 	if len(method) > MaxMethodLength {

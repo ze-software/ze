@@ -220,7 +220,7 @@ func (e *Editor) SaveEditState() error {
 	}
 
 	editPath := e.originalPath + ".edit"
-	if err := os.WriteFile(editPath, []byte(e.workingContent), 0600); err != nil {
+	if err := os.WriteFile(editPath, []byte(e.workingContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write edit file: %w", err)
 	}
 	return nil
@@ -693,7 +693,7 @@ func (e *Editor) Save() error {
 
 	// Write serialized tree (or raw text fallback) to original path
 	content := e.WorkingContent()
-	if err := os.WriteFile(e.originalPath, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -794,7 +794,7 @@ func (e *Editor) createBackup() (string, error) {
 	backupPath := filepath.Join(dir, fmt.Sprintf("%s-%s-%d.conf", name, today, num))
 
 	// Copy original content to backup
-	if err := os.WriteFile(backupPath, []byte(e.originalContent), 0600); err != nil {
+	if err := os.WriteFile(backupPath, []byte(e.originalContent), 0o600); err != nil {
 		return "", err
 	}
 
@@ -883,7 +883,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Write to original path
-	if err := os.WriteFile(e.originalPath, data, 0600); err != nil {
+	if err := os.WriteFile(e.originalPath, data, 0o600); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 

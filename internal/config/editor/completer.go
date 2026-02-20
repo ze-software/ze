@@ -5,11 +5,12 @@ import (
 	"sort"
 	"strings"
 
+	gyang "github.com/openconfig/goyang/pkg/yang"
+
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
-	gyang "github.com/openconfig/goyang/pkg/yang"
 )
 
 // Completion represents a single completion suggestion.
@@ -164,7 +165,7 @@ func (c *Completer) GhostText(input string, contextPath []string) string {
 }
 
 // completeSetPath completes paths for set/delete commands.
-func (c *Completer) completeSetPath(tokens []string, contextPath []string, endsWithSpace bool) []Completion {
+func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	currentPath := append([]string{}, contextPath...)
 	// Track how many path elements came from tokens (vs context)
 	tokensAdded := 0
@@ -198,7 +199,7 @@ func (c *Completer) completeSetPath(tokens []string, contextPath []string, endsW
 }
 
 // completeEditPath completes paths for edit command.
-func (c *Completer) completeEditPath(tokens []string, contextPath []string, endsWithSpace bool) []Completion {
+func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	// For edit, we're looking for lists and containers
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
 		prefix := ""
@@ -228,7 +229,7 @@ func (c *Completer) completeEditPath(tokens []string, contextPath []string, ends
 }
 
 // completeShowPath completes paths for show command.
-func (c *Completer) completeShowPath(tokens []string, contextPath []string, endsWithSpace bool) []Completion {
+func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
 		prefix := ""
 		if len(tokens) == 1 {

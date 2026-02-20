@@ -238,7 +238,7 @@ else:
 
 ### Bugs Found/Fixed
 
-1. **Internal plugins didn't stop** - `Stop()` only cancelled context, but internal plugins don't respond to context cancellation. Fixed by closing stdin in `Stop()` for internal plugins.
+1. **Internal plugins didn't stop** - `Stop()` only canceled context, but internal plugins don't respond to context cancellation. Fixed by closing stdin in `Stop()` for internal plugins.
 
 ### Design Insights
 

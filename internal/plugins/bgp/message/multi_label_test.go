@@ -55,7 +55,7 @@ func TestBuildVPNNLRIBytes_MultiLabel(t *testing.T) {
 				RDBytes: tt.rdBytes,
 			}
 
-			result := ub.buildVPNNLRIBytes(params)
+			result := ub.buildVPNNLRIBytes(&params)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantLength, len(result), "NLRI length mismatch")
 
@@ -124,7 +124,7 @@ func TestBuildLabeledUnicastNLRIBytes_MultiLabel(t *testing.T) {
 				Labels: tt.labels,
 			}
 
-			result := ub.BuildLabeledUnicastNLRIBytes(params)
+			result := ub.BuildLabeledUnicastNLRIBytes(&params)
 			require.NotNil(t, result)
 			assert.Equal(t, tt.wantLength, len(result), "NLRI length mismatch")
 
@@ -161,7 +161,7 @@ func TestBuildVPN_MultiLabel(t *testing.T) {
 		RDBytes: [8]byte{0, 0, 0x00, 0x64, 0, 0, 0, 0x64},
 	}
 
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 	require.NotNil(t, update)
 	require.NotEmpty(t, update.PathAttributes)
 }
@@ -179,7 +179,7 @@ func TestBuildLabeledUnicast_MultiLabel(t *testing.T) {
 		Labels:  []uint32{100, 200}, // Two labels
 	}
 
-	update := ub.BuildLabeledUnicast(params)
+	update := ub.BuildLabeledUnicast(&params)
 	require.NotNil(t, update)
 	require.NotEmpty(t, update.PathAttributes)
 }

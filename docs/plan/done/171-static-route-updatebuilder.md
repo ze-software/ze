@@ -17,7 +17,7 @@
 **What was NOT completed:**
 - `buildRIBRouteUpdate` → NOT converted to UpdateBuilder
 
-**Why `buildRIBRouteUpdate` conversion was cancelled:**
+**Why `buildRIBRouteUpdate` conversion was canceled:**
 
 The Pool + Wire architecture was finalized AFTER this spec was written. This changed the correct approach for RIB routes:
 
@@ -128,7 +128,7 @@ RIB routes are **received** - they already have wire bytes:
 
 - [x] Convert `buildStaticRouteUpdate` → `buildStaticRouteUpdateNew` with UpdateBuilder
 - [x] Delete `buildGroupedUpdate` (UpdateBuilder used directly)
-- [ ] ~~Convert `buildRIBRouteUpdate` to UpdateBuilder~~ **CANCELLED - use pool forwarding instead**
+- [ ] ~~Convert `buildRIBRouteUpdate` to UpdateBuilder~~ **canceled - use pool forwarding instead**
 
 **Next Step:** Implement `spec-pool-handle-migration.md` which will:
 1. Store routes with `pool.Handle` instead of parsed attributes

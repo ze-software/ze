@@ -677,7 +677,7 @@ Without `completable`, ZeBGP returns empty completions for arguments.
 
 1. New process instance starts
 2. Must re-register commands (registry is cleared on death)
-3. Old pending requests already cancelled
+3. Old pending requests already canceled
 
 ---
 

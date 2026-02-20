@@ -89,7 +89,7 @@ func TestTimersHoldTimerReset(t *testing.T) {
 
 // TestTimersHoldTimerStop verifies hold timer can be stopped.
 //
-// VALIDATES: Hold timer can be cancelled.
+// VALIDATES: Hold timer can be canceled.
 //
 // PREVENTS: Hold timer firing after session teardown.
 func TestTimersHoldTimerStop(t *testing.T) {
@@ -138,7 +138,7 @@ func TestTimersKeepaliveTimer(t *testing.T) {
 
 // TestTimersKeepaliveTimerStop verifies keepalive timer can be stopped.
 //
-// VALIDATES: Keepalive timer can be cancelled.
+// VALIDATES: Keepalive timer can be canceled.
 //
 // PREVENTS: Keepalive timer firing after session teardown.
 func TestTimersKeepaliveTimerStop(t *testing.T) {
@@ -187,7 +187,7 @@ func TestTimersConnectRetryTimer(t *testing.T) {
 
 // TestTimersConnectRetryTimerStop verifies connect retry timer can be stopped.
 //
-// VALIDATES: Connect retry timer can be cancelled.
+// VALIDATES: Connect retry timer can be canceled.
 //
 // PREVENTS: Connect retry firing after successful connection.
 func TestTimersConnectRetryTimerStop(t *testing.T) {

@@ -484,13 +484,10 @@ func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
 
 			// Build data: AFI(2) + SAFI(1) + NH_LEN(1) + RD(8) + IPv6(16) + Reserved(1) + NLRI
 			data := make([]byte, 0, 32)
-			data = append(data, tt.afiBytes...)                                 // AFI
-			data = append(data, 0x80)                                           // SAFI VPN (128)
-			data = append(data, 0x18)                                           // NH len = 24 (8 RD + 16 IPv6)
-			data = append(data, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) // RD = 0
-			data = append(data, nhBytes...)                                     // IPv6 next-hop
-			data = append(data, 0x00)                                           // reserved
-			data = append(data, 0x01, 0x02, 0x03)                               // VPN NLRI (simplified)
+			data = append(data, tt.afiBytes...)                                             // AFI
+			data = append(data, 0x80, 0x18, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) // SAFI VPN (128), NH len = 24, RD = 0
+			data = append(data, nhBytes...)                                                 // IPv6 next-hop
+			data = append(data, 0x00, 0x01, 0x02, 0x03)                                     // reserved + VPN NLRI (simplified)
 
 			m, err := ParseMPReachNLRI(data)
 			if err != nil {

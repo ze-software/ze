@@ -549,7 +549,7 @@ type SchedulerConfig struct {
 
 func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler
 
-// Run starts scheduler loop. Blocks until context cancelled.
+// Run starts scheduler loop. Blocks until context canceled.
 func (s *Scheduler) Run(ctx context.Context)
 ```
 

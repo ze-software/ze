@@ -165,7 +165,7 @@ func handleTeardown(ctx *plugin.CommandContext, args []string) (*plugin.Response
 
 // parseUint parses a string as unsigned integer.
 func parseUint(s string) (uint64, error) {
-	if len(s) == 0 {
+	if s == "" {
 		return 0, fmt.Errorf("empty string")
 	}
 	var n uint64

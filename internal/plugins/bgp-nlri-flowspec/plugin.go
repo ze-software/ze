@@ -499,14 +499,15 @@ func jsonToTextComponents(m map[string]any) ([]string, error) {
 			// "protocol tcp udp" → one component with OR values
 			var values []string
 			for _, orGroup := range arr {
-				if innerArr, ok := orGroup.([]any); ok {
-					for _, v := range innerArr {
+				switch g := orGroup.(type) {
+				case []any:
+					for _, v := range g {
 						if s, ok := v.(string); ok {
 							values = append(values, normalizeJSONValue(key, s))
 						}
 					}
-				} else if s, ok := orGroup.(string); ok {
-					values = append(values, normalizeJSONValue(key, s))
+				case string:
+					values = append(values, normalizeJSONValue(key, g))
 				}
 			}
 			if len(values) > 0 {

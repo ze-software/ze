@@ -108,7 +108,7 @@ func TestParsePrefixSIDSRv6Integration(t *testing.T) {
 	src := StaticRouteConfig{
 		PrefixSID: "l3-service 2001:1:0:0::",
 	}
-	attrs, err := ParseRouteAttributes(src)
+	attrs, err := ParseRouteAttributes(&src)
 	require.NoError(t, err)
 	require.NotNil(t, attrs)
 	assert.NotEmpty(t, attrs.PrefixSID.Bytes, "PrefixSID bytes should not be empty for SRv6 format")

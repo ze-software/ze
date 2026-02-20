@@ -31,7 +31,7 @@ var ErrRouteExists = errors.New("route already exists in pool")
 // Returns the PoolRoute for further state manipulation.
 // Returns ErrRouteExists if a route with the same key already exists.
 // To update a route, remove it first then add the new version.
-func (m *WatchdogManager) AddRoute(poolName string, route StaticRoute) (*PoolRoute, error) {
+func (m *WatchdogManager) AddRoute(poolName string, route *StaticRoute) (*PoolRoute, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -171,7 +171,7 @@ func (p *WatchdogPool) Routes() []*PoolRoute {
 
 // addRoute adds a route to the pool. Internal method, caller holds m.mu.
 // Returns ErrRouteExists if a route with the same key already exists.
-func (p *WatchdogPool) addRoute(route StaticRoute) (*PoolRoute, error) {
+func (p *WatchdogPool) addRoute(route *StaticRoute) (*PoolRoute, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -181,7 +181,7 @@ func (p *WatchdogPool) addRoute(route StaticRoute) (*PoolRoute, error) {
 	}
 
 	pr := &PoolRoute{
-		StaticRoute: route,
+		StaticRoute: *route,
 		announced:   make(map[string]bool),
 		pool:        p,
 	}

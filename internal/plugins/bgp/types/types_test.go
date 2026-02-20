@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
 
 // TestRawMessageIsAsyncSafe verifies IsAsyncSafe depends on WireUpdate.

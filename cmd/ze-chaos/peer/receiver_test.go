@@ -297,8 +297,7 @@ func TestParseUpdatePrefixesMPReach(t *testing.T) {
 		0x40, 1, 1, 0, // ORIGIN = IGP
 	}
 	// MP_REACH_NLRI: flags=0x90 (optional, transitive, extended-length), code=14
-	attrs = append(attrs, 0x90, 14)
-	attrs = append(attrs, byte(len(mpReach)>>8), byte(len(mpReach)))
+	attrs = append(attrs, 0x90, 14, byte(len(mpReach)>>8), byte(len(mpReach)))
 	attrs = append(attrs, mpReach...)
 
 	body := []byte{0, 0} // withdrawn-len = 0
@@ -453,15 +452,12 @@ func TestParseUpdatePrefixesMultipleAttrs(t *testing.T) {
 	// Tests that the walker correctly steps over variable-length attributes.
 	var attrs []byte
 
-	// ORIGIN: flags=0x40(transitive), code=1, len=1, value=0 (IGP).
-	attrs = append(attrs, 0x40, 1, 1, 0)
-
-	// AS_PATH: flags=0x40(transitive), code=2, len=6, AS_SEQUENCE(2,1,[65001]).
-	attrs = append(attrs, 0x40, 2, 6, 2, 1, 0x00, 0x00, 0xFD, 0xE9)
-
-	// MP_REACH_NLRI: flags=0x90(optional+transitive+extended-length), code=14.
-	attrs = append(attrs, 0x90, 14)
-	attrs = append(attrs, byte(len(mpReach)>>8), byte(len(mpReach)))
+	// ORIGIN(flags=0x40,code=1,len=1,IGP) + AS_PATH(flags=0x40,code=2,len=6,AS_SEQ[65001]) + MP_REACH header.
+	attrs = append(attrs,
+		0x40, 1, 1, 0, // ORIGIN
+		0x40, 2, 6, 2, 1, 0x00, 0x00, 0xFD, 0xE9, // AS_PATH
+		0x90, 14, byte(len(mpReach)>>8), byte(len(mpReach)), // MP_REACH_NLRI header
+	)
 	attrs = append(attrs, mpReach...)
 
 	// MED: flags=0x80(optional), code=4, len=4, value=100.

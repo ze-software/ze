@@ -7,9 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 func TestNewEditor(t *testing.T) {
@@ -20,7 +21,7 @@ func TestNewEditor(t *testing.T) {
 	initial := `router-id 1.2.3.4;
 local-as 65000;
 `
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor
@@ -43,7 +44,7 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;` //nolint:goconst // test value
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor and modify
@@ -74,7 +75,7 @@ func TestEditorBackupNaming(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "myconfig.conf")
 
 	// Write initial config
-	err := os.WriteFile(configPath, []byte("test"), 0600)
+	err := os.WriteFile(configPath, []byte("test"), 0o600)
 	require.NoError(t, err)
 
 	// Create multiple backups
@@ -112,7 +113,7 @@ func TestEditorDiscard(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -135,7 +136,7 @@ func TestEditorRollback(t *testing.T) {
 
 	// Write initial config
 	version1 := `router-id 1.1.1.1;`
-	err := os.WriteFile(configPath, []byte(version1), 0600)
+	err := os.WriteFile(configPath, []byte(version1), 0o600)
 	require.NoError(t, err)
 
 	// Create first backup
@@ -148,7 +149,7 @@ func TestEditorRollback(t *testing.T) {
 
 	// Write version 2
 	version2 := `router-id 2.2.2.2;`
-	err = os.WriteFile(configPath, []byte(version2), 0600)
+	err = os.WriteFile(configPath, []byte(version2), 0o600)
 	require.NoError(t, err)
 
 	// Rollback to first backup
@@ -173,7 +174,7 @@ func TestEditorListBackupsEmpty(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte("test"), 0600)
+	err := os.WriteFile(configPath, []byte("test"), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -192,7 +193,7 @@ func TestEditorDiff(t *testing.T) {
 	initial := `router-id 1.2.3.4;
 local-as 65000;
 `
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
@@ -225,7 +226,7 @@ func TestEditFilePersistence(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor
@@ -265,12 +266,12 @@ func TestEditFileResume(t *testing.T) {
 
 	// Write original config
 	original := `router-id 1.1.1.1;`
-	err := os.WriteFile(configPath, []byte(original), 0600)
+	err := os.WriteFile(configPath, []byte(original), 0o600)
 	require.NoError(t, err)
 
 	// Write existing edit file (simulating previous session)
 	editContent := `router-id 9.9.9.9;`
-	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
 	// Create editor - should detect and report edit file
@@ -301,7 +302,7 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor and make changes
@@ -339,7 +340,7 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor and make changes
@@ -377,7 +378,7 @@ func TestPendingEditTime(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Create editor - no edit file yet
@@ -389,14 +390,14 @@ func TestPendingEditTime(t *testing.T) {
 
 	// Create edit file
 	editContent := `router-id 2.2.2.2;`
-	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
 	// Recreate editor to detect edit file
-	ed.Close() //nolint:errcheck,gosec
+	ed.Close() //nolint:errcheck,gosec // test cleanup: recreating editor below
 	ed, err = NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck
+	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Should have pending edit with recent time
 	assert.True(t, ed.HasPendingEdit(), "should detect edit file")
@@ -417,20 +418,20 @@ func TestPendingEditDiff(t *testing.T) {
 	// Write initial config
 	initial := `router-id 1.2.3.4;
 local-as 65000;`
-	err := os.WriteFile(configPath, []byte(initial), 0600)
+	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Write edit file with changes
 	editContent := `router-id 2.2.2.2;
 local-as 65000;
 peer-as 65001;`
-	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
 	// Create editor
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck
+	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Get diff
 	diff := ed.PendingEditDiff()
@@ -449,13 +450,13 @@ func TestPendingEditDiffNoEditFile(t *testing.T) {
 
 	// Write config only, no edit file
 	content := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	// Create editor - no edit file
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck
+	defer ed.Close() //nolint:errcheck // test cleanup
 
 	// Diff should be empty (no edit file to compare)
 	diff := ed.PendingEditDiff()
@@ -473,9 +474,9 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 
 	// Write same content to both files
 	content := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
-	err = os.WriteFile(editPath, []byte(content), 0600)
+	err = os.WriteFile(editPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
 	// Create editor
@@ -505,7 +506,7 @@ const validBGPConfig = `bgp {
 func writeTestConfig(t *testing.T, content string) string {
 	t.Helper()
 	configPath := filepath.Join(t.TempDir(), "test.conf")
-	err := os.WriteFile(configPath, []byte(content), 0600)
+	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 	return configPath
 }

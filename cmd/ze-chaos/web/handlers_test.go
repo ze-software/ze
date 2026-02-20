@@ -33,7 +33,7 @@ func TestHandleIndex(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleIndex(w, req)
@@ -75,7 +75,7 @@ func TestHandlePeers(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.Peers[3].Status = PeerDown
 
-	req := httptest.NewRequest(http.MethodGet, "/peers", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peers", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeers(w, req)
@@ -112,7 +112,7 @@ func TestHandlePeersStatusFilter(t *testing.T) {
 	d.state.Peers[0].Status = PeerUp
 	d.state.Peers[1].Status = PeerDown
 
-	req := httptest.NewRequest(http.MethodGet, "/peers?status=up", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peers?status=up", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeers(w, req)
@@ -142,7 +142,7 @@ func TestHandlePeerDetail(t *testing.T) {
 	d.state.Peers[2].ChaosCount = 3
 	d.state.Active.Promote(2, PriorityHigh, time.Now())
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/2", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peer/2", http.NoBody)
 	req.SetPathValue("id", "2")
 	w := httptest.NewRecorder()
 
@@ -171,7 +171,7 @@ func TestHandlePeerDetailNotFound(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/999", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peer/999", http.NoBody)
 	req.SetPathValue("id", "999")
 	w := httptest.NewRecorder()
 
@@ -192,7 +192,7 @@ func TestHandlePeerDetailInvalidID(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/abc", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peer/abc", http.NoBody)
 	req.SetPathValue("id", "abc")
 	w := httptest.NewRecorder()
 
@@ -217,7 +217,7 @@ func TestHandlePeerPin(t *testing.T) {
 	d.state.Active.Promote(1, PriorityMedium, time.Now())
 
 	// Pin.
-	req := httptest.NewRequest(http.MethodPost, "/peers/1/pin", nil)
+	req := httptest.NewRequest(http.MethodPost, "/peers/1/pin", http.NoBody)
 	req.SetPathValue("id", "1")
 	w := httptest.NewRecorder()
 
@@ -231,7 +231,7 @@ func TestHandlePeerPin(t *testing.T) {
 	}
 
 	// Unpin.
-	req = httptest.NewRequest(http.MethodPost, "/peers/1/pin", nil)
+	req = httptest.NewRequest(http.MethodPost, "/peers/1/pin", http.NoBody)
 	req.SetPathValue("id", "1")
 	w = httptest.NewRecorder()
 
@@ -252,7 +252,7 @@ func TestHandlePeerClose(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/peer/close", nil)
+	req := httptest.NewRequest(http.MethodGet, "/peer/close", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handlePeerClose(w, req)
@@ -342,7 +342,7 @@ func TestControlHandlersLogToNDJSON(t *testing.T) {
 	defer d.broker.Close()
 
 	// Pause.
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -350,7 +350,7 @@ func TestControlHandlersLogToNDJSON(t *testing.T) {
 	}
 
 	// Resume.
-	req = httptest.NewRequest(http.MethodPost, "/control/resume", nil)
+	req = httptest.NewRequest(http.MethodPost, "/control/resume", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleControlResume(w, req)
 
@@ -367,7 +367,7 @@ func TestControlHandlersLogToNDJSON(t *testing.T) {
 	d.handleControlTrigger(w, req)
 
 	// Stop.
-	req = httptest.NewRequest(http.MethodPost, "/control/stop", nil)
+	req = httptest.NewRequest(http.MethodPost, "/control/stop", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleControlStop(w, req)
 
@@ -404,7 +404,7 @@ func TestControlHandlersNoLoggerNoPanic(t *testing.T) {
 	// d.controlLogger is nil (default).
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -496,7 +496,7 @@ func TestHandlePeerPinOutOfRange(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodPost, "/peers/"+tt.id+"/pin", nil)
+			req := httptest.NewRequest(http.MethodPost, "/peers/"+tt.id+"/pin", http.NoBody)
 			req.SetPathValue("id", tt.id)
 			w := httptest.NewRecorder()
 			d.handlePeerPin(w, req)
@@ -666,7 +666,7 @@ func TestControlChannelFull(t *testing.T) {
 	}
 
 	// 17th command should return 503.
-	req := httptest.NewRequest(http.MethodPost, "/control/pause", nil)
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleControlPause(w, req)
 
@@ -982,7 +982,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	defer d.broker.Close()
 
 	// Pause.
-	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", nil)
+	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleRouteControlPause(w, req)
 	if w.Code != http.StatusOK {
@@ -1002,7 +1002,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	d.state.RUnlock()
 
 	// Resume.
-	req = httptest.NewRequest(http.MethodPost, "/control/route/resume", nil)
+	req = httptest.NewRequest(http.MethodPost, "/control/route/resume", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleRouteControlResume(w, req)
 	if w.Code != http.StatusOK {
@@ -1032,7 +1032,7 @@ func TestRouteControlHandlers(t *testing.T) {
 	d.state.RUnlock()
 
 	// Stop.
-	req = httptest.NewRequest(http.MethodPost, "/control/route/stop", nil)
+	req = httptest.NewRequest(http.MethodPost, "/control/route/stop", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleRouteControlStop(w, req)
 	if w.Code != http.StatusOK {
@@ -1084,7 +1084,7 @@ func TestRouteControlNoChannel(t *testing.T) {
 	for _, h := range handlers {
 		t.Run(h.name, func(t *testing.T) {
 			t.Parallel()
-			req := httptest.NewRequest(http.MethodPost, "/control/route/"+h.name, nil)
+			req := httptest.NewRequest(http.MethodPost, "/control/route/"+h.name, http.NoBody)
 			w := httptest.NewRecorder()
 			h.handler(w, req)
 			if w.Code != http.StatusServiceUnavailable {
@@ -1150,7 +1150,7 @@ func TestRouteControlChannelFull(t *testing.T) {
 		routeControlCh <- ControlCommand{Type: "test"}
 	}
 
-	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", nil)
+	req := httptest.NewRequest(http.MethodPost, "/control/route/pause", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleRouteControlPause(w, req)
 

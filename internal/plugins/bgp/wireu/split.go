@@ -400,7 +400,7 @@ func splitMPUnreach(attr []byte, maxBytes int, srcCtx *bgpctx.EncodingContext) (
 }
 
 // buildMPAttribute constructs MP_REACH or MP_UNREACH with correct length/flags.
-func buildMPAttribute(origFlags byte, typeCode attribute.AttributeCode, afiSafiNH []byte, nlris []byte) []byte {
+func buildMPAttribute(origFlags byte, typeCode attribute.AttributeCode, afiSafiNH, nlris []byte) []byte {
 	valueLen := len(afiSafiNH) + len(nlris)
 
 	// Determine if extended length needed

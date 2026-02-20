@@ -752,7 +752,7 @@ func TestCommitService_TwoLevel_WireFormat_eBGP_ASSetFirst(t *testing.T) {
 }
 
 // extractFirstSegment returns the type and count of the first AS_PATH segment.
-func extractFirstSegment(attrs []byte) (segType byte, segCount byte) {
+func extractFirstSegment(attrs []byte) (segType, segCount byte) {
 	offset := 0
 	for offset < len(attrs) {
 		if offset+2 > len(attrs) {

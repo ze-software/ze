@@ -58,7 +58,7 @@ var buildBufPool = sync.Pool{
 
 // getBuildBuf returns a reusable 4K buffer from buildBufPool.
 //
-//nolint:forcetypeassert // pool New always returns []byte
+//nolint:forcetypeassert,errcheck // pool New always returns []byte
 func getBuildBuf() []byte {
 	return buildBufPool.Get().([]byte)
 }
@@ -717,7 +717,7 @@ func (s *Session) setCloseReason(err error) {
 }
 
 // Run is the main session loop. It processes messages until context is
-// cancelled or an error occurs.
+// canceled or an error occurs.
 //
 // Uses close-on-cancel pattern: a cancel goroutine watches ctx.Done() and
 // errChan, then closes the connection to unblock any pending io.ReadFull.
@@ -819,10 +819,12 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
 		s.returnReadBuffer(buf)
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
+		var lengthBuf [2]byte
+		binary.BigEndian.PutUint16(lengthBuf[:], hdr.Length)
 		_ = s.sendNotification(conn,
 			message.NotifyMessageHeader,
 			message.NotifyHeaderBadLength,
-			[]byte{byte(hdr.Length >> 8), byte(hdr.Length)},
+			lengthBuf[:],
 		)
 		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
 		s.closeConn()
@@ -852,7 +854,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 
 // processMessage handles a received BGP message.
 // Returns (error, kept) where kept indicates if callback took buffer ownership.
-func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (error, bool) {
+func (s *Session) processMessage(hdr *message.Header, body, buf []byte) (error, bool) {
 	s.mu.RLock()
 	ctxID := s.recvCtxID
 	sourceID := s.sourceID
@@ -1644,7 +1646,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 // RFC 6793 - 4-byte AS encoding when asn4 is true.
 //
 // Note: Concurrent calls must be externally synchronized.
-func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) error {
+func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP, asn4, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()

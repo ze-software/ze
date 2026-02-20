@@ -71,7 +71,7 @@ func (ub *UpdateBuilder) alloc(n int) []byte {
 }
 
 // NewUpdateBuilder creates a new UpdateBuilder with the given context.
-func NewUpdateBuilder(localAS uint32, isIBGP bool, asn4, addPath bool) *UpdateBuilder {
+func NewUpdateBuilder(localAS uint32, isIBGP, asn4, addPath bool) *UpdateBuilder {
 	return &UpdateBuilder{
 		LocalAS: localAS,
 		IsIBGP:  isIBGP,
@@ -160,7 +160,7 @@ type UnicastParams struct {
 //
 // RFC 4271 Appendix F.3 - Attributes are ordered by type code for
 // consistent wire format and interoperability.
-func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
+func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	ub.resetScratch()
 
 	// Build attributes in a slice for sorting
@@ -394,7 +394,7 @@ func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 // buildMPReachUnicast constructs MP_REACH_NLRI for unicast routes.
 //
 // RFC 4760 Section 3 - MP_REACH_NLRI format for IPv6 unicast.
-func (ub *UpdateBuilder) buildMPReachUnicast(p UnicastParams) *attribute.MPReachNLRI {
+func (ub *UpdateBuilder) buildMPReachUnicast(p *UnicastParams) *attribute.MPReachNLRI {
 	var afi attribute.AFI
 	var nlriAFI nlri.AFI
 
@@ -533,7 +533,7 @@ type VPNParams struct {
 //
 // RFC 4364 Section 4 - VPN routes use MP_REACH_NLRI with SAFI=128.
 // NLRI format: Label(3) + RD(8) + Prefix.
-func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
+func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 	ub.resetScratch()
 
 	var attrs []attribute.Attribute
@@ -673,7 +673,7 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 //
 // Returns a rawAttribute because VPN next-hop format (RD+IP) differs from
 // standard MPReachNLRI (which only supports plain IP addresses).
-func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
+func (ub *UpdateBuilder) buildMPReachVPN(p *VPNParams) *rawAttribute {
 	var afi uint16
 	if p.Prefix.Addr().Is6() {
 		afi = 2 // AFI IPv6
@@ -719,7 +719,7 @@ func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
 // RFC 4364 Section 4.3.4 - VPN-IPv4 NLRI:
 // Length (1 octet) + Labels (3 octets each) + RD (8 octets) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
-func (ub *UpdateBuilder) buildVPNNLRIBytes(p VPNParams) []byte {
+func (ub *UpdateBuilder) buildVPNNLRIBytes(p *VPNParams) []byte {
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -814,7 +814,7 @@ type LabeledUnicastParams struct {
 // BuildLabeledUnicast builds an UPDATE message for a labeled unicast route (SAFI 4).
 //
 // RFC 8277 - NLRI format: Label(3) + Prefix.
-func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
+func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 	ub.resetScratch()
 
 	var attrs []attribute.Attribute
@@ -953,7 +953,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 // RFC 8277 Section 2 - Labeled Unicast NLRI format:
 // Length (bits) + Label (3 octets) + Prefix (variable).
 // Next-hop: Plain IP address (4 or 16 bytes).
-func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *rawAttribute {
+func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p *LabeledUnicastParams) *rawAttribute {
 	var afi uint16
 	if p.Prefix.Addr().Is6() {
 		afi = 2 // AFI IPv6
@@ -991,7 +991,7 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 // RFC 8277 Section 2 - NLRI format:
 // Length (1 octet, bits) + Labels (3 octets each) + Prefix (variable).
 // RFC 8277 Section 2 - Multiple labels support.
-func (ub *UpdateBuilder) BuildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []byte {
+func (ub *UpdateBuilder) BuildLabeledUnicastNLRIBytes(p *LabeledUnicastParams) []byte {
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -1177,8 +1177,8 @@ func (ub *UpdateBuilder) buildMPReachMVPN(routes []MVPNParams) *rawAttribute {
 
 	// Build NLRI data for all routes
 	var nlriData []byte
-	for _, route := range routes {
-		nlriData = append(nlriData, ub.buildMVPNNLRIBytes(route)...)
+	for i := range routes {
+		nlriData = append(nlriData, ub.buildMVPNNLRIBytes(routes[i])...) //nolint:gocritic // existing append pattern for NLRI aggregation
 	}
 
 	// AFI/SAFI
@@ -2025,7 +2025,7 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 	}
 
 	// Build attributes once from first route (shared across all)
-	attrBytes := ub.packGroupedAttributes(routes[0])
+	attrBytes := ub.packGroupedAttributes(&routes[0])
 
 	// Calculate overhead and available NLRI space
 	// Overhead = Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs
@@ -2040,7 +2040,8 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 	var updates []*Update
 	var currentNLRI []byte
 
-	for _, r := range routes {
+	for i := range routes {
+		r := &routes[i]
 		// Calculate NLRI size and pack
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
 		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
@@ -2077,7 +2078,7 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 
 // packGroupedAttributes packs attributes for grouped unicast routes.
 // Uses first route's attributes; called once per batch.
-func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
+func (ub *UpdateBuilder) packGroupedAttributes(first *UnicastParams) []byte {
 	var attrs []attribute.Attribute
 
 	// 1. ORIGIN
@@ -2235,7 +2236,7 @@ func (ub *UpdateBuilder) BuildFlowSpecWithMaxSize(p FlowSpecParams, maxSize int)
 //
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p UnicastParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) BuildUnicastWithMaxSize(p *UnicastParams, maxSize int) (*Update, error) {
 	update := ub.BuildUnicast(p)
 
 	// Calculate total UPDATE size: Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs + NLRI
@@ -2351,8 +2352,8 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 	var currentBatch []MVPNParams
 	currentSize := 0 // Track incrementally for O(n) instead of O(n²)
 
-	for _, route := range routes {
-		nlriBytes := ub.buildMVPNNLRIBytes(route)
+	for i := range routes {
+		nlriBytes := ub.buildMVPNNLRIBytes(routes[i])
 		nlriLen := len(nlriBytes)
 
 		// Check if single NLRI fits
@@ -2371,7 +2372,7 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 			currentSize = 0
 		}
 
-		currentBatch = append(currentBatch, route)
+		currentBatch = append(currentBatch, routes[i])
 		currentSize += nlriLen
 	}
 
@@ -2400,7 +2401,7 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 // RFC 4364 - BGP/MPLS IP Virtual Private Networks.
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildVPNWithMaxSize(p VPNParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) BuildVPNWithMaxSize(p *VPNParams, maxSize int) (*Update, error) {
 	update := ub.BuildVPN(p)
 
 	// VPN routes use MP_REACH_NLRI, no inline NLRI
@@ -2421,7 +2422,7 @@ func (ub *UpdateBuilder) BuildVPNWithMaxSize(p VPNParams, maxSize int) (*Update,
 // RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes.
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
-func (ub *UpdateBuilder) BuildLabeledUnicastWithMaxSize(p LabeledUnicastParams, maxSize int) (*Update, error) {
+func (ub *UpdateBuilder) BuildLabeledUnicastWithMaxSize(p *LabeledUnicastParams, maxSize int) (*Update, error) {
 	update := ub.BuildLabeledUnicast(p)
 
 	// Labeled unicast uses MP_REACH_NLRI, no inline NLRI

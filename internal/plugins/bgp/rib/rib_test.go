@@ -4,8 +4,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 const testPeerID = "192.168.1.1"
@@ -183,7 +184,7 @@ func TestOutgoingRIBQueueWithdraw(t *testing.T) {
 
 	// Pending announcements should be empty (withdraw cancels announce)
 	pending := rib.GetPending(nlri.IPv4Unicast)
-	require.Len(t, pending, 0, "announce must be cancelled by withdraw")
+	require.Len(t, pending, 0, "announce must be canceled by withdraw")
 
 	// Withdrawals should be queued
 	withdrawals := rib.GetWithdrawals(nlri.IPv4Unicast)

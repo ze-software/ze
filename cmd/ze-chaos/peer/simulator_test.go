@@ -220,7 +220,7 @@ func TestSimulatorSendsRoutes(t *testing.T) {
 	assert.Equal(t, 6, updateCount, "Ze should have received 5 UPDATEs + 1 EOR")
 }
 
-// TestSimulatorShutdownClean verifies that cancelling the context triggers
+// TestSimulatorShutdownClean verifies that canceling the context triggers
 // a clean shutdown with NOTIFICATION cease and EventDisconnected.
 //
 // VALIDATES: Context cancellation sends NOTIFICATION and reports disconnect.

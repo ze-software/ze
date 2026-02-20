@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 )
 
 // failAfterReader wraps a reader and returns an error after n bytes.

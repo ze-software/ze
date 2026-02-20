@@ -101,7 +101,7 @@ func TestPendingRequests_Timeout(t *testing.T) {
 
 // TestPendingRequests_CancelAll verifies cleanup on process death.
 //
-// VALIDATES: All pending requests for a process are cancelled on death.
+// VALIDATES: All pending requests for a process are canceled on death.
 // PREVENTS: Clients waiting forever when process dies.
 func TestPendingRequests_CancelAll(t *testing.T) {
 	pending := NewPendingRequests()
@@ -139,19 +139,19 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 	select {
 	case resp := <-respCh1:
 		if resp.Status != StatusError {
-			t.Error("expected error for cancelled request")
+			t.Error("expected error for canceled request")
 		}
 	default:
-		t.Error("cancelled request should have received error")
+		t.Error("canceled request should have received error")
 	}
 
 	select {
 	case resp := <-respCh3:
 		if resp.Status != StatusError {
-			t.Error("expected error for cancelled request")
+			t.Error("expected error for canceled request")
 		}
 	default:
-		t.Error("cancelled request should have received error")
+		t.Error("canceled request should have received error")
 	}
 
 	// proc2 request should still be pending

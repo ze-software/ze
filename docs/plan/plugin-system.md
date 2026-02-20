@@ -238,7 +238,7 @@ type Plugin interface {
     ConfigSchema() *ConfigSchema
 
     // Init is called once during reactor startup.
-    // ctx is cancelled on shutdown; config contains plugin-specific settings.
+    // ctx is canceled on shutdown; config contains plugin-specific settings.
     // All dependencies are guaranteed to be available via reactor.GetService().
     // Config is guaranteed to match ConfigSchema() if schema was provided.
     Init(ctx context.Context, reactor ReactorAPI, config map[string]any) error

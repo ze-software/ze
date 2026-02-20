@@ -32,7 +32,7 @@ func NewFamilyRIB(family nlri.Family, addPath bool) *FamilyRIB {
 // Insert adds a route with its attributes to the RIB.
 // Parses attributes into per-type pools for fine-grained deduplication.
 // If the NLRI already exists, performs implicit withdraw (releases old entry).
-func (r *FamilyRIB) Insert(attrBytes []byte, nlriBytes []byte) {
+func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 	nlriKey := string(nlriBytes)
 
 	// Parse attributes into RouteEntry.

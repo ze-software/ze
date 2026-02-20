@@ -316,7 +316,7 @@ func truncateOutput(s string, maxLines int) string {
 	return strings.Join(lines[:maxLines], "\n") + "\n... (truncated)"
 }
 
-func indentLines(s string, indent string) string {
+func indentLines(s, indent string) string {
 	lines := strings.Split(s, "\n")
 	for i, line := range lines {
 		if line != "" {

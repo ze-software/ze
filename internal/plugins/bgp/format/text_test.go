@@ -498,13 +498,9 @@ func TestFilterResultCommunities(t *testing.T) {
 // buildTestUpdateBodyWithMEDAndLocalPref builds UPDATE body with explicit MED and LOCAL_PREF.
 // Always includes both attributes even when 0.
 func buildTestUpdateBodyWithMEDAndLocalPref(prefix netip.Prefix, nextHop netip.Addr, origin uint8, localPref, med uint32) []byte {
+	// ORIGIN + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, origin)
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, origin, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP (IPv4)
 	if nextHop.Is4() {
@@ -549,13 +545,9 @@ func buildTestUpdateBodyWithMEDAndLocalPref(prefix netip.Prefix, nextHop netip.A
 //
 //nolint:dupl // Test helper, similar structure to buildTestUpdateBodyWithDualIPv4NextHop is intentional
 func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop netip.Addr, ipv6Prefix netip.Prefix, ipv6NextHop netip.Addr) []byte {
+	// ORIGIN (igp) + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP for IPv4
 	if ipv4NextHop.Is4() {
@@ -568,23 +560,19 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 	// AFI=2 (IPv6), SAFI=1 (unicast), NH len=16, next-hop, reserved=0, NLRI
 	// Capacity: 4 (header) + 16 (NH) + 1 (reserved) + 1 (prefix len) + 16 (max prefix) = 38
 	mpReach := make([]byte, 0, 38)
-	mpReach = append(mpReach, 0x00, 0x02) // AFI IPv6
-	mpReach = append(mpReach, 0x01)       // SAFI unicast
-	mpReach = append(mpReach, 0x10)       // NH len = 16
+	mpReach = append(mpReach, 0x00, 0x02, 0x01, 0x10) // AFI IPv6, SAFI unicast, NH len = 16
 	nhBytes := ipv6NextHop.As16()
 	mpReach = append(mpReach, nhBytes[:]...)
-	mpReach = append(mpReach, 0x00) // reserved
 
-	// IPv6 NLRI
+	// Reserved + IPv6 NLRI
 	bits := ipv6Prefix.Bits()
-	mpReach = append(mpReach, byte(bits))
 	prefixBytes := (bits + 7) / 8
 	addr := ipv6Prefix.Addr().As16()
+	mpReach = append(mpReach, 0x00, byte(bits))
 	mpReach = append(mpReach, addr[:prefixBytes]...)
 
 	// MP_REACH_NLRI attribute (optional, transitive)
-	attrs = append(attrs, 0x90, 0x0e) // flags=0x90, type=14
-	attrs = append(attrs, byte(len(mpReach)>>8), byte(len(mpReach)))
+	attrs = append(attrs, 0x90, 0x0e, byte(len(mpReach)>>8), byte(len(mpReach)))
 	attrs = append(attrs, mpReach...)
 
 	// IPv4 NLRI
@@ -815,13 +803,9 @@ func TestWriteJSONEscapedString(t *testing.T) {
 
 // buildTestUpdateBodyWithCommunities builds UPDATE with COMMUNITY attribute.
 func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr, communities []uint32) []byte {
+	// ORIGIN (igp) + AS_PATH (empty)
 	var attrs []byte
-
-	// ORIGIN
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
-
-	// AS_PATH (empty)
-	attrs = append(attrs, 0x40, 0x02, 0x00)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00)
 
 	// NEXT_HOP (IPv4)
 	if nextHop.Is4() {

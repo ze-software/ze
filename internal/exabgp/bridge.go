@@ -942,7 +942,7 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			slog.Debug("zebgp→plugin: context cancelled")
+			slog.Debug("zebgp→plugin: context canceled")
 			return
 		default:
 		}
@@ -988,7 +988,7 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, w io.Writer) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
-			slog.Debug("plugin→zebgp: context cancelled")
+			slog.Debug("plugin→zebgp: context canceled")
 			return
 		default:
 		}

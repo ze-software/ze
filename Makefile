@@ -53,10 +53,10 @@ bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
 
 # ─── Ze tests ────────────────────────────────────────────────────────────────
 
-# Run ze linter (excludes chaos packages)
+# Run ze linter (excludes chaos and research packages — research excluded due to gosec v2.23.0 panic on Go 1.26)
 ze-lint:
 	@echo "Running ze linter..."
-	@golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./research/... ./test/...
+	@golangci-lint run ./cmd/ze/... ./cmd/ze-test/... ./internal/... ./pkg/... ./parked/... ./test/...
 
 # Run ze unit tests with race detector (excludes chaos packages)
 ze-unit-test:

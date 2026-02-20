@@ -3,9 +3,10 @@ package handler
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 // TestHandlerCacheList verifies cache list returns cached IDs.

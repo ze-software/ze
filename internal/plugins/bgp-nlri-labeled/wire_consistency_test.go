@@ -4,10 +4,11 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	labeled "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-nlri-labeled"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestLabeledUnicastWireConsistency verifies two code paths produce identical wire format.
@@ -85,7 +86,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 				PathID: tt.pathID,
 				Labels: []uint32{tt.label},
 			}
-			expected := ub.BuildLabeledUnicastNLRIBytes(params)
+			expected := ub.BuildLabeledUnicastNLRIBytes(&params)
 
 			// Path 2: Build via nlri.LabeledUnicast (queued replay path)
 			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
@@ -120,7 +121,7 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 		PathID: pathID,
 		Labels: []uint32{label},
 	}
-	builderBytes := ub.BuildLabeledUnicastNLRIBytes(params)
+	builderBytes := ub.BuildLabeledUnicastNLRIBytes(&params)
 
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	n := labeled.NewLabeledUnicast(family, prefix, []uint32{label}, pathID)

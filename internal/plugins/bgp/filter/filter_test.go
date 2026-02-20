@@ -538,18 +538,14 @@ func TestWithdrawnByFamilyNilCtx(t *testing.T) {
 // Returns wire bytes for 192.168.1.0/24 with next-hop 10.0.0.1.
 func buildTestMPReachIPv4() wireu.MPReachWire {
 	data := make([]byte, 0, 32)
-	data = append(data, 0x00, 0x01) // AFI: IPv4
-	data = append(data, 0x01)       // SAFI: unicast
-	data = append(data, 0x04)       // NH length: 4
+	data = append(data, 0x00, 0x01, 0x01, 0x04) // AFI: IPv4, SAFI: unicast, NH length: 4
 
 	// Next-hop: 10.0.0.1
 	nh := [4]byte{10, 0, 0, 1}
 	data = append(data, nh[:]...)
-	data = append(data, 0x00) // Reserved
 
-	// NLRI: 192.168.1.0/24
-	data = append(data, 24)          // prefix length
-	data = append(data, 192, 168, 1) // prefix bytes
+	// Reserved + NLRI: 192.168.1.0/24
+	data = append(data, 0x00, 24, 192, 168, 1)
 
 	return wireu.MPReachWire(data)
 }
@@ -557,13 +553,9 @@ func buildTestMPReachIPv4() wireu.MPReachWire {
 // buildTestMPUnreachIPv4 builds MP_UNREACH_NLRI wire bytes for IPv4 unicast.
 // Returns wire bytes for 192.168.1.0/24.
 func buildTestMPUnreachIPv4() wireu.MPUnreachWire {
+	// AFI: IPv4, SAFI: unicast, NLRI: 192.168.1.0/24
 	data := make([]byte, 0, 16)
-	data = append(data, 0x00, 0x01) // AFI: IPv4
-	data = append(data, 0x01)       // SAFI: unicast
-
-	// NLRI: 192.168.1.0/24
-	data = append(data, 24)          // prefix length
-	data = append(data, 192, 168, 1) // prefix bytes
+	data = append(data, 0x00, 0x01, 0x01, 24, 192, 168, 1)
 
 	return wireu.MPUnreachWire(data)
 }

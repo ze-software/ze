@@ -240,7 +240,7 @@ func TestHandleVizRouteMatrix(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now, Prefix: prefix})
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: now, Prefix: prefix})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizRouteMatrix(w, req)
@@ -271,7 +271,7 @@ func TestHandleVizRouteMatrixEmpty(t *testing.T) {
 	d := newTestDashboard(5)
 	defer d.broker.Close()
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizRouteMatrix(w, req)
@@ -300,7 +300,7 @@ func TestHandleVizRouteMatrixTopParam(t *testing.T) {
 		d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 20, Time: now, Prefix: p})
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?top=10", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?top=10", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizRouteMatrix(w, req)
@@ -331,7 +331,7 @@ func TestHandleVizRouteMatrixLatencyMode(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: t0, Prefix: prefix})
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 1, Time: t0.Add(50 * time.Millisecond), Prefix: prefix})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?mode=latency", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?mode=latency", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizRouteMatrix(w, req)
@@ -370,7 +370,7 @@ func TestHandleVizRouteMatrixFamilyFilter(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 3, Time: now, Prefix: p6})
 
 	// Filter to ipv4/unicast only.
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?family=ipv4/unicast", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?family=ipv4/unicast", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleVizRouteMatrix(w, req)
 
@@ -404,7 +404,7 @@ func TestHandleVizRouteMatrixCustomPeers(t *testing.T) {
 	}
 
 	// Request only peers 0 and 1.
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?peers=0,1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix?peers=0,1", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleVizRouteMatrix(w, req)
 
@@ -613,7 +613,7 @@ func TestHandleVizEvents(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "disconnect"})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/events", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/events", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizEvents(w, req)
@@ -648,7 +648,7 @@ func TestHandleVizEventsPeerFilter(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "disconnect"})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/events?peer=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/events?peer=1", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizEvents(w, req)
@@ -679,7 +679,7 @@ func TestHandleVizEventsTypeFilter(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "disconnect"})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/events?type=chaos", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/events?type=chaos", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizEvents(w, req)
@@ -711,7 +711,7 @@ func TestHandleVizConvergence(t *testing.T) {
 	d.state.Convergence.Record(500 * time.Millisecond)
 	d.state.mu.Unlock()
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/convergence", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/convergence", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizConvergence(w, req)
@@ -747,7 +747,7 @@ func TestHandleVizPeerTimeline(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 0, Time: now.Add(time.Second)})
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 2, Time: now})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/peer-timeline", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/peer-timeline", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizPeerTimeline(w, req)
@@ -786,13 +786,13 @@ func TestHandleVizPeerTimelinePagination(t *testing.T) {
 	}
 
 	// Page 1 should have p0.
-	req := httptest.NewRequest(http.MethodGet, "/viz/peer-timeline?page=1", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/peer-timeline?page=1", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleVizPeerTimeline(w, req)
 	page1 := w.Body.String()
 
 	// Page 2 should have p30+ but not p0.
-	req = httptest.NewRequest(http.MethodGet, "/viz/peer-timeline?page=2", nil)
+	req = httptest.NewRequest(http.MethodGet, "/viz/peer-timeline?page=2", http.NoBody)
 	w = httptest.NewRecorder()
 	d.handleVizPeerTimeline(w, req)
 	page2 := w.Body.String()
@@ -822,7 +822,7 @@ func TestHandleVizChaosTimeline(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 0, Time: now, ChaosAction: "tcp-disconnect"})
 	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now.Add(time.Second), ChaosAction: "hold-timer-expiry"})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizChaosTimeline(w, req)
@@ -881,7 +881,7 @@ func TestChaosTimelineColorsMatchActionTypes(t *testing.T) {
 		i++
 	}
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/chaos-timeline", http.NoBody)
 	w := httptest.NewRecorder()
 
 	d.handleVizChaosTimeline(w, req)
@@ -1113,7 +1113,7 @@ func TestRouteMatrixRenderedCellTitles(t *testing.T) {
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 1, Time: now, Prefix: pc, Family: "ipv4/unicast"})
 	d.ProcessEvent(peer.Event{Type: peer.EventRouteReceived, PeerIndex: 0, Time: now, Prefix: pc, Family: "ipv4/unicast"})
 
-	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", nil)
+	req := httptest.NewRequest(http.MethodGet, "/viz/route-matrix", http.NoBody)
 	w := httptest.NewRecorder()
 	d.handleVizRouteMatrix(w, req)
 

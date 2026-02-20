@@ -6,10 +6,11 @@ import (
 	"net"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestCodecRPCHandlerRouting verifies codecRPCHandler returns handlers for known methods.
@@ -51,7 +52,7 @@ func TestHandleDecodeNLRI(t *testing.T) {
 		Description: "test",
 		Families:    []string{"ipv4/flow"},
 		InProcessNLRIDecoder: func(family, hex string) (string, error) {
-			return fmt.Sprintf(`[{"family":"%s","hex":"%s"}]`, family, hex), nil
+			return fmt.Sprintf(`[{"family":%q,"hex":%q}]`, family, hex), nil
 		},
 		RunEngine:  func(_, _ net.Conn) int { return 0 },
 		CLIHandler: func([]string) int { return 0 },

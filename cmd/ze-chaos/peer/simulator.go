@@ -102,7 +102,7 @@ const stormDelay = 200 * time.Millisecond
 // the OPEN/KEEPALIVE handshake, sends routes, reads incoming messages, and
 // maintains the KEEPALIVE loop. All lifecycle events are reported via cfg.Events.
 //
-// RunSimulator blocks until ctx is cancelled or a fatal error occurs.
+// RunSimulator blocks until ctx is canceled or a fatal error occurs.
 func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	p := cfg.Profile
 
@@ -147,7 +147,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	// Context watcher: close connection when ctx is cancelled, regardless
+	// Context watcher: close connection when ctx is canceled, regardless
 	// of which phase the simulator is in. Without this, readMsg() calls
 	// during the handshake block forever on io.ReadFull with no way to
 	// unblock them (the main select loop that handles ctx.Done is only
@@ -688,7 +688,7 @@ func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 }
 
 // readLoop reads BGP messages from conn and emits route events.
-// It runs until the connection closes or ctx is cancelled.
+// It runs until the connection closes or ctx is canceled.
 func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event) {
 	for {
 		if ctx.Err() != nil {

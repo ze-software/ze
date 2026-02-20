@@ -52,19 +52,28 @@ const (
 	EVPNRouteType5 EVPNRouteType = 5 // IP Prefix (RFC 9136 Section 3)
 )
 
+// Route type name constants — used in String(), encoding, and JSON parsing.
+const (
+	RouteNameEthernetAutoDiscovery = "ethernet-auto-discovery"
+	RouteNameMACIPAdvertisement    = "mac-ip-advertisement"
+	RouteNameInclusiveMulticast    = "inclusive-multicast"
+	RouteNameEthernetSegment       = "ethernet-segment"
+	RouteNameIPPrefix              = "ip-prefix"
+)
+
 // String returns the route type name.
 func (t EVPNRouteType) String() string {
 	switch t {
 	case EVPNRouteType1:
-		return "ethernet-auto-discovery"
+		return RouteNameEthernetAutoDiscovery
 	case EVPNRouteType2:
-		return "mac-ip-advertisement"
+		return RouteNameMACIPAdvertisement
 	case EVPNRouteType3:
-		return "inclusive-multicast"
+		return RouteNameInclusiveMulticast
 	case EVPNRouteType4:
-		return "ethernet-segment"
+		return RouteNameEthernetSegment
 	case EVPNRouteType5:
-		return "ip-prefix"
+		return RouteNameIPPrefix
 	}
 	return fmt.Sprintf("evpn-type-%d", t)
 }

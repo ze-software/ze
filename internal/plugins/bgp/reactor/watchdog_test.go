@@ -25,7 +25,7 @@ func TestWatchdogManagerAddRouteCreatesPool(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	pr, err := wm.AddRoute("health", route)
+	pr, err := wm.AddRoute("health", &route)
 	require.NoError(t, err)
 	require.NotNil(t, pr, "AddRoute should return PoolRoute")
 	assert.Equal(t, "10.0.0.0/24#0", pr.RouteKey(), "route key should match")
@@ -53,9 +53,9 @@ func TestWatchdogManagerAddRouteToExistingPool(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	_, err := wm.AddRoute("health", route1)
+	_, err := wm.AddRoute("health", &route1)
 	require.NoError(t, err)
-	_, err = wm.AddRoute("health", route2)
+	_, err = wm.AddRoute("health", &route2)
 	require.NoError(t, err)
 
 	pool := wm.GetPool("health")
@@ -80,8 +80,8 @@ func TestWatchdogManagerRemoveRoute(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	_, _ = wm.AddRoute("health", route1)
-	_, _ = wm.AddRoute("health", route2)
+	_, _ = wm.AddRoute("health", &route1)
+	_, _ = wm.AddRoute("health", &route2)
 
 	// Remove first route
 	removed := wm.RemoveRoute("health", "10.0.0.0/24#0")
@@ -119,7 +119,7 @@ func TestWatchdogManagerRemoveRouteMissingRoute(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
-	_, _ = wm.AddRoute("health", route)
+	_, _ = wm.AddRoute("health", &route)
 
 	removed := wm.RemoveRoute("health", "192.168.0.0/24#0")
 	assert.False(t, removed, "should return false for missing route")
@@ -155,7 +155,7 @@ func TestWatchdogPoolPerPeerState(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
-	pr, err := wm.AddRoute("health", route)
+	pr, err := wm.AddRoute("health", &route)
 	require.NoError(t, err)
 
 	// Default state should be false (not announced)
@@ -195,8 +195,8 @@ func TestWatchdogManagerAnnouncePool(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	pr1, _ := wm.AddRoute("health", route1)
-	_, _ = wm.AddRoute("health", route2)
+	pr1, _ := wm.AddRoute("health", &route1)
+	_, _ = wm.AddRoute("health", &route2)
 
 	// Mark route1 as already announced for peer1
 	pr1.SetAnnounced("192.168.1.1", true)
@@ -230,8 +230,8 @@ func TestWatchdogManagerWithdrawPool(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	pr1, _ := wm.AddRoute("health", route1)
-	pr2, _ := wm.AddRoute("health", route2)
+	pr1, _ := wm.AddRoute("health", &route1)
+	pr2, _ := wm.AddRoute("health", &route2)
 
 	// Mark both as announced for peer1
 	pr1.SetAnnounced("192.168.1.1", true)
@@ -289,9 +289,9 @@ func TestWatchdogManagerPoolNames(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
-	_, _ = wm.AddRoute("health", route)
-	_, _ = wm.AddRoute("backup", route)
-	_, _ = wm.AddRoute("primary", route)
+	_, _ = wm.AddRoute("health", &route)
+	_, _ = wm.AddRoute("backup", &route)
+	_, _ = wm.AddRoute("primary", &route)
 
 	names = wm.PoolNames()
 	assert.Len(t, names, 3, "should have 3 pools")
@@ -318,7 +318,7 @@ func TestWatchdogManagerConcurrency(t *testing.T) {
 				NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 			}
 			// Ignore error - duplicates are expected in concurrent test
-			_, _ = wm.AddRoute("health", route)
+			_, _ = wm.AddRoute("health", &route)
 			wm.GetPool("health")
 			wm.AnnouncePool("health", "192.168.1.1")
 			wm.WithdrawPool("health", "192.168.1.1")
@@ -354,9 +354,9 @@ func TestWatchdogPoolRouteWithPathID(t *testing.T) {
 		PathID:  2,
 	}
 
-	_, err := wm.AddRoute("health", route1)
+	_, err := wm.AddRoute("health", &route1)
 	require.NoError(t, err)
-	_, err = wm.AddRoute("health", route2)
+	_, err = wm.AddRoute("health", &route2)
 	require.NoError(t, err)
 
 	pool := wm.GetPool("health")
@@ -397,7 +397,7 @@ func TestReactorAddWatchdogRoute(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	err := r.AddWatchdogRoute(route, "health")
+	err := r.AddWatchdogRoute(&route, "health")
 	require.NoError(t, err)
 
 	pool := r.WatchdogManager().GetPool("health")
@@ -422,8 +422,8 @@ func TestReactorRemoveWatchdogRoute(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	_ = r.AddWatchdogRoute(route1, "health")
-	_ = r.AddWatchdogRoute(route2, "health")
+	_ = r.AddWatchdogRoute(&route1, "health")
+	_ = r.AddWatchdogRoute(&route2, "health")
 
 	err := r.RemoveWatchdogRoute("10.0.0.0/24#0", "health")
 	require.NoError(t, err)
@@ -466,7 +466,7 @@ func TestReactorRemoveWatchdogRouteMissingRoute(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
-	_ = r.AddWatchdogRoute(route, "health")
+	_ = r.AddWatchdogRoute(&route, "health")
 
 	err := r.RemoveWatchdogRoute("192.168.0.0/24#0", "health")
 	require.Error(t, err)
@@ -483,9 +483,9 @@ func TestPeerGetsGlobalWatchdog(t *testing.T) {
 
 	settings := &PeerSettings{
 		Connection: ConnectionBoth,
-		Address: netip.MustParseAddr("192.168.1.1"),
-		LocalAS: 65001,
-		PeerAS:  65002,
+		Address:    netip.MustParseAddr("192.168.1.1"),
+		LocalAS:    65001,
+		PeerAS:     65002,
 	}
 
 	err := r.AddPeer(settings)
@@ -517,7 +517,7 @@ func TestGlobalPoolAnnouncedStateTracked(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
-	_, _ = wm.AddRoute("health", route)
+	_, _ = wm.AddRoute("health", &route)
 
 	// Announce to peer1
 	routes := wm.AnnouncePool("health", "192.168.1.1")
@@ -551,7 +551,7 @@ func TestNextHopSelfStoredInPool(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: bgptypes.NewNextHopSelf(), // Will be resolved per-peer
 	}
-	pr, err := wm.AddRoute("health", route)
+	pr, err := wm.AddRoute("health", &route)
 	require.NoError(t, err)
 
 	assert.True(t, pr.NextHop.IsSelf(), "NextHop.IsSelf() should be true")
@@ -572,11 +572,11 @@ func TestWatchdogManagerAddRouteDuplicate(t *testing.T) {
 	}
 
 	// First add should succeed
-	_, err := wm.AddRoute("health", route)
+	_, err := wm.AddRoute("health", &route)
 	require.NoError(t, err)
 
 	// Second add with same key should fail
-	_, err = wm.AddRoute("health", route)
+	_, err = wm.AddRoute("health", &route)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrRouteExists)
 
@@ -598,7 +598,7 @@ func TestWatchdogManagerEmptyPoolCleanup(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.2.3.4")),
 	}
 
-	_, _ = wm.AddRoute("health", route)
+	_, _ = wm.AddRoute("health", &route)
 	assert.NotNil(t, wm.GetPool("health"), "pool should exist")
 
 	// Remove the only route

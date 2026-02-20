@@ -33,7 +33,7 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 		Communities:     []uint32{0xFFFF0001, 0xFFFF0002},
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Expected: ORIGIN + AS_PATH(empty) + NEXT_HOP + MED + LOCAL_PREF + COMMUNITIES
 	expectedAttrs, _ := hex.DecodeString(
@@ -70,7 +70,7 @@ func TestWireFormat_UnicastIPv4_EBGP(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Expected: ORIGIN + AS_PATH([65001]) + NEXT_HOP (no LOCAL_PREF for eBGP)
 	expectedAttrs, _ := hex.DecodeString(
@@ -98,7 +98,7 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI
 	// MP_REACH_NLRI = AFI(2) + SAFI(1) + NH_LEN(1) + NH(16) + Reserved(1) + NLRI(5) = 26 bytes
@@ -140,7 +140,7 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 		LocalPreference:   150,
 		ExtCommunityBytes: []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}, // RT 65001:100
 	}
-	update := ub.BuildVPN(params)
+	update := ub.BuildVPN(&params)
 
 	// Expected output: regular attrs by type code, then MP_REACH last.
 	// ORIGIN (1) + AS_PATH (2) + NEXT_HOP (3) + LOCAL_PREF (5) + EXT_COM (16) + MP_REACH (14 last)
@@ -179,7 +179,7 @@ func TestWireFormat_ExtendedNextHop(t *testing.T) {
 		UseExtendedNextHop: true,
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI (AFI=1, SAFI=1, IPv6 NH)
 	expectedAttrs, _ := hex.DecodeString(
@@ -219,7 +219,7 @@ func TestWireFormat_RawAttributes(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildUnicast(params)
+	update := ub.BuildUnicast(&params)
 
 	// Check raw attr is appended at end
 	if !bytes.Contains(update.PathAttributes, []byte{0xC0, 0x63, 0x03, 0x01, 0x02, 0x03}) {

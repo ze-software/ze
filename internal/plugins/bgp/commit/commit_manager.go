@@ -50,7 +50,7 @@ func (t *Transaction) PeerSelector() string {
 }
 
 // QueueAnnounce queues a route for announcement.
-// If a withdrawal for this NLRI is pending, it is cancelled.
+// If a withdrawal for this NLRI is pending, it is canceled.
 // If an announcement for this NLRI exists, it is replaced.
 func (t *Transaction) QueueAnnounce(route *rib.Route) {
 	t.mu.Lock()
@@ -66,7 +66,7 @@ func (t *Transaction) QueueAnnounce(route *rib.Route) {
 }
 
 // QueueWithdraw queues a route withdrawal.
-// If an announcement for this NLRI is pending, it is cancelled.
+// If an announcement for this NLRI is pending, it is canceled.
 func (t *Transaction) QueueWithdraw(n nlri.NLRI) {
 	t.mu.Lock()
 	defer t.mu.Unlock()

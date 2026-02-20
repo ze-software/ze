@@ -9,6 +9,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
+// MUP family string constants.
+const (
+	familyIPv4MUP = "ipv4/mup"
+	familyIPv6MUP = "ipv6/mup"
+)
+
 // parseAnnounceAFIRoutes parses routes from an AFI container (ipv4 or ipv6).
 // Handles unicast, multicast, nlri-mpls, and mpls-vpn SAFIs.
 func parseAnnounceAFIRoutes(afiTree *Tree) ([]StaticRouteConfig, error) {
@@ -156,7 +162,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 			result.MVPNRoutes = append(result.MVPNRoutes, mr)
 			continue
 
-		case "ipv4/mup", "ipv6/mup":
+		case familyIPv4MUP, familyIPv6MUP:
 			mr, err := parseMUPNLRILine(line, attr)
 			if err != nil {
 				return nil, fmt.Errorf("mup nlri: %w", err)

@@ -179,9 +179,9 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 	var testDir string
 	switch cli.command {
 	case "decode":
-		testDir = filepath.Join(baseDir, "test/decode")
+		testDir = filepath.Join(baseDir, "test", "decode")
 	case "parse":
-		testDir = filepath.Join(baseDir, "test/parse")
+		testDir = filepath.Join(baseDir, "test", "parse")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -250,14 +250,14 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 
 	// Discover tests first (needed for --server/--client modes)
 	tests := runner.NewEncodingTests(baseDir)
-	testDir := filepath.Join(baseDir, "test/encode")
+	testDir := filepath.Join(baseDir, "test", "encode")
 	switch cli.command {
 	case "plugin":
-		testDir = filepath.Join(baseDir, "test/plugin")
+		testDir = filepath.Join(baseDir, "test", "plugin")
 	case "reload":
-		testDir = filepath.Join(baseDir, "test/reload")
+		testDir = filepath.Join(baseDir, "test", "reload")
 	case cmdChaosWeb:
-		testDir = filepath.Join(baseDir, "test/chaos-web")
+		testDir = filepath.Join(baseDir, "test", "chaos-web")
 	}
 
 	if err := tests.Discover(testDir); err != nil {

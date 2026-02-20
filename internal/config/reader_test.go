@@ -7,10 +7,11 @@ import (
 	"strings"
 	"testing"
 
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
-	"codeberg.org/thomas-mangin/ze/internal/yang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // TestSchemaInfo_HandlerMap verifies handler map construction from SchemaInfo slice.

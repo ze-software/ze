@@ -1000,7 +1000,7 @@ Completion timeout: 500ms (non-configurable).
 
 ### Lifecycle
 
-- On process death: all commands auto-unregistered, pending requests cancelled
+- On process death: all commands auto-unregistered, pending requests canceled
 - Commands must be lowercase, no quotes in names
 - Cannot shadow builtin commands
 

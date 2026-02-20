@@ -88,7 +88,7 @@ var wellKnownAttrs = map[uint8]bool{
 // - MUST have the Transitive bit set
 //
 // Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
-func validateAttributeFlags(code uint8, flags uint8) *RFC7606ValidationResult {
+func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
 	if !wellKnownAttrs[code] {
 		// Optional attribute - flags not restricted
 		return nil
@@ -129,7 +129,7 @@ func validateAttributeFlags(code uint8, flags uint8) *RFC7606ValidationResult {
 //
 // Returns:
 //   - ValidationResult with strongest action, error details, and attribute codes to discard
-func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 bool) *RFC7606ValidationResult {
+func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
 		if hasNLRI {
@@ -343,7 +343,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 boo
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
-func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn4 bool) *RFC7606ValidationResult {
+func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 bool) *RFC7606ValidationResult {
 	switch code {
 	case attrCodeOrigin:
 		// RFC 7606 Section 7.1: ORIGIN must be length 1

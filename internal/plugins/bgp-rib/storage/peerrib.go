@@ -35,7 +35,7 @@ func (r *PeerRIB) SetAddPath(family nlri.Family, enabled bool) {
 
 // Insert adds an NLRI with its attributes to the RIB.
 // Creates the family RIB if it doesn't exist.
-func (r *PeerRIB) Insert(family nlri.Family, attrBytes []byte, nlriBytes []byte) {
+func (r *PeerRIB) Insert(family nlri.Family, attrBytes, nlriBytes []byte) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

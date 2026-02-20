@@ -139,7 +139,7 @@ func formatRawFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content 
 	if content.Encoding == plugin.EncodingJSON {
 		var msgFields string
 		if direction != "" {
-			msgFields = fmt.Sprintf(`,"direction":"%s"`, direction)
+			msgFields = fmt.Sprintf(`,"direction":%q`, direction)
 		}
 		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"%s},"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}`+"\n",
 			msgFields, peer.Address, peer.PeerAS, rawHex)
@@ -529,11 +529,12 @@ func formatFamilyOpsJSON(sb *strings.Builder, familyOps map[string][]familyOpera
 func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
-		if o, ok := attr.(*attribute.Origin); ok {
+		switch o := attr.(type) {
+		case *attribute.Origin:
 			sb.WriteString(`"origin":"`)
 			sb.WriteString(strings.ToLower(o.String()))
 			sb.WriteString(`"`)
-		} else if o, ok := attr.(attribute.Origin); ok {
+		case attribute.Origin:
 			sb.WriteString(`"origin":"`)
 			sb.WriteString(strings.ToLower(o.String()))
 			sb.WriteString(`"`)
@@ -556,16 +557,18 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 		}
 		return
 	case attribute.AttrMED:
-		if m, ok := attr.(*attribute.MED); ok {
+		switch m := attr.(type) {
+		case *attribute.MED:
 			fmt.Fprintf(sb, `"med":%d`, uint32(*m))
-		} else if m, ok := attr.(attribute.MED); ok {
+		case attribute.MED:
 			fmt.Fprintf(sb, `"med":%d`, uint32(m))
 		}
 		return
 	case attribute.AttrLocalPref:
-		if lp, ok := attr.(*attribute.LocalPref); ok {
+		switch lp := attr.(type) {
+		case *attribute.LocalPref:
 			fmt.Fprintf(sb, `"local-preference":%d`, uint32(*lp))
-		} else if lp, ok := attr.(attribute.LocalPref); ok {
+		case attribute.LocalPref:
 			fmt.Fprintf(sb, `"local-preference":%d`, uint32(lp))
 		}
 		return
@@ -688,10 +691,11 @@ func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
 func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
-		if o, ok := attr.(*attribute.Origin); ok {
+		switch o := attr.(type) {
+		case *attribute.Origin:
 			sb.WriteString("origin ")
 			sb.WriteString(strings.ToLower(o.String()))
-		} else if o, ok := attr.(attribute.Origin); ok {
+		case attribute.Origin:
 			sb.WriteString("origin ")
 			sb.WriteString(strings.ToLower(o.String()))
 		}
@@ -713,16 +717,18 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		}
 		return
 	case attribute.AttrMED:
-		if m, ok := attr.(*attribute.MED); ok {
+		switch m := attr.(type) {
+		case *attribute.MED:
 			fmt.Fprintf(sb, "med %d", uint32(*m))
-		} else if m, ok := attr.(attribute.MED); ok {
+		case attribute.MED:
 			fmt.Fprintf(sb, "med %d", uint32(m))
 		}
 		return
 	case attribute.AttrLocalPref:
-		if lp, ok := attr.(*attribute.LocalPref); ok {
+		switch lp := attr.(type) {
+		case *attribute.LocalPref:
 			fmt.Fprintf(sb, "local-preference %d", uint32(*lp))
-		} else if lp, ok := attr.(attribute.LocalPref); ok {
+		case attribute.LocalPref:
 			fmt.Fprintf(sb, "local-preference %d", uint32(lp))
 		}
 		return
@@ -824,7 +830,7 @@ func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direc
 // FormatStateChange formats a peer state change event.
 // State events are separate from BGP protocol messages.
 // Common states: "up", "down", "connected", "established".
-func FormatStateChange(peer plugin.PeerInfo, state string, encoding string) string {
+func FormatStateChange(peer plugin.PeerInfo, state, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return formatStateChangeJSON(peer, state)
 	}

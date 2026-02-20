@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -240,7 +241,7 @@ func ResolveConfigPath(path string) string {
 		}
 	}
 	if configHome != "" {
-		candidate := configHome + "/ze/" + name
+		candidate := filepath.Clean(configHome + "/ze/" + name)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
@@ -255,7 +256,7 @@ func ResolveConfigPath(path string) string {
 		if dir == "" {
 			continue
 		}
-		candidate := dir + "/ze/" + name
+		candidate := filepath.Clean(dir + "/ze/" + name)
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate
 		}
