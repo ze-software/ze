@@ -9,11 +9,40 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
+
+// nlriBufPool provides reusable scratch buffers for MUP NLRI encoding.
+// Max MUP NLRI: 4 header + 8 RD + 56 T1ST data = 68 bytes. 128 is plenty.
+var nlriBufPool = sync.Pool{
+	New: func() any {
+		return make([]byte, 128)
+	},
+}
+
+//nolint:forcetypeassert // pool New always returns []byte
+func getNLRIBuf() []byte { return nlriBufPool.Get().([]byte) }
+
+func putNLRIBuf(buf []byte) {
+	nlriBufPool.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+}
+
+// mupParsed holds parsed route-type fields and computed data size.
+// Populated by parse*Fields, consumed by write*Data. No allocation.
+type mupParsed struct {
+	prefix   netip.Prefix
+	addr     netip.Addr
+	ep       netip.Addr
+	src      netip.Addr
+	teid     uint32
+	teidBits int
+	qfi      uint8
+	dataSize int
+}
 
 // EncodeNLRIHex encodes MUP NLRI from CLI-style args and returns uppercase hex.
 // Args format: ["route-type", "mup-isd", "rd", "100:100", "prefix", "10.0.0.0/24"]
@@ -93,11 +122,17 @@ func EncodeNLRIHex(family string, args []string) (string, error) {
 		return "", fmt.Errorf("route-type required for MUP")
 	}
 
-	nlriBytes, _, err := buildMUPNLRI(spec)
+	buf := getNLRIBuf()
+	n, _, err := writeMUPNLRI(buf, 0, spec)
 	if err != nil {
+		putNLRIBuf(buf)
 		return "", err
 	}
-	return strings.ToUpper(hex.EncodeToString(nlriBytes)), nil
+
+	result := strings.ToUpper(hex.EncodeToString(buf[:n]))
+	putNLRIBuf(buf)
+
+	return result, nil
 }
 
 // EncodeRoute encodes a MUP route command into UPDATE body bytes and NLRI bytes.
@@ -118,76 +153,105 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	// Build MUP NLRI
-	nlriBytes, routeType, err := buildMUPNLRI(parsed)
+	// Build MUP NLRI into pool buffer.
+	buf := getNLRIBuf()
+	n, routeType, err := writeMUPNLRI(buf, 0, parsed)
 	if err != nil {
+		putNLRIBuf(buf)
 		return nil, nil, fmt.Errorf("build NLRI: %w", err)
 	}
+
+	// Copy NLRI bytes — caller needs owned memory.
+	nlriBytes := make([]byte, n)
+	copy(nlriBytes, buf[:n])
 
 	// Parse next-hop
 	var nextHop netip.Addr
 	if parsed.NextHop != "" {
 		nextHop, err = netip.ParseAddr(parsed.NextHop)
 		if err != nil {
+			putNLRIBuf(buf)
 			return nil, nil, fmt.Errorf("invalid next-hop: %w", err)
 		}
 	}
 
-	// Convert to MUPParams
+	// Build UPDATE using pool buf data (still valid until putNLRIBuf).
 	params := message.MUPParams{
 		RouteType: routeType,
 		IsIPv6:    isIPv6,
-		NLRI:      nlriBytes,
+		NLRI:      buf[:n],
 		NextHop:   nextHop,
 	}
-
-	// Build UPDATE
 	update := ub.BuildMUP(params)
-
-	// Pack UPDATE body using PackTo
 	updateBody := message.PackTo(update, nil)
+
+	putNLRIBuf(buf)
 
 	return updateBody, nlriBytes, nil
 }
 
-// buildMUPNLRI builds MUP NLRI bytes from MUPRouteSpec.
-// Returns (nlri bytes, route type code, error).
-//
-// All route-type data is pre-computed for size, allocated once, then written
-// at offsets — no append(). Final NLRI uses WriteTo into a single buffer.
-func buildMUPNLRI(spec bgptypes.MUPRouteSpec) ([]byte, uint8, error) {
+// writeMUPNLRI writes the complete MUP NLRI into buf at off.
+// Returns (bytes written, route type code, error).
+// No allocation — writes into caller-provided buffer.
+func writeMUPNLRI(buf []byte, off int, spec bgptypes.MUPRouteSpec) (int, uint8, error) {
 	routeType, err := parseMUPRouteType(spec.RouteType)
 	if err != nil {
-		return nil, 0, err
+		return 0, 0, err
 	}
 
-	// Parse RD
+	// Parse RD.
 	var rd RouteDistinguisher
+	rdSize := 0
 	if spec.RD != "" {
 		parsed, rdErr := ParseRDString(spec.RD)
 		if rdErr != nil {
-			return nil, 0, fmt.Errorf("invalid RD %q: %w", spec.RD, rdErr)
+			return 0, 0, fmt.Errorf("invalid RD %q: %w", spec.RD, rdErr)
 		}
 		rd = parsed
+		rdSize = 8
 	}
 
-	// Build route-type-specific data into pre-allocated buffer.
-	var data []byte
+	// Parse route-type fields and compute data size.
+	var fields mupParsed
 	switch routeType {
 	case MUPISD:
-		data, err = buildISDData(spec)
+		fields, err = parseISDFields(spec)
 	case MUPDSD:
-		data, err = buildDSDData(spec)
+		fields, err = parseDSDFields(spec)
 	case MUPT1ST:
-		data, err = buildT1STData(spec)
+		fields, err = parseT1STFields(spec)
 	case MUPT2ST:
-		data, err = buildT2STData(spec)
+		fields, err = parseT2STFields(spec)
 	}
 	if err != nil {
-		return nil, 0, err
+		return 0, 0, err
 	}
 
-	return finishMUPNLRI(spec.IsIPv6, routeType, rd, data)
+	// Write MUP header: arch(1) + routeType(2) + dataLength(1).
+	pos := off
+	buf[pos] = byte(MUPArch3GPP5G)
+	binary.BigEndian.PutUint16(buf[pos+1:], uint16(routeType))
+	buf[pos+3] = byte(rdSize + fields.dataSize) //nolint:gosec // max ~64, fits byte
+	pos += 4
+
+	// Write RD.
+	if rdSize > 0 {
+		pos += rd.WriteTo(buf, pos)
+	}
+
+	// Write route-type data.
+	switch routeType {
+	case MUPISD:
+		pos += writeISDData(buf, pos, fields)
+	case MUPDSD:
+		pos += writeDSDData(buf, pos, fields)
+	case MUPT1ST:
+		pos += writeT1STData(buf, pos, fields)
+	case MUPT2ST:
+		pos += writeT2STData(buf, pos, fields)
+	}
+
+	return pos - off, uint8(routeType), nil //nolint:gosec // MUP route type is always 0-4
 }
 
 // parseMUPRouteType converts route type string to MUPRouteType.
@@ -205,136 +269,151 @@ func parseMUPRouteType(s string) (MUPRouteType, error) {
 	return 0, fmt.Errorf("unknown MUP route type: %s", s)
 }
 
-// buildISDData builds ISD route-type data: prefix bytes only.
-func buildISDData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+// --- Parse functions: validate inputs, compute sizes, no allocation ---
+
+// parseISDFields validates and computes size for ISD route type.
+func parseISDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Prefix == "" {
-		return nil, fmt.Errorf("MUP ISD requires prefix")
+		return mupParsed{}, fmt.Errorf("MUP ISD requires prefix")
 	}
 	prefix, err := netip.ParsePrefix(spec.Prefix)
 	if err != nil {
-		return nil, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
+		return mupParsed{}, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
 	}
-	data := make([]byte, MUPPrefixLen(prefix))
-	WriteMUPPrefix(data, 0, prefix)
-	return data, nil
+	return mupParsed{prefix: prefix, dataSize: MUPPrefixLen(prefix)}, nil
 }
 
-// buildDSDData builds DSD route-type data: address bytes only.
-func buildDSDData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+// parseDSDFields validates and computes size for DSD route type.
+func parseDSDFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Address == "" {
-		return nil, fmt.Errorf("MUP DSD requires address")
+		return mupParsed{}, fmt.Errorf("MUP DSD requires address")
 	}
 	addr, err := netip.ParseAddr(spec.Address)
 	if err != nil {
-		return nil, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
+		return mupParsed{}, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
 	}
-	data := make([]byte, addrByteLen(addr))
-	writeAddr(data, 0, addr)
-	return data, nil
+	return mupParsed{addr: addr, dataSize: addrByteLen(addr)}, nil
 }
 
-// buildT1STData builds T1ST route-type data with pre-computed size, no append().
-func buildT1STData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+// parseT1STFields validates and computes size for T1ST route type.
+func parseT1STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Prefix == "" {
-		return nil, fmt.Errorf("MUP T1ST requires prefix")
+		return mupParsed{}, fmt.Errorf("MUP T1ST requires prefix")
 	}
 	prefix, err := netip.ParsePrefix(spec.Prefix)
 	if err != nil {
-		return nil, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
+		return mupParsed{}, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
 	}
 
-	// Parse optional addresses upfront for size computation.
-	var ep, src netip.Addr
+	var f mupParsed
+	f.prefix = prefix
+	f.qfi = spec.QFI
+
 	if spec.Endpoint != "" {
-		ep, err = netip.ParseAddr(spec.Endpoint)
+		f.ep, err = netip.ParseAddr(spec.Endpoint)
 		if err != nil {
-			return nil, fmt.Errorf("invalid T1ST endpoint %q: %w", spec.Endpoint, err)
+			return mupParsed{}, fmt.Errorf("invalid T1ST endpoint %q: %w", spec.Endpoint, err)
 		}
 	}
 	if spec.Source != "" {
-		src, err = netip.ParseAddr(spec.Source)
+		f.src, err = netip.ParseAddr(spec.Source)
 		if err != nil {
-			return nil, fmt.Errorf("invalid T1ST source %q: %w", spec.Source, err)
+			return mupParsed{}, fmt.Errorf("invalid T1ST source %q: %w", spec.Source, err)
 		}
 	}
 
-	// Pre-compute total size: prefix + TEID(4 if set) + QFI(1) + endpoint + source.
+	f.teid, f.teidBits = parseTEIDWithBits(spec.TEID)
+
+	// Compute data size: prefix + TEID(4 if set) + QFI(1) + endpoint + source.
 	size := MUPPrefixLen(prefix)
-	teid, teidBits := parseTEIDWithBits(spec.TEID)
-	if spec.TEID != "" {
+	if f.teidBits > 0 {
 		size += 4
 	}
 	size++ // QFI
-	if ep.IsValid() {
-		size += 1 + addrByteLen(ep) // length byte + address
+	if f.ep.IsValid() {
+		size += 1 + addrByteLen(f.ep) // length byte + address
 	}
-	if src.IsValid() {
-		size += 1 + addrByteLen(src) // length byte + address
+	if f.src.IsValid() {
+		size += 1 + addrByteLen(f.src) // length byte + address
 	}
+	f.dataSize = size
 
-	// Allocate once, write at offsets.
-	data := make([]byte, size)
-	off := 0
-
-	WriteMUPPrefix(data, off, prefix)
-	off += MUPPrefixLen(prefix)
-
-	if spec.TEID != "" {
-		binary.BigEndian.PutUint32(data[off:], teid)
-		off += 4
-	}
-
-	data[off] = spec.QFI
-	off++
-
-	if ep.IsValid() {
-		epLen := addrByteLen(ep)
-		data[off] = byte(epLen * 8) //nolint:gosec // epLen is 4 or 16
-		off++
-		off += writeAddr(data, off, ep)
-	}
-
-	if src.IsValid() {
-		srcLen := addrByteLen(src)
-		data[off] = byte(srcLen * 8) //nolint:gosec // srcLen is 4 or 16
-		off++
-		writeAddr(data, off, src)
-	}
-
-	_ = teidBits // bits not used for T1ST (always full 4-byte TEID)
-
-	return data, nil
+	return f, nil
 }
 
-// buildT2STData builds T2ST route-type data: endpoint + TEID with bit length.
-func buildT2STData(spec bgptypes.MUPRouteSpec) ([]byte, error) {
+// parseT2STFields validates and computes size for T2ST route type.
+func parseT2STFields(spec bgptypes.MUPRouteSpec) (mupParsed, error) {
 	if spec.Address == "" {
-		return nil, fmt.Errorf("MUP T2ST requires address")
+		return mupParsed{}, fmt.Errorf("MUP T2ST requires address")
 	}
 	ep, err := netip.ParseAddr(spec.Address)
 	if err != nil {
-		return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
+		return mupParsed{}, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
 	}
-	epLen := addrByteLen(ep)
 	teid, bits := parseTEIDWithBits(spec.TEID)
-	teidLen := TEIDFieldLen(bits)
-	data := make([]byte, 1+epLen+teidLen)
-	data[0] = byte(epLen*8 + bits) //nolint:gosec // epLen is 4 or 16, bits <= 32
-	writeAddr(data, 1, ep)
-	writeTEIDWithBits(data, 1+epLen, teid, bits)
-	return data, nil
+	return mupParsed{
+		ep:       ep,
+		teid:     teid,
+		teidBits: bits,
+		dataSize: 1 + addrByteLen(ep) + TEIDFieldLen(bits),
+	}, nil
 }
 
-// finishMUPNLRI wraps route-type data into a full MUP NLRI using WriteTo.
-func finishMUPNLRI(isIPv6 bool, routeType MUPRouteType, rd RouteDistinguisher, data []byte) ([]byte, uint8, error) {
-	afi := AFIIPv4
-	if isIPv6 {
-		afi = AFIIPv6
+// --- Write functions: write into caller-provided buffer, no allocation ---
+
+// writeISDData writes ISD route-type data into buf at off. Returns bytes written.
+func writeISDData(buf []byte, off int, f mupParsed) int {
+	WriteMUPPrefix(buf, off, f.prefix)
+	return MUPPrefixLen(f.prefix)
+}
+
+// writeDSDData writes DSD route-type data into buf at off. Returns bytes written.
+func writeDSDData(buf []byte, off int, f mupParsed) int {
+	return writeAddr(buf, off, f.addr)
+}
+
+// writeT1STData writes T1ST route-type data into buf at off. Returns bytes written.
+func writeT1STData(buf []byte, off int, f mupParsed) int {
+	pos := off
+
+	WriteMUPPrefix(buf, pos, f.prefix)
+	pos += MUPPrefixLen(f.prefix)
+
+	if f.teidBits > 0 {
+		binary.BigEndian.PutUint32(buf[pos:], f.teid)
+		pos += 4
 	}
-	m := NewMUPFull(afi, MUPArch3GPP5G, routeType, rd, data)
-	buf := make([]byte, m.Len())
-	m.WriteTo(buf, 0)
-	return buf, uint8(routeType), nil //nolint:gosec // MUP route type is always 0-4
+
+	buf[pos] = f.qfi
+	pos++
+
+	if f.ep.IsValid() {
+		epLen := addrByteLen(f.ep)
+		buf[pos] = byte(epLen * 8) //nolint:gosec // epLen is 4 or 16
+		pos++
+		pos += writeAddr(buf, pos, f.ep)
+	}
+
+	if f.src.IsValid() {
+		srcLen := addrByteLen(f.src)
+		buf[pos] = byte(srcLen * 8) //nolint:gosec // srcLen is 4 or 16
+		pos++
+		pos += writeAddr(buf, pos, f.src)
+	}
+
+	return pos - off
+}
+
+// writeT2STData writes T2ST route-type data into buf at off. Returns bytes written.
+func writeT2STData(buf []byte, off int, f mupParsed) int {
+	pos := off
+	epLen := addrByteLen(f.ep)
+	buf[pos] = byte(epLen*8 + f.teidBits) //nolint:gosec // epLen is 4 or 16, bits <= 32
+	pos++
+	pos += writeAddr(buf, pos, f.ep)
+	writeTEIDWithBits(buf, pos, f.teid, f.teidBits)
+	pos += TEIDFieldLen(f.teidBits)
+	return pos - off
 }
 
 // parseTEIDWithBits parses a TEID string "value/bits" into numeric TEID and bit length.

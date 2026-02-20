@@ -20,14 +20,35 @@ When writing ANY code that produces wire bytes (BGP messages, attributes, NLRI, 
 | Encode fixed-size field | `binary.BigEndian.PutUintNN(buf[off:], v)` | `make([]byte, 4)` + put + return |
 | Copy existing bytes | `copy(buf[off:], data)` | `make([]byte, len(data))` + copy + return |
 
+## Build/Helper Functions
+
+**BLOCKING:** Build and helper functions MUST NOT allocate and return `[]byte`. They MUST write into a caller-provided buffer.
+
+| Pattern | Status |
+|---------|--------|
+| `buildFoo() ([]byte, error)` with internal `make` | **Forbidden** |
+| `writeFoo(buf, off) int` writing into caller's buffer | **Required** |
+| `append()` in encoding code | **Forbidden** |
+
+### Required Two-Phase Pattern
+
+When encoding requires parsing before writing (e.g., need parsed values to compute size):
+
+1. **Parse phase** — validate inputs, compute sizes, return parsed values + total size (NO allocation)
+2. **Allocate once** — at the top-level caller, using the computed size
+3. **Write phase** — `writeFoo(buf, off, parsedValues) int` writes into the pre-allocated buffer
+
+This means: allocation happens at ONE level only (the top-level builder), never inside helper functions. Sub-functions compute sizes and write into buffers — they never `make([]byte)`.
+
 ## How to Check
 
 Before writing encoding code, ask:
 
-1. **"Am I returning `[]byte`?"** → Refactor to `WriteTo(buf, off) int`
-2. **"Am I calling `make([]byte, ...)`?"** → Write into the caller's buffer instead
-3. **"Does the type already have `WriteTo`?"** → Use it, don't call `Pack()`
+1. **"Am I returning `[]byte`?"** → Refactor to `writeFoo(buf, off) int`
+2. **"Am I calling `make([]byte, ...)`?"** → Move allocation to the caller
+3. **"Does the type already have `WriteTo`?"** → Use it, don't call `Pack()` or `Bytes()`
 4. **"Am I adding a new type?"** → Implement `wire.BufWriter` from the start, `Pack()` is optional
+5. **"Am I using `append()`?"** → Use pre-computed size + offset writes instead
 
 ## Existing Infrastructure
 
@@ -51,13 +72,52 @@ Pack() []byte        — allocates 4 bytes, writes, returns     ← LEGACY
 WriteTo(buf, off)    — writes directly into buf at offset      ← CORRECT
 ```
 
+## Pool-First Allocation
+
+**BLOCKING:** Encoding functions MUST use `sync.Pool` for scratch buffers, not `make([]byte, ...)`.
+
+| Pattern | Status |
+|---------|--------|
+| `buf := pool.Get().([]byte)` → write → `pool.Put(buf)` | **Required** |
+| `buf := make([]byte, N)` in encoding hot path | **Forbidden** |
+| `make([]byte, N)` for result copies returned to callers | Acceptable (caller needs owned memory) |
+
+### Pool Pattern
+
+```
+scratch := pool.Get().([]byte)    // Get reusable buffer
+n := writeFoo(scratch, 0, ...)    // Write into pool buffer
+result := hex.EncodeToString(scratch[:n])  // Use the data
+pool.Put(scratch)                  // Return to pool
+```
+
+When the caller needs owned bytes (return value), copy the relevant portion:
+```
+scratch := pool.Get().([]byte)
+n := writeFoo(scratch, 0, ...)
+owned := make([]byte, n)           // Only allocation: result copy
+copy(owned, scratch[:n])
+pool.Put(scratch)
+return owned
+```
+
+### Existing Pools
+
+| Pool | Location | Buffer Size | Purpose |
+|------|----------|-------------|---------|
+| `readBufPool4K` | `reactor/session.go` | 4096 | Standard message reads |
+| `readBufPool64K` | `reactor/session.go` | 65535 | Extended message reads |
+| `buildBufPool` | `reactor/session.go` | 4096 | UPDATE building |
+| `nlriBufPool` | Plugin encode packages | 128-256 | NLRI encoding scratch |
+
 ## When make([]byte) IS Acceptable
 
 | Context | Why it's OK |
 |---------|------------|
-| Pool infrastructure (`pool/pool.go`) | Manages the buffers themselves |
+| Pool infrastructure (pool `New` func) | Creates the pooled buffers themselves |
 | Session buffer creation (`wire.SessionBuffer`) | Allocated once per session, reused |
 | Cached encoding (`n.cached = make(...)`) | Allocated once, stored, reused on every WriteTo |
+| Result copies returned to callers | Caller needs owned memory, not pooled |
 | JSON marshaling | Not wire encoding, different concerns |
 | Test files | Test data construction, not production path |
 | IPC framing | Not BGP wire encoding |
