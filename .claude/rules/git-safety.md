@@ -12,15 +12,23 @@ paths:
 - Always confirm the scope with `git diff --stat` before running `git commit`
 - Never include unrelated changes (e.g., spec files when fixing editor bugs)
 
-## Before Any Commit
-```bash
-make test-all           # ALL must pass (ze-lint + ze-test)
-git status              # Review changes
-git diff --staged       # Review what's staged
-git diff --stat         # Confirm scope matches task
+## Before Any Commit (BLOCKING — NO EXCEPTIONS)
+
+**MANDATORY pre-commit gate.** Complete IN ORDER. Do not skip steps.
+
+```
+[ ] 1. Run `make ze-verify` (ze-lint + ze-unit-test + ze-functional-test)
+      → Paste FULL output to user
+      → If ANY failure: STOP. Fix before continuing. Do NOT commit.
+[ ] 2. Run `git status` and `git diff --stat`
+      → Show user what will be committed
+[ ] 3. ASK user: "Verification passed. Ready to commit these files?"
+      → WAIT for explicit "yes" / "commit" before running git commit
 ```
 
 **BLOCKING:** Never commit with ANY lint issues, even pre-existing ones. Fix lint issues first or ask user for guidance.
+
+**BLOCKING:** Never commit without pasting verification output. "Should pass" is not evidence — run it, paste it, ask.
 
 ## Forbidden Without Explicit Permission
 - `git reset` (any form)
