@@ -114,13 +114,15 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	}
 
 	// Check backpressure after send (informational only).
+	// Only log on transition into backpressure state (not while already in it).
 	if len(w.ch)*4 > cap(w.ch)*3 { // >75% full
-		wp.backpressure.Store(key, true)
-		logger().Warn("backpressure",
-			"source-peer", key.sourcePeer,
-			"queue-depth", len(w.ch),
-			"capacity", cap(w.ch),
-		)
+		if _, alreadySet := wp.backpressure.LoadOrStore(key, true); !alreadySet {
+			logger().Warn("backpressure",
+				"source-peer", key.sourcePeer,
+				"queue-depth", len(w.ch),
+				"capacity", cap(w.ch),
+			)
+		}
 	}
 
 	return true
