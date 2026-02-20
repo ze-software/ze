@@ -1,37 +1,9 @@
 # Test Deletion Guidelines
 
-Before deleting tests, ask for user approval unless the user has already explicitly requested the deletion.
+Rationale: `.claude/rationale/no-test-deletion.md`
 
-## Why This Rule Exists
+ASK for user approval before deleting any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries).
+Exception: user already explicitly requested the deletion.
 
-When tests fail, the temptation is to delete them and move on. This hides bugs instead of fixing them. But sometimes there are legitimate reasons to remove tests.
-
-## When to Ask for Approval
-
-Ask before:
-- Deleting test files (`*_test.go`, `*.ci`)
-- Removing `func Test*` / `func Fuzz*` / `func Benchmark*`
-- Removing `t.Run()` subtests
-- Removing table-driven test entries
-- Removing assertions from a test
-- Removing lines from `.ci` functional tests
-
-**Exception:** If the user explicitly requested the deletion, proceed without asking again.
-
-## Legitimate Reasons to Delete Tests
-
-- Test was testing removed functionality
-- Test was duplicating another test
-- Test was fundamentally wrong (not just failing)
-- Refactoring tests (replacing with better coverage)
-
-## Not Legitimate Reasons
-
-- Test is failing and hard to fix
-- Test is slow
-- Test is "annoying"
-- Don't understand what test is checking
-
-## The Question to Ask Yourself
-
-"Am I deleting this test because it's wrong, or because it's inconvenient?"
+**Legitimate:** Testing removed functionality, duplicating another test, fundamentally wrong test, replacing with better coverage.
+**Not legitimate:** Failing and hard to fix, slow, "annoying", don't understand what it checks.

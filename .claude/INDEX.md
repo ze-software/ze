@@ -2,13 +2,11 @@
 
 ## Architecture Docs
 
-Read when working on specific areas:
-
 | Area | Doc |
 |------|-----|
-| **Core Design** | `docs/architecture/core-design.md` **(START HERE - CANONICAL REFERENCE)** |
-| **Hub Architecture** | `docs/architecture/hub-architecture.md` **(FUTURE - Config Reader, YANG, plugin schemas)** |
-| **Buffer-first** | `docs/architecture/buffer-architecture.md` |
+| **Core Design** | `docs/architecture/core-design.md` **(START HERE)** |
+| **Hub Architecture** | `docs/architecture/hub-architecture.md` |
+| Buffer-first | `docs/architecture/buffer-architecture.md` |
 | Wire formats | `docs/architecture/wire/messages.md` |
 | NLRI types | `docs/architecture/wire/nlri.md` |
 | Attributes | `docs/architecture/wire/attributes.md` |
@@ -18,210 +16,73 @@ Read when working on specific areas:
 | Zero-copy | `docs/architecture/encoding-context.md` |
 | RIB transition | `docs/architecture/rib-transition.md` |
 | Route types | `docs/architecture/route-types.md` |
-| ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
-| ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
 | FSM | `docs/architecture/behavior/fsm.md` |
 | API | `docs/architecture/api/architecture.md` |
 | API Capabilities | `docs/architecture/api/capability-contract.md` |
 | Config syntax | `docs/architecture/config/syntax.md` |
 | YANG design | `docs/architecture/config/yang-config-design.md` |
+| ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
+| ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
 
-## Rules (auto-loaded, full list)
+## Keyword → Architecture Doc
 
-See `CLAUDE.md` for why each rule exists.
-
-| Rule | Applies To |
-|------|------------|
-| `rules/session-start.md` | `*` (BLOCKING - TOP 6 RULES, session checklist) |
-| `rules/post-compaction.md` | `*` (BLOCKING - after compaction, read FIRST) |
-| `rules/before-writing-code.md` | `*` (BLOCKING - before any code) |
-| `rules/design-principles.md` | `*` (scalability, maintainability) |
-| `rules/anti-rationalization.md` | `*` (pre-addressed excuses) |
-| `rules/quality.md` | `*` (no shortcuts, critical reviews, proof) |
-| `rules/planning.md` | `*` (non-trivial features) |
-| `rules/implementation-audit.md` | `*` (spec completion verification) |
-| `rules/integration-completeness.md` | `*` (end-to-end proof) |
-| `rules/data-flow-tracing.md` | `*` (architectural boundary checks) |
-| `rules/spec-no-code.md` | `docs/plan/spec-*.md` (BLOCKING - NO CODE IN SPECS) |
-| `rules/spec-preservation.md` | `docs/plan/done/` (preserve knowledge) |
-| `rules/tdd.md` | `**/*.go` |
-| `rules/testing.md` | `*` (CI, functional tests) |
-| `rules/go-standards.md` | `**/*.go` |
-| `rules/rfc-compliance.md` | `internal/bgp/**/*.go` |
-| `rules/buffer-first.md` | Wire encoding (`**/*.go`) |
-| `rules/json-format.md` | JSON output (`**/*.go`) |
-| `rules/architecture-summary.md` | `*` (condensed system overview) |
-| `rules/plugin-design.md` | `internal/plugins/**/*.go` |
-| `rules/cli-patterns.md` | `cmd/ze/**/*.go` |
-| `rules/config-design.md` | Config changes |
-| `rules/naming.md` | `*` (Ze naming convention) |
-| `rules/git-safety.md` | `*` (commits, Codeberg CLI) |
-| `rules/no-layering.md` | `*` (delete before replacing) |
-| `rules/compatibility.md` | `*` (no backwards compat) |
-| `rules/no-test-deletion.md` | `**/*_test.go`, `**/*.ci` |
-| `rules/documentation.md` | `**/*.md` |
-| `rules/hook-errors.md` | `*` (fix hook errors) |
-| `rules/memory.md` | `*` (project knowledge) |
-
-## Session State
-
-Track session progress in `.claude/session-state.md` (not committed):
-- Copy from `.claude/session-state.md.template`
-- Update as you read docs and make decisions
-- Survives compaction as reference
-
-## Keyword → Architecture Doc Mapping
-
-**Consult during RESEARCH phase only — not needed on every session start.**
-
-Start with `docs/architecture/core-design.md` (canonical reference), then read docs matching your task keywords:
-
-| Keywords in task | Required docs |
-|------------------|---------------|
+| Keywords | Docs |
+|----------|------|
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `rules/buffer-first.md` |
-| encode, Pack, WriteTo, make, alloc | `rules/buffer-first.md`, `buffer-architecture.md` |
-| UPDATE, message, build, route, announce | `core-design.md`, `update-building.md`, `encoding-context.md`, `rules/buffer-first.md` |
-| attribute, AS_PATH, NEXT_HOP, MED, LOCAL_PREF | `core-design.md`, `wire/attributes.md`, `update-building.md`, `rules/buffer-first.md` |
-| community | `wire/attributes.md` |
-| extended community, RT, RD | `wire/attributes.md` |
-| large community | `wire/attributes.md` |
+| encode, Pack, WriteTo, alloc | `rules/buffer-first.md`, `buffer-architecture.md` |
+| UPDATE, message, build, route | `core-design.md`, `update-building.md`, `encoding-context.md` |
+| attribute, AS_PATH, NEXT_HOP, MED | `core-design.md`, `wire/attributes.md`, `update-building.md` |
+| community, ext community, large community | `wire/attributes.md` |
 | NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` |
-| multiprotocol, MP-BGP, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
+| multiprotocol, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` |
 | capability, OPEN, negotiate | `wire/capabilities.md` |
-| multiple labels capability | `wire/capabilities.md` |
 | pool, memory, dedup, zero-copy | `core-design.md`, `pool-architecture.md`, `encoding-context.md` |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` |
-| route, rib, storage, duplication | `core-design.md`, `route-types.md`, `rib-transition.md` |
-| factory, family, builder | `core-design.md` |
+| route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md` |
 | FSM, state, session, peer | `behavior/fsm.md` |
-| keepalive, hold timer | `behavior/fsm.md` |
-| notification, error, cease | `behavior/fsm.md` |
-| shutdown, reset, admin | `behavior/fsm.md` |
 | API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md` |
-| config, YAML, load | `config/syntax.md` |
-| FlowSpec, traffic filter | `wire/nlri.md`, `wire/nlri-flowspec.md` |
-| VPN, L3VPN, VPNv4, VPNv6, MPLS-VPN, 6PE, 6VPE | `wire/nlri.md` |
-| labeled unicast, label, MPLS, label stack | `wire/nlri.md` |
-| EVPN, MAC-IP, ethernet, VXLAN | `wire/nlri.md`, `wire/nlri-evpn.md` |
-| VPLS, L2VPN, pseudowire, PW | `wire/nlri.md` |
-| RT constraint | `wire/nlri.md` |
+| config, load | `config/syntax.md` |
+| FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
+| VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
+| EVPN, MAC-IP | `wire/nlri.md`, `wire/nlri-evpn.md` |
 | BGP-LS, link-state | `wire/nlri-bgpls.md` |
-| segment routing, SR, SID, prefix-SID | `wire/nlri-bgpls.md`, `wire/attributes.md` |
-| SRv6 | `wire/nlri-bgpls.md` |
-| ExaBGP, compatibility | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md` |
-| design, transition, architecture | `rib-transition.md` |
-| ASN4, AS4, 4-byte AS | `edge-cases/as4.md` |
-| ADD-PATH, path-id | `edge-cases/addpath.md` |
-| extended message, >4096 | `edge-cases/extended-message.md` |
-| graceful restart, GR | `behavior/fsm.md` |
-| test, functional, .ci, ze-peer, VFS | `functional-tests.md`, `testing/ci-format.md` |
+| ExaBGP | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md` |
+| ASN4, AS4 | `edge-cases/as4.md` |
+| ADD-PATH | `edge-cases/addpath.md` |
+| extended message | `edge-cases/extended-message.md` |
+| test, functional, .ci | `functional-tests.md`, `testing/ci-format.md` |
 
-All architecture docs are in `docs/architecture/` unless otherwise specified.
+All architecture docs in `docs/architecture/` unless noted.
 
-## Edge Cases
-
-| Topic | Doc |
-|-------|-----|
-| ASN4 handling | `docs/architecture/edge-cases/as4.md` |
-| ADD-PATH | `docs/architecture/edge-cases/addpath.md` |
-| Extended messages | `docs/architecture/edge-cases/extended-message.md` |
-
-## RFC Summaries
-
-Implementation-ready RFC summaries in `rfc/short/`. Use keyword table to find relevant RFCs.
-
-### By Topic
-
-| Topic | RFCs to Read |
-|-------|--------------|
-| **Core BGP** | `rfc4271.md` (base), `rfc4760.md` (MP-BGP) |
-| **OPEN message** | `rfc4271.md`, `rfc5492.md` (capabilities), `rfc9072.md` (extended params) |
-| **UPDATE message** | `rfc4271.md`, `rfc4760.md` (MP_REACH/UNREACH) |
-| **NOTIFICATION** | `rfc4271.md`, `rfc8203.md`/`rfc9003.md` (shutdown message) |
-| **KEEPALIVE** | `rfc4271.md` |
-| **ROUTE-REFRESH** | `rfc2918.md`, `rfc7313.md` (enhanced) |
-| **Error handling** | `rfc7606.md` (revised), `rfc4271.md` §6 |
-| **FSM/state machine** | `rfc4271.md` §8, `rfc4724.md` (graceful restart) |
-
-### Attributes
-
-| Attribute | RFCs |
-|-----------|------|
-| AS_PATH, AS4_PATH | `rfc4271.md`, `rfc6793.md` (4-byte AS) |
-| NEXT_HOP, MP_REACH | `rfc4271.md`, `rfc4760.md`, `rfc8950.md` (IPv6 NH) |
-| COMMUNITIES | `rfc1997.md` |
-| EXTENDED_COMMUNITIES | `rfc4360.md`, `rfc5701.md` (IPv6) |
-| LARGE_COMMUNITIES | `rfc8092.md`, `rfc8195.md` (usage) |
-| OTC (Only to Customer) | `rfc9234.md` |
-
-### Capabilities
-
-| Capability | RFCs |
-|------------|------|
-| Multiprotocol (code 1) | `rfc4760.md` |
-| Route Refresh (code 2) | `rfc2918.md` |
-| 4-byte AS (code 65) | `rfc6793.md` |
-| ADD-PATH (code 69) | `rfc7911.md` |
-| Extended NH (code 5) | `rfc8950.md` (obsoletes `rfc5549.md`) |
-| Graceful Restart (code 64) | `rfc4724.md` |
-| Extended Message (code 6) | `rfc8654.md` |
-| BGP Role (code 9) | `rfc9234.md` |
-| Multiple Labels (code 8) | `rfc8277.md` |
-
-### AFI/SAFI Families
-
-| Family | RFCs |
-|--------|------|
-| IPv4/IPv6 Unicast | `rfc4271.md`, `rfc4760.md` |
-| Labeled Unicast (SAFI 4) | `rfc8277.md`, `rfc3032.md` (MPLS) |
-| VPN-IPv4/IPv6 (SAFI 128) | `rfc4364.md`, `rfc4659.md`, `rfc4798.md` (6PE/6VPE) |
-| FlowSpec (SAFI 133/134) | `rfc8955.md` (obsoletes `rfc5575.md`), `rfc8956.md` (IPv6) |
-| EVPN (SAFI 70) | `rfc7432.md`, `rfc9136.md` (RT-5) |
-| VPLS (SAFI 65) | `rfc4761.md`, `rfc4762.md` |
-| RT Constraint (SAFI 132) | `rfc4684.md` |
-| BGP-LS (AFI 16388) | `rfc7752.md`, `rfc9085.md` (SR), `rfc9514.md` (SRv6) |
-
-### Keyword → RFC Mapping
+## Keyword → RFC
 
 | Keywords | Primary RFC | Related |
 |----------|-------------|---------|
-| open, capability, negotiate | `rfc5492.md` | `rfc9072.md` |
-| update, nlri, prefix, route | `rfc4271.md` | `rfc4760.md` |
-| multiprotocol, mp-bgp, afi, safi | `rfc4760.md` | |
-| notification, error, cease | `rfc4271.md` | `rfc7606.md`, `rfc9003.md` |
-| keepalive, hold timer | `rfc4271.md` | |
-| route-refresh, orf | `rfc2918.md` | `rfc7313.md` |
-| community, well-known | `rfc1997.md` | |
-| extended community, RT, RD | `rfc4360.md` | `rfc5701.md` |
-| large community | `rfc8092.md` | `rfc8195.md` |
-| 4-byte AS, ASN4, AS4 | `rfc6793.md` | `rfc4271.md` |
-| add-path, path-id | `rfc7911.md` | |
-| graceful restart, GR | `rfc4724.md` | |
-| extended message, >4096 | `rfc8654.md` | |
-| label, mpls, labeled | `rfc8277.md` | `rfc3032.md` |
-| vpn, l3vpn, mpls-vpn, vpnv4, vpnv6, 6pe, 6vpe | `rfc4364.md` | `rfc4659.md`, `rfc4798.md` |
-| flowspec, traffic filter | `rfc8955.md` | `rfc8956.md` |
-| evpn, mac-ip, ethernet | `rfc7432.md` | `rfc9136.md` |
-| vpls, l2vpn, pseudowire, pw | `rfc4761.md` | `rfc4762.md` |
-| bgp-ls, link-state | `rfc7752.md` | `rfc9085.md`, `rfc9514.md` |
-| segment routing, sr, sid, prefix-sid | `rfc9085.md` | `rfc8669.md`, `rfc9514.md` |
-| srv6 | `rfc9514.md` | |
-| role, otc, route leak | `rfc9234.md` | |
-| ipv6 next hop | `rfc8950.md` | |
-| shutdown, reset, admin | `rfc9003.md` | `rfc8203.md` |
-| treat-as-withdraw | `rfc7606.md` | |
+| open, capability | `rfc5492` | `rfc9072` |
+| update, nlri, prefix | `rfc4271` | `rfc4760` |
+| multiprotocol, mp-bgp | `rfc4760` | |
+| notification, error | `rfc4271` | `rfc7606`, `rfc9003` |
+| route-refresh | `rfc2918` | `rfc7313` |
+| community | `rfc1997` | |
+| extended community, RT | `rfc4360` | `rfc5701` |
+| large community | `rfc8092` | `rfc8195` |
+| 4-byte AS, ASN4 | `rfc6793` | |
+| add-path | `rfc7911` | |
+| graceful restart | `rfc4724` | |
+| extended message | `rfc8654` | |
+| label, mpls | `rfc8277` | `rfc3032` |
+| vpn, l3vpn, 6pe | `rfc4364` | `rfc4659`, `rfc4798` |
+| flowspec | `rfc8955` | `rfc8956` |
+| evpn | `rfc7432` | `rfc9136` |
+| vpls | `rfc4761` | `rfc4762` |
+| bgp-ls | `rfc7752` | `rfc9085`, `rfc9514` |
+| role, otc | `rfc9234` | |
+| ipv6 next hop | `rfc8950` | |
+| shutdown | `rfc9003` | `rfc8203` |
+| treat-as-withdraw | `rfc7606` | |
 
-### Obsoleted RFCs (Do Not Use)
+RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`.
 
-| Obsoleted | Replacement | Notes |
-|-----------|-------------|-------|
-| `rfc5549.md` | `rfc8950.md` | IPv4 NLRI with IPv6 NH |
-| `rfc5575.md` | `rfc8955.md` | FlowSpec |
-| `rfc7752.md` | RFC 9552 (no summary yet) | BGP-LS |
-| `rfc8203.md` | `rfc9003.md` | Admin Shutdown (255 vs 128 bytes) |
+## Session State
 
-## Reference
-
-- Full RFCs: `rfc/full/` (text files)
-- RFC summaries: `rfc/short/` (markdown)
-- ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
+Track in `.claude/session-state.md` (not committed). Template: `.claude/session-state.md.template`.

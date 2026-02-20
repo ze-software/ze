@@ -1,15 +1,8 @@
 # Hook Errors
 
-**BLOCKING:** Hook validation errors MUST be fixed before proceeding.
+Rationale: `.claude/rationale/hook-errors.md`
 
-## Rules
-
-1. **Never ignore** `PostToolUse:Edit hook error` or `PostToolUse:Write hook error`
-2. **Never claim "complete" or "done"** if hooks failed
-3. **Fix immediately** - don't continue with other work
-4. **Re-run the edit** after fixing to verify hook passes
-
-## What Hook Errors Mean
+**BLOCKING:** Fix hook validation errors before proceeding.
 
 | Exit Code | Meaning | Action |
 |-----------|---------|--------|
@@ -17,18 +10,11 @@
 | 1 | Non-blocking failure | Fix before claiming done |
 | 2 | Blocking failure | Operation rejected, must fix |
 
-## Common Spec Validation Errors
+Never ignore hook errors. Never claim "done" if hooks failed. Re-run after fixing.
 
-| Error | Fix |
-|-------|-----|
-| Missing required section | Add the exact section header (e.g., `## Files to Modify`) |
-| Missing checklist item | Add exact text (e.g., `Tests written`, not `Tests written (foo)`) |
+| Common Error | Fix |
+|-------------|-----|
+| Missing required section | Add exact section header |
+| Missing checklist item | Add exact text |
 | RFC summary not found | Run `/rfc-summarisation` first |
-| Table format required | Use `| Col1 | Col2 | Col3 |` format |
-
-## Why This Matters
-
-Hook validation ensures specs follow project standards. Ignoring errors leads to:
-- Inconsistent documentation
-- Missing required information
-- Failed reviews
+| Table format required | Use `| Col | Col |` format |

@@ -1,109 +1,54 @@
 # Architecture Summary
 
-**READ `docs/architecture/core-design.md` for full details.** This is a condensed always-in-context reference.
+Rationale: `.claude/rationale/architecture-summary.md`
 
-## System Components
+Full details: `docs/architecture/core-design.md`
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              ZeBGP ENGINE                                    │
-│                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
-│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
-│   │  FSM    │  │  FSM    │  │  FSM    │                                    │
-│   └────┬────┘  └────┬────┘  └────┬────┘                                    │
-│        │            │            │                                          │
-│        └────────────┼────────────┘                                          │
-│                     ▼                                                       │
-│              ┌─────────────┐                                                │
-│              │   Reactor   │  (event loop, BGP cache)                      │
-│              └─────────────┘                                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-                              │                 ▲
-          JSON events (down)  │                 │  commands (up)
-          + base64 wire bytes │                 │  update/forward/withdraw
-                              ▼                 │
-═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
-                              │                 ▲
-                              ▼                 │
-                      ┌───────────────┐
-                      │    Plugin     │  (Go/Python/Rust/etc.)
-                      │  (RIB / RR)   │
-                      └───────────────┘
-```
-
-**Key insight:** Engine passes wire bytes to plugins. Plugins implement RIB, deduplication, policy.
-
-## Peer Context & Negotiated Capabilities
-
-Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
+## System
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Negotiated (per-peer)                        │
-│         See internal/bgp/capability/negotiated.go for full struct    │
-├─────────────────────────────────────────────────────────────────┤
-│ ASN4            bool                 → 4-byte ASN support       │
-│ AddPath         map[Family]Mode      → Receive/Send/Both        │
-│ ExtendedMsg     bool                 → 65535 byte messages      │
-│ ExtendedNextHop map[Family]AFI       → Per-family NH mapping    │
-│ Families()      []Family             → Negotiated families      │
-│ GracefulRestart *GracefulRestart     → RFC 4724 GR state        │
-│ RouteRefresh    bool                 → RFC 2918 support         │
-└─────────────────────────────────────────────────────────────────┘
+Engine: Peers (FSM) → Reactor (event loop, BGP cache)
+   ║ JSON events + base64 wire bytes (down) / commands (up)
+Plugin: RIB, RR, GR, etc. (Go/Python/Rust)
 ```
 
-**Why it matters:**
-- Same wire bytes parse differently based on negotiated caps
-- `AS_PATH [00 01 FD E8]` = ASN 65000 (ASN4) or two ASNs 1, 64488 (ASN2)
-- NLRI `[00 00 00 01 18 0a 00 00]` = path-id + prefix (ADD-PATH) or two prefixes (no ADD-PATH)
+Engine passes wire bytes to plugins. Plugins implement RIB, dedup, policy.
 
-**ContextID:** Identifies encoding context for zero-copy decisions. Same ContextID = same caps = can forward wire bytes unchanged.
+## Negotiated Capabilities (per-peer)
 
-**Wire Writing:** All wire types implement `BufWriter` interface:
-- `WriteTo(buf, off) int` - write to pre-allocated buffer (caller guarantees capacity)
-- `CheckedWriteTo(buf, off) (int, error)` - validates capacity first
-- Context-dependent types (NLRI, ASPath) take `*PackContext` for ADD-PATH/ASN4 handling
+| Field | Type | Effect |
+|-------|------|--------|
+| ASN4 | bool | 4-byte ASN in AS_PATH |
+| AddPath | map[Family]Mode | Path-ID prefix in NLRI |
+| ExtendedMsg | bool | 65535 byte messages |
+| ExtendedNextHop | map[Family]AFI | Per-family NH mapping |
+| GracefulRestart | *GR | RFC 4724 state |
+| RouteRefresh | bool | RFC 2918 |
 
-## BGP UPDATE = Container
+Same wire bytes parse differently based on caps. ContextID identifies encoding context for zero-copy.
+
+## Wire Writing
+
+All types implement `BufWriter`: `WriteTo(buf, off) int` or `CheckedWriteTo(buf, off) (int, error)`.
+Context-dependent types take `*PackContext` for ADD-PATH/ASN4.
+
+## UPDATE Structure
 
 ```
-UPDATE Message (wire bytes)
-├── Header (19 bytes)
-├── Withdrawn Routes (IPv4 unicast)
-├── Path Attributes
-│   ├── ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ...
-│   ├── MP_REACH_NLRI (NLRI for non-IPv4-unicast)
-│   └── MP_UNREACH_NLRI (withdrawals for non-IPv4-unicast)
-└── NLRI (IPv4 unicast only)
+UPDATE = Header (19B) + Withdrawn (IPv4) + Path Attributes
+  + MP_REACH_NLRI (non-IPv4 announce) + MP_UNREACH_NLRI (non-IPv4 withdraw)
+  + NLRI (IPv4 unicast only)
 ```
 
 ## WireUpdate vs RIB
 
-```
-WireUpdate (transport)              RIB (storage)
-┌─────────────────────┐             ┌────────────────────────────────────┐
-│ Attributes (shared) │             │ NLRI 10.0.0.0/24 → origin_ref ─────┼─→ Pool: IGP
-│ NLRI: 10.0.0.0/24   │   ────▶     │                    aspath_ref ─────┼─→ Pool: [65001]
-│ NLRI: 10.0.1.0/24   │             │                    localpref_ref ──┼─→ Pool: 100
-│ NLRI: 10.0.2.0/24   │             │ NLRI 10.0.1.0/24 → (same refs) ────┼─→ (shared)
-└─────────────────────┘             └────────────────────────────────────┘
-```
-
-**Key points:**
-- `WireUpdate` = transport (UPDATE bytes, lazy parse via iterators)
-- `RIB` = storage (NLRI → attribute refs, NOT WireUpdate)
-- Per-attribute-type pools (ORIGIN, AS_PATH, LOCAL_PREF, MED, COMMUNITY, etc.)
-- Per-family NLRI pools (`map[Family]*Pool[NLRI]`)
-- Next-hop: special encoding (attribute vs MP_REACH_NLRI depending on family)
+- WireUpdate = transport (lazy parse via iterators, keeps wire refs)
+- RIB = storage (NLRI → attribute refs into per-type pools, NOT WireUpdate)
+- Per-attribute-type pools with dedup. Per-family NLRI pools.
 
 ## API Command Syntax
 
 ```
-Text mode:   update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
-Binary mode: update hex attr set 400101... nlri ipv4/unicast add 180a00
+Text:   update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24
+Binary: update hex attr set 400101... nlri ipv4/unicast add 180a00
 ```
-
-Both produce WireUpdate with wire bytes.
-- Full syntax: `docs/architecture/api/update-syntax.md`
-- Full design: `docs/architecture/core-design.md`
