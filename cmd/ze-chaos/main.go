@@ -21,6 +21,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	_ "net/http/pprof" //nolint:gosec // pprof server only starts when --pprof flag is set
 	"net/netip"
 	"os"
 	"os/signal"
@@ -86,6 +87,8 @@ func run(args []string) int {
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
 	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
 	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8080)")
+	pprofAddr := fs.String("pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
+	debugAddr := fs.String("debug", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
 
@@ -146,6 +149,8 @@ Output:
   --event-log <path>         NDJSON event log file (replayable)
   --metrics <addr:port>      Prometheus metrics endpoint
   --web <addr:port>          Live web dashboard (e.g. :8080)
+  --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
+  --debug <addr:port>        pprof HTTP server for ze (injected into config, e.g. :6061)
   --quiet                    Only errors and summary
   --verbose                  Extra debug output
 
@@ -281,6 +286,17 @@ Control:
 		heavyPeers = 1 // At least 1 heavy peer when percentage is non-zero.
 	}
 
+	// Start pprof HTTP server if --pprof was set.
+	// Uses DefaultServeMux which net/http/pprof registers handlers on.
+	if *pprofAddr != "" {
+		fmt.Fprintf(os.Stderr, "pprof server listening on %s\n", *pprofAddr) //nolint:gosec // stderr, not HTTP response
+		go func() {
+			if err := http.ListenAndServe(*pprofAddr, nil); err != nil { //nolint:gosec // pprof is intentionally bound to user-specified address
+				fmt.Fprintf(os.Stderr, "error: pprof server: %v\n", err)
+			}
+		}()
+	}
+
 	fmt.Fprintf(os.Stderr, "\n══════════════════════════════════════════\n")
 	fmt.Fprintf(os.Stderr, "  ze-chaos | seed: %d\n", *seed)
 	fmt.Fprintf(os.Stderr, "  peers: %d | routes: %d | heavy: %d×%d\n", *peers, *routes, heavyPeers, *heavyRoutes)
@@ -340,6 +356,7 @@ Control:
 		BasePort:  *port,
 		ZeBinary:  *zeBinary,
 		Profiles:  profiles,
+		PprofAddr: *debugAddr,
 	}
 	zeConfig := scenario.GenerateConfig(configParams)
 

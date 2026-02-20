@@ -123,6 +123,7 @@ type DebugEnv struct {
 	Defensive     bool   // Generate random faults
 	Rotate        bool   // Rotate config on reload
 	Timing        bool   // Reactor timing analysis
+	Pprof         string // pprof HTTP server address (e.g. ":6060")
 }
 
 // LoadEnvironment loads configuration from environment variables.
@@ -584,6 +585,7 @@ var envOptions = map[string]map[string]envOption{
 		"defensive":     {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Defensive })},
 		"rotate":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Rotate })},
 		"timing":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Timing })},
+		"pprof":         {setter: func(e *Environment, v string) error { e.Debug.Pprof = v; return nil }},
 	},
 	"chaos": {
 		"seed": {

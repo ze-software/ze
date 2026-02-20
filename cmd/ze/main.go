@@ -4,6 +4,8 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	_ "net/http/pprof" //nolint:gosec // pprof server only starts when --pprof flag is set
 	"os"
 	"strconv"
 	"strings"
@@ -33,6 +35,7 @@ func main() {
 	var plugins []string
 	var chaosSeed int64
 	var chaosRate float64 = -1 // -1 means "not set by CLI"
+	var pprofAddr string
 	args := os.Args[1:]
 	for len(args) > 0 && strings.HasPrefix(args[0], "--") {
 		switch args[0] {
@@ -42,6 +45,13 @@ func main() {
 				os.Exit(1)
 			}
 			plugins = append(plugins, args[1])
+			args = args[2:]
+		case "--pprof":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --pprof requires an address (e.g. :6060)\n")
+				os.Exit(1)
+			}
+			pprofAddr = args[1]
 			args = args[2:]
 		case "--chaos-seed":
 			if len(args) < 2 {
@@ -84,6 +94,17 @@ func main() {
 		}
 	}
 dispatch:
+
+	// Start pprof HTTP server if --pprof was set.
+	// Uses DefaultServeMux which net/http/pprof registers handlers on.
+	if pprofAddr != "" {
+		fmt.Fprintf(os.Stderr, "pprof server listening on %s\n", pprofAddr) //nolint:gosec // stderr, not HTTP response
+		go func() {
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil { //nolint:gosec // pprof is intentionally bound to user-specified address
+				fmt.Fprintf(os.Stderr, "error: pprof server: %v\n", err)
+			}
+		}()
+	}
 
 	if len(args) < 1 {
 		usage()
@@ -198,6 +219,7 @@ Usage:
 Options:
   --plugin <name>       Load plugin before starting (repeatable)
   --plugins             List available internal plugins
+  --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)
   --chaos-seed <N>      Enable chaos self-test mode with PRNG seed N (-1 = time-based)
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 

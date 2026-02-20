@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"maps"
+	"net/http"
+	_ "net/http/pprof" //nolint:gosec // pprof server only starts when configured
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -357,6 +359,18 @@ func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.Plugi
 	reactorCfg.APISocketPath = env.SocketPath()
 
 	r := reactor.New(reactorCfg)
+
+	// Start pprof HTTP server from config environment block.
+	// CLI --pprof flag takes precedence (started earlier in main.go).
+	if env.Debug.Pprof != "" {
+		pprofAddr := env.Debug.Pprof
+		configLogger().Info("pprof server starting (config)", "addr", pprofAddr)
+		go func() {
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil { //nolint:gosec // pprof is intentionally bound to configured address
+				configLogger().Error("pprof server failed", "error", err)
+			}
+		}()
+	}
 
 	// Inject chaos wrappers from config environment block.
 	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.

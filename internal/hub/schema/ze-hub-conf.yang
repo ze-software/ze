@@ -123,6 +123,7 @@ module ze-hub-conf {
             leaf defensive { type boolean; }
             leaf rotate { type boolean; }
             leaf timing { type boolean; }
+            leaf pprof { type string; description "pprof HTTP server address (e.g. :6060)"; }
         }
     }
 }

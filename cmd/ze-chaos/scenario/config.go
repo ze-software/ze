@@ -14,7 +14,8 @@ type ConfigParams struct {
 	BasePort  int
 	ZeBinary  string // Path to ze binary for plugin run directives (default: "ze").
 	Profiles  []PeerProfile
-	NoPlugin  bool // When true, omit the plugin block (in-process mode adds plugins via CLI args).
+	NoPlugin  bool   // When true, omit the plugin block (in-process mode adds plugins via CLI args).
+	PprofAddr string // When set, inject environment { debug { pprof <addr>; } } into generated config.
 }
 
 // GenerateConfig produces a Ze configuration string from the given parameters.
@@ -34,7 +35,22 @@ func GenerateConfig(params ConfigParams) string {
 	if !params.NoPlugin {
 		fmt.Fprintf(&b, "plugin {\n")
 		fmt.Fprintf(&b, "    external rr {\n")
-		fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
+		if params.PprofAddr != "" {
+			// Debug mode: use internal plugin (goroutine + Unix socket pair)
+			// so pprof captures both ze and plugin CPU in a single profile.
+			fmt.Fprintf(&b, "        run \"ze.bgp-rr\";\n")
+		} else {
+			fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
+		}
+		fmt.Fprintf(&b, "    }\n")
+		fmt.Fprintf(&b, "}\n\n")
+	}
+
+	// Environment block — inject debug settings when requested.
+	if params.PprofAddr != "" {
+		fmt.Fprintf(&b, "environment {\n")
+		fmt.Fprintf(&b, "    debug {\n")
+		fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr)
 		fmt.Fprintf(&b, "    }\n")
 		fmt.Fprintf(&b, "}\n\n")
 	}
