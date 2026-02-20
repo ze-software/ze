@@ -1,3 +1,5 @@
+// Design: docs/architecture/wire/messages.md — UPDATE encoding from CLI args
+
 package bgp
 
 import (

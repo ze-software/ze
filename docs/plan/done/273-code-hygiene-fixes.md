@@ -293,8 +293,8 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Remove plugin imports from reactor.go | ⚠️ Partial | `reactor.go` imports | labeled/vpn need typed nlri.NLRI for QueueWithdraw; mup now used for shared helpers |
-| Remove plugin imports from loader.go | ⚠️ Partial | `loader.go:19` | flowspec has 30+ type refs; MUP helpers consolidated |
+| Remove plugin imports from reactor.go | ✅ Done | `reactor.go` imports | Resolved by buffer-first NLRI refactoring; only mup_test.go retains import (tolerated per plugin-design.md) |
+| Remove plugin imports from loader.go | ✅ Done | `loader.go` | Resolved by buffer-first NLRI refactoring; zero plugin imports remain |
 | Remove plugin imports from update_build.go | ✅ Done | — | Already clean (no plugin imports) |
 | Remove plugin imports from encode.go | ✅ Done | — | Already clean (no plugin imports) |
 | Consolidate MUP helpers | ✅ Done | `bgp-nlri-mup/helpers.go` | WriteMUPPrefix, MUPPrefixLen, TEIDFieldLen |
@@ -304,8 +304,8 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | ⚠️ Partial | grep shows labeled/vpn remain | Need typed nlri.NLRI for QueueWithdraw — separate refactoring |
-| AC-2 | ⚠️ Partial | grep shows flowspec remains | 30+ deep type references — separate refactoring |
+| AC-1 | ✅ Done | Zero plugin imports in reactor non-test files | Resolved by buffer-first NLRI refactoring; mup_test.go import tolerated per plugin-design.md |
+| AC-2 | ✅ Done | Zero flowspec imports in loader.go | Resolved by buffer-first NLRI refactoring |
 | AC-3 | ✅ Done | `grep -r 'bgp-evpn' update_build.go` = 0 | Already clean |
 | AC-4 | ✅ Done | `grep -r 'bgp-evpn\|bgp-flowspec\|bgp-nlri-vpn' encode.go` = 0 | Already clean |
 | AC-5 | ✅ Done | `grep 'func TEIDFieldLen'` = 1 match in helpers.go | |
@@ -341,8 +341,8 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Audit Summary
 - **Total items:** 26
-- **Done:** 22
-- **Partial:** 2 (AC-1, AC-2 — plugin imports that need deeper refactoring)
+- **Done:** 24
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 2 (update_build.go, encode.go — already clean, no changes needed)
 
