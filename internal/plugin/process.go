@@ -435,9 +435,19 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 // Uses NewInternalSocketPairs() for in-memory bidirectional connections.
 // Creates per-socket PluginConns for YANG RPC protocol.
 func (p *Process) startInternal() error {
-	runner := GetInternalPluginRunner(p.config.Name)
+	name := p.config.Name
+	// If run specifies an internal plugin (ze.X or ze plugin X), use that name
+	// for runner lookup. This allows config name ("rr") to differ from
+	// internal name ("bgp-rr").
+	if p.config.Run != "" {
+		if res, err := ResolvePlugin(p.config.Run); err == nil && res.Type == PluginTypeInternal {
+			name = res.Name
+		}
+	}
+
+	runner := GetInternalPluginRunner(name)
 	if runner == nil {
-		return fmt.Errorf("unknown internal plugin: %s", p.config.Name)
+		return fmt.Errorf("unknown internal plugin: %s", name)
 	}
 
 	// Create socket pairs for bidirectional IPC

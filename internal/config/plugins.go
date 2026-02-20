@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
 
@@ -47,6 +48,8 @@ func ExtractPluginsFromTree(tree *Tree) ([]reactor.PluginConfig, error) {
 			if pc.Encoder == EncoderText {
 				pc.ReceiveUpdate = true
 			}
+
+			markInternalPlugin(&pc)
 			plugins = append(plugins, pc)
 		}
 	}
@@ -113,16 +116,33 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 				continue
 			}
 			seen[name] = true
-			plugins = append(plugins, reactor.PluginConfig{
+			pc := reactor.PluginConfig{
 				Name:          name,
 				Run:           run,
 				Encoder:       EncoderText, // Default to text encoder
 				ReceiveUpdate: true,        // Default: receive updates
-			})
+			}
+			markInternalPlugin(&pc)
+			plugins = append(plugins, pc)
 		}
 	}
 
 	return plugins
+}
+
+// markInternalPlugin sets Internal=true if Run resolves to an internal plugin.
+// Uses ResolvePlugin for validation — rejects unknown internal names (e.g., "ze.typo").
+func markInternalPlugin(pc *reactor.PluginConfig) {
+	if pc.Run == "" {
+		return
+	}
+	resolved, err := plugin.ResolvePlugin(pc.Run)
+	if err != nil {
+		return
+	}
+	if resolved.Type == plugin.PluginTypeInternal {
+		pc.Internal = true
+	}
 }
 
 // ValidatePluginReferences checks that all process binding plugin references
