@@ -12,9 +12,6 @@ import (
 // ErrUpdateExpired is returned when an update-id is expired or not found.
 var ErrUpdateExpired = errors.New("update-id expired or not found")
 
-// ErrFIFOViolation is returned when a plugin acks an update out of order.
-var ErrFIFOViolation = errors.New("FIFO violation: update already acked or older than last ack")
-
 // cacheLogger returns the lazy logger for cache warnings.
 var cacheLogger = slogutil.LazyLogger("bgp.reactor.cache")
 
@@ -58,7 +55,8 @@ type RecentUpdateCache struct {
 	lastGapScan  time.Time // When last gap safety valve scan ran
 
 	// Per-plugin FIFO tracking: last acked message ID per plugin.
-	// Acks for IDs <= this value are rejected (FIFO violation).
+	// Acks for IDs <= this value are silently accepted as no-ops
+	// (already handled by a previous cumulative ack).
 	// Initialized by RegisterConsumer() to highestAddedID at registration time.
 	pluginLastAck map[string]uint64
 
@@ -227,27 +225,34 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 }
 
 // Ack records that a plugin has processed (forwarded or dropped) an update.
-// FIFO ordering: ack for id implicitly acks all entries with IDs between
-// the plugin's last ack and this id (TCP-like cumulative ack).
-// Returns ErrFIFOViolation if id <= plugin's last acked ID.
+// When id > lastAck: cumulative ack — implicitly acks all entries between
+// the plugin's last ack and this id (TCP-like).
+// When id <= lastAck: no-op — this plugin already acked the entry via a
+// previous cumulative ack. This happens when multi-peer delivery causes
+// session goroutines to compete for callMu, making delivery order differ
+// from message ID order.
 // Returns ErrUpdateExpired if the target id is not in the cache.
 func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// FIFO validation: plugin must ack in forward order
 	lastAck := c.pluginLastAck[plugin]
+
 	if id <= lastAck {
-		return ErrFIFOViolation
+		// Already acked via cumulative ack from a previous forward ack.
+		// Multi-peer concurrent delivery can cause events to arrive in
+		// non-ID-order, so this is expected — silently accept as no-op.
+		return nil
 	}
 
 	// Check that the target entry exists
-	if _, ok := c.entries[id]; !ok {
+	e, ok := c.entries[id]
+	if !ok {
 		return ErrUpdateExpired
 	}
 
-	// Implicit ack: ack all entries between lastAck+1 and id for this plugin.
-	// This handles batch-acking: acking N means "I've handled everything up to N."
+	// Forward ack: implicit cumulative ack for entries between lastAck+1 and id.
+	// Acking N means "I've handled everything up to N."
 	for intermediateID := lastAck + 1; intermediateID < id; intermediateID++ {
 		if ie, exists := c.entries[intermediateID]; exists {
 			c.ackEntryLocked(intermediateID, ie)
@@ -255,7 +260,7 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	}
 
 	// Ack the target entry
-	c.ackEntryLocked(id, c.entries[id])
+	c.ackEntryLocked(id, e)
 
 	// Update last ack for this plugin
 	c.pluginLastAck[plugin] = id

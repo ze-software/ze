@@ -293,10 +293,12 @@ func TestCacheActivateZeroConsumersEvictsImmediately(t *testing.T) {
 
 // --- FIFO ordering (Phase 2) ---
 
-// TestCacheFIFOOrdering verifies out-of-order ack rejection.
+// TestCacheFIFOOrdering verifies cumulative ack with out-of-order tolerance.
 //
-// VALIDATES: Out-of-order ack rejected per plugin (AC-12).
-// PREVENTS: Stale state forwarding from out-of-order processing.
+// VALIDATES: Forward ack implicitly acks earlier entries; out-of-order acks
+// (id <= lastAck) are silently accepted as no-ops.
+// PREVENTS: Log flooding from FIFO violation errors when multi-peer delivery
+// causes events to arrive in non-ID-order.
 func TestCacheFIFOOrdering(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
 
@@ -307,24 +309,24 @@ func TestCacheFIFOOrdering(t *testing.T) {
 	cache.Activate(2, 1)
 	cache.Activate(3, 1)
 
-	// Ack 1 — OK
+	// Ack 1 — forward ack (lastAck=0 → 1)
 	if err := cache.Ack(1, "rr"); err != nil {
 		t.Fatalf("Ack(1): %v", err)
 	}
 
-	// Ack 3 — OK (implicitly acks 2)
+	// Ack 3 — forward ack (lastAck=1 → 3), implicitly acks entry 2
 	if err := cache.Ack(3, "rr"); err != nil {
 		t.Fatalf("Ack(3): %v", err)
 	}
 
-	// Ack 2 — FIFO violation (already acked via implicit ack)
-	if err := cache.Ack(2, "rr"); !errors.Is(err, ErrFIFOViolation) {
-		t.Errorf("Ack(2) after Ack(3): got %v, want ErrFIFOViolation", err)
+	// Ack 2 — out-of-order (2 <= lastAck=3), silent no-op
+	if err := cache.Ack(2, "rr"); err != nil {
+		t.Errorf("Ack(2) after Ack(3): expected no-op (nil), got %v", err)
 	}
 
-	// Ack 1 again — FIFO violation (already acked)
-	if err := cache.Ack(1, "rr"); !errors.Is(err, ErrFIFOViolation) {
-		t.Errorf("re-Ack(1): got %v, want ErrFIFOViolation", err)
+	// Ack 1 again — out-of-order (1 <= lastAck=3), silent no-op
+	if err := cache.Ack(1, "rr"); err != nil {
+		t.Errorf("re-Ack(1): expected no-op (nil), got %v", err)
 	}
 }
 
@@ -403,6 +405,96 @@ func TestCacheFIFOPerPlugin(t *testing.T) {
 	if cache.Contains(2) {
 		t.Error("entry 2 should be evicted after both plugins acked")
 	}
+}
+
+// TestCacheOutOfOrderAck verifies that out-of-order acks are silently
+// accepted when multi-peer concurrent delivery causes events to arrive
+// in non-ID-order.
+//
+// VALIDATES: Ack for id <= lastAck is a no-op (no error, no double-decrement).
+// PREVENTS: "FIFO violation" errors flooding logs when session goroutines
+// compete for callMu and deliver events out of global ID order.
+func TestCacheOutOfOrderAck(t *testing.T) {
+	t.Run("single_consumer_out_of_order", func(t *testing.T) {
+		cache := NewRecentUpdateCache(100)
+
+		// Simulate 4 entries delivered to 1 plugin, processed out of order.
+		cache.Add(newTestUpdate(10))
+		cache.Add(newTestUpdate(11))
+		cache.Add(newTestUpdate(12))
+		cache.Add(newTestUpdate(13))
+		cache.Activate(10, 1)
+		cache.Activate(11, 1)
+		cache.Activate(12, 1)
+		cache.Activate(13, 1)
+
+		// Plugin processes event 13 first (won callMu race).
+		// Forward ack: implicitly acks 10..12, all evicted (single consumer).
+		if err := cache.Ack(13, "rr"); err != nil {
+			t.Fatalf("Ack(13): %v", err)
+		}
+
+		// All entries should be evicted by the cumulative ack.
+		for _, id := range []uint64{10, 11, 12, 13} {
+			if cache.Contains(id) {
+				t.Errorf("entry %d should be evicted after cumulative Ack(13)", id)
+			}
+		}
+
+		// Plugin now processes events 10, 12, 11 (out-of-order).
+		// Each id <= lastAck=13, so these are no-ops — no error returned.
+		for _, id := range []uint64{10, 12, 11} {
+			if err := cache.Ack(id, "rr"); err != nil {
+				t.Errorf("out-of-order Ack(%d) should be no-op, got: %v", id, err)
+			}
+		}
+	})
+
+	t.Run("two_consumers_out_of_order_no_double_decrement", func(t *testing.T) {
+		cache := NewRecentUpdateCache(100)
+
+		cache.Add(newTestUpdate(20))
+		cache.Add(newTestUpdate(21))
+		cache.Add(newTestUpdate(22))
+		cache.Activate(20, 2) // 2 consumers: "rr" and "monitor"
+		cache.Activate(21, 2)
+		cache.Activate(22, 2)
+
+		// "rr" acks 22 first (forward ack, implicitly acks 20, 21 for rr).
+		// Each entry's pendingConsumers: 2 → 1 (monitor still pending).
+		if err := cache.Ack(22, "rr"); err != nil {
+			t.Fatalf("rr Ack(22): %v", err)
+		}
+
+		// All entries still exist (monitor hasn't acked).
+		if cache.Len() != 3 {
+			t.Fatalf("expected 3 entries (monitor still pending), got %d", cache.Len())
+		}
+
+		// "rr" processes events 10, 12, 11 out-of-order.
+		// These are all <= lastAck=22, so they are no-ops.
+		// Crucially, they must NOT double-decrement pendingConsumers.
+		for _, id := range []uint64{20, 21} {
+			if err := cache.Ack(id, "rr"); err != nil {
+				t.Errorf("rr out-of-order Ack(%d) should be no-op, got: %v", id, err)
+			}
+		}
+
+		// All 3 entries must still exist — rr's out-of-order acks were no-ops,
+		// monitor still hasn't acked. pendingConsumers should still be 1.
+		if cache.Len() != 3 {
+			t.Fatalf("expected 3 entries after rr no-op acks, got %d (double-decrement bug!)", cache.Len())
+		}
+
+		// "monitor" acks all — now everything should be evicted.
+		if err := cache.Ack(22, "monitor"); err != nil {
+			t.Fatalf("monitor Ack(22): %v", err)
+		}
+
+		if cache.Len() != 0 {
+			t.Errorf("expected 0 entries after both consumers acked, got %d", cache.Len())
+		}
+	})
 }
 
 // --- Early ack (fast plugin race) ---
