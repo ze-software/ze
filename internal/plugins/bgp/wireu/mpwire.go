@@ -393,10 +393,14 @@ func ParseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, 
 			n, rest, err = nlri.ParseINET(nlri.AFIIPv4, nlri.SAFIMulticast, data, hasAddPath)
 		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMulticast:
 			n, rest, err = nlri.ParseINET(nlri.AFIIPv6, nlri.SAFIMulticast, data, hasAddPath)
-		default:
-			// For other families, return what we have so far
-			// TODO: Add support for VPN, EVPN, FlowSpec, etc.
-			return result, fmt.Errorf("unsupported family for NLRI parsing: %s", family)
+		default: // VPN, EVPN, FlowSpec, etc. — no dedicated parser
+			// Wrap remaining NLRI bytes as opaque WireNLRI to preserve the family
+			// in JSON output. Detailed parsing delegated to plugin-registered decoders.
+			w, wErr := nlri.NewWireNLRI(family, data, hasAddPath)
+			if wErr != nil {
+				return result, fmt.Errorf("wrapping NLRI for %s: %w", family, wErr)
+			}
+			return append(result, w), nil
 		}
 
 		if err != nil {
