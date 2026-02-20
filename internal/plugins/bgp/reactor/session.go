@@ -142,6 +142,12 @@ type Session struct {
 	// tearingDown is set when Teardown starts, preventing Accept race.
 	tearingDown atomic.Bool
 
+	// closeReason stores why the connection was closed (context cancel, hold timer,
+	// teardown, etc.). Set atomically before closeConn() so the read loop can
+	// distinguish close reasons after ReadFull returns an error.
+	// Only the first reason wins (CompareAndSwap from nil).
+	closeReason atomic.Pointer[error]
+
 	// onMessageReceived is called when any BGP message is received.
 	// Set by Peer to forward raw bytes to reactor.
 	onMessageReceived MessageCallback
@@ -676,14 +682,18 @@ func (s *Session) Teardown(subcode uint8) error {
 		)
 	}
 
+	// Set close reason BEFORE closing conn so the read loop can identify this
+	// as a teardown (not just a connection reset) after ReadFull returns error.
+	s.setCloseReason(ErrTeardown)
 	s.closeConn()
 	_ = s.fsm.Event(fsm.EventManualStop)
 
-	// Signal the Run loop to exit
+	// Signal errChan so the cancel goroutine in Run() exits cleanly.
+	// Non-blocking: channel may be full if cancel goroutine already consumed
+	// a signal, or Run() may have already exited.
 	select {
 	case s.errChan <- ErrTeardown:
-	default:
-		// Channel full or closed, that's ok
+	default: // errChan full or closed — cancel goroutine already processed a signal
 	}
 
 	return nil
@@ -700,40 +710,63 @@ func (s *Session) closeConn() {
 	}
 }
 
+// setCloseReason atomically stores why the connection is being closed.
+// Only the first reason wins — subsequent calls are no-ops.
+func (s *Session) setCloseReason(err error) {
+	s.closeReason.CompareAndSwap(nil, &err)
+}
+
 // Run is the main session loop. It processes messages until context is
 // cancelled or an error occurs.
+//
+// Uses close-on-cancel pattern: a cancel goroutine watches ctx.Done() and
+// errChan, then closes the connection to unblock any pending io.ReadFull.
+// This replaces the previous 100ms SetReadDeadline polling approach, providing
+// instant cancellation response on all connection types (including net.Pipe).
 func (s *Session) Run(ctx context.Context) error {
 	defer close(s.done)
-	for {
+
+	// Cancel goroutine: watches for shutdown signals and closes the connection
+	// to unblock ReadFull. Sets closeReason before closing so the read loop
+	// can distinguish cancel from hold timer from teardown.
+	go func() {
+		var reason error
 		select {
 		case <-ctx.Done():
-			s.closeConn()
-			return ctx.Err()
+			reason = ctx.Err()
 		case err := <-s.errChan:
-			s.closeConn()
-			return err
-		default:
+			reason = err
+		case <-s.done:
+			return // Run already exited, nothing to do.
 		}
+		s.setCloseReason(reason)
+		s.closeConn()
+	}()
 
+	for {
 		// Check if we have a connection.
 		s.mu.RLock()
 		conn := s.conn
 		s.mu.RUnlock()
 
 		if conn == nil {
-			// No connection, nothing to do.
+			// No connection yet (waiting for Accept). Check for shutdown.
+			if reason := s.closeReason.Load(); reason != nil {
+				return *reason
+			}
 			s.clock.Sleep(10 * time.Millisecond)
 			continue
 		}
 
-		// Set read deadline to allow context checking.
-		_ = conn.SetReadDeadline(s.clock.Now().Add(100 * time.Millisecond))
-
+		// ReadFull blocks until data arrives or conn is closed by cancel goroutine.
 		err := s.readAndProcessMessage(conn)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) ||
-				isTimeout(err) {
-				continue // Timeout, check context and retry.
+			// Connection was closed — check if a specific reason was set.
+			if errors.Is(err, ErrConnectionClosed) {
+				if reason := s.closeReason.Load(); reason != nil {
+					return *reason
+				}
+				return err
 			}
 			return err
 		}
@@ -1342,13 +1375,14 @@ func (s *Session) handleConnectionClose() {
 }
 
 // isConnectionReset checks if an error is a connection reset by peer.
-// This happens when the remote side closes the connection abruptly.
+// This happens when the remote side closes the connection abruptly,
+// or when we close the connection ourselves (close-on-cancel pattern).
 func isConnectionReset(err error) bool {
 	if err == nil {
 		return false
 	}
 	// Check for common connection close errors
-	if errors.Is(err, net.ErrClosed) {
+	if errors.Is(err, net.ErrClosed) || errors.Is(err, io.ErrClosedPipe) {
 		return true
 	}
 	// Check error message for connection reset indicators
@@ -1762,18 +1796,6 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 
 	_, err := conn.Write(buf[:totalLen])
 	return err
-}
-
-// isTimeout checks if an error is a timeout.
-func isTimeout(err error) bool {
-	if err == nil {
-		return false
-	}
-	var netErr net.Error
-	if errors.As(err, &netErr) {
-		return netErr.Timeout()
-	}
-	return false
 }
 
 // shouldIgnoreFamily checks if UPDATE validation should be lenient for a family.

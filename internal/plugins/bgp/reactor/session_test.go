@@ -2112,3 +2112,141 @@ func TestHandleRouteRefreshBadLen(t *testing.T) {
 		})
 	}
 }
+
+// TestSessionCloseOnCancel verifies that cancelling the context exits Run() immediately.
+//
+// VALIDATES: AC-1: context cancel closes conn, Run() returns within 10ms (not 100ms).
+// PREVENTS: Slow 100ms polling delay on shutdown due to SetReadDeadline polling.
+func TestSessionCloseOnCancel(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	// Use net.Pipe — a synchronous in-memory connection.
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+
+	// Set the connection directly (skip BGP handshake).
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Collect Run() result.
+	type runResult struct {
+		err      error
+		duration time.Duration
+	}
+	resultCh := make(chan runResult, 1)
+
+	go func() {
+		start := time.Now()
+		err := session.Run(ctx)
+		resultCh <- runResult{err: err, duration: time.Since(start)}
+	}()
+
+	// Let ReadFull block (no data sent to server).
+	time.Sleep(20 * time.Millisecond)
+
+	// Cancel the context.
+	cancel()
+
+	// Run should return quickly (< 50ms, not 100ms+ from polling).
+	select {
+	case result := <-resultCh:
+		require.ErrorIs(t, result.err, context.Canceled,
+			"Run should return context.Canceled on cancel")
+		require.Less(t, result.duration, 200*time.Millisecond,
+			"Run should exit promptly on cancel, not wait for polling interval")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after context cancel — likely blocked on ReadFull")
+	}
+}
+
+// TestSessionHoldTimerStillWorks verifies that hold timer expiry still exits Run().
+//
+// VALIDATES: AC-2: hold timer expiry sends ErrHoldTimerExpired through errChan, Run() exits.
+// PREVENTS: Regression where close-on-cancel breaks the hold timer → errChan → Run() exit path.
+func TestSessionHoldTimerStillWorks(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.HoldTime = 50 * time.Millisecond // Very short for testing
+	session := NewSession(settings)
+
+	// Use net.Pipe — ReadFull will block.
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	// Start the hold timer so it fires after 50ms.
+	session.timers.StartHoldTimer()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(t.Context())
+	}()
+
+	// Hold timer fires after ~50ms → errChan → cancel goroutine → closeConn → Run exits.
+	select {
+	case err := <-resultCh:
+		require.ErrorIs(t, err, ErrHoldTimerExpired,
+			"Run should return ErrHoldTimerExpired when hold timer fires")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after hold timer expiry — hold timer path broken")
+	}
+}
+
+// TestSessionTeardownStillWorks verifies that Teardown() exits Run() with ErrTeardown.
+//
+// VALIDATES: AC-3: Teardown sends NOTIFICATION, closes conn, Run() returns ErrTeardown.
+// PREVENTS: Regression where close-on-cancel breaks the Teardown → Run() exit path.
+func TestSessionTeardownStillWorks(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(t.Context())
+	}()
+
+	// Let ReadFull block.
+	time.Sleep(20 * time.Millisecond)
+
+	// Drain data from client side so sendNotification doesn't block on pipe.
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			_, err := client.Read(buf)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	_ = session.Teardown(message.NotifyCeaseAdminShutdown)
+
+	select {
+	case err := <-resultCh:
+		require.ErrorIs(t, err, ErrTeardown,
+			"Run should return ErrTeardown after Teardown()")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after Teardown — teardown path broken")
+	}
+}

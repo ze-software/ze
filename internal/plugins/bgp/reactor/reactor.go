@@ -4219,16 +4219,24 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		kept = true // Cache always accepts
 	}
 
-	// Deliver to plugin subscribers (may trigger forward commands that use the cache).
-	var consumerCount int
+	// Sent messages: synchronous delivery, no async channel.
 	if direction == "sent" {
 		receiver.OnMessageSent(peerInfo, msg)
-	} else {
-		consumerCount = receiver.OnMessageReceived(peerInfo, msg)
+		return kept
 	}
 
-	// Activate the cache entry with the count of cache-consumer plugins that received the event.
-	// If no consumers received it, entry is evicted immediately.
+	// Received UPDATE with per-peer delivery channel: enqueue for async delivery.
+	// The delivery goroutine (started by Peer.runOnce) calls OnMessageReceived
+	// and Activate. This decouples the TCP read goroutine from plugin processing.
+	// Non-UPDATE messages (OPEN, KEEPALIVE, NOTIFICATION) stay synchronous
+	// because they are infrequent and FSM-critical.
+	if hasPeer && peer.deliverChan != nil && msgType == message.TypeUPDATE {
+		peer.deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}
+		return kept
+	}
+
+	// Synchronous fallback: no delivery channel or non-UPDATE message.
+	consumerCount := receiver.OnMessageReceived(peerInfo, msg)
 	if kept {
 		r.recentUpdates.Activate(messageID, consumerCount)
 	}

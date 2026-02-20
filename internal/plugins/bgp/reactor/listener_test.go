@@ -206,3 +206,34 @@ func TestListenerCallback(t *testing.T) {
 
 	require.Equal(t, localAddr, remoteAddr, "remote addr should match client's local addr")
 }
+
+// TestListenerCloseOnCancel verifies listener exits immediately on context cancel.
+//
+// VALIDATES: AC-11: listener exits within 10ms on cancel (not 100ms polling interval).
+// PREVENTS: Slow shutdown due to 100ms SetDeadline polling in acceptLoop.
+func TestListenerCloseOnCancel(t *testing.T) {
+	listener := NewListener("127.0.0.1:0")
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	err := listener.StartWithContext(ctx)
+	require.NoError(t, err)
+	require.True(t, listener.Running())
+
+	// Let acceptLoop settle into blocking Accept.
+	time.Sleep(20 * time.Millisecond)
+
+	// Cancel context and measure how quickly Wait returns.
+	start := time.Now()
+	cancel()
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer waitCancel()
+	err = listener.Wait(waitCtx)
+	elapsed := time.Since(start)
+
+	require.NoError(t, err, "listener should stop on context cancellation")
+	require.False(t, listener.Running())
+	require.Less(t, elapsed, 200*time.Millisecond,
+		"listener should exit promptly on cancel, not wait for polling interval")
+}

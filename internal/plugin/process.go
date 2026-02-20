@@ -37,6 +37,27 @@ var (
 	ErrProcessNotFound      = errors.New("process not found")
 )
 
+// EventDelivery represents a work item for the per-process delivery goroutine.
+// The long-lived goroutine reads these from Process.eventChan and calls SendDeliverEvent.
+type EventDelivery struct {
+	Output string             // Pre-formatted event payload
+	Result chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
+}
+
+// EventResult is sent back to the caller after delivery completes.
+type EventResult struct {
+	ProcName      string // Process name (for logging)
+	Err           error  // nil on success
+	CacheConsumer bool   // true if delivery succeeded AND process is a cache consumer
+}
+
+const (
+	// eventDeliveryCapacity is the buffer size for per-process event delivery channels.
+	// Each item is small (string + channel pointer). 64 provides headroom without
+	// excessive memory use. If a plugin is slow, backpressure propagates naturally.
+	eventDeliveryCapacity = 64
+)
+
 // Process represents an external subprocess.
 type Process struct {
 	config PluginConfig
@@ -78,6 +99,13 @@ type Process struct {
 	capabilities *PluginCapabilities // Stage 3 capability declarations
 	stageCh      chan struct{}       // Signals stage completion
 	stageMu      sync.Mutex          // Protects stage transitions
+
+	// Long-lived event delivery goroutine (see rules/goroutine-lifecycle.md).
+	// Events are enqueued via Deliver() and processed by deliveryLoop().
+	// eventMu protects channel close: Deliver holds RLock, stopEventChan holds Lock.
+	eventChan   chan EventDelivery
+	eventClosed bool
+	eventMu     sync.RWMutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -162,6 +190,14 @@ func (p *Process) ConnB() *PluginConn {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.engineConnB
+}
+
+// SetConnB sets the engine→plugin callback connection.
+// Used by test code to inject mock connections.
+func (p *Process) SetConnB(conn *PluginConn) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.engineConnB = conn
 }
 
 // SyncEnabled returns true if sync mode is enabled for this process.
@@ -287,6 +323,92 @@ func (p *Process) Start() error {
 	return p.StartWithContext(context.Background())
 }
 
+// Deliver enqueues an event for the long-lived delivery goroutine.
+// Returns true if the event was enqueued, false if the process is stopping.
+// Thread-safe: uses RLock to allow parallel sends from multiple callers.
+func (p *Process) Deliver(d EventDelivery) bool {
+	p.eventMu.RLock()
+	defer p.eventMu.RUnlock()
+
+	if p.eventClosed || p.eventChan == nil {
+		return false
+	}
+
+	select {
+	case p.eventChan <- d:
+		return true
+	case <-p.ctx.Done():
+		return false
+	}
+}
+
+// deliveryLoop is the long-lived goroutine that processes event deliveries.
+// It reads from eventChan and calls SendDeliverEvent on ConnB.
+// Exits when eventChan is closed (by stopEventChan during Stop).
+func (p *Process) deliveryLoop() {
+	for req := range p.eventChan {
+		connB := p.ConnB()
+
+		var result EventResult
+		result.ProcName = p.config.Name
+
+		if connB == nil {
+			result.Err = errors.New("connection closed")
+		} else {
+			ctx, cancel := context.WithTimeout(p.ctx, 5*time.Second)
+			result.Err = connB.SendDeliverEvent(ctx, req.Output)
+			cancel()
+		}
+
+		if result.Err == nil && p.IsCacheConsumer() {
+			result.CacheConsumer = true
+		}
+
+		if req.Result != nil {
+			req.Result <- result
+		}
+	}
+}
+
+// stopEventChan closes the event channel, causing deliveryLoop to drain and exit.
+// Uses write lock to prevent concurrent Deliver calls from sending to a closed channel.
+func (p *Process) stopEventChan() {
+	p.eventMu.Lock()
+	defer p.eventMu.Unlock()
+
+	if !p.eventClosed && p.eventChan != nil {
+		p.eventClosed = true
+		close(p.eventChan)
+	}
+}
+
+// startDeliveryLocked starts the event delivery goroutine.
+// Caller must hold p.mu.
+func (p *Process) startDeliveryLocked() {
+	p.eventChan = make(chan EventDelivery, eventDeliveryCapacity)
+	p.wg.Go(p.deliveryLoop)
+}
+
+// StartDelivery starts only the event delivery goroutine.
+// Used by tests that inject connections via SetConnB without starting a real process.
+func (p *Process) StartDelivery(ctx context.Context) {
+	p.eventMu.Lock()
+	if p.eventChan != nil {
+		p.eventMu.Unlock()
+		return
+	}
+	p.eventMu.Unlock()
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.ctx == nil {
+		p.ctx, p.cancel = context.WithCancel(ctx)
+	}
+
+	p.startDeliveryLocked()
+}
+
 // StartWithContext spawns the process with the given context.
 // For internal plugins (config.Internal=true), runs in-process via goroutine.
 // For external plugins, forks via exec.Command.
@@ -295,6 +417,9 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	defer p.mu.Unlock()
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
+
+	// Start long-lived event delivery goroutine (see rules/goroutine-lifecycle.md).
+	p.startDeliveryLocked()
 
 	// Internal plugins run in-process via goroutine
 	if p.config.Internal {
@@ -461,6 +586,10 @@ func (p *Process) Stop() {
 	if p.cancel != nil {
 		p.cancel()
 	}
+
+	// Close event channel first — delivery goroutine drains remaining items
+	// (which fail fast since context is cancelled) then exits.
+	p.stopEventChan()
 
 	// Close connections to unblock pending reads and writes.
 	// Internal plugins: closing connections is the primary stop mechanism.

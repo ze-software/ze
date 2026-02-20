@@ -5,7 +5,6 @@ import (
 	"errors"
 	"net"
 	"sync"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
@@ -147,46 +146,38 @@ func (l *Listener) Wait(ctx context.Context) error {
 }
 
 // acceptLoop accepts connections until stopped.
+//
+// Uses close-on-cancel pattern: a goroutine watches ctx.Done() and closes
+// the net.Listener to unblock Accept(). This replaces the previous 100ms
+// SetDeadline polling approach, providing instant cancellation response
+// on all listener types (TCP, Unix, mock listeners for simulation).
 func (l *Listener) acceptLoop() {
 	defer l.wg.Done()
 	defer l.cleanup()
 
-	// Use interface check for SetDeadline so mock listeners work in simulation.
-	// *net.TCPListener satisfies this; mock listeners can too.
-	type deadlineSetter interface {
-		SetDeadline(t time.Time) error
-	}
-	dl, ok := l.listener.(deadlineSetter)
-	if !ok {
-		return
-	}
+	// Close listener on context cancellation to unblock Accept().
+	go func() {
+		<-l.ctx.Done()
+		l.mu.RLock()
+		ln := l.listener
+		l.mu.RUnlock()
+		if ln != nil {
+			if err := ln.Close(); err != nil {
+				// Expected: listener may already be closed by Stop().
+				sessionLogger().Debug("listener close on cancel", "err", err)
+			}
+		}
+	}()
 
 	for {
-		// Check context before accepting
-		select {
-		case <-l.ctx.Done():
-			return
-		default:
-		}
-
-		// Set short deadline to allow context polling
-		_ = dl.SetDeadline(l.clock.Now().Add(100 * time.Millisecond))
-
 		conn, err := l.listener.Accept()
 		if err != nil {
-			// Check for timeout (expected during normal polling)
-			var ne net.Error
-			if errors.As(err, &ne) && ne.Timeout() {
-				continue
+			// Distinguish shutdown from transient accept errors.
+			if l.ctx.Err() != nil {
+				return // Shutdown requested — exit cleanly.
 			}
-			// Check if we're shutting down
-			select {
-			case <-l.ctx.Done():
-				return
-			default:
-				// Accept error, continue
-				continue
-			}
+			sessionLogger().Warn("accept error", "err", err, "addr", l.addr)
+			continue
 		}
 
 		// Get handler
@@ -197,7 +188,9 @@ func (l *Listener) acceptLoop() {
 		if handler != nil {
 			go handler(conn)
 		} else {
-			_ = conn.Close()
+			if err := conn.Close(); err != nil {
+				sessionLogger().Debug("close unhandled conn", "err", err)
+			}
 		}
 	}
 }

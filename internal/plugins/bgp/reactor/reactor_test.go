@@ -1967,3 +1967,413 @@ func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {
 		}
 	}
 }
+
+// ─── Phase 3: Async delivery pipeline tests ─────────────────────────────────
+
+// testDeliveryReceiver implements MessageReceiver with configurable consumer count.
+type testDeliveryReceiver struct {
+	onReceived    func(plugin.PeerInfo, bgptypes.RawMessage)
+	onSent        func(plugin.PeerInfo, bgptypes.RawMessage)
+	consumerCount int
+}
+
+func (r *testDeliveryReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) int {
+	if r.onReceived != nil {
+		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
+			r.onReceived(peer, typedMsg)
+		}
+	}
+	return r.consumerCount
+}
+
+func (r *testDeliveryReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {
+	if r.onSent != nil {
+		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
+			r.onSent(peer, typedMsg)
+		}
+	}
+}
+
+// testUpdatePayload builds a minimal UPDATE body for testing.
+// Format: withdrawnLen(2) + attrLen(2) + attrs(ORIGIN IGP) + NLRI(192.168.1.0/24).
+func testUpdatePayload() []byte {
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}     // ORIGIN IGP
+	nlriBytes := []byte{0x18, 0xc0, 0xa8, 0x01} // 192.168.1.0/24
+	payload := make([]byte, 2+2+len(attrs)+len(nlriBytes))
+	payload[2], payload[3] = 0, byte(len(attrs))
+	copy(payload[4:], attrs)
+	copy(payload[4+len(attrs):], nlriBytes)
+	return payload
+}
+
+// startTestDelivery sets up a per-peer delivery channel and goroutine for testing.
+// Mimics what Peer.runOnce() will do in production.
+// Returns a stop function that closes the channel and waits for the goroutine to drain.
+func startTestDelivery(t *testing.T, r *Reactor, peerAddr netip.Addr, capacity int) func() {
+	t.Helper()
+
+	r.mu.RLock()
+	peer, ok := r.findPeerByAddr(peerAddr)
+	r.mu.RUnlock()
+	require.True(t, ok, "peer must exist for delivery setup")
+
+	peer.deliverChan = make(chan deliveryItem, capacity)
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+		for item := range peer.deliverChan {
+			r.mu.RLock()
+			receiver := r.messageReceiver
+			r.mu.RUnlock()
+			if receiver == nil {
+				continue
+			}
+			count := receiver.OnMessageReceived(item.peerInfo, item.msg)
+			r.recentUpdates.Activate(item.msg.MessageID, count)
+		}
+	}()
+
+	return func() {
+		close(peer.deliverChan)
+		<-done
+	}
+}
+
+// TestDeliveryChannelDecouplesRead verifies async delivery decouples the read goroutine.
+//
+// VALIDATES: AC-4: read goroutine returns before plugin delivery completes.
+//
+// PREVENTS: Read goroutine blocking on slow plugin delivery.
+func TestDeliveryChannelDecouplesRead(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	delivered := make(chan struct{})
+	receiver := &testDeliveryReceiver{
+		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
+			time.Sleep(200 * time.Millisecond) // Slow plugin
+			close(delivered)
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+
+	payload := testUpdatePayload()
+	wireUpdate := wireu.NewWireUpdate(payload, 0)
+	buf := make([]byte, 4096)
+
+	start := time.Now()
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+	elapsed := time.Since(start)
+
+	// Read goroutine should return almost immediately (enqueue, not block)
+	require.Less(t, elapsed, 50*time.Millisecond,
+		"read goroutine should not block on slow plugin delivery (got %v)", elapsed)
+
+	// Delivery should still complete asynchronously
+	select {
+	case <-delivered:
+	case <-time.After(1 * time.Second):
+		t.Fatal("delivery goroutine should have completed delivery")
+	}
+
+	stop()
+}
+
+// TestCacheInsertionBeforeDelivery verifies cache.Add() happens before plugin delivery.
+//
+// VALIDATES: AC-6: cache.Get(id) succeeds before OnMessageReceived returns.
+//
+// PREVENTS: Plugin receiving message-id that isn't in cache yet (fast-forward race).
+func TestCacheInsertionBeforeDelivery(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	cacheCheckDone := make(chan struct{})
+	receiver := &testDeliveryReceiver{
+		onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
+			// Inside delivery callback: cache entry must already exist
+			_, found := reactor.recentUpdates.Get(msg.MessageID)
+			assert.True(t, found, "cache entry must exist before delivery callback runs (id=%d)", msg.MessageID)
+			close(cacheCheckDone)
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+	defer stop()
+
+	payload := testUpdatePayload()
+	wireUpdate := wireu.NewWireUpdate(payload, 0)
+	buf := make([]byte, 4096)
+
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+
+	select {
+	case <-cacheCheckDone:
+	case <-time.After(1 * time.Second):
+		t.Fatal("delivery callback should have run and checked cache")
+	}
+}
+
+// TestActivateAfterAllDeliveries verifies Activate() is called after delivery completes.
+//
+// VALIDATES: AC-7: Activate(id, N) called with correct consumer count after delivery.
+//
+// PREVENTS: Cache entries stuck in pending state, never evicted.
+func TestActivateAfterAllDeliveries(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	deliveryDone := make(chan uint64, 1)
+	receiver := &testDeliveryReceiver{
+		consumerCount: 0, // No consumers → Activate(id, 0) → entry evicted
+		onReceived: func(_ plugin.PeerInfo, msg bgptypes.RawMessage) {
+			deliveryDone <- msg.MessageID
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+
+	payload := testUpdatePayload()
+	wireUpdate := wireu.NewWireUpdate(payload, 0)
+	buf := make([]byte, 4096)
+
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+
+	var msgID uint64
+	select {
+	case msgID = <-deliveryDone:
+	case <-time.After(1 * time.Second):
+		t.Fatal("delivery should have completed")
+	}
+
+	// Give delivery goroutine time to call Activate after OnMessageReceived returns
+	time.Sleep(50 * time.Millisecond)
+
+	// With 0 consumers, Activate(id, 0) should evict the entry
+	_, found := reactor.recentUpdates.Get(msgID)
+	require.False(t, found, "cache entry should be evicted after Activate(id, 0)")
+
+	stop()
+}
+
+// TestDeliveryBackpressure verifies that a full channel blocks the read goroutine.
+//
+// VALIDATES: AC-8: full delivery channel blocks read goroutine (TCP flow control engages).
+//
+// PREVENTS: Unbounded memory growth from unlimited buffering.
+func TestDeliveryBackpressure(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	// Fast receiver (no blocking) — backpressure comes from channel, not receiver
+	receiver := &testDeliveryReceiver{consumerCount: 0}
+	reactor.SetMessageReceiver(receiver)
+
+	// Set up channel directly with capacity 2, NO delivery goroutine.
+	// Nothing drains the channel — it fills up and blocks the sender.
+	reactor.mu.RLock()
+	peer, ok := reactor.findPeerByAddr(peerAddr)
+	reactor.mu.RUnlock()
+	require.True(t, ok)
+	peer.deliverChan = make(chan deliveryItem, 2)
+
+	payload := testUpdatePayload()
+
+	// First 2 UPDATEs fill the channel buffer
+	for range 2 {
+		w := wireu.NewWireUpdate(payload, 0)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+	}
+
+	// 3rd send in goroutine — should block (channel full, no reader)
+	thirdDone := make(chan struct{})
+	go func() {
+		w := wireu.NewWireUpdate(payload, 0)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+		close(thirdDone)
+	}()
+
+	// Pre-impl: all 3 sends complete synchronously (channel unused) → thirdDone closes → FAIL
+	// Post-impl: 3rd blocks on full channel → 200ms timeout → PASS
+	select {
+	case <-thirdDone:
+		t.Fatal("notifyMessageReceiver should block when delivery channel is full")
+	case <-time.After(200 * time.Millisecond):
+		// Expected: backpressure is working
+	}
+
+	// Cleanup: drain one slot to unblock the goroutine
+	<-peer.deliverChan
+	<-thirdDone
+}
+
+// TestNonUpdateSynchronous verifies non-UPDATE messages are delivered synchronously.
+//
+// VALIDATES: AC-12: OPEN/KEEPALIVE processed synchronously on read goroutine.
+//
+// PREVENTS: Non-UPDATE messages being unnecessarily delayed by async pipeline.
+func TestNonUpdateSynchronous(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	var received bool
+	receiver := &testDeliveryReceiver{
+		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
+			received = true
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+	defer stop()
+
+	// KEEPALIVE — must be delivered synchronously (before notifyMessageReceiver returns)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, "received", nil)
+
+	require.True(t, received, "KEEPALIVE should be delivered synchronously, not through async channel")
+}
+
+// TestCrossPeerIsolation verifies per-peer channel isolation.
+//
+// VALIDATES: AC-13: peer A's full channel does not block peer B's read goroutine.
+//
+// PREVENTS: Cross-peer deadlock where one slow peer blocks all peers.
+func TestCrossPeerIsolation(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddrA := mustParseAddr("10.0.0.1")
+	peerAddrB := mustParseAddr("10.0.0.2")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddrA, 65000, 65001, 0x01010101)))
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddrB, 65000, 65002, 0x02020202)))
+
+	// Receiver: blocks for peer A, fast for peer B
+	unblockA := make(chan struct{})
+	peerBDelivered := make(chan struct{}, 1)
+	receiver := &testDeliveryReceiver{
+		onReceived: func(peer plugin.PeerInfo, _ bgptypes.RawMessage) {
+			if peer.Address == peerAddrA {
+				<-unblockA
+			} else {
+				select {
+				case peerBDelivered <- struct{}{}:
+				default:
+				}
+			}
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stopA := startTestDelivery(t, reactor, peerAddrA, 1) // Tiny channel for A
+	stopB := startTestDelivery(t, reactor, peerAddrB, deliveryChannelCapacity)
+
+	payload := testUpdatePayload()
+
+	// Fill peer A in a goroutine — in pre-impl, synchronous delivery blocks
+	// on <-unblockA inside the receiver. Running in a goroutine prevents the
+	// test goroutine from hanging.
+	aDone := make(chan struct{})
+	go func() {
+		defer close(aDone)
+		// Send 2 UPDATEs to peer A (1 in delivery + 1 in channel buffer)
+		for range 2 {
+			w := wireu.NewWireUpdate(payload, 0)
+			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+		}
+	}()
+
+	time.Sleep(100 * time.Millisecond) // Let peer A's sends proceed/block
+
+	// Peer B should NOT be blocked by peer A's state
+	wB := wireu.NewWireUpdate(payload, 0)
+	start := time.Now()
+	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", make([]byte, 4096))
+	elapsed := time.Since(start)
+
+	require.Less(t, elapsed, 50*time.Millisecond,
+		"peer B should not be blocked by peer A's full channel (got %v)", elapsed)
+
+	select {
+	case <-peerBDelivered:
+		// Good: peer B's delivery completed independently
+	case <-time.After(1 * time.Second):
+		t.Fatal("peer B's delivery should complete despite peer A being blocked")
+	}
+
+	// Cleanup: unblock peer A, wait for goroutine, stop delivery
+	close(unblockA)
+	<-aDone
+	stopA()
+	stopB()
+}
+
+// TestDeliveryDrainOnTeardown verifies remaining items are delivered when channel closes.
+//
+// VALIDATES: AC-15: delivery goroutine drains remaining items after channel close.
+//
+// PREVENTS: Lost events on session teardown.
+func TestDeliveryDrainOnTeardown(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	var deliveryCount atomic.Int32
+	receiver := &testDeliveryReceiver{
+		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
+			deliveryCount.Add(1)
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+
+	// Enqueue several items
+	const itemCount = 5
+	payload := testUpdatePayload()
+	for range itemCount {
+		w := wireu.NewWireUpdate(payload, 0)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+	}
+
+	// Close channel (teardown) — delivery goroutine drains remaining items
+	stop()
+
+	require.Equal(t, int32(itemCount), deliveryCount.Load(),
+		"all enqueued items should be delivered during drain")
+}

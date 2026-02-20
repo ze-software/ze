@@ -154,6 +154,11 @@ type Peer struct {
 	callback        PeerCallback
 	messageCallback MessageCallback // Called when any BGP message is received
 
+	// Per-peer async delivery channel for received UPDATEs.
+	// Created in runOnce() before session.Run(), closed after session exits.
+	// nil means synchronous delivery (no channel configured).
+	deliverChan chan deliveryItem
+
 	// Reconnect configuration
 	reconnectMin time.Duration
 	reconnectMax time.Duration
@@ -1069,8 +1074,42 @@ func (p *Peer) runOnce() error {
 		}
 	})
 
+	// Set up per-peer async delivery channel for received UPDATEs.
+	// The delivery goroutine dequeues items and calls receiver.OnMessageReceived +
+	// cache.Activate, decoupling the TCP read goroutine from plugin processing.
+	p.deliverChan = make(chan deliveryItem, deliveryChannelCapacity)
+	deliveryDone := make(chan struct{})
+
+	go func() {
+		defer close(deliveryDone)
+		for item := range p.deliverChan {
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			if reactor == nil {
+				continue
+			}
+			reactor.mu.RLock()
+			receiver := reactor.messageReceiver
+			reactor.mu.RUnlock()
+			if receiver == nil {
+				continue
+			}
+			count := receiver.OnMessageReceived(item.peerInfo, item.msg)
+			reactor.recentUpdates.Activate(item.msg.MessageID, count)
+		}
+	}()
+
 	// Run session loop
-	return session.Run(p.ctx)
+	err := session.Run(p.ctx)
+
+	// Drain delivery channel: close stops accepting new items, range loop in
+	// goroutine processes remaining buffered items before exiting.
+	close(p.deliverChan)
+	<-deliveryDone
+	p.deliverChan = nil
+
+	return err
 }
 
 // AcceptConnection accepts an incoming TCP connection for this peer.

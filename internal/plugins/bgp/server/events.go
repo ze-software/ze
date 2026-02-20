@@ -4,9 +4,7 @@
 package server
 
 import (
-	"context"
 	"fmt"
-	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
@@ -24,6 +22,10 @@ var logger = slogutil.LazyLogger("bgp.server")
 // Only plugins that declared cache-consumer: true during registration AND where
 // delivery succeeded are counted. Non-cache-consumer plugins receive the event
 // but are not counted (they don't participate in cache lifecycle tracking).
+//
+// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
+// Events are enqueued to each process's delivery channel; no per-event goroutines are created.
+// Format encoding is pre-computed once per distinct format mode.
 func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if s.Context().Err() != nil {
 		return 0 // Server shutting down, skip event delivery
@@ -39,28 +41,41 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peer.Address.String())
 	logger().Debug("OnMessageReceived matched", "count", len(procs))
 
-	var cacheConsumerCount int
+	// Pre-format: encode once per distinct format mode.
+	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
-		output := formatMessageForSubscription(encoder, peer, msg, proc.Format())
-		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
-
-		connB := proc.ConnB()
-		if connB == nil {
-			continue
-		}
-
-		deliverCtx, cancel := context.WithTimeout(s.Context(), 5*time.Second)
-		err := connB.SendDeliverEvent(deliverCtx, output)
-		cancel()
-
-		if err != nil && s.Context().Err() == nil {
-			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
-		} else if err == nil && proc.IsCacheConsumer() {
-			cacheConsumerCount++
+		fmtMode := proc.Format()
+		if _, ok := formatOutputs[fmtMode]; !ok {
+			formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
 		}
 	}
 
-	return cacheConsumerCount
+	// Enqueue to long-lived per-process delivery goroutines and collect results.
+	results := make(chan plugin.EventResult, len(procs))
+	sent := 0
+
+	for _, proc := range procs {
+		output := formatOutputs[proc.Format()]
+		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
+
+		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+			continue
+		}
+		sent++
+	}
+
+	// Collect results from all deliveries.
+	var cacheCount int
+	for range sent {
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn("OnMessageReceived write failed", "proc", r.ProcName, "err", r.Err)
+		} else if r.CacheConsumer {
+			cacheCount++
+		}
+	}
+
+	return cacheCount
 }
 
 // messageTypeToEventType converts BGP message type to event type string.
@@ -113,8 +128,32 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerI
 	}
 }
 
+// deliverToProcs enqueues events to long-lived per-process delivery goroutines and
+// waits for all deliveries to complete. Used by non-cache-consumer event functions.
+func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output string, eventName string) {
+	results := make(chan plugin.EventResult, len(procs))
+	sent := 0
+
+	for _, proc := range procs {
+		logger().Debug(eventName+" writing", "proc", proc.Name())
+
+		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+			continue
+		}
+		sent++
+	}
+
+	for range sent {
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn(eventName+" write failed", "proc", r.ProcName, "err", r.Err)
+		}
+	}
+}
+
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
+// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
@@ -125,27 +164,15 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventState, "", peer.Address.String())
 	logger().Debug("OnPeerStateChange matched", "count", len(procs))
 
-	for _, proc := range procs {
-		output := format.FormatStateChange(peer, state, plugin.EncodingJSON)
-		logger().Debug("OnPeerStateChange writing", "proc", proc.Name())
+	// Format once — state change output is identical for all plugins.
+	output := format.FormatStateChange(peer, state, plugin.EncodingJSON)
 
-		connB := proc.ConnB()
-		if connB == nil {
-			continue
-		}
-
-		deliverCtx, cancel := context.WithTimeout(s.Context(), 5*time.Second)
-		err := connB.SendDeliverEvent(deliverCtx, output)
-		cancel()
-
-		if err != nil && s.Context().Err() == nil {
-			logger().Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
-		}
-	}
+	deliverToProcs(s, procs, output, "OnPeerStateChange")
 }
 
 // onPeerNegotiated handles capability negotiation completion.
 // neg is format.DecodedNegotiated passed as any from the generic hook.
+// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, neg any) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
@@ -158,28 +185,20 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 	}
 
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventNegotiated, "", peer.Address.String())
-	for _, proc := range procs {
-		output := format.FormatNegotiated(peer, decoded, encoder)
 
-		connB := proc.ConnB()
-		if connB == nil {
-			continue
-		}
+	// Format once — negotiated output is identical for all plugins.
+	output := format.FormatNegotiated(peer, decoded, encoder)
 
-		deliverCtx, cancel := context.WithTimeout(s.Context(), 5*time.Second)
-		err := connB.SendDeliverEvent(deliverCtx, output)
-		cancel()
-
-		if err != nil && s.Context().Err() == nil {
-			logger().Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
-		}
-	}
+	deliverToProcs(s, procs, output, "OnPeerNegotiated")
 }
 
 // onMessageSent handles BGP messages sent to peers.
 // Forwards to processes that subscribed to sent events.
 // Uses the JSONEncoder for non-UPDATE messages (same as onMessageReceived),
 // and FormatSentMessage for UPDATEs (which adds the "type":"sent" marker).
+//
+// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
+// Format encoding is pre-computed once per distinct format mode.
 func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
@@ -195,34 +214,41 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, plugin.DirectionSent, peer.Address.String())
 	logger().Debug("OnMessageSent matched", "count", len(procs))
 
+	// Pre-format: encode once per distinct format mode.
+	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
-		var output string
-		if msg.Type == message.TypeUPDATE {
-			// UPDATE sent events use FormatSentMessage for the "type":"sent" marker.
-			content := bgptypes.ContentConfig{
-				Encoding: plugin.EncodingJSON,
-				Format:   proc.Format(),
+		fmtMode := proc.Format()
+		if _, ok := formatOutputs[fmtMode]; !ok {
+			if msg.Type == message.TypeUPDATE {
+				content := bgptypes.ContentConfig{
+					Encoding: plugin.EncodingJSON,
+					Format:   fmtMode,
+				}
+				formatOutputs[fmtMode] = format.FormatSentMessage(peer, msg, content)
+			} else {
+				formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
 			}
-			output = format.FormatSentMessage(peer, msg, content)
-		} else {
-			// Non-UPDATE sent events use the same JSON formatters as received events.
-			// formatMessageForSubscription dispatches to encoder.Open(), encoder.Notification(),
-			// etc., which always produce JSON. msg.Direction is already "sent".
-			output = formatMessageForSubscription(encoder, peer, msg, proc.Format())
 		}
+	}
+
+	// Enqueue to long-lived per-process delivery goroutines and collect results.
+	results := make(chan plugin.EventResult, len(procs))
+	sent := 0
+
+	for _, proc := range procs {
+		output := formatOutputs[proc.Format()]
 		logger().Debug("OnMessageSent writing", "proc", proc.Name())
 
-		connB := proc.ConnB()
-		if connB == nil {
+		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
+		sent++
+	}
 
-		deliverCtx, cancel := context.WithTimeout(s.Context(), 5*time.Second)
-		err := connB.SendDeliverEvent(deliverCtx, output)
-		cancel()
-
-		if err != nil && s.Context().Err() == nil {
-			logger().Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
+	for range sent {
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn("OnMessageSent write failed", "proc", r.ProcName, "err", r.Err)
 		}
 	}
 }
