@@ -130,6 +130,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Functional tests** → Create after feature works. Cover user-visible behavior?
 8. **Verify all** → `make ze-lint && make ze-unit-test && make ze-functional-test`
 9. **Final self-review** → Re-read changes, check for bugs, unused code, TODOs
+10. **Complete spec** → Fill audit tables, move spec to `done/`. BLOCKING: spec is part of the commit, not a follow-up.
 
 ### Failure Routing
 
@@ -234,8 +235,9 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional tests for end-to-end behavior
 
-### Completion
+### Completion (BLOCKING — before ANY commit)
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
+- [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [ ] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
