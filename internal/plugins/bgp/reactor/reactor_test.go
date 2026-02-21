@@ -2378,3 +2378,87 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 	require.Equal(t, int32(itemCount), deliveryCount.Load(),
 		"all enqueued items should be delivered during drain")
 }
+
+// --- Backpressure pause/resume tests ---
+// VALIDATES: AC-7 — Reactor.PausePeer(addr) pauses specific peer's read loop
+// PREVENTS: Pause signal not reaching the correct peer
+
+func TestReactorPausePeer(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	addr1 := mustParseAddr("10.0.0.1")
+	addr2 := mustParseAddr("10.0.0.2")
+	require.NoError(t, r.AddPeer(NewPeerSettings(addr1, 65000, 65001, 0x01010101)))
+	require.NoError(t, r.AddPeer(NewPeerSettings(addr2, 65000, 65002, 0x01010101)))
+
+	// Give each peer a session so pause has something to delegate to.
+	for _, p := range r.Peers() {
+		session := NewSession(p.Settings())
+		p.mu.Lock()
+		p.session = session
+		p.mu.Unlock()
+	}
+
+	// Pause peer 1 only.
+	require.NoError(t, r.PausePeer(addr1))
+
+	// Verify peer 1 is paused, peer 2 is not.
+	r.mu.RLock()
+	peer1 := r.peers[PeerKeyFromAddrPort(addr1, DefaultBGPPort)]
+	peer2 := r.peers[PeerKeyFromAddrPort(addr2, DefaultBGPPort)]
+	r.mu.RUnlock()
+
+	require.True(t, peer1.IsReadPaused(), "peer 1 should be paused")
+	require.False(t, peer2.IsReadPaused(), "peer 2 should not be paused")
+
+	// Resume peer 1.
+	require.NoError(t, r.ResumePeer(addr1))
+	require.False(t, peer1.IsReadPaused(), "peer 1 should be resumed")
+
+	// Pause unknown peer should return error.
+	unknown := mustParseAddr("10.0.0.99")
+	require.Error(t, r.PausePeer(unknown))
+	require.Error(t, r.ResumePeer(unknown))
+}
+
+// VALIDATES: AC-8, AC-9 — PauseAllReads/ResumeAllReads affects all peers
+// PREVENTS: Some peers escaping a global pause
+
+func TestReactorPauseAllReads(t *testing.T) {
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	r := New(cfg)
+
+	addrs := []netip.Addr{
+		mustParseAddr("10.0.0.1"),
+		mustParseAddr("10.0.0.2"),
+		mustParseAddr("10.0.0.3"),
+	}
+	for i, addr := range addrs {
+		require.NoError(t, r.AddPeer(NewPeerSettings(addr, 65000, uint32(65001+i), 0x01010101)))
+	}
+
+	// Give each peer a session.
+	for _, p := range r.Peers() {
+		session := NewSession(p.Settings())
+		p.mu.Lock()
+		p.session = session
+		p.mu.Unlock()
+	}
+
+	// Pause all reads.
+	r.PauseAllReads()
+
+	// All peers should be paused.
+	for _, p := range r.Peers() {
+		require.True(t, p.IsReadPaused(), "peer %s should be paused", p.Settings().Address)
+	}
+
+	// Resume all reads.
+	r.ResumeAllReads()
+
+	// All peers should be resumed.
+	for _, p := range r.Peers() {
+		require.False(t, p.IsReadPaused(), "peer %s should be resumed", p.Settings().Address)
+	}
+}

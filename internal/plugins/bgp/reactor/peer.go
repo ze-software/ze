@@ -2742,3 +2742,47 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 	}
 	return nil
 }
+
+// PauseReading pauses reading from this peer's session.
+// If no active session exists, this is a no-op.
+func (p *Peer) PauseReading() {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return
+	}
+
+	session.Pause()
+	peerLogger().Warn("read paused", "peer", p.settings.Address)
+}
+
+// ResumeReading resumes reading from this peer's session.
+// If no active session exists, this is a no-op.
+func (p *Peer) ResumeReading() {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return
+	}
+
+	session.Resume()
+	peerLogger().Warn("read resumed", "peer", p.settings.Address)
+}
+
+// IsReadPaused reports whether this peer's session read loop is paused.
+// Returns false if no active session exists.
+func (p *Peer) IsReadPaused() bool {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return false
+	}
+
+	return session.IsPaused()
+}

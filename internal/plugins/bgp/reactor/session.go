@@ -144,6 +144,14 @@ type Session struct {
 	// tearingDown is set when Teardown starts, preventing Accept race.
 	tearingDown atomic.Bool
 
+	// Backpressure pause gate: pauses the read loop without closing the connection.
+	// When paused, TCP recv buffer fills → kernel shrinks window → sender throttles.
+	// Write path (KEEPALIVE) is independent and continues during pause.
+	// RFC 4271 §6.5: hold timer expires if paused long enough (safety valve).
+	paused   atomic.Bool   // Fast-path check — false in normal operation
+	pauseMu  sync.Mutex    // Protects resumeCh create/close
+	resumeCh chan struct{} // Closed by Resume() to unblock the read loop
+
 	// closeReason stores why the connection was closed (context cancel, hold timer,
 	// teardown, etc.). Set atomically before closeConn() so the read loop can
 	// distinguish close reasons after ReadFull returns an error.
@@ -718,6 +726,69 @@ func (s *Session) setCloseReason(err error) {
 	s.closeReason.CompareAndSwap(nil, &err)
 }
 
+// Pause stops the read loop from calling readAndProcessMessage.
+// The read loop blocks on a resume signal or context cancel.
+// Write path (KEEPALIVE timer) is independent and continues during pause.
+// Idempotent: calling Pause on an already-paused session is a no-op.
+// Logging is handled by the caller (Peer.PauseReading) which has peer context.
+func (s *Session) Pause() {
+	s.pauseMu.Lock()
+	defer s.pauseMu.Unlock()
+
+	if s.paused.Load() {
+		return
+	}
+
+	s.resumeCh = make(chan struct{})
+	s.paused.Store(true)
+}
+
+// Resume unblocks the read loop after a Pause.
+// Idempotent: calling Resume on a non-paused session is a no-op.
+// Also called by the cancel goroutine during shutdown to unblock the pause gate.
+func (s *Session) Resume() {
+	s.pauseMu.Lock()
+	defer s.pauseMu.Unlock()
+
+	if !s.paused.Load() {
+		return
+	}
+
+	s.paused.Store(false)
+	close(s.resumeCh)
+	s.resumeCh = nil
+}
+
+// IsPaused reports whether the session's read loop is paused.
+func (s *Session) IsPaused() bool {
+	return s.paused.Load()
+}
+
+// waitForResume blocks until Resume() is called or context is canceled.
+// The cancel goroutine handles errChan and calls Resume() to unblock us.
+// Returns nil to continue reading, or an error to exit Run().
+func (s *Session) waitForResume(ctx context.Context) error {
+	s.pauseMu.Lock()
+	ch := s.resumeCh
+	s.pauseMu.Unlock()
+
+	if ch == nil {
+		return nil
+	}
+
+	select {
+	case <-ch:
+		// Unblocked by Resume(). Check if it was a real resume or
+		// the cancel goroutine unblocking us after shutdown.
+		if reason := s.closeReason.Load(); reason != nil {
+			return *reason
+		}
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
 // Run is the main session loop. It processes messages until context is
 // canceled or an error occurs.
 //
@@ -743,9 +814,18 @@ func (s *Session) Run(ctx context.Context) error {
 		}
 		s.setCloseReason(reason)
 		s.closeConn()
+		s.Resume() // Unblock pause gate if paused.
 	}()
 
 	for {
+		// Backpressure pause gate: if paused, block until resumed or shutdown.
+		// Fast path: atomic load returns false, zero overhead when not paused.
+		if s.paused.Load() {
+			if err := s.waitForResume(ctx); err != nil {
+				return err
+			}
+		}
+
 		// Check if we have a connection.
 		s.mu.RLock()
 		conn := s.conn

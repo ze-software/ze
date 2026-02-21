@@ -1612,3 +1612,44 @@ func TestCanUseNextHopFor_NilSendCtx(t *testing.T) {
 	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
 	require.False(t, ok, "cross-family should fail with nil sendCtx")
 }
+
+// --- Backpressure pause/resume tests ---
+// VALIDATES: AC-5, AC-6 — Peer.PauseReading() delegates to session, handles nil session
+// PREVENTS: Panic when pausing a peer with no active session
+
+func TestPeerPauseReadingDelegates(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+
+	t.Run("with active session", func(t *testing.T) {
+		peer := NewPeer(settings)
+		session := NewSession(settings)
+
+		peer.mu.Lock()
+		peer.session = session
+		peer.mu.Unlock()
+
+		// PauseReading should delegate to session.Pause().
+		peer.PauseReading()
+		require.True(t, session.IsPaused(), "session should be paused after PauseReading()")
+
+		// ResumeReading should delegate to session.Resume().
+		peer.ResumeReading()
+		require.False(t, session.IsPaused(), "session should not be paused after ResumeReading()")
+
+		// IsReadPaused should reflect session state.
+		require.False(t, peer.IsReadPaused())
+		peer.PauseReading()
+		require.True(t, peer.IsReadPaused())
+		peer.ResumeReading()
+	})
+
+	t.Run("with nil session", func(t *testing.T) {
+		peer := NewPeer(settings)
+		// session is nil by default.
+
+		// Should not panic.
+		peer.PauseReading()
+		peer.ResumeReading()
+		require.False(t, peer.IsReadPaused())
+	})
+}

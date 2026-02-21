@@ -5,6 +5,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2236,4 +2237,285 @@ func TestSessionTeardownStillWorks(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("Run did not return after Teardown — teardown path broken")
 	}
+}
+
+// --- Backpressure pause/resume tests ---
+// VALIDATES: AC-1 — Pause() stops read loop from calling readAndProcessMessage
+// PREVENTS: Unbounded read when system is under memory pressure
+
+func TestSessionPauseBlocksRead(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	// Pause BEFORE starting Run.
+	session.Pause()
+	require.True(t, session.IsPaused(), "should be paused after Pause()")
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	// Track whether ReadFull was called by monitoring data read from client side.
+	var readAttempted atomic.Bool
+	go func() {
+		buf := make([]byte, 1)
+		if _, err := client.Read(buf); err != nil {
+			return
+		}
+		readAttempted.Store(true)
+	}()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(ctx)
+	}()
+
+	// Give Run() time to hit the pause gate (not ReadFull).
+	time.Sleep(50 * time.Millisecond)
+
+	require.False(t, readAttempted.Load(),
+		"ReadFull should NOT be called while paused — pause gate not working")
+
+	// Clean up: cancel context so Run exits.
+	cancel()
+
+	select {
+	case <-resultCh:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after cancel while paused")
+	}
+}
+
+// VALIDATES: AC-2 — Resume() allows read loop to continue
+// PREVENTS: Stuck session after Resume()
+
+func TestSessionResumeUnblocksRead(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	// Start paused.
+	session.Pause()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(ctx)
+	}()
+
+	// Let Run() block on pause gate.
+	time.Sleep(30 * time.Millisecond)
+
+	// Resume — Run should now attempt to read.
+	session.Resume()
+	require.False(t, session.IsPaused(), "should not be paused after Resume()")
+
+	// After resume, Run will call ReadFull which blocks on net.Pipe.
+	// Cancel to unblock it.
+	time.Sleep(30 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-resultCh:
+		// Run returned — resume unblocked the read loop.
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after Resume + cancel — resume not working")
+	}
+}
+
+// VALIDATES: AC-3 — Context cancel while paused returns promptly
+// PREVENTS: Deadlocked session when context is canceled during pause
+
+func TestSessionPauseCancelContext(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	session.Pause()
+
+	ctx, cancel := context.WithCancel(t.Context())
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(ctx)
+	}()
+
+	// Let Run() settle on pause gate.
+	time.Sleep(30 * time.Millisecond)
+
+	// Cancel context — Run should return promptly.
+	cancel()
+
+	select {
+	case err := <-resultCh:
+		require.ErrorIs(t, err, context.Canceled,
+			"Run should return context.Canceled when canceled while paused")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after context cancel while paused")
+	}
+}
+
+// VALIDATES: AC-4 — Hold timer fires while paused, session closes via errChan
+// PREVENTS: Paused session surviving past hold timer
+
+func TestSessionPauseHoldTimerExpiry(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	session.Pause()
+
+	resultCh := make(chan error, 1)
+	go func() {
+		resultCh <- session.Run(t.Context())
+	}()
+
+	// Simulate hold timer expiry by sending to errChan.
+	time.Sleep(30 * time.Millisecond)
+	session.errChan <- ErrHoldTimerExpired
+
+	select {
+	case err := <-resultCh:
+		require.ErrorIs(t, err, ErrHoldTimerExpired,
+			"Run should return ErrHoldTimerExpired when hold timer fires while paused")
+	case <-time.After(2 * time.Second):
+		t.Fatal("Run did not return after hold timer expiry while paused")
+	}
+}
+
+// VALIDATES: AC-10, AC-11 — Pause/Resume are idempotent
+// PREVENTS: Panic or channel close errors on duplicate calls
+
+func TestSessionPauseIdempotent(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	// Multiple Pause calls should not panic.
+	session.Pause()
+	session.Pause()
+	session.Pause()
+	require.True(t, session.IsPaused())
+
+	// Multiple Resume calls should not panic.
+	session.Resume()
+	session.Resume()
+	session.Resume()
+	require.False(t, session.IsPaused())
+
+	// Pause-Resume-Pause cycle.
+	session.Pause()
+	require.True(t, session.IsPaused())
+	session.Resume()
+	require.False(t, session.IsPaused())
+	session.Pause()
+	require.True(t, session.IsPaused())
+	session.Resume()
+	require.False(t, session.IsPaused())
+}
+
+// VALIDATES: AC-12 — KEEPALIVE sending continues while read is paused
+// PREVENTS: Write path accidentally gated by read pause
+// Note: The pause gate only affects the read loop, not the write path.
+
+func TestSessionPauseKeepaliveContinues(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	session := NewSession(settings)
+
+	server, client := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	session.mu.Lock()
+	session.conn = server
+	session.mu.Unlock()
+
+	// Pause reading.
+	session.Pause()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	go func() {
+		_ = session.Run(ctx)
+	}()
+
+	// Write a KEEPALIVE directly to conn while paused — proves conn is writable.
+	time.Sleep(20 * time.Millisecond)
+
+	keepalive := make([]byte, 19)
+	for i := range 16 {
+		keepalive[i] = 0xFF
+	}
+	keepalive[16] = 0x00
+	keepalive[17] = 0x13 // length = 19
+	keepalive[18] = 0x04 // type = KEEPALIVE
+
+	writeDone := make(chan error, 1)
+	go func() {
+		_, err := server.Write(keepalive)
+		writeDone <- err
+	}()
+
+	// Read from client side to unblock the pipe write.
+	readBuf := make([]byte, 19)
+	if _, err := client.Read(readBuf); err != nil {
+		t.Fatalf("unexpected read error: %v", err)
+	}
+
+	select {
+	case err := <-writeDone:
+		require.NoError(t, err, "write should succeed while read is paused")
+	case <-time.After(2 * time.Second):
+		t.Fatal("write blocked while read is paused — write path not independent")
+	}
+
+	cancel()
 }

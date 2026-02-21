@@ -5274,3 +5274,53 @@ func parseUint8(s string) (byte, error) {
 	}
 	return byte(v), nil
 }
+
+// PausePeer pauses reading from a specific peer's session.
+// Returns ErrPeerNotFound if the peer address is unknown.
+func (r *Reactor) PausePeer(addr netip.Addr) error {
+	r.mu.RLock()
+	_, peer, ok := r.findPeerKeyByAddr(addr)
+	r.mu.RUnlock()
+
+	if !ok {
+		return ErrPeerNotFound
+	}
+
+	peer.PauseReading()
+	return nil
+}
+
+// ResumePeer resumes reading from a specific peer's session.
+// Returns ErrPeerNotFound if the peer address is unknown.
+func (r *Reactor) ResumePeer(addr netip.Addr) error {
+	r.mu.RLock()
+	_, peer, ok := r.findPeerKeyByAddr(addr)
+	r.mu.RUnlock()
+
+	if !ok {
+		return ErrPeerNotFound
+	}
+
+	peer.ResumeReading()
+	return nil
+}
+
+// PauseAllReads pauses reading from all peers' sessions.
+func (r *Reactor) PauseAllReads() {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, peer := range r.peers {
+		peer.PauseReading()
+	}
+}
+
+// ResumeAllReads resumes reading from all peers' sessions.
+func (r *Reactor) ResumeAllReads() {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, peer := range r.peers {
+		peer.ResumeReading()
+	}
+}
