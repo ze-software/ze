@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -78,6 +80,10 @@ type RouteServer struct {
 	mu      sync.RWMutex
 	workers *workerPool
 
+	// pausedPeers tracks source peers for which we have sent a pause RPC.
+	// Protected by mu. Nil until wireFlowControl is called.
+	pausedPeers map[string]bool
+
 	// fwdCtx stores forwarding context (forwardCtx) keyed by msgID (uint64).
 	// Written by dispatch (OnEvent goroutine), read by worker handler.
 	fwdCtx sync.Map
@@ -95,16 +101,30 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		rib:    NewRIB(),
 	}
 
+	// ZE_RR_CHAN_SIZE overrides the per-source-peer worker channel capacity.
+	// Default: 64. Invalid/zero/negative values use default (guard in newWorkerPool).
+	rrChanSize := 64
+	if v := os.Getenv("ZE_RR_CHAN_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			rrChanSize = n
+		} else if err != nil {
+			logger().Warn("ignoring invalid ZE_RR_CHAN_SIZE", "value", v, "error", err)
+		}
+	}
+
 	// Create worker pool for parallel UPDATE forwarding.
 	// Each source peer gets its own worker goroutine (lazy creation, idle cooldown).
 	// FIFO ordering is preserved per source peer.
 	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
 		rs.processForward(item.msgID)
 	}, poolConfig{
-		chanSize:    64,
+		chanSize:    rrChanSize,
 		idleTimeout: 5 * time.Second,
 	})
 	defer rs.workers.Stop()
+
+	rs.wireFlowControl()
+	defer rs.resumeAllPaused()
 
 	// Register event handler: dispatches BGP events (update, state, open, refresh).
 	// Only a lightweight parse runs here (type + msgID + peerAddr); expensive
@@ -184,6 +204,48 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
 		logger().Debug("update-route failed", "peer", peerSelector, "error", err)
+	}
+}
+
+// wireFlowControl connects the worker pool's backpressure signals to
+// pause/resume RPCs. Called once after worker pool creation.
+//
+// High-water (>75%): dispatch() checks BackpressureDetected() after each
+// Dispatch and sends "bgp peer pause <addr>" to the engine.
+// Low-water (<25%): the onLowWater callback fires in the worker goroutine
+// and sends "bgp peer resume <addr>" to the engine.
+func (rs *RouteServer) wireFlowControl() {
+	rs.pausedPeers = make(map[string]bool)
+
+	rs.workers.onLowWater = func(key workerKey) {
+		rs.mu.Lock()
+		wasPaused := rs.pausedPeers[key.sourcePeer]
+		if wasPaused {
+			delete(rs.pausedPeers, key.sourcePeer)
+		}
+		rs.mu.Unlock()
+
+		if wasPaused {
+			logger().Info("resuming peer", "source-peer", key.sourcePeer)
+			rs.updateRoute("*", "bgp peer resume "+key.sourcePeer)
+		}
+	}
+}
+
+// resumeAllPaused sends resume RPCs for all currently paused peers.
+// Called during shutdown to ensure no peers remain paused after the RR exits.
+func (rs *RouteServer) resumeAllPaused() {
+	rs.mu.Lock()
+	paused := make([]string, 0, len(rs.pausedPeers))
+	for addr := range rs.pausedPeers {
+		paused = append(paused, addr)
+	}
+	rs.pausedPeers = make(map[string]bool)
+	rs.mu.Unlock()
+
+	for _, addr := range paused {
+		logger().Info("shutdown: resuming peer", "source-peer", addr)
+		rs.updateRoute("*", "bgp peer resume "+addr)
 	}
 }
 
@@ -327,10 +389,27 @@ func (rs *RouteServer) dispatch(raw []byte) {
 			return
 		}
 		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, rawJSON: raw})
-		if !rs.workers.Dispatch(workerKey{sourcePeer: peerAddr}, workItem{msgID: msgID}) {
+		key := workerKey{sourcePeer: peerAddr}
+		if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
 			logger().Debug("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
 			rs.fwdCtx.Delete(msgID)
 			rs.releaseCache(msgID)
+			return
+		}
+
+		// Flow control: pause source peer if worker channel crossed high-water mark.
+		// BackpressureDetected is clear-on-read, so each transition fires once.
+		// Guard on pausedPeers != nil: flow control is only active after wireFlowControl().
+		if rs.workers.BackpressureDetected(key) {
+			rs.mu.Lock()
+			if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
+				rs.pausedPeers[peerAddr] = true
+				rs.mu.Unlock()
+				logger().Warn("pausing peer", "source-peer", peerAddr)
+				rs.updateRoute("*", "bgp peer pause "+peerAddr)
+			} else {
+				rs.mu.Unlock()
+			}
 		}
 		return
 	}

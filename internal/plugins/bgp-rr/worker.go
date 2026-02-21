@@ -50,7 +50,17 @@ type workerPool struct {
 	stopCh chan struct{}
 
 	// backpressure tracks keys that have triggered backpressure warnings.
+	// Used by BackpressureDetected (clear-on-read for dispatch polling).
 	backpressure sync.Map // workerKey → bool
+
+	// inBackpressure tracks keys currently in backpressure state.
+	// Used by low-water check (cleared when channel drains below 25%).
+	// Separate from backpressure because BackpressureDetected clears on read.
+	inBackpressure sync.Map // workerKey → bool
+
+	// onLowWater is called when a worker's channel drops below 25% after
+	// being in backpressure. Used by dispatch to trigger resume RPCs.
+	onLowWater func(key workerKey)
 
 	// count tracks active workers for WorkerCount() without holding mu.
 	count atomic.Int32
@@ -123,6 +133,7 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 				"capacity", cap(w.ch),
 			)
 		}
+		wp.inBackpressure.Store(key, true)
 	}
 
 	return true
@@ -239,6 +250,16 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 				drainTimer(idle)
 			}
 			wp.safeHandle(key, item)
+
+			// Low-water check: if channel drained below 25% and was in backpressure,
+			// fire onLowWater callback to trigger resume. The inBackpressure flag is
+			// consumed (deleted) so the callback fires once per high→low transition.
+			if len(w.ch)*4 < cap(w.ch) { // <25% full
+				if _, wasBP := wp.inBackpressure.LoadAndDelete(key); wasBP && wp.onLowWater != nil {
+					wp.onLowWater(key)
+				}
+			}
+
 			idle.Reset(wp.cfg.idleTimeout)
 
 		case <-idle.C:

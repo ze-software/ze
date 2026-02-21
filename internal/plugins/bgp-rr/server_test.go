@@ -1,8 +1,10 @@
 package bgp_rr
 
 import (
+	"fmt"
 	"net"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -701,4 +703,291 @@ func TestRRUpdateRouteTimeout60s(t *testing.T) {
 	if updateRouteTimeout != 60*time.Second {
 		t.Errorf("updateRouteTimeout = %v, want 60s", updateRouteTimeout)
 	}
+}
+
+// TestDispatchPauseOnBackpressure verifies dispatch pauses source peer on backpressure.
+//
+// VALIDATES: AC-1 — dispatch sends pause when worker channel exceeds 75%.
+// PREVENTS: Backpressure detection without action.
+func TestDispatchPauseOnBackpressure(t *testing.T) {
+	rs := newTestRouteServer(t)
+	// Use small channel so we can fill it easily.
+	rs.workers.Stop()
+	block := make(chan struct{})
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		<-block // Block all processing.
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+	t.Cleanup(func() { close(block); rs.workers.Stop() })
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Dispatch enough updates to trigger backpressure (>75% of 8 = >6).
+	for i := uint64(1); i <= 9; i++ {
+		input := buildTestUpdate("10.0.0.1", i)
+		rs.dispatch([]byte(input))
+	}
+
+	// Check that peer is marked as paused.
+	rs.mu.RLock()
+	paused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+
+	if !paused {
+		t.Error("expected 10.0.0.1 to be paused after backpressure")
+	}
+}
+
+// TestDispatchResumeOnDrain verifies dispatch resumes source peer when channel drains.
+//
+// VALIDATES: AC-2 — resume sent when worker channel drains below 25%.
+// PREVENTS: Permanently paused peers after transient load.
+func TestDispatchResumeOnDrain(t *testing.T) {
+	rs := newTestRouteServer(t)
+	rs.workers.Stop()
+	block := make(chan struct{})
+	var processed int32
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		if atomic.AddInt32(&processed, 1) == 1 {
+			<-block // First item blocks; rest process immediately.
+		}
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+	t.Cleanup(func() { rs.workers.Stop() })
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Fill channel to trigger backpressure.
+	for i := uint64(1); i <= 9; i++ {
+		input := buildTestUpdate("10.0.0.1", i)
+		rs.dispatch([]byte(input))
+	}
+
+	// Verify paused.
+	rs.mu.RLock()
+	paused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+	if !paused {
+		t.Fatal("expected peer paused before drain")
+	}
+
+	// Unblock worker to drain.
+	close(block)
+
+	// Wait for resume (low-water clears pausedPeers).
+	deadline := time.After(2 * time.Second)
+	for {
+		rs.mu.RLock()
+		stillPaused := rs.pausedPeers["10.0.0.1"]
+		rs.mu.RUnlock()
+		if !stillPaused {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timeout: peer not resumed after drain")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+}
+
+// TestMultiSourceBackpressure verifies independent pause/resume per source peer.
+//
+// VALIDATES: AC-13 — each source peer paused independently.
+// PREVENTS: Global pause when only one source is saturated.
+func TestMultiSourceBackpressure(t *testing.T) {
+	rs := newTestRouteServer(t)
+	rs.workers.Stop()
+	block := make(chan struct{})
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		<-block
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+	t.Cleanup(func() { close(block); rs.workers.Stop() })
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
+	rs.mu.Unlock()
+
+	// Saturate peer 1 and peer 2, leave peer 3 light.
+	for i := uint64(1); i <= 9; i++ {
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.2", 100+i)))
+	}
+	// Peer 3: only 1 item (no backpressure).
+	rs.dispatch([]byte(buildTestUpdate("10.0.0.3", 200)))
+
+	rs.mu.RLock()
+	p1 := rs.pausedPeers["10.0.0.1"]
+	p2 := rs.pausedPeers["10.0.0.2"]
+	p3 := rs.pausedPeers["10.0.0.3"]
+	rs.mu.RUnlock()
+
+	if !p1 {
+		t.Error("expected peer 10.0.0.1 paused")
+	}
+	if !p2 {
+		t.Error("expected peer 10.0.0.2 paused")
+	}
+	if p3 {
+		t.Error("expected peer 10.0.0.3 NOT paused")
+	}
+}
+
+// TestShutdownResumesAllPeers verifies Stop() resumes all paused peers.
+//
+// VALIDATES: AC-9 — all paused peers resumed on shutdown.
+// PREVENTS: Permanently paused peers after RR plugin exits.
+func TestShutdownResumesAllPeers(t *testing.T) {
+	rs := newTestRouteServer(t)
+	rs.workers.Stop()
+	block := make(chan struct{})
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		<-block
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Trigger backpressure.
+	for i := uint64(1); i <= 9; i++ {
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+	}
+
+	// Verify paused.
+	rs.mu.RLock()
+	paused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+	if !paused {
+		t.Fatal("expected peer paused before shutdown")
+	}
+
+	// Shutdown: resumeAllPaused + stop workers.
+	close(block)
+	rs.resumeAllPaused()
+	rs.workers.Stop()
+
+	rs.mu.RLock()
+	remaining := len(rs.pausedPeers)
+	rs.mu.RUnlock()
+	if remaining != 0 {
+		t.Errorf("expected 0 paused peers after shutdown, got %d", remaining)
+	}
+}
+
+// TestPausedPeerResumesOnDrain verifies the full pause→drain→resume→dispatch cycle.
+//
+// VALIDATES: AC-6 — read loop unblocks after resume; subsequent messages processed normally.
+// PREVENTS: Permanently stalled peers after a transient backpressure event.
+func TestPausedPeerResumesOnDrain(t *testing.T) {
+	rs := newTestRouteServer(t)
+	rs.workers.Stop()
+	block := make(chan struct{})
+	var processed atomic.Int32
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		if processed.Add(1) == 1 {
+			<-block // First item blocks; rest process immediately.
+		}
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+	t.Cleanup(func() { rs.workers.Stop() })
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.mu.Unlock()
+
+	// Fill to trigger backpressure.
+	for i := uint64(1); i <= 9; i++ {
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+	}
+
+	rs.mu.RLock()
+	paused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+	if !paused {
+		t.Fatal("expected peer paused")
+	}
+
+	// Unblock → drain → resume.
+	close(block)
+	deadline := time.After(2 * time.Second)
+	for {
+		rs.mu.RLock()
+		stillPaused := rs.pausedPeers["10.0.0.1"]
+		rs.mu.RUnlock()
+		if !stillPaused {
+			break
+		}
+		select {
+		case <-deadline:
+			t.Fatal("timeout: peer not resumed after drain")
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+
+	// Dispatch more after resume — should succeed without re-triggering pause.
+	rs.dispatch([]byte(buildTestUpdate("10.0.0.1", 100)))
+
+	rs.mu.RLock()
+	rePaused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+	if rePaused {
+		t.Error("peer should not be re-paused after single dispatch post-drain")
+	}
+}
+
+// TestPauseRPCFailure verifies that a failed pause RPC does not crash or block dispatch.
+//
+// VALIDATES: AC-14 — pause RPC error logged, processing continues.
+// PREVENTS: RPC timeout blocking the dispatch goroutine or crashing the plugin.
+func TestPauseRPCFailure(t *testing.T) {
+	// newTestRouteServer closes the engine connection, so all updateRoute calls fail.
+	rs := newTestRouteServer(t)
+	rs.workers.Stop()
+	block := make(chan struct{})
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		<-block
+	}, poolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
+	rs.wireFlowControl()
+	t.Cleanup(func() { close(block); rs.workers.Stop() })
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.mu.Unlock()
+
+	// Fill to trigger backpressure — pause RPC will fail (closed conn).
+	for i := uint64(1); i <= 9; i++ {
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+	}
+
+	// Verify: peer is tracked as paused despite RPC failure.
+	// The pausedPeers map reflects intent, not RPC success.
+	rs.mu.RLock()
+	paused := rs.pausedPeers["10.0.0.1"]
+	rs.mu.RUnlock()
+	if !paused {
+		t.Error("expected peer tracked as paused even though RPC failed")
+	}
+}
+
+// buildTestUpdate creates a minimal ze-bgp UPDATE JSON for testing dispatch.
+func buildTestUpdate(peer string, msgID uint64) string {
+	return `{"type":"bgp","bgp":{"message":{"type":"update","id":` +
+		strings.Repeat("", 0) + // force import
+		fmt.Sprintf("%d", msgID) +
+		`,"direction":"received"},"peer":{"address":"` + peer +
+		`","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
 }

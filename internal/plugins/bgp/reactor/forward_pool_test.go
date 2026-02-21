@@ -280,6 +280,83 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 //
 // VALIDATES: AC-5 (Release called after worker completes)
 // PREVENTS: Cache entry leaks from missing Release calls.
+// TestFwdPoolCustomChanSize verifies custom channel size is respected.
+//
+// VALIDATES: AC-16 — custom chanSize respected by worker creation.
+// PREVENTS: Ignoring configuration and always using default 64.
+func TestFwdPoolCustomChanSize(t *testing.T) {
+	block := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		<-block
+	}, fwdPoolConfig{chanSize: 128, idleTimeout: time.Second})
+	defer func() { close(block); pool.Stop() }()
+
+	// Dispatch more than 64 items (default) without blocking — proves chanSize=128.
+	for i := range 100 {
+		done := make(chan bool, 1)
+		go func() {
+			ok := pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+			done <- ok
+		}()
+		select {
+		case ok := <-done:
+			if !ok {
+				t.Fatalf("dispatch %d rejected", i)
+			}
+		case <-time.After(2 * time.Second):
+			t.Fatalf("dispatch %d blocked — chanSize likely smaller than 128", i)
+		}
+	}
+}
+
+// TestForwardPoolBackpressurePropagation verifies that a blocked destination
+// causes upstream backpressure through the blocking Dispatch call.
+//
+// VALIDATES: AC-7 — blocked destination causes upstream backpressure chain.
+// PREVENTS: Silent drops when destination peer is slow.
+func TestForwardPoolBackpressurePropagation(t *testing.T) {
+	var unblocked atomic.Int32
+	block := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		<-block // Block all processing.
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
+	defer func() {
+		if unblocked.CompareAndSwap(0, 1) {
+			close(block)
+		}
+		pool.Stop()
+	}()
+
+	// Fill channel (4 items + 1 being processed = 5 dispatches before block).
+	for range 5 {
+		pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	}
+
+	// Next dispatch should block (channel full, handler blocked).
+	dispatched := make(chan struct{})
+	go func() {
+		pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+		t.Fatal("dispatch should be blocked but returned immediately")
+	case <-time.After(100 * time.Millisecond):
+		// Expected: dispatch is blocked.
+	}
+
+	// Unblock handler → dispatch should complete.
+	unblocked.Store(1)
+	close(block)
+	select {
+	case <-dispatched:
+		// Dispatch completed after handler unblocked.
+	case <-time.After(2 * time.Second):
+		t.Fatal("dispatch still blocked after handler unblocked")
+	}
+}
+
 func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 	doneCh := make(chan struct{}, 5)
 

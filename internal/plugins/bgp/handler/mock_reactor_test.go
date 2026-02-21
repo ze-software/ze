@@ -34,6 +34,8 @@ type mockReactor struct {
 	}
 	addedPeers   []plugin.DynamicPeerConfig
 	removedPeers []netip.Addr
+	pausedPeers  []netip.Addr
+	resumedPeers []netip.Addr
 
 	// NLRI batch tracking (used by update_wire integration tests)
 	announcedBatches []struct {
@@ -72,6 +74,16 @@ func (m *mockReactor) SignalPluginStartupComplete()                             
 func (m *mockReactor) SignalPeerAPIReady(_ string)                                     {}
 func (m *mockReactor) RegisterCacheConsumer(_ string)                                  {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)                                {}
+
+func (m *mockReactor) PausePeer(addr netip.Addr) error {
+	m.pausedPeers = append(m.pausedPeers, addr)
+	return nil
+}
+
+func (m *mockReactor) ResumePeer(addr netip.Addr) error {
+	m.resumedPeers = append(m.resumedPeers, addr)
+	return nil
+}
 
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8) error {
 	m.teardownCalls = append(m.teardownCalls, struct {

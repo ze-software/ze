@@ -451,6 +451,171 @@ func TestWorkerPool_BackpressureClearedAfterRead(t *testing.T) {
 	close(block)
 }
 
+// TestWorkerPoolLowWater verifies low-water callback fires when channel drains below 25%.
+//
+// VALIDATES: AC-2 — low-water callback fires when channel drains below 25% after backpressure.
+// PREVENTS: Resume signal never sent after pause.
+func TestWorkerPoolLowWater(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block // First item blocks.
+		}
+	}
+
+	var lowWaterCalls atomic.Int32
+	cfg := testPoolConfig()
+	cfg.chanSize = 8
+
+	wp := newWorkerPool(handler, cfg)
+	wp.onLowWater = func(key workerKey) {
+		lowWaterCalls.Add(1)
+	}
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First item blocks the worker.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill to >75% (7 items in buffer of 8) to trigger backpressure.
+	for i := 2; i <= 8; i++ {
+		wp.Dispatch(key, workItem{msgID: uint64(i)})
+	}
+
+	if !wp.BackpressureDetected(key) {
+		t.Fatal("expected backpressure detection")
+	}
+
+	// Unblock worker — it drains the channel. When <25% full, low-water fires.
+	close(block)
+
+	// Wait for all items to process and low-water to fire.
+	waitForCount(&count, 8, t)
+
+	deadline := time.After(2 * time.Second)
+	for lowWaterCalls.Load() < 1 {
+		select {
+		case <-deadline:
+			t.Fatal("timeout: low-water callback never fired")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+// TestWorkerPoolHighLowCycle verifies high-water→pause, low-water→resume with no duplicate signals.
+//
+// VALIDATES: AC-1, AC-2 — high-water triggers once, low-water triggers once, no duplicates.
+// PREVENTS: Flooding pause/resume RPCs from rapid channel oscillation.
+func TestWorkerPoolHighLowCycle(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+	}
+
+	var lowWaterCalls atomic.Int32
+	cfg := testPoolConfig()
+	cfg.chanSize = 8
+
+	wp := newWorkerPool(handler, cfg)
+	wp.onLowWater = func(key workerKey) {
+		lowWaterCalls.Add(1)
+	}
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First item blocks the worker.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill to >75% to trigger backpressure.
+	for i := 2; i <= 8; i++ {
+		wp.Dispatch(key, workItem{msgID: uint64(i)})
+	}
+
+	// First read: backpressure detected.
+	if !wp.BackpressureDetected(key) {
+		t.Fatal("expected backpressure on first read")
+	}
+
+	// Second read: cleared (no duplicate).
+	if wp.BackpressureDetected(key) {
+		t.Error("expected backpressure cleared after first read")
+	}
+
+	// Unblock worker to drain.
+	close(block)
+	waitForCount(&count, 8, t)
+
+	// Low-water should fire exactly once.
+	deadline := time.After(2 * time.Second)
+	for lowWaterCalls.Load() < 1 {
+		select {
+		case <-deadline:
+			t.Fatal("timeout: low-water callback never fired")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+
+	// Verify only one low-water signal.
+	time.Sleep(50 * time.Millisecond) // Brief pause for any extra callbacks.
+	if got := lowWaterCalls.Load(); got != 1 {
+		t.Errorf("expected 1 low-water callback, got %d", got)
+	}
+}
+
+// TestWorkerPoolCustomChanSize verifies custom channel size is respected.
+//
+// VALIDATES: AC-15 — custom chanSize respected by worker creation.
+// PREVENTS: Ignoring chanSize config.
+func TestWorkerPoolCustomChanSize(t *testing.T) {
+	handler := func(_ workerKey, _ workItem) {}
+
+	cfg := poolConfig{chanSize: 512, idleTimeout: 5 * time.Second}
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	if wp.cfg.chanSize != 512 {
+		t.Errorf("expected chanSize 512, got %d", wp.cfg.chanSize)
+	}
+}
+
+// TestPoolChanSizeDefault verifies zero/negative chanSize uses default 64.
+//
+// VALIDATES: AC-17, AC-18 — zero/negative uses default 64.
+// PREVENTS: Panic or zero-size channel from bad config.
+func TestPoolChanSizeDefault(t *testing.T) {
+	handler := func(_ workerKey, _ workItem) {}
+
+	tests := []struct {
+		name string
+		size int
+	}{
+		{name: "zero", size: 0},
+		{name: "negative", size: -1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := poolConfig{chanSize: tt.size, idleTimeout: 5 * time.Second}
+			wp := newWorkerPool(handler, cfg)
+			defer wp.Stop()
+
+			if wp.cfg.chanSize != 64 {
+				t.Errorf("expected default chanSize 64, got %d", wp.cfg.chanSize)
+			}
+		})
+	}
+}
+
 // --- Test helpers ---
 
 func testPoolConfig() poolConfig {

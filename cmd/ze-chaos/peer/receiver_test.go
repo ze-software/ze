@@ -2,7 +2,6 @@ package peer
 
 import (
 	"net/netip"
-	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -97,15 +96,11 @@ func TestParseUpdatePrefixesAnnounce(t *testing.T) {
 		24, 10, 0, 1,
 	}
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 3, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 3, buf)
 
-	var received []Event
-	for ev := range events {
-		received = append(received, ev)
-	}
+	received := append([]Event{}, buf.items...)
 
 	require.Len(t, received, 1)
 	assert.Equal(t, EventRouteReceived, received[0].Type)
@@ -127,15 +122,11 @@ func TestParseUpdatePrefixesWithdraw(t *testing.T) {
 		// No NLRI.
 	}
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 5, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 5, buf)
 
-	var received []Event
-	for ev := range events {
-		received = append(received, ev)
-	}
+	received := append([]Event{}, buf.items...)
 
 	require.Len(t, received, 1)
 	assert.Equal(t, EventRouteWithdrawn, received[0].Type)
@@ -162,13 +153,12 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 		24, 10, 0, 5,
 	}
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 0, buf)
 
 	var withdrawals, announcements []netip.Prefix
-	for ev := range events {
+	for _, ev := range buf.items {
 		switch ev.Type {
 		case EventRouteWithdrawn:
 			withdrawals = append(withdrawals, ev.Prefix)
@@ -196,16 +186,11 @@ func TestParseUpdatePrefixesEOR(t *testing.T) {
 	// Empty UPDATE body: withdrawn-len=0, attr-len=0, no NLRI.
 	body := []byte{0, 0, 0, 0}
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 0, buf)
 
-	count := 0
-	for range events {
-		count++
-	}
-	assert.Equal(t, 0, count, "EOR should produce no events")
+	assert.Empty(t, buf.items, "EOR should produce no events")
 }
 
 // TestParseIPv6Prefix verifies wire-format IPv6 prefix parsing.
@@ -306,13 +291,12 @@ func TestParseUpdatePrefixesMPReach(t *testing.T) {
 	body = append(body, attrs...)
 	// No trailing IPv4 NLRI.
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 7, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 7, buf)
 
 	var received []netip.Prefix
-	for ev := range events {
+	for _, ev := range buf.items {
 		require.Equal(t, EventRouteReceived, ev.Type)
 		assert.Equal(t, 7, ev.PeerIndex)
 		received = append(received, ev.Prefix)
@@ -347,13 +331,12 @@ func TestParseUpdatePrefixesMPUnreach(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 2, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 2, buf)
 
 	var withdrawn []netip.Prefix
-	for ev := range events {
+	for _, ev := range buf.items {
 		require.Equal(t, EventRouteWithdrawn, ev.Type)
 		assert.Equal(t, 2, ev.PeerIndex)
 		withdrawn = append(withdrawn, ev.Prefix)
@@ -389,15 +372,11 @@ func TestParseUpdatePrefixesMPReachVPN(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 0, buf)
 
-	var got []Event
-	for ev := range events {
-		got = append(got, ev)
-	}
+	got := append([]Event{}, buf.items...)
 	require.Len(t, got, 1, "VPN MP_REACH should produce exactly 1 counted event")
 	assert.Equal(t, EventRouteReceived, got[0].Type)
 	assert.Equal(t, "ipv4/vpn", got[0].Family)
@@ -468,15 +447,11 @@ func TestParseUpdatePrefixesMultipleAttrs(t *testing.T) {
 	body = append(body, byte(len(attrs)>>8), byte(len(attrs)))
 	body = append(body, attrs...)
 
-	events := make(chan Event, 10)
+	buf := NewEventBuffer()
 
-	parseUpdatePrefixes(body, 5, events, new(atomic.Int64))
-	close(events)
+	parseUpdatePrefixes(body, 5, buf)
 
-	var got []Event
-	for ev := range events {
-		got = append(got, ev)
-	}
+	got := append([]Event{}, buf.items...)
 	require.Len(t, got, 1, "should find MP_REACH_NLRI despite surrounding attributes")
 	assert.Equal(t, EventRouteReceived, got[0].Type)
 	assert.Equal(t, "ipv6/unicast", got[0].Family)

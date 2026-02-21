@@ -17,10 +17,12 @@ var ErrUpdateExpired = errors.New("update-id expired or not found")
 // cacheLogger returns the lazy logger for cache warnings.
 var cacheLogger = slogutil.LazyLogger("bgp.reactor.cache")
 
-// safetyValveDuration is the maximum time an entry with consumers > 0
+// defaultSafetyValveDuration is the maximum time an entry with consumers > 0
 // can remain in the cache after being passed over (a later entry is fully acked).
 // Detects crashed or stuck plugins without penalizing slow-but-correct processing.
-const safetyValveDuration = 5 * time.Minute
+// Configurable per-cache via SetSafetyValveDuration(); overridable at startup
+// via the ZE_CACHE_SAFETY_VALVE environment variable.
+const defaultSafetyValveDuration = 5 * time.Minute
 
 // gapScanInterval controls how often the gap-based safety valve scan runs.
 // The scan only matters for fault detection — normal eviction is immediate via Ack().
@@ -52,9 +54,10 @@ type RecentUpdateCache struct {
 	mu           sync.RWMutex
 	clock        sim.Clock
 	entries      map[uint64]*cacheEntry
-	maxEntries   int       // Soft limit — warns but never rejects
-	lastWarnTime time.Time // Rate-limits soft-limit warnings
-	lastGapScan  time.Time // When last gap safety valve scan ran
+	maxEntries   int           // Soft limit — warns but never rejects
+	safetyValve  time.Duration // Per-cache safety valve duration
+	lastWarnTime time.Time     // Rate-limits soft-limit warnings
+	lastGapScan  time.Time     // When last gap safety valve scan ran
 
 	// Per-plugin FIFO tracking: last acked message ID per plugin.
 	// Acks for IDs <= this value are silently accepted as no-ops
@@ -97,7 +100,7 @@ func (e *cacheEntry) totalConsumers() int {
 //
 // Entries at the processing frontier (no later entry fully acked) are never
 // timed out — they represent slow-but-correct processing.
-func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked uint64) bool {
+func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked uint64, valve time.Duration) bool {
 	if e.pending {
 		return false
 	}
@@ -110,7 +113,7 @@ func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked ui
 	if e.retainedAt.IsZero() {
 		return false
 	}
-	return now.Sub(e.retainedAt) > safetyValveDuration
+	return now.Sub(e.retainedAt) > valve
 }
 
 // NewRecentUpdateCache creates a cache with the given soft max size.
@@ -124,6 +127,7 @@ func NewRecentUpdateCache(maxEntries int) *RecentUpdateCache {
 		clock:         sim.RealClock{},
 		entries:       make(map[uint64]*cacheEntry, capacity),
 		maxEntries:    maxEntries,
+		safetyValve:   defaultSafetyValveDuration,
 		pluginLastAck: make(map[string]uint64),
 	}
 }
@@ -133,6 +137,17 @@ func (c *RecentUpdateCache) SetClock(clk sim.Clock) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.clock = clk
+}
+
+// SetSafetyValveDuration overrides the safety valve duration for gap-based eviction.
+// Zero or negative values are ignored (default 5 minutes is kept).
+func (c *RecentUpdateCache) SetSafetyValveDuration(d time.Duration) {
+	if d <= 0 {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.safetyValve = d
 }
 
 // Add inserts an update into the cache with pending=true and zero consumers.
@@ -151,7 +166,7 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 	if now.Sub(c.lastGapScan) >= gapScanInterval {
 		c.lastGapScan = now
 		for id, e := range c.entries {
-			if !e.isGapEvictable(now, id, c.highestFullyAcked) {
+			if !e.isGapEvictable(now, id, c.highestFullyAcked, c.safetyValve) {
 				continue
 			}
 			cacheLogger().Warn("safety valve: force-evicting stalled entry",

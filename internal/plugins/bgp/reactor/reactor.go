@@ -13,6 +13,7 @@ import (
 	"maps"
 	"net"
 	"net/netip"
+	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -2430,6 +2431,16 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8) error {
 	return nil
 }
 
+// PausePeer pauses reading from a specific peer's session.
+func (a *reactorAPIAdapter) PausePeer(addr netip.Addr) error {
+	return a.r.PausePeer(addr)
+}
+
+// ResumePeer resumes reading from a specific peer's session.
+func (a *reactorAPIAdapter) ResumePeer(addr netip.Addr) error {
+	return a.r.ResumePeer(addr)
+}
+
 // AddDynamicPeer adds a peer with the given configuration.
 // Delegates to reactor's AddDynamicPeer which handles defaults.
 func (a *reactorAPIAdapter) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
@@ -3889,7 +3900,18 @@ func New(config *Config) *Reactor {
 		maxEntries = 1000000 // Default: 1M entries
 	}
 
-	return &Reactor{
+	// ZE_FWD_CHAN_SIZE overrides the per-destination forward pool channel capacity.
+	// Default: 64. Invalid/zero/negative values use default.
+	fwdChanSize := 0
+	if v := os.Getenv("ZE_FWD_CHAN_SIZE"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			fwdChanSize = n
+		} else {
+			reactorLogger().Warn("ignoring invalid ZE_FWD_CHAN_SIZE", "value", v, "error", err)
+		}
+	}
+
+	r := &Reactor{
 		config:          config,
 		clock:           sim.RealClock{},
 		dialer:          &sim.RealDialer{},
@@ -3900,9 +3922,21 @@ func New(config *Config) *Reactor {
 		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:        NewWatchdogManager(),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
-		fwdPool:         newFwdPool(fwdHandler, fwdPoolConfig{}),
+		fwdPool:         newFwdPool(fwdHandler, fwdPoolConfig{chanSize: fwdChanSize}),
 		configTree:      config.ConfigTree,
 	}
+
+	// ZE_CACHE_SAFETY_VALVE overrides the safety valve duration for gap-based eviction.
+	// Default: 5 minutes. Invalid values are ignored.
+	if v := os.Getenv("ZE_CACHE_SAFETY_VALVE"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			r.recentUpdates.SetSafetyValveDuration(d)
+		} else {
+			reactorLogger().Warn("ignoring invalid ZE_CACHE_SAFETY_VALVE", "value", v, "error", err)
+		}
+	}
+
+	return r
 }
 
 // SetClock sets the clock used by the reactor and all child components.

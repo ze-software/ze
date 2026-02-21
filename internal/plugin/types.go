@@ -125,6 +125,14 @@ type ReactorLifecycle interface {
 	// RFC 4486: Cease subcodes (2=Admin Shutdown, 3=Peer De-configured, 4=Admin Reset).
 	TeardownPeer(addr netip.Addr, subcode uint8) error
 
+	// PausePeer pauses reading from a specific peer's session.
+	// Used by flow control to apply backpressure when a plugin's worker pool saturates.
+	PausePeer(addr netip.Addr) error
+
+	// ResumePeer resumes reading from a specific peer's session.
+	// Used by flow control to release backpressure when a plugin's worker pool drains.
+	ResumePeer(addr netip.Addr) error
+
 	// --- Configuration (6 methods) ---
 
 	// Reload reloads the configuration from the config file via reloadFunc.

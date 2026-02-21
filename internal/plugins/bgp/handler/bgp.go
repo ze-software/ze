@@ -19,6 +19,8 @@ func PeerOpsRPCs() []plugin.RPCRegistration {
 		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode"},
 		{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically"},
 		{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically"},
+		{WireMethod: "ze-bgp:peer-pause", CLICommand: "bgp peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)"},
+		{WireMethod: "ze-bgp:peer-resume", CLICommand: "bgp peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)"},
 	}
 }
 
@@ -363,6 +365,61 @@ func handleBgpPeerRemove(ctx *plugin.CommandContext, _ []string) (*plugin.Respon
 		Data: map[string]any{
 			"peer":    addr.String(),
 			"message": "peer removed",
+		},
+	}, nil
+}
+
+// handleBgpPeerPause handles "bgp peer <ip> pause" command.
+// Pauses the peer's read loop for flow control (backpressure from plugins).
+func handleBgpPeerPause(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
+		return r.PausePeer(addr)
+	})
+}
+
+// handleBgpPeerResume handles "bgp peer <ip> resume" command.
+// Resumes the peer's read loop after a flow-control pause.
+func handleBgpPeerResume(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
+		return r.ResumePeer(addr)
+	})
+}
+
+// peerFlowControl is the shared implementation for pause/resume handlers.
+func peerFlowControl(ctx *plugin.CommandContext, action string, fn func(plugin.ReactorLifecycle, netip.Addr) error) (*plugin.Response, error) {
+	_, errResp, err := plugin.RequireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
+	peer := ctx.PeerSelector()
+	if peer == "*" || peer == "" {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("%s requires specific peer: bgp peer <ip> %s", action, action),
+		}, fmt.Errorf("no peer specified")
+	}
+
+	addr, err := netip.ParseAddr(peer)
+	if err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+		}, err
+	}
+
+	if err := fn(ctx.Reactor(), addr); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("%s failed: %v", action, err),
+		}, err
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"peer":   addr.String(),
+			"action": action,
 		},
 	}, nil
 }

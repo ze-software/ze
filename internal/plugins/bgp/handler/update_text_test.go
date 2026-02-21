@@ -1139,6 +1139,8 @@ func (m *mockReactorBatch) WithdrawLabeledUnicast(_ string, _ bgptypes.LabeledUn
 func (m *mockReactorBatch) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
 func (m *mockReactorBatch) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
 func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error                 { return nil }
+func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                             { return nil }
+func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                            { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
 func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                            { return nil }

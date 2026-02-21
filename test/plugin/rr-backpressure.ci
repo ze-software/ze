@@ -1,0 +1,49 @@
+# rr-backpressure - verify RR flow control wiring with minimal channel capacity
+# Tests: ZE_RR_CHAN_SIZE=1 env var, dispatch-worker-RIB path at minimum capacity,
+# wireFlowControl startup, resumeAllPaused shutdown cleanup.
+# Single-peer: no forward targets, so pause/resume RPCs do not fire.
+# Full multi-peer backpressure deferred to spec-inprocess-chaos.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: Expect EOR (empty UPDATE for ipv4/unicast) after session establishment
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Steps 2-4: Send 3 UPDATEs to exercise worker pool with chanSize=1
+# Each rapidly queued dispatch tests the blocking behavior of a 1-slot channel.
+# ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=10.0.1.1, LOCAL_PREF=100
+# UPDATE 10.0.0.0/24
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00010140050400000064180A0000
+# UPDATE 10.0.1.0/24
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00010140050400000064180A0001
+# UPDATE 10.0.2.0/24
+action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00010140050400000064180A0002
+EOF_PEER
+
+# ze bgp configuration with internal RR plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rr {
+		run "ze.bgp-rr";
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.2;
+		local-address 127.0.0.1;
+		local-as 65001;
+		peer-as 65001;
+		connection active;
+		group-updates disable;
+		family {
+			ipv4/unicast;
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=ZE_RR_CHAN_SIZE:value=1
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

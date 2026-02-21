@@ -1057,6 +1057,87 @@ func TestCacheUnregisterConsumerPartialAck(t *testing.T) {
 //
 // VALIDATES: UnregisterConsumer is safe to call for unregistered plugins.
 // PREVENTS: Panic or incorrect state mutation for unknown plugin names.
+// TestSafetyValveConfigurable verifies that the safety valve duration can be customized.
+//
+// VALIDATES: AC-12 — custom duration applied; default unchanged when unset.
+// PREVENTS: Hardcoded 5-minute safety valve that can't be tuned for production workloads.
+func TestSafetyValveConfigurable(t *testing.T) {
+	t.Run("custom_duration", func(t *testing.T) {
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		fc := sim.NewFakeClock(start)
+
+		cache := NewRecentUpdateCache(100)
+		cache.SetClock(fc)
+		cache.SetSafetyValveDuration(10 * time.Second) // Much shorter than default 5min
+
+		cache.RegisterConsumer("stalled")
+		cache.Add(newTestUpdate(100))
+		cache.Activate(100, 1)
+
+		cache.RegisterConsumer("healthy")
+		cache.Add(newTestUpdate(200))
+		cache.Activate(200, 1)
+
+		// Healthy acks — creates gap (highestFullyAcked=200 > 100).
+		if err := cache.Ack(200, "healthy"); err != nil {
+			t.Fatalf("Ack(200): %v", err)
+		}
+
+		// Advance past custom safety valve (10s) + gap scan interval (30s).
+		fc.Add(41 * time.Second)
+
+		// Trigger gap scan.
+		cache.Add(newTestUpdate(300))
+
+		// Entry 100 should be force-evicted with the custom 10s duration.
+		if cache.Contains(100) {
+			t.Error("entry 100 should be force-evicted with 10s safety valve")
+		}
+	})
+
+	t.Run("default_unchanged", func(t *testing.T) {
+		start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+		fc := sim.NewFakeClock(start)
+
+		cache := NewRecentUpdateCache(100)
+		cache.SetClock(fc)
+		// No SetSafetyValveDuration call — default 5min should apply.
+
+		cache.RegisterConsumer("stalled")
+		cache.Add(newTestUpdate(100))
+		cache.Activate(100, 1)
+
+		cache.RegisterConsumer("healthy")
+		cache.Add(newTestUpdate(200))
+		cache.Activate(200, 1)
+
+		if err := cache.Ack(200, "healthy"); err != nil {
+			t.Fatalf("Ack(200): %v", err)
+		}
+
+		// Advance past 10s but NOT past 5min — should NOT evict.
+		fc.Add(41 * time.Second)
+		cache.Add(newTestUpdate(300))
+
+		if !cache.Contains(100) {
+			t.Error("entry 100 should NOT be evicted with default 5min safety valve")
+		}
+	})
+
+	t.Run("zero_uses_default", func(t *testing.T) {
+		cache := NewRecentUpdateCache(100)
+		cache.SetSafetyValveDuration(0) // Should fall back to default.
+
+		// Verify via the field (internal check).
+		cache.mu.RLock()
+		dur := cache.safetyValve
+		cache.mu.RUnlock()
+		if dur != 5*time.Minute {
+			t.Errorf("expected default 5min, got %v", dur)
+		}
+	})
+}
+
 func TestCacheUnregisterUnknownConsumer(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
 

@@ -444,3 +444,64 @@ func TestHandlerPluginAckMissingArg(t *testing.T) {
 	_, err := handleBgpPluginAck(ctx, nil)
 	require.Error(t, err)
 }
+
+// TestPeerPauseHandler verifies pause command calls reactor.PausePeer.
+//
+// VALIDATES: AC-3 — bgp peer pause command calls PausePeer.
+// PREVENTS: Pause command not reaching reactor.
+func TestPeerPauseHandler(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerPause(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.pausedPeers, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.pausedPeers[0])
+}
+
+// TestPeerResumeHandler verifies resume command calls reactor.ResumePeer.
+//
+// VALIDATES: AC-4 — bgp peer resume command calls ResumePeer.
+// PREVENTS: Resume command not reaching reactor.
+func TestPeerResumeHandler(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerResume(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.resumedPeers, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.resumedPeers[0])
+}
+
+// TestPeerPauseUnknown verifies pause rejects unknown peer with error.
+//
+// VALIDATES: AC-5 — unknown peer returns error, no panic.
+// PREVENTS: Panic on pause for non-existent peer.
+func TestPeerPauseUnknown(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	// Wildcard selector should be rejected
+	ctx.Peer = "*"
+	resp, err := handleBgpPeerPause(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+
+	// Empty selector should be rejected
+	ctx.Peer = ""
+	resp, err = handleBgpPeerPause(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+
+	// Invalid IP should be rejected
+	ctx.Peer = "not-an-ip"
+	resp, err = handleBgpPeerPause(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+}
