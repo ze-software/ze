@@ -265,85 +265,104 @@ Run `make ze-lint && make ze-unit-test && make ze-functional-test && make ze-fuz
 
 ### What Was Implemented
 
+All 7 diagnostic issues resolved across 6 files:
+- Fuzz tests enumerated individually for attribute package (7 targets)
+- Debug commands print full hex without truncation
+- Generic failure report structured with ERROR, LIKELY CAUSE, PEER OUTPUT, CLIENT OUTPUT sections
+- Likely cause hints for timeout and generic failures via pattern-matching functions
+- Field-level JSON diff with recursive map/slice traversal (added/removed/changed labels)
+- Functional test summary tracks and names failed suites
+- Parse test failure shows `ze validate <config-path>` reproduction command
+
 ### Bugs Found/Fixed
+
+None — all changes were new diagnostic features.
 
 ### Documentation Updates
 
+None required — no config, wire format, API, or CLI changes.
+
 ### Deviations from Plan
+
+| Deviation | Reason |
+|-----------|--------|
+| `TestJSONDiffFieldLevel` named `TestComparePluginJSON_MismatchFieldLevel` | Follows existing `TestComparePluginJSON_*` naming convention in json_test.go |
+| Added `TestLikelyCauseEmptyClient` (not in plan) | Extra coverage for AC-4 empty client output scenario |
+| Added `TestComparePluginJSON_ArrayElementDiff` (not in plan) | Extra coverage for AC-5 nested array diff |
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| Fix broken fuzz tests | | | |
-| Full-length debug commands | | | |
-| Structured generic failure report | | | |
-| Likely cause hints | | | |
-| Field-level JSON diff | | | |
-| Suite-level failure naming | | | |
-| Parse reproduction command | | | |
+| Fix broken fuzz tests | ✅ Done | `Makefile:111-122` | 7 individual `-fuzz=FuzzParse*` invocations |
+| Full-length debug commands | ✅ Done | `report.go:293-301` | Full hex in `ze bgp decode update` commands |
+| Structured generic failure report | ✅ Done | `report.go:245-283` | ERROR + LIKELY CAUSE + PEER OUTPUT + CLIENT OUTPUT sections |
+| Likely cause hints | ✅ Done | `report.go:342-394` | `likelyCause()` + `likelyCauseTimeout()` pattern-matching |
+| Field-level JSON diff | ✅ Done | `json.go:201-258` | `jsonFieldDiff()` recursive with `jsonSliceDiff()` |
+| Suite-level failure naming | ✅ Done | `Makefile:75-87` | `failed_names` variable tracks suite names |
+| Parse reproduction command | ✅ Done | `parsing.go:322-325` | `ze validate <config-path>` for file-based configs |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
-| AC-1 | | | |
-| AC-2 | | | |
-| AC-3 | | | |
-| AC-4 | | | |
-| AC-5 | | | |
-| AC-6 | | | |
-| AC-7 | | | |
+| AC-1 | ✅ Done | `Makefile:111-122` — 7 individual fuzz invocations | No `-fuzz=.` for attribute package |
+| AC-2 | ✅ Done | `TestDebugCommandsFullHex` (`report_test.go:16`) | Asserts full hex present, no ellipsis |
+| AC-3 | ✅ Done | `TestGenericReportStructured` (`report_test.go:45`) | Asserts ERROR + LIKELY CAUSE sections |
+| AC-4 | ✅ Done | `TestLikelyCauseTimeout` (`report_test.go:73`) + `TestLikelyCauseEmptyClient` (`report_test.go:100`) | Both timeout and generic paths covered |
+| AC-5 | ✅ Done | `TestComparePluginJSON_MismatchFieldLevel` (`json_test.go:269`) + `TestComparePluginJSON_ArrayElementDiff` (`json_test.go:300`) | Field-level diff with changed/added/removed labels |
+| AC-6 | ✅ Done | `Makefile:83` — `printf` includes `$$failed_names` | Names printed in FAIL summary line |
+| AC-7 | ✅ Done | `parsing.go:323-324` — `Reproduce: ze validate <path>` | Only for file-based configs (not inline) |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
-| TestDebugCommandsFullHex | | | |
-| TestGenericReportStructured | | | |
-| TestLikelyCauseTimeout | | | |
-| TestJSONDiffFieldLevel | | | |
+| TestDebugCommandsFullHex | ✅ Done | `report_test.go:16` | AC-2 |
+| TestGenericReportStructured | ✅ Done | `report_test.go:45` | AC-3 |
+| TestLikelyCauseTimeout | ✅ Done | `report_test.go:73` | AC-4 |
+| TestJSONDiffFieldLevel | 🔄 Changed | `json_test.go:269` as `TestComparePluginJSON_MismatchFieldLevel` | Renamed to match existing convention |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| Makefile | | |
-| internal/test/runner/report.go | | |
-| internal/test/runner/json.go | | |
-| internal/test/runner/parsing.go | | |
-| internal/test/runner/report_test.go | | |
-| internal/test/runner/json_test.go | | |
+| Makefile | ✅ Done | Fuzz enumeration (AC-1) + suite naming (AC-6) |
+| internal/test/runner/report.go | ✅ Done | Full hex (AC-2), structured generic (AC-3), likely cause (AC-4) |
+| internal/test/runner/json.go | ✅ Done | Field-level diff (AC-5) |
+| internal/test/runner/parsing.go | ✅ Done | Reproduction command (AC-7) |
+| internal/test/runner/report_test.go | ✅ Done | Created — 4 tests for AC-2, AC-3, AC-4 |
+| internal/test/runner/json_test.go | ✅ Done | Extended — 2 tests added for AC-5 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 24 (7 requirements + 7 AC + 4 tests + 6 files)
+- **Done:** 23
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (test name renamed to match convention)
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] Acceptance criteria AC-1..AC-7 all demonstrated
-- [ ] Tests pass (`make ze-unit-test`)
-- [ ] No regressions (`make ze-functional-test`)
-- [ ] Fuzz tests run (`make ze-fuzz-test`)
-- [ ] Integration test: fuzz tests proven to execute from `make ze-fuzz-test` (not just in isolation)
+- [x] Acceptance criteria AC-1..AC-7 all demonstrated
+- [x] Tests pass (`make ze-unit-test`)
+- [x] No regressions (`make ze-functional-test`)
+- [x] Fuzz tests run (`make ze-fuzz-test`)
+- [x] Integration test: fuzz tests proven to execute from `make ze-fuzz-test` (not just in isolation)
 
 ### Quality Gates (SHOULD pass)
-- [ ] `make ze-lint` passes
-- [ ] Implementation Audit fully completed
-- [ ] Mistake Log escalation candidates reviewed
+- [x] `make ze-lint` passes
+- [x] Implementation Audit fully completed
+- [x] Mistake Log escalation candidates reviewed
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (verified before implementation)
+- [x] Implementation complete
+- [x] Tests PASS (verified after implementation)
 
 ### Documentation (during implementation)
-- [ ] Required docs read
+- [x] Required docs read
 
 ### Completion (after tests pass)
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] Spec updated with Implementation Summary
+- [x] Spec moved to `docs/plan/done/NNN-<name>.md`
 - [ ] All files committed together
