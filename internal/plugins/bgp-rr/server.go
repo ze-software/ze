@@ -20,6 +20,11 @@ import (
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
 
+// updateRouteTimeout is the context deadline for updateRoute RPC calls.
+// Set to 60s (was 10s) as defense-in-depth against transient congestion
+// when many concurrent workers send update-route RPCs.
+const updateRouteTimeout = 60 * time.Second
+
 // Event type constants matching ze-bgp message.type values.
 //
 // Note: The engine also sends "borr" (Beginning of Route Refresh, RFC 7313 subtype 1)
@@ -174,7 +179,7 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 
 // updateRoute sends a route update command to matching peers via the engine.
 func (rs *RouteServer) updateRoute(peerSelector, command string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {

@@ -924,7 +924,9 @@ func (s *Server) deliverRegistryRPC(proc *Process) {
 }
 
 // handleSingleProcessCommandsRPC handles runtime commands for an RPC-mode plugin.
-// Reads from engineConnA and dispatches plugin→engine RPCs (update-route, subscribe, etc.).
+// Reads from engineConnA and dispatches plugin→engine RPCs (update-route, subscribe, etc.)
+// concurrently. Each request is dispatched in its own goroutine so that slow handlers
+// (e.g., update-route) don't block the read loop and starve other requests.
 // Event delivery to plugins is handled directly via engineConnB.SendDeliverEvent
 // in OnMessageReceived, OnPeerStateChange, etc.
 func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
@@ -936,7 +938,11 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 		return
 	}
 
-	// Plugin→engine RPC loop: read from engineConnA, dispatch.
+	// WaitGroup tracks in-flight dispatches for clean shutdown.
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	// Plugin→engine RPC loop: read from engineConnA, dispatch in goroutines.
 	for {
 		req, err := connA.ReadRequest(s.ctx)
 		if err != nil {
@@ -947,7 +953,9 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 			return // Connection closed (plugin exited)
 		}
 
-		s.dispatchPluginRPC(proc, connA, req)
+		wg.Go(func() {
+			s.dispatchPluginRPC(proc, connA, req)
+		})
 	}
 }
 

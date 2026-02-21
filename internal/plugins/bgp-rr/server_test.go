@@ -692,3 +692,13 @@ func TestHandleCommand_Unknown(t *testing.T) {
 		t.Errorf("expected status error, got %q", status)
 	}
 }
+
+// TestRRUpdateRouteTimeout60s verifies the updateRoute timeout is 60 seconds.
+//
+// VALIDATES: AC-7 — RR plugin updateRoute uses 60s timeout (was 10s).
+// PREVENTS: Regression to 10s timeout that causes silent route drops under load.
+func TestRRUpdateRouteTimeout60s(t *testing.T) {
+	if updateRouteTimeout != 60*time.Second {
+		t.Errorf("updateRouteTimeout = %v, want 60s", updateRouteTimeout)
+	}
+}

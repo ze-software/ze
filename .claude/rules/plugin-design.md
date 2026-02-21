@@ -9,7 +9,7 @@ Rationale: `.claude/rationale/plugin-design.md`
 |-------|----------|---------|
 | Registry | `internal/plugin/registry/` | Central registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
-| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC type definitions |
+| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC type definitions + `MuxConn` for concurrent RPCs |
 | Internal | `internal/plugins/<name>/` | Plugin implementations + `register.go` |
 | All imports | `internal/plugin/all/` | Blank imports triggering all `init()` |
 | CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
@@ -36,6 +36,9 @@ Stage 5: Ready          → Plugin sends: ze-plugin-engine:ready (Socket A), ent
 ```
 
 Socket A = plugin→engine. Socket B = engine→plugin.
+
+After Stage 5, SDK wraps Socket A in `MuxConn` for concurrent plugin→engine RPCs.
+Engine dispatches Socket A requests in goroutines (concurrent per plugin).
 
 ## Registration Fields
 

@@ -40,8 +40,9 @@ type Plugin struct {
 	name string
 
 	// Two bidirectional connections (one per socket).
-	engineConn   *rpc.Conn // Socket A: plugin → engine RPCs
-	callbackConn *rpc.Conn // Socket B: engine → plugin RPCs
+	engineConn   *rpc.Conn    // Socket A: plugin → engine RPCs
+	callbackConn *rpc.Conn    // Socket B: engine → plugin RPCs
+	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
 
 	// Callbacks for engine-initiated RPCs.
 	onConfigure        func([]ConfigSection) error
@@ -149,6 +150,13 @@ func envFD(name string) (int, error) {
 // on Read(). Must be called when the plugin is done to prevent goroutine leaks.
 // Safe to call multiple times.
 func (p *Plugin) Close() error {
+	// Close MuxConn first — its background reader must stop before
+	// closing the underlying engineConn (which it reads from).
+	if p.engineMux != nil {
+		if err := p.engineMux.Close(); err != nil {
+			return err
+		}
+	}
 	engineErr := p.engineConn.Close()
 	callbackErr := p.callbackConn.Close()
 	if engineErr != nil {
@@ -328,6 +336,11 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		return fmt.Errorf("stage 5 (ready): %w", err)
 	}
 
+	// Startup complete: create MuxConn for concurrent engine calls.
+	// The 5-stage startup uses engineConn.CallRPC (sequential, one-at-a-time).
+	// MuxConn takes ownership of the reader for concurrent multiplexed RPCs.
+	p.engineMux = rpc.NewMuxConn(p.engineConn)
+
 	// Post-startup: safe to make engine calls (Socket A is free).
 	// The engine's runtime handler starts reading Socket A after all
 	// plugins complete startup, so writes are buffered briefly then handled.
@@ -346,8 +359,9 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 }
 
 // callEngine sends an RPC to the engine via Socket A and waits for response.
+// Uses MuxConn when available (post-startup), falls back to Conn (during startup).
 func (p *Plugin) callEngine(ctx context.Context, method string, params any) error {
-	raw, err := p.engineConn.CallRPC(ctx, method, params)
+	raw, err := p.callEngineRaw(ctx, method, params)
 	if err != nil {
 		return err
 	}
@@ -355,12 +369,22 @@ func (p *Plugin) callEngine(ctx context.Context, method string, params any) erro
 }
 
 // callEngineWithResult sends an RPC to the engine and returns the result payload.
+// Uses MuxConn when available (post-startup), falls back to Conn (during startup).
 func (p *Plugin) callEngineWithResult(ctx context.Context, method string, params any) (json.RawMessage, error) {
-	raw, err := p.engineConn.CallRPC(ctx, method, params)
+	raw, err := p.callEngineRaw(ctx, method, params)
 	if err != nil {
 		return nil, err
 	}
 	return rpc.ParseResponse(raw)
+}
+
+// callEngineRaw sends an RPC and returns the raw response frame.
+// Dispatches to MuxConn (concurrent, post-startup) or Conn (sequential, startup).
+func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	if p.engineMux != nil {
+		return p.engineMux.CallRPC(ctx, method, params)
+	}
+	return p.engineConn.CallRPC(ctx, method, params)
 }
 
 // UpdateRoute injects a route update to matching peers via the engine.
