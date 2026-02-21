@@ -134,8 +134,15 @@ type Session struct {
 	// No synchronization needed.
 	extendedMessage bool
 
+	// writeMu serializes all access to writeBuf.
+	// Multiple goroutines send concurrently (keepalive timer, forward pool workers,
+	// sendInitialRoutes, plugin RPC handlers) — this mutex prevents races on the
+	// shared buffer. Lock ordering: s.mu before s.writeMu (never reverse).
+	writeMu sync.Mutex
+
 	// Write buffer for zero-allocation message building.
 	// Allocated at 4096 bytes initially, resized to 65535 if Extended Message negotiated.
+	// All access must hold writeMu.
 	writeBuf *wire.SessionBuffer
 
 	// Error channel for timer callbacks to signal errors.
@@ -1497,7 +1504,9 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// MUST be capable of receiving/sending messages up to 65535 octets.
 	if s.negotiated.ExtendedMessage {
 		s.extendedMessage = true
+		s.writeMu.Lock()
 		s.writeBuf.Resize(true) // Expand to 65535 if needed
+		s.writeMu.Unlock()
 	}
 
 	// RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value of the
@@ -1623,6 +1632,9 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 		return ErrNotConnected
 	}
 
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+
 	// Zero-allocation: write directly into session buffer.
 	// Message types don't use context for basic encoding
 	// (KEEPALIVE, OPEN, NOTIFICATION have fixed formats).
@@ -1683,7 +1695,7 @@ func buildOptionalParams(caps []capability.Capability) []byte {
 // Returns ErrInvalidState if the session is not established.
 //
 // Uses zero-allocation path via Update.WriteTo and session write buffer.
-// Note: Concurrent calls to SendUpdate must be externally synchronized.
+// Concurrent calls are serialized by writeMu.
 func (s *Session) SendUpdate(update *message.Update) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1697,6 +1709,9 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
@@ -1727,7 +1742,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 // RFC 7911 - ADD-PATH encoding when addPath is true.
 // RFC 6793 - 4-byte AS encoding when asn4 is true.
 //
-// Note: Concurrent calls must be externally synchronized.
+// Concurrent calls are serialized by writeMu.
 func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP, asn4, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1741,6 +1756,9 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	if conn == nil {
 		return ErrNotConnected
 	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
@@ -1768,7 +1786,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 // RFC 4760 Section 4 - MP_UNREACH_NLRI for IPv6 withdrawals.
 // RFC 7911 - ADD-PATH encoding when addPath is true.
 //
-// Note: Concurrent calls must be externally synchronized.
+// Concurrent calls are serialized by writeMu.
 func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1782,6 +1800,9 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
@@ -1805,6 +1826,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 // Used for zero-copy forwarding when encoding contexts match.
 // Prepends the BGP header with correct length.
 // Returns ErrInvalidState if the session is not established.
+// Concurrent calls are serialized by writeMu.
 func (s *Session) SendRawUpdateBody(body []byte) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1818,6 +1840,9 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	// RFC 4271 Section 4.1 - Zero-allocation: write header + body into session buffer
 	totalLen := message.HeaderLen + len(body)
@@ -1844,7 +1869,7 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 // SendRawMessage sends raw bytes to the peer.
 // If msgType is 0, payload is a full BGP packet (user provides marker+header+body).
 // If msgType is non-zero, payload is message body only (we add the header).
-// ⚠️ No validation - bytes sent exactly as provided.
+// Concurrent calls are serialized by writeMu (when msgType != 0).
 func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	s.mu.RLock()
 	conn := s.conn
@@ -1855,10 +1880,13 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	}
 
 	if msgType == 0 {
-		// Full packet mode - send as-is
+		// Full packet mode - send as-is (no writeBuf used)
 		_, err := conn.Write(payload)
 		return err
 	}
+
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 
 	// Message body mode - write header + body into session buffer
 	totalLen := message.HeaderLen + len(payload)

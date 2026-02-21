@@ -2519,3 +2519,57 @@ func TestSessionPauseKeepaliveContinues(t *testing.T) {
 
 	cancel()
 }
+
+// TestSendUpdateConcurrentNoRace verifies that concurrent SendRawUpdateBody
+// calls on the same session do not race on writeBuf.
+//
+// VALIDATES: AC-1 — 10 goroutines call SendRawUpdateBody concurrently, no race.
+// PREVENTS: Data race on Session.writeBuf from unsynchronized concurrent writes.
+func TestSendUpdateConcurrentNoRace(t *testing.T) {
+	session, client, _, cleanup := setupEstablishedSessionEBGP(t)
+	defer cleanup()
+
+	// Drain all data sent by concurrent goroutines so net.Pipe doesn't block.
+	drainDone := make(chan struct{})
+	go func() {
+		defer close(drainDone)
+		buf := make([]byte, 65536)
+		for {
+			_, err := client.Read(buf)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	// Minimal valid UPDATE body: no withdrawals, no attrs, no NLRI.
+	rawBody := []byte{
+		0x00, 0x00, // Withdrawn routes length = 0
+		0x00, 0x00, // Path attributes length = 0
+	}
+
+	const goroutines = 10
+	const sends = 50
+
+	var wg sync.WaitGroup
+	var errCount atomic.Int32
+
+	for range goroutines {
+		wg.Go(func() {
+			for range sends {
+				if err := session.SendRawUpdateBody(rawBody); err != nil {
+					errCount.Add(1)
+					return
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+
+	// Close client to stop drain goroutine.
+	client.Close() //nolint:errcheck // test cleanup
+	<-drainDone
+
+	require.Zero(t, errCount.Load(), "all sends should succeed without error")
+}
