@@ -1,0 +1,305 @@
+package reactor
+
+import (
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// TestFwdPool_LazyCreation verifies workers are created on first Dispatch
+// and reused for subsequent dispatches to the same peer.
+//
+// VALIDATES: AC-1 (workers created per destination peer)
+// PREVENTS: Eager worker creation wasting goroutines for idle peers.
+func TestFwdPool_LazyCreation(t *testing.T) {
+	handled := make(chan struct{}, 10)
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		handled <- struct{}{}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	assert.Equal(t, 0, pool.WorkerCount())
+
+	// First dispatch creates worker
+	ok := pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	require.True(t, ok)
+	<-handled
+	assert.Equal(t, 1, pool.WorkerCount())
+
+	// Same peer reuses worker
+	ok = pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	require.True(t, ok)
+	<-handled
+	assert.Equal(t, 1, pool.WorkerCount())
+
+	// Different peer creates second worker
+	ok = pool.Dispatch(fwdKey{peerAddr: "2.2.2.2"}, fwdItem{})
+	require.True(t, ok)
+	<-handled
+	assert.Equal(t, 2, pool.WorkerCount())
+}
+
+// TestFwdPool_IdleTimeout verifies workers exit after idle period
+// and WorkerCount decrements.
+//
+// VALIDATES: AC-6 (worker idle timeout)
+// PREVENTS: Goroutine leaks from workers that never exit.
+func TestFwdPool_IdleTimeout(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: 50 * time.Millisecond})
+	defer pool.Stop()
+
+	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, 1, pool.WorkerCount())
+
+	// Wait for idle timeout + margin
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 0, pool.WorkerCount())
+}
+
+// TestFwdPool_Stop verifies all workers drain and exit on Stop.
+//
+// VALIDATES: AC-7 (pool shutdown)
+// PREVENTS: Goroutine leaks on reactor shutdown.
+func TestFwdPool_Stop(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+
+	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: "2.2.2.2"}, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+	assert.Equal(t, 2, pool.WorkerCount())
+
+	close(blocker) // Unblock handlers
+	pool.Stop()
+	assert.Equal(t, 0, pool.WorkerCount())
+}
+
+// TestFwdPool_DispatchAfterStop verifies Dispatch returns false
+// when pool is already stopped. Caller is responsible for cleanup.
+//
+// VALIDATES: AC-8 (dispatch to stopped pool)
+// PREVENTS: Sends to closed channels or blocked dispatches after shutdown.
+func TestFwdPool_DispatchAfterStop(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	pool.Stop()
+
+	ok := pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	assert.False(t, ok)
+}
+
+// TestFwdPool_FIFOPerPeer verifies items dispatched to the same peer
+// are processed in dispatch order.
+//
+// VALIDATES: AC-9 (FIFO ordering per peer)
+// PREVENTS: Out-of-order UPDATE delivery to a single peer.
+func TestFwdPool_FIFOPerPeer(t *testing.T) {
+	orderCh := make(chan int, 10)
+	var counter atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		orderCh <- int(counter.Add(1))
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	for range 5 {
+		pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	}
+
+	for i := 1; i <= 5; i++ {
+		select {
+		case got := <-orderCh:
+			assert.Equal(t, i, got)
+		case <-time.After(time.Second):
+			t.Fatalf("timeout waiting for item %d", i)
+		}
+	}
+}
+
+// TestFwdPool_ParallelPeers verifies a slow peer does not block
+// delivery to a fast peer.
+//
+// VALIDATES: AC-1 (slow peer independence)
+// PREVENTS: Head-of-line blocking across destination peers.
+func TestFwdPool_ParallelPeers(t *testing.T) {
+	slowCh := make(chan struct{})
+	fastDone := make(chan struct{})
+
+	pool := newFwdPool(func(key fwdKey, _ fwdItem) {
+		if key.peerAddr == "slow" {
+			<-slowCh
+		} else {
+			close(fastDone)
+		}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	// Dispatch to slow peer first
+	pool.Dispatch(fwdKey{peerAddr: "slow"}, fwdItem{})
+	time.Sleep(10 * time.Millisecond) // Ensure slow worker is blocked
+
+	// Dispatch to fast peer — should complete without waiting for slow
+	pool.Dispatch(fwdKey{peerAddr: "fast"}, fwdItem{})
+
+	select {
+	case <-fastDone:
+		// Fast peer completed — not blocked by slow peer
+	case <-time.After(time.Second):
+		t.Fatal("fast peer blocked by slow peer")
+	}
+
+	close(slowCh)
+}
+
+// TestFwdPool_BackpressureBehavior verifies Dispatch blocks when
+// the per-peer channel is full and does not drop items.
+//
+// VALIDATES: AC-10 (backpressure on full channel)
+// PREVENTS: Silent message drops under load.
+func TestFwdPool_BackpressureBehavior(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Fill: 1 item in handler + 2 in channel = 3 dispatches
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+	pool.Dispatch(key, fwdItem{})
+	pool.Dispatch(key, fwdItem{})
+
+	// Next dispatch should block
+	dispatched := make(chan bool, 1)
+	go func() {
+		ok := pool.Dispatch(key, fwdItem{})
+		dispatched <- ok
+	}()
+
+	select {
+	case <-dispatched:
+		t.Fatal("dispatch should have blocked on full channel")
+	case <-time.After(100 * time.Millisecond):
+		// Expected: dispatch is blocked
+	}
+
+	close(blocker) // Unblock processing
+
+	select {
+	case ok := <-dispatched:
+		assert.True(t, ok)
+	case <-time.After(time.Second):
+		t.Fatal("dispatch should have unblocked after handler drained")
+	}
+}
+
+// TestFwdPool_HandlerError verifies panics in the handler don't kill the worker
+// and the done callback is still called (for Release).
+//
+// VALIDATES: AC-11 (error in handler; Release still called)
+// PREVENTS: Goroutine death on handler panic; cache entry leaks.
+func TestFwdPool_HandlerError(t *testing.T) {
+	var handled atomic.Int32
+	var doneCalled atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		n := handled.Add(1)
+		if n == 1 {
+			panic("test panic")
+		}
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+	doneFunc := func() { doneCalled.Add(1) }
+
+	// First dispatch panics
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+	time.Sleep(50 * time.Millisecond)
+
+	// done callback should still be called despite panic
+	assert.Equal(t, int32(1), doneCalled.Load())
+
+	// Second dispatch should still work (worker survived panic)
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+	time.Sleep(50 * time.Millisecond)
+
+	assert.Equal(t, int32(2), handled.Load())
+	assert.Equal(t, int32(2), doneCalled.Load())
+	assert.Equal(t, 1, pool.WorkerCount())
+}
+
+// TestFwdPool_StopUnblocksDispatch verifies Stop unblocks a Dispatch
+// that is blocked on a full channel.
+//
+// VALIDATES: AC-7 (stop unblocks blocked dispatch via stopCh)
+// PREVENTS: Deadlock during reactor shutdown when workers are backed up.
+func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+	pool.Dispatch(key, fwdItem{}) // In handler
+	time.Sleep(10 * time.Millisecond)
+	pool.Dispatch(key, fwdItem{}) // In channel
+
+	// This dispatch should block
+	result := make(chan bool, 1)
+	go func() {
+		ok := pool.Dispatch(key, fwdItem{})
+		result <- ok
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Stop should unblock the blocked dispatch
+	close(blocker)
+	pool.Stop()
+
+	select {
+	case ok := <-result:
+		assert.False(t, ok)
+	case <-time.After(time.Second):
+		t.Fatal("Stop should have unblocked blocked dispatch")
+	}
+}
+
+// TestFwdPool_DoneCalledOnSuccess verifies the done callback is called
+// after successful handler execution.
+//
+// VALIDATES: AC-5 (Release called after worker completes)
+// PREVENTS: Cache entry leaks from missing Release calls.
+func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
+	doneCh := make(chan struct{}, 5)
+
+	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+		// Handler does nothing
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	for range 3 {
+		pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{
+			done: func() { doneCh <- struct{}{} },
+		})
+	}
+
+	for i := range 3 {
+		select {
+		case <-doneCh:
+			// done called
+		case <-time.After(time.Second):
+			t.Fatalf("timeout waiting for done callback %d", i)
+		}
+	}
+}

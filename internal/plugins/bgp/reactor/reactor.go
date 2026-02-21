@@ -234,6 +234,11 @@ type Reactor struct {
 	// Recent UPDATE cache for efficient forwarding via update-id
 	recentUpdates *RecentUpdateCache
 
+	// Per-destination-peer forward pool for async UPDATE forwarding.
+	// ForwardUpdate dispatches pre-computed send ops here instead of
+	// doing synchronous TCP writes, eliminating head-of-line blocking.
+	fwdPool *fwdPool
+
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
@@ -3214,18 +3219,19 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	// Calculate update size once (header + body)
 	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
 
-	// Forward to all matching peers, collect errors
-	// Lazy parsing: only parse if we need to re-encode
+	// Pre-compute send operations per peer, then dispatch to pool.
+	// CPU work (split/context comparison/lazy parsing) is fast and done here.
+	// TCP writes happen asynchronously in per-peer workers.
 	var parsedUpdate *message.Update
-	var errs []error
-	var sentCount int
+	var dispatchedCount int
 
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
 			continue // Skip non-established peers
 		}
 
-		sentCount++
+		// Build the fwdItem with pre-computed send operations for this peer.
+		item := fwdItem{peer: peer}
 
 		// Get max message size for this peer (RFC 8654)
 		nc := peer.negotiated.Load()
@@ -3241,13 +3247,14 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			maxBodySize := maxMsgSize - message.HeaderLen
 			splits, err := wireu.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
 			if err != nil {
-				errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, err))
+				fwdLogger().Warn("forward split failed",
+					"peer", peer.Settings().Address,
+					"err", err,
+				)
 				continue
 			}
 			for _, split := range splits {
-				if err := peer.SendRawUpdateBody(split.Payload()); err != nil {
-					errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-				}
+				item.rawBodies = append(item.rawBodies, split.Payload())
 			}
 		} else {
 			// Normal path: UPDATE fits based on original size
@@ -3257,9 +3264,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			// Both must be non-zero (registered) and equal
 			srcCtxID := update.WireUpdate.SourceCtxID()
 			if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
-				if err := peer.SendRawUpdateBody(update.WireUpdate.Payload()); err != nil {
-					errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-				}
+				item.rawBodies = append(item.rawBodies, update.WireUpdate.Payload())
 			} else {
 				// Re-encode path: parse (lazily) and send
 				if parsedUpdate == nil {
@@ -3284,32 +3289,39 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 
 					chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
 					if splitErr != nil {
-						errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, splitErr))
-					} else {
-						for _, chunk := range chunks {
-							if err := peer.SendUpdate(chunk); err != nil {
-								errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-							}
-						}
+						fwdLogger().Warn("forward split failed",
+							"peer", peer.Settings().Address,
+							"err", splitErr,
+						)
+						continue
 					}
+					item.updates = append(item.updates, chunks...)
 				} else {
-					if err := peer.SendUpdate(parsedUpdate); err != nil {
-						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-					}
+					item.updates = append(item.updates, parsedUpdate)
 				}
 			}
 		}
+
+		// Retain cache buffer for this peer's worker. Released by done callback
+		// after worker completes all send ops. Ack (deferred above) fires when
+		// ForwardUpdate returns — before workers finish — but retainCount keeps
+		// the buffer alive until all workers call Release.
+		a.r.recentUpdates.Retain(updateID)
+		item.done = func() { a.r.recentUpdates.Release(updateID) }
+
+		key := fwdKey{peerAddr: peer.Settings().Address.String()}
+		if !a.r.fwdPool.Dispatch(key, item) {
+			// Pool stopped — release cache ref ourselves
+			a.r.recentUpdates.Release(updateID)
+			continue
+		}
+		dispatchedCount++
 	}
 
-	// Buffer stays in cache; released on cache eviction (Decrement or lazy cleanup)
-
-	if sentCount == 0 {
+	if dispatchedCount == 0 {
 		return fmt.Errorf("no established peers to forward to")
 	}
 
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
 	return nil
 }
 
@@ -3828,6 +3840,7 @@ func New(config *Config) *Reactor {
 		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:        NewWatchdogManager(),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
+		fwdPool:         newFwdPool(fwdHandler, fwdPoolConfig{}),
 		configTree:      config.ConfigTree,
 	}
 }
@@ -3838,6 +3851,7 @@ func New(config *Config) *Reactor {
 func (r *Reactor) SetClock(c sim.Clock) {
 	r.clock = c
 	r.recentUpdates.SetClock(c)
+	r.fwdPool.SetClock(c)
 	for _, p := range r.peers {
 		p.SetClock(c)
 	}
@@ -4740,6 +4754,11 @@ func (r *Reactor) cleanup() {
 	defer r.mu.Unlock()
 
 	// Phase 1: Signal everything to stop (non-blocking).
+	// Stop forward pool first — drains in-flight dispatches and workers
+	// before peers are stopped, avoiding log noise from ErrInvalidState.
+	if r.fwdPool != nil {
+		r.fwdPool.Stop()
+	}
 	if r.api != nil {
 		r.api.Stop()
 	}
