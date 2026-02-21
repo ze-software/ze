@@ -7,23 +7,23 @@ import (
 	"net/netip"
 )
 
-// GenerateIPv4Routes produces count unique /24 prefixes deterministically
+// GenerateIPv4Routes produces count unique IPv4 prefixes deterministically
 // from the given seed and peer index. Different peer indices are guaranteed
 // to produce non-overlapping routes.
 //
-// The address space is partitioned by peer index:
-// - Peer 0 uses 10.0.0.0/8 range starting at 10.0.0.0
-// - Peer 1 uses 10.0.0.0/8 range starting at 10.64.0.0
-// - etc.
+// Prefix length starts at /24 (262,144 per peer) and automatically increases
+// to /25, /26, ... /32 when count exceeds the /24 pool capacity.
+//
+// The address space is partitioned by peer index using first-octet slicing.
 // Within each partition, prefixes are shuffled deterministically.
 func GenerateIPv4Routes(seed uint64, peerIndex, count int) []netip.Prefix {
 	// Create a per-peer RNG by combining seed and peer index.
 	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
 	rng := rand.New(rand.NewSource(int64(seed) ^ int64(peerIndex*0x9E3779B9)))
 
-	// Generate candidate /24 prefixes avoiding reserved ranges.
+	// Generate candidate prefixes avoiding reserved ranges.
 	// Use a large pool and shuffle, then take the first count.
-	candidates := generateCandidatePool(peerIndex)
+	candidates := generateCandidatePool(peerIndex, count)
 
 	// Shuffle deterministically.
 	rng.Shuffle(len(candidates), func(i, j int) {
@@ -40,16 +40,19 @@ func GenerateIPv4Routes(seed uint64, peerIndex, count int) []netip.Prefix {
 	return result
 }
 
-// generateCandidatePool creates a pool of /24 prefixes for the given peer.
+// generateCandidatePool creates a pool of prefixes for the given peer.
 // Each peer gets a non-overlapping slice of the address space to ensure
 // no two peers generate the same prefix.
 //
 // Address space partitioning:
 // - Usable first octets: 1-9, 11-126, 128-223 = 221 octets
 // - Each peer gets 4 first-octets (221/51 = 4)
-// - Each first-octet generates 256*256 = 65536 /24 prefixes (second.third.0/24)
-// - Total per peer: 4 * 65536 = 262,144 prefixes (enough for any --heavy-routes).
-func generateCandidatePool(peerIndex int) []netip.Prefix {
+// - Each first-octet at /24 generates 256*256 = 65536 prefixes
+// - Base per peer: 4 * 65536 = 262,144 prefixes
+//
+// When count exceeds the /24 pool, the prefix length increases (/25, /26, ...)
+// to subdivide each /24 block, doubling capacity per step up to /32.
+func generateCandidatePool(peerIndex, count int) []netip.Prefix {
 	usable := usableFirstOctets()
 
 	// Each peer gets a slice of first octets.
@@ -66,13 +69,27 @@ func generateCandidatePool(peerIndex int) []netip.Prefix {
 
 	myOctets := usable[startIdx:endIdx]
 
-	// Generate first.second.third.0/24 for all combinations.
-	pool := make([]netip.Prefix, 0, len(myOctets)*256*256)
+	// Pick the smallest prefix length (starting at /24) that yields enough
+	// candidates. Each step from /N to /(N+1) doubles the pool.
+	prefixLen := 24
+	poolSize := len(myOctets) * 256 * 256
+	for poolSize < count && prefixLen < 32 {
+		prefixLen++
+		poolSize *= 2
+	}
+
+	// Number of sub-prefixes within each /24 block and their address step.
+	subnets := 1 << (prefixLen - 24) // e.g. /24→1, /25→2, /26→4
+	step := 256 / subnets            // e.g. /24→256, /25→128, /26→64
+
+	pool := make([]netip.Prefix, 0, poolSize)
 	for _, first := range myOctets {
 		for second := range 256 {
 			for third := range 256 {
-				addr := netip.AddrFrom4([4]byte{first, byte(second), byte(third), 0})
-				pool = append(pool, netip.PrefixFrom(addr, 24))
+				for s := range subnets {
+					addr := netip.AddrFrom4([4]byte{first, byte(second), byte(third), byte(s * step)})
+					pool = append(pool, netip.PrefixFrom(addr, prefixLen))
+				}
 			}
 		}
 	}

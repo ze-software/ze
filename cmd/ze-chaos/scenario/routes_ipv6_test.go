@@ -100,14 +100,21 @@ func TestGenerateIPv6Routes_UniqueWithinPeer(t *testing.T) {
 	}
 }
 
-// TestGenerateIPv6Routes_CountClamping verifies that requesting more routes
-// than available is clamped to the pool size.
+// TestGenerateIPv6Routes_LargeCount verifies that requesting more than the
+// /48 pool (1,280 per peer) returns the full requested count by using
+// more specific prefix lengths (/49, /50, etc.).
 //
-// VALIDATES: Graceful handling of excessive route counts.
-// PREVENTS: Panic or out-of-bounds on large count values.
-func TestGenerateIPv6Routes_CountClamping(t *testing.T) {
-	// Each peer gets 4 /40 blocks × 256 /48s = 1024 routes max.
-	routes := GenerateIPv6Routes(42, 0, 100000)
-	require.Greater(t, len(routes), 0, "should produce some routes")
-	require.LessOrEqual(t, len(routes), 100000, "should not exceed request")
+// VALIDATES: Dynamic prefix length scaling for large route counts.
+// PREVENTS: Silent truncation when route count exceeds /48 pool capacity.
+func TestGenerateIPv6Routes_LargeCount(t *testing.T) {
+	routes := GenerateIPv6Routes(42, 0, 5000)
+	require.Len(t, routes, 5000)
+
+	seen := make(map[string]struct{}, len(routes))
+	for _, r := range routes {
+		key := r.String()
+		_, dup := seen[key]
+		assert.False(t, dup, "duplicate route: %s", key)
+		seen[key] = struct{}{}
+	}
 }

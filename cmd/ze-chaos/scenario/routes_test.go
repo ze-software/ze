@@ -98,6 +98,24 @@ func TestRouteGenIPv4ValidPrefixes(t *testing.T) {
 	}
 }
 
+// TestRouteGenIPv4LargeCount verifies that requesting more than the /24 pool
+// (262,144 per 4 first-octets) returns the full requested count by using
+// more specific prefix lengths (/25, /26, etc.).
+//
+// VALIDATES: Dynamic prefix length scaling for large route counts.
+// PREVENTS: Silent truncation when --heavy-routes exceeds /24 pool capacity.
+func TestRouteGenIPv4LargeCount(t *testing.T) {
+	routes := GenerateIPv4Routes(42, 0, 500000)
+	require.Len(t, routes, 500000)
+
+	// All routes must still be unique.
+	seen := make(map[netip.Prefix]bool, len(routes))
+	for _, r := range routes {
+		assert.False(t, seen[r], "duplicate route: %s", r)
+		seen[r] = true
+	}
+}
+
 // TestRouteGenIPv4DifferentSeeds verifies different seeds produce different routes.
 //
 // VALIDATES: Seed controls route generation.
