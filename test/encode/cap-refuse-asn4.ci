@@ -1,0 +1,32 @@
+# Test: asn4 refuse — peer with ASN4 gets NOTIFICATION
+# ze does NOT advertise ASN4 (refuse → don't advertise). ze-peer adds ASN4 to its response.
+# ze detects peer has ASN4 → sends NOTIFICATION (OPEN Message Error, Unsupported Capability).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=open:value=add-capability:code=65:hex=0000FDE9
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170302074100
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 65001;
+		peer-as 65001;
+		connection active;
+		capability {
+			asn4 refuse;
+		}
+		family {
+			ipv4/unicast;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

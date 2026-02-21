@@ -283,6 +283,16 @@ type PeerSettings struct {
 	// NLRI for these families will be skipped (not error) if not negotiated.
 	IgnoreFamilies []capability.Family
 
+	// RequiredCapabilities are non-family capability codes that must be negotiated.
+	// Session will be rejected with NOTIFICATION if peer doesn't support these.
+	// RFC 5492 Section 3: Unsupported Capability subcode.
+	RequiredCapabilities []capability.Code
+
+	// RefusedCapabilities are capability codes that must NOT be present in peer's OPEN.
+	// Session will be rejected with NOTIFICATION if peer advertises any of these.
+	// Unlike require, refuse checks against peer's raw capabilities, not negotiated intersection.
+	RefusedCapabilities []capability.Code
+
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
 

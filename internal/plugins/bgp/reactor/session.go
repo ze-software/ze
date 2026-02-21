@@ -562,11 +562,13 @@ func (s *Session) processOpen(open *message.Open) error {
 	// Negotiate capabilities.
 	s.negotiateWith(localCaps, peerCaps)
 
-	// Validate required families
+	// Validate required families and capabilities.
 	s.mu.RLock()
 	conn := s.conn
 	neg := s.negotiated
 	requiredFamilies := s.settings.RequiredFamilies
+	requiredCaps := s.settings.RequiredCapabilities
+	refusedCaps := s.settings.RefusedCapabilities
 	s.mu.RUnlock()
 
 	if len(requiredFamilies) > 0 && neg != nil {
@@ -581,6 +583,11 @@ func (s *Session) processOpen(open *message.Open) error {
 			s.closeConn()
 			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
 		}
+	}
+
+	// RFC 5492 Section 3: Validate required/refused capability codes.
+	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps); err != nil {
+		return err
 	}
 
 	// Update FSM
@@ -1108,11 +1115,13 @@ func (s *Session) handleOpen(body []byte) error {
 	// Negotiate capabilities.
 	s.negotiateWith(localCaps, peerCaps)
 
-	// Validate required families are negotiated.
+	// Validate required families and capabilities are negotiated.
 	s.mu.RLock()
 	conn := s.conn
 	neg := s.negotiated
 	requiredFamilies := s.settings.RequiredFamilies
+	requiredCaps := s.settings.RequiredCapabilities
+	refusedCaps := s.settings.RefusedCapabilities
 	s.mu.RUnlock()
 
 	if len(requiredFamilies) > 0 && neg != nil {
@@ -1129,6 +1138,11 @@ func (s *Session) handleOpen(body []byte) error {
 			s.closeConn()
 			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
 		}
+	}
+
+	// RFC 5492 Section 3: Validate required/refused capability codes.
+	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps); err != nil {
+		return err
 	}
 
 	// Update FSM.
@@ -1936,6 +1950,58 @@ func buildUnsupportedCapabilityData(families []capability.Family) []byte {
 		data[offset+4] = 0 // Reserved
 		data[offset+5] = byte(f.SAFI)
 		offset += 6
+	}
+	return data
+}
+
+// validateCapabilityModes checks required/refused capability codes against the negotiated result.
+// Sends NOTIFICATION and tears down the session if any violation is found.
+// RFC 5492 Section 3: Unsupported Capability subcode.
+func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotiated, required, refused []capability.Code) error {
+	if len(required) > 0 && neg != nil {
+		if missing := neg.CheckRequiredCodes(required); len(missing) > 0 {
+			capData := buildUnsupportedCapabilityDataCodes(missing)
+			_ = s.sendNotification(conn,
+				message.NotifyOpenMessage,
+				message.NotifyOpenUnsupportedCapability,
+				capData,
+			)
+			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.closeConn()
+			return fmt.Errorf("%w: required capabilities not negotiated: %v", ErrInvalidState, missing)
+		}
+	}
+
+	if len(refused) > 0 && neg != nil {
+		if present := neg.CheckRefusedCodes(refused); len(present) > 0 {
+			capData := buildUnsupportedCapabilityDataCodes(present)
+			_ = s.sendNotification(conn,
+				message.NotifyOpenMessage,
+				message.NotifyOpenUnsupportedCapability,
+				capData,
+			)
+			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.closeConn()
+			return fmt.Errorf("%w: refused capabilities present in peer OPEN: %v", ErrInvalidState, present)
+		}
+	}
+
+	return nil
+}
+
+// buildUnsupportedCapabilityDataCodes builds NOTIFICATION data for non-family capability codes.
+//
+// RFC 5492 Section 3: Each capability is encoded as code (1 byte) + length (1 byte).
+// For refused/required non-Multiprotocol codes, length is 0 (no capability-specific data needed).
+func buildUnsupportedCapabilityDataCodes(codes []capability.Code) []byte {
+	if len(codes) == 0 {
+		return nil
+	}
+	// Each code: capability code (1 byte) + length (1 byte) = 2 bytes
+	data := make([]byte, len(codes)*2)
+	for i, c := range codes {
+		data[i*2] = byte(c)
+		data[i*2+1] = 0 // length=0: no capability-specific value
 	}
 	return data
 }

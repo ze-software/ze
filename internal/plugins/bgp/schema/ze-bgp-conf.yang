@@ -173,7 +173,7 @@ module ze-bgp-conf {
             leaf asn4 {
                 type boolean;
                 default true;
-                description "4-byte ASN support";
+                description "4-byte ASN support (true/false/enable/disable/require/refuse)";
             }
 
             container route-refresh {

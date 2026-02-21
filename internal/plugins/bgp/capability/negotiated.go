@@ -88,6 +88,11 @@ type Negotiated struct {
 	addPath         map[Family]AddPathMode
 	extendedNextHop map[Family]AFI
 
+	// peerCodes tracks which capability codes the peer advertised.
+	// Used by CheckRefusedCodes to detect refused capabilities in peer's OPEN,
+	// which won't appear in the negotiated intersection if we don't advertise them.
+	peerCodes map[Code]bool
+
 	// Cached family slice
 	familySlice []Family
 }
@@ -146,7 +151,10 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 		}
 	}
 
+	// Track peer's raw capability codes for CheckRefusedCodes.
+	neg.peerCodes = make(map[Code]bool)
 	for _, c := range remote {
+		neg.peerCodes[c.Code()] = true
 		switch cap := c.(type) {
 		case *Multiprotocol:
 			remoteFamilies[Family{AFI: cap.AFI, SAFI: cap.SAFI}] = true
@@ -378,6 +386,54 @@ func (n *Negotiated) Families() []Family {
 		}
 	}
 	return n.familySlice
+}
+
+// CheckRequiredCodes returns non-family capability codes that were required but not negotiated.
+// Returns nil if all required codes are present in the negotiated result.
+// RFC 5492 Section 3: Required capabilities must be supported by both peers.
+func (n *Negotiated) CheckRequiredCodes(required []Code) []Code {
+	if len(required) == 0 {
+		return nil
+	}
+
+	// Map negotiated boolean flags to capability codes.
+	// Maintenance: when adding a new negotiated capability, add an entry here.
+	// Codes absent from this map default to false (fail-closed: reported as missing).
+	negotiated := map[Code]bool{
+		CodeASN4:            n.ASN4,
+		CodeExtendedMessage: n.ExtendedMessage,
+		CodeRouteRefresh:    n.RouteRefresh,
+		CodeAddPath:         len(n.addPath) > 0,
+		CodeExtendedNextHop: len(n.extendedNextHop) > 0,
+		CodeGracefulRestart: n.GracefulRestart != nil,
+	}
+
+	var missing []Code
+	for _, code := range required {
+		if !negotiated[code] {
+			missing = append(missing, code)
+		}
+	}
+	return missing
+}
+
+// CheckRefusedCodes returns capability codes that were refused but present in peer's OPEN.
+// Unlike CheckRequiredCodes, this checks against the peer's raw advertised capabilities,
+// not the negotiated intersection — because if we refuse and don't advertise, the
+// intersection won't contain it even when the peer has it.
+// Returns nil if no refused codes were found in peer's capabilities.
+func (n *Negotiated) CheckRefusedCodes(refused []Code) []Code {
+	if len(refused) == 0 {
+		return nil
+	}
+
+	var present []Code
+	for _, code := range refused {
+		if n.peerCodes[code] {
+			present = append(present, code)
+		}
+	}
+	return present
 }
 
 // CheckRequired returns families that were required but not negotiated.

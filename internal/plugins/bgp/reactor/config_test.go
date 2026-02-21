@@ -458,6 +458,84 @@ func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 	assert.Equal(t, capability.AFI(2), extNH.Families[0].NextHopAFI) // IPv6
 }
 
+// TestParsePeerCapabilityExtendedNextHopInlineMode verifies inline mode tokens
+// on nexthop family lines (e.g., "ipv4/unicast ipv6 require;").
+//
+// VALIDATES: trailing mode token parsed from freeform nexthop family key.
+// PREVENTS: inline mode silently ignored, require/refuse not applied.
+func TestParsePeerCapabilityExtendedNextHopInlineMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		nhMap        map[string]any
+		wantFamilies int
+		wantRequired []capability.Code
+		wantRefused  []capability.Code
+	}{
+		{
+			name:         "require mode",
+			nhMap:        map[string]any{"ipv4/unicast ipv6 require": "true"},
+			wantFamilies: 1,
+			wantRequired: []capability.Code{capability.CodeExtendedNextHop},
+		},
+		{
+			name:         "refuse mode suppresses family",
+			nhMap:        map[string]any{"ipv4/unicast ipv6 refuse": "true"},
+			wantFamilies: 0,
+			wantRefused:  []capability.Code{capability.CodeExtendedNextHop},
+		},
+		{
+			name:         "disable mode suppresses family",
+			nhMap:        map[string]any{"ipv4/unicast ipv6 disable": "true"},
+			wantFamilies: 0,
+		},
+		{
+			name:         "enable mode explicit",
+			nhMap:        map[string]any{"ipv4/unicast ipv6 enable": "true"},
+			wantFamilies: 1,
+		},
+		{
+			name: "mixed modes — require wins",
+			nhMap: map[string]any{
+				"ipv4/unicast ipv6":           "true",
+				"ipv4/multicast ipv6 require": "true",
+			},
+			wantFamilies: 2,
+			wantRequired: []capability.Code{capability.CodeExtendedNextHop},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"capability": map[string]any{
+					"nexthop": tt.nhMap,
+				},
+			}
+
+			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			require.NoError(t, err)
+
+			var extNH *capability.ExtendedNextHop
+			for _, c := range ps.Capabilities {
+				if enh, ok := c.(*capability.ExtendedNextHop); ok {
+					extNH = enh
+					break
+				}
+			}
+			if tt.wantFamilies == 0 {
+				assert.Nil(t, extNH, "ExtendedNextHop capability should be absent")
+			} else {
+				require.NotNil(t, extNH, "ExtendedNextHop capability should be present")
+				assert.Len(t, extNH.Families, tt.wantFamilies)
+			}
+			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
+			assert.Equal(t, tt.wantRefused, ps.RefusedCapabilities, "RefusedCapabilities")
+		})
+	}
+}
+
 // TestParsePeerCapabilityHostname verifies hostname config in RawCapabilityConfig.
 //
 // VALIDATES: Hostname block is stored correctly for plugin delivery.
@@ -1018,4 +1096,294 @@ func TestMapToJSON(t *testing.T) {
 	result := mapToJSON(map[string]any{"key": "val"})
 	assert.Contains(t, result, `"key"`)
 	assert.Contains(t, result, `"val"`)
+}
+
+// TestParseCapabilityMode verifies that all capability types accept
+// the four-mode vocabulary: enable, disable, require, refuse.
+//
+// VALIDATES: capMode type and parseCapMode parse all four modes for simple caps.
+// PREVENTS: require/refuse silently ignored for non-family capabilities.
+func TestParseCapabilityMode(t *testing.T) {
+	tests := []struct {
+		name            string
+		capConfig       map[string]any
+		wantDisableASN4 bool
+		wantHasExtMsg   bool
+		wantHasRR       bool
+		wantRequired    []capability.Code
+		wantRefused     []capability.Code
+	}{
+		{
+			name:            "asn4 require",
+			capConfig:       map[string]any{"asn4": "require"},
+			wantDisableASN4: false, // require = advertise + enforce
+			wantRequired:    []capability.Code{capability.CodeASN4},
+		},
+		{
+			name:            "asn4 refuse",
+			capConfig:       map[string]any{"asn4": "refuse"},
+			wantDisableASN4: true, // refuse = don't advertise + reject if peer has it
+			wantRefused:     []capability.Code{capability.CodeASN4},
+		},
+		{
+			name:          "extended-message require",
+			capConfig:     map[string]any{"extended-message": "require"},
+			wantHasExtMsg: true,
+			wantRequired:  []capability.Code{capability.CodeExtendedMessage},
+		},
+		{
+			name:         "route-refresh require",
+			capConfig:    map[string]any{"route-refresh": "require"},
+			wantHasRR:    true,
+			wantRequired: []capability.Code{capability.CodeRouteRefresh},
+		},
+		{
+			name:        "route-refresh refuse",
+			capConfig:   map[string]any{"route-refresh": "refuse"},
+			wantRefused: []capability.Code{capability.CodeRouteRefresh},
+		},
+		{
+			name:          "multiple require and refuse",
+			capConfig:     map[string]any{"asn4": "require", "extended-message": "refuse"},
+			wantHasExtMsg: false,
+			wantRequired:  []capability.Code{capability.CodeASN4},
+			wantRefused:   []capability.Code{capability.CodeExtendedMessage},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"capability":    tt.capConfig,
+			}
+
+			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantDisableASN4, ps.DisableASN4, "DisableASN4")
+
+			var hasExtMsg, hasRR bool
+			for _, c := range ps.Capabilities {
+				switch c.(type) {
+				case *capability.ExtendedMessage:
+					hasExtMsg = true
+				case *capability.RouteRefresh:
+					hasRR = true
+				}
+			}
+			assert.Equal(t, tt.wantHasExtMsg, hasExtMsg, "ExtendedMessage present")
+			assert.Equal(t, tt.wantHasRR, hasRR, "RouteRefresh present")
+
+			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
+			assert.Equal(t, tt.wantRefused, ps.RefusedCapabilities, "RefusedCapabilities")
+		})
+	}
+}
+
+// TestParseCapabilityModeBackwardsCompat verifies old syntax still works.
+//
+// VALIDATES: true/false/bare name map to enable/disable correctly.
+// PREVENTS: Breaking existing config files.
+func TestParseCapabilityModeBackwardsCompat(t *testing.T) {
+	tests := []struct {
+		name            string
+		capConfig       map[string]any
+		wantDisableASN4 bool
+		wantHasExtMsg   bool
+	}{
+		{
+			name:            "asn4 true means enable",
+			capConfig:       map[string]any{"asn4": "true"},
+			wantDisableASN4: false,
+		},
+		{
+			name:            "asn4 false means disable",
+			capConfig:       map[string]any{"asn4": "false"},
+			wantDisableASN4: true,
+		},
+		{
+			name:            "asn4 enable",
+			capConfig:       map[string]any{"asn4": "enable"},
+			wantDisableASN4: false,
+		},
+		{
+			name:          "extended-message true means enable",
+			capConfig:     map[string]any{"extended-message": "true"},
+			wantHasExtMsg: true,
+		},
+		{
+			name:          "extended-message enable means enable",
+			capConfig:     map[string]any{"extended-message": "enable"},
+			wantHasExtMsg: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"capability":    tt.capConfig,
+			}
+
+			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantDisableASN4, ps.DisableASN4)
+
+			var hasExtMsg bool
+			for _, c := range ps.Capabilities {
+				if _, ok := c.(*capability.ExtendedMessage); ok {
+					hasExtMsg = true
+				}
+			}
+			assert.Equal(t, tt.wantHasExtMsg, hasExtMsg)
+		})
+	}
+}
+
+// TestParseAddPathWithMode verifies add-path capability modes.
+//
+// VALIDATES: Global and per-family add-path modes parsed with trailing mode token.
+// PREVENTS: Mode token consumed as direction, or direction parsing broken.
+func TestParseAddPathWithMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		tree         map[string]any
+		wantRequired []capability.Code
+		wantRefused  []capability.Code
+	}{
+		{
+			name: "global add-path require",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{"add-path": "send/receive require"},
+			},
+			wantRequired: []capability.Code{capability.CodeAddPath},
+		},
+		{
+			name: "per-family add-path require",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{},
+				"add-path":      map[string]any{"ipv4/unicast send require": ""},
+			},
+			wantRequired: []capability.Code{capability.CodeAddPath},
+		},
+		{
+			name: "global add-path refuse",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{"add-path": "send/receive refuse"},
+			},
+			wantRefused: []capability.Code{capability.CodeAddPath},
+		},
+		{
+			name: "global add-path no mode means enable",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{"add-path": "send/receive"},
+			},
+			// No mode specified = enable (default) — no require/refuse entries.
+		},
+		{
+			name: "global add-path disable suppresses capability",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{"add-path": "send/receive disable"},
+			},
+			// disable = don't advertise, no enforcement.
+		},
+		{
+			name: "global add-path refuse suppresses capability",
+			tree: map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"capability":    map[string]any{"add-path": "send/receive refuse"},
+			},
+			wantRefused: []capability.Code{capability.CodeAddPath},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ps, err := parsePeerFromTree("10.0.0.1", tt.tree, 65000, 0)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
+			assert.Equal(t, tt.wantRefused, ps.RefusedCapabilities, "RefusedCapabilities")
+
+			// Verify capability suppression for disable/refuse.
+			var hasAddPath bool
+			for _, c := range ps.Capabilities {
+				if _, ok := c.(*capability.AddPath); ok {
+					hasAddPath = true
+				}
+			}
+			if tt.name == "global add-path disable suppresses capability" ||
+				tt.name == "global add-path refuse suppresses capability" {
+				assert.False(t, hasAddPath, "AddPath capability should be suppressed")
+			}
+		})
+	}
+}
+
+// TestParseGracefulRestartWithMode verifies block-level mode key for GR.
+//
+// VALIDATES: graceful-restart block accepts mode key alongside restart-time.
+// PREVENTS: mode key ignored in block capabilities.
+func TestParseGracefulRestartWithMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		grConfig     map[string]any
+		wantRequired []capability.Code
+		wantRefused  []capability.Code
+	}{
+		{
+			name:         "GR require",
+			grConfig:     map[string]any{"mode": "require", "restart-time": "120"},
+			wantRequired: []capability.Code{capability.CodeGracefulRestart},
+		},
+		{
+			name:        "GR refuse",
+			grConfig:    map[string]any{"mode": "refuse"},
+			wantRefused: []capability.Code{capability.CodeGracefulRestart},
+		},
+		{
+			name:     "GR no mode means enable",
+			grConfig: map[string]any{"restart-time": "120"},
+			// No mode = enable by default — no require/refuse.
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"capability": map[string]any{
+					"graceful-restart": tt.grConfig,
+				},
+			}
+
+			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
+			assert.Equal(t, tt.wantRefused, ps.RefusedCapabilities, "RefusedCapabilities")
+		})
+	}
 }

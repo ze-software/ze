@@ -171,6 +171,65 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 
+### OPEN Behaviors
+
+| Value | Description |
+|-------|-------------|
+| `send-unknown-capability` | Add unknown capability (code 66) to OPEN |
+| `inspect-open-message` | Validate received OPEN against expectations |
+| `send-unknown-message` | Send unknown message type (255) after OPEN |
+| `drop-capability` | Remove a capability from ze-peer's OPEN response |
+| `add-capability` | Add a capability to ze-peer's OPEN response |
+
+### Capability Control (drop-capability / add-capability)
+
+Ze-peer mirrors the peer's OPEN message back (with a modified router-id). The `drop-capability` and `add-capability` options modify this mirrored OPEN at wire level, allowing tests to control exactly which capabilities ze-peer advertises.
+
+**Drop a capability:**
+
+```
+option=open:value=drop-capability:code=<N>
+```
+
+Removes the capability with the given code from ze-peer's OPEN response. The peer will not see this capability in the mirrored OPEN.
+
+**Add a capability:**
+
+```
+option=open:value=add-capability:code=<N>:hex=<value-bytes>
+```
+
+Adds a capability with the given code and hex-encoded value bytes to ze-peer's OPEN response.
+
+| Key | Description |
+|-----|-------------|
+| `code` | Capability code (1-255), e.g., 65 for ASN4, 2 for route-refresh |
+| `hex` | Hex-encoded capability value bytes (only for add-capability) |
+
+**Use case — testing capability mode enforcement:**
+
+When Ze is configured with `require` mode for a capability, it sends a NOTIFICATION if the peer lacks that capability. To test this, use `drop-capability` to make ze-peer omit the capability from its response:
+
+```
+# Test: Ze requires ASN4, ze-peer drops it → Ze should send NOTIFICATION
+option=open:value=drop-capability:code=65
+```
+
+When Ze is configured with `refuse` mode, it sends a NOTIFICATION if the peer has a capability. To test this, the default mirror behavior already includes the capability, but `add-capability` can add capabilities not in the original OPEN:
+
+```
+# Test: Add a custom capability for refuse testing
+option=open:value=add-capability:code=73:hex=067A652D626770
+```
+
+**Multiple overrides** can be combined:
+
+```
+option=open:value=drop-capability:code=65
+option=open:value=drop-capability:code=2
+option=open:value=add-capability:code=73:hex=067A652D626770
+```
+
 ## Commands
 
 ```

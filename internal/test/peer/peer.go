@@ -99,6 +99,14 @@ var Marker = []byte{
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
 }
 
+// CapabilityOverride specifies a capability to add or remove from the mirrored OPEN.
+// Used to test require/refuse enforcement by controlling which capabilities ze-peer advertises.
+type CapabilityOverride struct {
+	Code  uint8  // Capability code (e.g., 65 for ASN4)
+	Value []byte // Capability value bytes (only for Add)
+	Add   bool   // true=add capability, false=drop capability
+}
+
 // Config holds test peer configuration.
 type Config struct {
 	// Port to listen on (default 179)
@@ -122,6 +130,8 @@ type Config struct {
 	InspectOpenMessage bool
 	// SendUnknownMessage: send an unknown message type (255) after OPEN
 	SendUnknownMessage bool
+	// CapabilityOverrides: capabilities to add/remove from mirrored OPEN response
+	CapabilityOverrides []CapabilityOverride
 	// Expect: list of expected messages from .ci file
 	Expect []string
 	// Output: writer for logging (defaults to os.Stdout)
@@ -526,6 +536,11 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 		binary.BigEndian.PutUint16(open[19+1:], uint16(p.config.ASN)) //nolint:gosec // ASN validated
 	}
 
+	// Apply capability overrides (drop/add) before SendUnknownCapability.
+	if len(p.config.CapabilityOverrides) > 0 {
+		open = applyCapabilityOverrides(open, p.config.CapabilityOverrides)
+	}
+
 	if p.config.SendUnknownCapability {
 		cap66 := []byte{66, 10, 'l', 'o', 'r', 'e', 'm', 'i', 'p', 's', 'u', 'm'}
 		param := append([]byte{2, byte(len(cap66))}, cap66...)
@@ -539,6 +554,80 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 	}
 
 	return open
+}
+
+// applyCapabilityOverrides modifies OPEN optional parameters by dropping/adding capabilities.
+// Each BGP OPEN optional parameter of type 2 (Capability) wraps a single capability TLV:
+// [ParamType=2, ParamLen, CapCode, CapLen, CapValue...].
+func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byte {
+	if len(open) < 29 { // 19 header + 10 min body (version+AS+hold+id+optlen)
+		return open
+	}
+
+	body := open[19:]
+	optParamLen := int(body[9])
+
+	// Build set of codes to drop.
+	dropCodes := make(map[byte]bool)
+	for _, o := range overrides {
+		if !o.Add {
+			dropCodes[o.Code] = true
+		}
+	}
+
+	// Iterate optional parameters, keeping those not dropped.
+	var keptParams []byte
+	pos := 10
+	for pos+2 <= len(body) && pos < 10+optParamLen {
+		paramType := body[pos]
+		paramLen := int(body[pos+1])
+		if pos+2+paramLen > len(body) {
+			break
+		}
+
+		keep := true
+		if paramType == 2 && paramLen >= 2 {
+			capCode := body[pos+2]
+			if dropCodes[capCode] {
+				keep = false
+			}
+		}
+
+		if keep {
+			keptParams = append(keptParams, body[pos:pos+2+paramLen]...)
+		}
+		pos += 2 + paramLen
+	}
+
+	// Add new capabilities.
+	for _, o := range overrides {
+		if !o.Add {
+			continue
+		}
+
+		capTLV := make([]byte, 2+len(o.Value))
+		capTLV[0] = o.Code
+		capTLV[1] = byte(len(o.Value))
+		copy(capTLV[2:], o.Value)
+
+		param := make([]byte, 2+len(capTLV))
+		param[0] = 2 // Optional Parameter Type: Capability
+		param[1] = byte(len(capTLV))
+		copy(param[2:], capTLV)
+
+		keptParams = append(keptParams, param...)
+	}
+
+	// Rebuild OPEN message: header + fixed body (9 bytes) + opt param len + params.
+	result := make([]byte, 19+10+len(keptParams))
+	copy(result, open[:19])     // BGP header (marker + length + type)
+	copy(result[19:], body[:9]) // Version, ASN, Hold Time, Router ID
+	result[19+9] = byte(len(keptParams))
+	copy(result[29:], keptParams)
+
+	// Fix message length in header.
+	binary.BigEndian.PutUint16(result[16:], uint16(len(result))) //nolint:gosec // bounded by BGP message size
+	return result
 }
 
 func (p *Peer) printPayload(prefix string, header, body []byte) {
@@ -1357,6 +1446,25 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 			config.InspectOpenMessage = true
 		case "send-unknown-message":
 			config.SendUnknownMessage = true
+		case "drop-capability":
+			if codeStr := kv["code"]; codeStr != "" {
+				code, err := strconv.Atoi(codeStr)
+				if err == nil && code > 0 && code <= 255 {
+					config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+						Code: uint8(code), Add: false, //nolint:gosec // range checked
+					})
+				}
+			}
+		case "add-capability":
+			if codeStr := kv["code"]; codeStr != "" {
+				code, err := strconv.Atoi(codeStr)
+				if err == nil && code > 0 && code <= 255 {
+					val, _ := hex.DecodeString(kv["hex"])
+					config.CapabilityOverrides = append(config.CapabilityOverrides, CapabilityOverride{
+						Code: uint8(code), Value: val, Add: true, //nolint:gosec // range checked
+					})
+				}
+			}
 		}
 
 	case "update":

@@ -238,24 +238,66 @@ bgp {
 
 ### Capability Section
 
+All capabilities support a four-mode vocabulary:
+
+| Mode | Advertise? | Enforcement | Aliases |
+|------|------------|-------------|---------|
+| `enable` | Yes | None | `true` |
+| `disable` | No | None | `false` |
+| `require` | Yes | Reject peer if capability missing | |
+| `refuse` | No | Reject peer if capability present | |
+
+**Simple capabilities** — mode is the value:
+
 ```
 capability {
-    asn4 enable;
-    route-refresh enable;
-    graceful-restart <seconds>;
-    add-path receive;
-    add-path send;
-    multi-session enable;
-    operational enable;
-    aigp enable;
-    extended-message enable;
-    nexthop {
-        ipv4/unicast ipv6;      # IPv4 unicast with IPv6 next-hop
-        ipv4/mpls-vpn ipv6;     # IPv4 VPN with IPv6 next-hop
-    }
-    software-version <string>;
+    asn4 require;                  # Reject peers without 4-byte ASN
+    route-refresh enable;          # Advertise, no enforcement
+    graceful-restart enable;       # Advertise GR support
+    extended-message require;      # Reject peers without extended message
+    software-version disable;      # Don't advertise
 }
 ```
+
+**Block capabilities** — `mode` key inside block (for capabilities with sub-parameters):
+
+```
+capability {
+    graceful-restart {
+        mode require;              # Reject peers without GR
+        restart-time 120;
+    }
+}
+```
+
+**Nexthop** — mode is inline on each family line:
+
+```
+capability {
+    nexthop {
+        ipv4/unicast ipv6;         # IPv4 unicast with IPv6 next-hop (enable)
+        ipv4/mpls-vpn ipv6 require; # IPv4 VPN with IPv6 next-hop (require mode)
+    }
+}
+```
+
+**ADD-PATH** — trailing mode token (global or per-family):
+
+```
+capability {
+    add-path send/receive require; # Global: require ADD-PATH for all families
+}
+add-path {
+    ipv4/unicast send require;     # Per-family: require ADD-PATH for IPv4 unicast
+    ipv6/unicast send/receive;     # Per-family: enable (no enforcement)
+}
+```
+
+The last token is interpreted as a mode if it matches `require`|`refuse`|`enable`|`disable`. Otherwise the existing direction parsing applies unchanged.
+
+**Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) — they only participate in negotiation when explicitly configured.
+
+**Backwards compatibility:** `true` is accepted as `enable`, `false` as `disable`. Bare capability names (e.g., `route-refresh;`) mean `enable`.
 
 ### Family Section
 
@@ -288,11 +330,15 @@ family {
 
 ```
 add-path {
-    ipv4/unicast;            # Both send and receive
-    ipv4/unicast send;       # Send only
-    ipv4/unicast receive;    # Receive only
+    ipv4/unicast;                    # Both send and receive (enable)
+    ipv4/unicast send;               # Send only (enable)
+    ipv4/unicast receive;            # Receive only (enable)
+    ipv4/unicast send require;       # Send only, reject peer if missing
+    ipv6/unicast send/receive refuse; # Refuse if peer has it
 }
 ```
+
+An optional trailing mode token (`require`/`refuse`/`enable`/`disable`) controls enforcement. Without it, `enable` is assumed.
 
 ### Process Section (Ze New Syntax)
 
@@ -813,11 +859,13 @@ l2info:19:0:1500:111
 ### Boolean
 
 ```
-enable
-disable
-true
-false
+enable          # or true
+disable         # or false
+require         # capability mode: reject session if peer lacks it
+refuse          # capability mode: reject session if peer has it
 ```
+
+The `require` and `refuse` values are accepted by boolean fields to support capability mode enforcement. The parser normalizes `enable` to `true` and `disable` to `false` internally; `require` and `refuse` pass through unchanged.
 
 ### Origin
 
@@ -974,4 +1022,4 @@ var validators = map[string]Validator{
 
 ---
 
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-02-21

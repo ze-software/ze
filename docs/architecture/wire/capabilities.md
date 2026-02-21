@@ -8,9 +8,10 @@
 | **Key Codes** | 1=MP, 2=RouteRefresh, 65=ASN4, 69=ADD-PATH, 6=ExtMsg |
 | **ADD-PATH Flags** | 1=receive, 2=send, 3=both |
 | **Negotiation** | Intersection of peer caps; unknown ignored; last wins |
+| **Modes** | `enable`/`disable`/`require`/`refuse` — enforcement after negotiation |
 | **Key Types** | `Capability` interface, `CapabilityCode`, `Negotiated` |
 
-**When to read full doc:** Capability parsing, OPEN messages, new capabilities.
+**When to read full doc:** Capability parsing, OPEN messages, new capabilities, mode enforcement.
 
 ---
 
@@ -296,6 +297,7 @@ draft-abraitis-bgp-version-capability
 2. **Duplicates:** If same capability appears multiple times, use last one (RFC 5492)
 3. **Unknown:** Unknown capabilities are ignored (not an error)
 4. **Required:** Session fails if required capability not negotiated
+5. **Refused:** Session fails if refused capability is present in peer's OPEN
 
 ### Negotiated State
 
@@ -322,8 +324,125 @@ type Negotiated struct {
     families        map[Family]bool
     addPath         map[Family]AddPathMode
     extendedNextHop map[Family]AFI
+    peerCodes       map[Code]bool  // Raw capability codes from peer's OPEN
 }
 ```
+
+---
+
+## Capability Mode Enforcement
+
+### Mode Vocabulary
+
+All capabilities support a four-mode vocabulary controlling advertisement and enforcement:
+
+| Mode | Advertise? | Enforcement | Use Case |
+|------|------------|-------------|----------|
+| `enable` | Yes | None — proceed if peer lacks it | Normal operation (default for ASN4) |
+| `disable` | No | None — proceed either way | Explicitly turn off a capability |
+| `require` | Yes | Reject session if peer **lacks** it | Mandate 4-byte ASN, route-refresh, etc. |
+| `refuse` | No | Reject session if peer **has** it | Block unwanted capabilities |
+
+Backwards-compatible aliases: `true` = `enable`, `false` = `disable`.
+
+### Enforcement Flow
+
+Enforcement happens after OPEN exchange, in both active and passive session paths:
+
+```
+1. Exchange OPENs (local + remote)
+2. Negotiate capabilities (intersection)
+3. Check address family requirements (existing)
+4. Check required capability codes → NOTIFICATION if any missing
+5. Check refused capability codes → NOTIFICATION if any present in peer's OPEN
+6. If all checks pass → proceed to ESTABLISHED
+```
+
+### Why peerCodes Exists
+
+The `peerCodes` map tracks capability codes from the peer's raw OPEN, separate from the negotiated intersection. This is essential for `refuse` enforcement:
+
+- If we refuse ASN4, we don't advertise it
+- The peer may still advertise ASN4 in its OPEN
+- The negotiated intersection won't contain ASN4 (we didn't advertise it)
+- But we need to detect that the **peer** has it and reject the session
+
+Without `peerCodes`, refused capabilities would be invisible after negotiation.
+
+### NOTIFICATION on Rejection
+
+When a capability mode violation is detected, the session sends a NOTIFICATION per RFC 5492:
+
+| Field | Value |
+|-------|-------|
+| Error Code | 2 (OPEN Message Error) |
+| Error Subcode | 7 (Unsupported Capability) |
+| Data | Capability TLVs for each violating code |
+
+**Data format** — each violating capability is encoded as a 2-byte TLV:
+
+```
+ 0                   1
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+| Cap. Code     | Cap. Length=0 |
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+For simple capabilities (ASN4, route-refresh, extended-message), the length is 0 because the NOTIFICATION data signals which capability was problematic, not its value. Multiple violations are concatenated.
+
+**Example:** `asn4 require;` with peer lacking ASN4 →
+NOTIFICATION hex: `FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF 0017 03 02 07 41 00`
+
+| Part | Hex | Meaning |
+|------|-----|---------|
+| Marker | `FFFF...` (16 bytes) | BGP marker |
+| Length | `0017` | 23 bytes |
+| Type | `03` | NOTIFICATION |
+| Error Code | `02` | OPEN Message Error |
+| Error Subcode | `07` | Unsupported Capability |
+| Data: Cap Code | `41` | Code 65 (ASN4) |
+| Data: Cap Length | `00` | Length 0 |
+
+### Implementation
+
+| Component | File | Purpose |
+|-----------|------|---------|
+| `CheckRequiredCodes(codes)` | `capability/negotiated.go` | Returns missing required codes |
+| `CheckRefusedCodes(codes)` | `capability/negotiated.go` | Returns peer codes that match refused list |
+| `buildUnsupportedCapabilityDataCodes(codes)` | `reactor/session.go` | Builds NOTIFICATION data for non-family codes |
+| Enforcement in `processOpen()` | `reactor/session.go` | Active session path (we initiated) |
+| Enforcement in `handleOpen()` | `reactor/session.go` | Passive session path (peer initiated) |
+
+### Config to Enforcement Data Flow
+
+```
+Config: "asn4 require;"
+    ↓ parseCapabilitiesFromTree()
+PeerSettings.RequiredCapabilities = [CodeASN4]
+    ↓ session constructor
+Session stores RequiredCapabilities, RefusedCapabilities
+    ↓ OPEN exchange
+Negotiate() populates peerCodes map
+    ↓ post-negotiation validation
+CheckRequiredCodes() / CheckRefusedCodes()
+    ↓ if violations
+sendNotification(OpenMessageError, UnsupportedCapability, data)
+```
+
+### Capability Defaults
+
+| Capability | Default Mode | Notes |
+|------------|-------------|-------|
+| ASN4 (code 65) | `enable` | RFC 6793 — on unless explicitly disabled |
+| Extended Message (code 6) | absent (opt-in) | Only active if configured |
+| Route Refresh (code 2) | absent (opt-in) | Only active if configured |
+| Graceful Restart (code 64) | absent (opt-in) | Needs restart-time config |
+| ADD-PATH (code 69) | absent (opt-in) | Needs send/receive config |
+| Extended Next Hop (code 5) | absent (opt-in) | Needs family mapping |
+| Software Version (code 75) | absent (opt-in) | Only active if configured |
+
+"Absent" means the capability is not advertised and has no enforcement — it's as if it doesn't exist. Setting it to `enable`, `require`, or `refuse` activates it.
 
 ---
 
@@ -362,4 +481,4 @@ Parsing is done via `Parse()` in `parse.go`, returning `[]Capability`.
 ---
 
 **Created:** 2025-12-19
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-21

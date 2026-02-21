@@ -17,8 +17,11 @@ import (
 
 // Config tree string constants (shared with reactor.go to satisfy goconst).
 const (
-	valTrue   = "true"
-	valEnable = "enable"
+	valTrue    = "true"
+	valEnable  = "enable"
+	valDisable = "disable"
+	valRequire = "require"
+	valRefuse  = "refuse"
 )
 
 // parsePeerFromTree parses a peer's settings from a flattened config tree.
@@ -254,14 +257,58 @@ func parseFamilyMode(s string) familyMode {
 	switch strings.ToLower(s) {
 	case "", valTrue, valEnable:
 		return familyModeEnable
-	case "false", "disable":
+	case "false", valDisable:
 		return familyModeDisable
-	case "require":
+	case valRequire:
 		return familyModeRequire
 	case "ignore":
 		return familyModeIgnore
 	}
 	return familyModeEnable
+}
+
+// capMode represents the negotiation mode for a non-family capability.
+// Four modes: enable (advertise, no enforcement), disable (don't advertise),
+// require (advertise + reject if peer lacks), refuse (don't advertise + reject if peer has).
+type capMode int
+
+const (
+	capModeEnable capMode = iota
+	capModeDisable
+	capModeRequire
+	capModeRefuse
+)
+
+// parseCapMode parses a capability mode string.
+// Accepts enable/disable/require/refuse plus backwards-compat true/false.
+// Empty string or unrecognized values default to enable (lenient parsing).
+func parseCapMode(s string) capMode {
+	switch strings.ToLower(s) {
+	case "", valTrue, valEnable:
+		return capModeEnable
+	case "false", valDisable:
+		return capModeDisable
+	case valRequire:
+		return capModeRequire
+	case valRefuse:
+		return capModeRefuse
+	}
+	return capModeEnable
+}
+
+// capModeAdvertise reports whether the mode means the capability should be advertised.
+func (m capMode) advertise() bool { return m == capModeEnable || m == capModeRequire }
+
+// applyCapMode records require/refuse enforcement for a capability code.
+func applyCapMode(mode capMode, code capability.Code, ps *PeerSettings) {
+	switch mode {
+	case capModeRequire:
+		ps.RequiredCapabilities = append(ps.RequiredCapabilities, code)
+	case capModeRefuse:
+		ps.RefusedCapabilities = append(ps.RefusedCapabilities, code)
+	case capModeEnable, capModeDisable:
+		// No enforcement action needed.
+	}
 }
 
 // parseCapabilitiesFromTree parses capability configuration from the tree.
@@ -272,32 +319,53 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 		return
 	}
 
-	// ASN4 — enabled by default, disable if explicitly set to false.
-	asn4 := true
+	// ASN4 — enabled by default (RFC 6793), supports all four modes.
+	asn4Mode := capModeEnable
 	if v, ok := mapString(capMap, "asn4"); ok {
-		asn4 = v == valTrue
+		asn4Mode = parseCapMode(v)
 	}
-	ps.DisableASN4 = !asn4
+	ps.DisableASN4 = !asn4Mode.advertise()
+	applyCapMode(asn4Mode, capability.CodeASN4, ps)
 
-	// RFC 8654: Extended Message Support.
-	if v := flexString(capMap, "extended-message"); v == valTrue || v == valEnable {
-		ps.Capabilities = append(ps.Capabilities, &capability.ExtendedMessage{})
-	}
-
-	// Software version.
-	if v := flexString(capMap, "software-version"); v == valTrue || v == valEnable {
-		ps.Capabilities = append(ps.Capabilities, &capability.SoftwareVersion{
-			Version: "ExaBGP/5.0.0-0+test",
-		})
+	// RFC 8654: Extended Message Support (opt-in, absent = disabled).
+	if v := flexString(capMap, "extended-message"); v != "" {
+		extMsgMode := parseCapMode(v)
+		if extMsgMode.advertise() {
+			ps.Capabilities = append(ps.Capabilities, &capability.ExtendedMessage{})
+		}
+		applyCapMode(extMsgMode, capability.CodeExtendedMessage, ps)
 	}
 
-	// RFC 2918/7313: Route Refresh.
-	if v := flexString(capMap, "route-refresh"); v == valTrue || v == valEnable {
-		ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{}, &capability.EnhancedRouteRefresh{})
+	// Software version (opt-in, absent = disabled).
+	if v := flexString(capMap, "software-version"); v != "" {
+		svMode := parseCapMode(v)
+		if svMode.advertise() {
+			ps.Capabilities = append(ps.Capabilities, &capability.SoftwareVersion{
+				Version: "ExaBGP/5.0.0-0+test",
+			})
+		}
+		applyCapMode(svMode, capability.CodeSoftwareVersion, ps)
 	}
 
-	// Graceful restart.
+	// RFC 2918/7313: Route Refresh (opt-in, absent = disabled).
+	// Enforcement targets basic route-refresh (code 2) only.
+	// Enhanced route-refresh (code 70) is a separate capability not independently configurable.
+	if v := flexString(capMap, "route-refresh"); v != "" {
+		rrMode := parseCapMode(v)
+		if rrMode.advertise() {
+			ps.Capabilities = append(ps.Capabilities, &capability.RouteRefresh{}, &capability.EnhancedRouteRefresh{})
+		}
+		applyCapMode(rrMode, capability.CodeRouteRefresh, ps)
+	}
+
+	// Graceful restart — block capability with optional mode key.
 	if grMap, ok := mapMap(capMap, "graceful-restart"); ok {
+		grMode := capModeEnable
+		if v, ok := mapString(grMap, "mode"); ok {
+			grMode = parseCapMode(v)
+		}
+		applyCapMode(grMode, capability.CodeGracefulRestart, ps)
+
 		if ps.RawCapabilityConfig == nil {
 			ps.RawCapabilityConfig = make(map[string]map[string]string)
 		}
@@ -307,9 +375,11 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 		}
 	}
 
-	// RFC 8950: Extended Next Hop.
+	// RFC 8950: Extended Next Hop — mode is inline on each family line.
+	// e.g., "ipv4/unicast ipv6 require;" — last token is a mode if it matches a mode keyword.
 	if nhMap, ok := mapMap(capMap, "nexthop"); ok {
-		parseExtendedNextHopFromTree(nhMap, ps)
+		nhMode := parseExtendedNextHopFromTree(nhMap, ps)
+		applyCapMode(nhMode, capability.CodeExtendedNextHop, ps)
 	}
 
 	// ADD-PATH — global and per-family.
@@ -356,13 +426,20 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 }
 
 // parseExtendedNextHopFromTree parses RFC 8950 extended next-hop families.
-func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) {
+// Each family line may have an optional trailing mode token:
+//
+//	"ipv4/unicast ipv6"         → enable (default)
+//	"ipv4/unicast ipv6 require" → require
+//
+// Returns the most restrictive mode seen across all entries (require > refuse > enable).
+func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMode {
 	afiMap := map[string]uint16{"ipv4": 1, "ipv6": 2}
 	safiMap := map[string]uint8{
 		"unicast": 1, "multicast": 2, "mpls-vpn": 128, "mpls-label": 4,
 	}
 
 	var families []capability.ExtendedNextHopFamily
+	mode := capModeEnable
 
 	for _, nlriAFIName := range []string{"ipv4", "ipv6"} {
 		nlriAFI := afiMap[nlriAFIName]
@@ -370,13 +447,36 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) {
 			nlriSAFI := safiMap[safiName]
 			for _, nhAFIName := range []string{"ipv4", "ipv6"} {
 				nhAFI := afiMap[nhAFIName]
-				key := nlriAFIName + "/" + safiName + " " + nhAFIName
-				if _, ok := nhMap[key]; ok {
+				baseKey := nlriAFIName + "/" + safiName + " " + nhAFIName
+				if _, ok := nhMap[baseKey]; ok {
 					families = append(families, capability.ExtendedNextHopFamily{
 						NLRIAFI:    capability.AFI(nlriAFI),
 						NLRISAFI:   capability.SAFI(nlriSAFI),
 						NextHopAFI: capability.AFI(nhAFI),
 					})
+					continue
+				}
+				// Check with trailing mode token: "ipv4/unicast ipv6 require"
+				for _, modeStr := range capModeTokens {
+					if _, ok := nhMap[baseKey+" "+modeStr]; ok {
+						entryMode := parseCapMode(modeStr)
+						// Only include family if mode advertises (enable/require).
+						// disable/refuse suppress this family from the capability value.
+						if entryMode.advertise() {
+							families = append(families, capability.ExtendedNextHopFamily{
+								NLRIAFI:    capability.AFI(nlriAFI),
+								NLRISAFI:   capability.SAFI(nlriSAFI),
+								NextHopAFI: capability.AFI(nhAFI),
+							})
+						}
+						// Precedence: require > refuse > enable/disable.
+						if entryMode == capModeRequire {
+							mode = capModeRequire
+						} else if entryMode == capModeRefuse && mode != capModeRequire {
+							mode = capModeRefuse
+						}
+						break
+					}
 				}
 			}
 		}
@@ -387,19 +487,36 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) {
 			Families: families,
 		})
 	}
+	return mode
+}
+
+// capModeTokens is the single source of truth for capability mode keywords.
+var capModeTokens = []string{valRequire, valRefuse, valEnable, valDisable}
+
+// isCapModeToken reports whether s is a capability mode keyword.
+func isCapModeToken(s string) bool {
+	return slices.Contains(capModeTokens, strings.ToLower(s))
 }
 
 // parseAddPathFromTree parses ADD-PATH capability from the capability map and peer tree.
 // RFC 7911: Supports both global add-path mode and per-family overrides.
+// An optional trailing mode token (require/refuse/enable/disable) sets enforcement.
 func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 	var globalSend, globalReceive bool
+	addPathMode := capModeEnable
 
 	// Check capability block for add-path (flex: string or map).
 	if val, ok := capMap["add-path"]; ok {
 		switch v := val.(type) {
 		case string:
-			// Global mode: "send", "receive", "send/receive", "receive/send".
-			switch v {
+			// Global mode: "send/receive [require]" — last token may be a mode.
+			parts := strings.Fields(v)
+			if len(parts) >= 2 && isCapModeToken(parts[len(parts)-1]) {
+				addPathMode = parseCapMode(parts[len(parts)-1])
+				parts = parts[:len(parts)-1]
+			}
+			dir := strings.Join(parts, "/")
+			switch dir {
 			case "send/receive", "receive/send":
 				globalSend = true
 				globalReceive = true
@@ -421,14 +538,28 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 
 	// Per-family add-path from peer tree.
 	var perFamily []capability.AddPathFamily
+	perFamilyHasEnforcement := false // true when any per-family entry sets require/refuse
 	if addPathMap, ok := mapMap(peerTree, "add-path"); ok {
 		for key, val := range addPathMap {
-			// Key format: "ipv4/unicast send" stored as Freeform value.
+			// Key format: "ipv4/unicast send [require]" stored as Freeform value.
 			parts := strings.Fields(key)
 			if len(parts) < 2 {
 				// Try key as family, val as mode.
 				if vs, ok := val.(string); ok {
 					parts = []string{key, vs}
+				}
+			}
+			// Check for trailing mode token.
+			if len(parts) >= 3 && isCapModeToken(parts[len(parts)-1]) {
+				entryMode := parseCapMode(parts[len(parts)-1])
+				parts = parts[:len(parts)-1]
+				// Precedence: require > refuse > enable/disable.
+				if entryMode == capModeRequire {
+					addPathMode = capModeRequire
+					perFamilyHasEnforcement = true
+				} else if entryMode == capModeRefuse && addPathMode != capModeRequire {
+					addPathMode = capModeRefuse
+					perFamilyHasEnforcement = true
 				}
 			}
 			if len(parts) >= 2 {
@@ -456,7 +587,17 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 		}
 	}
 
+	// Apply add-path enforcement mode.
+	if globalSend || globalReceive || perFamilyHasEnforcement {
+		applyCapMode(addPathMode, capability.CodeAddPath, ps)
+	}
+
 	if !globalSend && !globalReceive && len(perFamily) == 0 {
+		return
+	}
+
+	// Don't advertise the capability if mode suppresses it (disable/refuse).
+	if !addPathMode.advertise() {
 		return
 	}
 

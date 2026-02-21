@@ -379,3 +379,126 @@ func TestNegotiateCompositeIBGP(t *testing.T) {
 	neg := Negotiate(local, remote, 65000, 65000) // Same ASN = iBGP
 	assert.True(t, neg.Identity.IsIBGP())
 }
+
+// TestCheckRequiredCodes verifies non-family capability requirement checking.
+//
+// VALIDATES: Required capability codes checked against negotiated result.
+// PREVENTS: Sessions established when required capabilities are missing.
+func TestCheckRequiredCodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		local    []Capability
+		remote   []Capability
+		required []Code
+		want     []Code // expected missing codes
+	}{
+		{
+			name:     "required ASN4 present in both",
+			local:    []Capability{&ASN4{ASN: 65001}},
+			remote:   []Capability{&ASN4{ASN: 65002}},
+			required: []Code{CodeASN4},
+			want:     nil,
+		},
+		{
+			name:     "required ASN4 missing from peer",
+			local:    []Capability{&ASN4{ASN: 65001}},
+			remote:   []Capability{},
+			required: []Code{CodeASN4},
+			want:     []Code{CodeASN4},
+		},
+		{
+			name:     "required extended-message missing from peer",
+			local:    []Capability{&ExtendedMessage{}},
+			remote:   []Capability{},
+			required: []Code{CodeExtendedMessage},
+			want:     []Code{CodeExtendedMessage},
+		},
+		{
+			name:     "required route-refresh present",
+			local:    []Capability{&RouteRefresh{}},
+			remote:   []Capability{&RouteRefresh{}},
+			required: []Code{CodeRouteRefresh},
+			want:     nil,
+		},
+		{
+			name:     "multiple required some missing",
+			local:    []Capability{&ASN4{ASN: 65001}, &ExtendedMessage{}},
+			remote:   []Capability{&ASN4{ASN: 65002}},
+			required: []Code{CodeASN4, CodeExtendedMessage},
+			want:     []Code{CodeExtendedMessage},
+		},
+		{
+			name:     "no required codes",
+			local:    []Capability{&ASN4{ASN: 65001}},
+			remote:   []Capability{},
+			required: nil,
+			want:     nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+			got := neg.CheckRequiredCodes(tt.required)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestCheckRefusedCodes verifies refused capability checking against peer's raw capabilities.
+//
+// VALIDATES: Refused codes checked against peer's advertised (not negotiated) capabilities.
+// PREVENTS: Refused capabilities passing because they're absent from negotiated intersection.
+func TestCheckRefusedCodes(t *testing.T) {
+	tests := []struct {
+		name    string
+		local   []Capability
+		remote  []Capability
+		refused []Code
+		want    []Code // expected present-but-refused codes
+	}{
+		{
+			name:    "refuse ASN4 and peer has it",
+			local:   []Capability{},
+			remote:  []Capability{&ASN4{ASN: 65002}},
+			refused: []Code{CodeASN4},
+			want:    []Code{CodeASN4},
+		},
+		{
+			name:    "refuse ASN4 and peer lacks it",
+			local:   []Capability{},
+			remote:  []Capability{},
+			refused: []Code{CodeASN4},
+			want:    nil,
+		},
+		{
+			name:    "refuse route-refresh and peer has it",
+			local:   []Capability{},
+			remote:  []Capability{&RouteRefresh{}},
+			refused: []Code{CodeRouteRefresh},
+			want:    []Code{CodeRouteRefresh},
+		},
+		{
+			name:    "no refused codes",
+			local:   []Capability{&ASN4{ASN: 65001}},
+			remote:  []Capability{&ASN4{ASN: 65002}},
+			refused: nil,
+			want:    nil,
+		},
+		{
+			name:    "refuse extended-message peer lacks it",
+			local:   []Capability{&ExtendedMessage{}},
+			remote:  []Capability{&ASN4{ASN: 65002}},
+			refused: []Code{CodeExtendedMessage},
+			want:    nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+			got := neg.CheckRefusedCodes(tt.refused)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}

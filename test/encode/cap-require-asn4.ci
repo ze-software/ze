@@ -1,0 +1,32 @@
+# Test: asn4 require — peer without ASN4 gets NOTIFICATION
+# ze advertises ASN4 (require → advertise). ze-peer drops ASN4 from its mirrored response.
+# ze detects ASN4 missing → sends NOTIFICATION (OPEN Message Error, Unsupported Capability).
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=open:value=drop-capability:code=65
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170302074100
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 65001;
+		peer-as 65001;
+		connection active;
+		capability {
+			asn4 require;
+		}
+		family {
+			ipv4/unicast;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

@@ -1083,6 +1083,210 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 }
 
 // =============================================================================
+// RFC 5492 - Capability Mode Enforcement (require/refuse)
+// =============================================================================
+
+// TestBuildUnsupportedCapabilityDataCodes verifies NOTIFICATION data encoding
+// for non-family capability codes.
+//
+// RFC 5492 Section 3: The Data field contains one or more capability tuples.
+// For non-Multiprotocol codes: code (1) + length (1) = 2 bytes each (length=0).
+//
+// VALIDATES: Wire format of capability code NOTIFICATION data.
+// PREVENTS: Malformed NOTIFICATION data for non-family capabilities.
+func TestBuildUnsupportedCapabilityDataCodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		codes    []capability.Code
+		expected []byte
+	}{
+		{
+			name:     "single_asn4",
+			codes:    []capability.Code{capability.CodeASN4},
+			expected: []byte{65, 0}, // code=65, length=0
+		},
+		{
+			name:  "multiple_codes",
+			codes: []capability.Code{capability.CodeASN4, capability.CodeExtendedMessage},
+			expected: []byte{
+				65, 0, // ASN4
+				6, 0, // ExtendedMessage
+			},
+		},
+		{
+			name:     "empty",
+			codes:    nil,
+			expected: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := buildUnsupportedCapabilityDataCodes(tt.codes)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// sendOpenAndDrain writes an OPEN message to client and drains any response.
+// Suitable for use in a goroutine during OPEN exchange tests.
+func sendOpenAndDrain(client net.Conn, openBytes []byte) {
+	client.Write(openBytes) //nolint:errcheck // test goroutine write to net.Pipe
+	buf := make([]byte, 4096)
+	client.Read(buf) //nolint:errcheck // drain response from net.Pipe
+}
+
+// TestSessionRejectsRequiredCapability verifies that a session is rejected when
+// a required capability is not negotiated by the peer.
+//
+// RFC 5492 Section 3: "If a peer does not support a capability that is
+// required, the speaker MUST send a NOTIFICATION message."
+//
+// VALIDATES: Required capability missing from peer → NOTIFICATION (code 2, subcode 7).
+// PREVENTS: Session establishment when required capability not negotiated.
+func TestSessionRejectsRequiredCapability(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Connection = ConnectionPassive
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ExtendedMessage{},
+	}
+	// Require ExtendedMessage — peer will NOT have it
+	settings.RequiredCapabilities = []capability.Code{capability.CodeExtendedMessage}
+
+	session := NewSession(settings)
+	err := session.Start()
+	require.NoError(t, err)
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection (sends our OPEN)
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer OPEN without ExtendedMessage
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 only
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+		},
+	}
+	openBytes := message.PackTo(peerOpen, nil)
+
+	go sendOpenAndDrain(client, openBytes)
+
+	err = session.ReadAndProcess()
+	require.Error(t, err, "should reject OPEN when required capability is missing")
+	require.Contains(t, err.Error(), "required")
+}
+
+// TestSessionRejectsRefusedCapability verifies that a session is rejected when
+// a refused capability is present in the peer's OPEN.
+//
+// RFC 5492 Section 3: refuse checks against peer's raw capabilities.
+//
+// VALIDATES: Refused capability present in peer → NOTIFICATION (code 2, subcode 7).
+// PREVENTS: Session establishment when refused capability is advertised by peer.
+func TestSessionRejectsRefusedCapability(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Connection = ConnectionPassive
+	// We don't advertise ExtendedMessage (refuse = don't advertise + reject if peer has)
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+	settings.RefusedCapabilities = []capability.Code{capability.CodeExtendedMessage}
+
+	session := NewSession(settings)
+	err := session.Start()
+	require.NoError(t, err)
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection (sends our OPEN)
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer OPEN WITH ExtendedMessage — we refuse it
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 14,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+			6, 0, // ExtendedMessage
+		},
+	}
+	openBytes := message.PackTo(peerOpen, nil)
+
+	go sendOpenAndDrain(client, openBytes)
+
+	err = session.ReadAndProcess()
+	require.Error(t, err, "should reject OPEN when refused capability is present")
+	require.Contains(t, err.Error(), "refused")
+}
+
+// TestSessionAcceptsRequiredCapability verifies that a session succeeds when
+// a required capability IS negotiated.
+//
+// VALIDATES: Required capability present → session proceeds to OpenConfirm.
+// PREVENTS: False rejections when required capability is properly negotiated.
+func TestSessionAcceptsRequiredCapability(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Connection = ConnectionPassive
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ExtendedMessage{},
+	}
+	// Require ExtendedMessage — peer WILL have it
+	settings.RequiredCapabilities = []capability.Code{capability.CodeExtendedMessage}
+
+	session := NewSession(settings)
+	err := session.Start()
+	require.NoError(t, err)
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection (sends our OPEN)
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer OPEN WITH ExtendedMessage
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 14,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+			6, 0, // ExtendedMessage
+		},
+	}
+	openBytes := message.PackTo(peerOpen, nil)
+
+	go sendOpenAndDrain(client, openBytes)
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err, "should accept OPEN when required capability is present")
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+}
+
+// =============================================================================
 // RFC 7606 - Revised Error Handling for BGP UPDATE Messages
 // =============================================================================
 
