@@ -8,16 +8,20 @@ Rationale: `.claude/rationale/quality.md`
 
 ## Self-Critical Review
 
+**BLOCKING:** All checks must pass before claiming "done." A single failing check = work is not complete.
+
 After each step and before claiming "done":
 
-| Check | Question |
-|-------|----------|
-| Correctness | Actually works? Edge cases? |
-| Simplicity | Simplest solution? Over-engineered? |
-| Consistency | Follows existing patterns? |
-| Completeness | TODOs, FIXMEs, unfinished? |
-| Quality | Debug statements removed? Errors clear? |
-| Tests | Cover the change? Any flaky? |
+| Check | Question | Pass? |
+|-------|----------|-------|
+| Correctness | Actually works? Edge cases? | [ ] |
+| Simplicity | Simplest solution? Over-engineered? | [ ] |
+| Consistency | Follows existing patterns? | [ ] |
+| Completeness | TODOs, FIXMEs, unfinished? | [ ] |
+| Quality | Debug statements removed? Errors clear? | [ ] |
+| Tests | Cover the change? Any flaky? | [ ] |
+
+Every check must be answered honestly. "Probably fine" is not a pass — run the code, read the diff. If any check fails, fix it before proceeding.
 
 ## Critical Reviews
 

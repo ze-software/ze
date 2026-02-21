@@ -86,11 +86,13 @@ Present to user BEFORE writing code. Must include:
 [ ] 2. Dead code check — search unused functions/types, ASK before removing
 [ ] 3. Implementation Audit (BLOCKING — see rules/implementation-audit.md)
       Every AC, requirement, test, file must have status + location
-[ ] 4. Review Mistake Log — check MEMORY.md for recurrence, promote if seen before
-[ ] 5. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 6. Move spec: docs/plan/done/NNN-<name>.md (number at move time)
-[ ] 7. Verify: git status + git diff, no unintended changes
-[ ] 8. Commit (when user approves) — ALL files in ONE commit
+[ ] 4. Critical Review (BLOCKING — see rules/quality.md Self-Critical Review)
+      All 6 checks must pass. Document pass/fail in spec. Failures = fix before continuing.
+[ ] 5. Review Mistake Log — check MEMORY.md for recurrence, promote if seen before
+[ ] 6. Update spec — Implementation Summary, Documentation Updates, Deviations
+[ ] 7. Move spec: docs/plan/done/NNN-<name>.md (number at move time)
+[ ] 8. Verify: git status + git diff, no unintended changes
+[ ] 9. Commit (when user approves) — ALL files in ONE commit
 ```
 
 ## Post-Implementation Updates

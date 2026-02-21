@@ -129,7 +129,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 6. **RFC constraints** → Add quoted requirement comments above enforcing code
 7. **Functional tests** → Create after feature works. Cover user-visible behavior?
 8. **Verify all** → `make ze-lint && make ze-unit-test && make ze-functional-test`
-9. **Final self-review** → Re-read changes, check for bugs, unused code, TODOs
+9. **Critical Review** → All 6 checks from `rules/quality.md` must pass (Correctness, Simplicity, Consistency, Completeness, Quality, Tests). Document pass/fail. Any failure = fix before continuing.
 10. **Complete spec** → Fill audit tables, move spec to `done/`. BLOCKING: spec is part of the commit, not a follow-up.
 
 ### Failure Routing
@@ -216,6 +216,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated
+- [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
 - [ ] `make ze-lint` passes
@@ -236,6 +237,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Functional tests for end-to-end behavior
 
 ### Completion (BLOCKING — before ANY commit)
+- [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
