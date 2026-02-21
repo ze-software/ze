@@ -49,7 +49,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 		Connection: ConnectionBoth,
 		Address:    peerAddr,
 		LocalAS:    65000,
-		PeerAS:     65001,
+		PeerAS:     65000,
 		RouterID:   0x01020301,
 	}
 	peer := NewPeer(settings)
@@ -142,7 +142,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		Connection: ConnectionBoth,
 		Address:    netip.MustParseAddr("10.0.0.2"),
 		LocalAS:    65000,
-		PeerAS:     65001,
+		PeerAS:     65000,
 		RouterID:   0x01020301,
 	}
 	peer1 := NewPeer(peer1Settings)
@@ -158,7 +158,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		Connection: ConnectionBoth,
 		Address:    netip.MustParseAddr("10.0.0.3"),
 		LocalAS:    65000,
-		PeerAS:     65002,
+		PeerAS:     65000,
 		RouterID:   0x01020302,
 	}
 	peer2 := NewPeer(peer2Settings)
@@ -242,7 +242,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 		Connection: ConnectionBoth,
 		Address:    netip.MustParseAddr("10.0.0.2"),
 		LocalAS:    65000,
-		PeerAS:     65001,
+		PeerAS:     65000,
 		RouterID:   0x01020301,
 	}
 	peer := NewPeer(peerSettings)

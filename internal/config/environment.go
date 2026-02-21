@@ -18,6 +18,10 @@ const (
 	LogLevelInfo = "INFO"
 	EncoderText  = "text"
 	EncoderJSON  = "json"
+
+	connBoth    = "both"
+	connPassive = "passive"
+	connActive  = "active"
 )
 
 // Environment holds all environment-based configuration.
@@ -542,7 +546,7 @@ var envOptions = map[string]map[string]envOption{
 	"bgp": {
 		"connection": {setter: func(env *Environment, value string) error {
 			switch value {
-			case "both", "passive", "active":
+			case connBoth, connPassive, connActive:
 				env.BGP.Connection = value
 				return nil
 			}

@@ -151,13 +151,16 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 	if now.Sub(c.lastGapScan) >= gapScanInterval {
 		c.lastGapScan = now
 		for id, e := range c.entries {
-			if e.isGapEvictable(now, id, c.highestFullyAcked) {
-				cacheLogger().Warn("safety valve: force-evicting stalled entry",
-					"id", id, "consumers", e.pendingConsumers,
-					"retained-for", now.Sub(e.retainedAt))
-				ReturnReadBuffer(e.update.poolBuf)
-				delete(c.entries, id)
+			if !e.isGapEvictable(now, id, c.highestFullyAcked) {
+				continue
 			}
+			cacheLogger().Warn("safety valve: force-evicting stalled entry",
+				"id", id, "consumers", e.pendingConsumers,
+				"retained-for", now.Sub(e.retainedAt))
+			ReturnReadBuffer(e.update.poolBuf)
+			ReturnReadBuffer(e.update.ebgpPoolBuf4)
+			ReturnReadBuffer(e.update.ebgpPoolBuf2)
+			delete(c.entries, id)
 		}
 	}
 
@@ -292,10 +295,13 @@ func (c *RecentUpdateCache) ackEntryLocked(id uint64, e *cacheEntry) {
 }
 
 // evictLocked removes an entry from the cache and returns its buffer to the pool.
+// Returns all pool buffers: original read buffer and any EBGP patched versions.
 // Updates highestFullyAcked for gap detection.
 // Must be called with c.mu held.
 func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	ReturnReadBuffer(e.update.poolBuf)
+	ReturnReadBuffer(e.update.ebgpPoolBuf4)
+	ReturnReadBuffer(e.update.ebgpPoolBuf2)
 	delete(c.entries, id)
 	if id > c.highestFullyAcked {
 		c.highestFullyAcked = id
@@ -344,6 +350,8 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 
 	if e, ok := c.entries[id]; ok {
 		ReturnReadBuffer(e.update.poolBuf)
+		ReturnReadBuffer(e.update.ebgpPoolBuf4)
+		ReturnReadBuffer(e.update.ebgpPoolBuf2)
 		delete(c.entries, id)
 		return true
 	}

@@ -3173,6 +3173,10 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // If pluginName is non-empty (cache consumer), records plugin ack after forwarding.
 // Non-cache-consumer callers can still forward but don't participate in ack tracking.
 //
+// RFC 4271 §9.1.2 compliance: For EBGP peers, the local AS is prepended to
+// AS_PATH in the wire bytes before forwarding. IBGP peers receive the original
+// bytes unchanged. EBGP wire versions are lazily cached per ASN4/ASN2 variant.
+//
 // Zero-copy optimization: When source and destination encoding contexts match
 // (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
 // directly without re-encoding.
@@ -3216,18 +3220,69 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
-	// Calculate update size once (header + body)
-	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
+	// EBGP preparation: scan for EBGP peers and pre-generate patched wires.
+	// RFC 4271 §9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
+	// RFC 6793 §4: ASN4→ASN2 transcoding uses AS_TRANS=23456.
+	var ebgpWireASN4, ebgpWireASN2 *wireu.WireUpdate
+	var hasEBGPasn4, hasEBGPasn2 bool
+	var ebgpLocalAS uint32
+	for _, peer := range matchingPeers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+		if peer.Settings().IsEBGP() {
+			ebgpLocalAS = peer.Settings().LocalAS
+			if peer.asn4() {
+				hasEBGPasn4 = true
+			} else {
+				hasEBGPasn2 = true
+			}
+		}
+	}
+	if hasEBGPasn4 || hasEBGPasn2 {
+		srcCtxID := update.WireUpdate.SourceCtxID()
+		srcCtx := bgpctx.Registry.Get(srcCtxID)
+		srcAsn4 := srcCtx != nil && srcCtx.ASN4()
+
+		if hasEBGPasn4 {
+			var err error
+			ebgpWireASN4, err = update.EBGPWire(ebgpLocalAS, srcAsn4, true)
+			if err != nil {
+				fwdLogger().Warn("EBGP ASN4 wire rewrite failed", "id", updateID, "err", err)
+			}
+		}
+		if hasEBGPasn2 {
+			var err error
+			ebgpWireASN2, err = update.EBGPWire(ebgpLocalAS, srcAsn4, false)
+			if err != nil {
+				fwdLogger().Warn("EBGP ASN2 wire rewrite failed", "id", updateID, "err", err)
+			}
+		}
+	}
 
 	// Pre-compute send operations per peer, then dispatch to pool.
 	// CPU work (split/context comparison/lazy parsing) is fast and done here.
 	// TCP writes happen asynchronously in per-peer workers.
 	var parsedUpdate *message.Update
+	var parsedWire *wireu.WireUpdate
 	var dispatchedCount int
 
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
 			continue // Skip non-established peers
+		}
+
+		// Select wire version for this peer.
+		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
+		// IBGP peers get original wire unchanged.
+		peerWire := update.WireUpdate
+		if peer.Settings().IsEBGP() {
+			if peer.asn4() && ebgpWireASN4 != nil {
+				peerWire = ebgpWireASN4
+			} else if !peer.asn4() && ebgpWireASN2 != nil {
+				peerWire = ebgpWireASN2
+			}
+			// If EBGP wire generation failed, peerWire stays as original (graceful degradation)
 		}
 
 		// Build the fwdItem with pre-computed send operations for this peer.
@@ -3238,14 +3293,17 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		extendedMessage := nc != nil && nc.ExtendedMessage
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
 
+		// Calculate update size for this peer's wire version (header + body)
+		updateSize := message.HeaderLen + len(peerWire.Payload())
+
 		// Check if UPDATE exceeds peer's max message size
 		if updateSize > maxMsgSize {
 			// Wire-level split: get source context for per-family ADD-PATH lookup
-			srcCtxID := update.WireUpdate.SourceCtxID()
+			srcCtxID := peerWire.SourceCtxID()
 			srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
 
 			maxBodySize := maxMsgSize - message.HeaderLen
-			splits, err := wireu.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
+			splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
 			if err != nil {
 				fwdLogger().Warn("forward split failed",
 					"peer", peer.Settings().Address,
@@ -3257,22 +3315,24 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				item.rawBodies = append(item.rawBodies, split.Payload())
 			}
 		} else {
-			// Normal path: UPDATE fits based on original size
+			// Normal path: UPDATE fits within peer's message limit
 			destCtxID := peer.SendContextID()
 
 			// Zero-copy path: use raw bytes when contexts match
 			// Both must be non-zero (registered) and equal
-			srcCtxID := update.WireUpdate.SourceCtxID()
+			srcCtxID := peerWire.SourceCtxID()
 			if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
-				item.rawBodies = append(item.rawBodies, update.WireUpdate.Payload())
+				item.rawBodies = append(item.rawBodies, peerWire.Payload())
 			} else {
-				// Re-encode path: parse (lazily) and send
-				if parsedUpdate == nil {
+				// Re-encode path: parse (lazily) and send.
+				// Reset cached parse if wire version changed (IBGP vs EBGP use different payloads).
+				if parsedUpdate == nil || parsedWire != peerWire {
 					var parseErr error
-					parsedUpdate, parseErr = message.UnpackUpdate(update.WireUpdate.Payload())
+					parsedUpdate, parseErr = message.UnpackUpdate(peerWire.Payload())
 					if parseErr != nil {
 						return fmt.Errorf("parsing cached update: %w", parseErr)
 					}
+					parsedWire = peerWire
 				}
 
 				// Check repacked size - may differ from original due to ASN4 encoding changes
