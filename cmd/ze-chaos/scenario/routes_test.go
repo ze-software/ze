@@ -14,7 +14,7 @@ import (
 // VALIDATES: Route uniqueness within a single peer.
 // PREVENTS: Duplicate prefix generation causing UPDATE collisions.
 func TestRouteGenIPv4Unique(t *testing.T) {
-	routes := GenerateIPv4Routes(42, 0, 100)
+	routes := GenerateIPv4Routes(42, 0, 100, 50)
 	require.Len(t, routes, 100)
 
 	seen := make(map[netip.Prefix]bool)
@@ -30,8 +30,8 @@ func TestRouteGenIPv4Unique(t *testing.T) {
 // VALIDATES: Reproducibility of route generation.
 // PREVENTS: Non-deterministic routes breaking chaos scenario replay.
 func TestRouteGenIPv4Deterministic(t *testing.T) {
-	routes1 := GenerateIPv4Routes(42, 0, 100)
-	routes2 := GenerateIPv4Routes(42, 0, 100)
+	routes1 := GenerateIPv4Routes(42, 0, 100, 50)
+	routes2 := GenerateIPv4Routes(42, 0, 100, 50)
 
 	require.Equal(t, len(routes1), len(routes2))
 	for i := range routes1 {
@@ -45,8 +45,8 @@ func TestRouteGenIPv4Deterministic(t *testing.T) {
 // VALIDATES: Per-peer route isolation.
 // PREVENTS: Two peers announcing the same prefix, confusing validation.
 func TestRouteGenIPv4NoPeerOverlap(t *testing.T) {
-	routes0 := GenerateIPv4Routes(42, 0, 100)
-	routes1 := GenerateIPv4Routes(42, 1, 100)
+	routes0 := GenerateIPv4Routes(42, 0, 100, 50)
+	routes1 := GenerateIPv4Routes(42, 1, 100, 50)
 
 	seen := make(map[netip.Prefix]bool)
 	for _, r := range routes0 {
@@ -73,7 +73,7 @@ func TestRouteGenIPv4Count(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			routes := GenerateIPv4Routes(42, 0, tt.count)
+			routes := GenerateIPv4Routes(42, 0, tt.count, 50)
 			assert.Len(t, routes, tt.count)
 		})
 	}
@@ -85,7 +85,7 @@ func TestRouteGenIPv4Count(t *testing.T) {
 // VALIDATES: Generated prefixes are routable-looking.
 // PREVENTS: Generating loopback, multicast, or zero-network prefixes.
 func TestRouteGenIPv4ValidPrefixes(t *testing.T) {
-	routes := GenerateIPv4Routes(42, 0, 500)
+	routes := GenerateIPv4Routes(42, 0, 500, 50)
 
 	for _, r := range routes {
 		assert.True(t, r.Addr().Is4(), "must be IPv4: %s", r)
@@ -105,7 +105,7 @@ func TestRouteGenIPv4ValidPrefixes(t *testing.T) {
 // VALIDATES: Dynamic prefix length scaling for large route counts.
 // PREVENTS: Silent truncation when --heavy-routes exceeds /24 pool capacity.
 func TestRouteGenIPv4LargeCount(t *testing.T) {
-	routes := GenerateIPv4Routes(42, 0, 500000)
+	routes := GenerateIPv4Routes(42, 0, 500000, 50)
 	require.Len(t, routes, 500000)
 
 	// All routes must still be unique.
@@ -121,8 +121,8 @@ func TestRouteGenIPv4LargeCount(t *testing.T) {
 // VALIDATES: Seed controls route generation.
 // PREVENTS: Seed being ignored in route generation.
 func TestRouteGenIPv4DifferentSeeds(t *testing.T) {
-	routes1 := GenerateIPv4Routes(42, 0, 10)
-	routes2 := GenerateIPv4Routes(99, 0, 10)
+	routes1 := GenerateIPv4Routes(42, 0, 10, 50)
+	routes2 := GenerateIPv4Routes(99, 0, 10, 50)
 
 	differ := false
 	for i := range routes1 {

@@ -367,6 +367,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.state.TotalWdrawSent += ev.Count
 	case peer.EventRouteAction:
 		d.state.TotalRouteActions++
+	case peer.EventDroppedEvents:
+		d.state.TotalDropped += ev.Count
 	case peer.EventEORSent:
 		// Fallback: record families from EOR if not yet set.
 		if len(ps.Families) == 0 && len(ev.Families) > 0 {
@@ -537,6 +539,7 @@ func (d *Dashboard) renderStats() string {
 		`<span class="stat"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
+		droppedStat(d.state.TotalDropped) +
 		`</div>`
 }
 
@@ -611,4 +614,13 @@ func renderPeerRemoval(idx int) string {
 // itoa is a simple int-to-string helper to avoid importing strconv for HTML rendering.
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+// droppedStat returns a warning stat span when events were dropped, or empty string otherwise.
+// Only rendered when non-zero to avoid cluttering the dashboard during normal operation.
+func droppedStat(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return `<span class="stat stat-warn"><span class="stat-label">Dropped </span><span class="stat-value">` + itoa(n) + `</span></span>`
 }

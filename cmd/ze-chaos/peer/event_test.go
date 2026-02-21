@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestEventTypeString verifies all 10 event types return kebab-case names.
+// TestEventTypeString verifies all event types return kebab-case names.
 //
 // VALIDATES: EventType.String() returns human-readable kebab-case names.
 // PREVENTS: Missing event type in String() causing "unknown-N" in logs.
@@ -26,6 +26,8 @@ func TestEventTypeString(t *testing.T) {
 		{EventChaosExecuted, "chaos-executed"},
 		{EventReconnecting, "reconnecting"},
 		{EventWithdrawalSent, "withdrawal-sent"},
+		{EventRouteAction, "route-action"},
+		{EventDroppedEvents, "dropped-events"},
 	}
 
 	for _, tt := range tests {
@@ -44,12 +46,12 @@ func TestEventTypeStringUnknown(t *testing.T) {
 	assert.Equal(t, "unknown-99", unknown.String())
 }
 
-// TestEventTypeStringCompleteness verifies all iota values 0..9 have non-unknown names.
+// TestEventTypeStringCompleteness verifies all iota values 0..12 have non-unknown names.
 //
-// VALIDATES: No gaps in the String() switch — all 10 event types are covered.
+// VALIDATES: No gaps in the String() switch — all event types are covered.
 // PREVENTS: Adding a new EventType without updating String().
 func TestEventTypeStringCompleteness(t *testing.T) {
-	for i := range 10 {
+	for i := range 12 {
 		et := EventType(i)
 		name := et.String()
 		assert.NotEqual(t, fmt.Sprintf("unknown-%d", i), name,

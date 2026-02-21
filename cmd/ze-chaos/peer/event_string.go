@@ -30,6 +30,8 @@ func (et EventType) String() string {
 		return "withdrawal-sent"
 	case EventRouteAction:
 		return "route-action"
+	case EventDroppedEvents:
+		return "dropped-events"
 	default:
 		return fmt.Sprintf("unknown-%d", int(et))
 	}

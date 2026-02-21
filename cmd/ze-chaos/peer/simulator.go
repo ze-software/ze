@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -36,6 +37,7 @@ type SimProfile struct {
 	IsIBGP     bool
 	HoldTime   uint16
 	RouteCount int
+	TotalPeers int
 	Families   []string
 }
 
@@ -244,7 +246,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 
 	// IPv4 unicast routes are used for chaos withdrawals.
-	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount)
+	routes := scenario.GenerateIPv4Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
 	totalSent := 0
 
 	// Route count per family: unicast families get the full RouteCount,
@@ -272,7 +274,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case familyIPv6Unicast:
-			ipv6Routes := scenario.GenerateIPv6Routes(cfg.Seed, p.Index, p.RouteCount)
+			ipv6Routes := scenario.GenerateIPv6Routes(cfg.Seed, p.Index, p.RouteCount, p.TotalPeers)
 			for _, prefix := range ipv6Routes {
 				if ctx.Err() != nil {
 					break
@@ -285,7 +287,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case "ipv4/vpn":
-			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, false)
+			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, false)
 			for _, r := range vpnRoutes {
 				if ctx.Err() != nil {
 					break
@@ -301,7 +303,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case "ipv6/vpn":
-			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, true)
+			vpnRoutes := scenario.GenerateVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, true)
 			for _, r := range vpnRoutes {
 				if ctx.Err() != nil {
 					break
@@ -317,7 +319,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case "l2vpn/evpn":
-			evpnRoutes := scenario.GenerateEVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4)
+			evpnRoutes := scenario.GenerateEVPNRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
 			for _, r := range evpnRoutes {
 				if ctx.Err() != nil {
 					break
@@ -333,7 +335,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case "ipv4/flow":
-			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, false)
+			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, false)
 			for _, r := range flowRoutes {
 				if ctx.Err() != nil {
 					break
@@ -349,7 +351,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				totalSent++
 			}
 		case "ipv6/flow":
-			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, true)
+			flowRoutes := scenario.GenerateFlowSpecRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers, true)
 			for _, r := range flowRoutes {
 				if ctx.Err() != nil {
 					break
@@ -386,10 +388,20 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	emit(Event{Type: EventEORSent, Count: totalSent, Families: families})
 
 	// Start reader goroutine for incoming messages from RR.
+	var dropped atomic.Int64
+	defer func() {
+		if d := dropped.Load(); d > 0 {
+			// Non-blocking send: ctx may be canceled at this point.
+			select {
+			case cfg.Events <- Event{Type: EventDroppedEvents, PeerIndex: p.Index, Time: time.Now(), Count: int(d)}:
+			default:
+			}
+		}
+	}()
 	readerDone := make(chan struct{})
 	go func() {
 		defer close(readerDone)
-		readLoop(ctx, conn, p.Index, cfg.Events)
+		readLoop(ctx, conn, p.Index, cfg.Events, &dropped)
 	}()
 
 	// KEEPALIVE loop with optional chaos handling.
@@ -691,7 +703,7 @@ func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 
 // readLoop reads BGP messages from conn and emits route events.
 // It runs until the connection closes or ctx is canceled.
-func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event) {
+func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	for {
 		if ctx.Err() != nil {
 			return
@@ -724,7 +736,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 		}
 
 		// Parse IPv4/unicast UPDATE for announced and withdrawn prefixes.
-		parseUpdatePrefixes(body, peerIndex, events)
+		parseUpdatePrefixes(body, peerIndex, events, dropped)
 	}
 }
 
@@ -732,7 +744,7 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 // UPDATE message body (after the 19-byte header). Handles both IPv4/unicast
 // NLRI (trailing field) and MP_REACH_NLRI / MP_UNREACH_NLRI attributes for
 // IPv6/unicast.
-func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event) {
+func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	if len(body) < 4 {
 		return
 	}
@@ -757,6 +769,7 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event) {
 		select {
 		case events <- Event{Type: EventRouteWithdrawn, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
 		default:
+			dropped.Add(1)
 		}
 	}
 
@@ -795,9 +808,9 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event) {
 
 		switch code {
 		case 14: // MP_REACH_NLRI
-			parseMPReachNLRI(body[off:off+aLen], peerIndex, events)
+			parseMPReachNLRI(body[off:off+aLen], peerIndex, events, dropped)
 		case 15: // MP_UNREACH_NLRI
-			parseMPUnreachNLRI(body[off:off+aLen], peerIndex, events)
+			parseMPUnreachNLRI(body[off:off+aLen], peerIndex, events, dropped)
 		}
 		off += aLen
 	}
@@ -814,6 +827,7 @@ func parseUpdatePrefixes(body []byte, peerIndex int, events chan<- Event) {
 		select {
 		case events <- Event{Type: EventRouteReceived, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: familyIPv4Unicast}:
 		default:
+			dropped.Add(1)
 		}
 	}
 }
@@ -848,7 +862,7 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 // For other families (VPN, EVPN, FlowSpec): emits one event per UPDATE
 // with the family tag. In the chaos simulator each UPDATE carries exactly
 // one non-unicast NLRI, so the count stays accurate.
-func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event) {
+func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	if len(data) < 5 { // AFI(2) + SAFI(1) + NH-len(1) + reserved(1) minimum
 		return
 	}
@@ -864,7 +878,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event) {
 		return
 	}
 
-	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, events)
+	emitNLRIEvents(data[off:], family, EventRouteReceived, peerIndex, events, dropped)
 }
 
 // parseMPUnreachNLRI parses MP_UNREACH_NLRI (type 15) and emits EventRouteWithdrawn.
@@ -872,7 +886,7 @@ func parseMPReachNLRI(data []byte, peerIndex int, events chan<- Event) {
 //
 // For IPv4/IPv6 unicast: parses individual prefixes.
 // For other families: emits one event per UPDATE with the family tag.
-func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event) {
+func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	if len(data) < 3 { // AFI(2) + SAFI(1) minimum
 		return
 	}
@@ -882,19 +896,19 @@ func parseMPUnreachNLRI(data []byte, peerIndex int, events chan<- Event) {
 	if family == "" {
 		return
 	}
-	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, events)
+	emitNLRIEvents(data[3:], family, EventRouteWithdrawn, peerIndex, events, dropped)
 }
 
 // emitNLRIEvents dispatches NLRI parsing by family and sends events.
 // For unicast families, individual prefixes are parsed. For others (VPN,
 // EVPN, FlowSpec), one event per UPDATE is emitted since the chaos
 // simulator sends exactly one NLRI per UPDATE for non-unicast families.
-func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, events chan<- Event) {
+func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	switch family {
 	case familyIPv4Unicast:
-		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, events)
+		emitPrefixEvents(data, parseIPv4Prefix, family, evType, peerIndex, events, dropped)
 	case familyIPv6Unicast:
-		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, events)
+		emitPrefixEvents(data, parseIPv6Prefix, family, evType, peerIndex, events, dropped)
 	default:
 		// VPN, EVPN, FlowSpec: one NLRI per UPDATE in chaos simulator.
 		// Non-blocking send: readLoop must never block on event emission.
@@ -902,13 +916,14 @@ func emitNLRIEvents(data []byte, family string, evType EventType, peerIndex int,
 			select {
 			case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Family: family}:
 			default:
+				dropped.Add(1)
 			}
 		}
 	}
 }
 
 // emitPrefixEvents parses consecutive unicast prefixes and emits an event for each.
-func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, events chan<- Event) {
+func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), family string, evType EventType, peerIndex int, events chan<- Event, dropped *atomic.Int64) {
 	off := 0
 	for off < len(data) {
 		prefix, n := parse(data[off:])
@@ -921,6 +936,7 @@ func emitPrefixEvents(data []byte, parse func([]byte) (netip.Prefix, int), famil
 		select {
 		case events <- Event{Type: evType, PeerIndex: peerIndex, Time: time.Now(), Prefix: prefix, Family: family}:
 		default:
+			dropped.Add(1)
 		}
 	}
 }

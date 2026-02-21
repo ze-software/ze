@@ -64,6 +64,10 @@ func (s *PrefixSet) SortedStrings() []string {
 //
 // Core invariant: after convergence, established peer P should have received
 // exactly the routes from all other established peers Q (where Q != P).
+//
+// A refcounted globalAnnounced map is maintained incrementally so that
+// Expected() can iterate the global set instead of rebuilding it from
+// all per-peer sets on every call.
 type Model struct {
 	// peerCount is the number of peers in the scenario.
 	peerCount int
@@ -74,6 +78,10 @@ type Model struct {
 	// announced tracks which routes each peer has announced.
 	// announced[peerIndex] = set of prefixes peer has announced.
 	announced []*PrefixSet
+
+	// globalAnnounced maps prefix → number of peers that have announced it.
+	// Maintained incrementally by Announce, Withdraw, and Disconnect.
+	globalAnnounced map[netip.Prefix]int
 }
 
 // NewModel creates a new validation model for n peers.
@@ -83,9 +91,10 @@ func NewModel(n int) *Model {
 		announced[i] = NewPrefixSet()
 	}
 	return &Model{
-		peerCount:   n,
-		established: make([]bool, n),
-		announced:   announced,
+		peerCount:       n,
+		established:     make([]bool, n),
+		announced:       announced,
+		globalAnnounced: make(map[netip.Prefix]int),
 	}
 }
 
@@ -104,6 +113,9 @@ func (m *Model) Announce(source int, prefix netip.Prefix) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
+	if !m.announced[source].Contains(prefix) {
+		m.globalAnnounced[prefix]++
+	}
 	m.announced[source].Add(prefix)
 }
 
@@ -113,6 +125,12 @@ func (m *Model) Withdraw(source int, prefix netip.Prefix) {
 	if source < 0 || source >= m.peerCount {
 		return
 	}
+	if m.announced[source].Contains(prefix) {
+		m.globalAnnounced[prefix]--
+		if m.globalAnnounced[prefix] <= 0 {
+			delete(m.globalAnnounced, prefix)
+		}
+	}
 	m.announced[source].Remove(prefix)
 }
 
@@ -121,6 +139,13 @@ func (m *Model) Disconnect(peer int) {
 	if peer < 0 || peer >= m.peerCount {
 		return
 	}
+	// Decrement global refcounts for all routes this peer announced.
+	for _, prefix := range m.announced[peer].All() {
+		m.globalAnnounced[prefix]--
+		if m.globalAnnounced[prefix] <= 0 {
+			delete(m.globalAnnounced, prefix)
+		}
+	}
 	m.established[peer] = false
 	m.announced[peer] = NewPrefixSet()
 }
@@ -128,19 +153,23 @@ func (m *Model) Disconnect(peer int) {
 // Expected computes the set of prefixes that peer should have received
 // from the route reflector. This is the union of all routes announced by
 // other established peers.
+//
+// Uses the incrementally maintained globalAnnounced refcount map instead
+// of iterating all per-peer announcement sets.
 func (m *Model) Expected(peer int) *PrefixSet {
 	result := NewPrefixSet()
 	if peer < 0 || peer >= m.peerCount || !m.established[peer] {
 		return result
 	}
-	for source := range m.peerCount {
-		if source == peer {
-			continue
-		}
-		if !m.established[source] {
-			continue
-		}
-		for _, prefix := range m.announced[source].All() {
+	ownAnnounced := m.announced[peer]
+	for prefix, count := range m.globalAnnounced {
+		if ownAnnounced.Contains(prefix) {
+			// This peer also announced it — only include if at least
+			// one other peer announced the same prefix.
+			if count > 1 {
+				result.Add(prefix)
+			}
+		} else {
 			result.Add(prefix)
 		}
 	}

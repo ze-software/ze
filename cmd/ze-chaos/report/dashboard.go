@@ -88,6 +88,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		}
 	case peer.EventRouteAction:
 		d.maybeStatus(ev.Time)
+	case peer.EventDroppedEvents:
+		d.rw.printf("peer %d | WARNING: %d events dropped (channel full)\n", ev.PeerIndex, ev.Count)
 	case peer.EventError, peer.EventChaosExecuted, peer.EventReconnecting:
 		d.printLifecycle(ev)
 	}

@@ -31,13 +31,13 @@ type VPNRoute struct {
 // RD format: Type 0 (2-byte admin + 4-byte assigned).
 // Admin = peer index, Assigned = route sequence.
 // Label: 100000 + peerIndex*1000 + sequence (20-bit range).
-func GenerateVPNRoutes(seed uint64, peerIndex, count int, ipv6 bool) []VPNRoute {
+func GenerateVPNRoutes(seed uint64, peerIndex, count, totalPeers int, ipv6 bool) []VPNRoute {
 	// Generate underlying prefixes first.
 	var prefixes []netip.Prefix
 	if ipv6 {
-		prefixes = GenerateIPv6Routes(seed, peerIndex, count)
+		prefixes = GenerateIPv6Routes(seed, peerIndex, count, totalPeers)
 	} else {
-		prefixes = GenerateIPv4Routes(seed, peerIndex, count)
+		prefixes = GenerateIPv4Routes(seed, peerIndex, count, totalPeers)
 	}
 
 	if count > len(prefixes) {

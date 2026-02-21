@@ -14,8 +14,8 @@ import (
 func TestGenerateFlowSpecV4Routes_Unique(t *testing.T) {
 	seed := uint64(42)
 
-	routes0 := GenerateFlowSpecRoutes(seed, 0, 20, false)
-	routes1 := GenerateFlowSpecRoutes(seed, 1, 20, false)
+	routes0 := GenerateFlowSpecRoutes(seed, 0, 20, 50, false)
+	routes1 := GenerateFlowSpecRoutes(seed, 1, 20, 50, false)
 
 	require.Len(t, routes0, 20)
 	require.Len(t, routes1, 20)
@@ -36,7 +36,7 @@ func TestGenerateFlowSpecV4Routes_Unique(t *testing.T) {
 // VALIDATES: IPv6 FlowSpec routes use IPv6 source/dest prefixes.
 // PREVENTS: Using IPv4 prefixes for IPv6 FlowSpec.
 func TestGenerateFlowSpecV6Routes(t *testing.T) {
-	routes := GenerateFlowSpecRoutes(42, 0, 10, true)
+	routes := GenerateFlowSpecRoutes(42, 0, 10, 50, true)
 	require.Len(t, routes, 10)
 
 	for _, r := range routes {
@@ -49,8 +49,8 @@ func TestGenerateFlowSpecV6Routes(t *testing.T) {
 // VALIDATES: Same seed + index → same routes.
 // PREVENTS: Non-reproducible chaos runs.
 func TestGenerateFlowSpecRoutes_Deterministic(t *testing.T) {
-	routes1 := GenerateFlowSpecRoutes(12345, 2, 30, false)
-	routes2 := GenerateFlowSpecRoutes(12345, 2, 30, false)
+	routes1 := GenerateFlowSpecRoutes(12345, 2, 30, 50, false)
+	routes2 := GenerateFlowSpecRoutes(12345, 2, 30, 50, false)
 
 	require.Equal(t, routes1, routes2, "same seed should produce identical FlowSpec routes")
 }
@@ -60,7 +60,7 @@ func TestGenerateFlowSpecRoutes_Deterministic(t *testing.T) {
 // VALIDATES: Each FlowSpec rule has at least a destination prefix component.
 // PREVENTS: Empty FlowSpec rules that would be rejected.
 func TestGenerateFlowSpecRoutes_HasComponents(t *testing.T) {
-	routes := GenerateFlowSpecRoutes(42, 0, 10, false)
+	routes := GenerateFlowSpecRoutes(42, 0, 10, 50, false)
 	require.NotEmpty(t, routes)
 
 	for _, r := range routes {
@@ -73,7 +73,7 @@ func TestGenerateFlowSpecRoutes_HasComponents(t *testing.T) {
 // VALIDATES: Each route has a unique key.
 // PREVENTS: Key collisions in validation model.
 func TestGenerateFlowSpecRoutes_Key(t *testing.T) {
-	routes := GenerateFlowSpecRoutes(42, 0, 30, false)
+	routes := GenerateFlowSpecRoutes(42, 0, 30, 50, false)
 	require.Len(t, routes, 30)
 
 	seen := make(map[string]struct{}, len(routes))

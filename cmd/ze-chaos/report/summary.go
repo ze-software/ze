@@ -57,6 +57,7 @@ type Summary struct {
 	ChaosEvents   int
 	Reconnections int
 	Withdrawn     int
+	DroppedEvents int
 
 	// Per-peer failure details (empty when all routes match).
 	PeerFailures []PeerFailure
@@ -133,6 +134,10 @@ func (s *Summary) Write(w io.Writer) int {
 	if s.ChaosEvents > 0 {
 		rw.printf("  chaos: %d events, %d reconnections, %d withdrawn\n",
 			s.ChaosEvents, s.Reconnections, s.Withdrawn)
+	}
+
+	if s.DroppedEvents > 0 {
+		rw.printf("  WARNING: %d events dropped (event channel full)\n", s.DroppedEvents)
 	}
 
 	// Per-peer failure details: show expected vs actual with prefix lists.

@@ -108,6 +108,15 @@ html, body {
   font-size: 11px;
 }
 
+.stat-warn .stat-value {
+  color: var(--orange);
+  font-weight: 700;
+}
+
+.stat-warn .stat-label {
+  color: var(--orange);
+}
+
 /* Main content */
 .main {
   overflow-y: auto;

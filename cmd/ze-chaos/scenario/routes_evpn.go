@@ -35,12 +35,12 @@ type EVPNRoute struct {
 //
 // MAC format: 02:PP:XX:XX:XX:XX where PP encodes peer index.
 // The 0x02 prefix sets the locally-administered bit (unicast).
-func GenerateEVPNRoutes(seed uint64, peerIndex, count int) []EVPNRoute {
+func GenerateEVPNRoutes(seed uint64, peerIndex, count, totalPeers int) []EVPNRoute {
 	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
 	rng := rand.New(rand.NewSource(int64(seed) ^ int64(peerIndex*0x6C62272E)))
 
 	// Use IPv4 prefixes for the IP portion of Type-2 routes.
-	prefixes := GenerateIPv4Routes(seed, peerIndex, count)
+	prefixes := GenerateIPv4Routes(seed, peerIndex, count, totalPeers)
 	if count > len(prefixes) {
 		count = len(prefixes)
 	}

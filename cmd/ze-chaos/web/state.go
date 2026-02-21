@@ -399,6 +399,8 @@ func PromotionPriorityForEvent(evType peer.EventType) (PromotionPriority, bool) 
 	switch evType {
 	case peer.EventDisconnected, peer.EventError:
 		return PriorityHigh, true
+	case peer.EventDroppedEvents:
+		return PriorityHigh, true
 	case peer.EventChaosExecuted, peer.EventReconnecting, peer.EventWithdrawalSent, peer.EventRouteAction:
 		return PriorityMedium, true
 	case peer.EventRouteWithdrawn:
@@ -923,6 +925,7 @@ type DashboardState struct {
 	TotalWithdrawn    int // Withdrawals received (EventRouteWithdrawn).
 	TotalWdrawSent    int // Withdrawals sent by chaos peers (EventWithdrawalSent).
 	TotalRouteActions int // Route dynamics actions executed (EventRouteAction).
+	TotalDropped      int // Events silently dropped by readLoop (EventDroppedEvents).
 	PeersUp           int
 
 	// Run metadata.

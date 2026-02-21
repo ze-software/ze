@@ -15,8 +15,8 @@ import (
 func TestGenerateIPv6Routes_Unique(t *testing.T) {
 	seed := uint64(42)
 
-	routes0 := GenerateIPv6Routes(seed, 0, 50)
-	routes1 := GenerateIPv6Routes(seed, 1, 50)
+	routes0 := GenerateIPv6Routes(seed, 0, 50, 50)
+	routes1 := GenerateIPv6Routes(seed, 1, 50, 50)
 
 	require.Len(t, routes0, 50)
 	require.Len(t, routes1, 50)
@@ -51,8 +51,8 @@ func TestGenerateIPv6Routes_Unique(t *testing.T) {
 // PREVENTS: Non-reproducible test runs.
 func TestGenerateIPv6Routes_Deterministic(t *testing.T) {
 	seed := uint64(12345)
-	routes1 := GenerateIPv6Routes(seed, 3, 100)
-	routes2 := GenerateIPv6Routes(seed, 3, 100)
+	routes1 := GenerateIPv6Routes(seed, 3, 100, 50)
+	routes2 := GenerateIPv6Routes(seed, 3, 100, 50)
 
 	require.Len(t, routes1, 100)
 	require.Equal(t, routes1, routes2, "same seed + index should produce identical routes")
@@ -64,8 +64,8 @@ func TestGenerateIPv6Routes_Deterministic(t *testing.T) {
 // VALIDATES: Seed affects route generation.
 // PREVENTS: Ignoring seed parameter.
 func TestGenerateIPv6Routes_DifferentSeeds(t *testing.T) {
-	routes1 := GenerateIPv6Routes(100, 0, 20)
-	routes2 := GenerateIPv6Routes(200, 0, 20)
+	routes1 := GenerateIPv6Routes(100, 0, 20, 50)
+	routes2 := GenerateIPv6Routes(200, 0, 20, 50)
 
 	// Same count.
 	require.Len(t, routes1, 20)
@@ -88,7 +88,7 @@ func TestGenerateIPv6Routes_DifferentSeeds(t *testing.T) {
 // VALIDATES: No duplicate prefixes within a peer's route set.
 // PREVENTS: Double-announcing the same route.
 func TestGenerateIPv6Routes_UniqueWithinPeer(t *testing.T) {
-	routes := GenerateIPv6Routes(42, 0, 200)
+	routes := GenerateIPv6Routes(42, 0, 200, 50)
 	require.Len(t, routes, 200)
 
 	seen := make(map[string]struct{}, len(routes))
@@ -107,7 +107,7 @@ func TestGenerateIPv6Routes_UniqueWithinPeer(t *testing.T) {
 // VALIDATES: Dynamic prefix length scaling for large route counts.
 // PREVENTS: Silent truncation when route count exceeds /48 pool capacity.
 func TestGenerateIPv6Routes_LargeCount(t *testing.T) {
-	routes := GenerateIPv6Routes(42, 0, 5000)
+	routes := GenerateIPv6Routes(42, 0, 5000, 50)
 	require.Len(t, routes, 5000)
 
 	seen := make(map[string]struct{}, len(routes))

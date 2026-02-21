@@ -13,11 +13,11 @@ import (
 //
 // Prefix length starts at /48 (1,280 per peer) and automatically increases
 // to /49, /50, ... /64 when count exceeds the /48 pool capacity.
-func GenerateIPv6Routes(seed uint64, peerIndex, count int) []netip.Prefix {
+func GenerateIPv6Routes(seed uint64, peerIndex, count, totalPeers int) []netip.Prefix {
 	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
 	rng := rand.New(rand.NewSource(int64(seed) ^ int64(peerIndex*0x9E3779B9)))
 
-	candidates := generateIPv6CandidatePool(peerIndex, count)
+	candidates := generateIPv6CandidatePool(peerIndex, count, totalPeers)
 
 	rng.Shuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
@@ -41,10 +41,10 @@ func GenerateIPv6Routes(seed uint64, peerIndex, count int) []netip.Prefix {
 //
 // When count exceeds the /48 pool, the prefix length increases (/49, /50, ...)
 // to subdivide each /48 block, doubling capacity per step up to /64.
-func generateIPv6CandidatePool(peerIndex, count int) []netip.Prefix {
+func generateIPv6CandidatePool(peerIndex, count, totalPeers int) []netip.Prefix {
 	// byte[4] ranges from 0x00 to 0xFF (256 values).
 	const totalByte4Values = 256
-	valuesPerPeer := max(totalByte4Values/51, 1) // 51 to ensure 50 peers fit
+	valuesPerPeer := max(totalByte4Values/max(totalPeers, 1), 1)
 
 	startVal := peerIndex * valuesPerPeer
 	endVal := startVal + valuesPerPeer

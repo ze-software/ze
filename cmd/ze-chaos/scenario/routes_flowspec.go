@@ -25,14 +25,14 @@ type FlowSpecRoute struct {
 // GenerateFlowSpecRoutes produces count unique FlowSpec rules deterministically
 // from the given seed and peer index. Each rule matches on destination and
 // source prefixes derived from the peer's address space.
-func GenerateFlowSpecRoutes(seed uint64, peerIndex, count int, ipv6 bool) []FlowSpecRoute {
+func GenerateFlowSpecRoutes(seed uint64, peerIndex, count, totalPeers int, ipv6 bool) []FlowSpecRoute {
 	// Generate prefix pairs: dest from this peer, source from this peer.
 	// We need 2× prefixes: one for dest, one for source.
 	var prefixes []netip.Prefix
 	if ipv6 {
-		prefixes = GenerateIPv6Routes(seed, peerIndex, count*2)
+		prefixes = GenerateIPv6Routes(seed, peerIndex, count*2, totalPeers)
 	} else {
-		prefixes = GenerateIPv4Routes(seed, peerIndex, count*2)
+		prefixes = GenerateIPv4Routes(seed, peerIndex, count*2, totalPeers)
 	}
 
 	available := len(prefixes) / 2

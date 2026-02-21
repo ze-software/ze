@@ -15,8 +15,8 @@ import (
 func TestGenerateEVPNRoutes_Unique(t *testing.T) {
 	seed := uint64(42)
 
-	routes0 := GenerateEVPNRoutes(seed, 0, 30)
-	routes1 := GenerateEVPNRoutes(seed, 1, 30)
+	routes0 := GenerateEVPNRoutes(seed, 0, 30, 50)
+	routes1 := GenerateEVPNRoutes(seed, 1, 30, 50)
 
 	require.Len(t, routes0, 30)
 	require.Len(t, routes1, 30)
@@ -31,8 +31,8 @@ func TestGenerateEVPNRoutes_Unique(t *testing.T) {
 // VALIDATES: Same seed + index → same routes.
 // PREVENTS: Non-reproducible chaos runs.
 func TestGenerateEVPNRoutes_Deterministic(t *testing.T) {
-	routes1 := GenerateEVPNRoutes(12345, 2, 40)
-	routes2 := GenerateEVPNRoutes(12345, 2, 40)
+	routes1 := GenerateEVPNRoutes(12345, 2, 40, 50)
+	routes2 := GenerateEVPNRoutes(12345, 2, 40, 50)
 
 	require.Equal(t, routes1, routes2, "same seed should produce identical EVPN routes")
 }
@@ -42,7 +42,7 @@ func TestGenerateEVPNRoutes_Deterministic(t *testing.T) {
 // VALIDATES: MACs use locally-administered bit (byte[0] bit 1 set).
 // PREVENTS: Conflicting with real hardware MACs.
 func TestGenerateEVPNRoutes_MACFormat(t *testing.T) {
-	routes := GenerateEVPNRoutes(42, 3, 10)
+	routes := GenerateEVPNRoutes(42, 3, 10, 50)
 	require.NotEmpty(t, routes)
 
 	for _, r := range routes {
@@ -60,7 +60,7 @@ func TestGenerateEVPNRoutes_MACFormat(t *testing.T) {
 // VALIDATES: Each EVPN route has an associated IP address.
 // PREVENTS: Type-2 routes without IP (MAC-only not useful for chaos testing).
 func TestGenerateEVPNRoutes_HasIP(t *testing.T) {
-	routes := GenerateEVPNRoutes(42, 0, 20)
+	routes := GenerateEVPNRoutes(42, 0, 20, 50)
 	require.NotEmpty(t, routes)
 
 	for _, r := range routes {
@@ -73,7 +73,7 @@ func TestGenerateEVPNRoutes_HasIP(t *testing.T) {
 // VALIDATES: RD is type 0 with peer-derived values.
 // PREVENTS: Invalid RD encoding.
 func TestGenerateEVPNRoutes_RDFormat(t *testing.T) {
-	routes := GenerateEVPNRoutes(42, 5, 10)
+	routes := GenerateEVPNRoutes(42, 5, 10, 50)
 	require.NotEmpty(t, routes)
 
 	rd := routes[0].RDBytes
@@ -87,7 +87,7 @@ func TestGenerateEVPNRoutes_RDFormat(t *testing.T) {
 // VALIDATES: Each route has a unique key.
 // PREVENTS: Key collisions in validation model.
 func TestGenerateEVPNRoutes_Key(t *testing.T) {
-	routes := GenerateEVPNRoutes(42, 0, 50)
+	routes := GenerateEVPNRoutes(42, 0, 50, 50)
 	require.Len(t, routes, 50)
 
 	seen := make(map[string]struct{}, len(routes))

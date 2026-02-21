@@ -664,7 +664,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	for i := range profiles {
 		evBuf += profiles[i].RouteCount * max(len(profiles[i].Families), 1)
 	}
-	evBuf = min(max(evBuf, 65536), 500_000)
+	evBuf = min(max(evBuf, 65536), 5_000_000)
 	events := make(chan peer.Event, evBuf)
 
 	// Launch per-peer goroutines.
@@ -697,6 +697,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 					IsIBGP:     prof.IsIBGP,
 					HoldTime:   prof.HoldTime,
 					RouteCount: prof.RouteCount,
+					TotalPeers: n,
 					Families:   prof.Families,
 				},
 				Seed:    cfg.seed,
@@ -763,7 +764,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			}
 		case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
 			peer.EventEORSent, peer.EventError,
-			peer.EventReconnecting, peer.EventWithdrawalSent:
+			peer.EventReconnecting, peer.EventWithdrawalSent, peer.EventDroppedEvents:
 			// Other events don't affect guard or established state.
 		}
 
@@ -872,6 +873,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		ChaosEvents:   ep.ChaosEvents,
 		Reconnections: ep.Reconnections,
 		Withdrawn:     ep.Withdrawn,
+		DroppedEvents: ep.DroppedEvents,
 		PeerFailures:  peerFailures,
 		Properties:    propResults,
 	}

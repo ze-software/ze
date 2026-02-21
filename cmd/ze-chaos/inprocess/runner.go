@@ -164,7 +164,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	for i := range cfg.Profiles {
 		evBuf += cfg.Profiles[i].RouteCount * max(len(cfg.Profiles[i].Families), 1)
 	}
-	evBuf = min(max(evBuf, 65536), 500_000)
+	evBuf = min(max(evBuf, 65536), 5_000_000)
 	events := make(chan peer.Event, evBuf)
 
 	// Track simulator goroutines.
@@ -204,6 +204,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					IsIBGP:     p.IsIBGP,
 					HoldTime:   p.HoldTime,
 					RouteCount: p.RouteCount,
+					TotalPeers: len(cfg.Profiles),
 					Families:   p.Families,
 				},
 				Seed:   cfg.Seed,
@@ -302,6 +303,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 							IsIBGP:     p.IsIBGP,
 							HoldTime:   p.HoldTime,
 							RouteCount: p.RouteCount,
+							TotalPeers: len(cfg.Profiles),
 							Families:   p.Families,
 						},
 						Seed:   cfg.Seed,
@@ -361,6 +363,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 							IsIBGP:     p.IsIBGP,
 							HoldTime:   p.HoldTime,
 							RouteCount: p.RouteCount,
+							TotalPeers: len(cfg.Profiles),
 							Families:   p.Families,
 						},
 						Seed:   cfg.Seed,

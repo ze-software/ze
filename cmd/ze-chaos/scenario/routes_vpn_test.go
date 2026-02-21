@@ -15,8 +15,8 @@ import (
 func TestGenerateVPNv4Routes_Unique(t *testing.T) {
 	seed := uint64(42)
 
-	routes0 := GenerateVPNRoutes(seed, 0, 50, false)
-	routes1 := GenerateVPNRoutes(seed, 1, 50, false)
+	routes0 := GenerateVPNRoutes(seed, 0, 50, 50, false)
+	routes1 := GenerateVPNRoutes(seed, 1, 50, 50, false)
 
 	require.Len(t, routes0, 50)
 	require.Len(t, routes1, 50)
@@ -38,7 +38,7 @@ func TestGenerateVPNv4Routes_Unique(t *testing.T) {
 func TestGenerateVPNv6Routes_Unique(t *testing.T) {
 	seed := uint64(42)
 
-	routes := GenerateVPNRoutes(seed, 0, 30, true)
+	routes := GenerateVPNRoutes(seed, 0, 30, 50, true)
 	require.Len(t, routes, 30)
 
 	for _, r := range routes {
@@ -51,8 +51,8 @@ func TestGenerateVPNv6Routes_Unique(t *testing.T) {
 // VALIDATES: Same seed + index → same routes.
 // PREVENTS: Non-reproducible chaos runs.
 func TestGenerateVPNRoutes_Deterministic(t *testing.T) {
-	routes1 := GenerateVPNRoutes(12345, 2, 40, false)
-	routes2 := GenerateVPNRoutes(12345, 2, 40, false)
+	routes1 := GenerateVPNRoutes(12345, 2, 40, 50, false)
+	routes2 := GenerateVPNRoutes(12345, 2, 40, 50, false)
 
 	require.Equal(t, routes1, routes2, "same seed should produce identical VPN routes")
 }
@@ -62,7 +62,7 @@ func TestGenerateVPNRoutes_Deterministic(t *testing.T) {
 // VALIDATES: RD is type 0 with peer-derived values per master design.
 // PREVENTS: Invalid RD encoding.
 func TestGenerateVPNRoutes_RDFormat(t *testing.T) {
-	routes := GenerateVPNRoutes(42, 3, 10, false)
+	routes := GenerateVPNRoutes(42, 3, 10, 50, false)
 	require.NotEmpty(t, routes)
 
 	rd := routes[0].RDBytes
@@ -76,7 +76,7 @@ func TestGenerateVPNRoutes_RDFormat(t *testing.T) {
 // VALIDATES: Each VPN route has a valid label.
 // PREVENTS: Missing or zero labels.
 func TestGenerateVPNRoutes_Labels(t *testing.T) {
-	routes := GenerateVPNRoutes(42, 0, 20, false)
+	routes := GenerateVPNRoutes(42, 0, 20, 50, false)
 	require.NotEmpty(t, routes)
 
 	for _, r := range routes {
@@ -91,7 +91,7 @@ func TestGenerateVPNRoutes_Labels(t *testing.T) {
 // VALIDATES: Each route has a unique key suitable for validation tracking.
 // PREVENTS: Key collisions causing false validation results.
 func TestGenerateVPNRoutes_Key(t *testing.T) {
-	routes := GenerateVPNRoutes(42, 0, 50, false)
+	routes := GenerateVPNRoutes(42, 0, 50, 50, false)
 	require.Len(t, routes, 50)
 
 	seen := make(map[string]struct{}, len(routes))

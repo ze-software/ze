@@ -2,6 +2,7 @@ package peer
 
 import (
 	"net/netip"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -98,7 +99,7 @@ func TestParseUpdatePrefixesAnnounce(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 3, events)
+	parseUpdatePrefixes(body, 3, events, new(atomic.Int64))
 	close(events)
 
 	var received []Event
@@ -128,7 +129,7 @@ func TestParseUpdatePrefixesWithdraw(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 5, events)
+	parseUpdatePrefixes(body, 5, events, new(atomic.Int64))
 	close(events)
 
 	var received []Event
@@ -163,7 +164,7 @@ func TestParseUpdatePrefixesMultiple(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 0, events)
+	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
 	close(events)
 
 	var withdrawals, announcements []netip.Prefix
@@ -197,7 +198,7 @@ func TestParseUpdatePrefixesEOR(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 0, events)
+	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
 	close(events)
 
 	count := 0
@@ -307,7 +308,7 @@ func TestParseUpdatePrefixesMPReach(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 7, events)
+	parseUpdatePrefixes(body, 7, events, new(atomic.Int64))
 	close(events)
 
 	var received []netip.Prefix
@@ -348,7 +349,7 @@ func TestParseUpdatePrefixesMPUnreach(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 2, events)
+	parseUpdatePrefixes(body, 2, events, new(atomic.Int64))
 	close(events)
 
 	var withdrawn []netip.Prefix
@@ -390,7 +391,7 @@ func TestParseUpdatePrefixesMPReachVPN(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 0, events)
+	parseUpdatePrefixes(body, 0, events, new(atomic.Int64))
 	close(events)
 
 	var got []Event
@@ -469,7 +470,7 @@ func TestParseUpdatePrefixesMultipleAttrs(t *testing.T) {
 
 	events := make(chan Event, 10)
 
-	parseUpdatePrefixes(body, 5, events)
+	parseUpdatePrefixes(body, 5, events, new(atomic.Int64))
 	close(events)
 
 	var got []Event

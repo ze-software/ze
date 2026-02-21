@@ -108,6 +108,7 @@ type EventProcessor struct {
 	ChaosEvents   int
 	Reconnections int
 	Withdrawn     int
+	DroppedEvents int
 }
 
 // Process handles a single peer event, updating all validation components.
@@ -152,5 +153,8 @@ func (ep *EventProcessor) Process(ev peer.Event) {
 
 	case peer.EventRouteAction:
 		// Route dynamics actions are informational — counted by the web dashboard.
+
+	case peer.EventDroppedEvents:
+		ep.DroppedEvents += ev.Count
 	}
 }

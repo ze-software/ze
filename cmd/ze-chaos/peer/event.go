@@ -34,6 +34,9 @@ const (
 	EventWithdrawalSent
 	// EventRouteAction is sent when a route dynamics action is executed on a peer.
 	EventRouteAction
+	// EventDroppedEvents is sent at simulator shutdown with the count of events
+	// silently dropped by readLoop due to a full event channel.
+	EventDroppedEvents
 )
 
 // Event represents a simulator lifecycle or route event.
