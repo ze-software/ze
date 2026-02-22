@@ -9,9 +9,9 @@
 // preventing import cycles. Plugin packages import this package to register;
 // consumer packages import this package to query.
 //
-// Thread safety: init() functions run sequentially in Go, so no mutex is
-// needed during registration. The registry is write-once (during init) and
-// read-many (during runtime).
+// Thread safety: init() functions run sequentially in Go, so registration
+// during init is inherently safe. A RWMutex protects runtime access because
+// tests use Reset/Snapshot/Restore to mutate the registry concurrently.
 package registry
 
 import (
@@ -24,6 +24,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // Registration describes a plugin's full metadata and handlers.
@@ -84,8 +85,11 @@ var (
 	ErrInvalidFamily = errors.New("registry: invalid family format")
 )
 
-// plugins is the global plugin registry, populated during init().
-var plugins = make(map[string]*Registration)
+var (
+	// plugins is the global plugin registry, populated during init().
+	plugins = make(map[string]*Registration)
+	mu      sync.RWMutex
+)
 
 // Register adds a plugin to the global registry.
 // Must be called from init() functions only.
@@ -94,6 +98,10 @@ func Register(reg Registration) error {
 	if reg.Name == "" {
 		return ErrEmptyName
 	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	if _, exists := plugins[reg.Name]; exists {
 		return fmt.Errorf("%w: %q", ErrDuplicateName, reg.Name)
 	}
@@ -116,12 +124,22 @@ func Register(reg Registration) error {
 
 // Lookup returns the registration for a named plugin, or nil if not found.
 func Lookup(name string) *Registration {
+	mu.RLock()
+	defer mu.RUnlock()
 	return plugins[name]
 }
 
 // All returns all registrations sorted by name.
 func All() []*Registration {
-	names := Names()
+	mu.RLock()
+	defer mu.RUnlock()
+
+	names := make([]string, 0, len(plugins))
+	for name := range plugins {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
 	result := make([]*Registration, len(names))
 	for i, name := range names {
 		result[i] = plugins[name]
@@ -131,6 +149,9 @@ func All() []*Registration {
 
 // Names returns all registered plugin names sorted alphabetically.
 func Names() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	names := make([]string, 0, len(plugins))
 	for name := range plugins {
 		names = append(names, name)
@@ -141,6 +162,8 @@ func Names() []string {
 
 // Has returns true if a plugin with the given name is registered.
 func Has(name string) bool {
+	mu.RLock()
+	defer mu.RUnlock()
 	_, ok := plugins[name]
 	return ok
 }
@@ -148,6 +171,9 @@ func Has(name string) bool {
 // FamilyMap returns a map from address family to plugin name.
 // Built from all registered plugins' Families fields.
 func FamilyMap() map[string]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	m := make(map[string]string)
 	for _, reg := range plugins {
 		for _, f := range reg.Families {
@@ -160,6 +186,9 @@ func FamilyMap() map[string]string {
 // CapabilityMap returns a map from capability code to plugin name.
 // Built from all registered plugins' CapabilityCodes fields.
 func CapabilityMap() map[uint8]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	m := make(map[uint8]string)
 	for _, reg := range plugins {
 		for _, code := range reg.CapabilityCodes {
@@ -172,6 +201,9 @@ func CapabilityMap() map[uint8]string {
 // InProcessDecoders returns a map from plugin name to decode function.
 // Only includes plugins that registered an InProcessDecoder.
 func InProcessDecoders() map[string]func(input, output *bytes.Buffer) int {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	m := make(map[string]func(input, output *bytes.Buffer) int)
 	for _, reg := range plugins {
 		if reg.InProcessDecoder != nil {
@@ -184,6 +216,9 @@ func InProcessDecoders() map[string]func(input, output *bytes.Buffer) int {
 // YANGSchemas returns a map from plugin name to YANG schema content.
 // Only includes plugins that registered a YANG schema.
 func YANGSchemas() map[string]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	m := make(map[string]string)
 	for _, reg := range plugins {
 		if reg.YANG != "" {
@@ -196,6 +231,9 @@ func YANGSchemas() map[string]string {
 // ConfigRootsMap returns a map from plugin name to config roots.
 // Only includes plugins that declared config roots.
 func ConfigRootsMap() map[string][]string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	m := make(map[string][]string)
 	for _, reg := range plugins {
 		if len(reg.ConfigRoots) > 0 {
@@ -208,6 +246,9 @@ func ConfigRootsMap() map[string][]string {
 // PluginForFamily returns the plugin name that handles a given address family.
 // Returns empty string if no plugin is registered for the family.
 func PluginForFamily(family string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	for _, reg := range plugins {
 		if slices.Contains(reg.Families, family) {
 			return reg.Name
@@ -234,6 +275,9 @@ func RequiredPlugins(families []string) []string {
 // Returns an error if no decoder is registered or the decoder fails.
 // This is the fast path — external plugins use RPC via Server.DecodeNLRI instead.
 func DecodeNLRIByFamily(family, hexData string) (string, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	for _, reg := range plugins {
 		if reg.InProcessNLRIDecoder != nil && slices.Contains(reg.Families, family) {
 			return reg.InProcessNLRIDecoder(family, hexData)
@@ -247,6 +291,9 @@ func DecodeNLRIByFamily(family, hexData string) (string, error) {
 // Returns an error if no encoder is registered or the encoder fails.
 // This is the fast path — external plugins use RPC via Server.EncodeNLRI instead.
 func EncodeNLRIByFamily(family string, args []string) (string, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	for _, reg := range plugins {
 		if reg.InProcessNLRIEncoder != nil && slices.Contains(reg.Families, family) {
 			return reg.InProcessNLRIEncoder(family, args)
@@ -258,6 +305,9 @@ func EncodeNLRIByFamily(family string, args []string) (string, error) {
 // RouteEncoderByFamily finds the plugin registered for a family and returns
 // its in-process route encoder. Returns nil if no encoder is registered.
 func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	for _, reg := range plugins {
 		if reg.InProcessRouteEncoder != nil && slices.Contains(reg.Families, family) {
 			return reg.InProcessRouteEncoder
@@ -269,6 +319,9 @@ func RouteEncoderByFamily(family string) func(routeCmd, family string, localAS u
 // ConfigNLRIBuilder finds the plugin registered for a family and returns
 // its config NLRI builder. Returns nil if no builder is registered.
 func ConfigNLRIBuilder(family string) func(map[string][]string, bool, bool) []byte {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	for _, reg := range plugins {
 		if reg.InProcessConfigNLRIBuilder != nil && slices.Contains(reg.Families, family) {
 			return reg.InProcessConfigNLRIBuilder
@@ -308,12 +361,17 @@ func WriteUsage(w io.Writer) error {
 
 // Reset clears the registry. Only for use in tests.
 func Reset() {
+	mu.Lock()
+	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
 // Use with Restore to safely reset and restore after test-specific registrations.
 func Snapshot() map[string]*Registration {
+	mu.RLock()
+	defer mu.RUnlock()
+
 	snap := make(map[string]*Registration, len(plugins))
 	maps.Copy(snap, plugins)
 	return snap
@@ -321,5 +379,7 @@ func Snapshot() map[string]*Registration {
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
 func Restore(snap map[string]*Registration) {
+	mu.Lock()
+	defer mu.Unlock()
 	plugins = snap
 }
