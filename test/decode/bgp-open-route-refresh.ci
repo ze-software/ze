@@ -1,0 +1,5 @@
+# bgp-open-route-refresh decoding test (Ze format)
+# RFC 2918: Route Refresh capability (code 2, zero payload)
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0104FFFD00B40A00000210020E01040001000141040000FFFD0200
+cmd=foreground:seq=1:exec=ze-test decode --json --plugin bgp-route-refresh --open -:stdin=payload
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"open"},"open":{"asn":65533,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":65,"name":"asn4","value":"65533"},{"code":2,"name":"route-refresh"}],"hold-time":180,"router-id":"10.0.0.2"},"peer":{"address":"127.0.0.1","asn":65533}},"type":"bgp"}

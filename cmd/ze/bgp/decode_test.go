@@ -331,6 +331,126 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	}
 }
 
+// TestDecodeOpenGRWithoutPlugin verifies GR capability shows as unknown without plugin.
+//
+// VALIDATES: GR capability (code 64) returns name="unknown" without --plugin flag.
+// PREVENTS: Leaking decoded GR data without plugin authorization.
+func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
+	// OPEN message with GR capability (code 64): restart-time=120, ipv4/unicast, forward-state=true
+	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330104FFFD00B40A00000216021401040001000141040000FFFD4006007800010180"
+
+	// Decode WITHOUT plugin - should show unknown
+	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON output: %v", err)
+	}
+
+	// Ze format: navigate through bgp.open.capabilities
+	bgp, ok := result["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing bgp section")
+	}
+	openSection, ok := bgp["open"].(map[string]any)
+	if !ok {
+		t.Fatal("missing open section")
+	}
+	caps, ok := openSection["capabilities"].([]any)
+	if !ok {
+		t.Fatal("missing capabilities array")
+	}
+
+	// Find capability with code 64 (GR)
+	var cap64 map[string]any
+	for _, c := range caps {
+		capMap, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if code, ok := capMap["code"].(float64); ok && int(code) == 64 {
+			cap64 = capMap
+			break
+		}
+	}
+
+	if cap64 == nil {
+		t.Fatal("missing capability with code 64")
+	}
+
+	if cap64["name"] != testCapNameUnknown {
+		t.Errorf("expected name 'unknown', got %v", cap64["name"])
+	}
+	if _, ok := cap64["raw"]; !ok {
+		t.Error("missing 'raw' field for unknown capability")
+	}
+	// Should NOT have decoded fields
+	if _, ok := cap64["restart-time"]; ok {
+		t.Error("unexpected 'restart-time' field without plugin")
+	}
+}
+
+// TestDecodeOpenRRWithoutPlugin verifies Route Refresh capability shows as unknown without plugin.
+//
+// VALIDATES: RR capability (code 2) returns name="unknown" without --plugin flag.
+// PREVENTS: Leaking decoded RR data without plugin authorization.
+func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
+	// OPEN message with Route Refresh capability (code 2, zero payload)
+	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0104FFFD00B40A00000210020E01040001000141040000FFFD0200"
+
+	// Decode WITHOUT plugin - should show unknown
+	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	if err != nil {
+		t.Fatalf("decode failed: %v", err)
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("invalid JSON output: %v", err)
+	}
+
+	// Ze format: navigate through bgp.open.capabilities
+	bgp, ok := result["bgp"].(map[string]any)
+	if !ok {
+		t.Fatal("missing bgp section")
+	}
+	openSection, ok := bgp["open"].(map[string]any)
+	if !ok {
+		t.Fatal("missing open section")
+	}
+	caps, ok := openSection["capabilities"].([]any)
+	if !ok {
+		t.Fatal("missing capabilities array")
+	}
+
+	// Find capability with code 2 (Route Refresh)
+	var cap2 map[string]any
+	for _, c := range caps {
+		capMap, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		if code, ok := capMap["code"].(float64); ok && int(code) == 2 {
+			cap2 = capMap
+			break
+		}
+	}
+
+	if cap2 == nil {
+		t.Fatal("missing capability with code 2")
+	}
+
+	if cap2["name"] != testCapNameUnknown {
+		t.Errorf("expected name 'unknown', got %v", cap2["name"])
+	}
+	if _, ok := cap2["raw"]; !ok {
+		t.Error("missing 'raw' field for unknown capability")
+	}
+}
+
 // TestDecodeUpdate verifies UPDATE message decoding produces Ze JSON format (ze-bgp JSON).
 //
 // VALIDATES: UPDATE message hex decodes to Ze JSON with correct fields.

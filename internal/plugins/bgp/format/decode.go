@@ -113,12 +113,8 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
 	case *capability.ASN4:
 		return []DecodedCapability{{Code: code, Name: "asn4", Value: fmt.Sprintf("%d", c.ASN)}}
-	case *capability.RouteRefresh:
-		return []DecodedCapability{{Code: code, Name: "route-refresh"}}
 	case *capability.ExtendedMessage:
 		return []DecodedCapability{{Code: code, Name: "extended-message"}}
-	case *capability.EnhancedRouteRefresh:
-		return []DecodedCapability{{Code: code, Name: "enhanced-route-refresh"}}
 	case *capability.AddPath:
 		// Return one entry per family
 		var results []DecodedCapability
@@ -141,8 +137,6 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			})
 		}
 		return results
-	case *capability.GracefulRestart:
-		return []DecodedCapability{{Code: code, Name: "graceful-restart", Value: fmt.Sprintf("%d", c.RestartTime)}}
 	case *capability.ExtendedNextHop:
 		// Return one entry per family
 		var results []DecodedCapability
@@ -154,13 +148,7 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			})
 		}
 		return results
-	case *capability.FQDN:
-		if c.DomainName != "" {
-			return []DecodedCapability{{Code: code, Name: "fqdn", Value: fmt.Sprintf("%s.%s", c.Hostname, c.DomainName)}}
-		}
-		return []DecodedCapability{{Code: code, Name: "fqdn", Value: c.Hostname}}
-	default:
-		// Unknown capability: use "unknown-<code>" as name, hex data as value
+	default: // Unknown or plugin-decoded capability
 		buf := make([]byte, cap.Len())
 		cap.WriteTo(buf, 0)
 		return []DecodedCapability{{Code: code, Name: fmt.Sprintf("unknown-%d", code), Value: fmt.Sprintf("%x", buf)}}

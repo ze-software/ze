@@ -8,7 +8,7 @@ import (
 )
 
 // TestAllPluginsRegistered verifies that importing the all package
-// registers all 16 expected internal plugins.
+// registers all 17 expected internal plugins.
 //
 // VALIDATES: Every internal plugin registers via init().
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
@@ -24,6 +24,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-mup",
 		"bgp-mvpn",
 		"bgp-rib",
+		"bgp-route-refresh",
 		"bgp-rr",
 		"bgp-rtc",
 		"bgp-softver",
@@ -115,6 +116,9 @@ func TestFamilyMappings(t *testing.T) {
 func TestCapabilityMappings(t *testing.T) {
 	cm := registry.CapabilityMap()
 
+	if cm[64] != "bgp-gr" {
+		t.Errorf("CapabilityMap[64] = %q, want bgp-gr", cm[64])
+	}
 	if cm[73] != "bgp-hostname" {
 		t.Errorf("CapabilityMap[73] = %q, want bgp-hostname", cm[73])
 	}
@@ -126,5 +130,11 @@ func TestCapabilityMappings(t *testing.T) {
 	}
 	if cm[9] != "role" {
 		t.Errorf("CapabilityMap[9] = %q, want role", cm[9])
+	}
+	if cm[2] != "bgp-route-refresh" {
+		t.Errorf("CapabilityMap[2] = %q, want bgp-route-refresh", cm[2])
+	}
+	if cm[70] != "bgp-route-refresh" {
+		t.Errorf("CapabilityMap[70] = %q, want bgp-route-refresh", cm[70])
 	}
 }

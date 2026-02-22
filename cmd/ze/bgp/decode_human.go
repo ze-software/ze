@@ -89,11 +89,6 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 			}
 			sb.WriteString(strings.Join(fams, ", "))
 		}
-	} else if name == "graceful-restart" {
-		// Ze format uses "restart-time"
-		if rt, ok := cap["restart-time"]; ok {
-			fmt.Fprintf(sb, "%v seconds", formatNumber(rt))
-		}
 	} else {
 		// Plugin-decoded capabilities may use custom keys (e.g., "version" for software-version).
 		// Display any string value that isn't "code" or "name".

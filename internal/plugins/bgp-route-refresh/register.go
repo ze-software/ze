@@ -1,27 +1,27 @@
-package bgp_gr
+package bgp_route_refresh
 
 import (
 	"bytes"
-	"fmt"
+	"log/slog"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	grschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-gr/schema"
+	rrschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-route-refresh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 func init() {
 	reg := registry.Registration{
-		Name:            "bgp-gr",
-		Description:     "Graceful Restart capability plugin",
-		RFCs:            []string{"4724"},
+		Name:            "bgp-route-refresh",
+		Description:     "Route Refresh capability decoding",
+		RFCs:            []string{"2918", "7313"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
-		YANG:            grschema.ZeGracefulRestartYANG,
-		CapabilityCodes: []uint8{64},
-		RunEngine:       RunGRPlugin,
+		YANG:            rrschema.ZeRouteRefreshYANG,
+		CapabilityCodes: []uint8{2, 70},
+		RunEngine:       RunRouteRefreshPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},
@@ -37,11 +37,11 @@ func init() {
 		}
 		cfg.RunCLIDecode = RunCLIDecode
 		cfg.RunDecode = RunDecodeMode
-		cfg.RunEngine = RunGRPlugin
+		cfg.RunEngine = RunRouteRefreshPlugin
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "gr: registration failed: %v\n", err)
+		slog.Error("route-refresh: registration failed", "error", err)
 		os.Exit(1)
 	}
 }

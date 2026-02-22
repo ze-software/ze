@@ -1,0 +1,21 @@
+module ze-route-refresh {
+    namespace "urn:ze:route-refresh";
+    prefix rr;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description
+        "Route Refresh capability plugin for ZeBGP (RFC 2918, code 2)
+         and Enhanced Route Refresh (RFC 7313, code 70).";
+
+    revision 2026-02-22 {
+        description "Initial revision.";
+    }
+
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        container route-refresh {
+            presence "Route Refresh capability enabled";
+            description "Route Refresh capability (code 2, RFC 2918).";
+        }
+    }
+}

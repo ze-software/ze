@@ -3,6 +3,7 @@ package bgp_gr
 import (
 	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -227,6 +228,113 @@ func TestExtractGRCapabilities_MultiplePeers(t *testing.T) {
 func TestExtractGRCapabilities_InvalidJSON(t *testing.T) {
 	caps := extractGRCapabilities(`not valid json`)
 	assert.Empty(t, caps, "invalid JSON should return no capabilities")
+}
+
+// TestRunDecodeMode verifies IPC protocol decode for GR capability.
+//
+// VALIDATES: RunDecodeMode handles "decode [json|text] capability 64 <hex>" IPC protocol.
+// PREVENTS: Plugin decode protocol returning wrong format or failing on valid input.
+func TestRunDecodeMode(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantContains []string
+		wantPrefix   string
+	}{
+		{
+			name:       "json_restart_time_120",
+			input:      "decode capability 64 0078\n",
+			wantPrefix: "decoded json ",
+			wantContains: []string{
+				`"name":"graceful-restart"`,
+				`"restart-time":120`,
+			},
+		},
+		{
+			name:       "json_explicit_format",
+			input:      "decode json capability 64 0078\n",
+			wantPrefix: "decoded json ",
+			wantContains: []string{
+				`"name":"graceful-restart"`,
+				`"restart-time":120`,
+			},
+		},
+		{
+			name:       "text_format",
+			input:      "decode text capability 64 0078\n",
+			wantPrefix: "decoded text ",
+			wantContains: []string{
+				"graceful-restart",
+				"restart-time=120",
+			},
+		},
+		{
+			name:       "json_with_family",
+			input:      "decode capability 64 007800010180\n",
+			wantPrefix: "decoded json ",
+			wantContains: []string{
+				`"families":[`,
+				`"afi":1`,
+				`"safi":1`,
+				`"forward-state":true`,
+			},
+		},
+		{
+			name:       "json_restart_time_max",
+			input:      "decode capability 64 0fff\n",
+			wantPrefix: "decoded json ",
+			wantContains: []string{
+				`"restart-time":4095`,
+			},
+		},
+		{
+			name:       "json_with_flags_restarting",
+			input:      "decode capability 64 8078\n",
+			wantPrefix: "decoded json ",
+			wantContains: []string{
+				`"restarting":true`,
+				`"restart-time":120`,
+			},
+		},
+		{
+			name:       "wrong_capability_code",
+			input:      "decode capability 99 0078\n",
+			wantPrefix: "decoded unknown",
+		},
+		{
+			name:       "invalid_hex",
+			input:      "decode capability 64 ZZZZ\n",
+			wantPrefix: "decoded unknown",
+		},
+		{
+			name:       "too_short",
+			input:      "decode capability 64 00\n",
+			wantPrefix: "decoded unknown",
+		},
+		{
+			name:       "invalid_command",
+			input:      "something else\n",
+			wantPrefix: "decoded unknown",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := bytes.NewBufferString(tt.input)
+			output := &bytes.Buffer{}
+
+			exitCode := RunDecodeMode(input, output)
+			assert.Equal(t, 0, exitCode, "RunDecodeMode should always return 0")
+
+			line := strings.TrimSpace(output.String())
+			assert.True(t, strings.HasPrefix(line, tt.wantPrefix),
+				"expected prefix %q, got %q", tt.wantPrefix, line)
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, line, want)
+			}
+		})
+	}
 }
 
 // TestRunCLIDecode verifies CLI decode mode for GR capability.

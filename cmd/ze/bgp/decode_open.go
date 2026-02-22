@@ -75,8 +75,6 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 		return map[string]any{"code": code, "name": "multiprotocol", "value": cap.AFI.String() + "/" + cap.SAFI.String()}
 	case *capability.ASN4:
 		return map[string]any{"code": code, "name": "asn4", "value": fmt.Sprintf("%d", cap.ASN)}
-	case *capability.RouteRefresh:
-		return map[string]any{"code": code, "name": "route-refresh"}
 	case *capability.ExtendedMessage:
 		return map[string]any{"code": code, "name": "extended-message"}
 	case *capability.AddPath:
@@ -85,10 +83,8 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 			families[i] = fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
 		}
 		return map[string]any{"code": code, "name": "add-path", "value": families}
-	case *capability.GracefulRestart:
-		return map[string]any{"code": code, "name": "graceful-restart", "restart-time": cap.RestartTime}
 	}
-	// Unknown capability type - try plugin decode or return raw
+	// Unknown or plugin-decoded capability type - try plugin decode or return raw
 	return unknownCapabilityZe(c, plugins)
 }
 

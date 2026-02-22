@@ -9,6 +9,7 @@
 package bgp_gr
 
 import (
+	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -263,4 +264,80 @@ func formatGRText(r *grResult) string {
 // GetYANG returns the embedded YANG schema for the GR plugin.
 func GetYANG() string {
 	return schema.ZeGracefulRestartYANG
+}
+
+// writeOut writes a string to the output writer, discarding errors.
+// Decode mode writes to an in-memory buffer; write failures are not actionable.
+func writeOut(w io.Writer, s string) {
+	if _, err := io.WriteString(w, s); err != nil {
+		logger().Debug("decode write failed", "err", err)
+	}
+}
+
+// RunDecodeMode runs the plugin in decode mode for ze bgp decode.
+// RFC 4724: Graceful Restart capability code 64.
+func RunDecodeMode(input io.Reader, output io.Writer) int {
+	writeUnknown := func() { writeOut(output, "decoded unknown\n") }
+	writeJSON := func(j []byte) { writeOut(output, "decoded json "+string(j)+"\n") }
+	writeText := func(t string) { writeOut(output, "decoded text "+t+"\n") }
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) < 4 || parts[0] != "decode" {
+			writeUnknown()
+			continue
+		}
+
+		format := "json"
+		capIdx := 1
+		if parts[1] == "json" || parts[1] == "text" {
+			format = parts[1]
+			capIdx = 2
+			if len(parts) < 5 {
+				writeUnknown()
+				continue
+			}
+		}
+
+		if parts[capIdx] != "capability" {
+			writeUnknown()
+			continue
+		}
+
+		if parts[capIdx+1] != "64" {
+			writeUnknown()
+			continue
+		}
+
+		hexData := parts[capIdx+2]
+		data, hexErr := hex.DecodeString(hexData)
+		if hexErr != nil {
+			writeUnknown()
+			continue
+		}
+
+		result, decErr := decodeGR(data)
+		if decErr != nil {
+			writeUnknown()
+			continue
+		}
+
+		if format == "text" {
+			writeText(formatGRText(result))
+		} else {
+			jsonBytes, jsonErr := json.Marshal(result)
+			if jsonErr != nil {
+				writeUnknown()
+				continue
+			}
+			writeJSON(jsonBytes)
+		}
+	}
+	return 0
 }

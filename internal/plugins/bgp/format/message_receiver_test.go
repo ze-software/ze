@@ -196,7 +196,7 @@ func TestDecodeOpenWithCapabilities(t *testing.T) {
 	require.Len(t, decoded.Capabilities, 3)
 	// Check structured capabilities
 	require.Equal(t, DecodedCapability{Code: 1, Name: "multiprotocol", Value: "ipv4/unicast"}, decoded.Capabilities[0])
-	require.Equal(t, DecodedCapability{Code: 2, Name: "route-refresh", Value: ""}, decoded.Capabilities[1])
+	require.Equal(t, DecodedCapability{Code: 2, Name: "unknown-2", Value: "0200"}, decoded.Capabilities[1])
 	require.Equal(t, DecodedCapability{Code: 65, Name: "asn4", Value: "65536"}, decoded.Capabilities[2])
 }
 
