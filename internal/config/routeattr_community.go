@@ -321,10 +321,23 @@ func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
 		}, nil
 	}
 
-	// Parse ASN part
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	// Parse ASN part (supports "L" suffix for forced 4-byte encoding)
+	asn, forced4Byte, err := parseExtCommunityASN(asnStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+	}
+
+	// "L" suffix forces Type 2 (4-byte ASN, 2-byte number)
+	if forced4Byte {
+		num, err := strconv.ParseUint(valStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extended-community number %q (4-byte ASN format max 65535)", valStr)
+		}
+		return []byte{
+			ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
 	}
 
 	// Check if value is an IP address (format: ASN:IP, IP converted to uint32)
@@ -387,9 +400,22 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 		}, nil
 	}
 
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	asn, forced4Byte, err := parseExtCommunityASN(asnStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+	}
+
+	// "L" suffix forces Type 2 (4-byte ASN, 2-byte number)
+	if forced4Byte {
+		num, err := strconv.ParseUint(numStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extended-community number %q (4-byte ASN format max 65535)", numStr)
+		}
+		return []byte{
+			ecTypeTransitive4ByteAS, subtype,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
 	}
 
 	// Check if number part is an IP address (format: ASN:IP -> convert IP to uint32)
@@ -466,7 +492,7 @@ func parseMUPExtCommunity(asnStr, numStr string) ([]byte, error) {
 // parseRouteTargetOrOrigin4 parses target4:ASN:NN or origin4:ASN:NN format.
 // Uses 4-byte representation for ASN, with Type 1 (IPv4) format preferred.
 func parseRouteTargetOrOrigin4(subtype byte, asnStr, numStr string) ([]byte, error) {
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	asn, _, err := parseExtCommunityASN(asnStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
 	}
@@ -559,6 +585,22 @@ func parseFlowSpecRedirect(asnStr, numStr string) ([]byte, error) {
 		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
 		byte(num >> 8), byte(num),
 	}, nil
+}
+
+// parseExtCommunityASN parses an ASN string that may have an "L" suffix forcing 4-byte encoding.
+// Returns the parsed ASN value and whether 4-byte encoding was explicitly requested.
+// The "L" suffix forces Type 2 (4-byte AS, RFC 5668) wire format regardless of ASN value.
+func parseExtCommunityASN(s string) (uint64, bool, error) {
+	forced := false
+	if strings.HasSuffix(s, "L") || strings.HasSuffix(s, "l") {
+		s = s[:len(s)-1]
+		forced = true
+	}
+	asn, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, false, err
+	}
+	return asn, forced, nil
 }
 
 func (ec ExtendedCommunity) String() string {

@@ -1,9 +1,13 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Related: parser_list.go — list and multi-leaf parsing
+// Related: parser_freeform.go — freeform, flex, and inline parsing
+// Related: tree.go — Tree data structure
 
 package config
 
 import (
 	"fmt"
+	"strings"
 )
 
 // KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").
@@ -135,9 +139,39 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 }
 
 // parseContainer parses a container block: `name { ... }`.
+// YANG presence containers also accept: flag `name;`, value `name word;`,
+// and parenthesized `name ( ... );` forms.
 func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) error {
 	tok := p.tok.Peek()
+
+	// YANG presence containers accept flag (;), value (word;), paren (...), and block ({})
+	if node.Presence && tok.Type == TokenSemicolon {
+		// Flag mode: "route-refresh;" → true
+		p.tok.Next()
+		tree.Set(name, configTrue)
+		return nil
+	}
+	if node.Presence && (tok.Type == TokenWord || tok.Type == TokenString) {
+		// Value mode: "route-refresh true;" → store value
+		value := tok.Value
+		p.tok.Next()
+		tok = p.tok.Peek()
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+		tree.Set(name, value)
+		return nil
+	}
+	if node.Presence && tok.Type == TokenLParen {
+		// Parenthesized mode: "bgp-prefix-sid-srv6 ( l3-service 2001:1:: );"
+		return p.parsePresenceParenthesized(tree, name)
+	}
+
 	if tok.Type != TokenLBrace {
+		if node.Presence {
+			return p.errorf(tok, "expected ';', value, or '{' after %s, got %s", name, tok.Type)
+		}
 		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
 	}
 	p.tok.Next()
@@ -203,6 +237,31 @@ func (p *Parser) parseUnknownField(tree *Tree, name string) error {
 	p.tok.Next()
 
 	tree.Set(name, value)
+	return nil
+}
+
+// parsePresenceParenthesized handles parenthesized content for presence containers.
+// Syntax: "name ( content ... );" — collects content and stores as value string.
+func (p *Parser) parsePresenceParenthesized(tree *Tree, name string) error {
+	parenVals, err := p.collectParenthesized()
+	if err != nil {
+		return err
+	}
+	var value strings.Builder
+	for i, v := range parenVals {
+		if i > 0 {
+			value.WriteString(" ")
+		}
+		value.WriteString(v)
+	}
+
+	// Optional semicolon after parenthesized content
+	tok := p.tok.Peek()
+	if tok.Type == TokenSemicolon {
+		p.tok.Next()
+	}
+
+	tree.Set(name, value.String())
 	return nil
 }
 

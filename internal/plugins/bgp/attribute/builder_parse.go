@@ -275,12 +275,19 @@ func parseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
 	} else {
 		// ASN format: try to determine 2-byte vs 4-byte
-		asn, err := strconv.ParseUint(parts[1], 10, 32)
+		// Strip "L" suffix that forces 4-byte encoding (e.g., "120000L")
+		asnStr := parts[1]
+		forced4Byte := false
+		if strings.HasSuffix(asnStr, "L") || strings.HasSuffix(asnStr, "l") {
+			asnStr = asnStr[:len(asnStr)-1]
+			forced4Byte = true
+		}
+		asn, err := strconv.ParseUint(asnStr, 10, 32)
 		if err != nil {
 			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community ASN: %s", parts[1])
 		}
 
-		if asn <= 65535 {
+		if !forced4Byte && asn <= 65535 {
 			// 2-byte ASN format: target:65000:100
 			// Type 0x00 (2-byte AS), 2-byte ASN, 4-byte value
 			val, err := strconv.ParseUint(parts[2], 10, 32)
