@@ -135,11 +135,25 @@ func invokePluginDecodeRequest(pluginName, request string) map[string]any {
 	return nil
 }
 
-// invokePluginDecode spawns a plugin in decode mode and requests capability decoding.
-// Returns decoded JSON map or nil if decoding failed.
+// invokePluginDecode decodes a capability via plugin.
+// Tries subprocess first, falls back to in-process (matching NLRI pattern).
 func invokePluginDecode(pluginName string, code uint8, hexData string) map[string]any {
 	request := fmt.Sprintf("decode capability %d %s", code, hexData)
-	return invokePluginDecodeRequest(pluginName, request)
+
+	// Try subprocess first.
+	result := invokePluginDecodeRequest(pluginName, request)
+	if result != nil {
+		return result
+	}
+
+	// Fallback: in-process decode (for tests or when subprocess unavailable).
+	if inResult := invokePluginInProcess(pluginName, request); inResult != nil {
+		if mapResult, ok := inResult.(map[string]any); ok {
+			return mapResult
+		}
+	}
+
+	return nil
 }
 
 // invokePluginNLRIDecode invokes a plugin to decode NLRI.

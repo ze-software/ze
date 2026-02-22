@@ -27,7 +27,6 @@ func TestCapabilityCodeConstants(t *testing.T) {
 		{CodeASN4, 65, "4-Byte AS"},
 		{CodeAddPath, 69, "ADD-PATH"},
 		{CodeFQDN, 73, "FQDN"},
-		{CodeSoftwareVersion, 75, "Software Version"},
 	}
 
 	for _, tt := range tests {
@@ -242,7 +241,6 @@ func TestCapabilityRoundTrip(t *testing.T) {
 			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
 		}}},
 		{"FQDN", &FQDN{Hostname: "router1", DomainName: "example.com"}},
-		{"SoftwareVersion", &SoftwareVersion{Version: "ZeBGP/0.1.0"}},
 	}
 
 	for _, tt := range tests {
@@ -372,45 +370,6 @@ func TestFQDNEmpty(t *testing.T) {
 	assert.Equal(t, "", fqdn.DomainName)
 }
 
-// TestSoftwareVersionCapability verifies Software Version parsing.
-//
-// VALIDATES: Software version capability for debugging.
-//
-// PREVENTS: Missing version info in troubleshooting.
-func TestSoftwareVersionCapability(t *testing.T) {
-	data := []byte{
-		0x4b,                                                  // Code = Software Version (75)
-		0x0c,                                                  // Length = 12
-		0x0b,                                                  // Version length = 11
-		'Z', 'e', 'B', 'G', 'P', '/', '0', '.', '1', '.', '0', // Version
-	}
-
-	caps, err := Parse(data)
-	require.NoError(t, err)
-	require.Len(t, caps, 1)
-
-	sv, ok := caps[0].(*SoftwareVersion)
-	require.True(t, ok)
-	assert.Equal(t, "ZeBGP/0.1.0", sv.Version)
-}
-
-// TestSoftwareVersionRoundTrip verifies Software Version pack/parse.
-func TestSoftwareVersionRoundTrip(t *testing.T) {
-	original := &SoftwareVersion{
-		Version: "ExaBGP/5.0.0-pre1",
-	}
-
-	packed := make([]byte, original.Len())
-	original.WriteTo(packed, 0)
-	parsed, err := Parse(packed)
-	require.NoError(t, err)
-	require.Len(t, parsed, 1)
-
-	sv, ok := parsed[0].(*SoftwareVersion)
-	require.True(t, ok)
-	assert.Equal(t, original.Version, sv.Version)
-}
-
 // TestCapabilityWriteTo verifies WriteTo produces correct parseable TLV bytes
 // for all 12 capability types (11 standard + Plugin).
 //
@@ -442,8 +401,6 @@ func TestCapabilityWriteTo(t *testing.T) {
 		}},
 		&FQDN{Hostname: "router1", DomainName: "example.com"},
 		&FQDN{Hostname: "", DomainName: ""},
-		&SoftwareVersion{Version: "ze-1.0"},
-		&SoftwareVersion{Version: ""},
 		NewPlugin(99, []byte{0xDE, 0xAD}),
 	}
 

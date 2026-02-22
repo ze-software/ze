@@ -64,7 +64,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	// Build capabilities in RFC-expected order:
 	// 1. Multiprotocol (from config OR plugin decode families - not both)
 	// 2. ASN4
-	// 3. Other capabilities (FQDN, SoftwareVersion, etc.)
+	// 3. Other capabilities (extended-message, route-refresh, etc.)
 	// 4. Plugin-declared capabilities
 	var caps []capability.Capability
 	var otherCaps []capability.Capability

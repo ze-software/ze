@@ -1,0 +1,31 @@
+module ze-softver {
+    namespace "urn:ze:softver";
+    prefix softver;
+
+    import ze-bgp-conf { prefix bgp; }
+
+    description
+        "Software Version capability plugin for ZeBGP (draft-ietf-idr-software-version, code 75).
+         Advertises the software version of the BGP speaker.";
+
+    revision 2026-02-22 {
+        description "Initial revision.";
+    }
+
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        container software-version {
+            presence "Software Version capability enabled";
+            description "Software Version capability (code 75).";
+            leaf mode {
+                type enumeration {
+                    enum enable { description "Advertise capability (default)."; }
+                    enum disable { description "Do not advertise capability."; }
+                    enum require { description "Advertise and require peer support."; }
+                    enum refuse { description "Do not advertise, reject if peer has it."; }
+                }
+                default "enable";
+                description "Capability negotiation mode.";
+            }
+        }
+    }
+}

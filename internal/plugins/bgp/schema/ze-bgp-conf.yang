@@ -211,10 +211,6 @@ module ze-bgp-conf {
                 leaf mode { type string; description "enable, disable, require, refuse"; }
             }
 
-            container software-version {
-                presence "Software Version capability enabled";
-                description "Software Version capability";
-            }
         }
 
         // Additional peer settings

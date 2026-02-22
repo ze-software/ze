@@ -94,6 +94,18 @@ func formatCapabilityHuman(sb *strings.Builder, cap map[string]any) {
 		if rt, ok := cap["restart-time"]; ok {
 			fmt.Fprintf(sb, "%v seconds", formatNumber(rt))
 		}
+	} else {
+		// Plugin-decoded capabilities may use custom keys (e.g., "version" for software-version).
+		// Display any string value that isn't "code" or "name".
+		for k, v := range cap {
+			if k == "code" || k == "name" || k == "raw" {
+				continue
+			}
+			if s, ok := v.(string); ok {
+				sb.WriteString(s)
+				break
+			}
+		}
 	}
 
 	// Unknown capabilities (name starts with "code=") show raw hex data

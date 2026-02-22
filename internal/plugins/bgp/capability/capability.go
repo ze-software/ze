@@ -53,7 +53,6 @@ const (
 	CodeAddPath              Code = 69 // RFC 7911 Section 4
 	CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1
 	CodeFQDN                 Code = 73 // RFC 8516
-	CodeSoftwareVersion      Code = 75 // draft-ietf-idr-software-version
 )
 
 // String returns human-readable capability code name.
@@ -79,8 +78,6 @@ func (c Code) String() string {
 		return "Enhanced Route Refresh(70)"
 	case CodeFQDN:
 		return "FQDN(73)"
-	case CodeSoftwareVersion:
-		return "Software Version(75)"
 	default:
 		return fmt.Sprintf("Unknown(%d)", c)
 	}
@@ -212,8 +209,6 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return parseGracefulRestart(data)
 	case CodeFQDN:
 		return parseFQDN(data)
-	case CodeSoftwareVersion:
-		return parseSoftwareVersion(data)
 	default: // RFC 5492 Section 3: Unrecognized capabilities MUST be ignored.
 		// We preserve raw data for debugging/logging purposes.
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
@@ -697,55 +692,6 @@ func parseFQDN(data []byte) (*FQDN, error) {
 	return &FQDN{
 		Hostname:   hostname,
 		DomainName: domainName,
-	}, nil
-}
-
-// SoftwareVersion represents Software Version capability.
-//
-// draft-ietf-idr-software-version: Capability Code 75, variable length.
-// This capability advertises the software version of the BGP implementation.
-//
-// Format: Version Length (1) + Version String (variable).
-type SoftwareVersion struct {
-	Version string
-}
-
-func (s *SoftwareVersion) Code() Code { return CodeSoftwareVersion }
-
-func (s *SoftwareVersion) Len() int { return 2 + 1 + min(len(s.Version), 255) }
-
-func (s *SoftwareVersion) WriteTo(buf []byte, off int) int {
-	verLen := min(len(s.Version), 255)
-	dataLen := 1 + verLen
-	writeCapabilityTo(buf, off, CodeSoftwareVersion, dataLen)
-	buf[off+2] = byte(verLen)
-	copy(buf[off+3:], s.Version[:verLen])
-	return 2 + dataLen
-}
-
-// ConfigValues implements ConfigProvider for plugin config delivery.
-func (s *SoftwareVersion) ConfigValues() map[string]string {
-	if s.Version == "" {
-		return nil
-	}
-	return map[string]string{"draft-ietf-idr-software-version:version": s.Version}
-}
-
-// parseSoftwareVersion parses a Software Version capability.
-//
-// draft-ietf-idr-software-version: Minimum length is 1 byte (length field).
-func parseSoftwareVersion(data []byte) (*SoftwareVersion, error) {
-	if len(data) < 1 {
-		return nil, ErrShortRead
-	}
-
-	verLen := int(data[0])
-	if len(data) < 1+verLen {
-		return nil, ErrShortRead
-	}
-
-	return &SoftwareVersion{
-		Version: string(data[1 : 1+verLen]),
 	}, nil
 }
 

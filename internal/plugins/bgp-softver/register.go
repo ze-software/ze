@@ -1,4 +1,4 @@
-package bgp_hostname
+package bgp_softver
 
 import (
 	"bytes"
@@ -7,21 +7,21 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	hostnameschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-hostname/schema"
+	softverschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-softver/schema"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 func init() {
 	reg := registry.Registration{
-		Name:            "bgp-hostname",
-		Description:     "FQDN capability decoding",
-		RFCs:            []string{"5765"},
+		Name:            "bgp-softver",
+		Description:     "Software Version capability (code 75)",
+		RFCs:            []string{"draft-ietf-idr-software-version"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
-		YANG:            hostnameschema.ZeHostnameYANG,
-		CapabilityCodes: []uint8{73},
-		RunEngine:       RunHostnamePlugin,
+		YANG:            softverschema.ZeSoftverYANG,
+		CapabilityCodes: []uint8{75},
+		RunEngine:       RunSoftverPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},
@@ -40,7 +40,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "hostname: registration failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "softver: registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }

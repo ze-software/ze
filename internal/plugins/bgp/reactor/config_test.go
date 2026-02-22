@@ -239,7 +239,7 @@ func TestParsePeerFamilyInvalid(t *testing.T) {
 
 // TestParsePeerCapabilities verifies capability parsing from config tree.
 //
-// VALIDATES: Capabilities (ASN4, extended-message, route-refresh, software-version) are
+// VALIDATES: Capabilities (ASN4, extended-message, route-refresh) are
 // correctly parsed into capability objects on PeerSettings.
 // PREVENTS: Missing or misconfigured capabilities after config parsing.
 func TestParsePeerCapabilities(t *testing.T) {
@@ -253,7 +253,6 @@ func TestParsePeerCapabilities(t *testing.T) {
 			"asn4":             "true",
 			"extended-message": "true",
 			"route-refresh":    "enable",
-			"software-version": "enable",
 		},
 	}
 
@@ -263,7 +262,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 	assert.False(t, ps.DisableASN4)
 
 	// Count capability types.
-	var hasExtMsg, hasRR, hasERR, hasSV bool
+	var hasExtMsg, hasRR, hasERR bool
 	for _, c := range ps.Capabilities {
 		switch c.(type) {
 		case *capability.ExtendedMessage:
@@ -272,14 +271,11 @@ func TestParsePeerCapabilities(t *testing.T) {
 			hasRR = true
 		case *capability.EnhancedRouteRefresh:
 			hasERR = true
-		case *capability.SoftwareVersion:
-			hasSV = true
 		}
 	}
 	assert.True(t, hasExtMsg, "ExtendedMessage capability should be present")
 	assert.True(t, hasRR, "RouteRefresh capability should be present")
 	assert.True(t, hasERR, "EnhancedRouteRefresh capability should be present")
-	assert.True(t, hasSV, "SoftwareVersion capability should be present")
 }
 
 // TestParsePeerCapabilityASN4Disabled verifies ASN4 can be disabled.

@@ -159,8 +159,6 @@ func formatCapability(cap capability.Capability) []DecodedCapability {
 			return []DecodedCapability{{Code: code, Name: "fqdn", Value: fmt.Sprintf("%s.%s", c.Hostname, c.DomainName)}}
 		}
 		return []DecodedCapability{{Code: code, Name: "fqdn", Value: c.Hostname}}
-	case *capability.SoftwareVersion:
-		return []DecodedCapability{{Code: code, Name: "software-version", Value: c.Version}}
 	default:
 		// Unknown capability: use "unknown-<code>" as name, hex data as value
 		buf := make([]byte, cap.Len())

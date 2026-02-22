@@ -350,17 +350,6 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 		applyCapMode(extMsgMode, capability.CodeExtendedMessage, ps)
 	}
 
-	// Software version (opt-in, absent = disabled).
-	if v := flexString(capMap, "software-version"); v != "" {
-		svMode := parseCapMode(v)
-		if svMode.advertise() {
-			ps.Capabilities = append(ps.Capabilities, &capability.SoftwareVersion{
-				Version: "ExaBGP/5.0.0-0+test",
-			})
-		}
-		applyCapMode(svMode, capability.CodeSoftwareVersion, ps)
-	}
-
 	// RFC 2918/7313: Route Refresh (opt-in, absent = disabled).
 	// Enforcement targets basic route-refresh (code 2) only.
 	// Enhanced route-refresh (code 70) is a separate capability not independently configurable.

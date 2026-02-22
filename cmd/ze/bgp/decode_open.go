@@ -87,14 +87,13 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 		return map[string]any{"code": code, "name": "add-path", "value": families}
 	case *capability.GracefulRestart:
 		return map[string]any{"code": code, "name": "graceful-restart", "restart-time": cap.RestartTime}
-	case *capability.SoftwareVersion:
-		return map[string]any{"code": code, "name": "software-version", "value": cap.Version}
 	}
 	// Unknown capability type - try plugin decode or return raw
 	return unknownCapabilityZe(c, plugins)
 }
 
 // unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
+// Requires explicit --plugin flag to enable plugin decode.
 func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]any {
 	code := int(c.Code())
 	raw := make([]byte, c.Len())
@@ -104,7 +103,7 @@ func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]a
 		rawHex = fmt.Sprintf("%X", raw[2:])
 	}
 
-	// Check if a plugin can decode this capability
+	// Plugin decode requires explicit --plugin flag.
 	pluginName, hasPlugin := pluginCapabilityMap[uint8(c.Code())]
 	if hasPlugin && hasPluginEnabled(plugins, pluginName) {
 		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)

@@ -26,8 +26,9 @@ const (
 type DecodingTest struct {
 	BaseTest     // Embeds Name, Nick, Active, Error
 	File         string
-	Type         string // "open", "update"
-	Family       string // e.g., "l2vpn/evpn"
+	Type         string   // "open", "update"
+	Family       string   // e.g., "l2vpn/evpn"
+	Plugins      []string // --plugin flags for capability/NLRI decode
 	HexPayload   string
 	ExpectedJSON string
 	OutputJSON   bool // true if --json flag specified in test
@@ -221,8 +222,14 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 
 	// New format: extract from cmd: line
 	var outputJSON bool
+	var plugins []string
 	if cmdLine != "" && hexPayload == "" {
-		msgType, family, hexPayload, outputJSON = parseDecodeCmdLine(cmdLine, stdinBlocks)
+		cmd := parseDecodeCmdLine(cmdLine, stdinBlocks)
+		msgType = cmd.msgType
+		family = cmd.family
+		hexPayload = cmd.hexPayload
+		outputJSON = cmd.outputJSON
+		plugins = cmd.plugins
 	}
 
 	// Validate required fields
@@ -247,18 +254,26 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		File:         filePath,
 		Type:         msgType,
 		Family:       family,
+		Plugins:      plugins,
 		HexPayload:   hexPayload,
 		ExpectedJSON: expectedJSON,
 		OutputJSON:   outputJSON,
 	}, nil
 }
 
-// parseDecodeCmdLine extracts type, family, hex payload, and json flag from a cmd= line.
-// Format: cmd=foreground:seq=1:exec=ze-test decode [--json] --family <family> -:stdin=payload.
-func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, string, string, bool) {
-	msgType := msgTypeUpdate // Default
-	var family, hexPayload string
-	var outputJSON bool
+// decodeCmdResult holds parsed results from a cmd= line.
+type decodeCmdResult struct {
+	msgType    string
+	family     string
+	hexPayload string
+	outputJSON bool
+	plugins    []string
+}
+
+// parseDecodeCmdLine extracts type, family, hex payload, json flag, and plugins from a cmd= line.
+// Format: cmd=foreground:seq=1:exec=ze-test decode [--json] [--plugin <name>] --open -:stdin=payload.
+func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) decodeCmdResult {
+	result := decodeCmdResult{msgType: msgTypeUpdate}
 
 	// Find exec= part
 	rest := strings.TrimPrefix(cmdLine, "cmd:")
@@ -276,30 +291,35 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 	}
 
 	if execPart == "" {
-		return msgType, family, hexPayload, outputJSON
+		return result
 	}
 
-	// Parse exec command: ze-test decode [--json] [--family <family>] [--open|--update] [--nlri <family>] -
+	// Parse exec command: ze-test decode [--json] [--plugin <name>] [--family <family>] [--open|--update] [--nlri <family>] -
 	args := strings.Fields(execPart)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch arg {
 		case "--json", "-json":
-			outputJSON = true
+			result.outputJSON = true
+		case "--plugin":
+			if i+1 < len(args) {
+				result.plugins = append(result.plugins, args[i+1])
+				i++
+			}
 		case "--family", "-f":
 			if i+1 < len(args) {
-				family = args[i+1]
+				result.family = args[i+1]
 				i++
 			}
 		case "--open":
-			msgType = msgTypeOpen
+			result.msgType = msgTypeOpen
 		case "--update":
-			msgType = msgTypeUpdate
+			result.msgType = msgTypeUpdate
 		case "--nlri":
-			msgType = msgTypeNLRI
+			result.msgType = msgTypeNLRI
 			// --nlri takes family as its value
 			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
-				family = args[i+1]
+				result.family = args[i+1]
 				i++
 			}
 		}
@@ -308,11 +328,11 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 	// Get hex from stdin reference
 	if stdinRef != "" {
 		if hex, ok := stdinBlocks[stdinRef]; ok {
-			hexPayload = hex
+			result.hexPayload = hex
 		}
 	}
 
-	return msgType, family, hexPayload, outputJSON
+	return result
 }
 
 // parseTypeLine parses "update l2vpn/evpn" into type and family.
@@ -402,6 +422,11 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	// Add --json flag if test specifies it
 	if test.OutputJSON {
 		args = append(args, "--json")
+	}
+
+	// Add --plugin flags for capability/NLRI decode
+	for _, p := range test.Plugins {
+		args = append(args, "--plugin", p)
 	}
 
 	switch test.Type {
