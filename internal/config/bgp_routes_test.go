@@ -35,9 +35,71 @@ bgp {
 	require.Contains(t, err.Error(), "med")
 }
 
+// TestNLRIListStorage verifies NLRI is stored as list entries keyed by family,
+// not as freeform container values.
+//
+// VALIDATES: Phase 10 — NLRI uses standard list with key="name", child "content".
+// PREVENTS: Regression to freeform storage.
+func TestNLRIListStorage(t *testing.T) {
+	input := `
+bgp {
+    local-as 65000;
+    peer 192.168.1.1 {
+        peer-as 65001;
+        update {
+            attribute {
+                origin igp;
+                next-hop 10.0.0.1;
+            }
+            nlri {
+                ipv4/unicast add 10.0.0.0/24;
+                ipv4/unicast add 10.0.1.0/24;
+                ipv6/unicast add 2001:db8::/32;
+            }
+        }
+    }
+}
+`
+	p := NewParser(YANGSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peer := bgp.GetList("peer")["192.168.1.1"]
+	require.NotNil(t, peer)
+	updates := peer.GetListOrdered("update")
+	require.Len(t, updates, 1)
+	update := updates[0].Value
+
+	// NLRI must be a list, NOT a freeform container
+	nlriContainer := update.GetContainer("nlri")
+	require.Nil(t, nlriContainer, "nlri must not be stored as container (freeform)")
+
+	nlriEntries := update.GetListOrdered("nlri")
+	require.Len(t, nlriEntries, 3, "expected 3 NLRI list entries")
+
+	// First entry: ipv4/unicast
+	require.Equal(t, "ipv4/unicast", stripListKeySuffix(nlriEntries[0].Key))
+	content0, ok := nlriEntries[0].Value.Get("content")
+	require.True(t, ok)
+	require.Equal(t, "add 10.0.0.0/24", content0)
+
+	// Second entry: ipv4/unicast#1 (duplicate key)
+	require.Equal(t, "ipv4/unicast", stripListKeySuffix(nlriEntries[1].Key))
+	content1, ok := nlriEntries[1].Value.Get("content")
+	require.True(t, ok)
+	require.Equal(t, "add 10.0.1.0/24", content1)
+
+	// Third entry: ipv6/unicast
+	require.Equal(t, "ipv6/unicast", stripListKeySuffix(nlriEntries[2].Key))
+	content2, ok := nlriEntries[2].Value.Get("content")
+	require.True(t, ok)
+	require.Equal(t, "add 2001:db8::/32", content2)
+}
+
 // TestNLRIMandatoryOperation verifies that NLRI lines without an operation keyword are rejected.
-// The NLRI block uses freeform parsing, so validation happens in extractRoutesFromUpdateBlock,
-// not during Parse(). We parse, then extract routes to trigger validation.
+// Validation happens in extractRoutesFromUpdateBlock, not during Parse().
 //
 // VALIDATES: AC-15: missing add/del/eor rejected for all families.
 // PREVENTS: Routes without operation keyword being silently accepted.

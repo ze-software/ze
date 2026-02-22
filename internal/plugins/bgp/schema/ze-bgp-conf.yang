@@ -302,9 +302,10 @@ module ze-bgp-conf {
                 leaf split { type string; description "Prefix splitting"; }
             }
 
-            container nlri {
-                ze:syntax "freeform";
-                description "NLRI by family: ipv4/unicast, ipv6/unicast, etc.";
+            list nlri {
+                key "name";
+                leaf name { type string; description "Address family (e.g., ipv4/unicast)"; }
+                leaf content { type string; description "Operation, qualifiers, and payload"; }
             }
 
             container watchdog {

@@ -1497,18 +1497,18 @@ func TestConvertFlexToUpdate(t *testing.T) {
 				t.Errorf("origin = %q, want %q", origin, "igp")
 			}
 
-			// Check nlri block — stored as "family nlri-parts" key with empty value
-			nlri := update.GetContainer("nlri")
-			if nlri == nil {
+			// Check nlri list entries — key=family, content=nlri-parts
+			nlriEntries := update.GetListOrdered("nlri")
+			if len(nlriEntries) == 0 {
 				t.Fatal("missing nlri block")
 			}
-			wantKey := tt.wantFamily + " " + tt.wantNLRI
-			nlriVal, ok := nlri.Get(wantKey)
-			if !ok {
-				t.Fatalf("missing nlri key %q, got keys: %v", wantKey, nlri.Values())
+			entry := nlriEntries[0]
+			if entry.Key != tt.wantFamily {
+				t.Errorf("nlri family = %q, want %q", entry.Key, tt.wantFamily)
 			}
-			if nlriVal != "" {
-				t.Errorf("nlri value = %q, want empty (freeform key-only format)", nlriVal)
+			content, _ := entry.Value.Get("content")
+			if content != tt.wantNLRI {
+				t.Errorf("nlri content = %q, want %q", content, tt.wantNLRI)
 			}
 		})
 	}

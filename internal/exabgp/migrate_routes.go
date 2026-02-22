@@ -83,10 +83,10 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 
 				update.SetContainer("attribute", attrBlock)
 
-				// Build nlri block
-				nlriBlock := config.NewTree()
-				nlriBlock.Set(family, prefix)
-				update.SetContainer("nlri", nlriBlock)
+				// Build nlri list entry
+				nlriEntry := config.NewTree()
+				nlriEntry.Set("content", prefix)
+				update.AddListEntry("nlri", family, nlriEntry)
 
 				// Add update to dst as list entry
 				dst.AddListEntry("update", "", update)
@@ -224,14 +224,16 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 			}
 		}
 
-		// Build NLRI line: <family> [rd <rd>] <criteria...>
-		var nlriLine strings.Builder
-		nlriLine.WriteString(family)
+		// Build NLRI content: [rd <rd>] <criteria...>
+		var nlriContent strings.Builder
 		if rd != "" {
-			nlriLine.WriteString(" rd " + rd)
+			nlriContent.WriteString("rd " + rd)
 		}
 		for _, c := range nlriCriteria {
-			nlriLine.WriteString(" " + c)
+			if nlriContent.Len() > 0 {
+				nlriContent.WriteString(" ")
+			}
+			nlriContent.WriteString(c)
 		}
 
 		// Build update block.
@@ -252,9 +254,9 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 		}
 		update.SetContainer("attribute", attrBlock)
 
-		nlriBlock := config.NewTree()
-		nlriBlock.Set(nlriLine.String(), "")
-		update.SetContainer("nlri", nlriBlock)
+		nlriEntry := config.NewTree()
+		nlriEntry.Set("content", nlriContent.String())
+		update.AddListEntry("nlri", family, nlriEntry)
 
 		dst.AddListEntry("update", "", update)
 	}
@@ -315,9 +317,9 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 		}
 	}
 
-	nlriBlock := config.NewTree()
-	nlriBlock.Set("l2vpn/vpls "+strings.Join(nlriParts, " "), "")
-	update.SetContainer("nlri", nlriBlock)
+	nlriEntry := config.NewTree()
+	nlriEntry.Set("content", strings.Join(nlriParts, " "))
+	update.AddListEntry("nlri", "l2vpn/vpls", nlriEntry)
 
 	dst.AddListEntry("update", "", update)
 }
@@ -382,9 +384,9 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 		nlriValue = "rd " + rdVal + " " + nlriValue
 	}
 
-	nlriBlock := config.NewTree()
-	nlriBlock.Set(family, nlriValue)
-	update.SetContainer("nlri", nlriBlock)
+	nlriEntry := config.NewTree()
+	nlriEntry.Set("content", nlriValue)
+	update.AddListEntry("nlri", family, nlriEntry)
 
 	// Handle watchdog attribute.
 	// ExaBGP: "route PREFIX ... watchdog NAME withdraw;" stores watchdog=NAME, withdraw=true.
@@ -487,9 +489,9 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 		update.SetContainer("attribute", attrBlock)
 
 		// Build nlri block
-		nlriBlock := config.NewTree()
-		nlriBlock.Set(family+" "+strings.Join(nlriParts, " "), "")
-		update.SetContainer("nlri", nlriBlock)
+		nlriEntry := config.NewTree()
+		nlriEntry.Set("content", strings.Join(nlriParts, " "))
+		update.AddListEntry("nlri", family, nlriEntry)
 
 		dst.AddListEntry("update", "", update)
 	}

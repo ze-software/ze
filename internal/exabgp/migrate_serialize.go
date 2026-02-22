@@ -145,11 +145,27 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// Write nlri block (used in update blocks).
-	if nlri := tree.GetContainer("nlri"); nlri != nil {
+	// Write nlri block (used in update blocks) — stored as list entries.
+	nlriEntries := tree.GetListOrdered("nlri")
+	if len(nlriEntries) > 0 {
 		buf.WriteString(indent)
 		buf.WriteString("nlri {\n")
-		serializeTreeIndent(nlri, buf, indent+"\t", false)
+		for _, entry := range nlriEntries {
+			family := entry.Key
+			// Strip #N duplicate suffix for display
+			if idx := strings.LastIndex(family, "#"); idx > 0 {
+				family = family[:idx]
+			}
+			content, _ := entry.Value.Get("content")
+			buf.WriteString(indent)
+			buf.WriteString("\t")
+			buf.WriteString(family)
+			if content != "" {
+				buf.WriteString(" ")
+				buf.WriteString(content)
+			}
+			buf.WriteString(";\n")
+		}
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
 	}

@@ -132,26 +132,60 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 
 // parseListInlineEntry parses a single inline list entry after the key is consumed.
 // Assigns values positionally to children in YANG definition order until ;.
+// The last child absorbs all remaining tokens (space-joined), supporting variable-length
+// content like NLRI entries: "ipv4/unicast add 10.0.0.0/24;" → content="add 10.0.0.0/24".
+// Bracket content ([ ... ]) is collected and included in the joined string.
 func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, key string) error {
 	entry := NewTree()
 	children := node.Children()
 
+	// Threshold: tokens beyond this index are collected into the last child.
+	// For N children, first N-1 get one token each; last child gets all remaining.
+	lastIdx := len(children) - 1
 	childIdx := 0
+	var lastParts []string
+
 	for {
 		tok := p.tok.Peek()
 		if tok.Type == TokenSemicolon {
 			p.tok.Next()
 			break
 		}
+
+		// Handle bracket content: [ val1 val2 ... ]
+		if tok.Type == TokenLBracket {
+			arrayVals, err := p.collectArray()
+			if err != nil {
+				return err
+			}
+			part := "[ " + strings.Join(arrayVals, " ") + " ]"
+			if childIdx <= lastIdx && lastIdx >= 0 {
+				lastParts = append(lastParts, part)
+				if childIdx < lastIdx {
+					childIdx = lastIdx // Jump to last child collection
+				}
+			}
+			continue
+		}
+
 		if tok.Type == TokenWord || tok.Type == TokenString {
-			if childIdx < len(children) {
+			if childIdx < lastIdx {
+				// Positional assignment for children before the last
 				entry.Set(children[childIdx], tok.Value)
 				childIdx++
+			} else if lastIdx >= 0 {
+				// Collect into last child
+				lastParts = append(lastParts, tok.Value)
 			}
 			p.tok.Next()
 		} else {
 			return p.errorf(tok, "expected value or ';' in %s entry, got %s", name, tok.Type)
 		}
+	}
+
+	// Store collected values in the last child
+	if lastIdx >= 0 && len(lastParts) > 0 {
+		entry.Set(children[lastIdx], strings.Join(lastParts, " "))
 	}
 
 	tree.AddListEntry(name, key, entry)

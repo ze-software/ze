@@ -119,31 +119,23 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 		_, watchdogWithdraw = wdContainer.Get("withdraw")
 	}
 
-	// Parse nlri { } container - freeform content like "ipv4/unicast 1.0.0.0/24 2.0.0.0/24;"
-	nlriContainer := update.GetContainer("nlri")
-	if nlriContainer == nil {
+	// Parse nlri list entries - each has key=family and content=operation+payload
+	nlriEntries := update.GetListOrdered("nlri")
+	if len(nlriEntries) == 0 {
 		return nil, fmt.Errorf("missing nlri block in update")
 	}
 
-	// Parse each family line from the freeform nlri block
-	// Freeform stores content in two ways:
-	// 1. Without brackets: "ipv4/unicast 1.0.0.0/24" as key -> "true"
-	// 2. With brackets: "ipv4/flow" as key -> "packet-length >200&<300 >400&<500" (brackets stripped)
-	// We need to combine key+value to get the full line.
-	for _, key := range nlriContainer.Values() {
-		value, _ := nlriContainer.Get(key)
-		var line string
-		if value == configTrue || value == "" {
-			line = key // Simple case: entire line is the key
-		} else {
-			line = key + " " + value // Bracketed case: combine key and value
+	for _, nlriEntry := range nlriEntries {
+		family := stripListKeySuffix(nlriEntry.Key)
+		content, _ := nlriEntry.Value.Get("content")
+		line := family
+		if content != "" {
+			line = family + " " + content
 		}
-		// Parse the line: first word is family, rest depends on family type
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue
 		}
-		family := parts[0]
 
 		// Handle complex NLRI families specially
 		switch family {
