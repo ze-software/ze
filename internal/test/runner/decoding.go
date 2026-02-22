@@ -369,6 +369,8 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner := NewParallelRunner[*DecodingTest](r.colors)
 	runner.SetQuiet(quiet)
 	runner.SetVerbose(verbose)
+	runner.SetLabel("decode")
+	runner.SetNoHeader(true) // header managed by caller
 
 	// Add tests to runner
 	for _, test := range selected {

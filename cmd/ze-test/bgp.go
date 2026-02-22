@@ -377,6 +377,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		// Normal mode
 		success = r.Run(ctx, opts)
 		r.Display().Summary()
+		r.Display().DebugHints()
 	}
 
 	if !success {

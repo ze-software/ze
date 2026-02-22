@@ -25,13 +25,14 @@ type ParallelTest[T any] struct {
 
 // ParallelRunner executes tests in parallel with progress display.
 type ParallelRunner[T any] struct {
-	tests   []*ParallelTest[T]
-	display *Display
-	colors  *Colors
-	quiet   bool
-	verbose bool
-	label   string         // test suite label for header
-	onFail  func(T, error) // Called for each failed test (for verbose output)
+	tests    []*ParallelTest[T]
+	display  *Display
+	colors   *Colors
+	quiet    bool
+	verbose  bool
+	label    string         // test suite label for header
+	noHeader bool           // if true, don't print header in Run (caller manages it)
+	onFail   func(T, error) // Called for each failed test (for verbose output)
 }
 
 // NewParallelRunner creates a parallel test runner.
@@ -54,6 +55,12 @@ func (r *ParallelRunner[T]) SetVerbose(verbose bool) {
 // SetLabel sets the test suite label for the header.
 func (r *ParallelRunner[T]) SetLabel(label string) {
 	r.label = label
+}
+
+// SetNoHeader prevents Run from printing the section header.
+// Use when the header is managed by the caller.
+func (r *ParallelRunner[T]) SetNoHeader(v bool) {
+	r.noHeader = v
 }
 
 // SetOnFail sets the callback for failed tests.
@@ -94,7 +101,9 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	// Configure display
 	if r.label != "" {
 		r.display.SetLabel(r.label)
-		r.display.Header()
+		if !r.noHeader {
+			r.display.Header()
+		}
 	}
 	r.display.SetParallel(DefaultParallelConcurrent, len(r.tests))
 	r.display.Start()
@@ -174,6 +183,7 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	close(done)
 	r.display.Newline()
 	r.display.Summary()
+	r.display.DebugHints()
 
 	// Call onFail for each failure if verbose and callback set
 	if r.verbose && r.onFail != nil && len(failures) > 0 {

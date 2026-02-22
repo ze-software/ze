@@ -300,12 +300,14 @@ func (r *Report) printDebugCommands(rec *Record) {
 		r.writef("ze bgp decode update %s\n\n", rec.ReceivedRaw[0])
 	}
 
-	// Manual test commands
+	// Rerun commands
 	suite := r.label
 	if suite == "" {
 		suite = "encode"
 	}
-	r.writef("%s\n", c.Gray("# Run test manually:"))
+	r.writef("%s\n", c.Gray("# Run single test:"))
+	r.writef("ze-test bgp %s %s\n\n", suite, rec.Nick)
+	r.writef("%s\n", c.Gray("# Run test manually (server/client):"))
 	r.writef("ze-test bgp %s --server %s\n", suite, rec.Nick)
 	r.writef("ze-test bgp %s --client %s\n", suite, rec.Nick)
 	r.writeln("")

@@ -301,6 +301,8 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner := NewParallelRunner[*ParsingTest](r.colors)
 	runner.SetQuiet(quiet)
 	runner.SetVerbose(verbose)
+	runner.SetLabel("parse")
+	runner.SetNoHeader(true) // header managed by caller
 
 	// Add tests to runner
 	for _, test := range selected {

@@ -423,6 +423,31 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 	d.println("")
 }
 
+// DebugHints prints commands to rerun failed tests individually.
+// Called after Summary when there are failures.
+func (d *Display) DebugHints() {
+	if d.quiet || d.label == "" {
+		return
+	}
+
+	failed := d.tests.FailedRecords()
+	if len(failed) == 0 {
+		return
+	}
+
+	d.println("")
+	d.println(d.colors.Yellow("To run failed tests individually:"))
+	for _, rec := range failed {
+		if d.label == "editor" {
+			d.Printf("  ze-test editor -p %s\n", rec.Name)
+		} else {
+			d.Printf("  ze-test bgp %s %s\n", d.label, rec.Nick)
+		}
+	}
+	d.Printf("\n  %s\n", d.colors.Gray("Add -v for verbose output"))
+	d.println("")
+}
+
 // formatDuration formats a duration for display.
 func formatDuration(d time.Duration) string {
 	if d == 0 {

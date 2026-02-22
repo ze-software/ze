@@ -80,7 +80,12 @@ ze-functional-test: bin/ze bin/ze-test
 	bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
 	bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
 	if [ $$failed -gt 0 ]; then \
-		printf "\033[31m═══ FAIL  %d suite(s) failed: %s\033[0m\n\n" $$failed "$$failed_names"; \
+		printf "\033[31m═══ FAIL  %d suite(s) failed: %s\033[0m\n" $$failed "$$failed_names"; \
+		printf "\n\033[33mTo run failed suites individually:\033[0m\n"; \
+		for suite in $$failed_names; do \
+			printf "  make ze-%s-test\n" "$$suite"; \
+		done; \
+		printf "\n"; \
 		exit 1; \
 	else \
 		printf "\033[32m═══ PASS  all 6 suites\033[0m\n\n"; \
