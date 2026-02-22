@@ -1078,7 +1078,12 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 				colWidthR[fam] = wr
 			}
 		}
-		totalExpectedTarget := grandTarget - pst
+		var totalExpectedTarget int
+		for _, fam := range families {
+			if neg[fam] {
+				totalExpectedTarget += famTotalTarget[fam] - ps.FamilySentTarget[fam]
+			}
+		}
 		if wl := digitCount(max(ps.RoutesSent, ps.RoutesRecv)); wl > totalWidthL {
 			totalWidthL = wl
 		}
@@ -1144,7 +1149,12 @@ func writeFamilyMatrix(w io.Writer, s *DashboardState) {
 			h.write(`</td>`)
 		}
 
-		recvExpectedTotal := grandTarget - peerSentTarget
+		var recvExpectedTotal int
+		for _, fam := range families {
+			if negotiated[fam] {
+				recvExpectedTotal += famTotalTarget[fam] - ps.FamilySentTarget[fam]
+			}
+		}
 		h.writef(`<td class="fm-total fm-cell"><span class="fm-val %s" style="min-width:%dch">%d</span>`,
 			familyCellClass(ps.RoutesSent, peerSentTarget), totalWidthL, ps.RoutesSent)
 		if peerSentTarget > 0 {
