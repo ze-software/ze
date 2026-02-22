@@ -30,6 +30,14 @@ import (
 // When chaos is enabled (chaosCfg.Rate > 0), it also starts the chaos scheduler
 // and wraps each peer in a reconnection loop.
 func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
+	// Save terminal state before launching subprocesses.
+	// After Ctrl+C, a dying subprocess can leave ONLCR disabled,
+	// causing \n to line-feed without carriage-return (staircase output).
+	var savedTermState *term.State
+	if fd := int(os.Stderr.Fd()); term.IsTerminal(fd) {
+		savedTermState, _ = term.GetState(fd)
+	}
+
 	profiles := cfg.profiles
 	n := len(profiles)
 	// Chaos is enabled when rate > 0 OR the web dashboard is active
@@ -246,6 +254,12 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 		if cfg.verbose && ev.Type == peer.EventError {
 			fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | error: %v\n", ev.PeerIndex, ev.Err)
 		}
+	}
+
+	// Restore terminal state saved at startup. After Ctrl+C, a dying
+	// subprocess can leave ONLCR disabled (staircase output).
+	if savedTermState != nil {
+		_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
 	}
 
 	// Close reporter (flush files, clear dashboard).
