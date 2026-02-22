@@ -13,18 +13,15 @@ Rationale: `.claude/rationale/data-flow-tracing.md`
       FSM ↔ Reactor (event types)
       WireUpdate ↔ RIB (attribute refs)
       Caps ↔ PackContext (encoding context)
-[ ] 4. Architectural violations?
-      Bypassed layers? Unintended coupling? Duplicated functionality? Broken zero-copy?
+[ ] 4. Violations? Bypassed layers? Unintended coupling? Duplicated functionality? Broken zero-copy?
 [ ] 5. Integration points exist? Signatures match? Unrelated code needs changes?
 ```
 
 ## Reference Flows
 
-**Wire → RIB:** TCP → message parse → UPDATE (WireUpdate, lazy iterator) → attribute extraction → pool dedup → RIB entry (NLRI → attr refs)
-
-**API → Wire:** command parse → attribute building → WireUpdate → PackContext (negotiated caps) → wire bytes
-
-**Plugin ↔ Engine:** event → JSON encode → write stdin → plugin processes → write stdout command → engine parses → execute
+- **Wire → RIB:** TCP → message parse → UPDATE (WireUpdate, lazy iterator) → attribute extraction → pool dedup → RIB entry (NLRI → attr refs)
+- **API → Wire:** command parse → attribute building → WireUpdate → PackContext → wire bytes
+- **Plugin ↔ Engine:** event → JSON encode → write stdin → plugin processes → write stdout command → engine parses → execute
 
 ## Must Answer Before Approving Spec
 

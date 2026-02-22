@@ -1,9 +1,9 @@
-# Test Deletion Guidelines
+# Test Deletion
 
 Rationale: `.claude/rationale/no-test-deletion.md`
 
-ASK for user approval before deleting any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries).
+ASK user before deleting any test code (`*_test.go`, `.ci`, `Test*`, `t.Run`, assertions, table entries).
 Exception: user already explicitly requested the deletion.
 
-**Legitimate:** Testing removed functionality, duplicating another test, fundamentally wrong test, replacing with better coverage.
-**Not legitimate:** Failing and hard to fix, slow, "annoying", don't understand what it checks.
+**Legitimate:** testing removed functionality, duplicating another test, fundamentally wrong, replacing with better coverage.
+**Not legitimate:** failing and hard to fix, slow, "annoying", don't understand what it checks.

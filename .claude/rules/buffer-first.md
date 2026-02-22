@@ -3,9 +3,7 @@
 **BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.
 Rationale: `.claude/rationale/buffer-first.md`
 
-## Design
-
-Pool buffer = RFC max length = bounded encoding space. Buffer size enforces message limit.
+Pool buffer = RFC max length = bounded encoding space.
 
 | Pool | Size | Purpose |
 |------|------|---------|
@@ -16,9 +14,7 @@ Pool buffer = RFC max length = bounded encoding space. Buffer size enforces mess
 
 ## Pattern: Get → Write → Put
 
-1. Get buffer from pool
-2. Write with `WriteTo(buf, off) int` — advance offset
-3. Return buffer to pool after data consumed
+Get buffer from pool → write with `WriteTo(buf, off) int` → return to pool.
 
 ## Banned in Encoding Code
 
@@ -30,16 +26,16 @@ Pool buffer = RFC max length = bounded encoding space. Buffer size enforces mess
 | `.Bytes()` | `.WriteTo(buf, off)` + `.Len()` |
 | `.Pack()` | `.WriteTo(buf, off)` |
 
-## When make([]byte) IS OK
+## `make([]byte)` IS OK For
 
 Pool `New` func, session buffer creation, cached encoding, result copies to callers, JSON marshaling, tests, IPC framing, config parsing.
 
 ## Before Writing Encoding Code
 
-1. Where does buffer come from? → Pool or caller-provided
-2. Using `append()`? → Use offset writes
-3. Returning `[]byte` from helper? → Refactor to `writeFoo(buf, off) int`
-4. Calling `make([]byte)`? → Get from pool
+1. Buffer from? → Pool or caller-provided
+2. `append()`? → Offset writes
+3. Returning `[]byte` from helper? → `writeFoo(buf, off) int`
+4. `make([]byte)`? → Get from pool
 5. Type has `WriteTo`? → Use it
 
-Enforced by hook `block-encoding-alloc.sh` (exit 2). Audit: `/find-alloc`. Fix: `/fix-alloc file:line`.
+Enforced by `block-encoding-alloc.sh` (exit 2). Audit: `/find-alloc`. Fix: `/fix-alloc file:line`.

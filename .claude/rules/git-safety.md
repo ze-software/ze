@@ -14,7 +14,7 @@ Only commit when user says "commit". Only include task-related files.
 ## Before Any Commit (BLOCKING)
 
 ```
-[ ] 1. Run `make ze-verify` — paste FULL output. If ANY failure: STOP.
+[ ] 1. Run `make ze-verify` — paste FULL output. ANY failure: STOP.
 [ ] 2. Run `git status` + `git diff --stat` — show user what's committed
 [ ] 3. ASK user: "Ready to commit?" — WAIT for explicit yes
 ```
@@ -27,9 +27,8 @@ Never commit with lint issues. Never commit without pasting output.
 
 ## Before Destructive Actions
 
-Save: `git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch`
-Then ASK user.
+Save: `git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch` — then ASK user.
 
 ## Codeberg CLI
 
-Use `tea` for PRs, issues: `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`
+Use `tea` for PRs/issues: `tea pr list`, `tea pr create`, `tea issue list`, `tea issue create`

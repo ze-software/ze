@@ -7,7 +7,7 @@ paths:
 
 Rationale: `.claude/rationale/compatibility.md`
 
-Ze has never been released. No users. No backwards compat code, comments, shims, or fallbacks.
+Ze has never been released. No users. No compat code, comments, shims, or fallbacks.
 If something needs to change, just change it.
 
 ExaBGP compat: external tools only (`ze exabgp plugin`, `ze bgp config migrate`).

@@ -1,8 +1,7 @@
 # Design Document References
 
-Rationale: `.claude/rationale/design-doc-references.md`
-
 **BLOCKING:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.
+Rationale: `.claude/rationale/design-doc-references.md`
 
 ## Format
 
@@ -18,10 +17,10 @@ Topic annotations preferred over section numbers (survive restructuring).
 | Situation | Action |
 |-----------|--------|
 | New file | Add before writing code |
-| Split file | Inherit references from original |
+| Split file | Inherit from original |
 | Touching file without refs | Add for parts you understand |
 | No design doc | `// Design: (none — predates documentation)` |
 
 ## Exempt
 
-`*_test.go`, `*_gen.go`, `register.go` (plugin init), `embed.go`, `doc.go`
+`*_test.go`, `*_gen.go`, `register.go`, `embed.go`, `doc.go`

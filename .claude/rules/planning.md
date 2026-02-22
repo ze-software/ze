@@ -1,78 +1,70 @@
-# Planning Requirements
+# Planning
 
-**BLOCKING:** Complete this process before implementing any non-trivial feature.
+**BLOCKING:** Complete before implementing any non-trivial feature.
 Rationale: `.claude/rationale/planning.md`
 
 ## Spec Selection
 
-One spec at a time. Tracked in `.claude/selected-spec` (filename only).
-Clear after moving to `docs/plan/done/`.
+One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after moving to `docs/plan/done/`.
 
-## Pre-Implementation Checklist
+## Pre-Implementation
 
 ```
 ── RESEARCH ── (read, search, understand — no code)
-   Gate: Can name 3 related files + describe current behavior.
+   Gate: Name 3 related files + describe current behavior.
 
-[ ] 1. Check existing spec: `docs/plan/spec-<task>.md`
-[ ] 2. Read `.claude/INDEX.md` for doc navigation
-[ ] 3. Scan `docs/plan/spec-*.md` for related specs
+[ ] 1. Check existing spec: docs/plan/spec-<task>.md
+[ ] 2. Read .claude/INDEX.md for doc navigation
+[ ] 3. Scan docs/plan/spec-*.md for related specs
 [ ] 4. Match keywords → docs (INDEX.md tables)
 [ ] 5. Read identified architecture docs
-[ ] 6. RFC check: verify `rfc/short/rfcNNNN.md` exists for each RFC; create if missing
-[ ] 7. Read `docs/contributing/rfc-implementation-guide.md` (protocol work)
-[ ] 8. Read ACTUAL source files to modify — document current behavior
-      BLOCKING: cannot write spec without answering "what does existing code do?"
-[ ] 9. Trace data flow (see `rules/data-flow-tracing.md`)
+[ ] 6. RFC check: verify rfc/short/rfcNNNN.md exists; create if missing
+[ ] 7. Read docs/contributing/rfc-implementation-guide.md (protocol work)
+[ ] 8. Read ACTUAL source files — document current behavior
+      BLOCKING: cannot write spec without "what does existing code do?"
+[ ] 9. Trace data flow (rules/data-flow-tracing.md)
 
 ── DESIGN ── (write spec, get approval)
-[ ] 10. Document existing behavior in spec (preserve unless user says change)
+[ ] 10. Document existing behavior (preserve unless user says change)
 [ ] 11. TDD planning — identify tests BEFORE implementation
-[ ] 12. Present plan to user — WAIT for approval
-[ ] 13. Write spec using template: `docs/plan/TEMPLATE.md`
-      Complete Pre-Spec Verification first (below)
-[ ] 14. `git add docs/plan/spec-<task>.md`
+[ ] 12. Present plan — WAIT for approval
+[ ] 13. Write spec using docs/plan/TEMPLATE.md — complete Pre-Spec Verification first
+[ ] 14. git add docs/plan/spec-<task>.md
 
 ── IMPLEMENT ── (TDD cycle)
 [ ] 15. Test fails → implement → test passes. Log mistakes immediately.
 
 ── VERIFY ── (audit, docs, completion)
-[ ] 16. Complete Completion Checklist (below)
+[ ] 16. Complete Completion Checklist
 ```
 
 ## Implementation Plan Format
 
-Present to user BEFORE writing code. Must include:
-- Docs read + key insights
-- Current behavior (source files read, behavior to preserve/change)
-- TDD plan (unit tests, boundary tests, functional tests)
-- Implementation phases
-- Files affected
-- Data flow (entry → transformations → boundaries → integration points)
-- Design decisions + principles check
-- RFC references (protocol code)
+Present BEFORE writing code. Must include: docs read + insights, current behavior (source files, behavior to preserve/change), TDD plan, implementation phases, files affected, data flow, design decisions, RFC references (protocol code).
 
-**WAIT FOR USER APPROVAL** before proceeding.
+**WAIT FOR USER APPROVAL.**
 
 ## Spec Rules
 
 - **Style:** Tables and prose, never code (`rules/spec-no-code.md`)
-- **Editing:** Append-only. Never delete content. Strikethrough + reason for superseded.
+- **Editing:** Append-only. Strikethrough + reason for superseded content.
 - **Deletion allowed:** Moving to done, user requests, typo fixes only.
+- **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively — file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
 
 ## Pre-Spec Verification
 
 ```
-[ ] 1. INDEX.md keyword table checked
-[ ] 2. RFC summaries exist for all referenced RFCs
-[ ] 3. Template format followed exactly (🧪 emoji, tables not prose)
-[ ] 4. Checkboxes use [ ] not [x]
-[ ] 5. No code snippets
-[ ] 6. Files to Modify includes feature code, not only tests
-[ ] 7. Current Behavior section completed
-[ ] 8. Data Flow section completed
-[ ] 9. AC-N table rows with testable assertions
-[ ] 10. Required Reading has → Decision: / → Constraint: checkpoints
+[ ] INDEX.md keyword table checked
+[ ] RFC summaries exist for all referenced RFCs
+[ ] Template format followed (🧪 emoji, tables not prose)
+[ ] Checkboxes use [ ] not [x]
+[ ] No code snippets
+[ ] Files to Modify includes feature code, not only tests
+[ ] Current Behavior section completed
+[ ] Data Flow section completed
+[ ] AC-N table rows with testable assertions
+[ ] Required Reading has → Decision: / → Constraint: checkpoints
+[ ] All research findings captured exhaustively
 ```
 
 ## Completion Checklist
@@ -84,13 +76,11 @@ Present to user BEFORE writing code. Must include:
       Route: subsystem → arch doc, process → rules, knowledge → memory.md
       Check: YANG, CLI, editor, plugin SDK docs if affected
 [ ] 2. Dead code check — search unused functions/types, ASK before removing
-[ ] 3. Implementation Audit (BLOCKING — see rules/implementation-audit.md)
-      Every AC, requirement, test, file must have status + location
-[ ] 4. Critical Review (BLOCKING — see rules/quality.md Self-Critical Review)
-      All 6 checks must pass. Document pass/fail in spec. Failures = fix before continuing.
-[ ] 5. Review Mistake Log — check MEMORY.md for recurrence, promote if seen before
+[ ] 3. Implementation Audit (BLOCKING — rules/implementation-audit.md)
+[ ] 4. Critical Review (BLOCKING — rules/quality.md)
+[ ] 5. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 6. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 7. Move spec: docs/plan/done/NNN-<name>.md (number at move time)
+[ ] 7. Move spec: docs/plan/done/NNN-<name>.md
 [ ] 8. Verify: git status + git diff, no unintended changes
 [ ] 9. Commit (when user approves) — ALL files in ONE commit
 ```

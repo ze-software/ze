@@ -1,7 +1,6 @@
 # Architecture Summary
 
 Rationale: `.claude/rationale/architecture-summary.md`
-
 Full details: `docs/architecture/core-design.md`
 
 ## System

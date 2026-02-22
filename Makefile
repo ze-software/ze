@@ -1,7 +1,7 @@
 .PHONY: all build ze chaos test clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
-.PHONY: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test chaos-test chaos-verify
+.PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: test-all check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -149,38 +149,38 @@ ze-ci: ze-lint ze-unit-test build
 # ─── Chaos tests ─────────────────────────────────────────────────────────────
 
 # Run chaos linter
-chaos-lint:
+ze-chaos-lint:
 	@echo "Running chaos linter..."
 	@golangci-lint run $(CHAOS_PACKAGES)
 
 # Run chaos unit tests with race detector
-chaos-unit-test:
+ze-chaos-unit-test:
 	@echo "Running chaos unit tests..."
 	go test -race $(CHAOS_PACKAGES)
 
 # Chaos functional testing: in-process BGP chaos simulation with virtual clock.
 # Seed is random by default (printed for reproduction). Override:
-#   make chaos-functional-test CHAOS_SEED=12345 CHAOS_DURATION=60s CHAOS_PEERS=8
+#   make ze-chaos-functional-test CHAOS_SEED=12345 CHAOS_DURATION=60s CHAOS_PEERS=8
 CHAOS_SEED     ?= 0
 CHAOS_DURATION ?= 30s
 CHAOS_PEERS    ?= 4
 CHAOS_ROUTES   ?= 10
 
-chaos-functional-test: bin/ze-chaos
+ze-chaos-functional-test: bin/ze-chaos
 	@bin/ze-chaos --in-process --duration $(CHAOS_DURATION) \
 		--peers $(CHAOS_PEERS) --routes $(CHAOS_ROUTES) \
 		--seed $(CHAOS_SEED) --quiet
 
 # Chaos web dashboard tests: HTTP endpoint checks against --in-process --web.
-chaos-web-test: bin/ze-test
+ze-chaos-web-test: bin/ze-test
 	@bin/ze-test bgp chaos-web --all
 
 # Run all chaos tests
-chaos-test: chaos-unit-test chaos-functional-test chaos-web-test
+ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "All chaos tests passed"
 
 # Chaos verification
-chaos-verify: chaos-lint chaos-unit-test chaos-functional-test chaos-web-test
+ze-chaos-verify: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "Chaos verification passed"
 
 # ─── Aggregates ──────────────────────────────────────────────────────────────
@@ -247,12 +247,12 @@ help:
 	@echo "  ze-ci                 - ze-lint + ze-unit-test + build"
 	@echo ""
 	@echo "  Chaos tests:"
-	@echo "  chaos-lint            - Run linter on chaos packages"
-	@echo "  chaos-unit-test       - Run chaos unit tests with race detector"
-	@echo "  chaos-functional-test - Run in-process chaos simulation"
-	@echo "  chaos-web-test        - Run chaos web dashboard HTTP tests"
-	@echo "  chaos-test            - All chaos tests (unit + functional + web)"
-	@echo "  chaos-verify          - chaos-lint + chaos-unit-test + chaos-functional-test"
+	@echo "  ze-chaos-lint            - Run linter on chaos packages"
+	@echo "  ze-chaos-unit-test       - Run chaos unit tests with race detector"
+	@echo "  ze-chaos-functional-test - Run in-process chaos simulation"
+	@echo "  ze-chaos-web-test        - Run chaos web dashboard HTTP tests"
+	@echo "  ze-chaos-test            - All chaos tests (unit + functional + web)"
+	@echo "  ze-chaos-verify          - ze-chaos-lint + all chaos tests"
 	@echo ""
 	@echo "  Aggregates:"
 	@echo "  test-all              - ze-lint + ze-test (before commits)"

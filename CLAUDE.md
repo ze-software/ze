@@ -49,11 +49,11 @@ Spec template: `docs/plan/TEMPLATE.md`.
 | Category | Rules |
 |----------|-------|
 | **Session** | `session-start.md`, `post-compaction.md`, `before-writing-code.md` |
-| **Code Quality** | `tdd.md`, `go-standards.md`, `quality.md`, `design-principles.md`, `anti-rationalization.md`, `goroutine-lifecycle.md` |
+| **Code Quality** | `tdd.md`, `go-standards.md`, `quality.md`, `design-principles.md`, `anti-rationalization.md`, `goroutine-lifecycle.md`, `file-modularity.md` |
 | **BGP Protocol** | `rfc-compliance.md`, `buffer-first.md`, `json-format.md`, `architecture-summary.md` |
 | **Planning** | `planning.md`, `spec-no-code.md`, `spec-preservation.md`, `implementation-audit.md`, `integration-completeness.md`, `data-flow-tracing.md` |
 | **Infrastructure** | `plugin-design.md`, `cli-patterns.md`, `config-design.md`, `naming.md` |
-| **Process** | `git-safety.md`, `no-layering.md`, `compatibility.md`, `no-test-deletion.md`, `testing.md`, `documentation.md`, `design-doc-references.md`, `hook-errors.md`, `memory.md` |
+| **Process** | `git-safety.md`, `no-layering.md`, `compatibility.md`, `no-test-deletion.md`, `testing.md`, `documentation.md`, `design-doc-references.md`, `related-refs.md`, `hook-errors.md`, `memory.md` |
 
 ## Commands
 
@@ -66,6 +66,6 @@ make ze-ci                 # lint + unit + build
 make ze-fuzz-test          # Fuzz tests (10s per target)
 make ze-exabgp-test        # ExaBGP compatibility
 make ze-test               # All ze tests
-make chaos-test            # Chaos unit + functional
+make ze-chaos-test         # Chaos unit + functional
 make test-all              # lint + all ze tests
 ```

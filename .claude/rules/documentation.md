@@ -5,11 +5,11 @@ paths:
   - ".claude/**/*"
 ---
 
-# Documentation Standards
+# Documentation
 
 Rationale: `.claude/rationale/documentation.md`
 
-## File Naming
+## Naming
 
 | Type | Convention | Example |
 |------|------------|---------|
@@ -34,7 +34,7 @@ Rationale: `.claude/rationale/documentation.md`
 
 ## Single Source of Truth
 
-Never duplicate content. Pick one canonical location, others reference by path.
+Never duplicate content. One canonical location, others reference by path.
 
 | Content | Canonical Location |
 |---------|-------------------|
@@ -43,6 +43,6 @@ Never duplicate content. Pick one canonical location, others reference by path.
 | Rule content | `.claude/rules/<name>.md` |
 | RFC keyword mapping | `.claude/INDEX.md` |
 
-## File Size
+## Size Limits
 
 Reference docs < 15 KB, plans < 10 KB, READMEs < 3 KB. Compress, don't split.

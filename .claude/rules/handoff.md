@@ -1,17 +1,17 @@
 # Session Handoff
 
-Rationale: New sessions waste tokens re-reading and re-analyzing. Give exact edits instead.
+Rationale: New sessions waste tokens re-reading. Give exact edits instead.
 
 ## When User Asks How to Continue
 
 **BLOCKING:** Output **exact edits**, not design explanations.
 
-| Include | Don't Include |
-|---------|---------------|
-| File path + line range for each edit | Architecture explanations |
+| Include | Exclude |
+|---------|---------|
+| File path + line range per edit | Architecture explanations |
 | OLD text → NEW text (copy-pasteable) | Design decisions already made |
 | "Don't re-read these files" list | File summaries |
-| Final verification command | Research the new session can skip |
+| Final verification command | Redundant research |
 
 ## Template
 
@@ -31,6 +31,6 @@ THEN: [test command with timeout]
 
 ## Rules
 
-- Max 5 remaining edits per handoff. If more, split into phases.
-- Each edit must be self-contained (no "update similarly" — spell it out).
-- Include line numbers from current file state, not original.
+- Max 5 remaining edits per handoff — split into phases if more
+- Each edit self-contained — no "update similarly", spell it out
+- Line numbers from current file state, not original

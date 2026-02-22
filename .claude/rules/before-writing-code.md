@@ -1,24 +1,15 @@
 # Before Writing Code
 
+**BLOCKING:** Complete before writing any code, tests, or documentation.
 Rationale: `.claude/rationale/before-writing-code.md`
 
-**BLOCKING:** Complete before writing any code, tests, or documentation.
-
 ```
-[ ] 1. Search for existing implementations (Grep/Glob) — use/extend if found
-[ ] 2. Know source files to modify — use digests if available, read + write digest if not
-[ ] 3. Verify file paths — Glob/Grep to confirm target exists
+[ ] 1. Search for existing implementations (Grep/Glob) — extend if found
+[ ] 2. Know source files — use digests if available, read + write digest if not
+[ ] 3. Verify file paths exist (Glob/Grep)
 [ ] 4. Buffer-first check (wire encoding) — WriteTo(buf, off), not Pack()/make([]byte)
 ```
 
-## Before Any Spec
+Before any spec: READ source files, document current behavior, preserve by default.
 
-1. READ actual source files to modify (not docs)
-2. Document current behavior
-3. Preserve behavior by default
-
-## Red Flags
-
-- Creating new file without checking for similar existing files
-- Writing function that might duplicate existing functionality
-- Can't name 3 existing files your code relates to
+**Red flags:** new file without checking for similar existing ones; function that might duplicate existing; can't name 3 related files.

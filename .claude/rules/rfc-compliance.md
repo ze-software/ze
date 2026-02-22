@@ -14,25 +14,21 @@ Rationale: `.claude/rationale/rfc-compliance.md`
 2. Read relevant sections, note MUST/SHOULD/MAY
 3. Check ExaBGP reference
 
-## Priority: RFC > ExaBGP API compat > ExaBGP implementation
+**Priority:** RFC > ExaBGP API compat > ExaBGP implementation
 
 ## Wire Format Documentation (MANDATORY)
 
-Never modify protocol code without documenting wire format in code comments:
-- ASCII diagram with field offsets
-- Byte offset annotations
-- RFC section reference
+Never modify protocol code without documenting wire format: ASCII diagram with field offsets, byte offset annotations, RFC section reference.
 
 ## RFC MUST Comments (BLOCKING)
 
 Every MUST/MUST NOT enforced in code needs a comment directly above:
-
 ```
 // RFC NNNN Section X.Y: "quoted requirement"
 <enforcing code>
 ```
 
-MUST document: validation rules, error conditions, state transitions, timer constraints, message ordering.
+Document: validation rules, error conditions, state transitions, timer constraints, message ordering.
 
 ## MAY Clauses
 

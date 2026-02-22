@@ -1,4 +1,4 @@
-# Naming Convention
+# Naming
 
 Rationale: `.claude/rationale/naming.md`
 
@@ -10,4 +10,4 @@ Rationale: `.claude/rationale/naming.md`
 | BGP config YANG | `ze-bgp-conf` |
 | BGP JSON format | `ze-bgp` |
 | Go variables | `ZeBGPConf*` |
-| YANG: config `-conf`, API `-api` |
+| YANG suffixes | config `-conf`, API `-api` |

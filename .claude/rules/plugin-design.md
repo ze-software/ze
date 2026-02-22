@@ -1,4 +1,4 @@
-# Plugin Design Patterns
+# Plugin Design
 
 **BLOCKING:** All plugins MUST follow these patterns.
 Rationale: `.claude/rationale/plugin-design.md`
@@ -9,16 +9,16 @@ Rationale: `.claude/rationale/plugin-design.md`
 |-------|----------|---------|
 | Registry | `internal/plugin/registry/` | Central registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
-| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC type definitions + `MuxConn` for concurrent RPCs |
+| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn` for concurrent RPCs |
 | Internal | `internal/plugins/<name>/` | Plugin implementations + `register.go` |
 | All imports | `internal/plugin/all/` | Blank imports triggering all `init()` |
 | CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
 
 ## Import Rules (BLOCKING)
 
-Infrastructure code MUST NOT import plugin implementations directly. Use registry lookups.
+Infrastructure MUST NOT import plugin implementations directly — use registry lookups.
 
-- `internal/plugin/`, `internal/plugins/bgp/`, `internal/config/`, `cmd/ze/` → must use registry
+- `internal/plugin/`, `internal/plugins/bgp/`, `internal/config/`, `cmd/ze/` → registry
 - NLRI decoding: `registry.NLRIDecoder(family)` → `func(hex) (json, error)`
 - NLRI encoding: `registry.NLRIEncoder(family)` → `func(args) (hex, error)`
 - Plugin `register.go` and `all/all.go` blank imports: allowed
@@ -27,18 +27,15 @@ Infrastructure code MUST NOT import plugin implementations directly. Use registr
 
 ## 5-Stage Protocol
 
-```
-Stage 1: Declaration    → Plugin sends: ze-plugin-engine:declare-registration (Socket A)
-Stage 2: Config         → Engine sends: ze-plugin-callback:configure (Socket B)
-Stage 3: Capability     → Plugin sends: ze-plugin-engine:declare-capabilities (Socket A)
-Stage 4: Registry       → Engine sends: ze-plugin-callback:share-registry (Socket B)
-Stage 5: Ready          → Plugin sends: ze-plugin-engine:ready (Socket A), enter event loop
-```
+| Stage | Direction | RPC |
+|-------|-----------|-----|
+| 1. Declaration | Plugin→Engine (A) | `ze-plugin-engine:declare-registration` |
+| 2. Config | Engine→Plugin (B) | `ze-plugin-callback:configure` |
+| 3. Capability | Plugin→Engine (A) | `ze-plugin-engine:declare-capabilities` |
+| 4. Registry | Engine→Plugin (B) | `ze-plugin-callback:share-registry` |
+| 5. Ready | Plugin→Engine (A) | `ze-plugin-engine:ready`, enter event loop |
 
-Socket A = plugin→engine. Socket B = engine→plugin.
-
-After Stage 5, SDK wraps Socket A in `MuxConn` for concurrent plugin→engine RPCs.
-Engine dispatches Socket A requests in goroutines (concurrent per plugin).
+After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines.
 
 ## Registration Fields
 
@@ -48,12 +45,12 @@ Engine dispatches Socket A requests in goroutines (concurrent per plugin).
 | `Description` | string | Yes | Human-readable description |
 | `RunEngine` | func(Conn, Conn) int | Yes | Engine-mode entry point |
 | `CLIHandler` | func([]string) int | Yes | CLI dispatch handler |
-| `Families` | []string | No | Address families (format "afi/safi") |
+| `Families` | []string | No | Address families ("afi/safi") |
 | `CapabilityCodes` | []uint8 | No | Capability codes decoded |
-| `ConfigRoots` | []string | No | Config roots this plugin wants |
+| `ConfigRoots` | []string | No | Config roots plugin wants |
 | `YANG` | string | No | YANG schema content |
-| `InProcessNLRIDecoder` | func(family, hex) (string, error) | No | NLRI decode |
-| `InProcessNLRIEncoder` | func(family, args) (string, error) | No | NLRI encode |
+| `InProcessNLRIDecoder` | func | No | NLRI decode |
+| `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
 ## New Plugin Checklist
@@ -63,13 +60,13 @@ Engine dispatches Socket A requests in goroutines (concurrent per plugin).
 [ ] Create internal/plugins/<name>/register.go (init() → registry.Register())
 [ ] Run make generate (regenerates all.go)
 [ ] Update TestAllPluginsRegistered expected count
-[ ] Add YANG schema if configuration support (schema/ subdir)
+[ ] Add YANG schema if config support (schema/ subdir)
 [ ] Add functional tests in test/plugin/
 ```
 
-Auto-populated (no manual changes needed): CLI dispatch, plugin runners, YANG schemas, config roots, family/capability maps, decoder maps.
+Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family/capability maps, decoder maps.
 
-## Plugin Invocation Modes
+## Invocation Modes
 
 | Mode | Syntax | Implementation |
 |------|--------|----------------|

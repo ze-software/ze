@@ -1,4 +1,4 @@
-# JSON Format Standards
+# JSON Format
 
 **BLOCKING:** All JSON output MUST follow these conventions.
 Rationale: `.claude/rationale/json-format.md`
@@ -6,7 +6,6 @@ Rationale: `.claude/rationale/json-format.md`
 ## Field Naming: kebab-case (MANDATORY)
 
 All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
-Examples: `"router-id"`, `"local-as"`, `"hold-time"`, `"as-path"`, `"next-hop"`, `"local-preference"`
 
 ## Ze IPC Envelope
 
@@ -18,7 +17,7 @@ Examples: `"router-id"`, `"local-as"`, `"hold-time"`, `"as-path"`, `"next-hop"`,
 
 | Attribute | Key | Type |
 |-----------|-----|------|
-| ORIGIN | `"origin"` | `"igp"`, `"egp"`, `"incomplete"` |
+| ORIGIN | `"origin"` | `"igp"` / `"egp"` / `"incomplete"` |
 | AS_PATH | `"as-path"` | array of integers |
 | NEXT_HOP | `"next-hop"` | IP string |
 | MED | `"med"` | integer |
@@ -41,12 +40,9 @@ Format: `"afi/safi"` — `"ipv4/unicast"`, `"ipv6/unicast"`, `"ipv4/vpn"`, `"ipv
 {"action":"del","nlri":["10.0.2.0/24"]}
 ```
 
-## Error/CLI Responses
+## Conventions
 
 - Error: `{"error":"description","parsed":false}`
 - CLI: `{"status":"ok","data":{...}}` or `{"status":"error","error":"msg"}`
-- Raw hex: uppercase, no `0x` prefix. `"parsed":false` + `"raw":"DEADBEEF"`
-
-## Numbers
-
-JSON numbers decode as `float64` in Go. Use `formatNumber()` to display integers without decimal.
+- Raw hex: uppercase, no `0x`. `"parsed":false` + `"raw":"DEADBEEF"`
+- Numbers: JSON `float64` in Go → use `formatNumber()` for integer display
