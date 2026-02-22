@@ -1,4 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
+// Related: orchestrator.go — ChaosConfig, RouteConfig, establishedState types
+// Related: scheduler.go — schedulers that call AllowChaos/AllowRoute
 
 package main
 

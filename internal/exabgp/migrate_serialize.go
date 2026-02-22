@@ -1,0 +1,190 @@
+// Design: docs/architecture/core-design.md — config tree serialization to Ze format
+// Related: migrate.go — migration orchestration and neighbor conversion
+// Related: migrate_routes.go — route conversion to update blocks
+// Related: migrate_family.go — family syntax conversion helpers
+
+package exabgp
+
+import (
+	"sort"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/config"
+)
+
+// SerializeTree serializes a config tree to ZeBGP config format.
+func SerializeTree(tree *config.Tree) string {
+	if tree == nil {
+		return ""
+	}
+
+	var buf strings.Builder
+	serializeTreeIndent(tree, &buf, "", true)
+	return buf.String()
+}
+
+func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string, isRoot bool) {
+	// Write simple values (sorted for deterministic output).
+	keys := tree.Values()
+	sort.Strings(keys)
+	for _, key := range keys {
+		v, ok := tree.Get(key)
+		if !ok {
+			continue
+		}
+		switch {
+		case v == "":
+			buf.WriteString(indent)
+			buf.WriteString(key)
+			buf.WriteString(";\n")
+		case strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\""):
+			buf.WriteString(indent)
+			buf.WriteString(key)
+			buf.WriteString(" \"")
+			buf.WriteString(v)
+			buf.WriteString("\";\n")
+		default: // single word or already bracketed/quoted
+			buf.WriteString(indent)
+			buf.WriteString(key)
+			buf.WriteString(" ")
+			buf.WriteString(v)
+			buf.WriteString(";\n")
+		}
+	}
+
+	// Write plugin blocks - new syntax: plugin { external NAME { ... } }
+	pluginList := tree.GetListOrdered("plugin")
+	if len(pluginList) > 0 {
+		buf.WriteString(indent)
+		buf.WriteString("plugin {\n")
+		for _, entry := range pluginList {
+			buf.WriteString(indent)
+			buf.WriteString("\texternal ")
+			buf.WriteString(entry.Key)
+			buf.WriteString(" {\n")
+			serializeTreeIndent(entry.Value, buf, indent+"\t\t", false)
+			buf.WriteString(indent)
+			buf.WriteString("\t}\n")
+		}
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write peer blocks - wrap in bgp {} at root level.
+	peerList := tree.GetListOrdered("peer")
+	if len(peerList) > 0 {
+		if isRoot {
+			buf.WriteString(indent)
+			buf.WriteString("bgp {\n")
+			indent += "\t"
+		}
+		for _, entry := range peerList {
+			buf.WriteString(indent)
+			buf.WriteString("peer ")
+			buf.WriteString(entry.Key)
+			buf.WriteString(" {\n")
+			serializeTreeIndent(entry.Value, buf, indent+"\t", false)
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
+		if isRoot {
+			indent = indent[:len(indent)-1]
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
+	}
+
+	// Write nested containers.
+	if cap := tree.GetContainer("capability"); cap != nil {
+		buf.WriteString(indent)
+		buf.WriteString("capability {\n")
+		serializeTreeIndent(cap, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Family entries stored as list entries by convertFamilyToList.
+	familyList := tree.GetListOrdered("family")
+	if len(familyList) > 0 {
+		buf.WriteString(indent)
+		buf.WriteString("family {\n")
+		for _, entry := range familyList {
+			buf.WriteString(indent)
+			buf.WriteString("\t")
+			buf.WriteString(entry.Key)
+			buf.WriteString(";\n")
+		}
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write hostname block (FQDN capability).
+	if hostname := tree.GetContainer("hostname"); hostname != nil {
+		buf.WriteString(indent)
+		buf.WriteString("hostname {\n")
+		serializeTreeIndent(hostname, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write nexthop block (RFC 8950).
+	if nexthop := tree.GetContainer("nexthop"); nexthop != nil {
+		buf.WriteString(indent)
+		buf.WriteString("nexthop {\n")
+		serializeTreeIndent(nexthop, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write attribute block (used in update blocks).
+	if attr := tree.GetContainer("attribute"); attr != nil {
+		buf.WriteString(indent)
+		buf.WriteString("attribute {\n")
+		serializeTreeIndent(attr, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write nlri block (used in update blocks).
+	if nlri := tree.GetContainer("nlri"); nlri != nil {
+		buf.WriteString(indent)
+		buf.WriteString("nlri {\n")
+		serializeTreeIndent(nlri, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Watchdog block (routes controlled via "bgp watchdog announce/withdraw").
+	if wdog := tree.GetContainer("watchdog"); wdog != nil {
+		buf.WriteString(indent)
+		buf.WriteString("watchdog {\n")
+		serializeTreeIndent(wdog, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write process bindings.
+	for _, entry := range tree.GetListOrdered("process") {
+		buf.WriteString(indent)
+		buf.WriteString("process ")
+		buf.WriteString(entry.Key)
+		buf.WriteString(" {\n")
+		serializeTreeIndent(entry.Value, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// send/receive are now bracket leaf-lists (e.g. "receive [ state update ];")
+	// and are written by the generic value-writing code above.
+
+	// Write update blocks (converted from announce/static/flow).
+	for _, entry := range tree.GetListOrdered("update") {
+		buf.WriteString(indent)
+		buf.WriteString("update {\n")
+		serializeTreeIndent(entry.Value, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Templates are expanded via inherit, not serialized.
+}

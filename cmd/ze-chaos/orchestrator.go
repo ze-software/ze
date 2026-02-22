@@ -1,4 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
+// Related: orchestrator_run.go — orchestrator run loop and reporting setup
+// Related: main.go — CLI entry and flag parsing
+// Related: guard.go — peerGuard for action compatibility checks
 
 package main
 
