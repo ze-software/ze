@@ -46,7 +46,7 @@ bgp {
 				next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
 			}
 			nlri {
-				ipv4/unicast 153.153.153.153/32;
+				ipv4/unicast add 153.153.153.153/32;
 			}
 		}
 		update {
@@ -55,7 +55,7 @@ bgp {
 				next-hop 170.170.170.170;
 			}
 			nlri {
-				ipv6/unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF/128;
+				ipv6/unicast add DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF/128;
 			}
 		}
 	}

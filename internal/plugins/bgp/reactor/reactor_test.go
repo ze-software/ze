@@ -806,7 +806,7 @@ func TestGetPeerProcessBindingsNotFound(t *testing.T) {
 //
 // VALIDATES: ReceiveNegotiated flag is copied from reactor.ProcessBinding to plugin.PeerProcessBinding.
 //
-// PREVENTS: Config setting receive { negotiated; } having no effect.
+// PREVENTS: Config setting receive [ negotiated ]; having no effect.
 func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",

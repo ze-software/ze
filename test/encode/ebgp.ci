@@ -29,7 +29,7 @@ bgp {
 				local-preference 200;
 			}
 			nlri {
-				ipv4/unicast 10.0.0.0/24;
+				ipv4/unicast add 10.0.0.0/24;
 			}
 		}
 	}

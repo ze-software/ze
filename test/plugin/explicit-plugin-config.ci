@@ -99,7 +99,7 @@ bgp {
         }
 
         process flowspec {
-            send { update; }
+            send [ update ];
         }
     }
 }

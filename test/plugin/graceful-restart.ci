@@ -65,7 +65,7 @@ bgp {
 		}
 
 		process gr {
-			send { update; }
+			send [ update ];
 		}
 	}
 }

@@ -29,7 +29,7 @@ bgp {
 				bgp-prefix-sid "[ 777 ]";
 			}
 			nlri {
-				ipv4/mpls 198.51.100.100/32;
+				ipv4/mpls add 198.51.100.100/32;
 			}
 		}
 		update {
@@ -40,7 +40,7 @@ bgp {
 				bgp-prefix-sid "[ 300, [ ( 800000,4096 ) ( 1000000,5000 ) ] ]";
 			}
 			nlri {
-				ipv4/mpls 198.51.100.101/32;
+				ipv4/mpls add 198.51.100.101/32;
 			}
 		}
 	}

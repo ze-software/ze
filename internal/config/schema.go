@@ -63,10 +63,9 @@ const (
 	NodeLeaf NodeKind = iota
 	NodeContainer
 	NodeList
-	NodeFreeform    // accepts "word word;" entries as key->true
-	NodeFlex        // can be flag (;), value (word;), or block ({})
-	NodeInlineList  // list that supports inline: "route PREFIX attr val;"
-	NodeFamilyBlock // family block: inline or AFI { SAFI; SAFI mode; }
+	NodeFreeform   // accepts "word word;" entries as key->true
+	NodeFlex       // can be flag (;), value (word;), or block ({})
+	NodeInlineList // list that supports inline: "route PREFIX attr val;"
 )
 
 // Node is the interface for all schema nodes.
@@ -87,6 +86,7 @@ type ContainerNode struct {
 	children     map[string]Node
 	order        []string // preserve definition order
 	AllowUnknown bool     // accept arbitrary key-value pairs (ze:allow-unknown-fields)
+	Presence     bool     // YANG presence container: accepts flag (;), value (word;), or block ({})
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -110,6 +110,7 @@ func (n *ContainerNode) Children() []string {
 // ListNode represents a keyed collection of containers.
 type ListNode struct {
 	KeyType  ValueType
+	KeyName  string // YANG key name (empty = keyless list like update)
 	children map[string]Node
 	order    []string
 }
@@ -364,21 +365,6 @@ func Freeform() *FreeformNode {
 	return &FreeformNode{}
 }
 
-// FamilyBlockNode handles address family configuration with optional modes.
-// Supports:
-//   - Inline: "ipv4/unicast;" or "ipv4/unicast require;"
-//   - Block: "ipv4 { unicast; multicast require; }"
-//
-// Stores entries as FamilyEntry structs with AFI, SAFI, and Mode.
-type FamilyBlockNode struct{}
-
-func (n *FamilyBlockNode) Kind() NodeKind { return NodeFamilyBlock }
-
-// FamilyBlock creates a family block node.
-func FamilyBlock() *FamilyBlockNode {
-	return &FamilyBlockNode{}
-}
-
 // MultiLeafNode accepts multiple words until semicolon: "word word word;".
 type MultiLeafNode struct {
 	Type ValueType
@@ -413,7 +399,8 @@ func ArrayLeaf(typ ValueType) *BracketLeafListNode {
 // ValueOrArrayNode accepts either "value;" or "[ item item ... ];" syntax.
 // Stores result as space-separated string in both cases.
 type ValueOrArrayNode struct {
-	Type ValueType
+	Type        ValueType
+	ValidValues []string // If non-nil, each item must be one of these values (YANG enum)
 }
 
 func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
@@ -421,6 +408,12 @@ func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
 // ValueOrArray creates a node that accepts either a single value or bracketed list.
 func ValueOrArray(typ ValueType) *ValueOrArrayNode {
 	return &ValueOrArrayNode{Type: typ}
+}
+
+// ValueOrArrayEnum creates a node that accepts either a single value or bracketed list,
+// with validation against a fixed set of enum values.
+func ValueOrArrayEnum(validValues []string) *ValueOrArrayNode {
+	return &ValueOrArrayNode{Type: TypeString, ValidValues: validValues}
 }
 
 // FlexNode can be a flag (;), value (word;), or block ({}).

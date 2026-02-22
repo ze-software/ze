@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
 
 // Run executes the validate subcommand with the given arguments.
@@ -161,16 +160,8 @@ func validateConfig(input, path string) *ValidationResult {
 	// Semantic validation.
 	result.Warnings = semanticValidation(bgpTree)
 
-	// Validate process/capability constraints (without deep route parsing).
-	peers, err := reactor.PeersFromTree(bgpTree)
-	if err != nil {
-		result.Valid = false
-		result.Errors = append(result.Errors, ValidationError{
-			Message: err.Error(),
-		})
-		return result
-	}
-	if err := config.ValidatePeerProcessCaps(peers); err != nil {
+	// Full validation: peer settings, route extraction, and capability constraints.
+	if _, err := config.PeersFromConfigTree(tree); err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, ValidationError{
 			Message: err.Error(),

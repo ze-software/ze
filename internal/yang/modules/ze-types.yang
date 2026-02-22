@@ -2,8 +2,6 @@ module ze-types {
     namespace "urn:ze:types";
     prefix zt;
 
-    import ze-extensions { prefix ze; }
-
     description "Common types for ZeBGP configuration";
 
     revision 2026-01-01 {
@@ -24,25 +22,25 @@ module ze-types {
         }
         leaf local-preference { type uint32; description "Local preference"; }
         leaf med { type uint32; description "Multi-Exit Discriminator"; }
-        leaf community { ze:syntax "value-or-array"; type string; description "BGP communities"; }
-        leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
-        leaf large-community { ze:syntax "value-or-array"; type string; description "Large communities"; }
-        leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
+        leaf-list community { type string; description "BGP communities"; }
+        leaf-list extended-community { type string; description "Extended communities"; }
+        leaf-list large-community { type string; description "Large communities"; }
+        leaf-list as-path { type string; description "AS path"; }
         leaf path-information { type string; description "Path information"; }
         leaf label { type string; description "MPLS label"; }
-        leaf labels { ze:syntax "value-or-array"; type string; description "MPLS labels (RFC 8277)"; }
+        leaf-list labels { type string; description "MPLS labels (RFC 8277)"; }
         leaf rd { type string; description "Route Distinguisher"; }
         leaf aggregator { type string; description "Aggregator attribute"; }
-        container atomic-aggregate { ze:syntax "flex"; description "Atomic aggregate"; }
+        container atomic-aggregate { presence "Atomic aggregate flag"; description "Atomic aggregate"; }
         leaf originator-id { type ipv4-address; description "Originator ID (RFC 4456)"; }
         leaf cluster-list { type string; description "Cluster list (RFC 4456)"; }
         leaf name { type string; description "Route name"; }
         leaf split { type string; description "Split horizon"; }
         leaf watchdog { type string; description "Watchdog name"; }
-        container withdraw { ze:syntax "flex"; description "Withdraw flag"; }
-        leaf attribute { ze:syntax "value-or-array"; type string; description "Generic attributes"; }
-        container bgp-prefix-sid { ze:syntax "flex"; description "BGP Prefix SID"; }
-        container bgp-prefix-sid-srv6 { ze:syntax "flex"; description "SRv6 Prefix SID"; }
+        container withdraw { presence "Withdraw flag"; description "Withdraw flag"; }
+        leaf-list attribute { type string; description "Generic attributes"; }
+        container bgp-prefix-sid { presence "BGP Prefix SID enabled"; description "BGP Prefix SID"; }
+        container bgp-prefix-sid-srv6 { presence "SRv6 Prefix SID enabled"; description "SRv6 Prefix SID"; }
     }
 
     typedef ip-address {

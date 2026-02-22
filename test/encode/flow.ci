@@ -70,7 +70,7 @@ bgp {
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv4/flow-vpn rd 65535:65536 source-ipv4 10.0.0.1/32;
+				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.1/32;
 			}
 		}
 
@@ -81,7 +81,7 @@ bgp {
 				extended-community [copy-to-nexthop];
 			}
 			nlri {
-				ipv4/flow source-ipv4 10.0.0.2/32;
+				ipv4/flow add source-ipv4 10.0.0.2/32;
 			}
 		}
 
@@ -92,7 +92,7 @@ bgp {
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128;
+				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128;
 			}
 		}
 
@@ -102,7 +102,7 @@ bgp {
 				extended-community [action sample-terminal];
 			}
 			nlri {
-				ipv4/flow fragment last-fragment;
+				ipv4/flow add fragment last-fragment;
 			}
 		}
 
@@ -112,7 +112,7 @@ bgp {
 				extended-community [rate-limit:9600];
 			}
 			nlri {
-				ipv4/flow source-ipv4 10.0.0.0/24 protocol =tcp destination-port =3128;
+				ipv4/flow add source-ipv4 10.0.0.0/24 protocol =tcp destination-port =3128;
 			}
 		}
 
@@ -122,7 +122,7 @@ bgp {
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv6/flow destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =101 flow-label =2013;
+				ipv6/flow add destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =101 flow-label =2013;
 			}
 		}
 
@@ -132,7 +132,7 @@ bgp {
 				extended-community [mark 10];
 			}
 			nlri {
-				ipv4/flow packet-length [ >200&<300 >400&<500 ];
+				ipv4/flow add packet-length [ >200&<300 >400&<500 ];
 			}
 		}
 
@@ -143,7 +143,7 @@ bgp {
 				extended-community [redirect-to-nexthop-draft];
 			}
 			nlri {
-				ipv4/flow-vpn rd 65535:65536 source-ipv4 10.0.0.3/32;
+				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.3/32;
 			}
 		}
 
@@ -154,7 +154,7 @@ bgp {
 				extended-community [redirect-to-nexthop-draft];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 192.168.0.1/32;
+				ipv4/flow add destination-ipv4 192.168.0.1/32;
 			}
 		}
 
@@ -164,7 +164,7 @@ bgp {
 				extended-community [redirect:258:33756718];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.2/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.2/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
 			}
 		}
 
@@ -174,7 +174,7 @@ bgp {
 				extended-community [redirect:65500:12345];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.9/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.9/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
 			}
 		}
 
@@ -184,7 +184,7 @@ bgp {
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.10/32 protocol !=tcp port !=0 destination-port !=443 source-port [ !=80 !=8080 ];
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.10/32 protocol !=tcp port !=0 destination-port !=443 source-port [ !=80 !=8080 ];
 			}
 		}
 
@@ -194,7 +194,7 @@ bgp {
 				extended-community [rate-limit:0];
 			}
 			nlri {
-				ipv4/flow destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128 tcp-flags [ syn rst&fin&!=push ];
+				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128 tcp-flags [ syn rst&fin&!=push ];
 			}
 		}
 	}

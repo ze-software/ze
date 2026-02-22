@@ -25,7 +25,6 @@ module ze-plugin-conf {
             }
 
             leaf run {
-                ze:syntax "multi-leaf";
                 type string;
                 description "Command to execute plugin (with args)";
             }

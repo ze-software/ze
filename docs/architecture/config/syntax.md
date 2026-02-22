@@ -9,25 +9,66 @@
 | **BGP Block** | `bgp { peer <ip> { ... } }` - wraps all BGP config |
 | **Templates** | `template { bgp { peer <pattern> { inherit-name <name>; ... } } }` |
 | **Inheritance** | `inherit <name>` in peer, `inherit-name <name>` in template |
-| **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
-| **Migration** | `ze bgp config migrate` converts old syntax → new syntax |
+| **Schema** | YANG-driven: parser dispatches by node type (leaf, container, list, leaf-list) |
+| **Migration** | `ze bgp config migrate` converts ExaBGP syntax to ze-native |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
 ---
 
-**Source:** ExaBGP `configuration/` directory
-**Purpose:** Document complete configuration file syntax
+**Purpose:** Document complete ze configuration file syntax
 
 ---
 
 ## Overview
 
-ExaBGP configuration uses a JUNOS-like hierarchical syntax with sections, keywords, and values terminated by semicolons or braces.
+Ze configuration uses a JUNOS-like hierarchical syntax with sections, keywords, and values terminated by semicolons or braces. The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
 
 ---
 
-## Basic Structure
+## Basic Syntax Patterns
+
+### Leaf (single value)
+
+```
+keyword value;
+```
+
+### Leaf-List (single or multiple values)
+
+A leaf-list accepts either a single value or a bracket list:
+
+```
+community 65001:100;                           # single value
+community [ 65001:100 65001:200 65001:300 ];   # bracket list
+as-path [ 65001 65002 65003 ];                 # bracket list
+```
+
+Both forms are equivalent for a single item: `community 65001:100;` and `community [ 65001:100 ];` produce the same result.
+
+### Container (block)
+
+```
+keyword {
+    child1 value1;
+    child2 value2;
+}
+```
+
+### List (keyed entries)
+
+```
+keyword key1 {
+    child1 value1;
+}
+keyword key2 {
+    child1 value2;
+}
+```
+
+---
+
+## Top-Level Structure
 
 ```
 # Comment
@@ -197,26 +238,20 @@ bgp {
         # Process bindings
         process <plugin-name> { ... }
 
-        # Static routes (use announce block)
-        announce { ... }
-
-        # FlowSpec
-        flow { ... }
-
-        # L2VPN
-        l2vpn { ... }
+        # Route announcements
+        update { ... }
     }
 }
 ```
 
 **Migration:** `ze bgp config migrate` converts old syntax:
-- `neighbor` → `bgp { peer }`
-- `peer` at root → `bgp { peer }`
-- `template { group/match }` → `template { bgp { peer } }`
+- `neighbor` to `bgp { peer }`
+- `peer` at root to `bgp { peer }`
+- `template { group/match }` to `template { bgp { peer } }`
 
 ---
 
-## Neighbor Keywords
+## Peer Keywords
 
 ### Session
 
@@ -227,14 +262,15 @@ bgp {
 | local-as | ASN | Local AS number |
 | peer-as | ASN | Peer AS number |
 | hold-time | int | Hold time (seconds) |
-| passive | bool | Passive mode (wait for connection) |
-| listen | int | Port to listen on |
-| connect | int | Port to connect to |
+| connection | enum | `both` (default), `passive`, `active` |
+| port | int | Per-peer listen port |
 | ttl-security | int | TTL security hop count |
 | md5-password | string | MD5 authentication password |
-| md5-base64 | bool | Password is base64 encoded |
+| md5-ip | IP | MD5 authentication IP |
 | group-updates | bool | Group updates for efficiency |
 | auto-flush | bool | Auto-flush after each update |
+| outgoing-ttl | int | Outgoing TTL |
+| incoming-ttl | int | Incoming TTL |
 
 ### Capability Section
 
@@ -247,7 +283,7 @@ All capabilities support a four-mode vocabulary:
 | `require` | Yes | Reject peer if capability missing | |
 | `refuse` | No | Reject peer if capability present | |
 
-**Simple capabilities** — mode is the value:
+**Simple capabilities** -- mode is the value:
 
 ```
 capability {
@@ -259,7 +295,10 @@ capability {
 }
 ```
 
-**Block capabilities** — `mode` key inside block (for capabilities with sub-parameters):
+**Removed capabilities** -- these are not supported and will be rejected:
+`multi-session`, `operational`, `aigp`. These were ExaBGP-era capabilities with no ze runtime implementation.
+
+**Block capabilities** -- `mode` key inside block (for capabilities with sub-parameters):
 
 ```
 capability {
@@ -270,7 +309,7 @@ capability {
 }
 ```
 
-**Nexthop** — mode is inline on each family line:
+**Nexthop** -- structured inline list keyed by family:
 
 ```
 capability {
@@ -281,7 +320,9 @@ capability {
 }
 ```
 
-**ADD-PATH** — trailing mode token (global or per-family):
+Each line is parsed as: `<family> <next-hop-afi> [<mode>]` where family is the list key, `next-hop-afi` is `ipv4` or `ipv6`, and mode defaults to `enable`.
+
+**ADD-PATH** -- trailing mode token (global or per-family):
 
 ```
 capability {
@@ -295,7 +336,7 @@ add-path {
 
 The last token is interpreted as a mode if it matches `require`|`refuse`|`enable`|`disable`. Otherwise the existing direction parsing applies unchanged.
 
-**Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) — they only participate in negotiation when explicitly configured.
+**Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
 
 **Backwards compatibility:** `true` is accepted as `enable`, `false` as `disable`. Bare capability names (e.g., `route-refresh;`) mean `enable`.
 
@@ -307,26 +348,22 @@ family {
     ipv4/multicast;
     ipv4/nlri-mpls;
     ipv4/mpls-vpn;
-    ipv4 mcast-vpn;
-    ipv4 flow;
-    ipv4 flow-vpn;
     ipv4/mup;
     ipv6/unicast;
     ipv6/multicast;
     ipv6/nlri-mpls;
     ipv6/mpls-vpn;
-    ipv6 mcast-vpn;
-    ipv6 flow;
-    ipv6 flow-vpn;
     ipv6/mup;
     l2vpn/vpls;
     l2vpn/evpn;
-    bgpls bgpls;
-    bgpls bgpls-vpn;
 }
 ```
 
+Block syntax is also supported: `ipv4 { unicast; multicast require; }`.
+
 ### ADD-PATH Section
+
+Structured inline list keyed by family:
 
 ```
 add-path {
@@ -338,9 +375,9 @@ add-path {
 }
 ```
 
-An optional trailing mode token (`require`/`refuse`/`enable`/`disable`) controls enforcement. Without it, `enable` is assumed.
+Each line is parsed as: `<family> [<direction>] [<mode>]` where family is the list key, direction is `send`, `receive`, or `send/receive` (default: `send/receive`), and mode defaults to `enable`.
 
-### Process Section (Ze New Syntax)
+### Process Section
 
 ```
 # Named process binding (preferred)
@@ -349,255 +386,200 @@ process <plugin-name> {
         encoding json;       # json | text (default: inherit from plugin)
         format parsed;       # parsed | raw | full (default: parsed)
         attribute all;       # all | none | "as-path next-hop ..." (default: all)
-        nlri ipv4/unicast;   # <afi> <safi>; (can have multiple)
-        nlri ipv6/unicast;   # all | none | multiple nlri statements
     }
-    receive {
-        update;              # route announcements
-        open;                # session open messages
-        notification;        # error notifications
-        keepalive;           # keepalive messages
-        refresh;             # route refresh requests
-        state;               # peer up/down events
-        sent;                # sent UPDATE confirmations
-        negotiated;          # capability negotiation results
-        all;                 # shorthand for all message types
-    }
-    send {
-        update;              # can inject routes
-        refresh;             # can request route refresh
-        all;                 # shorthand for all
-    }
+    receive [ update state negotiated ];  # enum list of message types
+    send [ update ];                      # enum list of sendable types
 }
 ```
+
+#### Receive enum values
+
+| Value | Description |
+|-------|-------------|
+| `all` | Shorthand for all message types |
+| `update` | Route announcements |
+| `open` | Session open messages |
+| `notification` | Error notifications |
+| `keepalive` | Keepalive messages |
+| `refresh` | Route refresh requests |
+| `state` | Peer up/down events |
+| `sent` | Sent UPDATE confirmations |
+| `negotiated` | Capability negotiation results |
+
+#### Send enum values
+
+| Value | Description |
+|-------|-------------|
+| `all` | Shorthand for all sendable types |
+| `update` | Can inject routes |
+| `refresh` | Can request route refresh |
+
+Invalid enum values are rejected at parse time.
 
 ---
 
-## Update Block (NOT IMPLEMENTED)
+## Update Block (Ze-Native Routes)
 
-**Status:** Design specification - not yet implemented.
+The `update { attribute {} nlri {} }` block is the ze-native way to announce routes in configuration files. All ze-native route config uses this format.
 
-New unified syntax for announcing routes with chained attribute modifications.
+### Attribute Block
 
-### Grammar
-
-```
-<section>*
-<section>     := <scalar-attr> | <list-attr> | <nlri-section> | <wire-attr>
-
-<scalar-attr> := <scalar-name> (set <value> | del [<value>])
-<scalar-name> := origin | med | local-preference | nhop | path-information | rd | label
-
-<list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
-<list-name>   := as-path | community | large-community | extended-community
-
-<nlri-section> := nlri <family> <nlri-op>+
-<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
-
-<wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
-```
-
-### Scalar `del [<value>]` Semantics
-
-- `<scalar> del` - remove attribute unconditionally
-- `<scalar> del <value>` - remove only if current value matches, else error
-
-### Accumulator → Family Restrictions
-
-| Accumulator | Valid for | Error for |
-|-------------|-----------|-----------|
-| `rd` | `*-vpn` families | All others |
-| `label` | `*-vpn`, `*-labeled` families | All others |
-| `path-information` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
-
-### Encodings
-
-| Encoding | Attributes | NLRI |
-|----------|------------|------|
-| `text` | Parsed keywords | Prefixes |
-| `hex` | Hex wire bytes | Hex wire bytes |
-| `b64` | Base64 wire bytes | Base64 wire bytes |
-| `cbor` | CBOR binary | CBOR binary |
-
-### Example (text)
+Path attributes shared by all NLRI in the update block.
 
 ```
 update {
-    text {
-        # Route group 1
-        origin set igp;
-        nhop set 10.0.0.1;
-        community set [65000:1 65000:2];
-
-        nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
-
-        community add [65000:3];
-        nlri ipv4/unicast add 3.0.0.0/24;
-
-        community del [65000:1];
-        nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
-
-        # With watchdog tagging
-        nlri ipv4/unicast add 7.0.0.0/24 watchdog set mypool;
-    }
-}
-```
-
-### Example (hex)
-
-```
-update {
-    hex {
-        attr set 400101400206020100001f94;
-        nhop set 05060708;
-        # Spaces help track NLRI boundaries for UPDATE size splitting
-        nlri ipv4/unicast add 18010a00 18020b00;
-    }
-}
-```
-
-### Standalone Watchdog Commands
-
-```
-watchdog announce <name>   # send all routes in pool to peers
-watchdog withdraw <name>   # withdraw all routes in pool from peers
-```
-
-See `docs/architecture/api/UPDATE_SYNTAX.md` for full specification.
-
----
-
-## Static Routes (Current Implementation)
-
-```
-static {
-    route <prefix> {
-        next-hop <ip>;
+    attribute {
         origin igp;
-        as-path [ <asn>, ... ];
-        local-preference <int>;
-        med <int>;
-        community [ <community>, ... ];
-        extended-community [ <ext-community>, ... ];
-        large-community [ <large-community>, ... ];
-        label [ <label>, ... ];
-        rd <route-distinguisher>;
-        split /<size>;
-        watchdog <name>;
-        withdraw;
+        next-hop 10.0.0.1;
+        local-preference 100;
+        med 200;
+        as-path [ 65001 65002 ];
+        community [ 65001:100 65001:200 ];
+        extended-community [ target:65001:100 ];
+        large-community [ 65001:100:200 ];
+        aggregator 65001:10.0.0.1;
+        atomic-aggregate enable;
+        originator-id 10.0.0.1;
+        cluster-list [ 3.3.3.3 192.168.201.1 ];
+        path-information 1.2.3.4;
+        label 16000;
+        labels [ 100 200 300 ];
+        split /25;
+        attribute [ 0x04 0x80 0x00000064 ];   # generic hex attributes
+    }
+    nlri {
+        ...
     }
 }
 ```
 
-### Shorthand
+### NLRI Grammar
 
 ```
-static {
-    route <prefix> next-hop <ip>;
-    route <prefix> next-hop <ip> as-path [ 65001 65002 ];
-}
+<nlri-line> := <family> [rd <rd>] [label <label>] <op> <payload> ;
+<op>        := add | del | eor
+<payload>   := <bracket-list> | <structured-payload>
 ```
 
----
+- `<family>` -- address family, e.g. `ipv4/unicast`, `ipv4/mpls-vpn`, `ipv4/flow`
+- `rd` / `label` -- optional VPN qualifiers, placed before the operation keyword
+- `<op>` -- **mandatory** operation: `add` (announce), `del` (withdraw), `eor` (end-of-rib, no payload)
+- `<bracket-list>` -- `[ prefix1 prefix2 ... ]` -- for prefix-based families, one route per entry
+- `<structured-payload>` -- for complex families (FlowSpec, VPLS, EVPN), one route per line
 
-## MPLS-VPN (L3VPN)
+### Payload dispatch
 
-RFC 4364 L3VPN routes are configured under `announce { ipv4/ipv6 { mpls-vpn ... } }`.
+| Family Category | Bracket List? | Example |
+|----------------|---------------|---------|
+| Prefix (unicast, multicast, mpls, mpls-vpn) | Yes | `ipv4/unicast add [ 10.0.0.0/24 10.0.1.0/24 ];` |
+| FlowSpec (flow, flow-vpn) | No -- one per line | `ipv4/flow add source-ipv4 10.0.0.2/32;` |
+| VPLS | No -- one per line | `l2vpn/vpls rd X add ve-id 5 ve-block-offset 1 ...;` |
+| EVPN | No -- one per line | `l2vpn/evpn add <route-type-specific>;` |
 
-### Syntax
+After `add`, if the next token is `[` the parser reads a bracket list of single-token entries (one route per token). Otherwise it reads one structured NLRI until `;`.
+
+### NLRI Examples
 
 ```
-announce {
-    ipv4 {
-        mpls-vpn <prefix> {
-            rd <route-distinguisher>;
-            label <mpls-label>;              # Single label
-            labels [ <label> <label> ... ];  # Multiple labels (RFC 8277)
-            next-hop <ip>;
-            origin igp;
-            local-preference <int>;
-            med <int>;
-            as-path [ <asn>, ... ];
-            community [ <community>, ... ];
-            extended-community [ <ext-community>, ... ];
-            originator-id <ip>;       # RFC 4456 route reflector
-            cluster-list <ip> <ip>;   # RFC 4456 route reflector
-        }
+update {
+    attribute {
+        origin igp;
+        next-hop 10.0.0.1;
+        local-preference 100;
     }
-    ipv6 {
-        mpls-vpn <prefix> { ... }
-    }
-}
-```
+    nlri {
+        # Simple unicast
+        ipv4/unicast add 10.0.0.0/24;
+        ipv4/unicast add [ 10.0.1.0/24 10.0.2.0/24 10.0.3.0/24 ];
 
-### Shorthand
+        # Withdrawal
+        ipv4/unicast del 10.0.99.0/24;
 
-```
-announce {
-    ipv4 {
-        mpls-vpn 10.0.0.0/24 rd 100:100 label 1000 next-hop 192.168.1.1;
-        mpls-vpn 10.0.1.0/24 rd 100:100 label 1001 next-hop 192.168.1.1 extended-community target:100:100;
+        # End-of-RIB
+        ipv4/unicast eor;
     }
 }
-```
 
-### Example
+# VPN with rd and label qualifiers before add
+update {
+    attribute { origin igp; next-hop 192.168.0.1; }
+    nlri {
+        ipv4/mpls-vpn rd 100:100 label 20012 add 10.0.0.0/24;
+        ipv4/mpls-vpn rd 100:100 label 20012 add [ 10.0.1.0/24 10.0.2.0/24 ];
+    }
+}
 
-```
-announce {
-    ipv4 {
-        mpls-vpn 10.0.0.0/24 {
-            rd 65000:100;
-            label 16000;
-            next-hop 192.168.1.1;
-            origin igp;
-            local-preference 100;
-            extended-community target:65000:100;
-        }
+# VPLS
+update {
+    attribute { origin igp; next-hop 192.168.201.1; }
+    nlri {
+        l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1
+               ve-block-size 8 label-base 10702;
     }
 }
 ```
 
----
+### FlowSpec
 
-## FlowSpec
+FlowSpec routes (RFC 8955) use the same `update { nlri { } }` syntax. The legacy `flow { route { match {} then {} } }` block is not supported -- use `ze bgp config migrate` to convert ExaBGP-format FlowSpec configs.
+
+FlowSpec actions are expressed as extended-community attributes. Match criteria are inline after the family and `add` keyword.
 
 ```
-flow {
-    route <name> {
-        match {
-            source <prefix>;
-            destination <prefix>;
-            source-port <op><port>;
-            destination-port <op><port>;
-            port <op><port>;
-            protocol <protocol>;
-            next-header <protocol>;
-            tcp-flags <flags>;
-            icmp-type <type>;
-            icmp-code <code>;
-            fragment <flags>;
-            dscp <value>;
-            packet-length <op><length>;
-            flow-label <value>;
-        }
-        then {
-            accept;
-            discard;
-            rate-limit <bps>;
-            redirect <rt>;
-            redirect-next-hop;
-            mark <dscp>;
-            community [ <community>, ... ];
-        }
-        scope {
-            neighbor <ip>;
-        }
+# Simple discard rule
+update {
+    attribute {
+        extended-community [ rate-limit:0 ];
+    }
+    nlri {
+        ipv4/flow add source-ipv4 10.0.0.1/32;
+    }
+}
+
+# Complex match with redirect
+update {
+    attribute {
+        extended-community [ redirect:65500:12345 ];
+    }
+    nlri {
+        ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.2/32
+               protocol [ =tcp =udp ] destination-port [ >8080&<8088 =3128 ]
+               source-port >1024;
+    }
+}
+
+# FlowSpec VPN (with rd qualifier before add)
+update {
+    attribute {
+        extended-community [ rate-limit:0 ];
+    }
+    nlri {
+        ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.1/32;
     }
 }
 ```
 
-### Match Operators
+#### Match Criteria
+
+| Criterion | Description |
+|-----------|-------------|
+| `source-ipv4` / `source-ipv6` | Source prefix |
+| `destination-ipv4` / `destination-ipv6` | Destination prefix |
+| `protocol` | IP protocol (`=tcp`, `=udp`, or number) |
+| `port` | Source or destination port |
+| `destination-port` | Destination port |
+| `source-port` | Source port |
+| `next-header` | IPv6 next header |
+| `tcp-flags` | TCP flags (`syn`, `rst`, `fin`, `ack`, `urg`, `push`) |
+| `icmp-type` | ICMP type |
+| `icmp-code` | ICMP code |
+| `fragment` | Fragment flags (`first-fragment`, `last-fragment`) |
+| `dscp` | DSCP value |
+| `packet-length` | Packet length |
+| `traffic-class` | IPv6 traffic class |
+| `flow-label` | IPv6 flow label |
+
+#### Match Operators
 
 | Operator | Meaning |
 |----------|---------|
@@ -609,191 +591,37 @@ flow {
 | `!=` | Not equal |
 | `&` | AND with previous |
 
-### Examples
+#### FlowSpec Actions (Extended Communities)
+
+| Extended Community | Action |
+|--------------------|--------|
+| `rate-limit:0` | Discard (rate-limit to zero) |
+| `rate-limit:<bps>` | Rate limit |
+| `redirect:<asn>:<value>` | Redirect to VRF |
+| `redirect-to-nexthop <ip>` | Redirect to IP (RFC 7674) |
+| `redirect-to-nexthop-draft` | Redirect to next-hop (draft) |
+| `copy-to-nexthop` | Copy to next-hop |
+| `action sample-terminal` | Sampling action |
+| `mark <dscp>` | Set DSCP value |
+
+### Watchdog
+
+Routes can be tagged with a watchdog group and held until explicitly announced:
 
 ```
-match {
-    destination 10.0.0.0/8;
-    destination-port =80;
-    destination-port =443;
-    protocol =tcp;
-    tcp-flags =syn;
-}
-```
-
----
-
-## MVPN (Multicast VPN)
-
-RFC 6514 MVPN routes are configured under `announce { ipv4/ipv6 { mcast-vpn ... } }`.
-
-### Route Types
-
-| Type | Description |
-|------|-------------|
-| `source-ad` | Source Active A-D (Type 5) |
-| `shared-join` | Shared Tree Join (Type 6) |
-| `source-join` | Source Tree Join (Type 7) |
-
-### Syntax
-
-```
-announce {
-    ipv4 {
-        mcast-vpn <route-type> {
-            rd <route-distinguisher>;
-            source-as <asn>;
-            source <ip>;              # or rp <ip> for shared-join
-            group <multicast-group>;
-            next-hop <ip>;
-            origin igp;
-            local-preference <int>;
-            med <int>;
-            community [ <community>, ... ];
-            extended-community [ <ext-community>, ... ];
-            originator-id <ip>;       # RFC 4456 route reflector
-            cluster-list <ip> <ip>;   # RFC 4456 route reflector
-        }
-    }
-    ipv6 {
-        mcast-vpn <route-type> { ... }
+update {
+    attribute { origin igp; next-hop 10.0.0.1; }
+    watchdog { name mypool; withdraw true; }
+    nlri {
+        ipv4/unicast add 10.0.0.0/24;
     }
 }
 ```
 
-### Example
-
+Standalone watchdog commands (via API):
 ```
-announce {
-    ipv4 {
-        mcast-vpn source-ad {
-            rd 100:100;
-            source-as 65000;
-            source 10.0.0.1;
-            group 239.1.1.1;
-            next-hop 192.168.1.1;
-            extended-community target:100:100;
-        }
-        mcast-vpn shared-join {
-            rd 100:100;
-            rp 10.0.0.1;
-            group 239.1.1.1;
-            next-hop 192.168.1.1;
-        }
-    }
-}
-```
-
----
-
-## MUP (Mobile User Plane)
-
-SRv6 Mobile User Plane routes (draft-mpmz-bess-mup-safi) are configured under `announce { ipv4/ipv6 { mup ... } }`.
-
-### Route Types
-
-| Type | Description |
-|------|-------------|
-| `mup-isd` | Interwork Segment Discovery (Type 1) |
-| `mup-dsd` | Direct Segment Discovery (Type 2) |
-| `mup-t1st` | Type 1 Session Transformed (Type 3) |
-| `mup-t2st` | Type 2 Session Transformed (Type 4) |
-
-### Syntax
-
-```
-announce {
-    ipv4 {
-        mup <route-type> <prefix-or-addr> rd <rd> [options...];
-    }
-    ipv6 {
-        mup <route-type> <prefix-or-addr> rd <rd> [options...];
-    }
-}
-```
-
-### Options
-
-| Option | Used by | Description |
-|--------|---------|-------------|
-| `rd` | All | Route distinguisher |
-| `teid` | T1ST, T2ST | Tunnel Endpoint ID |
-| `qfi` | T1ST | QoS Flow Identifier |
-| `endpoint` | T1ST | GTP tunnel endpoint |
-| `source` | T1ST | Source address (optional) |
-| `next-hop` | All | Next hop address |
-| `extended-community` | All | Extended communities (e.g., `mup:10:10`) |
-| `bgp-prefix-sid` | All | SRv6 Prefix SID |
-
-### Examples
-
-```
-announce {
-    ipv4 {
-        # Interwork Segment Discovery
-        mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 192.168.1.1;
-
-        # Type 1 Session Transformed
-        mup mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 192.168.1.1;
-
-        # Direct Segment Discovery
-        mup mup-dsd 10.0.0.1 rd 100:100 next-hop 192.168.1.1;
-    }
-    ipv6 {
-        mup mup-isd 2001:db8::/48 rd 100:100 next-hop 2001::1 extended-community mup:10:10;
-    }
-}
-```
-
----
-
-## L2VPN / EVPN
-
-### VPLS
-
-```
-l2vpn {
-    vpls <name> {
-        endpoint <int>;
-        base <int>;
-        offset <int>;
-        size <int>;
-        next-hop <ip>;
-        origin igp;
-        as-path [ ... ];
-        rd <rd>;
-        route-target [ <rt>, ... ];
-        originator-id <ip>;       # RFC 4456 route reflector
-        cluster-list <ip> <ip>;   # RFC 4456 route reflector
-    }
-}
-```
-
-### EVPN
-
-EVPN routes use freeform syntax (complex format, passed through to ExaBGP-compatible parser):
-
-```
-announce {
-    l2vpn {
-        evpn <route-type> <nlri> <attributes>;
-    }
-}
-```
-
-See ExaBGP documentation for EVPN route type details.
-
----
-
-## BGP-LS
-
-BGP Link-State (RFC 7752) is supported as a family but route injection uses ExaBGP-compatible freeform syntax.
-
-```
-family {
-    bgpls bgpls;
-    bgpls bgpls-vpn;
-}
+watchdog announce <name>   # send all routes in pool to peers
+watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
 ---
@@ -840,6 +668,7 @@ target:65001:100
 origin:65001:100
 redirect:65001:100
 l2info:19:0:1500:111
+0x0002fde800000001      # Raw hex (8 bytes)
 ```
 
 ### Large Community
@@ -925,8 +754,8 @@ template {
 }
 
 bgp {
-    peer 10.0.0.5 { inherit internal; }     # ✅ OK - matches pattern
-    peer 192.168.1.1 { inherit internal; }  # ❌ ERROR - doesn't match pattern
+    peer 10.0.0.5 { inherit internal; }     # OK - matches pattern
+    peer 192.168.1.1 { inherit internal; }  # ERROR - doesn't match pattern
 }
 ```
 
@@ -934,92 +763,11 @@ Using `peer *` allows any peer to inherit from the template.
 
 ---
 
-## Multiple Values
+## Related
 
-### Lists
-
-```
-as-path [ 65001 65002 65003 ];
-community [ 65001:100 65001:200 ];
-processes [ process1, process2 ];
-```
-
-### Inline
-
-```
-route 10.0.0.0/8 next-hop 192.168.1.1 community [ 65001:100 ];
-```
+- [ExaBGP Legacy Syntax](exabgp-syntax.md) -- `static`, `announce`, `flow` blocks accepted for migration
+- [API Update Syntax](../api/UPDATE_SYNTAX.md) -- API command syntax for route injection (not yet implemented)
 
 ---
 
-## Include (if supported)
-
-```
-include "/etc/exabgp/neighbors.conf";
-```
-
----
-
-## Ze Implementation Notes
-
-### Parser Architecture
-
-```go
-type Parser struct {
-    tokenizer *Tokenizer
-    scope     *Scope
-    current   string  // Current section
-}
-
-func (p *Parser) Parse() (*Config, error) {
-    for {
-        tokens := p.tokenizer.NextLine()
-        if tokens == nil {
-            break
-        }
-
-        keyword := tokens[0]
-        switch keyword {
-        case "process":
-            p.parseProcess(tokens)
-        case "template":
-            p.parseTemplate(tokens)
-        case "neighbor":
-            p.parseNeighbor(tokens)
-        }
-    }
-}
-```
-
-### Section Dispatch
-
-```go
-var sectionParsers = map[string]func(*Parser, []string) error{
-    "capability":   parseCapability,
-    "family":       parseFamily,
-    "add-path":     parseAddPath,
-    "process":      parseProcess,
-    "static":       parseStatic,
-    "flow":         parseFlow,
-    "l2vpn":        parseL2VPN,
-}
-```
-
-### Value Validators
-
-```go
-type Validator interface {
-    Validate(s string) (any, error)
-}
-
-var validators = map[string]Validator{
-    "ip-address": &IPValidator{},
-    "asn":        &ASNValidator{},
-    "community":  &CommunityValidator{},
-    // ...
-}
-```
-
----
-
-**Last Updated:** 2026-02-21
+**Last Updated:** 2026-02-22

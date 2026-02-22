@@ -68,7 +68,6 @@ module ze-bgp-conf {
         }
 
         leaf listen {
-            ze:syntax "multi-leaf";
             type string;
             description "Listen address and port";
         }
@@ -160,10 +159,12 @@ module ze-bgp-conf {
             description "Group UPDATE messages";
         }
 
-        // Address families - special FamilyBlock syntax
-        container family {
-            ze:syntax "family-block";
+        // Address families
+        list family {
+            key "name";
             description "Address families to negotiate";
+            leaf name { type string; description "AFI/SAFI (e.g. ipv4/unicast)"; }
+            leaf mode { type string; description "enable, disable, require, ignore"; }
         }
 
         // Capabilities
@@ -177,14 +178,14 @@ module ze-bgp-conf {
             }
 
             container route-refresh {
-                ze:syntax "flex";
+                presence "Route Refresh capability enabled";
                 description "Route Refresh capability";
             }
 
             // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
 
             container add-path {
-                ze:syntax "flex";
+                presence "ADD-PATH capability enabled";
                 description "ADD-PATH capability";
                 leaf send {
                     type boolean;
@@ -199,32 +200,20 @@ module ze-bgp-conf {
             }
 
             container extended-message {
-                ze:syntax "flex";
+                presence "Extended Message capability enabled";
                 description "Extended Message capability";
             }
 
-            container nexthop {
-                ze:syntax "freeform";
-                description "Extended Next Hop capability";
-            }
-
-            container multi-session {
-                ze:syntax "flex";
-                description "Multi-session capability";
-            }
-
-            container operational {
-                ze:syntax "flex";
-                description "Operational capability";
-            }
-
-            container aigp {
-                ze:syntax "flex";
-                description "AIGP capability";
+            list nexthop {
+                key "family";
+                description "Extended Next Hop capability (RFC 8950)";
+                leaf family { type string; description "NLRI family (e.g. ipv4/unicast)"; }
+                leaf nhafi { type string; description "Next-hop AFI (e.g. ipv6)"; }
+                leaf mode { type string; description "enable, disable, require, refuse"; }
             }
 
             container software-version {
-                ze:syntax "flex";
+                presence "Software Version capability enabled";
                 description "Software Version capability";
             }
         }
@@ -255,12 +244,6 @@ module ze-bgp-conf {
         leaf incoming-ttl {
             type uint16;
             description "Incoming TTL";
-        }
-
-        leaf multi-session {
-            type boolean;
-            default false;
-            description "Multi-session mode";
         }
 
         leaf manual-eor {
@@ -301,21 +284,21 @@ module ze-bgp-conf {
                 leaf next-hop { type string; description "Next hop address or 'self'"; }
                 leaf med { type uint32; description "Multi-Exit Discriminator"; }
                 leaf local-preference { type uint32; description "Local preference"; }
-                leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
-                leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
-                leaf large-community { ze:syntax "value-or-array"; type string; description "Large communities"; }
-                leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
+                leaf-list as-path { type string; description "AS path"; }
+                leaf-list community { type string; description "Communities"; }
+                leaf-list large-community { type string; description "Large communities"; }
+                leaf-list extended-community { type string; description "Extended communities"; }
                 leaf label { type string; description "MPLS label"; }
-                leaf labels { ze:syntax "value-or-array"; type string; description "Multi-label stack (RFC 8277)"; }
+                leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
                 leaf path-information { type string; description "ADD-PATH path-id"; }
                 leaf rd { type string; description "Route Distinguisher (RFC 4364)"; }
                 leaf aggregator { type string; description "Aggregator AS:IP"; }
                 leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
                 leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
-                leaf attribute { ze:syntax "value-or-array"; type string; description "Generic hex attributes"; }
-                leaf bgp-prefix-sid { ze:syntax "flex"; type string; description "Prefix-SID (label index)"; }
-                leaf bgp-prefix-sid-srv6 { ze:syntax "flex"; type string; description "SRv6 Prefix-SID"; }
+                leaf-list cluster-list { type string; description "Cluster list"; }
+                leaf-list attribute { type string; description "Generic hex attributes"; }
+                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
+                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
                 leaf split { type string; description "Prefix splitting"; }
             }
 
@@ -331,10 +314,13 @@ module ze-bgp-conf {
             }
         }
 
-        // Add-path configuration
-        container add-path {
-            ze:syntax "freeform";
-            description "Per-family ADD-PATH configuration";
+        // Per-family add-path configuration
+        list add-path {
+            key "family";
+            description "Per-family ADD-PATH configuration (RFC 7911)";
+            leaf family { type string; description "Address family (e.g. ipv4/unicast)"; }
+            leaf direction { type string; description "send, receive, send/receive"; }
+            leaf mode { type string; description "enable, disable, require, refuse"; }
         }
 
         // Process bindings
@@ -354,19 +340,17 @@ module ze-bgp-conf {
 
             // Old syntax fields
             leaf-list processes {
-                ze:syntax "bracket";
                 type string;
                 description "Process list";
             }
 
             leaf-list processes-match {
-                ze:syntax "bracket";
                 type string;
                 description "Process match patterns";
             }
 
             container neighbor-changes {
-                ze:syntax "flex";
+                presence "Neighbor change notifications enabled";
                 description "Neighbor change notifications";
             }
 
@@ -376,33 +360,32 @@ module ze-bgp-conf {
                 leaf encoding { type string; }
                 leaf format { type string; }
                 leaf attribute { type string; }
-                container nlri {
-                    ze:syntax "flex";
-                    description "NLRI families";
+            }
+
+            leaf-list receive {
+                type enumeration {
+                    enum all { description "All message types"; }
+                    enum update { description "UPDATE messages"; }
+                    enum open { description "OPEN messages"; }
+                    enum notification { description "NOTIFICATION messages"; }
+                    enum keepalive { description "KEEPALIVE messages"; }
+                    enum refresh { description "ROUTE-REFRESH messages"; }
+                    enum state { description "State change events"; }
+                    enum sent { description "Sent messages"; }
+                    enum negotiated { description "Negotiated capabilities"; }
                 }
+                description "Message types to receive";
             }
 
-            container receive {
-                ze:syntax "freeform";
-                description "Receive configuration";
-            }
-
-            container send {
-                ze:syntax "freeform";
-                description "Send configuration";
-            }
-        }
-
-        // FlowSpec routes (RFC 8955)
-        container flow {
-            description "FlowSpec route definitions";
-            list route {
-                key "name";
-                leaf name { type string; description "Route name"; }
-                leaf rd { type string; description "Route Distinguisher"; }
-                leaf next-hop { type string; description "Next hop address"; }
-                container match { ze:syntax "freeform"; description "Match criteria"; }
-                container then { ze:syntax "freeform"; description "Actions"; }
+            leaf-list send {
+                type enumeration {
+                    enum all { description "All message types"; }
+                    enum update { description "UPDATE messages"; }
+                    enum refresh { description "ROUTE-REFRESH messages"; }
+                    enum borr { description "Beginning of Route Refresh (RFC 7313)"; }
+                    enum eorr { description "End of Route Refresh (RFC 7313)"; }
+                }
+                description "Message types to send";
             }
         }
 

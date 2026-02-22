@@ -319,14 +319,14 @@ func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 		}
 
 		if len(ps.ProcessBindings) == 0 {
-			return fmt.Errorf("peer %s: %s requires process with send { update; }\n  no process bindings configured",
+			return fmt.Errorf("peer %s: %s requires process with send [ update ]\n  no process bindings configured",
 				ps.Address, capName)
 		}
 		var names []string
 		for _, b := range ps.ProcessBindings {
 			names = append(names, "process "+b.PluginName)
 		}
-		return fmt.Errorf("peer %s: %s requires process with send { update; }\n  configured: %s - none have send { update; }",
+		return fmt.Errorf("peer %s: %s requires process with send [ update ]\n  configured: %s - none have send [ update ]",
 			ps.Address, capName, strings.Join(names, ", "))
 	}
 	return nil

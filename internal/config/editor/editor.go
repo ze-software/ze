@@ -426,7 +426,7 @@ func walkSchemaNode(schemaNode config.Node, tree *config.Tree, name string, path
 		return true, entries[key], 2
 	case *config.FlexNode:
 		return true, tree.GetContainer(name), 1
-	case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+	case *config.LeafNode, *config.FreeformNode,
 		*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
 		*config.InlineListNode:
 		return false, nil, 0 // Leaf-like nodes — can't navigate deeper
@@ -552,7 +552,7 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 			currentTree = currentTree.GetOrCreateContainer(name)
 			currentSchema = n
 			i++
-		case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+		case *config.LeafNode, *config.FreeformNode,
 			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
 			*config.InlineListNode:
 			return nil, fmt.Errorf("cannot navigate into %s (leaf node)", name)
@@ -657,7 +657,7 @@ func (e *Editor) walkSchema(path []string) schemaGetter {
 			current = n
 		case *config.FlexNode:
 			current = n
-		case *config.LeafNode, *config.FreeformNode, *config.FamilyBlockNode,
+		case *config.LeafNode, *config.FreeformNode,
 			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
 			*config.InlineListNode:
 			return nil // Can't navigate into leaf nodes

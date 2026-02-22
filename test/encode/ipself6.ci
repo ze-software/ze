@@ -26,7 +26,7 @@ bgp {
 				next-hop self;
 			}
 			nlri {
-				ipv6/unicast 2a04:6d80::1/128;
+				ipv6/unicast add 2a04:6d80::1/128;
 			}
 		}
 	}

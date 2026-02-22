@@ -92,7 +92,7 @@ bgp {
         }
 
         process acme-traffic-filter {
-            send { update; }
+            send [ update ];
         }
     }
 }

@@ -2,7 +2,7 @@
 stdin=config:terminator=EOF_CONF
 plugin {
 	external service-nginx {
-		run python3 -m exabgp healthcheck -s --name nginx --cmd curl --fail --verbose --max-time 2 http://localhost --start-ip 0;
+		run "python3 -m exabgp healthcheck -s --name nginx --cmd curl --fail --verbose --max-time 2 http://localhost --start-ip 0";
 		encoder text;
 	}
 }

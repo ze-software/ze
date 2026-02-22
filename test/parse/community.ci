@@ -11,7 +11,7 @@ bgp {
 			attribute {
 				origin igp;
 				next-hop 192.0.2.1;
-				extended-community "target:120000L:123 origin:130000:1234";
+				extended-community [ target:120000L:123 origin:130000:1234 ];
 			}
 			nlri {
 				ipv4/unicast add 9.9.9.9/32;

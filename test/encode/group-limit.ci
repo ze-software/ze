@@ -35,7 +35,7 @@ bgp {
 				next-hop 10.0.0.1;
 			}
 			nlri {
-				ipv4/unicast 193.0.2.1/32 193.0.2.2/32;
+				ipv4/unicast add 193.0.2.1/32 193.0.2.2/32;
 			}
 		}
 		update {
@@ -44,7 +44,7 @@ bgp {
 				next-hop 2A02:B80:1::1;
 			}
 			nlri {
-				ipv6/unicast 2A02:B80:0:1::1/128;
+				ipv6/unicast add 2A02:B80:0:1::1/128;
 			}
 		}
 		update {
@@ -53,7 +53,7 @@ bgp {
 				next-hop 2A02:B80:1::1;
 			}
 			nlri {
-				ipv6/unicast 2A02:B80:0:2::2/128;
+				ipv6/unicast add 2A02:B80:0:2::2/128;
 			}
 		}
 	}

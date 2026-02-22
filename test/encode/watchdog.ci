@@ -86,7 +86,7 @@ bgp {
 				next-hop 1.2.3.4;
 			}
 			nlri {
-				ipv4/unicast 66.66.66.66/32 88.88.88.88/32;
+				ipv4/unicast add 66.66.66.66/32 88.88.88.88/32;
 			}
 		}
 		update {
@@ -95,7 +95,7 @@ bgp {
 				next-hop 192.168.1.100;
 			}
 			nlri {
-				ipv4/unicast 100.100.100.100/32;
+				ipv4/unicast add 100.100.100.100/32;
 			}
 		}
 		update {
@@ -104,7 +104,7 @@ bgp {
 				next-hop 1.2.3.4;
 			}
 			nlri {
-				ipv4/unicast 77.77.77.77/32;
+				ipv4/unicast add 77.77.77.77/32;
 			}
 			watchdog {
 				name dnsr;

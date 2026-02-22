@@ -32,7 +32,7 @@ template {
 					community [ 0:0 ];
 				}
 				nlri {
-					ipv4/unicast 10.0.1.0/24;
+					ipv4/unicast add 10.0.1.0/24;
 				}
 			}
 			update {
@@ -42,7 +42,7 @@ template {
 					community [ 30740:30740 ];
 				}
 				nlri {
-					ipv4/unicast 10.0.2.0/24;
+					ipv4/unicast add 10.0.2.0/24;
 				}
 			}
 			update {
@@ -52,7 +52,7 @@ template {
 					community [ 30740:30740 30740:0 ];
 				}
 				nlri {
-					ipv4/unicast 10.0.3.0/24;
+					ipv4/unicast add 10.0.3.0/24;
 				}
 			}
 		}
@@ -79,7 +79,7 @@ bgp {
 				local-preference 200;
 			}
 			nlri {
-				ipv4/unicast 10.0.4.0/24 10.0.5.0/24;
+				ipv4/unicast add 10.0.4.0/24 10.0.5.0/24;
 			}
 		}
 		update {
@@ -89,7 +89,7 @@ bgp {
 				community [ 30740:30740 ];
 			}
 			nlri {
-				ipv4/unicast 10.0.6.0/24;
+				ipv4/unicast add 10.0.6.0/24;
 			}
 		}
 		update {
@@ -100,7 +100,7 @@ bgp {
 				community [ 30740:30740 ];
 			}
 			nlri {
-				ipv4/unicast 10.0.7.0/24 10.0.8.0/24;
+				ipv4/unicast add 10.0.7.0/24 10.0.8.0/24;
 			}
 		}
 	}

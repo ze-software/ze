@@ -5,6 +5,7 @@ package config
 import (
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -55,6 +56,17 @@ func (t *Tree) AppendValue(name, value string) {
 
 // GetMultiValues returns all values for a multi-value field.
 func (t *Tree) GetMultiValues(name string) []string {
+	return t.multiValues[name]
+}
+
+// SetSlice stores a leaf-list value as a string slice, preserving token boundaries.
+func (t *Tree) SetSlice(name string, items []string) {
+	t.multiValues[name] = items
+}
+
+// GetSlice returns a leaf-list value as a string slice.
+// Returns nil if the key is not set.
+func (t *Tree) GetSlice(name string) []string {
 	return t.multiValues[name]
 }
 
@@ -421,8 +433,6 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 		return p.parseFlex(tree, name, n)
 	case *InlineListNode:
 		return p.parseInlineList(tree, name, n)
-	case *FamilyBlockNode:
-		return p.parseFamilyBlock(tree, name)
 	default:
 		return fmt.Errorf("unknown node type for %s", name)
 	}
@@ -462,7 +472,13 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 }
 
 // parseContainer parses a container block: `name { ... }`.
+// If the container has Presence=true, it also accepts flag (;) and value (word;) forms.
 func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) error {
+	// Presence containers support flag/value/block modes (like FlexNode)
+	if node.Presence {
+		return p.parsePresenceContainer(tree, name, node)
+	}
+
 	tok := p.tok.Peek()
 	if tok.Type != TokenLBrace {
 		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
@@ -509,67 +525,276 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 	return nil
 }
 
-// parseUnknownField parses an unknown field as a string value.
-// Used for containers with ze:allow-unknown-fields extension.
-// Syntax: "key value;" where value is the next word/string token.
-func (p *Parser) parseUnknownField(tree *Tree, name string) error {
+// parsePresenceContainer parses a presence container: flag (;), value (word;), or block ({}).
+// This provides the same behavior as parseFlex but for standard YANG presence containers.
+func (p *Parser) parsePresenceContainer(tree *Tree, name string, node *ContainerNode) error {
 	tok := p.tok.Peek()
 
-	// Expect a value (word or string)
-	if tok.Type != TokenWord && tok.Type != TokenString {
-		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
-	}
-	value := tok.Value
-	p.tok.Next()
+	switch tok.Type { //nolint:exhaustive // Only specific tokens valid here, others handled by error return
+	case TokenSemicolon:
+		// Flag mode: just the name with semicolon = true
+		p.tok.Next()
+		tree.Set(name, configTrue)
+		return nil
 
-	// Expect semicolon
-	tok = p.tok.Peek()
-	if tok.Type != TokenSemicolon {
-		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
-	}
-	p.tok.Next()
+	case TokenLBrace:
+		// Block mode: parse as regular container
+		return p.parsePresenceBlock(tree, name, node)
 
-	tree.Set(name, value)
+	case TokenLBracket:
+		// Array mode: parse [ ... ] directly
+		arrayVals, err := p.collectArray()
+		if err != nil {
+			return err
+		}
+		value := "[" + strings.Join(arrayVals, " ") + "]"
+
+		tok = p.tok.Peek()
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+
+		tree.Set(name, value)
+		return nil
+
+	case TokenLParen:
+		// Parenthesized mode: parse ( ... ) and optional semicolon
+		parenVals, err := p.collectParenthesized()
+		if err != nil {
+			return err
+		}
+		var value strings.Builder
+		for i, v := range parenVals {
+			if i > 0 {
+				value.WriteString(" ")
+			}
+			value.WriteString(v)
+		}
+
+		tok = p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+		}
+
+		tree.Set(name, value.String())
+		return nil
+
+	case TokenWord, TokenString:
+		// Value mode: parse words until semicolon
+		return p.parsePresenceValue(tree, name)
+	}
+
+	return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.Type)
+}
+
+// parsePresenceBlock parses the block form of a presence container: { children... }.
+func (p *Parser) parsePresenceBlock(tree *Tree, name string, node *ContainerNode) error {
+	p.tok.Next() // consume {
+	child := NewTree()
+
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenRBrace {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenEOF {
+			return p.errorf(tok, "unexpected EOF in %s block", name)
+		}
+		if tok.Type != TokenWord {
+			return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+		}
+
+		fieldName := tok.Value
+		p.tok.Next()
+
+		fieldNode := node.Get(fieldName)
+		if fieldNode == nil {
+			if node.AllowUnknown {
+				if err := p.parseUnknownField(child, fieldName); err != nil {
+					return err
+				}
+				continue
+			}
+			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+		}
+
+		if err := p.parseNode(child, fieldName, fieldNode); err != nil {
+			return err
+		}
+	}
+
+	tree.MergeContainer(name, child)
 	return nil
 }
 
-// parseList parses a list entry: `name key { ... }` or `name { ... }` (anonymous).
-// Anonymous entries use KeyDefault as the key.
+// parsePresenceValue parses the value form of a presence container: word word... semicolon.
+func (p *Parser) parsePresenceValue(tree *Tree, name string) error {
+	var values []string
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+			break
+		}
+		switch tok.Type { //nolint:exhaustive // Only word-like tokens expected before semicolon
+		case TokenLBracket:
+			arrayVals, err := p.collectArray()
+			if err != nil {
+				return err
+			}
+			values = append(values, "["+strings.Join(arrayVals, " ")+"]")
+		case TokenLParen:
+			parenVals, err := p.collectParenthesized()
+			if err != nil {
+				return err
+			}
+			values = append(values, "("+strings.Join(parenVals, " ")+")")
+		case TokenWord, TokenString:
+			values = append(values, tok.Value)
+			p.tok.Next()
+		case TokenEOF, TokenRBrace:
+			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+		}
+	}
+
+	tree.AppendValue(name, strings.Join(values, " "))
+	return nil
+}
+
+// parseUnknownField parses an unknown field as a string value.
+// Used for containers with ze:allow-unknown-fields extension.
+// Syntax: "key value ...;" where all words before ';' are joined as the value.
+func (p *Parser) parseUnknownField(tree *Tree, name string) error {
+	var words []string
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenEOF || tok.Type == TokenRBrace {
+			return p.errorf(tok, "expected ';' after %s value", name)
+		}
+		if tok.Type != TokenWord && tok.Type != TokenString {
+			return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
+		}
+		words = append(words, tok.Value)
+		p.tok.Next()
+	}
+
+	if len(words) == 0 {
+		tree.Set(name, configTrue)
+	} else {
+		tree.Set(name, strings.Join(words, " "))
+	}
+	return nil
+}
+
+// parseList parses list entries in three forms:
+//   - Multi-entry block: `name { key1; key2 val; key3 { child val; } }`
+//   - Single block:      `name key { child val; }`
+//   - Single inline:     `name key val1 val2;`
+//   - Anonymous block:   `name { child val; }` (keyless lists only)
+//
+// Multi-entry block is used for keyed lists (KeyName != "") when `{` appears
+// before any key. Values after the key are assigned positionally to children
+// in definition order.
 func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	tok := p.tok.Peek()
+
+	// Keyed list with `{` first → multi-entry block
+	if tok.Type == TokenLBrace && node.KeyName != "" {
+		return p.parseListMultiBlock(tree, name, node)
+	}
+
 	var key string
 
-	// Check for anonymous block (no key, direct `{`) or named entry
-	switch tok.Type { //nolint:exhaustive // default handles all other token types
-	case TokenLBrace:
-		// Anonymous entry - use default key
+	if tok.Type != TokenLBrace && tok.Type != TokenWord && tok.Type != TokenString {
+		return p.errorf(tok, "expected key or '{' for %s, got %s", name, tok.Type)
+	}
+
+	if tok.Type == TokenLBrace {
+		// Keyless list: anonymous entry with default key
 		key = KeyDefault
-	case TokenWord, TokenString:
-		// Named entry
+	} else {
 		key = tok.Value
 		p.tok.Next()
 
-		// Validate key type
 		if err := ValidateValue(node.KeyType, key); err != nil {
 			return p.errorf(tok, "invalid key for %s: %v", name, err)
 		}
 
-		// Now check for opening brace
 		tok = p.tok.Peek()
-	default:
-		return p.errorf(tok, "expected key or '{' for %s, got %s", name, tok.Type)
 	}
 
-	// Expect opening brace
-	if tok.Type != TokenLBrace {
-		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+	// Block entry: key { ... }
+	if tok.Type == TokenLBrace {
+		p.tok.Next()
+		return p.parseListBlockEntry(tree, name, node, key)
 	}
-	p.tok.Next()
 
+	// Inline entry: key val1 val2; or key;
+	if len(node.Children()) > 0 {
+		return p.parseListInlineEntry(tree, name, node, key)
+	}
+
+	return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+}
+
+// parseListMultiBlock parses a multi-entry block: `name { key1 val; key2; ... }`.
+// Each line inside is a list entry with positional child values.
+func (p *Parser) parseListMultiBlock(tree *Tree, name string, node *ListNode) error {
+	p.tok.Next() // consume {
+
+	// Check if the first word is a child field name rather than a key.
+	// If so, this is an anonymous block entry (e.g., process { processes [...]; })
+	// rather than a multi-entry block (e.g., nexthop { ipv4/unicast ipv6; }).
+	firstTok := p.tok.Peek()
+	if firstTok.Type == TokenWord && node.Has(firstTok.Value) {
+		return p.parseListBlockEntry(tree, name, node, KeyDefault)
+	}
+
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenRBrace {
+			p.tok.Next()
+			return nil
+		}
+		if tok.Type == TokenEOF {
+			return p.errorf(tok, "unexpected EOF in %s block", name)
+		}
+		if tok.Type != TokenWord && tok.Type != TokenString {
+			return p.errorf(tok, "expected key in %s block, got %s", name, tok.Type)
+		}
+
+		key := tok.Value
+		p.tok.Next()
+
+		tok = p.tok.Peek()
+
+		if tok.Type == TokenLBrace {
+			// Block entry inside multi-block: key { ... }
+			p.tok.Next()
+			if err := p.parseListBlockEntry(tree, name, node, key); err != nil {
+				return err
+			}
+		} else {
+			// Inline entry inside multi-block: key val1 val2; or key;
+			if err := p.parseListInlineEntry(tree, name, node, key); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+// parseListBlockEntry parses a single block entry (after `{` is consumed).
+func (p *Parser) parseListBlockEntry(tree *Tree, name string, node *ListNode, key string) error {
 	entry := NewTree()
 
 	for {
-		tok = p.tok.Peek()
+		tok := p.tok.Peek()
 		if tok.Type == TokenRBrace {
 			p.tok.Next()
 			break
@@ -592,6 +817,39 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
 			return err
 		}
+	}
+
+	tree.AddListEntry(name, key, entry)
+	return nil
+}
+
+// parseListInlineEntry parses a positional inline entry: `key val1 val2;` or `key;`.
+// Values are assigned to children in definition order.
+func (p *Parser) parseListInlineEntry(tree *Tree, name string, node *ListNode, key string) error {
+	entry := NewTree()
+	children := node.Children()
+	childIdx := 0
+
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenEOF || tok.Type == TokenRBrace {
+			return p.errorf(tok, "expected ';' in inline %s", name)
+		}
+		if tok.Type != TokenWord && tok.Type != TokenString {
+			return p.errorf(tok, "expected value in inline %s, got %s", name, tok.Type)
+		}
+
+		if childIdx >= len(children) {
+			return p.errorf(tok, "too many values in inline %s entry %q", name, key)
+		}
+
+		entry.Set(children[childIdx], tok.Value)
+		childIdx++
+		p.tok.Next()
 	}
 
 	tree.AddListEntry(name, key, entry)
@@ -673,8 +931,8 @@ func (p *Parser) parseBracketLeafList(tree *Tree, name string, _ *BracketLeafLis
 }
 
 // parseValueOrArray parses either "value;" or "[ item item ... ];".
-// Stores result as space-separated string in both cases.
-func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode) error {
+// Stores result as []string slice in tree.multiValues, preserving token boundaries.
+func (p *Parser) parseValueOrArray(tree *Tree, name string, node *ValueOrArrayNode) error {
 	tok := p.tok.Peek()
 
 	// Check if it's an array (starts with [)
@@ -703,15 +961,10 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode)
 		}
 		p.tok.Next()
 
-		// Store as space-separated string
-		var value strings.Builder
-		for i, item := range items {
-			if i > 0 {
-				value.WriteString(" ")
-			}
-			value.WriteString(item)
+		if err := validateEnumItems(node, name, items); err != nil {
+			return p.errorf(tok, "%v", err)
 		}
-		tree.Set(name, value.String())
+		tree.SetSlice(name, items)
 		return nil
 	}
 
@@ -731,15 +984,23 @@ func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode)
 		}
 	}
 
-	// Store as space-separated string
-	var value strings.Builder
-	for i, item := range items {
-		if i > 0 {
-			value.WriteString(" ")
-		}
-		value.WriteString(item)
+	if err := validateEnumItems(node, name, items); err != nil {
+		return p.errorf(tok, "%v", err)
 	}
-	tree.Set(name, value.String())
+	tree.SetSlice(name, items)
+	return nil
+}
+
+// validateEnumItems checks each item against ValidValues if set.
+func validateEnumItems(node *ValueOrArrayNode, name string, items []string) error {
+	if len(node.ValidValues) == 0 {
+		return nil
+	}
+	for _, item := range items {
+		if !slices.Contains(node.ValidValues, item) {
+			return fmt.Errorf("invalid value %q for %s (valid: %s)", item, name, strings.Join(node.ValidValues, ", "))
+		}
+	}
 	return nil
 }
 
@@ -844,139 +1105,6 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				}
 				child.Set(key.String(), configTrue)
 			}
-		}
-	}
-
-	tree.MergeContainer(name, child)
-	return nil
-}
-
-// parseFamilyBlock parses a family block with inline and block syntax.
-//
-// Supports:
-//   - Inline: "ipv4/unicast;" or "ipv4/unicast require;"
-//   - Block: "ipv4 { unicast; multicast require; }"
-//   - Mixed: both in same block
-//
-// Stores entries as "AFI SAFI" -> "MODE" where MODE is:
-//   - "true" or "" for enable (default)
-//   - "disable" for disable
-//   - "require" for require
-//
-// Also handles "ignore-mismatch enable/disable" as special case.
-func (p *Parser) parseFamilyBlock(tree *Tree, name string) error {
-	tok := p.tok.Peek()
-
-	if tok.Type != TokenLBrace {
-		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
-	}
-	p.tok.Next()
-
-	child := NewTree()
-
-	for {
-		tok = p.tok.Peek()
-		if tok.Type == TokenRBrace {
-			p.tok.Next()
-			break
-		}
-		if tok.Type == TokenEOF {
-			return p.errorf(tok, "unexpected EOF in %s block", name)
-		}
-		if tok.Type != TokenWord {
-			return p.errorf(tok, "expected AFI or keyword in %s block, got %s", name, tok.Type)
-		}
-
-		// First word is AFI or special keyword (ignore-mismatch)
-		afi := tok.Value
-		p.tok.Next()
-
-		tok = p.tok.Peek()
-
-		// Check for block syntax: "ipv4 { ... }"
-		if tok.Type == TokenLBrace {
-			p.tok.Next()
-			// Parse SAFI entries inside block
-			for {
-				tok = p.tok.Peek()
-				if tok.Type == TokenRBrace {
-					p.tok.Next()
-					break
-				}
-				if tok.Type == TokenEOF {
-					return p.errorf(tok, "unexpected EOF in %s %s block", name, afi)
-				}
-				if tok.Type != TokenWord {
-					return p.errorf(tok, "expected SAFI in %s %s block, got %s", name, afi, tok.Type)
-				}
-
-				safi := tok.Value
-				p.tok.Next()
-
-				// Check for mode or terminator
-				mode := configTrue // default to enable
-				tok = p.tok.Peek()
-				if tok.Type == TokenWord {
-					// Mode specified: require, disable, enable, true, false
-					mode = tok.Value
-					p.tok.Next()
-					tok = p.tok.Peek()
-				}
-
-				// Expect semicolon or rbrace
-				if tok.Type == TokenSemicolon {
-					p.tok.Next()
-				}
-				// rbrace without semicolon is also valid (end of block)
-
-				// Store as "AFI/SAFI" -> mode
-				key := afi + "/" + safi
-				child.Set(key, mode)
-			}
-		} else {
-			// Inline syntax: "ipv4/unicast;" or "ipv4/unicast require;"
-			// Requires "/" format (e.g., "ipv4/unicast")
-			var safi string
-			switch {
-			case afi == "ignore-mismatch":
-				// Special case: ignore-mismatch keyword
-				mode := configTrue
-				if tok.Type == TokenWord {
-					mode = tok.Value
-					p.tok.Next()
-					tok = p.tok.Peek()
-				}
-				if tok.Type == TokenSemicolon {
-					p.tok.Next()
-				}
-				child.Set("ignore-mismatch "+mode, configTrue)
-				continue
-			case strings.Contains(afi, "/"):
-				// Format: "ipv4/unicast" as single token
-				parts := strings.SplitN(afi, "/", 2)
-				afi = parts[0]
-				safi = parts[1]
-			default:
-				return p.errorf(tok, "expected afi/safi format (e.g., ipv4/unicast), got %q", afi)
-			}
-
-			// Check for mode or terminator
-			mode := configTrue // default to enable
-			if tok.Type == TokenWord {
-				// Mode specified
-				mode = tok.Value
-				p.tok.Next()
-				tok = p.tok.Peek()
-			}
-
-			// Expect semicolon or rbrace
-			if tok.Type == TokenSemicolon {
-				p.tok.Next()
-			}
-
-			// Store as "AFI/SAFI" -> mode
-			key := afi + "/" + safi
-			child.Set(key, mode)
 		}
 	}
 

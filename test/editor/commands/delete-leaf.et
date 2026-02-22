@@ -6,7 +6,7 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   local-as 65000;
-  listen 0.0.0.0 179;
+  listen 0.0.0.0:179;
 }
 EOF_CONF
 

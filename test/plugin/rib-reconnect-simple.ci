@@ -63,7 +63,7 @@ bgp {
 		}
 	
 		process rib {
-			send { update; }
+			send [ update ];
 		}
 	}
 }

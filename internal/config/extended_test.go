@@ -200,9 +200,9 @@ bgp {
 	processBlock := processList[KeyDefault]
 	require.NotNil(t, processBlock, "anonymous process block should exist")
 
-	val, ok := processBlock.Get("processes")
-	require.True(t, ok)
-	require.Equal(t, "watcher", val)
+	items := processBlock.GetSlice("processes")
+	require.NotEmpty(t, items)
+	require.Equal(t, []string{"watcher"}, items)
 }
 
 // TestArrayMultipleValues verifies multiple array values.
@@ -238,9 +238,9 @@ bgp {
 	api := apiList[KeyDefault]
 	require.NotNil(t, api, "anonymous process block should exist")
 
-	val, ok := api.Get("processes")
-	require.True(t, ok)
-	require.Equal(t, "watcher announcer receiver", val)
+	items := api.GetSlice("processes")
+	require.NotEmpty(t, items)
+	require.Equal(t, []string{"watcher", "announcer", "receiver"}, items)
 }
 
 // TestArrayRoundtrip verifies array serialization.

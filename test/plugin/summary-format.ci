@@ -144,9 +144,7 @@ template {
 			}
 		}
 		process summary-check {
-			send {
-				update;
-			}
+			send [ update ];
 		}
 	}
 }

@@ -136,8 +136,30 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(" ];\n")
 		}
 
+	case *ValueOrArrayNode:
+		if items := tree.GetSlice(name); len(items) > 0 {
+			b.WriteString(prefix)
+			b.WriteString(name)
+			if len(items) == 1 {
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(items[0]))
+				b.WriteString(";\n")
+			} else {
+				b.WriteString(" [ ")
+				for i, item := range items {
+					if i > 0 {
+						b.WriteString(" ")
+					}
+					b.WriteString(quoteIfNeeded(item))
+				}
+				b.WriteString(" ];\n")
+			}
+		}
+
 	case *ContainerNode:
-		if child := tree.containers[name]; child != nil {
+		if n.Presence {
+			serializePresenceContainer(b, tree, name, n, indent)
+		} else if child := tree.containers[name]; child != nil {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" {\n")
@@ -148,26 +170,31 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 	case *ListNode:
 		if entries := tree.lists[name]; entries != nil {
-			// Sort keys for deterministic output
-			keys := make([]string, 0, len(entries))
-			for k := range entries {
-				keys = append(keys, k)
-			}
-			sort.Strings(keys)
-
-			for _, key := range keys {
-				entry := entries[key]
-				b.WriteString(prefix)
-				b.WriteString(name)
-				// Skip outputting KeyDefault - it's the implicit default
-				if key != KeyDefault {
-					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(key))
+			if n.KeyName != "" && len(n.Children()) <= 2 && allChildrenAreLeaves(n) {
+				// Multi-entry block: name { key1 val1; key2; ... }
+				serializeListMultiBlock(b, name, entries, n, tree.listOrder[name], indent)
+			} else {
+				// Individual blocks: name key { ... }
+				keys := make([]string, 0, len(entries))
+				for k := range entries {
+					keys = append(keys, k)
 				}
-				b.WriteString(" {\n")
-				serializeListEntry(b, entry, n, indent+1)
-				b.WriteString(prefix)
-				b.WriteString("}\n")
+				sort.Strings(keys)
+
+				for _, key := range keys {
+					entry := entries[key]
+					b.WriteString(prefix)
+					b.WriteString(name)
+					// Skip outputting KeyDefault - it's the implicit default
+					if key != KeyDefault {
+						b.WriteString(" ")
+						b.WriteString(quoteIfNeeded(key))
+					}
+					b.WriteString(" {\n")
+					serializeListEntry(b, entry, n, indent+1)
+					b.WriteString(prefix)
+					b.WriteString("}\n")
+				}
 			}
 		}
 
@@ -177,20 +204,6 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(name)
 			b.WriteString(" {\n")
 			serializeFreeform(b, child, indent+1)
-			b.WriteString(prefix)
-			b.WriteString("}\n")
-		}
-
-	case *FamilyBlockNode:
-		// FamilyBlockNode stores families as "AFI SAFI" -> "mode"
-		// Serialize using inline syntax for simplicity
-		// Add blank line before family for readability
-		if child := tree.containers[name]; child != nil {
-			b.WriteString("\n")
-			b.WriteString(prefix)
-			b.WriteString(name)
-			b.WriteString(" {\n")
-			serializeFamilyBlock(b, child, indent+1)
 			b.WriteString(prefix)
 			b.WriteString("}\n")
 		}
@@ -299,6 +312,60 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 	}
 }
 
+// allChildrenAreLeaves reports whether all children of a ListNode are simple leaves.
+// Used to decide between multi-entry block (positional inline) and individual block serialization.
+func allChildrenAreLeaves(n *ListNode) bool {
+	for _, name := range n.Children() {
+		if _, ok := n.Get(name).(*LeafNode); !ok {
+			return false
+		}
+	}
+	return true
+}
+
+// serializeListMultiBlock serializes list entries as a grouped block with positional inline entries.
+// Output: name { key1; key2 val1; key3 val1 val2; }.
+func serializeListMultiBlock(b *strings.Builder, name string, entries map[string]*Tree, node *ListNode, order []string, indent int) {
+	prefix := strings.Repeat("\t", indent)
+	innerPrefix := strings.Repeat("\t", indent+1)
+
+	b.WriteString(prefix)
+	b.WriteString(name)
+	b.WriteString(" {\n")
+
+	// Use insertion order if available, otherwise sort
+	keys := order
+	if len(keys) == 0 {
+		keys = make([]string, 0, len(entries))
+		for k := range entries {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+	}
+
+	for _, key := range keys {
+		entry := entries[key]
+		if entry == nil {
+			continue
+		}
+		displayKey := stripListKeySuffix(key)
+		b.WriteString(innerPrefix)
+		b.WriteString(quoteIfNeeded(displayKey))
+
+		// Positional children in definition order
+		for _, childName := range node.Children() {
+			if v, ok := entry.Get(childName); ok {
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(v))
+			}
+		}
+		b.WriteString(";\n")
+	}
+
+	b.WriteString(prefix)
+	b.WriteString("}\n")
+}
+
 func serializeListEntry(b *strings.Builder, tree *Tree, node *ListNode, indent int) {
 	// Serialize in schema order
 	for _, name := range node.Children() {
@@ -339,28 +406,38 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 	}
 }
 
-// serializeFamilyBlock serializes family entries in inline syntax.
-// Output format: "AFI SAFI;" for enable, "AFI SAFI mode;" for other modes.
-func serializeFamilyBlock(b *strings.Builder, tree *Tree, indent int) {
+// serializePresenceContainer serializes a presence container in flag, value, or block form.
+// Mirrors FlexNode serialization: checks values, multiValues, containers, and lists.
+func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, node *ContainerNode, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
-	// Sort keys for deterministic output
-	keys := make([]string, 0, len(tree.values))
-	for k := range tree.values {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		v := tree.values[k]
+	// Check for simple value or flag
+	if v, ok := tree.values[name]; ok {
 		b.WriteString(prefix)
-		b.WriteString(k)
-		// Only output mode if not "true" (default enable)
-		if v != configTrue && v != configEnable {
+		b.WriteString(name)
+		if v != configTrue {
 			b.WriteString(" ")
-			b.WriteString(v)
+			b.WriteString(quoteIfNeeded(v))
 		}
 		b.WriteString(";\n")
+	} else if mv := tree.multiValues[name]; len(mv) > 0 {
+		for _, v := range mv {
+			b.WriteString(prefix)
+			b.WriteString(name)
+			b.WriteString(" ")
+			b.WriteString(v)
+			b.WriteString(";\n")
+		}
+	}
+
+	// Block form (container children)
+	if child := tree.containers[name]; child != nil {
+		b.WriteString(prefix)
+		b.WriteString(name)
+		b.WriteString(" {\n")
+		serializeTree(b, child, node, indent+1)
+		b.WriteString(prefix)
+		b.WriteString("}\n")
 	}
 }
 

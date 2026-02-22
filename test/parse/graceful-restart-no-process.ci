@@ -1,4 +1,4 @@
-# Invalid config: graceful-restart requires process with send { update; }
+# Invalid config: graceful-restart requires process with send [ update ]
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 10.0.0.1 {
@@ -15,4 +15,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=graceful-restart requires process with send { update; }
+expect=stderr:contains=graceful-restart requires process with send [ update ]

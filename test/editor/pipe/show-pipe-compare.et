@@ -17,7 +17,7 @@ tmpfs=modified.conf:terminator=EOF_MODIFIED
 bgp {
   router-id 1.2.3.4;
   local-as 65000;
-  listen 0.0.0.0 179;
+  listen 0.0.0.0:179;
   peer 1.1.1.1 {
     peer-as 65001;
   }

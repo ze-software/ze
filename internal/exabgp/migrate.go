@@ -73,7 +73,9 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	processMap := migrateProcesses(tree, result)
 
 	// Migrate neighbors → peers (with template expansion)
-	migrateNeighbors(tree, result, processMap, needsRIB, templates)
+	if err := migrateNeighbors(tree, result, processMap, needsRIB, templates); err != nil {
+		return nil, err
+	}
 
 	// Copy other top-level items (excluding templates - they're expanded)
 	copyOtherItems(tree, result)
@@ -106,7 +108,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 		return false
 	}
 
-	// Check neighbors for GR, route-refresh, or receive { update }.
+	// Check neighbors for GR, route-refresh, or receive [ update ].
 	for _, neighborTree := range tree.GetList("neighbor") {
 		// Check capabilities.
 		if cap := neighborTree.GetContainer("capability"); cap != nil {
@@ -124,7 +126,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 			}
 		}
 
-		// Check ExaBGP api block with receive { update; }.
+		// Check ExaBGP api block with receive { update; } (ExaBGP format).
 		if api := neighborTree.GetContainer("api"); api != nil {
 			if recv := api.GetContainer("receive"); recv != nil {
 				if _, ok := recv.GetFlex("update"); ok {
@@ -133,7 +135,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 			}
 		}
 
-		// Check ZeBGP-style process bindings with receive { update; }.
+		// Check ZeBGP-style process bindings with receive [ update ] (ExaBGP tree format).
 		for _, procTree := range neighborTree.GetList("process") {
 			if recv := procTree.GetContainer("receive"); recv != nil {
 				if _, ok := recv.GetFlex("update"); ok {
@@ -175,7 +177,7 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 }
 
 // migrateNeighbors converts ExaBGP neighbors to ZeBGP peers.
-func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool, templates map[string]*config.Tree) {
+func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool, templates map[string]*config.Tree) error {
 	// Use ordered iteration for deterministic output.
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		addr := entry.Key
@@ -185,7 +187,10 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		expandedTree := expandInheritance(neighborTree, templates)
 
 		// Convert neighbor to peer.
-		peer := migrateSingleNeighbor(expandedTree, result)
+		peer, err := migrateSingleNeighbor(expandedTree, result)
+		if err != nil {
+			return fmt.Errorf("neighbor %s: %w", addr, err)
+		}
 
 		// If RIB was injected, bind it to this peer.
 		if needsRIB {
@@ -197,6 +202,7 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 
 		result.Tree.AddListEntry("peer", addr, peer)
 	}
+	return nil
 }
 
 // expandInheritance merges template properties into neighbor if inherit is specified.
@@ -307,14 +313,22 @@ func copySimpleFields(src, dst *config.Tree) {
 // ZeBGP: capability { route-refresh enable; graceful-restart 120; }.
 //
 // RFC 8950: Infers nexthop capability from nexthop { } block presence.
-func migrateCapability(src, dst *config.Tree) {
+func migrateCapability(src, dst *config.Tree) error {
 	srcCap := src.GetContainer("capability")
 	dstCap := config.NewTree()
 	hasCapabilities := false
 
 	if srcCap != nil {
+		// Reject unsupported ExaBGP capabilities (no ze runtime implementation).
+		unsupported := []string{"multi-session", "operational", "aigp"}
+		for _, field := range unsupported {
+			if _, ok := srcCap.GetFlex(field); ok {
+				return fmt.Errorf("unsupported capability %q: not implemented in ze", field)
+			}
+		}
+
 		// Fields that need "enable" suffix (Flex type in schema).
-		enableFields := []string{"route-refresh", "multi-session", "operational", "aigp", "extended-message", "link-local-nexthop"}
+		enableFields := []string{"route-refresh", "extended-message", "link-local-nexthop"}
 		for _, field := range enableFields {
 			if _, ok := srcCap.GetFlex(field); ok {
 				dstCap.Set(field, "enable")
@@ -379,6 +393,7 @@ func migrateCapability(src, dst *config.Tree) {
 	if hasCapabilities {
 		dst.SetContainer("capability", dstCap)
 	}
+	return nil
 }
 
 // migrateHostnameToCapability converts peer-level host-name/domain-name
@@ -405,9 +420,9 @@ func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool
 // copyContainers copies container blocks from neighbor to peer.
 func copyContainers(src, dst *config.Tree) {
 	// Copy and convert family block.
-	// ExaBGP: "ipv4 unicast" → ZeBGP: "ipv4/unicast".
+	// ExaBGP: "ipv4 unicast" → ZeBGP list entries: key="ipv4/unicast".
 	if family := src.GetContainer("family"); family != nil {
-		dst.SetContainer("family", convertFamilyBlock(family))
+		convertFamilyToList(family, dst)
 	}
 
 	// Convert announce block to update blocks.
@@ -868,11 +883,9 @@ func detectRouteFamily(isIPv6, hasRD, hasLabel bool) string {
 	return familyIPv4Unicast
 }
 
-// convertFamilyBlock converts ExaBGP family syntax to ZeBGP.
-// ExaBGP: "ipv4 unicast;" → ZeBGP: "ipv4/unicast;".
-func convertFamilyBlock(src *config.Tree) *config.Tree {
-	dst := config.NewTree()
-
+// convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
+// ExaBGP: "ipv4 unicast;" → ZeBGP list: key="ipv4/unicast".
+func convertFamilyToList(src, dst *config.Tree) {
 	// Get keys and sort for deterministic output.
 	keys := src.Values()
 	sort.Strings(keys)
@@ -880,12 +893,8 @@ func convertFamilyBlock(src *config.Tree) *config.Tree {
 	for _, key := range keys {
 		// Convert "ipv4 unicast" → "ipv4/unicast".
 		converted := convertFamilySyntax(key)
-		// Family entries are flags (no value), stored as "true" by Freeform parser.
-		// Output as empty value to get "ipv4/unicast;" not "ipv4/unicast true;".
-		dst.Set(converted, "")
+		dst.AddListEntry("family", converted, config.NewTree())
 	}
-
-	return dst
 }
 
 // convertFamilySyntax converts ExaBGP family format to ZeBGP.
@@ -970,30 +979,25 @@ func normalizeSAFI(safi string) string {
 func bindRIBProcess(peer, src *config.Tree) {
 	ribProcess := config.NewTree()
 
-	// Send block.
-	sendBlock := config.NewTree()
-	sendBlock.Set("update", "")
-	sendBlock.Set("state", "")
-
-	// Add refresh if route-refresh is enabled.
+	// Send flags: update + state, plus refresh if route-refresh is enabled.
+	sendFlags := "[ update state"
 	if cap := src.GetContainer("capability"); cap != nil {
 		if _, ok := cap.GetFlex("route-refresh"); ok {
-			sendBlock.Set("refresh", "")
+			sendFlags += " refresh"
 		}
 	}
-	ribProcess.SetContainer("send", sendBlock)
+	sendFlags += " ]"
+	ribProcess.Set("send", sendFlags)
 
-	// Receive block.
-	recvBlock := config.NewTree()
-	recvBlock.Set("update", "")
-	ribProcess.SetContainer("receive", recvBlock)
+	// Receive flags.
+	ribProcess.Set("receive", "[ update ]")
 
 	peer.AddListEntry("process", "rib", ribProcess)
 }
 
 // migrateProcessBindings converts ExaBGP api block and process blocks to ZeBGP named bindings.
 // ExaBGP syntax: api { processes [ foo bar ]; }.
-// ZeBGP syntax: process foo-compat { send { update; state; } }.
+// ZeBGP syntax: process foo-compat { send [ update state ]; }.
 func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string) {
 	// First, handle ExaBGP-style api block.
 	if api := src.GetContainer("api"); api != nil {
@@ -1054,16 +1058,10 @@ func extractProcessNames(tree *config.Tree) []string {
 	return nil
 }
 
-// addProcessBinding adds a process binding with default send block.
+// addProcessBinding adds a process binding with default send flags.
 func addProcessBinding(dst *config.Tree, name string) {
 	proc := config.NewTree()
-
-	// Send block.
-	sendBlock := config.NewTree()
-	sendBlock.Set("update", "")
-	sendBlock.Set("state", "")
-	proc.SetContainer("send", sendBlock)
-
+	proc.Set("send", "[ update state ]")
 	dst.AddListEntry("process", name, proc)
 }
 
@@ -1082,14 +1080,16 @@ func copyOtherItems(src *config.Tree, result *MigrateResult) {
 
 // migrateSingleNeighbor converts a single neighbor tree to peer format.
 // Used for both top-level neighbors and template neighbors.
-func migrateSingleNeighbor(neighborTree *config.Tree, result *MigrateResult) *config.Tree {
+func migrateSingleNeighbor(neighborTree *config.Tree, result *MigrateResult) (*config.Tree, error) {
 	peer := config.NewTree()
 
 	// Copy simple fields.
 	copySimpleFields(neighborTree, peer)
 
 	// Migrate capability block.
-	migrateCapability(neighborTree, peer)
+	if err := migrateCapability(neighborTree, peer); err != nil {
+		return nil, err
+	}
 
 	// Copy other containers (family, etc.).
 	copyContainers(neighborTree, peer)
@@ -1097,7 +1097,7 @@ func migrateSingleNeighbor(neighborTree *config.Tree, result *MigrateResult) *co
 	// Check for unsupported features.
 	checkUnsupported(neighborTree, result)
 
-	return peer
+	return peer, nil
 }
 
 // SerializeTree serializes a config tree to ZeBGP config format.
@@ -1164,10 +1164,14 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	if family := tree.GetContainer("family"); family != nil {
-		_, _ = fmt.Fprintf(buf, "%sfamily {\n", indent)
-		serializeTreeIndent(family, buf, indent+"\t", false)
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
+	// Family entries stored as list entries by convertFamilyToList.
+	familyList := tree.GetListOrdered("family")
+	if len(familyList) > 0 {
+		buf.WriteString(indent + "family {\n")
+		for _, entry := range familyList {
+			buf.WriteString(indent + "\t" + entry.Key + ";\n")
+		}
+		buf.WriteString(indent + "}\n")
 	}
 
 	// Write hostname block (FQDN capability).
@@ -1214,17 +1218,8 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 
-	// Write send/receive blocks.
-	if send := tree.GetContainer("send"); send != nil {
-		_, _ = fmt.Fprintf(buf, "%ssend {\n", indent)
-		serializeTreeIndent(send, buf, indent+"\t", false)
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
-	}
-	if recv := tree.GetContainer("receive"); recv != nil {
-		_, _ = fmt.Fprintf(buf, "%sreceive {\n", indent)
-		serializeTreeIndent(recv, buf, indent+"\t", false)
-		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
-	}
+	// send/receive are now bracket leaf-lists (e.g. "receive [ state update ];")
+	// and are written by the generic value-writing code above.
 
 	// Write update blocks (converted from announce/static/flow).
 	for _, entry := range tree.GetListOrdered("update") {

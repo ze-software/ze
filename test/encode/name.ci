@@ -27,7 +27,7 @@ bgp {
 				next-hop 1.2.3.4;
 			}
 			nlri {
-				ipv4/unicast 1.0.0.0/24;
+				ipv4/unicast add 1.0.0.0/24;
 			}
 		}
 	}

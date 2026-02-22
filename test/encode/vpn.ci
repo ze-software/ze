@@ -32,10 +32,10 @@ bgp {
 				origin igp;
 				local-preference 100;
 				next-hop 200.10.0.101;
-				extended-community "0x0002fde800000001 0x0002271000000001";
+				extended-community [ 0x0002fde800000001 0x0002271000000001 ];
 			}
 			nlri {
-				ipv4/mpls-vpn rd 65000:1 label 1000 10.0.0.0/25 10.0.0.128/25 20.0.0.0/25 20.0.0.128/25;
+				ipv4/mpls-vpn add rd 65000:1 label 1000 10.0.0.0/25 10.0.0.128/25 20.0.0.0/25 20.0.0.128/25;
 			}
 		}
 	}

@@ -195,21 +195,35 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 
 		// Handle ignore-mismatch option.
 		if key == "ignore-mismatch" {
-			if vs, ok := val.(string); ok {
-				ps.IgnoreFamilyMismatch = vs == valTrue || vs == valEnable
+			switch v := val.(type) {
+			case string:
+				ps.IgnoreFamilyMismatch = v == valTrue || v == valEnable
+			case map[string]any:
+				// List entry: mode may be set, or key-only means enable.
+				if mode, ok := mapString(v, "mode"); ok {
+					ps.IgnoreFamilyMismatch = mode == valTrue || mode == valEnable
+				} else {
+					ps.IgnoreFamilyMismatch = true
+				}
 			}
 			continue
 		}
 
-		// Parse family: key is "afi/safi", val is mode string.
+		// Parse family: key is "afi/safi", val is mode string or list entry map.
 		parts := strings.SplitN(key, "/", 2)
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid family key %q: expected afi/safi format", key)
 		}
 
 		modeStr := ""
-		if vs, ok := val.(string); ok {
-			modeStr = vs
+		switch v := val.(type) {
+		case string:
+			modeStr = v
+		case map[string]any:
+			// List entry: extract mode from map.
+			if mode, ok := mapString(v, "mode"); ok {
+				modeStr = mode
+			}
 		}
 		mode := parseFamilyMode(modeStr)
 
@@ -425,11 +439,67 @@ func parseCapabilitiesFromTree(tree map[string]any, ps *PeerSettings) {
 	ps.CapabilityConfigJSON = mapToJSON(capMap)
 }
 
+// extractNextHopEntry extracts nhAFI name and mode from a nexthop entry value.
+// Handles both string format ("ipv6 require") and list entry map ({"nhafi": "ipv6", "mode": "require"}).
+func extractNextHopEntry(rawVal any) (string, capMode) {
+	if vs, ok := rawVal.(string); ok {
+		tokens := strings.Fields(vs)
+		if len(tokens) == 0 {
+			return "", capModeEnable
+		}
+		mode := capModeEnable
+		if len(tokens) > 1 {
+			mode = parseCapMode(tokens[1])
+		}
+		return tokens[0], mode
+	}
+	if m, ok := rawVal.(map[string]any); ok {
+		nh, nhOK := mapString(m, "nhafi")
+		if !nhOK {
+			return "", capModeEnable
+		}
+		mode := capModeEnable
+		if modeStr, ok := mapString(m, "mode"); ok {
+			mode = parseCapMode(modeStr)
+		}
+		return nh, mode
+	}
+	return "", capModeEnable
+}
+
+// extractAddPathEntry extracts family, direction, and mode from an add-path entry.
+// Handles both old format (key="ipv4/unicast send require" or key="ipv4/unicast", val="send require")
+// and new list format (key="ipv4/unicast", val=map{"direction":"send","mode":"require"}).
+func extractAddPathEntry(key string, val any) (familyKey, direction, mode string) {
+	// New list entry format: val is map[string]any.
+	if m, ok := val.(map[string]any); ok {
+		dir, _ := mapString(m, "direction")
+		md, _ := mapString(m, "mode")
+		return key, dir, md
+	}
+
+	// Old format: key may contain space-separated tokens, or val is a string.
+	parts := strings.Fields(key)
+	if len(parts) < 2 {
+		if vs, ok := val.(string); ok {
+			parts = append(parts, strings.Fields(vs)...)
+		}
+	}
+	// Check for trailing mode token.
+	if len(parts) >= 3 && isCapModeToken(parts[len(parts)-1]) {
+		return parts[0], parts[1], parts[len(parts)-1]
+	}
+	if len(parts) >= 2 {
+		return parts[0], parts[1], ""
+	}
+	return key, "", ""
+}
+
 // parseExtendedNextHopFromTree parses RFC 8950 extended next-hop families.
-// Each family line may have an optional trailing mode token:
+// Map key is the NLRI family (e.g., "ipv4/unicast"), value is "nhAFI [mode]":
 //
-//	"ipv4/unicast ipv6"         → enable (default)
-//	"ipv4/unicast ipv6 require" → require
+//	"ipv4/unicast" → "ipv6"          (enable, default)
+//	"ipv4/unicast" → "ipv6 require"  (require mode)
 //
 // Returns the most restrictive mode seen across all entries (require > refuse > enable).
 func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMode {
@@ -441,44 +511,42 @@ func parseExtendedNextHopFromTree(nhMap map[string]any, ps *PeerSettings) capMod
 	var families []capability.ExtendedNextHopFamily
 	mode := capModeEnable
 
-	for _, nlriAFIName := range []string{"ipv4", "ipv6"} {
-		nlriAFI := afiMap[nlriAFIName]
-		for _, safiName := range []string{"unicast", "multicast", "mpls-vpn", "mpls-label"} {
-			nlriSAFI := safiMap[safiName]
-			for _, nhAFIName := range []string{"ipv4", "ipv6"} {
-				nhAFI := afiMap[nhAFIName]
-				baseKey := nlriAFIName + "/" + safiName + " " + nhAFIName
-				if _, ok := nhMap[baseKey]; ok {
-					families = append(families, capability.ExtendedNextHopFamily{
-						NLRIAFI:    capability.AFI(nlriAFI),
-						NLRISAFI:   capability.SAFI(nlriSAFI),
-						NextHopAFI: capability.AFI(nhAFI),
-					})
-					continue
-				}
-				// Check with trailing mode token: "ipv4/unicast ipv6 require"
-				for _, modeStr := range capModeTokens {
-					if _, ok := nhMap[baseKey+" "+modeStr]; ok {
-						entryMode := parseCapMode(modeStr)
-						// Only include family if mode advertises (enable/require).
-						// disable/refuse suppress this family from the capability value.
-						if entryMode.advertise() {
-							families = append(families, capability.ExtendedNextHopFamily{
-								NLRIAFI:    capability.AFI(nlriAFI),
-								NLRISAFI:   capability.SAFI(nlriSAFI),
-								NextHopAFI: capability.AFI(nhAFI),
-							})
-						}
-						// Precedence: require > refuse > enable/disable.
-						if entryMode == capModeRequire {
-							mode = capModeRequire
-						} else if entryMode == capModeRefuse && mode != capModeRequire {
-							mode = capModeRefuse
-						}
-						break
-					}
-				}
-			}
+	for familyKey, rawVal := range nhMap {
+		// Parse family key: "ipv4/unicast" → afi="ipv4", safi="unicast"
+		parts := strings.SplitN(familyKey, "/", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		nlriAFI, afiOK := afiMap[parts[0]]
+		nlriSAFI, safiOK := safiMap[parts[1]]
+		if !afiOK || !safiOK {
+			continue
+		}
+
+		// Parse value: string "ipv6 [require]" or list entry map {nhafi, mode}.
+		nhAFIName, entryMode := extractNextHopEntry(rawVal)
+		if nhAFIName == "" {
+			continue
+		}
+
+		nhAFI, ok := afiMap[nhAFIName]
+		if !ok {
+			continue
+		}
+
+		// Only include family if mode advertises (enable/require).
+		if entryMode.advertise() {
+			families = append(families, capability.ExtendedNextHopFamily{
+				NLRIAFI:    capability.AFI(nlriAFI),
+				NLRISAFI:   capability.SAFI(nlriSAFI),
+				NextHopAFI: capability.AFI(nhAFI),
+			})
+		}
+		// Precedence: require > refuse > enable/disable.
+		if entryMode == capModeRequire {
+			mode = capModeRequire
+		} else if entryMode == capModeRefuse && mode != capModeRequire {
+			mode = capModeRefuse
 		}
 	}
 
@@ -541,19 +609,11 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 	perFamilyHasEnforcement := false // true when any per-family entry sets require/refuse
 	if addPathMap, ok := mapMap(peerTree, "add-path"); ok {
 		for key, val := range addPathMap {
-			// Key format: "ipv4/unicast send [require]" stored as Freeform value.
-			parts := strings.Fields(key)
-			if len(parts) < 2 {
-				// Try key as family, val as mode.
-				if vs, ok := val.(string); ok {
-					parts = []string{key, vs}
-				}
-			}
-			// Check for trailing mode token.
-			if len(parts) >= 3 && isCapModeToken(parts[len(parts)-1]) {
-				entryMode := parseCapMode(parts[len(parts)-1])
-				parts = parts[:len(parts)-1]
-				// Precedence: require > refuse > enable/disable.
+			familyKey, dirStr, modeStr := extractAddPathEntry(key, val)
+
+			// Apply enforcement mode.
+			if modeStr != "" {
+				entryMode := parseCapMode(modeStr)
 				if entryMode == capModeRequire {
 					addPathMode = capModeRequire
 					perFamilyHasEnforcement = true
@@ -562,27 +622,29 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 					perFamilyHasEnforcement = true
 				}
 			}
-			if len(parts) >= 2 {
-				family, ok := nlri.ParseFamily(parts[0])
-				if !ok {
-					continue
-				}
-				var mode capability.AddPathMode
-				switch parts[1] {
-				case "send":
-					mode = capability.AddPathSend
-				case "receive":
-					mode = capability.AddPathReceive
-				case "send/receive", "receive/send":
-					mode = capability.AddPathBoth
-				}
-				if mode != capability.AddPathNone {
-					perFamily = append(perFamily, capability.AddPathFamily{
-						AFI:  family.AFI,
-						SAFI: family.SAFI,
-						Mode: mode,
-					})
-				}
+
+			if familyKey == "" || dirStr == "" {
+				continue
+			}
+			family, ok := nlri.ParseFamily(familyKey)
+			if !ok {
+				continue
+			}
+			var mode capability.AddPathMode
+			switch dirStr {
+			case "send":
+				mode = capability.AddPathSend
+			case "receive":
+				mode = capability.AddPathReceive
+			case "send/receive", "receive/send":
+				mode = capability.AddPathBoth
+			}
+			if mode != capability.AddPathNone {
+				perFamily = append(perFamily, capability.AddPathFamily{
+					AFI:  family.AFI,
+					SAFI: family.SAFI,
+					Mode: mode,
+				})
 			}
 		}
 	}
@@ -660,56 +722,68 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) {
 			}
 		}
 
-		// Receive settings.
-		if recvMap, ok := mapMap(pMap, "receive"); ok {
-			parseReceiveFlags(recvMap, &binding)
+		// Receive settings — leaf-list: "update state negotiated".
+		if v, ok := mapStringJoined(pMap, "receive"); ok {
+			parseReceiveFlags(v, &binding)
 		}
 
-		// Send settings.
-		if sendMap, ok := mapMap(pMap, "send"); ok {
-			parseSendFlags(sendMap, &binding)
+		// Send settings — leaf-list: "update refresh".
+		if v, ok := mapStringJoined(pMap, "send"); ok {
+			parseSendFlags(v, &binding)
 		}
 
 		ps.ProcessBindings = append(ps.ProcessBindings, binding)
 	}
 }
 
-// parseReceiveFlags sets receive flags on a ProcessBinding from a map.
-func parseReceiveFlags(m map[string]any, b *ProcessBinding) {
-	// Check for "all" shorthand.
-	if _, ok := m["all"]; ok {
-		b.ReceiveUpdate = true
-		b.ReceiveOpen = true
-		b.ReceiveNotification = true
-		b.ReceiveKeepalive = true
-		b.ReceiveRefresh = true
-		b.ReceiveState = true
-		b.ReceiveSent = true
-		b.ReceiveNegotiated = true
-		return
+// parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated enum list.
+func parseReceiveFlags(s string, b *ProcessBinding) {
+	for token := range strings.FieldsSeq(s) {
+		switch token {
+		case "all":
+			b.ReceiveUpdate = true
+			b.ReceiveOpen = true
+			b.ReceiveNotification = true
+			b.ReceiveKeepalive = true
+			b.ReceiveRefresh = true
+			b.ReceiveState = true
+			b.ReceiveSent = true
+			b.ReceiveNegotiated = true
+			return
+		case "update":
+			b.ReceiveUpdate = true
+		case "open":
+			b.ReceiveOpen = true
+		case "notification":
+			b.ReceiveNotification = true
+		case "keepalive":
+			b.ReceiveKeepalive = true
+		case "refresh":
+			b.ReceiveRefresh = true
+		case "state":
+			b.ReceiveState = true
+		case "sent":
+			b.ReceiveSent = true
+		case "negotiated":
+			b.ReceiveNegotiated = true
+		}
 	}
-
-	_, b.ReceiveUpdate = m["update"]
-	_, b.ReceiveOpen = m["open"]
-	_, b.ReceiveNotification = m["notification"]
-	_, b.ReceiveKeepalive = m["keepalive"]
-	_, b.ReceiveRefresh = m["refresh"]
-	_, b.ReceiveState = m["state"]
-	_, b.ReceiveSent = m["sent"]
-	_, b.ReceiveNegotiated = m["negotiated"]
 }
 
-// parseSendFlags sets send flags on a ProcessBinding from a map.
-func parseSendFlags(m map[string]any, b *ProcessBinding) {
-	// Check for "all" shorthand.
-	if _, ok := m["all"]; ok {
-		b.SendUpdate = true
-		b.SendRefresh = true
-		return
+// parseSendFlags sets send flags on a ProcessBinding from a space-separated enum list.
+func parseSendFlags(s string, b *ProcessBinding) {
+	for token := range strings.FieldsSeq(s) {
+		switch token {
+		case "all":
+			b.SendUpdate = true
+			b.SendRefresh = true
+			return
+		case "update":
+			b.SendUpdate = true
+		case "refresh":
+			b.SendRefresh = true
+		}
 	}
-
-	_, b.SendUpdate = m["update"]
-	_, b.SendRefresh = m["refresh"]
 }
 
 // --- Map navigation helpers ---
@@ -754,6 +828,22 @@ func mapMap(m map[string]any, key string) (map[string]any, bool) {
 	}
 	sub, ok := v.(map[string]any)
 	return sub, ok
+}
+
+// mapStringJoined extracts a string or []string value from a map, joining slices with spaces.
+// Used for leaf-list fields where ToMap() produces []string for multi-value entries.
+func mapStringJoined(m map[string]any, key string) (string, bool) {
+	v, ok := m[key]
+	if !ok {
+		return "", false
+	}
+	if s, ok := v.(string); ok {
+		return s, true
+	}
+	if ss, ok := v.([]string); ok && len(ss) > 0 {
+		return strings.Join(ss, " "), true
+	}
+	return "", false
 }
 
 // flexString extracts a string from a flex field (can be string or map).

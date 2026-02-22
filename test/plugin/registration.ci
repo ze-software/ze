@@ -79,7 +79,7 @@ bgp {
         }
         # No graceful-restart - prevents auto EOR
         process test-plugin {
-            send { update; }
+            send [ update ];
         }
     }
 }

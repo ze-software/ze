@@ -170,10 +170,10 @@ func TestParsePeerFamilies(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast":   "enable",
-			"ipv6/unicast":   "require",
-			"ipv4/multicast": "ignore",
-			"ipv4/flow":      "disable",
+			"ipv4/unicast":   map[string]any{"mode": "enable"},
+			"ipv6/unicast":   map[string]any{"mode": "require"},
+			"ipv4/multicast": map[string]any{"mode": "ignore"},
+			"ipv4/flow":      map[string]any{"mode": "disable"},
 		},
 	}
 
@@ -209,8 +209,8 @@ func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast":    "enable",
-			"ignore-mismatch": "true",
+			"ipv4/unicast":    map[string]any{"mode": "enable"},
+			"ignore-mismatch": map[string]any{"mode": "true"},
 		},
 	}
 
@@ -228,7 +228,7 @@ func TestParsePeerFamilyInvalid(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"bogus/family": "enable",
+			"bogus/family": map[string]any{"mode": "enable"},
 		},
 	}
 
@@ -247,7 +247,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast": "enable",
+			"ipv4/unicast": map[string]any{},
 		},
 		"capability": map[string]any{
 			"asn4":             "true",
@@ -332,8 +332,8 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast": "enable",
-			"ipv6/unicast": "enable",
+			"ipv4/unicast": map[string]any{},
+			"ipv6/unicast": map[string]any{},
 		},
 		"capability": map[string]any{
 			"add-path": "send/receive",
@@ -370,7 +370,7 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast": "enable",
+			"ipv4/unicast": map[string]any{},
 		},
 		"capability": map[string]any{
 			"add-path": map[string]any{
@@ -404,7 +404,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 		"peer-as":       "65001",
 		"local-address": "auto",
 		"family": map[string]any{
-			"ipv4/unicast": "enable",
+			"ipv4/unicast": map[string]any{},
 		},
 		"capability": map[string]any{
 			"add-path": "send",
@@ -436,7 +436,7 @@ func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 		"local-address": "auto",
 		"capability": map[string]any{
 			"nexthop": map[string]any{
-				"ipv4/unicast ipv6": "true",
+				"ipv4/unicast": map[string]any{"nhafi": "ipv6"},
 			},
 		},
 	}
@@ -461,7 +461,7 @@ func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 // TestParsePeerCapabilityExtendedNextHopInlineMode verifies inline mode tokens
 // on nexthop family lines (e.g., "ipv4/unicast ipv6 require;").
 //
-// VALIDATES: trailing mode token parsed from freeform nexthop family key.
+// VALIDATES: trailing mode token parsed from structured nexthop family value.
 // PREVENTS: inline mode silently ignored, require/refuse not applied.
 func TestParsePeerCapabilityExtendedNextHopInlineMode(t *testing.T) {
 	tests := []struct {
@@ -473,31 +473,31 @@ func TestParsePeerCapabilityExtendedNextHopInlineMode(t *testing.T) {
 	}{
 		{
 			name:         "require mode",
-			nhMap:        map[string]any{"ipv4/unicast ipv6 require": "true"},
+			nhMap:        map[string]any{"ipv4/unicast": map[string]any{"nhafi": "ipv6", "mode": "require"}},
 			wantFamilies: 1,
 			wantRequired: []capability.Code{capability.CodeExtendedNextHop},
 		},
 		{
 			name:         "refuse mode suppresses family",
-			nhMap:        map[string]any{"ipv4/unicast ipv6 refuse": "true"},
+			nhMap:        map[string]any{"ipv4/unicast": map[string]any{"nhafi": "ipv6", "mode": "refuse"}},
 			wantFamilies: 0,
 			wantRefused:  []capability.Code{capability.CodeExtendedNextHop},
 		},
 		{
 			name:         "disable mode suppresses family",
-			nhMap:        map[string]any{"ipv4/unicast ipv6 disable": "true"},
+			nhMap:        map[string]any{"ipv4/unicast": map[string]any{"nhafi": "ipv6", "mode": "disable"}},
 			wantFamilies: 0,
 		},
 		{
 			name:         "enable mode explicit",
-			nhMap:        map[string]any{"ipv4/unicast ipv6 enable": "true"},
+			nhMap:        map[string]any{"ipv4/unicast": map[string]any{"nhafi": "ipv6", "mode": "enable"}},
 			wantFamilies: 1,
 		},
 		{
 			name: "mixed modes — require wins",
 			nhMap: map[string]any{
-				"ipv4/unicast ipv6":           "true",
-				"ipv4/multicast ipv6 require": "true",
+				"ipv4/unicast":   map[string]any{"nhafi": "ipv6"},
+				"ipv4/multicast": map[string]any{"nhafi": "ipv6", "mode": "require"},
 			},
 			wantFamilies: 2,
 			wantRequired: []capability.Code{capability.CodeExtendedNextHop},
@@ -597,15 +597,8 @@ func TestParsePeerProcessBindings(t *testing.T) {
 					"encoding": "json",
 					"format":   "parsed",
 				},
-				"receive": map[string]any{
-					"update":       "true",
-					"open":         "true",
-					"notification": "true",
-					"state":        "true",
-				},
-				"send": map[string]any{
-					"update": "true",
-				},
+				"receive": "update open notification state",
+				"send":    "update",
 			},
 		},
 	}
@@ -630,7 +623,7 @@ func TestParsePeerProcessBindings(t *testing.T) {
 
 // TestParsePeerProcessBindingsReceiveAll verifies the "all" shorthand.
 //
-// VALIDATES: receive { all; } sets all receive flags to true.
+// VALIDATES: receive [ all ]; sets all receive flags to true.
 // PREVENTS: Missing flags when using shorthand notation.
 func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 	tree := map[string]any{
@@ -638,12 +631,8 @@ func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 		"local-address": "auto",
 		"process": map[string]any{
 			"my-plugin": map[string]any{
-				"receive": map[string]any{
-					"all": "true",
-				},
-				"send": map[string]any{
-					"all": "true",
-				},
+				"receive": "all",
+				"send":    "all",
 			},
 		},
 	}
@@ -747,7 +736,7 @@ func TestPeersFromTree(t *testing.T) {
 				"local-address": "192.0.2.100",
 				"hold-time":     "180",
 				"family": map[string]any{
-					"ipv4/unicast": "enable",
+					"ipv4/unicast": map[string]any{},
 				},
 			},
 			"192.0.2.2": map[string]any{
@@ -855,15 +844,15 @@ func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 				"peer-as":       "65001",
 				"local-address": "auto",
 				"family": map[string]any{
-					"ipv4/unicast": "enable",
-					"ipv6/unicast": "enable",
+					"ipv4/unicast": map[string]any{},
+					"ipv6/unicast": map[string]any{},
 				},
 			},
 			"192.0.2.2": map[string]any{
 				"peer-as":       "65002",
 				"local-address": "auto",
 				"family": map[string]any{
-					"ipv4/unicast": "enable",
+					"ipv4/unicast": map[string]any{},
 				},
 			},
 		},
@@ -1260,7 +1249,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{"add-path": "send/receive require"},
 			},
 			wantRequired: []capability.Code{capability.CodeAddPath},
@@ -1270,9 +1259,9 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{},
-				"add-path":      map[string]any{"ipv4/unicast send require": ""},
+				"add-path":      map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}},
 			},
 			wantRequired: []capability.Code{capability.CodeAddPath},
 		},
@@ -1281,7 +1270,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},
@@ -1291,7 +1280,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{"add-path": "send/receive"},
 			},
 			// No mode specified = enable (default) — no require/refuse entries.
@@ -1301,7 +1290,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{"add-path": "send/receive disable"},
 			},
 			// disable = don't advertise, no enforcement.
@@ -1311,7 +1300,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"peer-as":       "65001",
 				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": "enable"},
+				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
 				"capability":    map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},

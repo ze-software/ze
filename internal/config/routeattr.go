@@ -341,8 +341,8 @@ func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
 		}, nil
 	}
 
-	// Parse ASN part
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	// Parse ASN part (strip trailing L suffix from ExaBGP 4-byte ASN notation)
+	asn, err := strconv.ParseUint(strings.TrimRight(asnStr, "Ll"), 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
 	}
@@ -407,7 +407,8 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 		}, nil
 	}
 
-	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	// Strip trailing L suffix from ExaBGP 4-byte ASN notation
+	asn, err := strconv.ParseUint(strings.TrimRight(asnStr, "Ll"), 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
 	}

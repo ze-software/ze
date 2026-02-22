@@ -13,14 +13,10 @@ plugin {
 template {
 	group test {
 		process my-process {
-			receive {
-				state;
-			}
+			receive [ state ];
 		}
 		process my-second-process {
-			receive {
-				state;
-			}
+			receive [ state ];
 		}
 	}
 }

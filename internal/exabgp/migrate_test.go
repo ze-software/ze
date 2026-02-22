@@ -375,10 +375,13 @@ neighbor 10.0.0.1 {
 		t.Fatal("expected process rib binding")
 	}
 
-	// Verify send block has refresh
-	sendBlock := ribProcess.GetContainer("send")
-	if sendBlock == nil {
-		t.Fatal("expected send block in rib process")
+	// Verify send leaf-list includes refresh
+	sendValue, ok := ribProcess.Get("send")
+	if !ok {
+		t.Fatal("expected send leaf-list in rib process")
+	}
+	if !strings.Contains(sendValue, "refresh") {
+		t.Errorf("expected send to include refresh, got %q", sendValue)
 	}
 
 	// Check capability uses enable syntax
@@ -1508,5 +1511,76 @@ func TestConvertFlexToUpdate(t *testing.T) {
 				t.Errorf("nlri value = %q, want empty (freeform key-only format)", nlriVal)
 			}
 		})
+	}
+}
+
+// TestMigrationRefusesUnsupportedCap verifies migration rejects multi-session, operational, aigp.
+//
+// VALIDATES: AC-21, AC-22, AC-23 — migration errors on unsupported capabilities.
+// PREVENTS: Silently migrating capabilities with no ze runtime implementation.
+func TestMigrationRefusesUnsupportedCap(t *testing.T) {
+	tests := []struct {
+		name string
+		cap  string
+	}{
+		{"multi-session", "multi-session"},
+		{"operational", "operational"},
+		{"aigp", "aigp"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		` + tt.cap + `;
+	}
+}
+`
+			tree, err := ParseExaBGPConfig(input)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+
+			_, err = MigrateFromExaBGP(tree)
+			if err == nil {
+				t.Fatalf("expected error for unsupported capability %q, got nil", tt.cap)
+			}
+			if !strings.Contains(err.Error(), "unsupported capability") {
+				t.Errorf("error should mention 'unsupported capability', got: %v", err)
+			}
+		})
+	}
+}
+
+// TestMigrationSucceedsWithoutUnsupported verifies migration works when no unsupported caps present.
+//
+// VALIDATES: AC-27 — migration succeeds with only supported capabilities.
+// PREVENTS: False positive rejections.
+func TestMigrationSucceedsWithoutUnsupported(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		route-refresh;
+		extended-message;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+	if !strings.Contains(output, "route-refresh enable") {
+		t.Errorf("expected 'route-refresh enable' in output:\n%s", output)
 	}
 }

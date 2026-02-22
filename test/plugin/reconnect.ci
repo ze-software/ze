@@ -84,8 +84,8 @@ bgp {
 		process announce-routes {
 		}
 		process rib {
-			receive { sent; state; }
-			send { update; }
+			receive [ sent state ];
+			send [ update ];
 		}
 	}
 }

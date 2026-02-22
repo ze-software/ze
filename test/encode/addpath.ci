@@ -34,7 +34,7 @@ bgp {
 				path-information 1.2.3.4;
 			}
 			nlri {
-				ipv4/unicast 193.0.2.1/32;
+				ipv4/unicast add 193.0.2.1/32;
 			}
 		}
 		update {
@@ -46,7 +46,7 @@ bgp {
 				path-information 10;
 			}
 			nlri {
-				ipv4/mpls-vpn rd 100:100 label 20012 10.0.0.0/24;
+				ipv4/mpls-vpn add rd 100:100 label 20012 10.0.0.0/24;
 			}
 		}
 		add-path {

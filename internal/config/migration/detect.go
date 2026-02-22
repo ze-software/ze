@@ -47,7 +47,7 @@ func hasStaticBlocks(tree *config.Tree) bool {
 // Old style includes:
 //   - Anonymous process block: api { processes [ foo ]; } - uses KeyDefault as key
 //   - Named block with processes: api speaking { processes [ foo ]; }
-//   - Format flags in receive/send: receive { parsed; packets; consolidate; }
+//   - Format flags in receive/send: receive [ parsed packets consolidate ];
 //   - State flag: neighbor-changes
 func hasOldAPIBlocks(tree *config.Tree) bool {
 	// Check peer blocks
@@ -94,15 +94,15 @@ func hasOldStyleAPI(tree *config.Tree) bool {
 
 // isOldStyleAPIBlock returns true if an process block uses old syntax.
 func isOldStyleAPIBlock(apiTree *config.Tree) bool {
-	// Check for processes/processes-match field
-	if _, ok := apiTree.Get("processes"); ok {
+	// Check for processes/processes-match field (leaf-list, stored in multiValues)
+	if items := apiTree.GetSlice("processes"); len(items) > 0 {
 		return true
 	}
-	if _, ok := apiTree.Get("processes-match"); ok {
+	if items := apiTree.GetSlice("processes-match"); len(items) > 0 {
 		return true
 	}
 
-	// Check for neighbor-changes flag at api level (maps to receive { state; })
+	// Check for neighbor-changes flag at api level (maps to receive [ state ];)
 	if _, ok := apiTree.GetFlex("neighbor-changes"); ok {
 		return true
 	}

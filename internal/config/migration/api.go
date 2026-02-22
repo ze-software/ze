@@ -29,20 +29,20 @@ var ErrAPICollision = errors.New("process block collision: old syntax process co
 //
 // Becomes:
 //
-//	api foo { receive { state; } }
+//	api foo { receive [ state ]; }
 //
 // 2. Named process blocks with processes inside:
 //
 //	api speaking {
 //	    processes [ foo ];
-//	    receive { parsed; update; }
+//	    receive [ parsed update ];
 //	}
 //
 // Becomes:
 //
 //	api foo {
 //	    content { format parsed; }
-//	    receive { update; }
+//	    receive [ update ];
 //	}
 //
 // Format mapping:
@@ -50,7 +50,7 @@ var ErrAPICollision = errors.New("process block collision: old syntax process co
 //   - packets only (no parsed) → format raw
 //   - parsed + packets OR consolidate → format full
 //
-// State flag (neighbor-changes) → receive { state; }
+// State flag (neighbor-changes) → receive [ state ];
 //
 // Note: Format flags in send block (parsed, packets, consolidate) are dropped
 // since ze uses a single format for both directions.
@@ -218,7 +218,7 @@ type apiConfig struct {
 func extractAPIConfig(apiTree *config.Tree) apiConfig {
 	cfg := apiConfig{}
 
-	// Extract neighbor-changes flag from api level (maps to receive { state; })
+	// Extract neighbor-changes flag from api level (maps to receive [ state ];)
 	if _, ok := apiTree.GetFlex("neighbor-changes"); ok {
 		cfg.receiveState = true
 	}
@@ -296,80 +296,56 @@ func buildNewAPIBlock(cfg apiConfig) *config.Tree {
 		newAPI.SetContainer("content", content)
 	}
 
-	// Add receive block if any receive flags are set
-	if cfg.receiveState || cfg.receiveUpdate || cfg.receiveOpen ||
-		cfg.receiveNotification || cfg.receiveKeepalive || cfg.receiveRefresh ||
-		cfg.receiveOperational {
-		receive := config.NewTree()
-		if cfg.receiveState {
-			receive.Set("state", "true")
-		}
-		if cfg.receiveUpdate {
-			receive.Set("update", "true")
-		}
-		if cfg.receiveOpen {
-			receive.Set("open", "true")
-		}
-		if cfg.receiveNotification {
-			receive.Set("notification", "true")
-		}
-		if cfg.receiveKeepalive {
-			receive.Set("keepalive", "true")
-		}
-		if cfg.receiveRefresh {
-			receive.Set("refresh", "true")
-		}
-		if cfg.receiveOperational {
-			receive.Set("operational", "true")
-		}
-		newAPI.SetContainer("receive", receive)
+	// Add receive leaf-list if any receive flags are set.
+	// Output uses bracket syntax: receive [ state update ];
+	if recvFlags := buildFlagList(
+		flagEntry{cfg.receiveState, "state"},
+		flagEntry{cfg.receiveUpdate, "update"},
+		flagEntry{cfg.receiveOpen, "open"},
+		flagEntry{cfg.receiveNotification, "notification"},
+		flagEntry{cfg.receiveKeepalive, "keepalive"},
+		flagEntry{cfg.receiveRefresh, "refresh"},
+	); recvFlags != "" {
+		newAPI.Set("receive", recvFlags)
 	}
 
-	// Add send block if any send flags are set
-	if cfg.sendUpdate || cfg.sendRefresh || cfg.sendKeepalive || cfg.sendOperational {
-		send := config.NewTree()
-		if cfg.sendUpdate {
-			send.Set("update", "true")
-		}
-		if cfg.sendRefresh {
-			send.Set("refresh", "true")
-		}
-		if cfg.sendKeepalive {
-			send.Set("keepalive", "true")
-		}
-		if cfg.sendOperational {
-			send.Set("operational", "true")
-		}
-		newAPI.SetContainer("send", send)
+	// Add send leaf-list if any send flags are set.
+	if sendFlags := buildFlagList(
+		flagEntry{cfg.sendUpdate, "update"},
+		flagEntry{cfg.sendRefresh, "refresh"},
+	); sendFlags != "" {
+		newAPI.Set("send", sendFlags)
 	}
 
 	return newAPI
 }
 
-// extractProcessNames parses "[ foo bar ]" or "foo bar" format from processes field.
-func extractProcessNames(apiTree *config.Tree) []string {
-	processesValue, ok := apiTree.Get("processes")
-	if !ok {
-		return nil
-	}
-
-	// Remove brackets and parse space-separated names
-	processesValue = strings.Trim(processesValue, "[]")
-	names := strings.Fields(processesValue)
-
-	return names
+type flagEntry struct {
+	set  bool
+	name string
 }
 
-// extractProcessesMatch parses "[ pattern1 pattern2 ]" format from processes-match field.
-func extractProcessesMatch(apiTree *config.Tree) []string {
-	matchValue, ok := apiTree.Get("processes-match")
-	if !ok {
-		return nil
+// buildFlagList returns a bracket leaf-list value like "[ state update ]" from flags,
+// or empty string if no flags are set.
+func buildFlagList(entries ...flagEntry) string {
+	var flags []string
+	for _, e := range entries {
+		if e.set {
+			flags = append(flags, e.name)
+		}
 	}
+	if len(flags) == 0 {
+		return ""
+	}
+	return "[ " + strings.Join(flags, " ") + " ]"
+}
 
-	// Remove brackets and parse space-separated patterns
-	matchValue = strings.Trim(matchValue, "[]")
-	patterns := strings.Fields(matchValue)
+// extractProcessNames returns process names from the leaf-list processes field.
+func extractProcessNames(apiTree *config.Tree) []string {
+	return apiTree.GetSlice("processes")
+}
 
-	return patterns
+// extractProcessesMatch returns match patterns from the leaf-list processes-match field.
+func extractProcessesMatch(apiTree *config.Tree) []string {
+	return apiTree.GetSlice("processes-match")
 }

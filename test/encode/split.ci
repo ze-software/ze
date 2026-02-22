@@ -43,7 +43,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.0.0/24;
+				ipv4/unicast add 172.10.0.0/24;
 			}
 		}
 		update {
@@ -54,7 +54,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.1.0/24;
+				ipv4/unicast add 172.10.1.0/24;
 			}
 		}
 		update {
@@ -65,7 +65,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.2.0/24;
+				ipv4/unicast add 172.10.2.0/24;
 			}
 		}
 		update {
@@ -76,7 +76,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.3.0/24;
+				ipv4/unicast add 172.10.3.0/24;
 			}
 		}
 		update {
@@ -87,7 +87,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.4.0/24;
+				ipv4/unicast add 172.10.4.0/24;
 			}
 		}
 		update {
@@ -98,7 +98,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.5.0/24;
+				ipv4/unicast add 172.10.5.0/24;
 			}
 		}
 		update {
@@ -109,7 +109,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.6.0/24;
+				ipv4/unicast add 172.10.6.0/24;
 			}
 		}
 		update {
@@ -120,7 +120,7 @@ bgp {
 				community [ 174:666 ];
 			}
 			nlri {
-				ipv4/unicast 172.10.7.0/24;
+				ipv4/unicast add 172.10.7.0/24;
 			}
 		}
 	}

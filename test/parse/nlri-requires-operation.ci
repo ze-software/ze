@@ -1,0 +1,23 @@
+# Test: NLRI without operation keyword (add/del/eor) must fail
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 10.0.0.3 {
+		local-address 10.0.0.2;
+		local-as 65533;
+		peer-as 65533;
+		update {
+			attribute {
+				origin igp;
+				next-hop self;
+			}
+			nlri {
+				ipv4/unicast 10.0.0.0/24;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=missing operation keyword

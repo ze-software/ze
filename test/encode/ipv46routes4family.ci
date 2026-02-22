@@ -25,7 +25,7 @@ bgp {
 				extended-community [ target:72:1 ];
 			}
 			nlri {
-				ipv4/unicast 193.0.2.1/32;
+				ipv4/unicast add 193.0.2.1/32;
 			}
 		}
 	}

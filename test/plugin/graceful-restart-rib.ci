@@ -74,10 +74,10 @@ bgp {
 		}
 
 		process gr {
-			send { update; }
+			send [ update ];
 		}
 		process rib {
-			send { update; }
+			send [ update ];
 		}
 	}
 }

@@ -161,8 +161,6 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 		return yangToFlex(entry, path)
 	case "freeform":
 		return Freeform()
-	case "family-block":
-		return FamilyBlock()
 	case "inline-list":
 		keyType := getKeyTypeExtension(entry)
 		return yangToInlineListWithKey(entry, path, keyType)
@@ -178,9 +176,12 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	//nolint:exhaustive // Only handle types relevant to config schema
 	switch entry.Kind {
 	case gyang.LeafEntry:
-		// leaf-list without ze:syntax extension - treat as multi-leaf (space-separated)
+		// leaf-list without ze:syntax extension — accepts single value or bracket list
 		if entry.IsLeafList() {
-			return MultiLeaf(yangTypeToValueType(entry.Type))
+			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
+				return ValueOrArrayEnum(entry.Type.Enum.Names())
+			}
+			return ValueOrArray(yangTypeToValueType(entry.Type))
 		}
 		return yangToLeaf(entry)
 	case gyang.DirectoryEntry:
@@ -252,7 +253,20 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 	// Check for ze:allow-unknown-fields extension
 	container.AllowUnknown = hasAllowUnknownExtension(entry)
 
+	// Check for YANG presence statement — enables flag/value/block modes
+	container.Presence = hasPresenceStatement(entry)
+
 	return container
+}
+
+// hasPresenceStatement checks if a YANG entry has a presence statement.
+// goyang stores the presence statement in entry.Extra["presence"] as []any.
+func hasPresenceStatement(entry *gyang.Entry) bool {
+	if entry.Extra == nil {
+		return false
+	}
+	vals, ok := entry.Extra["presence"]
+	return ok && len(vals) > 0
 }
 
 // hasAllowUnknownExtension checks if a YANG entry has the ze:allow-unknown-fields extension.
@@ -276,8 +290,10 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	}
 
 	fields := make([]FieldDef, 0, len(entry.Dir))
-	// Sort keys for deterministic field order
-	names := sortedKeys(entry.Dir)
+	// Use YANG definition order for list children so inline positional
+	// assignment matches the schema author's intent. Fall back to
+	// alphabetical when the AST is unavailable (generated entries).
+	names := yangChildOrder(entry)
 	for _, name := range names {
 		if name == entry.Key {
 			continue // Key is not a child field
@@ -289,7 +305,44 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 			fields = append(fields, Field(name, node))
 		}
 	}
-	return List(keyType, fields...)
+	l := List(keyType, fields...)
+	l.KeyName = entry.Key
+	return l
+}
+
+// yangChildOrder returns child names in YANG definition order by
+// inspecting the AST sub-statements. Falls back to alphabetical
+// order when the AST is unavailable (e.g. programmatically created entries).
+// Definition order matters for inline list syntax where values are
+// assigned positionally to children fields.
+func yangChildOrder(entry *gyang.Entry) []string {
+	if entry.Node != nil {
+		var names []string
+		seen := make(map[string]bool)
+		dataKeywords := map[string]bool{
+			"leaf": true, "leaf-list": true,
+			"container": true, "list": true,
+			"choice": true, "anyxml": true,
+		}
+		for _, sub := range entry.Node.Statement().SubStatements() {
+			if !dataKeywords[sub.Keyword] {
+				continue
+			}
+			name := sub.Argument
+			if !seen[name] && entry.Dir[name] != nil {
+				seen[name] = true
+				names = append(names, name)
+			}
+		}
+		// Include any Dir entries not in the AST (from uses/augment).
+		for _, name := range sortedKeys(entry.Dir) {
+			if !seen[name] {
+				names = append(names, name)
+			}
+		}
+		return names
+	}
+	return sortedKeys(entry.Dir)
 }
 
 // yangToFlex converts YANG entry to FlexNode.

@@ -11,6 +11,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
+// NLRI operation keywords.
+const (
+	opAdd = "add"
+	opDel = "del"
+	opEor = "eor"
+)
+
 // MUP family string constants.
 const (
 	familyIPv4MUP = "ipv4/mup"
@@ -174,14 +181,33 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 		}
 
 		// Standard families with simple prefixes
-		// Filter out action keywords (add/del) - config routes are always announcements
-		// Parse inline rd/label for VPN/labeled families (order doesn't matter):
-		//   ipv4/mpls-vpn rd 65000:100 label 100 10.0.0.0/24
-		//   ipv4/mpls-vpn label 100 rd 65000:100 10.0.0.0/24
+		// Format: family [add|del|eor] [rd VALUE] [label VALUE] PREFIX...
+		//   ipv4/unicast add 10.0.0.0/24;
+		//   ipv4/mpls-vpn add rd 65000:100 label 100 10.0.0.0/24;
 		remaining := parts[1:]
-		var inlineRD, inlineLabel string
 
-		// Parse rd/label in any order (both optional)
+		// Validate family
+		if _, ok := message.FamilyConfigNames[family]; !ok {
+			return nil, fmt.Errorf("invalid family: %s", family)
+		}
+
+		if len(remaining) == 0 {
+			continue // Bare family declaration with no prefixes
+		}
+
+		// Operation keyword (add/del/eor) is mandatory
+		op := remaining[0]
+		if op != opAdd && op != opDel && op != opEor {
+			return nil, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+		}
+		remaining = remaining[1:]
+
+		if op == opEor || len(remaining) == 0 {
+			continue // EOR or no prefixes after operation keyword
+		}
+
+		// Parse inline rd/label for VPN/labeled families (order doesn't matter)
+		var inlineRD, inlineLabel string
 		for len(remaining) >= 2 {
 			switch remaining[0] {
 			case "rd":
@@ -196,22 +222,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 			break
 		}
 
-		var prefixes []string
-		for _, p := range remaining {
-			if p == "add" || p == "del" || p == "eor" {
-				continue // Skip action keywords
-			}
-			prefixes = append(prefixes, p)
-		}
-
-		// Validate family
-		if _, ok := message.FamilyConfigNames[family]; !ok {
-			return nil, fmt.Errorf("invalid family: %s", family)
-		}
-
-		if len(prefixes) == 0 {
-			continue // No prefixes for this family
-		}
+		prefixes := remaining
 		for _, prefix := range prefixes {
 			sr := StaticRouteConfig{}
 
@@ -272,7 +283,7 @@ func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error)
 		NLRI:   make(map[string][]string),
 	}
 
-	// Parse inline rd for VPN variant: ipv4/flow-vpn rd 65000:100 destination ...
+	// Parse inline rd for VPN variant: ipv4/flow-vpn rd 65000:100 add destination ...
 	// RD is part of NLRI (RFC 8955), not a path attribute
 	criteria := parts[1:]
 	if strings.HasSuffix(family, "-vpn") {
@@ -282,24 +293,38 @@ func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error)
 		}
 	}
 
+	// Operation keyword (add/del/eor) is mandatory
+	if len(criteria) == 0 {
+		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", family)
+	}
+	op := criteria[0]
+	if op != opAdd && op != opDel && op != opEor {
+		return FlowSpecRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+	}
+	criteria = criteria[1:]
+
+	if op == opEor {
+		return fr, nil
+	}
+
 	// Get next-hop from attributes
 	if v, ok := attr.Get("next-hop"); ok {
 		fr.NextHop = v
 	}
 
 	// Get community from attributes
-	if v, ok := attr.Get("community"); ok {
-		fr.Community = v
+	if items := attr.GetSlice("community"); len(items) > 0 {
+		fr.Community = strings.Join(items, " ")
 	}
 
 	// Get extended-community from attributes (actions per RFC 8955 Section 7)
-	if v, ok := attr.Get("extended-community"); ok {
-		fr.ExtendedCommunity = v
+	if items := attr.GetSlice("extended-community"); len(items) > 0 {
+		fr.ExtendedCommunity = strings.Join(items, " ")
 	}
 
 	// Get raw attribute (e.g., for IPv6 Extended Community attr 25)
-	if v, ok := attr.Get("attribute"); ok {
-		fr.Attribute = v
+	if items := attr.GetSlice("attribute"); len(items) > 0 {
+		fr.Attribute = strings.Join(items, " ")
 	}
 
 	// Parse NLRI match criteria from remaining parts
@@ -351,12 +376,31 @@ func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
 
 	vr := VPLSRouteConfig{}
 
-	// Parse key-value pairs
-	for i := 1; i < len(parts); i += 2 {
-		if i+1 >= len(parts) {
+	// Operation keyword (add/del/eor) is mandatory
+	remaining := parts[1:]
+	// Parse rd before operation keyword: l2vpn/vpls rd X add ve-id ...
+	if len(remaining) >= 2 && remaining[0] == "rd" {
+		vr.RD = remaining[1]
+		remaining = remaining[2:]
+	}
+	if len(remaining) == 0 {
+		return VPLSRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family l2vpn/vpls")
+	}
+	op := remaining[0]
+	if op != opAdd && op != opDel && op != opEor {
+		return VPLSRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family l2vpn/vpls, got %q", op)
+	}
+	remaining = remaining[1:]
+	if op == opEor {
+		return vr, nil
+	}
+
+	// Parse key-value pairs from remaining (after operation keyword)
+	for i := 0; i < len(remaining); i += 2 {
+		if i+1 >= len(remaining) {
 			break
 		}
-		key, val := parts[i], parts[i+1]
+		key, val := remaining[i], remaining[i+1]
 		switch key {
 		case "rd":
 			vr.RD = val
@@ -382,8 +426,8 @@ func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
 	if v, ok := attr.Get("origin"); ok {
 		vr.Origin = v
 	}
-	if v, ok := attr.Get("as-path"); ok {
-		vr.ASPath = v
+	if items := attr.GetSlice("as-path"); len(items) > 0 {
+		vr.ASPath = strings.Join(items, " ")
 	}
 	if v, ok := attr.Get("local-preference"); ok {
 		n, _ := strconv.ParseUint(v, 10, 32)
@@ -393,17 +437,17 @@ func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
 		n, _ := strconv.ParseUint(v, 10, 32)
 		vr.MED = uint32(n)
 	}
-	if v, ok := attr.Get("community"); ok {
-		vr.Community = v
+	if items := attr.GetSlice("community"); len(items) > 0 {
+		vr.Community = strings.Join(items, " ")
 	}
-	if v, ok := attr.Get("extended-community"); ok {
-		vr.ExtendedCommunity = v
+	if items := attr.GetSlice("extended-community"); len(items) > 0 {
+		vr.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := attr.Get("originator-id"); ok {
 		vr.OriginatorID = v
 	}
-	if v, ok := attr.Get("cluster-list"); ok {
-		vr.ClusterList = v
+	if items := attr.GetSlice("cluster-list"); len(items) > 0 {
+		vr.ClusterList = strings.Join(items, " ")
 	}
 
 	return vr, nil
@@ -422,17 +466,32 @@ func parseMVPNNLRILine(line string, attr *Tree) (MVPNRouteConfig, error) {
 		IsIPv6: strings.HasPrefix(family, "ipv6/"),
 	}
 
-	// Route type is second field
-	if len(parts) > 1 {
-		mr.RouteType = parts[1]
+	remaining := parts[1:]
+
+	// Operation keyword (add/del/eor) is mandatory
+	if len(remaining) == 0 {
+		return MVPNRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", family)
+	}
+	op := remaining[0]
+	if op != opAdd && op != opDel && op != opEor {
+		return MVPNRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+	}
+	remaining = remaining[1:]
+	if op == opEor {
+		return mr, nil
+	}
+
+	// Route type is next field after operation
+	if len(remaining) > 0 {
+		mr.RouteType = remaining[0]
 	}
 
 	// Parse key-value pairs
-	for i := 2; i < len(parts); i += 2 {
-		if i+1 >= len(parts) {
+	for i := 1; i < len(remaining); i += 2 {
+		if i+1 >= len(remaining) {
 			break
 		}
-		key, val := parts[i], parts[i+1]
+		key, val := remaining[i], remaining[i+1]
 		switch key {
 		case "rp":
 			mr.Source = val
@@ -463,14 +522,14 @@ func parseMVPNNLRILine(line string, attr *Tree) (MVPNRouteConfig, error) {
 		n, _ := strconv.ParseUint(v, 10, 32)
 		mr.MED = uint32(n)
 	}
-	if v, ok := attr.Get("extended-community"); ok {
-		mr.ExtendedCommunity = v
+	if items := attr.GetSlice("extended-community"); len(items) > 0 {
+		mr.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := attr.Get("originator-id"); ok {
 		mr.OriginatorID = v
 	}
-	if v, ok := attr.Get("cluster-list"); ok {
-		mr.ClusterList = v
+	if items := attr.GetSlice("cluster-list"); len(items) > 0 {
+		mr.ClusterList = strings.Join(items, " ")
 	}
 
 	return mr, nil
@@ -489,31 +548,46 @@ func parseMUPNLRILine(line string, attr *Tree) (MUPRouteConfig, error) {
 		IsIPv6: strings.HasPrefix(family, "ipv6/"),
 	}
 
-	// Route type is second field (mup-isd, mup-dsd, mup-t1st, mup-t2st)
-	if len(parts) > 1 {
-		mr.RouteType = parts[1]
+	remaining := parts[1:]
+
+	// Operation keyword (add/del/eor) is mandatory
+	if len(remaining) == 0 {
+		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s", family)
+	}
+	op := remaining[0]
+	if op != opAdd && op != opDel && op != opEor {
+		return MUPRouteConfig{}, fmt.Errorf("missing operation keyword (add/del/eor) for family %s, got %q", family, op)
+	}
+	remaining = remaining[1:]
+	if op == opEor {
+		return mr, nil
 	}
 
-	// Third field is typically the prefix/address
-	if len(parts) > 2 {
+	// Route type is next field after operation (mup-isd, mup-dsd, mup-t1st, mup-t2st)
+	if len(remaining) > 0 {
+		mr.RouteType = remaining[0]
+	}
+
+	// Next field is typically the prefix/address
+	if len(remaining) > 1 {
 		switch mr.RouteType {
 		case routeTypeMUPISD:
-			mr.Prefix = parts[2]
+			mr.Prefix = remaining[1]
 		case routeTypeMUPDSD:
-			mr.Address = parts[2]
+			mr.Address = remaining[1]
 		case routeTypeMUPT1ST:
-			mr.Prefix = parts[2]
+			mr.Prefix = remaining[1]
 		case routeTypeMUPT2ST:
-			mr.Address = parts[2]
+			mr.Address = remaining[1]
 		}
 	}
 
 	// Parse remaining key-value pairs
-	for i := 3; i < len(parts); i += 2 {
-		if i+1 >= len(parts) {
+	for i := 2; i < len(remaining); i += 2 {
+		if i+1 >= len(remaining) {
 			break
 		}
-		key, val := parts[i], parts[i+1]
+		key, val := remaining[i], remaining[i+1]
 		switch key {
 		case "rd":
 			mr.RD = val
@@ -533,8 +607,8 @@ func parseMUPNLRILine(line string, attr *Tree) (MUPRouteConfig, error) {
 	if v, ok := attr.Get("next-hop"); ok {
 		mr.NextHop = v
 	}
-	if v, ok := attr.Get("extended-community"); ok {
-		mr.ExtendedCommunity = v
+	if items := attr.GetSlice("extended-community"); len(items) > 0 {
+		mr.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := attr.GetFlex("bgp-prefix-sid-srv6"); ok {
 		mr.PrefixSID = v
@@ -567,17 +641,17 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 		}
 		sr.MED = uint32(n)
 	}
-	if v, ok := tree.Get("community"); ok {
-		sr.Community = v
+	if items := tree.GetSlice("community"); len(items) > 0 {
+		sr.Community = strings.Join(items, " ")
 	}
-	if v, ok := tree.Get("extended-community"); ok {
-		sr.ExtendedCommunity = v
+	if items := tree.GetSlice("extended-community"); len(items) > 0 {
+		sr.ExtendedCommunity = strings.Join(items, " ")
 	}
-	if v, ok := tree.Get("large-community"); ok {
-		sr.LargeCommunity = v
+	if items := tree.GetSlice("large-community"); len(items) > 0 {
+		sr.LargeCommunity = strings.Join(items, " ")
 	}
-	if v, ok := tree.Get("as-path"); ok {
-		sr.ASPath = v
+	if items := tree.GetSlice("as-path"); len(items) > 0 {
+		sr.ASPath = strings.Join(items, " ")
 	}
 	if v, ok := tree.Get("origin"); ok {
 		sr.Origin = v
@@ -589,8 +663,8 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 		sr.Label = v
 	}
 	// RFC 8277: Multi-label support via `labels [100 200 300]` syntax
-	if v, ok := tree.Get("labels"); ok {
-		sr.Labels = parseLabelsArray(v)
+	if items := tree.GetSlice("labels"); len(items) > 0 {
+		sr.Labels = items
 	}
 	// Note: rd is parsed inline with NLRI, not from attributes
 	if v, ok := tree.Get("aggregator"); ok {
@@ -600,14 +674,14 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 	if _, ok := tree.Get("atomic-aggregate"); ok {
 		sr.AtomicAggregate = true
 	}
-	if v, ok := tree.Get("attribute"); ok {
-		sr.Attribute = v
+	if items := tree.GetSlice("attribute"); len(items) > 0 {
+		sr.Attribute = strings.Join(items, " ")
 	}
 	if v, ok := tree.Get("originator-id"); ok {
 		sr.OriginatorID = v
 	}
-	if v, ok := tree.Get("cluster-list"); ok {
-		sr.ClusterList = v
+	if items := tree.GetSlice("cluster-list"); len(items) > 0 {
+		sr.ClusterList = strings.Join(items, " ")
 	}
 	// Flex syntax stores in multiValues, so use GetFlex
 	if v, ok := tree.GetFlex("bgp-prefix-sid"); ok {
@@ -667,32 +741,6 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 
 	return sr, nil
-}
-
-// parseLabelsArray parses labels from schema.
-// RFC 8277: Multi-label support.
-// Input can be:
-//   - "[100 200 300]" (from parseKeyValuesFromTokens, inline parsing)
-//   - "100 200 300" (from ValueOrArray schema node, space-separated)
-//   - "100" (single label)
-func parseLabelsArray(s string) []string {
-	s = strings.TrimSpace(s)
-	if s == "" {
-		return nil
-	}
-
-	// Strip brackets if present (from inline parsing)
-	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
-		s = strings.TrimPrefix(s, "[")
-		s = strings.TrimSuffix(s, "]")
-		s = strings.TrimSpace(s)
-		if s == "" {
-			return nil
-		}
-	}
-
-	// Split by whitespace (handles both "100" and "100 200 300")
-	return strings.Fields(s)
 }
 
 // extractMVPNRoutes extracts MVPN routes from announce { ipv4/ipv6 { mcast-vpn ... } }.
@@ -762,14 +810,14 @@ func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig 
 			r.MED = uint32(n)
 		}
 	}
-	if v, ok := route.Get("extended-community"); ok {
-		r.ExtendedCommunity = v
+	if items := route.GetSlice("extended-community"); len(items) > 0 {
+		r.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := route.Get("originator-id"); ok {
 		r.OriginatorID = v
 	}
-	if v, ok := route.Get("cluster-list"); ok {
-		r.ClusterList = v
+	if items := route.GetSlice("cluster-list"); len(items) > 0 {
+		r.ClusterList = strings.Join(items, " ")
 	}
 
 	return r
@@ -1025,20 +1073,20 @@ func parseVPLSRoute(name string, route *Tree) VPLSRouteConfig {
 			r.MED = uint32(n)
 		}
 	}
-	if v, ok := route.Get("as-path"); ok {
-		r.ASPath = v
+	if items := route.GetSlice("as-path"); len(items) > 0 {
+		r.ASPath = strings.Join(items, " ")
 	}
-	if v, ok := route.Get("community"); ok {
-		r.Community = v
+	if items := route.GetSlice("community"); len(items) > 0 {
+		r.Community = strings.Join(items, " ")
 	}
-	if v, ok := route.Get("extended-community"); ok {
-		r.ExtendedCommunity = v
+	if items := route.GetSlice("extended-community"); len(items) > 0 {
+		r.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := route.Get("originator-id"); ok {
 		r.OriginatorID = v
 	}
-	if v, ok := route.Get("cluster-list"); ok {
-		r.ClusterList = v
+	if items := route.GetSlice("cluster-list"); len(items) > 0 {
+		r.ClusterList = strings.Join(items, " ")
 	}
 
 	return r
@@ -1308,8 +1356,8 @@ func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
 	if v, ok := route.Get("next-hop"); ok {
 		r.NextHop = v
 	}
-	if v, ok := route.Get("extended-community"); ok {
-		r.ExtendedCommunity = v
+	if items := route.GetSlice("extended-community"); len(items) > 0 {
+		r.ExtendedCommunity = strings.Join(items, " ")
 	}
 	if v, ok := route.Get("bgp-prefix-sid-srv6"); ok {
 		r.PrefixSID = v

@@ -124,7 +124,7 @@ bgp {
         capability {
             route-refresh;
         }
-        process rib { send { update; } }
+        process rib { send [ update ]; }
     }
 }
 `

@@ -3,7 +3,6 @@ module ze-graceful-restart {
     prefix gr;
 
     import ze-bgp-conf { prefix bgp; }
-    import ze-extensions { prefix ze; }
 
     description
         "Graceful Restart capability plugin for Ze (RFC 4724, code 64).
@@ -16,7 +15,7 @@ module ze-graceful-restart {
     // Grouping for reuse across all augment paths
     grouping graceful-restart-config {
         container graceful-restart {
-            ze:syntax "flex";
+            presence "Graceful Restart capability enabled";
             description "Graceful Restart capability configuration.";
 
             leaf restart-time {

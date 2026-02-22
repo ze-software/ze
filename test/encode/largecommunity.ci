@@ -31,7 +31,7 @@ bgp {
 				large-community [ 2914:0:666 2914:3320:123 ];
 			}
 			nlri {
-				ipv4/unicast 8.8.8.10/32;
+				ipv4/unicast add 8.8.8.10/32;
 			}
 		}
 		update {
@@ -41,7 +41,7 @@ bgp {
 				large-community [ 2914:0:666 2914:3320:123 ];
 			}
 			nlri {
-				ipv4/unicast 9.9.9.10/32;
+				ipv4/unicast add 9.9.9.10/32;
 			}
 		}
 	}

@@ -42,7 +42,7 @@ module exabgp {
     list process {
         key "name";
         leaf name { type string; }
-        leaf run { ze:syntax "multi-leaf"; type string; }
+        leaf run { type string; }
         leaf encoder { type string; }
         leaf respawn { type boolean; }
     }

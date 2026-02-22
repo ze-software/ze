@@ -40,7 +40,7 @@ template {
 					next-hop 1.1.1.1;
 				}
 				nlri {
-					ipv4/unicast 1.0.0.0/8;
+					ipv4/unicast add 1.0.0.0/8;
 				}
 			}
 		}
@@ -58,7 +58,7 @@ bgp {
 				next-hop 1.1.1.1;
 			}
 			nlri {
-				ipv4/unicast 2.0.0.0/8;
+				ipv4/unicast add 2.0.0.0/8;
 			}
 		}
 		update {
@@ -67,7 +67,7 @@ bgp {
 				next-hop 1.2.3.4;
 			}
 			nlri {
-				ipv4/unicast 3.0.0.0/8;
+				ipv4/unicast add 3.0.0.0/8;
 			}
 		}
 		update {
@@ -76,7 +76,7 @@ bgp {
 				next-hop 2.2.2.2;
 			}
 			nlri {
-				ipv4/unicast 4.0.0.0/8;
+				ipv4/unicast add 4.0.0.0/8;
 			}
 		}
 	}

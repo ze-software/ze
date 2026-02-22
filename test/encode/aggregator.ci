@@ -24,7 +24,7 @@ bgp {
 				atomic-aggregate true;
 			}
 			nlri {
-				ipv4/unicast 1.0.64.0/18;
+				ipv4/unicast add 1.0.64.0/18;
 			}
 		}
 	}

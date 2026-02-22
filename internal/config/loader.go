@@ -40,6 +40,19 @@ const (
 // FlowSpec action names.
 const flowSpecRedirectNextHop = "redirect-to-nexthop"
 
+// normalizeListenAddr ensures listen address has ip:port format.
+// Accepts "ip:port", "[ipv6]:port", or bare "ip"/"[ipv6]" (port from environment/default).
+func normalizeListenAddr(addr string, defaultPort int) string {
+	if _, err := netip.ParseAddrPort(addr); err == nil {
+		return addr
+	}
+	ip, err := netip.ParseAddr(strings.Trim(addr, "[]"))
+	if err != nil {
+		return addr
+	}
+	return netip.AddrPortFrom(ip, uint16(defaultPort)).String()
+}
+
 // parseTreeWithYANG parses config with optional plugin YANG schemas.
 // Returns the parsed tree for further processing by callers.
 func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
@@ -313,7 +326,7 @@ func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.Plugi
 			}
 		}
 		if v, ok := bgpContainer.Get("listen"); ok {
-			listen = v
+			listen = normalizeListenAddr(v, env.TCP.Port)
 		}
 	}
 

@@ -149,9 +149,7 @@ template {
 			content {
 				format parsed;
 			}
-			send {
-				update;
-			}
+			send [ update ];
 		}
 	}
 }

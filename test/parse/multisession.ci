@@ -1,4 +1,4 @@
-# Valid config: multi-session capability with IPv4 and IPv6
+# Valid config: IPv4 and IPv6 routes with multiple update blocks
 stdin=config:terminator=EOF_CONF
 plugin {
 	external parsed-route-backend {
@@ -14,9 +14,6 @@ bgp {
 		local-as 123456;
 		peer-as 123456;
 		hold-time 180;
-		capability {
-			multi-session;
-		}
 		update {
 			attribute {
 				origin igp;
@@ -34,7 +31,7 @@ bgp {
 				origin igp;
 				next-hop 2A02:B80:0:2::1;
 				local-preference 200;
-				community "30740:0 30740:30740";
+				community [ 30740:0 30740:30740 ];
 			}
 			nlri {
 				ipv6/unicast add 2A02:B80:0:1::/64;

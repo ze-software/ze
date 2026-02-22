@@ -31,7 +31,7 @@ bgp {
 				large-community [ 1:2:3 10:11:12 ];
 			}
 			nlri {
-				ipv4/unicast 10.0.0.7/32;
+				ipv4/unicast add 10.0.0.7/32;
 			}
 		}
 	}

@@ -32,7 +32,7 @@ bgp {
 			attribute {
 				origin igp;
 				next-hop 10.0.255.254;
-				community "30740:30740 30740:0";
+				community [ 30740:30740 30740:0 ];
 			}
 			nlri {
 				ipv4/unicast add 10.0.3.0/24;
@@ -76,7 +76,7 @@ bgp {
 				origin igp;
 				next-hop 10.0.255.254;
 				local-preference 200;
-				community "30740:0 30740:30740";
+				community [ 30740:0 30740:30740 ];
 			}
 			nlri {
 				ipv4/unicast add 10.0.7.0/24;

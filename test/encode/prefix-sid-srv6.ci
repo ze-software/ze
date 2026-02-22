@@ -35,7 +35,7 @@ bgp {
 				bgp-prefix-sid-srv6 ( l3-service 2001:1:: );
 			}
 			nlri {
-				ipv4/mpls-vpn rd 4:100 label 3 10.1.0.0/24;
+				ipv4/mpls-vpn add rd 4:100 label 3 10.1.0.0/24;
 			}
 		}
 	}

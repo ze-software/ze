@@ -163,14 +163,14 @@ func TestSerializeCapability(t *testing.T) {
 	require.True(t, TreeEqual(tree, tree2), "trees should be equal after roundtrip")
 }
 
-// TestSerializeMultiLeaf verifies multi-word leaf serialization.
+// TestSerializeLeafRoundtrip verifies single-value leaf serialization.
 //
-// VALIDATES: Multi-word values like "listen 0.0.0.0 179" serialize.
+// VALIDATES: Leaf values like "listen 0.0.0.0:179" survive roundtrip.
 //
-// PREVENTS: Lost multi-word values.
-func TestSerializeMultiLeaf(t *testing.T) {
+// PREVENTS: Lost leaf values.
+func TestSerializeLeafRoundtrip(t *testing.T) {
 	input := `bgp {
-    listen 0.0.0.0 179;
+    listen 0.0.0.0:179;
 }
 `
 	schema := YANGSchema()
@@ -273,6 +273,22 @@ func TreeEqual(a, b *Tree) bool {
 	for k, v := range a.values {
 		if b.values[k] != v {
 			return false
+		}
+	}
+
+	// Compare multiValues (leaf-list / ValueOrArray storage)
+	if len(a.multiValues) != len(b.multiValues) {
+		return false
+	}
+	for k, av := range a.multiValues {
+		bv := b.multiValues[k]
+		if len(av) != len(bv) {
+			return false
+		}
+		for i, v := range av {
+			if bv[i] != v {
+				return false
+			}
 		}
 	}
 

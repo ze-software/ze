@@ -4,7 +4,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Route sent by plugin script
-cmd=api:conn=1:seq=1:text=bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow source-ipv4 10.0.0.2/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064C010080800000000000001800E100001850401020304000602200A000002
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flow":[{"action":"add","nlri":{"source":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
 # EOR sent by plugin script
@@ -24,7 +24,7 @@ def main() -> None:
     ready()
 
     # Send FlowSpec route (same as static route in config)
-    send('bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow add source-ipv4 10.0.0.2/32')
+    send('bgp peer * update text extended-community set [copy-to-nexthop] nhop set 1.2.3.4 nlri ipv4/flow source-ipv4 10.0.0.2/32')
     time.sleep(0.2)
 
     wait_for_ack(expected_count=1)
@@ -63,7 +63,7 @@ bgp {
 				extended-community [copy-to-nexthop];
 			}
 			nlri {
-				ipv4/flow source-ipv4 10.0.0.2/32;
+				ipv4/flow add source-ipv4 10.0.0.2/32;
 			}
 		}
 

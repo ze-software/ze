@@ -24,7 +24,7 @@ bgp {
 				as-path [ 100 ];
 			}
 			nlri {
-				ipv4/unicast 10.0.1.0/24;
+				ipv4/unicast add 10.0.1.0/24;
 			}
 		}
 	}
