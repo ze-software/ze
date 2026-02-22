@@ -69,7 +69,7 @@ type workerPool struct {
 // newWorkerPool creates a new worker pool with the given handler and configuration.
 func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *workerPool {
 	if cfg.chanSize <= 0 {
-		cfg.chanSize = 64
+		cfg.chanSize = 1024
 	}
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
@@ -124,16 +124,18 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	}
 
 	// Check backpressure after send (informational only).
-	// Only log on transition into backpressure state (not while already in it).
+	// Log only on transition into backpressure (not while already in it).
+	// Guard uses inBackpressure (cleared on low-water <25%) not backpressure
+	// (cleared on read by BackpressureDetected polling).
 	if len(w.ch)*4 > cap(w.ch)*3 { // >75% full
-		if _, alreadySet := wp.backpressure.LoadOrStore(key, true); !alreadySet {
+		if _, alreadyInBP := wp.inBackpressure.LoadOrStore(key, true); !alreadyInBP {
 			logger().Warn("backpressure",
 				"source-peer", key.sourcePeer,
 				"queue-depth", len(w.ch),
 				"capacity", cap(w.ch),
 			)
 		}
-		wp.inBackpressure.Store(key, true)
+		wp.backpressure.Store(key, true)
 	}
 
 	return true

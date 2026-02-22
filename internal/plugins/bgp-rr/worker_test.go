@@ -588,9 +588,9 @@ func TestWorkerPoolCustomChanSize(t *testing.T) {
 	}
 }
 
-// TestPoolChanSizeDefault verifies zero/negative chanSize uses default 64.
+// TestPoolChanSizeDefault verifies zero/negative chanSize uses default 1024.
 //
-// VALIDATES: AC-17, AC-18 — zero/negative uses default 64.
+// VALIDATES: AC-17, AC-18 — zero/negative uses default 1024.
 // PREVENTS: Panic or zero-size channel from bad config.
 func TestPoolChanSizeDefault(t *testing.T) {
 	handler := func(_ workerKey, _ workItem) {}
@@ -609,8 +609,8 @@ func TestPoolChanSizeDefault(t *testing.T) {
 			wp := newWorkerPool(handler, cfg)
 			defer wp.Stop()
 
-			if wp.cfg.chanSize != 64 {
-				t.Errorf("expected default chanSize 64, got %d", wp.cfg.chanSize)
+			if wp.cfg.chanSize != 1024 {
+				t.Errorf("expected default chanSize 1024, got %d", wp.cfg.chanSize)
 			}
 		})
 	}

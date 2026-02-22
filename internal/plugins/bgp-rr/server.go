@@ -102,8 +102,8 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	}
 
 	// ZE_RR_CHAN_SIZE overrides the per-source-peer worker channel capacity.
-	// Default: 64. Invalid/zero/negative values use default (guard in newWorkerPool).
-	rrChanSize := 64
+	// Default: 1024. Invalid/zero/negative values use default (guard in newWorkerPool).
+	rrChanSize := 1024
 	if v := os.Getenv("ZE_RR_CHAN_SIZE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			rrChanSize = n
