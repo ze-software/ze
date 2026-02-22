@@ -1,6 +1,6 @@
 #!/bin/bash
 # PreToolUse hook: Block writes to .claude/plans/, enforce spec requirements
-# BLOCKING: Rejects wrong plan location
+# BLOCKING: Rejects wrong plan location and wrong plan names
 # NON-BLOCKING: Reminds about required reading for spec files
 
 INPUT=$(cat)
@@ -12,13 +12,36 @@ if [[ "$TOOL_NAME" != "Write" ]]; then
     exit 0
 fi
 
-# Check if writing to .claude/plans/ - BLOCK
+# Check if writing to .claude/plans/ (plural) - BLOCK
 if [[ "$FILE_PATH" =~ \.claude/plans/ ]]; then
     echo "❌ BLOCKED: Do not use .claude/plans/" >&2
     echo "" >&2
     echo "Create spec at: docs/plan/spec-<task>.md" >&2
     echo "Use template from: .claude/rules/planning.md" >&2
     exit 2  # BLOCKING
+fi
+
+# Check if writing to ~/.claude/plan/ (home directory) - BLOCK
+if [[ "$FILE_PATH" =~ ^/Users/[^/]+/\.claude/plan/ ]]; then
+    echo "❌ BLOCKED: Do not write plans to ~/.claude/plan/" >&2
+    echo "" >&2
+    echo "Use project-level: \$CLAUDE_PROJECT_DIR/.claude/plan/ze-plan" >&2
+    exit 2  # BLOCKING
+fi
+
+# Check if writing to .claude/plan/ with wrong name - BLOCK
+# Only allow files named ze-plan-<name>
+if [[ "$FILE_PATH" =~ \.claude/plan/ ]]; then
+    BASENAME=$(basename "$FILE_PATH")
+    if [[ ! "$BASENAME" =~ ^ze-plan- ]]; then
+        echo "❌ BLOCKED: Plan file must be named 'ze-plan-<name>'" >&2
+        echo "" >&2
+        echo "Use: \$CLAUDE_PROJECT_DIR/.claude/plan/ze-plan-<name>" >&2
+        echo "" >&2
+        echo "💡 Consider whether you should write a spec instead:" >&2
+        echo "   docs/plan/spec-<task>.md (template: docs/plan/TEMPLATE.md)" >&2
+        exit 2  # BLOCKING
+    fi
 fi
 
 # Check if writing to docs/plan/spec-*.md - REMIND about required reading
