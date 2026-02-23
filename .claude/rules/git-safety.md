@@ -10,6 +10,8 @@ Rationale: `.claude/rationale/git-safety.md`
 ## Commit Rules
 
 Only commit when user says "commit". Only include task-related files.
+Output format: list staged files, excluded files, commit message, and ask — no git diff/stat output.
+Post-commit: hash, file count, clean state confirmation.
 
 ## Before Any Commit (BLOCKING)
 

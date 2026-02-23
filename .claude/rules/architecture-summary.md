@@ -45,6 +45,15 @@ UPDATE = Header (19B) + Withdrawn (IPv4) + Path Attributes
 - RIB = storage (NLRI → attribute refs into per-type pools, NOT WireUpdate)
 - Per-attribute-type pools with dedup. Per-family NLRI pools.
 
+## Forward Pool
+
+Current: per-destination-peer workers (goroutine + channel per peer).
+Future consideration: shared round-robin pool with dynamic scaling.
+
+## Chaos Simulator
+
+Unbounded event buffer — no events ever dropped. Ring buffer rejected because losing route events breaks convergence counts.
+
 ## API Command Syntax
 
 ```

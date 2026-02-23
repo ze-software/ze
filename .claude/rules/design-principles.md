@@ -14,6 +14,7 @@ Rationale: `.claude/rationale/design-principles.md`
 | No premature abstraction | Three concrete implementations before abstracting |
 | Design for change | Isolate volatility behind stable interfaces |
 | Fail-mode awareness | Every external call can fail. Every input can be malformed |
+| Do it right | Ze does the hard thing properly — zero-copy, pool dedup, buffer-first. Never trade correctness for speed of implementation |
 
 ## File Size
 

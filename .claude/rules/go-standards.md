@@ -25,6 +25,10 @@ Rationale: `.claude/rationale/go-standards.md`
 - Priority: CLI flag > env var > config > default (WARN)
 - Debug logging is permanent — `logger.Debug()`, never `fmt.Printf`
 
+## Dependencies
+
+Never add new third-party imports (not already in `go.mod`) without asking the user first.
+
 ## Forbidden
 
 - `panic()` for error handling

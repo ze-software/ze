@@ -7,6 +7,10 @@ Rationale: `.claude/rationale/planning.md`
 
 One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after moving to `docs/plan/done/`.
 
+## Plan File Location
+
+Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`. Hook `block-claude-plans.sh` enforces this. Prefer writing a spec (`docs/plan/spec-<task>.md`) over a plan file.
+
 ## Pre-Implementation
 
 ```
@@ -66,6 +70,10 @@ Present BEFORE writing code. Must include: docs read + insights, current behavio
 [ ] Required Reading has → Decision: / → Constraint: checkpoints
 [ ] All research findings captured exhaustively
 ```
+
+## Retroactive Specs
+
+If a spec describes work that is **already implemented**, run the full Completion Checklist immediately — audit, move to `done/`, include in the same commit as the code. Never commit a spec in `docs/plan/` for work that's already done.
 
 ## Completion Checklist
 
