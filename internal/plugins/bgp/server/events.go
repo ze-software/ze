@@ -71,7 +71,7 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	for range sent {
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
-			logger().Warn("OnMessageReceived write failed", "proc", r.ProcName, "err", r.Err)
+			logger().Error("OnMessageReceived write failed", "proc", r.ProcName, "err", r.Err)
 		} else if r.CacheConsumer {
 			cacheCount++
 		}

@@ -120,6 +120,10 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	}, poolConfig{
 		chanSize:    rrChanSize,
 		idleTimeout: 5 * time.Second,
+		onItemDrop: func(item workItem) {
+			rs.fwdCtx.Delete(item.msgID)
+			rs.releaseCache(item.msgID)
+		},
 	})
 	defer rs.workers.Stop()
 

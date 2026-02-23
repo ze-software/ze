@@ -22,13 +22,45 @@ type workItem struct {
 type poolConfig struct {
 	chanSize    int
 	idleTimeout time.Duration
+
+	// onItemDrop is called for each work item discarded during PeerDown or Stop
+	// when overflow items remain. Callers use this to clean up associated state
+	// (e.g., fwdCtx entries, cache refs). Nil means no cleanup.
+	onItemDrop func(workItem)
 }
 
 // worker is a single long-lived goroutine processing items for one source-peer key.
 type worker struct {
 	ch      chan workItem
 	done    chan struct{} // closed when goroutine exits
-	pending atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
+	closeCh chan struct{} // closed on PeerDown/Stop to signal drain goroutine
+
+	// overflow is an unbounded FIFO buffer for items that arrive when the
+	// channel is full. A temporary drain goroutine moves items from overflow
+	// to the channel as space opens. Protected by overflowMu.
+	overflowMu sync.Mutex
+	overflow   []workItem
+	draining   bool // drain goroutine is active
+
+	// drainWg tracks the drain goroutine. PeerDown/Stop must Wait() on this
+	// before closing w.ch to prevent "send on closed channel" panics.
+	drainWg sync.WaitGroup
+}
+
+// overflowLen returns the number of items in the overflow buffer.
+func (w *worker) overflowLen() int {
+	w.overflowMu.Lock()
+	n := len(w.overflow)
+	w.overflowMu.Unlock()
+	return n
+}
+
+// depth returns the total number of pending items: channel + overflow.
+func (w *worker) depth() int {
+	w.overflowMu.Lock()
+	n := len(w.overflow)
+	w.overflowMu.Unlock()
+	return len(w.ch) + n
 }
 
 // workerPool manages per-source-peer worker goroutines.
@@ -45,8 +77,7 @@ type workerPool struct {
 	cfg     poolConfig
 	stopped bool
 
-	// stopCh is closed by Stop() to unblock any Dispatch goroutine
-	// that is blocked on a full channel send.
+	// stopCh is closed by Stop() to signal shutdown.
 	stopCh chan struct{}
 
 	// backpressure tracks keys that have triggered backpressure warnings.
@@ -84,7 +115,8 @@ func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *
 
 // Dispatch sends a work item to the worker for the given key.
 // Creates the worker lazily if it doesn't exist.
-// Blocks if the channel is full (backpressure on the caller).
+// Never blocks: if the channel is full, the item goes to an overflow buffer
+// and a drain goroutine feeds it into the channel as space opens.
 // Returns true if the item was enqueued, false if the pool is stopped.
 // Callers must clean up associated state (e.g., fwdCtx, cache entries) on false.
 func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
@@ -97,52 +129,109 @@ func (wp *workerPool) Dispatch(key workerKey, item workItem) bool {
 	w, ok := wp.workers[key]
 	if !ok {
 		w = &worker{
-			ch:   make(chan workItem, wp.cfg.chanSize),
-			done: make(chan struct{}),
+			ch:      make(chan workItem, wp.cfg.chanSize),
+			done:    make(chan struct{}),
+			closeCh: make(chan struct{}),
 		}
 		wp.workers[key] = w
 		wp.count.Add(1)
 		go wp.runWorker(key, w)
 	}
-
-	// Increment pending BEFORE releasing the lock. The idle handler checks
-	// pending under the same lock, so it will see pending > 0 and not exit
-	// even if the channel is momentarily empty.
-	w.pending.Add(1)
 	wp.mu.Unlock()
 
-	// Blocking send: every cached UPDATE must be forwarded or released
-	// (CacheConsumer protocol). Dropping is not acceptable. If the channel
-	// is full, this blocks until the worker drains one item. The stopCh
-	// escape prevents deadlock during shutdown.
-	select {
-	case w.ch <- item:
-		w.pending.Add(-1)
-	case <-wp.stopCh:
-		w.pending.Add(-1)
-		return false
+	// Non-blocking enqueue. If overflow is non-empty, all new items must go
+	// through overflow to preserve FIFO order. Otherwise, try channel first.
+	w.overflowMu.Lock()
+	if len(w.overflow) > 0 {
+		// Overflow active — append to maintain FIFO.
+		w.overflow = append(w.overflow, item)
+		w.overflowMu.Unlock()
+	} else {
+		// Try non-blocking channel send.
+		select {
+		case w.ch <- item: // Channel has space — sent directly.
+			w.overflowMu.Unlock()
+			wp.checkBackpressure(key, w)
+			return true
+		default: // Channel full — start overflow.
+			w.overflow = append(w.overflow, item)
+			wp.ensureDraining(key, w)
+			w.overflowMu.Unlock()
+		}
 	}
 
-	// Check backpressure after send (informational only).
-	// Log only on transition into backpressure (not while already in it).
-	// Guard uses inBackpressure (cleared on low-water <25%) not backpressure
-	// (cleared on read by BackpressureDetected polling).
-	if len(w.ch)*4 > cap(w.ch)*3 { // >75% full
+	wp.checkBackpressure(key, w)
+	return true
+}
+
+// ensureDraining starts the drain goroutine if not already running.
+// Must be called with w.overflowMu held.
+func (wp *workerPool) ensureDraining(_ workerKey, w *worker) {
+	if w.draining {
+		return
+	}
+	w.draining = true
+	w.drainWg.Add(1)
+	go wp.drainLoop(w)
+}
+
+// drainLoop is a temporary goroutine that moves items from the overflow buffer
+// into the channel as space opens. Exits when overflow is empty or closeCh fires.
+func (wp *workerPool) drainLoop(w *worker) {
+	defer w.drainWg.Done()
+
+	for {
+		w.overflowMu.Lock()
+		if len(w.overflow) == 0 {
+			w.draining = false
+			w.overflowMu.Unlock()
+			return
+		}
+		item := w.overflow[0]
+		w.overflow = w.overflow[1:]
+		w.overflowMu.Unlock()
+
+		select {
+		case w.ch <- item: // Item moved from overflow to channel.
+		case <-w.closeCh: // Worker shutting down — drop remaining overflow.
+			wp.dropItem(item)
+			w.overflowMu.Lock()
+			for _, remaining := range w.overflow {
+				wp.dropItem(remaining)
+			}
+			w.overflow = nil
+			w.draining = false
+			w.overflowMu.Unlock()
+			return
+		}
+	}
+}
+
+// dropItem calls the onItemDrop callback if configured.
+func (wp *workerPool) dropItem(item workItem) {
+	if wp.cfg.onItemDrop != nil {
+		wp.cfg.onItemDrop(item)
+	}
+}
+
+// checkBackpressure checks if the worker's depth has crossed the high-water mark.
+// Log only on transition into backpressure (not while already in it).
+func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
+	if w.depth()*4 > cap(w.ch)*3 { // >75% of channel capacity
 		if _, alreadyInBP := wp.inBackpressure.LoadOrStore(key, true); !alreadyInBP {
 			logger().Warn("backpressure",
 				"source-peer", key.sourcePeer,
-				"queue-depth", len(w.ch),
+				"queue-depth", w.depth(),
 				"capacity", cap(w.ch),
 			)
 		}
 		wp.backpressure.Store(key, true)
 	}
-
-	return true
 }
 
 // PeerDown closes the worker for the given source peer.
-// The worker drains remaining items and exits.
+// Signals the drain goroutine to stop, waits for it, then closes the channel.
+// The worker drains remaining channel items and exits.
 func (wp *workerPool) PeerDown(sourcePeer string) {
 	wp.mu.Lock()
 	key := workerKey{sourcePeer: sourcePeer}
@@ -156,21 +245,23 @@ func (wp *workerPool) PeerDown(sourcePeer string) {
 		return
 	}
 
+	// Signal drain goroutine to stop, wait for it to exit, then close channel.
+	close(w.closeCh)
+	w.drainWg.Wait()
 	close(w.ch)
 	<-w.done
 }
 
 // Stop closes all workers and waits for them to drain.
-// Closes stopCh first to unblock any Dispatch blocked on a full channel.
+// Closes stopCh first, then signals each worker's drain goroutine to stop.
 func (wp *workerPool) Stop() {
 	wp.mu.Lock()
 	wp.stopped = true
 
-	// Unblock any Dispatch waiting on a full channel send.
 	select {
 	case <-wp.stopCh:
 		// Already closed — Stop called twice (idempotent).
-	default: // First Stop call — close to unblock pending sends.
+	default: // First Stop call — close to signal shutdown.
 		close(wp.stopCh)
 	}
 
@@ -181,6 +272,14 @@ func (wp *workerPool) Stop() {
 	}
 	wp.mu.Unlock()
 
+	// Signal all drain goroutines to stop.
+	for _, w := range all {
+		close(w.closeCh)
+	}
+	// Wait for all drain goroutines to exit before closing channels.
+	for _, w := range all {
+		w.drainWg.Wait()
+	}
 	for _, w := range all {
 		close(w.ch)
 	}
@@ -245,7 +344,7 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 		select {
 		case item, ok := <-w.ch:
 			if !ok {
-				// Channel closed (PeerDown or Stop) — drain remaining items.
+				// Channel closed (PeerDown or Stop) — exit.
 				return
 			}
 			if !idle.Stop() {
@@ -253,10 +352,11 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			}
 			wp.safeHandle(key, item)
 
-			// Low-water check: if channel drained below 25% and was in backpressure,
-			// fire onLowWater callback to trigger resume. The inBackpressure flag is
-			// consumed (deleted) so the callback fires once per high→low transition.
-			if len(w.ch)*4 < cap(w.ch) { // <25% full
+			// Low-water check: if total depth (channel + overflow) drained below
+			// 25% of channel capacity and was in backpressure, fire onLowWater
+			// callback to trigger resume. The inBackpressure flag is consumed
+			// (deleted) so the callback fires once per high→low transition.
+			if w.depth()*4 < cap(w.ch) { // <25% of channel capacity
 				if _, wasBP := wp.inBackpressure.LoadAndDelete(key); wasBP && wp.onLowWater != nil {
 					wp.onLowWater(key)
 				}
@@ -266,11 +366,10 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 
 		case <-idle.C:
 			// Idle timeout — remove self from pool and exit.
-			// Check channel AND pending counter under lock: Dispatch increments
-			// pending under the same lock before sending, so if pending > 0, a
-			// send is in flight and we must not exit.
+			// Check channel AND overflow under lock: if either has items
+			// or overflow is draining, we must not exit.
 			wp.mu.Lock()
-			if len(w.ch) > 0 || w.pending.Load() > 0 {
+			if len(w.ch) > 0 || w.overflowLen() > 0 {
 				wp.mu.Unlock()
 				idle.Reset(wp.cfg.idleTimeout)
 				continue

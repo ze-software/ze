@@ -344,10 +344,42 @@ func (p *Process) Deliver(d EventDelivery) bool {
 	}
 }
 
+// defaultDeliveryTimeout is the per-event timeout for SendDeliverEvent RPCs.
+const defaultDeliveryTimeout = 5 * time.Second
+
+// deliveryTimeout caches the result of deliveryTimeoutFromEnv (read once).
+var (
+	deliveryTimeout     time.Duration
+	deliveryTimeoutOnce sync.Once
+)
+
+// deliveryTimeoutFromEnv reads ze.plugin.delivery.timeout (or ze_plugin_delivery_timeout)
+// and returns the parsed duration. Falls back to defaultDeliveryTimeout on missing
+// or invalid values. Result is cached via sync.Once.
+func deliveryTimeoutFromEnv() time.Duration {
+	deliveryTimeoutOnce.Do(func() {
+		deliveryTimeout = defaultDeliveryTimeout
+		for _, key := range []string{"ze.plugin.delivery.timeout", "ze_plugin_delivery_timeout"} {
+			if v := os.Getenv(key); v != "" {
+				d, err := time.ParseDuration(v)
+				if err != nil {
+					logger().Warn("invalid delivery timeout env var", "key", key, "value", v, "error", err)
+					return
+				}
+				deliveryTimeout = d
+				return
+			}
+		}
+	})
+	return deliveryTimeout
+}
+
 // deliveryLoop is the long-lived goroutine that processes event deliveries.
 // It reads from eventChan and calls SendDeliverEvent on ConnB.
 // Exits when eventChan is closed (by stopEventChan during Stop).
 func (p *Process) deliveryLoop() {
+	timeout := deliveryTimeoutFromEnv()
+
 	for req := range p.eventChan {
 		connB := p.ConnB()
 
@@ -357,7 +389,7 @@ func (p *Process) deliveryLoop() {
 		if connB == nil {
 			result.Err = errors.New("connection closed")
 		} else {
-			ctx, cancel := context.WithTimeout(p.ctx, 5*time.Second)
+			ctx, cancel := context.WithTimeout(p.ctx, timeout)
 			result.Err = connB.SendDeliverEvent(ctx, req.Output)
 			cancel()
 		}

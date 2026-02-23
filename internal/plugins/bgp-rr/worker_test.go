@@ -616,6 +616,371 @@ func TestPoolChanSizeDefault(t *testing.T) {
 	}
 }
 
+// TestWorkerPool_OverflowNonBlocking verifies Dispatch returns immediately when channel is full.
+//
+// VALIDATES: Dispatch never blocks the caller (SDK event loop) even when channel is at capacity.
+// PREVENTS: SDK event loop stall causing engine delivery timeout and silent route loss.
+func TestWorkerPool_OverflowNonBlocking(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+	}
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First dispatch: worker blocks on handler.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill channel to capacity (4 items in buffer of 4).
+	for i := uint64(2); i <= 5; i++ {
+		wp.Dispatch(key, workItem{msgID: i})
+	}
+
+	// Channel is full. Overflow items must NOT block.
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(6); i <= 10; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+		// All overflow dispatches returned without blocking.
+	case <-time.After(2 * time.Second):
+		t.Fatal("Dispatch blocked on full channel — overflow buffer not working")
+	}
+
+	close(block)
+}
+
+// TestWorkerPool_OverflowFIFO verifies items through overflow maintain strict FIFO order.
+//
+// VALIDATES: Items dispatched when channel is full are processed after channel items, in order.
+// PREVENTS: Out-of-order processing when overflow buffer absorbs excess items.
+func TestWorkerPool_OverflowFIFO(t *testing.T) {
+	block := make(chan struct{})
+	var mu sync.Mutex
+	var order []uint64
+	var count atomic.Int32
+
+	handler := func(_ workerKey, item workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+		mu.Lock()
+		order = append(order, item.msgID)
+		mu.Unlock()
+	}
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First dispatch: worker blocks.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Items 2-5 fill channel, 6-10 go to overflow.
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(2); i <= 10; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Dispatch blocked — overflow not working")
+	}
+
+	// Unblock worker — all 10 items should process in FIFO order.
+	close(block)
+
+	// Wait for all items processed.
+	deadline := time.After(5 * time.Second)
+	for {
+		mu.Lock()
+		got := len(order)
+		mu.Unlock()
+		if got == 10 {
+			break
+		}
+		select {
+		case <-deadline:
+			mu.Lock()
+			t.Fatalf("timeout: processed %d/10 items, order=%v", len(order), order)
+			mu.Unlock()
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+
+	// Verify strict FIFO: [1, 2, 3, ..., 10].
+	mu.Lock()
+	defer mu.Unlock()
+	for i, id := range order {
+		if id != uint64(i+1) {
+			t.Errorf("order[%d] = %d, want %d (full order: %v)", i, id, i+1, order)
+			break
+		}
+	}
+}
+
+// TestWorkerPool_OverflowDrains verifies all overflow items are eventually processed.
+//
+// VALIDATES: Items in overflow buffer drain to channel and get processed as worker frees up.
+// PREVENTS: Items stuck permanently in overflow buffer.
+func TestWorkerPool_OverflowDrains(t *testing.T) {
+	block := make(chan struct{})
+	var processed atomic.Int32
+	var count atomic.Int32
+
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+		processed.Add(1)
+	}
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First dispatch: worker blocks.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Items 2-5 fill channel, 6-11 go to overflow (6 overflow items).
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(2); i <= 11; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Dispatch blocked")
+	}
+
+	// Unblock — all 11 items (1 blocking + 4 channel + 6 overflow) should process.
+	close(block)
+
+	deadline := time.After(5 * time.Second)
+	// 11 total: item 1 processed (handler returns after unblock) + items 2-11.
+	for processed.Load() < 11 {
+		select {
+		case <-deadline:
+			t.Fatalf("timeout: only %d/11 items processed", processed.Load())
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+// TestWorkerPool_DepthIncludesOverflow verifies backpressure accounts for overflow items.
+//
+// VALIDATES: Backpressure detection uses channel + overflow depth, not just channel length.
+// PREVENTS: Missing backpressure signal when overflow absorbs items beyond channel capacity.
+func TestWorkerPool_DepthIncludesOverflow(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+	}
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill channel + overflow.
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(2); i <= 8; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(2 * time.Second):
+		t.Fatal("Dispatch blocked")
+	}
+
+	// Channel full + overflow items → backpressure must be detected.
+	if !wp.BackpressureDetected(key) {
+		t.Error("expected backpressure when overflow items exist")
+	}
+
+	close(block)
+}
+
+// TestWorkerPool_StopDropsOverflow verifies Stop calls onItemDrop for overflow items.
+//
+// VALIDATES: Overflow items are cleaned up via onItemDrop when pool is stopped.
+// PREVENTS: Resource leak (fwdCtx, cache entries) when pool stops with overflow items.
+func TestWorkerPool_StopDropsOverflow(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+	}
+
+	var mu sync.Mutex
+	var dropped []uint64
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+	cfg.onItemDrop = func(item workItem) {
+		mu.Lock()
+		dropped = append(dropped, item.msgID)
+		mu.Unlock()
+	}
+
+	wp := newWorkerPool(handler, cfg)
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First dispatch: worker blocks.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill channel (4) + overflow (3).
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(2); i <= 8; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(2 * time.Second):
+		close(block)
+		t.Fatal("Dispatch blocked")
+	}
+
+	// Stop while overflow items exist. Unblock handler so Stop completes.
+	stopDone := make(chan struct{})
+	go func() {
+		wp.Stop()
+		close(stopDone)
+	}()
+
+	// Give Stop a moment to signal drain goroutine.
+	time.Sleep(50 * time.Millisecond)
+	close(block)
+	<-stopDone
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(dropped) == 0 {
+		t.Error("expected onItemDrop to be called for overflow items during Stop")
+	}
+}
+
+// TestWorkerPool_PeerDownDropsOverflow verifies PeerDown calls onItemDrop for overflow items.
+//
+// VALIDATES: Overflow items are cleaned up via onItemDrop when peer goes down.
+// PREVENTS: Resource leak (fwdCtx, cache entries) when peer disconnects with overflow items.
+func TestWorkerPool_PeerDownDropsOverflow(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block
+		}
+	}
+
+	var mu sync.Mutex
+	var dropped []uint64
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 4
+	cfg.onItemDrop = func(item workItem) {
+		mu.Lock()
+		dropped = append(dropped, item.msgID)
+		mu.Unlock()
+	}
+
+	wp := newWorkerPool(handler, cfg)
+	defer wp.Stop()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// First dispatch: worker blocks.
+	wp.Dispatch(key, workItem{msgID: 1})
+	waitForCount(&count, 1, t)
+
+	// Fill channel (4) + overflow (3).
+	dispatched := make(chan struct{})
+	go func() {
+		for i := uint64(2); i <= 8; i++ {
+			wp.Dispatch(key, workItem{msgID: i})
+		}
+		close(dispatched)
+	}()
+
+	select {
+	case <-dispatched:
+	case <-time.After(2 * time.Second):
+		close(block)
+		t.Fatal("Dispatch blocked")
+	}
+
+	// PeerDown while overflow items exist. Unblock handler so PeerDown completes.
+	peerDownDone := make(chan struct{})
+	go func() {
+		wp.PeerDown("10.0.0.1")
+		close(peerDownDone)
+	}()
+
+	// Give PeerDown a moment to signal drain goroutine.
+	time.Sleep(50 * time.Millisecond)
+	close(block)
+	<-peerDownDone
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(dropped) == 0 {
+		t.Error("expected onItemDrop to be called for overflow items during PeerDown")
+	}
+}
+
 // --- Test helpers ---
 
 func testPoolConfig() poolConfig {
