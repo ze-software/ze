@@ -4,6 +4,8 @@ package storage
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/pool"
+
+	attrpool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 )
 
 // RouteEntry stores per-attribute handles for a single route.
@@ -102,55 +104,55 @@ func (e *RouteEntry) HasOtherAttrs() bool { return e.OtherAttrs.IsValid() }
 // Safe to call multiple times.
 func (e *RouteEntry) Release() {
 	if e.Origin.IsValid() {
-		_ = pool.Origin.Release(e.Origin)
+		_ = attrpool.Origin.Release(e.Origin)
 		e.Origin = pool.InvalidHandle
 	}
 	if e.ASPath.IsValid() {
-		_ = pool.ASPath.Release(e.ASPath)
+		_ = attrpool.ASPath.Release(e.ASPath)
 		e.ASPath = pool.InvalidHandle
 	}
 	if e.NextHop.IsValid() {
-		_ = pool.NextHop.Release(e.NextHop)
+		_ = attrpool.NextHop.Release(e.NextHop)
 		e.NextHop = pool.InvalidHandle
 	}
 	if e.LocalPref.IsValid() {
-		_ = pool.LocalPref.Release(e.LocalPref)
+		_ = attrpool.LocalPref.Release(e.LocalPref)
 		e.LocalPref = pool.InvalidHandle
 	}
 	if e.MED.IsValid() {
-		_ = pool.MED.Release(e.MED)
+		_ = attrpool.MED.Release(e.MED)
 		e.MED = pool.InvalidHandle
 	}
 	if e.AtomicAggregate.IsValid() {
-		_ = pool.AtomicAggregate.Release(e.AtomicAggregate)
+		_ = attrpool.AtomicAggregate.Release(e.AtomicAggregate)
 		e.AtomicAggregate = pool.InvalidHandle
 	}
 	if e.Aggregator.IsValid() {
-		_ = pool.Aggregator.Release(e.Aggregator)
+		_ = attrpool.Aggregator.Release(e.Aggregator)
 		e.Aggregator = pool.InvalidHandle
 	}
 	if e.Communities.IsValid() {
-		_ = pool.Communities.Release(e.Communities)
+		_ = attrpool.Communities.Release(e.Communities)
 		e.Communities = pool.InvalidHandle
 	}
 	if e.LargeCommunities.IsValid() {
-		_ = pool.LargeCommunities.Release(e.LargeCommunities)
+		_ = attrpool.LargeCommunities.Release(e.LargeCommunities)
 		e.LargeCommunities = pool.InvalidHandle
 	}
 	if e.ExtCommunities.IsValid() {
-		_ = pool.ExtCommunities.Release(e.ExtCommunities)
+		_ = attrpool.ExtCommunities.Release(e.ExtCommunities)
 		e.ExtCommunities = pool.InvalidHandle
 	}
 	if e.ClusterList.IsValid() {
-		_ = pool.ClusterList.Release(e.ClusterList)
+		_ = attrpool.ClusterList.Release(e.ClusterList)
 		e.ClusterList = pool.InvalidHandle
 	}
 	if e.OriginatorID.IsValid() {
-		_ = pool.OriginatorID.Release(e.OriginatorID)
+		_ = attrpool.OriginatorID.Release(e.OriginatorID)
 		e.OriginatorID = pool.InvalidHandle
 	}
 	if e.OtherAttrs.IsValid() {
-		_ = pool.OtherAttrs.Release(e.OtherAttrs)
+		_ = attrpool.OtherAttrs.Release(e.OtherAttrs)
 		e.OtherAttrs = pool.InvalidHandle
 	}
 }
@@ -180,43 +182,43 @@ func (e *RouteEntry) AddRef() error {
 	}
 
 	// Try to increment all handles.
-	if err := addRef(pool.Origin, e.Origin); err != nil {
+	if err := addRef(attrpool.Origin, e.Origin); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.ASPath, e.ASPath); err != nil {
+	if err := addRef(attrpool.ASPath, e.ASPath); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.NextHop, e.NextHop); err != nil {
+	if err := addRef(attrpool.NextHop, e.NextHop); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.LocalPref, e.LocalPref); err != nil {
+	if err := addRef(attrpool.LocalPref, e.LocalPref); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.MED, e.MED); err != nil {
+	if err := addRef(attrpool.MED, e.MED); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.AtomicAggregate, e.AtomicAggregate); err != nil {
+	if err := addRef(attrpool.AtomicAggregate, e.AtomicAggregate); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.Aggregator, e.Aggregator); err != nil {
+	if err := addRef(attrpool.Aggregator, e.Aggregator); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.Communities, e.Communities); err != nil {
+	if err := addRef(attrpool.Communities, e.Communities); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.LargeCommunities, e.LargeCommunities); err != nil {
+	if err := addRef(attrpool.LargeCommunities, e.LargeCommunities); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.ExtCommunities, e.ExtCommunities); err != nil {
+	if err := addRef(attrpool.ExtCommunities, e.ExtCommunities); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.ClusterList, e.ClusterList); err != nil {
+	if err := addRef(attrpool.ClusterList, e.ClusterList); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.OriginatorID, e.OriginatorID); err != nil {
+	if err := addRef(attrpool.OriginatorID, e.OriginatorID); err != nil {
 		goto rollback
 	}
-	if err := addRef(pool.OtherAttrs, e.OtherAttrs); err != nil {
+	if err := addRef(attrpool.OtherAttrs, e.OtherAttrs); err != nil {
 		goto rollback
 	}
 

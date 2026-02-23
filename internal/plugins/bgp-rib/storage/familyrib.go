@@ -6,6 +6,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
+
+	attrpool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication.
@@ -148,7 +150,7 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	// Parse OtherAttrs into a map by type code for sorted insertion.
 	otherByType := make(map[uint8][]byte)
 	if e.HasOtherAttrs() {
-		data, err := pool.OtherAttrs.Get(e.OtherAttrs)
+		data, err := attrpool.OtherAttrs.Get(e.OtherAttrs)
 		if err != nil {
 			return nil, err
 		}
@@ -173,52 +175,52 @@ func (e *RouteEntry) ToWireBytes() ([]byte, error) {
 	// Write in RFC 4271 type-code order.
 
 	// ORIGIN (type 1) - well-known mandatory.
-	if err := writeAttr(attribute.AttrOrigin, 0x40, pool.Origin, e.Origin); err != nil {
+	if err := writeAttr(attribute.AttrOrigin, 0x40, attrpool.Origin, e.Origin); err != nil {
 		return nil, err
 	}
 
 	// AS_PATH (type 2) - well-known mandatory.
-	if err := writeAttr(attribute.AttrASPath, 0x40, pool.ASPath, e.ASPath); err != nil {
+	if err := writeAttr(attribute.AttrASPath, 0x40, attrpool.ASPath, e.ASPath); err != nil {
 		return nil, err
 	}
 
 	// NEXT_HOP (type 3) - well-known mandatory (IPv4 unicast).
-	if err := writeAttr(attribute.AttrNextHop, 0x40, pool.NextHop, e.NextHop); err != nil {
+	if err := writeAttr(attribute.AttrNextHop, 0x40, attrpool.NextHop, e.NextHop); err != nil {
 		return nil, err
 	}
 
 	// MED (type 4) - optional non-transitive.
-	if err := writeAttr(attribute.AttrMED, 0x80, pool.MED, e.MED); err != nil {
+	if err := writeAttr(attribute.AttrMED, 0x80, attrpool.MED, e.MED); err != nil {
 		return nil, err
 	}
 
 	// LOCAL_PREF (type 5) - well-known (IBGP only).
-	if err := writeAttr(attribute.AttrLocalPref, 0x40, pool.LocalPref, e.LocalPref); err != nil {
+	if err := writeAttr(attribute.AttrLocalPref, 0x40, attrpool.LocalPref, e.LocalPref); err != nil {
 		return nil, err
 	}
 
 	// ATOMIC_AGGREGATE (type 6) - well-known discretionary.
-	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, pool.AtomicAggregate, e.AtomicAggregate); err != nil {
+	if err := writeAttr(attribute.AttrAtomicAggregate, 0x40, attrpool.AtomicAggregate, e.AtomicAggregate); err != nil {
 		return nil, err
 	}
 
 	// AGGREGATOR (type 7) - optional transitive.
-	if err := writeAttr(attribute.AttrAggregator, 0xC0, pool.Aggregator, e.Aggregator); err != nil {
+	if err := writeAttr(attribute.AttrAggregator, 0xC0, attrpool.Aggregator, e.Aggregator); err != nil {
 		return nil, err
 	}
 
 	// COMMUNITIES (type 8) - optional transitive.
-	if err := writeAttr(attribute.AttrCommunity, 0xC0, pool.Communities, e.Communities); err != nil {
+	if err := writeAttr(attribute.AttrCommunity, 0xC0, attrpool.Communities, e.Communities); err != nil {
 		return nil, err
 	}
 
 	// ORIGINATOR_ID (type 9) - optional non-transitive.
-	if err := writeAttr(attribute.AttrOriginatorID, 0x80, pool.OriginatorID, e.OriginatorID); err != nil {
+	if err := writeAttr(attribute.AttrOriginatorID, 0x80, attrpool.OriginatorID, e.OriginatorID); err != nil {
 		return nil, err
 	}
 
 	// CLUSTER_LIST (type 10) - optional non-transitive.
-	if err := writeAttr(attribute.AttrClusterList, 0x80, pool.ClusterList, e.ClusterList); err != nil {
+	if err := writeAttr(attribute.AttrClusterList, 0x80, attrpool.ClusterList, e.ClusterList); err != nil {
 		return nil, err
 	}
 

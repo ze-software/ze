@@ -3,6 +3,8 @@ package pool
 import (
 	"testing"
 
+	basepool "codeberg.org/thomas-mangin/ze/internal/pool"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -14,7 +16,7 @@ import (
 func TestPerAttributePools_Existence(t *testing.T) {
 	pools := []struct {
 		name string
-		pool *Pool
+		pool *basepool.Pool
 		idx  uint8
 	}{
 		{"Origin", Origin, 2},
@@ -35,7 +37,11 @@ func TestPerAttributePools_Existence(t *testing.T) {
 	for _, tc := range pools {
 		t.Run(tc.name, func(t *testing.T) {
 			require.NotNil(t, tc.pool, "pool %s should not be nil", tc.name)
-			assert.Equal(t, tc.idx, tc.pool.idx, "pool %s should have idx %d", tc.name, tc.idx)
+
+			// Verify pool index via handle (public API).
+			h := tc.pool.Intern([]byte{0x00})
+			assert.Equal(t, tc.idx, h.PoolIdx(), "pool %s should have idx %d", tc.name, tc.idx)
+			require.NoError(t, tc.pool.Release(h))
 		})
 	}
 }
@@ -45,35 +51,37 @@ func TestPerAttributePools_Existence(t *testing.T) {
 // VALIDATES: No pool index collisions that would cause cross-pool handle confusion.
 // PREVENTS: Handle from one pool being used with another pool.
 func TestPerAttributePools_UniqueIndices(t *testing.T) {
-	allPools := []*Pool{
-		Origin,           // idx=2
-		ASPath,           // idx=3
-		LocalPref,        // idx=4
-		MED,              // idx=5
-		NextHop,          // idx=6
-		Communities,      // idx=7
-		LargeCommunities, // idx=8
-		ExtCommunities,   // idx=9
-		ClusterList,      // idx=10
-		OriginatorID,     // idx=11
-		AtomicAggregate,  // idx=12
-		Aggregator,       // idx=13
-		OtherAttrs,       // idx=14
+	type poolEntry struct {
+		name string
+		pool *basepool.Pool
+	}
+
+	allPools := []poolEntry{
+		{"Origin", Origin},
+		{"ASPath", ASPath},
+		{"LocalPref", LocalPref},
+		{"MED", MED},
+		{"NextHop", NextHop},
+		{"Communities", Communities},
+		{"LargeCommunities", LargeCommunities},
+		{"ExtCommunities", ExtCommunities},
+		{"ClusterList", ClusterList},
+		{"OriginatorID", OriginatorID},
+		{"AtomicAggregate", AtomicAggregate},
+		{"Aggregator", Aggregator},
+		{"OtherAttrs", OtherAttrs},
 	}
 
 	seen := make(map[uint8]string)
-	for i, p := range allPools {
-		names := []string{
-			"Origin", "ASPath", "LocalPref", "MED",
-			"NextHop", "Communities", "LargeCommunities", "ExtCommunities",
-			"ClusterList", "OriginatorID", "AtomicAggregate", "Aggregator", "OtherAttrs",
-		}
-		name := names[i]
+	for _, pe := range allPools {
+		h := pe.pool.Intern([]byte{0x00})
+		idx := h.PoolIdx()
+		_ = pe.pool.Release(h)
 
-		if existing, ok := seen[p.idx]; ok {
-			t.Errorf("pool %s has same idx %d as pool %s", name, p.idx, existing)
+		if existing, ok := seen[idx]; ok {
+			t.Errorf("pool %s has same idx %d as pool %s", pe.name, idx, existing)
 		}
-		seen[p.idx] = name
+		seen[idx] = pe.name
 	}
 }
 
@@ -128,5 +136,5 @@ func TestPerAttributePools_CrossPoolRejection(t *testing.T) {
 
 	// Try to use Origin handle with ASPath pool
 	_, err := ASPath.Get(h)
-	assert.ErrorIs(t, err, ErrWrongPool, "using Origin handle with ASPath should fail")
+	assert.ErrorIs(t, err, basepool.ErrWrongPool, "using Origin handle with ASPath should fail")
 }

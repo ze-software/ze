@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	attrpool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
@@ -55,7 +56,7 @@ func TestParseAttributes_Origin(t *testing.T) {
 	assert.Equal(t, uint8(2), entry.Origin.PoolIdx(), "should use Origin pool (idx=2)")
 
 	// Verify value
-	data, err := pool.Origin.Get(entry.Origin)
+	data, err := attrpool.Origin.Get(entry.Origin)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x00}, data, "ORIGIN value should be IGP (0)")
 }
@@ -216,7 +217,7 @@ func TestParseAttributes_ExtendedLength(t *testing.T) {
 
 	assert.True(t, entry.HasCommunities(), "COMMUNITIES should be present")
 
-	data, err := pool.Communities.Get(entry.Communities)
+	data, err := attrpool.Communities.Get(entry.Communities)
 	require.NoError(t, err)
 	assert.Len(t, data, 256, "should have 256 bytes of community data")
 }
@@ -238,7 +239,7 @@ func TestParseAttributes_PreservesFlags(t *testing.T) {
 
 	// OtherAttrs uses storage format: [type][flags][length_16bit][value].
 	// This allows sorting by type code during reconstruction.
-	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
+	data, err := attrpool.OtherAttrs.Get(entry.OtherAttrs)
 	require.NoError(t, err)
 
 	// Expected: type=0x63, flags=0xE0, length=0x0002, value=0xAB 0xCD.
@@ -270,7 +271,7 @@ func TestParseAttributes_ExtendedLengthInOther(t *testing.T) {
 
 	// OtherAttrs uses storage format: [type][flags][length_16bit][value].
 	// For 256-byte value: type=0x63, flags=0xD0, length=0x0100, value=256 bytes.
-	data, err := pool.OtherAttrs.Get(entry.OtherAttrs)
+	data, err := attrpool.OtherAttrs.Get(entry.OtherAttrs)
 	require.NoError(t, err)
 
 	// Header: 4 bytes (type + flags + length_16bit) + 256 bytes value = 260 bytes.
@@ -295,7 +296,7 @@ func TestParseAttributes_DuplicateAttribute(t *testing.T) {
 	defer entry.Release()
 
 	// Should have the second value (EGP).
-	data, err := pool.Origin.Get(entry.Origin)
+	data, err := attrpool.Origin.Get(entry.Origin)
 	require.NoError(t, err)
 	assert.Equal(t, []byte{0x01}, data, "should have EGP (second occurrence)")
 }
@@ -326,7 +327,7 @@ func TestParseAttributes_BoundaryOrigin(t *testing.T) {
 			defer entry.Release()
 
 			assert.True(t, entry.HasOrigin())
-			data, err := pool.Origin.Get(entry.Origin)
+			data, err := attrpool.Origin.Get(entry.Origin)
 			require.NoError(t, err)
 			assert.Equal(t, []byte{tt.value}, data)
 		})
@@ -356,7 +357,7 @@ func TestParseAttributes_BoundaryLocalPref(t *testing.T) {
 			defer entry.Release()
 
 			assert.True(t, entry.HasLocalPref())
-			data, err := pool.LocalPref.Get(entry.LocalPref)
+			data, err := attrpool.LocalPref.Get(entry.LocalPref)
 			require.NoError(t, err)
 			assert.Equal(t, tt.value, data)
 		})
@@ -386,7 +387,7 @@ func TestParseAttributes_BoundaryMED(t *testing.T) {
 			defer entry.Release()
 
 			assert.True(t, entry.HasMED())
-			data, err := pool.MED.Get(entry.MED)
+			data, err := attrpool.MED.Get(entry.MED)
 			require.NoError(t, err)
 			assert.Equal(t, tt.value, data)
 		})

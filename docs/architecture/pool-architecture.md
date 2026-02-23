@@ -765,7 +765,7 @@ func (p *Pool) IsIdle(d time.Duration) bool
 
 ## Global Pool Instances
 
-Ze provides pre-configured global pools in `internal/pool/attributes.go`:
+Ze provides pre-configured global pools in `internal/plugins/bgp-rib/pool/attributes.go`:
 
 ### Per-Attribute-Type Pools
 

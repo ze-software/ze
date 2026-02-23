@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	attrpool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
 // TestFamilyRIB_PerAttrDedup verifies per-attribute deduplication.
@@ -211,15 +211,15 @@ func TestFamilyRIB_ToWireBytes(t *testing.T) {
 	defer entry2.Release()
 
 	// Verify values match by comparing pool data.
-	origData1, _ := pool.Origin.Get(entry.Origin)
-	origData2, _ := pool.Origin.Get(entry2.Origin)
+	origData1, _ := attrpool.Origin.Get(entry.Origin)
+	origData2, _ := attrpool.Origin.Get(entry2.Origin)
 	assert.Equal(t, origData1, origData2, "ORIGIN should match")
 
-	lpData1, _ := pool.LocalPref.Get(entry.LocalPref)
-	lpData2, _ := pool.LocalPref.Get(entry2.LocalPref)
+	lpData1, _ := attrpool.LocalPref.Get(entry.LocalPref)
+	lpData2, _ := attrpool.LocalPref.Get(entry2.LocalPref)
 	assert.Equal(t, lpData1, lpData2, "LOCAL_PREF should match")
 
-	medData1, _ := pool.MED.Get(entry.MED)
-	medData2, _ := pool.MED.Get(entry2.MED)
+	medData1, _ := attrpool.MED.Get(entry.MED)
+	medData2, _ := attrpool.MED.Get(entry2.MED)
 	assert.Equal(t, medData1, medData2, "MED should match")
 }
