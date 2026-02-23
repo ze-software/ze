@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	attrpool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/attrpool"
+	pool "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 )
 
 // TestRouteEntry_NewEmpty verifies empty RouteEntry has InvalidHandle for all fields.
@@ -17,17 +17,17 @@ import (
 func TestRouteEntry_NewEmpty(t *testing.T) {
 	entry := NewRouteEntry()
 
-	assert.Equal(t, pool.InvalidHandle, entry.Origin, "Origin should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.ASPath, "ASPath should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.LocalPref, "LocalPref should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.MED, "MED should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.NextHop, "NextHop should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.Communities, "Communities should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.LargeCommunities, "LargeCommunities should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.ExtCommunities, "ExtCommunities should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.ClusterList, "ClusterList should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.OriginatorID, "OriginatorID should be InvalidHandle")
-	assert.Equal(t, pool.InvalidHandle, entry.OtherAttrs, "OtherAttrs should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.Origin, "Origin should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.ASPath, "ASPath should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.LocalPref, "LocalPref should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.MED, "MED should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.NextHop, "NextHop should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.Communities, "Communities should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.LargeCommunities, "LargeCommunities should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.ExtCommunities, "ExtCommunities should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.ClusterList, "ClusterList should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.OriginatorID, "OriginatorID should be InvalidHandle")
+	assert.Equal(t, attrpool.InvalidHandle, entry.OtherAttrs, "OtherAttrs should be InvalidHandle")
 }
 
 // TestRouteEntry_HasAttribute verifies attribute presence checks.
@@ -44,8 +44,8 @@ func TestRouteEntry_HasAttribute(t *testing.T) {
 	assert.False(t, entry.HasMED(), "MED should be absent")
 
 	// Set Origin to a valid handle
-	h := attrpool.Origin.Intern([]byte{0x00}) // IGP
-	defer func() { _ = attrpool.Origin.Release(h) }()
+	h := pool.Origin.Intern([]byte{0x00}) // IGP
+	defer func() { _ = pool.Origin.Release(h) }()
 
 	entry.Origin = h
 	assert.True(t, entry.HasOrigin(), "Origin should be present after setting")
@@ -60,8 +60,8 @@ func TestRouteEntry_Release(t *testing.T) {
 	entry := NewRouteEntry()
 
 	// Intern some test data
-	entry.Origin = attrpool.Origin.Intern([]byte{0x00})
-	entry.LocalPref = attrpool.LocalPref.Intern([]byte{0x00, 0x00, 0x00, 0x64})
+	entry.Origin = pool.Origin.Intern([]byte{0x00})
+	entry.LocalPref = pool.LocalPref.Intern([]byte{0x00, 0x00, 0x00, 0x64})
 
 	// Verify handles are valid
 	require.True(t, entry.Origin.IsValid())
@@ -70,8 +70,8 @@ func TestRouteEntry_Release(t *testing.T) {
 	// Release should not panic and should reset handles
 	entry.Release()
 
-	assert.Equal(t, pool.InvalidHandle, entry.Origin, "Origin should be InvalidHandle after release")
-	assert.Equal(t, pool.InvalidHandle, entry.LocalPref, "LocalPref should be InvalidHandle after release")
+	assert.Equal(t, attrpool.InvalidHandle, entry.Origin, "Origin should be InvalidHandle after release")
+	assert.Equal(t, attrpool.InvalidHandle, entry.LocalPref, "LocalPref should be InvalidHandle after release")
 }
 
 // TestRouteEntry_AddRef verifies reference counting for sharing.
@@ -82,16 +82,16 @@ func TestRouteEntry_AddRef(t *testing.T) {
 	entry := NewRouteEntry()
 
 	// Intern test data
-	entry.Origin = attrpool.Origin.Intern([]byte{0x01}) // EGP
+	entry.Origin = pool.Origin.Intern([]byte{0x01}) // EGP
 
 	// Add ref (simulating sharing)
 	err := entry.AddRef()
 	require.NoError(t, err)
 
 	// Now we need to release twice
-	entry.Release()                           // First release
-	_ = attrpool.Origin.Release(entry.Origin) // Would fail if AddRef didn't work
-	entry.Origin = pool.InvalidHandle         // Manually reset after second release
+	entry.Release()                       // First release
+	_ = pool.Origin.Release(entry.Origin) // Would fail if AddRef didn't work
+	entry.Origin = attrpool.InvalidHandle // Manually reset after second release
 }
 
 // TestRouteEntry_Clone verifies entry cloning with ref increment.
@@ -100,8 +100,8 @@ func TestRouteEntry_AddRef(t *testing.T) {
 // PREVENTS: Independent entries accidentally sharing without refcount.
 func TestRouteEntry_Clone(t *testing.T) {
 	entry := NewRouteEntry()
-	entry.Origin = attrpool.Origin.Intern([]byte{0x02})             // INCOMPLETE
-	entry.MED = attrpool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
+	entry.Origin = pool.Origin.Intern([]byte{0x02})             // INCOMPLETE
+	entry.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
 
 	clone := entry.Clone()
 	require.NotNil(t, clone, "Clone should succeed")
@@ -126,8 +126,8 @@ func TestRouteEntry_SharedOrigin(t *testing.T) {
 
 	// Both routes have ORIGIN=IGP
 	originIGP := []byte{0x00}
-	entry1.Origin = attrpool.Origin.Intern(originIGP)
-	entry2.Origin = attrpool.Origin.Intern(originIGP)
+	entry1.Origin = pool.Origin.Intern(originIGP)
+	entry2.Origin = pool.Origin.Intern(originIGP)
 
 	// Should have same slot (deduplication)
 	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
@@ -144,14 +144,14 @@ func TestRouteEntry_SharedOrigin(t *testing.T) {
 // PREVENTS: Returning clone with incorrect refcounts.
 func TestRouteEntry_CloneReturnsNilOnError(t *testing.T) {
 	// Create a temporary pool that we can shutdown.
-	tempPool := pool.NewWithIdx(20, 64)
+	tempPool := attrpool.NewWithIdx(20, 64)
 	h := tempPool.Intern([]byte{0x01})
 
 	entry := NewRouteEntry()
 	// Manually set a handle from the temp pool (hacky but tests the behavior).
 	// We can't easily test this without a shutdown pool, so we just verify
 	// that Clone returns non-nil in the normal case.
-	entry.Origin = attrpool.Origin.Intern([]byte{0x00})
+	entry.Origin = pool.Origin.Intern([]byte{0x00})
 
 	clone := entry.Clone()
 	assert.NotNil(t, clone, "Clone should succeed with valid pools")
@@ -177,13 +177,13 @@ func TestRouteEntry_DifferentMED(t *testing.T) {
 	originIGP := []byte{0x00}
 	localPref100 := []byte{0x00, 0x00, 0x00, 0x64}
 
-	entry1.Origin = attrpool.Origin.Intern(originIGP)
-	entry1.LocalPref = attrpool.LocalPref.Intern(localPref100)
-	entry1.MED = attrpool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
+	entry1.Origin = pool.Origin.Intern(originIGP)
+	entry1.LocalPref = pool.LocalPref.Intern(localPref100)
+	entry1.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
 
-	entry2.Origin = attrpool.Origin.Intern(originIGP)
-	entry2.LocalPref = attrpool.LocalPref.Intern(localPref100)
-	entry2.MED = attrpool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x14}) // MED=20
+	entry2.Origin = pool.Origin.Intern(originIGP)
+	entry2.LocalPref = pool.LocalPref.Intern(localPref100)
+	entry2.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x14}) // MED=20
 
 	// ORIGIN and LOCAL_PREF should share slots
 	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
@@ -234,23 +234,23 @@ func TestRouteEntry_WireRoundTrip(t *testing.T) {
 	defer entry2.Release()
 
 	// Verify each attribute VALUE matches (not flags, just data).
-	origOrigin, _ := attrpool.Origin.Get(entry.Origin)
-	reconOrigin, _ := attrpool.Origin.Get(entry2.Origin)
+	origOrigin, _ := pool.Origin.Get(entry.Origin)
+	reconOrigin, _ := pool.Origin.Get(entry2.Origin)
 	assert.Equal(t, origOrigin, reconOrigin, "ORIGIN value should match")
 
-	origASPath, _ := attrpool.ASPath.Get(entry.ASPath)
-	reconASPath, _ := attrpool.ASPath.Get(entry2.ASPath)
+	origASPath, _ := pool.ASPath.Get(entry.ASPath)
+	reconASPath, _ := pool.ASPath.Get(entry2.ASPath)
 	assert.Equal(t, origASPath, reconASPath, "AS_PATH value should match")
 
-	origNextHop, _ := attrpool.NextHop.Get(entry.NextHop)
-	reconNextHop, _ := attrpool.NextHop.Get(entry2.NextHop)
+	origNextHop, _ := pool.NextHop.Get(entry.NextHop)
+	reconNextHop, _ := pool.NextHop.Get(entry2.NextHop)
 	assert.Equal(t, origNextHop, reconNextHop, "NEXT_HOP value should match")
 
-	origLocalPref, _ := attrpool.LocalPref.Get(entry.LocalPref)
-	reconLocalPref, _ := attrpool.LocalPref.Get(entry2.LocalPref)
+	origLocalPref, _ := pool.LocalPref.Get(entry.LocalPref)
+	reconLocalPref, _ := pool.LocalPref.Get(entry2.LocalPref)
 	assert.Equal(t, origLocalPref, reconLocalPref, "LOCAL_PREF value should match")
 
-	origMED, _ := attrpool.MED.Get(entry.MED)
-	reconMED, _ := attrpool.MED.Get(entry2.MED)
+	origMED, _ := pool.MED.Get(entry.MED)
+	reconMED, _ := pool.MED.Get(entry2.MED)
 	assert.Equal(t, origMED, reconMED, "MED value should match")
 }

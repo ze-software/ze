@@ -2,7 +2,7 @@
 
 // Design: docs/architecture/pool-architecture.md — attribute and NLRI pools
 
-package pool
+package attrpool
 
 // validateHandle checks handle validity in release builds.
 // Returns error if invalid.

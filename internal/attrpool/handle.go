@@ -5,7 +5,7 @@
 // The pool uses reference counting and periodic compaction to efficiently store
 // deduplicated byte sequences. This is critical for memory efficiency when handling
 // large RIBs where many routes share common attributes (e.g., AS_PATH, communities).
-package pool
+package attrpool
 
 import "fmt"
 

@@ -3,7 +3,7 @@ package pool
 import (
 	"testing"
 
-	basepool "codeberg.org/thomas-mangin/ze/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/attrpool"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,7 +16,7 @@ import (
 func TestPerAttributePools_Existence(t *testing.T) {
 	pools := []struct {
 		name string
-		pool *basepool.Pool
+		pool *attrpool.Pool
 		idx  uint8
 	}{
 		{"Origin", Origin, 2},
@@ -53,7 +53,7 @@ func TestPerAttributePools_Existence(t *testing.T) {
 func TestPerAttributePools_UniqueIndices(t *testing.T) {
 	type poolEntry struct {
 		name string
-		pool *basepool.Pool
+		pool *attrpool.Pool
 	}
 
 	allPools := []poolEntry{
@@ -136,5 +136,5 @@ func TestPerAttributePools_CrossPoolRejection(t *testing.T) {
 
 	// Try to use Origin handle with ASPath pool
 	_, err := ASPath.Get(h)
-	assert.ErrorIs(t, err, basepool.ErrWrongPool, "using Origin handle with ASPath should fail")
+	assert.ErrorIs(t, err, attrpool.ErrWrongPool, "using Origin handle with ASPath should fail")
 }

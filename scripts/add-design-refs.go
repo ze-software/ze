@@ -121,7 +121,7 @@ var dirMapping = map[string][]string{
 		"// RFC: rfc/short/rfc4364.md",
 	},
 	"internal/plugins/bgp-rib/pool": {"// Design: docs/architecture/pool-architecture.md — per-attribute pool instances"},
-	"internal/pool":                 {"// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools"},
+	"internal/attrpool":             {"// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools"},
 	"internal/selector":             {"// Design: docs/architecture/core-design.md — peer selector"},
 	"internal/sim":                  {"// Design: docs/architecture/chaos-web-dashboard.md — simulation infrastructure"},
 	"internal/slogutil":             {"// Design: docs/architecture/config/environment.md — structured logging utilities"},

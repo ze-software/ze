@@ -1,4 +1,4 @@
-package pool
+package attrpool
 
 import (
 	"context"

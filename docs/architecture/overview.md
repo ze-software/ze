@@ -109,7 +109,7 @@ ze/
 │   ├── hub/                    # Hub architecture
 │   │   └── schema/             # Hub schema
 │   │
-│   ├── pool/                   # Memory pools
+│   ├── attrpool/               # Memory pools
 │   │   ├── pool.go             # Core Pool type
 │   │   ├── handle.go           # Handle type
 │   │   └── compaction.go       # Compaction logic
@@ -199,7 +199,7 @@ BGP capabilities and negotiation:
 - Extended Message, Route Refresh
 - Graceful Restart
 
-### 4.8 Pool (`internal/pool/`)
+### 4.8 Pool (`internal/attrpool/`)
 
 Memory-efficient deduplication:
 - Per-attribute-type pools

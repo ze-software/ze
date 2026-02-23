@@ -1,6 +1,6 @@
 //go:build debug
 
-package pool
+package attrpool
 
 import (
 	"testing"
