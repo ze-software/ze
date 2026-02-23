@@ -197,6 +197,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	propUpdateCounter := 0
 
 	// Process events from all peers.
+	termRestored := false
 	for ev := range events {
 		// Update established state and peer guard for schedulers.
 		switch ev.Type {
@@ -204,6 +205,12 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			established.Set(ev.PeerIndex, true)
 			guard.OnEstablished(ev.PeerIndex)
 		case peer.EventDisconnected:
+			// Restore terminal state on first disconnect. The ze subprocess
+			// may die around this time, disabling ONLCR (staircase output).
+			if !termRestored && savedTermState != nil {
+				_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
+				termRestored = true
+			}
 			established.Set(ev.PeerIndex, false)
 			guard.OnDisconnected(ev.PeerIndex)
 		case peer.EventChaosExecuted:
