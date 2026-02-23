@@ -1799,3 +1799,161 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 		t.Fatal("plugin did not exit")
 	}
 }
+
+// newBridgedTestPair creates a connected plugin SDK + engine side using net.Pipe,
+// with the plugin side wrapped in BridgedConn for direct transport testing.
+func newBridgedTestPair(t *testing.T) (*Plugin, *engineSide, *rpc.DirectBridge) {
+	t.Helper()
+
+	bridge := rpc.NewDirectBridge()
+
+	// Socket A: Plugin → Engine
+	aPlugin, aEngine := net.Pipe()
+	// Socket B: Engine → Plugin
+	bPlugin, bEngine := net.Pipe()
+
+	t.Cleanup(func() {
+		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
+			if err := c.Close(); err != nil {
+				t.Logf("cleanup close: %v", err)
+			}
+		}
+	})
+
+	// Wrap plugin-side connections with bridge
+	aPluginBridged := rpc.NewBridgedConn(aPlugin, bridge)
+	bPluginBridged := rpc.NewBridgedConn(bPlugin, bridge)
+
+	p := NewWithConn("test-bridged", aPluginBridged, bPluginBridged)
+
+	engine := &engineSide{
+		server: rpc.NewConn(aEngine, aEngine),
+		client: rpc.NewConn(bEngine, bEngine),
+	}
+
+	return p, engine, bridge
+}
+
+// TestCallEngineRawDirect verifies callEngineRaw dispatches through bridge.
+//
+// VALIDATES: AC-2 — Engine dispatcher called directly without JSON marshal or net.Pipe I/O.
+// PREVENTS: Plugin→engine RPCs going through socket when bridge is available.
+func TestCallEngineRawDirect(t *testing.T) {
+	t.Parallel()
+
+	p, engine, bridge := newBridgedTestPair(t)
+
+	// Register engine-side RPC handler on bridge.
+	// In production, the engine sets this after startup completes.
+	var dispatchCalled bool
+	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+		dispatchCalled = true
+		assert.Equal(t, "ze-plugin-engine:update-route", method)
+		// Return a valid UpdateRouteOutput response wrapped in result envelope
+		return json.RawMessage(`{"result":{"peers-affected":2,"routes-sent":3}}`), nil
+	})
+	// Note: bridge.SetReady() is called by SDK's Run() after startup.
+	// DispatchRPC must be registered before that.
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: send a no-op event to confirm the event loop is running.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Call UpdateRoute — should go through bridge, not socket
+	routeDone := make(chan error, 1)
+	go func() {
+		_, _, err := p.UpdateRoute(ctx, "*", "update text origin set igp")
+		routeDone <- err
+	}()
+
+	select {
+	case err := <-routeDone:
+		require.NoError(t, err)
+		assert.True(t, dispatchCalled, "bridge.DispatchRPC should have been called")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for UpdateRoute")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
+// TestCallEngineRawDirectError verifies error propagation from bridge dispatch.
+//
+// VALIDATES: AC-6 — Error propagated to SDK caller correctly.
+// PREVENTS: Errors from direct RPC dispatch being lost.
+func TestCallEngineRawDirectError(t *testing.T) {
+	t.Parallel()
+
+	p, engine, bridge := newBridgedTestPair(t)
+
+	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+		return json.RawMessage(`{"error":"dispatch failed"}`), nil
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Call UpdateRoute — bridge returns error response
+	routeDone := make(chan error, 1)
+	go func() {
+		_, _, err := p.UpdateRoute(ctx, "*", "update text origin set igp")
+		routeDone <- err
+	}()
+
+	select {
+	case err := <-routeDone:
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "dispatch failed")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for UpdateRoute")
+	}
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}

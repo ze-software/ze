@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // stderrLogger is used for relaying plugin stderr to engine logs (lazy initialization).
@@ -101,6 +102,10 @@ type Process struct {
 	capabilities *PluginCapabilities // Stage 3 capability declarations
 	stageCh      chan struct{}       // Signals stage completion
 	stageMu      sync.Mutex          // Protects stage transitions
+
+	// Direct transport bridge for internal plugins (nil for external).
+	// After 5-stage startup, events and RPCs bypass socket I/O via function calls.
+	bridge *rpc.DirectBridge
 
 	// Long-lived event delivery goroutine (see rules/goroutine-lifecycle.md).
 	// Events are enqueued via Deliver() and processed by deliveryLoop().
@@ -404,21 +409,27 @@ func (p *Process) drainBatch(first EventDelivery) []EventDelivery {
 	}
 }
 
-// deliverBatch sends a batch of events via SendDeliverBatch and notifies callers.
+// deliverBatch sends a batch of events and notifies callers.
+// Uses DirectBridge for internal plugins (direct function call) or
+// SendDeliverBatch for external plugins (JSON-RPC over socket).
 func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
-	connB := p.ConnB()
+	events := make([]string, len(batch))
+	for i, req := range batch {
+		events[i] = req.Output
+	}
 
 	var batchErr error
-	if connB == nil {
-		batchErr = errors.New("connection closed")
+	if p.bridge != nil && p.bridge.Ready() {
+		batchErr = p.bridge.DeliverEvents(events)
 	} else {
-		events := make([]string, len(batch))
-		for i, req := range batch {
-			events[i] = req.Output
+		connB := p.ConnB()
+		if connB == nil {
+			batchErr = errors.New("connection closed")
+		} else {
+			ctx, cancel := context.WithTimeout(p.ctx, timeout)
+			batchErr = connB.SendDeliverBatch(ctx, events)
+			cancel()
 		}
-		ctx, cancel := context.WithTimeout(p.ctx, timeout)
-		batchErr = connB.SendDeliverBatch(ctx, events)
-		cancel()
 	}
 
 	isCacheConsumer := p.IsCacheConsumer()
@@ -526,14 +537,31 @@ func (p *Process) startInternal() error {
 	p.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
 	p.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
 
+	// Create direct transport bridge for post-startup hot path.
+	// The bridge carries through BridgedConn so the SDK can discover it
+	// via type assertion after the 5-stage startup completes.
+	p.bridge = rpc.NewDirectBridge()
+
+	// Wrap plugin-side connections with bridge reference.
+	enginePluginSide := rpc.NewBridgedConn(pairs.Engine.PluginSide, p.bridge)
+	callbackPluginSide := rpc.NewBridgedConn(pairs.Callback.PluginSide, p.bridge)
+
 	// Start the plugin in a goroutine
 	// Plugin side: read from callback socket, write to engine socket
 	p.wg.Go(func() {
 		defer p.running.Store(false)
-		defer func() { _ = pairs.Engine.PluginSide.Close() }()
-		defer func() { _ = pairs.Callback.PluginSide.Close() }()
+		defer func() {
+			if err := enginePluginSide.Close(); err != nil {
+				logger().Debug("close engine plugin side", "error", err)
+			}
+		}()
+		defer func() {
+			if err := callbackPluginSide.Close(); err != nil {
+				logger().Debug("close callback plugin side", "error", err)
+			}
+		}()
 
-		_ = runner(pairs.Engine.PluginSide, pairs.Callback.PluginSide)
+		_ = runner(enginePluginSide, callbackPluginSide)
 	})
 
 	return nil

@@ -241,6 +241,154 @@ func (s *Server) handleCodecRPC(proc *Process, connA *PluginConn, req *ipc.Reque
 	}
 }
 
+// dispatchPluginRPCDirect handles a plugin→engine RPC without socket I/O.
+// Used by DirectBridge for internal plugins. Returns the result as a JSON-RPC
+// response envelope (matching what callEngineRaw/CheckResponse/ParseResponse expect).
+// Handlers return json.RawMessage only — all errors are encoded in the envelope,
+// never as Go errors — so the second return is always nil.
+func (s *Server) dispatchPluginRPCDirect(proc *Process, method string, params json.RawMessage) (json.RawMessage, error) {
+	// Known plugin→engine RPCs
+	switch method {
+	case "ze-plugin-engine:update-route":
+		return s.handleUpdateRouteDirect(proc, params), nil
+	case "ze-plugin-engine:subscribe-events":
+		return s.handleSubscribeEventsDirect(proc, params), nil
+	case "ze-plugin-engine:unsubscribe-events":
+		return s.handleUnsubscribeEventsDirect(proc), nil
+	}
+
+	// Try BGP codec hook for remaining methods
+	if s.bgpHooks != nil && s.bgpHooks.CodecRPCHandler != nil {
+		codec := s.bgpHooks.CodecRPCHandler(method)
+		if codec != nil {
+			return handleCodecRPCDirect(codec, params), nil
+		}
+	}
+
+	// Unknown methods get an explicit error per ze's fail-on-unknown rule
+	return directErrorResponse("unknown method: " + method), nil
+}
+
+// handleUpdateRouteDirect handles update-route without socket I/O.
+// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
+func (s *Server) handleUpdateRouteDirect(proc *Process, params json.RawMessage) json.RawMessage {
+	var input rpc.UpdateRouteInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return directErrorResponse("invalid update-route params: " + err.Error())
+	}
+
+	cmdCtx := &CommandContext{
+		Server:  s,
+		Process: proc,
+		Peer:    input.PeerSelector,
+	}
+	if cmdCtx.Peer == "" {
+		cmdCtx.Peer = "*"
+	}
+
+	var dispatchCmd string
+	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
+		dispatchCmd = input.Command
+	} else {
+		dispatchCmd = "bgp peer " + input.Command
+	}
+
+	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			return directResultResponse(&rpc.UpdateRouteOutput{})
+		}
+		return directErrorResponse(err.Error())
+	}
+
+	output := &rpc.UpdateRouteOutput{}
+	if resp != nil && resp.Data != nil {
+		if m, ok := resp.Data.(map[string]any); ok {
+			if v, ok := m["peers-affected"]; ok {
+				if n, ok := v.(float64); ok {
+					output.PeersAffected = uint32(n)
+				}
+			}
+			if v, ok := m["routes-sent"]; ok {
+				if n, ok := v.(float64); ok {
+					output.RoutesSent = uint32(n)
+				}
+			}
+		}
+	}
+
+	return directResultResponse(output)
+}
+
+// handleSubscribeEventsDirect handles subscribe-events without socket I/O.
+// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
+func (s *Server) handleSubscribeEventsDirect(proc *Process, params json.RawMessage) json.RawMessage {
+	var input rpc.SubscribeEventsInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return directErrorResponse("invalid subscribe params: " + err.Error())
+	}
+
+	if s.subscriptions == nil {
+		return directErrorResponse("subscription manager not available")
+	}
+
+	s.registerSubscriptions(proc, &input)
+	return directResultResponse(nil)
+}
+
+// handleUnsubscribeEventsDirect handles unsubscribe-events without socket I/O.
+// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
+func (s *Server) handleUnsubscribeEventsDirect(proc *Process) json.RawMessage {
+	if s.subscriptions == nil {
+		return directErrorResponse("subscription manager not available")
+	}
+
+	s.subscriptions.ClearProcess(proc)
+	return directResultResponse(nil)
+}
+
+// handleCodecRPCDirect handles codec RPCs without socket I/O.
+// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
+func handleCodecRPCDirect(codec func(json.RawMessage) (any, error), params json.RawMessage) json.RawMessage {
+	result, err := codec(params)
+	if err != nil {
+		return directErrorResponse(err.Error())
+	}
+	return directResultResponse(result)
+}
+
+// directResultResponse builds a JSON-RPC result envelope.
+func directResultResponse(data any) json.RawMessage {
+	if data == nil {
+		return json.RawMessage(`{"result":null}`)
+	}
+	result, err := json.Marshal(data)
+	if err != nil {
+		return json.RawMessage(`{"error":"marshal result: ` + err.Error() + `"}`)
+	}
+	return json.RawMessage(`{"result":` + string(result) + `}`)
+}
+
+// directErrorResponse builds a JSON-RPC error envelope.
+func directErrorResponse(msg string) json.RawMessage {
+	escaped, err := json.Marshal(msg)
+	if err != nil {
+		return json.RawMessage(`{"error":"internal error"}`)
+	}
+	return json.RawMessage(`{"error":` + string(escaped) + `}`)
+}
+
+// wireBridgeDispatch sets up the DirectBridge's DispatchRPC handler for an internal
+// plugin's process. Called after the 5-stage startup completes for internal plugins.
+func (s *Server) wireBridgeDispatch(proc *Process) {
+	if proc.bridge == nil {
+		return
+	}
+	proc.bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+		return s.dispatchPluginRPCDirect(proc, method, params)
+	})
+}
+
 // cleanupProcess handles cleanup when a process exits.
 func (s *Server) cleanupProcess(proc *Process) {
 	// Unregister all commands from this process

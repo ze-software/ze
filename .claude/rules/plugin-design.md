@@ -71,6 +71,6 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 | Mode | Syntax | Implementation |
 |------|--------|----------------|
 | Fork (default) | `pluginname` | Subprocess via exec |
-| Internal | `ze.pluginname` | Goroutine + Unix socket pair |
+| Internal | `ze.pluginname` | Goroutine + socket pair + DirectBridge (hot path bypasses sockets) |
 | Direct | `ze-pluginname` | Sync in-process call |
 | Path | `/path/to/binary` | External binary |

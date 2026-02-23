@@ -391,6 +391,12 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 			"plugin", proc.Name(), "events", readyInput.Subscribe.Events)
 	}
 
+	// Wire direct bridge dispatch BEFORE sending OK, so the engine's
+	// DispatchRPC handler is registered before the SDK calls SetReady().
+	// This prevents a race where the SDK takes the bridge path before
+	// the engine handler is wired.
+	s.wireBridgeDispatch(proc)
+
 	// Send OK response
 	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
 		return

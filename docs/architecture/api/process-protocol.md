@@ -645,36 +645,54 @@ encoded hex 0501180A0000
 - JSON must be minified (no spaces) since protocol is space-delimited
 - JSON structure matches decode output exactly
 
-### Mode 1: In-Process (goroutine + io.Pipe)
+### Mode 1: In-Process (goroutine + net.Pipe + DirectBridge)
 
-For Go plugins - runs in same process:
+For Go plugins (`ze.pluginname`) — runs in same process:
 
-```go
-// internal/plugin/process.go - startInternal()
-func (p *Process) startInternal() error {
-    inR, inW := io.Pipe()
-    outR, outW := io.Pipe()
+1. `startInternal()` creates `net.Pipe` socket pairs for bidirectional YANG RPC
+2. Creates a `DirectBridge` and wraps plugin-side connections in `BridgedConn`
+3. Runner goroutine receives `BridgedConn` (implements `net.Conn`) transparently
+4. SDK discovers bridge via `Bridger` type assertion in `NewWithConn()`
+5. 5-stage startup runs over sockets (cold path, 5 round-trips total)
+6. After Stage 5: bridge activates for direct function calls (hot path)
 
-    runner := GetInternalPluginRunner(p.config.Name)
-    go runner(inR, outW)    // Long-lived goroutine
+**Bridge activation sequence:**
 
-    p.stdin = inW
-    p.stdout = outR
-    return nil
-}
-```
+| Step | Side | Action |
+|------|------|--------|
+| 1 | Engine | `wireBridgeDispatch()` registers `DispatchRPC` handler on bridge |
+| 2 | Engine | Sends Stage 5 OK response over socket |
+| 3 | SDK | Receives OK, registers `DeliverEvents` handler on bridge |
+| 4 | SDK | Calls `bridge.SetReady()` — bridge now active |
+
+The engine wires its handler (step 1) before sending OK (step 2), ensuring no race
+between SDK bridge activation and engine readiness.
+
+**Runtime hot path (after bridge activates):**
+
+| Direction | Socket path (before) | Direct path (after) |
+|-----------|---------------------|---------------------|
+| Engine→Plugin events | JSON-RPC envelope → NUL frame → `net.Pipe.Write` → read → unmarshal → `onEvent` | `bridge.DeliverEvents(events)` → `onEvent` directly |
+| Plugin→Engine RPCs | `json.Marshal` → NUL frame → `net.Pipe.Write` → read → unmarshal → `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` → `dispatcher.Dispatch` directly |
+
+**Files:**
+
+| File | Purpose |
+|------|---------|
+| `pkg/plugin/rpc/bridge.go` | `DirectBridge`, `BridgedConn`, `Bridger` interface |
+| `internal/plugin/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()` |
+| `internal/plugin/server_dispatch.go` | `dispatchPluginRPCDirect()`, `wireBridgeDispatch()` |
+| `internal/plugin/server_startup.go` | `wireBridgeDispatch()` called before Stage 5 OK |
+| `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()` |
 
 ### Mode 2: Subprocess (fork/exec)
 
-For external plugins (Python, Rust, etc.):
+For external plugins (Python, Rust, etc.) — runs as separate process:
 
-```go
-// internal/plugin/process.go - startExternal()
-cmd := exec.CommandContext(ctx, p.config.Run)
-p.stdin, _ = cmd.StdinPipe()
-p.stdout, _ = cmd.StdoutPipe()
-cmd.Start()
-```
+1. `startExternal()` creates real Unix `socketpair` FDs
+2. Subprocess inherits FDs via `ZE_ENGINE_FD`/`ZE_CALLBACK_FD` env vars
+3. No `DirectBridge` — always uses JSON-RPC over sockets
+4. Same YANG RPC protocol, same 5-stage startup
 
 ### Benefits of Long-Lived Design
 
@@ -684,7 +702,7 @@ cmd.Start()
 | Language agnostic | Same protocol for Go/Python/Rust |
 | Hot-swappable | Restart plugin without engine restart |
 | Testable | Plugin protocol can be tested independently |
-| Consistent | Same code path for goroutine and subprocess |
+| Internal optimization | In-process plugins bypass transport overhead via DirectBridge |
 
 ---
 
@@ -1266,6 +1284,11 @@ Events are enqueued into a per-process channel. The delivery goroutine drains al
 events into a batch and sends them in a single `deliver-batch` RPC, reducing syscalls and
 goroutine churn. Single events are delivered as a batch of 1.
 
+For internal plugins with an active `DirectBridge`, `deliverBatch()` calls
+`bridge.DeliverEvents(events)` directly instead of `connB.SendDeliverBatch()`,
+bypassing JSON-RPC envelope construction, NUL framing, and pipe I/O. The plugin's
+`onEvent` handler is called synchronously in the delivery goroutine.
+
 This separation allows capability-only plugins to work without explicit process bindings,
 while still requiring bindings for plugins that need runtime event filtering.
 
@@ -1380,4 +1403,4 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 
 ---
 
-**Last Updated:** 2026-02-02
+**Last Updated:** 2026-02-23

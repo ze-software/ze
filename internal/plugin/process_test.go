@@ -6,11 +6,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // writeScript writes a test script with executable permissions.
@@ -472,6 +475,107 @@ func TestDeliveryLoopSingleEvent(t *testing.T) {
 	select {
 	case r := <-result:
 		assert.NoError(t, r.Err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for event result")
+	}
+}
+
+// TestDeliverBatchDirect verifies deliverBatch uses bridge for direct delivery.
+//
+// VALIDATES: AC-1 — Plugin's onEvent called directly without JSON-RPC.
+// VALIDATES: AC-8 — EventResult.CacheConsumer correctly set on delivery success.
+// PREVENTS: Direct transport path not being used when bridge is ready.
+func TestDeliverBatchDirect(t *testing.T) {
+	t.Parallel()
+
+	bridge := rpc.NewDirectBridge()
+
+	// Track events received by the plugin-side handler
+	var mu sync.Mutex
+	var received []string
+	bridge.SetDeliverEvents(func(events []string) error {
+		mu.Lock()
+		defer mu.Unlock()
+		received = append(received, events...)
+		return nil
+	})
+	bridge.SetReady()
+
+	proc := NewProcess(PluginConfig{Name: "test-direct", Encoder: "json"})
+	proc.bridge = bridge
+	proc.SetCacheConsumer(true) // Verify CacheConsumer tracking
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proc.StartDelivery(ctx)
+	defer proc.Stop()
+
+	// Enqueue events
+	results := make([]chan EventResult, 2)
+	events := []string{
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2"}}}`,
+	}
+	for i, event := range events {
+		results[i] = make(chan EventResult, 1)
+		ok := proc.Deliver(EventDelivery{Output: event, Result: results[i]})
+		require.True(t, ok, "event %d should be enqueued", i)
+	}
+
+	// All results should complete without error (direct, no socket)
+	for i := range 2 {
+		select {
+		case r := <-results[i]:
+			assert.NoError(t, r.Err, "event %d should succeed", i)
+			assert.True(t, r.CacheConsumer, "event %d should report cache consumer", i)
+			assert.Equal(t, "test-direct", r.ProcName)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timeout waiting for event %d result", i)
+		}
+	}
+
+	// Verify events reached the plugin handler directly
+	mu.Lock()
+	assert.Equal(t, events, received)
+	mu.Unlock()
+}
+
+// TestDeliverBatchDirectError verifies bridge error propagation to EventResult.
+//
+// VALIDATES: AC-5 — Error propagated back to deliverBatch and reflected in EventResult.
+// PREVENTS: Errors from direct delivery being swallowed.
+func TestDeliverBatchDirectError(t *testing.T) {
+	t.Parallel()
+
+	bridge := rpc.NewDirectBridge()
+
+	handlerErr := errors.New("plugin rejected event")
+	bridge.SetDeliverEvents(func(events []string) error {
+		return handlerErr
+	})
+	bridge.SetReady()
+
+	proc := NewProcess(PluginConfig{Name: "test-direct-err", Encoder: "json"})
+	proc.bridge = bridge
+	proc.SetCacheConsumer(true) // CacheConsumer should be false on error
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proc.StartDelivery(ctx)
+	defer proc.Stop()
+
+	result := make(chan EventResult, 1)
+	ok := proc.Deliver(EventDelivery{
+		Output: `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
+		Result: result,
+	})
+	require.True(t, ok)
+
+	select {
+	case r := <-result:
+		assert.Error(t, r.Err)
+		assert.Equal(t, handlerErr, r.Err)
+		assert.False(t, r.CacheConsumer, "CacheConsumer should be false on error")
 	case <-time.After(2 * time.Second):
 		t.Fatal("timeout waiting for event result")
 	}

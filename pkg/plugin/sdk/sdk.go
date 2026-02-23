@@ -44,6 +44,12 @@ type Plugin struct {
 	callbackConn *rpc.Conn    // Socket B: engine → plugin RPCs
 	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
 
+	// Direct transport bridge for internal plugins (nil for external).
+	// Discovered via type assertion on engineConn in NewWithConn.
+	// After startup, DeliverEvents bypasses socket B and callEngineRaw
+	// dispatches through bridge.DispatchRPC instead of engineMux.CallRPC.
+	bridge *rpc.DirectBridge
+
 	// Callbacks for engine-initiated RPCs.
 	onConfigure        func([]ConfigSection) error
 	onShareRegistry    func([]RegistryCommand)
@@ -74,12 +80,19 @@ type Plugin struct {
 
 // NewWithConn creates a plugin with explicit connections (for testing).
 // engineConn is the plugin side of Socket A, callbackConn is the plugin side of Socket B.
+// For internal plugins, engineConn may be a BridgedConn carrying a DirectBridge
+// reference for post-startup direct transport.
 func NewWithConn(name string, engineConn, callbackConn net.Conn) *Plugin {
-	return &Plugin{
+	p := &Plugin{
 		name:         name,
 		engineConn:   rpc.NewConn(engineConn, engineConn),
 		callbackConn: rpc.NewConn(callbackConn, callbackConn),
 	}
+	// Discover bridge via type assertion (internal plugins only).
+	if bridger, ok := engineConn.(rpc.Bridger); ok {
+		p.bridge = bridger.Bridge()
+	}
+	return p
 }
 
 // NewFromFDs creates a plugin from inherited file descriptors.
@@ -341,6 +354,29 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	// MuxConn takes ownership of the reader for concurrent multiplexed RPCs.
 	p.engineMux = rpc.NewMuxConn(p.engineConn)
 
+	// Activate direct transport bridge if discovered during construction.
+	// Register the plugin's event handler so the engine can call it directly
+	// instead of going through socket B. Signal ready so the engine side
+	// switches from SendDeliverBatch to bridge.DeliverEvents.
+	if p.bridge != nil {
+		p.mu.Lock()
+		onEventFn := p.onEvent
+		p.mu.Unlock()
+
+		p.bridge.SetDeliverEvents(func(events []string) error {
+			if onEventFn == nil {
+				return nil
+			}
+			for _, event := range events {
+				if err := onEventFn(event); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+		p.bridge.SetReady()
+	}
+
 	// Post-startup: safe to make engine calls (Socket A is free).
 	// The engine's runtime handler starts reading Socket A after all
 	// plugins complete startup, so writes are buffered briefly then handled.
@@ -354,7 +390,9 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		}
 	}
 
-	// Enter event loop
+	// Enter event loop: still needed for non-event callbacks (bye, encode/decode,
+	// config-verify, config-apply, validate-open, execute-command).
+	// With direct bridge, deliver-batch events bypass the event loop entirely.
 	return p.eventLoop(ctx)
 }
 
@@ -379,8 +417,22 @@ func (p *Plugin) callEngineWithResult(ctx context.Context, method string, params
 }
 
 // callEngineRaw sends an RPC and returns the raw response frame.
-// Dispatches to MuxConn (concurrent, post-startup) or Conn (sequential, startup).
+// Dispatches to: DirectBridge (direct function call, internal plugins post-startup),
+// MuxConn (concurrent socket, post-startup), or Conn (sequential socket, startup).
 func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	// Direct bridge path: bypass JSON framing and socket I/O entirely.
+	// Params are still marshaled to json.RawMessage for the bridge handler.
+	if p.bridge != nil && p.bridge.Ready() {
+		var paramsRaw json.RawMessage
+		if params != nil {
+			var err error
+			paramsRaw, err = json.Marshal(params)
+			if err != nil {
+				return nil, fmt.Errorf("marshal params: %w", err)
+			}
+		}
+		return p.bridge.DispatchRPC(method, paramsRaw)
+	}
 	if p.engineMux != nil {
 		return p.engineMux.CallRPC(ctx, method, params)
 	}
