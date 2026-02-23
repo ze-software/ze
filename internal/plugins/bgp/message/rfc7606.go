@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc7606.md — revised error handling for UPDATE messages
 
 package message
 

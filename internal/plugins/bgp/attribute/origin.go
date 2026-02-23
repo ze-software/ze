@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — ORIGIN attribute (Section 5.1.1)
 
 package attribute
 

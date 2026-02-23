@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec VPN (SAFI 134)
-// Design: rfc/short/rfc5575.md
+// RFC: rfc/short/rfc5575.md
 // Related: types.go — core FlowSpec types, constants, and interface
 // Related: types_prefix.go — prefix component implementations
 // Related: types_numeric.go — numeric/bitmask component implementations

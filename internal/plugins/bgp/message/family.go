@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc4760.md — multiprotocol address families
 
 package message
 

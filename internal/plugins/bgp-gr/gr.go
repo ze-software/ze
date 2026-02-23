@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — graceful restart plugin
-// Design: rfc/short/rfc4724.md
+// RFC: rfc/short/rfc4724.md
 //
 // Package gr implements a Graceful Restart capability plugin for ze.
 // It receives per-peer GR config (restart-time) during Stage 2 and

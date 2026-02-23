@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — VPLS NLRI plugin
-// Design: rfc/short/rfc4761.md
+// RFC: rfc/short/rfc4761.md
 //
 // Package bgp_vpls implements a VPLS family plugin for ze.
 // It handles VPLS NLRI (RFC 4761, SAFI 65).

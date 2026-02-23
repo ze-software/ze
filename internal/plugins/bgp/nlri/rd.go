@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+// RFC: rfc/short/rfc4364.md — route distinguisher types
 //
 // Package nlri implements BGP Network Layer Reachability Information types.
 package nlri

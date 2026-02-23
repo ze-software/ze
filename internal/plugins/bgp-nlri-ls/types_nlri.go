@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS concrete NLRI types
+// RFC: rfc/short/rfc7752.md — BGP-LS NLRI types (Node, Link, Prefix)
 // Related: types.go — core types, bgplsBase, TLV constants, parser functions
 // Related: types_descriptor.go — descriptor structs embedded in these NLRI types
 // Related: types_srv6.go — SRv6 SID NLRI type (RFC 9514)

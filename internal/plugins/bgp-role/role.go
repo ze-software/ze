@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP role plugin
-// Design: rfc/short/rfc9234.md
+// RFC: rfc/short/rfc9234.md
 //
 // Package role implements RFC 9234 BGP Role as a plugin for ze.
 // It receives per-peer role config during Stage 2 and registers

@@ -1,6 +1,7 @@
 #!/bin/bash
-# PostToolUse hook: Require RFC references in BGP code
-# WARNING: BGP protocol code should have RFC comments (rfc-compliance.md)
+# PostToolUse hook: Suggest // RFC: header when BGP code references RFCs
+# Non-blocking (exit 0) — advisory only, since not all files need RFC refs
+# See .claude/rules/design-doc-references.md
 
 set -e
 
@@ -17,13 +18,13 @@ if [[ ! "$FILE_PATH" =~ \.go$ ]]; then
     exit 0
 fi
 
-# Only check BGP-related paths
-if [[ ! "$FILE_PATH" =~ /bgp/ ]] && [[ ! "$FILE_PATH" =~ /nlri/ ]] && [[ ! "$FILE_PATH" =~ /attribute/ ]] && [[ ! "$FILE_PATH" =~ /capability/ ]]; then
-    exit 0
-fi
-
-# Skip test files
-if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
+# Skip test files, generated files, exempt files
+BASE=$(basename "$FILE_PATH")
+if [[ "$BASE" =~ _test\.go$ ]] || \
+   [[ "$BASE" =~ _gen\.go$ ]] || \
+   [[ "$BASE" == "register.go" ]] || \
+   [[ "$BASE" == "embed.go" ]] || \
+   [[ "$BASE" == "doc.go" ]]; then
     exit 0
 fi
 
@@ -32,14 +33,18 @@ if [[ ! -f "$FILE_PATH" ]]; then
     exit 0
 fi
 
-YELLOW='\033[33m'
-RESET='\033[0m'
+# Already has // RFC: header — nothing to suggest
+if head -10 "$FILE_PATH" | grep -q '// RFC:'; then
+    exit 0
+fi
 
-# Check for RFC references in file
-RFC_REFS=$(grep -cE '// RFC [0-9]+|// rfc[0-9]+|RFC [0-9]+ Section' "$FILE_PATH" 2>/dev/null || echo "0")
+# Check if file body references RFCs (suggesting it implements RFC behavior)
+BODY_RFCS=$(grep -cE 'RFC [0-9]{4}|rfc[0-9]{4}' "$FILE_PATH" 2>/dev/null || echo "0")
 
-if [[ "$RFC_REFS" -eq 0 ]]; then
-    echo -e "${YELLOW}⚠ Add RFC comments to $(basename "$FILE_PATH")${RESET}" >&2
+if [[ "$BODY_RFCS" -ge 2 ]]; then
+    YELLOW='\033[33m'
+    RESET='\033[0m'
+    echo -e "${YELLOW}⚠ $(basename "$FILE_PATH") references RFCs but has no // RFC: rfc/short/rfcNNNN.md header${RESET}" >&2
 fi
 
 exit 0

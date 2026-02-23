@@ -1,4 +1,5 @@
 // Design: docs/architecture/behavior/fsm.md — BGP finite state machine
+// RFC: rfc/short/rfc4271.md — hold timer and keepalive timer (Section 8)
 
 package fsm
 

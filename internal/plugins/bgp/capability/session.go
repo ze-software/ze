@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/capabilities.md — capability negotiation
+// RFC: rfc/short/rfc5492.md — per-session capability state
 
 package capability
 

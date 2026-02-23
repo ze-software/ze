@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
+// RFC: rfc/short/rfc4271.md — UPDATE message wire format (Section 4.3)
+// RFC: rfc/short/rfc4760.md — multiprotocol NLRI in UPDATE
 
 package wireu
 

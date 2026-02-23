@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+// RFC: rfc/short/rfc4760.md — AFI/SAFI constants
 //
 // Package nlri provides NLRI (Network Layer Reachability Information) types.
 //

@@ -1,4 +1,5 @@
 // Design: docs/architecture/update-building.md — labeled unicast UPDATE builders
+// RFC: rfc/short/rfc8277.md — labeled unicast NLRI encoding
 // Related: update_build.go — core UpdateBuilder struct and unicast builders
 package message
 

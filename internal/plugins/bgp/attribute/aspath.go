@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — AS_PATH attribute (Section 5.1.2)
+// RFC: rfc/short/rfc6793.md — 4-byte ASN support in AS_PATH
 //
 // Package attribute implements BGP path attributes per RFC 4271.
 package attribute

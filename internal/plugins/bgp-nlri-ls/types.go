@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
-// Design: rfc/short/rfc7752.md
+// RFC: rfc/short/rfc7752.md
 // Related: types_descriptor.go — node, link, and prefix descriptor TLV encoding
 // Related: types_nlri.go — concrete NLRI types (Node, Link, Prefix)
 // Related: types_srv6.go — SRv6 SID NLRI and descriptor (RFC 9514)

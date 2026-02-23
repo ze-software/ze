@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc2918.md — route refresh message format
+// RFC: rfc/short/rfc7313.md — enhanced route refresh
 
 package message
 

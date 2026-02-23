@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — link-local next-hop plugin
-// Design: rfc/short/rfc5549.md
+// RFC: rfc/short/rfc5549.md
 //
 // Package llnh implements a link-local next-hop capability plugin for ze.
 // It declares capability code 77 (draft-ietf-idr-linklocal-capability) for peers

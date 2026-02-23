@@ -73,52 +73,52 @@ var dirMapping = map[string][]string{
 	"internal/plugins/bgp/wireu":      {"// Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing"},
 	"internal/plugins/bgp-gr": {
 		"// Design: docs/architecture/core-design.md — graceful restart plugin",
-		"// Design: rfc/short/rfc4724.md",
+		"// RFC: rfc/short/rfc4724.md",
 	},
 	"internal/plugins/bgp-hostname": {"// Design: docs/architecture/core-design.md — hostname capability plugin"},
 	"internal/plugins/bgp-llnh": {
 		"// Design: docs/architecture/core-design.md — link-local next-hop plugin",
-		"// Design: rfc/short/rfc5549.md",
+		"// RFC: rfc/short/rfc5549.md",
 	},
 	"internal/plugins/bgp-rib/storage": {"// Design: docs/architecture/plugin/rib-storage-design.md — RIB storage internals"},
 	"internal/plugins/bgp-rib":         {"// Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin"},
 	"internal/plugins/bgp-role": {
 		"// Design: docs/architecture/core-design.md — BGP role plugin",
-		"// Design: rfc/short/rfc9234.md",
+		"// RFC: rfc/short/rfc9234.md",
 	},
 	"internal/plugins/bgp-rr": {"// Design: docs/architecture/core-design.md — route reflector plugin"},
 	"internal/plugins/bgp-nlri-evpn": {
 		"// Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin",
-		"// Design: rfc/short/rfc7432.md",
+		"// RFC: rfc/short/rfc7432.md",
 	},
 	"internal/plugins/bgp-nlri-flowspec": {
 		"// Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin",
-		"// Design: rfc/short/rfc5575.md",
+		"// RFC: rfc/short/rfc5575.md",
 	},
 	"internal/plugins/bgp-nlri-labeled": {
 		"// Design: docs/architecture/wire/nlri.md — labeled unicast NLRI plugin",
-		"// Design: rfc/short/rfc8277.md",
+		"// RFC: rfc/short/rfc8277.md",
 	},
 	"internal/plugins/bgp-nlri-ls": {
 		"// Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin",
-		"// Design: rfc/short/rfc7752.md",
+		"// RFC: rfc/short/rfc7752.md",
 	},
 	"internal/plugins/bgp-nlri-mup": {
 		"// Design: docs/architecture/wire/nlri.md — MUP NLRI plugin",
-		"// Design: rfc/short/draft-ietf-bess-mup-safi.md",
+		"// RFC: rfc/short/draft-ietf-bess-mup-safi.md",
 	},
 	"internal/plugins/bgp-nlri-mvpn": {"// Design: docs/architecture/wire/nlri.md — MVPN NLRI plugin"},
 	"internal/plugins/bgp-nlri-rtc": {
 		"// Design: docs/architecture/wire/nlri.md — route target constraint plugin",
-		"// Design: rfc/short/rfc4684.md",
+		"// RFC: rfc/short/rfc4684.md",
 	},
 	"internal/plugins/bgp-nlri-vpls": {
 		"// Design: docs/architecture/wire/nlri.md — VPLS NLRI plugin",
-		"// Design: rfc/short/rfc4761.md",
+		"// RFC: rfc/short/rfc4761.md",
 	},
 	"internal/plugins/bgp-nlri-vpn": {
 		"// Design: docs/architecture/wire/nlri.md — VPN NLRI plugin",
-		"// Design: rfc/short/rfc4364.md",
+		"// RFC: rfc/short/rfc4364.md",
 	},
 	"internal/pool":     {"// Design: docs/architecture/pool-architecture.md — attribute and NLRI pools"},
 	"internal/selector": {"// Design: docs/architecture/core-design.md — peer selector"},

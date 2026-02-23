@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — NEXT_HOP, MED, LOCAL_PREF, ATOMIC_AGGREGATE
 
 package attribute
 

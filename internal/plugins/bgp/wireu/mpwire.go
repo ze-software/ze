@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
+// RFC: rfc/short/rfc4760.md — MP_REACH_NLRI / MP_UNREACH_NLRI wire access
 
 package wireu
 

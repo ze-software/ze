@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md — route refresh capability plugin
+// RFC: rfc/short/rfc2918.md — route refresh capability
+// RFC: rfc/short/rfc7313.md — enhanced route refresh
 //
 // Package bgp_routerefresh implements a Route Refresh capability plugin for ze.
 // It handles Route Refresh (code 2, RFC 2918) and Enhanced Route Refresh

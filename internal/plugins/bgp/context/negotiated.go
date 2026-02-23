@@ -1,4 +1,7 @@
 // Design: docs/architecture/encoding-context.md — encoding context
+// RFC: rfc/short/rfc4760.md — multiprotocol capability context
+// RFC: rfc/short/rfc6793.md — 4-byte ASN context
+// RFC: rfc/short/rfc7911.md — ADD-PATH context
 
 package context
 

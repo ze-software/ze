@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc4271.md — error codes and subcodes (Section 6)
 
 package message
 

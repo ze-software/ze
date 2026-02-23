@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS descriptor TLV encoding
+// RFC: rfc/short/rfc7752.md — BGP-LS node and link descriptors
 // Related: types.go — core types, TLV constants, and helper functions
 // Related: types_nlri.go — NLRI types that embed these descriptors
 // Related: types_srv6.go — SRv6 SID descriptor (RFC 9514)

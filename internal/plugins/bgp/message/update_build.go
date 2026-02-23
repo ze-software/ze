@@ -1,4 +1,5 @@
 // Design: docs/architecture/update-building.md — UPDATE builder common infrastructure
+// RFC: rfc/short/rfc4271.md — UPDATE message construction (Section 4.3)
 // Related: update_build_vpn.go — VPN route building
 // Related: update_build_labeled.go — labeled unicast route building
 // Related: update_build_mvpn.go — MVPN route building

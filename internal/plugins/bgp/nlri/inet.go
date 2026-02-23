@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+// RFC: rfc/short/rfc4271.md — IPv4 unicast NLRI encoding (Section 4.3)
 //
 // Package nlri implements BGP Network Layer Reachability Information encoding.
 //

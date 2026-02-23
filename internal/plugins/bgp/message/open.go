@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// RFC: rfc/short/rfc4271.md — OPEN message format (Section 4.2)
 
 package message
 

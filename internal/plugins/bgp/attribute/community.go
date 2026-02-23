@@ -1,4 +1,7 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc1997.md — BGP communities
+// RFC: rfc/short/rfc4360.md — extended communities
+// RFC: rfc/short/rfc8092.md — large communities
 
 package attribute
 

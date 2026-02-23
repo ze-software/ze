@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — path attribute definitions (Section 5)
 //
 // Package attribute implements BGP path attributes.
 //

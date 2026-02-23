@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — wire UPDATE lazy parsing
+// RFC: rfc/short/rfc4271.md — prefix length encoding (Section 4.3)
 
 package wireu
 

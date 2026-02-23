@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/attributes.md — AS-PATH rewriting for EBGP forwarding
+// RFC: rfc/short/rfc4271.md — AS_PATH prepend on EBGP (Section 5.1.2)
+// RFC: rfc/short/rfc6793.md — 4-byte ASN AS_PATH rewriting
 
 package wireu
 

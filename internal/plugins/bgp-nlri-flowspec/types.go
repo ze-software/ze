@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
-// Design: rfc/short/rfc5575.md
+// RFC: rfc/short/rfc5575.md
 // Related: types_prefix.go — prefix component (Type 1-2) struct, constructors, parsing
 // Related: types_numeric.go — numeric/bitmask component (Types 3-13) struct, constructors, parsing
 // Related: types_vpn.go — FlowSpec VPN wrapper (SAFI 134) struct, methods, parsing

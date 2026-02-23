@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc6793.md — AS4_PATH / AS4_AGGREGATOR (4-byte ASN)
 
 package attribute
 

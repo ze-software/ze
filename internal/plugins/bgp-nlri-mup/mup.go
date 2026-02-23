@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — MUP NLRI plugin
-// Design: rfc/short/draft-ietf-bess-mup-safi.md
+// RFC: rfc/short/draft-ietf-bess-mup-safi.md
 //
 // Package bgp_mup implements a Mobile User Plane family plugin for ze.
 // It handles MUP NLRI (draft-mpmz-bess-mup-safi, SAFI 85).

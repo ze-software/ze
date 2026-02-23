@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — route target constraint plugin
-// Design: rfc/short/rfc4684.md
+// RFC: rfc/short/rfc4684.md
 //
 // Package bgp_rtc implements Route Target Constraint NLRI (RFC 4684, SAFI 132).
 package bgp_nlri_rtc

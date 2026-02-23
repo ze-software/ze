@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP role plugin
-// Design: rfc/short/rfc9234.md
+// RFC: rfc/short/rfc9234.md
 
 package bgp_role
 

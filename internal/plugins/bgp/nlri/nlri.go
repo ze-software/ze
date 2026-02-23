@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/nlri.md — NLRI encoding and decoding
+// RFC: rfc/short/rfc4271.md — NLRI base types (Section 4.3)
+// RFC: rfc/short/rfc4760.md — multiprotocol NLRI family dispatch
 //
 // Package nlri implements BGP Network Layer Reachability Information types.
 //

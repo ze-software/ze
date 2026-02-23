@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/buffer-writer.md — wire buffer utilities
+// RFC: rfc/short/rfc4271.md — BGP message wire format
+// RFC: rfc/short/rfc8654.md — extended message support
 //
 // Package wire provides zero-allocation buffer writing for BGP messages.
 //

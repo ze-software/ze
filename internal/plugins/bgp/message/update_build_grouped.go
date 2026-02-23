@@ -1,4 +1,6 @@
 // Design: docs/architecture/update-building.md — grouped and size-aware UPDATE builders
+// RFC: rfc/short/rfc4271.md — UPDATE message size constraints
+// RFC: rfc/short/rfc8654.md — extended message size limits
 // Related: update_build.go — core UpdateBuilder struct and unicast builders
 // Related: update_build_vpn.go — VPN route building
 // Related: update_build_labeled.go — labeled unicast route building

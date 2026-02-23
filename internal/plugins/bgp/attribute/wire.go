@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4271.md — path attribute wire format (Section 4.3)
 
 package attribute
 

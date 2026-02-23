@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/attributes.md — path attribute encoding
+// RFC: rfc/short/rfc4760.md — MP_REACH_NLRI / MP_UNREACH_NLRI attributes
 //
 // Package attribute implements BGP path attributes.
 package attribute

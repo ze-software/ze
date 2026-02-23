@@ -1,5 +1,5 @@
 // Design: docs/architecture/wire/nlri.md — labeled unicast NLRI plugin
-// Design: rfc/short/rfc8277.md
+// RFC: rfc/short/rfc8277.md
 //
 // Package bgp_labeled implements a Labeled Unicast family plugin for ze.
 // It handles Labeled Unicast NLRI (RFC 8277, SAFI 4).
