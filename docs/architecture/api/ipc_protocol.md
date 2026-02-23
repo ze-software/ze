@@ -47,6 +47,8 @@ Engine provides reactor methods; plugins register commands that use them.
 The engine maintains a message cache for efficient forwarding. Commands:
 - `bgp cache <id> retain/release/expire` - cache control (engine builtins)
 - `bgp cache <id> forward <sel>` - forward cached UPDATE to peers
+- `bgp cache <id1>,<id2>,...,<idN> forward <sel>` - batch forward (comma-separated IDs)
+- `bgp cache <id1>,<id2>,...,<idN> release` - batch release
 - `bgp cache list` - list cached message IDs
 
 ---
@@ -379,8 +381,10 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | Command | Description |
 |---------|-------------|
 | `bgp cache <id> forward <sel>` | Forward cached UPDATE to peers |
+| `bgp cache <id1>,<id2>,...,<idN> forward <sel>` | Batch forward (comma-separated IDs) |
 | `bgp cache <id> retain` | Keep in cache until released |
 | `bgp cache <id> release` | Allow eviction (TTL-based) |
+| `bgp cache <id1>,<id2>,...,<idN> release` | Batch release |
 | `bgp cache <id> expire` | Remove immediately |
 | `bgp cache list` | List cached IDs |
 

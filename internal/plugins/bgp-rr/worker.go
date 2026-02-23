@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — route reflector plugin
+// Related: server.go — RouteServer dispatch, batch accumulation, async forward
 
 package bgp_rr
 
@@ -27,6 +28,11 @@ type poolConfig struct {
 	// when overflow items remain. Callers use this to clean up associated state
 	// (e.g., fwdCtx entries, cache refs). Nil means no cleanup.
 	onItemDrop func(workItem)
+
+	// onDrained is called after processing an item when the channel and overflow
+	// are both empty — no more items pending for this worker. Used by batch
+	// accumulation to flush partial batches on channel drain.
+	onDrained func(key workerKey)
 }
 
 // worker is a single long-lived goroutine processing items for one source-peer key.
@@ -85,11 +91,11 @@ type workerPool struct {
 	backpressure sync.Map // workerKey → bool
 
 	// inBackpressure tracks keys currently in backpressure state.
-	// Used by low-water check (cleared when channel drains below 25%).
+	// Used by low-water check (cleared when channel drains below 10%).
 	// Separate from backpressure because BackpressureDetected clears on read.
 	inBackpressure sync.Map // workerKey → bool
 
-	// onLowWater is called when a worker's channel drops below 25% after
+	// onLowWater is called when a worker's channel drops below 10% after
 	// being in backpressure. Used by dispatch to trigger resume RPCs.
 	onLowWater func(key workerKey)
 
@@ -100,7 +106,7 @@ type workerPool struct {
 // newWorkerPool creates a new worker pool with the given handler and configuration.
 func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *workerPool {
 	if cfg.chanSize <= 0 {
-		cfg.chanSize = 1024
+		cfg.chanSize = 4096
 	}
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
@@ -217,7 +223,7 @@ func (wp *workerPool) dropItem(item workItem) {
 // checkBackpressure checks if the worker's depth has crossed the high-water mark.
 // Log only on transition into backpressure (not while already in it).
 func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
-	if w.depth()*4 > cap(w.ch)*3 { // >75% of channel capacity
+	if w.depth()*10 > cap(w.ch)*9 { // >90% of channel capacity
 		if _, alreadyInBP := wp.inBackpressure.LoadOrStore(key, true); !alreadyInBP {
 			logger().Warn("backpressure",
 				"source-peer", key.sourcePeer,
@@ -294,7 +300,7 @@ func (wp *workerPool) WorkerCount() int {
 }
 
 // BackpressureDetected returns true if the channel for the given key has
-// triggered a backpressure warning (>75% full) since the last check.
+// triggered a backpressure warning (>90% full) since the last check.
 // Clears the flag on read so the caller sees each backpressure event once.
 func (wp *workerPool) BackpressureDetected(key workerKey) bool {
 	_, ok := wp.backpressure.LoadAndDelete(key)
@@ -353,13 +359,18 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			wp.safeHandle(key, item)
 
 			// Low-water check: if total depth (channel + overflow) drained below
-			// 25% of channel capacity and was in backpressure, fire onLowWater
+			// 10% of channel capacity and was in backpressure, fire onLowWater
 			// callback to trigger resume. The inBackpressure flag is consumed
 			// (deleted) so the callback fires once per high→low transition.
-			if w.depth()*4 < cap(w.ch) { // <25% of channel capacity
+			if w.depth()*10 < cap(w.ch) { // <10% of channel capacity
 				if _, wasBP := wp.inBackpressure.LoadAndDelete(key); wasBP && wp.onLowWater != nil {
 					wp.onLowWater(key)
 				}
+			}
+
+			// Channel drain check: flush partial batches when no items pending.
+			if wp.cfg.onDrained != nil && len(w.ch) == 0 && w.overflowLen() == 0 {
+				wp.cfg.onDrained(key)
 			}
 
 			idle.Reset(wp.cfg.idleTimeout)

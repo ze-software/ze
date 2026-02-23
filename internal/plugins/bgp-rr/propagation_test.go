@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -53,10 +54,16 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 		peers:  make(map[string]*PeerState),
 		rib:    NewRIB(),
 	}
-	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
-		rs.processForward(item.msgID)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
-	t.Cleanup(func() { rs.workers.Stop() })
+	rs.startReleaseLoop()
+	rs.startForwardLoop()
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
+	t.Cleanup(func() {
+		rs.workers.Stop()
+		rs.stopForwardLoop()
+		rs.stopReleaseLoop()
+	})
 
 	return rs, engineConn
 }
@@ -96,55 +103,68 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 		rs.dispatch([]byte(input))
 	}
 
-	// Read 3 RPCs from the engine side and verify them.
+	// Read RPCs from the engine side. With batch accumulation, the 3 UPDATEs
+	// may arrive as a single batch RPC (e.g., "bgp cache 1,2,3 forward ...").
+	// Read until all 3 message IDs are accounted for.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	var commands []string
-	for i := range 3 {
+	var allIDs []uint64
+	for len(allIDs) < 3 {
 		req, err := engineConn.ReadRequest(ctx)
 		if err != nil {
-			t.Fatalf("read RPC %d: %v", i, err)
+			t.Fatalf("read RPC (have %d IDs): %v", len(allIDs), err)
 		}
 
 		if req.Method != "ze-plugin-engine:update-route" {
-			t.Errorf("RPC %d: method = %q, want ze-plugin-engine:update-route", i, req.Method)
+			t.Errorf("method = %q, want ze-plugin-engine:update-route", req.Method)
 		}
 
 		var input rpc.UpdateRouteInput
 		if err := json.Unmarshal(req.Params, &input); err != nil {
-			t.Fatalf("RPC %d: unmarshal params: %v", i, err)
+			t.Fatalf("unmarshal params: %v", err)
 		}
-		commands = append(commands, input.Command)
+
+		// Parse "bgp cache <ids> forward <selector>" — ids may be comma-separated.
+		parts := strings.Fields(input.Command)
+		if len(parts) < 4 || parts[0] != "bgp" || parts[1] != "cache" || parts[3] != "forward" {
+			t.Fatalf("unexpected command format: %q", input.Command)
+		}
+
+		idStr := parts[2]
+		selectorStr := parts[4]
+
+		for s := range strings.SplitSeq(idStr, ",") {
+			id, parseErr := strconv.ParseUint(s, 10, 64)
+			if parseErr != nil {
+				t.Fatalf("invalid ID %q in command: %v", s, parseErr)
+			}
+			allIDs = append(allIDs, id)
+		}
+
+		// Verify selector contains both targets (order may vary).
+		peers := strings.Split(selectorStr, ",")
+		sort.Strings(peers)
+		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
+			t.Errorf("selector = %q, want 10.0.0.2,10.0.0.3", selectorStr)
+		}
 
 		// Send success response so the worker unblocks.
 		if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{
 			PeersAffected: 2,
 			RoutesSent:    2,
 		}); err != nil {
-			t.Fatalf("send response %d: %v", i, err)
+			t.Fatalf("send response: %v", err)
 		}
 	}
 
-	// Verify commands are cache-forward with strictly increasing message IDs
-	// and correct peer selectors (10.0.0.2 and 10.0.0.3, excluding source 10.0.0.1).
-	for i, cmd := range commands {
-		var msgID uint64
-		var selector string
-		_, err := fmt.Sscanf(cmd, "bgp cache %d forward %s", &msgID, &selector)
-		if err != nil {
-			t.Fatalf("command %d: failed to parse %q: %v", i, cmd, err)
-		}
-
-		if msgID != uint64(i+1) {
-			t.Errorf("command %d: msgID = %d, want %d", i, msgID, i+1)
-		}
-
-		// Selector should contain both targets (order may vary).
-		peers := strings.Split(selector, ",")
-		sort.Strings(peers)
-		if len(peers) != 2 || peers[0] != "10.0.0.2" || peers[1] != "10.0.0.3" {
-			t.Errorf("command %d: selector = %q, want 10.0.0.2,10.0.0.3", i, selector)
+	// Verify all 3 message IDs arrived in order.
+	if len(allIDs) != 3 {
+		t.Fatalf("expected 3 IDs, got %d: %v", len(allIDs), allIDs)
+	}
+	for i, id := range allIDs {
+		if id != uint64(i+1) {
+			t.Errorf("ID[%d] = %d, want %d", i, id, i+1)
 		}
 	}
 }
@@ -338,8 +358,8 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		if !ok {
 			return
 		}
-		event, parseErr := parseEvent(ctx.rawJSON)
-		isRelease := parseErr != nil || len(event.FamilyOps) == 0
+		families, _, parseErr := parseUpdateFamilies(ctx.bgpPayload)
+		isRelease := parseErr != nil || len(families) == 0
 		mu.Lock()
 		items = append(items, recordedItem{msgID: item.msgID, release: isRelease})
 		mu.Unlock()

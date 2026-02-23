@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,22 +36,31 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		peers:  make(map[string]*PeerState),
 		rib:    NewRIB(),
 	}
-	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
-		rs.processForward(item.msgID)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
-	t.Cleanup(func() { rs.workers.Stop() })
+	rs.startReleaseLoop()
+	rs.startForwardLoop()
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
+	t.Cleanup(func() {
+		rs.workers.Stop()
+		rs.stopForwardLoop()
+		rs.stopReleaseLoop()
+	})
 	return rs
 }
 
 // flushWorkers stops and recreates the worker pool, ensuring all pending
-// items are processed. Used by tests that check RIB state after dispatch,
-// since RIB updates now happen asynchronously in workers.
+// items are processed. Also drains the forward loop so async forward RPCs
+// are fully delivered before the test checks hook-captured commands.
 func flushWorkers(t *testing.T, rs *RouteServer) {
 	t.Helper()
 	rs.workers.Stop()
-	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
-		rs.processForward(item.msgID)
-	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+	// Drain forward loop: close channel → goroutine processes remaining → restart.
+	rs.stopForwardLoop()
+	rs.startForwardLoop()
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 }
 
 // --- parseEvent tests ---
@@ -980,6 +990,413 @@ func TestPauseRPCFailure(t *testing.T) {
 	rs.mu.RUnlock()
 	if !paused {
 		t.Error("expected peer tracked as paused even though RPC failed")
+	}
+}
+
+// TestDispatchPassesPreParsedPayload verifies dispatch stores pre-unwrapped BGP payload.
+//
+// VALIDATES: AC-6 — forwardCtx contains BGP payload, not full envelope.
+// PREVENTS: Redundant envelope unwrap in worker.
+func TestDispatchPassesPreParsedPayload(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.mu.Unlock()
+
+	// Stop workers so items stay in fwdCtx (not consumed by processForward).
+	rs.workers.Stop()
+	rs.workers = newWorkerPool(func(_ workerKey, _ workItem) {
+		// Do nothing — keep fwdCtx intact for inspection.
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+	t.Cleanup(func() { rs.workers.Stop() })
+
+	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":42,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+	rs.dispatch([]byte(input))
+
+	// Wait for worker to process the no-op handler.
+	time.Sleep(50 * time.Millisecond)
+
+	// Check that fwdCtx was stored with bgpPayload (not rawJSON).
+	val, ok := rs.fwdCtx.Load(uint64(42))
+	if !ok {
+		t.Fatal("fwdCtx not found for msgID 42")
+	}
+	ctx, ok := val.(*forwardCtx)
+	if !ok {
+		t.Fatal("fwdCtx wrong type")
+	}
+
+	// bgpPayload should NOT contain the outer {"type":"bgp","bgp":...} wrapper.
+	// It should start with {"message":...}
+	if len(ctx.bgpPayload) == 0 {
+		t.Fatal("expected bgpPayload to be populated")
+	}
+	payloadStr := string(ctx.bgpPayload)
+	if strings.Contains(payloadStr, `"type":"bgp"`) {
+		t.Error("bgpPayload should not contain outer envelope type field")
+	}
+	if !strings.Contains(payloadStr, `"message"`) {
+		t.Error("bgpPayload should contain message field from inner BGP payload")
+	}
+}
+
+// TestProcessForwardDefersRIB verifies that forwarding happens before RIB update.
+//
+// VALIDATES: AC-4 — forward RPC sent before RIB insert.
+// PREVENTS: RIB insert blocking the forward hot path.
+func TestProcessForwardDefersRIB(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Dispatch and flush to process the UPDATE fully.
+	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":99,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+	rs.dispatch([]byte(input))
+	flushWorkers(t, rs)
+
+	// After full processing, RIB should still have the route (deferred but completed).
+	routes := rs.rib.GetPeerRoutes("10.0.0.1")
+	if len(routes) != 1 {
+		t.Fatalf("expected 1 route in RIB after deferred insert, got %d", len(routes))
+	}
+	if routes[0].Prefix != "10.0.0.0/24" {
+		t.Errorf("expected prefix 10.0.0.0/24, got %s", routes[0].Prefix)
+	}
+}
+
+// TestDeferredRIBConsistency verifies RIB is consistent after PeerDown drain.
+//
+// VALIDATES: AC-13 — RIB correct after worker drains (deferred inserts complete before ClearPeer).
+// PREVENTS: Race between deferred RIB insert and ClearPeer.
+func TestDeferredRIBConsistency(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Dispatch multiple UPDATEs.
+	for i := uint64(1); i <= 5; i++ {
+		input := fmt.Sprintf(
+			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			i, i,
+		)
+		rs.dispatch([]byte(input))
+	}
+
+	// Flush workers to ensure all deferred RIB inserts complete.
+	flushWorkers(t, rs)
+
+	// All 5 routes should be in RIB.
+	routes := rs.rib.GetPeerRoutes("10.0.0.1")
+	if len(routes) != 5 {
+		t.Fatalf("expected 5 routes in RIB, got %d", len(routes))
+	}
+
+	// Now simulate peer down — PeerDown drains workers, then ClearPeer.
+	// Re-create workers for the PeerDown flow.
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
+
+	rs.dispatch([]byte(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`))
+
+	// After peer down, RIB should be empty for this peer.
+	routes = rs.rib.GetPeerRoutes("10.0.0.1")
+	if len(routes) != 0 {
+		t.Errorf("expected 0 routes after peer down, got %d", len(routes))
+	}
+}
+
+// TestReleaseCacheAsync verifies releaseCache returns immediately (async).
+//
+// VALIDATES: AC-5 — releaseCache is async (does not block worker).
+// PREVENTS: Worker blocked on synchronous release RPC.
+func TestReleaseCacheAsync(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.mu.Unlock()
+
+	// releaseCache should return quickly (async channel send, not blocking RPC).
+	// With closed connections (newTestRouteServer), a synchronous call would
+	// still return quickly due to error, but the async version should be instant.
+	start := time.Now()
+	rs.releaseCache(42)
+	elapsed := time.Since(start)
+
+	// Async release should be sub-millisecond (just a channel send).
+	if elapsed > 10*time.Millisecond {
+		t.Errorf("releaseCache took %v, expected sub-millisecond for async", elapsed)
+	}
+}
+
+// TestBatchForwardAccumulation verifies items accumulate before RPC.
+//
+// VALIDATES: AC-10 — worker sends batch RPC after accumulating items.
+// PREVENTS: N items generating N individual RPCs instead of batched RPC.
+func TestBatchForwardAccumulation(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	var commands []string
+	var cmdMu sync.Mutex
+	rs.updateRouteHook = func(_, cmd string) {
+		cmdMu.Lock()
+		commands = append(commands, cmd)
+		cmdMu.Unlock()
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Gate: block the worker handler until all items are dispatched.
+	// This guarantees all 5 items are queued before processing starts,
+	// making batch accumulation deterministic (not scheduler-dependent).
+	gate := make(chan struct{})
+	rs.workers.Stop()
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		<-gate
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
+
+	// Dispatch 5 UPDATEs (all same source, same targets).
+	for i := uint64(1); i <= 5; i++ {
+		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+	}
+
+	// Release gate: worker processes all 5 items sequentially with items 2-5
+	// already in the channel, so onDrained only fires after item 5 — producing
+	// a single batch flush with all 5 IDs.
+	close(gate)
+	flushWorkers(t, rs)
+
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
+
+	// Count forward RPCs and check for batch (comma-separated IDs).
+	forwardCount := 0
+	hasBatch := false
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "forward") {
+			forwardCount++
+			// Check if the ID portion contains a comma (batch).
+			parts := strings.Fields(cmd)
+			if len(parts) >= 3 && strings.Contains(parts[2], ",") {
+				hasBatch = true
+			}
+		}
+	}
+
+	if forwardCount >= 5 {
+		t.Errorf("expected fewer than 5 forward RPCs (batched), got %d", forwardCount)
+	}
+	if !hasBatch {
+		t.Error("expected at least one batch forward command with comma-separated IDs")
+	}
+}
+
+// TestSelectForwardTargetsDeterministic verifies that selectForwardTargets
+// returns a deterministic (sorted) peer list regardless of map iteration order.
+//
+// VALIDATES: Batching correctness — selector string must be identical for the
+// same peer set to prevent false selector-change flushes in batchForwardUpdate.
+// PREVENTS: Non-deterministic Go map iteration defeating batch accumulation.
+func TestSelectForwardTargetsDeterministic(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.4"] = &PeerState{Address: "10.0.0.4", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	families := map[string]bool{"ipv4/unicast": true}
+
+	// Call 100 times — with unsorted output, Go map randomness would produce
+	// different orderings, causing batch selector mismatches.
+	rs.mu.RLock()
+	first := rs.selectForwardTargets("10.0.0.1", families)
+	rs.mu.RUnlock()
+
+	want := strings.Join(first, ",")
+	if want != "10.0.0.2,10.0.0.3,10.0.0.4" {
+		t.Fatalf("expected sorted targets, got %q", want)
+	}
+
+	for i := range 100 {
+		rs.mu.RLock()
+		got := rs.selectForwardTargets("10.0.0.1", families)
+		rs.mu.RUnlock()
+		if sel := strings.Join(got, ","); sel != want {
+			t.Fatalf("iteration %d: selector %q != %q (non-deterministic)", i, sel, want)
+		}
+	}
+}
+
+// TestBatchForwardFireAndForget verifies worker doesn't block on forward RPC.
+//
+// VALIDATES: AC-11 — worker continues processing without waiting for RPC response.
+// PREVENTS: Worker goroutine blocked on synchronous updateRoute during batch flush.
+func TestBatchForwardFireAndForget(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// Block forward RPCs to prove workers don't wait for responses.
+	// The hook runs inside updateRoute — with sync forward it blocks
+	// the worker goroutine; with async forward it blocks the background
+	// sender goroutine instead.
+	blockForward := make(chan struct{})
+	var forwardCmds []string
+	var cmdMu sync.Mutex
+	rs.updateRouteHook = func(_, cmd string) {
+		if strings.Contains(cmd, "forward") {
+			<-blockForward
+			cmdMu.Lock()
+			forwardCmds = append(forwardCmds, cmd)
+			cmdMu.Unlock()
+		}
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Dispatch 5 UPDATEs with distinct prefixes from the same source peer.
+	for i := uint64(1); i <= 5; i++ {
+		input := fmt.Sprintf(
+			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			i, i,
+		)
+		rs.dispatch([]byte(input))
+	}
+
+	// Workers.Stop() drains all items. With synchronous forward, the worker
+	// goroutine blocks in onDrained → flushBatch → updateRoute → hook, so
+	// Stop() hangs. With fire-and-forget, asyncForward returns immediately.
+	stopDone := make(chan struct{})
+	go func() {
+		rs.workers.Stop()
+		close(stopDone)
+	}()
+
+	select {
+	case <-stopDone:
+		// Workers stopped promptly — fire-and-forget confirmed.
+	case <-time.After(2 * time.Second):
+		close(blockForward) // Unblock hook so test can clean up.
+		<-stopDone
+		t.Fatal("workers.Stop() blocked — forward RPC not fire-and-forget (AC-11)")
+	}
+
+	// Workers completed — verify RIB has all routes.
+	routes := rs.rib.GetPeerRoutes("10.0.0.1")
+	if len(routes) != 5 {
+		t.Errorf("expected 5 routes in RIB, got %d", len(routes))
+	}
+
+	// Unblock forward RPCs and verify background sender processes them.
+	close(blockForward)
+	time.Sleep(100 * time.Millisecond)
+
+	cmdMu.Lock()
+	defer cmdMu.Unlock()
+	if len(forwardCmds) == 0 {
+		t.Error("expected forward RPCs processed by background sender")
+	}
+
+	// Recreate worker pool for cleanup (Stop() was called above).
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
+	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
+}
+
+// TestParseUpdateFamiliesOnly verifies two-level parsing: families extracted without NLRI arrays.
+//
+// VALIDATES: AC-12 — only family keys parsed for forward target selection;
+// full NLRI arrays deferred to RIB path via parseNLRIFamilyOps.
+// PREVENTS: Unnecessary parsing of large NLRI arrays on the forward hot path.
+func TestParseUpdateFamiliesOnly(t *testing.T) {
+	tests := []struct {
+		name         string
+		payload      string
+		wantFamilies []string
+		wantOps      int // total ops from deferred full parse
+	}{
+		{
+			name:         "single_family",
+			payload:      `{"message":{"type":"update","id":1},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`,
+			wantFamilies: []string{"ipv4/unicast"},
+			wantOps:      1,
+		},
+		{
+			name:         "multiple_families",
+			payload:      `{"message":{"type":"update","id":2},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}],"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}`,
+			wantFamilies: []string{"ipv4/unicast", "ipv6/unicast"},
+			wantOps:      2,
+		},
+		{
+			name:         "empty_nlri_map",
+			payload:      `{"message":{"type":"update","id":3},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{}}}`,
+			wantFamilies: nil,
+			wantOps:      0,
+		},
+		{
+			name:         "no_update_field",
+			payload:      `{"message":{"type":"update","id":4},"peer":{"address":"10.0.0.1","asn":65001}}`,
+			wantFamilies: nil,
+			wantOps:      0,
+		},
+		{
+			name:         "mixed_add_del",
+			payload:      `{"message":{"type":"update","id":5},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]},{"action":"del","nlri":["10.0.1.0/24"]}]}}}`,
+			wantFamilies: []string{"ipv4/unicast"},
+			wantOps:      2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			families, nlriRaw, err := parseUpdateFamilies([]byte(tt.payload))
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			// Verify family keys extracted.
+			if len(families) != len(tt.wantFamilies) {
+				t.Fatalf("families: got %d, want %d", len(families), len(tt.wantFamilies))
+			}
+			for _, f := range tt.wantFamilies {
+				if !families[f] {
+					t.Errorf("missing family %q", f)
+				}
+			}
+
+			// Verify raw data populated for each family (not fully parsed yet).
+			for f := range families {
+				if len(nlriRaw[f]) == 0 {
+					t.Errorf("family %q has no raw NLRI data", f)
+				}
+			}
+
+			// Deferred full parse should produce correct operations.
+			familyOps := parseNLRIFamilyOps(nlriRaw)
+			totalOps := 0
+			for _, ops := range familyOps {
+				totalOps += len(ops)
+			}
+			if totalOps != tt.wantOps {
+				t.Errorf("total ops: got %d, want %d", totalOps, tt.wantOps)
+			}
+		})
 	}
 }
 

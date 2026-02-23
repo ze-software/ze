@@ -160,6 +160,10 @@ bgp cache <id> retain           # Prevent eviction
 bgp cache <id> release          # Allow eviction (reset TTL)
 bgp cache <id> expire           # Remove immediately
 bgp cache list                  # List cached message IDs
+
+# Batch variants (comma-separated IDs, max 1000):
+bgp cache <id1>,<id2>,...,<idN> forward <sel>  # Batch forward
+bgp cache <id1>,<id2>,...,<idN> release        # Batch release
 ```
 
 The cache commands enable route reflection via API:

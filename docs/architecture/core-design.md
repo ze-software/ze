@@ -349,13 +349,13 @@ Engine sends events with base64-encoded wire bytes:
 Plugin can:
 - Use `parsed` for decisions
 - Store `raw-*` bytes directly (for forwarding)
-- Forward by ID: `"bgp cache 12345 forward !10.0.0.1"`
+- Forward by ID: `"bgp cache 12345 forward !10.0.0.1"` (or batch: `"bgp cache 1,2,3 forward !10.0.0.1"`)
 
 ### What Engine Stores vs Plugin Stores
 
 | Component | Engine Stores | Plugin Stores |
 |-----------|---------------|---------------|
-| **BGP cache** | WireUpdate by ID (for `bgp cache <id> forward`) | - |
+| **BGP cache** | WireUpdate by ID (for `bgp cache <id>[,<id>...] forward`) | - |
 | **Peer state** | Negotiated caps, FSM state | - |
 | **RIB** | - | NLRI → attribute refs (with pools) |
 | **Policy** | - | Route filters, preferences |

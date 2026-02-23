@@ -1,4 +1,7 @@
 // Design: docs/architecture/core-design.md — route reflector plugin
+// Related: worker.go — per-source-peer worker pool with backpressure
+// Related: rib.go — per-peer RIB for withdrawal tracking on peer-down
+// Related: peer.go — PeerState tracking (families, up/down)
 
 package bgp_rr
 
@@ -9,6 +12,7 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +42,9 @@ const (
 	eventState   = "state"
 	eventOpen    = "open"
 	eventRefresh = "refresh"
+
+	// envelopeTypeBGP is the ze-bgp JSON envelope type value.
+	envelopeTypeBGP = "bgp"
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -59,14 +66,16 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// forwardCtx holds the source peer and raw JSON for a cached UPDATE.
+// forwardCtx holds the source peer and pre-unwrapped BGP payload for a cached UPDATE.
 // sourcePeer is extracted by quickParseEvent in dispatch (cheap) to avoid
 // re-parsing the envelope in the worker, and to make the source-exclusion
-// data flow explicit. rawJSON is parsed by the worker for RIB + forwarding.
+// data flow explicit. bgpPayload is the inner BGP object (without the
+// {"type":"bgp","bgp":...} envelope), pre-unwrapped by quickParseEvent to
+// save the worker one JSON unmarshal.
 // Stored in RouteServer.fwdCtx (sync.Map) keyed by msgID (uint64).
 type forwardCtx struct {
 	sourcePeer string
-	rawJSON    []byte
+	bgpPayload []byte
 }
 
 // RouteServer implements a BGP Route Server API plugin.
@@ -87,6 +96,40 @@ type RouteServer struct {
 	// fwdCtx stores forwarding context (forwardCtx) keyed by msgID (uint64).
 	// Written by dispatch (OnEvent goroutine), read by worker handler.
 	fwdCtx sync.Map
+
+	// releaseCh is a buffered channel for async cache release.
+	// Workers send msgIDs here instead of blocking on synchronous RPCs.
+	// A background releaseLoop goroutine drains the channel.
+	releaseCh   chan uint64
+	releaseDone chan struct{} // closed when releaseLoop exits
+
+	// batches holds per-worker batch state for accumulating forward RPCs.
+	// Each worker goroutine has its own batch (keyed by workerKey).
+	// No concurrent access per key — each worker is single-goroutine.
+	batches sync.Map // workerKey → *forwardBatch
+
+	// forwardCh is a buffered channel for fire-and-forget cache-forward RPCs.
+	// flushBatch sends commands here instead of calling updateRoute directly.
+	// A background forwardLoop goroutine drains the channel and calls updateRoute.
+	forwardCh   chan forwardCmd
+	forwardDone chan struct{} // closed when forwardLoop exits
+
+	// updateRouteHook is called before each updateRoute RPC for test inspection.
+	// Nil in production (zero overhead).
+	updateRouteHook func(peer, cmd string)
+}
+
+// forwardBatch accumulates forward items for batch RPC.
+// Per-worker state: no concurrent access for a given workerKey.
+type forwardBatch struct {
+	ids      []uint64
+	selector string // comma-joined target peers
+}
+
+// forwardCmd is a single fire-and-forget forward RPC to be sent by the background sender.
+type forwardCmd struct {
+	peer string
+	cmd  string
 }
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
@@ -102,8 +145,8 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	}
 
 	// ZE_RR_CHAN_SIZE overrides the per-source-peer worker channel capacity.
-	// Default: 1024. Invalid/zero/negative values use default (guard in newWorkerPool).
-	rrChanSize := 1024
+	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
+	rrChanSize := 4096
 	if v := os.Getenv("ZE_RR_CHAN_SIZE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			rrChanSize = n
@@ -112,11 +155,19 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		}
 	}
 
+	// Start async cache release goroutine before worker pool (workers call releaseCache).
+	rs.startReleaseLoop()
+	defer rs.stopReleaseLoop()
+
+	// Start fire-and-forget forward sender before worker pool (workers call asyncForward).
+	rs.startForwardLoop()
+	defer rs.stopForwardLoop()
+
 	// Create worker pool for parallel UPDATE forwarding.
 	// Each source peer gets its own worker goroutine (lazy creation, idle cooldown).
 	// FIFO ordering is preserved per source peer.
-	rs.workers = newWorkerPool(func(_ workerKey, item workItem) {
-		rs.processForward(item.msgID)
+	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
+		rs.processForward(key, item.msgID)
 	}, poolConfig{
 		chanSize:    rrChanSize,
 		idleTimeout: 5 * time.Second,
@@ -124,6 +175,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 			rs.fwdCtx.Delete(item.msgID)
 			rs.releaseCache(item.msgID)
 		},
+		onDrained: rs.flushWorkerBatch,
 	})
 	defer rs.workers.Stop()
 
@@ -197,18 +249,74 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	return 0
 }
 
-// releaseCache releases a cache entry that will not be forwarded.
-// Must be called when CacheConsumer: true and we decide not to forward an UPDATE,
+// releaseCache enqueues an async cache release for a non-forwarded UPDATE.
+// Must be called when CacheConsumer: true and we decide not to forward,
 // otherwise the entry blocks eviction of subsequent cache entries.
+// Non-blocking: sends msgID to the releaseLoop goroutine via buffered channel.
+// Falls back to synchronous RPC if the channel is full.
 func (rs *RouteServer) releaseCache(msgID uint64) {
 	if msgID == 0 {
 		return
 	}
-	rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+	select {
+	case rs.releaseCh <- msgID:
+	default: // Channel full — release synchronously to avoid dropping.
+		logger().Warn("release channel full, falling back to sync", "msgID", msgID)
+		rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+	}
+}
+
+// startReleaseLoop starts the background goroutine for async cache release.
+func (rs *RouteServer) startReleaseLoop() {
+	rs.releaseCh = make(chan uint64, 256)
+	rs.releaseDone = make(chan struct{})
+	go func() {
+		defer close(rs.releaseDone)
+		for msgID := range rs.releaseCh {
+			rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+		}
+	}()
+}
+
+// stopReleaseLoop closes the release channel and waits for the goroutine to exit.
+// Must be called after workers.Stop() to avoid sending on a closed channel.
+func (rs *RouteServer) stopReleaseLoop() {
+	close(rs.releaseCh)
+	<-rs.releaseDone
+}
+
+// startForwardLoop starts the background goroutine for fire-and-forget cache-forward RPCs.
+// Capacity 16 batches — each batch is up to 50 IDs, so ~800 updates buffered.
+// If the channel fills, workers block (natural backpressure from engine).
+func (rs *RouteServer) startForwardLoop() {
+	rs.forwardCh = make(chan forwardCmd, 16)
+	rs.forwardDone = make(chan struct{})
+	go func() {
+		defer close(rs.forwardDone)
+		for cmd := range rs.forwardCh {
+			rs.updateRoute(cmd.peer, cmd.cmd)
+		}
+	}()
+}
+
+// stopForwardLoop closes the forward channel and waits for the goroutine to exit.
+// Must be called after workers.Stop() to avoid sending on a closed channel.
+func (rs *RouteServer) stopForwardLoop() {
+	close(rs.forwardCh)
+	<-rs.forwardDone
+}
+
+// asyncForward enqueues a forward RPC for the background sender goroutine.
+// Blocks if the channel is full (natural backpressure when engine is slow).
+func (rs *RouteServer) asyncForward(peer, cmd string) {
+	rs.forwardCh <- forwardCmd{peer: peer, cmd: cmd}
 }
 
 // updateRoute sends a route update command to matching peers via the engine.
 func (rs *RouteServer) updateRoute(peerSelector, command string) {
+	if rs.updateRouteHook != nil {
+		rs.updateRouteHook(peerSelector, command)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
@@ -220,9 +328,9 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 // wireFlowControl connects the worker pool's backpressure signals to
 // pause/resume RPCs. Called once after worker pool creation.
 //
-// High-water (>75%): dispatch() checks BackpressureDetected() after each
+// High-water (>90%): dispatch() checks BackpressureDetected() after each
 // Dispatch and sends "bgp peer pause <addr>" to the engine.
-// Low-water (<25%): the onLowWater callback fires in the worker goroutine
+// Low-water (<10%): the onLowWater callback fires in the worker goroutine
 // and sends "bgp peer resume <addr>" to the engine.
 func (rs *RouteServer) wireFlowControl() {
 	rs.pausedPeers = make(map[string]bool)
@@ -260,9 +368,11 @@ func (rs *RouteServer) resumeAllPaused() {
 }
 
 // processForward handles a forwarding work item in a worker goroutine.
-// Loads raw JSON from fwdCtx, performs full parse, updates the RIB,
-// and forwards the UPDATE to compatible peers (or releases if no NLRI).
-func (rs *RouteServer) processForward(msgID uint64) {
+// Loads pre-parsed payload from fwdCtx, performs full parse, forwards
+// the UPDATE to compatible peers, then updates the RIB (deferred insert).
+// Forward-first ordering minimizes UPDATE delivery latency — the RIB is
+// only needed for withdrawal tracking on peer-down, not for forwarding.
+func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	val, ok := rs.fwdCtx.LoadAndDelete(msgID)
 	if !ok {
 		return
@@ -294,20 +404,23 @@ func (rs *RouteServer) processForward(msgID uint64) {
 		return
 	}
 
-	event, err := parseEvent(ctx.rawJSON)
+	// Two-level parse: extract family keys only (skip NLRI arrays) for forwarding.
+	families, nlriRaw, err := parseUpdateFamilies(ctx.bgpPayload)
 	if err != nil {
 		logger().Warn("worker parse error", "error", err, "msgID", msgID)
 		return
 	}
 
-	if len(event.FamilyOps) == 0 {
+	if len(families) == 0 {
 		return
 	}
 
-	families := make(map[string]bool)
+	// Accumulate forward in per-worker batch (flushed on batch-full or channel drain).
+	forwarded = true
+	rs.batchForwardUpdate(key, ctx.sourcePeer, msgID, families)
 
-	for family, ops := range event.FamilyOps {
-		families[family] = true
+	// Deferred RIB: full NLRI parse only for insert/remove (off hot path).
+	for family, ops := range parseNLRIFamilyOps(nlriRaw) {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
@@ -331,27 +444,24 @@ func (rs *RouteServer) processForward(msgID uint64) {
 			}
 		}
 	}
-
-	// forwardUpdate handles the cache entry in all cases (forward or release).
-	forwarded = true
-	rs.forwardUpdate(ctx.sourcePeer, msgID, families)
 }
 
-// quickParseEvent extracts only the event type, message ID, and peer address
-// from a ze-bgp JSON event without parsing the event-specific payload (UPDATE
-// NLRI, OPEN capabilities, refresh data). Used by dispatch to route events
-// to workers with minimal OnEvent latency.
-func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr string, err error) {
+// quickParseEvent extracts the event type, message ID, peer address, and
+// pre-unwrapped BGP payload from a ze-bgp JSON event. The bgpPayload is the
+// inner {"message":...,"peer":...,"update":...} object without the outer
+// {"type":"bgp","bgp":...} envelope, saving the worker one JSON unmarshal.
+// Used by dispatch to route events to workers with minimal OnEvent latency.
+func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr string, bgpPayload []byte, err error) {
 	var wrapper struct {
 		Type string          `json:"type"`
 		BGP  json.RawMessage `json:"bgp"`
 	}
 	if err := json.Unmarshal(data, &wrapper); err != nil {
-		return "", 0, "", fmt.Errorf("unmarshal envelope: %w", err)
+		return "", 0, "", nil, fmt.Errorf("unmarshal envelope: %w", err)
 	}
 
 	payload := data
-	if wrapper.Type == "bgp" && len(wrapper.BGP) > 0 {
+	if wrapper.Type == envelopeTypeBGP && len(wrapper.BGP) > 0 {
 		payload = wrapper.BGP
 	}
 
@@ -365,13 +475,13 @@ func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr stri
 		} `json:"peer"`
 	}
 	if err := json.Unmarshal(payload, &bgp); err != nil {
-		return "", 0, "", fmt.Errorf("unmarshal payload: %w", err)
+		return "", 0, "", nil, fmt.Errorf("unmarshal payload: %w", err)
 	}
 
 	if bgp.Message != nil {
-		return bgp.Message.Type, bgp.Message.ID, bgp.Peer.Address, nil
+		return bgp.Message.Type, bgp.Message.ID, bgp.Peer.Address, payload, nil
 	}
-	return "", 0, bgp.Peer.Address, nil
+	return "", 0, bgp.Peer.Address, payload, nil
 }
 
 // dispatch routes a raw JSON event to the appropriate handler.
@@ -388,7 +498,7 @@ func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr stri
 // (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
 // subscription but encodes with distinct message.type values.
 func (rs *RouteServer) dispatch(raw []byte) {
-	eventType, msgID, peerAddr, err := quickParseEvent(raw)
+	eventType, msgID, peerAddr, bgpPayload, err := quickParseEvent(raw)
 	if err != nil {
 		logger().Warn("parse error", "error", err, "line", string(raw[:min(100, len(raw))]))
 		return
@@ -398,7 +508,7 @@ func (rs *RouteServer) dispatch(raw []byte) {
 		if peerAddr == "" {
 			return
 		}
-		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, rawJSON: raw})
+		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, bgpPayload: bgpPayload})
 		key := workerKey{sourcePeer: peerAddr}
 		if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
 			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
@@ -478,29 +588,91 @@ func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[stri
 		}
 		targets = append(targets, addr)
 	}
+	sort.Strings(targets)
 	return targets
 }
 
-// forwardUpdate sends UPDATE to peers that support the given families.
-//
-// Uses a single cache-forward command with a comma-separated peer selector.
-// ForwardUpdate in the reactor uses Get() to read the cache entry and
-// Decrement() to count down consumers — the entry expires once all consumers
-// have decremented. A single multi-peer selector ensures all compatible
-// peers receive the UPDATE in one atomic operation.
-func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families map[string]bool) {
+// batchForwardUpdate accumulates a forward item into the per-worker batch.
+// Selects targets, then appends to the current batch. Flushes the old batch
+// if the target selector changes (different peer set). Flushes when the batch
+// reaches maxBatchSize items. Partial batches are flushed by the onDrained
+// callback when the worker channel empties.
+func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[string]bool) {
 	rs.mu.RLock()
 	targets := rs.selectForwardTargets(sourcePeer, families)
 	rs.mu.RUnlock()
 
 	if len(targets) == 0 {
-		// No compatible peers; release so the cache entry can be evicted.
 		rs.releaseCache(msgID)
 		return
 	}
 
 	sel := strings.Join(targets, ",")
-	rs.updateRoute("*", fmt.Sprintf("bgp cache %d forward %s", msgID, sel))
+
+	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
+	batch, ok := val.(*forwardBatch)
+	if !ok {
+		rs.releaseCache(msgID)
+		return
+	}
+
+	// Selector changed — flush old batch, start fresh.
+	if batch.selector != "" && batch.selector != sel {
+		rs.flushBatch(batch)
+		batch.ids = batch.ids[:0]
+		batch.selector = ""
+	}
+
+	batch.ids = append(batch.ids, msgID)
+	batch.selector = sel
+
+	// Flush on batch full.
+	if len(batch.ids) >= maxBatchSize {
+		rs.flushBatch(batch)
+		batch.ids = batch.ids[:0]
+		batch.selector = ""
+	}
+}
+
+// maxBatchSize is the maximum number of IDs accumulated before a batch flush.
+const maxBatchSize = 50
+
+// flushBatch sends a single batched cache-forward RPC for all accumulated IDs.
+// Uses asyncForward (fire-and-forget) so the worker goroutine doesn't block
+// waiting for the engine's RPC response.
+func (rs *RouteServer) flushBatch(batch *forwardBatch) {
+	if len(batch.ids) == 0 {
+		return
+	}
+
+	// Single ID — use existing format (no comma).
+	if len(batch.ids) == 1 {
+		rs.asyncForward("*", fmt.Sprintf("bgp cache %d forward %s", batch.ids[0], batch.selector))
+		return
+	}
+
+	// Multiple IDs — comma-separated batch format.
+	idStrs := make([]string, len(batch.ids))
+	for i, id := range batch.ids {
+		idStrs[i] = strconv.FormatUint(id, 10)
+	}
+	rs.asyncForward("*", fmt.Sprintf("bgp cache %s forward %s", strings.Join(idStrs, ","), batch.selector))
+}
+
+// flushWorkerBatch flushes the batch for a given worker key.
+// Called by the onDrained callback when the worker's channel empties.
+func (rs *RouteServer) flushWorkerBatch(key workerKey) {
+	val, loaded := rs.batches.Load(key)
+	if !loaded {
+		return
+	}
+	batch, ok := val.(*forwardBatch)
+	if !ok {
+		return
+	}
+	rs.flushBatch(batch)
+	batch.ids = batch.ids[:0]
+	batch.selector = ""
 }
 
 // handleState processes peer state changes.
@@ -740,7 +912,7 @@ func parseEvent(data []byte) (*Event, error) {
 	}
 
 	payload := data
-	if wrapper.Type == "bgp" && len(wrapper.BGP) > 0 {
+	if wrapper.Type == envelopeTypeBGP && len(wrapper.BGP) > 0 {
 		payload = wrapper.BGP
 	}
 
@@ -823,6 +995,79 @@ func parseUpdateData(event *Event, data json.RawMessage) {
 			event.FamilyOps[family] = ops
 		}
 	}
+}
+
+// parseUpdateFamilies extracts only family keys from a pre-unwrapped BGP payload.
+// Input is the inner BGP object (from quickParseEvent's bgpPayload):
+//
+//	{"message":{...},"peer":{...},"update":{"nlri":{"ipv4/unicast":[...],"ipv6/unicast":[...]}}}
+//
+// Parses three levels: payload → update → nlri map keys. The nlri map values
+// (family operation arrays) are kept as json.RawMessage for deferred full parse
+// via parseNLRIFamilyOps. This avoids the cost of unmarshaling potentially large
+// NLRI arrays on the forward hot path.
+func parseUpdateFamilies(payload []byte) (families map[string]bool, nlriRaw map[string]json.RawMessage, err error) {
+	var bgp struct {
+		Update json.RawMessage `json:"update"`
+	}
+	if err := json.Unmarshal(payload, &bgp); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal payload: %w", err)
+	}
+	if len(bgp.Update) == 0 {
+		return nil, nil, nil
+	}
+
+	var update struct {
+		NLRI json.RawMessage `json:"nlri"`
+	}
+	if err := json.Unmarshal(bgp.Update, &update); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal update: %w", err)
+	}
+	if len(update.NLRI) == 0 {
+		return nil, nil, nil
+	}
+
+	var familyMap map[string]json.RawMessage
+	if err := json.Unmarshal(update.NLRI, &familyMap); err != nil {
+		return nil, nil, fmt.Errorf("unmarshal nlri map: %w", err)
+	}
+
+	families = make(map[string]bool, len(familyMap))
+	validRaw := make(map[string]json.RawMessage, len(familyMap))
+	for family, raw := range familyMap {
+		if !strings.Contains(family, "/") {
+			continue
+		}
+		families[family] = true
+		validRaw[family] = raw
+	}
+
+	if len(families) == 0 {
+		return nil, nil, nil
+	}
+
+	return families, validRaw, nil
+}
+
+// parseNLRIFamilyOps parses raw NLRI data into family operations.
+// Input is the nlriRaw map from parseUpdateFamilies — each value is a JSON array:
+//
+//	[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}, {"action":"del","nlri":["10.0.1.0/24"]}]
+//
+// Families with invalid JSON are silently skipped (logged at caller).
+// Used by the deferred RIB update path after forwarding completes.
+func parseNLRIFamilyOps(nlriRaw map[string]json.RawMessage) map[string][]FamilyOperation {
+	if len(nlriRaw) == 0 {
+		return nil
+	}
+	result := make(map[string][]FamilyOperation, len(nlriRaw))
+	for family, opsData := range nlriRaw {
+		var ops []FamilyOperation
+		if err := json.Unmarshal(opsData, &ops); err == nil {
+			result[family] = ops
+		}
+	}
+	return result
 }
 
 // --- Event types ---

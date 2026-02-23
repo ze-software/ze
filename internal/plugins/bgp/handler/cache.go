@@ -5,6 +5,7 @@ package handler
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
@@ -24,6 +25,8 @@ func CacheRPCs() []plugin.RPCRegistration {
 //   - bgp cache <id> release
 //   - bgp cache <id> expire
 //   - bgp cache <id> forward <selector>
+//   - bgp cache <id1>,<id2>,...,<idN> forward <selector>  (batch)
+//   - bgp cache <id1>,<id2>,...,<idN> release              (batch)
 func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return bgpCacheHelp()
@@ -48,7 +51,15 @@ func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response
 		}, fmt.Errorf("missing action")
 	}
 
-	// Parse cache ID
+	action := args[1]
+	actionArgs := args[2:]
+
+	// Batch: comma-separated IDs (e.g., "10,20,30").
+	if strings.Contains(args[0], ",") {
+		return handleBgpCacheBatch(ctx, args[0], action, actionArgs)
+	}
+
+	// Single ID.
 	cacheID, err := strconv.ParseUint(args[0], 10, 64)
 	if err != nil {
 		return &plugin.Response{
@@ -56,9 +67,6 @@ func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response
 			Data:   fmt.Sprintf("invalid cache id: %s", args[0]),
 		}, fmt.Errorf("invalid cache id: %w", err)
 	}
-
-	action := args[1]
-	actionArgs := args[2:]
 
 	switch action {
 	case "retain":
@@ -211,6 +219,63 @@ func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string)
 		Data: map[string]any{
 			"id":       id,
 			"selector": sel.String(),
+		},
+	}, nil
+}
+
+// handleBgpCacheBatch processes a comma-separated list of cache IDs.
+// Parses each ID and dispatches to the per-ID handler for the given action.
+// All valid IDs are processed even if some are invalid — errors are collected
+// and returned as a combined error if any ID failed.
+func handleBgpCacheBatch(ctx *plugin.CommandContext, idList, action string, actionArgs []string) (*plugin.Response, error) {
+	parts := strings.Split(idList, ",")
+	var errs []string
+	processed := 0
+
+	for _, part := range parts {
+		id, err := strconv.ParseUint(part, 10, 64)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("invalid id %q: %v", part, err))
+			continue
+		}
+
+		var actionErr error
+		switch action {
+		case "retain":
+			_, actionErr = handleBgpCacheRetain(ctx, id)
+		case "release":
+			_, actionErr = handleBgpCacheRelease(ctx, id)
+		case "expire":
+			_, actionErr = handleBgpCacheExpire(ctx, id)
+		case "forward":
+			_, actionErr = handleBgpCacheForward(ctx, id, actionArgs)
+		default: // unknown action — reject entire batch
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("unknown cache action: %s", action),
+			}, fmt.Errorf("unknown action: %s", action)
+		}
+		if actionErr != nil {
+			errs = append(errs, fmt.Sprintf("id %d: %v", id, actionErr))
+			continue
+		}
+		processed++
+	}
+
+	if len(errs) > 0 {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data: map[string]any{
+				"processed": processed,
+				"errors":    errs,
+			},
+		}, fmt.Errorf("batch %s: %d errors", action, len(errs))
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"processed": processed,
 		},
 	}, nil
 }

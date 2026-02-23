@@ -165,3 +165,76 @@ func TestHandlerCacheNilReactor(t *testing.T) {
 	_, err := handleBgpCache(ctx, []string{"list"})
 	require.Error(t, err)
 }
+
+// TestHandleBgpCacheBatchForward verifies comma-separated IDs each forwarded.
+//
+// VALIDATES: AC-7 — batch forward processes each ID via ForwardUpdate.
+// PREVENTS: Only first ID forwarded, rest silently dropped.
+func TestHandleBgpCacheBatchForward(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpCache(ctx, []string{"10,20,30", "forward", "*"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	// All 3 IDs should be forwarded.
+	require.Len(t, reactor.forwardedUpdates, 3)
+	assert.Equal(t, uint64(10), reactor.forwardedUpdates[0].id)
+	assert.Equal(t, uint64(20), reactor.forwardedUpdates[1].id)
+	assert.Equal(t, uint64(30), reactor.forwardedUpdates[2].id)
+}
+
+// TestHandleBgpCacheBatchRelease verifies comma-separated IDs each released.
+//
+// VALIDATES: AC-8 — batch release processes each ID via ReleaseUpdate.
+// PREVENTS: Only first ID released, rest block cache eviction.
+func TestHandleBgpCacheBatchRelease(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpCache(ctx, []string{"10,20,30", "release"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.releasedIDs, 3)
+	assert.Equal(t, uint64(10), reactor.releasedIDs[0])
+	assert.Equal(t, uint64(20), reactor.releasedIDs[1])
+	assert.Equal(t, uint64(30), reactor.releasedIDs[2])
+}
+
+// TestHandleBgpCacheBatchPartialFailure verifies valid IDs processed despite invalid.
+//
+// VALIDATES: AC-9 — invalid ID in batch does not prevent processing valid IDs.
+// PREVENTS: One bad ID aborting the entire batch.
+func TestHandleBgpCacheBatchPartialFailure(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	// "abc" is not a valid uint64 — should be skipped, others processed.
+	resp, err := handleBgpCache(ctx, []string{"10,abc,30", "forward", "*"})
+	// Error returned for partial failure, but valid IDs still forwarded.
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+
+	// IDs 10 and 30 should still be forwarded despite "abc" failing.
+	require.Len(t, reactor.forwardedUpdates, 2)
+	assert.Equal(t, uint64(10), reactor.forwardedUpdates[0].id)
+	assert.Equal(t, uint64(30), reactor.forwardedUpdates[1].id)
+}
+
+// TestSingleIDForwardStillWorks verifies existing single-ID path unchanged.
+//
+// VALIDATES: AC-14 — backward compatible; single ID without comma works as before.
+// PREVENTS: Batch refactor breaking existing single-ID commands.
+func TestSingleIDForwardStillWorks(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpCache(ctx, []string{"42", "forward", "*"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.forwardedUpdates, 1)
+	assert.Equal(t, uint64(42), reactor.forwardedUpdates[0].id)
+}
