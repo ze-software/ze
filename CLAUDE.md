@@ -53,7 +53,7 @@ Spec template: `docs/plan/TEMPLATE.md`.
 | **BGP Protocol** | `rfc-compliance.md`, `buffer-first.md`, `json-format.md`, `architecture-summary.md` |
 | **Planning** | `planning.md`, `spec-no-code.md`, `spec-preservation.md`, `implementation-audit.md`, `integration-completeness.md`, `data-flow-tracing.md` |
 | **Infrastructure** | `plugin-design.md`, `cli-patterns.md`, `config-design.md`, `naming.md` |
-| **Process** | `git-safety.md`, `no-layering.md`, `compatibility.md`, `no-test-deletion.md`, `testing.md`, `documentation.md`, `design-doc-references.md`, `related-refs.md`, `hook-errors.md`, `memory.md` |
+| **Process** | `git-safety.md`, `no-layering.md`, `compatibility.md`, `no-test-deletion.md`, `testing.md`, `documentation.md`, `design-doc-references.md`, `related-refs.md`, `hook-errors.md`, `memory.md`, `friction-reporting.md` |
 
 ## Commands
 
