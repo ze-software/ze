@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
@@ -32,7 +33,7 @@ type Editor struct {
 	tree            *config.Tree   // Parsed config tree (canonical when treeValid)
 	schema          *config.Schema // YANG schema for Serialize
 	treeValid       bool           // True when tree was parsed successfully
-	dirty           bool
+	dirty           atomic.Bool
 	hasPendingEdit  bool           // true if .edit file exists
 	onReload        ReloadNotifier // Optional: called after successful save
 }
@@ -83,7 +84,6 @@ func NewEditor(configPath string) (*Editor, error) {
 		tree:            tree,
 		schema:          schema,
 		treeValid:       treeValid,
-		dirty:           false,
 		hasPendingEdit:  hasPending,
 	}, nil
 }
@@ -113,7 +113,7 @@ func (e *Editor) OriginalPath() string {
 
 // Dirty returns true if there are unsaved changes.
 func (e *Editor) Dirty() bool {
-	return e.dirty
+	return e.dirty.Load()
 }
 
 // HasPendingEdit returns true if an edit file exists from a previous session.
@@ -210,14 +210,14 @@ func (e *Editor) LoadPendingEdit() error {
 	}
 
 	e.workingContent = string(data)
-	e.dirty = true
+	e.dirty.Store(true)
 	e.hasPendingEdit = false // Loaded, no longer "pending"
 	return nil
 }
 
 // SaveEditState saves the current working content to the .edit file.
 func (e *Editor) SaveEditState() error {
-	if !e.dirty {
+	if !e.dirty.Load() {
 		return nil // Nothing to save
 	}
 
@@ -258,7 +258,7 @@ func (e *Editor) NotifyReload() error {
 
 // MarkDirty marks the editor as having unsaved changes.
 func (e *Editor) MarkDirty() {
-	e.dirty = true
+	e.dirty.Store(true)
 }
 
 // OriginalContent returns the original file content.
@@ -569,7 +569,7 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 		return err
 	}
 	target.Set(key, value)
-	e.dirty = true
+	e.dirty.Store(true)
 	return nil
 }
 
@@ -580,7 +580,7 @@ func (e *Editor) DeleteValue(path []string, key string) error {
 		return fmt.Errorf("path not found")
 	}
 	target.Delete(key)
-	e.dirty = true
+	e.dirty.Store(true)
 	return nil
 }
 
@@ -596,7 +596,7 @@ func (e *Editor) DeleteContainer(path []string, name string) error {
 		return fmt.Errorf("path not found")
 	}
 	target.DeleteContainer(name)
-	e.dirty = true
+	e.dirty.Store(true)
 	return nil
 }
 
@@ -678,13 +678,13 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 		return fmt.Errorf("path not found")
 	}
 	target.RemoveListEntry(listName, key)
-	e.dirty = true
+	e.dirty.Store(true)
 	return nil
 }
 
 // Save commits changes: creates backup of original, writes serialized tree.
 func (e *Editor) Save() error {
-	if !e.dirty {
+	if !e.dirty.Load() {
 		return nil
 	}
 
@@ -701,7 +701,7 @@ func (e *Editor) Save() error {
 
 	// Update original to match saved
 	e.originalContent = content
-	e.dirty = false
+	e.dirty.Store(false)
 
 	// Delete edit file on successful commit
 	e.deleteEditFile()
@@ -712,7 +712,7 @@ func (e *Editor) Save() error {
 // Discard reverts working content and tree to original state.
 func (e *Editor) Discard() error {
 	e.workingContent = e.originalContent
-	e.dirty = false
+	e.dirty.Store(false)
 
 	// Re-parse original content into tree
 	if e.schema != nil {
@@ -893,7 +893,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	content := string(data)
 	e.originalContent = content
 	e.workingContent = content
-	e.dirty = false
+	e.dirty.Store(false)
 
 	// Re-parse the restored content into the tree
 	if e.schema != nil {

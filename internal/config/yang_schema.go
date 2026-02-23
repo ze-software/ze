@@ -4,6 +4,7 @@
 package config
 
 import (
+	"log/slog"
 	"sort"
 	"strings"
 
@@ -88,13 +89,27 @@ func loadYANGModules(pluginYANG map[string]string) *yang.Loader {
 }
 
 // YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
+// Registers custom validators, attaches registry, and checks integrity.
 // Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).
 func YANGValidatorWithPlugins(pluginYANG map[string]string) *yang.Validator {
 	loader := loadYANGModules(pluginYANG)
 	if loader == nil {
 		return nil
 	}
-	return yang.NewValidator(loader)
+
+	v := yang.NewValidator(loader)
+
+	// Register custom validators and attach to validator.
+	reg := yang.NewValidatorRegistry()
+	RegisterValidators(reg)
+	v.SetRegistry(reg)
+
+	// Startup integrity check: verify every ze:validate in YANG has a registered function.
+	if err := yang.CheckAllValidatorsRegistered(loader, reg); err != nil {
+		slog.Error("YANG validator integrity check failed", "error", err)
+	}
+
+	return v
 }
 
 // YANGSchemaWithPlugins loads YANG with additional plugin modules.

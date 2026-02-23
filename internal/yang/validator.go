@@ -3,8 +3,10 @@
 package yang
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/openconfig/goyang/pkg/yang"
@@ -62,7 +64,8 @@ func (e *ValidationError) Error() string {
 
 // Validator validates configuration data against YANG schemas.
 type Validator struct {
-	loader *Loader
+	loader   *Loader
+	registry *ValidatorRegistry
 }
 
 // NewValidator creates a new YANG validator.
@@ -70,6 +73,11 @@ func NewValidator(loader *Loader) *Validator {
 	return &Validator{
 		loader: loader,
 	}
+}
+
+// SetRegistry sets the custom validator registry for ze:validate extensions.
+func (v *Validator) SetRegistry(reg *ValidatorRegistry) {
+	v.registry = reg
 }
 
 // Validate validates a single value at the given path.
@@ -251,6 +259,7 @@ func (v *Validator) validateString(path string, yangType *yang.YangType, value a
 }
 
 // validateUnsigned validates unsigned integer against YangType.
+// Accepts numeric types and strings (config values often arrive as strings).
 func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value any) error {
 	var num uint64
 	switch n := value.(type) {
@@ -295,7 +304,20 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 			}
 		}
 		num = uint64(n)
-	default: // reject unhandled types (string, bool, slice, map, nil)
+	case string:
+		// Config values arrive as strings — attempt conversion.
+		parsed, parseErr := strconv.ParseUint(n, 10, 64)
+		if parseErr != nil {
+			return &ValidationError{
+				Path:     path,
+				Type:     ErrTypeType,
+				Message:  fmt.Sprintf("expected unsigned integer, got %q", n),
+				Expected: yangType.Name,
+				Got:      n,
+			}
+		}
+		num = parsed
+	default: // reject unhandled types (bool, slice, map, nil)
 		return &ValidationError{
 			Path:     path,
 			Type:     ErrTypeType,
@@ -322,6 +344,7 @@ func (v *Validator) validateUnsigned(path string, yangType *yang.YangType, value
 }
 
 // validateSigned validates signed integer against YangType.
+// Accepts numeric types and strings (config values often arrive as strings).
 func (v *Validator) validateSigned(path string, yangType *yang.YangType, value any) error {
 	var num int64
 	switch n := value.(type) {
@@ -346,7 +369,20 @@ func (v *Validator) validateSigned(path string, yangType *yang.YangType, value a
 			}
 		}
 		num = int64(n)
-	default:
+	case string:
+		// Config values arrive as strings — attempt conversion.
+		parsed, parseErr := strconv.ParseInt(n, 10, 64)
+		if parseErr != nil {
+			return &ValidationError{
+				Path:     path,
+				Type:     ErrTypeType,
+				Message:  fmt.Sprintf("expected signed integer, got %q", n),
+				Expected: yangType.Name,
+				Got:      n,
+			}
+		}
+		num = parsed
+	default: // reject unhandled types (bool, slice, map, nil)
 		return &ValidationError{
 			Path:     path,
 			Type:     ErrTypeType,
@@ -465,6 +501,108 @@ func (v *Validator) validateContainerEntry(path string, entry *yang.Entry, data 
 	}
 
 	return nil
+}
+
+// ValidateTree recursively validates a config data tree against YANG schema.
+// path is the module prefix (e.g., "bgp"). data is the parsed config map.
+// Returns all validation errors found (does not stop at first error).
+func (v *Validator) ValidateTree(path string, data map[string]any) []ValidationError {
+	entry, err := v.findSchemaNode(path)
+	if err != nil {
+		return []ValidationError{{Path: path, Type: ErrTypeType, Message: err.Error()}}
+	}
+	if entry.Dir == nil {
+		return nil
+	}
+
+	var errs []ValidationError
+	v.walkTree(path, entry, data, &errs)
+	return errs
+}
+
+// walkTree recursively validates a container/list against its YANG entry.
+func (v *Validator) walkTree(path string, entry *yang.Entry, data map[string]any, errs *[]ValidationError) {
+	// Check mandatory children at this level.
+	for name, child := range entry.Dir {
+		if child.Mandatory == yang.TSTrue {
+			if _, ok := data[name]; !ok {
+				*errs = append(*errs, ValidationError{
+					Path:    path + "." + name,
+					Type:    ErrTypeMissing,
+					Message: fmt.Sprintf("mandatory field %q is missing", name),
+				})
+			}
+		}
+	}
+
+	// Validate each provided value.
+	for key, value := range data {
+		child, ok := entry.Dir[key]
+		if !ok {
+			continue // unknown field — handled elsewhere by config reader
+		}
+		childPath := path + "." + key
+
+		// Map values are containers or list entries — recurse.
+		subMap, isMap := value.(map[string]any)
+		if isMap {
+			if child.IsList() {
+				// List: each map entry is keyed by list key → sub-map.
+				for listKey, listVal := range subMap {
+					entryMap, entryOK := listVal.(map[string]any)
+					if !entryOK {
+						continue
+					}
+					entryPath := childPath + "[" + listKey + "]"
+					v.walkTree(entryPath, child, entryMap, errs)
+				}
+			} else if child.Dir != nil {
+				// Container: recurse.
+				v.walkTree(childPath, child, subMap, errs)
+			}
+			continue
+		}
+
+		// Non-map values are leaves — validate against YANG type.
+		if leafErr := v.validateEntry(childPath, child, value); leafErr != nil {
+			var valErr *ValidationError
+			if errors.As(leafErr, &valErr) {
+				*errs = append(*errs, *valErr)
+			} else {
+				*errs = append(*errs, ValidationError{
+					Path:    childPath,
+					Type:    ErrTypeType,
+					Message: leafErr.Error(),
+				})
+			}
+		}
+
+		// Check ze:validate extension for custom validation.
+		// Multiple validators joined with "|" use OR semantics:
+		// the value is valid if ANY validator accepts it.
+		if v.registry != nil {
+			if names := SplitValidatorNames(GetValidateExtension(child)); len(names) > 0 {
+				var lastErr error
+				for _, validatorName := range names {
+					if cv := v.registry.Get(validatorName); cv != nil {
+						if cvErr := cv.ValidateFn(childPath, value); cvErr == nil {
+							lastErr = nil
+							break
+						} else {
+							lastErr = cvErr
+						}
+					}
+				}
+				if lastErr != nil {
+					*errs = append(*errs, ValidationError{
+						Path:    childPath,
+						Type:    ErrTypeType,
+						Message: lastErr.Error(),
+					})
+				}
+			}
+		}
+	}
 }
 
 // checkYangRange checks unsigned value against YangRange.

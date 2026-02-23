@@ -3,6 +3,7 @@ module ze-bgp-conf {
     prefix bgp;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description "BGP configuration for ZeBGP";
 
@@ -162,8 +163,20 @@ module ze-bgp-conf {
         list family {
             key "name";
             description "Address families to negotiate";
-            leaf name { type string; description "AFI/SAFI (e.g. ipv4/unicast)"; }
-            leaf mode { type string; description "enable, disable, require, ignore"; }
+            leaf name {
+                type string;
+                ze:validate "registered-address-family";
+                description "AFI/SAFI (e.g. ipv4/unicast)";
+            }
+            leaf mode {
+                type enumeration {
+                    enum enable { description "Enable this address family"; }
+                    enum disable { description "Disable this address family"; }
+                    enum require { description "Require this address family"; }
+                    enum ignore { description "Ignore this address family"; }
+                }
+                description "Address family negotiation mode";
+            }
         }
 
         // Capabilities
@@ -208,7 +221,15 @@ module ze-bgp-conf {
                 description "Extended Next Hop capability (RFC 8950)";
                 leaf family { type string; description "NLRI family (e.g. ipv4/unicast)"; }
                 leaf nhafi { type string; description "Next-hop AFI (e.g. ipv6)"; }
-                leaf mode { type string; description "enable, disable, require, refuse"; }
+                leaf mode {
+                    type enumeration {
+                        enum enable { description "Enable extended next hop"; }
+                        enum disable { description "Disable extended next hop"; }
+                        enum require { description "Require extended next hop"; }
+                        enum refuse { description "Refuse extended next hop"; }
+                    }
+                    description "Extended next hop negotiation mode";
+                }
             }
 
         }
@@ -315,8 +336,23 @@ module ze-bgp-conf {
             key "family";
             description "Per-family ADD-PATH configuration (RFC 7911)";
             leaf family { type string; description "Address family (e.g. ipv4/unicast)"; }
-            leaf direction { type string; description "send, receive, send/receive"; }
-            leaf mode { type string; description "enable, disable, require, refuse"; }
+            leaf direction {
+                type enumeration {
+                    enum send { description "Send ADD-PATH"; }
+                    enum receive { description "Receive ADD-PATH"; }
+                    enum send/receive { description "Both send and receive ADD-PATH"; }
+                }
+                description "ADD-PATH direction";
+            }
+            leaf mode {
+                type enumeration {
+                    enum enable { description "Enable ADD-PATH for this family"; }
+                    enum disable { description "Disable ADD-PATH for this family"; }
+                    enum require { description "Require ADD-PATH for this family"; }
+                    enum refuse { description "Refuse ADD-PATH for this family"; }
+                }
+                description "ADD-PATH negotiation mode";
+            }
         }
 
         // Process bindings

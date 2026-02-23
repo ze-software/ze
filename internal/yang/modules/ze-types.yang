@@ -11,7 +11,7 @@ module ze-types {
     // Grouping for common route attributes used in announce/static/etc.
     grouping route-attributes {
         description "Common BGP route attributes";
-        leaf next-hop { type string; description "Next hop address"; }
+        leaf next-hop { type string; ze:validate "nonzero-ipv4|literal-self"; description "Next hop address"; }
         leaf origin {
             type enumeration {
                 enum igp { description "Interior Gateway Protocol"; }
@@ -22,7 +22,7 @@ module ze-types {
         }
         leaf local-preference { type uint32; description "Local preference"; }
         leaf med { type uint32; description "Multi-Exit Discriminator"; }
-        leaf-list community { type string; description "BGP communities"; }
+        leaf-list community { type string; ze:validate "community-range"; description "BGP communities"; }
         leaf-list extended-community { type string; description "Extended communities"; }
         leaf-list large-community { type string; description "Large communities"; }
         leaf-list as-path { type string; description "AS path"; }
@@ -137,7 +137,10 @@ module ze-types {
     // IPC types
 
     typedef address-family {
-        type string;
+        type string {
+            pattern '[a-z0-9-]+/[a-z0-9-]+';
+        }
+        ze:validate "registered-address-family";
         description "AFI/SAFI string (e.g., ipv4/unicast, ipv6/unicast)";
     }
 

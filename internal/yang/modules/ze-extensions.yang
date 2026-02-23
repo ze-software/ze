@@ -52,4 +52,16 @@ module ze-extensions {
                      Used for environment.log to allow subsystem paths
                      like 'bgp.routes debug;' for ze.log.bgp.routes=debug.";
     }
+
+    // Extension: validate
+    // References a registered Go function for runtime validation and completion.
+    // Used only when YANG native constraints (enum, pattern, range) are insufficient —
+    // primarily for runtime-determined valid sets (e.g., address families from plugins).
+    // The argument is the validator function name registered via ValidatorRegistry.
+    extension validate {
+        argument name;
+        description "References a custom validator function for runtime validation.
+                     The function provides both Validate(path, value) and Complete()
+                     for CLI tab-completion of valid values.";
+    }
 }

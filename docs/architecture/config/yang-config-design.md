@@ -463,7 +463,25 @@ when "../type = 'ethernet'" {
 }
 ```
 
-### Layer 3: External Validators (zx:validator)
+### Layer 3a: In-Process Custom Validators (ze:validate) — Implemented
+
+Ze uses `ze:validate` YANG extension (RFC 7950 Section 7.19) for runtime-determined constraints.
+Each validator registers a `ValidateFn(path, value) error` and optional `CompleteFn() []string` for CLI completion.
+
+| Component | Location |
+|-----------|----------|
+| Extension definition | `internal/yang/modules/ze-extensions.yang` |
+| Registry + integrity check | `internal/yang/registry.go` |
+| Custom validators | `internal/config/validators.go` |
+| Registration | `internal/config/validators_register.go` |
+| Recursive tree walk | `internal/yang/validator.go` (`ValidateTree`/`walkTree`) |
+
+Ze uses goyang (not libyang). `ValidateTree` recursively validates config trees against YANG schema entries,
+checking range, pattern, enum, length, mandatory at every level. After YANG native validation, `ze:validate`
+extensions trigger registered Go functions. `CheckAllValidatorsRegistered` verifies at startup that every
+`ze:validate` reference has a registered implementation.
+
+### Layer 3b: External Validators (zx:validator) — Future
 
 Custom programs for validation that can't be expressed in YANG:
 

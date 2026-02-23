@@ -3,7 +3,6 @@
 package editor
 
 import (
-	"errors"
 	"fmt"
 	"maps"
 	"strconv"
@@ -134,14 +133,12 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 }
 
 // ValidateWithYANG validates the parsed tree using YANG constraints.
-// YANG model defines RFC-compliant constraints like hold-time range "0 | 3..65535".
+// Uses recursive ValidateTree for systematic validation of all leaves.
 // Template inheritance is resolved before validation - inherited values are merged with peer values.
 func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidationError {
 	if tree == nil || v.yangValidator == nil {
 		return nil
 	}
-
-	var errs []ConfigValidationError
 
 	// Get BGP container
 	bgp := tree.GetContainer("bgp")
@@ -149,13 +146,14 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 		return nil // No BGP config
 	}
 
+	var errs []ConfigValidationError
+
 	// Extract templates for inheritance resolution
 	templates := v.extractTemplates(tree)
 
-	// Validate peer-level fields using YANG constraints
+	// Resolve peer inheritance before validation
 	peers := bgp.GetList("peer")
 	for peerAddr, peerTree := range peers {
-		// Resolve inherited values - template first, peer overrides
 		resolved, inheritErr := v.resolveInheritance(peerTree, templates)
 		if inheritErr != nil {
 			errs = append(errs, ConfigValidationError{
@@ -165,54 +163,47 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 			continue
 		}
 
-		// Check mandatory peer-as field (after inheritance resolution)
-		if _, ok := resolved.Get("peer-as"); !ok {
+		// Validate resolved peer data using recursive YANG tree walk.
+		// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
+		// Skip most mandatory-missing errors during editing (config is incomplete).
+		// Keep peer-as mandatory check — a peer without AS is never valid.
+		peerMap := resolved.ToMap()
+		yangErrs := v.yangValidator.ValidateTree("bgp.peer", peerMap)
+		for i := range yangErrs {
+			if yangErrs[i].Type == yang.ErrTypeMissing && !strings.HasSuffix(yangErrs[i].Path, ".peer-as") {
+				continue
+			}
 			errs = append(errs, ConfigValidationError{
-				Message:  fmt.Sprintf("peer %s: missing mandatory field 'peer-as'", peerAddr),
+				Message:  fmt.Sprintf("peer %s: %s: %s", peerAddr, yangLeafName(yangErrs[i].Path), yangErrs[i].Message),
 				Severity: "error",
 			})
 		}
+	}
 
-		// Validate hold-time range (RFC 4271: 0 or >= 3)
-		if holdTimeStr, ok := resolved.Get("hold-time"); ok {
-			holdTime, parseErr := strconv.Atoi(holdTimeStr)
-			if parseErr != nil {
-				errs = append(errs, ConfigValidationError{
-					Message:  fmt.Sprintf("peer %s: invalid hold-time '%s': must be a number", peerAddr, holdTimeStr),
-					Severity: "error",
-				})
-				continue
-			}
-
-			// Validate range before conversion to uint16
-			if holdTime < 0 || holdTime > 65535 {
-				errs = append(errs, ConfigValidationError{
-					Message:  fmt.Sprintf("peer %s: invalid hold-time %d: must be 0-65535", peerAddr, holdTime),
-					Severity: "error",
-				})
-				continue
-			}
-
-			// Use YANG validator for RFC-compliant range check
-			// #nosec G115 -- bounds checked above
-			if err := v.yangValidator.Validate("bgp.peer.hold-time", uint16(holdTime)); err != nil {
-				var yangErr *yang.ValidationError
-				if errors.As(err, &yangErr) {
-					errs = append(errs, ConfigValidationError{
-						Message:  fmt.Sprintf("peer %s: invalid hold-time %d: %s", peerAddr, holdTime, yangErr.Message),
-						Severity: "error",
-					})
-				} else {
-					errs = append(errs, ConfigValidationError{
-						Message:  fmt.Sprintf("peer %s: invalid hold-time %d", peerAddr, holdTime),
-						Severity: "error",
-					})
-				}
-			}
+	// Validate BGP-level fields (value correctness only, not mandatory).
+	bgpMap := bgp.ToMap()
+	// Remove peer sub-map to avoid re-validating (already done above with templates).
+	delete(bgpMap, "peer")
+	yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
+	for i := range yangErrs {
+		if yangErrs[i].Type == yang.ErrTypeMissing {
+			continue
 		}
+		errs = append(errs, ConfigValidationError{
+			Message:  fmt.Sprintf("%s: %s", yangLeafName(yangErrs[i].Path), yangErrs[i].Message),
+			Severity: "error",
+		})
 	}
 
 	return errs
+}
+
+// yangLeafName extracts the leaf name from a YANG path (last dot-separated segment).
+func yangLeafName(path string) string {
+	if idx := strings.LastIndex(path, "."); idx >= 0 {
+		return path[idx+1:]
+	}
+	return path
 }
 
 // extractTemplates extracts named templates from the config tree.
