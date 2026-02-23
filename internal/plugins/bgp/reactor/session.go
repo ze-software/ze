@@ -3,6 +3,7 @@
 package reactor
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -115,6 +116,7 @@ type Session struct {
 	clock      sim.Clock
 	dialer     sim.Dialer
 	conn       net.Conn
+	bufReader  *bufio.Reader // Wraps conn to batch kernel read syscalls
 	negotiated *capability.Negotiated
 
 	// localOpen stores our OPEN for reference during negotiation.
@@ -605,6 +607,7 @@ func (s *Session) processOpen(open *message.Open) error {
 func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.mu.Lock()
 	s.conn = conn
+	s.bufReader = bufio.NewReaderSize(conn, 65536)
 	s.mu.Unlock()
 
 	// Signal FSM.
@@ -726,6 +729,11 @@ func (s *Session) closeConn() {
 	if s.conn != nil {
 		_ = s.conn.Close()
 		s.conn = nil
+		// bufReader is NOT nilled here: Run() may have captured conn (non-nil)
+		// before this lock and will call readAndProcessMessage next. The stale
+		// bufReader wrapping the closed conn returns a proper read error,
+		// which readAndProcessMessage handles as ErrConnectionClosed.
+		// connectionEstablished() replaces bufReader on reconnection.
 	}
 }
 

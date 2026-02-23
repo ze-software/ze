@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"bufio"
 	"context"
 	"net"
 	"net/netip"
@@ -2323,6 +2324,7 @@ func TestSessionCloseOnCancel(t *testing.T) {
 	// Set the connection directly (skip BGP handshake).
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2376,6 +2378,7 @@ func TestSessionHoldTimerStillWorks(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	// Start the hold timer so it fires after 50ms.
@@ -2411,6 +2414,7 @@ func TestSessionTeardownStillWorks(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	resultCh := make(chan error, 1)
@@ -2460,6 +2464,7 @@ func TestSessionPauseBlocksRead(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	// Pause BEFORE starting Run.
@@ -2516,6 +2521,7 @@ func TestSessionResumeUnblocksRead(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	// Start paused.
@@ -2565,6 +2571,7 @@ func TestSessionPauseCancelContext(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	session.Pause()
@@ -2607,6 +2614,7 @@ func TestSessionPauseHoldTimerExpiry(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	session.Pause()
@@ -2679,6 +2687,7 @@ func TestSessionPauseKeepaliveContinues(t *testing.T) {
 
 	session.mu.Lock()
 	session.conn = server
+	session.bufReader = bufio.NewReaderSize(server, 65536)
 	session.mu.Unlock()
 
 	// Pause reading.

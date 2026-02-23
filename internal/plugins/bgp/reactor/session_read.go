@@ -40,8 +40,8 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Get buffer from pool
 	buf := s.getReadBuffer()
 
-	// Read header
-	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
+	// Read header — through bufio.Reader to batch kernel read syscalls.
+	_, err := io.ReadFull(s.bufReader, buf[:message.HeaderLen])
 	if err != nil {
 		s.returnReadBuffer(buf)
 		// Handle connection close: EOF or connection reset by peer
@@ -78,7 +78,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Read body
 	bodyLen := int(hdr.Length) - message.HeaderLen
 	if bodyLen > 0 {
-		_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
+		_, err = io.ReadFull(s.bufReader, buf[message.HeaderLen:hdr.Length])
 		if err != nil {
 			s.returnReadBuffer(buf)
 			return fmt.Errorf("read body: %w", err)
