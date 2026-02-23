@@ -237,7 +237,7 @@ func (rs *RouteServer) wireFlowControl() {
 
 		if wasPaused {
 			logger().Info("resuming peer", "source-peer", key.sourcePeer)
-			rs.updateRoute("*", "bgp peer resume "+key.sourcePeer)
+			rs.updateRoute("*", "bgp peer "+key.sourcePeer+" resume")
 		}
 	}
 }
@@ -255,7 +255,7 @@ func (rs *RouteServer) resumeAllPaused() {
 
 	for _, addr := range paused {
 		logger().Info("shutdown: resuming peer", "source-peer", addr)
-		rs.updateRoute("*", "bgp peer resume "+addr)
+		rs.updateRoute("*", "bgp peer "+addr+" resume")
 	}
 }
 
@@ -416,7 +416,7 @@ func (rs *RouteServer) dispatch(raw []byte) {
 				rs.pausedPeers[peerAddr] = true
 				rs.mu.Unlock()
 				logger().Warn("pausing peer", "source-peer", peerAddr)
-				rs.updateRoute("*", "bgp peer pause "+peerAddr)
+				rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
 			} else {
 				rs.mu.Unlock()
 			}
