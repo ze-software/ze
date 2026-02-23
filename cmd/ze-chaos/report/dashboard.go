@@ -76,20 +76,20 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.maybeStatus(ev.Time)
 	case peer.EventEstablished:
 		d.established++
-		d.rw.printf("peer %d | established (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
+		d.rw.printf("\rpeer %d | established (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
 	case peer.EventDisconnected:
 		d.established--
-		d.rw.printf("peer %d | disconnected (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
+		d.rw.printf("\rpeer %d | disconnected (%d/%d)\n", ev.PeerIndex, d.established, d.cfg.PeerCount)
 	case peer.EventEORSent:
 		if len(ev.Families) > 0 {
-			d.rw.printf("peer %d | eor-sent | %d routes [%s]\n", ev.PeerIndex, ev.Count, strings.Join(ev.Families, ", "))
+			d.rw.printf("\rpeer %d | eor-sent | %d routes [%s]\n", ev.PeerIndex, ev.Count, strings.Join(ev.Families, ", "))
 		} else {
-			d.rw.printf("peer %d | eor-sent | %d routes\n", ev.PeerIndex, ev.Count)
+			d.rw.printf("\rpeer %d | eor-sent | %d routes\n", ev.PeerIndex, ev.Count)
 		}
 	case peer.EventRouteAction:
 		d.maybeStatus(ev.Time)
 	case peer.EventDroppedEvents:
-		d.rw.printf("peer %d | WARNING: %d events dropped (channel full)\n", ev.PeerIndex, ev.Count)
+		d.rw.printf("\rpeer %d | WARNING: %d events dropped (channel full)\n", ev.PeerIndex, ev.Count)
 	case peer.EventError, peer.EventChaosExecuted, peer.EventReconnecting:
 		d.printLifecycle(ev)
 	}
@@ -107,7 +107,7 @@ func (d *Dashboard) printLifecycle(ev peer.Event) {
 		line += " | " + ev.Err.Error()
 	}
 
-	d.rw.printf("%s\n", line)
+	d.rw.printf("\r%s\n", line)
 }
 
 // maybeStatus prints an aggregate status line if enough time has passed.
@@ -116,13 +116,13 @@ func (d *Dashboard) maybeStatus(now time.Time) {
 		return
 	}
 	d.lastStatus = now
-	d.rw.printf("  routes: %d sent, %d received, %d withdrawn | peers: %d/%d\n",
+	d.rw.printf("\r  routes: %d sent, %d received, %d withdrawn | peers: %d/%d\n",
 		d.sent, d.received, d.withdrawn, d.established, d.cfg.PeerCount)
 }
 
 // Close prints a final status line.
 func (d *Dashboard) Close() error {
-	d.rw.printf("  routes: %d sent, %d received, %d withdrawn | peers: %d/%d (final)\n",
+	d.rw.printf("\r  routes: %d sent, %d received, %d withdrawn | peers: %d/%d (final)\n",
 		d.sent, d.received, d.withdrawn, d.established, d.cfg.PeerCount)
 	return d.rw.err
 }

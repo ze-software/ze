@@ -197,20 +197,22 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	propUpdateCounter := 0
 
 	// Process events from all peers.
-	termRestored := false
 	for ev := range events {
+		// Restore terminal before any lifecycle event that produces output.
+		// The ze subprocess may corrupt ONLCR at any point during shutdown,
+		// so a single restore is not enough — we must restore before each
+		// visible line. Lifecycle events are rare (O(peers)), so the ioctl
+		// cost is negligible.
+		if savedTermState != nil && isLifecycleEvent(ev.Type) {
+			_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
+		}
+
 		// Update established state and peer guard for schedulers.
 		switch ev.Type {
 		case peer.EventEstablished:
 			established.Set(ev.PeerIndex, true)
 			guard.OnEstablished(ev.PeerIndex)
 		case peer.EventDisconnected:
-			// Restore terminal state on first disconnect. The ze subprocess
-			// may die around this time, disabling ONLCR (staircase output).
-			if !termRestored && savedTermState != nil {
-				_ = term.Restore(int(os.Stderr.Fd()), savedTermState)
-				termRestored = true
-			}
 			established.Set(ev.PeerIndex, false)
 			guard.OnDisconnected(ev.PeerIndex)
 		case peer.EventChaosExecuted:

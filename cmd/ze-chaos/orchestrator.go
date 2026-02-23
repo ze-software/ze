@@ -98,6 +98,23 @@ func (es *establishedState) Snapshot() []bool {
 	return snap
 }
 
+// isLifecycleEvent returns true for event types that produce immediate
+// dashboard output. Used by the orchestrator to restore terminal state
+// before printing, since the ze subprocess may corrupt ONLCR at any
+// point during its shutdown.
+func isLifecycleEvent(t peer.EventType) bool {
+	switch t {
+	case peer.EventEstablished, peer.EventDisconnected, peer.EventEORSent,
+		peer.EventDroppedEvents, peer.EventError, peer.EventChaosExecuted,
+		peer.EventReconnecting:
+		return true
+	case peer.EventRouteSent, peer.EventRouteReceived, peer.EventRouteWithdrawn,
+		peer.EventWithdrawalSent, peer.EventRouteAction:
+		return false
+	}
+	return false
+}
+
 // EventProcessor routes peer events to the validation model, tracker,
 // and convergence tracker. It also maintains aggregate counters.
 type EventProcessor struct {
