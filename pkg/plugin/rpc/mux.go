@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — multiplexed plugin RPC
+// Related: conn.go — Conn type and persistent reader (readFrame)
 
 package rpc
 
@@ -120,11 +121,16 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 // readLoop is the background reader goroutine. It reads response frames
 // from the connection and routes them to waiting callers by request ID.
 // Runs until the connection is closed or a read error occurs.
+//
+// Uses conn.readFrame() to consume from the persistent reader's channel,
+// ensuring only one goroutine ever reads from the underlying FrameReader.
+// This is safe even when ReadRequest/CallRPC were called during the handshake
+// before MuxConn was created — sync.Once ensures the same reader goroutine.
 func (m *MuxConn) readLoop() {
 	defer close(m.done)
 
 	for {
-		data, err := m.conn.reader.Read()
+		data, err := m.conn.readFrame(context.Background())
 		if err != nil {
 			// Store the error for late callers. Pending callers unblock
 			// via the done channel (closed by defer). Don't close response
