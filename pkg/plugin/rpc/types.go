@@ -17,12 +17,13 @@ import "encoding/json"
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
-	Families          []FamilyDecl  `json:"families,omitempty"`
-	Commands          []CommandDecl `json:"commands,omitempty"`
-	WantsConfig       []string      `json:"wants-config,omitempty"`
-	Schema            *SchemaDecl   `json:"schema,omitempty"`
-	WantsValidateOpen bool          `json:"wants-validate-open,omitempty"`
-	CacheConsumer     bool          `json:"cache-consumer,omitempty"`
+	Families               []FamilyDecl  `json:"families,omitempty"`
+	Commands               []CommandDecl `json:"commands,omitempty"`
+	WantsConfig            []string      `json:"wants-config,omitempty"`
+	Schema                 *SchemaDecl   `json:"schema,omitempty"`
+	WantsValidateOpen      bool          `json:"wants-validate-open,omitempty"`
+	CacheConsumer          bool          `json:"cache-consumer,omitempty"`
+	CacheConsumerUnordered bool          `json:"cache-consumer-unordered,omitempty"`
 }
 
 // FamilyDecl declares an address family the plugin handles.

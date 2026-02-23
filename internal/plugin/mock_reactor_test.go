@@ -89,6 +89,6 @@ func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 func (m *mockReactor) PausePeer(_ netip.Addr) error  { return nil }
 func (m *mockReactor) ResumePeer(_ netip.Addr) error { return nil }
 
-func (m *mockReactor) RegisterCacheConsumer(_ string) {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 
 func (m *mockReactor) UnregisterCacheConsumer(_ string) {}

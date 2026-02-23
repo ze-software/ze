@@ -177,6 +177,12 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		// event delivery, causing the forward worker to find the entry
 		// already gone (ErrUpdateExpired).
 		CacheConsumer: true,
+		// CacheConsumerUnordered: true switches from cumulative (TCP-like) ack
+		// to per-entry ack. bgp-rr uses per-peer workers that process entries
+		// out of global FIFO order — without this, acking a high ID from the
+		// heavy-peer worker would cumulatively evict intermediate entries that
+		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
+		CacheConsumerUnordered: true,
 		Commands: []sdk.CommandDecl{
 			{Name: "rr status", Description: "Show RS status"},
 			{Name: "rr peers", Description: "Show peer states"},
@@ -207,7 +213,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
-		logger().Debug("update-route failed", "peer", peerSelector, "error", err)
+		logger().Error("update-route failed", "peer", peerSelector, "error", err)
 	}
 }
 
@@ -395,7 +401,7 @@ func (rs *RouteServer) dispatch(raw []byte) {
 		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, rawJSON: raw})
 		key := workerKey{sourcePeer: peerAddr}
 		if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
-			logger().Debug("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
+			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
 			rs.fwdCtx.Delete(msgID)
 			rs.releaseCache(msgID)
 			return

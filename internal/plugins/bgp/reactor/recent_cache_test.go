@@ -1152,3 +1152,125 @@ func TestCacheUnregisterUnknownConsumer(t *testing.T) {
 		t.Fatal("entry should still exist after unregistering unknown consumer")
 	}
 }
+
+// --- Unordered (non-FIFO) consumer acking ---
+
+// TestCacheUnorderedConsumerNoSweep verifies that unordered consumers
+// do NOT trigger cumulative ack of intermediate entries.
+//
+// VALIDATES: Acking a high ID for an unordered consumer only affects that entry.
+// PREVENTS: Route loss when per-source-peer workers process entries out of global order.
+func TestCacheUnorderedConsumerNoSweep(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	cache.RegisterConsumer("rr")
+	cache.SetConsumerUnordered("rr")
+
+	// Add 5 entries, each with 1 consumer
+	for i := uint64(1); i <= 5; i++ {
+		cache.Add(newTestUpdate(i))
+		cache.Activate(i, 1)
+	}
+
+	// Ack entry 5 (highest). For a FIFO consumer, this would evict 1-4.
+	// For an unordered consumer, only entry 5 should be evicted.
+	if err := cache.Ack(5, "rr"); err != nil {
+		t.Fatalf("Ack(5): %v", err)
+	}
+
+	// Entry 5 should be evicted (single consumer, explicitly acked)
+	if cache.Contains(5) {
+		t.Error("entry 5 should be evicted after explicit ack")
+	}
+
+	// Entries 1-4 should STILL exist (not cumulatively acked)
+	for i := uint64(1); i <= 4; i++ {
+		if !cache.Contains(i) {
+			t.Errorf("entry %d should still exist (unordered consumer, no cumulative ack)", i)
+		}
+	}
+
+	// Now ack entries 1-4 individually, out of order
+	for _, id := range []uint64{3, 1, 4, 2} {
+		if err := cache.Ack(id, "rr"); err != nil {
+			t.Fatalf("Ack(%d): %v", id, err)
+		}
+		if cache.Contains(id) {
+			t.Errorf("entry %d should be evicted after individual ack", id)
+		}
+	}
+
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0", cache.Len())
+	}
+}
+
+// TestCacheUnorderedConsumerUnregister verifies that UnregisterConsumer
+// correctly handles unordered consumers by scanning all entries.
+//
+// VALIDATES: Unregistering an unordered consumer decrements all pending entries.
+// PREVENTS: Stuck cache entries when unordered consumer disconnects.
+func TestCacheUnorderedConsumerUnregister(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	cache.RegisterConsumer("rr")
+	cache.SetConsumerUnordered("rr")
+
+	for i := uint64(1); i <= 5; i++ {
+		cache.Add(newTestUpdate(i))
+		cache.Activate(i, 1)
+	}
+
+	// Ack only entry 5 (lastAck becomes 5, but entries 1-4 still pending)
+	if err := cache.Ack(5, "rr"); err != nil {
+		t.Fatalf("Ack(5): %v", err)
+	}
+
+	// Unregister rr — should decrement all remaining entries (1-4)
+	cache.UnregisterConsumer("rr")
+
+	// All entries should be evicted (single consumer, all handled by unregister)
+	for i := uint64(1); i <= 5; i++ {
+		if cache.Contains(i) {
+			t.Errorf("entry %d should be evicted after UnregisterConsumer", i)
+		}
+	}
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0 after unregister", cache.Len())
+	}
+}
+
+// TestCacheUnorderedConsumerReAck verifies that an unordered consumer
+// can ack an entry with id < lastAck (which would be a no-op for FIFO consumers).
+//
+// VALIDATES: id <= lastAck is NOT skipped for unordered consumers.
+// PREVENTS: Lost acks when slow workers process older entries after fast workers.
+func TestCacheUnorderedConsumerReAck(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	cache.RegisterConsumer("rr")
+	cache.SetConsumerUnordered("rr")
+
+	cache.Add(newTestUpdate(10))
+	cache.Add(newTestUpdate(20))
+	cache.Activate(10, 1)
+	cache.Activate(20, 1)
+
+	// Ack 20 first (higher ID) — lastAck moves to 20
+	if err := cache.Ack(20, "rr"); err != nil {
+		t.Fatalf("Ack(20): %v", err)
+	}
+	if cache.Contains(20) {
+		t.Error("entry 20 should be evicted")
+	}
+
+	// Entry 10 should still exist (not cumulatively acked)
+	if !cache.Contains(10) {
+		t.Fatal("entry 10 should still exist for unordered consumer")
+	}
+
+	// Now ack 10 (lower ID) — must NOT be a no-op
+	if err := cache.Ack(10, "rr"); err != nil {
+		t.Fatalf("Ack(10): %v", err)
+	}
+	if cache.Contains(10) {
+		t.Error("entry 10 should be evicted after individual ack")
+	}
+}

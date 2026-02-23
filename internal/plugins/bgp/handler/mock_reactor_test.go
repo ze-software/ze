@@ -72,7 +72,7 @@ func (m *mockReactor) SignalAPIReady()                                          
 func (m *mockReactor) AddAPIProcessCount(_ int)                                        {}
 func (m *mockReactor) SignalPluginStartupComplete()                                    {}
 func (m *mockReactor) SignalPeerAPIReady(_ string)                                     {}
-func (m *mockReactor) RegisterCacheConsumer(_ string)                                  {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool)                          {}
 func (m *mockReactor) UnregisterCacheConsumer(_ string)                                {}
 
 func (m *mockReactor) PausePeer(addr netip.Addr) error {

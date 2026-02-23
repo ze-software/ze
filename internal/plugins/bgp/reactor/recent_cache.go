@@ -74,6 +74,26 @@ type RecentUpdateCache struct {
 	// Used by RegisterConsumer() to initialize pluginLastAck so that
 	// implicit acks never touch pre-registration entries.
 	highestAddedID uint64
+
+	// nonFIFOConsumers tracks consumers that process entries out of global
+	// message ID order (e.g., per-source-peer workers in bgp-rr).
+	// For these consumers, Ack() uses per-entry semantics: no cumulative
+	// ack loop, and id <= lastAck acks are not skipped.
+	nonFIFOConsumers map[string]bool
+}
+
+// SetConsumerUnordered marks a registered consumer as non-FIFO (unordered).
+// Unordered consumers use per-entry acking: no cumulative ack loop,
+// and id <= lastAck acks are not skipped. This is required for consumers
+// like bgp-rr that process entries out of global message ID order
+// (e.g., per-source-peer worker pools).
+func (c *RecentUpdateCache) SetConsumerUnordered(name string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.nonFIFOConsumers == nil {
+		c.nonFIFOConsumers = make(map[string]bool)
+	}
+	c.nonFIFOConsumers[name] = true
 }
 
 // cacheEntry wraps an update with consumer tracking.
@@ -245,17 +265,44 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 }
 
 // Ack records that a plugin has processed (forwarded or dropped) an update.
-// When id > lastAck: cumulative ack — implicitly acks all entries between
-// the plugin's last ack and this id (TCP-like).
-// When id <= lastAck: no-op — this plugin already acked the entry via a
-// previous cumulative ack. This happens when multi-peer delivery causes
-// session goroutines to compete for callMu, making delivery order differ
-// from message ID order.
+//
+// FIFO consumers (default):
+//
+//	When id > lastAck: cumulative ack — implicitly acks all entries between
+//	the plugin's last ack and this id (TCP-like).
+//	When id <= lastAck: no-op — this plugin already acked the entry via a
+//	previous cumulative ack. This happens when multi-peer delivery causes
+//	session goroutines to compete for callMu, making delivery order differ
+//	from message ID order.
+//
+// Unordered consumers (SetConsumerUnordered):
+//
+//	Per-entry ack only. No cumulative loop, no id <= lastAck skip.
+//	Required for consumers like bgp-rr that process entries out of global
+//	message ID order (per-source-peer workers).
+//
 // Returns ErrUpdateExpired if the target id is not in the cache.
 func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Unordered consumer: per-entry ack only.
+	// No cumulative loop — acking a high ID must NOT evict lower entries
+	// that other workers haven't processed yet.
+	// No id <= lastAck skip — workers may ack entries below lastAck.
+	if c.nonFIFOConsumers[plugin] {
+		e, ok := c.entries[id]
+		if !ok {
+			return ErrUpdateExpired
+		}
+		c.ackEntryLocked(id, e)
+		if id > c.pluginLastAck[plugin] {
+			c.pluginLastAck[plugin] = id
+		}
+		return nil
+	}
+
+	// FIFO consumer: cumulative ack (existing behavior).
 	lastAck := c.pluginLastAck[plugin]
 
 	if id <= lastAck {
@@ -435,9 +482,11 @@ func (c *RecentUpdateCache) RegisterConsumer(name string) {
 }
 
 // UnregisterConsumer removes a cache-consumer plugin and adjusts pending counts.
-// Walks all entries with id > pluginLastAck[name] and decrements their
-// pendingConsumers (the plugin will never ack these). Entries that reach
-// zero total consumers are evicted immediately.
+// For FIFO consumers: walks entries with id > pluginLastAck[name] (entries
+// below lastAck were already acked via cumulative ack).
+// For unordered consumers: walks ALL entries (cannot use lastAck as a
+// skip marker because entries below lastAck may not have been individually acked).
+// Entries that reach zero total consumers are evicted immediately.
 // Called when a cache-consumer plugin disconnects or is removed.
 func (c *RecentUpdateCache) UnregisterConsumer(name string) {
 	c.mu.Lock()
@@ -448,9 +497,13 @@ func (c *RecentUpdateCache) UnregisterConsumer(name string) {
 		return
 	}
 	delete(c.pluginLastAck, name)
+	isUnordered := c.nonFIFOConsumers[name]
+	delete(c.nonFIFOConsumers, name)
 
 	for id, e := range c.entries {
-		if id <= lastAck {
+		// FIFO consumers: skip entries at or below lastAck (already acked).
+		// Unordered consumers: cannot skip — entries below lastAck may be un-acked.
+		if !isUnordered && id <= lastAck {
 			continue // Plugin already acked this entry
 		}
 		if e.pending {

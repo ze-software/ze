@@ -284,7 +284,7 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 	proc.registration = reg
 	proc.SetCacheConsumer(regInput.CacheConsumer)
 	if regInput.CacheConsumer && s.reactor != nil {
-		s.reactor.RegisterCacheConsumer(proc.Name())
+		s.reactor.RegisterCacheConsumer(proc.Name(), regInput.CacheConsumerUnordered)
 	}
 
 	// Register with registry
