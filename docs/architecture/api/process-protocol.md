@@ -1257,10 +1257,14 @@ bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 for _, binding := range bindings {
     if binding.ShouldSend(eventType) {
         proc := s.GetProcess(binding.PluginName)
-        proc.WriteEvent(event)
+        proc.Deliver(event)  // Enqueued, batched by deliveryLoop
     }
 }
 ```
+
+Events are enqueued into a per-process channel. The delivery goroutine drains all available
+events into a batch and sends them in a single `deliver-batch` RPC, reducing syscalls and
+goroutine churn. Single events are delivered as a batch of 1.
 
 This separation allows capability-only plugins to work without explicit process bindings,
 while still requiring bindings for plugins that need runtime event filtering.

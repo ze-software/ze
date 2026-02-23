@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -371,4 +372,107 @@ func TestProcessInternalPluginSocketPairs(t *testing.T) {
 
 	err = proc.Wait(waitCtx)
 	require.NoError(t, err)
+}
+
+// TestDeliveryLoopBatching verifies that multiple queued events are delivered in a single batch.
+//
+// VALIDATES: AC-2 — N events queued (burst) delivered in one batch write.
+// PREVENTS: Events delivered one-at-a-time despite batching support.
+func TestDeliveryLoopBatching(t *testing.T) {
+	t.Parallel()
+
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	t.Cleanup(func() { pairs.Close() })
+
+	proc := NewProcess(PluginConfig{Name: "test-batch", Encoder: "json"})
+	proc.SetConnB(NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proc.StartDelivery(ctx)
+	defer proc.Stop()
+
+	// Enqueue 3 events rapidly (should batch)
+	results := make([]chan EventResult, 3)
+	events := []string{
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2"}}}`,
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.3"}}}`,
+	}
+	for i, event := range events {
+		results[i] = make(chan EventResult, 1)
+		ok := proc.Deliver(EventDelivery{Output: event, Result: results[i]})
+		require.True(t, ok, "event %d should be enqueued", i)
+	}
+
+	// Plugin side: read the batch RPC request
+	pluginConn := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	req, err := pluginConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+	// Respond OK
+	require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
+
+	// All 3 results should complete without error
+	for i := range 3 {
+		select {
+		case r := <-results[i]:
+			assert.NoError(t, r.Err, "event %d should succeed", i)
+		case <-time.After(2 * time.Second):
+			t.Fatalf("timeout waiting for event %d result", i)
+		}
+	}
+}
+
+// TestDeliveryLoopSingleEvent verifies single event delivered as batch of 1.
+//
+// VALIDATES: AC-8 — first event triggers batch, non-blocking drain finds no more.
+// PREVENTS: Single events hanging because batch waits for more.
+func TestDeliveryLoopSingleEvent(t *testing.T) {
+	t.Parallel()
+
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	t.Cleanup(func() { pairs.Close() })
+
+	proc := NewProcess(PluginConfig{Name: "test-single", Encoder: "json"})
+	proc.SetConnB(NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	proc.StartDelivery(ctx)
+	defer proc.Stop()
+
+	// Enqueue 1 event
+	result := make(chan EventResult, 1)
+	ok := proc.Deliver(EventDelivery{
+		Output: `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
+		Result: result,
+	})
+	require.True(t, ok)
+
+	// Plugin side: read the batch RPC request
+	pluginConn := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	req, err := pluginConn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+	// Verify it's a batch of 1
+	var input struct {
+		Events []json.RawMessage `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	assert.Len(t, input.Events, 1)
+
+	// Respond OK
+	require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
+
+	select {
+	case r := <-result:
+		assert.NoError(t, r.Err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for event result")
+	}
 }

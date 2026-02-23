@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
+// Related: batch.go — batched event delivery frame construction
 //
 // Package ipc provides NUL-byte terminated JSON framing for Ze IPC protocol.
 //
@@ -80,6 +81,12 @@ func NewFrameWriter(w io.Writer) *FrameWriter {
 	return &FrameWriter{w: w}
 }
 
+// RawWriter returns the underlying io.Writer for direct access.
+// Used by batch delivery to write pooled frames without FrameWriter allocation.
+func (fw *FrameWriter) RawWriter() io.Writer {
+	return fw.w
+}
+
 // Write sends a message followed by a NUL terminator.
 func (fw *FrameWriter) Write(msg []byte) error {
 	buf := make([]byte, len(msg)+1)
@@ -88,6 +95,16 @@ func (fw *FrameWriter) Write(msg []byte) error {
 	_, err := fw.w.Write(buf)
 	if err != nil {
 		return fmt.Errorf("write frame: %w", err)
+	}
+	return nil
+}
+
+// WriteRaw writes pre-framed data directly. The caller must include the NUL
+// terminator. Used by batch delivery to bypass the per-frame allocation.
+func (fw *FrameWriter) WriteRaw(data []byte) error {
+	_, err := fw.w.Write(data)
+	if err != nil {
+		return fmt.Errorf("write raw frame: %w", err)
 	}
 	return nil
 }

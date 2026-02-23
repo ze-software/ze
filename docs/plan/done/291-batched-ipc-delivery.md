@@ -211,19 +211,94 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Existing tests fail | Check: old `deliver-event` RPC still handled for non-batch plugins |
 | Offset out of bounds on reader | Step 3 — validate offsets against payload length |
 
+## Implementation Summary
+
+### Design Deviation: JSON-RPC Batch Instead of Binary Offset Table
+
+The spec proposed a binary batch frame with uint32 BE headers (total_len, count, offsets). Analysis revealed that uint32 values can contain NUL bytes (0x00), which conflicts with the existing NUL-delimited framing protocol. The replacement uses a JSON-RPC `deliver-batch` method with a manually-constructed frame that embeds events as raw JSON (no double-encoding), written into a pooled buffer and NUL-terminated.
+
+This preserves the key benefits: 1 write + 1 ack per batch, pooled buffer (no per-frame allocation), and events embedded without copying. The trade-off is no zero-copy offset slicing on the reader (JSON unmarshal allocates), but the primary goal (reducing syscalls and goroutine churn) is fully achieved.
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `internal/ipc/batch.go` | Created: `WriteBatchFrame`, `ParseBatchEvents`, `batchBufPool` |
+| `internal/ipc/batch_test.go` | Created: 7 batch frame tests |
+| `internal/ipc/framing.go` | Added `WriteRaw`, `RawWriter` methods; `// Related:` to batch.go |
+| `pkg/plugin/rpc/conn.go` | Added `CallBatchRPC`, `WriteRawFrame`, `writeBatchFrame` |
+| `internal/plugin/rpc_plugin.go` | Added `SendDeliverBatch` |
+| `internal/plugin/process.go` | Replaced per-event `deliveryLoop` with drain-and-batch pattern |
+| `internal/plugin/process_test.go` | Added `TestDeliveryLoopBatching`, `TestDeliveryLoopSingleEvent` |
+| `internal/plugin/rpc_plugin_test.go` | Added 3 batch delivery RPC tests |
+| `pkg/plugin/sdk/sdk.go` | Added `handleDeliverBatch` + `deliver-batch` case in `dispatchCallback` |
+| `test/scripts/ze_api.py` | Added `deliver-batch` handling in `read_line`, `_pending_events` queue |
+| `internal/plugins/bgp/server/events_test.go` | Updated mock to parse batch format |
+| `docs/architecture/api/process-protocol.md` | Updated event delivery section |
+
+### Documentation Updates
+- `docs/architecture/api/process-protocol.md` — updated event delivery to document batched pattern
+
+## Implementation Audit
+
+### Acceptance Criteria
+| AC | Status | Evidence |
+|----|--------|----------|
+| AC-1 | ✅ Done | `TestDeliveryLoopSingleEvent` (process_test.go), `TestBatchSingleEvent` (batch_test.go) |
+| AC-2 | ✅ Done | `TestDeliveryLoopBatching` (process_test.go:381), `TestBatchRoundTrip` (batch_test.go) |
+| AC-3 | 🔄 Changed | Binary offset table replaced with JSON-RPC. Buffer grows dynamically via append; channel capacity (64) bounds batch size |
+| AC-4 | ✅ Done | `handleDeliverBatch` in sdk.go, `deliver-batch` in ze_api.py |
+| AC-5 | ✅ Done | `TestRPCDeliverBatchTimeout` (rpc_plugin_test.go) |
+| AC-6 | ✅ Done | `rpc.CheckResponse(raw)` in `SendDeliverBatch` propagates errors |
+| AC-7 | 🔄 Changed | No binary offset slicing. Events extracted via `json.Unmarshal` in `ParseBatchEvents`. Trade-off accepted: primary goal was syscall/goroutine reduction |
+| AC-8 | ✅ Done | `TestDeliveryLoopSingleEvent` — drainBatch returns batch of 1 via `default:` select |
+| AC-9 | ✅ Done | `make ze-verify` passes — 55/55 plugin functional tests, all unit tests |
+| AC-10 | ✅ Done | `WriteBatchFrame` uses `batchBufPool` (sync.Pool), `TestBatchFramePooledBuffer` verifies reuse |
+
+### TDD Tests
+| Test | Status | File |
+|------|--------|------|
+| `TestBatchRoundTrip` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchSingleEvent` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchParseEvents` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchParseEventsError` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchFramePooledBuffer` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchFrameLargePayload` | ✅ | `internal/ipc/batch_test.go` |
+| `TestBatchFrameIDIncrement` | ✅ | `internal/ipc/batch_test.go` |
+| `TestRPCDeliverBatch` | ✅ | `internal/plugin/rpc_plugin_test.go` |
+| `TestRPCDeliverBatchSingle` | ✅ | `internal/plugin/rpc_plugin_test.go` |
+| `TestRPCDeliverBatchTimeout` | ✅ | `internal/plugin/rpc_plugin_test.go` |
+| `TestDeliveryLoopBatching` | ✅ | `internal/plugin/process_test.go` |
+| `TestDeliveryLoopSingleEvent` | ✅ | `internal/plugin/process_test.go` |
+
+### Files from Spec
+| File | Status |
+|------|--------|
+| `internal/ipc/batch.go` | ✅ Created |
+| `internal/ipc/batch_test.go` | ✅ Created |
+| `internal/ipc/framing.go` | ✅ Modified (WriteRaw, RawWriter) |
+| `pkg/plugin/rpc/conn.go` | ✅ Modified (CallBatchRPC) |
+| `internal/plugin/rpc_plugin.go` | ✅ Modified (SendDeliverBatch) |
+| `internal/plugin/process.go` | ✅ Modified (drain-and-batch deliveryLoop) |
+| `pkg/plugin/sdk/sdk.go` | ✅ Modified (handleDeliverBatch) |
+| ~~`pkg/plugin/rpc/types.go`~~ | ❌ Skipped: batch frame built manually in WriteBatchFrame, no separate type needed |
+
 ## Mistake Log
 
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Binary uint32 offsets are safe in NUL-delimited framing | uint32 values can contain NUL (0x00) bytes, breaking the framing | Analysis during design phase | Changed to JSON-RPC batch format |
+| Only Go SDK needed `deliver-batch` support | Python `ze_api.py` also needed updating | Functional test #3 (check) failed — plugin received batch but discarded events | Added `deliver-batch` handler and `_pending_events` queue to ze_api.py |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Binary batch frame with uint32 headers | NUL bytes in uint32 break framing delimiter | JSON-RPC `deliver-batch` with manually-built frame |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+| Forgot to update Python SDK for new RPC method | First time | Consider rule: "new RPC → check all SDK implementations (Go, Python)" | Log for now |
 
 ## Design Insights
 
@@ -233,41 +308,54 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - Delivery channel capacity (64) naturally bounds max batch size
 - Flush trigger: drain channel non-blocking; when empty or buffer full, flush
 - Single-event batches are common (low-rate events) — must be efficient
+- NUL-delimited framing is incompatible with binary headers that may contain NUL bytes
+- Python SDK `read_line()` returns one event at a time — batch events need a pending queue
+
+## Critical Review
+
+| Check | Pass? | Evidence |
+|-------|-------|----------|
+| Correctness | ✅ | 12 unit tests + 55/55 functional tests pass |
+| Simplicity | ✅ | Drain-and-batch is minimal: 3 new methods in process.go, JSON-RPC reuses existing framing |
+| Consistency | ✅ | Follows existing patterns: pooled buffers, CallRPC serialization via callMu, sync.Pool |
+| Completeness | ✅ | No TODOs, FIXMEs. All SDK implementations updated (Go + Python) |
+| Quality | ✅ | 0 lint issues. No debug statements. Error messages include context |
+| Tests | ✅ | 12 new tests covering round-trip, single event, batch, timeout, large payload, pool reuse |
 
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 all demonstrated
-- [ ] `make ze-unit-test` passes
-- [ ] `make ze-functional-test` passes
-- [ ] Feature code integrated (`internal/*`, `pkg/*`)
-- [ ] Integration completeness proven end-to-end
-- [ ] Architecture docs updated
-- [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
+- [x] AC-1..AC-10 all demonstrated
+- [x] `make ze-unit-test` passes
+- [x] `make ze-functional-test` passes
+- [x] Feature code integrated (`internal/*`, `pkg/*`)
+- [x] Integration completeness proven end-to-end
+- [x] Architecture docs updated
+- [x] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
-- [ ] `make ze-lint` passes
-- [ ] Implementation Audit complete
-- [ ] Mistake Log escalation reviewed
+- [x] `make ze-lint` passes
+- [x] Implementation Audit complete
+- [x] Mistake Log escalation reviewed
 
 ### Design
-- [ ] No premature abstraction (3+ use cases?)
-- [ ] No speculative features (needed NOW?)
-- [ ] Single responsibility per component
-- [ ] Explicit > implicit behavior
-- [ ] Minimal coupling
+- [x] No premature abstraction (3+ use cases?)
+- [x] No speculative features (needed NOW?)
+- [x] Single responsibility per component
+- [x] Explicit > implicit behavior
+- [x] Minimal coupling
 
 ### TDD
-- [ ] Tests written
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional tests for end-to-end behavior
+- [x] Tests written
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+- [x] Boundary tests for all numeric inputs
+- [x] Functional tests for end-to-end behavior
 
 ### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec
-- [ ] Partial/Skipped items have user approval
-- [ ] Implementation Summary filled
-- [ ] Implementation Audit filled
+- [x] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec
+- [x] Partial/Skipped items have user approval
+- [x] Implementation Summary filled
+- [x] Implementation Audit filled
 - [ ] Spec moved to `docs/plan/done/NNN-batched-ipc-delivery.md`
 - [ ] **Spec included in commit**

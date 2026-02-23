@@ -74,6 +74,14 @@ func (c *Conn) WriteFrame(v any) error {
 	return c.writer.Write(data)
 }
 
+// WriteRawFrame writes pre-framed data (including NUL terminator) directly.
+// Used by batch delivery to bypass json.Marshal and per-frame allocation.
+func (c *Conn) WriteRawFrame(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.writer.WriteRaw(data)
+}
+
 // ReadRequest reads the next incoming RPC request from the read connection.
 func (c *Conn) ReadRequest(ctx context.Context) (*ipc.Request, error) {
 	type result struct {
@@ -198,6 +206,70 @@ func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.Raw
 
 		return json.RawMessage(r.data), nil
 	}
+}
+
+// CallBatchRPC writes a deliver-batch frame using a pooled buffer and reads the response.
+// Bypasses json.Marshal and FrameWriter.Write allocation. Serialized via callMu.
+func (c *Conn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
+	c.callMu.Lock()
+	defer c.callMu.Unlock()
+
+	id := c.idSeq.Add(1)
+
+	// Write batch frame using pooled buffer (bypasses json.Marshal + FrameWriter.Write).
+	ch := make(chan error, 1)
+	go func() {
+		ch <- c.writeBatchFrame(id, events)
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case err := <-ch:
+		if err != nil {
+			return nil, fmt.Errorf("send batch: %w", err)
+		}
+	}
+
+	// Read response frame (blocking).
+	type readResult struct {
+		data []byte
+		err  error
+	}
+	readCh := make(chan readResult, 1)
+	go func() {
+		data, err := c.reader.Read()
+		readCh <- readResult{data, err}
+	}()
+
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case r := <-readCh:
+		if r.err != nil {
+			return nil, fmt.Errorf("read response: %w", r.err)
+		}
+
+		// Verify response ID matches.
+		var probe struct {
+			ID uint64 `json:"id"`
+		}
+		if err := json.Unmarshal(r.data, &probe); err != nil {
+			return nil, fmt.Errorf("unmarshal response id: %w", err)
+		}
+		if probe.ID != id {
+			return nil, fmt.Errorf("response id mismatch: sent %d, got %d", id, probe.ID)
+		}
+
+		return json.RawMessage(r.data), nil
+	}
+}
+
+// writeBatchFrame writes a batch frame directly using the pooled buffer.
+func (c *Conn) writeBatchFrame(id uint64, events [][]byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return ipc.WriteBatchFrame(c.writer.RawWriter(), id, events)
 }
 
 // WriteWithContext sends a frame with context cancellation support.

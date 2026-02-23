@@ -909,3 +909,90 @@ func TestCapabilityCodeBoundary(t *testing.T) {
 	assert.Equal(t, uint8(0), decoded.Capabilities[0].Code)
 	assert.Equal(t, uint8(255), decoded.Capabilities[1].Code)
 }
+
+// TestRPCDeliverBatch verifies batched event delivery via callback RPC.
+//
+// VALIDATES: AC-2 — N events delivered in one batch write, one ack.
+// PREVENTS: Events lost or reordered during batch delivery.
+func TestRPCDeliverBatch(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	events := []string{
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2"}}}`,
+		`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.3"}}}`,
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendDeliverBatch(context.Background(), events)
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+	var input struct {
+		Events []json.RawMessage `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	require.Len(t, input.Events, 3)
+
+	for i, event := range events {
+		assert.JSONEq(t, event, string(input.Events[i]))
+	}
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCDeliverBatchSingle verifies batch delivery with one event.
+//
+// VALIDATES: AC-1 — single event delivered as batch of 1.
+// PREVENTS: Edge case where batch of 1 fails.
+func TestRPCDeliverBatchSingle(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	events := []string{`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendDeliverBatch(context.Background(), events)
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+	var input struct {
+		Events []json.RawMessage `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	require.Len(t, input.Events, 1)
+	assert.JSONEq(t, events[0], string(input.Events[0]))
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCDeliverBatchTimeout verifies batch delivery respects context deadline.
+//
+// VALIDATES: AC-5 — batch write respects context deadline.
+// PREVENTS: Engine hanging on slow plugin during batch delivery.
+func TestRPCDeliverBatchTimeout(t *testing.T) {
+	t.Parallel()
+
+	engineConn, _ := newTestPluginConn(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Plugin never reads — should timeout
+	err := engineConn.SendDeliverBatch(ctx, []string{`{"type":"bgp"}`})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}

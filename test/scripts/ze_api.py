@@ -97,6 +97,9 @@ class API:
         # Plugin name from registry sharing
         self._plugin_name = ''
 
+        # Pending events from deliver-batch (returned one per read_line call)
+        self._pending_events: list[str] = []
+
         # Install SIGPIPE handler
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
@@ -499,6 +502,10 @@ class API:
         if self._shutdown:
             return None
 
+        # Return buffered events from a previous deliver-batch first.
+        if self._pending_events:
+            return self._pending_events.pop(0)
+
         req = self._read_frame(self._callback_fd, '_callback_buf', timeout=timeout)
         if req is None:
             return None
@@ -511,6 +518,19 @@ class API:
             self._respond_ok(req_id)
             if params:
                 return params.get('event', '')
+            return ''
+
+        if method == 'ze-plugin-callback:deliver-batch':
+            self._respond_ok(req_id)
+            if params:
+                events = params.get('events', [])
+                # Convert each event object to a JSON string for the plugin.
+                for event in events:
+                    self._pending_events.append(
+                        json.dumps(event, separators=(',', ':')) if isinstance(event, dict) else str(event)
+                    )
+            if self._pending_events:
+                return self._pending_events.pop(0)
             return ''
 
         if method == 'ze-plugin-callback:bye':

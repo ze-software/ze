@@ -92,6 +92,21 @@ func (pc *PluginConn) SendDeliverEvent(ctx context.Context, eventJSON string) er
 	return rpc.CheckResponse(raw)
 }
 
+// SendDeliverBatch sends multiple BGP events to the plugin in a single batch.
+// Uses a pooled buffer to construct the JSON-RPC frame directly, bypassing
+// json.Marshal and FrameWriter.Write allocations. One write + one ack per batch.
+func (pc *PluginConn) SendDeliverBatch(ctx context.Context, events []string) error {
+	rawEvents := make([][]byte, len(events))
+	for i, e := range events {
+		rawEvents[i] = []byte(e)
+	}
+	raw, err := pc.CallBatchRPC(ctx, rawEvents)
+	if err != nil {
+		return err
+	}
+	return rpc.CheckResponse(raw)
+}
+
 // SendEncodeNLRI requests NLRI encoding from the plugin. Returns hex result.
 func (pc *PluginConn) SendEncodeNLRI(ctx context.Context, family string, args []string) (string, error) {
 	input := &rpc.EncodeNLRIInput{Family: family, Args: args}

@@ -375,31 +375,60 @@ func deliveryTimeoutFromEnv() time.Duration {
 }
 
 // deliveryLoop is the long-lived goroutine that processes event deliveries.
-// It reads from eventChan and calls SendDeliverEvent on ConnB.
+// Drains all available events from eventChan into a batch and delivers them
+// in a single RPC call, reducing syscalls and goroutine churn.
 // Exits when eventChan is closed (by stopEventChan during Stop).
 func (p *Process) deliveryLoop() {
 	timeout := deliveryTimeoutFromEnv()
 
-	for req := range p.eventChan {
-		connB := p.ConnB()
+	for first := range p.eventChan {
+		batch := p.drainBatch(first)
+		p.deliverBatch(batch, timeout)
+	}
+}
 
-		var result EventResult
-		result.ProcName = p.config.Name
-
-		if connB == nil {
-			result.Err = errors.New("connection closed")
-		} else {
-			ctx, cancel := context.WithTimeout(p.ctx, timeout)
-			result.Err = connB.SendDeliverEvent(ctx, req.Output)
-			cancel()
+// drainBatch collects the first event plus any additional events available
+// without blocking. Returns when the channel is empty or closed.
+func (p *Process) drainBatch(first EventDelivery) []EventDelivery {
+	batch := []EventDelivery{first}
+	for {
+		select {
+		case req, ok := <-p.eventChan:
+			if !ok {
+				return batch
+			}
+			batch = append(batch, req)
+		default: // non-blocking drain complete
+			return batch
 		}
+	}
+}
 
-		if result.Err == nil && p.IsCacheConsumer() {
-			result.CacheConsumer = true
+// deliverBatch sends a batch of events via SendDeliverBatch and notifies callers.
+func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
+	connB := p.ConnB()
+
+	var batchErr error
+	if connB == nil {
+		batchErr = errors.New("connection closed")
+	} else {
+		events := make([]string, len(batch))
+		for i, req := range batch {
+			events[i] = req.Output
 		}
+		ctx, cancel := context.WithTimeout(p.ctx, timeout)
+		batchErr = connB.SendDeliverBatch(ctx, events)
+		cancel()
+	}
 
+	isCacheConsumer := p.IsCacheConsumer()
+	for _, req := range batch {
 		if req.Result != nil {
-			req.Result <- result
+			req.Result <- EventResult{
+				ProcName:      p.config.Name,
+				Err:           batchErr,
+				CacheConsumer: batchErr == nil && isCacheConsumer,
+			}
 		}
 	}
 }

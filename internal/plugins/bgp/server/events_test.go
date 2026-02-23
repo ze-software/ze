@@ -15,7 +15,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // newTestProcWithConn creates a Process with a working ConnB and delivery goroutine for testing.
@@ -41,7 +40,7 @@ func newTestProcWithConn(t *testing.T, name string) (*plugin.Process, *plugin.Pl
 	return proc, pluginConn
 }
 
-// mockPluginResponder reads deliver-event RPCs and responds after a delay.
+// mockPluginResponder reads RPCs and responds OK after a delay.
 // Exits when context is canceled or connection closes.
 func mockPluginResponder(ctx context.Context, pluginConn *plugin.PluginConn, delay time.Duration) {
 	for {
@@ -209,11 +208,16 @@ func TestPreFormatOptimization(t *testing.T) {
 			if err != nil {
 				return
 			}
-			var input rpc.DeliverEventInput
+			// Delivery pipeline sends deliver-batch with events array.
+			var input struct {
+				Events []json.RawMessage `json:"events"`
+			}
 			if err := json.Unmarshal(req.Params, &input); err != nil {
 				return
 			}
-			ch <- received{event: input.Event}
+			if len(input.Events) > 0 {
+				ch <- received{event: string(input.Events[0])}
+			}
 			if err := conn.SendResult(context.Background(), req.ID, nil); err != nil {
 				return // Connection closed during shutdown
 			}

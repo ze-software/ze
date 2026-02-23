@@ -556,6 +556,12 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *ipc.Request) error {
 		}
 		return p.callbackConn.SendOK(ctx, req.ID)
 
+	case "ze-plugin-callback:deliver-batch":
+		if handleErr := p.handleDeliverBatch(req.Params); handleErr != nil {
+			return p.callbackConn.SendError(ctx, req.ID, handleErr.Error())
+		}
+		return p.callbackConn.SendOK(ctx, req.ID)
+
 	case "ze-plugin-callback:encode-nlri":
 		return p.handleNLRICallback(ctx, req, p.encodeNLRIHandler())
 
@@ -670,6 +676,31 @@ func (p *Plugin) handleDeliverEvent(params json.RawMessage) error {
 
 	if fn != nil {
 		return fn(input.Event)
+	}
+
+	return nil
+}
+
+// handleDeliverBatch processes a batched event delivery by dispatching each
+// event to the onEvent handler. Short-circuits on the first handler error.
+func (p *Plugin) handleDeliverBatch(params json.RawMessage) error {
+	events, err := ipc.ParseBatchEvents(params)
+	if err != nil {
+		return err
+	}
+
+	p.mu.Lock()
+	fn := p.onEvent
+	p.mu.Unlock()
+
+	if fn == nil {
+		return nil
+	}
+
+	for _, raw := range events {
+		if err := fn(string(raw)); err != nil {
+			return err
+		}
 	}
 
 	return nil
