@@ -123,6 +123,17 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	evBuf = min(max(evBuf, 65536), 5_000_000)
 	events := make(chan peer.Event, evBuf)
 
+	// Record sync start time just before launching peer goroutines.
+	syncStart := time.Now()
+	if !cfg.quiet {
+		fmt.Fprintf(os.Stderr, "sync-start: %s\n", syncStart.Format("15:04:05.000"))
+	}
+
+	// Track initial EOR per peer to measure initial route synchronization.
+	eorSeen := make([]bool, n)
+	eorCount := 0
+	var syncDuration time.Duration
+
 	// Launch per-peer goroutines.
 	var wg sync.WaitGroup
 	for i := range profiles {
@@ -233,6 +244,21 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			// Other events don't affect guard or established state.
 		}
 
+		// Track initial EOR to measure sync time. Only the first EOR per peer
+		// counts — chaos reconnects can produce additional EORs.
+		if ev.Type == peer.EventEORSent && ev.PeerIndex < len(eorSeen) && !eorSeen[ev.PeerIndex] {
+			eorSeen[ev.PeerIndex] = true
+			eorCount++
+			if eorCount == n {
+				syncDuration = time.Since(syncStart)
+				if !cfg.quiet {
+					fmt.Fprintf(os.Stderr, "sync-done:  %s (duration: %s)\n",
+						time.Now().Format("15:04:05.000"),
+						syncDuration.Truncate(time.Millisecond))
+				}
+			}
+		}
+
 		ep.Process(ev)
 		if propEngine != nil {
 			propEngine.ProcessEvent(ev)
@@ -329,6 +355,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 	summary := report.Summary{
 		Seed:          cfg.seed,
 		Duration:      time.Since(cfg.start).Truncate(time.Millisecond),
+		SyncDuration:  syncDuration.Truncate(time.Millisecond),
 		PeerCount:     n,
 		IBGPCount:     ibgpCount,
 		EBGPCount:     ebgpCount,

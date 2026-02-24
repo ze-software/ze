@@ -34,11 +34,12 @@ type PropertyLine struct {
 
 // Summary holds all metrics for the final exit report.
 type Summary struct {
-	Seed      uint64
-	Duration  time.Duration
-	PeerCount int
-	IBGPCount int
-	EBGPCount int
+	Seed         uint64
+	Duration     time.Duration
+	SyncDuration time.Duration
+	PeerCount    int
+	IBGPCount    int
+	EBGPCount    int
 
 	// Route counts.
 	Announced int
@@ -115,6 +116,9 @@ func (s *Summary) Write(w io.Writer) int {
 		rw.printf("  run:   %s, %d peers (%d iBGP, %d eBGP)\n", s.Duration, s.PeerCount, s.IBGPCount, s.EBGPCount)
 	} else {
 		rw.printf("  run:   %s, %d peers\n", s.Duration, s.PeerCount)
+	}
+	if s.SyncDuration > 0 {
+		rw.printf("  sync:  %s (initial route synchronization)\n", s.SyncDuration)
 	}
 	rw.printf("  routes: %d announced, %d received, %d missing, %d extra",
 		s.Announced, s.Received, s.Missing, s.Extra)

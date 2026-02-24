@@ -370,6 +370,15 @@ type DashboardState struct {
 	// Property badges for display.
 	Properties []PropertyBadge
 
+	// Initial route synchronization tracking.
+	// EORSeen tracks which peers have sent their first EOR.
+	EORSeen []bool
+	// EORCount is the number of peers that have sent their initial EOR.
+	EORCount int
+	// SyncDuration is the time from start to all peers sending EOR.
+	// Zero means sync is still in progress.
+	SyncDuration time.Duration
+
 	// Warmup duration for chaos timeline rendering.
 	WarmupDuration time.Duration
 
@@ -397,6 +406,7 @@ func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState 
 		Active:          NewActiveSet(maxVisible),
 		StartTime:       time.Now(),
 		PeerCount:       peerCount,
+		EORSeen:         make([]bool, peerCount),
 		GlobalEvents:    NewRingBuffer[peer.Event](eventBufSize),
 		Convergence:     NewConvergenceHistogram(),
 		PeerTransitions: make(map[int][]PeerStateTransition, peerCount),

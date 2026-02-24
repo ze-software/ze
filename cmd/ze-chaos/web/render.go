@@ -77,7 +77,8 @@ func writeLayout(w io.Writer, d *Dashboard) {
       <span class="stat" title="Total withdrawal messages sent to peers"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
       <span class="stat" title="Total route dynamics actions (churn, partial-withdraw, full-withdraw)"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(s.TotalRouteActions) + `</span></span>
       <span class="stat" title="Total chaos actions executed (disconnects, route drops, etc.)"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(s.TotalChaos) + `</span></span>
-      <span class="stat" title="Total peer reconnections after chaos events"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>
+      <span class="stat" title="Total peer reconnections after chaos events"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(s.TotalReconnects) + `</span></span>` +
+		syncStat(s.EORCount, s.PeerCount, s.SyncDuration) + `
     </div>
   </div>
 

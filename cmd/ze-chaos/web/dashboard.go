@@ -377,6 +377,14 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 				d.state.AllFamilies[f] = true
 			}
 		}
+		// Track initial EOR per peer for sync duration measurement.
+		if ev.PeerIndex < len(d.state.EORSeen) && !d.state.EORSeen[ev.PeerIndex] {
+			d.state.EORSeen[ev.PeerIndex] = true
+			d.state.EORCount++
+			if d.state.EORCount == d.state.PeerCount {
+				d.state.SyncDuration = time.Since(d.state.StartTime).Truncate(time.Millisecond)
+			}
+		}
 	case peer.EventError:
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
@@ -540,6 +548,7 @@ func (d *Dashboard) renderStats() string {
 		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
 		droppedStat(d.state.TotalDropped) +
+		syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration) +
 		`</div>`
 }
 
@@ -623,4 +632,16 @@ func droppedStat(n int) string {
 		return ""
 	}
 	return `<span class="stat stat-warn"><span class="stat-label">Dropped </span><span class="stat-value">` + itoa(n) + `</span></span>`
+}
+
+// syncStat returns a stat showing initial route synchronization progress or duration.
+// Shows "syncing N/total" while in progress, or the completed sync duration.
+func syncStat(eorCount, peerCount int, syncDuration time.Duration) string {
+	if syncDuration > 0 {
+		return `<span class="stat" title="Time for all peers to complete initial route announcement (EOR)"><span class="stat-label">Sync </span><span class="stat-value">` + FormatDuration(syncDuration) + `</span></span>`
+	}
+	if eorCount > 0 {
+		return `<span class="stat" title="Peers that completed initial route announcement (EOR)"><span class="stat-label">Sync </span><span class="stat-value">` + itoa(eorCount) + `/` + itoa(peerCount) + `</span></span>`
+	}
+	return ""
 }
