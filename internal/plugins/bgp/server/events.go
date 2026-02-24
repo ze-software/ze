@@ -39,9 +39,11 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 		return 0
 	}
 
-	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction)
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peer.Address.String())
-	logger().Debug("OnMessageReceived matched", "count", len(procs))
+	if len(procs) == 0 {
+		return 0
+	}
+	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction, "count", len(procs))
 
 	// Pre-format: encode once per distinct format mode.
 	formatOutputs := make(map[string]string, 2)
@@ -161,10 +163,11 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 		return // Server shutting down, skip event delivery
 	}
 
-	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state)
-
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventState, "", peer.Address.String())
-	logger().Debug("OnPeerStateChange matched", "count", len(procs))
+	if len(procs) == 0 {
+		return
+	}
+	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state, "count", len(procs))
 
 	// Format once — state change output is identical for all plugins.
 	output := format.FormatStateChange(peer, state, plugin.EncodingJSON)
@@ -207,14 +210,15 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	}
 
 	eventType := messageTypeToEventType(msg.Type)
-	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
-
 	if eventType == "" {
 		return
 	}
 
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, plugin.DirectionSent, peer.Address.String())
-	logger().Debug("OnMessageSent matched", "count", len(procs))
+	if len(procs) == 0 {
+		return
+	}
+	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType, "count", len(procs))
 
 	// Pre-format: encode once per distinct format mode.
 	formatOutputs := make(map[string]string, 2)

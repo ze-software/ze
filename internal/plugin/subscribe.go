@@ -139,8 +139,6 @@ func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peer
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
-	subscribeLogger().Debug("GetMatching", "namespace", namespace, "event", eventType, "dir", direction, "peer", peer, "totalProcs", len(sm.subscriptions))
-
 	var result []*Process
 	for proc, subs := range sm.subscriptions {
 		for _, sub := range subs {
@@ -149,6 +147,9 @@ func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peer
 				break // Only add proc once, even if multiple subs match
 			}
 		}
+	}
+	if len(result) > 0 {
+		subscribeLogger().Debug("GetMatching", "namespace", namespace, "event", eventType, "dir", direction, "peer", peer, "matched", len(result))
 	}
 	return result
 }
