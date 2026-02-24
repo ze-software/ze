@@ -39,8 +39,12 @@ func main() {
 	var chaosRate float64 = -1 // -1 means "not set by CLI"
 	var pprofAddr string
 	args := os.Args[1:]
-	for len(args) > 0 && strings.HasPrefix(args[0], "--") {
+	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d") {
 		switch args[0] {
+		case "-d", "--debug":
+			_ = os.Setenv("ze.log", "debug")
+			_ = os.Setenv("ze.log.relay", "debug")
+			args = args[1:]
 		case "--plugin":
 			if len(args) < 2 {
 				fmt.Fprintf(os.Stderr, "error: --plugin requires an argument\n")
@@ -219,6 +223,7 @@ Usage:
   ze <command> [options]             Execute command
 
 Options:
+  -d, --debug           Enable debug logging (sets ze.log=debug for all subsystems)
   --plugin <name>       Load plugin before starting (repeatable)
   --plugins             List available internal plugins
   --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)

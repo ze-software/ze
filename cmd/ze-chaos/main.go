@@ -81,9 +81,12 @@ func run(args []string) int {
 	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
 	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8080)")
 	pprofAddr := fs.String("pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
-	debugAddr := fs.String("debug", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
+	debugAddr := fs.String("ze-pprof", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
 	verbose := fs.Bool("verbose", false, "Extra debug output")
+	var debugLog bool
+	fs.BoolVar(&debugLog, "d", false, "Enable debug logging (sets ze.log=debug, implies --verbose)")
+	fs.BoolVar(&debugLog, "debug", false, "Enable debug logging (sets ze.log=debug, implies --verbose)")
 
 	// Replay/diff/shrink flags
 	replayFile := fs.String("replay", "", "Replay an event log through validation model")
@@ -143,7 +146,8 @@ Output:
   --metrics <addr:port>      Prometheus metrics endpoint
   --web <addr:port>          Live web dashboard (e.g. :8080)
   --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
-  --debug <addr:port>        pprof HTTP server for ze (injected into config, e.g. :6061)
+  --ze-pprof <addr:port>     pprof HTTP server for ze (injected into config, e.g. :6061)
+  -d, --debug                Enable debug logging (sets ze.log=debug, implies --verbose)
   --quiet                    Only errors and summary
   --verbose                  Extra debug output
 
@@ -168,6 +172,13 @@ Control:
 
 	if err := fs.Parse(args); err != nil {
 		return 1
+	}
+
+	// Apply debug logging early, before any loggers are created.
+	if debugLog {
+		_ = os.Setenv("ze.log", "debug")
+		_ = os.Setenv("ze.log.relay", "debug")
+		*verbose = true
 	}
 
 	// List properties mode: show available properties and exit.
