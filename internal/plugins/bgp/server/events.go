@@ -60,8 +60,6 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 
 	for _, proc := range procs {
 		output := formatOutputs[proc.Format()]
-		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
-
 		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
@@ -80,6 +78,68 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	}
 
 	return cacheCount
+}
+
+// onMessageBatchReceived handles a batch of BGP messages from the same peer.
+// Subscription lookup and format-mode map are computed once for the batch.
+// Each message gets its own delivery and result collection, preserving per-message
+// cacheCount semantics for cache lifecycle tracking.
+// Returns a slice of cache-consumer counts, one per message.
+func onMessageBatchReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+	counts := make([]int, len(msgs))
+	if len(msgs) == 0 || s.Context().Err() != nil {
+		return counts
+	}
+
+	// All messages share the same peer → same event type for subscription lookup.
+	// Use the first message to determine event type (all are from same peer delivery goroutine).
+	eventType := messageTypeToEventType(msgs[0].Type)
+	if eventType == "" {
+		return counts
+	}
+
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msgs[0].Direction, peer.Address.String())
+	if len(procs) == 0 {
+		return counts
+	}
+	logger().Debug("OnMessageBatchReceived", "peer", peer.Address.String(), "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
+
+	// Build format-mode map once for the batch.
+	formatModes := make(map[string]struct{}, 2)
+	for _, proc := range procs {
+		formatModes[proc.Format()] = struct{}{}
+	}
+
+	// Deliver each message: pre-format per mode, fan out to procs, collect results.
+	for i, msg := range msgs {
+		formatOutputs := make(map[string]string, len(formatModes))
+		for fmtMode := range formatModes {
+			formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
+		}
+
+		results := make(chan plugin.EventResult, len(procs))
+		sent := 0
+		for _, proc := range procs {
+			output := formatOutputs[proc.Format()]
+			if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+				continue
+			}
+			sent++
+		}
+
+		var cacheCount int
+		for range sent {
+			r := <-results
+			if r.Err != nil && s.Context().Err() == nil {
+				logger().Error("OnMessageBatchReceived write failed", "proc", r.ProcName, "err", r.Err)
+			} else if r.CacheConsumer {
+				cacheCount++
+			}
+		}
+		counts[i] = cacheCount
+	}
+
+	return counts
 }
 
 // messageTypeToEventType converts BGP message type to event type string.
@@ -139,8 +199,6 @@ func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output, eventName
 	sent := 0
 
 	for _, proc := range procs {
-		logger().Debug(eventName+" writing", "proc", proc.Name())
-
 		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
@@ -243,8 +301,6 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 
 	for _, proc := range procs {
 		output := formatOutputs[proc.Format()]
-		logger().Debug("OnMessageSent writing", "proc", proc.Name())
-
 		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}

@@ -146,6 +146,11 @@ type MessageReceiver interface {
 	// Returns the count of cache-consumer plugins that successfully received the event.
 	OnMessageReceived(peer plugin.PeerInfo, msg any) int
 
+	// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
+	// msgs is []bgptypes.RawMessage (typed as []any to match plugin.Server signature).
+	// Returns per-message cache-consumer counts for Activate calls.
+	OnMessageBatchReceived(peer plugin.PeerInfo, msgs []any) []int
+
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
 	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
@@ -675,8 +680,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Received UPDATE with per-peer delivery channel: enqueue for async delivery.
-	// The delivery goroutine (started by Peer.runOnce) calls OnMessageReceived
-	// and Activate. This decouples the TCP read goroutine from plugin processing.
+	// The delivery goroutine (started by Peer.runOnce) drains a batch and calls
+	// OnMessageBatchReceived + Activate per message. This decouples the TCP read
+	// goroutine from plugin processing.
 	// Non-UPDATE messages (OPEN, KEEPALIVE, NOTIFICATION) stay synchronous
 	// because they are infrequent and FSM-critical.
 	if hasPeer && peer.deliverChan != nil && msgType == message.TypeUPDATE {

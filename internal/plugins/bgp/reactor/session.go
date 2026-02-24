@@ -894,10 +894,9 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	}
 
 	// Notify callback after successful send
-	sessionLogger().Debug("SendUpdate complete", "peer", s.settings.Address, "hasCallback", s.onMessageReceived != nil, "msgLen", n)
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		sessionLogger().Debug("SendUpdate calling onMessageReceived", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
+		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
 		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
 	}
 

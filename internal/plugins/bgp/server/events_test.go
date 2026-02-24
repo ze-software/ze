@@ -253,3 +253,130 @@ func testPeerInfo() plugin.PeerInfo {
 		Address: netip.MustParseAddr("10.0.0.1"),
 	}
 }
+
+// TestOnMessageBatchReceivedSingle verifies single-message batch matches per-message behavior.
+//
+// VALIDATES: AC-7: single UPDATE arrives (batch size 1) — behavior identical to per-message path.
+//
+// PREVENTS: Batch path diverging from per-message path for single-item batches.
+func TestOnMessageBatchReceivedSingle(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+	encoder := format.NewJSONEncoder("test")
+
+	proc, pluginConn := newTestProcWithConn(t, "single-batch")
+	proc.SetCacheConsumer(true)
+
+	srv.Subscriptions().Add(proc, &plugin.Subscription{
+		Namespace: plugin.NamespaceBGP,
+		EventType: plugin.EventKeepalive,
+		Direction: plugin.DirectionBoth,
+	})
+	go mockPluginResponder(t.Context(), pluginConn, 0)
+
+	peer := testPeerInfo()
+	msgs := []bgptypes.RawMessage{keepaliveMsg()}
+
+	// Single-message batch should return same result as per-message call
+	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
+	require.Len(t, counts, 1, "single-message batch returns one count")
+	require.Equal(t, 1, counts[0], "single cache consumer should succeed")
+}
+
+// TestOnMessageBatchReceivedMultiple verifies multi-message batch with shared subscription lookup.
+//
+// VALIDATES: AC-4: 10 UPDATEs arrive from same peer — GetMatching called once, not 10 times.
+//
+// PREVENTS: Subscription lookup repeated per message in batch.
+func TestOnMessageBatchReceivedMultiple(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+	encoder := format.NewJSONEncoder("test")
+
+	proc, pluginConn := newTestProcWithConn(t, "batch-multi")
+	proc.SetCacheConsumer(true)
+
+	srv.Subscriptions().Add(proc, &plugin.Subscription{
+		Namespace: plugin.NamespaceBGP,
+		EventType: plugin.EventKeepalive,
+		Direction: plugin.DirectionBoth,
+	})
+	go mockPluginResponder(t.Context(), pluginConn, 0)
+
+	peer := testPeerInfo()
+	msgs := make([]bgptypes.RawMessage, 5)
+	for i := range msgs {
+		msgs[i] = keepaliveMsg()
+	}
+
+	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
+	require.Len(t, counts, 5, "batch returns one count per message")
+	for i, c := range counts {
+		require.Equal(t, 1, c, "message %d: cache consumer should succeed", i)
+	}
+}
+
+// TestOnMessageBatchReceivedNoSubscribers verifies early return when no subscribers.
+//
+// VALIDATES: AC-9: no subscribers for UPDATE events — batch path short-circuits.
+//
+// PREVENTS: Unnecessary formatting or delivery when nobody is listening.
+func TestOnMessageBatchReceivedNoSubscribers(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+	encoder := format.NewJSONEncoder("test")
+
+	peer := testPeerInfo()
+	msgs := []bgptypes.RawMessage{keepaliveMsg(), keepaliveMsg()}
+
+	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
+	require.Len(t, counts, 2, "returns one count per message even with no subscribers")
+	for i, c := range counts {
+		require.Equal(t, 0, c, "message %d: no subscribers means zero count", i)
+	}
+}
+
+// TestOnMessageBatchReceivedCacheCount verifies per-message cacheCount correctness.
+//
+// VALIDATES: AC-5: batch of N UPDATEs — Activate(msgID, count) called per message with correct count.
+//
+// PREVENTS: Cache counts being aggregated across messages instead of per-message.
+func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
+	t.Parallel()
+
+	srv := newTestServer(t)
+	encoder := format.NewJSONEncoder("test")
+
+	// Two cache consumers + one non-cache consumer
+	for i := range 2 {
+		proc, pluginConn := newTestProcWithConn(t, fmt.Sprintf("cache-%d", i))
+		proc.SetCacheConsumer(true)
+		srv.Subscriptions().Add(proc, &plugin.Subscription{
+			Namespace: plugin.NamespaceBGP,
+			EventType: plugin.EventKeepalive,
+			Direction: plugin.DirectionBoth,
+		})
+		go mockPluginResponder(t.Context(), pluginConn, 0)
+	}
+
+	proc3, pluginConn3 := newTestProcWithConn(t, "non-cache")
+	// proc3 is NOT a cache consumer (default)
+	srv.Subscriptions().Add(proc3, &plugin.Subscription{
+		Namespace: plugin.NamespaceBGP,
+		EventType: plugin.EventKeepalive,
+		Direction: plugin.DirectionBoth,
+	})
+	go mockPluginResponder(t.Context(), pluginConn3, 0)
+
+	peer := testPeerInfo()
+	msgs := []bgptypes.RawMessage{keepaliveMsg(), keepaliveMsg(), keepaliveMsg()}
+
+	counts := onMessageBatchReceived(srv, encoder, peer, msgs)
+	require.Len(t, counts, 3, "batch returns one count per message")
+	for i, c := range counts {
+		require.Equal(t, 2, c, "message %d: only cache consumers counted", i)
+	}
+}

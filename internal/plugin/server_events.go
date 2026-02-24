@@ -53,6 +53,20 @@ func (s *Server) OnPeerNegotiated(peer PeerInfo, neg any) {
 	s.bgpHooks.OnPeerNegotiated(s, peer, neg)
 }
 
+// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
+// msgs is []bgptypes.RawMessage (typed as []any to avoid BGP imports).
+// Delegates to BGPHooks.OnMessageBatchReceived when set.
+// Returns per-message cache-consumer counts for Activate calls.
+func (s *Server) OnMessageBatchReceived(peer PeerInfo, msgs []any) []int {
+	if s.bgpHooks == nil || s.bgpHooks.OnMessageBatchReceived == nil {
+		return make([]int, len(msgs))
+	}
+	if s.procManager == nil || s.subscriptions == nil {
+		return make([]int, len(msgs))
+	}
+	return s.bgpHooks.OnMessageBatchReceived(s, peer, msgs)
+}
+
 // OnMessageSent handles BGP messages sent to peers.
 // msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 // Delegates to BGPHooks.OnMessageSent when set.

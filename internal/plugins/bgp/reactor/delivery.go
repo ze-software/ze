@@ -23,3 +23,20 @@ type deliveryItem struct {
 // With parallel fan-out, normal plugin RTT is <1ms, so 256-deep buffer
 // sustains ~256K UPDATEs/sec before backpressure engages.
 const deliveryChannelCapacity = 256
+
+// drainDeliveryBatch collects the first item plus any additional items available
+// without blocking. Same pattern as process.drainBatch but for per-peer delivery.
+func drainDeliveryBatch(first deliveryItem, ch <-chan deliveryItem) []deliveryItem {
+	batch := []deliveryItem{first}
+	for {
+		select {
+		case item, ok := <-ch:
+			if !ok {
+				return batch
+			}
+			batch = append(batch, item)
+		default: // non-blocking drain complete
+			return batch
+		}
+	}
+}

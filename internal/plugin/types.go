@@ -39,6 +39,11 @@ type BGPHooks struct {
 	// neg is format.DecodedNegotiated (typed as any to avoid BGP format imports).
 	OnPeerNegotiated func(s *Server, peer PeerInfo, neg any)
 
+	// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
+	// msgs is []bgptypes.RawMessage (typed as []any to avoid BGP imports).
+	// Returns per-message cache-consumer counts for Activate calls.
+	OnMessageBatchReceived func(s *Server, peer PeerInfo, msgs []any) []int
+
 	// OnMessageSent handles sent message delivery to subscribed plugins.
 	// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
 	OnMessageSent func(s *Server, peer PeerInfo, msg any)

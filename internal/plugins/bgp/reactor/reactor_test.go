@@ -1961,6 +1961,14 @@ func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) i
 	return 0 // Test receiver reports no consumers
 }
 
+func (r *testMessageReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []any) []int {
+	counts := make([]int, len(msgs))
+	for i, msg := range msgs {
+		counts[i] = r.OnMessageReceived(peer, msg)
+	}
+	return counts
+}
+
 func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {
 	if r.onSent != nil {
 		if typedMsg, ok := msg.(bgptypes.RawMessage); ok {
@@ -1985,6 +1993,14 @@ func (r *testDeliveryReceiver) OnMessageReceived(peer plugin.PeerInfo, msg any) 
 		}
 	}
 	return r.consumerCount
+}
+
+func (r *testDeliveryReceiver) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []any) []int {
+	counts := make([]int, len(msgs))
+	for i, msg := range msgs {
+		counts[i] = r.OnMessageReceived(peer, msg)
+	}
+	return counts
 }
 
 func (r *testDeliveryReceiver) OnMessageSent(peer plugin.PeerInfo, msg any) {
@@ -2023,15 +2039,29 @@ func startTestDelivery(t *testing.T, r *Reactor, peerAddr netip.Addr, capacity i
 
 	go func() {
 		defer close(done)
-		for item := range peer.deliverChan {
+		for first := range peer.deliverChan {
+			batch := drainDeliveryBatch(first, peer.deliverChan)
+
 			r.mu.RLock()
 			receiver := r.messageReceiver
 			r.mu.RUnlock()
 			if receiver == nil {
 				continue
 			}
-			count := receiver.OnMessageReceived(item.peerInfo, item.msg)
-			r.recentUpdates.Activate(item.msg.MessageID, count)
+
+			msgs := make([]any, len(batch))
+			for i := range batch {
+				msgs[i] = batch[i].msg
+			}
+
+			counts := receiver.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			for i := range batch {
+				count := 0
+				if i < len(counts) {
+					count = counts[i]
+				}
+				r.recentUpdates.Activate(batch[i].msg.MessageID, count)
+			}
 		}
 	}()
 
@@ -2377,6 +2407,123 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 
 	require.Equal(t, int32(itemCount), deliveryCount.Load(),
 		"all enqueued items should be delivered during drain")
+}
+
+// TestPeerDeliveryDrainBatch verifies the delivery goroutine drains multiple items into a batch.
+//
+// VALIDATES: AC-4: peer delivery goroutine drains multiple items from channel.
+//
+// PREVENTS: Batch drain reverting to per-message processing.
+func TestPeerDeliveryDrainBatch(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	// Track batch sizes via OnMessageBatchReceived call counts
+	var batchCallCount atomic.Int32
+	var totalMessages atomic.Int32
+	receiver := &testDeliveryReceiver{
+		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
+			totalMessages.Add(1)
+		},
+		consumerCount: 1,
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	// Pre-fill channel with multiple items BEFORE starting delivery goroutine,
+	// so the drain will collect them all in one batch.
+	reactor.mu.RLock()
+	peer, ok := reactor.findPeerByAddr(peerAddr)
+	reactor.mu.RUnlock()
+	require.True(t, ok)
+
+	peer.deliverChan = make(chan deliveryItem, deliveryChannelCapacity)
+
+	const itemCount = 5
+	payload := testUpdatePayload()
+	for range itemCount {
+		w := wireu.NewWireUpdate(payload, 0)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+	}
+
+	// Now start delivery — all 5 items are already buffered
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for first := range peer.deliverChan {
+			batch := drainDeliveryBatch(first, peer.deliverChan)
+			batchCallCount.Add(1)
+
+			reactor.mu.RLock()
+			recv := reactor.messageReceiver
+			reactor.mu.RUnlock()
+			if recv == nil {
+				continue
+			}
+
+			msgs := make([]any, len(batch))
+			for i := range batch {
+				msgs[i] = batch[i].msg
+			}
+			counts := recv.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			for i := range batch {
+				count := 0
+				if i < len(counts) {
+					count = counts[i]
+				}
+				reactor.recentUpdates.Activate(batch[i].msg.MessageID, count)
+			}
+		}
+	}()
+
+	// Close and wait
+	close(peer.deliverChan)
+	<-done
+
+	require.Equal(t, int32(itemCount), totalMessages.Load(), "all messages should be delivered")
+	// With all items pre-buffered, drain should collect them in 1 batch call
+	require.Equal(t, int32(1), batchCallCount.Load(), "pre-buffered items should be drained in one batch")
+}
+
+// TestPeerDeliveryActivatePerMessage verifies each message in batch gets its own Activate call.
+//
+// VALIDATES: AC-5: Activate(msgID, count) called per message with correct cacheCount.
+//
+// PREVENTS: Batch aggregating cache counts instead of per-message tracking.
+func TestPeerDeliveryActivatePerMessage(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{ListenAddr: "127.0.0.1:0"}
+	reactor := New(cfg)
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
+
+	receiver := &testDeliveryReceiver{consumerCount: 2}
+	reactor.SetMessageReceiver(receiver)
+
+	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
+
+	// Send 3 messages with distinct IDs
+	payload := testUpdatePayload()
+	for range 3 {
+		w := wireu.NewWireUpdate(payload, 0)
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", make([]byte, 4096))
+	}
+
+	// Wait for delivery
+	time.Sleep(100 * time.Millisecond)
+
+	// Each message should have been Activated with count=2 (consumer count).
+	// Activate(id, 2) with 0 early acks → pendingConsumers=2 > 0 → entries retained.
+	require.Equal(t, 3, reactor.recentUpdates.Len(),
+		"3 messages should each have a retained cache entry after Activate(id, 2)")
+
+	stop()
 }
 
 // --- Backpressure pause/resume tests ---

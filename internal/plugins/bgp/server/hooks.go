@@ -27,6 +27,18 @@ func NewBGPHooks() *plugin.BGPHooks {
 			}
 			return onMessageReceived(s, encoder, peer, typedMsg)
 		},
+		OnMessageBatchReceived: func(s *plugin.Server, peer plugin.PeerInfo, msgs []any) []int {
+			typedMsgs := make([]bgptypes.RawMessage, len(msgs))
+			for i, msg := range msgs {
+				typedMsg, ok := msg.(bgptypes.RawMessage)
+				if !ok {
+					logger().Warn("OnMessageBatchReceived: invalid msg type", "type", fmt.Sprintf("%T", msg))
+					continue // zero-value RawMessage preserves 1:1 index mapping
+				}
+				typedMsgs[i] = typedMsg
+			}
+			return onMessageBatchReceived(s, encoder, peer, typedMsgs)
+		},
 		OnPeerStateChange: func(s *plugin.Server, peer plugin.PeerInfo, state string) {
 			onPeerStateChange(s, peer, state)
 		},

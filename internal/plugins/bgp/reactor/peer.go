@@ -1,4 +1,10 @@
 // Design: docs/architecture/core-design.md — BGP reactor event loop
+// Related: delivery.go — deliveryItem struct and batch drain
+// Related: peer_connection.go — peer TCP connection management
+// Related: peer_send.go — peer outbound message sending
+// Related: peer_initial_sync.go — initial route synchronization
+// Related: peer_rib_routes.go — RIB route extraction
+// Related: peer_static_routes.go — static route injection
 
 package reactor
 
@@ -918,14 +924,17 @@ func (p *Peer) runOnce() error {
 	})
 
 	// Set up per-peer async delivery channel for received UPDATEs.
-	// The delivery goroutine dequeues items and calls receiver.OnMessageReceived +
-	// cache.Activate, decoupling the TCP read goroutine from plugin processing.
+	// The delivery goroutine drains batches and calls receiver.OnMessageBatchReceived,
+	// then Activate per message. This amortizes subscription lookup and format-mode
+	// computation across all messages in a batch.
 	p.deliverChan = make(chan deliveryItem, deliveryChannelCapacity)
 	deliveryDone := make(chan struct{})
 
 	go func() {
 		defer close(deliveryDone)
-		for item := range p.deliverChan {
+		for first := range p.deliverChan {
+			batch := drainDeliveryBatch(first, p.deliverChan)
+
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
@@ -938,8 +947,21 @@ func (p *Peer) runOnce() error {
 			if receiver == nil {
 				continue
 			}
-			count := receiver.OnMessageReceived(item.peerInfo, item.msg)
-			reactor.recentUpdates.Activate(item.msg.MessageID, count)
+
+			// Convert batch to []any for the interface method.
+			msgs := make([]any, len(batch))
+			for i := range batch {
+				msgs[i] = batch[i].msg
+			}
+
+			counts := receiver.OnMessageBatchReceived(batch[0].peerInfo, msgs)
+			for i := range batch {
+				count := 0
+				if i < len(counts) {
+					count = counts[i]
+				}
+				reactor.recentUpdates.Activate(batch[i].msg.MessageID, count)
+			}
 		}
 	}()
 

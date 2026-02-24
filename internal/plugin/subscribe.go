@@ -6,13 +6,7 @@ import (
 	"fmt"
 	"net/netip"
 	"sync"
-
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
-
-// subscribeLogger is the subscription subsystem logger (lazy initialization).
-// Controlled by ze.log.subscribe environment variable.
-var subscribeLogger = slogutil.LazyLogger("subscribe")
 
 // Subscription represents an event subscription.
 type Subscription struct {
@@ -147,9 +141,6 @@ func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peer
 				break // Only add proc once, even if multiple subs match
 			}
 		}
-	}
-	if len(result) > 0 {
-		subscribeLogger().Debug("GetMatching", "namespace", namespace, "event", eventType, "dir", direction, "peer", peer, "matched", len(result))
 	}
 	return result
 }
