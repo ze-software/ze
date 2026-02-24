@@ -1077,6 +1077,79 @@ func TestSDKUpdateRoute(t *testing.T) {
 	}
 }
 
+// TestSDKDispatchCommand verifies the plugin can call dispatch-command on the engine
+// and receive the full {status, data} response.
+//
+// VALIDATES: SDK DispatchCommand sends RPC to engine and parses response.
+// PREVENTS: Plugin unable to dispatch commands to other plugins at runtime.
+func TestSDKDispatchCommand(t *testing.T) {
+	t.Parallel()
+
+	p, engine := newTestPair(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	completeStartup(t, ctx, engine)
+
+	// Synchronize: confirm event loop is running.
+	syncEvent := struct {
+		Event string `json:"event"`
+	}{Event: "{}"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+
+	// Plugin calls DispatchCommand in background
+	dispatchDone := make(chan error, 1)
+	go func() {
+		status, data, err := p.DispatchCommand(ctx, "bgp rib list")
+		if err != nil {
+			dispatchDone <- err
+			return
+		}
+		if status != "done" {
+			dispatchDone <- fmt.Errorf("unexpected status: %s", status)
+			return
+		}
+		if data != `{"last-index":42}` {
+			dispatchDone <- fmt.Errorf("unexpected data: %s", data)
+			return
+		}
+		dispatchDone <- nil
+	}()
+
+	// Engine reads dispatch-command request on Socket A
+	req, err := engine.server.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "ze-plugin-engine:dispatch-command", req.Method)
+
+	// Respond with result
+	dispatchResult := rpc.DispatchCommandOutput{
+		Status: "done",
+		Data:   `{"last-index":42}`,
+	}
+	require.NoError(t, engine.server.SendResult(ctx, req.ID, dispatchResult))
+
+	require.NoError(t, <-dispatchDone)
+
+	// Shutdown
+	byeInput := struct {
+		Reason string `json:"reason"`
+	}{Reason: "done"}
+	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+
+	select {
+	case err := <-errCh:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit")
+	}
+}
+
 // TestNewFromFDs verifies plugin creation from file descriptors.
 //
 // VALIDATES: NewFromFDs creates a working plugin from socketpair FDs.

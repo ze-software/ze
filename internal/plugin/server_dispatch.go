@@ -58,6 +58,9 @@ func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Re
 	case "ze-plugin-engine:update-route":
 		s.handleUpdateRouteRPC(proc, connA, req)
 		return
+	case "ze-plugin-engine:dispatch-command":
+		s.handleDispatchCommandRPC(proc, connA, req)
+		return
 	case "ze-plugin-engine:subscribe-events":
 		s.handleSubscribeEventsRPC(proc, connA, req)
 		return
@@ -150,6 +153,68 @@ func (s *Server) handleUpdateRouteRPC(proc *Process, connA *PluginConn, req *ipc
 	if sendErr := connA.SendResult(s.ctx, req.ID, output); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
+}
+
+// handleDispatchCommandRPC handles ze-plugin-engine:dispatch-command from a plugin.
+// Dispatches the command string through the standard command dispatcher and returns
+// the full {status, data} response, enabling inter-plugin communication.
+func (s *Server) handleDispatchCommandRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
+	var input rpc.DispatchCommandInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		if sendErr := connA.SendError(s.ctx, req.ID, "invalid dispatch-command params: "+err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	cmdCtx := &CommandContext{
+		Server:  s,
+		Process: proc,
+	}
+
+	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			if sendErr := connA.SendResult(s.ctx, req.ID, &rpc.DispatchCommandOutput{Status: StatusDone}); sendErr != nil {
+				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+			}
+			return
+		}
+		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+
+	output := responseToDispatchOutput(resp)
+	if sendErr := connA.SendResult(s.ctx, req.ID, output); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// responseToDispatchOutput converts a dispatcher Response to DispatchCommandOutput.
+// The Data field is JSON-encoded if it's a structured type, or used as-is for strings.
+func responseToDispatchOutput(resp *Response) *rpc.DispatchCommandOutput {
+	output := &rpc.DispatchCommandOutput{}
+	if resp == nil {
+		output.Status = StatusDone
+		return output
+	}
+	output.Status = resp.Status
+	if resp.Data != nil {
+		if s, ok := resp.Data.(string); ok {
+			output.Data = s
+		} else {
+			encoded, err := json.Marshal(resp.Data)
+			if err != nil {
+				output.Status = StatusError
+				output.Data = "marshal response data: " + err.Error()
+			} else {
+				output.Data = string(encoded)
+			}
+		}
+	}
+	return output
 }
 
 // parseEventString splits an event string like "update direction sent" into
@@ -251,6 +316,8 @@ func (s *Server) dispatchPluginRPCDirect(proc *Process, method string, params js
 	switch method {
 	case "ze-plugin-engine:update-route":
 		return s.handleUpdateRouteDirect(proc, params), nil
+	case "ze-plugin-engine:dispatch-command":
+		return s.handleDispatchCommandDirect(proc, params), nil
 	case "ze-plugin-engine:subscribe-events":
 		return s.handleSubscribeEventsDirect(proc, params), nil
 	case "ze-plugin-engine:unsubscribe-events":
@@ -318,6 +385,30 @@ func (s *Server) handleUpdateRouteDirect(proc *Process, params json.RawMessage) 
 	}
 
 	return directResultResponse(output)
+}
+
+// handleDispatchCommandDirect handles dispatch-command without socket I/O.
+// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
+func (s *Server) handleDispatchCommandDirect(proc *Process, params json.RawMessage) json.RawMessage {
+	var input rpc.DispatchCommandInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return directErrorResponse("invalid dispatch-command params: " + err.Error())
+	}
+
+	cmdCtx := &CommandContext{
+		Server:  s,
+		Process: proc,
+	}
+
+	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
+	if err != nil {
+		if errors.Is(err, ErrSilent) {
+			return directResultResponse(&rpc.DispatchCommandOutput{Status: StatusDone})
+		}
+		return directErrorResponse(err.Error())
+	}
+
+	return directResultResponse(responseToDispatchOutput(resp))
 }
 
 // handleSubscribeEventsDirect handles subscribe-events without socket I/O.

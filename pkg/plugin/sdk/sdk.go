@@ -454,6 +454,23 @@ func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) 
 	return out.PeersAffected, out.RoutesSent, nil
 }
 
+// DispatchCommand dispatches a command through the engine's command dispatcher.
+// Returns the status and data from the target handler's response. This enables
+// inter-plugin communication: the engine routes the command to the target plugin
+// via longest-match registry lookup and returns the full structured response.
+func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status, data string, err error) {
+	input := &rpc.DispatchCommandInput{Command: command}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:dispatch-command", input)
+	if err != nil {
+		return "", "", err
+	}
+	var out rpc.DispatchCommandOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return "", "", fmt.Errorf("unmarshal dispatch-command result: %w", err)
+	}
+	return out.Status, out.Data, nil
+}
+
 // SubscribeEvents requests event delivery from the engine.
 func (p *Plugin) SubscribeEvents(ctx context.Context, events, peers []string, format string) error {
 	input := &rpc.SubscribeEventsInput{Events: events, Peers: peers, Format: format}
@@ -983,6 +1000,9 @@ type UpdateRouteOutput = rpc.UpdateRouteOutput
 
 // ExecuteCommandOutput is the output for execute-command (runtime).
 type ExecuteCommandOutput = rpc.ExecuteCommandOutput
+
+// DispatchCommandOutput is the output for dispatch-command (runtime).
+type DispatchCommandOutput = rpc.DispatchCommandOutput
 
 // ConfigDiffSection describes what changed in a single config root (reload).
 type ConfigDiffSection = rpc.ConfigDiffSection

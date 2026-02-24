@@ -7,7 +7,7 @@
 //
 // The two-socket architecture uses these types in JSON-RPC messages:
 //   - Socket A (plugin → engine): declare-registration, declare-capabilities, ready,
-//     update-route, subscribe/unsubscribe-events, decode/encode-nlri,
+//     update-route, dispatch-command, subscribe/unsubscribe-events, decode/encode-nlri,
 //     decode-mp-reach, decode-mp-unreach, decode-update
 //   - Socket B (engine → plugin): configure, share-registry, deliver-event,
 //     decode/encode-nlri, decode-capability, execute-command, bye
@@ -183,6 +183,21 @@ type UpdateRouteInput struct {
 type UpdateRouteOutput struct {
 	PeersAffected uint32 `json:"peers-affected"`
 	RoutesSent    uint32 `json:"routes-sent"`
+}
+
+// DispatchCommandInput is the input for ze-plugin-engine:dispatch-command.
+// Plugins use this to invoke commands through the engine's command dispatcher,
+// enabling inter-plugin communication via the standard routing mechanism.
+type DispatchCommandInput struct {
+	Command string `json:"command"`
+}
+
+// DispatchCommandOutput is the output for ze-plugin-engine:dispatch-command.
+// Preserves the full {status, data} response from the dispatcher, unlike
+// update-route which extracts only route counters.
+type DispatchCommandOutput struct {
+	Status string `json:"status"`         // "done" or "error"
+	Data   string `json:"data,omitempty"` // JSON-encoded response data
 }
 
 // SubscribeEventsInput is the input for ze-plugin-engine:subscribe-events.

@@ -152,6 +152,34 @@ module ze-plugin-engine {
         }
     }
 
+    // Runtime: Command dispatch (inter-plugin communication).
+
+    rpc dispatch-command {
+        description
+            "Plugin dispatches a command through the engine's command dispatcher.
+             Enables inter-plugin communication: the engine routes the command
+             to the target plugin via longest-match registry lookup and returns
+             the full {status, data} response. Unlike update-route, which
+             extracts only route counters, this preserves structured responses.";
+        input {
+            leaf command {
+                type string;
+                mandatory true;
+                description "Command string to dispatch (e.g., bgp rib list)";
+            }
+        }
+        output {
+            leaf status {
+                type string;
+                description "Response status (done or error)";
+            }
+            leaf data {
+                type string;
+                description "JSON-encoded response data from target handler";
+            }
+        }
+    }
+
     // Runtime: Event subscription management.
 
     rpc subscribe-events {
