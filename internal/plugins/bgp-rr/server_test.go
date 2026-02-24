@@ -3,6 +3,7 @@ package bgp_rr
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -14,7 +15,7 @@ import (
 
 // newTestRouteServer creates a RouteServer with closed SDK connections for unit testing.
 // The plugin's connections are immediately closed so updateRoute calls fail silently,
-// allowing tests to verify internal state (RIB, peers) without RPC side effects.
+// allowing tests to verify internal state (withdrawal map, peers) without RPC side effects.
 func newTestRouteServer(t *testing.T) *RouteServer {
 	t.Helper()
 	engineConn, engineRemote := net.Pipe()
@@ -32,9 +33,9 @@ func newTestRouteServer(t *testing.T) *RouteServer {
 		}
 	})
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
+		plugin:      p,
+		peers:       make(map[string]*PeerState),
+		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 	rs.startReleaseLoop()
 	rs.startForwardLoop()
@@ -273,7 +274,7 @@ func TestNlriToPrefix(t *testing.T) {
 
 // TestHandleUpdate_ZeBGPFormat verifies UPDATE processing from actual ze-bgp JSON.
 //
-// VALIDATES: Full flow from JSON parsing through RIB insertion for an UPDATE announce (AC-1).
+// VALIDATES: Full flow from JSON parsing through withdrawal map insertion for an UPDATE announce.
 // PREVENTS: Route propagation failure due to format mismatch.
 func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -288,24 +289,27 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 1 {
-		t.Fatalf("expected 1 route in RIB, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 1 {
+		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	if routes[0].MsgID != 123 {
-		t.Errorf("expected MsgID 123, got %d", routes[0].MsgID)
+	entry, ok := peerWd["ipv4/unicast|10.0.0.0/24"]
+	if !ok {
+		t.Fatal("missing withdrawal entry for 10.0.0.0/24")
 	}
-	if routes[0].Family != "ipv4/unicast" {
-		t.Errorf("expected family ipv4/unicast, got %s", routes[0].Family)
+	if entry.Family != "ipv4/unicast" {
+		t.Errorf("expected family ipv4/unicast, got %s", entry.Family)
 	}
-	if routes[0].Prefix != "10.0.0.0/24" {
-		t.Errorf("expected prefix 10.0.0.0/24, got %s", routes[0].Prefix)
+	if entry.Prefix != "10.0.0.0/24" {
+		t.Errorf("expected prefix 10.0.0.0/24, got %s", entry.Prefix)
 	}
 }
 
 // TestHandleUpdate_Withdraw_ZeBGPFormat verifies withdrawal processing from actual ze-bgp JSON.
 //
-// VALIDATES: Full flow from JSON parsing through RIB removal for a withdrawal (AC-2).
+// VALIDATES: Full flow from JSON parsing through withdrawal map removal for a withdrawal.
 // PREVENTS: Stale routes remaining after withdrawal.
 func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -315,16 +319,23 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 100, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
+	// Pre-populate withdrawal map (simulating prior add).
+	rs.withdrawalMu.Lock()
+	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+	}
+	rs.withdrawalMu.Unlock()
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":124,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
 
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 0 {
-		t.Errorf("expected 0 routes after withdraw, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if _, found := peerWd["ipv4/unicast|10.0.0.0/24"]; found {
+		t.Error("expected withdrawal entry removed after del")
 	}
 }
 
@@ -341,29 +352,31 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true}}
 	rs.mu.Unlock()
 
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 99, Family: "ipv4/unicast", Prefix: "10.0.2.0/24"})
+	// Pre-populate withdrawal map with route that will be withdrawn.
+	rs.withdrawalMu.Lock()
+	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
+		"ipv4/unicast|10.0.2.0/24": {Family: "ipv4/unicast", Prefix: "10.0.2.0/24"},
+	}
+	rs.withdrawalMu.Unlock()
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":125,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]},{"action":"del","nlri":["10.0.2.0/24"]}],"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
 
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 2 {
-		t.Fatalf("expected 2 routes in RIB, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 2 {
+		t.Fatalf("expected 2 withdrawal entries, got %d", len(peerWd))
 	}
-
-	found := map[string]bool{}
-	for _, r := range routes {
-		found[r.Family+"|"+r.Prefix] = true
-	}
-	if !found["ipv4/unicast|10.0.0.0/24"] {
+	if _, found := peerWd["ipv4/unicast|10.0.0.0/24"]; !found {
 		t.Error("missing ipv4/unicast|10.0.0.0/24")
 	}
-	if !found["ipv6/unicast|2001:db8::/32"] {
+	if _, found := peerWd["ipv6/unicast|2001:db8::/32"]; !found {
 		t.Error("missing ipv6/unicast|2001:db8::/32")
 	}
-	if found["ipv4/unicast|10.0.2.0/24"] {
+	if _, found := peerWd["ipv4/unicast|10.0.2.0/24"]; found {
 		t.Error("10.0.2.0/24 should have been withdrawn")
 	}
 }
@@ -379,29 +392,38 @@ func TestHandleUpdate_IgnoreEmptyPeer(t *testing.T) {
 
 	rs.dispatch([]byte(input))
 
-	routes := rs.rib.GetPeerRoutes("")
-	if len(routes) != 0 {
-		t.Errorf("expected no routes for empty peer, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals[""])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 0 {
+		t.Errorf("expected no withdrawal entries for empty peer, got %d", wdLen)
 	}
 }
 
 // TestHandleState_Down_ZeBGPFormat verifies peer down processing from actual ze-bgp JSON.
 //
-// VALIDATES: Peer down clears RIB entries for that peer (AC-4).
+// VALIDATES: Peer down clears withdrawal map entries for that peer (AC-5).
 // PREVENTS: Stale routes remaining after session teardown.
 func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 100, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 101, Family: "ipv4/unicast", Prefix: "10.0.1.0/24"})
+	// Populate withdrawal map (replaces old rs.rib.Insert).
+	rs.withdrawalMu.Lock()
+	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+	}
+	rs.withdrawalMu.Unlock()
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
 
 	rs.dispatch([]byte(input))
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 0 {
-		t.Errorf("expected 0 routes after peer down, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 0 {
+		t.Errorf("expected 0 withdrawal entries after peer down, got %d", wdLen)
 	}
 
 	rs.mu.RLock()
@@ -417,16 +439,21 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 
 // TestHandleState_Up_ZeBGPFormat verifies peer up processing from actual ze-bgp JSON.
 //
-// VALIDATES: Peer up marks peer as up, replays routes from other peers (AC-3).
+// VALIDATES: Peer up marks peer as up, triggers replay via DispatchCommand (AC-1, AC-3).
 // PREVENTS: Missing state transition, new peer not receiving existing routes.
 func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.rib.Insert("10.0.0.2", &Route{MsgID: 200, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
+	var dispatched atomic.Bool
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		dispatched.Store(true)
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 
 	rs.dispatch([]byte(input))
+	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -437,21 +464,28 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	if !peer.Up {
 		t.Error("expected peer to be up")
 	}
+	if !dispatched.Load() {
+		t.Error("expected DispatchCommand to be called for replay")
+	}
 }
 
-// TestHandleState_Up_ExcludesSelf verifies peer doesn't receive its own routes on reconnect.
+// TestHandleState_Up_ExcludesSelf verifies replay command targets the connecting peer.
 //
-// VALIDATES: Route replay excludes peer's own routes.
+// VALIDATES: Replay command includes the peer address so bgp-adj-rib-in excludes self-routes (AC-7).
 // PREVENTS: Routing loops from self-received routes.
 func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 100, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
-	rs.rib.Insert("10.0.0.2", &Route{MsgID: 200, Family: "ipv4/unicast", Prefix: "10.0.1.0/24"})
+	var replayCmd atomic.Value
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		replayCmd.Store(cmd)
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
 
 	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 
 	rs.dispatch([]byte(input))
+	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -461,6 +495,16 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
+	}
+
+	// The replay command must include the peer address — bgp-adj-rib-in uses it
+	// to replay routes from ALL source peers EXCEPT the target peer itself.
+	cmd, ok := replayCmd.Load().(string)
+	if !ok || cmd == "" {
+		t.Fatal("expected replay DispatchCommand, got none")
+	}
+	if !strings.Contains(cmd, "10.0.0.1") {
+		t.Errorf("replay command should target peer 10.0.0.1, got %q", cmd)
 	}
 }
 
@@ -532,7 +576,7 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 
 // TestFilterUpdateByFamily verifies UPDATE only forwards to compatible peers.
 //
-// VALIDATES: IPv6 routes stored in RIB with correct family for filtering (AC-1).
+// VALIDATES: IPv6 routes forwarded and tracked in withdrawal map with correct family.
 // PREVENTS: Sending routes to peers that can't handle them.
 func TestFilterUpdateByFamily(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -560,15 +604,18 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 1 {
-		t.Fatalf("expected 1 route in RIB, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 1 {
+		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	if routes[0].Family != "ipv6/unicast" {
-		t.Errorf("expected family ipv6/unicast, got %s", routes[0].Family)
+	entry, ok := peerWd["ipv6/unicast|2001:db8::/32"]
+	if !ok {
+		t.Fatal("missing withdrawal entry for 2001:db8::/32")
 	}
-	if routes[0].Prefix != "2001:db8::/32" {
-		t.Errorf("expected prefix 2001:db8::/32, got %s", routes[0].Prefix)
+	if entry.Family != "ipv6/unicast" {
+		t.Errorf("expected family ipv6/unicast, got %s", entry.Family)
 	}
 }
 
@@ -607,13 +654,15 @@ func TestFilterRefreshByCapability(t *testing.T) {
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
 //
-// VALIDATES: IPv4-only peer doesn't cause panic during replay with mixed-family RIB.
+// VALIDATES: IPv4-only peer doesn't cause panic during replay with mixed-family routes.
 // PREVENTS: Sending unsupported routes to new peer.
 func TestFilterReplayByFamily(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.rib.Insert("10.0.0.2", &Route{MsgID: 100, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
-	rs.rib.Insert("10.0.0.2", &Route{MsgID: 200, Family: "ipv6/unicast", Prefix: "2001:db8::/32"})
+	// Replay now handled by bgp-adj-rib-in via DispatchCommand.
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
 
 	rs.mu.Lock()
 	rs.peers["10.0.0.1"] = &PeerState{
@@ -1041,11 +1090,11 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	}
 }
 
-// TestProcessForwardDefersRIB verifies that forwarding happens before RIB update.
+// TestProcessForwardPopulatesWithdrawalMap verifies withdrawal map updated after forward.
 //
-// VALIDATES: AC-4 — forward RPC sent before RIB insert.
-// PREVENTS: RIB insert blocking the forward hot path.
-func TestProcessForwardDefersRIB(t *testing.T) {
+// VALIDATES: AC-8 — processForward stores family+prefix per source peer in withdrawal map.
+// PREVENTS: Missing withdrawal data when source peer goes down.
+func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
@@ -1053,26 +1102,27 @@ func TestProcessForwardDefersRIB(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	// Dispatch and flush to process the UPDATE fully.
 	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":99,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	// After full processing, RIB should still have the route (deferred but completed).
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 1 {
-		t.Fatalf("expected 1 route in RIB after deferred insert, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 1 {
+		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
-	if routes[0].Prefix != "10.0.0.0/24" {
-		t.Errorf("expected prefix 10.0.0.0/24, got %s", routes[0].Prefix)
+	entry, ok := peerWd["ipv4/unicast|10.0.0.0/24"]
+	if !ok || entry.Prefix != "10.0.0.0/24" {
+		t.Errorf("expected prefix 10.0.0.0/24, got %+v", entry)
 	}
 }
 
-// TestDeferredRIBConsistency verifies RIB is consistent after PeerDown drain.
+// TestWithdrawalMapConsistency verifies withdrawal map is consistent after PeerDown drain.
 //
-// VALIDATES: AC-13 — RIB correct after worker drains (deferred inserts complete before ClearPeer).
-// PREVENTS: Race between deferred RIB insert and ClearPeer.
-func TestDeferredRIBConsistency(t *testing.T) {
+// VALIDATES: AC-5 — withdrawal map correct after worker drains, cleared on peer-down.
+// PREVENTS: Race between withdrawal map update and handleStateDown.
+func TestWithdrawalMapConsistency(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
@@ -1089,27 +1139,30 @@ func TestDeferredRIBConsistency(t *testing.T) {
 		rs.dispatch([]byte(input))
 	}
 
-	// Flush workers to ensure all deferred RIB inserts complete.
 	flushWorkers(t, rs)
 
-	// All 5 routes should be in RIB.
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 5 {
-		t.Fatalf("expected 5 routes in RIB, got %d", len(routes))
+	// All 5 routes should be in withdrawal map.
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 5 {
+		t.Fatalf("expected 5 withdrawal entries, got %d", len(peerWd))
 	}
 
-	// Now simulate peer down — PeerDown drains workers, then ClearPeer.
-	// Re-create workers for the PeerDown flow.
+	// Simulate peer down.
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 
 	rs.dispatch([]byte(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`))
 
-	// After peer down, RIB should be empty for this peer.
-	routes = rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 0 {
-		t.Errorf("expected 0 routes after peer down, got %d", len(routes))
+	// After peer down, withdrawal map should be empty for this peer.
+	time.Sleep(50 * time.Millisecond)
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 0 {
+		t.Errorf("expected 0 withdrawal entries after peer down, got %d", wdLen)
 	}
 }
 
@@ -1297,10 +1350,12 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 		t.Fatal("workers.Stop() blocked — forward RPC not fire-and-forget (AC-11)")
 	}
 
-	// Workers completed — verify RIB has all routes.
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 5 {
-		t.Errorf("expected 5 routes in RIB, got %d", len(routes))
+	// Workers completed — verify withdrawal map has all routes.
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 5 {
+		t.Errorf("expected 5 withdrawal entries, got %d", wdLen)
 	}
 
 	// Unblock forward RPCs and verify background sender processes them.
@@ -1322,7 +1377,7 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 // TestParseUpdateFamiliesOnly verifies two-level parsing: families extracted without NLRI arrays.
 //
 // VALIDATES: AC-12 — only family keys parsed for forward target selection;
-// full NLRI arrays deferred to RIB path via parseNLRIFamilyOps.
+// full NLRI arrays deferred to withdrawal map path via parseNLRIFamilyOps.
 // PREVENTS: Unnecessary parsing of large NLRI arrays on the forward hot path.
 func TestParseUpdateFamiliesOnly(t *testing.T) {
 	tests := []struct {
@@ -1407,4 +1462,337 @@ func buildTestUpdate(peer string, msgID uint64) string {
 		fmt.Sprintf("%d", msgID) +
 		`,"direction":"received"},"peer":{"address":"` + peer +
 		`","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+}
+
+// --- Replay tests (spec rib-03) ---
+
+// TestHandleStateUpReplay verifies handleStateUp uses DispatchCommand (not ROUTE-REFRESH).
+//
+// VALIDATES: AC-1, AC-2 — peer connects, receives routes via replay, no ROUTE-REFRESH sent.
+// PREVENTS: Thundering herd from ROUTE-REFRESH to all peers.
+func TestHandleStateUpReplay(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	var mu sync.Mutex
+	var dispatchCmds []string
+	var updateCmds []string
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		mu.Lock()
+		dispatchCmds = append(dispatchCmds, cmd)
+		mu.Unlock()
+		return statusDone, `{"last-index":5,"replayed":3}`, nil
+	}
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		updateCmds = append(updateCmds, peer+": "+cmd)
+		mu.Unlock()
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+		Families:     map[string]bool{"ipv4/unicast": true},
+		Capabilities: map[string]bool{"route-refresh": true}}
+	rs.mu.Unlock()
+
+	rs.handleStateUp("10.0.0.1")
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(dispatchCmds) == 0 {
+		t.Fatal("expected DispatchCommand calls for replay, got none")
+	}
+	if !strings.HasPrefix(dispatchCmds[0], "adj-rib-in replay 10.0.0.1") {
+		t.Errorf("expected adj-rib-in replay command, got %q", dispatchCmds[0])
+	}
+	for _, cmd := range updateCmds {
+		if strings.Contains(cmd, "refresh") {
+			t.Errorf("expected no ROUTE-REFRESH, got: %s", cmd)
+		}
+	}
+}
+
+// TestHandleStateUpSequencing verifies peer not in selectForwardTargets during replay.
+//
+// VALIDATES: AC-3 — peer X added to forward targets AFTER replay response.
+// PREVENTS: Ghost routes from forwarding during replay.
+func TestHandleStateUpSequencing(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Replaying: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.mu.Unlock()
+
+	// A replaying peer should NOT be in forward targets.
+	rs.mu.RLock()
+	targets := rs.selectForwardTargets("10.0.0.2", map[string]bool{"ipv4/unicast": true})
+	rs.mu.RUnlock()
+	for _, addr := range targets {
+		if addr == "10.0.0.1" {
+			t.Error("replaying peer 10.0.0.1 should NOT be in forward targets")
+		}
+	}
+
+	// After replay completes, peer should be in targets.
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"].Replaying = false
+	rs.mu.Unlock()
+
+	rs.mu.RLock()
+	targets = rs.selectForwardTargets("10.0.0.2", map[string]bool{"ipv4/unicast": true})
+	rs.mu.RUnlock()
+	if !slices.Contains(targets, "10.0.0.1") {
+		t.Error("peer 10.0.0.1 should be in forward targets after replay completes")
+	}
+}
+
+// TestHandleStateUpDelta verifies delta replay sent after full replay.
+//
+// VALIDATES: AC-4 — routes arriving during replay caught by delta replay.
+// PREVENTS: Missing routes from the gap between full replay and joining forward targets.
+func TestHandleStateUpDelta(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	var mu sync.Mutex
+	var dispatchCmds []string
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		mu.Lock()
+		dispatchCmds = append(dispatchCmds, cmd)
+		mu.Unlock()
+		if strings.HasSuffix(cmd, " 0") {
+			return statusDone, `{"last-index":5,"replayed":3}`, nil
+		}
+		return statusDone, `{"last-index":7,"replayed":1}`, nil
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.mu.Unlock()
+
+	rs.handleStateUp("10.0.0.1")
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(dispatchCmds) < 2 {
+		t.Fatalf("expected 2 dispatch commands (full + delta), got %d: %v", len(dispatchCmds), dispatchCmds)
+	}
+	if dispatchCmds[0] != "adj-rib-in replay 10.0.0.1 0" {
+		t.Errorf("expected full replay, got %q", dispatchCmds[0])
+	}
+	if dispatchCmds[1] != "adj-rib-in replay 10.0.0.1 5" {
+		t.Errorf("expected delta replay from 5, got %q", dispatchCmds[1])
+	}
+}
+
+// TestHandleStateUpNonBlocking verifies event loop not blocked during replay.
+//
+// VALIDATES: AC-9 — other peers' UPDATEs continue flowing during replay.
+// PREVENTS: Event loop deadlock during slow replay.
+func TestHandleStateUpNonBlocking(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	unblock := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-unblock:
+		default:
+			close(unblock)
+		}
+	})
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		<-unblock
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.mu.Unlock()
+
+	// handleStateUp should return immediately even though replay blocks.
+	done := make(chan struct{})
+	go func() {
+		rs.handleStateUp("10.0.0.1")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// OK: handleStateUp returned without waiting for replay.
+	case <-time.After(1 * time.Second):
+		t.Error("handleStateUp blocked — should return immediately")
+	}
+}
+
+// TestWithdrawalOnPeerDown verifies handleStateDown sends withdrawals from map and clears it.
+//
+// VALIDATES: AC-5 — handleStateDown reads withdrawal map, sends withdrawals, clears map.
+// PREVENTS: Missing withdrawals on peer-down, stale withdrawal map entries.
+func TestWithdrawalOnPeerDown(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	var mu sync.Mutex
+	var commands []string
+	var count atomic.Int32
+	done := make(chan struct{})
+
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		commands = append(commands, peer+": "+cmd)
+		mu.Unlock()
+		if int(count.Add(1)) >= 2 {
+			select {
+			case <-done:
+			default:
+				close(done)
+			}
+		}
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.mu.Unlock()
+
+	// Populate withdrawal map directly.
+	rs.withdrawalMu.Lock()
+	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+	}
+	rs.withdrawalMu.Unlock()
+
+	// Trigger peer down.
+	rs.dispatch([]byte(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`))
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for withdrawal commands")
+	}
+
+	mu.Lock()
+	cmdsCopy := make([]string, len(commands))
+	copy(cmdsCopy, commands)
+	mu.Unlock()
+
+	found0, found1 := false, false
+	for _, cmd := range cmdsCopy {
+		if strings.Contains(cmd, "nlri ipv4/unicast del 10.0.0.0/24") {
+			found0 = true
+		}
+		if strings.Contains(cmd, "nlri ipv4/unicast del 10.0.1.0/24") {
+			found1 = true
+		}
+	}
+	if !found0 {
+		t.Errorf("missing withdrawal for 10.0.0.0/24, commands: %v", cmdsCopy)
+	}
+	if !found1 {
+		t.Errorf("missing withdrawal for 10.0.1.0/24, commands: %v", cmdsCopy)
+	}
+
+	// Withdrawal map should be cleared.
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 0 {
+		t.Errorf("expected withdrawal map cleared, got %d entries", wdLen)
+	}
+}
+
+// TestReplayGeneration_RapidReconnect verifies stale replay goroutines don't
+// clear Replaying for a newer session.
+//
+// VALIDATES: Rapid reconnect (down→up while old replay running) doesn't cause ghost routes.
+// PREVENTS: Stale goroutine prematurely clearing Replaying for a new session.
+func TestReplayGeneration_RapidReconnect(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	// Single hook that branches on call count. Goroutine A blocks on firstBlock;
+	// goroutine B completes immediately and signals secondDone.
+	firstBlock := make(chan struct{})
+	secondDone := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-firstBlock:
+		default:
+			close(firstBlock)
+		}
+	})
+
+	var callCount atomic.Int32
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		n := callCount.Add(1)
+		if n == 1 {
+			// First call (goroutine A's full replay) — block until released.
+			<-firstBlock
+			return statusDone, `{"last-index":0,"replayed":0}`, nil
+		}
+		// All subsequent calls (goroutine B's full + delta) — complete immediately.
+		defer func() {
+			select {
+			case <-secondDone:
+			default:
+				close(secondDone)
+			}
+		}()
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true,
+		Families: map[string]bool{"ipv4/unicast": true}}
+	rs.mu.Unlock()
+
+	// First handleStateUp — goroutine A blocks on DispatchCommand.
+	rs.handleStateUp("10.0.0.1")
+	time.Sleep(20 * time.Millisecond) // Let goroutine A start and block.
+
+	// Second handleStateUp — simulates rapid reconnect. Goroutine B starts.
+	rs.handleStateUp("10.0.0.1")
+
+	// Wait for goroutine B's hook to return, then let replayForPeer finish.
+	select {
+	case <-secondDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second replay timed out")
+	}
+	time.Sleep(50 * time.Millisecond) // Let goroutine B set Replaying=false.
+
+	// Goroutine B completed — peer should NOT be Replaying.
+	rs.mu.RLock()
+	replayingAfterB := rs.peers["10.0.0.1"].Replaying
+	genAfterB := rs.peers["10.0.0.1"].ReplayGen
+	rs.mu.RUnlock()
+	if replayingAfterB {
+		t.Error("peer should not be Replaying after second replay completes")
+	}
+	if genAfterB != 2 {
+		t.Errorf("expected ReplayGen=2, got %d", genAfterB)
+	}
+
+	// Now unblock goroutine A (stale).
+	close(firstBlock)
+	time.Sleep(50 * time.Millisecond) // Let goroutine A finish.
+
+	// Stale goroutine A must NOT have changed Replaying back.
+	rs.mu.RLock()
+	replayingAfterA := rs.peers["10.0.0.1"].Replaying
+	rs.mu.RUnlock()
+	if replayingAfterA {
+		t.Error("stale goroutine must not set Replaying=true after completing")
+	}
 }

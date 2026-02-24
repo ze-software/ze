@@ -50,9 +50,9 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
+		plugin:      p,
+		peers:       make(map[string]*PeerState),
+		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 	rs.startReleaseLoop()
 	rs.startForwardLoop()
@@ -811,10 +811,14 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 // PREVENTS: Race where routes are dropped because OPEN hasn't been processed yet.
 func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	rs := newTestRouteServer(t)
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
 
 	// State up arrives first (before OPEN)
 	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 	rs.dispatch([]byte(stateInput))
+	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -846,6 +850,9 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 // PREVENTS: Missing family extraction from OPEN capabilities.
 func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	rs := newTestRouteServer(t)
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
 	openInput := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"}]}}}`
@@ -854,6 +861,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	// Step 2: State up
 	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
 	rs.dispatch([]byte(stateInput))
+	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -893,7 +901,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 // TestPropagation_ThreePeers_SingleFamily simulates basic 3-peer route reflection.
 //
-// VALIDATES: Route from peer A stored in RIB, peers B and C would be forward targets.
+// VALIDATES: Route from peer A tracked in withdrawal map, peers B and C would be forward targets.
 // PREVENTS: Basic forwarding failure in simple topology.
 func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -928,10 +936,12 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	rs.dispatch([]byte(updateInput))
 	flushWorkers(t, rs)
 
-	// Verify RIB has the route
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 1 {
-		t.Fatalf("expected 1 route in RIB, got %d", len(routes))
+	// Verify withdrawal map has the route.
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 1 {
+		t.Fatalf("expected 1 withdrawal entry, got %d", wdLen)
 	}
 
 	// Verify forward targets: should be 10.0.0.2 and 10.0.0.3 (not source 10.0.0.1)
@@ -1094,7 +1104,7 @@ func TestPropagation_UpdateWhenOnlySourceKnown(t *testing.T) {
 
 // TestPropagation_VPNRoute verifies VPN NLRI with complex prefix format is handled.
 //
-// VALIDATES: VPN routes with object NLRIs (containing prefix field) are stored in RIB.
+// VALIDATES: VPN routes with object NLRIs (containing prefix field) tracked in withdrawal map.
 // PREVENTS: Lost VPN routes due to NLRI format mismatch.
 func TestPropagation_VPNRoute(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -1116,15 +1126,18 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	rs.dispatch([]byte(input))
 	flushWorkers(t, rs)
 
-	routes := rs.rib.GetPeerRoutes("10.0.0.1")
-	if len(routes) != 1 {
-		t.Fatalf("expected 1 VPN route in RIB, got %d", len(routes))
+	rs.withdrawalMu.Lock()
+	peerWd := rs.withdrawals["10.0.0.1"]
+	rs.withdrawalMu.Unlock()
+	if len(peerWd) != 1 {
+		t.Fatalf("expected 1 VPN withdrawal entry, got %d", len(peerWd))
 	}
-	if routes[0].Family != "ipv4/vpn" {
-		t.Errorf("expected family ipv4/vpn, got %s", routes[0].Family)
+	entry, ok := peerWd["ipv4/vpn|10.0.0.0/24"]
+	if !ok {
+		t.Fatal("missing withdrawal entry for VPN route")
 	}
-	if routes[0].Prefix != "10.0.0.0/24" {
-		t.Errorf("expected prefix 10.0.0.0/24, got %s", routes[0].Prefix)
+	if entry.Family != "ipv4/vpn" {
+		t.Errorf("expected family ipv4/vpn, got %s", entry.Family)
 	}
 
 	// Verify forward target
@@ -1137,11 +1150,11 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	}
 }
 
-// TestPropagation_WithdrawClearsRIB verifies withdrawal removes route from RIB.
+// TestPropagation_WithdrawClearsWithdrawalMap verifies withdrawal removes route from withdrawal map.
 //
-// VALIDATES: After withdrawal, route is removed and forward targets use updated families.
+// VALIDATES: After withdrawal, route is removed from withdrawal tracking.
 // PREVENTS: Stale routes persisting after withdrawal.
-func TestPropagation_WithdrawClearsRIB(t *testing.T) {
+func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
@@ -1151,28 +1164,34 @@ func TestPropagation_WithdrawClearsRIB(t *testing.T) {
 		Families: map[string]bool{"ipv4/unicast": true}}
 	rs.mu.Unlock()
 
-	// Add route
+	// Add route.
 	addInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
 	rs.dispatch([]byte(addInput))
 	flushWorkers(t, rs)
 
-	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 1 {
-		t.Fatal("route not added")
+	rs.withdrawalMu.Lock()
+	addLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if addLen != 1 {
+		t.Fatal("route not added to withdrawal map")
 	}
 
-	// Withdraw route
+	// Withdraw route.
 	delInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":101,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
 	rs.dispatch([]byte(delInput))
 	flushWorkers(t, rs)
 
-	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 0 {
-		t.Error("route not withdrawn")
+	rs.withdrawalMu.Lock()
+	delLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if delLen != 0 {
+		t.Error("route not withdrawn from withdrawal map")
 	}
 }
 
 // TestPropagation_PeerDownClearsAllRoutes verifies session down clears all routes.
 //
-// VALIDATES: When a peer goes down, all its routes are removed from RIB.
+// VALIDATES: When a peer goes down, all its routes are removed from withdrawal map.
 // PREVENTS: Ghost routes from disconnected peers.
 func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -1182,20 +1201,23 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true}}
 	rs.mu.Unlock()
 
-	// Insert routes for multiple families
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 100, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"})
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 101, Family: "ipv4/unicast", Prefix: "10.0.1.0/24"})
-	rs.rib.Insert("10.0.0.1", &Route{MsgID: 102, Family: "ipv6/unicast", Prefix: "2001:db8::/32"})
-
-	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 3 {
-		t.Fatal("routes not added")
+	// Populate withdrawal map for multiple families.
+	rs.withdrawalMu.Lock()
+	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
+		"ipv4/unicast|10.0.0.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		"ipv6/unicast|2001:db8::/32": {Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
 	}
+	rs.withdrawalMu.Unlock()
 
-	// Peer goes down
+	// Peer goes down.
 	downInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
 	rs.dispatch([]byte(downInput))
 
-	if len(rs.rib.GetPeerRoutes("10.0.0.1")) != 0 {
-		t.Error("routes not cleared on peer down")
+	rs.withdrawalMu.Lock()
+	wdLen := len(rs.withdrawals["10.0.0.1"])
+	rs.withdrawalMu.Unlock()
+	if wdLen != 0 {
+		t.Error("withdrawal map not cleared on peer down")
 	}
 }

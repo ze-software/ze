@@ -1,6 +1,5 @@
 // Design: docs/architecture/core-design.md — route reflector plugin
 // Related: worker.go — per-source-peer worker pool with backpressure
-// Related: rib.go — per-peer RIB for withdrawal tracking on peer-down
 // Related: peer.go — PeerState tracking (families, up/down)
 
 package bgp_rr
@@ -78,6 +77,14 @@ type forwardCtx struct {
 	bgpPayload []byte
 }
 
+// withdrawalInfo stores the minimum information needed to send withdrawal
+// commands when a source peer goes down. Only family+prefix are needed
+// for "update text nlri <family> del <prefix>" commands.
+type withdrawalInfo struct {
+	Family string
+	Prefix string
+}
+
 // RouteServer implements a BGP Route Server API plugin.
 // It forwards all UPDATEs to all peers except the source (forward-all model).
 // UPDATEs are dispatched to per-source-peer workers for parallel processing
@@ -85,7 +92,6 @@ type forwardCtx struct {
 type RouteServer struct {
 	plugin  *sdk.Plugin
 	peers   map[string]*PeerState
-	rib     *RIB
 	mu      sync.RWMutex
 	workers *workerPool
 
@@ -114,9 +120,20 @@ type RouteServer struct {
 	forwardCh   chan forwardCmd
 	forwardDone chan struct{} // closed when forwardLoop exits
 
+	// withdrawalMu protects the withdrawals map.
+	withdrawalMu sync.Mutex
+	// withdrawals tracks announced routes per source peer for withdrawal on peer-down.
+	// Populated by processForward from NLRI parsing. Cleared by handleStateDown.
+	// sourcePeer → routeKey (family|prefix) → withdrawalInfo.
+	withdrawals map[string]map[string]withdrawalInfo
+
 	// updateRouteHook is called before each updateRoute RPC for test inspection.
 	// Nil in production (zero overhead).
 	updateRouteHook func(peer, cmd string)
+
+	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
+	// Nil in production (zero overhead).
+	dispatchCommandHook func(command string) (string, string, error)
 }
 
 // forwardBatch accumulates forward items for batch RPC.
@@ -139,9 +156,9 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rs := &RouteServer{
-		plugin: p,
-		peers:  make(map[string]*PeerState),
-		rib:    NewRIB(),
+		plugin:      p,
+		peers:       make(map[string]*PeerState),
+		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 
 	// ZE_RR_CHAN_SIZE overrides the per-source-peer worker channel capacity.
@@ -184,7 +201,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 
 	// Register event handler: dispatches BGP events (update, state, open, refresh).
 	// Only a lightweight parse runs here (type + msgID + peerAddr); expensive
-	// JSON parsing and RIB updates are deferred to per-source-peer workers.
+	// JSON parsing and withdrawal map updates are deferred to per-source-peer workers.
 	p.OnEvent(func(jsonStr string) error {
 		rs.dispatch([]byte(jsonStr))
 		return nil
@@ -312,6 +329,14 @@ func (rs *RouteServer) asyncForward(peer, cmd string) {
 	rs.forwardCh <- forwardCmd{peer: peer, cmd: cmd}
 }
 
+// dispatchCommand calls DispatchCommand via the SDK or the test hook.
+func (rs *RouteServer) dispatchCommand(ctx context.Context, command string) (string, string, error) {
+	if rs.dispatchCommandHook != nil {
+		return rs.dispatchCommandHook(command)
+	}
+	return rs.plugin.DispatchCommand(ctx, command)
+}
+
 // updateRoute sends a route update command to matching peers via the engine.
 func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	if rs.updateRouteHook != nil {
@@ -369,9 +394,9 @@ func (rs *RouteServer) resumeAllPaused() {
 
 // processForward handles a forwarding work item in a worker goroutine.
 // Loads pre-parsed payload from fwdCtx, performs full parse, forwards
-// the UPDATE to compatible peers, then updates the RIB (deferred insert).
-// Forward-first ordering minimizes UPDATE delivery latency — the RIB is
-// only needed for withdrawal tracking on peer-down, not for forwarding.
+// the UPDATE to compatible peers, then updates the withdrawal map.
+// Forward-first ordering minimizes UPDATE delivery latency — the withdrawal
+// map is only needed for withdrawal tracking on peer-down, not for forwarding.
 func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	val, ok := rs.fwdCtx.LoadAndDelete(msgID)
 	if !ok {
@@ -393,7 +418,7 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 		}
 	}()
 
-	// If the source peer is down, skip RIB update and forward — handleStateDown
+	// If the source peer is down, skip withdrawal map update and forward — handleStateDown
 	// will withdraw all routes. This prevents PeerDown from blocking while
 	// workers process queued UPDATEs for a peer that is already gone.
 	rs.mu.RLock()
@@ -419,31 +444,40 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	forwarded = true
 	rs.batchForwardUpdate(key, ctx.sourcePeer, msgID, families)
 
-	// Deferred RIB: full NLRI parse only for insert/remove (off hot path).
+	// Update withdrawal map: track announced routes for withdrawal on peer-down.
+	// Only family+prefix needed — bgp-adj-rib-in owns full route state.
+	rs.withdrawalMu.Lock()
 	for family, ops := range parseNLRIFamilyOps(nlriRaw) {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
+				if rs.withdrawals[ctx.sourcePeer] == nil {
+					rs.withdrawals[ctx.sourcePeer] = make(map[string]withdrawalInfo)
+				}
 				for _, n := range op.NLRIs {
 					prefix := nlriToPrefix(n)
 					if prefix != "" {
-						rs.rib.Insert(ctx.sourcePeer, &Route{
-							MsgID:  msgID,
+						routeKey := family + "|" + prefix
+						rs.withdrawals[ctx.sourcePeer][routeKey] = withdrawalInfo{
 							Family: family,
 							Prefix: prefix,
-						})
+						}
 					}
 				}
 			case "del":
-				for _, n := range op.NLRIs {
-					prefix := nlriToPrefix(n)
-					if prefix != "" {
-						rs.rib.Remove(ctx.sourcePeer, family, prefix)
+				if rs.withdrawals[ctx.sourcePeer] != nil {
+					for _, n := range op.NLRIs {
+						prefix := nlriToPrefix(n)
+						if prefix != "" {
+							routeKey := family + "|" + prefix
+							delete(rs.withdrawals[ctx.sourcePeer], routeKey)
+						}
 					}
 				}
 			}
 		}
 	}
+	rs.withdrawalMu.Unlock()
 }
 
 // quickParseEvent extracts the event type, message ID, peer address, and
@@ -488,7 +522,7 @@ func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr stri
 //
 // UPDATE events are dispatched to the per-source-peer worker pool with
 // only a lightweight parse (type, msgID, peerAddr). The expensive JSON
-// parsing and RIB updates are deferred to the worker goroutine, keeping
+// parsing and withdrawal map updates are deferred to the worker goroutine, keeping
 // OnEvent latency low (engine has a 5s event delivery timeout).
 //
 // Non-UPDATE events (state, open, refresh) are handled inline since
@@ -571,7 +605,7 @@ func nlriToPrefix(n any) string {
 func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[string]bool) []string {
 	var targets []string
 	for addr, peer := range rs.peers {
-		if addr == sourcePeer || !peer.Up {
+		if addr == sourcePeer || !peer.Up || peer.Replaying {
 			continue
 		}
 		if peer.Families != nil {
@@ -703,84 +737,108 @@ func (rs *RouteServer) handleState(event *Event) {
 // handleStateDown processes peer session teardown.
 // Sends withdrawals asynchronously — per-lifecycle goroutine (not hot path).
 func (rs *RouteServer) handleStateDown(peerAddr string) {
-	// Drain workers first: in-flight forwards may insert routes into the RIB.
+	// Drain workers first: in-flight forwards may update the withdrawal map.
 	// PeerDown waits for all workers to finish, so after this call no more
-	// inserts for this peer can occur. Then ClearPeer captures everything.
+	// updates for this peer can occur.
 	rs.workers.PeerDown(peerAddr)
-	routes := rs.rib.ClearPeer(peerAddr)
+
+	// Extract and clear withdrawal entries for this peer.
+	rs.withdrawalMu.Lock()
+	entries := rs.withdrawals[peerAddr]
+	delete(rs.withdrawals, peerAddr)
+	rs.withdrawalMu.Unlock()
 
 	go func() {
-		for _, route := range routes {
-			rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", route.Family, route.Prefix))
+		for _, info := range entries {
+			rs.updateRoute("!"+peerAddr, fmt.Sprintf("update text nlri %s del %s", info.Family, info.Prefix))
 		}
 	}()
 }
 
 // handleStateUp processes peer session establishment.
 //
-// Requests route re-advertisement from established peers via ROUTE-REFRESH
-// (RFC 2918) so the newly-up peer receives existing routes. We cannot use
-// cache-forward for replay because ForwardUpdate's Take() is destructive —
-// cache entries from prior forwards are already consumed. ROUTE-REFRESH
-// asks source peers to re-send their Adj-RIB-Out; the resulting UPDATEs
-// flow through handleUpdate → forwardUpdate and reach all connected peers
-// including the new one. Duplicate announcements to already-connected peers
-// are idempotent in BGP.
+// Replays existing routes to the newly-connected peer via DispatchCommand
+// to bgp-adj-rib-in, replacing the previous ROUTE-REFRESH approach which
+// caused a thundering herd (N peers × M families). The replay runs in a
+// per-peer lifecycle goroutine (not blocking the event loop). The peer is
+// marked as "replaying" and excluded from selectForwardTargets until the
+// full replay completes, preventing ghost routes from interleaved forwarding.
+// A delta replay then covers routes that arrived during the full replay.
 func (rs *RouteServer) handleStateUp(peerAddr string) {
-	rs.mu.RLock()
-	peer := rs.peers[peerAddr]
-
-	// Determine families the new peer supports.
-	// If Families is nil (no OPEN received yet), fall back to families
-	// present in the RIB so we don't skip the refresh entirely.
-	var families []string
-	if peer != nil && peer.Families != nil {
-		for family := range peer.Families {
-			families = append(families, family)
-		}
+	// Mark peer as replaying — excluded from selectForwardTargets until complete.
+	// Increment generation so stale goroutines from a previous session (rapid
+	// reconnect) don't prematurely clear Replaying for the new session.
+	rs.mu.Lock()
+	var gen uint64
+	if rs.peers[peerAddr] != nil {
+		rs.peers[peerAddr].Replaying = true
+		rs.peers[peerAddr].ReplayGen++
+		gen = rs.peers[peerAddr].ReplayGen
 	}
+	rs.mu.Unlock()
 
-	// Collect established peers that support route-refresh.
-	var refreshPeers []string
-	for addr, other := range rs.peers {
-		if addr == peerAddr || !other.Up {
-			continue
-		}
-		if !other.HasCapability("route-refresh") {
-			continue
-		}
-		refreshPeers = append(refreshPeers, addr)
-	}
-	rs.mu.RUnlock()
+	// Spawn per-peer lifecycle goroutine for replay (not blocking event loop).
+	go rs.replayForPeer(peerAddr, gen)
+}
 
-	// If no explicit families from OPEN, derive from RIB contents.
-	if len(families) == 0 {
-		familySet := make(map[string]bool)
-		for sourcePeer, routes := range rs.rib.GetAllPeers() {
-			if sourcePeer == peerAddr {
-				continue
-			}
-			for _, route := range routes {
-				familySet[route.Family] = true
-			}
-		}
-		for f := range familySet {
-			families = append(families, f)
-		}
-	}
+// replayForPeer runs the full+delta replay sequence for a newly-connected peer.
+// Runs in a per-peer lifecycle goroutine — not blocking the event loop.
+// The gen parameter is the replay generation at the time handleStateUp was called.
+// If the peer's ReplayGen has changed (rapid reconnect), this goroutine is stale
+// and must not clear Replaying — the newer goroutine owns that transition.
+func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
 
-	if len(families) == 0 || len(refreshPeers) == 0 {
+	// Full replay from index 0.
+	status, data, err := rs.dispatchCommand(ctx, fmt.Sprintf("adj-rib-in replay %s 0", peerAddr))
+	if err != nil || status != statusDone {
+		logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
+		// Still add to forward targets so peer gets new routes going forward.
+		// Only if this goroutine's generation is still current.
+		rs.mu.Lock()
+		if p := rs.peers[peerAddr]; p != nil && p.ReplayGen == gen {
+			p.Replaying = false
+		}
+		rs.mu.Unlock()
 		return
 	}
 
-	// Request route re-advertisement asynchronously — per-lifecycle goroutine (not hot path).
-	go func() {
-		for _, addr := range refreshPeers {
-			for _, family := range families {
-				rs.updateRoute(addr, "refresh "+family)
-			}
+	// Parse last-index from replay response.
+	lastIndex := parseLastIndex(data)
+
+	// Add peer to forward targets (new UPDATEs now flow to this peer).
+	// Only if this goroutine's generation is still current.
+	rs.mu.Lock()
+	stale := rs.peers[peerAddr] == nil || rs.peers[peerAddr].ReplayGen != gen
+	if !stale {
+		rs.peers[peerAddr].Replaying = false
+	}
+	rs.mu.Unlock()
+
+	if stale {
+		return
+	}
+
+	// Delta replay to cover routes that arrived during full replay.
+	if lastIndex > 0 {
+		_, _, err := rs.dispatchCommand(ctx, fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex))
+		if err != nil {
+			logger().Warn("delta replay failed", "peer", peerAddr, "error", err)
 		}
-	}()
+	}
+}
+
+// parseLastIndex extracts the last-index value from a replay response JSON.
+// Expected format: {"last-index":N,"replayed":M}.
+func parseLastIndex(data string) uint64 {
+	var resp struct {
+		LastIndex uint64 `json:"last-index"`
+	}
+	if err := json.Unmarshal([]byte(data), &resp); err != nil {
+		return 0
+	}
+	return resp.LastIndex
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.
@@ -1055,7 +1113,7 @@ func parseUpdateFamilies(payload []byte) (families map[string]bool, nlriRaw map[
 //	[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}, {"action":"del","nlri":["10.0.1.0/24"]}]
 //
 // Families with invalid JSON are silently skipped (logged at caller).
-// Used by the deferred RIB update path after forwarding completes.
+// Used by the deferred withdrawal map update path after forwarding completes.
 func parseNLRIFamilyOps(nlriRaw map[string]json.RawMessage) map[string][]FamilyOperation {
 	if len(nlriRaw) == 0 {
 		return nil

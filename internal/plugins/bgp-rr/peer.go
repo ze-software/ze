@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — route reflector plugin
+// Related: server.go — RouteServer uses PeerState for peer tracking and forwarding decisions
 
 package bgp_rr
 
@@ -7,6 +8,8 @@ type PeerState struct {
 	Address      string          // Peer IP address
 	ASN          uint32          // Peer AS number
 	Up           bool            // Session is established
+	Replaying    bool            // True during RIB replay (excluded from selectForwardTargets)
+	ReplayGen    uint64          // Incremented on each handleStateUp, guards stale goroutines
 	Capabilities map[string]bool // Negotiated capabilities (e.g., "route-refresh": true)
 	Families     map[string]bool // Supported AFI/SAFI (e.g., "ipv4/unicast": true)
 }
