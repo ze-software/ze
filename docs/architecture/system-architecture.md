@@ -170,7 +170,8 @@ Shipped with Ze, same binary:
 | Plugin | Binary | Purpose |
 |--------|--------|---------|
 | `bgp` | `ze bgp` | BGP protocol, sessions, FSM, peer-to-peer routing |
-| `rib` | `ze rib` | Adj-RIB-In/Out tracking, route replay on reconnect |
+| `rib` | `ze rib` | Adj-RIB-Out tracking, sent-route replay on reconnect |
+| `adj-rib-in` | `ze adj-rib-in` | Adj-RIB-In storage (raw hex), received-route replay |
 | `gr` | `ze gr` | Graceful Restart capability injection |
 
 ### Third-Party Plugins

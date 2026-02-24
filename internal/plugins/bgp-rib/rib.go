@@ -67,35 +67,6 @@ type RIBManager struct {
 	mu sync.RWMutex // protects ribInPool, ribOut, peerUp
 }
 
-// Route represents a stored route with full path attributes.
-// RFC 7911: PathID is included when ADD-PATH is negotiated.
-type Route struct {
-	MsgID     uint64    `json:"msg-id,omitempty"`
-	Family    string    `json:"family"`
-	Prefix    string    `json:"prefix"`
-	PathID    uint32    `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
-	NextHop   string    `json:"next-hop"`
-	Timestamp time.Time `json:"timestamp,omitzero"`
-
-	// Path attributes for full route resend
-	Origin              string   `json:"origin,omitempty"`
-	ASPath              []uint32 `json:"as-path,omitempty"`
-	MED                 *uint32  `json:"med,omitempty"`
-	LocalPreference     *uint32  `json:"local-preference,omitempty"`
-	Communities         []string `json:"communities,omitempty"`
-	LargeCommunities    []string `json:"large-communities,omitempty"`
-	ExtendedCommunities []string `json:"extended-communities,omitempty"`
-}
-
-// routeKey creates a unique key for a route.
-// RFC 7911: When ADD-PATH is negotiated, path-id is part of the key.
-func routeKey(family, prefix string, pathID uint32) string {
-	if pathID == 0 {
-		return family + ":" + prefix
-	}
-	return fmt.Sprintf("%s:%s:%d", family, prefix, pathID)
-}
-
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRIBPlugin(engineConn, callbackConn net.Conn) int {

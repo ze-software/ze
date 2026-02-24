@@ -19,7 +19,9 @@
 | Session sync | ✅ Done | `internal/plugin/session.go` |
 | JSON/text encoding | ✅ Done | `internal/plugin/json.go` |
 | RR plugin | ✅ Done | `internal/plugin/rr/` |
-| RIB plugin | ✅ Done | `internal/plugin/rib/` |
+| RIB plugin | ✅ Done | `internal/plugins/bgp-rib/` |
+| Adj-RIB-In plugin | ✅ Done | `internal/plugins/bgp-adj-rib-in/` |
+| Shared BGP types | ✅ Done | `internal/plugin/bgp/shared/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
 
 ---

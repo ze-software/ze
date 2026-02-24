@@ -7,6 +7,7 @@
 package all
 
 import (
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-adj-rib-in"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-gr"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-llnh"

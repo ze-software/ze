@@ -1,0 +1,6 @@
+# plugin-adj-rib-in-features - verify adj-rib-in plugin --features output
+# Tests that ze plugin bgp-adj-rib-in --features lists supported features
+
+cmd=foreground:seq=1:exec=ze plugin bgp-adj-rib-in --features
+expect=exit:code=0
+expect=stdout:contains=yang

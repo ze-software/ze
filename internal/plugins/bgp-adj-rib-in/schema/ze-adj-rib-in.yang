@@ -1,0 +1,16 @@
+module ze-adj-rib-in {
+  namespace "urn:ze:adj-rib-in";
+  prefix adj-rib-in;
+
+  description
+    "Adj-RIB-In storage plugin for ze.
+     Stores received routes per source peer as raw hex wire bytes
+     for efficient replay via update hex commands.
+
+     RFC 4271 Section 3.2: Adj-RIBs-In contains unprocessed routing
+     information advertised to the local BGP speaker by its peers.";
+
+  revision 2025-01-01 {
+    description "Initial revision";
+  }
+}

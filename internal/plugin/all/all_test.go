@@ -8,12 +8,13 @@ import (
 )
 
 // TestAllPluginsRegistered verifies that importing the all package
-// registers all 17 expected internal plugins.
+// registers all 18 expected internal plugins.
 //
 // VALIDATES: Every internal plugin registers via init().
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
 func TestAllPluginsRegistered(t *testing.T) {
 	expected := []string{
+		"bgp-adj-rib-in",
 		"bgp-evpn",
 		"bgp-flowspec",
 		"bgp-gr",
