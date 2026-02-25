@@ -2325,6 +2325,7 @@ func TestSessionCloseOnCancel(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -2379,6 +2380,7 @@ func TestSessionHoldTimerStillWorks(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	// Start the hold timer so it fires after 50ms.
@@ -2415,6 +2417,7 @@ func TestSessionTeardownStillWorks(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	resultCh := make(chan error, 1)
@@ -2465,6 +2468,7 @@ func TestSessionPauseBlocksRead(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	// Pause BEFORE starting Run.
@@ -2522,6 +2526,7 @@ func TestSessionResumeUnblocksRead(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	// Start paused.
@@ -2572,6 +2577,7 @@ func TestSessionPauseCancelContext(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	session.Pause()
@@ -2615,6 +2621,7 @@ func TestSessionPauseHoldTimerExpiry(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	session.Pause()
@@ -2688,6 +2695,7 @@ func TestSessionPauseKeepaliveContinues(t *testing.T) {
 	session.mu.Lock()
 	session.conn = server
 	session.bufReader = bufio.NewReaderSize(server, 65536)
+	session.bufWriter = bufio.NewWriterSize(server, 16384)
 	session.mu.Unlock()
 
 	// Pause reading.
@@ -2785,4 +2793,124 @@ func TestSendUpdateConcurrentNoRace(t *testing.T) {
 	<-drainDone
 
 	require.Zero(t, errCount.Load(), "all sends should succeed without error")
+}
+
+// TestSessionBufWriterCreated verifies bufWriter is created during connection establishment.
+//
+// VALIDATES: AC-1 (bufWriter created wrapping conn)
+// PREVENTS: Missing bufWriter initialization causing nil pointer on Send*.
+func TestSessionBufWriterCreated(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Connection = ConnectionPassive
+
+	session := NewSession(settings)
+	require.Nil(t, session.bufWriter, "bufWriter should be nil before connection")
+
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	_ = acceptWithReader(t, session, server, client)
+
+	require.NotNil(t, session.bufWriter, "bufWriter should be set after connectionEstablished")
+}
+
+// TestSendUpdateUsesBufWriter verifies SendUpdate writes through bufWriter.
+// Uses an established session and verifies data arrives at the remote end.
+//
+// VALIDATES: AC-2 (SendUpdate writes to bufWriter, not raw conn)
+// PREVENTS: Regression where writes bypass bufWriter.
+func TestSendUpdateUsesBufWriter(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	require.NotNil(t, session.bufWriter, "bufWriter should exist on established session")
+
+	// Build a minimal UPDATE (empty withdraw + empty attrs + empty NLRI)
+	update := &message.Update{}
+
+	// Send in background (net.Pipe is synchronous)
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- session.SendUpdate(update)
+	}()
+
+	// Read from client side
+	buf := make([]byte, 4096)
+	n, err := client.Read(buf)
+	require.NoError(t, err)
+	require.Greater(t, n, message.HeaderLen, "should receive at least a header")
+
+	// Verify header: marker + length + UPDATE type
+	for i := range 16 {
+		require.Equal(t, byte(0xff), buf[i], "marker byte %d", i)
+	}
+	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type should be UPDATE")
+
+	require.NoError(t, <-errCh)
+}
+
+// TestSessionCloseFlushesBufWriter verifies closeConn flushes pending data.
+//
+// VALIDATES: AC-10 (bufWriter flushed before conn close)
+// PREVENTS: Lost data on session teardown.
+func TestSessionCloseFlushesBufWriter(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Write data to bufWriter without flushing (simulate unflushed data)
+	session.writeMu.Lock()
+	_, err := session.bufWriter.WriteString("test-data")
+	session.writeMu.Unlock()
+	require.NoError(t, err)
+
+	// Verify bufWriter has buffered data
+	require.Greater(t, session.bufWriter.Buffered(), 0)
+
+	// Close should flush. Read in background since net.Pipe is sync.
+	readDone := make(chan []byte, 1)
+	go func() {
+		buf := make([]byte, 4096)
+		n, _ := client.Read(buf)
+		readDone <- buf[:n]
+	}()
+
+	session.closeConn()
+
+	select {
+	case data := <-readDone:
+		require.Equal(t, "test-data", string(data), "flush should deliver buffered data")
+	case <-time.After(time.Second):
+		t.Fatal("closeConn should have flushed bufWriter")
+	}
+}
+
+// TestSendMessageAutoFlush verifies writeMessage (KEEPALIVE/OPEN/NOTIFICATION) flushes immediately.
+//
+// VALIDATES: AC-6 (non-UPDATE sends flush immediately)
+// PREVENTS: KEEPALIVEs stuck in bufWriter causing hold timer expiry.
+func TestSendMessageAutoFlush(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Send KEEPALIVE (uses writeMessage internally)
+	errCh := make(chan error, 1)
+	go func() {
+		conn := session.Conn()
+		errCh <- session.sendKeepalive(conn)
+	}()
+
+	// Read from client — data must arrive (proves immediate flush)
+	buf := make([]byte, 4096)
+	n, err := client.Read(buf)
+	require.NoError(t, err)
+	require.Equal(t, message.HeaderLen, n, "KEEPALIVE is exactly 19 bytes")
+	require.Equal(t, byte(message.TypeKEEPALIVE), buf[18])
+
+	require.NoError(t, <-errCh)
 }

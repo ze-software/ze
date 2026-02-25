@@ -67,9 +67,9 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	var mu sync.Mutex
 	done := make(chan struct{})
 
-	testPool := newFwdPool(func(_ fwdKey, item fwdItem) {
+	testPool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		mu.Lock()
-		dispatched = append(dispatched, item)
+		dispatched = append(dispatched, items...)
 		mu.Unlock()
 		close(done)
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
@@ -174,7 +174,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 	blocker := make(chan struct{})
 	var handlerCalls atomic.Int32
 
-	testPool := newFwdPool(func(_ fwdKey, item fwdItem) {
+	testPool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		handlerCalls.Add(1)
 		<-blocker
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
@@ -255,7 +255,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 	peer.sendCtxID = ctxID
 
 	// Create pool and stop it immediately
-	testPool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	testPool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		t.Fatal("handler should not be called on stopped pool")
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	testPool.Stop()

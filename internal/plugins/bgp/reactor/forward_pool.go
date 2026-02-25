@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -30,27 +31,63 @@ type fwdItem struct {
 	done      func()            // Called after all ops complete (Release cache entry)
 }
 
-// fwdHandler executes the pre-computed send operations in an fwdItem.
-// Errors are logged but not propagated — TCP failures trigger FSM disconnect
-// independently. On first error, remaining ops for this peer are skipped.
-func fwdHandler(_ fwdKey, item fwdItem) {
-	for _, body := range item.rawBodies {
-		if err := item.peer.SendRawUpdateBody(body); err != nil {
-			fwdLogger().Warn("forward send failed",
-				"peer", item.peer.Settings().Address,
-				"err", err,
-			)
-			return
+// fwdBatchHandler executes pre-computed send operations for a batch of fwdItems.
+// Acquires the session write lock once, writes all messages to bufWriter, flushes once.
+// On first write error, remaining items in the batch are skipped.
+// Errors are logged but not propagated — TCP failures trigger FSM disconnect independently.
+func fwdBatchHandler(_ fwdKey, items []fwdItem) {
+	if len(items) == 0 {
+		return
+	}
+
+	peer := items[0].peer
+
+	peer.mu.RLock()
+	session := peer.session
+	peer.mu.RUnlock()
+
+	if session == nil {
+		return
+	}
+
+	session.mu.RLock()
+	state := session.fsm.State()
+	conn := session.conn
+	session.mu.RUnlock()
+
+	if state != fsm.StateEstablished || conn == nil {
+		return
+	}
+
+	session.writeMu.Lock()
+	defer session.writeMu.Unlock()
+
+	for _, item := range items {
+		for _, body := range item.rawBodies {
+			if err := session.writeRawUpdateBody(body); err != nil {
+				fwdLogger().Warn("forward batch write failed",
+					"peer", peer.Settings().Address,
+					"err", err,
+				)
+				return
+			}
+		}
+		for _, update := range item.updates {
+			if err := session.writeUpdate(update); err != nil {
+				fwdLogger().Warn("forward batch write failed",
+					"peer", peer.Settings().Address,
+					"err", err,
+				)
+				return
+			}
 		}
 	}
-	for _, update := range item.updates {
-		if err := item.peer.SendUpdate(update); err != nil {
-			fwdLogger().Warn("forward send failed",
-				"peer", item.peer.Settings().Address,
-				"err", err,
-			)
-			return
-		}
+
+	if err := session.flushWrites(); err != nil {
+		fwdLogger().Warn("forward batch flush failed",
+			"peer", peer.Settings().Address,
+			"err", err,
+		)
 	}
 }
 
@@ -76,7 +113,7 @@ type fwdWorker struct {
 type fwdPool struct {
 	mu      sync.Mutex
 	workers map[fwdKey]*fwdWorker
-	handler func(key fwdKey, item fwdItem)
+	handler func(key fwdKey, items []fwdItem)
 	cfg     fwdPoolConfig
 	clock   sim.Clock
 	stopped bool
@@ -95,7 +132,7 @@ type fwdPool struct {
 }
 
 // newFwdPool creates a new forward pool with the given handler and configuration.
-func newFwdPool(handler func(fwdKey, fwdItem), cfg fwdPoolConfig) *fwdPool {
+func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 	if cfg.chanSize <= 0 {
 		cfg.chanSize = 64
 	}
@@ -207,13 +244,16 @@ func (fp *fwdPool) WorkerCount() int {
 	return int(fp.count.Load())
 }
 
-// safeHandle calls the handler with panic recovery, then calls item.done().
-// The done callback (Release) is guaranteed to run even if the handler panics.
-// Without this guarantee, a panicking handler would leak cache entries.
-func (fp *fwdPool) safeHandle(key fwdKey, item fwdItem) {
+// safeBatchHandle calls the handler with panic recovery, then calls done() for
+// every item in the batch. The done callbacks (Release) are guaranteed to run
+// even if the handler panics. Without this guarantee, a panicking handler would
+// leak cache entries.
+func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 	defer func() {
-		if item.done != nil {
-			item.done()
+		for i := range items {
+			if items[i].done != nil {
+				items[i].done()
+			}
 		}
 	}()
 	defer func() {
@@ -224,12 +264,30 @@ func (fp *fwdPool) safeHandle(key fwdKey, item fwdItem) {
 			)
 		}
 	}()
-	fp.handler(key, item)
+	fp.handler(key, items)
+}
+
+// drainBatch collects available items from the channel without blocking.
+// Returns a batch starting with firstItem, followed by any immediately available items.
+func drainBatch(firstItem fwdItem, ch <-chan fwdItem) []fwdItem {
+	batch := []fwdItem{firstItem}
+	for {
+		select {
+		case extra, ok := <-ch:
+			if !ok {
+				return batch
+			}
+			batch = append(batch, extra)
+		default: // non-blocking: no more items ready
+			return batch
+		}
+	}
 }
 
 // runWorker is the long-lived goroutine for one destination peer.
-// It reads items from the channel, calls the handler, and exits on idle timeout
-// or channel close (Stop).
+// It reads items from the channel using drain-batch (one blocking receive +
+// non-blocking drain of available items), calls the batch handler, and exits
+// on idle timeout or channel close (Stop).
 func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 	defer func() {
 		fp.count.Add(-1)
@@ -249,7 +307,8 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			if !idle.Stop() {
 				fwdDrainTimer(idle)
 			}
-			fp.safeHandle(key, item)
+			batch := drainBatch(item, w.ch)
+			fp.safeBatchHandle(key, batch)
 			idle.Reset(fp.cfg.idleTimeout)
 
 		case <-idle.C():

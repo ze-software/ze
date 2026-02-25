@@ -16,7 +16,7 @@ import (
 // PREVENTS: Eager worker creation wasting goroutines for idle peers.
 func TestFwdPool_LazyCreation(t *testing.T) {
 	handled := make(chan struct{}, 10)
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		handled <- struct{}{}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -48,7 +48,7 @@ func TestFwdPool_LazyCreation(t *testing.T) {
 // VALIDATES: AC-6 (worker idle timeout)
 // PREVENTS: Goroutine leaks from workers that never exit.
 func TestFwdPool_IdleTimeout(t *testing.T) {
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: 50 * time.Millisecond})
 	defer pool.Stop()
 
@@ -67,7 +67,7 @@ func TestFwdPool_IdleTimeout(t *testing.T) {
 // PREVENTS: Goroutine leaks on reactor shutdown.
 func TestFwdPool_Stop(t *testing.T) {
 	blocker := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 
@@ -87,7 +87,7 @@ func TestFwdPool_Stop(t *testing.T) {
 // VALIDATES: AC-8 (dispatch to stopped pool)
 // PREVENTS: Sends to closed channels or blocked dispatches after shutdown.
 func TestFwdPool_DispatchAfterStop(t *testing.T) {
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	pool.Stop()
 
@@ -104,8 +104,10 @@ func TestFwdPool_FIFOPerPeer(t *testing.T) {
 	orderCh := make(chan int, 10)
 	var counter atomic.Int32
 
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
-		orderCh <- int(counter.Add(1))
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		for range items {
+			orderCh <- int(counter.Add(1))
+		}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
@@ -132,7 +134,7 @@ func TestFwdPool_ParallelPeers(t *testing.T) {
 	slowCh := make(chan struct{})
 	fastDone := make(chan struct{})
 
-	pool := newFwdPool(func(key fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(key fwdKey, _ []fwdItem) {
 		if key.peerAddr == "slow" {
 			<-slowCh
 		} else {
@@ -165,7 +167,7 @@ func TestFwdPool_ParallelPeers(t *testing.T) {
 // PREVENTS: Silent message drops under load.
 func TestFwdPool_BackpressureBehavior(t *testing.T) {
 	blocker := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -211,7 +213,7 @@ func TestFwdPool_HandlerError(t *testing.T) {
 	var handled atomic.Int32
 	var doneCalled atomic.Int32
 
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		n := handled.Add(1)
 		if n == 1 {
 			panic("test panic")
@@ -245,7 +247,7 @@ func TestFwdPool_HandlerError(t *testing.T) {
 // PREVENTS: Deadlock during reactor shutdown when workers are backed up.
 func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	blocker := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
 
@@ -286,7 +288,7 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 // PREVENTS: Ignoring configuration and always using default 64.
 func TestFwdPoolCustomChanSize(t *testing.T) {
 	block := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-block
 	}, fwdPoolConfig{chanSize: 128, idleTimeout: time.Second})
 	defer func() { close(block); pool.Stop() }()
@@ -317,7 +319,12 @@ func TestFwdPoolCustomChanSize(t *testing.T) {
 func TestForwardPoolBackpressurePropagation(t *testing.T) {
 	var unblocked atomic.Int32
 	block := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	entered := make(chan struct{}, 1)
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case entered <- struct{}{}: // Signal first entry only.
+		default: // already signaled
+		}
 		<-block // Block all processing.
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	defer func() {
@@ -327,8 +334,12 @@ func TestForwardPoolBackpressurePropagation(t *testing.T) {
 		pool.Stop()
 	}()
 
-	// Fill channel (4 items + 1 being processed = 5 dispatches before block).
-	for range 5 {
+	// Dispatch 1 item and wait for handler to start blocking.
+	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	<-entered
+
+	// Fill channel (4 items = chanSize) while handler is blocked.
+	for range 4 {
 		pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
 	}
 
@@ -360,7 +371,7 @@ func TestForwardPoolBackpressurePropagation(t *testing.T) {
 func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 	doneCh := make(chan struct{}, 5)
 
-	pool := newFwdPool(func(_ fwdKey, _ fwdItem) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		// Handler does nothing
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -379,4 +390,112 @@ func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 			t.Fatalf("timeout waiting for done callback %d", i)
 		}
 	}
+}
+
+// TestFwdWorkerDrainBatch verifies the worker drain-batches multiple items
+// from the channel into a single handler call.
+//
+// VALIDATES: AC-7 (multiple items drained and written in single handler call)
+// PREVENTS: One-at-a-time processing when multiple items are queued.
+func TestFwdWorkerDrainBatch(t *testing.T) {
+	batchSizes := make(chan int, 10)
+	entered := make(chan struct{}, 1)
+	var calls atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		n := calls.Add(1)
+		if n == 1 {
+			// Signal that first handler call entered, then block
+			// so remaining items queue in the channel.
+			entered <- struct{}{}
+			// Wait briefly for items to be dispatched
+			time.Sleep(20 * time.Millisecond)
+		}
+		batchSizes <- len(items)
+	}, fwdPoolConfig{chanSize: 10, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Dispatch first item — enters handler
+	pool.Dispatch(key, fwdItem{})
+	<-entered
+
+	// Dispatch 5 more while first handler call is sleeping
+	for range 5 {
+		pool.Dispatch(key, fwdItem{})
+	}
+
+	// First handler call returns batch of 1
+	size1 := <-batchSizes
+	assert.Equal(t, 1, size1, "first batch should be 1 item")
+
+	// Second handler call should drain-batch all 5 queued items
+	size2 := <-batchSizes
+	assert.Equal(t, 5, size2, "second batch should drain all 5 queued items")
+}
+
+// TestFwdWorkerBatchSingleItem verifies a single queued item works
+// identically to the non-batch path (batch of 1).
+//
+// VALIDATES: AC-12 (single item behavior identical)
+// PREVENTS: Edge case in drain-batch breaking single-item processing.
+func TestFwdWorkerBatchSingleItem(t *testing.T) {
+	batchSizes := make(chan int, 10)
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		batchSizes <- len(items)
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	// Dispatch single item
+	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+
+	select {
+	case size := <-batchSizes:
+		assert.Equal(t, 1, size, "single item should produce batch of 1")
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for handler")
+	}
+}
+
+// TestFwdWorkerBatchAllDoneCalled verifies done() is called for every
+// item in a batch, even when the handler panics mid-batch.
+//
+// VALIDATES: AC-8/AC-9 (done called for all items on error)
+// PREVENTS: Cache entry leaks when batch processing fails.
+func TestFwdWorkerBatchAllDoneCalled(t *testing.T) {
+	var doneCalled atomic.Int32
+	entered := make(chan struct{}, 1)
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case entered <- struct{}{}:
+		default: // already signaled
+		}
+		panic("test batch panic")
+	}, fwdPoolConfig{chanSize: 10, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+	doneFunc := func() { doneCalled.Add(1) }
+
+	// Dispatch first item — enters handler and panics
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+	<-entered
+
+	// Wait for panic recovery
+	time.Sleep(50 * time.Millisecond)
+
+	// Dispatch 3 more while worker is ready again
+	// These should form a batch
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+	pool.Dispatch(key, fwdItem{done: doneFunc})
+
+	// Wait for processing
+	time.Sleep(100 * time.Millisecond)
+
+	// All 4 done callbacks should have been called
+	assert.Equal(t, int32(4), doneCalled.Load(), "done must be called for every item")
 }

@@ -117,6 +117,7 @@ type Session struct {
 	dialer     sim.Dialer
 	conn       net.Conn
 	bufReader  *bufio.Reader // Wraps conn to batch kernel read syscalls
+	bufWriter  *bufio.Writer // Wraps conn to batch kernel write syscalls
 	negotiated *capability.Negotiated
 
 	// localOpen stores our OPEN for reference during negotiation.
@@ -608,6 +609,7 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.mu.Lock()
 	s.conn = conn
 	s.bufReader = bufio.NewReaderSize(conn, 65536)
+	s.bufWriter = bufio.NewWriterSize(conn, 16384)
 	s.mu.Unlock()
 
 	// Signal FSM.
@@ -727,13 +729,20 @@ func (s *Session) closeConn() {
 	defer s.mu.Unlock()
 
 	if s.conn != nil {
+		// Flush under writeMu to avoid racing with Send* methods that
+		// also access bufWriter under writeMu. Lock ordering: s.mu → s.writeMu.
+		if s.bufWriter != nil {
+			s.writeMu.Lock()
+			_ = s.bufWriter.Flush()
+			s.writeMu.Unlock()
+		}
 		_ = s.conn.Close()
 		s.conn = nil
 		// bufReader is NOT nilled here: Run() may have captured conn (non-nil)
 		// before this lock and will call readAndProcessMessage next. The stale
 		// bufReader wrapping the closed conn returns a proper read error,
 		// which readAndProcessMessage handles as ErrConnectionClosed.
-		// connectionEstablished() replaces bufReader on reconnection.
+		// connectionEstablished() replaces bufReader and bufWriter on reconnection.
 	}
 }
 
@@ -825,6 +834,7 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 }
 
 // writeMessage writes a BGP message directly into the session buffer.
+// Always flushes immediately — used for KEEPALIVE, OPEN, NOTIFICATION.
 func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	if conn == nil {
 		return ErrNotConnected
@@ -839,8 +849,10 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	s.writeBuf.Reset()
 	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
-	_, err := conn.Write(s.writeBuf.Buffer()[:n])
-	if err != nil {
+	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		return err
+	}
+	if err := s.bufWriter.Flush(); err != nil {
 		return err
 	}
 
@@ -860,6 +872,47 @@ func (s *Session) TriggerHoldTimerExpiry() {
 	s.timers.StopAll()
 	_ = s.fsm.Event(fsm.EventHoldTimerExpires)
 	s.closeConn()
+}
+
+// writeUpdate writes an UPDATE to bufWriter without locking or flushing.
+// Caller must hold writeMu.
+func (s *Session) writeUpdate(update *message.Update) error {
+	s.writeBuf.Reset()
+	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
+
+	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		return err
+	}
+
+	if s.onMessageReceived != nil && n >= message.HeaderLen {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
+	}
+
+	return nil
+}
+
+// writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
+// Caller must hold writeMu.
+func (s *Session) writeRawUpdateBody(body []byte) error {
+	totalLen := message.HeaderLen + len(body)
+	s.writeBuf.Reset()
+	buf := s.writeBuf.Buffer()
+
+	copy(buf[:message.MarkerLen], message.Marker[:])
+	buf[16] = byte(totalLen >> 8)
+	buf[17] = byte(totalLen)
+	buf[18] = byte(message.TypeUPDATE)
+	copy(buf[message.HeaderLen:], body)
+
+	_, err := s.bufWriter.Write(buf[:totalLen])
+	return err
+}
+
+// flushWrites flushes the bufWriter. Caller must hold writeMu.
+func (s *Session) flushWrites() error {
+	return s.bufWriter.Flush()
 }
 
 // SendUpdate sends a BGP UPDATE message.
@@ -884,23 +937,10 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
-	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
-	s.writeBuf.Reset()
-	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
-
-	_, err := conn.Write(s.writeBuf.Buffer()[:n])
-	if err != nil {
+	if err := s.writeUpdate(update); err != nil {
 		return err
 	}
-
-	// Notify callback after successful send
-	if s.onMessageReceived != nil && n >= message.HeaderLen {
-		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
-	}
-
-	return nil
+	return s.flushWrites()
 }
 
 // SendAnnounce sends a BGP UPDATE message for announcing a route.
@@ -934,8 +974,10 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	s.writeBuf.Reset()
 	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, localAS, isIBGP, asn4, addPath)
 
-	_, err := conn.Write(s.writeBuf.Buffer()[:n])
-	if err != nil {
+	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		return err
+	}
+	if err := s.flushWrites(); err != nil {
 		return err
 	}
 
@@ -978,8 +1020,10 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	s.writeBuf.Reset()
 	n := WriteWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, addPath)
 
-	_, err := conn.Write(s.writeBuf.Buffer()[:n])
-	if err != nil {
+	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		return err
+	}
+	if err := s.flushWrites(); err != nil {
 		return err
 	}
 
@@ -1014,26 +1058,10 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
 
-	// RFC 4271 Section 4.1 - Zero-allocation: write header + body into session buffer
-	totalLen := message.HeaderLen + len(body)
-	s.writeBuf.Reset()
-	buf := s.writeBuf.Buffer()
-
-	// Marker (16 bytes of 0xFF)
-	copy(buf[:message.MarkerLen], message.Marker[:])
-
-	// Length (2 bytes, big-endian)
-	buf[16] = byte(totalLen >> 8)
-	buf[17] = byte(totalLen)
-
-	// Type (1 byte) - UPDATE = 2
-	buf[18] = byte(message.TypeUPDATE)
-
-	// Body
-	copy(buf[message.HeaderLen:], body)
-
-	_, err := conn.Write(buf[:totalLen])
-	return err
+	if err := s.writeRawUpdateBody(body); err != nil {
+		return err
+	}
+	return s.flushWrites()
 }
 
 // SendRawMessage sends raw bytes to the peer.
@@ -1050,9 +1078,14 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	}
 
 	if msgType == 0 {
-		// Full packet mode - send as-is (no writeBuf used)
-		_, err := conn.Write(payload)
-		return err
+		// Full packet mode - send as-is through bufWriter
+		s.writeMu.Lock()
+		defer s.writeMu.Unlock()
+
+		if _, err := s.bufWriter.Write(payload); err != nil {
+			return err
+		}
+		return s.bufWriter.Flush()
 	}
 
 	s.writeMu.Lock()
@@ -1076,6 +1109,8 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	// Body
 	copy(buf[message.HeaderLen:], payload)
 
-	_, err := conn.Write(buf[:totalLen])
-	return err
+	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
+		return err
+	}
+	return s.bufWriter.Flush()
 }

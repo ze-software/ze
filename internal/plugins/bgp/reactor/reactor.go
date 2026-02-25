@@ -263,7 +263,7 @@ func New(config *Config) *Reactor {
 		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:        NewWatchdogManager(),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
-		fwdPool:         newFwdPool(fwdHandler, fwdPoolConfig{chanSize: fwdChanSize}),
+		fwdPool:         newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: fwdChanSize}),
 		configTree:      config.ConfigTree,
 	}
 
