@@ -578,6 +578,11 @@ On SIGINT/SIGTERM or `--duration` expiry:
 | Functional test for new RPC/API | No | N/A - tool has its own tests |
 | Makefile build target | Yes | `Makefile` |
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 This is a large tool. Implementation should be phased:

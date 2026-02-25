@@ -146,6 +146,11 @@ No new functional tests needed — this is a write-path optimization. Existing r
 ## Files to Create
 - None — all changes are modifications to existing files
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.

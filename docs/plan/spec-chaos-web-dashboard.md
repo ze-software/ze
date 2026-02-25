@@ -291,6 +291,11 @@ The design doc covers:
 - `test/chaos/web-startup.ci` - Functional test: server starts and serves dashboard
 - `test/chaos/web-assets.ci` - Functional test: embedded assets served correctly
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.

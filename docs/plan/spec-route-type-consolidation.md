@@ -1,8 +1,18 @@
 # Spec: Route Type Consolidation
 
+**Status:** Skeleton — not ready for implementation. Low priority cleanup.
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file
+2. `docs/architecture/route-types.md` — current route type analysis
+3. `internal/plugin/types.go` — RouteSpec, PathAttributes, RIBRoute
+4. `internal/plugin/rib/rib.go` — plugin rib.Route
+
 ## Task
 
-Consolidate multiple Route struct representations into a unified architecture.
+Consolidate multiple Route struct representations into a unified architecture. LOW priority — current duplication works correctly. This is cleanup, not bugfix.
 
 ## Problem
 
@@ -23,9 +33,58 @@ Consolidate multiple Route struct representations into a unified architecture.
 
 ### Architecture Docs
 - [ ] `docs/architecture/route-types.md` - Current state analysis
+  → Decision: TBD after reading
+  → Constraint: TBD after reading
 - [ ] `docs/architecture/encoding-context.md` - Zero-copy patterns
+  → Decision: TBD after reading
 - [ ] `docs/architecture/update-building.md` - Wire format building
+  → Constraint: TBD after reading
 - [ ] `docs/architecture/rib-transition.md` - RIB → API transition (affects scope)
+  → Decision: TBD after reading — may limit scope to plugin-only
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE writing this spec)
+- [ ] `internal/plugin/types.go` - RouteSpec, PathAttributes, RIBRoute definitions
+- [ ] `internal/plugin/rib/rib.go` - plugin rib.Route definition
+- [ ] `internal/plugin/rr/rib.go` - rr.Route zero-copy definition
+- [ ] `internal/rib/route.go` - core engine rib.Route definition
+
+**Behavior to preserve:**
+- All current JSON output formats
+- Zero-copy forwarding path (rr.Route minimal fields)
+- Plugin storage patterns (rib.Route with full attributes)
+
+**Behavior to change:**
+- Reduce route struct duplication via unified type with view methods
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- Routes enter from wire parsing (BGP UPDATE) and API commands
+
+### Transformation Path
+1. Wire bytes parsed into WireUpdate (lazy iterators)
+2. Attributes extracted to different Route types depending on consumer
+3. Plugin storage uses full attribute Route (rib.Route)
+4. Zero-copy forwarding uses minimal Route (rr.Route — MsgID only)
+5. API output uses RIBRoute (string-based for JSON)
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Engine → Plugin | JSON event with route data | [ ] |
+| Plugin storage → API | RIBRoute conversion | [ ] |
+| Plugin storage → Forward | Zero-copy via MsgID reference | [ ] |
+
+### Integration Points
+- All route consumers would need updating if types are unified
+
+### Architectural Verification
+- [ ] No bypassed layers
+- [ ] No unintended coupling
+- [ ] No duplicated functionality
+- [ ] Zero-copy preserved where applicable
 
 ## Proposed Solution
 
@@ -33,49 +92,36 @@ Consolidate multiple Route struct representations into a unified architecture.
 
 Create unified `rib.Route` with view methods:
 
-```go
-// internal/rib/route.go (or internal/plugin/rib/route.go)
-type Route struct {
-    MsgID               uint64
-    Family              string
-    Prefix              string
-    PathID              uint32
-    NextHop             string
-    Origin              string
-    ASPath              []uint32
-    MED                 uint32
-    LocalPref           uint32
-    Communities         []uint32
-    LargeCommunities    []LargeCommunity
-    ExtendedCommunities []ExtendedCommunity
-}
+| Field | Type | Description |
+|-------|------|-------------|
+| `MsgID` | `uint64` | Wire message reference for zero-copy forwarding |
+| `Family` | `string` | Address family |
+| `Prefix` | `string` | NLRI prefix |
+| `PathID` | `uint32` | ADD-PATH path identifier |
+| `NextHop` | `string` | Next-hop address |
+| `Origin` | `string` | Origin attribute |
+| `ASPath` | `[]uint32` | AS path |
+| `MED` | `uint32` | Multi-exit discriminator |
+| `LocalPref` | `uint32` | Local preference |
+| `Communities` | `[]uint32` | Standard communities |
+| `LargeCommunities` | `[]LargeCommunity` | Large communities |
+| `ExtendedCommunities` | `[]ExtendedCommunity` | Extended communities |
 
-// Views for different use cases
-func (r *Route) ForZeroCopy() ZeroCopyRoute { ... }
-func (r *Route) ForAPI() RIBRoute { ... }
-func (r *Route) MarshalJSON() ([]byte, error) { ... }
-```
+**View methods:**
 
-### RouteBase Interface
+| Method | Returns | Purpose |
+|--------|---------|---------|
+| `ForZeroCopy()` | `ZeroCopyRoute` | Minimal fields for forwarding |
+| `ForAPI()` | `RIBRoute` | String-based fields for JSON output |
+| `MarshalJSON()` | JSON bytes | Direct JSON encoding |
 
-Optional: Formalize route type hierarchy:
+### RouteBase Interface (optional)
 
-```go
-type RouteBase interface {
-    GetPrefix() netip.Prefix
-    GetNextHop() RouteNextHop
-    GetAttributes() PathAttributes
-}
-```
-
-## 🧪 TDD Test Plan
-
-### Unit Tests
-| Test | File | Validates |
-|------|------|-----------|
-| `TestRouteForZeroCopy` | `internal/plugin/rib/route_test.go` | Zero-copy view |
-| `TestRouteForAPI` | `internal/plugin/rib/route_test.go` | API view |
-| `TestRouteMarshalJSON` | `internal/plugin/rib/route_test.go` | JSON encoding |
+| Method | Returns | Purpose |
+|--------|---------|---------|
+| `GetPrefix()` | `netip.Prefix` | Route destination |
+| `GetNextHop()` | `RouteNextHop` | Next-hop address |
+| `GetAttributes()` | `PathAttributes` | Route attributes |
 
 ## Scope Decision
 
@@ -86,6 +132,33 @@ type RouteBase interface {
 
 The RIB transition suggests plugin routes become the primary storage, making option 1 more relevant.
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestRouteForZeroCopy` | `internal/plugin/rib/route_test.go` | Zero-copy view | |
+| `TestRouteForAPI` | `internal/plugin/rib/route_test.go` | API view | |
+| `TestRouteMarshalJSON` | `internal/plugin/rib/route_test.go` | JSON encoding | |
+
+### Boundary Tests (MANDATORY for numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+
 ## Files to Modify
 
 - `internal/plugin/rib/rib.go` - Add view methods to Route
@@ -93,16 +166,32 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 - `internal/plugin/types.go` - Possibly remove duplicate RIBRoute
 - `internal/rib/route.go` - (if full scope) Align with plugin Route
 
+### Integration Checklist
+| Integration Point | Needed? | File |
+|-------------------|---------|------|
+| YANG schema | No | |
+| CLI commands/flags | No | |
+| Plugin SDK docs | No | |
+| Functional test | [ ] | |
+
 ## Implementation Steps
 
 **Self-Critical Review:** After each step, review for issues and fix before proceeding.
 
 1. **Analyze usage** - Find all Route struct usages
-2. **Add view methods** - To existing rib.Route
-3. **Update rr plugin** - Use ForZeroCopy() view
-4. **Update API output** - Use ForAPI() view
-5. **Remove duplicates** - If safe
-6. **Run tests** - `make test && make ze-lint && make functional`
+2. **Write unit tests** → Review: edge cases?
+3. **Run tests** → Verify FAIL
+4. **Add view methods** - To existing rib.Route
+5. **Update rr plugin** - Use ForZeroCopy() view
+6. **Update API output** - Use ForAPI() view
+7. **Remove duplicates** - If safe
+8. **Run tests** → Verify PASS
+9. **Verify all** → `make ze-verify`
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
 
 ## Design Principles
 
@@ -113,22 +202,89 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 
 **API stability guarantee:** Only the text and JSON APIs are stable. Go package structure, types, and interfaces may change without notice. Plugins should communicate via text/JSON protocol, not by importing Go packages.
 
-## Priority
+## Mistake Log
 
-**LOW** - Current duplication works correctly. This is cleanup, not bugfix.
+### Wrong Assumptions
+| What was assumed | What was true | How discovered | Impact |
+|------------------|---------------|----------------|--------|
+
+### Failed Approaches
+| Approach | Why abandoned | Replacement |
+|----------|---------------|-------------|
+
+## Design Insights
+
+## Implementation Summary
+
+### What Was Implemented
+- (pending — spec is deferred)
+
+### Documentation Updates
+- (pending)
+
+### Deviations from Plan
+- (pending)
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+
+### Audit Summary
+- **Total items:**
+- **Done:**
+- **Partial:**
+- **Skipped:**
+- **Changed:**
 
 ## Checklist
 
-### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+### Goal Gates (MUST pass)
+- [ ] AC defined and demonstrated
+- [ ] Wiring Test table complete
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
+- [ ] Feature code integrated (`internal/*`, `cmd/*`)
+- [ ] Integration completeness proven end-to-end
+- [ ] Architecture docs updated
+- [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
-### Verification
+### Quality Gates (SHOULD pass — defer with user approval)
 - [ ] `make ze-lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [ ] Implementation Audit complete
+- [ ] Mistake Log escalation reviewed
 
-### Completion
+### Design
+- [ ] No premature abstraction (3+ use cases?)
+- [ ] No speculative features (needed NOW?)
+- [ ] Single responsibility per component
+- [ ] Explicit > implicit behavior
+- [ ] Minimal coupling
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs
+- [ ] Functional tests for end-to-end behavior
+
+### Completion (BLOCKING — before ANY commit)
+- [ ] Critical Review passes
+- [ ] Partial/Skipped items have user approval
+- [ ] Implementation Summary filled
+- [ ] Implementation Audit filled
 - [ ] Spec moved to `docs/plan/done/NNN-route-type-consolidation.md`
+- [ ] Spec included in commit

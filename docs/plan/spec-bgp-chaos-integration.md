@@ -232,6 +232,11 @@ expect=exit:code=0
 | Test runner registration | Yes | `cmd/ze-test/bgp.go` — add `chaos` suite |
 | Ze binary dependency | Yes | `make functional-chaos` must build Ze first |
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 1. **Read Phase 1-9 learnings** — understand config generation and orchestrator flow

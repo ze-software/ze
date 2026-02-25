@@ -599,6 +599,11 @@ Every file listed in the survey tables above that has "(keep)" — these get `//
 | `// Related:` comments on all split files | Yes | Every file in a split group |
 | Hook registration | Yes | `.claude/settings.json` |
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 ### Ordering

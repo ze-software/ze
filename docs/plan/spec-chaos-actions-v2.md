@@ -166,6 +166,11 @@ Each action has configurable parameters (count, duration, etc.). All actions emi
 - `test/chaos/route-burst.ci` - Functional test
 - `test/chaos/replay-params.ci` - Functional test
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 1. **Extend ChaosAction (TDD)** - Add Params map, parameter validation per type

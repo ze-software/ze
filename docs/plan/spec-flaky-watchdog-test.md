@@ -118,6 +118,11 @@ No new numeric fields.
 
 None expected.
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 1. **Investigate** — read watchdog command handling in reactor, understand timing assumptions in test script

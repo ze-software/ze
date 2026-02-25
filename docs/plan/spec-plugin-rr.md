@@ -233,6 +233,11 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 - `test/plugin/plugin-persist-features.ci` - Functional: features
 - `test/plugin/plugin-persist-reconnect.ci` - Functional: reconnect replay
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 ### Phase 1: RR — EOR + Cache Lifecycle (existing plugin enhancements)
@@ -516,8 +521,8 @@ Route key format: `family + "|" + prefix`
 
 ### Goal Gates (MUST pass — cannot defer)
 - [ ] Acceptance criteria AC-1..AC-13 all demonstrated
-- [ ] Tests pass (`make test`)
-- [ ] No regressions (`make functional`)
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
 - [ ] Feature code integrated into codebase (`internal/plugins/bgp-rr/`, `internal/plugins/bgp-persist/`)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)

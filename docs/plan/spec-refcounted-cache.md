@@ -249,6 +249,11 @@ Steps 1-7 remain the same. Changes to step 5 and 8:
 
 None — all changes modify existing files.
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 ### Phase 1 (DONE)

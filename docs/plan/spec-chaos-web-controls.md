@@ -188,6 +188,11 @@ All manual triggers flow through the normal event pipeline and are recorded in t
 - `test/chaos/web-control.ci` - Functional test
 - `test/chaos/web-trigger-replay.ci` - Functional test
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 1. **Extend scheduler (TDD)** - Pause/Resume/SetRate/IsPaused with mutex

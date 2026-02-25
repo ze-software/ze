@@ -242,7 +242,9 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Minimal coupling
 
 ### TDD
-- [ ] Tests written → FAIL → implement → PASS
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
 - [ ] Boundary tests for all numeric inputs
 - [ ] Functional tests for end-to-end behavior
 

@@ -157,6 +157,11 @@ No new numeric inputs introduced.
 ## Files to Create
 - None — all changes are additions to existing files
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.

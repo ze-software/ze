@@ -234,6 +234,11 @@ The hub creates and manages listen sockets based on config and plugin declaratio
 
 ---
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
@@ -367,8 +372,8 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Verification
 - [ ] `make ze-lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [ ] `make ze-unit-test` passes
+- [ ] `make ze-functional-test` passes
 
 ### Documentation
 - [ ] Required docs read
