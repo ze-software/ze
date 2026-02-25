@@ -322,37 +322,37 @@ No RFC constraints — this is an internal optimization with no protocol-level i
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-10 all demonstrated
-- [ ] `make ze-unit-test` passes
-- [ ] `make ze-functional-test` passes
-- [ ] Feature code integrated (`internal/*`)
-- [ ] Integration completeness proven end-to-end
-- [ ] Architecture docs updated
-- [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
+- [x] AC-1..AC-10 all demonstrated
+- [x] `make ze-unit-test` passes
+- [x] `make ze-functional-test` passes
+- [x] Feature code integrated (`internal/*`)
+- [x] Integration completeness proven end-to-end
+- [x] Architecture docs updated
+- [x] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
-- [ ] `make ze-lint` passes
-- [ ] Implementation Audit complete
-- [ ] Mistake Log escalation reviewed
+- [x] `make ze-lint` passes
+- [x] Implementation Audit complete
+- [x] Mistake Log escalation reviewed
 
 ### Design
-- [ ] No premature abstraction (3+ use cases?)
-- [ ] No speculative features (needed NOW?)
-- [ ] Single responsibility per component
-- [ ] Explicit > implicit behavior
-- [ ] Minimal coupling
+- [x] No premature abstraction (3+ use cases?)
+- [x] No speculative features (needed NOW?)
+- [x] Single responsibility per component
+- [x] Explicit > implicit behavior
+- [x] Minimal coupling
 
 ### TDD
-- [ ] Tests written → FAIL → implement → PASS
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional tests for end-to-end behavior
+- [x] Tests written → FAIL → implement → PASS
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+- [x] Boundary tests for all numeric inputs
+- [x] Functional tests for end-to-end behavior
 
 ### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
-- [ ] Partial/Skipped items have user approval
-- [ ] Implementation Summary filled
-- [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
+- [x] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
+- [x] Partial/Skipped items have user approval
+- [x] Implementation Summary filled
+- [x] Implementation Audit filled (every requirement, AC, test, file has status + location)
+- [x] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
