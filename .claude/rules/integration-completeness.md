@@ -19,3 +19,18 @@ Every feature needs at least one end-to-end test from its intended usage point.
 
 **Deferrable:** advanced behavior (deterministic scheduler, fault injection, property testing, benchmarks).
 **NOT deferrable:** one test proving the wiring works.
+
+## Wiring Tests (BLOCKING — NEVER deferrable)
+
+A wiring test proves the feature is reachable from its intended entry point (config, CLI, event dispatch, plugin launch). It is the minimum proof that the feature is integrated, not just isolated.
+
+| Banned | Why |
+|--------|-----|
+| "Deferred to next spec" | Next spec won't pick it up. Feature ships unwired. |
+| "Requires infrastructure not yet built" | Then the feature is blocked, not done. |
+| "Unit tests cover the logic" | Unit tests prove the algorithm, not the wiring. |
+| "make ze-verify passes" | Passing tests that don't exercise the entry point prove nothing. |
+
+**If the wiring test cannot be written, the feature is not done — it is blocked.**
+
+Every spec MUST have a `## Wiring Test` table (see `docs/plan/TEMPLATE.md`). Every row must have a concrete test name. The `validate-spec.sh` hook enforces this mechanically (exit 2).

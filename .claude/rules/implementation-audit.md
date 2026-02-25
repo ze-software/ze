@@ -28,8 +28,18 @@ Before: moving spec to `docs/plan/done/`, claiming "done", asking to commit.
 [ ] Every file in plan has a status
 [ ] All Partial/Skipped have user approval
 [ ] Integration points verified (YANG, CLI, docs)
+[ ] Wiring Test table complete — every row has a test name, none deferred
 [ ] Audit Summary totals accurate
 ```
+
+## Evidence Standards
+
+| Claim | Acceptable Evidence | NOT Acceptable |
+|-------|-------------------|----------------|
+| Feature works | Test name + output | "make ze-verify passes" |
+| Feature is wired in | Wiring test that exercises entry→feature path | Unit test with mock/fake entry point |
+| AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
+| AC-N done (logic) | Unit test name + file:line | "should work" |
 
 ## Red Flags
 

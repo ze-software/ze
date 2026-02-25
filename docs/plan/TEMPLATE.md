@@ -66,6 +66,15 @@
 - [ ] No duplicated functionality (extends existing, doesn't recreate)
 - [ ] Zero-copy preserved where applicable (uses refs, not copies)
 
+## Wiring Test (MANDATORY — NOT deferrable)
+
+<!-- BLOCKING: Proves the feature is reachable from its intended entry point. -->
+<!-- Without this, the feature exists in isolation — unit tests pass but nothing calls it. -->
+<!-- Every row MUST have a test name. "Deferred" / "TODO" / empty = spec cannot be marked done. -->
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+
 ## Acceptance Criteria
 
 <!-- Define BEFORE implementation. Each row is a testable assertion. -->
@@ -211,6 +220,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
+- [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `make ze-unit-test` passes
 - [ ] `make ze-functional-test` passes
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)

@@ -43,6 +43,7 @@ REQUIRED_SECTIONS=(
     "## Required Reading"
     "## Current Behavior"
     "## Data Flow"
+    "## Wiring Test"
     "## 🧪 TDD Test Plan"
     "### Unit Tests"
     "## Files to Modify"
@@ -196,6 +197,38 @@ fi
 FUNC_DEFS=$(grep -cE '^func\s+\w+|^def\s+\w+|^fn\s+\w+' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
 if [[ "$FUNC_DEFS" -gt 0 ]]; then
     ERRORS+=("Specs MUST NOT contain function definitions. Use tables/prose to describe behavior")
+fi
+
+# === WIRING TEST CHECK (BLOCKING) ===
+# Every spec MUST have a Wiring Test section with concrete test names
+# (Note: "## Wiring Test" is also in REQUIRED_SECTIONS for the basic check above;
+#  this block adds detailed validation of table content)
+if ! grep -q "^## Wiring Test" "$FILE_PATH"; then
+    : # Already caught by REQUIRED_SECTIONS check above
+else
+    WIRING_SECTION=$(sed -n '/^## Wiring Test/,/^## /p' "$FILE_PATH" | head -30)
+    # Must have a table
+    if ! echo "$WIRING_SECTION" | grep -q '|.*→.*|'; then
+        ERRORS+=("Wiring Test section must have table with Entry Point → Feature Code → Test columns")
+    fi
+    # Check for placeholder/deferred/empty test cells
+    # Table rows look like: | entry | → | code | test |
+    # Extract the last column (test name) from data rows (skip header + separator)
+    WIRING_ROWS=$(echo "$WIRING_SECTION" | grep '|.*→.*|' | grep -v '^|.*Entry Point' | grep -v '^|.*---')
+    if [[ -n "$WIRING_ROWS" ]]; then
+        # Check each row's test column for deferred/TODO/placeholder/empty
+        while IFS= read -r row; do
+            TEST_CELL=$(echo "$row" | awk -F'|' '{print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//')
+            # If $NF is empty (trailing |), get second to last
+            if [[ -z "$TEST_CELL" ]]; then
+                TEST_CELL=$(echo "$row" | awk -F'|' '{print $(NF-1)}' | sed 's/^[ \t]*//;s/[ \t]*$//')
+            fi
+            if [[ -z "$TEST_CELL" ]] || echo "$TEST_CELL" | grep -qiE 'deferred|TODO|TBD|\[test name|^\?\?\?$|^$'; then
+                ERRORS+=("Wiring Test: every row must have a concrete test name. Found deferred/empty: '$TEST_CELL'")
+                break
+            fi
+        done <<< "$WIRING_ROWS"
+    fi
 fi
 
 # === ACCEPTANCE CRITERIA CHECK ===
