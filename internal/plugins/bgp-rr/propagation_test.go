@@ -97,10 +97,10 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	// Dispatch 3 UPDATE events from peer 10.0.0.1.
 	for i := 1; i <= 3; i++ {
 		input := fmt.Sprintf(
-			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
 			i, i,
 		)
-		rs.dispatch([]byte(input))
+		rs.dispatchText(input)
 	}
 
 	// Read RPCs from the engine side. With batch accumulation, the 3 UPDATEs
@@ -178,8 +178,8 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
 
 	// Dispatch UPDATE with no NLRI → should trigger release.
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":42},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"}}}}`
-	rs.dispatch([]byte(input))
+	input := "peer 10.0.0.1 received update 42"
+	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -228,8 +228,8 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	rs.mu.Unlock()
 
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.2 should be a target.
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":7},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
-	rs.dispatch([]byte(input))
+	input := "peer 10.0.0.1 received update 7 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32"
+	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -298,10 +298,10 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 	const numUpdates = 100
 	for i := 1; i <= numUpdates; i++ {
 		input := fmt.Sprintf(
-			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
 			i, i,
 		)
-		rs.dispatch([]byte(input))
+		rs.dispatchText(input)
 	}
 
 	// Stop workers — drains all pending items before returning.
@@ -358,8 +358,8 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		if !ok {
 			return
 		}
-		families, _, parseErr := parseUpdateFamilies(ctx.bgpPayload)
-		isRelease := parseErr != nil || len(families) == 0
+		families := parseTextUpdateFamilies(ctx.textPayload)
+		isRelease := len(families) == 0
 		mu.Lock()
 		items = append(items, recordedItem{msgID: item.msgID, release: isRelease})
 		mu.Unlock()
@@ -373,17 +373,14 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		var input string
 		if i%2 == 0 {
 			input = fmt.Sprintf(
-				`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+				"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
 				i, i,
 			)
 		} else {
 			// Empty NLRI → triggers release path
-			input = fmt.Sprintf(
-				`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"}}}}`,
-				i,
-			)
+			input = fmt.Sprintf("peer 10.0.0.1 received update %d", i)
 		}
-		rs.dispatch([]byte(input))
+		rs.dispatchText(input)
 	}
 
 	// Stop workers — drains all pending items.
@@ -763,9 +760,8 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// OPEN with capabilities but NO multiprotocol entries
-	input := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":2,"name":"route-refresh"},{"code":65,"name":"asn4","value":"65001"}]}}}`
-
-	rs.dispatch([]byte(input))
+	input := "peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
+	rs.dispatchText(input)
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -816,8 +812,8 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	}
 
 	// State up arrives first (before OPEN)
-	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-	rs.dispatch([]byte(stateInput))
+	stateInput := "peer 10.0.0.1 asn 65001 state up"
+	rs.dispatchText(stateInput)
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -855,12 +851,12 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	}
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
-	openInput := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"}]}}}`
-	rs.dispatch([]byte(openInput))
+	openInput := "peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
+	rs.dispatchText(openInput)
 
 	// Step 2: State up
-	stateInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-	rs.dispatch([]byte(stateInput))
+	stateInput := "peer 10.0.0.1 asn 65001 state up"
+	rs.dispatchText(stateInput)
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -932,8 +928,8 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	}
 
 	// Peer 1 sends an UPDATE with 10.0.0.0/24
-	updateInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp","as-path":[65001]},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	rs.dispatch([]byte(updateInput))
+	updateInput := "peer 10.0.0.1 received update 100 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	rs.dispatchText(updateInput)
 	flushWorkers(t, rs)
 
 	// Verify withdrawal map has the route.
@@ -1120,10 +1116,9 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	// VPN UPDATE with object NLRIs containing "prefix" field
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":200,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/vpn":[{"next-hop":"192.168.1.1","action":"add","nlri":[{"prefix":"10.0.0.0/24","rd":"0:1:100","label":100000}]}]}}}}`
-
-	rs.dispatch([]byte(input))
+	// VPN UPDATE with NLRI
+	input := "peer 10.0.0.1 received update 200 announce origin igp ipv4/vpn next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	rs.dispatchText(input)
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -1165,8 +1160,8 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	rs.mu.Unlock()
 
 	// Add route.
-	addInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	rs.dispatch([]byte(addInput))
+	addInput := "peer 10.0.0.1 received update 100 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	rs.dispatchText(addInput)
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -1177,8 +1172,8 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	}
 
 	// Withdraw route.
-	delInput := `{"type":"bgp","bgp":{"message":{"type":"update","id":101,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
-	rs.dispatch([]byte(delInput))
+	delInput := "peer 10.0.0.1 received update 101 withdraw ipv4/unicast nlri 10.0.0.0/24"
+	rs.dispatchText(delInput)
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -1211,8 +1206,8 @@ func TestPropagation_PeerDownClearsAllRoutes(t *testing.T) {
 	rs.withdrawalMu.Unlock()
 
 	// Peer goes down.
-	downInput := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
-	rs.dispatch([]byte(downInput))
+	downInput := "peer 10.0.0.1 asn 65001 state down"
+	rs.dispatchText(downInput)
 
 	rs.withdrawalMu.Lock()
 	wdLen := len(rs.withdrawals["10.0.0.1"])

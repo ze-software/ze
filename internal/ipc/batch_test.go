@@ -185,6 +185,42 @@ func TestBatchFrameLargePayload(t *testing.T) {
 	assert.Len(t, got, 64)
 }
 
+// TestBatchTextEventRoundTrip verifies text events survive WriteBatchFrame → ParseBatchEvents.
+//
+// VALIDATES: Text-format events (not valid JSON values) round-trip through batch framing.
+// PREVENTS: Text events producing invalid JSON in batch frame (broken pipe crash).
+func TestBatchTextEventRoundTrip(t *testing.T) {
+	// Text events are plain strings, NOT valid JSON values.
+	// They must be JSON-quoted before insertion into the events array.
+	textEvent1, _ := json.Marshal("peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24\n")
+	textEvent2, _ := json.Marshal("peer 10.0.0.2 state up\n")
+	events := [][]byte{textEvent1, textEvent2}
+
+	var buf bytes.Buffer
+	err := WriteBatchFrame(&buf, 7, events)
+	require.NoError(t, err)
+
+	reader := NewFrameReader(&buf)
+	frame, err := reader.Read()
+	require.NoError(t, err)
+
+	// Frame must be valid JSON
+	var rpcReq struct {
+		Params json.RawMessage `json:"params"`
+	}
+	require.NoError(t, json.Unmarshal(frame, &rpcReq))
+
+	got, err := ParseBatchEvents(rpcReq.Params)
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+
+	// Each event should be unwrappable as a JSON string
+	for i, raw := range got {
+		var eventStr string
+		require.NoError(t, json.Unmarshal(raw, &eventStr), "event %d should be a valid JSON string", i)
+	}
+}
+
 // TestBatchFrameIDIncrement verifies unique IDs in batch frames.
 //
 // VALIDATES: Each batch frame has a unique ID field.

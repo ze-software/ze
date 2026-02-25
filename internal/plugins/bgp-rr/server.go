@@ -42,8 +42,16 @@ const (
 	eventOpen    = "open"
 	eventRefresh = "refresh"
 
-	// envelopeTypeBGP is the ze-bgp JSON envelope type value.
-	envelopeTypeBGP = "bgp"
+	// Text format field tokens used in text event parsing.
+	tokenASN      = "asn"
+	tokenCap      = "cap"
+	tokenRouterID = "router-id"
+	tokenHoldTime = "hold-time"
+	tokenFamily   = "family"
+
+	// NLRI action tokens from text UPDATE parsing.
+	actionAdd = "add"
+	actionDel = "del"
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -65,16 +73,15 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// forwardCtx holds the source peer and pre-unwrapped BGP payload for a cached UPDATE.
-// sourcePeer is extracted by quickParseEvent in dispatch (cheap) to avoid
-// re-parsing the envelope in the worker, and to make the source-exclusion
-// data flow explicit. bgpPayload is the inner BGP object (without the
-// {"type":"bgp","bgp":...} envelope), pre-unwrapped by quickParseEvent to
-// save the worker one JSON unmarshal.
+// forwardCtx holds the source peer and raw text event for a cached UPDATE.
+// sourcePeer is extracted by quickParseTextEvent in dispatchText (cheap) to avoid
+// re-parsing the event in the worker, and to make the source-exclusion
+// data flow explicit. textPayload is the raw text event line(s) for deferred
+// family+NLRI parsing by the worker via parseTextUpdateFamilies/parseTextNLRIOps.
 // Stored in RouteServer.fwdCtx (sync.Map) keyed by msgID (uint64).
 type forwardCtx struct {
-	sourcePeer string
-	bgpPayload []byte
+	sourcePeer  string
+	textPayload string
 }
 
 // withdrawalInfo stores the minimum information needed to send withdrawal
@@ -130,6 +137,10 @@ type RouteServer struct {
 	// updateRouteHook is called before each updateRoute RPC for test inspection.
 	// Nil in production (zero overhead).
 	updateRouteHook func(peer, cmd string)
+
+	// replayDisabled is set to true when adj-rib-in is not loaded (unknown command).
+	// Once set, replayForPeer skips dispatch entirely for all subsequent peers.
+	replayDisabled atomic.Bool
 
 	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
 	// Nil in production (zero overhead).
@@ -201,9 +212,9 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 
 	// Register event handler: dispatches BGP events (update, state, open, refresh).
 	// Only a lightweight parse runs here (type + msgID + peerAddr); expensive
-	// JSON parsing and withdrawal map updates are deferred to per-source-peer workers.
-	p.OnEvent(func(jsonStr string) error {
-		rs.dispatch([]byte(jsonStr))
+	// parsing and withdrawal map updates are deferred to per-source-peer workers.
+	p.OnEvent(func(eventStr string) error {
+		rs.dispatchText(eventStr)
 		return nil
 	})
 
@@ -224,7 +235,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	//
 	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)
 	// because the engine maps all TypeROUTEREFRESH wire messages to the "refresh"
-	// subscription type. These subtypes are silently ignored by dispatch().
+	// subscription type. These subtypes are silently ignored by dispatchText().
 	//
 	// OPEN subscription uses "direction received" to capture the remote peer's
 	// capabilities only. Without direction filtering, the engine also delivers
@@ -238,6 +249,9 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		eventOpen + " direction received",
 		eventRefresh,
 	}, nil, "")
+
+	// Request text encoding — strings.Fields parsing instead of json.Unmarshal.
+	p.SetEncoding("text")
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
@@ -429,13 +443,8 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 		return
 	}
 
-	// Two-level parse: extract family keys only (skip NLRI arrays) for forwarding.
-	families, nlriRaw, err := parseUpdateFamilies(ctx.bgpPayload)
-	if err != nil {
-		logger().Warn("worker parse error", "error", err, "msgID", msgID)
-		return
-	}
-
+	// Extract family names from text event for forward target selection.
+	families := parseTextUpdateFamilies(ctx.textPayload)
 	if len(families) == 0 {
 		return
 	}
@@ -447,16 +456,15 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	// Update withdrawal map: track announced routes for withdrawal on peer-down.
 	// Only family+prefix needed — bgp-adj-rib-in owns full route state.
 	rs.withdrawalMu.Lock()
-	for family, ops := range parseNLRIFamilyOps(nlriRaw) {
+	for family, ops := range parseTextNLRIOps(ctx.textPayload) {
 		for _, op := range ops {
 			switch op.Action {
-			case "add":
+			case actionAdd:
 				if rs.withdrawals[ctx.sourcePeer] == nil {
 					rs.withdrawals[ctx.sourcePeer] = make(map[string]withdrawalInfo)
 				}
 				for _, n := range op.NLRIs {
-					prefix := nlriToPrefix(n)
-					if prefix != "" {
+					if prefix, ok := n.(string); ok && prefix != "" {
 						routeKey := family + "|" + prefix
 						rs.withdrawals[ctx.sourcePeer][routeKey] = withdrawalInfo{
 							Family: family,
@@ -464,11 +472,10 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 						}
 					}
 				}
-			case "del":
+			case actionDel:
 				if rs.withdrawals[ctx.sourcePeer] != nil {
 					for _, n := range op.NLRIs {
-						prefix := nlriToPrefix(n)
-						if prefix != "" {
+						if prefix, ok := n.(string); ok && prefix != "" {
 							routeKey := family + "|" + prefix
 							delete(rs.withdrawals[ctx.sourcePeer], routeKey)
 						}
@@ -480,50 +487,12 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	rs.withdrawalMu.Unlock()
 }
 
-// quickParseEvent extracts the event type, message ID, peer address, and
-// pre-unwrapped BGP payload from a ze-bgp JSON event. The bgpPayload is the
-// inner {"message":...,"peer":...,"update":...} object without the outer
-// {"type":"bgp","bgp":...} envelope, saving the worker one JSON unmarshal.
-// Used by dispatch to route events to workers with minimal OnEvent latency.
-func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr string, bgpPayload []byte, err error) {
-	var wrapper struct {
-		Type string          `json:"type"`
-		BGP  json.RawMessage `json:"bgp"`
-	}
-	if err := json.Unmarshal(data, &wrapper); err != nil {
-		return "", 0, "", nil, fmt.Errorf("unmarshal envelope: %w", err)
-	}
-
-	payload := data
-	if wrapper.Type == envelopeTypeBGP && len(wrapper.BGP) > 0 {
-		payload = wrapper.BGP
-	}
-
-	var bgp struct {
-		Message *struct {
-			Type string `json:"type"`
-			ID   uint64 `json:"id,omitempty"`
-		} `json:"message"`
-		Peer struct {
-			Address string `json:"address"`
-		} `json:"peer"`
-	}
-	if err := json.Unmarshal(payload, &bgp); err != nil {
-		return "", 0, "", nil, fmt.Errorf("unmarshal payload: %w", err)
-	}
-
-	if bgp.Message != nil {
-		return bgp.Message.Type, bgp.Message.ID, bgp.Peer.Address, payload, nil
-	}
-	return "", 0, bgp.Peer.Address, payload, nil
-}
-
-// dispatch routes a raw JSON event to the appropriate handler.
+// dispatchText routes a text-format event to the appropriate handler.
 //
 // UPDATE events are dispatched to the per-source-peer worker pool with
-// only a lightweight parse (type, msgID, peerAddr). The expensive JSON
-// parsing and withdrawal map updates are deferred to the worker goroutine, keeping
-// OnEvent latency low (engine has a 5s event delivery timeout).
+// only a lightweight parse (type, msgID, peerAddr via strings.Fields).
+// The full text is stored in forwardCtx for deferred family+NLRI parsing
+// by the worker goroutine, keeping OnEvent latency low.
 //
 // Non-UPDATE events (state, open, refresh) are handled inline since
 // they are infrequent and need immediate state changes.
@@ -531,10 +500,10 @@ func quickParseEvent(data []byte) (eventType string, msgID uint64, peerAddr stri
 // Events with unrecognized types are silently ignored. This includes "borr" and "eorr"
 // (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
 // subscription but encodes with distinct message.type values.
-func (rs *RouteServer) dispatch(raw []byte) {
-	eventType, msgID, peerAddr, bgpPayload, err := quickParseEvent(raw)
+func (rs *RouteServer) dispatchText(text string) {
+	eventType, msgID, peerAddr, payload, err := quickParseTextEvent(text)
 	if err != nil {
-		logger().Warn("parse error", "error", err, "line", string(raw[:min(100, len(raw))]))
+		logger().Warn("parse error", "error", err, "line", text[:min(100, len(text))])
 		return
 	}
 
@@ -542,7 +511,7 @@ func (rs *RouteServer) dispatch(raw []byte) {
 		if peerAddr == "" {
 			return
 		}
-		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, bgpPayload: bgpPayload})
+		rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, textPayload: payload})
 		key := workerKey{sourcePeer: peerAddr}
 		if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
 			logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
@@ -568,35 +537,21 @@ func (rs *RouteServer) dispatch(raw []byte) {
 		return
 	}
 
-	// Non-UPDATE: full parse + handle inline.
-	event, parseErr := parseEvent(raw)
-	if parseErr != nil {
-		logger().Warn("parse error", "error", parseErr, "line", string(raw[:min(100, len(raw))]))
-		return
-	}
-	switch event.Type {
+	// Non-UPDATE: full text parse + handle inline.
+	switch eventType {
 	case eventState:
-		rs.handleState(event)
+		if event := parseTextState(payload); event != nil {
+			rs.handleState(event)
+		}
 	case eventRefresh:
-		rs.handleRefresh(event)
+		if event := parseTextRefresh(payload); event != nil {
+			rs.handleRefresh(event)
+		}
 	case eventOpen:
-		rs.handleOpen(event)
-	}
-}
-
-// nlriToPrefix extracts a prefix string from an NLRI value.
-// Simple NLRIs are strings ("10.0.0.0/24"). Complex NLRIs (ADD-PATH, VPN)
-// are objects with a "prefix" field ({"prefix":"10.0.0.0/24","path-id":1}).
-func nlriToPrefix(n any) string {
-	switch v := n.(type) {
-	case string:
-		return v
-	case map[string]any:
-		if p, ok := v["prefix"].(string); ok {
-			return p
+		if event := parseTextOpen(payload); event != nil {
+			rs.handleOpen(event)
 		}
 	}
-	return ""
 }
 
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
@@ -790,10 +745,47 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
+	// Skip replay if adj-rib-in is known to be unavailable.
+	if rs.replayDisabled.Load() {
+		rs.mu.Lock()
+		if p := rs.peers[peerAddr]; p != nil && p.ReplayGen == gen {
+			p.Replaying = false
+		}
+		rs.mu.Unlock()
+		return
+	}
+
 	// Full replay from index 0.
-	status, data, err := rs.dispatchCommand(ctx, fmt.Sprintf("adj-rib-in replay %s 0", peerAddr))
+	// Retry on transient failure: adj-rib-in may not be Running yet during the
+	// startup race (bgp-rr's subscriptions activate before adj-rib-in completes
+	// stage 5). Permanent errors (unknown command = adj-rib-in not loaded) are
+	// not retried — forward-only mode still works without replay.
+	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
+	var status, data string
+	var err error
+	for attempt := range 5 {
+		status, data, err = rs.dispatchCommand(ctx, cmd)
+		if err == nil && status == statusDone {
+			break
+		}
+		// Permanent error: adj-rib-in not loaded — disable replay for all future peers.
+		if err != nil && strings.Contains(err.Error(), "unknown command") {
+			rs.replayDisabled.Store(true)
+			logger().Warn("replay unavailable (adj-rib-in not loaded)")
+			break
+		}
+		if ctx.Err() != nil {
+			break
+		}
+		if attempt < 4 {
+			logger().Debug("replay retry", "peer", peerAddr, "attempt", attempt+1, "error", err)
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 	if err != nil || status != statusDone {
-		logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
+		if !rs.replayDisabled.Load() {
+			logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
+		}
 		// Still add to forward targets so peer gets new routes going forward.
 		// Only if this goroutine's generation is still current.
 		rs.mu.Lock()
@@ -842,7 +834,7 @@ func parseLastIndex(data string) uint64 {
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.
-// ze-bgp JSON capabilities are objects: [{"code":1,"name":"multiprotocol","value":"ipv4/unicast"}].
+// Text format capabilities: "cap <code> <name> [<value>]" tokens parsed by parseTextOpen.
 func (rs *RouteServer) handleOpen(event *Event) {
 	peerAddr := event.PeerAddr
 	if peerAddr == "" {
@@ -883,7 +875,7 @@ func (rs *RouteServer) handleOpen(event *Event) {
 }
 
 // handleRefresh processes route refresh requests.
-// ze-bgp JSON: AFI/SAFI nested under refresh object.
+// Text format: "peer <addr> <dir> refresh <id> family <afi/safi>" parsed by parseTextRefresh.
 //
 // Collects eligible peers under the lock, then sends refresh commands after
 // releasing — updateRoute does an SDK RPC with a 10 s timeout, so holding
@@ -954,210 +946,35 @@ func (rs *RouteServer) peersJSON() string {
 	return string(data)
 }
 
-// --- Event parsing ---
-
-// parseEvent parses a ze-bgp JSON event from the engine.
-// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},"peer":{...},...}}.
-// Event type comes from message.type inside the bgp wrapper, NOT from the top-level type.
-func parseEvent(data []byte) (*Event, error) {
-	// Step 1: Unwrap ze-bgp envelope {"type":"bgp","bgp":{...}}
-	var wrapper struct {
-		Type string          `json:"type"`
-		BGP  json.RawMessage `json:"bgp"`
-	}
-	if err := json.Unmarshal(data, &wrapper); err != nil {
-		return nil, fmt.Errorf("unmarshal envelope: %w", err)
-	}
-
-	payload := data
-	if wrapper.Type == envelopeTypeBGP && len(wrapper.BGP) > 0 {
-		payload = wrapper.BGP
-	}
-
-	// Step 2: Parse bgp-level fields (message metadata, peer, event-specific data)
-	var bgp struct {
-		Message *messageInfo    `json:"message"`
-		Peer    peerFlat        `json:"peer"`
-		State   string          `json:"state"`
-		Update  json.RawMessage `json:"update"`
-		Open    json.RawMessage `json:"open"`
-		Refresh json.RawMessage `json:"refresh"`
-	}
-	if err := json.Unmarshal(payload, &bgp); err != nil {
-		return nil, fmt.Errorf("unmarshal payload: %w", err)
-	}
-
-	event := &Event{
-		PeerAddr: bgp.Peer.Address,
-		PeerASN:  bgp.Peer.ASN,
-		State:    bgp.State,
-	}
-
-	// Determine event type from message.type
-	if bgp.Message != nil {
-		event.Type = bgp.Message.Type
-		event.MsgID = bgp.Message.ID
-	}
-
-	// Step 3: Parse event-specific data
-	switch event.Type {
-	case eventUpdate:
-		if len(bgp.Update) > 0 {
-			parseUpdateData(event, bgp.Update)
-		}
-	case eventOpen:
-		if len(bgp.Open) > 0 {
-			var openInfo OpenInfo
-			if err := json.Unmarshal(bgp.Open, &openInfo); err == nil {
-				event.Open = &openInfo
-			}
-		}
-	case eventRefresh:
-		if len(bgp.Refresh) > 0 {
-			var refresh struct {
-				AFI  string `json:"afi"`
-				SAFI string `json:"safi"`
-			}
-			if err := json.Unmarshal(bgp.Refresh, &refresh); err == nil {
-				event.AFI = refresh.AFI
-				event.SAFI = refresh.SAFI
-			}
-		}
-	}
-
-	return event, nil
-}
-
-// parseUpdateData extracts family operations from the UPDATE payload.
-// ze-bgp JSON: {"attr":{...},"nlri":{"ipv4/unicast":[{"action":"add","nlri":[...]}]}}.
-func parseUpdateData(event *Event, data json.RawMessage) {
-	var update struct {
-		NLRI json.RawMessage `json:"nlri"`
-	}
-	if err := json.Unmarshal(data, &update); err != nil || len(update.NLRI) == 0 {
-		return
-	}
-
-	var familyMap map[string]json.RawMessage
-	if err := json.Unmarshal(update.NLRI, &familyMap); err != nil {
-		return
-	}
-
-	event.FamilyOps = make(map[string][]FamilyOperation, len(familyMap))
-	for family, opsData := range familyMap {
-		if !strings.Contains(family, "/") {
-			continue
-		}
-		var ops []FamilyOperation
-		if err := json.Unmarshal(opsData, &ops); err == nil {
-			event.FamilyOps[family] = ops
-		}
-	}
-}
-
-// parseUpdateFamilies extracts only family keys from a pre-unwrapped BGP payload.
-// Input is the inner BGP object (from quickParseEvent's bgpPayload):
-//
-//	{"message":{...},"peer":{...},"update":{"nlri":{"ipv4/unicast":[...],"ipv6/unicast":[...]}}}
-//
-// Parses three levels: payload → update → nlri map keys. The nlri map values
-// (family operation arrays) are kept as json.RawMessage for deferred full parse
-// via parseNLRIFamilyOps. This avoids the cost of unmarshaling potentially large
-// NLRI arrays on the forward hot path.
-func parseUpdateFamilies(payload []byte) (families map[string]bool, nlriRaw map[string]json.RawMessage, err error) {
-	var bgp struct {
-		Update json.RawMessage `json:"update"`
-	}
-	if err := json.Unmarshal(payload, &bgp); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal payload: %w", err)
-	}
-	if len(bgp.Update) == 0 {
-		return nil, nil, nil
-	}
-
-	var update struct {
-		NLRI json.RawMessage `json:"nlri"`
-	}
-	if err := json.Unmarshal(bgp.Update, &update); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal update: %w", err)
-	}
-	if len(update.NLRI) == 0 {
-		return nil, nil, nil
-	}
-
-	var familyMap map[string]json.RawMessage
-	if err := json.Unmarshal(update.NLRI, &familyMap); err != nil {
-		return nil, nil, fmt.Errorf("unmarshal nlri map: %w", err)
-	}
-
-	families = make(map[string]bool, len(familyMap))
-	validRaw := make(map[string]json.RawMessage, len(familyMap))
-	for family, raw := range familyMap {
-		if !strings.Contains(family, "/") {
-			continue
-		}
-		families[family] = true
-		validRaw[family] = raw
-	}
-
-	if len(families) == 0 {
-		return nil, nil, nil
-	}
-
-	return families, validRaw, nil
-}
-
-// parseNLRIFamilyOps parses raw NLRI data into family operations.
-// Input is the nlriRaw map from parseUpdateFamilies — each value is a JSON array:
-//
-//	[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}, {"action":"del","nlri":["10.0.1.0/24"]}]
-//
-// Families with invalid JSON are silently skipped (logged at caller).
-// Used by the deferred withdrawal map update path after forwarding completes.
-func parseNLRIFamilyOps(nlriRaw map[string]json.RawMessage) map[string][]FamilyOperation {
-	if len(nlriRaw) == 0 {
-		return nil
-	}
-	result := make(map[string][]FamilyOperation, len(nlriRaw))
-	for family, opsData := range nlriRaw {
-		var ops []FamilyOperation
-		if err := json.Unmarshal(opsData, &ops); err == nil {
-			result[family] = ops
-		}
-	}
-	return result
-}
-
 // --- Event types ---
 
-// Event represents a parsed ze-bgp JSON event.
-// Fields are extracted from the nested ze-bgp format during parseEvent.
+// Event represents a parsed BGP event (from text format).
+// Fields are extracted by parseTextState, parseTextOpen, parseTextRefresh.
 type Event struct {
-	Type      string                       // Event type from message.type: "update", "state", "open", "refresh"
-	MsgID     uint64                       // Message ID from message.id (for cache-forward)
-	PeerAddr  string                       // Peer address from peer.address (flat string)
-	PeerASN   uint32                       // Peer ASN from peer.asn
-	State     string                       // State for state events ("up", "down", "connected")
-	FamilyOps map[string][]FamilyOperation // UPDATE: family → operations (from update.nlri)
-	Open      *OpenInfo                    // OPEN: decoded open data
-	AFI       string                       // Refresh: AFI (from refresh.afi)
-	SAFI      string                       // Refresh: SAFI (from refresh.safi)
+	Type     string    // Event type: "update", "state", "open", "refresh"
+	MsgID    uint64    // Message ID (for cache-forward)
+	PeerAddr string    // Peer address
+	PeerASN  uint32    // Peer ASN
+	State    string    // State for state events ("up", "down", "connected")
+	Open     *OpenInfo // OPEN: decoded open data
+	AFI      string    // Refresh: AFI
+	SAFI     string    // Refresh: SAFI
 }
 
 // FamilyOperation represents a single add or del operation for a family.
-// ze-bgp JSON: {"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}.
+// Text format: "announce ... <family> next-hop <nh> nlri <prefix>..."
+// or "withdraw <family> nlri <prefix>...".
 type FamilyOperation struct {
-	NextHop string `json:"next-hop,omitempty"` // Only for "add" operations
-	Action  string `json:"action"`             // "add" or "del"
-	NLRIs   []any  `json:"nlri"`               // Strings or {"prefix":"...","path-id":N}
+	Action string // "add" or "del"
+	NLRIs  []any  // Prefix strings from text parsing
 }
 
-// OpenInfo contains OPEN message details from ze-bgp JSON.
+// OpenInfo contains OPEN message details.
 type OpenInfo struct {
-	ASN          uint32           `json:"asn"`
-	RouterID     string           `json:"router-id"`
-	HoldTime     uint16           `json:"hold-time"`
-	Capabilities []CapabilityInfo `json:"capabilities,omitempty"`
+	ASN          uint32
+	RouterID     string
+	HoldTime     uint16
+	Capabilities []CapabilityInfo
 }
 
 // capabilityPresent returns true if any capability in the list has the given name.
@@ -1171,23 +988,294 @@ func capabilityPresent(caps []CapabilityInfo, name string) bool {
 }
 
 // CapabilityInfo represents a single capability from the OPEN message.
-// ze-bgp JSON: {"code":1,"name":"multiprotocol","value":"ipv4/unicast"}.
 type CapabilityInfo struct {
-	Code  int    `json:"code"`
-	Name  string `json:"name"`
-	Value string `json:"value,omitempty"`
+	Code  int
+	Name  string
+	Value string
 }
 
-// messageInfo is the internal representation of the message metadata wrapper.
-type messageInfo struct {
-	Type      string `json:"type"`
-	ID        uint64 `json:"id,omitempty"`
-	Direction string `json:"direction,omitempty"`
+// --- Text event parsing ---
+//
+// Text format replaces JSON for the bgp-rr hot path.
+// Format: "peer <addr> <dir> <type> <id> ..."
+// State:  "peer <addr> asn <n> state <state>"
+// Parsed with strings.Fields instead of json.Unmarshal (6+ calls per UPDATE → 0).
+
+// quickParseTextEvent extracts event type, message ID, peer address, and raw text
+// from a text-format event line. Returns the full text as payload for deferred parsing.
+//
+// UPDATE:  "peer <addr> <dir> update <id> ..."  → fields[3]="update", fields[4]=id
+// OPEN:    "peer <addr> <dir> open <id> ..."    → fields[3]="open", fields[4]=id
+// STATE:   "peer <addr> asn <n> state <state>"  → fields[4]="state" (different layout)
+// REFRESH: "peer <addr> <dir> refresh <id> ..." → fields[3]="refresh".
+func quickParseTextEvent(text string) (string, uint64, string, string, error) {
+	text = strings.TrimRight(text, "\n")
+	fields := strings.Fields(text)
+	if len(fields) < 5 || fields[0] != "peer" {
+		return "", 0, "", "", fmt.Errorf("invalid text event: too short or missing peer prefix")
+	}
+
+	peerAddr := fields[1]
+
+	// State events have a different layout: "peer <addr> asn <n> state <state>"
+	if fields[4] == eventState {
+		return eventState, 0, peerAddr, text, nil
+	}
+
+	// Message events: "peer <addr> <dir> <type> <id> ..."
+	eventType := fields[3]
+	id, err := strconv.ParseUint(fields[4], 10, 64)
+	if err != nil {
+		return eventType, 0, peerAddr, text, nil //nolint:nilerr // Non-numeric ID is valid for some event types
+	}
+
+	return eventType, id, peerAddr, text, nil
 }
 
-// peerFlat is the flat peer format used in ze-bgp JSON events.
-// Engine always sends: {"address":"10.0.0.1","asn":65001}.
-type peerFlat struct {
-	Address string `json:"address"`
-	ASN     uint32 `json:"asn"`
+// parseTextUpdateFamilies extracts family names from a text UPDATE event.
+// Families are tokens containing "/" (e.g., "ipv4/unicast", "ipv6/unicast").
+// Returns a map of family → true for selectForwardTargets compatibility.
+func parseTextUpdateFamilies(text string) map[string]bool {
+	fields := strings.Fields(text)
+	families := make(map[string]bool)
+	for _, f := range fields {
+		if isFamilyToken(f) {
+			families[f] = true
+		}
+	}
+	return families
+}
+
+// parseTextNLRIOps extracts family operations (add/del + NLRIs) from text UPDATE lines.
+// Used by processForward to populate the withdrawal map.
+//
+// Announce: "... announce <attrs> <family> next-hop <nh> nlri <prefix>..."
+// Withdraw: "... withdraw <family> nlri <prefix>..."
+//
+// Multi-line text (announce + withdraw in same UPDATE) is handled by processing
+// each line independently and merging results.
+func parseTextNLRIOps(text string) map[string][]FamilyOperation {
+	result := make(map[string][]FamilyOperation)
+	for line := range strings.SplitSeq(strings.TrimRight(text, "\n"), "\n") {
+		fields := strings.Fields(line)
+		parseTextNLRIOpsLine(fields, result)
+	}
+	return result
+}
+
+// parseTextNLRIOpsLine parses a single text UPDATE line into family operations.
+// Scans for "announce" or "withdraw" tokens, then extracts family/nlri sequences.
+func parseTextNLRIOpsLine(fields []string, result map[string][]FamilyOperation) {
+	// Find "announce" or "withdraw" token
+	action := ""
+	startIdx := 0
+	for i, f := range fields {
+		if f == "announce" {
+			action = actionAdd
+			startIdx = i + 1
+			break
+		}
+		if f == "withdraw" {
+			action = actionDel
+			startIdx = i + 1
+			break
+		}
+	}
+	if action == "" {
+		return
+	}
+
+	// Scan remaining fields for family→nlri sequences.
+	// Pattern: <family> [next-hop <nh>] nlri <prefix>... [<next-family> ...]
+	var currentFamily string
+	var nlris []any
+	inNLRI := false
+
+	for i := startIdx; i < len(fields); i++ {
+		f := fields[i]
+
+		// Family token: "afi/safi" with non-numeric suffix (not NLRI prefix like "10.0.0.0/24")
+		if isFamilyToken(f) && !inNLRI {
+			// Flush previous family
+			if currentFamily != "" && len(nlris) > 0 {
+				result[currentFamily] = append(result[currentFamily],
+					FamilyOperation{Action: action, NLRIs: nlris})
+			}
+			currentFamily = f
+			nlris = nil
+			inNLRI = false
+			continue
+		}
+
+		// Skip "next-hop" and its value
+		if f == "next-hop" {
+			i++ // skip the next-hop address
+			continue
+		}
+
+		// "nlri" token starts NLRI collection
+		if f == "nlri" {
+			inNLRI = true
+			continue
+		}
+
+		// New family while collecting NLRIs: flush current and restart
+		if inNLRI && isFamilyToken(f) {
+			if currentFamily != "" && len(nlris) > 0 {
+				result[currentFamily] = append(result[currentFamily],
+					FamilyOperation{Action: action, NLRIs: nlris})
+			}
+			currentFamily = f
+			nlris = nil
+			inNLRI = false
+			continue
+		}
+
+		// Collect NLRIs or skip attribute tokens
+		if inNLRI {
+			nlris = append(nlris, f)
+		}
+	}
+
+	// Flush last family
+	if currentFamily != "" && len(nlris) > 0 {
+		result[currentFamily] = append(result[currentFamily],
+			FamilyOperation{Action: action, NLRIs: nlris})
+	}
+}
+
+// isFamilyToken distinguishes BGP address family tokens (e.g., "ipv4/unicast")
+// from NLRI prefix tokens (e.g., "10.0.0.0/24", "2001:db8::/32").
+// Families have a non-numeric suffix after "/"; prefixes have a numeric suffix.
+func isFamilyToken(s string) bool {
+	idx := strings.LastIndex(s, "/")
+	if idx < 0 || idx == len(s)-1 {
+		return false
+	}
+	suffix := s[idx+1:]
+	if suffix == "" {
+		return false
+	}
+	// If the suffix is all digits, it's a prefix length (NLRI), not a family.
+	for _, c := range suffix {
+		if c < '0' || c > '9' {
+			return true // non-numeric → family (e.g., "unicast", "vpn", "evpn")
+		}
+	}
+	return false
+}
+
+// parseTextOpen extracts OPEN event data from text format.
+// Format: "peer <addr> <dir> open <id> asn <n> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
+func parseTextOpen(text string) *Event {
+	fields := strings.Fields(strings.TrimRight(text, "\n"))
+	if len(fields) < 6 {
+		return nil
+	}
+
+	event := &Event{
+		Type:     eventOpen,
+		PeerAddr: fields[1],
+		Open:     &OpenInfo{},
+	}
+
+	// Parse known key-value pairs
+	for i := 5; i < len(fields)-1; i++ {
+		switch fields[i] {
+		case tokenASN:
+			n, err := strconv.ParseUint(fields[i+1], 10, 32)
+			if err == nil {
+				event.PeerASN = uint32(n)  //nolint:gosec // bounded by ParseUint bitSize=32
+				event.Open.ASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+			}
+			i++
+		case tokenRouterID:
+			event.Open.RouterID = fields[i+1]
+			i++
+		case tokenHoldTime:
+			n, err := strconv.ParseUint(fields[i+1], 10, 16)
+			if err == nil {
+				event.Open.HoldTime = uint16(n) //nolint:gosec // bounded by ParseUint bitSize=16
+			}
+			i++
+		case tokenCap:
+			// cap <code> <name> [<value>]
+			if i+2 >= len(fields) {
+				break
+			}
+			code, _ := strconv.Atoi(fields[i+1])
+			name := fields[i+2]
+			value := ""
+			// Check if next token is a value (not another keyword)
+			if i+3 < len(fields) && fields[i+3] != tokenCap && fields[i+3] != tokenASN &&
+				fields[i+3] != tokenRouterID && fields[i+3] != tokenHoldTime {
+				value = fields[i+3]
+				i++
+			}
+			event.Open.Capabilities = append(event.Open.Capabilities,
+				CapabilityInfo{Code: code, Name: name, Value: value})
+			i += 2
+		}
+	}
+
+	return event
+}
+
+// parseTextState extracts state event data from text format.
+// Format: "peer <addr> asn <n> state <state>".
+func parseTextState(text string) *Event {
+	fields := strings.Fields(strings.TrimRight(text, "\n"))
+	if len(fields) < 5 {
+		return nil
+	}
+
+	event := &Event{
+		Type:     eventState,
+		PeerAddr: fields[1],
+	}
+
+	for i := 2; i < len(fields)-1; i++ {
+		switch fields[i] {
+		case "asn":
+			n, err := strconv.ParseUint(fields[i+1], 10, 32)
+			if err == nil {
+				event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+			}
+			i++
+		case "state":
+			event.State = fields[i+1]
+			i++
+		}
+	}
+
+	return event
+}
+
+// parseTextRefresh extracts refresh event data from text format.
+// Format: "peer <addr> <dir> refresh <id> family <family>"
+// Also handles "borr" and "eorr" subtypes per RFC 7313.
+func parseTextRefresh(text string) *Event {
+	fields := strings.Fields(strings.TrimRight(text, "\n"))
+	if len(fields) < 5 {
+		return nil
+	}
+
+	// Subtype is fields[3]: "refresh", "borr", or "eorr"
+	event := &Event{
+		Type:     fields[3],
+		PeerAddr: fields[1],
+	}
+
+	for i := 5; i < len(fields)-1; i++ {
+		if fields[i] == "family" {
+			family := fields[i+1]
+			if parts := strings.SplitN(family, "/", 2); len(parts) == 2 {
+				event.AFI = parts[0]
+				event.SAFI = parts[1]
+			}
+			break
+		}
+	}
+
+	return event
 }

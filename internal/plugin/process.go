@@ -279,7 +279,7 @@ func (p *Process) Format() string {
 			return s
 		}
 	}
-	return FormatHex // Default
+	return FormatParsed // Default: historically FormatHex fell through to FormatParsed
 }
 
 // SetFormat sets the wire format (hex, base64, parsed, full, summary).

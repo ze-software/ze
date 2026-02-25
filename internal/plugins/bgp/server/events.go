@@ -7,6 +7,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
@@ -45,12 +46,12 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	}
 	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction, "count", len(procs))
 
-	// Pre-format: encode once per distinct format mode.
+	// Pre-format: encode once per distinct format+encoding combination.
 	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
-		fmtMode := proc.Format()
-		if _, ok := formatOutputs[fmtMode]; !ok {
-			formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
+		cacheKey := proc.Format() + "+" + proc.Encoding()
+		if _, ok := formatOutputs[cacheKey]; !ok {
+			formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
 		}
 	}
 
@@ -59,7 +60,7 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	sent := 0
 
 	for _, proc := range procs {
-		output := formatOutputs[proc.Format()]
+		output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
 		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
@@ -104,23 +105,24 @@ func onMessageBatchReceived(s *plugin.Server, encoder *format.JSONEncoder, peer 
 	}
 	logger().Debug("OnMessageBatchReceived", "peer", peer.Address.String(), "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
-	// Build format-mode map once for the batch.
-	formatModes := make(map[string]struct{}, 2)
+	// Build format+encoding key map once for the batch.
+	cacheKeys := make(map[string]struct{}, 2)
 	for _, proc := range procs {
-		formatModes[proc.Format()] = struct{}{}
+		cacheKeys[proc.Format()+"+"+proc.Encoding()] = struct{}{}
 	}
 
 	// Deliver each message: pre-format per mode, fan out to procs, collect results.
 	for i, msg := range msgs {
-		formatOutputs := make(map[string]string, len(formatModes))
-		for fmtMode := range formatModes {
-			formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
+		formatOutputs := make(map[string]string, len(cacheKeys))
+		for key := range cacheKeys {
+			fmtPart, encPart, _ := strings.Cut(key, "+")
+			formatOutputs[key] = formatMessageForSubscription(encoder, peer, msg, fmtPart, encPart)
 		}
 
 		results := make(chan plugin.EventResult, len(procs))
 		sent := 0
 		for _, proc := range procs {
-			output := formatOutputs[proc.Format()]
+			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
 			if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 				continue
 			}
@@ -162,29 +164,42 @@ func messageTypeToEventType(msgType message.MessageType) string {
 }
 
 // formatMessageForSubscription formats a BGP message for subscription-based delivery.
-// Uses JSON encoding with the specified format (from process settings).
-func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode string) string {
+// Uses the specified encoding and format (from process settings).
+// For text encoding, non-UPDATE types use dedicated text formatters instead of JSONEncoder.
+func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage, fmtMode, encoding string) string {
 	switch msg.Type { //nolint:exhaustive // Only supported types; unsupported are filtered by caller
 	case message.TypeUPDATE:
 		content := bgptypes.ContentConfig{
-			Encoding: plugin.EncodingJSON,
+			Encoding: encoding,
 			Format:   fmtMode,
 		}
 		return format.FormatMessage(peer, msg, content, "")
 
 	case message.TypeOPEN:
 		decoded := format.DecodeOpen(msg.RawBytes)
+		if encoding == plugin.EncodingText {
+			return format.FormatOpen(peer, decoded, msg.Direction, msg.MessageID)
+		}
 		return encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := format.DecodeNotification(msg.RawBytes)
+		if encoding == plugin.EncodingText {
+			return format.FormatNotification(peer, decoded, msg.Direction, msg.MessageID)
+		}
 		return encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
+		if encoding == plugin.EncodingText {
+			return format.FormatKeepalive(peer, msg.Direction, msg.MessageID)
+		}
 		return encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
 		decoded := format.DecodeRouteRefresh(msg.RawBytes)
+		if encoding == plugin.EncodingText {
+			return format.FormatRouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
+		}
 		return encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
 	default: // Unsupported type — filtered by messageTypeToEventType before reaching here
@@ -227,10 +242,31 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 	}
 	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state, "count", len(procs))
 
-	// Format once — state change output is identical for all plugins.
-	output := format.FormatStateChange(peer, state, plugin.EncodingJSON)
+	// Pre-format once per distinct encoding.
+	formatOutputs := make(map[string]string, 2)
+	for _, proc := range procs {
+		enc := proc.Encoding()
+		if _, ok := formatOutputs[enc]; !ok {
+			formatOutputs[enc] = format.FormatStateChange(peer, state, enc)
+		}
+	}
 
-	deliverToProcs(s, procs, output, "OnPeerStateChange")
+	// Deliver per-process with matching encoding.
+	results := make(chan plugin.EventResult, len(procs))
+	sent := 0
+	for _, proc := range procs {
+		output := formatOutputs[proc.Encoding()]
+		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+			continue
+		}
+		sent++
+	}
+	for range sent {
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
+		}
+	}
 }
 
 // onPeerNegotiated handles capability negotiation completion.
@@ -278,19 +314,19 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	}
 	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType, "count", len(procs))
 
-	// Pre-format: encode once per distinct format mode.
+	// Pre-format: encode once per distinct format+encoding combination.
 	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
-		fmtMode := proc.Format()
-		if _, ok := formatOutputs[fmtMode]; !ok {
+		cacheKey := proc.Format() + "+" + proc.Encoding()
+		if _, ok := formatOutputs[cacheKey]; !ok {
 			if msg.Type == message.TypeUPDATE {
 				content := bgptypes.ContentConfig{
-					Encoding: plugin.EncodingJSON,
-					Format:   fmtMode,
+					Encoding: proc.Encoding(),
+					Format:   proc.Format(),
 				}
-				formatOutputs[fmtMode] = format.FormatSentMessage(peer, msg, content)
+				formatOutputs[cacheKey] = format.FormatSentMessage(peer, msg, content)
 			} else {
-				formatOutputs[fmtMode] = formatMessageForSubscription(encoder, peer, msg, fmtMode)
+				formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
 			}
 		}
 	}
@@ -300,7 +336,7 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	sent := 0
 
 	for _, proc := range procs {
-		output := formatOutputs[proc.Format()]
+		output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
 		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
 			continue
 		}

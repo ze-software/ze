@@ -202,9 +202,10 @@ type DispatchCommandOutput struct {
 
 // SubscribeEventsInput is the input for ze-plugin-engine:subscribe-events.
 type SubscribeEventsInput struct {
-	Events []string `json:"events,omitempty"`
-	Peers  []string `json:"peers,omitempty"`
-	Format string   `json:"format,omitempty"`
+	Events   []string `json:"events,omitempty"`
+	Peers    []string `json:"peers,omitempty"`
+	Format   string   `json:"format,omitempty"`
+	Encoding string   `json:"encoding,omitempty"` // "json" (default) or "text"
 }
 
 // ReadyInput is the input for ze-plugin-engine:ready (Stage 5).

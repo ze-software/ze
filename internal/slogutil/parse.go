@@ -105,6 +105,7 @@ func findClosingQuote(s string, start int) int {
 }
 
 // parseAttrs extracts key=value pairs from remaining line.
+// Handles quoted values with spaces (e.g., error="rpc error: unknown command").
 // Returns []any for use with slog.Group().
 func parseAttrs(s string) []any {
 	s = strings.TrimSpace(s)
@@ -113,17 +114,46 @@ func parseAttrs(s string) []any {
 	}
 
 	var attrs []any
-	for part := range strings.FieldsSeq(s) {
-		before, after, ok := strings.Cut(part, "=")
-		if !ok {
-			continue
+	for s != "" {
+		// Skip leading whitespace
+		s = strings.TrimLeft(s, " ")
+		if s == "" {
+			break
 		}
-		key := before
-		value := after
-		// Remove quotes from value if present
-		if len(value) >= 2 && value[0] == '"' && value[len(value)-1] == '"' {
-			value = value[1 : len(value)-1]
+
+		// Find key=value separator
+		eqIdx := strings.Index(s, "=")
+		if eqIdx == -1 {
+			break
 		}
+		key := s[:eqIdx]
+		s = s[eqIdx+1:]
+
+		// Extract value: quoted or unquoted
+		var value string
+		if s != "" && s[0] == '"' {
+			// Quoted value — find closing quote (respects backslash escapes)
+			end := findClosingQuote(s, 1)
+			if end == -1 {
+				// Unterminated quote — take rest of line
+				value = s[1:]
+				s = ""
+			} else {
+				value = s[1:end]
+				s = s[end+1:]
+			}
+		} else {
+			// Unquoted value — up to next space or end
+			spIdx := strings.Index(s, " ")
+			if spIdx == -1 {
+				value = s
+				s = ""
+			} else {
+				value = s[:spIdx]
+				s = s[spIdx:]
+			}
+		}
+
 		attrs = append(attrs, key, value)
 	}
 	return attrs

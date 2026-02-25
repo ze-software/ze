@@ -64,217 +64,11 @@ func flushWorkers(t *testing.T, rs *RouteServer) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 }
 
-// --- parseEvent tests ---
+// --- Handler integration tests (text → dispatchText → verify state) ---
 
-// TestParseEvent_Update verifies parsing of ze-bgp UPDATE JSON.
+// TestHandleUpdate_ZeBGPFormat verifies UPDATE processing from text event format.
 //
-// VALIDATES: parseEvent unwraps envelope, extracts event type "update", peer address,
-// message ID, and family operations with action/nlri arrays.
-// PREVENTS: Regression to flat JSON schema that doesn't match engine output (Layer 1-3).
-func TestParseEvent_Update(t *testing.T) {
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":123,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}}}}`
-
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if event.Type != "update" {
-		t.Errorf("expected type update, got %q", event.Type)
-	}
-	if event.MsgID != 123 {
-		t.Errorf("expected msg-id 123, got %d", event.MsgID)
-	}
-	if event.PeerAddr != "10.0.0.1" {
-		t.Errorf("expected peer 10.0.0.1, got %q", event.PeerAddr)
-	}
-	if event.PeerASN != 65001 {
-		t.Errorf("expected ASN 65001, got %d", event.PeerASN)
-	}
-	ops, ok := event.FamilyOps["ipv4/unicast"]
-	if !ok {
-		t.Fatal("missing ipv4/unicast family operations")
-	}
-	if len(ops) != 1 {
-		t.Fatalf("expected 1 operation, got %d", len(ops))
-	}
-	if ops[0].Action != "add" {
-		t.Errorf("expected action add, got %q", ops[0].Action)
-	}
-	if len(ops[0].NLRIs) != 2 {
-		t.Errorf("expected 2 NLRIs, got %d", len(ops[0].NLRIs))
-	}
-}
-
-// TestParseEvent_UpdateWithdraw verifies parsing of ze-bgp UPDATE with withdrawal.
-//
-// VALIDATES: parseEvent correctly parses "del" action operations.
-// PREVENTS: Missing withdrawal detection due to expecting "withdraw" maps.
-func TestParseEvent_UpdateWithdraw(t *testing.T) {
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":124,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
-
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if event.Type != "update" {
-		t.Errorf("expected type update, got %q", event.Type)
-	}
-	ops := event.FamilyOps["ipv4/unicast"]
-	if len(ops) != 1 {
-		t.Fatalf("expected 1 operation, got %d", len(ops))
-	}
-	if ops[0].Action != "del" {
-		t.Errorf("expected action del, got %q", ops[0].Action)
-	}
-	if len(ops[0].NLRIs) != 1 {
-		t.Errorf("expected 1 NLRI, got %d", len(ops[0].NLRIs))
-	}
-}
-
-// TestParseEvent_State verifies parsing of ze-bgp state change JSON.
-//
-// VALIDATES: parseEvent extracts event type "state" and state value from bgp-level field.
-// PREVENTS: Missing state extraction (state is at bgp level, not inside peer).
-func TestParseEvent_State(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		state string
-	}{
-		{
-			name:  "state_up",
-			input: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`,
-			state: "up",
-		},
-		{
-			name:  "state_down",
-			input: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`,
-			state: "down",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			event, err := parseEvent([]byte(tt.input))
-			if err != nil {
-				t.Fatalf("parse error: %v", err)
-			}
-			if event.Type != "state" {
-				t.Errorf("expected type state, got %q", event.Type)
-			}
-			if event.PeerAddr != "10.0.0.1" {
-				t.Errorf("expected peer 10.0.0.1, got %q", event.PeerAddr)
-			}
-			if event.State != tt.state {
-				t.Errorf("expected state %q, got %q", tt.state, event.State)
-			}
-		})
-	}
-}
-
-// TestParseEvent_Open verifies parsing of ze-bgp OPEN JSON with capability objects.
-//
-// VALIDATES: parseEvent extracts OPEN capabilities as structured objects with code/name/value.
-// PREVENTS: Regression to space-delimited string capabilities (Layer 4).
-func TestParseEvent_Open(t *testing.T) {
-	input := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"},{"code":65,"name":"asn4","value":"65001"}]}}}`
-
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if event.Type != "open" {
-		t.Errorf("expected type open, got %q", event.Type)
-	}
-	if event.PeerAddr != "10.0.0.1" {
-		t.Errorf("expected peer 10.0.0.1, got %q", event.PeerAddr)
-	}
-	if event.Open == nil {
-		t.Fatal("expected non-nil Open")
-	}
-	if event.Open.ASN != 65001 {
-		t.Errorf("expected ASN 65001, got %d", event.Open.ASN)
-	}
-	if event.Open.HoldTime != 180 {
-		t.Errorf("expected hold-time 180, got %d", event.Open.HoldTime)
-	}
-	if len(event.Open.Capabilities) != 4 {
-		t.Fatalf("expected 4 capabilities, got %d", len(event.Open.Capabilities))
-	}
-	cap0 := event.Open.Capabilities[0]
-	if cap0.Code != 1 || cap0.Name != "multiprotocol" || cap0.Value != "ipv4/unicast" {
-		t.Errorf("cap[0] = {%d, %q, %q}, want {1, multiprotocol, ipv4/unicast}", cap0.Code, cap0.Name, cap0.Value)
-	}
-}
-
-// TestParseEvent_Refresh verifies parsing of ze-bgp refresh JSON.
-//
-// VALIDATES: parseEvent extracts AFI/SAFI from nested refresh object.
-// PREVENTS: Missing AFI/SAFI extraction when refresh data is nested (not top-level).
-func TestParseEvent_Refresh(t *testing.T) {
-	input := `{"type":"bgp","bgp":{"message":{"type":"refresh"},"peer":{"address":"10.0.0.1","asn":65001},"refresh":{"afi":"ipv4","safi":"unicast"}}}`
-
-	event, err := parseEvent([]byte(input))
-	if err != nil {
-		t.Fatalf("parse error: %v", err)
-	}
-	if event.Type != "refresh" {
-		t.Errorf("expected type refresh, got %q", event.Type)
-	}
-	if event.PeerAddr != "10.0.0.1" {
-		t.Errorf("expected peer 10.0.0.1, got %q", event.PeerAddr)
-	}
-	if event.AFI != "ipv4" {
-		t.Errorf("expected AFI ipv4, got %q", event.AFI)
-	}
-	if event.SAFI != "unicast" {
-		t.Errorf("expected SAFI unicast, got %q", event.SAFI)
-	}
-}
-
-// TestParseEvent_InvalidJSON verifies error handling for malformed JSON.
-//
-// VALIDATES: parseEvent returns error for invalid input.
-// PREVENTS: Silent failures on malformed events.
-func TestParseEvent_InvalidJSON(t *testing.T) {
-	_, err := parseEvent([]byte(`{not json}`))
-	if err == nil {
-		t.Fatal("expected error for invalid JSON")
-	}
-}
-
-// TestNlriToPrefix verifies prefix extraction from NLRI values.
-//
-// VALIDATES: nlriToPrefix handles string prefixes and object NLRIs (ADD-PATH, VPN).
-// PREVENTS: Missing prefix extraction for complex NLRI types.
-func TestNlriToPrefix(t *testing.T) {
-	tests := []struct {
-		name   string
-		input  any
-		expect string
-	}{
-		{"string_prefix", "10.0.0.0/24", "10.0.0.0/24"},
-		{"object_with_prefix", map[string]any{"prefix": "10.0.0.0/24", "path-id": float64(1)}, "10.0.0.0/24"},
-		{"object_no_prefix", map[string]any{"path-id": float64(1)}, ""},
-		{"nil_value", nil, ""},
-		{"integer_value", float64(42), ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := nlriToPrefix(tt.input)
-			if got != tt.expect {
-				t.Errorf("nlriToPrefix(%v) = %q, want %q", tt.input, got, tt.expect)
-			}
-		})
-	}
-}
-
-// --- Handler integration tests (JSON → parse → dispatch → verify state) ---
-
-// TestHandleUpdate_ZeBGPFormat verifies UPDATE processing from actual ze-bgp JSON.
-//
-// VALIDATES: Full flow from JSON parsing through withdrawal map insertion for an UPDATE announce.
+// VALIDATES: Full flow from text parsing through withdrawal map insertion for an UPDATE announce.
 // PREVENTS: Route propagation failure due to format mismatch.
 func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -284,9 +78,7 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":123,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"attr":{"origin":"igp","as-path":[65001],"local-preference":100},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 123 announce origin igp as-path 65001 local-preference 100 ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -307,9 +99,9 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	}
 }
 
-// TestHandleUpdate_Withdraw_ZeBGPFormat verifies withdrawal processing from actual ze-bgp JSON.
+// TestHandleUpdate_Withdraw_ZeBGPFormat verifies withdrawal processing from text event format.
 //
-// VALIDATES: Full flow from JSON parsing through withdrawal map removal for a withdrawal.
+// VALIDATES: Full flow from text parsing through withdrawal map removal for a withdrawal.
 // PREVENTS: Stale routes remaining after withdrawal.
 func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
@@ -326,9 +118,7 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":124,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"action":"del","nlri":["10.0.0.0/24"]}]}}}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 124 withdraw ipv4/unicast nlri 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -359,9 +149,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":125,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]},{"action":"del","nlri":["10.0.2.0/24"]}],"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 125 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24 ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32\npeer 10.0.0.1 received update 125 withdraw ipv4/unicast nlri 10.0.2.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -381,26 +169,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	}
 }
 
-// TestHandleUpdate_IgnoreEmptyPeer verifies events with empty peer address are ignored.
-//
-// VALIDATES: Events with empty peer address are rejected.
-// PREVENTS: Routes stored with empty peer key.
-func TestHandleUpdate_IgnoreEmptyPeer(t *testing.T) {
-	rs := newTestRouteServer(t)
-
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":123,"direction":"received"},"peer":{"address":"","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-
-	rs.dispatch([]byte(input))
-
-	rs.withdrawalMu.Lock()
-	wdLen := len(rs.withdrawals[""])
-	rs.withdrawalMu.Unlock()
-	if wdLen != 0 {
-		t.Errorf("expected no withdrawal entries for empty peer, got %d", wdLen)
-	}
-}
-
-// TestHandleState_Down_ZeBGPFormat verifies peer down processing from actual ze-bgp JSON.
+// TestHandleState_Down_ZeBGPFormat verifies peer down processing from text event format.
 //
 // VALIDATES: Peer down clears withdrawal map entries for that peer (AC-5).
 // PREVENTS: Stale routes remaining after session teardown.
@@ -415,9 +184,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
 
 	rs.withdrawalMu.Lock()
 	wdLen := len(rs.withdrawals["10.0.0.1"])
@@ -437,7 +204,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	}
 }
 
-// TestHandleState_Up_ZeBGPFormat verifies peer up processing from actual ze-bgp JSON.
+// TestHandleState_Up_ZeBGPFormat verifies peer up processing from text event format.
 //
 // VALIDATES: Peer up marks peer as up, triggers replay via DispatchCommand (AC-1, AC-3).
 // PREVENTS: Missing state transition, new peer not receiving existing routes.
@@ -450,9 +217,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 		return statusDone, `{"last-index":0,"replayed":0}`, nil
 	}
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -482,9 +247,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 		return statusDone, `{"last-index":0,"replayed":0}`, nil
 	}
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -508,16 +271,14 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	}
 }
 
-// TestHandleOpen_ZeBGPFormat verifies OPEN processing from actual ze-bgp JSON.
+// TestHandleOpen_ZeBGPFormat verifies OPEN processing from text event format.
 //
-// VALIDATES: OPEN event extracts capabilities and families from JSON objects (AC-5).
-// PREVENTS: Missing capability info due to object vs string format mismatch (Layer 4).
+// VALIDATES: OPEN event extracts capabilities and families from text format (AC-5).
+// PREVENTS: Missing capability info due to format mismatch (Layer 4).
 func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"10.0.0.1","hold-time":180,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":1,"name":"multiprotocol","value":"ipv6/unicast"},{"code":2,"name":"route-refresh"},{"code":65,"name":"asn4","value":"65001"}]}}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -546,10 +307,10 @@ func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	}
 }
 
-// TestHandleRefresh_ZeBGPFormat verifies refresh processing from actual ze-bgp JSON.
+// TestHandleRefresh_ZeBGPFormat verifies refresh processing from text event format.
 //
-// VALIDATES: Refresh event extracts AFI/SAFI from nested object, forwards to capable peers (AC-6).
-// PREVENTS: Missing family extraction from nested refresh object.
+// VALIDATES: Refresh event extracts family from text format, forwards to capable peers (AC-6).
+// PREVENTS: Missing family extraction from text refresh event.
 func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
@@ -566,10 +327,8 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"refresh"},"peer":{"address":"10.0.0.1","asn":65001},"refresh":{"afi":"ipv4","safi":"unicast"}}}`
-
 	// handleRefresh calls updateRoute which sends via SDK RPC (fails silently on closed conn).
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received refresh 0 family ipv4/unicast")
 }
 
 // --- Family/capability filtering tests ---
@@ -599,9 +358,7 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":100,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}}`
-
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 100 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -646,10 +403,8 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"refresh"},"peer":{"address":"10.0.0.1","asn":65001},"refresh":{"afi":"ipv4","safi":"unicast"}}}`
-
 	// handleRefresh forwards to peers via updateRoute (fails silently on closed conn).
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received refresh 0 family ipv4/unicast")
 }
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
@@ -677,10 +432,8 @@ func TestFilterReplayByFamily(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`
-
 	// handleState/handleStateUp calls updateRoute for route replay.
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -786,8 +539,7 @@ func TestDispatchPauseOnBackpressure(t *testing.T) {
 
 	// Dispatch enough updates to trigger backpressure (>75% of 8 = >6).
 	for i := uint64(1); i <= 9; i++ {
-		input := buildTestUpdate("10.0.0.1", i)
-		rs.dispatch([]byte(input))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	// Check that peer is marked as paused.
@@ -824,8 +576,7 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 
 	// Fill channel to trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		input := buildTestUpdate("10.0.0.1", i)
-		rs.dispatch([]byte(input))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	// Verify paused.
@@ -879,11 +630,11 @@ func TestMultiSourceBackpressure(t *testing.T) {
 
 	// Saturate peer 1 and peer 2, leave peer 3 light.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.2", 100+i)))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
+		rs.dispatchText(buildTestUpdate("10.0.0.2", 100+i))
 	}
 	// Peer 3: only 1 item (no backpressure).
-	rs.dispatch([]byte(buildTestUpdate("10.0.0.3", 200)))
+	rs.dispatchText(buildTestUpdate("10.0.0.3", 200))
 
 	rs.mu.RLock()
 	p1 := rs.pausedPeers["10.0.0.1"]
@@ -922,7 +673,7 @@ func TestShutdownResumesAllPeers(t *testing.T) {
 
 	// Trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	// Verify paused.
@@ -969,7 +720,7 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 
 	// Fill to trigger backpressure.
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	rs.mu.RLock()
@@ -998,7 +749,7 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 	}
 
 	// Dispatch more after resume — should succeed without re-triggering pause.
-	rs.dispatch([]byte(buildTestUpdate("10.0.0.1", 100)))
+	rs.dispatchText(buildTestUpdate("10.0.0.1", 100))
 
 	rs.mu.RLock()
 	rePaused := rs.pausedPeers["10.0.0.1"]
@@ -1029,7 +780,7 @@ func TestPauseRPCFailure(t *testing.T) {
 
 	// Fill to trigger backpressure — pause RPC will fail (closed conn).
 	for i := uint64(1); i <= 9; i++ {
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	// Verify: peer is tracked as paused despite RPC failure.
@@ -1042,10 +793,10 @@ func TestPauseRPCFailure(t *testing.T) {
 	}
 }
 
-// TestDispatchPassesPreParsedPayload verifies dispatch stores pre-unwrapped BGP payload.
+// TestDispatchPassesPreParsedPayload verifies dispatchText stores text payload in forwardCtx.
 //
-// VALIDATES: AC-6 — forwardCtx contains BGP payload, not full envelope.
-// PREVENTS: Redundant envelope unwrap in worker.
+// VALIDATES: AC-6 — forwardCtx contains text payload for deferred parsing.
+// PREVENTS: Missing payload in worker context.
 func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs := newTestRouteServer(t)
 
@@ -1060,13 +811,12 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 	t.Cleanup(func() { rs.workers.Stop() })
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":42,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24")
 
 	// Wait for worker to process the no-op handler.
 	time.Sleep(50 * time.Millisecond)
 
-	// Check that fwdCtx was stored with bgpPayload (not rawJSON).
+	// Check that fwdCtx was stored with textPayload.
 	val, ok := rs.fwdCtx.Load(uint64(42))
 	if !ok {
 		t.Fatal("fwdCtx not found for msgID 42")
@@ -1076,17 +826,15 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 		t.Fatal("fwdCtx wrong type")
 	}
 
-	// bgpPayload should NOT contain the outer {"type":"bgp","bgp":...} wrapper.
-	// It should start with {"message":...}
-	if len(ctx.bgpPayload) == 0 {
-		t.Fatal("expected bgpPayload to be populated")
+	// textPayload should contain the text event with peer and update keywords.
+	if ctx.textPayload == "" {
+		t.Fatal("expected textPayload to be populated")
 	}
-	payloadStr := string(ctx.bgpPayload)
-	if strings.Contains(payloadStr, `"type":"bgp"`) {
-		t.Error("bgpPayload should not contain outer envelope type field")
+	if !strings.Contains(ctx.textPayload, "peer") {
+		t.Error("textPayload should contain peer keyword")
 	}
-	if !strings.Contains(payloadStr, `"message"`) {
-		t.Error("bgpPayload should contain message field from inner BGP payload")
+	if !strings.Contains(ctx.textPayload, "update") {
+		t.Error("textPayload should contain update keyword")
 	}
 }
 
@@ -1102,8 +850,7 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	input := `{"type":"bgp","bgp":{"message":{"type":"update","id":99,"direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
-	rs.dispatch([]byte(input))
+	rs.dispatchText("peer 10.0.0.1 received update 99 announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -1132,11 +879,10 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 
 	// Dispatch multiple UPDATEs.
 	for i := uint64(1); i <= 5; i++ {
-		input := fmt.Sprintf(
-			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+		rs.dispatchText(fmt.Sprintf(
+			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.%d.0/24",
 			i, i,
-		)
-		rs.dispatch([]byte(input))
+		))
 	}
 
 	flushWorkers(t, rs)
@@ -1154,7 +900,7 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 
-	rs.dispatch([]byte(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
 
 	// After peer down, withdrawal map should be empty for this peer.
 	time.Sleep(50 * time.Millisecond)
@@ -1222,7 +968,7 @@ func TestBatchForwardAccumulation(t *testing.T) {
 
 	// Dispatch 5 UPDATEs (all same source, same targets).
 	for i := uint64(1); i <= 5; i++ {
-		rs.dispatch([]byte(buildTestUpdate("10.0.0.1", i)))
+		rs.dispatchText(buildTestUpdate("10.0.0.1", i))
 	}
 
 	// Release gate: worker processes all 5 items sequentially with items 2-5
@@ -1325,11 +1071,10 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 
 	// Dispatch 5 UPDATEs with distinct prefixes from the same source peer.
 	for i := uint64(1); i <= 5; i++ {
-		input := fmt.Sprintf(
-			`{"type":"bgp","bgp":{"message":{"type":"update","id":%d},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.%d.0/24"]}]}}}}`,
+		rs.dispatchText(fmt.Sprintf(
+			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.%d.0/24",
 			i, i,
-		)
-		rs.dispatch([]byte(input))
+		))
 	}
 
 	// Workers.Stop() drains all items. With synchronous forward, the worker
@@ -1374,94 +1119,9 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second, onDrained: rs.flushWorkerBatch})
 }
 
-// TestParseUpdateFamiliesOnly verifies two-level parsing: families extracted without NLRI arrays.
-//
-// VALIDATES: AC-12 — only family keys parsed for forward target selection;
-// full NLRI arrays deferred to withdrawal map path via parseNLRIFamilyOps.
-// PREVENTS: Unnecessary parsing of large NLRI arrays on the forward hot path.
-func TestParseUpdateFamiliesOnly(t *testing.T) {
-	tests := []struct {
-		name         string
-		payload      string
-		wantFamilies []string
-		wantOps      int // total ops from deferred full parse
-	}{
-		{
-			name:         "single_family",
-			payload:      `{"message":{"type":"update","id":1},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`,
-			wantFamilies: []string{"ipv4/unicast"},
-			wantOps:      1,
-		},
-		{
-			name:         "multiple_families",
-			payload:      `{"message":{"type":"update","id":2},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}],"ipv6/unicast":[{"next-hop":"2001:db8::1","action":"add","nlri":["2001:db8::/32"]}]}}}`,
-			wantFamilies: []string{"ipv4/unicast", "ipv6/unicast"},
-			wantOps:      2,
-		},
-		{
-			name:         "empty_nlri_map",
-			payload:      `{"message":{"type":"update","id":3},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{}}}`,
-			wantFamilies: nil,
-			wantOps:      0,
-		},
-		{
-			name:         "no_update_field",
-			payload:      `{"message":{"type":"update","id":4},"peer":{"address":"10.0.0.1","asn":65001}}`,
-			wantFamilies: nil,
-			wantOps:      0,
-		},
-		{
-			name:         "mixed_add_del",
-			payload:      `{"message":{"type":"update","id":5},"peer":{"address":"10.0.0.1","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]},{"action":"del","nlri":["10.0.1.0/24"]}]}}}`,
-			wantFamilies: []string{"ipv4/unicast"},
-			wantOps:      2,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			families, nlriRaw, err := parseUpdateFamilies([]byte(tt.payload))
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-
-			// Verify family keys extracted.
-			if len(families) != len(tt.wantFamilies) {
-				t.Fatalf("families: got %d, want %d", len(families), len(tt.wantFamilies))
-			}
-			for _, f := range tt.wantFamilies {
-				if !families[f] {
-					t.Errorf("missing family %q", f)
-				}
-			}
-
-			// Verify raw data populated for each family (not fully parsed yet).
-			for f := range families {
-				if len(nlriRaw[f]) == 0 {
-					t.Errorf("family %q has no raw NLRI data", f)
-				}
-			}
-
-			// Deferred full parse should produce correct operations.
-			familyOps := parseNLRIFamilyOps(nlriRaw)
-			totalOps := 0
-			for _, ops := range familyOps {
-				totalOps += len(ops)
-			}
-			if totalOps != tt.wantOps {
-				t.Errorf("total ops: got %d, want %d", totalOps, tt.wantOps)
-			}
-		})
-	}
-}
-
-// buildTestUpdate creates a minimal ze-bgp UPDATE JSON for testing dispatch.
+// buildTestUpdate creates a minimal text-format UPDATE event for testing dispatch.
 func buildTestUpdate(peer string, msgID uint64) string {
-	return `{"type":"bgp","bgp":{"message":{"type":"update","id":` +
-		strings.Repeat("", 0) + // force import
-		fmt.Sprintf("%d", msgID) +
-		`,"direction":"received"},"peer":{"address":"` + peer +
-		`","asn":65001},"update":{"nlri":{"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}}`
+	return fmt.Sprintf("peer %s received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24", peer, msgID)
 }
 
 // --- Replay tests (spec rib-03) ---
@@ -1675,7 +1335,7 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 	rs.withdrawalMu.Unlock()
 
 	// Trigger peer down.
-	rs.dispatch([]byte(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}`))
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
 
 	select {
 	case <-done:
@@ -1794,5 +1454,175 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	rs.mu.RUnlock()
 	if replayingAfterA {
 		t.Error("stale goroutine must not set Replaying=true after completing")
+	}
+}
+
+// TestTextUpdateParseableByFields verifies text UPDATE events parse with strings.Fields.
+//
+// VALIDATES: AC-4 (bgp-rr text format parseable), AC-5 (contains peer, msgID, families, NLRIs).
+//
+// PREVENTS: Text format events not being parseable by bgp-rr dispatch/workers.
+func TestTextUpdateParseableByFields(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantType string
+		wantID   uint64
+		wantPeer string
+		wantFams map[string]bool
+	}{
+		{
+			name:     "announce ipv4",
+			input:    "peer 10.0.0.1 received update 42 announce origin igp as-path 65001 65002 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24\n",
+			wantType: eventUpdate,
+			wantID:   42,
+			wantPeer: "10.0.0.1",
+			wantFams: map[string]bool{"ipv4/unicast": true},
+		},
+		{
+			name:     "withdraw ipv4",
+			input:    "peer 10.0.0.2 received update 99 withdraw ipv4/unicast nlri 10.0.0.0/24\n",
+			wantType: eventUpdate,
+			wantID:   99,
+			wantPeer: "10.0.0.2",
+			wantFams: map[string]bool{"ipv4/unicast": true},
+		},
+		{
+			name:     "announce ipv6",
+			input:    "peer 10.0.0.1 received update 7 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32\n",
+			wantType: eventUpdate,
+			wantID:   7,
+			wantPeer: "10.0.0.1",
+			wantFams: map[string]bool{"ipv6/unicast": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			eventType, msgID, peerAddr, payload, err := quickParseTextEvent(tt.input)
+			if err != nil {
+				t.Fatalf("quickParseTextEvent() error: %v", err)
+			}
+			if eventType != tt.wantType {
+				t.Errorf("type = %q, want %q", eventType, tt.wantType)
+			}
+			if msgID != tt.wantID {
+				t.Errorf("msgID = %d, want %d", msgID, tt.wantID)
+			}
+			if peerAddr != tt.wantPeer {
+				t.Errorf("peerAddr = %q, want %q", peerAddr, tt.wantPeer)
+			}
+
+			families := parseTextUpdateFamilies(payload)
+			for fam := range tt.wantFams {
+				if !families[fam] {
+					t.Errorf("missing family %q in %v", fam, families)
+				}
+			}
+		})
+	}
+}
+
+// TestTextStateEventParseable verifies text state events parse correctly.
+//
+// VALIDATES: AC-7 (text state event contains peer address + state).
+//
+// PREVENTS: State events not being parseable in text format.
+func TestTextStateEventParseable(t *testing.T) {
+	input := "peer 10.0.0.1 asn 65001 state up\n"
+
+	eventType, _, peerAddr, _, err := quickParseTextEvent(input)
+	if err != nil {
+		t.Fatalf("quickParseTextEvent() error: %v", err)
+	}
+	if eventType != eventState {
+		t.Errorf("type = %q, want %q", eventType, eventState)
+	}
+	if peerAddr != "10.0.0.1" {
+		t.Errorf("peerAddr = %q, want %q", peerAddr, "10.0.0.1")
+	}
+}
+
+// TestTextOpenEventParseable verifies text OPEN events parse correctly.
+//
+// VALIDATES: AC-6 (text OPEN event contains ASN, router-id, families).
+//
+// PREVENTS: OPEN events not being parseable in text format.
+func TestTextOpenEventParseable(t *testing.T) {
+	input := "peer 10.0.0.1 received open 5 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
+
+	eventType, _, peerAddr, payload, err := quickParseTextEvent(input)
+	if err != nil {
+		t.Fatalf("quickParseTextEvent() error: %v", err)
+	}
+	if eventType != eventOpen {
+		t.Errorf("type = %q, want %q", eventType, eventOpen)
+	}
+	if peerAddr != "10.0.0.1" {
+		t.Errorf("peerAddr = %q, want %q", peerAddr, "10.0.0.1")
+	}
+
+	event := parseTextOpen(payload)
+	if event == nil {
+		t.Fatal("parseTextOpen returned nil")
+	}
+	if event.PeerASN != 65001 {
+		t.Errorf("ASN = %d, want 65001", event.PeerASN)
+	}
+	if event.Open == nil {
+		t.Fatal("Open is nil")
+	}
+	if len(event.Open.Capabilities) != 2 {
+		t.Errorf("capabilities = %d, want 2", len(event.Open.Capabilities))
+	}
+	// Check family extraction
+	hasFamilies := false
+	for _, cap := range event.Open.Capabilities {
+		if cap.Name == "multiprotocol" {
+			hasFamilies = true
+		}
+	}
+	if !hasFamilies {
+		t.Error("missing multiprotocol capabilities")
+	}
+}
+
+// TestTextUpdateWithdrawalTracking verifies text format withdrawal map updates.
+//
+// VALIDATES: AC-4 (text parsing extracts NLRIs for withdrawal tracking).
+//
+// PREVENTS: Withdrawal map not being populated from text events.
+func TestTextUpdateWithdrawalTracking(t *testing.T) {
+	// Announce line
+	announce := "peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24 10.0.0.0/8\n"
+	ops := parseTextNLRIOps(announce)
+
+	addOps, ok := ops["ipv4/unicast"]
+	if !ok {
+		t.Fatal("missing ipv4/unicast ops")
+	}
+	if len(addOps) != 1 {
+		t.Fatalf("expected 1 op, got %d", len(addOps))
+	}
+	if addOps[0].Action != "add" {
+		t.Errorf("action = %q, want add", addOps[0].Action)
+	}
+	if len(addOps[0].NLRIs) != 2 {
+		t.Errorf("NLRIs = %d, want 2", len(addOps[0].NLRIs))
+	}
+
+	// Withdraw line
+	withdraw := "peer 10.0.0.1 received update 43 withdraw ipv4/unicast nlri 192.168.1.0/24\n"
+	wdOps := parseTextNLRIOps(withdraw)
+
+	delOps, ok := wdOps["ipv4/unicast"]
+	if !ok {
+		t.Fatal("missing ipv4/unicast withdraw ops")
+	}
+	if delOps[0].Action != "del" {
+		t.Errorf("action = %q, want del", delOps[0].Action)
+	}
+	if len(delOps[0].NLRIs) != 1 {
+		t.Errorf("NLRIs = %d, want 1", len(delOps[0].NLRIs))
 	}
 }

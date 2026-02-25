@@ -21,7 +21,9 @@ var batchBufPool = sync.Pool{
 }
 
 // WriteBatchFrame writes a deliver-batch JSON-RPC frame to w using a pooled buffer.
-// Events are raw JSON bytes that embed directly (no double-encoding).
+// Events must be valid JSON values (strings, objects, arrays, etc.) — they are
+// embedded directly into the events array. Callers must JSON-quote plain text
+// events (e.g., via json.Marshal) before passing them here.
 // The frame is NUL-terminated, compatible with the existing FrameReader.
 //
 // Frame format: JSON-RPC envelope with events array, NUL-terminated.

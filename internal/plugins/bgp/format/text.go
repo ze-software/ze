@@ -125,7 +125,7 @@ func formatNonUpdate(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgpt
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
 func formatFromFilterResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptypes.ContentConfig, result bgpfilter.FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
-	case plugin.FormatRaw:
+	case plugin.FormatRaw, plugin.FormatHex:
 		return formatRawFromResult(peer, msg, content, direction)
 	case plugin.FormatFull:
 		return formatFullFromResult(peer, msg, content, result, ctx, direction)
@@ -673,6 +673,12 @@ func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 			}
 		}
 
+		sb.WriteString("\n")
+	}
+
+	// Empty UPDATE (End-of-RIB marker or attribute-only): produce minimal text line
+	if sb.Len() == 0 {
+		sb.WriteString(prefix)
 		sb.WriteString("\n")
 	}
 

@@ -295,6 +295,19 @@ func (p *Plugin) SetStartupSubscriptions(events, peers []string, format string) 
 	}
 }
 
+// SetEncoding sets the event encoding preference ("json" or "text").
+// Must be called after SetStartupSubscriptions and before Run().
+// Text encoding uses space-delimited output parseable by strings.Fields
+// instead of nested JSON requiring json.Unmarshal.
+func (p *Plugin) SetEncoding(enc string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.startupSubscription == nil {
+		p.startupSubscription = &rpc.SubscribeEventsInput{}
+	}
+	p.startupSubscription.Encoding = enc
+}
+
 // SetCapabilities sets the capabilities to declare during Stage 3.
 // Must be called before Run().
 func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
@@ -767,7 +780,11 @@ func (p *Plugin) handleDeliverBatch(params json.RawMessage) error {
 	}
 
 	for _, raw := range events {
-		if err := fn(string(raw)); err != nil {
+		var eventStr string
+		if err := json.Unmarshal(raw, &eventStr); err != nil {
+			return fmt.Errorf("unmarshal batch event: %w", err)
+		}
+		if err := fn(eventStr); err != nil {
 			return err
 		}
 	}

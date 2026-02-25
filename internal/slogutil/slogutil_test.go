@@ -323,6 +323,29 @@ func TestParseLogLineMalformed(t *testing.T) {
 	}
 }
 
+// TestParseLogLineQuotedAttrWithSpaces verifies attrs with quoted values containing spaces.
+//
+// VALIDATES: ParseLogLine preserves full quoted attribute values.
+// PREVENTS: Relay truncating error messages at first space inside quotes.
+func TestParseLogLineQuotedAttrWithSpaces(t *testing.T) {
+	line := `time=2025-01-18T12:00:00Z level=ERROR msg="replay failed" peer=127.0.0.2 status="" error="rpc error: unknown command"`
+
+	level, msg, attrs := ParseLogLine(line)
+
+	assert.Equal(t, slog.LevelError, level)
+	assert.Equal(t, "replay failed", msg)
+
+	// Find the error attribute value
+	for i := 0; i < len(attrs)-1; i += 2 {
+		if attrs[i] == "error" {
+			assert.Equal(t, "rpc error: unknown command", attrs[i+1],
+				"quoted attribute value with spaces should be preserved intact")
+			return
+		}
+	}
+	t.Fatal("error attribute not found in parsed attrs")
+}
+
 // TestLoggerWithOutputSubsystem verifies LoggerWithOutput includes subsystem.
 //
 // VALIDATES: LoggerWithOutput adds subsystem attribute.

@@ -844,6 +844,149 @@ func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr,
 	return body
 }
 
+// TestFormatHexMatchesRaw verifies FormatHex produces identical output to FormatRaw.
+//
+// VALIDATES: AC-1 (FormatHex treated same as FormatRaw), AC-10 (raw hex output, not parsed).
+//
+// PREVENTS: FormatHex falling through to parsed format (the most expensive path).
+func TestFormatHexMatchesRaw(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 100, []uint32{65001, 65002},
+	)
+
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
+	attrsWire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
+
+	msg := bgptypes.RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+	}
+
+	// FormatRaw output
+	rawContent := bgptypes.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatRaw,
+	}
+	rawOut := FormatMessage(peer, msg, rawContent, "")
+
+	// FormatHex output — should be identical to FormatRaw
+	hexContent := bgptypes.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatHex,
+	}
+	hexOut := FormatMessage(peer, msg, hexContent, "")
+
+	if hexOut != rawOut {
+		t.Errorf("FormatHex and FormatRaw produce different output:\nhex: %s\nraw: %s", hexOut, rawOut)
+	}
+
+	// Both should contain raw hex (not parsed attributes)
+	if strings.Contains(hexOut, `"origin"`) {
+		t.Error("FormatHex should produce raw hex, not parsed attributes")
+	}
+	if !strings.Contains(hexOut, `"raw"`) {
+		t.Error("FormatHex should contain raw hex data")
+	}
+}
+
+// TestFormatFilterResultTextEmptyUpdate verifies text formatter handles UPDATEs with no NLRI.
+//
+// VALIDATES: Empty UPDATEs (End-of-RIB, attribute-only) produce a minimal text line.
+//
+// PREVENTS: Empty string delivered to plugins causing parse errors.
+func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+	// Empty FilterResult: no announced, no withdrawn NLRIs
+	result := bgpfilter.FilterResult{}
+	text := formatFilterResultText(peer, result, 7, "received", nil)
+	if text == "" {
+		t.Fatal("empty UPDATE should produce a non-empty text line")
+	}
+	if !strings.HasPrefix(text, "peer ") {
+		t.Errorf("expected 'peer ...' prefix, got: %q", text)
+	}
+	if !strings.Contains(text, "update") {
+		t.Errorf("expected 'update' in output, got: %q", text)
+	}
+}
+
+// TestFormatMessageTextEncoding verifies text encoding produces text output, not JSON.
+//
+// VALIDATES: AC-2 (text encoding produces text, not JSON).
+//
+// PREVENTS: Text encoding path accidentally producing JSON output.
+func TestFormatMessageTextEncoding(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 100, []uint32{65001, 65002},
+	)
+
+	wireUpdate := wireu.NewWireUpdate(body, ctxID)
+	attrsWire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
+
+	msg := bgptypes.RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+	}
+
+	textContent := bgptypes.ContentConfig{
+		Encoding: plugin.EncodingText,
+		Format:   plugin.FormatParsed,
+	}
+	textOut := FormatMessage(peer, msg, textContent, "")
+
+	// Text output should NOT be JSON
+	if strings.HasPrefix(textOut, "{") {
+		t.Error("text encoding should not produce JSON")
+	}
+	// Text output should start with "peer"
+	if !strings.HasPrefix(textOut, "peer ") {
+		t.Errorf("text encoding should start with 'peer', got: %s", textOut)
+	}
+
+	// JSON encoding should produce JSON
+	jsonContent := bgptypes.ContentConfig{
+		Encoding: plugin.EncodingJSON,
+		Format:   plugin.FormatParsed,
+	}
+	jsonOut := FormatMessage(peer, msg, jsonContent, "")
+	if !strings.HasPrefix(jsonOut, "{") {
+		t.Error("json encoding should produce JSON")
+	}
+}
+
 // NewTestNLRI creates a test NLRI with prefix and optional path-id.
 func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
 	family := nlri.IPv4Unicast

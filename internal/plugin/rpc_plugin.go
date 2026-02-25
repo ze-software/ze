@@ -98,7 +98,11 @@ func (pc *PluginConn) SendDeliverEvent(ctx context.Context, eventJSON string) er
 func (pc *PluginConn) SendDeliverBatch(ctx context.Context, events []string) error {
 	rawEvents := make([][]byte, len(events))
 	for i, e := range events {
-		rawEvents[i] = []byte(e)
+		b, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("marshal event %d: %w", i, err)
+		}
+		rawEvents[i] = b
 	}
 	raw, err := pc.CallBatchRPC(ctx, rawEvents)
 	if err != nil {

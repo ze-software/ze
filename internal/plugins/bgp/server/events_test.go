@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
@@ -379,4 +380,87 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 	for i, c := range counts {
 		require.Equal(t, 2, c, "message %d: only cache consumers counted", i)
 	}
+}
+
+// TestFormatSubscriptionRespectsEncoding verifies formatMessageForSubscription uses encoding param.
+//
+// VALIDATES: AC-2 (text encoding produces text events), AC-3 (JSON unchanged).
+//
+// PREVENTS: Event delivery hardcoding JSON encoding for all plugins.
+func TestFormatSubscriptionRespectsEncoding(t *testing.T) {
+	t.Parallel()
+
+	encoder := format.NewJSONEncoder("test")
+	peer := testPeerInfo()
+	msg := keepaliveMsg()
+
+	// JSON encoding → JSON output
+	jsonOut := formatMessageForSubscription(encoder, peer, msg, plugin.FormatParsed, plugin.EncodingJSON)
+	require.True(t, strings.HasPrefix(jsonOut, "{"),
+		"json encoding should produce JSON, got: %s", jsonOut)
+
+	// Text encoding → text output
+	textOut := formatMessageForSubscription(encoder, peer, msg, plugin.FormatParsed, plugin.EncodingText)
+	require.True(t, strings.HasPrefix(textOut, "peer "),
+		"text encoding should produce text starting with 'peer', got: %s", textOut)
+
+	// They should be different
+	require.NotEqual(t, jsonOut, textOut,
+		"json and text encoding should produce different output")
+}
+
+// TestCacheKeyIncludesEncoding verifies pre-format cache distinguishes by encoding.
+//
+// VALIDATES: AC-11 (same format, different encoding → distinct outputs).
+//
+// PREVENTS: Cache collision when two procs share format but differ in encoding.
+func TestCacheKeyIncludesEncoding(t *testing.T) {
+	t.Parallel()
+
+	encoder := format.NewJSONEncoder("test")
+	peer := testPeerInfo()
+	msg := keepaliveMsg()
+
+	// Same format (parsed), different encoding — must produce different output.
+	jsonOut := formatMessageForSubscription(encoder, peer, msg, plugin.FormatParsed, plugin.EncodingJSON)
+	textOut := formatMessageForSubscription(encoder, peer, msg, plugin.FormatParsed, plugin.EncodingText)
+
+	require.NotEqual(t, jsonOut, textOut,
+		"same format + different encoding should produce different output")
+
+	// Verify the cache key pattern works: format+encoding is unique
+	key1 := plugin.FormatParsed + "+" + plugin.EncodingJSON
+	key2 := plugin.FormatParsed + "+" + plugin.EncodingText
+	require.NotEqual(t, key1, key2, "cache keys should differ for different encodings")
+}
+
+// TestStateChangeRespectsEncoding verifies onPeerStateChange formats per-process encoding.
+//
+// VALIDATES: AC-12 (text-encoded process gets text state event), AC-7 (text state parseable).
+//
+// PREVENTS: State events always being JSON regardless of process encoding.
+func TestStateChangeRespectsEncoding(t *testing.T) {
+	t.Parallel()
+
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	// Verify FormatStateChange produces correct output per encoding.
+	// onPeerStateChange calls FormatStateChange with proc.Encoding(),
+	// so testing the format function directly validates the per-process path.
+	textState := format.FormatStateChange(peer, "up", plugin.EncodingText)
+	jsonState := format.FormatStateChange(peer, "up", plugin.EncodingJSON)
+
+	require.Contains(t, textState, "peer 10.0.0.1", "text state should contain peer address")
+	require.Contains(t, textState, "state up", "text state should contain state value")
+	require.NotContains(t, textState, "{", "text state should not be JSON")
+
+	require.Contains(t, jsonState, `"type":"bgp"`, "json state should be JSON")
+	require.Contains(t, jsonState, `"state":"up"`, "json state should contain state value")
+
+	// Verify they're different
+	require.NotEqual(t, textState, jsonState,
+		"text and json state events should differ")
 }

@@ -234,6 +234,9 @@ func (s *Server) registerSubscriptions(proc *Process, input *rpc.SubscribeEvents
 	if input.Format != "" {
 		proc.SetFormat(input.Format)
 	}
+	if input.Encoding != "" {
+		proc.SetEncoding(input.Encoding)
+	}
 
 	for _, event := range input.Events {
 		eventType, direction := parseEventString(event)

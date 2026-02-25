@@ -940,8 +940,10 @@ func TestRPCDeliverBatch(t *testing.T) {
 	require.NoError(t, json.Unmarshal(req.Params, &input))
 	require.Len(t, input.Events, 3)
 
-	for i, event := range events {
-		assert.JSONEq(t, event, string(input.Events[i]))
+	for i, raw := range input.Events {
+		var eventStr string
+		require.NoError(t, json.Unmarshal(raw, &eventStr), "event %d must be a JSON string", i)
+		assert.JSONEq(t, events[i], eventStr)
 	}
 
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
@@ -973,7 +975,50 @@ func TestRPCDeliverBatchSingle(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(req.Params, &input))
 	require.Len(t, input.Events, 1)
-	assert.JSONEq(t, events[0], string(input.Events[0]))
+
+	var eventStr string
+	require.NoError(t, json.Unmarshal(input.Events[0], &eventStr))
+	assert.JSONEq(t, events[0], eventStr)
+
+	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
+	require.NoError(t, <-done)
+}
+
+// TestRPCDeliverBatchTextEvents verifies batch delivery of text-format events.
+//
+// VALIDATES: Text events (non-JSON) survive batch framing and produce valid JSON.
+// PREVENTS: Text events producing invalid JSON in batch frame (startup race crash).
+func TestRPCDeliverBatchTextEvents(t *testing.T) {
+	t.Parallel()
+
+	engineConn, pluginConn := newTestPluginConn(t)
+
+	events := []string{
+		"peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24\n",
+		"peer 10.0.0.2 state up\n",
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- engineConn.SendDeliverBatch(context.Background(), events)
+	}()
+
+	req, err := pluginConn.ReadRequest(context.Background())
+	require.NoError(t, err, "text events must produce a valid JSON-RPC frame")
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+	// Parse batch — each event must be a valid JSON string that unwraps to the original text
+	var input struct {
+		Events []json.RawMessage `json:"events"`
+	}
+	require.NoError(t, json.Unmarshal(req.Params, &input))
+	require.Len(t, input.Events, 2)
+
+	for i, raw := range input.Events {
+		var eventStr string
+		require.NoError(t, json.Unmarshal(raw, &eventStr), "event %d must be a JSON string", i)
+		assert.Equal(t, events[i], eventStr)
+	}
 
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, nil))
 	require.NoError(t, <-done)
