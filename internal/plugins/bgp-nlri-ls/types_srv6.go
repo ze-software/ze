@@ -135,9 +135,9 @@ func (s *BGPLSSRv6SID) Len() int {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: srv6-sid protocol set <proto> asn set <n>.
+// Format: srv6-sid protocol <proto> asn <n>.
 func (s *BGPLSSRv6SID) String() string {
-	return fmt.Sprintf("srv6-sid protocol set %s asn set %d", s.protocolID, s.LocalNode.ASN)
+	return fmt.Sprintf("srv6-sid protocol %s asn %d", s.protocolID, s.LocalNode.ASN)
 }
 
 // WriteTo writes the SRv6 SID NLRI directly to buf at offset.

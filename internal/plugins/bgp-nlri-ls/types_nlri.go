@@ -68,9 +68,9 @@ func (n *BGPLSNode) Len() int {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: node protocol set <proto> asn set <n>.
+// Format: node protocol <proto> asn <n>.
 func (n *BGPLSNode) String() string {
-	return fmt.Sprintf("node protocol set %s asn set %d", n.protocolID, n.LocalNode.ASN)
+	return fmt.Sprintf("node protocol %s asn %d", n.protocolID, n.LocalNode.ASN)
 }
 
 // WriteTo writes the Node NLRI directly to buf at offset.
@@ -176,9 +176,9 @@ func (l *BGPLSLink) Len() int {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: link protocol set <proto> local-asn set <n> remote-asn set <m>.
+// Format: link protocol <proto> local-asn <n> remote-asn <m>.
 func (l *BGPLSLink) String() string {
-	return fmt.Sprintf("link protocol set %s local-asn set %d remote-asn set %d", l.protocolID, l.LocalNode.ASN, l.RemoteNode.ASN)
+	return fmt.Sprintf("link protocol %s local-asn %d remote-asn %d", l.protocolID, l.LocalNode.ASN, l.RemoteNode.ASN)
 }
 
 // WriteTo writes the Link NLRI directly to buf at offset.
@@ -304,9 +304,9 @@ func (p *BGPLSPrefix) Len() int {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: prefix protocol set <proto> type set <type> asn set <n>.
+// Format: reachability protocol <proto> type <type> asn <n>.
 func (p *BGPLSPrefix) String() string {
-	return fmt.Sprintf("prefix protocol set %s type set %s asn set %d", p.protocolID, p.nlriType, p.LocalNode.ASN)
+	return fmt.Sprintf("reachability protocol %s type %s asn %d", p.protocolID, p.nlriType, p.LocalNode.ASN)
 }
 
 // WriteTo writes the Prefix NLRI directly to buf at offset.

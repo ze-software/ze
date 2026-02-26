@@ -627,62 +627,69 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
-	// Build prefix: peer <ip> <direction> update <id>
-	prefix := fmt.Sprintf("peer %s %s update %d", peer.Address, direction, msgID)
+	// Uniform header: peer <ip> asn <asn> <direction> update <id>
+	fmt.Fprintf(&sb, "peer %s asn %d %s update %d", peer.Address, peer.PeerAS, direction, msgID)
 
-	// Announced routes - grouped by family with per-family next-hop
 	announced := result.AnnouncedByFamily(ctx)
-	if len(announced) > 0 {
-		sb.WriteString(prefix)
-		sb.WriteString(" announce")
-
-		// Attributes first (shared) - only what filter requested
-		formatAttributesText(&sb, result)
-
-		for _, fam := range announced {
-			// Family name with space (e.g., "ipv4/unicast")
-			familyKey := fam.Family
-			sb.WriteString(" ")
-			sb.WriteString(familyKey)
-			sb.WriteString(" next-hop ")
-			sb.WriteString(fam.NextHop.String())
-			sb.WriteString(" nlri")
-			for _, n := range fam.NLRIs {
-				sb.WriteString(" ")
-				sb.WriteString(n.String())
-			}
-		}
-
-		sb.WriteString("\n")
-	}
-
-	// Withdrawn routes - no attributes
 	withdrawn := result.WithdrawnByFamily(ctx)
-	if len(withdrawn) > 0 {
-		sb.WriteString(prefix)
-		sb.WriteString(" withdraw")
 
-		for _, fam := range withdrawn {
-			familyKey := fam.Family
-			sb.WriteString(" ")
-			sb.WriteString(familyKey)
-			sb.WriteString(" nlri")
-			for _, n := range fam.NLRIs {
-				sb.WriteString(" ")
+	if len(announced) == 0 && len(withdrawn) == 0 {
+		// Empty UPDATE (End-of-RIB marker or attribute-only): minimal text line
+		sb.WriteString("\n")
+		return sb.String()
+	}
+
+	// Attributes (shared across all families)
+	formatAttributesText(&sb, result)
+
+	// Announced routes: next-hop <nh> nlri <fam> add <nlri>[,<nlri>]...
+	for _, fam := range announced {
+		sb.WriteString(" next-hop ")
+		sb.WriteString(fam.NextHop.String())
+		sb.WriteString(" nlri ")
+		sb.WriteString(fam.Family)
+		sb.WriteString(" add ")
+		writeNLRIList(&sb, fam.NLRIs)
+	}
+
+	// Withdrawn routes: nlri <fam> del <nlri>[,<nlri>]...
+	for _, fam := range withdrawn {
+		sb.WriteString(" nlri ")
+		sb.WriteString(fam.Family)
+		sb.WriteString(" del ")
+		writeNLRIList(&sb, fam.NLRIs)
+	}
+
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+// writeNLRIList writes NLRIs in compact format.
+// INET NLRIs (which implement Key()) use comma-separated CIDRs: prefix <a>,<b>.
+// Other NLRIs use keyword boundary: <nlri1> <nlri2>.
+func writeNLRIList(sb *strings.Builder, nlris []nlri.NLRI) {
+	if len(nlris) == 0 {
+		return
+	}
+
+	// Check if first NLRI supports compact Key() (INET).
+	type keyer interface{ Key() string }
+	_, useComma := nlris[0].(keyer)
+
+	sb.WriteString(nlris[0].String())
+	for _, n := range nlris[1:] {
+		if useComma {
+			sb.WriteByte(',')
+			if k, ok := n.(keyer); ok {
+				sb.WriteString(k.Key())
+			} else {
 				sb.WriteString(n.String())
 			}
+		} else {
+			sb.WriteByte(' ')
+			sb.WriteString(n.String())
 		}
-
-		sb.WriteString("\n")
 	}
-
-	// Empty UPDATE (End-of-RIB marker or attribute-only): produce minimal text line
-	if sb.Len() == 0 {
-		sb.WriteString(prefix)
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
 }
 
 // formatAttributesText formats attributes from FilterResult for text output.
@@ -710,10 +717,15 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		return
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
-			sb.WriteString("as-path")
+			sb.WriteString("as-path ")
+			first := true
 			for _, seg := range ap.Segments {
 				for _, asn := range seg.ASNs {
-					fmt.Fprintf(sb, " %d", asn)
+					if !first {
+						sb.WriteString(",")
+					}
+					fmt.Fprintf(sb, "%d", asn)
+					first = false
 				}
 			}
 		}
@@ -742,38 +754,35 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		return
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
-			sb.WriteString("community [")
+			sb.WriteString("community ")
 			for i, comm := range *c {
 				if i > 0 {
-					sb.WriteString(" ")
+					sb.WriteString(",")
 				}
 				sb.WriteString(comm.String())
 			}
-			sb.WriteString("]")
 		}
 		return
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			sb.WriteString("large-community [")
+			sb.WriteString("large-community ")
 			for i, comm := range *lc {
 				if i > 0 {
-					sb.WriteString(" ")
+					sb.WriteString(",")
 				}
 				sb.WriteString(comm.String())
 			}
-			sb.WriteString("]")
 		}
 		return
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			sb.WriteString("extended-community [")
+			sb.WriteString("extended-community ")
 			for i, comm := range *ec {
 				if i > 0 {
-					sb.WriteString(" ")
+					sb.WriteString(",")
 				}
 				fmt.Fprintf(sb, "%x", comm[:])
 			}
-			sb.WriteString("]")
 		}
 		return
 	}
@@ -789,8 +798,8 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
 func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "peer %s %s open %d asn %d router-id %s hold-time %d",
-		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime)
+	fmt.Fprintf(&sb, "peer %s asn %d %s open %d router-id %s hold-time %d",
+		peer.Address, open.ASN, direction, msgID, open.RouterID, open.HoldTime)
 
 	for _, cap := range open.Capabilities {
 		if cap.Value != "" {
@@ -816,23 +825,23 @@ func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direct
 	codeName := strings.ReplaceAll(notify.ErrorCodeName, " ", "-")
 	subcodeName := strings.ReplaceAll(notify.ErrorSubcodeName, " ", "-")
 
-	return fmt.Sprintf("peer %s %s notification %d code %d subcode %d code-name %s subcode-name %s data %s\n",
-		peer.Address, direction, msgID, notify.ErrorCode, notify.ErrorSubcode,
+	return fmt.Sprintf("peer %s asn %d %s notification %d code %d subcode %d code-name %s subcode-name %s data %s\n",
+		peer.Address, peer.PeerAS, direction, msgID, notify.ErrorCode, notify.ErrorSubcode,
 		codeName, subcodeName, dataHex)
 }
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
 // Format: peer <ip> <direction> keepalive <msg-id>.
 func FormatKeepalive(peer plugin.PeerInfo, direction string, msgID uint64) string {
-	return fmt.Sprintf("peer %s %s keepalive %d\n", peer.Address, direction, msgID)
+	return fmt.Sprintf("peer %s asn %d %s keepalive %d\n", peer.Address, peer.PeerAS, direction, msgID)
 }
 
 // FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
 // Format: peer <ip> <direction> <type> <msg-id> family <family>.
 func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
-	return fmt.Sprintf("peer %s %s %s %d family %s\n",
-		peer.Address, direction, decoded.SubtypeName, msgID, decoded.Family)
+	return fmt.Sprintf("peer %s asn %d %s %s %d family %s\n",
+		peer.Address, peer.PeerAS, direction, decoded.SubtypeName, msgID, decoded.Family)
 }
 
 // FormatStateChange formats a peer state change event.

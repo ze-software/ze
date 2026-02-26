@@ -262,15 +262,15 @@ func (v *VPN) Len() int {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: rd set <rd> prefix set <prefix> [label set <labels>] [path-id set <id>].
+// Format: rd <rd> prefix <prefix> [label <labels>] [path-id <id>].
 func (v *VPN) String() string {
 	var sb strings.Builder
-	sb.WriteString("rd set ")
+	sb.WriteString("rd ")
 	sb.WriteString(v.rd.String())
-	sb.WriteString(" prefix set ")
+	sb.WriteString(" prefix ")
 	sb.WriteString(v.prefix.String())
 	if len(v.labels) > 0 {
-		sb.WriteString(" label set ")
+		sb.WriteString(" label ")
 		sb.WriteString(strconv.FormatUint(uint64(v.labels[0]), 10))
 		for _, l := range v.labels[1:] {
 			sb.WriteString(",")
@@ -278,7 +278,7 @@ func (v *VPN) String() string {
 		}
 	}
 	if v.pathID != 0 {
-		sb.WriteString(" path-id set ")
+		sb.WriteString(" path-id ")
 		sb.WriteString(strconv.FormatUint(uint64(v.pathID), 10))
 	}
 	return sb.String()

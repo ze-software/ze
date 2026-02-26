@@ -12,7 +12,7 @@ import (
 )
 
 // testPrefix10 is a test prefix used across filter tests.
-const testPrefix10 = "10.0.0.0/24"
+const testPrefix10 = "prefix 10.0.0.0/24"
 
 // emptyEncCtx is an empty encoding context for tests (no ADD-PATH).
 var emptyEncCtx = bgpctx.EncodingContextForASN4(true)
@@ -489,8 +489,8 @@ func TestApplyToUpdate(t *testing.T) {
 	}
 	if len(announced[0].NLRIs) != 1 {
 		t.Errorf("len(NLRIs) = %d, want 1", len(announced[0].NLRIs))
-	} else if announced[0].NLRIs[0].String() != "192.168.1.0/24" {
-		t.Errorf("NLRI = %s, want 192.168.1.0/24", announced[0].NLRIs[0])
+	} else if announced[0].NLRIs[0].String() != "prefix 192.168.1.0/24" {
+		t.Errorf("NLRI = %s, want prefix 192.168.1.0/24", announced[0].NLRIs[0])
 	}
 }
 

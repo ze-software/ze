@@ -97,7 +97,7 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	// Dispatch 3 UPDATE events from peer 10.0.0.1.
 	for i := 1; i <= 3; i++ {
 		input := fmt.Sprintf(
-			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
+			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		)
 		rs.dispatchText(input)
@@ -178,7 +178,7 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
 
 	// Dispatch UPDATE with no NLRI → should trigger release.
-	input := "peer 10.0.0.1 received update 42"
+	input := "peer 10.0.0.1 asn 65001 received update 42"
 	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -228,7 +228,7 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	rs.mu.Unlock()
 
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.2 should be a target.
-	input := "peer 10.0.0.1 received update 7 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32"
+	input := "peer 10.0.0.1 asn 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32"
 	rs.dispatchText(input)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -298,7 +298,7 @@ func TestForwardWorker_OrderPreserved(t *testing.T) {
 	const numUpdates = 100
 	for i := 1; i <= numUpdates; i++ {
 		input := fmt.Sprintf(
-			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
+			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		)
 		rs.dispatchText(input)
@@ -373,12 +373,12 @@ func TestForwardWorker_ReleaseInOrder(t *testing.T) {
 		var input string
 		if i%2 == 0 {
 			input = fmt.Sprintf(
-				"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.%d.0/24",
+				"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 				i, i,
 			)
 		} else {
 			// Empty NLRI → triggers release path
-			input = fmt.Sprintf("peer 10.0.0.1 received update %d", i)
+			input = fmt.Sprintf("peer 10.0.0.1 asn 65001 received update %d", i)
 		}
 		rs.dispatchText(input)
 	}
@@ -760,7 +760,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	// OPEN with capabilities but NO multiprotocol entries
-	input := "peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
+	input := "peer 10.0.0.1 asn 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 2 route-refresh cap 65 asn4 65001"
 	rs.dispatchText(input)
 
 	rs.mu.RLock()
@@ -851,7 +851,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	}
 
 	// Step 1: OPEN with multiprotocol for ipv4/unicast and ipv6/unicast
-	openInput := "peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
+	openInput := "peer 10.0.0.1 asn 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh"
 	rs.dispatchText(openInput)
 
 	// Step 2: State up
@@ -928,7 +928,7 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 	}
 
 	// Peer 1 sends an UPDATE with 10.0.0.0/24
-	updateInput := "peer 10.0.0.1 received update 100 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	updateInput := "peer 10.0.0.1 asn 65001 received update 100 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
 	rs.dispatchText(updateInput)
 	flushWorkers(t, rs)
 
@@ -1117,7 +1117,7 @@ func TestPropagation_VPNRoute(t *testing.T) {
 	rs.mu.Unlock()
 
 	// VPN UPDATE with NLRI
-	input := "peer 10.0.0.1 received update 200 announce origin igp ipv4/vpn next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	input := "peer 10.0.0.1 asn 65001 received update 200 origin igp next-hop 192.168.1.1 nlri ipv4/vpn add prefix 10.0.0.0/24"
 	rs.dispatchText(input)
 	flushWorkers(t, rs)
 
@@ -1160,7 +1160,7 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	rs.mu.Unlock()
 
 	// Add route.
-	addInput := "peer 10.0.0.1 received update 100 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24"
+	addInput := "peer 10.0.0.1 asn 65001 received update 100 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24"
 	rs.dispatchText(addInput)
 	flushWorkers(t, rs)
 
@@ -1172,7 +1172,7 @@ func TestPropagation_WithdrawClearsWithdrawalMap(t *testing.T) {
 	}
 
 	// Withdraw route.
-	delInput := "peer 10.0.0.1 received update 101 withdraw ipv4/unicast nlri 10.0.0.0/24"
+	delInput := "peer 10.0.0.1 asn 65001 received update 101 nlri ipv4/unicast del prefix 10.0.0.0/24"
 	rs.dispatchText(delInput)
 	flushWorkers(t, rs)
 

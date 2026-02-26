@@ -105,7 +105,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 				return NewMVPNWithRD(AFIIPv4, MVPNSourceTreeJoin, rd, []byte{10, 0, 0, 1})
 			}(),
-			expected: "source-tree-join rd set 0:65001:100",
+			expected: "source-tree-join rd 0:65001:100",
 		},
 		{
 			name: "mvpn s-pmsi-ad with rd",
@@ -115,7 +115,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
 				return NewMVPNWithRD(AFIIPv6, MVPNSPMSIAD, rd, nil)
 			}(),
-			expected: "s-pmsi-ad rd set 1:10.0.0.1:200",
+			expected: "s-pmsi-ad rd 1:10.0.0.1:200",
 		},
 	}
 

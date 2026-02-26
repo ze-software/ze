@@ -307,14 +307,14 @@ func (e *EVPNType1) Len() int {
 
 func (e *EVPNType1) String() string {
 	var sb strings.Builder
-	sb.WriteString("ethernet-ad rd set ")
+	sb.WriteString("ethernet-ad rd ")
 	sb.WriteString(e.rd.String())
-	sb.WriteString(" esi set ")
+	sb.WriteString(" esi ")
 	sb.WriteString(e.esi.String())
-	sb.WriteString(" etag set ")
+	sb.WriteString(" etag ")
 	fmt.Fprintf(&sb, "%d", e.ethernetTag)
 	if len(e.labels) > 0 {
-		sb.WriteString(" label set ")
+		sb.WriteString(" label ")
 		fmt.Fprintf(&sb, "%d", e.labels[0])
 		for _, l := range e.labels[1:] {
 			fmt.Fprintf(&sb, ",%d", l)
@@ -480,20 +480,20 @@ func (e *EVPNType2) Len() int {
 
 func (e *EVPNType2) String() string {
 	var sb strings.Builder
-	sb.WriteString("mac-ip rd set ")
+	sb.WriteString("mac-ip rd ")
 	sb.WriteString(e.rd.String())
-	sb.WriteString(" mac set ")
+	sb.WriteString(" mac ")
 	fmt.Fprintf(&sb, "%02x:%02x:%02x:%02x:%02x:%02x",
 		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5])
 	if e.ip.IsValid() {
-		sb.WriteString(" ip set ")
+		sb.WriteString(" ip ")
 		sb.WriteString(e.ip.String())
 	}
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
+		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
 	}
 	if len(e.labels) > 0 {
-		fmt.Fprintf(&sb, " label set %d", e.labels[0])
+		fmt.Fprintf(&sb, " label %d", e.labels[0])
 		for _, l := range e.labels[1:] {
 			fmt.Fprintf(&sb, ",%d", l)
 		}
@@ -594,12 +594,12 @@ func (e *EVPNType3) Len() int {
 
 func (e *EVPNType3) String() string {
 	var sb strings.Builder
-	sb.WriteString("multicast rd set ")
+	sb.WriteString("multicast rd ")
 	sb.WriteString(e.rd.String())
-	sb.WriteString(" ip set ")
+	sb.WriteString(" ip ")
 	sb.WriteString(e.originatorIP.String())
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
+		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
 	}
 	return sb.String()
 }
@@ -714,11 +714,11 @@ func (e *EVPNType4) Len() int {
 
 func (e *EVPNType4) String() string {
 	var sb strings.Builder
-	sb.WriteString("ethernet-segment rd set ")
+	sb.WriteString("ethernet-segment rd ")
 	sb.WriteString(e.rd.String())
-	sb.WriteString(" esi set ")
+	sb.WriteString(" esi ")
 	sb.WriteString(e.esi.String())
-	sb.WriteString(" ip set ")
+	sb.WriteString(" ip ")
 	sb.WriteString(e.originatorIP.String())
 	return sb.String()
 }
@@ -874,23 +874,23 @@ func (e *EVPNType5) Len() int {
 
 func (e *EVPNType5) String() string {
 	var sb strings.Builder
-	sb.WriteString("ip-prefix rd set ")
+	sb.WriteString("ip-prefix rd ")
 	sb.WriteString(e.rd.String())
-	sb.WriteString(" prefix set ")
+	sb.WriteString(" prefix ")
 	sb.WriteString(e.prefix.String())
 	if !e.esi.IsZero() {
-		sb.WriteString(" esi set ")
+		sb.WriteString(" esi ")
 		sb.WriteString(e.esi.String())
 	}
 	if e.ethernetTag != 0 {
-		fmt.Fprintf(&sb, " etag set %d", e.ethernetTag)
+		fmt.Fprintf(&sb, " etag %d", e.ethernetTag)
 	}
 	if e.gateway.IsValid() && !e.gateway.IsUnspecified() {
-		sb.WriteString(" gateway set ")
+		sb.WriteString(" gateway ")
 		sb.WriteString(e.gateway.String())
 	}
 	if len(e.labels) > 0 {
-		fmt.Fprintf(&sb, " label set %d", e.labels[0])
+		fmt.Fprintf(&sb, " label %d", e.labels[0])
 		for _, l := range e.labels[1:] {
 			fmt.Fprintf(&sb, ",%d", l)
 		}

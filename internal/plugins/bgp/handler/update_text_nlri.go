@@ -168,6 +168,14 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 			return nlriParseResult{}, fmt.Errorf("%w: got %q", route.ErrMissingAddDel, token)
 		}
 
+		// Skip NLRI type keyword ("prefix") — emitted by NLRI String() in event
+		// format and included in withdrawal commands from bgp-rr.
+		if token == "prefix" {
+			i++
+			consumed++
+			continue
+		}
+
 		// Parse prefix based on family
 		n, extra, err := parseNLRI(token, family, accum)
 		if err != nil {

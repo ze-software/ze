@@ -106,7 +106,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 				return NewVPLSFull(rd, 5, 0, 0, 16000)
 			}(),
-			expected: "rd set 0:65001:100 ve-id set 5 label set 16000",
+			expected: "rd 0:65001:100 ve-id 5 label 16000",
 		},
 		{
 			name: "vpls with type1 rd",
@@ -116,7 +116,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
 				return NewVPLSFull(rd, 10, 0, 0, 500)
 			}(),
-			expected: "rd set 1:10.0.0.1:200 ve-id set 10 label set 500",
+			expected: "rd 1:10.0.0.1:200 ve-id 10 label 500",
 		},
 	}
 

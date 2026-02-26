@@ -334,9 +334,9 @@ func TestMPReachWireNLRIs(t *testing.T) {
 		t.Errorf("PathID() = %d, want 1", n.PathID())
 	}
 
-	want := "10.0.0.0/24"
-	if n.String() != "10.0.0.0/24 path-id set 1" {
-		t.Errorf("String() = %q, want prefix %s with path-id set 1", n.String(), want)
+	want := "prefix 10.0.0.0/24"
+	if n.String() != want {
+		t.Errorf("String() = %q, want %q", n.String(), want)
 	}
 
 	// Verify family
@@ -378,8 +378,8 @@ func TestMPReachWireNLRIs_NoAddPath(t *testing.T) {
 		t.Errorf("PathID() = %d, want 0", n.PathID())
 	}
 
-	if n.String() != "10.0.0.0/24" {
-		t.Errorf("String() = %q, want 10.0.0.0/24", n.String())
+	if n.String() != "prefix 10.0.0.0/24" {
+		t.Errorf("String() = %q, want %q", n.String(), "prefix 10.0.0.0/24")
 	}
 }
 
@@ -590,8 +590,8 @@ func TestMPReachWireNLRIs_IPv6AddPath(t *testing.T) {
 		t.Errorf("Family() = %v, want %v", n.Family(), wantFamily)
 	}
 
-	if n.String() != "2001:db8:1::/48 path-id set 5" {
-		t.Errorf("String() = %q, want prefix with path-id set 5", n.String())
+	if n.String() != "prefix 2001:db8:1::/48" {
+		t.Errorf("String() = %q, want %q", n.String(), "prefix 2001:db8:1::/48")
 	}
 }
 

@@ -116,24 +116,24 @@ func TestFormatMessageText(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Format: peer <ip> <direction> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
-	if !strings.Contains(got, "peer 10.0.0.1 received update") {
-		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 received update'", got)
+	// Format: peer <ip> asn <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
+	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 received update") {
+		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 received update'", got)
 	}
-	if !strings.Contains(got, "announce") {
-		t.Error("missing announce")
+	if strings.Contains(got, "announce") {
+		t.Error("should not contain 'announce' keyword (replaced by family + nlri add)")
 	}
 	if !strings.Contains(got, "origin igp") {
 		t.Error("missing origin")
 	}
-	if !strings.Contains(got, "as-path 65001 65002") {
-		t.Error("missing as-path")
+	if !strings.Contains(got, "as-path 65001,65002") {
+		t.Error("missing comma-separated as-path")
 	}
 	if !strings.Contains(got, "local-preference 100") {
 		t.Error("missing local-preference")
 	}
-	if !strings.Contains(got, "ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24") {
-		t.Error("missing family/next-hop/nlri")
+	if !strings.Contains(got, "next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24") {
+		t.Error("missing next-hop/nlri add")
 	}
 }
 
@@ -310,9 +310,9 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Should use FormatOpen with new format: peer X received open <msg-id> asn Y router-id R hold-time T cap ...
-	if !strings.Contains(got, "peer 10.0.0.1 received open") || !strings.Contains(got, "asn 42") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 received open ... asn 42'", got)
+	// Should use FormatOpen with uniform header: peer X asn Y received open <msg-id> router-id R hold-time T cap ...
+	if !strings.Contains(got, "peer 10.0.0.1 asn 42 received open") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 asn 42 received open'", got)
 	}
 	if !strings.Contains(got, "router-id 10.0.0.1") {
 		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
@@ -345,9 +345,9 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Should use new format: peer X received keepalive
-	if !strings.Contains(got, "peer 10.0.0.1 received keepalive") {
-		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 received keepalive'", got)
+	// Should use uniform header: peer X asn Y received keepalive
+	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 received keepalive") {
+		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 received keepalive'", got)
 	}
 }
 
@@ -618,12 +618,12 @@ func TestFormatOpenWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 sent open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 asn 65001 sent open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 received open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 asn 65001 received open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 	}
 
@@ -655,12 +655,12 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 sent keepalive 42\n",
+			want:      "peer 10.0.0.1 asn 65001 sent keepalive 42\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 received keepalive 42\n",
+			want:      "peer 10.0.0.1 asn 65001 received keepalive 42\n",
 		},
 	}
 
@@ -700,12 +700,12 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
+			want:      "peer 10.0.0.1 asn 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
+			want:      "peer 10.0.0.1 asn 65001 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 	}
 
@@ -920,8 +920,8 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}
-	if !strings.HasPrefix(text, "peer ") {
-		t.Errorf("expected 'peer ...' prefix, got: %q", text)
+	if !strings.HasPrefix(text, "peer 10.0.0.1 asn 65001") {
+		t.Errorf("expected uniform header 'peer 10.0.0.1 asn 65001 ...', got: %q", text)
 	}
 	if !strings.Contains(text, "update") {
 		t.Errorf("expected 'update' in output, got: %q", text)

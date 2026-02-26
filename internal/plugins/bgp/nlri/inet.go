@@ -24,7 +24,6 @@ package nlri
 import (
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"net/netip"
 )
 
@@ -173,13 +172,16 @@ func (i *INET) Len() int {
 	return 1 + PrefixBytes(i.prefix.Bits())
 }
 
-// String returns command-style format for API round-trip compatibility.
-// Format: <prefix> [path-id set <id>].
-func (i *INET) String() string {
-	if i.pathID != 0 {
-		return fmt.Sprintf("%s path-id set %d", i.prefix, i.pathID)
-	}
+// Key returns the compact unique identifier for this NLRI: just the CIDR.
+// Used for map keys where the type keyword is redundant within a family.
+func (i *INET) Key() string {
 	return i.prefix.String()
+}
+
+// String returns the prefix in command-style format: prefix <addr/len>.
+// Path-ID is not included — it is added by the formatter as `nlri path-id <id> add`.
+func (i *INET) String() string {
+	return "prefix " + i.prefix.String()
 }
 
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.

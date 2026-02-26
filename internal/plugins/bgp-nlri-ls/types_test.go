@@ -131,7 +131,7 @@ func TestBGPLSNodeString(t *testing.T) {
 	})
 
 	s := node.String()
-	assert.Equal(t, "node protocol set ospfv2 asn set 65001", s)
+	assert.Equal(t, "node protocol ospfv2 asn 65001", s)
 }
 
 // TestBGPLSLinkBytes verifies link wire format.
@@ -369,7 +369,7 @@ func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
 // TestBGPLSNodeStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: BGPLSNode String() outputs command-style format for API round-trip.
-// Format: node protocol set <proto> asn set <n>.
+// Format: node protocol <proto> asn <n>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSNodeStringCommandStyle(t *testing.T) {
@@ -384,14 +384,14 @@ func TestBGPLSNodeStringCommandStyle(t *testing.T) {
 				ASN:         65001,
 				IGPRouterID: []byte{1, 1, 1, 1},
 			}),
-			expected: "node protocol set ospfv2 asn set 65001",
+			expected: "node protocol ospfv2 asn 65001",
 		},
 		{
 			name: "node with different asn",
 			node: NewBGPLSNode(ProtoISISL2, 0x200, NodeDescriptor{
 				ASN: 65500,
 			}),
-			expected: "node protocol set isis-l2 asn set 65500",
+			expected: "node protocol isis-l2 asn 65500",
 		},
 	}
 
@@ -405,7 +405,7 @@ func TestBGPLSNodeStringCommandStyle(t *testing.T) {
 // TestBGPLSLinkStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: BGPLSLink String() outputs command-style format for API round-trip.
-// Format: link protocol set <proto> local-asn set <n> remote-asn set <m>.
+// Format: link protocol <proto> local-asn <n> remote-asn <m>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSLinkStringCommandStyle(t *testing.T) {
@@ -421,7 +421,7 @@ func TestBGPLSLinkStringCommandStyle(t *testing.T) {
 				NodeDescriptor{ASN: 65002, IGPRouterID: []byte{2, 2, 2, 2}},
 				LinkDescriptor{},
 			),
-			expected: "link protocol set ospfv2 local-asn set 65001 remote-asn set 65002",
+			expected: "link protocol ospfv2 local-asn 65001 remote-asn 65002",
 		},
 		{
 			name: "link same asn",
@@ -430,7 +430,7 @@ func TestBGPLSLinkStringCommandStyle(t *testing.T) {
 				NodeDescriptor{ASN: 65500},
 				LinkDescriptor{LocalInterfaceAddr: []byte{10, 0, 0, 1}},
 			),
-			expected: "link protocol set isis-l2 local-asn set 65500 remote-asn set 65500",
+			expected: "link protocol isis-l2 local-asn 65500 remote-asn 65500",
 		},
 	}
 
@@ -444,7 +444,7 @@ func TestBGPLSLinkStringCommandStyle(t *testing.T) {
 // TestBGPLSPrefixStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: BGPLSPrefix String() outputs command-style format for API round-trip.
-// Format: prefix protocol set <proto> type set <type> asn set <n>.
+// Format: reachability protocol <proto> type <type> asn <n>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
@@ -459,7 +459,7 @@ func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
 				NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 				PrefixDescriptor{IPReachabilityInfo: []byte{24, 10, 0, 0}},
 			),
-			expected: "prefix protocol set ospfv2 type set prefix-v4 asn set 65001",
+			expected: "reachability protocol ospfv2 type prefix-v4 asn 65001",
 		},
 		{
 			name: "ipv6 prefix",
@@ -467,7 +467,7 @@ func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
 				NodeDescriptor{ASN: 65002},
 				PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
 			),
-			expected: "prefix protocol set ospfv3 type set prefix-v6 asn set 65002",
+			expected: "reachability protocol ospfv3 type prefix-v6 asn 65002",
 		},
 	}
 
@@ -481,7 +481,7 @@ func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
 // TestBGPLSSRv6SIDStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: BGPLSSRv6SID String() outputs command-style format for API round-trip.
-// Format: srv6-sid protocol set <proto> asn set <n>.
+// Format: srv6-sid protocol <proto> asn <n>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
@@ -498,14 +498,14 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 			}, SRv6SIDDescriptor{
 				SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
 			}),
-			expected: "srv6-sid protocol set proto(9) asn set 65001",
+			expected: "srv6-sid protocol proto(9) asn 65001",
 		},
 		{
 			name: "srv6 sid different asn",
 			srv6: NewBGPLSSRv6SID(ProtoISISL1, 0x300, NodeDescriptor{
 				ASN: 65500,
 			}, SRv6SIDDescriptor{}),
-			expected: "srv6-sid protocol set isis-l1 asn set 65500",
+			expected: "srv6-sid protocol isis-l1 asn 65500",
 		},
 	}
 

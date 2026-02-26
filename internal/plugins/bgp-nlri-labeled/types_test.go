@@ -176,27 +176,27 @@ func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 		{
 			name:     "single label no path id",
 			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 0),
-			expected: "prefix set 10.0.0.0/8 label set 100",
+			expected: "prefix 10.0.0.0/8 label 100",
 		},
 		{
 			name:     "single label with path id",
 			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 5),
-			expected: "prefix set 10.0.0.0/8 label set 100 path-id set 5",
+			expected: "prefix 10.0.0.0/8 label 100 path-id 5",
 		},
 		{
 			name:     "multiple labels",
 			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100, 200}, 0),
-			expected: "prefix set 10.0.0.0/8 label set 100,200",
+			expected: "prefix 10.0.0.0/8 label 100,200",
 		},
 		{
 			name:     "ipv6 single label",
 			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("2001:db8::/32"), []uint32{500}, 0),
-			expected: "prefix set 2001:db8::/32 label set 500",
+			expected: "prefix 2001:db8::/32 label 500",
 		},
 		{
 			name:     "no labels",
 			lu:       NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, netip.MustParsePrefix("10.0.0.0/8"), nil, 0),
-			expected: "prefix set 10.0.0.0/8",
+			expected: "prefix 10.0.0.0/8",
 		},
 	}
 

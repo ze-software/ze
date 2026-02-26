@@ -658,7 +658,7 @@ func TestParseESIString(t *testing.T) {
 
 // TestEVPNType2StringCommandStyle verifies Type 2 String() outputs command-style format.
 //
-// VALIDATES: Type 2 output uses "mac-ip rd set ... mac set ..." format.
+// VALIDATES: Type 2 output uses "mac-ip rd ... mac ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType2StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -667,8 +667,8 @@ func TestEVPNType2StringCommandStyle(t *testing.T) {
 	e := NewEVPNType2(rd, [10]byte{}, 0, mac, netip.Addr{}, []uint32{1000})
 	s := e.String()
 	assert.Contains(t, s, "mac-ip", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "mac set 00:11:22:33:44:55", "mac should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "mac 00:11:22:33:44:55", "mac field should be present")
 }
 
 // TestEVPNType2WithIPStringCommandStyle verifies Type 2 with IP uses command-style.
@@ -683,16 +683,16 @@ func TestEVPNType2WithIPStringCommandStyle(t *testing.T) {
 	e := NewEVPNType2(rd, [10]byte{}, 100, mac, ip, []uint32{1000})
 	s := e.String()
 	assert.Contains(t, s, "mac-ip", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "mac set 00:11:22:33:44:55", "mac should use 'set' keyword")
-	assert.Contains(t, s, "ip set 192.168.1.1", "ip should use 'set' keyword")
-	assert.Contains(t, s, "etag set 100", "etag should use 'set' keyword")
-	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "mac 00:11:22:33:44:55", "mac field should be present")
+	assert.Contains(t, s, "ip 192.168.1.1", "ip field should be present")
+	assert.Contains(t, s, "etag 100", "etag field should be present")
+	assert.Contains(t, s, "label 1000", "label field should be present")
 }
 
 // TestEVPNType3StringCommandStyle verifies Type 3 String() outputs command-style format.
 //
-// VALIDATES: Type 3 output uses "multicast rd set ... ip set ..." format.
+// VALIDATES: Type 3 output uses "multicast rd ... ip ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType3StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -701,14 +701,14 @@ func TestEVPNType3StringCommandStyle(t *testing.T) {
 	e := NewEVPNType3(rd, 200, ip)
 	s := e.String()
 	assert.Contains(t, s, "multicast", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "ip set 10.0.0.1", "ip should use 'set' keyword")
-	assert.Contains(t, s, "etag set 200", "etag should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "ip 10.0.0.1", "ip field should be present")
+	assert.Contains(t, s, "etag 200", "etag field should be present")
 }
 
 // TestEVPNType5StringCommandStyle verifies Type 5 String() outputs command-style format.
 //
-// VALIDATES: Type 5 output uses "ip-prefix rd set ... prefix set ..." format.
+// VALIDATES: Type 5 output uses "ip-prefix rd ... prefix ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType5StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -717,14 +717,14 @@ func TestEVPNType5StringCommandStyle(t *testing.T) {
 	e := NewEVPNType5(rd, [10]byte{}, 0, prefix, netip.Addr{}, []uint32{1000})
 	s := e.String()
 	assert.Contains(t, s, "ip-prefix", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "prefix set 10.0.0.0/24", "prefix should use 'set' keyword")
-	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "prefix 10.0.0.0/24", "prefix field should be present")
+	assert.Contains(t, s, "label 1000", "label field should be present")
 }
 
 // TestEVPNType1StringCommandStyle verifies Type 1 String() outputs command-style format.
 //
-// VALIDATES: Type 1 output uses "ethernet-ad rd set ... esi set ..." format.
+// VALIDATES: Type 1 output uses "ethernet-ad rd ... esi ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType1StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -733,15 +733,15 @@ func TestEVPNType1StringCommandStyle(t *testing.T) {
 	e := NewEVPNType1(rd, esi, 10, []uint32{1000})
 	s := e.String()
 	assert.Contains(t, s, "ethernet-ad", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "esi set 00:01:02:03:04:05:06:07:08:09", "esi should use 'set' keyword")
-	assert.Contains(t, s, "etag set 10", "etag should use 'set' keyword")
-	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "esi 00:01:02:03:04:05:06:07:08:09", "esi field should be present")
+	assert.Contains(t, s, "etag 10", "etag field should be present")
+	assert.Contains(t, s, "label 1000", "label field should be present")
 }
 
 // TestEVPNType4StringCommandStyle verifies Type 4 String() outputs command-style format.
 //
-// VALIDATES: Type 4 output uses "ethernet-segment rd set ... esi set ..." format.
+// VALIDATES: Type 4 output uses "ethernet-segment rd ... esi ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType4StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -751,9 +751,9 @@ func TestEVPNType4StringCommandStyle(t *testing.T) {
 	e := NewEVPNType4(rd, esi, ip)
 	s := e.String()
 	assert.Contains(t, s, "ethernet-segment", "should start with route type")
-	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
-	assert.Contains(t, s, "esi set 00:01:02:03:04:05:06:07:08:09", "esi should use 'set' keyword")
-	assert.Contains(t, s, "ip set 10.0.0.1", "ip should use 'set' keyword")
+	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")
+	assert.Contains(t, s, "esi 00:01:02:03:04:05:06:07:08:09", "esi field should be present")
+	assert.Contains(t, s, "ip 10.0.0.1", "ip field should be present")
 }
 
 // TestLenWithContext_EVPN verifies that LenWithContext returns the same

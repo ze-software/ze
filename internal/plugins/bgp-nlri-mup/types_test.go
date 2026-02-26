@@ -105,7 +105,7 @@ func TestMUPStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
 				return NewMUPFull(AFIIPv4, MUPArch3GPP5G, MUPT1ST, rd, []byte{10, 0, 0, 1})
 			}(),
-			expected: "t1st rd set 0:65001:100",
+			expected: "t1st rd 0:65001:100",
 		},
 		{
 			name: "mup dsd with rd",
@@ -115,7 +115,7 @@ func TestMUPStringCommandStyle(t *testing.T) {
 				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
 				return NewMUPFull(AFIIPv6, MUPArch3GPP5G, MUPDSD, rd, nil)
 			}(),
-			expected: "dsd rd set 1:10.0.0.1:200",
+			expected: "dsd rd 1:10.0.0.1:200",
 		},
 	}
 

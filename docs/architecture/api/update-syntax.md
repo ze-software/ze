@@ -32,7 +32,7 @@ update <encoding> [<attr-sections>]... [nlri <family> add <nlri>... [del <nlri>.
 In text mode, each attribute uses its own keyword with `set`/`add`/`del`:
 
 ```
-update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> nlri <family> add <prefix>...
+update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> nlri <family> add prefix <prefix>...
 ```
 
 ### Scalar Attributes (set/del only)
@@ -87,28 +87,28 @@ When `nhop set self` is used:
 
 **Input format**: `nhop` is a separate accumulator, can appear anywhere before `nlri`:
 ```bash
-peer 10.0.0.1 update text nhop set self origin set igp nlri ipv4/unicast add 1.0.0.0/24
-peer 10.0.0.1 update text origin set igp nhop set self nlri ipv4/unicast add 1.0.0.0/24
+peer 10.0.0.1 update text nhop set self origin set igp nlri ipv4/unicast add prefix 1.0.0.0/24
+peer 10.0.0.1 update text origin set igp nhop set self nlri ipv4/unicast add prefix 1.0.0.0/24
 # Both equivalent - nhop accumulates
 ```
 
-**Output format**: `nhop` is always printed **inside each nlri group** (after attrs, before nlri):
+**Output format** (event from engine to plugin): attributes have no `set` keyword, `next-hop` replaces `nhop set`, header includes `asn`:
 ```bash
-# Output always shows nhop with its nlri group:
-peer 10.0.0.1 received 123 update text origin set igp nhop set 192.168.1.1 nlri ipv4/unicast add 1.0.0.0/24
-#                                                     ^^^^^^^^^^^^^^^^^^^^
-#                                                     nhop printed with nlri group, resolved value
+# Output always shows next-hop with its nlri group:
+peer 10.0.0.1 asn 65001 received update 123 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+#                                            ^^^^^^^^^^                      ^^^^^^^^^^^^^^^^
+#                                            no "set"                        next-hop (not nhop set), resolved value
 ```
 
-**Multiple nlri groups** - each gets its own nhop in output:
+**Multiple nlri groups** - each gets its own next-hop in output:
 ```bash
 # Input:
-peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 \
-                   nhop set 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
+peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
+                   nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
 
-# Output (two separate nlri groups, each with its nhop):
-peer 10.0.0.1 received 123 update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
-peer 10.0.0.1 received 124 update text nhop set 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
+# Output (two separate nlri groups, each with its next-hop):
+peer 10.0.0.1 asn 65001 received update 123 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+peer 10.0.0.1 asn 65001 received update 124 next-hop 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
 ```
 
 This ensures output is always self-contained per nlri group.
@@ -119,11 +119,11 @@ This ensures output is always self-contained per nlri group.
 
 ```bash
 # nhop overwritten - 10.0.0.2 used for both prefixes
-update text nhop set 10.0.0.1 nhop set 10.0.0.2 nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24
+update text nhop set 10.0.0.1 nhop set 10.0.0.2 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Different nhop per nlri section
-update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 \
-            nhop set 10.0.0.2 nlri ipv4/unicast add 2.0.0.0/24
+update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
+            nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
 # → 1.0.0.0/24 gets nhop 10.0.0.1
 # → 2.0.0.0/24 gets nhop 10.0.0.2
 ```
@@ -137,26 +137,26 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 \
 
 ```bash
 # Withdraw - nhop not needed
-update text nlri ipv4/unicast del 1.0.0.0/24
+update text nlri ipv4/unicast del prefix 1.0.0.0/24
 
 # Mixed - nhop required for add, ignored for del
-update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 del 2.0.0.0/24
+update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 del prefix 2.0.0.0/24
 ```
 
 ### Text Mode Examples
 
 ```bash
 # Simple announce
-peer 10.0.0.1 update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+peer 10.0.0.1 update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # With attributes
-peer 10.0.0.1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+peer 10.0.0.1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # Multiple attributes
-peer 10.0.0.1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24
+peer 10.0.0.1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Withdraw (no nhop needed)
-peer 10.0.0.1 update text nlri ipv4/unicast del 1.0.0.0/24
+peer 10.0.0.1 update text nlri ipv4/unicast del prefix 1.0.0.0/24
 ```
 
 ## Wire Mode - Raw Bytes (hex/b64)
@@ -219,19 +219,19 @@ peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri ipv4/u
 
 ```bash
 # Single add - starts empty, adds [65000:1]
-update text community add [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community add [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:1]
 
 # Multiple adds - prepends (newest first)
-update text community add [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community add [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]  (65000:2 prepended to [65000:1])
 
 # set then add - set replaces, add prepends
-update text community set [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community set [ 65000:1 ] community add [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]
 
 # add then set - add is lost (set replaces everything)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:2]  (add was overwritten by set)
 ```
 
@@ -242,27 +242,27 @@ update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.
 
 ```bash
 # set then del - removes first occurrence
-update text community set [ 65000:1 65000:2 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community set [ 65000:1 65000:2 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:2]
 
 # del with duplicates - removes only FIRST occurrence
-update text community set [ 65000:1 65000:2 65000:1 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community set [ 65000:1 65000:2 65000:1 ] community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community = [65000:2, 65000:1]  (only first 65000:1 removed)
 
 # ERROR: del from empty list
-update text community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community del [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → error: "community del: 65000:1 not present"
 
 # ERROR: del non-existent value
-update text community set [ 65000:1 ] community del [ 65000:99 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community set [ 65000:1 ] community del [ 65000:99 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → error: "community del: 65000:99 not present"
 
 # del without value - removes entire attribute (always succeeds)
-update text community set [ 65000:1 65000:2 ] community del nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community set [ 65000:1 65000:2 ] community del nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → community removed entirely
 
 # del without value on unset attribute - no-op, no error
-update text community del nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community del nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → no change (community was not set)
 ```
 
@@ -273,11 +273,11 @@ Attributes accumulate across `nlri` sections - each section captures a **snapsho
 ```bash
 update text \
     community set [ 65000:1 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast add 1.0.0.0/24 \
+    nlri ipv4/unicast add prefix 1.0.0.0/24 \
     community add [ 65000:2 ] \
-    nlri ipv4/unicast add 2.0.0.0/24 \
+    nlri ipv4/unicast add prefix 2.0.0.0/24 \
     community add [ 65000:3 ] \
-    nlri ipv4/unicast add 3.0.0.0/24
+    nlri ipv4/unicast add prefix 3.0.0.0/24
 
 # Result (add prepends):
 # 1.0.0.0/24 → community = [65000:1]                     (snapshot after set)
@@ -310,7 +310,7 @@ update text origin add igp ...
 # → "origin: add not supported on scalar attribute"
 
 # ERROR: missing next-hop for announce
-update text nlri ipv4/unicast add 1.0.0.0/24
+update text nlri ipv4/unicast add prefix 1.0.0.0/24
 # → "missing next-hop"
 
 # ERROR: nhop without set/del keyword
@@ -330,15 +330,15 @@ update text community set [ 65000:1 ] community del [ 65000:99 ] ...
 
 ```bash
 # VALID but wasteful: set overwrites previous set
-update text med set 100 med set 200 nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text med set 100 med set 200 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → Works, med=200 (first set is lost)
 
 # VALID but wasteful: add then set (add is lost)
-update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community add [ 65000:1 ] community set [ 65000:2 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → Works, community=[65000:2] (add is lost)
 
 # VALID: del (no value) before set - clears nothing, then sets
-update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 # → Works, community=[65000:1]
 ```
 
@@ -349,11 +349,11 @@ Multiple attribute and nlri sections can be chained. Attributes accumulate:
 ```bash
 peer 10.0.0.1 update text \
     origin set igp community set [ 65000:1 65000:2 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24 \
+    nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24 \
     community add [ 65000:3 ] \
-    nlri ipv4/unicast add 3.0.0.0/24 \
+    nlri ipv4/unicast add prefix 3.0.0.0/24 \
     community del [ 65000:1 ] \
-    nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24
+    nlri ipv4/unicast add prefix 4.0.0.0/24 del prefix 5.0.0.0/24
 ```
 
 Result (add prepends, del removes first occurrence):
@@ -366,7 +366,7 @@ Result (add prepends, del removes first occurrence):
 
 **Text mode:**
 ```
-peer <addr> update text [<attr> <set|add|del> <value>]... nhop set <addr> nlri <family> add <nlri>... [del <nlri>...]
+peer <addr> update text [<attr> <set|add|del> <value>]... nhop set <addr> nlri <family> add prefix <prefix>... [del prefix <prefix>...]
 ```
 
 **Wire mode:**
@@ -379,7 +379,7 @@ Each API command line = clean state.
 **Examples:**
 ```bash
 # Text mode - per-attribute keywords
-peer 10.0.0.1 update text med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
+peer 10.0.0.1 update text med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # Wire mode - attr set <bytes>
 peer 10.0.0.1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
@@ -396,10 +396,10 @@ update {
         nhop set 10.0.0.1;
         community set [ 65000:1 65000:2 ];
 
-        nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
+        nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24;
 
         community add [ 65000:3 ];
-        nlri ipv4/unicast add 3.0.0.0/24;
+        nlri ipv4/unicast add prefix 3.0.0.0/24;
     }
 
     hex {
@@ -418,13 +418,13 @@ update {
         nhop set 10.0.0.1;
         community set [ 65000:1 65000:2 ];
 
-        nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
+        nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24;
 
         community add [ 65000:3 ];
-        nlri ipv4/unicast add 3.0.0.0/24;
+        nlri ipv4/unicast add prefix 3.0.0.0/24;
 
         community del [ 65000:1 ];
-        nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
+        nlri ipv4/unicast add prefix 4.0.0.0/24 del prefix 5.0.0.0/24;
     }
 }
 ```
@@ -445,8 +445,8 @@ nlri ipv4/unicast add 18010a0018020b00
 
 **Text format:**
 ```
-peer 10.0.0.1 received 123 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
-peer 10.0.0.1 received 123 update hex attr set 400101... nlri ipv4/unicast add 18010a00 del 18020b00
+peer 10.0.0.1 asn 65001 received update 123 origin igp med 100 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
+peer 10.0.0.1 asn 65001 received update 123 attr 400101... nlri ipv4/unicast add 18010a00 del 18020b00
 ```
 
 **JSON format:**
@@ -499,7 +499,7 @@ bgp plugin ack async            # Return immediately (default)
 <list-name>   := as-path | community | large-community | extended-community
 
 <nlri-section> := nlri <family> <nlri-op>+
-<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+ | eor
+<nlri-op>      := add prefix <prefix>[,<prefix>]... [watchdog set <name>] | del prefix <prefix>[,<prefix>]... | eor
 
 <wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
 
@@ -565,11 +565,11 @@ Within `nlri` section, attrs/nhop can be overridden for that section only:
 ```bash
 # Override nhop inside nlri (all modes)
 peer 10.0.0.1 update text origin set igp nhop set 10.0.0.1 \
-    nlri ipv4/unicast nhop set 10.0.0.2 add 1.0.0.0/24 2.0.0.0/24
+    nlri ipv4/unicast nhop set 10.0.0.2 add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Override attr inside nlri (text mode only)
 peer 10.0.0.1 update text community set [ 65000:1 ] nhop set 10.0.0.1 \
-    nlri ipv4/unicast community add [ 65000:2 ] add 1.0.0.0/24
+    nlri ipv4/unicast community add [ 65000:2 ] add prefix 1.0.0.0/24
 ```
 
 **Rules:**
@@ -584,10 +584,10 @@ NLRI modifiers for VPN families (not path attributes):
 ```bash
 # L3VPN with RD and label
 peer 10.0.0.1 update text extended-community set [ target:65000:100 ] nhop set 10.0.0.1 \
-    nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24
+    nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24
 
 # Multiple prefixes same RD/label
-nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 10.0.1.0/24
+nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24,10.0.1.0/24
 ```
 
 | Modifier | Syntax | Example |
@@ -618,7 +618,7 @@ peer 10.0.0.1 update text nlri ipv6/unicast eor
 peer 10.0.0.1 update text nlri ipv4/unicast eor nlri ipv6/unicast eor
 
 # EOR with NLRI in same command
-peer 10.0.0.1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+peer 10.0.0.1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
 ```
 
 ### Wire Format
@@ -768,16 +768,16 @@ peer 10.0.0.1 update text nlri l2vpn/evpn eor
 
 ```bash
 peer 10.0.0.1 update text nhop set 10.0.0.1 \
-    nlri ipv4/unicast add 1.0.0.0/24 \
+    nlri ipv4/unicast add prefix 1.0.0.0/24 \
     nhop del 10.0.0.1 \
     nhop set 10.0.0.2 \
-    nlri ipv4/unicast add 2.0.0.0/24
+    nlri ipv4/unicast add prefix 2.0.0.0/24
 # → 1.0.0.0/24 nhop 10.0.0.1
 # → 2.0.0.0/24 nhop 10.0.0.2 (del matched, then set)
 
 peer 10.0.0.1 update text nhop set 10.0.0.1 \
     nhop del 10.0.0.99 \
-    nlri ipv4/unicast add 1.0.0.0/24
+    nlri ipv4/unicast add prefix 1.0.0.0/24
 # → nhop del 10.0.0.99 is no-op (doesn't match 10.0.0.1)
 # → 1.0.0.0/24 nhop 10.0.0.1
 ```
@@ -839,9 +839,9 @@ peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
 
 | Old | New |
 |-----|-----|
-| `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add <p>` |
-| `announce attributes ... nlri ...` | `update text ... nhop set <nh> nlri ... add ...` |
-| `withdraw route <p>` | `update text nlri ipv4/unicast del <p>` |
+| `announce route <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add prefix <p>` |
+| `announce attributes ... nlri ...` | `update text ... nhop set <nh> nlri ... add prefix ...` |
+| `withdraw route <p>` | `update text nlri ipv4/unicast del prefix <p>` |
 | `announce watchdog <name>` | `watchdog announce <name>` |
 | `withdraw watchdog <name>` | `watchdog withdraw <name>` |
 
@@ -854,7 +854,7 @@ peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
 
 Routes are tagged with a pool when announced:
 ```bash
-update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 watchdog set mypool
+update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
 ```
 
 > **Note:** `watchdog set <name>` in `update text` commands is not yet implemented.

@@ -138,7 +138,7 @@ func TestRTCStringCommandStyle(t *testing.T) {
 				Type:  0x0002,
 				Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 			}),
-			expected: "origin-as set 65001 rt set 65001:100",
+			expected: "origin-as 65001 rt 65001:100",
 		},
 		{
 			name: "rtc with 4-byte asn rt",
@@ -146,7 +146,7 @@ func TestRTCStringCommandStyle(t *testing.T) {
 				Type:  0x0200,
 				Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 200},
 			}),
-			expected: "origin-as set 65002 rt set 65001:200",
+			expected: "origin-as 65002 rt 65001:200",
 		},
 	}
 

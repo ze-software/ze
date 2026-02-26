@@ -183,8 +183,8 @@ Three token patterns plus dict mode:
 |---------|-----------|---------|
 | scalar | `key value` | `origin igp`, `med 100` |
 | list | `key value,value,value` | `as-path 65001,65002` |
-| action | `key action value[,value]` | `nlri add 10.0.0.0/24,10.0.1.0/24` |
-| action+dict | `key action subkey1 val1 subkey2 val2 ...` | `nlri add rd 65000:100 prefix 10.0.0.0/24` |
+| action | `key family action type value[,value]` | `nlri ipv4/unicast add prefix 10.0.0.0/24,10.0.1.0/24` |
+| action+dict | `key family action subkey1 val1 subkey2 val2 ...` | `nlri ipv4/vpn add rd 65000:100 prefix 10.0.0.0/24` |
 
 **Comma tolerance:** The formatter always generates `value1,value2,value3` (no spaces after commas). The parser accepts `value1, value2, value3` by stripping whitespace after commas.
 
@@ -192,7 +192,7 @@ Three token patterns plus dict mode:
 
 **Repeated keys:** A key may appear multiple times in a message. The semantics depend on the key's value type:
 - **List value:** repetition appends — `as-path 65001 as-path 65002` is equivalent to `as-path 65001,65002`
-- **Dict value:** repetition adds an entry — `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001` adds two capabilities; `nlri add 10.0.0.0/24 nlri add 10.0.1.0/24` adds two NLRIs
+- **Dict value:** repetition adds an entry — `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001` adds two capabilities; `nlri ipv4/unicast add prefix 10.0.0.0/24 prefix 10.0.1.0/24` adds two NLRIs (keyword boundary format)
 
 Not all keys support repetition. The parser's key table defines which keys are repeatable.
 
@@ -223,12 +223,12 @@ All `set` keywords in complex NLRIs dropped — sub-keys become `key value` dire
 
 | Current | Proposed |
 |---------|----------|
-| `nlri 10.0.0.0/24 10.0.1.0/24` (in announce) | `nlri add 10.0.0.0/24,10.0.1.0/24` |
-| `nlri 172.16.0.0/16` (in withdraw) | `nlri del 172.16.0.0/16` |
-| `10.0.0.0/24 path-id set 42` | `nlri path-id 42 add 10.0.0.0/24` |
-| `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` | `nlri add rd 65000:100 prefix 10.0.0.0/24 label 1000` |
+| `nlri 10.0.0.0/24 10.0.1.0/24` (in announce) | `nlri ipv4/unicast add prefix 10.0.0.0/24,10.0.1.0/24` |
+| `nlri 172.16.0.0/16` (in withdraw) | `nlri ipv4/unicast del prefix 172.16.0.0/16` |
+| `10.0.0.0/24 path-id set 42` | `nlri ipv4/unicast path-id 42 add prefix 10.0.0.0/24` |
+| `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` | `nlri ipv4/vpn add rd 65000:100 prefix 10.0.0.0/24 label 1000` |
 
-ADD-PATH uses `path-id` as a modifier before the action: `nlri path-id 42 add 10.0.0.0/24,10.0.1.0/24`.
+ADD-PATH uses `path-id` as a modifier before the action: `nlri ipv4/unicast path-id 42 add prefix 10.0.0.0/24,10.0.1.0/24`.
 
 ### Proposed Capability Changes
 
@@ -236,7 +236,7 @@ Capabilities keep the current repeated-key format: `cap 1 multiprotocol ipv4/uni
 
 ### Proposed UPDATE Structure
 
-`family` marks the start of a per-family section. `family` is context-dependent: in UPDATE messages it opens a per-family section (with next-hop and NLRIs); in REFRESH/BORR messages it is a simple scalar.
+`nlri <family> add|del` carries the family inline — matching the command format (`nlri <family> add/del`). No separate `family` keyword in UPDATEs. `next-hop` appears before its `nlri` section as a scoped attribute. In REFRESH/BORR messages, `family` remains a simple scalar.
 
 ### Proposed Dict Mode
 
@@ -249,15 +249,15 @@ The parser's sub-key table per family must be updated whenever an NLRI type adds
 ```
 peer 192.0.2.1 asn 65001 state up
 
-peer 192.0.2.1 asn 65001 received update 1 origin igp as-path 65001,65002 med 100 community 65001:100,65002:200 family ipv4/unicast next-hop 192.0.2.1 nlri add 10.0.0.0/24,10.0.1.0/24
+peer 192.0.2.1 asn 65001 received update 1 origin igp as-path 65001,65002 med 100 community 65001:100,65002:200 next-hop 192.0.2.1 nlri ipv4/unicast add prefix 10.0.0.0/24,10.0.1.0/24
 
-peer 192.0.2.1 asn 65001 received update 2 family ipv4/unicast nlri del 172.16.0.0/16,10.0.0.0/8
+peer 192.0.2.1 asn 65001 received update 2 nlri ipv4/unicast del prefix 172.16.0.0/16,10.0.0.0/8
 
-peer 192.0.2.1 asn 65001 received update 3 origin igp family ipv4/vpn next-hop 192.0.2.1 nlri add rd 65000:100 prefix 10.0.0.0/24 label 1000 nlri add rd 65001:200 prefix 10.1.0.0/24 label 2000
+peer 192.0.2.1 asn 65001 received update 3 origin igp next-hop 192.0.2.1 nlri ipv4/vpn add rd 65000:100 prefix 10.0.0.0/24 label 1000 nlri ipv4/vpn add rd 65001:200 prefix 10.1.0.0/24 label 2000
 
-peer 192.0.2.1 asn 65001 received update 4 origin igp family l2vpn/evpn next-hop 192.0.2.1 nlri add route-type mac-ip rd 65000:100 mac aa:bb:cc:dd:ee:ff ip 10.0.0.1
+peer 192.0.2.1 asn 65001 received update 4 origin igp next-hop 192.0.2.1 nlri l2vpn/evpn add mac-ip rd 65000:100 mac aa:bb:cc:dd:ee:ff ip 10.0.0.1
 
-peer 192.0.2.1 asn 65001 received update 5 origin igp family ipv4/unicast next-hop 192.0.2.1 nlri path-id 42 add 10.0.0.0/24,10.0.1.0/24
+peer 192.0.2.1 asn 65001 received update 5 origin igp next-hop 192.0.2.1 nlri ipv4/unicast path-id 42 add prefix 10.0.0.0/24,10.0.1.0/24
 
 peer 192.0.2.1 asn 65001 update 0
 

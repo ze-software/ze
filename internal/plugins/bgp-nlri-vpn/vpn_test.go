@@ -295,9 +295,9 @@ func TestVPNString(t *testing.T) {
 	v := NewVPN(IPv4VPN, rd, []uint32{100, 200}, netip.MustParsePrefix("10.0.0.0/24"), 0)
 	s := v.String()
 
-	assert.Contains(t, s, "rd set 0:1:1")
-	assert.Contains(t, s, "prefix set 10.0.0.0/24")
-	assert.Contains(t, s, "label set 100,200")
+	assert.Contains(t, s, "rd 0:1:1")
+	assert.Contains(t, s, "prefix 10.0.0.0/24")
+	assert.Contains(t, s, "label 100,200")
 }
 
 // TestVPNWithPathID verifies ADD-PATH path ID handling.
@@ -312,7 +312,7 @@ func TestVPNWithPathID(t *testing.T) {
 	assert.Equal(t, uint32(42), v.PathID())
 	assert.True(t, v.HasPathID())
 	assert.True(t, v.SupportsAddPath())
-	assert.Contains(t, v.String(), "path-id set 42")
+	assert.Contains(t, v.String(), "path-id 42")
 }
 
 // TestParseVPNShortData verifies error on truncated data.

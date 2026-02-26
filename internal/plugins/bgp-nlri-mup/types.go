@@ -199,7 +199,7 @@ func (m *MUP) SupportsAddPath() bool { return false }
 // String returns command-style format for API round-trip compatibility.
 func (m *MUP) String() string {
 	if hasRD(m.rd) {
-		return fmt.Sprintf("%s rd set %s", m.routeType, m.rd)
+		return fmt.Sprintf("%s rd %s", m.routeType, m.rd)
 	}
 	return m.routeType.String()
 }

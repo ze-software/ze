@@ -78,7 +78,7 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 received update 123 announce origin igp as-path 65001 local-preference 100 ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 123 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -94,8 +94,8 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	if entry.Family != "ipv4/unicast" {
 		t.Errorf("expected family ipv4/unicast, got %s", entry.Family)
 	}
-	if entry.Prefix != "10.0.0.0/24" {
-		t.Errorf("expected prefix 10.0.0.0/24, got %s", entry.Prefix)
+	if entry.Prefix != "prefix 10.0.0.0/24" {
+		t.Errorf("expected prefix field 'prefix 10.0.0.0/24', got %s", entry.Prefix)
 	}
 }
 
@@ -114,11 +114,11 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	// Pre-populate withdrawal map (simulating prior add).
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 received update 124 withdraw ipv4/unicast nlri 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 124 nlri ipv4/unicast del prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -145,11 +145,11 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	// Pre-populate withdrawal map with route that will be withdrawn.
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.2.0/24": {Family: "ipv4/unicast", Prefix: "10.0.2.0/24"},
+		"ipv4/unicast|10.0.2.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.2.0/24"},
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 received update 125 announce origin igp ipv4/unicast next-hop 192.168.1.1 nlri 10.0.0.0/24 ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32\npeer 10.0.0.1 received update 125 withdraw ipv4/unicast nlri 10.0.2.0/24")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 125 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24 next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32 nlri ipv4/unicast del prefix 10.0.2.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -179,8 +179,8 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	// Populate withdrawal map (replaces old rs.rib.Insert).
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.1.0/24"},
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -278,7 +278,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchText("peer 10.0.0.1 received open 0 asn 65001 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -328,7 +328,7 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleRefresh calls updateRoute which sends via SDK RPC (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received refresh 0 family ipv4/unicast")
 }
 
 // --- Family/capability filtering tests ---
@@ -358,7 +358,7 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 received update 100 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 100 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -404,7 +404,7 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleRefresh forwards to peers via updateRoute (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received refresh 0 family ipv4/unicast")
 }
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
@@ -811,7 +811,7 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 	t.Cleanup(func() { rs.workers.Stop() })
 
-	rs.dispatchText("peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 
 	// Wait for worker to process the no-op handler.
 	time.Sleep(50 * time.Millisecond)
@@ -850,7 +850,7 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 received update 99 announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 99 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -860,8 +860,8 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 		t.Fatalf("expected 1 withdrawal entry, got %d", len(peerWd))
 	}
 	entry, ok := peerWd["ipv4/unicast|10.0.0.0/24"]
-	if !ok || entry.Prefix != "10.0.0.0/24" {
-		t.Errorf("expected prefix 10.0.0.0/24, got %+v", entry)
+	if !ok || entry.Prefix != "prefix 10.0.0.0/24" {
+		t.Errorf("expected prefix field 'prefix 10.0.0.0/24', got %+v", entry)
 	}
 }
 
@@ -880,7 +880,7 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 	// Dispatch multiple UPDATEs.
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.%d.0/24",
+			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		))
 	}
@@ -1072,7 +1072,7 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 	// Dispatch 5 UPDATEs with distinct prefixes from the same source peer.
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.%d.0/24",
+			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		))
 	}
@@ -1121,7 +1121,7 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 
 // buildTestUpdate creates a minimal text-format UPDATE event for testing dispatch.
 func buildTestUpdate(peer string, msgID uint64) string {
-	return fmt.Sprintf("peer %s received update %d announce origin igp ipv4/unicast next-hop 1.1.1.1 nlri 10.0.0.0/24", peer, msgID)
+	return fmt.Sprintf("peer %s asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24", peer, msgID)
 }
 
 // --- Replay tests (spec rib-03) ---
@@ -1329,8 +1329,8 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 	// Populate withdrawal map directly.
 	rs.withdrawalMu.Lock()
 	rs.withdrawals["10.0.0.1"] = map[string]withdrawalInfo{
-		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
-		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		"ipv4/unicast|10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.0.0/24"},
+		"ipv4/unicast|10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "prefix 10.0.1.0/24"},
 	}
 	rs.withdrawalMu.Unlock()
 
@@ -1350,18 +1350,18 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 
 	found0, found1 := false, false
 	for _, cmd := range cmdsCopy {
-		if strings.Contains(cmd, "nlri ipv4/unicast del 10.0.0.0/24") {
+		if strings.Contains(cmd, "nlri ipv4/unicast del prefix 10.0.0.0/24") {
 			found0 = true
 		}
-		if strings.Contains(cmd, "nlri ipv4/unicast del 10.0.1.0/24") {
+		if strings.Contains(cmd, "nlri ipv4/unicast del prefix 10.0.1.0/24") {
 			found1 = true
 		}
 	}
 	if !found0 {
-		t.Errorf("missing withdrawal for 10.0.0.0/24, commands: %v", cmdsCopy)
+		t.Errorf("missing withdrawal for prefix 10.0.0.0/24, commands: %v", cmdsCopy)
 	}
 	if !found1 {
-		t.Errorf("missing withdrawal for 10.0.1.0/24, commands: %v", cmdsCopy)
+		t.Errorf("missing withdrawal for prefix 10.0.1.0/24, commands: %v", cmdsCopy)
 	}
 
 	// Withdrawal map should be cleared.
@@ -1472,24 +1472,24 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		wantFams map[string]bool
 	}{
 		{
-			name:     "announce ipv4",
-			input:    "peer 10.0.0.1 received update 42 announce origin igp as-path 65001 65002 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24\n",
+			name:     "add ipv4",
+			input:    "peer 10.0.0.1 asn 65001 received update 42 origin igp as-path 65001,65002 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24\n",
 			wantType: eventUpdate,
 			wantID:   42,
 			wantPeer: "10.0.0.1",
 			wantFams: map[string]bool{"ipv4/unicast": true},
 		},
 		{
-			name:     "withdraw ipv4",
-			input:    "peer 10.0.0.2 received update 99 withdraw ipv4/unicast nlri 10.0.0.0/24\n",
+			name:     "del ipv4",
+			input:    "peer 10.0.0.2 asn 65002 received update 99 nlri ipv4/unicast del prefix 10.0.0.0/24\n",
 			wantType: eventUpdate,
 			wantID:   99,
 			wantPeer: "10.0.0.2",
 			wantFams: map[string]bool{"ipv4/unicast": true},
 		},
 		{
-			name:     "announce ipv6",
-			input:    "peer 10.0.0.1 received update 7 announce origin igp ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32\n",
+			name:     "add ipv6",
+			input:    "peer 10.0.0.1 asn 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32\n",
 			wantType: eventUpdate,
 			wantID:   7,
 			wantPeer: "10.0.0.1",
@@ -1549,7 +1549,7 @@ func TestTextStateEventParseable(t *testing.T) {
 //
 // PREVENTS: OPEN events not being parseable in text format.
 func TestTextOpenEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 received open 5 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
+	input := "peer 10.0.0.1 asn 65001 received open 5 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
 
 	eventType, _, peerAddr, payload, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1593,9 +1593,9 @@ func TestTextOpenEventParseable(t *testing.T) {
 //
 // PREVENTS: Withdrawal map not being populated from text events.
 func TestTextUpdateWithdrawalTracking(t *testing.T) {
-	// Announce line
-	announce := "peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24 10.0.0.0/8\n"
-	ops := parseTextNLRIOps(announce)
+	// Add line (comma format: nlri ipv4/unicast add prefix <a>,<b>).
+	addLine := "peer 10.0.0.1 asn 65001 received update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24,10.0.0.0/8\n"
+	ops := parseTextNLRIOps(addLine)
 
 	addOps, ok := ops["ipv4/unicast"]
 	if !ok {
@@ -1611,9 +1611,9 @@ func TestTextUpdateWithdrawalTracking(t *testing.T) {
 		t.Errorf("NLRIs = %d, want 2", len(addOps[0].NLRIs))
 	}
 
-	// Withdraw line
-	withdraw := "peer 10.0.0.1 received update 43 withdraw ipv4/unicast nlri 192.168.1.0/24\n"
-	wdOps := parseTextNLRIOps(withdraw)
+	// Del line: nlri <family> del
+	delLine := "peer 10.0.0.1 asn 65001 received update 43 nlri ipv4/unicast del prefix 192.168.1.0/24\n"
+	wdOps := parseTextNLRIOps(delLine)
 
 	delOps, ok := wdOps["ipv4/unicast"]
 	if !ok {

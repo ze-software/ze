@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/textparse"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -89,7 +90,17 @@ type forwardCtx struct {
 // for "update text nlri <family> del <prefix>" commands.
 type withdrawalInfo struct {
 	Family string
-	Prefix string
+	Prefix string // Full NLRI string including type keyword (e.g., "prefix 10.0.0.0/24").
+}
+
+// nlriKey extracts the compact routing key from an NLRI string.
+// Strips the "prefix " type keyword since it is redundant within a family.
+// Other NLRI types (VPN, BGP-LS, EVPN) use the full string as key.
+func nlriKey(nlri string) string {
+	if after, ok := strings.CutPrefix(nlri, "prefix "); ok {
+		return after
+	}
+	return nlri
 }
 
 // RouteServer implements a BGP Route Server API plugin.
@@ -460,19 +471,19 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 					rs.withdrawals[ctx.sourcePeer] = make(map[string]withdrawalInfo)
 				}
 				for _, n := range op.NLRIs {
-					if prefix, ok := n.(string); ok && prefix != "" {
-						routeKey := family + "|" + prefix
+					if nlri, ok := n.(string); ok && nlri != "" {
+						routeKey := family + "|" + nlriKey(nlri)
 						rs.withdrawals[ctx.sourcePeer][routeKey] = withdrawalInfo{
 							Family: family,
-							Prefix: prefix,
+							Prefix: nlri,
 						}
 					}
 				}
 			case actionDel:
 				if rs.withdrawals[ctx.sourcePeer] != nil {
 					for _, n := range op.NLRIs {
-						if prefix, ok := n.(string); ok && prefix != "" {
-							routeKey := family + "|" + prefix
+						if nlri, ok := n.(string); ok && nlri != "" {
+							routeKey := family + "|" + nlriKey(nlri)
 							delete(rs.withdrawals[ctx.sourcePeer], routeKey)
 						}
 					}
@@ -940,8 +951,7 @@ type Event struct {
 }
 
 // FamilyOperation represents a single add or del operation for a family.
-// Text format: "announce ... <family> next-hop <nh> nlri <prefix>..."
-// or "withdraw <family> nlri <prefix>...".
+// Text format: "nlri <family> add <prefix>..." or "nlri <family> del <prefix>...".
 type FamilyOperation struct {
 	Action string // "add" or "del"
 	NLRIs  []any  // Prefix strings from text parsing
@@ -975,34 +985,127 @@ type CapabilityInfo struct {
 // --- Text event parsing ---
 //
 // Text format replaces JSON for the bgp-rr hot path.
-// Format: "peer <addr> <dir> <type> <id> ..."
-// State:  "peer <addr> asn <n> state <state>"
-// Parsed with strings.Fields instead of json.Unmarshal (6+ calls per UPDATE → 0).
+// Uniform header: "peer <addr> asn <n> <dir> <type> <id> ..."
+// State:          "peer <addr> asn <n> state <state>"
+// Parsed with TextScanner (zero-copy token extraction from original string).
+
+// topLevelKeywords are the keywords recognized by the key-dispatch loop in
+// parseTextNLRIOps. Any token matching one of these stops NLRI collection.
+var topLevelKeywords = map[string]bool{
+	"origin": true, "as-path": true, "med": true, "local-preference": true,
+	"atomic-aggregate": true, "aggregator": true, "originator-id": true,
+	"cluster-list": true, "community": true, "large-community": true,
+	"extended-community": true, "next-hop": true, "nlri": true,
+}
+
+// nlriTypeKeywords are NLRI type keywords that start a new NLRI entry.
+// Used for keyword-boundary format: "nlri add prefix <a> prefix <b>".
+var nlriTypeKeywords = map[string]bool{
+	"prefix": true, "rd": true, "reachability": true,
+	"node": true, "link": true, "srv6-sid": true,
+	"ethernet-ad": true, "mac-ip": true, "multicast": true,
+	"ethernet-segment": true, "ip-prefix": true,
+	"flow": true, "flow-vpn": true,
+}
+
+// buildNLRIEntries splits collected tokens into individual NLRI strings.
+// Accepts two formats:
+//   - Comma: "prefix 10.0.0.0/24,10.0.1.0/24" — type keyword + comma-separated values.
+//   - Keyword boundary: "prefix 10.0.0.0/24 prefix 10.0.1.0/24" — repeated type keyword.
+func buildNLRIEntries(tokens []string) []any {
+	if len(tokens) == 0 {
+		return nil
+	}
+
+	// Check for comma in any token.
+	for i, tok := range tokens {
+		if !strings.Contains(tok, ",") {
+			continue
+		}
+		// Prefix = all tokens before the comma token (e.g., "prefix").
+		typePrefix := strings.Join(tokens[:i], " ")
+		var nlris []any
+		for part := range strings.SplitSeq(tok, ",") {
+			part = strings.TrimSpace(part)
+			if part != "" {
+				if typePrefix != "" {
+					nlris = append(nlris, typePrefix+" "+part)
+				} else {
+					nlris = append(nlris, part)
+				}
+			}
+		}
+		return nlris
+	}
+
+	// No commas — check for keyword boundary (repeated type keywords).
+	if nlriTypeKeywords[tokens[0]] {
+		var nlris []any
+		var current []string
+		for _, tok := range tokens {
+			if tok == tokens[0] && len(current) > 0 {
+				nlris = append(nlris, strings.Join(current, " "))
+				current = nil
+			}
+			current = append(current, tok)
+		}
+		if len(current) > 0 {
+			nlris = append(nlris, strings.Join(current, " "))
+		}
+		return nlris
+	}
+
+	// Single complex NLRI: join all tokens.
+	return []any{strings.Join(tokens, " ")}
+}
 
 // quickParseTextEvent extracts event type, message ID, peer address, and raw text
 // from a text-format event line. Returns the full text as payload for deferred parsing.
 //
-// UPDATE:  "peer <addr> <dir> update <id> ..."  → fields[3]="update", fields[4]=id
-// OPEN:    "peer <addr> <dir> open <id> ..."    → fields[3]="open", fields[4]=id
-// STATE:   "peer <addr> asn <n> state <state>"  → fields[4]="state" (different layout)
-// REFRESH: "peer <addr> <dir> refresh <id> ..." → fields[3]="refresh".
+// Uniform header: "peer <addr> asn <n> ..."
+// State:   "peer <addr> asn <n> state <state>"       → dispatch="state"
+// Message: "peer <addr> asn <n> <dir> <type> <id>"   → dispatch=<type>.
 func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 	text = strings.TrimRight(text, "\n")
-	fields := strings.Fields(text)
-	if len(fields) < 5 || fields[0] != "peer" {
-		return "", 0, "", "", fmt.Errorf("invalid text event: too short or missing peer prefix")
+	s := textparse.NewScanner(text)
+
+	// peer
+	if tok, ok := s.Next(); !ok || tok != "peer" {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing peer prefix")
+	}
+	// <addr>
+	peerAddr, ok := s.Next()
+	if !ok {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing peer address")
+	}
+	// asn
+	if tok, ok := s.Next(); !ok || tok != tokenASN {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing asn keyword")
+	}
+	// <n> (ASN value — consumed but not returned; available from payload)
+	if _, ok := s.Next(); !ok {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing asn value")
 	}
 
-	peerAddr := fields[1]
-
-	// State events have a different layout: "peer <addr> asn <n> state <state>"
-	if fields[4] == eventState {
+	// Next token: either "state" or <direction>
+	dispatchTok, ok := s.Next()
+	if !ok {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing dispatch token")
+	}
+	if dispatchTok == eventState {
 		return eventState, 0, peerAddr, text, nil
 	}
 
-	// Message events: "peer <addr> <dir> <type> <id> ..."
-	eventType := fields[3]
-	id, err := strconv.ParseUint(fields[4], 10, 64)
+	// Message events: <direction> was consumed as dispatchTok, next is <type> <id>
+	eventType, ok := s.Next()
+	if !ok {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing event type")
+	}
+	idStr, ok := s.Next()
+	if !ok {
+		return eventType, 0, peerAddr, text, nil
+	}
+	id, err := strconv.ParseUint(idStr, 10, 64)
 	if err != nil {
 		return eventType, 0, peerAddr, text, nil //nolint:nilerr // Non-numeric ID is valid for some event types
 	}
@@ -1011,188 +1114,180 @@ func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 }
 
 // parseTextUpdateFamilies extracts family names from a text UPDATE event.
-// Families are tokens containing "/" (e.g., "ipv4/unicast", "ipv6/unicast").
+// Scans for "nlri" keyword followed by an afi/safi token (the family).
 // Returns a map of family → true for selectForwardTargets compatibility.
 func parseTextUpdateFamilies(text string) map[string]bool {
-	fields := strings.Fields(text)
+	s := textparse.NewScanner(text)
 	families := make(map[string]bool)
-	for _, f := range fields {
-		if isFamilyToken(f) {
-			families[f] = true
+	for !s.Done() {
+		tok, ok := s.Next()
+		if !ok {
+			break
+		}
+		if tok == "nlri" {
+			if fam, ok := s.Next(); ok {
+				if strings.Contains(fam, "/") {
+					families[fam] = true
+				}
+			}
 		}
 	}
 	return families
 }
 
-// parseTextNLRIOps extracts family operations (add/del + NLRIs) from text UPDATE lines.
+// parseTextNLRIOps extracts family operations (add/del + NLRIs) from a text UPDATE.
 // Used by processForward to populate the withdrawal map.
 //
-// Announce: "... announce <attrs> <family> next-hop <nh> nlri <prefix>..."
-// Withdraw: "... withdraw <family> nlri <prefix>..."
+// Format: "peer <addr> asn <n> <dir> update <id> <attrs> [next-hop <nh>] nlri <fam> add|del <nlris> ..."
 //
-// Multi-line text (announce + withdraw in same UPDATE) is handled by processing
-// each line independently and merging results.
+// Key-dispatch loop processes keywords sequentially:
+// - Attribute keywords (origin, as-path, etc.): skip value(s)
+// - "nlri": consume family, extract action (add/del) and collect NLRI tokens until next keyword.
 func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 	result := make(map[string][]FamilyOperation)
-	for line := range strings.SplitSeq(strings.TrimRight(text, "\n"), "\n") {
-		fields := strings.Fields(line)
-		parseTextNLRIOpsLine(fields, result)
+	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
+
+	// Skip header: peer <addr> asn <n> <dir> update <id>
+	for i := 0; i < 7 && !s.Done(); i++ {
+		s.Next()
 	}
+
+	// Key-dispatch loop
+	for !s.Done() {
+		tok, ok := s.Next()
+		if !ok {
+			break
+		}
+
+		switch tok {
+		case "next-hop":
+			s.Next() // consume the address
+
+		case "nlri":
+			// Family: nlri <family> add|del
+			family, ok := s.Next()
+			if !ok || !strings.Contains(family, "/") {
+				continue
+			}
+
+			// Optional path-id modifier
+			next, ok := s.Peek()
+			if !ok {
+				continue
+			}
+			if next == "path-id" {
+				s.Next() // consume "path-id"
+				s.Next() // consume the ID value
+				if _, ok = s.Peek(); !ok {
+					continue
+				}
+			}
+
+			// Action: add or del
+			action, ok := s.Next()
+			if !ok || (action != actionAdd && action != actionDel) {
+				continue
+			}
+
+			// Collect NLRI tokens until next top-level keyword or end.
+			var nlriTokens []string
+			for !s.Done() {
+				next, ok := s.Peek()
+				if !ok || topLevelKeywords[next] {
+					break
+				}
+				tok, _ := s.Next()
+				nlriTokens = append(nlriTokens, tok)
+			}
+
+			// Build NLRI entries (handles comma and keyword-boundary formats).
+			nlris := buildNLRIEntries(nlriTokens)
+
+			if len(nlris) > 0 {
+				result[family] = append(result[family],
+					FamilyOperation{Action: action, NLRIs: nlris})
+			}
+
+		// Attribute keywords: consume their values
+		case "origin", "med", "local-preference", "aggregator", "originator-id":
+			s.Next() // one scalar value
+		case "as-path", "community", "large-community", "extended-community", "cluster-list":
+			s.Next() // one comma-list value
+		case "atomic-aggregate":
+			// flag, no value
+		}
+	}
+
 	return result
 }
 
-// parseTextNLRIOpsLine parses a single text UPDATE line into family operations.
-// Scans for "announce" or "withdraw" tokens, then extracts family/nlri sequences.
-func parseTextNLRIOpsLine(fields []string, result map[string][]FamilyOperation) {
-	// Find "announce" or "withdraw" token
-	action := ""
-	startIdx := 0
-	for i, f := range fields {
-		if f == "announce" {
-			action = actionAdd
-			startIdx = i + 1
-			break
-		}
-		if f == "withdraw" {
-			action = actionDel
-			startIdx = i + 1
-			break
-		}
-	}
-	if action == "" {
-		return
-	}
-
-	// Scan remaining fields for family→nlri sequences.
-	// Pattern: <family> [next-hop <nh>] nlri <prefix>... [<next-family> ...]
-	var currentFamily string
-	var nlris []any
-	inNLRI := false
-
-	for i := startIdx; i < len(fields); i++ {
-		f := fields[i]
-
-		// Family token: "afi/safi" with non-numeric suffix (not NLRI prefix like "10.0.0.0/24")
-		if isFamilyToken(f) && !inNLRI {
-			// Flush previous family
-			if currentFamily != "" && len(nlris) > 0 {
-				result[currentFamily] = append(result[currentFamily],
-					FamilyOperation{Action: action, NLRIs: nlris})
-			}
-			currentFamily = f
-			nlris = nil
-			inNLRI = false
-			continue
-		}
-
-		// Skip "next-hop" and its value
-		if f == "next-hop" {
-			i++ // skip the next-hop address
-			continue
-		}
-
-		// "nlri" token starts NLRI collection
-		if f == "nlri" {
-			inNLRI = true
-			continue
-		}
-
-		// New family while collecting NLRIs: flush current and restart
-		if inNLRI && isFamilyToken(f) {
-			if currentFamily != "" && len(nlris) > 0 {
-				result[currentFamily] = append(result[currentFamily],
-					FamilyOperation{Action: action, NLRIs: nlris})
-			}
-			currentFamily = f
-			nlris = nil
-			inNLRI = false
-			continue
-		}
-
-		// Collect NLRIs or skip attribute tokens
-		if inNLRI {
-			nlris = append(nlris, f)
-		}
-	}
-
-	// Flush last family
-	if currentFamily != "" && len(nlris) > 0 {
-		result[currentFamily] = append(result[currentFamily],
-			FamilyOperation{Action: action, NLRIs: nlris})
-	}
-}
-
-// isFamilyToken distinguishes BGP address family tokens (e.g., "ipv4/unicast")
-// from NLRI prefix tokens (e.g., "10.0.0.0/24", "2001:db8::/32").
-// Families have a non-numeric suffix after "/"; prefixes have a numeric suffix.
-func isFamilyToken(s string) bool {
-	idx := strings.LastIndex(s, "/")
-	if idx < 0 || idx == len(s)-1 {
-		return false
-	}
-	suffix := s[idx+1:]
-	if suffix == "" {
-		return false
-	}
-	// If the suffix is all digits, it's a prefix length (NLRI), not a family.
-	for _, c := range suffix {
-		if c < '0' || c > '9' {
-			return true // non-numeric → family (e.g., "unicast", "vpn", "evpn")
-		}
-	}
-	return false
-}
-
 // parseTextOpen extracts OPEN event data from text format.
-// Format: "peer <addr> <dir> open <id> asn <n> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
+// Format: "peer <addr> asn <n> <dir> open <id> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
+// ASN is extracted from the uniform header.
 func parseTextOpen(text string) *Event {
-	fields := strings.Fields(strings.TrimRight(text, "\n"))
-	if len(fields) < 6 {
+	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
+
+	// peer <addr>
+	s.Next()
+	addr, ok := s.Next()
+	if !ok {
 		return nil
 	}
 
 	event := &Event{
 		Type:     eventOpen,
-		PeerAddr: fields[1],
+		PeerAddr: addr,
 		Open:     &OpenInfo{},
 	}
 
-	// Parse known key-value pairs
-	for i := 5; i < len(fields)-1; i++ {
-		switch fields[i] {
-		case tokenASN:
-			n, err := strconv.ParseUint(fields[i+1], 10, 32)
-			if err == nil {
-				event.PeerASN = uint32(n)  //nolint:gosec // bounded by ParseUint bitSize=32
-				event.Open.ASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
-			}
-			i++
+	// asn <n>
+	s.Next() // "asn"
+	if asnStr, ok := s.Next(); ok {
+		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
+			event.PeerASN = uint32(n)  //nolint:gosec // bounded by ParseUint bitSize=32
+			event.Open.ASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		}
+	}
+
+	// <dir> open <id>
+	s.Next() // direction
+	s.Next() // "open"
+	s.Next() // message ID
+
+	// Keyword loop for remaining body
+	for !s.Done() {
+		tok, ok := s.Next()
+		if !ok {
+			break
+		}
+		switch tok {
 		case tokenRouterID:
-			event.Open.RouterID = fields[i+1]
-			i++
-		case tokenHoldTime:
-			n, err := strconv.ParseUint(fields[i+1], 10, 16)
-			if err == nil {
-				event.Open.HoldTime = uint16(n) //nolint:gosec // bounded by ParseUint bitSize=16
+			if v, ok := s.Next(); ok {
+				event.Open.RouterID = v
 			}
-			i++
+		case tokenHoldTime:
+			if v, ok := s.Next(); ok {
+				if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+					event.Open.HoldTime = uint16(n) //nolint:gosec // bounded by ParseUint bitSize=16
+				}
+			}
 		case tokenCap:
 			// cap <code> <name> [<value>]
-			if i+2 >= len(fields) {
-				break
+			codeStr, ok := s.Next()
+			if !ok {
+				continue
 			}
-			code, _ := strconv.Atoi(fields[i+1])
-			name := fields[i+2]
+			code, _ := strconv.Atoi(codeStr)
+			name, ok := s.Next()
+			if !ok {
+				continue
+			}
 			value := ""
-			// Check if next token is a value (not another keyword)
-			if i+3 < len(fields) && fields[i+3] != tokenCap && fields[i+3] != tokenASN &&
-				fields[i+3] != tokenRouterID && fields[i+3] != tokenHoldTime {
-				value = fields[i+3]
-				i++
+			if next, ok := s.Peek(); ok && next != tokenCap && next != tokenRouterID && next != tokenHoldTime {
+				value, _ = s.Next()
 			}
 			event.Open.Capabilities = append(event.Open.Capabilities,
 				CapabilityInfo{Code: code, Name: name, Value: value})
-			i += 2
 		}
 	}
 
@@ -1202,27 +1297,37 @@ func parseTextOpen(text string) *Event {
 // parseTextState extracts state event data from text format.
 // Format: "peer <addr> asn <n> state <state>".
 func parseTextState(text string) *Event {
-	fields := strings.Fields(strings.TrimRight(text, "\n"))
-	if len(fields) < 5 {
+	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
+
+	// peer <addr>
+	s.Next()
+	addr, ok := s.Next()
+	if !ok {
 		return nil
 	}
 
 	event := &Event{
 		Type:     eventState,
-		PeerAddr: fields[1],
+		PeerAddr: addr,
 	}
 
-	for i := 2; i < len(fields)-1; i++ {
-		switch fields[i] {
+	// Keyword loop
+	for !s.Done() {
+		tok, ok := s.Next()
+		if !ok {
+			break
+		}
+		switch tok {
 		case "asn":
-			n, err := strconv.ParseUint(fields[i+1], 10, 32)
-			if err == nil {
-				event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+			if v, ok := s.Next(); ok {
+				if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+					event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+				}
 			}
-			i++
 		case "state":
-			event.State = fields[i+1]
-			i++
+			if v, ok := s.Next(); ok {
+				event.State = v
+			}
 		}
 	}
 
@@ -1230,26 +1335,46 @@ func parseTextState(text string) *Event {
 }
 
 // parseTextRefresh extracts refresh event data from text format.
-// Format: "peer <addr> <dir> refresh <id> family <family>"
-// Also handles "borr" and "eorr" subtypes per RFC 7313.
+// Format: "peer <addr> asn <n> <dir> refresh|borr|eorr <id> family <family>".
 func parseTextRefresh(text string) *Event {
-	fields := strings.Fields(strings.TrimRight(text, "\n"))
-	if len(fields) < 5 {
+	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
+
+	// peer <addr>
+	s.Next()
+	addr, ok := s.Next()
+	if !ok {
 		return nil
 	}
 
-	// Subtype is fields[3]: "refresh", "borr", or "eorr"
+	// asn <n>
+	s.Next() // "asn"
+	s.Next() // ASN value
+
+	// <dir> <type> <id>
+	s.Next() // direction
+	refreshType, ok := s.Next()
+	if !ok {
+		return nil
+	}
+	s.Next() // message ID
+
 	event := &Event{
-		Type:     fields[3],
-		PeerAddr: fields[1],
+		Type:     refreshType,
+		PeerAddr: addr,
 	}
 
-	for i := 5; i < len(fields)-1; i++ {
-		if fields[i] == "family" {
-			family := fields[i+1]
-			if parts := strings.SplitN(family, "/", 2); len(parts) == 2 {
-				event.AFI = parts[0]
-				event.SAFI = parts[1]
+	// Keyword loop for family
+	for !s.Done() {
+		tok, ok := s.Next()
+		if !ok {
+			break
+		}
+		if tok == tokenFamily {
+			if family, ok := s.Next(); ok {
+				if parts := strings.SplitN(family, "/", 2); len(parts) == 2 {
+					event.AFI = parts[0]
+					event.SAFI = parts[1]
+				}
 			}
 			break
 		}

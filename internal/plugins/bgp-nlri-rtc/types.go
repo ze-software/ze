@@ -185,7 +185,7 @@ func (r *RTC) String() string {
 	if r.IsDefault() {
 		return "default"
 	}
-	return fmt.Sprintf("origin-as set %d rt set %s", r.originAS, r.routeTarget)
+	return fmt.Sprintf("origin-as %d rt %s", r.originAS, r.routeTarget)
 }
 
 // WriteTo writes the RTC NLRI directly to buf at offset.

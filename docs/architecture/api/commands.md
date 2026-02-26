@@ -196,10 +196,10 @@ All route operations use unified `update text` syntax:
 
 ```bash
 # Announce routes
-peer <selector> update text nhop set <ip> [attributes...] nlri <family> add <prefix>...
+peer <selector> update text nhop set <ip> [attributes...] nlri <family> add prefix <prefix>...
 
 # Withdraw routes
-peer <selector> update text nlri <family> del <prefix>...
+peer <selector> update text nlri <family> del prefix <prefix>...
 
 # End-of-RIB marker (RFC 4724)
 peer <selector> update text nlri <family> eor
@@ -219,13 +219,13 @@ The following legacy commands have been removed:
 
 | Old Command | Replacement |
 |-------------|-------------|
-| `announce ipv4/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add <p>` |
-| `announce ipv6/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv6/unicast add <p>` |
+| `announce ipv4/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add prefix <p>` |
+| `announce ipv6/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv6/unicast add prefix <p>` |
 | `announce eor <afi> <safi>` | `update text nlri <family> eor` |
 | `announce vpls ...` | `update text nlri l2vpn/vpls add ...` |
 | `announce l2vpn ...` | `update text nlri l2vpn/evpn add ...` |
-| `withdraw ipv4/unicast <p>` | `update text nlri ipv4/unicast del <p>` |
-| `withdraw ipv6/unicast <p>` | `update text nlri ipv6/unicast del <p>` |
+| `withdraw ipv4/unicast <p>` | `update text nlri ipv4/unicast del prefix <p>` |
+| `withdraw ipv6/unicast <p>` | `update text nlri ipv6/unicast del prefix <p>` |
 | `withdraw vpls ...` | `update text nlri l2vpn/vpls del ...` |
 | `withdraw l2vpn ...` | `update text nlri l2vpn/evpn del ...` |
 
@@ -238,7 +238,7 @@ watchdog withdraw <name>   # Withdraw all routes in pool from peers
 
 Routes are tagged with a pool when announced:
 ```bash
-update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 watchdog set mypool
+update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
 ```
 
 ### RIB Commands
@@ -277,8 +277,8 @@ show adj-rib out [<afi> <safi>]
 All route operations now use `update text` syntax:
 
 ```bash
-update text nhop set <ip> [attributes...] nlri <family> add <prefix>
-update text nlri <family> del <prefix>
+update text nhop set <ip> [attributes...] nlri <family> add prefix <prefix>
+update text nlri <family> del prefix <prefix>
 update text nlri <family> eor
 ```
 
@@ -414,19 +414,19 @@ split /<target-length>
 
 ```
 # Announce 2 prefixes with one command
-update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/23 split /24
+update text nhop set 1.2.3.4 nlri ipv4/unicast add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 next-hop 1.2.3.4
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
 # With MPLS label - label applies to each prefix
-announce ipv4/nlri-mpls 10.0.0.0/22 label 100 next-hop 1.2.3.4 split /24
+update text nhop set 1.2.3.4 nlri ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
 # → 10.0.0.0/24 label 100
 # → 10.0.1.0/24 label 100
 # → 10.0.2.0/24 label 100
 # → 10.0.3.0/24 label 100
 
 # With L3VPN - RD and label apply to each prefix
-announce ipv4/mpls-vpn 10.0.0.0/23 rd 100:1 label 200 next-hop 1.2.3.4 split /24
+update text nhop set 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 rd 100:1 label 200
 # → 10.0.1.0/24 rd 100:1 label 200
 ```

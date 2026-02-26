@@ -171,7 +171,7 @@ func (v *VPLS) SupportsAddPath() bool { return false }
 
 // String returns command-style format for API round-trip compatibility.
 func (v *VPLS) String() string {
-	return fmt.Sprintf("rd set %s ve-id set %d label set %d", v.rd, v.veID, v.labelBase)
+	return fmt.Sprintf("rd %s ve-id %d label %d", v.rd, v.veID, v.labelBase)
 }
 
 // WriteTo writes the VPLS NLRI directly to buf at offset.
