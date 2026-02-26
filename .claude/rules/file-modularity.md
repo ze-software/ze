@@ -21,6 +21,8 @@ Before creating a file: "one concern?" Before adding to one: "belongs to this fi
 - Shared test helpers stay in base `_test.go`
 - `goimports` handles import cleanup
 - Name after concern: `reactor_announce.go`, `session_handlers.go`
+- New files: copy `// Design:` from original, review topic annotation (`rules/design-doc-references.md`)
+- All resulting files: `// Related:` to siblings (`rules/related-refs.md`)
 
 ## NOT a Reason to Split
 

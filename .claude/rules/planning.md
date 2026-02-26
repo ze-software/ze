@@ -96,18 +96,62 @@ If a spec describes work that is **already implemented**, run the full Completio
 **BLOCKING:** After all tests pass, complete IN ORDER:
 
 ```
-[ ] 1. Review architecture docs — update if learnings improve project
+[ ] 1. Architecture docs — check Post-Implementation Updates table below.
+      If code changed documented behavior, docs MUST match. Not optional.
       Route: subsystem → arch doc, process → rules, knowledge → memory.md
-      Check: YANG, CLI, editor, plugin SDK docs if affected
 [ ] 2. Dead code check — search unused functions/types, ASK before removing
-[ ] 3. Implementation Audit (BLOCKING — rules/implementation-audit.md)
-[ ] 4. Critical Review (BLOCKING — rules/quality.md)
-[ ] 5. Review Mistake Log — check MEMORY.md, promote if seen before
-[ ] 6. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 7. Move spec: docs/plan/done/NNN-<name>.md
-[ ] 8. Verify: git status + git diff, no unintended changes
-[ ] 9. Commit (when user approves) — ALL files in ONE commit
+[ ] 3. File modularity check — for each modified .go file:
+      Line count: >600 → review concerns, >1000 → split (rules/file-modularity.md)
+      // Design: topic annotation still matches file's actual concern?
+      If split: copy to new files, adjust annotation per new concern
+      // Related: still accurate? Add/update for new couplings
+      (rules/design-doc-references.md, rules/related-refs.md)
+[ ] 4. Implementation Audit (BLOCKING — rules/implementation-audit.md)
+[ ] 5. Critical Review (BLOCKING — rules/quality.md)
+[ ] 6. Review Mistake Log — check MEMORY.md, promote if seen before
+[ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
+[ ] 8. Move spec: docs/plan/done/NNN-<name>.md
+[ ] 9. Verify: git status + git diff, no unintended changes
+[ ] 10. Executive Summary Report — present to user BEFORE asking to commit
+[ ] 11. Commit (when user approves) — ALL files in ONE commit
 ```
+
+## Executive Summary Report
+
+**BLOCKING:** Present to user before every commit request. Format below.
+
+```
+## Executive Summary
+
+**Objective:** [1-2 sentences — what the work aimed to achieve, as understood]
+
+**Changes:**
+| File | What changed | Why |
+|------|-------------|-----|
+| path/file.go | Added X, modified Y | To achieve Z |
+
+**Design decisions:**
+- [Decision and reasoning, or "None — all choices were explicit"]
+
+**Deviations:** [From spec/plan/instructions, or "None"]
+
+**Not done:** [Scope boundaries, deferred items, or "N/A"]
+
+**Risks & observations:**
+- [Anything noteworthy for future sessions]
+
+**Verification:** [Command run + result summary]
+```
+
+| Section | Purpose |
+|---------|---------|
+| Objective | Confirms alignment. If the goal was misunderstood, this is the last chance before it becomes a commit. |
+| Changes | Per-file summary with *why*, not just *what*. `git diff --stat` says "planning.md +8 -5" — useless. "Added modularity check as step 3, renumbered 4-10" — actionable. |
+| Design decisions | Choices made during implementation that weren't explicitly dictated. The user should know what was decided on their behalf. "None — all choices were explicit" is valid. |
+| Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
+| Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
+| Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. |
+| Verification | What was run, what passed. Not "make ze-verify passes" but actual output or specific test names. |
 
 ## Post-Implementation Updates
 

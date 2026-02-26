@@ -18,7 +18,8 @@ Post-commit: hash, file count, clean state confirmation.
 ```
 [ ] 1. Run `make ze-verify` — paste FULL output. ANY failure: STOP.
 [ ] 2. Run `git status` + `git diff --stat` — show user what's committed
-[ ] 3. ASK user: "Ready to commit?" — WAIT for explicit yes
+[ ] 3. Executive Summary Report (rules/planning.md) — present to user
+[ ] 4. ASK user: "Ready to commit?" — WAIT for explicit yes
 ```
 
 Never commit with lint issues. Never commit without pasting output.
