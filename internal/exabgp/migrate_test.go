@@ -632,7 +632,7 @@ neighbor 10.0.0.1 {
 	}
 
 	// Route should appear in nlri block.
-	if !strings.Contains(output, "ipv4/unicast 192.168.0.0/24;") {
+	if !strings.Contains(output, "ipv4/unicast add 192.168.0.0/24;") {
 		t.Errorf("expected nlri entry, got:\n%s", output)
 	}
 
@@ -726,7 +726,7 @@ neighbor 10.0.0.1 {
 	}
 
 	// Route should appear in nlri block.
-	if !strings.Contains(output, "ipv4/unicast 10.0.0.0/24;") {
+	if !strings.Contains(output, "ipv4/unicast add 10.0.0.0/24;") {
 		t.Errorf("expected nlri entry, got:\n%s", output)
 	}
 
@@ -1460,7 +1460,7 @@ func TestConvertFlexToUpdate(t *testing.T) {
 			values:     []string{"shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]"},
 			wantFamily: "ipv4/mcast-vpn",
 			wantNHop:   "10.10.6.3",
-			wantNLRI:   "shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000",
+			wantNLRI:   "add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000",
 		},
 		{
 			name:       "mup_ipv4_isd",
@@ -1469,7 +1469,7 @@ func TestConvertFlexToUpdate(t *testing.T) {
 			values:     []string{"mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0])"},
 			wantFamily: "ipv4/mup",
 			wantNHop:   "2001::1",
-			wantNLRI:   "mup-isd 10.0.1.0/24 rd 100:100",
+			wantNLRI:   "add mup-isd 10.0.1.0/24 rd 100:100",
 		},
 	}
 

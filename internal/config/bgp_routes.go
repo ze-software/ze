@@ -126,7 +126,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 	}
 
 	for _, nlriEntry := range nlriEntries {
-		family := stripListKeySuffix(nlriEntry.Key)
+		family := StripListKeySuffix(nlriEntry.Key)
 		content, _ := nlriEntry.Value.Get("content")
 		line := family
 		if content != "" {

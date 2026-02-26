@@ -80,19 +80,19 @@ bgp {
 	require.Len(t, nlriEntries, 3, "expected 3 NLRI list entries")
 
 	// First entry: ipv4/unicast
-	require.Equal(t, "ipv4/unicast", stripListKeySuffix(nlriEntries[0].Key))
+	require.Equal(t, "ipv4/unicast", StripListKeySuffix(nlriEntries[0].Key))
 	content0, ok := nlriEntries[0].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 10.0.0.0/24", content0)
 
 	// Second entry: ipv4/unicast#1 (duplicate key)
-	require.Equal(t, "ipv4/unicast", stripListKeySuffix(nlriEntries[1].Key))
+	require.Equal(t, "ipv4/unicast", StripListKeySuffix(nlriEntries[1].Key))
 	content1, ok := nlriEntries[1].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 10.0.1.0/24", content1)
 
 	// Third entry: ipv6/unicast
-	require.Equal(t, "ipv6/unicast", stripListKeySuffix(nlriEntries[2].Key))
+	require.Equal(t, "ipv6/unicast", StripListKeySuffix(nlriEntries[2].Key))
 	content2, ok := nlriEntries[2].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 2001:db8::/32", content2)

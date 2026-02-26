@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-// stripListKeySuffix removes the #N suffix added by AddListEntry for duplicate keys.
+// StripListKeySuffix removes the #N suffix added by AddListEntry for duplicate keys.
 // For example, "10.0.0.10#1" becomes "10.0.0.10".
-func stripListKeySuffix(key string) string {
+func StripListKeySuffix(key string) string {
 	if idx := strings.LastIndex(key, "#"); idx > 0 {
 		suffix := key[idx+1:]
 		if _, err := strconv.Atoi(suffix); err == nil {
@@ -268,7 +268,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			for _, key := range keys {
 				entry := entries[key]
 				// Strip #N suffix from duplicate keys for serialization
-				displayKey := stripListKeySuffix(key)
+				displayKey := StripListKeySuffix(key)
 
 				// Decide: inline or block?
 				// Use inline if all values are simple (no nested containers)
@@ -348,7 +348,7 @@ func serializeListMultiBlock(b *strings.Builder, name string, entries map[string
 		if entry == nil {
 			continue
 		}
-		displayKey := stripListKeySuffix(key)
+		displayKey := StripListKeySuffix(key)
 		b.WriteString(innerPrefix)
 		b.WriteString(quoteIfNeeded(displayKey))
 

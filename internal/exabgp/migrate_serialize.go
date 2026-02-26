@@ -190,7 +190,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// send/receive are now bracket leaf-lists (e.g. "receive [ state update ];")
+	// send/receive are now bracket leaf-lists (e.g. "receive [ update ];")
 	// and are written by the generic value-writing code above.
 
 	// Write update blocks (converted from announce/static/flow).

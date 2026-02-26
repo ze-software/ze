@@ -56,7 +56,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 
 			// Process each route entry
 			for _, routeEntry := range routeList {
-				prefix := routeEntry.Key
+				prefix := config.StripListKeySuffix(routeEntry.Key)
 				attrTree := routeEntry.Value
 
 				update := config.NewTree()
@@ -85,7 +85,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 
 				// Build nlri list entry
 				nlriEntry := config.NewTree()
-				nlriEntry.Set("content", prefix)
+				nlriEntry.Set("content", "add "+prefix)
 				update.AddListEntry("nlri", family, nlriEntry)
 
 				// Add update to dst as list entry
@@ -224,16 +224,15 @@ func convertFlowToUpdate(flow, dst *config.Tree) {
 			}
 		}
 
-		// Build NLRI content: [rd <rd>] <criteria...>
+		// Build NLRI content: [rd <rd>] add <criteria...>
+		// FlowSpec-VPN parser expects rd before operation keyword.
 		var nlriContent strings.Builder
 		if rd != "" {
-			nlriContent.WriteString("rd " + rd)
+			nlriContent.WriteString("rd " + rd + " ")
 		}
+		nlriContent.WriteString("add")
 		for _, c := range nlriCriteria {
-			if nlriContent.Len() > 0 {
-				nlriContent.WriteString(" ")
-			}
-			nlriContent.WriteString(c)
+			nlriContent.WriteString(" " + c)
 		}
 
 		// Build update block.
@@ -308,10 +307,14 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 	update.SetContainer("attribute", attrBlock)
 
 	// Build NLRI line from VPLS-specific fields.
-	// Format: "l2vpn/vpls rd X endpoint Y base Z offset A size B"
-	nlriFields := []string{"rd", "endpoint", "ve-id", "base", "offset", "ve-block-offset", "size", "ve-block-size"}
+	// Format: "l2vpn/vpls [rd X] add endpoint Y base Z offset A size B"
+	// VPLS parser expects rd before operation keyword.
 	var nlriParts []string
-	for _, field := range nlriFields {
+	if v, ok := vpls.Get("rd"); ok {
+		nlriParts = append(nlriParts, "rd", v)
+	}
+	nlriParts = append(nlriParts, "add")
+	for _, field := range []string{"endpoint", "ve-id", "base", "offset", "ve-block-offset", "size", "ve-block-size"} {
 		if v, ok := vpls.Get(field); ok {
 			nlriParts = append(nlriParts, field, v)
 		}
@@ -332,6 +335,7 @@ func convertNamedVPLSToUpdate(vpls, dst *config.Tree) {
 // Family detection: rd present → mpls-vpn, label present (no rd) → nlri-mpls, else → unicast.
 // RD and label go inline in the NLRI (config loader expects them there, not in attribute block).
 func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
+	prefix = config.StripListKeySuffix(prefix)
 	update := config.NewTree()
 
 	attrBlock := config.NewTree()
@@ -376,6 +380,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	family := detectRouteFamily(isIPv6, hasRD, hasLabel)
 
 	// Build NLRI value with inline rd/label (config loader parses these from NLRI line).
+	// Format: add [rd VALUE] [label VALUE] prefix
 	nlriValue := prefix
 	if hasLabel {
 		nlriValue = "label " + labelVal + " " + nlriValue
@@ -383,6 +388,7 @@ func convertRouteToUpdate(prefix string, attrTree, dst *config.Tree) {
 	if hasRD {
 		nlriValue = "rd " + rdVal + " " + nlriValue
 	}
+	nlriValue = "add " + nlriValue
 
 	nlriEntry := config.NewTree()
 	nlriEntry.Set("content", nlriValue)
@@ -488,13 +494,35 @@ func convertFlexToUpdate(afi, safi string, values []string, dst *config.Tree) {
 		}
 		update.SetContainer("attribute", attrBlock)
 
-		// Build nlri block
+		// Build nlri block with add operation keyword.
+		// VPLS parser expects rd before operation keyword; others expect add first.
 		nlriEntry := config.NewTree()
-		nlriEntry.Set("content", strings.Join(nlriParts, " "))
+		nlriEntry.Set("content", flexNLRIContent(safi, nlriParts))
 		update.AddListEntry("nlri", family, nlriEntry)
 
 		dst.AddListEntry("update", "", update)
 	}
+}
+
+// flexNLRIContent builds NLRI content with the add operation keyword.
+// VPLS parser expects rd before the operation keyword; MVPN/MUP expect add first.
+func flexNLRIContent(safi string, nlriParts []string) string {
+	if safi == "vpls" {
+		// Extract rd (if present) and place before add.
+		var parts, rest []string
+		for i := 0; i < len(nlriParts); i++ {
+			if nlriParts[i] == "rd" && i+1 < len(nlriParts) {
+				parts = append(parts, "rd", nlriParts[i+1])
+				i++
+			} else {
+				rest = append(rest, nlriParts[i])
+			}
+		}
+		parts = append(parts, "add")
+		parts = append(parts, rest...)
+		return strings.Join(parts, " ")
+	}
+	return "add " + strings.Join(nlriParts, " ")
 }
 
 // splitFlexAttrs separates a flex value string into path attributes and NLRI fields.

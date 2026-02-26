@@ -453,8 +453,8 @@ func copyContainers(src, dst *config.Tree) {
 func bindRIBProcess(peer, src *config.Tree) {
 	ribProcess := config.NewTree()
 
-	// Send flags: update + state, plus refresh if route-refresh is enabled.
-	sendFlags := "[ update state"
+	// Send flags: update, plus refresh if route-refresh is enabled.
+	sendFlags := "[ update"
 	if cap := src.GetContainer("capability"); cap != nil {
 		if _, ok := cap.GetFlex("route-refresh"); ok {
 			sendFlags += " refresh"
@@ -471,7 +471,7 @@ func bindRIBProcess(peer, src *config.Tree) {
 
 // migrateProcessBindings converts ExaBGP api block and process blocks to ZeBGP named bindings.
 // ExaBGP syntax: api { processes [ foo bar ]; }.
-// ZeBGP syntax: process foo-compat { send [ update state ]; }.
+// ZeBGP syntax: process foo-compat { send [ update ]; }.
 func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string) {
 	// First, handle ExaBGP-style api block.
 	if api := src.GetContainer("api"); api != nil {
@@ -535,7 +535,7 @@ func extractProcessNames(tree *config.Tree) []string {
 // addProcessBinding adds a process binding with default send flags.
 func addProcessBinding(dst *config.Tree, name string) {
 	proc := config.NewTree()
-	proc.Set("send", "[ update state ]")
+	proc.Set("send", "[ update ]")
 	dst.AddListEntry("process", name, proc)
 }
 

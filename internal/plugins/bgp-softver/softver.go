@@ -115,13 +115,26 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			continue
 		}
 
-		svMap, ok := capMap["software-version"].(map[string]any)
-		if !ok {
+		// software-version can be:
+		// - map: {"mode": "enable"} (container form)
+		// - string: "enable" (leaf form, consistent with other capabilities)
+		// - map: {} (bare presence container)
+		svRaw, exists := capMap["software-version"]
+		if !exists {
 			continue
 		}
 
-		// Check mode: enable (default) and require advertise; disable and refuse do not.
-		mode, _ := svMap["mode"].(string)
+		var mode string
+		switch sv := svRaw.(type) {
+		case map[string]any:
+			mode, _ = sv["mode"].(string)
+		case string:
+			mode = sv
+		case nil:
+			// bare presence — treat as enable (default)
+		}
+		// Unknown types are ignored (presence container with no mode = enable).
+
 		if mode == "disable" || mode == "refuse" {
 			Logger.Debug("software-version capability suppressed by mode", "peer", peerAddr, "mode", mode)
 			continue
