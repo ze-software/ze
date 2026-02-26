@@ -421,6 +421,30 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		return
 	}
 	proc.SetStage(StageRunning)
+
+	// Register plugin commands with the dispatcher so inter-plugin dispatch-command
+	// RPCs can route to this process. Commands were declared in Stage 1 (PluginRegistry)
+	// but the dispatcher's CommandRegistry (used by dispatchPlugin) needs its own entries.
+	if reg := proc.Registration(); reg == nil {
+		logger().Debug("no registration for plugin", "plugin", proc.Name())
+	} else {
+		logger().Debug("plugin registration", "plugin", proc.Name(), "commands", reg.Commands, "families", reg.Families)
+	}
+	if reg := proc.Registration(); reg != nil && len(reg.Commands) > 0 {
+		defs := make([]CommandDef, len(reg.Commands))
+		for i, name := range reg.Commands {
+			defs[i] = CommandDef{Name: name}
+		}
+		results := s.dispatcher.Registry().Register(proc, defs)
+		for _, r := range results {
+			if !r.OK {
+				logger().Debug("command registration conflict", "plugin", proc.Name(), "command", r.Name, "error", r.Error)
+			} else {
+				logger().Debug("command registered", "plugin", proc.Name(), "command", r.Name)
+			}
+		}
+	}
+
 	if s.reactor != nil {
 		s.reactor.SignalAPIReady()
 	}

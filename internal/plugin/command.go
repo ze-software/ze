@@ -334,6 +334,12 @@ func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector strin
 	}
 
 	if matchedPlugin == nil {
+		all := d.registry.All()
+		names := make([]string, len(all))
+		for i, c := range all {
+			names[i] = c.Name
+		}
+		logger().Debug("dispatchPlugin: no match", "input", lowerInput, "registry_count", len(all), "registered", strings.Join(names, ", "))
 		return nil, ErrUnknownCommand
 	}
 

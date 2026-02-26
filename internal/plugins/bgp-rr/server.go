@@ -367,7 +367,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
-		logger().Error("update-route failed", "peer", peerSelector, "error", err)
+		logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
 	}
 }
 
@@ -753,10 +753,8 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from index 0.
-	// Retry on transient failure: adj-rib-in may not be Running yet during the
-	// startup race (bgp-rr's subscriptions activate before adj-rib-in completes
-	// stage 5). adj-rib-in is guaranteed present via dependency auto-loading,
-	// so "unknown command" errors are no longer expected.
+	// Retry on transient failure: adj-rib-in may not have completed stage 5
+	// (command registration) when bgp-rr's subscriptions activate.
 	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
 	var status, data string
 	var err error
@@ -774,7 +772,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		}
 	}
 	if err != nil || status != statusDone {
-		logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
+		logger().Error("replay failed", "peer", peerAddr, "command", cmd, "status", status, "error", err)
 		// Still add to forward targets so peer gets new routes going forward.
 		// Only if this goroutine's generation is still current.
 		rs.mu.Lock()
@@ -803,9 +801,10 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 
 	// Delta replay to cover routes that arrived during full replay.
 	if lastIndex > 0 {
-		_, _, err := rs.dispatchCommand(ctx, fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex))
+		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
+		_, _, err := rs.dispatchCommand(ctx, deltaCmd)
 		if err != nil {
-			logger().Warn("delta replay failed", "peer", peerAddr, "error", err)
+			logger().Warn("delta replay failed", "peer", peerAddr, "command", deltaCmd, "error", err)
 		}
 	}
 }
