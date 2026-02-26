@@ -297,6 +297,14 @@ func sortPeers(indices []int, state *DashboardState, col, dir string) {
 			cmp = pa.RoutesSent - pb.RoutesSent
 		case "received":
 			cmp = pa.RoutesRecv - pb.RoutesRecv
+		case "bytes-out":
+			cmp = int(pa.BytesSent - pb.BytesSent)
+		case "bytes-in":
+			cmp = int(pa.BytesRecv - pb.BytesRecv)
+		case "rate-out":
+			cmp = floatCmp(pa.throughputOut, pb.throughputOut)
+		case "rate-in":
+			cmp = floatCmp(pa.throughputIn, pb.throughputIn)
 		case "chaos":
 			cmp = pa.ChaosCount - pb.ChaosCount
 		default: // sort by index
@@ -307,4 +315,16 @@ func sortPeers(indices []int, state *DashboardState, col, dir string) {
 		}
 		return cmp
 	})
+}
+
+// floatCmp returns -1, 0, or 1 for float64 comparison (for sort).
+func floatCmp(a, b float64) int {
+	switch {
+	case a < b:
+		return -1
+	case a > b:
+		return 1
+	default:
+		return 0
+	}
 }

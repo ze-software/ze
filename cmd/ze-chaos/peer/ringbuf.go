@@ -19,6 +19,11 @@ type EventBuffer struct {
 	mu     sync.Mutex
 	items  []Event
 	signal chan struct{} // non-blocking signal to drain goroutine
+
+	// pendingBytesRecv accumulates bytes from messages that don't emit events
+	// (e.g., KEEPALIVE). Flushed to the next pushed event's BytesRecv field.
+	// Only accessed from the readLoop goroutine — no lock needed.
+	pendingBytesRecv int64
 }
 
 // NewEventBuffer creates an unbounded event buffer.
@@ -28,8 +33,22 @@ func NewEventBuffer() *EventBuffer {
 	}
 }
 
+// AddBytesRecv accumulates received bytes from messages that don't produce events
+// (e.g., KEEPALIVE). The accumulated value is flushed to the next Push'd event.
+// Only called from the readLoop goroutine — no lock needed.
+func (b *EventBuffer) AddBytesRecv(n int64) {
+	b.pendingBytesRecv += n
+}
+
 // Push appends an event to the buffer. Never blocks, never drops.
+// If AddBytesRecv was called since the last Push, the accumulated bytes
+// are assigned to this event's BytesRecv field (first event gets the total).
 func (b *EventBuffer) Push(ev Event) {
+	if b.pendingBytesRecv > 0 {
+		ev.BytesRecv += b.pendingBytesRecv
+		b.pendingBytesRecv = 0
+	}
+
 	b.mu.Lock()
 	b.items = append(b.items, ev)
 	b.mu.Unlock()

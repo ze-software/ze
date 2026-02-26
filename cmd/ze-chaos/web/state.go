@@ -138,6 +138,18 @@ type PeerState struct {
 	// Computed from profile data at init: unicast families get full RouteCount,
 	// non-unicast (VPN, EVPN, FlowSpec) get RouteCount/4.
 	FamilySentTarget map[string]int
+
+	// BytesSent is the cumulative bytes written to the connection by this peer.
+	BytesSent int64
+
+	// BytesRecv is the cumulative bytes read from the connection by this peer.
+	BytesRecv int64
+
+	// Throughput tracking — updated each broadcast tick via EMA.
+	prevBytesSent int64
+	prevBytesRecv int64
+	throughputOut float64 // bytes per second (sent to Ze)
+	throughputIn  float64 // bytes per second (received from Ze)
 }
 
 // NewPeerState creates a PeerState with the given index and event buffer size.
@@ -344,6 +356,13 @@ type DashboardState struct {
 	TotalDropped      int // Events silently dropped by readLoop (EventDroppedEvents).
 	PeersUp           int
 
+	// Byte counters (accumulated from event deltas).
+	TotalBytesSent int64
+	TotalBytesRecv int64
+
+	// lastThroughputAt tracks the last throughput EMA update time.
+	lastThroughputAt time.Time
+
 	// Run metadata.
 	Seed      uint64
 	StartTime time.Time
@@ -485,4 +504,84 @@ func FormatElapsed(d time.Duration) string {
 	h := m / 60
 	m %= 60
 	return fmt.Sprintf("%dh%dm", h, m)
+}
+
+// throughputEMAAlpha is the smoothing factor for the throughput exponential moving average.
+// 0.3 gives a time constant of ~3 ticks (600ms at 200ms interval), responsive but not jumpy.
+const throughputEMAAlpha = 0.3
+
+// UpdateThroughput computes per-peer throughput using exponential moving average.
+// Called from the broadcast loop under write lock.
+func (s *DashboardState) UpdateThroughput(now time.Time) {
+	if s.lastThroughputAt.IsZero() {
+		s.lastThroughputAt = now
+		// Initialize prev snapshots.
+		for _, ps := range s.Peers {
+			ps.prevBytesSent = ps.BytesSent
+			ps.prevBytesRecv = ps.BytesRecv
+		}
+		return
+	}
+
+	elapsed := now.Sub(s.lastThroughputAt).Seconds()
+	if elapsed <= 0 {
+		return
+	}
+	s.lastThroughputAt = now
+
+	for _, ps := range s.Peers {
+		deltaSent := ps.BytesSent - ps.prevBytesSent
+		deltaRecv := ps.BytesRecv - ps.prevBytesRecv
+		ps.prevBytesSent = ps.BytesSent
+		ps.prevBytesRecv = ps.BytesRecv
+
+		instantOut := float64(deltaSent) / elapsed
+		instantIn := float64(deltaRecv) / elapsed
+		ps.throughputOut = throughputEMAAlpha*instantOut + (1-throughputEMAAlpha)*ps.throughputOut
+		ps.throughputIn = throughputEMAAlpha*instantIn + (1-throughputEMAAlpha)*ps.throughputIn
+	}
+}
+
+// AggregateThroughput returns the sum of per-peer throughput (bytes/sec).
+// When out is true, returns send throughput; otherwise receive throughput.
+// Must be called under at least a read lock.
+func (s *DashboardState) AggregateThroughput(out bool) float64 {
+	var total float64
+	for _, ps := range s.Peers {
+		if out {
+			total += ps.throughputOut
+		} else {
+			total += ps.throughputIn
+		}
+	}
+	return total
+}
+
+// FormatBytes formats a byte count in a compact human-readable form.
+func FormatBytes(n int64) string {
+	switch {
+	case n < 1024:
+		return fmt.Sprintf("%d B", n)
+	case n < 1024*1024:
+		return fmt.Sprintf("%.1f KB", float64(n)/1024)
+	case n < 1024*1024*1024:
+		return fmt.Sprintf("%.1f MB", float64(n)/(1024*1024))
+	default:
+		return fmt.Sprintf("%.2f GB", float64(n)/(1024*1024*1024))
+	}
+}
+
+// FormatBitRate formats a bytes-per-second rate as a human-readable bit rate.
+func FormatBitRate(bytesPerSec float64) string {
+	bps := bytesPerSec * 8
+	switch {
+	case bps < 1000:
+		return fmt.Sprintf("%.0f bps", bps)
+	case bps < 1_000_000:
+		return fmt.Sprintf("%.1f Kbps", bps/1000)
+	case bps < 1_000_000_000:
+		return fmt.Sprintf("%.1f Mbps", bps/1_000_000)
+	default:
+		return fmt.Sprintf("%.2f Gbps", bps/1_000_000_000)
+	}
 }

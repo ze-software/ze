@@ -406,6 +406,7 @@ Control:
 				fmt.Fprintf(os.Stderr, "error: starting web dashboard: %v\n", webErr)
 				return 1
 			}
+			fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
 			defer func() { _ = wd.Close() }()
 		}
 
@@ -434,7 +435,7 @@ Control:
 		// When web dashboard is active, keep serving until Ctrl-C
 		// so the user can explore the final state.
 		if wd != nil {
-			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", *webAddr)
+			fmt.Fprintf(os.Stderr, "ze-chaos | simulation done — dashboard at %s (Ctrl-C to exit)\n", dashboardURL(*webAddr))
 			sigCh := make(chan os.Signal, 1)
 			signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 			<-sigCh
@@ -456,6 +457,13 @@ Control:
 		}
 		parentCancel()
 	}()
+
+	// Print the dashboard URL early so the user can open their browser
+	// while Ze is still initializing. The HTTP server starts once
+	// setupReporting runs inside runOrchestrator.
+	if *webAddr != "" {
+		fmt.Fprintf(os.Stderr, "ze-chaos | web dashboard: %s\n", dashboardURL(*webAddr))
+	}
 
 	// Wait for Ze to start listening. In pipeline mode, Ze is reading
 	// piped config and needs time to initialize — retry with backoff.

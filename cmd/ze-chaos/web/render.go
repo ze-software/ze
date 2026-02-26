@@ -71,8 +71,12 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <h3>Stats</h3>
     <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">
       <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
-      <span class="stat" title="Total routes announced to peers"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
-      <span class="stat" title="Total routes received from peers"><span class="stat-label">Received </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
+      <span class="stat" title="Total BGP messages (routes) sent to Ze"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
+      <span class="stat" title="Total BGP messages (routes) received from Ze"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
+      <span class="stat" title="Total bytes sent to Ze by all peers"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(s.TotalBytesSent) + `</span></span>
+      <span class="stat" title="Total bytes received from Ze by all peers"><span class="stat-label">Bytes Recv </span><span class="stat-value">` + FormatBytes(s.TotalBytesRecv) + `</span></span>
+      <span class="stat" title="Aggregate send bit rate (all peers to Ze)"><span class="stat-label">Rate Out </span><span class="stat-value">` + FormatBitRate(s.AggregateThroughput(true)) + `</span></span>
+      <span class="stat" title="Aggregate receive bit rate (Ze to all peers)"><span class="stat-label">Rate In </span><span class="stat-value">` + FormatBitRate(s.AggregateThroughput(false)) + `</span></span>
       <span class="stat" title="Total routes withdrawn by peers"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(s.TotalWithdrawn) + `</span></span>
       <span class="stat" title="Total withdrawal messages sent to peers"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(s.TotalWdrawSent) + `</span></span>
       <span class="stat" title="Total route dynamics actions (churn, partial-withdraw, full-withdraw)"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(s.TotalRouteActions) + `</span></span>
@@ -164,15 +168,23 @@ func writeLayout(w io.Writer, d *Dashboard) {
         <tr>
           <th style="width:30px" title="Pin a peer to keep it visible in the table"></th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"id","dir":"asc"}' title="Peer index — click to sort">ID</th>
+              hx-vals='{"sort":"id","dir":"asc"}' title="Peer index">ID</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"status","dir":"asc"}' title="BGP session state — click to sort">Status</th>
+              hx-vals='{"sort":"status","dir":"asc"}' title="BGP session state">Status</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"sent","dir":"desc"}' title="Routes announced to this peer — click to sort">Sent</th>
+              hx-vals='{"sort":"sent","dir":"desc"}' title="BGP messages (routes) sent to Ze">Msgs&#x2192;</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"received","dir":"desc"}' title="Routes received from this peer — click to sort">Recv</th>
+              hx-vals='{"sort":"received","dir":"desc"}' title="BGP messages (routes) received from Ze">Msgs&#x2190;</th>
           <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
-              hx-vals='{"sort":"chaos","dir":"desc"}' title="Chaos events targeting this peer — click to sort">Chaos</th>
+              hx-vals='{"sort":"bytes-out","dir":"desc"}' title="Total bytes sent to Ze">Bytes&#x2192;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"bytes-in","dir":"desc"}' title="Total bytes received from Ze">Bytes&#x2190;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"rate-out","dir":"desc"}' title="Current send bit rate to Ze">Rate&#x2192;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"rate-in","dir":"desc"}' title="Current receive bit rate from Ze">Rate&#x2190;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"chaos","dir":"desc"}' title="Chaos events targeting this peer">Chaos</th>
         </tr>
       </thead>
       <tbody id="peer-tbody">`)
@@ -263,6 +275,10 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 		h.writef(`<td><span class="dot %s"></span> %s</td>`, ps.Status.CSSClass(), ps.Status.String())
 		h.writef(`<td>%d</td>`, ps.RoutesSent)
 		h.writef(`<td>%d</td>`, ps.RoutesRecv)
+		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesSent))
+		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesRecv))
+		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputOut))
+		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputIn))
 		h.writef(`<td>%d</td>`, ps.ChaosCount)
 		h.write(`</tr>`)
 	}
@@ -291,14 +307,20 @@ func writePeerDetail(w io.Writer, ps *PeerState, pinned bool, allFamilies []stri
   <h4>State</h4>
   <div class="detail-grid">
     <div class="detail-item"><span class="label">Status: </span><span class="value"><span class="dot %s"></span>%s</span></div>
-    <div class="detail-item"><span class="label">Sent: </span><span class="value">%d</span></div>
-    <div class="detail-item"><span class="label">Recv: </span><span class="value">%d</span></div>
+    <div class="detail-item"><span class="label">Msgs Sent: </span><span class="value">%d</span></div>
+    <div class="detail-item"><span class="label">Msgs Recv: </span><span class="value">%d</span></div>
     <div class="detail-item"><span class="label">Missing: </span><span class="value">%d</span></div>
+    <div class="detail-item"><span class="label">Bytes Sent: </span><span class="value">%s</span></div>
+    <div class="detail-item"><span class="label">Bytes Recv: </span><span class="value">%s</span></div>
+    <div class="detail-item"><span class="label">Rate Out: </span><span class="value">%s</span></div>
+    <div class="detail-item"><span class="label">Rate In: </span><span class="value">%s</span></div>
     <div class="detail-item"><span class="label">Chaos: </span><span class="value">%d</span></div>
     <div class="detail-item"><span class="label">Reconnects: </span><span class="value">%d</span></div>
   </div>
 </div>`, ps.Status.CSSClass(), ps.Status.String(),
 		ps.RoutesSent, ps.RoutesRecv, ps.Missing,
+		FormatBytes(ps.BytesSent), FormatBytes(ps.BytesRecv),
+		FormatBitRate(ps.throughputOut), FormatBitRate(ps.throughputIn),
 		ps.ChaosCount, ps.Reconnects)
 
 	// Per-family route breakdown.

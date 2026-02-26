@@ -1270,9 +1270,17 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
   <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
       hx-vals='{"sort":"status","dir":"asc"}'>Status</th>
   <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
-      hx-vals='{"sort":"sent","dir":"desc"}'>Sent</th>
+      hx-vals='{"sort":"sent","dir":"desc"}' title="BGP messages (routes) sent to Ze">Msgs&#x2192;</th>
   <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
-      hx-vals='{"sort":"received","dir":"desc"}'>Recv</th>
+      hx-vals='{"sort":"received","dir":"desc"}' title="BGP messages (routes) received from Ze">Msgs&#x2190;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"bytes-out","dir":"desc"}' title="Total bytes sent to Ze">Bytes&#x2192;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"bytes-in","dir":"desc"}' title="Total bytes received from Ze">Bytes&#x2190;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"rate-out","dir":"desc"}' title="Current send bit rate to Ze">Rate&#x2192;</th>
+  <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
+      hx-vals='{"sort":"rate-in","dir":"desc"}' title="Current receive bit rate from Ze">Rate&#x2190;</th>
   <th>Missing</th>
   <th hx-get="/viz/all-peers" hx-target="#viz-content" hx-swap="innerHTML"
       hx-vals='{"sort":"chaos","dir":"desc"}'>Chaos</th>
@@ -1310,6 +1318,10 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 		h.writef(`<td><span class="dot %s"></span>%s</td>`, ps.Status.CSSClass(), ps.Status.String())
 		h.writef(`<td>%d</td>`, ps.RoutesSent)
 		h.writef(`<td>%d</td>`, ps.RoutesRecv)
+		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesSent))
+		h.writef(`<td>%s</td>`, FormatBytes(ps.BytesRecv))
+		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputOut))
+		h.writef(`<td>%s</td>`, FormatBitRate(ps.throughputIn))
 		h.writef(`<td>%d</td>`, ps.Missing)
 		h.writef(`<td>%d</td>`, ps.ChaosCount)
 		h.writef(`<td>%d</td>`, ps.Reconnects)

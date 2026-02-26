@@ -96,11 +96,12 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 		// Churn: withdraw N routes, then immediately re-announce them.
 		// Simulates normal internet route instability.
 		selected := pickRandomRoutes(routes, action.ChurnCount, cfg.Seed, p.Index)
-		if err := sendWithdrawal(conn, selected); err != nil {
+		wdBytes, err := sendWithdrawal(conn, selected)
+		if err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending churn withdrawal: %w", err)})
 			return
 		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(selected)})
+		emit(Event{Type: EventWithdrawalSent, Count: len(selected), BytesSent: int64(wdBytes)})
 		// Re-announce the churned routes.
 		for _, prefix := range selected {
 			data := sender.BuildRoute(prefix)
@@ -108,18 +109,19 @@ func executeRoute(action route.Action, conn net.Conn, routes []netip.Prefix,
 				emit(Event{Type: EventError, Err: fmt.Errorf("sending churn re-announce: %w", writeErr)})
 				return
 			}
-			emit(Event{Type: EventRouteSent, Prefix: prefix})
+			emit(Event{Type: EventRouteSent, Prefix: prefix, BytesSent: int64(len(data))})
 		}
 
 	case route.ActionPartialWithdraw:
-		withdrawn := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
-		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn)})
+		withdrawn, wdBytes := withdrawFraction(conn, routes, action.WithdrawFraction, cfg.Seed, p.Index, emit)
+		emit(Event{Type: EventWithdrawalSent, Count: len(withdrawn), BytesSent: int64(wdBytes)})
 
 	case route.ActionFullWithdraw:
-		if err := sendWithdrawal(conn, routes); err != nil {
+		wdBytes, err := sendWithdrawal(conn, routes)
+		if err != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending full withdrawal: %w", err)})
 		}
-		emit(Event{Type: EventWithdrawalSent, Count: len(routes)})
+		emit(Event{Type: EventWithdrawalSent, Count: len(routes), BytesSent: int64(wdBytes)})
 	}
 }
 
@@ -203,22 +205,23 @@ func executeConnectionCollision(ctx context.Context, addr string, p SimProfile, 
 }
 
 // sendWithdrawal sends a withdrawal UPDATE for the given prefixes.
-func sendWithdrawal(conn net.Conn, prefixes []netip.Prefix) error {
+// Returns the number of bytes written and any error.
+func sendWithdrawal(conn net.Conn, prefixes []netip.Prefix) (int, error) {
 	data := BuildWithdrawal(prefixes)
 	if data == nil {
-		return nil
+		return 0, nil
 	}
 	_, err := conn.Write(data)
-	return err
+	return len(data), err
 }
 
 // withdrawFraction withdraws a random subset of routes and returns the
-// withdrawn prefixes. Uses a deterministic PRNG derived from the seed.
+// withdrawn prefixes and number of bytes written. Uses a deterministic PRNG derived from the seed.
 func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 	seed uint64, peerIndex int, emit func(Event),
-) []netip.Prefix {
+) ([]netip.Prefix, int) {
 	if len(routes) == 0 || fraction <= 0 {
-		return nil
+		return nil, 0
 	}
 
 	count := min(max(int(float64(len(routes))*fraction), 1), len(routes))
@@ -233,9 +236,10 @@ func withdrawFraction(conn net.Conn, routes []netip.Prefix, fraction float64,
 		selected[i] = routes[indices[i]]
 	}
 
-	if err := sendWithdrawal(conn, selected); err != nil {
+	n, err := sendWithdrawal(conn, selected)
+	if err != nil {
 		emit(Event{Type: EventError, Err: fmt.Errorf("sending partial withdrawal: %w", err)})
 	}
 
-	return selected
+	return selected, n
 }

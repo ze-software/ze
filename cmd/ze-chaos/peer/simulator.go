@@ -267,7 +267,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case familyIPv6Unicast:
@@ -280,7 +280,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family})
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv4/vpn":
@@ -296,7 +296,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family})
+				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv6/vpn":
@@ -312,7 +312,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family})
+				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "l2vpn/evpn":
@@ -328,7 +328,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family})
+				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv4/flow":
@@ -344,7 +344,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family})
+				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		case "ipv6/flow":
@@ -360,7 +360,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				if _, writeErr = conn.Write(data); writeErr != nil {
 					break
 				}
-				emit(Event{Type: EventRouteSent, Family: family})
+				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
 		}
@@ -371,6 +371,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 
 	// Send End-of-RIB for each negotiated family.
+	var eorBytes int64
 	for _, family := range families {
 		eor := BuildEOR(family)
 		if eor == nil {
@@ -381,8 +382,9 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s EOR: %w", family, writeErr)})
 			return
 		}
+		eorBytes += int64(len(eor))
 	}
-	emit(Event{Type: EventEORSent, Count: totalSent, Families: families})
+	emit(Event{Type: EventEORSent, Count: totalSent, Families: families, BytesSent: eorBytes})
 
 	// Start reader goroutine for incoming messages from RR.
 	// Uses an unbounded EventBuffer so readLoop never blocks on event emission

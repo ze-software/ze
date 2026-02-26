@@ -402,6 +402,16 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.state.PeerTransitions[ev.PeerIndex] = trans
 	}
 
+	// Accumulate byte counters from event deltas.
+	if ev.BytesSent > 0 {
+		ps.BytesSent += ev.BytesSent
+		d.state.TotalBytesSent += ev.BytesSent
+	}
+	if ev.BytesRecv > 0 {
+		ps.BytesRecv += ev.BytesRecv
+		d.state.TotalBytesRecv += ev.BytesRecv
+	}
+
 	ps.LastEvent = ev.Type
 	ps.LastEventAt = ev.Time
 	ps.Events.Push(ev)
@@ -472,13 +482,18 @@ func (d *Dashboard) runBroadcastLoop(ctx context.Context) {
 // broadcastDirty reads dirty flags and sends SSE events for changed state.
 // When broadcastConvergence is true, also pushes convergence histogram updates.
 func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
+	now := time.Now()
+
 	d.state.mu.Lock()
 	dirtyPeers, promotedPeers, dirtyGlobal := d.state.ConsumeDirty()
+
+	// Update per-peer throughput EMA.
+	d.state.UpdateThroughput(now)
 
 	// Run active set decay — skip for small deployments where all peers fit.
 	var removed []int
 	if d.state.PeerCount > d.state.Active.MaxVisible {
-		removed = d.state.Active.Decay(time.Now())
+		removed = d.state.Active.Decay(now)
 	}
 	d.state.mu.Unlock()
 
@@ -540,8 +555,12 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 func (d *Dashboard) renderStats() string {
 	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
 		`<span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(d.state.PeersUp) + `/` + itoa(d.state.PeerCount) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Announced </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Received </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Bytes Recv </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesRecv) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Rate Out </span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(true)) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Rate In </span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(false)) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
@@ -588,6 +607,10 @@ func (d *Dashboard) renderPeerRow(idx int) string {
 		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
 		"<td>" + itoa(ps.RoutesSent) + "</td>" +
 		"<td>" + itoa(ps.RoutesRecv) + "</td>" +
+		"<td>" + FormatBytes(ps.BytesSent) + "</td>" +
+		"<td>" + FormatBytes(ps.BytesRecv) + "</td>" +
+		"<td>" + FormatBitRate(ps.throughputOut) + "</td>" +
+		"<td>" + FormatBitRate(ps.throughputIn) + "</td>" +
 		"<td>" + itoa(ps.ChaosCount) + "</td>" +
 		"</tr>"
 }
@@ -611,6 +634,10 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 		"<td><span class=\"dot " + ps.Status.CSSClass() + "\"></span> " + ps.Status.String() + "</td>" +
 		"<td>" + itoa(ps.RoutesSent) + "</td>" +
 		"<td>" + itoa(ps.RoutesRecv) + "</td>" +
+		"<td>" + FormatBytes(ps.BytesSent) + "</td>" +
+		"<td>" + FormatBytes(ps.BytesRecv) + "</td>" +
+		"<td>" + FormatBitRate(ps.throughputOut) + "</td>" +
+		"<td>" + FormatBitRate(ps.throughputIn) + "</td>" +
 		"<td>" + itoa(ps.ChaosCount) + "</td>" +
 		"</tr>"
 }

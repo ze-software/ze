@@ -109,6 +109,19 @@ func runDiff(path1, path2 string) int {
 	return replay.Diff(f1, f2, os.Stderr)
 }
 
+// dashboardURL converts a listen address (e.g. ":8080", "0.0.0.0:8080") to a
+// clickable URL like "http://localhost:8080". Used for the startup message.
+func dashboardURL(addr string) string {
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return "http://" + addr
+	}
+	if host == "" || host == "0.0.0.0" || host == "::" {
+		host = "localhost"
+	}
+	return "http://" + net.JoinHostPort(host, port)
+}
+
 // checkPortFree verifies that nothing is listening on addr.
 // Called before starting Ze to fail fast on port conflicts.
 func checkPortFree(addr string) error {

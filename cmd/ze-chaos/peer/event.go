@@ -71,4 +71,12 @@ type Event struct {
 
 	// Families is set for EventEstablished and EventEORSent with the list of families.
 	Families []string
+
+	// BytesSent is the number of bytes written to the connection for this event (delta).
+	// Set on EventRouteSent, EventEORSent, and EventWithdrawalSent.
+	BytesSent int64
+
+	// BytesRecv is the number of bytes read from the connection for this event (delta).
+	// Set on the first EventRouteReceived or EventRouteWithdrawn per BGP message.
+	BytesRecv int64
 }

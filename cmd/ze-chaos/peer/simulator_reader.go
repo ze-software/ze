@@ -62,6 +62,11 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 		if len(header) < 19 {
 			return
 		}
+
+		// Track all message bytes (KEEPALIVE, UPDATE, etc.) for throughput display.
+		// Non-UPDATE bytes accumulate in the buffer and flush on the next UPDATE event.
+		buf.AddBytesRecv(int64(msgLen))
+
 		msgType := header[18]
 		if msgType != 2 { // Not UPDATE — skip (KEEPALIVE, etc.)
 			continue
