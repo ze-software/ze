@@ -288,6 +288,8 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 	}
 
 	// Validate declared dependencies against configured plugin set.
+	// Internal deps were auto-added by expandDependencies() in the config loader.
+	// External deps must be explicitly configured by the operator.
 	for _, dep := range regInput.Dependencies {
 		if !s.hasConfiguredPlugin(dep) {
 			errMsg := fmt.Sprintf("missing dependency: plugin %q requires %q", proc.config.Name, dep)

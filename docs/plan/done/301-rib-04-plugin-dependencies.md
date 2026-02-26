@@ -15,9 +15,9 @@
 
 Two-layer plugin dependency declaration system:
 
-**1. Go registry `Dependencies` field** — enables auto-loading of required plugins before startup. When bgp-rr is loaded, ze automatically loads bgp-adj-rib-in.
+**1. Go registry `Dependencies` field** — enables auto-loading of required internal plugins before startup. When bgp-rr is loaded, ze automatically loads bgp-adj-rib-in as an in-process goroutine.
 
-**2. Protocol `dependencies` field in stage 1** `declare-registration` — enables runtime validation that all declared dependencies are present (all plugins, including future external ones).
+**2. Protocol `dependencies` field in stage 1** `declare-registration` — enables runtime validation that all declared dependencies are configured. Internal plugins are auto-spawned by the config loader; external plugins can only declare and validate (the operator must configure them explicitly).
 
 **Root cause:** bgp-rr depends on bgp-adj-rib-in for route replay (`DispatchCommand("adj-rib-in replay ...")`). When bgp-adj-rib-in is not loaded, replay silently fails — `replayDisabled` is permanently set, and late-connecting peers miss all prior routes.
 
@@ -67,10 +67,10 @@ Two-layer plugin dependency declaration system:
 
 ### Transformation Path
 1. Plugin calls `registry.Register()` with Dependencies field in `init()`
-2. Config loader calls `expandDependencies()` on plugin list — adds missing deps
-3. Engine starts each plugin, receives stage 1 declare-registration
-4. Engine validates each declared dependency is in running plugin set
-5. If dependency missing at stage 1, engine rejects plugin startup
+2. Config loader calls `expandDependencies()` on plugin list — auto-adds missing internal plugins as goroutines (external plugins cannot be auto-spawned)
+3. Engine starts each plugin (internal as goroutine, external as forked binary), receives stage 1 declare-registration
+4. Engine validates each declared dependency is in `s.config.Plugins` (the configured plugin set — includes auto-added internal deps)
+5. If dependency missing at stage 1, engine rejects plugin startup (internal deps: should never happen after auto-loading; external deps: operator must configure them)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -78,7 +78,7 @@ Two-layer plugin dependency declaration system:
 | Plugin init() → Registry | `Register()` stores Dependencies on Registration | [ ] |
 | Config → Loader | `expandDependencies()` consults registry, adds missing plugins | [ ] |
 | Plugin → Engine (stage 1) | `DeclareRegistrationInput.Dependencies` JSON field | [ ] |
-| Engine stage 1 validation | Check each dep in running plugin set | [ ] |
+| Engine stage 1 validation | Check each dep in configured plugin set (`s.config.Plugins`) | [ ] |
 
 ### Integration Points
 - `registry.Register()` — add Dependencies validation (no empty, no self-dep)
@@ -97,9 +97,10 @@ Two-layer plugin dependency declaration system:
 
 | Decision | Rationale |
 |----------|-----------|
-| Two-layer deps (registry + protocol) | Registry for pre-startup auto-loading (Go only). Protocol for runtime validation (all plugins, including future external). |
+| Two-layer deps (registry + protocol) | Registry for pre-startup auto-loading (internal Go plugins only). Protocol for runtime validation (all plugins — internal auto-spawned, external validate-only). |
+| Internal vs external | Internal plugins: auto-loaded by config loader as goroutines. External plugins: declare deps via protocol, operator must configure them explicitly, cannot be auto-spawned. |
 | Iterative loop-until-stable expansion | Handles transitive deps naturally. Simpler than topological sort. |
-| Auto-added deps are Internal: true | Go plugins registered via init(), always in-process. |
+| Auto-added deps are Internal: true | Go plugins registered via init(), always in-process goroutines. |
 | `expandDependencies()` in all 3 loader paths | Production, test, and config-file loading all benefit. |
 | Fail loudly on missing dep at stage 1 | Silent degradation (replayDisabled) caused the original bug. |
 | Remove replayDisabled | Dead code after auto-loading guarantees adj-rib-in is present. |
@@ -137,7 +138,7 @@ Two-layer plugin dependency declaration system:
 
 ~~Originally targeted `subsystem.go` — wrong code path. Production plugins go through `server_startup.go:handleProcessStartupRPC`, not `subsystem.go:completeProtocol`.~~
 
-At stage 1 handler in `handleProcessStartupRPC` (after parsing `regInput`, before registry registration): validate each declared dependency is in `s.config.Plugins`. If a dependency is missing, send error response and return (plugin cannot start without its deps). Uses `hasConfiguredPlugin()` helper on Server.
+At stage 1 handler in `handleProcessStartupRPC` (after parsing `regInput`, before registry registration): validate each declared dependency is in `s.config.Plugins` (the configured plugin set, which includes auto-added internal deps from the config loader). If a dependency is missing, send error response and return. For internal plugins this should never trigger (config loader auto-adds deps); for external plugins this catches operator misconfiguration. Uses `hasConfiguredPlugin()` helper on Server.
 
 ### 4. SDK declaration — `pkg/plugin/sdk/sdk.go`
 
@@ -301,7 +302,9 @@ No new numeric fields.
 
 ## Design Insights
 
-- Two-layer system: Go registry for pre-startup auto-loading + protocol for runtime validation
+- Two-layer system: Go registry for pre-startup auto-loading (internal only) + protocol for runtime validation (all plugins)
+- Internal plugins (goroutines): auto-spawned by config loader — full safety net
+- External plugins (forked binaries): declare deps via protocol, validate-only — operator must configure them, cannot be auto-spawned
 - Iterative loop-until-stable handles transitive deps without topological sort
 - Auto-added dependencies always Internal: true (Go plugins via init())
 - replayDisabled was a silent degradation bug — fail loudly is better
@@ -313,8 +316,8 @@ No new numeric fields.
 - Dependencies field on Registration struct with validation (empty, self-dep) in Register()
 - ResolveDependencies() with iterative loop-until-stable expansion and DFS cycle detection
 - Dependencies field on DeclareRegistrationInput for protocol-level declaration
-- RunningPlugins map on SubsystemHandler with stage 1 dependency validation
-- expandDependencies() in config loader wired into all 3 loading paths
+- expandDependencies() in config loader wired into all 3 loading paths — auto-adds missing internal plugins as goroutines (external plugins cannot be auto-spawned, only validated)
+- Stage 1 dependency validation in server_startup.go (production path) — checks `s.config.Plugins`
 - bgp-rr declares dependency on bgp-adj-rib-in
 - Removed replayDisabled silent degradation from bgp-rr server
 - PluginNames() accessor on Reactor for integration testing
