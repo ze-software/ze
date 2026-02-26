@@ -287,6 +287,18 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		s.reactor.RegisterCacheConsumer(proc.Name(), regInput.CacheConsumerUnordered)
 	}
 
+	// Validate declared dependencies against configured plugin set.
+	for _, dep := range regInput.Dependencies {
+		if !s.hasConfiguredPlugin(dep) {
+			errMsg := fmt.Sprintf("missing dependency: plugin %q requires %q", proc.config.Name, dep)
+			if sendErr := connA.SendError(s.ctx, req.ID, errMsg); sendErr != nil {
+				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
+			}
+			logger().Error("rpc startup: dependency not configured", "plugin", proc.Name(), "dependency", dep)
+			return
+		}
+	}
+
 	// Register with registry
 	if err := s.registry.Register(reg); err != nil {
 		if sendErr := connA.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {

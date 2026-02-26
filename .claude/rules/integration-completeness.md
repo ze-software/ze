@@ -34,3 +34,16 @@ A wiring test proves the feature is reachable from its intended entry point (con
 **If the wiring test cannot be written, the feature is not done — it is blocked.**
 
 Every spec MUST have a `## Wiring Test` table (see `docs/plan/TEMPLATE.md`). Every row must have a concrete test name. The `validate-spec.sh` hook enforces this mechanically (exit 2).
+
+## Production Path Verification (BLOCKING)
+
+Before modifying any handler, dispatcher, or protocol step: **grep for ALL implementations** of that function/protocol step in the codebase. Ze has multiple code paths for the same protocol (e.g., `subsystem.go` and `server_startup.go` both implement stage-1). Modifying one is not enough.
+
+| Step | Action |
+|------|--------|
+| 1 | Grep for the protocol method/handler name across all `.go` files |
+| 2 | List every implementation found |
+| 3 | For each consumer of the feature: trace which implementation it actually calls |
+| 4 | Modify (and test) the implementation the consumer uses, not just any implementation |
+
+**One implementation found is not proof there's only one.** Finding *a* handler is not the same as finding *the* handler the feature's consumer calls.

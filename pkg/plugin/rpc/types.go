@@ -19,6 +19,7 @@ import "encoding/json"
 type DeclareRegistrationInput struct {
 	Families               []FamilyDecl  `json:"families,omitempty"`
 	Commands               []CommandDecl `json:"commands,omitempty"`
+	Dependencies           []string      `json:"dependencies,omitempty"`
 	WantsConfig            []string      `json:"wants-config,omitempty"`
 	Schema                 *SchemaDecl   `json:"schema,omitempty"`
 	WantsValidateOpen      bool          `json:"wants-validate-open,omitempty"`

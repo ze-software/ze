@@ -41,6 +41,7 @@ type Registration struct {
 	Families        []string // Address families handled (e.g., ["ipv4/flow", "ipv6/flow"])
 	CapabilityCodes []uint8  // Capability codes decoded (e.g., [73] for FQDN)
 	ConfigRoots     []string // Config roots wanted (e.g., ["bgp"])
+	Dependencies    []string // Plugin names that must also be loaded (e.g., ["bgp-adj-rib-in"])
 	YANG            string   // YANG schema content (empty if none)
 
 	// Optional handlers.
@@ -83,6 +84,14 @@ var (
 	ErrNilCLIHandler = errors.New("registry: CLIHandler is nil")
 	// ErrInvalidFamily is returned when a family string is malformed.
 	ErrInvalidFamily = errors.New("registry: invalid family format")
+	// ErrSelfDependency is returned when a plugin lists itself as a dependency.
+	ErrSelfDependency = errors.New("registry: plugin depends on itself")
+	// ErrEmptyDependency is returned when a dependency name is empty.
+	ErrEmptyDependency = errors.New("registry: empty dependency name")
+	// ErrCircularDependency is returned when dependency resolution detects a cycle.
+	ErrCircularDependency = errors.New("registry: circular dependency")
+	// ErrMissingDependency is returned when a registered plugin declares a dependency on an unknown name.
+	ErrMissingDependency = errors.New("registry: missing dependency")
 )
 
 var (
@@ -114,6 +123,14 @@ func Register(reg Registration) error {
 	for _, f := range reg.Families {
 		if !strings.Contains(f, "/") {
 			return fmt.Errorf("%w: plugin %q family %q (must contain /)", ErrInvalidFamily, reg.Name, f)
+		}
+	}
+	for _, dep := range reg.Dependencies {
+		if dep == "" {
+			return fmt.Errorf("%w: plugin %q", ErrEmptyDependency, reg.Name)
+		}
+		if dep == reg.Name {
+			return fmt.Errorf("%w: plugin %q", ErrSelfDependency, reg.Name)
 		}
 	}
 
@@ -382,4 +399,101 @@ func Restore(snap map[string]*Registration) {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = snap
+}
+
+// ResolveDependencies expands a list of plugin names by iteratively adding
+// dependencies declared in the registry. Returns the expanded list with no
+// duplicates. Plugins not in the registry (external) are kept but their deps
+// are not expanded (they come from the protocol layer instead).
+// Returns ErrCircularDependency on cycles, ErrMissingDependency when a
+// registered plugin declares a dependency on an unregistered name.
+func ResolveDependencies(requested []string) ([]string, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	// Build ordered result + seen set for dedup.
+	seen := make(map[string]bool, len(requested))
+	result := make([]string, 0, len(requested))
+	for _, name := range requested {
+		if !seen[name] {
+			seen[name] = true
+			result = append(result, name)
+		}
+	}
+
+	// Iterative expansion: loop until no new deps are added.
+	// Track resolution path per-plugin for cycle detection.
+	for i := 0; i < len(result); i++ {
+		name := result[i]
+		reg, ok := plugins[name]
+		if !ok {
+			// External plugin — skip (deps come from protocol layer).
+			continue
+		}
+		for _, dep := range reg.Dependencies {
+			if seen[dep] {
+				continue
+			}
+			if _, depOK := plugins[dep]; !depOK {
+				return nil, fmt.Errorf("%w: plugin %q requires %q", ErrMissingDependency, name, dep)
+			}
+			seen[dep] = true
+			result = append(result, dep)
+		}
+	}
+
+	// Cycle detection: walk dependency chains looking for back-edges.
+	if err := detectCycles(result); err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+// detectCycles checks for circular dependencies using DFS with coloring.
+// white=unvisited, gray=in-progress, black=done.
+func detectCycles(names []string) error {
+	const (
+		white = 0
+		gray  = 1
+		black = 2
+	)
+
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[n] = true
+	}
+
+	color := make(map[string]int, len(names))
+	var visit func(string) error
+	visit = func(name string) error {
+		color[name] = gray
+		reg, ok := plugins[name]
+		if ok {
+			for _, dep := range reg.Dependencies {
+				if !nameSet[dep] {
+					continue
+				}
+				switch color[dep] {
+				case gray:
+					return fmt.Errorf("%w: %s → %s", ErrCircularDependency, name, dep)
+				case white:
+					if err := visit(dep); err != nil {
+						return err
+					}
+				}
+			}
+		}
+		color[name] = black
+		return nil
+	}
+
+	for _, name := range names {
+		if color[name] == white {
+			if err := visit(name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

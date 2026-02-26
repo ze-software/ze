@@ -817,6 +817,139 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 	<-pluginDone
 }
 
+// TestStartupRPC_DependencyValidation verifies that missing deps are rejected
+// at stage 1 on the production startup path (handleProcessStartupRPC).
+//
+// VALIDATES: Plugin declaring dep on missing plugin gets rejected at stage 1.
+// PREVENTS: Plugins starting without required dependencies on the production path.
+func TestStartupRPC_DependencyValidation(t *testing.T) {
+	t.Parallel()
+
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	defer pairs.Close()
+
+	proc := NewProcess(PluginConfig{
+		Name:     "test-dep-missing",
+		Internal: true,
+		Encoder:  "json",
+	})
+	proc.sockets = pairs
+	proc.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	proc.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+	proc.running.Store(true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Server configured with only "bgp-rr" — "bgp-adj-rib-in" is missing.
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{
+		Plugins: []PluginConfig{
+			{Name: "bgp-rr"},
+		},
+	}, reactor)
+	server.ctx, server.cancel = context.WithCancel(ctx)
+	server.coordinator = NewStartupCoordinator(1)
+
+	pluginConnA := NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
+
+	pluginDone := make(chan struct{})
+	go func() {
+		defer close(pluginDone)
+		// Stage 1: Send declare-registration with dependency on bgp-adj-rib-in
+		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+			Dependencies: []string{"bgp-adj-rib-in"},
+		})
+	}()
+
+	server.handleProcessStartupRPC(proc)
+
+	// Plugin should NOT have reached StageRunning — rejected at stage 1.
+	assert.Less(t, proc.Stage(), StageRunning)
+
+	cancel()
+	<-pluginDone
+}
+
+// TestStartupRPC_DependencySatisfied verifies that satisfied deps pass stage 1
+// on the production startup path (handleProcessStartupRPC).
+//
+// VALIDATES: Plugin declaring dep on configured plugin passes stage 1.
+// PREVENTS: False rejection of valid dependency declarations.
+func TestStartupRPC_DependencySatisfied(t *testing.T) {
+	t.Parallel()
+
+	pairs, err := NewInternalSocketPairs()
+	require.NoError(t, err)
+	defer pairs.Close()
+
+	proc := NewProcess(PluginConfig{
+		Name:     "test-dep-ok",
+		Internal: true,
+		Encoder:  "json",
+	})
+	proc.sockets = pairs
+	proc.engineConnA = NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
+	proc.engineConnB = NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
+	proc.running.Store(true)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Server configured with both plugins — dependency is satisfied.
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{
+		Plugins: []PluginConfig{
+			{Name: "test-dep-ok"},
+			{Name: "bgp-adj-rib-in"},
+		},
+	}, reactor)
+	server.ctx, server.cancel = context.WithCancel(ctx)
+	server.coordinator = NewStartupCoordinator(1)
+
+	pluginConnA := NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
+	pluginConnB := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+
+	pluginDone := make(chan struct{})
+	go func() {
+		defer close(pluginDone)
+
+		// Stage 1: Send declare-registration with satisfied dependency
+		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+			Dependencies: []string{"bgp-adj-rib-in"},
+		})
+
+		// Stage 2: Receive configure, respond OK
+		req, err := pluginConnB.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		_ = pluginConnB.SendResult(ctx, req.ID, nil)
+
+		// Stage 3: Send declare-capabilities
+		_ = pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{})
+
+		// Stage 4: Receive share-registry, respond OK
+		req, err = pluginConnB.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		_ = pluginConnB.SendResult(ctx, req.ID, nil)
+
+		// Stage 5: Send ready
+		_ = pluginConnA.SendReady(ctx)
+	}()
+
+	server.handleProcessStartupRPC(proc)
+
+	// Plugin should reach StageRunning — dependency satisfied.
+	assert.Equal(t, StageRunning, proc.Stage())
+
+	cancel()
+	<-pluginDone
+}
+
 // TestRegistrationFromRPC verifies conversion from RPC types to engine types.
 //
 // VALIDATES: DeclareRegistrationInput correctly maps to PluginRegistration.

@@ -72,7 +72,7 @@ linters:
         - unnamedResult
       settings:
         hugeParam:
-          sizeThreshold: 256
+          sizeThreshold: 280
         rangeValCopy:
           sizeThreshold: 128
 

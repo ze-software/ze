@@ -478,3 +478,259 @@ func TestReset(t *testing.T) {
 		t.Errorf("expected 0 registrations, got %d", len(All()))
 	}
 }
+
+// --- Dependencies tests ---
+
+// TestRegisterWithDependencies verifies that Dependencies are stored and retrievable.
+//
+// VALIDATES: Dependencies field stored on registration, retrievable via Lookup.
+// PREVENTS: Dependencies silently dropped during registration.
+func TestRegisterWithDependencies(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	reg := validReg("plugin-a")
+	reg.Dependencies = []string{"plugin-b"}
+	if err := Register(reg); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	got := Lookup("plugin-a")
+	if got == nil {
+		t.Fatal("expected registration, got nil")
+	}
+	if len(got.Dependencies) != 1 || got.Dependencies[0] != "plugin-b" {
+		t.Errorf("expected Dependencies=[plugin-b], got %v", got.Dependencies)
+	}
+}
+
+// TestRegisterSelfDependency verifies that a plugin cannot depend on itself.
+//
+// VALIDATES: Self-dependency rejected with ErrSelfDependency.
+// PREVENTS: Infinite loops in dependency resolution.
+func TestRegisterSelfDependency(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	reg := validReg("self-dep")
+	reg.Dependencies = []string{"self-dep"}
+	err := Register(reg)
+	if !errors.Is(err, ErrSelfDependency) {
+		t.Errorf("expected ErrSelfDependency, got %v", err)
+	}
+}
+
+// TestRegisterEmptyDependencyName verifies that empty dependency names are rejected.
+//
+// VALIDATES: Empty string in Dependencies rejected with ErrEmptyDependency.
+// PREVENTS: Invisible dependencies that can never be resolved.
+func TestRegisterEmptyDependencyName(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	reg := validReg("has-empty-dep")
+	reg.Dependencies = []string{""}
+	err := Register(reg)
+	if !errors.Is(err, ErrEmptyDependency) {
+		t.Errorf("expected ErrEmptyDependency, got %v", err)
+	}
+}
+
+// TestResolveDependencies_NoDeps verifies that plugins without deps return unchanged.
+//
+// VALIDATES: ResolveDependencies returns same list when no deps declared.
+// PREVENTS: Spurious plugin additions from empty resolution.
+func TestResolveDependencies_NoDeps(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	if err := Register(validReg("standalone")); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ResolveDependencies([]string{"standalone"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 1 || result[0] != "standalone" {
+		t.Errorf("expected [standalone], got %v", result)
+	}
+}
+
+// TestResolveDependencies_DirectDep verifies that a direct dependency is added.
+//
+// VALIDATES: A depends on B → both in result.
+// PREVENTS: Missing direct dependencies in expanded list.
+func TestResolveDependencies_DirectDep(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+
+	if err := Register(regA); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(regB); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ResolveDependencies([]string{"a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	has := make(map[string]bool)
+	for _, n := range result {
+		has[n] = true
+	}
+	if !has["a"] || !has["b"] {
+		t.Errorf("expected [a, b], got %v", result)
+	}
+}
+
+// TestResolveDependencies_TransitiveDep verifies transitive deps are resolved.
+//
+// VALIDATES: A→B→C: all three in result.
+// PREVENTS: Transitive dependencies not followed.
+func TestResolveDependencies_TransitiveDep(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"c"}
+	regC := validReg("c")
+
+	for _, r := range []Registration{regA, regB, regC} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := ResolveDependencies([]string{"a"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	has := make(map[string]bool)
+	for _, n := range result {
+		has[n] = true
+	}
+	if !has["a"] || !has["b"] || !has["c"] {
+		t.Errorf("expected [a, b, c], got %v", result)
+	}
+}
+
+// TestResolveDependencies_AlreadyPresent verifies no duplicates when dep already requested.
+//
+// VALIDATES: Both A and B requested, A depends on B → B appears once.
+// PREVENTS: Duplicate plugin entries in expanded list.
+func TestResolveDependencies_AlreadyPresent(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+
+	if err := Register(regA); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(regB); err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := ResolveDependencies([]string{"a", "b"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	count := 0
+	for _, n := range result {
+		if n == "b" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected b once, found %d times in %v", count, result)
+	}
+}
+
+// TestResolveDependencies_CircularDep verifies circular deps are detected.
+//
+// VALIDATES: A→B→A returns ErrCircularDependency.
+// PREVENTS: Infinite loops in dependency resolution.
+func TestResolveDependencies_CircularDep(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"a"}
+
+	if err := Register(regA); err != nil {
+		t.Fatal(err)
+	}
+	if err := Register(regB); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ResolveDependencies([]string{"a"})
+	if !errors.Is(err, ErrCircularDependency) {
+		t.Errorf("expected ErrCircularDependency, got %v", err)
+	}
+}
+
+// TestResolveDependencies_MissingDep verifies unknown deps are detected.
+//
+// VALIDATES: A depends on unknown → returns ErrMissingDependency.
+// PREVENTS: Silent skip of unregistered dependencies.
+func TestResolveDependencies_MissingDep(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"unknown"}
+
+	if err := Register(regA); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := ResolveDependencies([]string{"a"})
+	if !errors.Is(err, ErrMissingDependency) {
+		t.Errorf("expected ErrMissingDependency, got %v", err)
+	}
+}
+
+// TestResolveDependencies_Diamond verifies diamond deps produce no duplicates.
+//
+// VALIDATES: A→C, B→C: C appears once in result.
+// PREVENTS: Duplicate entries from diamond dependency graphs.
+func TestResolveDependencies_Diamond(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"c"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"c"}
+	regC := validReg("c")
+
+	for _, r := range []Registration{regA, regB, regC} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	result, err := ResolveDependencies([]string{"a", "b"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	count := 0
+	for _, n := range result {
+		if n == "c" {
+			count++
+		}
+	}
+	if count != 1 {
+		t.Errorf("expected c once, found %d times in %v", count, result)
+	}
+	if len(result) != 3 {
+		t.Errorf("expected 3 plugins, got %d: %v", len(result), result)
+	}
+}

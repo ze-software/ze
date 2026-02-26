@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
@@ -94,6 +95,10 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	if err != nil {
 		return nil, err
 	}
+	plugins, err = expandDependencies(plugins)
+	if err != nil {
+		return nil, err
+	}
 	return CreateReactorFromTree(tree, "", plugins)
 }
 
@@ -121,6 +126,12 @@ func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*rea
 	plugins, err = mergeCliPlugins(plugins, cliPlugins)
 	if err != nil {
 		return nil, fmt.Errorf("resolve plugins: %w", err)
+	}
+
+	// Expand dependencies before creating reactor
+	plugins, err = expandDependencies(plugins)
+	if err != nil {
+		return nil, err
 	}
 
 	// Set config directory for process execution
@@ -221,6 +232,12 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 		return nil, fmt.Errorf("resolve plugins: %w", err)
 	}
 
+	// Expand dependencies before creating reactor
+	plugins, err = expandDependencies(plugins)
+	if err != nil {
+		return nil, err
+	}
+
 	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
 	if v := YANGValidatorWithPlugins(pluginYANG); v != nil {
 		plugin.SetYANGValidator(v)
@@ -294,6 +311,41 @@ func mergeCliPlugins(plugins []reactor.PluginConfig, cliPlugins []string) ([]rea
 
 	// Prepend CLI plugins to config plugins (CLI takes priority)
 	return append(newPlugins, plugins...), nil
+}
+
+// expandDependencies resolves plugin dependencies from the registry and adds
+// missing dependency plugins to the list. Auto-added plugins are Internal=true
+// with Encoder="json" since they are Go plugins registered via init().
+func expandDependencies(plugins []reactor.PluginConfig) ([]reactor.PluginConfig, error) {
+	// Collect current plugin names.
+	names := make([]string, 0, len(plugins))
+	existing := make(map[string]bool, len(plugins))
+	for _, p := range plugins {
+		names = append(names, p.Name)
+		existing[p.Name] = true
+	}
+
+	// Resolve transitive dependencies via registry.
+	resolved, err := registry.ResolveDependencies(names)
+	if err != nil {
+		return nil, fmt.Errorf("expand dependencies: %w", err)
+	}
+
+	// Add any new names not already in the plugin list.
+	for _, name := range resolved {
+		if existing[name] {
+			continue
+		}
+		configLogger().Info("auto-adding dependency plugin", "name", name)
+		plugins = append(plugins, reactor.PluginConfig{
+			Name:     name,
+			Internal: true,
+			Encoder:  "json",
+		})
+		existing[name] = true
+	}
+
+	return plugins, nil
 }
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"net"
 	"strings"
 	"testing"
 
@@ -912,4 +913,114 @@ bgp {
 			assert.Equal(t, tt.wantHoldTime, gotSec, "hold-time mismatch")
 		})
 	}
+}
+
+// --- Dependency expansion tests ---
+
+// TestExpandDependencies verifies that dependencies are auto-added.
+//
+// VALIDATES: expandDependencies adds missing deps as Internal=true, Encoder="json".
+// PREVENTS: Missing dependency plugins at runtime.
+func TestExpandDependencies(t *testing.T) {
+	// Register a plugin with a dependency in the registry.
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+
+	regA := registry.Registration{
+		Name:         "plugin-a",
+		Description:  "test A",
+		Dependencies: []string{"plugin-b"},
+		RunEngine:    func(_, _ net.Conn) int { return 0 },
+		CLIHandler:   func(_ []string) int { return 0 },
+	}
+	regB := registry.Registration{
+		Name:        "plugin-b",
+		Description: "test B",
+		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		CLIHandler:  func(_ []string) int { return 0 },
+	}
+	require.NoError(t, registry.Register(regA))
+	require.NoError(t, registry.Register(regB))
+
+	plugins := []reactor.PluginConfig{
+		{Name: "plugin-a", Internal: true, Encoder: "json"},
+	}
+
+	result, err := expandDependencies(plugins)
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	// Find the auto-added plugin-b
+	var foundB bool
+	for _, p := range result {
+		if p.Name == "plugin-b" {
+			foundB = true
+			assert.True(t, p.Internal, "auto-added dep should be Internal")
+			assert.Equal(t, "json", p.Encoder, "auto-added dep should use json encoder")
+		}
+	}
+	assert.True(t, foundB, "plugin-b should be auto-added")
+}
+
+// TestExpandDependencies_NoDuplicate verifies already-present deps are not duplicated.
+//
+// VALIDATES: If dep is already in plugin list, it is not added again.
+// PREVENTS: Duplicate plugin entries causing startup failures.
+func TestExpandDependencies_NoDuplicate(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	registry.Reset()
+
+	regA := registry.Registration{
+		Name:         "plugin-a",
+		Description:  "test A",
+		Dependencies: []string{"plugin-b"},
+		RunEngine:    func(_, _ net.Conn) int { return 0 },
+		CLIHandler:   func(_ []string) int { return 0 },
+	}
+	regB := registry.Registration{
+		Name:        "plugin-b",
+		Description: "test B",
+		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		CLIHandler:  func(_ []string) int { return 0 },
+	}
+	require.NoError(t, registry.Register(regA))
+	require.NoError(t, registry.Register(regB))
+
+	plugins := []reactor.PluginConfig{
+		{Name: "plugin-a", Internal: true, Encoder: "json"},
+		{Name: "plugin-b", Internal: true, Encoder: "json"},
+	}
+
+	result, err := expandDependencies(plugins)
+	require.NoError(t, err)
+	require.Len(t, result, 2, "should not duplicate plugin-b")
+}
+
+// TestExpandDependencies_Integration verifies LoadReactorWithPlugins auto-adds deps.
+//
+// VALIDATES: AC-1: LoadReactorWithPlugins with ["ze.bgp-rr"] produces list with both bgp-rr and bgp-adj-rib-in.
+// PREVENTS: bgp-rr starting without adj-rib-in, causing silent replay failure.
+func TestExpandDependencies_Integration(t *testing.T) {
+	// This test uses the real registry (all plugins registered via init())
+	// to verify that bgp-rr's dependency on bgp-adj-rib-in is expanded.
+	input := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        local-address 192.168.1.1;
+    }
+}
+`
+	r, err := LoadReactorWithPlugins(input, "-", []string{"ze.bgp-rr"})
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	// Check that the reactor's plugin list contains both bgp-rr and bgp-adj-rib-in
+	pluginNames := r.PluginNames()
+	assert.Contains(t, pluginNames, "bgp-rr", "bgp-rr should be in plugin list")
+	assert.Contains(t, pluginNames, "bgp-adj-rib-in", "bgp-adj-rib-in should be auto-added")
 }

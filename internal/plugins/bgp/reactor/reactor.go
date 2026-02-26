@@ -428,6 +428,15 @@ func (r *Reactor) Peers() []*Peer {
 	return peers
 }
 
+// PluginNames returns the names of all configured plugins.
+func (r *Reactor) PluginNames() []string {
+	names := make([]string, len(r.config.Plugins))
+	for i, p := range r.config.Plugins {
+		names[i] = p.Name
+	}
+	return names
+}
+
 // ListenAddr returns the listener's bound address.
 //
 // Deprecated: Use ListenAddrs() for multi-listener support.

@@ -11,10 +11,11 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:        "bgp-rr",
-		Description: "Route Reflector / Route Server",
-		RFCs:        []string{"4456"},
-		RunEngine:   RunRouteServer,
+		Name:         "bgp-rr",
+		Description:  "Route Reflector / Route Server",
+		RFCs:         []string{"4456"},
+		Dependencies: []string{"bgp-adj-rib-in"},
+		RunEngine:    RunRouteServer,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},

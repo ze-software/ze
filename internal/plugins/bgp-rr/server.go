@@ -138,10 +138,6 @@ type RouteServer struct {
 	// Nil in production (zero overhead).
 	updateRouteHook func(peer, cmd string)
 
-	// replayDisabled is set to true when adj-rib-in is not loaded (unknown command).
-	// Once set, replayForPeer skips dispatch entirely for all subsequent peers.
-	replayDisabled atomic.Bool
-
 	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
 	// Nil in production (zero overhead).
 	dispatchCommandHook func(command string) (string, string, error)
@@ -745,33 +741,17 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 
-	// Skip replay if adj-rib-in is known to be unavailable.
-	if rs.replayDisabled.Load() {
-		rs.mu.Lock()
-		if p := rs.peers[peerAddr]; p != nil && p.ReplayGen == gen {
-			p.Replaying = false
-		}
-		rs.mu.Unlock()
-		return
-	}
-
 	// Full replay from index 0.
 	// Retry on transient failure: adj-rib-in may not be Running yet during the
 	// startup race (bgp-rr's subscriptions activate before adj-rib-in completes
-	// stage 5). Permanent errors (unknown command = adj-rib-in not loaded) are
-	// not retried — forward-only mode still works without replay.
+	// stage 5). adj-rib-in is guaranteed present via dependency auto-loading,
+	// so "unknown command" errors are no longer expected.
 	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
 	var status, data string
 	var err error
 	for attempt := range 5 {
 		status, data, err = rs.dispatchCommand(ctx, cmd)
 		if err == nil && status == statusDone {
-			break
-		}
-		// Permanent error: adj-rib-in not loaded — disable replay for all future peers.
-		if err != nil && strings.Contains(err.Error(), "unknown command") {
-			rs.replayDisabled.Store(true)
-			logger().Warn("replay unavailable (adj-rib-in not loaded)")
 			break
 		}
 		if ctx.Err() != nil {
@@ -783,9 +763,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		}
 	}
 	if err != nil || status != statusDone {
-		if !rs.replayDisabled.Load() {
-			logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
-		}
+		logger().Error("replay failed", "peer", peerAddr, "status", status, "error", err)
 		// Still add to forward targets so peer gets new routes going forward.
 		// Only if this goroutine's generation is still current.
 		rs.mu.Lock()

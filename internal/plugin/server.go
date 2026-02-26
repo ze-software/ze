@@ -1,4 +1,8 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Related: server_startup.go — 5-stage plugin startup protocol
+// Related: server_client.go — API client connections
+// Related: server_dispatch.go — command dispatch routing
+// Related: server_events.go — event delivery to plugins
 
 package plugin
 
@@ -151,6 +155,17 @@ func NewServer(config *ServerConfig, reactor ReactorLifecycle) *Server {
 	}
 
 	return s
+}
+
+// hasConfiguredPlugin returns true if a plugin with the given name is in the
+// server's configured plugin list. Used by stage 1 dependency validation.
+func (s *Server) hasConfiguredPlugin(name string) bool {
+	for _, p := range s.config.Plugins {
+		if p.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // Context returns the server's context. Used by RPC handlers that need

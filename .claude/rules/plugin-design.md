@@ -48,6 +48,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 | `Families` | []string | No | Address families ("afi/safi") |
 | `CapabilityCodes` | []uint8 | No | Capability codes decoded |
 | `ConfigRoots` | []string | No | Config roots plugin wants |
+| `Dependencies` | []string | No | Plugin names that must also be loaded (auto-expanded) |
 | `YANG` | string | No | YANG schema content |
 | `InProcessNLRIDecoder` | func | No | NLRI decode |
 | `InProcessNLRIEncoder` | func | No | NLRI encode |

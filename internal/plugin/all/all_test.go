@@ -1,6 +1,7 @@
 package all
 
 import (
+	"slices"
 	"sort"
 	"testing"
 
@@ -107,6 +108,21 @@ func TestFamilyMappings(t *testing.T) {
 		if got := fm[family]; got != wantPlugin {
 			t.Errorf("FamilyMap[%q] = %q, want %q", family, got, wantPlugin)
 		}
+	}
+}
+
+// TestBgpRRDependsOnAdjRibIn verifies bgp-rr declares its dependency.
+//
+// VALIDATES: bgp-rr has Dependencies containing "bgp-adj-rib-in".
+// PREVENTS: bgp-rr starting without adj-rib-in, causing silent replay failure.
+func TestBgpRRDependsOnAdjRibIn(t *testing.T) {
+	reg := registry.Lookup("bgp-rr")
+	if reg == nil {
+		t.Fatal("bgp-rr not registered")
+	}
+
+	if !slices.Contains(reg.Dependencies, "bgp-adj-rib-in") {
+		t.Errorf("bgp-rr Dependencies=%v, want to contain bgp-adj-rib-in", reg.Dependencies)
 	}
 }
 
