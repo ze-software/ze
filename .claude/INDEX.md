@@ -19,6 +19,9 @@
 | FSM | `docs/architecture/behavior/fsm.md` |
 | API | `docs/architecture/api/architecture.md` |
 | API Capabilities | `docs/architecture/api/capability-contract.md` |
+| Text format | `docs/architecture/api/text-format.md` |
+| Text parser | `docs/architecture/api/text-parser.md` |
+| Text coverage | `docs/architecture/api/text-coverage.md` |
 | Config syntax | `docs/architecture/config/syntax.md` |
 | YANG design | `docs/architecture/config/yang-config-design.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
@@ -41,6 +44,7 @@
 | route, rib, storage | `core-design.md`, `route-types.md`, `rib-transition.md` |
 | FSM, state, session, peer | `behavior/fsm.md` |
 | API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md` |
+| text format, IPC, formatter, parser | `api/text-format.md`, `api/text-parser.md`, `api/text-coverage.md` |
 | config, load | `config/syntax.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
