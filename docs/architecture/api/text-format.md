@@ -188,7 +188,13 @@ Three token patterns plus dict mode:
 
 **Comma tolerance:** The formatter always generates `value1,value2,value3` (no spaces after commas). The parser accepts `value1, value2, value3` by stripping whitespace after commas.
 
-**Token invariants:** No value token may contain a comma. No capability value may contain a colon.
+**Token invariants:** No value token may contain a comma (comma is the list separator).
+
+**Repeated keys:** A key may appear multiple times in a message. The semantics depend on the key's value type:
+- **List value:** repetition appends — `as-path 65001 as-path 65002` is equivalent to `as-path 65001,65002`
+- **Dict value:** repetition adds an entry — `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001` adds two capabilities; `nlri add 10.0.0.0/24 nlri add 10.0.1.0/24` adds two NLRIs
+
+Not all keys support repetition. The parser's key table defines which keys are repeatable.
 
 ### Proposed Header: Uniform for All Messages
 
@@ -226,9 +232,7 @@ ADD-PATH uses `path-id` as a modifier before the action: `nlri path-id 42 add 10
 
 ### Proposed Capability Changes
 
-Current capabilities repeat `cap` per entry: `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001`.
-
-Proposed: single `cap` key with colon-encoded comma list: `cap 1:multiprotocol:ipv4/unicast,65:asn4:65001,2:route-refresh`. Invariant: capability values must not contain colons.
+Capabilities keep the current repeated-key format: `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh`. Each `cap` acts as a repeatable dict key (same pattern as `nlri`): `cap <code> <name> [<value>]`. The value format depends on the capability name. No change from current format — it already fits the unified grammar as a repeated dict key.
 
 ### Proposed UPDATE Structure
 
@@ -257,7 +261,7 @@ peer 192.0.2.1 asn 65001 received update 5 origin igp family ipv4/unicast next-h
 
 peer 192.0.2.1 asn 65001 update 0
 
-peer 192.0.2.1 asn 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1:multiprotocol:ipv4/unicast,65:asn4:65001,2:route-refresh
+peer 192.0.2.1 asn 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 cap 2 route-refresh
 
 peer 192.0.2.1 asn 65001 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data 0a0b0c0d
 

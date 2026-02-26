@@ -33,7 +33,7 @@ Ze uses a **buffer-first** architecture where BGP messages are represented as by
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Message Buffer                          │
+│                      Message Buffer                         │
 │  ┌──────────┬───────────┬──────────────┬─────────────────┐  │
 │  │  Header  │ Withdrawn │  Attributes  │      NLRI       │  │
 │  │ 19 bytes │   (var)   │    (var)     │     (var)       │  │

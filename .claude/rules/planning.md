@@ -55,6 +55,22 @@ Present BEFORE writing code. Must include: docs read + insights, current behavio
 - **Deletion allowed:** Moving to done, user requests, typo fixes only.
 - **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively — file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
 
+## Spec Sets
+
+When multiple specs form a related set (umbrella + child specs), use a shared prefix with numbering:
+
+| Pattern | Example |
+|---------|---------|
+| Naming | `spec-<prefix>-<N>-<name>.md` |
+| Umbrella | `spec-utp-0-umbrella.md` |
+| Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
+| Done path | `docs/plan/done/NNN-<prefix>-<N>-<name>.md` |
+
+- **Prefix:** short mnemonic for the effort (e.g., `utp` = unified text protocol)
+- **Number:** 0 = umbrella, 1+ = children in execution order
+- **Cross-references:** all specs in a set reference siblings by filename
+- **Selected spec:** point to the umbrella; select children individually when implementing
+
 ## Pre-Spec Verification
 
 ```
