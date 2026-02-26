@@ -26,5 +26,5 @@ Re-read source files from Current Behavior + architecture docs. Write digests im
 - `reactor/peer.go` (380L): Peer struct, FSM transitions. Key: Run(), handleOpen(). Uses wire.SessionBuffer.
 ```
 
-`[x]` in specs = read in previous session. Re-read only what's needed.
+Spec checkboxes are always `[ ]` — never tick them. Use `→ Decision:` / `→ Constraint:` annotations and session-state.md digests to recover knowledge after compaction. If a reading entry has no annotation, re-read the file.
 Until Tier 1 complete: no code, no design decisions, no claiming "done".

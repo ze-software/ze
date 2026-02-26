@@ -14,6 +14,9 @@
 ## Required Reading
 
 ### Architecture Docs
+<!-- NEVER tick [ ] to [x] — checkboxes are template markers, not progress trackers. -->
+<!-- Capture insights as → Decision: / → Constraint: annotations — these survive compaction. -->
+<!-- Track reading progress in session-state.md, not here. -->
 - [ ] `docs/architecture/<doc>.md` - [why relevant]
   → Decision: [specific architectural decision that constrains this spec]
   → Constraint: [specific rule from the doc that applies here]
@@ -28,6 +31,7 @@
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
+<!-- Same rule: never tick [ ] to [x]. Write → Constraint: annotations instead. -->
 - [ ] `path/to/file.go` - [what it currently does]
 
 **Behavior to preserve:** (unless user explicitly said to change)
