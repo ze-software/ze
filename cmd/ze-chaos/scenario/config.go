@@ -40,9 +40,9 @@ func GenerateConfig(params ConfigParams) string {
 		if params.PprofAddr != "" {
 			// Debug mode: use internal plugin (goroutine + Unix socket pair)
 			// so pprof captures both ze and plugin CPU in a single profile.
-			fmt.Fprintf(&b, "        run \"ze.bgp-rr\";\n")
+			fmt.Fprintf(&b, "        run \"ze.bgp-rs\";\n")
 		} else {
-			fmt.Fprintf(&b, "        run \"%s plugin bgp-rr\";\n", zeBin)
+			fmt.Fprintf(&b, "        run \"%s plugin bgp-rs\";\n", zeBin)
 		}
 		fmt.Fprintf(&b, "    }\n")
 		fmt.Fprintf(&b, "}\n\n")

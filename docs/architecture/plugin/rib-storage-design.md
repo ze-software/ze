@@ -4,11 +4,11 @@
 **Location:** Moved from `docs/plan/done/059-spec-pool-handle-migration.md`
 
 This document describes the pool-based RIB storage design for API programs (plugins).
-The Ze engine does NOT implement this - it belongs in API programs like `ze plugin rr`.
+The Ze engine does NOT implement this - it belongs in API programs like `ze plugin bgp-rs`.
 
 **See also:**
 - `docs/architecture/rib-transition.md` - Architecture overview
-- `docs/plan/spec-plugin-rr.md` - Route Server plugin spec
+- `docs/plan/spec-plugin-rs.md` - Route Server plugin spec
 - `docs/architecture/pool-architecture.md` - Pool system design
 
 ---

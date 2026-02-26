@@ -27,7 +27,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-mvpn",
 		"bgp-rib",
 		"bgp-route-refresh",
-		"bgp-rr",
+		"bgp-rs",
 		"bgp-rtc",
 		"bgp-softver",
 		"bgp-vpls",
@@ -111,18 +111,18 @@ func TestFamilyMappings(t *testing.T) {
 	}
 }
 
-// TestBgpRRDependsOnAdjRibIn verifies bgp-rr declares its dependency.
+// TestBgpRSDependsOnAdjRibIn verifies bgp-rs declares its dependency.
 //
-// VALIDATES: bgp-rr has Dependencies containing "bgp-adj-rib-in".
-// PREVENTS: bgp-rr starting without adj-rib-in, causing silent replay failure.
-func TestBgpRRDependsOnAdjRibIn(t *testing.T) {
-	reg := registry.Lookup("bgp-rr")
+// VALIDATES: bgp-rs has Dependencies containing "bgp-adj-rib-in".
+// PREVENTS: bgp-rs starting without adj-rib-in, causing silent replay failure.
+func TestBgpRSDependsOnAdjRibIn(t *testing.T) {
+	reg := registry.Lookup("bgp-rs")
 	if reg == nil {
-		t.Fatal("bgp-rr not registered")
+		t.Fatal("bgp-rs not registered")
 	}
 
 	if !slices.Contains(reg.Dependencies, "bgp-adj-rib-in") {
-		t.Errorf("bgp-rr Dependencies=%v, want to contain bgp-adj-rib-in", reg.Dependencies)
+		t.Errorf("bgp-rs Dependencies=%v, want to contain bgp-adj-rib-in", reg.Dependencies)
 	}
 }
 

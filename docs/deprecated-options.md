@@ -62,7 +62,7 @@ template {
 **Deprecated:**
 ```
 template {
-    neighbor ibgp-rr {
+    neighbor ibgp-rs {
         peer-as 65000;
     }
 }
@@ -71,7 +71,7 @@ template {
 **Current (v3):**
 ```
 template {
-    group ibgp-rr {
+    group ibgp-rs {
         peer-as 65000;
     }
 }

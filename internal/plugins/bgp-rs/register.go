@@ -1,4 +1,4 @@
-package bgp_rr
+package bgp_rs
 
 import (
 	"fmt"
@@ -11,9 +11,9 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-rr",
-		Description:  "Route Reflector / Route Server",
-		RFCs:         []string{"4456"},
+		Name:         "bgp-rs",
+		Description:  "Route Server",
+		RFCs:         []string{"7947"},
 		Dependencies: []string{"bgp-adj-rib-in"},
 		RunEngine:    RunRouteServer,
 		ConfigureEngineLogger: func(loggerName string) {
@@ -28,7 +28,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		fmt.Fprintf(os.Stderr, "rr: registration failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "rs: registration failed: %v\n", err)
 		os.Exit(1)
 	}
 }

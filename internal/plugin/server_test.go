@@ -842,11 +842,11 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Server configured with only "bgp-rr" — "bgp-adj-rib-in" is missing.
+	// Server configured with only "bgp-rs" — "bgp-adj-rib-in" is missing.
 	reactor := &mockReactor{}
 	server := NewServer(&ServerConfig{
 		Plugins: []PluginConfig{
-			{Name: "bgp-rr"},
+			{Name: "bgp-rs"},
 		},
 	}, reactor)
 	server.ctx, server.cancel = context.WithCancel(ctx)

@@ -510,7 +510,7 @@ func (p *Process) startInternal() error {
 	name := p.config.Name
 	// If run specifies an internal plugin (ze.X or ze plugin X), use that name
 	// for runner lookup. This allows config name ("rr") to differ from
-	// internal name ("bgp-rr").
+	// internal name ("bgp-rs").
 	if p.config.Run != "" {
 		if res, err := ResolvePlugin(p.config.Run); err == nil && res.Type == PluginTypeInternal {
 			name = res.Name

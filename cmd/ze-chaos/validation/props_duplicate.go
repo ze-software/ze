@@ -11,7 +11,7 @@ import (
 
 // NoDuplicateRoutes checks that no peer announces the same prefix twice
 // without an intermediate withdrawal. Double-announces indicate bugs in
-// the scenario generator or route reflector.
+// the scenario generator or route server.
 type NoDuplicateRoutes struct {
 	n          int
 	announced  []map[netip.Prefix]bool

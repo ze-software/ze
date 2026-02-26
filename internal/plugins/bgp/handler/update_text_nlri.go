@@ -169,7 +169,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		}
 
 		// Skip NLRI type keyword ("prefix") — emitted by NLRI String() in event
-		// format and included in withdrawal commands from bgp-rr.
+		// format and included in withdrawal commands from bgp-rs.
 		if token == "prefix" {
 			i++
 			consumed++

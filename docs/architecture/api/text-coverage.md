@@ -2,7 +2,7 @@
 
 Current implementation coverage of the text format across message types, attributes, and NLRI families.
 
-Source of truth: `internal/plugins/bgp/format/text.go` (formatter), `internal/plugins/bgp-rr/server.go` (parser).
+Source of truth: `internal/plugins/bgp/format/text.go` (formatter), `internal/plugins/bgp-rs/server.go` (parser).
 
 ## Message Type Coverage
 
@@ -58,7 +58,7 @@ Source of truth: `internal/plugins/bgp/format/text.go` (formatter), `internal/pl
 
 ## Parser Limitations
 
-The current bgp-rr text parser collects NLRI strings as opaque tokens — it does not parse sub-fields
+The current bgp-rs text parser collects NLRI strings as opaque tokens — it does not parse sub-fields
 (rd, prefix, label, etc.) from complex NLRI types. It only needs the string representation for
 forwarding to downstream peers.
 
@@ -74,7 +74,7 @@ forwarding to downstream peers.
 
 | Encoding | Formatter Support | Parser Support |
 |----------|------------------|----------------|
-| Text parsed | `FormatParsed` → text functions | Full (bgp-rr) |
+| Text parsed | `FormatParsed` → text functions | Full (bgp-rs) |
 | Text raw | `formatRawFromResult` | — |
 | Text full | `formatFullFromResult` (parsed + raw) | — |
 | JSON parsed | `FormatParsed` → JSON functions | Full (`shared/event.go`) |

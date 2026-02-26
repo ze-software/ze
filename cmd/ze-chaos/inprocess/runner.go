@@ -116,7 +116,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Scoped narrowly: set before load, unset immediately after.
 	socketPath := filepath.Join(tmpDir, "ze.socket")
 	_ = os.Setenv("ze.bgp.api.socketpath", socketPath) //nolint:errcheck // best-effort env setup
-	reactor, err := config.LoadReactorWithPlugins(zeConfig, "-", []string{"ze.bgp-rr"})
+	reactor, err := config.LoadReactorWithPlugins(zeConfig, "-", []string{"ze.bgp-rs"})
 	_ = os.Unsetenv("ze.bgp.api.socketpath") //nolint:errcheck // best-effort cleanup
 	if err != nil {
 		return nil, fmt.Errorf("create reactor: %w", err)

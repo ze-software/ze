@@ -86,7 +86,7 @@ var dirMapping = map[string][]string{
 		"// Design: docs/architecture/core-design.md — BGP role plugin",
 		"// RFC: rfc/short/rfc9234.md",
 	},
-	"internal/plugins/bgp-rr": {"// Design: docs/architecture/core-design.md — route reflector plugin"},
+	"internal/plugins/bgp-rs": {"// Design: docs/architecture/core-design.md — route server plugin"},
 	"internal/plugins/bgp-nlri-evpn": {
 		"// Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin",
 		"// RFC: rfc/short/rfc7432.md",

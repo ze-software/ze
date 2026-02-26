@@ -1,4 +1,4 @@
-package bgp_rr
+package bgp_rs
 
 import (
 	"fmt"
@@ -448,14 +448,14 @@ func TestFilterReplayByFamily(t *testing.T) {
 
 // --- Command tests ---
 
-// TestHandleCommand_Status verifies "rr status" command response.
+// TestHandleCommand_Status verifies "rs status" command response.
 //
 // VALIDATES: RS responds to status command with done status and running JSON.
 // PREVENTS: Command handler returning wrong status or data.
 func TestHandleCommand_Status(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	status, data, err := rs.handleCommand("rr status")
+	status, data, err := rs.handleCommand("rs status")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -467,7 +467,7 @@ func TestHandleCommand_Status(t *testing.T) {
 	}
 }
 
-// TestHandleCommand_Peers verifies "rr peers" command response.
+// TestHandleCommand_Peers verifies "rs peers" command response.
 //
 // VALIDATES: RS responds to peers command with peer list JSON.
 // PREVENTS: Command handler missing peer data.
@@ -479,7 +479,7 @@ func TestHandleCommand_Peers(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", ASN: 65002, Up: false}
 	rs.mu.Unlock()
 
-	status, data, err := rs.handleCommand("rr peers")
+	status, data, err := rs.handleCommand("rs peers")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -1459,9 +1459,9 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 
 // TestTextUpdateParseableByFields verifies text UPDATE events parse with strings.Fields.
 //
-// VALIDATES: AC-4 (bgp-rr text format parseable), AC-5 (contains peer, msgID, families, NLRIs).
+// VALIDATES: AC-4 (bgp-rs text format parseable), AC-5 (contains peer, msgID, families, NLRIs).
 //
-// PREVENTS: Text format events not being parseable by bgp-rr dispatch/workers.
+// PREVENTS: Text format events not being parseable by bgp-rs dispatch/workers.
 func TestTextUpdateParseableByFields(t *testing.T) {
 	tests := []struct {
 		name     string

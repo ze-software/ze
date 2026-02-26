@@ -23,7 +23,7 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 | Plugin | RFC concept | Role |
 |--------|-------------|------|
 | bgp-adj-rib-in (spec rib-02) | Adj-RIBs-In | Stores all received routes per source peer |
-| bgp-rr (spec rib-03) | Route Server | Forward-all, uses adj-rib-in for replay |
+| bgp-rs (spec rib-03) | Route Server | Forward-all, uses adj-rib-in for replay |
 | **bgp-rib (this spec)** | Loc-RIB | Single best-path per prefix |
 
 **Depends on:** spec-rib-02-adj-rib-in.md only (parallel with spec rib-03, not sequential)
@@ -206,7 +206,7 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 - Best-path selection is a pure function on a candidate set — highly testable in isolation
 - Notification from bgp-adj-rib-in to bgp-rib uses same dispatch-command mechanism as spec rib-03
 - Loc-RIB does not need to store full wire bytes — only parsed attributes for comparison
-- This spec depends only on spec rib-02 (bgp-adj-rib-in), NOT spec rib-03 (RR integration)
+- This spec depends only on spec rib-02 (bgp-adj-rib-in), NOT spec rib-03 (RS integration)
 - Future: route policy/filtering and per-destination-peer selection are separate concerns
 - Pool review: separate NLRI pooling from attribute dedup — different access patterns, different lifecycle
 

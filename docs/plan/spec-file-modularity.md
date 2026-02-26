@@ -422,7 +422,7 @@ Not applicable — no data flow changes. Files are reorganized within existing p
 | Persistence + backup + rollback | ~150 | `editor_persist.go` |
 | Diff utility | ~100 | `editor.go` (keep) |
 
-#### `internal/plugins/bgp-rr/server.go` — 880 lines
+#### `internal/plugins/bgp-rs/server.go` — 880 lines
 
 | Concern | Approx Lines | Target File |
 |---------|------:|-------------|

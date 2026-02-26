@@ -36,7 +36,7 @@ func NewMetrics() *Metrics {
 	})
 	routesReceived := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "ze_chaos_routes_received_total",
-		Help: "Total routes received back from the route reflector.",
+		Help: "Total routes received back from the route server.",
 	})
 	routesWithdrawn := prometheus.NewCounter(prometheus.CounterOpts{
 		Name: "ze_chaos_routes_withdrawn_total",

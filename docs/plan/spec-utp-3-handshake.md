@@ -111,7 +111,7 @@ register family ipv4/unicast mode both family ipv6/unicast mode encode
 register command rib-show description "Show RIB entries" args peer,type completable true
 register dependency bgp-rib
 register config-root bgp,bgp/peer
-register schema module bgp-rr namespace urn:bgp-rr handler bgp:route-reflection
+register schema module bgp-rs namespace urn:bgp-rs handler bgp:route-reflection
 register cache-consumer true cache-consumer-unordered false
 register wants-validate-open true
 ```

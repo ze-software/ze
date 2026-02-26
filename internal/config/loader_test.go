@@ -1000,11 +1000,11 @@ func TestExpandDependencies_NoDuplicate(t *testing.T) {
 
 // TestExpandDependencies_Integration verifies LoadReactorWithPlugins auto-adds deps.
 //
-// VALIDATES: AC-1: LoadReactorWithPlugins with ["ze.bgp-rr"] produces list with both bgp-rr and bgp-adj-rib-in.
-// PREVENTS: bgp-rr starting without adj-rib-in, causing silent replay failure.
+// VALIDATES: AC-1: LoadReactorWithPlugins with ["ze.bgp-rs"] produces list with both bgp-rs and bgp-adj-rib-in.
+// PREVENTS: bgp-rs starting without adj-rib-in, causing silent replay failure.
 func TestExpandDependencies_Integration(t *testing.T) {
 	// This test uses the real registry (all plugins registered via init())
-	// to verify that bgp-rr's dependency on bgp-adj-rib-in is expanded.
+	// to verify that bgp-rs's dependency on bgp-adj-rib-in is expanded.
 	input := `
 bgp {
     router-id 10.0.0.1;
@@ -1015,12 +1015,12 @@ bgp {
     }
 }
 `
-	r, err := LoadReactorWithPlugins(input, "-", []string{"ze.bgp-rr"})
+	r, err := LoadReactorWithPlugins(input, "-", []string{"ze.bgp-rs"})
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
-	// Check that the reactor's plugin list contains both bgp-rr and bgp-adj-rib-in
+	// Check that the reactor's plugin list contains both bgp-rs and bgp-adj-rib-in
 	pluginNames := r.PluginNames()
-	assert.Contains(t, pluginNames, "bgp-rr", "bgp-rr should be in plugin list")
+	assert.Contains(t, pluginNames, "bgp-rs", "bgp-rs should be in plugin list")
 	assert.Contains(t, pluginNames, "bgp-adj-rib-in", "bgp-adj-rib-in should be auto-added")
 }

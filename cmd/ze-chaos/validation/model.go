@@ -1,7 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md — property-based validation
 //
 // Package validation implements the expected/actual route state model
-// for verifying route reflector propagation correctness.
+// for verifying route server propagation correctness.
 package validation
 
 import (
@@ -151,7 +151,7 @@ func (m *Model) Disconnect(peer int) {
 }
 
 // Expected computes the set of prefixes that peer should have received
-// from the route reflector. This is the union of all routes announced by
+// from the route server. This is the union of all routes announced by
 // other established peers.
 //
 // Uses the incrementally maintained globalAnnounced refcount map instead

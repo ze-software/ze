@@ -23,7 +23,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-role"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-route-refresh"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rr"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rs"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-softver"
 )
 

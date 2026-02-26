@@ -1,8 +1,8 @@
-// Design: docs/architecture/core-design.md — route reflector plugin
+// Design: docs/architecture/core-design.md — route server plugin
 // Related: worker.go — per-source-peer worker pool with backpressure
 // Related: peer.go — PeerState tracking (families, up/down)
 
-package bgp_rr
+package bgp_rs
 
 import (
 	"context"
@@ -170,7 +170,7 @@ type forwardCmd struct {
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunRouteServer(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-rr", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-rs", engineConn, callbackConn)
 	defer func() { _ = p.Close() }()
 
 	rs := &RouteServer{
@@ -179,14 +179,14 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 
-	// ZE_RR_CHAN_SIZE overrides the per-source-peer worker channel capacity.
+	// ZE_RS_CHAN_SIZE overrides the per-source-peer worker channel capacity.
 	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
 	rrChanSize := 4096
-	if v := os.Getenv("ZE_RR_CHAN_SIZE"); v != "" {
+	if v := os.Getenv("ZE_RS_CHAN_SIZE"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
 			rrChanSize = n
 		} else if err != nil {
-			logger().Warn("ignoring invalid ZE_RR_CHAN_SIZE", "value", v, "error", err)
+			logger().Warn("ignoring invalid ZE_RS_CHAN_SIZE", "value", v, "error", err)
 		}
 	}
 
@@ -225,7 +225,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		return nil
 	})
 
-	// Register command handler: responds to "rr status" and "rr peers"
+	// Register command handler: responds to "rs status" and "rs peers"
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
 		return rs.handleCommand(command)
 	})
@@ -268,14 +268,14 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		// already gone (ErrUpdateExpired).
 		CacheConsumer: true,
 		// CacheConsumerUnordered: true switches from cumulative (TCP-like) ack
-		// to per-entry ack. bgp-rr uses per-peer workers that process entries
+		// to per-entry ack. bgp-rs uses per-peer workers that process entries
 		// out of global FIFO order — without this, acking a high ID from the
 		// heavy-peer worker would cumulatively evict intermediate entries that
 		// small-peer workers haven't processed yet, causing ErrUpdateExpired.
 		CacheConsumerUnordered: true,
 		Commands: []sdk.CommandDecl{
-			{Name: "rr status", Description: "Show RS status"},
-			{Name: "rr peers", Description: "Show peer states"},
+			{Name: "rs status", Description: "Show RS status"},
+			{Name: "rs peers", Description: "Show peer states"},
 		},
 	})
 
@@ -754,7 +754,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 
 	// Full replay from index 0.
 	// Retry on transient failure: adj-rib-in may not have completed stage 5
-	// (command registration) when bgp-rr's subscriptions activate.
+	// (command registration) when bgp-rs's subscriptions activate.
 	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
 	var status, data string
 	var err error
@@ -907,9 +907,9 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 // Returns (status, data, error) for the SDK to send back to the engine.
 func (rs *RouteServer) handleCommand(command string) (string, string, error) {
 	switch command {
-	case "rr status":
+	case "rs status":
 		return statusDone, `{"running":true}`, nil
-	case "rr peers":
+	case "rs peers":
 		return statusDone, rs.peersJSON(), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)
@@ -983,7 +983,7 @@ type CapabilityInfo struct {
 
 // --- Text event parsing ---
 //
-// Text format replaces JSON for the bgp-rr hot path.
+// Text format replaces JSON for the bgp-rs hot path.
 // Uniform header: "peer <addr> asn <n> <dir> <type> <id> ..."
 // State:          "peer <addr> asn <n> state <state>"
 // Parsed with TextScanner (zero-copy token extraction from original string).

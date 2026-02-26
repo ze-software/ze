@@ -180,7 +180,7 @@ type ReactorLifecycle interface {
 	// RegisterCacheConsumer initializes tracking for a cache-consumer plugin.
 	// unordered=false: FIFO consumer (cumulative ack — existing behavior).
 	// unordered=true: per-entry ack only, no cumulative sweep. Required for
-	// consumers like bgp-rr that process entries out of global message ID order.
+	// consumers like bgp-rs that process entries out of global message ID order.
 	// Called when a plugin declares cache-consumer: true during Stage 1 registration.
 	RegisterCacheConsumer(name string, unordered bool)
 

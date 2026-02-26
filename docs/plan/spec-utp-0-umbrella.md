@@ -80,7 +80,7 @@ Each spec builds on the shared infrastructure from the previous one. The event f
 
 ### Source Files
 - [ ] `internal/plugins/bgp/format/text.go` — event formatter
-- [ ] `internal/plugins/bgp-rr/server.go` — event parser
+- [ ] `internal/plugins/bgp-rs/server.go` — event parser
 - [ ] `internal/plugins/bgp/handler/update_text.go` — command parser
 - [ ] `internal/plugin/command.go` — command dispatcher + tokenizer
 - [ ] `pkg/plugin/rpc/types.go` — JSON-RPC type definitions

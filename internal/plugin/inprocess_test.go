@@ -39,7 +39,7 @@ func TestGetInternalPluginRunner(t *testing.T) {
 	}{
 		{"bgp-rib", false},
 		{"bgp-gr", false},
-		{"bgp-rr", false},
+		{"bgp-rs", false},
 		{"unknown", true},
 		{"", true},
 	}

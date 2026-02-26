@@ -78,7 +78,7 @@ The tool:
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/bgp-rr/server.go` - Route reflector plugin: receives UPDATE events, forwards via `cache <id> forward !<source>` to all other peers that support the family
+- [ ] `internal/plugins/bgp-rs/server.go` - Route server plugin: receives UPDATE events, forwards via `cache <id> forward !<source>` to all other peers that support the family
 - [ ] `internal/plugins/bgp/reactor/reactor.go` - Manages peer lifecycle, message dispatching, recent UPDATE cache
 - [ ] `internal/test/peer/peer.go` - Test peer: sink/echo/check modes, single-peer-at-a-time
 
@@ -339,8 +339,8 @@ The tool generates a complete Ze config matching the scenario:
 # Peers: 4 (1 iBGP, 3 eBGP)
 
 plugin {
-    internal bgp-rr {
-        run "ze.bgp-rr";
+    internal bgp-rs {
+        run "ze.bgp-rs";
         encoder json;
     }
 }
@@ -363,7 +363,7 @@ bgp {
         capability {
             graceful-restart disable;
         }
-        process bgp-rr {
+        process bgp-rs {
             send { update; }
         }
     }
@@ -382,7 +382,7 @@ bgp {
         capability {
             graceful-restart disable;
         }
-        process bgp-rr {
+        process bgp-rs {
             send { update; }
         }
     }

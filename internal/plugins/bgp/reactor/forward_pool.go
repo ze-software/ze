@@ -108,7 +108,7 @@ type fwdWorker struct {
 // Workers are created lazily on first Dispatch and exit after idle timeout.
 // Each key has exactly one worker goroutine — FIFO ordering is preserved per key.
 //
-// Unlike bgp-rr/workerPool (single-goroutine caller), fwdPool supports concurrent
+// Unlike bgp-rs/workerPool (single-goroutine caller), fwdPool supports concurrent
 // Dispatch and Stop from different goroutines (RPC workers vs reactor shutdown).
 type fwdPool struct {
 	mu      sync.Mutex

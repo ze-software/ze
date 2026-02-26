@@ -1,7 +1,7 @@
-// Design: docs/architecture/core-design.md — route reflector plugin
+// Design: docs/architecture/core-design.md — route server plugin
 // Related: server.go — RouteServer uses PeerState for peer tracking and forwarding decisions
 
-package bgp_rr
+package bgp_rs
 
 // PeerState tracks the state of a BGP peer.
 type PeerState struct {

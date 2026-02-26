@@ -1,4 +1,4 @@
-package bgp_rr
+package bgp_rs
 
 import (
 	"sync"

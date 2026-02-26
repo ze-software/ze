@@ -35,9 +35,9 @@ func TestResolvePlugin(t *testing.T) {
 		},
 		{
 			name:     "internal_rr",
-			input:    "ze.bgp-rr",
+			input:    "ze.bgp-rs",
 			wantType: PluginTypeInternal,
-			wantName: "bgp-rr",
+			wantName: "bgp-rs",
 		},
 		// Local path (./path)
 		{
@@ -168,7 +168,7 @@ func repeatByte(b byte, n int) []byte {
 // VALIDATES: All known internal plugins are registered.
 // PREVENTS: Missing plugin registrations.
 func TestInternalPluginRegistry(t *testing.T) {
-	known := []string{"bgp-rib", "bgp-gr", "bgp-rr"}
+	known := []string{"bgp-rib", "bgp-gr", "bgp-rs"}
 
 	for _, name := range known {
 		t.Run(name, func(t *testing.T) {

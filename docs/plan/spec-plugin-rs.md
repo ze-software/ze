@@ -1,4 +1,4 @@
-# Spec: plugin-rr — Route Server & Persist Plugins
+# Spec: plugin-rr — Route Server (bgp-rs) & Persist Plugins
 
 ## Post-Compaction Recovery
 
@@ -7,8 +7,8 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/architecture/api/capability-contract.md` - engine API surface
 4. `docs/architecture/rib-transition.md` - RIB ownership model
-5. `internal/plugins/bgp-rr/server.go` - existing RR implementation
-6. `internal/plugins/bgp-rr/rib.go` - RIB storage
+5. `internal/plugins/bgp-rs/server.go` - existing RS implementation
+6. `internal/plugins/bgp-rs/rib.go` - RIB storage
 7. `.claude/rules/plugin-design.md` - plugin patterns
 
 ## Task
@@ -17,10 +17,10 @@ Two plugins sharing common RIB infrastructure:
 
 | Plugin | Binary Name | Use Case | RIB | Events |
 |--------|-------------|----------|-----|--------|
-| Route Server | `ze plugin bgp-rr` | IX route server (multi-peer) | ribIn | `update`, `state`, `open`, `refresh` |
+| Route Server | `ze plugin bgp-rs` | IX route server (multi-peer) | ribIn | `update`, `state`, `open`, `refresh` |
 | Persist | `ze plugin bgp-persist` | State persistence (single-peer) | ribOut | `update direction sent`, `state` |
 
-**RR plugin** forwards all UPDATEs to all peers except source (forward-all model, no best-path).
+**RS plugin (bgp-rs)** forwards all UPDATEs to all peers except source (forward-all model, no best-path).
 Stores routes in Adj-RIB-In for replay when a new peer comes up.
 
 **Persist plugin** tracks routes sent to peers and replays them on reconnect.
@@ -30,25 +30,25 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| RR plugin core | ✅ Done | `internal/plugins/bgp-rr/` |
-| RR RIB | ✅ Done | `internal/plugins/bgp-rr/rib.go` |
-| RR peer state | ✅ Done | `internal/plugins/bgp-rr/peer.go` |
-| RR unit tests | ✅ Done | `internal/plugins/bgp-rr/server_test.go`, `rib_test.go` |
-| RR registration | ✅ Done | `internal/plugins/bgp-rr/register.go` |
-| RR functional test | ⚠️ Partial | `test/plugin/plugin-rr-features.ci` (features only) |
+| RS plugin core | ✅ Done | `internal/plugins/bgp-rs/` |
+| RS RIB | ✅ Done | `internal/plugins/bgp-rs/rib.go` |
+| RS peer state | ✅ Done | `internal/plugins/bgp-rs/peer.go` |
+| RS unit tests | ✅ Done | `internal/plugins/bgp-rs/server_test.go`, `rib_test.go` |
+| RS registration | ✅ Done | `internal/plugins/bgp-rs/register.go` |
+| RS functional test | ⚠️ Partial | `test/plugin/plugin-rs-features.ci` (features only) |
 | Engine cache commands | ✅ Done | `internal/plugins/bgp/handler/cache.go` |
 | Peer selector `!<ip>` | ✅ Done | `internal/selector/selector.go` |
 | Sent event emission | ✅ Done | `internal/plugins/bgp/server/events.go` |
 | Config capability validation | ✅ Done | `internal/config/bgp.go` |
 | Persist plugin | ❌ Not started | — |
-| EOR on peer up | ❌ Missing | RR and persist both need this |
-| Cache retain/release | ❌ Not used | RR forwards but doesn't retain cache entries |
+| EOR on peer up | ❌ Missing | RS and persist both need this |
+| Cache retain/release | ❌ Not used | RS forwards but doesn't retain cache entries |
 
 ### Remaining Work
 
-1. **RR: Send EOR after replay** — on peer up, send End-of-RIB per family after replaying routes
-2. **RR: Cache retain/release** — retain msg-ids for routes in RIB, release on withdrawal/peer down
-3. **RR: End-to-end functional tests** — verify forwarding, replay, withdrawal across peers
+1. **RS: Send EOR after replay** — on peer up, send End-of-RIB per family after replaying routes
+2. **RS: Cache retain/release** — retain msg-ids for routes in RIB, release on withdrawal/peer down
+3. **RS: End-to-end functional tests** — verify forwarding, replay, withdrawal across peers
 4. **Persist plugin** — new plugin tracking outbound routes for reconnect replay
 5. **Persist: functional tests** — verify teardown/reconnect scenario
 
@@ -84,20 +84,20 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/bgp-rr/server.go` - RouteServer with event dispatch, forwarding, state handling
-- [ ] `internal/plugins/bgp-rr/rib.go` - RIB: Insert, Remove, ClearPeer, GetAllPeers
-- [ ] `internal/plugins/bgp-rr/peer.go` - PeerState with HasCapability, SupportsFamily
-- [ ] `internal/plugins/bgp-rr/register.go` - Plugin registration (bgp-rr, RFC 4456)
-- [ ] `internal/plugins/bgp-rr/server_test.go` - 13 unit tests covering all handlers
-- [ ] `internal/plugins/bgp-rr/rib_test.go` - RIB CRUD tests
+- [ ] `internal/plugins/bgp-rs/server.go` - RouteServer with event dispatch, forwarding, state handling
+- [ ] `internal/plugins/bgp-rs/rib.go` - RIB: Insert, Remove, ClearPeer, GetAllPeers
+- [ ] `internal/plugins/bgp-rs/peer.go` - PeerState with HasCapability, SupportsFamily
+- [ ] `internal/plugins/bgp-rs/register.go` - Plugin registration (bgp-rs, RFC 7947)
+- [ ] `internal/plugins/bgp-rs/server_test.go` - 13 unit tests covering all handlers
+- [ ] `internal/plugins/bgp-rs/rib_test.go` - RIB CRUD tests
 
 **Behavior to preserve:**
-- RR forwards UPDATEs via `cache <id> forward` to each eligible peer individually
+- RS forwards UPDATEs via `cache <id> forward` to each eligible peer individually
 - Peer down clears ribIn and sends withdrawals via `update text nlri <family> del <prefix>`
 - Peer up replays routes from other peers via `cache <id> forward`
 - OPEN events capture capabilities and families for filtering
 - Refresh events forwarded to peers with route-refresh capability
-- Commands `rr status` and `rr peers` return JSON
+- Commands `rs status` and `rs peers` return JSON
 
 **Behavior to change:**
 - Add EOR per family after replay on peer up
@@ -110,9 +110,9 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 - UPDATE wire bytes arrive from TCP peer → engine assigns msg-id → caches in RecentUpdateCache
 - Engine emits JSON event to subscribed plugins via deliver-event RPC (Socket B)
 
-### Transformation Path (RR)
+### Transformation Path (RS)
 1. Engine receives UPDATE, assigns msg-id, caches wire bytes
-2. Engine sends JSON event with msg-id to bgp-rr plugin
+2. Engine sends JSON event with msg-id to bgp-rs plugin
 3. Plugin parses event, extracts family/prefix from announce/withdraw maps
 4. Plugin inserts into RIB (peer → routeKey → Route with MsgID)
 5. Plugin sends `bgp cache <id> retain` to engine (keep for replay)
@@ -141,7 +141,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 ### Architectural Verification
 - [ ] No bypassed layers (plugin uses SDK, not direct reactor access)
-- [ ] No unintended coupling (bgp-rr and bgp-persist are separate packages)
+- [ ] No unintended coupling (bgp-rs and bgp-persist are separate packages)
 - [ ] No duplicated functionality (persist reuses RIB/PeerState types — consider shared package)
 - [ ] Zero-copy preserved (cache forward, not announce from pool)
 
@@ -149,43 +149,43 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Peer A sends UPDATE | RR forwards to all other established peers via cache forward |
-| AC-2 | Peer A sends UPDATE with ipv6/unicast | RR skips peers without ipv6/unicast family |
-| AC-3 | Peer A sends withdrawal | RR removes from ribIn, forwards withdrawal to others |
-| AC-4 | Peer A goes down | RR clears ribIn for A, sends withdrawals to all others, releases retained cache entries |
-| AC-5 | Peer B comes up | RR replays all routes from other peers to B, sends EOR per family |
-| AC-6 | Peer A requests route-refresh | RR forwards refresh to peers with route-refresh capability |
-| AC-7 | RR inserts route | Cache entry retained (survives TTL) |
-| AC-8 | RR removes route | Cache entry released (can be evicted) |
+| AC-1 | Peer A sends UPDATE | RS forwards to all other established peers via cache forward |
+| AC-2 | Peer A sends UPDATE with ipv6/unicast | RS skips peers without ipv6/unicast family |
+| AC-3 | Peer A sends withdrawal | RS removes from ribIn, forwards withdrawal to others |
+| AC-4 | Peer A goes down | RS clears ribIn for A, sends withdrawals to all others, releases retained cache entries |
+| AC-5 | Peer B comes up | RS replays all routes from other peers to B, sends EOR per family |
+| AC-6 | Peer A requests route-refresh | RS forwards refresh to peers with route-refresh capability |
+| AC-7 | RS inserts route | Cache entry retained (survives TTL) |
+| AC-8 | RS removes route | Cache entry released (can be evicted) |
 | AC-9 | Engine sends UPDATE to peer X | Persist plugin stores in ribOut with msg-id |
 | AC-10 | Peer X reconnects (persist mode) | Persist replays ribOut routes via cache forward, sends EOR |
 | AC-11 | Peer X goes down (persist mode) | Persist marks peer down, keeps ribOut intact |
-| AC-12 | `rr status` command | Returns `{"running":true}` |
-| AC-13 | `rr peers` command | Returns JSON array of peer objects |
+| AC-12 | `rs status` command | Returns `{"running":true}` |
+| AC-13 | `rs peers` command | Returns JSON array of peer objects |
 
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestServer_HandleUpdate` | `bgp-rr/server_test.go` | UPDATE stores in RIB | ✅ Done |
-| `TestServer_HandleWithdraw` | `bgp-rr/server_test.go` | Withdrawal removes from RIB | ✅ Done |
-| `TestServer_HandleStateDown` | `bgp-rr/server_test.go` | Peer down clears RIB | ✅ Done |
-| `TestServer_HandleStateUp` | `bgp-rr/server_test.go` | Peer up sets state | ✅ Done |
-| `TestServer_HandleStateUp_ExcludesSelf` | `bgp-rr/server_test.go` | Replay excludes self | ✅ Done |
-| `TestServer_HandleRefresh` | `bgp-rr/server_test.go` | Refresh forwarded | ✅ Done |
-| `TestServer_HandleOpen` | `bgp-rr/server_test.go` | Capabilities parsed | ✅ Done |
-| `TestServer_FilterUpdateByFamily` | `bgp-rr/server_test.go` | Family filtering | ✅ Done |
-| `TestServer_FilterRefreshByCapability` | `bgp-rr/server_test.go` | Capability filtering | ✅ Done |
-| `TestServer_FilterReplayByFamily` | `bgp-rr/server_test.go` | Replay family filter | ✅ Done |
-| `TestServer_HandleCommand_Status` | `bgp-rr/server_test.go` | rr status | ✅ Done |
-| `TestServer_HandleCommand_Peers` | `bgp-rr/server_test.go` | rr peers | ✅ Done |
-| `TestServer_HandleCommand_Unknown` | `bgp-rr/server_test.go` | Unknown command error | ✅ Done |
-| `TestServer_IgnoreEmptyPeer` | `bgp-rr/server_test.go` | Empty peer rejected | ✅ Done |
-| `TestServer_HandleUpdate_RetainsCache` | `bgp-rr/server_test.go` | UPDATE triggers retain | |
-| `TestServer_HandleWithdraw_ReleasesCache` | `bgp-rr/server_test.go` | Withdrawal triggers release | |
-| `TestServer_HandleStateDown_ReleasesCache` | `bgp-rr/server_test.go` | Peer down releases all | |
-| `TestServer_HandleStateUp_SendsEOR` | `bgp-rr/server_test.go` | EOR sent per family after replay | |
+| `TestServer_HandleUpdate` | `bgp-rs/server_test.go` | UPDATE stores in RIB | ✅ Done |
+| `TestServer_HandleWithdraw` | `bgp-rs/server_test.go` | Withdrawal removes from RIB | ✅ Done |
+| `TestServer_HandleStateDown` | `bgp-rs/server_test.go` | Peer down clears RIB | ✅ Done |
+| `TestServer_HandleStateUp` | `bgp-rs/server_test.go` | Peer up sets state | ✅ Done |
+| `TestServer_HandleStateUp_ExcludesSelf` | `bgp-rs/server_test.go` | Replay excludes self | ✅ Done |
+| `TestServer_HandleRefresh` | `bgp-rs/server_test.go` | Refresh forwarded | ✅ Done |
+| `TestServer_HandleOpen` | `bgp-rs/server_test.go` | Capabilities parsed | ✅ Done |
+| `TestServer_FilterUpdateByFamily` | `bgp-rs/server_test.go` | Family filtering | ✅ Done |
+| `TestServer_FilterRefreshByCapability` | `bgp-rs/server_test.go` | Capability filtering | ✅ Done |
+| `TestServer_FilterReplayByFamily` | `bgp-rs/server_test.go` | Replay family filter | ✅ Done |
+| `TestServer_HandleCommand_Status` | `bgp-rs/server_test.go` | rs status | ✅ Done |
+| `TestServer_HandleCommand_Peers` | `bgp-rs/server_test.go` | rs peers | ✅ Done |
+| `TestServer_HandleCommand_Unknown` | `bgp-rs/server_test.go` | Unknown command error | ✅ Done |
+| `TestServer_IgnoreEmptyPeer` | `bgp-rs/server_test.go` | Empty peer rejected | ✅ Done |
+| `TestServer_HandleUpdate_RetainsCache` | `bgp-rs/server_test.go` | UPDATE triggers retain | |
+| `TestServer_HandleWithdraw_ReleasesCache` | `bgp-rs/server_test.go` | Withdrawal triggers release | |
+| `TestServer_HandleStateDown_ReleasesCache` | `bgp-rs/server_test.go` | Peer down releases all | |
+| `TestServer_HandleStateUp_SendsEOR` | `bgp-rs/server_test.go` | EOR sent per family after replay | |
 | `TestPersist_HandleSentEvent` | `bgp-persist/server_test.go` | Sent event stores in ribOut | |
 | `TestPersist_HandleStateDown` | `bgp-persist/server_test.go` | Peer down keeps ribOut | |
 | `TestPersist_HandleStateUp` | `bgp-persist/server_test.go` | Peer up replays ribOut | |
@@ -200,16 +200,16 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `plugin-rr-features` | `test/plugin/plugin-rr-features.ci` | `--features` output | ✅ Done |
-| `plugin-rr-forward` | `test/plugin/plugin-rr-forward.ci` | A announces, B and C receive | |
-| `plugin-rr-peer-down` | `test/plugin/plugin-rr-peer-down.ci` | A down, B and C get withdrawals | |
-| `plugin-rr-peer-up-replay` | `test/plugin/plugin-rr-peer-up-replay.ci` | C reconnects, gets A and B routes + EOR | |
+| `plugin-rs-features` | `test/plugin/plugin-rs-features.ci` | `--features` output | ✅ Done |
+| `plugin-rs-forward` | `test/plugin/plugin-rs-forward.ci` | A announces, B and C receive | |
+| `plugin-rs-peer-down` | `test/plugin/plugin-rs-peer-down.ci` | A down, B and C get withdrawals | |
+| `plugin-rs-peer-up-replay` | `test/plugin/plugin-rs-peer-up-replay.ci` | C reconnects, gets A and B routes + EOR | |
 | `plugin-persist-features` | `test/plugin/plugin-persist-features.ci` | `--features` output | |
 | `plugin-persist-reconnect` | `test/plugin/plugin-persist-reconnect.ci` | API sends, peer reconnects, gets replay | |
 
 ## Files to Modify
-- `internal/plugins/bgp-rr/server.go` - Add EOR on peer up, cache retain/release
-- `internal/plugins/bgp-rr/server_test.go` - Tests for EOR, retain, release
+- `internal/plugins/bgp-rs/server.go` - Add EOR on peer up, cache retain/release
+- `internal/plugins/bgp-rs/server_test.go` - Tests for EOR, retain, release
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -218,18 +218,18 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 | RPC count in architecture docs | [ ] No | No new RPCs |
 | CLI commands/flags | [ ] No | Uses existing `ze plugin` dispatch |
 | CLI usage/help text | [ ] No | Auto-generated from registration |
-| API commands doc | [ ] No | `rr status`, `rr peers` already documented |
+| API commands doc | [ ] No | `rs status`, `rs peers` already documented |
 | Plugin SDK docs | [ ] No | No new SDK methods |
 | Editor autocomplete | [ ] No | YANG-driven |
-| Functional test for new RPC/API | [x] Yes | `test/plugin/plugin-rr-*.ci`, `test/plugin/plugin-persist-*.ci` |
+| Functional test for new RPC/API | [x] Yes | `test/plugin/plugin-rs-*.ci`, `test/plugin/plugin-persist-*.ci` |
 
 ## Files to Create
 - `internal/plugins/bgp-persist/server.go` - PersistServer implementation
 - `internal/plugins/bgp-persist/server_test.go` - Unit tests
 - `internal/plugins/bgp-persist/register.go` - Plugin registration
-- `test/plugin/plugin-rr-forward.ci` - Functional: forwarding
-- `test/plugin/plugin-rr-peer-down.ci` - Functional: peer down
-- `test/plugin/plugin-rr-peer-up-replay.ci` - Functional: replay + EOR
+- `test/plugin/plugin-rs-forward.ci` - Functional: forwarding
+- `test/plugin/plugin-rs-peer-down.ci` - Functional: peer down
+- `test/plugin/plugin-rs-peer-up-replay.ci` - Functional: replay + EOR
 - `test/plugin/plugin-persist-features.ci` - Functional: features
 - `test/plugin/plugin-persist-reconnect.ci` - Functional: reconnect replay
 
@@ -240,7 +240,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 ## Implementation Steps
 
-### Phase 1: RR — EOR + Cache Lifecycle (existing plugin enhancements)
+### Phase 1: RS — EOR + Cache Lifecycle (existing plugin enhancements)
 
 1. **Write tests** for EOR on peer up and cache retain/release
    → **Review:** Do tests cover all families in peer's capability set?
@@ -270,7 +270,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 9. **Run tests** — verify FAIL
 
 10. **Implement PersistServer** — event dispatch, ribOut storage, replay on peer up
-    → **Review:** Reuses RIB/PeerState types or copies from bgp-rr?
+    → **Review:** Reuses RIB/PeerState types or copies from bgp-rs?
 
 11. **Run tests** — verify PASS
 
@@ -280,7 +280,7 @@ Needed for Test C (teardown scenario) where API process announcements must survi
 
 ### Phase 3: Functional Tests
 
-14. **Create functional tests** for RR forwarding, peer down, replay
+14. **Create functional tests** for RS forwarding, peer down, replay
     → **Review:** Tests exercise real engine ↔ plugin communication?
 
 15. **Create functional tests** for persist reconnect scenario
@@ -305,23 +305,23 @@ Commands used by both plugins (all ✅ implemented):
 
 | Command | Description | Used By |
 |---------|-------------|---------|
-| `bgp cache <id> forward <sel>` | Zero-copy forward cached UPDATE | RR (forward to peers), Persist (replay) |
-| `bgp cache <id> retain` | Prevent cache eviction | RR (keep for replay) |
-| `bgp cache <id> release` | Allow cache eviction | RR (route withdrawn/peer down) |
+| `bgp cache <id> forward <sel>` | Zero-copy forward cached UPDATE | RS (forward to peers), Persist (replay) |
+| `bgp cache <id> retain` | Prevent cache eviction | RS (keep for replay) |
+| `bgp cache <id> release` | Allow cache eviction | RS (route withdrawn/peer down) |
 | `bgp cache list` | List cached msg-ids | Debugging |
-| `peer <sel> update text nlri <family> del <prefix>` | Send withdrawal | RR (peer down) |
-| `peer <sel> update text nlri <family> eor` | Send End-of-RIB marker | RR + Persist (after replay) |
-| `peer <sel> refresh <family>` | Request route refresh | RR (refresh forwarding) |
+| `peer <sel> update text nlri <family> del <prefix>` | Send withdrawal | RS (peer down) |
+| `peer <sel> update text nlri <family> eor` | Send End-of-RIB marker | RS + Persist (after replay) |
+| `peer <sel> refresh <family>` | Request route refresh | RS (refresh forwarding) |
 
 Event subscriptions:
 
 | Subscription | Direction | Used By |
 |-------------|-----------|---------|
-| `update` | received (default) | RR |
+| `update` | received (default) | RS |
 | `update direction sent` | sent | Persist |
-| `state` | both | RR + Persist |
-| `open` | received | RR (capability capture) |
-| `refresh` | received | RR |
+| `state` | both | RS + Persist |
+| `open` | received | RS (capability capture) |
+| `refresh` | received | RS |
 
 ## State
 
@@ -351,7 +351,7 @@ Event subscriptions:
 
 Route key format: `family + "|" + prefix`
 
-### RouteServer (RR)
+### RouteServer (RS)
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -368,12 +368,12 @@ Route key format: `family + "|" + prefix`
 | ribOut | RIB | Routes SENT TO peers (for replay) |
 
 **Key difference:**
-- `rib` (RR): Routes received FROM peers → forward to others, clear on peer down
+- `rib` (RS): Routes received FROM peers → forward to others, clear on peer down
 - `ribOut` (Persist): Routes sent TO peers → replay on reconnect, keep on peer down
 
 ## Event Handling
 
-### UPDATE Received (RR)
+### UPDATE Received (RS)
 
 **Trigger:** `subscribe bgp event update` (received direction, default)
 
@@ -383,7 +383,7 @@ Route key format: `family + "|" + prefix`
 3. For each withdrawn family/prefix: remove from RIB, release old cache entry
 4. Forward UPDATE to all eligible peers via `bgp cache <id> forward`
 
-### Peer Down (RR)
+### Peer Down (RS)
 
 **Trigger:** `subscribe bgp event state`
 
@@ -392,7 +392,7 @@ Route key format: `family + "|" + prefix`
 2. For each cleared route: send withdrawal to other peers, release cache entry
 3. Mark peer as down
 
-### Peer Up (RR)
+### Peer Up (RS)
 
 **Trigger:** `subscribe bgp event state`
 
@@ -430,7 +430,7 @@ Route key format: `family + "|" + prefix`
 | No per-peer filtering | All peers get same routes (except source exclusion) |
 | Replay sends all cached UPDATEs | Peers handle duplicates gracefully |
 | ADD-PATH not supported | Deferred — would eliminate last-wins problem |
-| No shared RIB/PeerState package | bgp-persist copies types from bgp-rr (consider extracting later) |
+| No shared RIB/PeerState package | bgp-persist copies types from bgp-rs (consider extracting later) |
 
 ## Mistake Log
 
@@ -465,15 +465,15 @@ Route key format: `family + "|" + prefix`
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-| RR forwards UPDATEs to all except source | ✅ Done | `bgp-rr/server.go:171` | |
-| RR stores routes in ribIn | ✅ Done | `bgp-rr/rib.go` | |
-| RR peer down clears ribIn + sends withdrawals | ✅ Done | `bgp-rr/server.go:222` | |
-| RR peer up replays from other peers | ✅ Done | `bgp-rr/server.go:233` | |
-| RR filters by family | ✅ Done | `bgp-rr/server.go:183` | |
-| RR handles route-refresh | ✅ Done | `bgp-rr/server.go:299` | |
-| RR sends EOR after replay | | | |
-| RR retains cache entries | | | |
-| RR releases cache entries on withdrawal/down | | | |
+| RS forwards UPDATEs to all except source | ✅ Done | `bgp-rs/server.go:171` | |
+| RS stores routes in ribIn | ✅ Done | `bgp-rs/rib.go` | |
+| RS peer down clears ribIn + sends withdrawals | ✅ Done | `bgp-rs/server.go:222` | |
+| RS peer up replays from other peers | ✅ Done | `bgp-rs/server.go:233` | |
+| RS filters by family | ✅ Done | `bgp-rs/server.go:183` | |
+| RS handles route-refresh | ✅ Done | `bgp-rs/server.go:299` | |
+| RS sends EOR after replay | | | |
+| RS retains cache entries | | | |
+| RS releases cache entries on withdrawal/down | | | |
 | Persist plugin tracks sent routes | | | |
 | Persist keeps ribOut on peer down | | | |
 | Persist replays on peer up + EOR | | | |
@@ -504,8 +504,8 @@ Route key format: `family + "|" + prefix`
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/plugins/bgp-rr/server.go` | ✅ Exists | Needs EOR + cache lifecycle |
-| `internal/plugins/bgp-rr/server_test.go` | ✅ Exists | Needs new tests |
+| `internal/plugins/bgp-rs/server.go` | ✅ Exists | Needs EOR + cache lifecycle |
+| `internal/plugins/bgp-rs/server_test.go` | ✅ Exists | Needs new tests |
 | `internal/plugins/bgp-persist/server.go` | | Not created |
 | `internal/plugins/bgp-persist/register.go` | | Not created |
 | `internal/plugins/bgp-persist/server_test.go` | | Not created |
@@ -523,7 +523,7 @@ Route key format: `family + "|" + prefix`
 - [ ] Acceptance criteria AC-1..AC-13 all demonstrated
 - [ ] `make ze-unit-test` passes
 - [ ] `make ze-functional-test` passes
-- [ ] Feature code integrated into codebase (`internal/plugins/bgp-rr/`, `internal/plugins/bgp-persist/`)
+- [ ] Feature code integrated into codebase (`internal/plugins/bgp-rs/`, `internal/plugins/bgp-persist/`)
 
 ### Quality Gates (SHOULD pass — can defer with explicit user approval)
 - [ ] `make ze-lint` passes
@@ -534,7 +534,7 @@ Route key format: `family + "|" + prefix`
 ### 🏗️ Design
 - [ ] No premature abstraction (shared RIB package deferred until 3+ users)
 - [ ] No speculative features (ADD-PATH deferred)
-- [ ] Single responsibility (RR and persist are separate plugins)
+- [ ] Single responsibility (RS and persist are separate plugins)
 - [ ] Explicit behavior (forward-all model, no hidden best-path)
 - [ ] Minimal coupling (plugins use SDK, not direct engine imports)
 

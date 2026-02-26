@@ -1,9 +1,9 @@
 # Text Parser Architecture
 
-The text parser lives in `internal/plugins/bgp-rr/server.go`. It is the only consumer of the text format
-on the hot path (route reflector forwarding). Other plugins use JSON via `shared/event.go`.
+The text parser lives in `internal/plugins/bgp-rs/server.go`. It is the only consumer of the text format
+on the hot path (route server forwarding). Other plugins use JSON via `shared/event.go`.
 
-Source of truth: `internal/plugins/bgp-rr/server.go` (all `parse*` functions).
+Source of truth: `internal/plugins/bgp-rs/server.go` (all `parse*` functions).
 
 ## Current Parser
 
@@ -173,4 +173,4 @@ All messages start with `peer <ip> asn <n>`. Quick parse: byte-scan for first 4 
 
 ### Proposed Shared Parser Location (future)
 
-Move from bgp-rr to `internal/plugin/bgp/shared/textparse.go` so other plugins can reuse the text parser.
+Move from bgp-rs to `internal/plugin/bgp/shared/textparse.go` so other plugins can reuse the text parser.

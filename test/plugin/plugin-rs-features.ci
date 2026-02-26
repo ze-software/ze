@@ -1,0 +1,5 @@
+# plugin-rs-features - verify route server plugin --features output
+# Tests that ze plugin bgp-rs --features lists supported features
+
+cmd=foreground:seq=1:exec=ze plugin bgp-rs --features
+expect=exit:code=0

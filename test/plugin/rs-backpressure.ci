@@ -1,5 +1,5 @@
-# rr-backpressure - verify RR flow control wiring with minimal channel capacity
-# Tests: ZE_RR_CHAN_SIZE=1 env var, dispatch-worker-RIB path at minimum capacity,
+# rs-backpressure - verify RS flow control wiring with minimal channel capacity
+# Tests: ZE_RS_CHAN_SIZE=1 env var, dispatch-worker-RIB path at minimum capacity,
 # wireFlowControl startup, resumeAllPaused shutdown cleanup.
 # Single-peer: no forward targets, so pause/resume RPCs do not fire.
 # Full multi-peer backpressure deferred to spec-inprocess-chaos.
@@ -26,7 +26,7 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external rr {
-		run "ze.bgp-rr";
+		run "ze.bgp-rs";
 	}
 }
 bgp {
@@ -44,6 +44,6 @@ bgp {
 }
 EOF_CONF
 
-option=env:var=ZE_RR_CHAN_SIZE:value=1
+option=env:var=ZE_RS_CHAN_SIZE:value=1
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

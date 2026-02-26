@@ -40,7 +40,7 @@ Ze ships with 15 plugins covering core BGP features and every supported address 
 | Plugin | Purpose |
 |--------|---------|
 | `bgp-rib` | Route Information Base — storage, best-path selection |
-| `bgp-rr` | Route Reflector (RFC 4456) |
+| `bgp-rs` | Route Server (RFC 7947) |
 | `bgp-gr` | Graceful Restart (RFC 4724, RFC 9494) |
 | `bgp-role` | Role negotiation and OTC filtering (RFC 9234) |
 | `bgp-hostname` | Hostname capability (RFC 9018) |

@@ -9,7 +9,7 @@ Ze is a **BGP daemon** written in Go. "Ze" = "The" with a French accent (predece
 ```
 Engine: Peers (FSM) → Reactor (event loop, BGP cache)
    ║ JSON + base64 wire bytes (down) / text commands (up)
-Plugin: bgp-rib, bgp-rr, bgp-gr, bgp-role, bgp-nlri-*, ...
+Plugin: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 ```
 
 **Key abstractions:**
@@ -28,7 +28,7 @@ Plugin: bgp-rib, bgp-rr, bgp-gr, bgp-role, bgp-nlri-*, ...
 | Area | Location |
 |------|----------|
 | Engine core | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
-| Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rr/`, `bgp-gr/`, `bgp-nlri-*/ ` |
+| Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/ ` |
 | Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
 | Config | `internal/config/`, YANG schemas in `internal/plugins/bgp/schema/` |
 | CLI | `cmd/ze/` (subcommands: bgp, validate, etc.) |

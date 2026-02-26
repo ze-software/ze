@@ -5,10 +5,10 @@
 // Related: subcommand.go — replay, shrink, diff subcommands and network utilities
 //
 // Command ze-chaos is a chaos monkey tool for testing Ze BGP route server
-// (route reflector) route propagation behavior.
+// (route server) route propagation behavior.
 //
 // It simulates multiple BGP peers, generates deterministic route announcements
-// from a seed, validates that the route reflector correctly propagates routes,
+// from a seed, validates that the route server correctly propagates routes,
 // and injects chaos events (disconnects, hold-timer expiry, etc.).
 //
 // Usage:

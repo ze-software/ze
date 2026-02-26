@@ -76,7 +76,7 @@ type RecentUpdateCache struct {
 	highestAddedID uint64
 
 	// nonFIFOConsumers tracks consumers that process entries out of global
-	// message ID order (e.g., per-source-peer workers in bgp-rr).
+	// message ID order (e.g., per-source-peer workers in bgp-rs).
 	// For these consumers, Ack() uses per-entry semantics: no cumulative
 	// ack loop, and id <= lastAck acks are not skipped.
 	nonFIFOConsumers map[string]bool
@@ -85,7 +85,7 @@ type RecentUpdateCache struct {
 // SetConsumerUnordered marks a registered consumer as non-FIFO (unordered).
 // Unordered consumers use per-entry acking: no cumulative ack loop,
 // and id <= lastAck acks are not skipped. This is required for consumers
-// like bgp-rr that process entries out of global message ID order
+// like bgp-rs that process entries out of global message ID order
 // (e.g., per-source-peer worker pools).
 func (c *RecentUpdateCache) SetConsumerUnordered(name string) {
 	c.mu.Lock()
@@ -278,7 +278,7 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 // Unordered consumers (SetConsumerUnordered):
 //
 //	Per-entry ack only. No cumulative loop, no id <= lastAck skip.
-//	Required for consumers like bgp-rr that process entries out of global
+//	Required for consumers like bgp-rs that process entries out of global
 //	message ID order (per-source-peer workers).
 //
 // Returns ErrUpdateExpired if the target id is not in the cache.

@@ -20,7 +20,7 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 	tree.SetContainer("plugin", pluginContainer)
 
 	ext := NewTree()
-	ext.Set("run", "ze.bgp-rr")
+	ext.Set("run", "ze.bgp-rs")
 	pluginContainer.AddListEntry("external", "rr", ext)
 
 	plugins, err := ExtractPluginsFromTree(tree)
@@ -28,8 +28,8 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 	require.Len(t, plugins, 1)
 
 	assert.Equal(t, "rr", plugins[0].Name)
-	assert.Equal(t, "ze.bgp-rr", plugins[0].Run)
-	assert.True(t, plugins[0].Internal, "plugin with run ze.bgp-rr should be Internal")
+	assert.Equal(t, "ze.bgp-rs", plugins[0].Run)
+	assert.True(t, plugins[0].Internal, "plugin with run ze.bgp-rs should be Internal")
 }
 
 // TestExtractPluginsFromTree_ExternalPlugin verifies that external plugins
