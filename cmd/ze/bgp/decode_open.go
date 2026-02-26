@@ -89,7 +89,8 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 }
 
 // unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
-// Requires explicit --plugin flag to enable plugin decode.
+// Auto-invokes registered plugins for known capability codes (consistent with NLRI family auto-lookup).
+// Falls back to raw hex if no plugin is registered or decode fails.
 func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]any {
 	code := int(c.Code())
 	raw := make([]byte, c.Len())
@@ -99,9 +100,9 @@ func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]a
 		rawHex = fmt.Sprintf("%X", raw[2:])
 	}
 
-	// Plugin decode requires explicit --plugin flag.
+	// Auto-invoke registered plugin for known capability codes.
 	pluginName, hasPlugin := pluginCapabilityMap[uint8(c.Code())]
-	if hasPlugin && hasPluginEnabled(plugins, pluginName) {
+	if hasPlugin {
 		result := invokePluginDecode(pluginName, uint8(c.Code()), rawHex)
 		if result != nil {
 			result["code"] = code
