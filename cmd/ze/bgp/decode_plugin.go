@@ -196,8 +196,10 @@ func invokePluginNLRIDecodeRequest(pluginName, request string) any {
 // invokePluginPath executes an external plugin binary at the given path.
 // User-provided args are passed before the mandatory --decode flag.
 func invokePluginPath(path string, userArgs []string, request string) any {
-	// 5s allows for process startup chain (sh -> wrapper -> plugin binary --decode).
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 10s allows for process startup chain (sh -> wrapper -> plugin binary -> Go runtime init -> decode).
+	// Longer than invokePluginSubprocess (5s) because the external path may involve
+	// an extra shell layer and a separately-built binary.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// Build args: user args + --decode
 	cmdArgs := append(userArgs, "--decode")           //nolint:gocritic // intentional append to new slice
@@ -226,8 +228,10 @@ func invokePluginPath(path string, userArgs []string, request string) any {
 		slog.Debug("plugin path stdin close failed", "path", path, "err", err)
 	}
 
+	// Loop stdout lines — skip unexpected output (shell warnings, runtime messages)
+	// until we find the "decoded json ..." response or EOF.
 	scanner := bufio.NewScanner(stdout)
-	if scanner.Scan() {
+	for scanner.Scan() {
 		line := scanner.Text()
 		if result := parseDecodedJSON(line); result != nil {
 			if err := cmd.Wait(); err != nil {
@@ -240,6 +244,7 @@ func invokePluginPath(path string, userArgs []string, request string) any {
 	if err := cmd.Wait(); err != nil {
 		slog.Debug("plugin path wait failed", "path", path, "err", err)
 	}
+	slog.Debug("plugin path produced no decoded output", "path", path)
 	return nil
 }
 
