@@ -31,8 +31,8 @@ func (r *AdjRIBInManager) statusJSON() string {
 	totalRoutes := 0
 	peers := make(map[string]int)
 	for peer, routes := range r.ribIn {
-		peers[peer] = len(routes)
-		totalRoutes += len(routes)
+		peers[peer] = routes.Len()
+		totalRoutes += routes.Len()
 	}
 
 	data, _ := json.Marshal(map[string]any{
@@ -54,18 +54,19 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		routeList := make([]map[string]any, 0, len(routes))
-		for key, rt := range routes {
+		routeList := make([]map[string]any, 0, routes.Len())
+		routes.Range(func(key string, seq uint64, rt *RawRoute) bool {
 			routeMap := map[string]any{
 				"family":    rt.Family,
 				"key":       key,
 				"nhop-hex":  rt.NHopHex,
 				"attr-hex":  rt.AttrHex,
 				"nlri-hex":  rt.NLRIHex,
-				"seq-index": rt.SeqIndex,
+				"seq-index": seq,
 			}
 			routeList = append(routeList, routeMap)
-		}
+			return true
+		})
 		if len(routeList) > 0 {
 			result[peer] = routeList
 		}

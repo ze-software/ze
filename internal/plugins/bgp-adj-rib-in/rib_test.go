@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
+	"codeberg.org/thomas-mangin/ze/internal/seqmap"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -30,7 +31,7 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	t.Cleanup(func() { _ = p.Close() })
 	return &AdjRIBInManager{
 		plugin: p,
-		ribIn:  make(map[string]map[string]*RawRoute),
+		ribIn:  make(map[string]*seqmap.Map[string, *RawRoute]),
 		peerUp: make(map[string]bool),
 	}
 }
@@ -75,20 +76,23 @@ func TestStoreReceivedRoute(t *testing.T) {
 
 	require.Contains(t, r.ribIn, "10.0.0.1", "should have peer entry")
 	routes := r.ribIn["10.0.0.1"]
-	require.Len(t, routes, 1, "should have 1 route")
+	require.Equal(t, 1, routes.Len(), "should have 1 route")
 
-	// Find the stored route
+	// Find the stored route via Range
 	var route *RawRoute
-	for _, rt := range routes {
+	var routeSeq uint64
+	routes.Range(func(_ string, seq uint64, rt *RawRoute) bool {
 		route = rt
-	}
+		routeSeq = seq
+		return true
+	})
 	require.NotNil(t, route)
 
 	assert.Equal(t, "ipv4/unicast", route.Family)
 	assert.Equal(t, "40010100", route.AttrHex, "raw attributes should be stored as-is")
 	assert.Equal(t, "0a000001", route.NHopHex, "next-hop 10.0.0.1 as wire hex")
 	assert.Equal(t, "180a0000", route.NLRIHex, "NLRI wire bytes as hex")
-	assert.Equal(t, uint64(1), route.SeqIndex, "first route gets sequence 1")
+	assert.Equal(t, uint64(1), routeSeq, "first route gets sequence 1")
 }
 
 // TestStoreAllFamilies verifies VPN, EVPN, FlowSpec routes are stored (no filtering).
@@ -118,13 +122,14 @@ func TestStoreAllFamilies(t *testing.T) {
 	r.handleReceived(event)
 
 	require.Contains(t, r.ribIn, "10.0.0.1")
-	require.Len(t, r.ribIn["10.0.0.1"], 1, "VPN route should be stored")
+	require.Equal(t, 1, r.ribIn["10.0.0.1"].Len(), "VPN route should be stored")
 
 	// Verify the raw blob is used, not prefixToWireHex output.
 	var route *RawRoute
-	for _, rt := range r.ribIn["10.0.0.1"] {
+	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
 		route = rt
-	}
+		return true
+	})
 	require.NotNil(t, route)
 	assert.Equal(t, "ipv4/mpls-vpn", route.Family)
 	assert.Equal(t, "deadbeef", route.NLRIHex,
@@ -152,7 +157,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	require.Len(t, r.ribIn["10.0.0.1"], 1)
+	require.Equal(t, 1, r.ribIn["10.0.0.1"].Len())
 
 	// Then withdraw
 	withdraw := &shared.Event{
@@ -167,7 +172,7 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Empty(t, r.ribIn["10.0.0.1"], "route should be removed after withdrawal")
+	assert.Equal(t, 0, r.ribIn["10.0.0.1"].Len(), "route should be removed after withdrawal")
 }
 
 // TestReplayAllSources verifies replay sends "update hex" commands from all sources except target.
@@ -178,35 +183,28 @@ func TestReplayAllSources(t *testing.T) {
 	r := newTestManager(t)
 
 	// Store routes from peer A
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family:   "ipv4/unicast",
-			AttrHex:  "40010100",
-			NHopHex:  "0a000001",
-			NLRIHex:  "180a0000",
-			SeqIndex: 1,
-		},
-	}
+	m1 := seqmap.New[string, *RawRoute]()
+	m1.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	r.ribIn["10.0.0.1"] = m1
+
 	// Store routes from peer B
-	r.ribIn["10.0.0.2"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.1.0/24": {
-			Family:   "ipv4/unicast",
-			AttrHex:  "40010100",
-			NHopHex:  "0a000002",
-			NLRIHex:  "180a0001",
-			SeqIndex: 2,
-		},
-	}
+	m2 := seqmap.New[string, *RawRoute]()
+	m2.Put("ipv4/unicast:10.0.1.0/24", 2, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000002", NLRIHex: "180a0001",
+	})
+	r.ribIn["10.0.0.2"] = m2
+
 	// Store routes from target peer X (should be excluded)
-	r.ribIn["10.0.0.3"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.2.0/24": {
-			Family:   "ipv4/unicast",
-			AttrHex:  "40010100",
-			NHopHex:  "0a000003",
-			NLRIHex:  "180a0002",
-			SeqIndex: 3,
-		},
-	}
+	m3 := seqmap.New[string, *RawRoute]()
+	m3.Put("ipv4/unicast:10.0.2.0/24", 3, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000003", NLRIHex: "180a0002",
+	})
+	r.ribIn["10.0.0.3"] = m3
 
 	// Replay for target peer 10.0.0.3, from-index 0
 	cmds, _ := r.buildReplayCommands("10.0.0.3", 0)
@@ -229,20 +227,20 @@ func TestReplayAllSources(t *testing.T) {
 func TestReplayFromIndex(t *testing.T) {
 	r := newTestManager(t)
 
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family: "ipv4/unicast", AttrHex: "40010100",
-			NHopHex: "0a000001", NLRIHex: "180a0000", SeqIndex: 1,
-		},
-		"ipv4/unicast:10.0.1.0/24": {
-			Family: "ipv4/unicast", AttrHex: "40010100",
-			NHopHex: "0a000001", NLRIHex: "180a0001", SeqIndex: 5,
-		},
-		"ipv4/unicast:10.0.2.0/24": {
-			Family: "ipv4/unicast", AttrHex: "40010100",
-			NHopHex: "0a000001", NLRIHex: "180a0002", SeqIndex: 10,
-		},
-	}
+	m := seqmap.New[string, *RawRoute]()
+	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	m.Put("ipv4/unicast:10.0.1.0/24", 5, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0001",
+	})
+	m.Put("ipv4/unicast:10.0.2.0/24", 10, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0002",
+	})
+	r.ribIn["10.0.0.1"] = m
 
 	// Replay from index 5 → only routes with SeqIndex >= 5
 	cmds, _ := r.buildReplayCommands("10.0.0.99", 5)
@@ -256,12 +254,12 @@ func TestReplayFromIndex(t *testing.T) {
 func TestReplayReturnsLastIndex(t *testing.T) {
 	r := newTestManager(t)
 
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family: "ipv4/unicast", AttrHex: "40010100",
-			NHopHex: "0a000001", NLRIHex: "180a0000", SeqIndex: 42,
-		},
-	}
+	m := seqmap.New[string, *RawRoute]()
+	m.Put("ipv4/unicast:10.0.0.0/24", 42, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	r.ribIn["10.0.0.1"] = m
 
 	_, lastIdx := r.buildReplayCommands("10.0.0.99", 0)
 	assert.Equal(t, uint64(42), lastIdx, "last-index should be max SeqIndex of replayed routes")
@@ -292,11 +290,12 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 		r.handleReceived(event)
 	}
 
-	// Collect sequence indices
+	// Collect sequence indices via Range
 	var indices []uint64
-	for _, rt := range r.ribIn["10.0.0.1"] {
-		indices = append(indices, rt.SeqIndex)
-	}
+	r.ribIn["10.0.0.1"].Range(func(_ string, seq uint64, _ *RawRoute) bool {
+		indices = append(indices, seq)
+		return true
+	})
 	require.Len(t, indices, 3)
 
 	// Verify all are unique and monotonically increasing
@@ -316,12 +315,12 @@ func TestClearPeerOnDown(t *testing.T) {
 	r := newTestManager(t)
 
 	// Pre-populate routes
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family: "ipv4/unicast", AttrHex: "40010100",
-			NHopHex: "0a000001", NLRIHex: "180a0000", SeqIndex: 1,
-		},
-	}
+	m := seqmap.New[string, *RawRoute]()
+	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	r.ribIn["10.0.0.1"] = m
 	r.peerUp["10.0.0.1"] = true
 
 	// Peer goes down
@@ -334,7 +333,7 @@ func TestClearPeerOnDown(t *testing.T) {
 
 	r.handleState(downEvent)
 
-	assert.Empty(t, r.ribIn["10.0.0.1"], "routes should be cleared on peer down")
+	assert.Nil(t, r.ribIn["10.0.0.1"], "routes should be cleared on peer down")
 	assert.False(t, r.peerUp["10.0.0.1"], "peer should be marked down")
 }
 
@@ -386,13 +385,14 @@ func TestReplayCommandFormat(t *testing.T) {
 func TestHandleCommand_Status(t *testing.T) {
 	r := newTestManager(t)
 
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"k1": {Family: "ipv4/unicast", SeqIndex: 1},
-		"k2": {Family: "ipv4/unicast", SeqIndex: 2},
-	}
-	r.ribIn["10.0.0.2"] = map[string]*RawRoute{
-		"k3": {Family: "ipv6/unicast", SeqIndex: 3},
-	}
+	m1 := seqmap.New[string, *RawRoute]()
+	m1.Put("k1", 1, &RawRoute{Family: "ipv4/unicast"})
+	m1.Put("k2", 2, &RawRoute{Family: "ipv4/unicast"})
+	r.ribIn["10.0.0.1"] = m1
+
+	m2 := seqmap.New[string, *RawRoute]()
+	m2.Put("k3", 3, &RawRoute{Family: "ipv6/unicast"})
+	r.ribIn["10.0.0.2"] = m2
 
 	status, data, err := r.handleCommand("adj-rib-in status", "")
 	require.NoError(t, err)
@@ -412,15 +412,14 @@ func TestHandleCommand_Status(t *testing.T) {
 func TestHandleCommand_Show(t *testing.T) {
 	r := newTestManager(t)
 
-	r.ribIn["10.0.0.1"] = map[string]*RawRoute{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family:   "ipv4/unicast",
-			AttrHex:  "40010100",
-			NHopHex:  "0a000001",
-			NLRIHex:  "180a0000",
-			SeqIndex: 1,
-		},
-	}
+	m := seqmap.New[string, *RawRoute]()
+	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family:  "ipv4/unicast",
+		AttrHex: "40010100",
+		NHopHex: "0a000001",
+		NLRIHex: "180a0000",
+	})
+	r.ribIn["10.0.0.1"] = m
 
 	status, data, err := r.handleCommand("adj-rib-in show", "10.0.0.1")
 	require.NoError(t, err)
@@ -451,13 +450,14 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 
 	r.handleReceived(event)
 
-	require.Len(t, r.ribIn["10.0.0.1"], 2, "each NLRI should be stored separately")
+	require.Equal(t, 2, r.ribIn["10.0.0.1"].Len(), "each NLRI should be stored separately")
 
 	// Both should share the same AttrHex (from same UPDATE)
-	for _, rt := range r.ribIn["10.0.0.1"] {
+	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
 		assert.Equal(t, "40010100", rt.AttrHex, "all NLRIs share same attributes")
 		assert.Equal(t, "0a000001", rt.NHopHex, "all NLRIs share same next-hop")
-	}
+		return true
+	})
 }
 
 // TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs store
@@ -486,13 +486,14 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 
 	require.Contains(t, r.ribIn, "10.0.0.1")
 	// Only 1 entry: the first NLRI carries the raw blob, second is skipped (i > 0).
-	require.Len(t, r.ribIn["10.0.0.1"], 1,
+	require.Equal(t, 1, r.ribIn["10.0.0.1"].Len(),
 		"complex family multi-NLRI should store one entry with full raw blob")
 
 	var route *RawRoute
-	for _, rt := range r.ribIn["10.0.0.1"] {
+	r.ribIn["10.0.0.1"].Range(func(_ string, _ uint64, rt *RawRoute) bool {
 		route = rt
-	}
+		return true
+	})
 	require.NotNil(t, route)
 	assert.Equal(t, "aabbccdd11223344", route.NLRIHex,
 		"must store entire raw blob, not computed prefix bytes")

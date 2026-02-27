@@ -21,6 +21,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-adj-rib-in/schema"
+	"codeberg.org/thomas-mangin/ze/internal/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -52,12 +53,12 @@ func setLogger(l *slog.Logger) {
 // AttrHex comes from format=full event's raw.attributes (path attrs without MP_REACH/UNREACH).
 // NHopHex is the next-hop IP converted to wire hex.
 // NLRIHex is the individual NLRI wire bytes in hex.
+// Sequence numbers are tracked by the seqmap, not stored in RawRoute.
 type RawRoute struct {
-	Family   string // Address family (e.g. "ipv4/unicast")
-	AttrHex  string // Raw path attributes hex from format=full
-	NHopHex  string // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
-	NLRIHex  string // Individual NLRI wire bytes hex
-	SeqIndex uint64 // Monotonic sequence for incremental replay
+	Family  string // Address family (e.g. "ipv4/unicast")
+	AttrHex string // Raw path attributes hex from format=full
+	NHopHex string // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
+	NLRIHex string // Individual NLRI wire bytes hex
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -66,8 +67,8 @@ type AdjRIBInManager struct {
 	plugin *sdk.Plugin
 
 	// ribIn stores routes received FROM peers.
-	// sourcePeer → routeKey → RawRoute
-	ribIn map[string]map[string]*RawRoute
+	// sourcePeer → seqmap of routeKey → RawRoute
+	ribIn map[string]*seqmap.Map[string, *RawRoute]
 
 	// peerUp tracks which peers are currently up.
 	peerUp map[string]bool
@@ -87,7 +88,7 @@ func RunAdjRIBInPlugin(engineConn, callbackConn net.Conn) int {
 
 	r := &AdjRIBInManager{
 		plugin: p,
-		ribIn:  make(map[string]map[string]*RawRoute),
+		ribIn:  make(map[string]*seqmap.Map[string, *RawRoute]),
 		peerUp: make(map[string]bool),
 	}
 
@@ -175,7 +176,7 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 			switch op.Action {
 			case "add":
 				if r.ribIn[peerAddr] == nil {
-					r.ribIn[peerAddr] = make(map[string]*RawRoute)
+					r.ribIn[peerAddr] = seqmap.New[string, *RawRoute]()
 				}
 
 				nhopHex := nhopToHex(op.NextHop)
@@ -209,13 +210,12 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 					}
 
 					r.seqCounter++
-					r.ribIn[peerAddr][key] = &RawRoute{
-						Family:   family,
-						AttrHex:  event.RawAttributes,
-						NHopHex:  nhopHex,
-						NLRIHex:  nlriHex,
-						SeqIndex: r.seqCounter,
-					}
+					r.ribIn[peerAddr].Put(key, r.seqCounter, &RawRoute{
+						Family:  family,
+						AttrHex: event.RawAttributes,
+						NHopHex: nhopHex,
+						NLRIHex: nlriHex,
+					})
 				}
 
 			case "del":
@@ -228,7 +228,7 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 						continue
 					}
 					key := shared.RouteKey(family, prefix, pathID)
-					delete(r.ribIn[peerAddr], key)
+					r.ribIn[peerAddr].Delete(key)
 				}
 			}
 		}
@@ -254,6 +254,7 @@ func (r *AdjRIBInManager) handleState(event *shared.Event) {
 
 // buildReplayCommands builds "update hex" commands for replay to a target peer.
 // Returns the commands and the maximum sequence index of replayed routes.
+// Uses seqmap.Since for O(log N + K) delta replay instead of O(N) full scan.
 func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint64) ([]string, uint64) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -265,15 +266,13 @@ func (r *AdjRIBInManager) buildReplayCommands(targetPeer string, fromIndex uint6
 		if sourcePeer == targetPeer {
 			continue // Don't replay a peer's own routes back to it.
 		}
-		for _, rt := range routes {
-			if rt.SeqIndex < fromIndex {
-				continue
-			}
+		routes.Since(fromIndex, func(_ string, seq uint64, rt *RawRoute) bool {
 			cmds = append(cmds, formatHexCommand(rt))
-			if rt.SeqIndex > maxSeq {
-				maxSeq = rt.SeqIndex
+			if seq > maxSeq {
+				maxSeq = seq
 			}
-		}
+			return true
+		})
 	}
 
 	return cmds, maxSeq
