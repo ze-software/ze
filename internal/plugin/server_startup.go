@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -140,16 +141,23 @@ func (s *Server) signalStartupComplete() {
 	}
 }
 
-// runPluginPhase starts a batch of plugins and waits for them to complete startup.
+// runPluginPhase starts a batch of plugins with tier-ordered handshake.
+//
+// All processes are started at once (single ProcessManager), but the 5-stage
+// handshake is sequenced by dependency tiers. Tier 0 (no dependencies) completes
+// fully — including command registration — before tier 1 begins, ensuring that
+// dependent plugins can dispatch commands to their dependencies immediately.
+//
+// Async handlers (handleSingleProcessCommandsRPC) start only after ALL tiers
+// complete, because they read from the same connections used during startup.
 func (s *Server) runPluginPhase(plugins []PluginConfig) error {
 	if len(plugins) == 0 {
 		return nil
 	}
 
-	// Create coordinator for this phase
-	s.coordinator = NewStartupCoordinator(len(plugins))
-
-	// Create process manager for this phase
+	// Step (a): Create ONE ProcessManager for all plugins, start all processes.
+	// Later-tier processes block naturally on net.Pipe write until the engine
+	// reads their declare-registration during their tier's handshake.
 	pm := NewProcessManager(plugins)
 	s.procManager = pm
 
@@ -157,44 +165,74 @@ func (s *Server) runPluginPhase(plugins []PluginConfig) error {
 		return err
 	}
 
-	// Set the Registration stage start time to NOW, after all processes are forked.
-	// This ensures the timeout includes fork time, not time before processes exist.
-	s.coordinator.SetStartTime(time.Now())
-
-	// Handle commands synchronously (blocks until all plugins reach StageRunning)
-	s.handleProcessCommandsSync(pm)
-
-	return nil
-}
-
-// handleProcessCommandsSync handles commands from all processes and waits for completion.
-// Blocks until all plugins reach StageRunning or context is canceled.
-// After StageRunning, starts async handlers for continued operation.
-func (s *Server) handleProcessCommandsSync(pm *ProcessManager) {
-	// Get all processes from the manager
-	pm.mu.RLock()
-	processes := make([]*Process, 0, len(pm.processes))
-	for _, p := range pm.processes {
-		processes = append(processes, p)
+	// Step (b): Compute dependency tiers from plugin configs.
+	names := make([]string, len(plugins))
+	for i, p := range plugins {
+		names[i] = p.Name
 	}
-	pm.mu.RUnlock()
-
-	// Start a goroutine to handle startup for each process via YANG RPC protocol.
-	var procWg sync.WaitGroup
-	for _, proc := range processes {
-		procWg.Add(1)
-		go func(p *Process) {
-			defer procWg.Done()
-			s.handleProcessStartupRPC(p)
-		}(proc)
+	tiers, err := registry.TopologicalTiers(names)
+	if err != nil {
+		logger().Error("tier computation failed", "error", err)
+		pm.Stop()
+		return err
 	}
 
-	procWg.Wait()
+	logger().Debug("plugin startup tiers computed", "tiers", tiers)
 
-	// After startup, start async handlers for continued operation.
-	for _, proc := range processes {
+	// Collect ALL processes for async handler startup after all tiers.
+	var allProcesses []*Process
+
+	// Step (c): For each tier, create a coordinator and run the 5-stage handshake.
+	for tierIdx, tierNames := range tiers {
+		// Build process slice for this tier by looking up names in PM.
+		tierProcs := make([]*Process, 0, len(tierNames))
+		for _, name := range tierNames {
+			proc := pm.GetProcess(name)
+			if proc == nil {
+				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx)
+				continue
+			}
+			tierProcs = append(tierProcs, proc)
+		}
+
+		if len(tierProcs) == 0 {
+			continue
+		}
+
+		// Assign tier-local indices for coordinator barrier synchronization.
+		for i, proc := range tierProcs {
+			proc.index = i
+		}
+
+		// Create coordinator for this tier.
+		s.coordinator = NewStartupCoordinator(len(tierProcs))
+		s.coordinator.SetStartTime(time.Now())
+
+		logger().Debug("starting tier handshake", "tier", tierIdx, "plugins", tierNames)
+
+		// Launch handshake goroutines for this tier's processes.
+		var procWg sync.WaitGroup
+		for _, proc := range tierProcs {
+			procWg.Add(1)
+			go func(p *Process) {
+				defer procWg.Done()
+				s.handleProcessStartupRPC(p)
+			}(proc)
+		}
+		procWg.Wait()
+
+		allProcesses = append(allProcesses, tierProcs...)
+
+		logger().Debug("tier handshake complete", "tier", tierIdx)
+	}
+
+	// Step (d): After ALL tiers complete, start async handlers for ALL processes.
+	s.coordinator = nil
+	for _, proc := range allProcesses {
 		go s.handleSingleProcessCommandsRPC(proc)
 	}
+
+	return nil
 }
 
 // getUnclaimedFamilyPlugins returns plugins to auto-load for configured families

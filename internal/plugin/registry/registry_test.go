@@ -697,6 +697,197 @@ func TestResolveDependencies_MissingDep(t *testing.T) {
 	}
 }
 
+// --- TopologicalTiers tests ---
+
+// TestTopologicalTiers verifies correct tier assignment for a direct dependency.
+//
+// VALIDATES: bgp-adj-rib-in (no deps) = tier 0, bgp-rs (depends on bgp-adj-rib-in) = tier 1.
+// PREVENTS: Dependent plugins starting in same tier as their dependencies.
+func TestTopologicalTiers(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regRIB := validReg("bgp-adj-rib-in")
+	regRS := validReg("bgp-rs")
+	regRS.Dependencies = []string{"bgp-adj-rib-in"}
+
+	for _, r := range []Registration{regRIB, regRS} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tiers, err := TopologicalTiers([]string{"bgp-adj-rib-in", "bgp-rs"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tiers) != 2 {
+		t.Fatalf("expected 2 tiers, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 1 || tiers[0][0] != "bgp-adj-rib-in" {
+		t.Errorf("tier 0: expected [bgp-adj-rib-in], got %v", tiers[0])
+	}
+	if len(tiers[1]) != 1 || tiers[1][0] != "bgp-rs" {
+		t.Errorf("tier 1: expected [bgp-rs], got %v", tiers[1])
+	}
+}
+
+// TestTopologicalTiersCycle verifies cycle detection returns an error.
+//
+// VALIDATES: A→B→A returns ErrCircularDependency.
+// PREVENTS: Infinite loops or deadlocks from cyclic plugin dependencies.
+func TestTopologicalTiersCycle(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"a"}
+
+	for _, r := range []Registration{regA, regB} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	_, err := TopologicalTiers([]string{"a", "b"})
+	if !errors.Is(err, ErrCircularDependency) {
+		t.Errorf("expected ErrCircularDependency, got %v", err)
+	}
+}
+
+// TestTopologicalTiersNoDeps verifies all plugins land in tier 0 when none have deps.
+//
+// VALIDATES: Independent plugins all in tier 0.
+// PREVENTS: Spurious tier creation for plugins without dependencies.
+func TestTopologicalTiersNoDeps(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	for _, name := range []string{"alpha", "bravo", "charlie"} {
+		if err := Register(validReg(name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tiers, err := TopologicalTiers([]string{"alpha", "bravo", "charlie"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tiers) != 1 {
+		t.Fatalf("expected 1 tier, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 3 {
+		t.Errorf("tier 0: expected 3 plugins, got %d: %v", len(tiers[0]), tiers[0])
+	}
+}
+
+// TestTopologicalTiersTransitive verifies transitive chain A→B→C produces 3 tiers.
+//
+// VALIDATES: A→B→C produces [[C], [B], [A]] (C=tier0, B=tier1, A=tier2).
+// PREVENTS: Transitive dependencies collapsing into fewer tiers.
+func TestTopologicalTiersTransitive(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regA.Dependencies = []string{"b"}
+	regB := validReg("b")
+	regB.Dependencies = []string{"c"}
+	regC := validReg("c")
+
+	for _, r := range []Registration{regA, regB, regC} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tiers, err := TopologicalTiers([]string{"a", "b", "c"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tiers) != 3 {
+		t.Fatalf("expected 3 tiers, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 1 || tiers[0][0] != "c" {
+		t.Errorf("tier 0: expected [c], got %v", tiers[0])
+	}
+	if len(tiers[1]) != 1 || tiers[1][0] != "b" {
+		t.Errorf("tier 1: expected [b], got %v", tiers[1])
+	}
+	if len(tiers[2]) != 1 || tiers[2][0] != "a" {
+		t.Errorf("tier 2: expected [a], got %v", tiers[2])
+	}
+}
+
+// TestTopologicalTiersMultipleSameTier verifies siblings share a tier.
+//
+// VALIDATES: B→A, C→A produces [[A], [B,C]].
+// PREVENTS: Siblings unnecessarily serialized into separate tiers.
+func TestTopologicalTiersMultipleSameTier(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	regA := validReg("a")
+	regB := validReg("b")
+	regB.Dependencies = []string{"a"}
+	regC := validReg("c")
+	regC.Dependencies = []string{"a"}
+
+	for _, r := range []Registration{regA, regB, regC} {
+		if err := Register(r); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	tiers, err := TopologicalTiers([]string{"a", "b", "c"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tiers) != 2 {
+		t.Fatalf("expected 2 tiers, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 1 || tiers[0][0] != "a" {
+		t.Errorf("tier 0: expected [a], got %v", tiers[0])
+	}
+	if len(tiers[1]) != 2 {
+		t.Errorf("tier 1: expected 2 plugins, got %d: %v", len(tiers[1]), tiers[1])
+	}
+	// Check both b and c are in tier 1 (order within tier is sorted)
+	tier1 := make(map[string]bool)
+	for _, name := range tiers[1] {
+		tier1[name] = true
+	}
+	if !tier1["b"] || !tier1["c"] {
+		t.Errorf("tier 1: expected {b, c}, got %v", tiers[1])
+	}
+}
+
+// TestTopologicalTiersUnknownPlugin verifies external plugins go to tier 0.
+//
+// VALIDATES: Plugin not in registry is placed in tier 0.
+// PREVENTS: External plugins being excluded or causing errors.
+func TestTopologicalTiersUnknownPlugin(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	// Only register "known", not "external"
+	if err := Register(validReg("known")); err != nil {
+		t.Fatal(err)
+	}
+
+	tiers, err := TopologicalTiers([]string{"external", "known"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(tiers) != 1 {
+		t.Fatalf("expected 1 tier, got %d: %v", len(tiers), tiers)
+	}
+	if len(tiers[0]) != 2 {
+		t.Errorf("tier 0: expected 2 plugins, got %d: %v", len(tiers[0]), tiers[0])
+	}
+}
+
 // TestResolveDependencies_Diamond verifies diamond deps produce no duplicates.
 //
 // VALIDATES: A→C, B→C: C appears once in result.

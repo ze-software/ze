@@ -497,3 +497,87 @@ func detectCycles(names []string) error {
 	}
 	return nil
 }
+
+// TopologicalTiers groups plugin names into dependency tiers using Kahn's algorithm.
+// Tier 0 contains plugins with no dependencies (or not in registry). Tier N contains
+// plugins whose dependencies are all in tiers < N. Plugins within each tier are sorted
+// alphabetically for deterministic startup ordering.
+//
+// Returns ErrCircularDependency if the dependency graph contains a cycle.
+// Only considers dependencies within the requested name set; external names
+// (not in the requested set or registry) are ignored for ordering purposes.
+func TopologicalTiers(names []string) ([][]string, error) {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	nameSet := make(map[string]bool, len(names))
+	for _, n := range names {
+		nameSet[n] = true
+	}
+
+	// Compute in-degree (number of deps within name set) for each plugin.
+	inDegree := make(map[string]int, len(names))
+	// deps maps each plugin to its dependencies within the name set.
+	deps := make(map[string][]string, len(names))
+	for _, name := range names {
+		inDegree[name] = 0
+	}
+
+	for _, name := range names {
+		reg, ok := plugins[name]
+		if !ok {
+			continue // External plugin — no known deps, stays at in-degree 0
+		}
+		for _, dep := range reg.Dependencies {
+			if nameSet[dep] {
+				deps[name] = append(deps[name], dep)
+				inDegree[name]++
+			}
+		}
+	}
+
+	// Kahn's algorithm: iteratively peel off nodes with in-degree 0.
+	var tiers [][]string
+	remaining := len(names)
+
+	for remaining > 0 {
+		// Collect all nodes with in-degree 0 for this tier.
+		var tier []string
+		for _, name := range names {
+			if inDegree[name] == 0 {
+				tier = append(tier, name)
+			}
+		}
+
+		if len(tier) == 0 {
+			// All remaining nodes have in-degree > 0 → cycle.
+			return nil, fmt.Errorf("%w: no progress in tier computation", ErrCircularDependency)
+		}
+
+		// Sort tier for deterministic ordering.
+		sort.Strings(tier)
+		tiers = append(tiers, tier)
+
+		// Remove tier nodes: set in-degree to -1 (processed), decrement dependents.
+		for _, done := range tier {
+			inDegree[done] = -1 // Mark as processed
+			remaining--
+		}
+
+		// Decrement in-degree for nodes that depended on completed tier.
+		for _, name := range names {
+			if inDegree[name] <= 0 {
+				continue // Already processed or will be
+			}
+			for _, dep := range deps[name] {
+				for _, done := range tier {
+					if dep == done {
+						inDegree[name]--
+					}
+				}
+			}
+		}
+	}
+
+	return tiers, nil
+}

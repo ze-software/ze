@@ -460,6 +460,46 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 	})
 }
 
+// TestAdjRibInReplayArgsPassthrough verifies replay receives correct target peer and from-index.
+//
+// VALIDATES: handleCommand("adj-rib-in replay", "127.0.0.2 0") replays routes for 127.0.0.2.
+// PREVENTS: Args being dropped, causing replay to target "*" instead of specific peer.
+func TestAdjRibInReplayArgsPassthrough(t *testing.T) {
+	r := newTestManager(t)
+
+	// Store a route from source peer 10.0.0.1
+	m := seqmap.New[string, *RawRoute]()
+	m.Put("ipv4/unicast:10.0.0.0/24", 1, &RawRoute{
+		Family: "ipv4/unicast", AttrHex: "40010100",
+		NHopHex: "0a000001", NLRIHex: "180a0000",
+	})
+	r.ribIn["10.0.0.1"] = m
+
+	// Call handleCommand with the selector that would come from args
+	// This simulates: command="adj-rib-in replay", args=["127.0.0.2", "0"]
+	// The selector is args joined with space: "127.0.0.2 0"
+	status, data, err := r.handleCommand("adj-rib-in replay", "127.0.0.2 0")
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	// Should have replayed 1 route (from 10.0.0.1, target is 127.0.0.2)
+	assert.Contains(t, data, `"replayed":1`)
+	assert.Contains(t, data, `"last-index":1`)
+}
+
+// TestAdjRibInReplayArgsEmpty verifies empty selector returns an error.
+//
+// VALIDATES: handleCommand("adj-rib-in replay", "") returns error requiring target peer.
+// PREVENTS: Replay running without a target peer, which could cause unexpected behavior.
+func TestAdjRibInReplayArgsEmpty(t *testing.T) {
+	r := newTestManager(t)
+
+	status, _, err := r.handleCommand("adj-rib-in replay", "")
+	assert.Equal(t, statusError, status)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "requires target peer address")
+}
+
 // TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs store
 // only one entry using the raw blob (which covers all NLRIs).
 //

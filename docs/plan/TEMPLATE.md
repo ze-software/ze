@@ -112,6 +112,8 @@
 
 ## Files to Modify
 <!-- MUST include feature code (internal/*, cmd/*), not only test files -->
+<!-- Check // Design: annotations on each file — if the change affects behavior
+     described in the referenced architecture doc, include the doc here too -->
 - `internal/...` - [feature changes]
 
 ### Integration Checklist

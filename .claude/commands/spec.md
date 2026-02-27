@@ -127,6 +127,8 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
 7. Draft wiring test table — how is feature reachable from entry point?
 8. Draft TDD test plan — unit tests, boundary tests, functional tests
 9. Identify files to modify/create
+   - For each code file: check its `// Design:` annotation — if the change affects
+     behavior described in that architecture doc, add the doc to the file list
 
 #### Failure Mode Analysis (MANDATORY)
 

@@ -815,9 +815,8 @@ func (pm *ProcessManager) Start() error {
 func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
 
-	for i, cfg := range pm.configs {
+	for _, cfg := range pm.configs {
 		proc := NewProcess(cfg)
-		proc.index = i // Set plugin index for coordinator
 		if err := proc.StartWithContext(pm.ctx); err != nil {
 			// Stop already started processes
 			pm.Stop()

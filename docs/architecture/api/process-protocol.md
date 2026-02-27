@@ -87,7 +87,9 @@ automatically loaded via `YANGSchema()`. Plugins request config subtrees via
 ### 5-Stage Startup Protocol (Ze)
 
 Ze uses a synchronized 5-stage startup protocol with barriers between stages.
-All plugins must complete each stage before any can proceed to the next.
+Within each dependency tier, all plugins must complete each stage before any
+can proceed to the next. Tiers are sequenced by dependency order (see
+Tier-Ordered Startup below).
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
@@ -183,6 +185,64 @@ If any plugin fails to complete a stage, startup aborts for all plugins.
 - Ensures all capabilities declared before registry shared
 - Prevents race conditions in multi-plugin configurations
 - Guarantees consistent state before BGP peers start
+
+### Tier-Ordered Startup
+
+Plugins are grouped into dependency tiers before handshake begins. All processes
+are started at once (single ProcessManager), but the 5-stage handshake is
+sequenced tier by tier. Tier 0 completes its full handshake — including command
+registration — before tier 1 begins.
+
+```
+Tier computation (Kahn's algorithm / BFS layering):
+  Tier 0: plugins with no dependencies      (e.g., bgp-adj-rib-in)
+  Tier 1: plugins depending only on tier 0   (e.g., bgp-rs → bgp-adj-rib-in)
+  Tier N: plugins whose deps are all in tiers < N
+```
+
+**Per-tier coordinator:** Each tier gets its own `StartupCoordinator` with
+tier-local indices. Processes in later tiers block naturally on `net.Pipe` write
+until the engine reads their `declare-registration` during their tier's turn.
+
+```
+┌─────────────────────────────────────────────────────┐
+│               TIER-ORDERED STARTUP                  │
+├─────────────────────────────────────────────────────┤
+│                                                     │
+│  ProcessManager starts ALL processes                │
+│         │                                           │
+│         ▼                                           │
+│  TopologicalTiers(names) → [[rib], [rs]]            │
+│         │                                           │
+│         ▼                                           │
+│  TIER 0: [bgp-adj-rib-in]                          │
+│    Coordinator(1 plugin)                            │
+│    5-stage handshake → commands registered           │
+│    procWg.Wait()                                    │
+│         │                                           │
+│         ▼                                           │
+│  TIER 1: [bgp-rs]                                   │
+│    Coordinator(1 plugin)                            │
+│    5-stage handshake → can dispatch to rib          │
+│    procWg.Wait()                                    │
+│         │                                           │
+│         ▼                                           │
+│  ALL TIERS DONE                                     │
+│    coordinator = nil                                │
+│    Start async handlers for ALL processes           │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+```
+
+**Why tier ordering:**
+- Prevents "unknown command" errors when dependent plugins dispatch to
+  dependencies during or immediately after startup
+- Dependencies are registered in `CommandRegistry` after stage 5, so they
+  must fully complete before dependents attempt `dispatch-command` RPCs
+
+**Plugins within the same tier** still use the original barrier model (diagram
+above) — they progress through all 5 stages together. Tier ordering only
+serializes across tiers, not within them.
 
 ### Shutdown
 

@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -103,7 +104,7 @@ func RunAdjRIBInPlugin(engineConn, callbackConn net.Conn) int {
 	})
 
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
-		return r.handleCommand(command, peer)
+		return r.handleCommand(command, strings.Join(args, " "))
 	})
 
 	// Subscribe to received events with format=full (includes raw hex bytes).
