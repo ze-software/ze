@@ -250,14 +250,14 @@ func parseGenericNLRI(data []byte, afi nlri.AFI) []any {
 // decodeNLRIOnly decodes NLRI without envelope.
 // If a matching plugin is enabled, it will be invoked for decoding.
 // If outputJSON is false, returns human-readable format.
-func decodeNLRIOnly(data []byte, family string, plugins []string, outputJSON bool) (string, error) {
+func decodeNLRIOnly(data []byte, family string, outputJSON bool) (string, error) {
 	// Validate family against known AFI/SAFI combinations
 	if err := validateDecodeFamily(family); err != nil {
 		return "", err
 	}
 
 	// Try plugin decode first if plugin is enabled for this family
-	pluginName := lookupFamilyPlugin(family, plugins)
+	pluginName := lookupFamilyPlugin(family)
 	if pluginName != "" {
 		hexData := fmt.Sprintf("%X", data)
 		result := invokePluginNLRIDecode(pluginName, family, hexData)

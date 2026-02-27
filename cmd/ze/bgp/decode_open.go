@@ -21,7 +21,7 @@ var pluginCapabilityMap = registry.CapabilityMap()
 var pluginFamilyMap = registry.FamilyMap()
 
 // decodeOpenMessage decodes a BGP OPEN message and returns Ze format.
-func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[string]any, error) {
+func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	body := data
 	if hasHeader {
 		if len(data) < message.HeaderLen {
@@ -50,7 +50,7 @@ func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[strin
 	// Ze format: capabilities as array of objects with code, name, value
 	capsArray := make([]map[string]any, 0, len(caps))
 	for _, c := range caps {
-		capJSON := capabilityToZeJSON(c, plugins)
+		capJSON := capabilityToZeJSON(c)
 		capsArray = append(capsArray, capJSON)
 	}
 
@@ -67,7 +67,7 @@ func decodeOpenMessage(data []byte, hasHeader bool, plugins []string) (map[strin
 
 // capabilityToZeJSON converts a capability to Ze ze-bgp JSON format.
 // Ze format: {"code": N, "name": "...", "value": "..."}.
-func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]any {
+func capabilityToZeJSON(c capability.Capability) map[string]any {
 	code := int(c.Code())
 
 	switch cap := c.(type) {
@@ -85,13 +85,13 @@ func capabilityToZeJSON(c capability.Capability, plugins []string) map[string]an
 		return map[string]any{"code": code, "name": "add-path", "value": families}
 	}
 	// Unknown or plugin-decoded capability type - try plugin decode or return raw
-	return unknownCapabilityZe(c, plugins)
+	return unknownCapabilityZe(c)
 }
 
 // unknownCapabilityZe returns Ze format JSON for an unrecognized/plugin-required capability.
 // Auto-invokes registered plugins for known capability codes (consistent with NLRI family auto-lookup).
 // Falls back to raw hex if no plugin is registered or decode fails.
-func unknownCapabilityZe(c capability.Capability, plugins []string) map[string]any {
+func unknownCapabilityZe(c capability.Capability) map[string]any {
 	code := int(c.Code())
 	raw := make([]byte, c.Len())
 	c.WriteTo(raw, 0)

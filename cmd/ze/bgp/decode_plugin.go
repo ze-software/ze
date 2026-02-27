@@ -60,18 +60,6 @@ func parsePluginName(input string) (name string, mode PluginMode, path string, a
 	return input, ModeFork, "", nil
 }
 
-// hasPluginEnabled checks if a plugin is in the enabled list.
-// Accepts "ze.name", "ze-name", and "name" formats.
-func hasPluginEnabled(plugins []string, name string) bool {
-	for _, p := range plugins {
-		pName, _, _, _ := parsePluginName(p)
-		if pName == name || p == name {
-			return true
-		}
-	}
-	return false
-}
-
 // invokePluginDecodeRequest spawns a plugin in decode mode and sends a decode request.
 // Returns decoded JSON map or nil if decoding failed.
 // The request format varies: "decode capability <code> <hex>" or "decode nlri <family> <hex>".
@@ -437,7 +425,7 @@ func validateDecodeFamily(family string) error {
 // lookupFamilyPlugin returns the plugin name for a family.
 // For families in pluginFamilyMap, the plugin is auto-invoked without requiring --plugin flag.
 // Family string is normalized to lowercase for lookup.
-func lookupFamilyPlugin(family string, _ []string) string {
+func lookupFamilyPlugin(family string) string {
 	if pluginName, ok := pluginFamilyMap[strings.ToLower(family)]; ok {
 		return pluginName
 	}

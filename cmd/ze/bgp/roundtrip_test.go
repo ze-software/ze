@@ -71,7 +71,7 @@ func TestRoundTrip_BasicUnicast(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -138,7 +138,7 @@ func TestRoundTrip_IPv6Unicast(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -195,7 +195,7 @@ func TestRoundTrip_WithCommunity(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -242,7 +242,7 @@ func TestRoundTrip_ASPath(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -293,7 +293,7 @@ func TestRoundTrip_MED(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -343,7 +343,7 @@ func TestRoundTrip_EVPN_Type2(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -398,7 +398,7 @@ func TestRoundTrip_L3VPN(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -458,7 +458,7 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -526,7 +526,7 @@ func TestRoundTrip_VPLS(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -580,7 +580,7 @@ func TestRoundTrip_MUP_ISD(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -641,7 +641,7 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -690,7 +690,7 @@ func testRoundTripIPv6Family(t *testing.T, encodeArgs []string, announceKey, exp
 
 	hexOutput := strings.TrimSpace(encodeOut.String())
 
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", nil, true)
+	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}

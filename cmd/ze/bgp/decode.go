@@ -87,7 +87,7 @@ The hex payload can include colons or spaces which will be stripped.
 		familyStr = *nlriFamily
 	}
 
-	output, err := decodeHexPacket(payload, msgType, familyStr, plugins, *outputJSON)
+	output, err := decodeHexPacket(payload, msgType, familyStr, *outputJSON)
 	if err != nil {
 		if *outputJSON {
 			// Return valid JSON error
@@ -110,7 +110,7 @@ The hex payload can include colons or spaces which will be stripped.
 
 // decodeHexPacket decodes a hex BGP packet and returns formatted output.
 // If outputJSON is true, returns JSON; otherwise returns human-readable format.
-func decodeHexPacket(hexStr, msgType, family string, plugins []string, outputJSON bool) (string, error) {
+func decodeHexPacket(hexStr, msgType, family string, outputJSON bool) (string, error) {
 	// Normalize hex input - remove colons, spaces, uppercase
 	hexStr = strings.ReplaceAll(hexStr, ":", "")
 	hexStr = strings.ReplaceAll(hexStr, " ", "")
@@ -135,14 +135,14 @@ func decodeHexPacket(hexStr, msgType, family string, plugins []string, outputJSO
 
 	// For NLRI-only mode, don't wrap in envelope
 	if msgType == msgTypeNLRI {
-		return decodeNLRIOnly(data, family, plugins, outputJSON)
+		return decodeNLRIOnly(data, family, outputJSON)
 	}
 
 	// Build output based on message type
 	var result map[string]any
 	switch msgType {
 	case msgTypeOpen:
-		result, err = decodeOpenMessage(data, hasHeader, plugins)
+		result, err = decodeOpenMessage(data, hasHeader)
 	case msgTypeUpdate:
 		result, err = decodeUpdateMessage(data, family, hasHeader)
 	default: // Unsupported message type

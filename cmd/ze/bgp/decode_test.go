@@ -118,7 +118,7 @@ func TestDecodeOpen(t *testing.T) {
 	// From test/decode/bgp-open-sofware-version.test
 	hexInput := testOpenMsgHex
 
-	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -273,7 +273,7 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD022249200C6D792D686F73742D6E616D65126D792D646F6D61696E2D6E616D652E636F6D"
 
 	// Decode WITH plugin
-	output, err := decodeHexPacket(hexInput, "open", "", []string{"ze.bgp-hostname"}, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -345,7 +345,7 @@ func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00330104FFFD00B40A00000216021401040001000141040000FFFD4006007800010180"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -410,7 +410,7 @@ func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
 	hexInput := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0104FFFD00B40A00000210020E01040001000141040000FFFD0200"
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
-	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -475,7 +475,7 @@ func TestDecodeUpdate(t *testing.T) {
 	// UPDATE message from test/decode/ipv4-unicast-1.test
 	hexInput := testUpdateMsgHex
 
-	output, err := decodeHexPacket(hexInput, "update", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -688,7 +688,7 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	// From bgp-flow-2: rate-limit:0
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
-	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -728,7 +728,7 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	// From bgp-ls-2.test - Link NLRI with local and remote node descriptors
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -813,7 +813,7 @@ func TestBGPLSAttribute(t *testing.T) {
 	// From bgp-ls-2.test - has bgp-ls attribute with igp-metric: 1
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -850,7 +850,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	// Even if empty, they should be present as arrays
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -897,7 +897,7 @@ func TestBGPLSRawNLRIFormat(t *testing.T) {
 	// Type: nlri bgp-ls/bgp-ls
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -934,7 +934,7 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	// Link NLRI should have l3-routing-topology from identifier field
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1060,7 +1060,7 @@ func TestDecodeNLRIFlag(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	// decodeHexPacket with "nlri" type and family
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1090,7 +1090,7 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	// This tests the infrastructure path even without actual plugin
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
-	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", []string{"bgp-flowspec"}, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1112,25 +1112,22 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 // PREVENTS: Case mismatch causing plugin lookup failures.
 func TestLookupFamilyPlugin(t *testing.T) {
 	tests := []struct {
-		family  string
-		plugins []string
-		want    string
+		family string
+		want   string
 	}{
-		{"ipv4/flow", []string{"bgp-flowspec"}, "bgp-flowspec"},
-		{"IPV4/FLOW", []string{"bgp-flowspec"}, "bgp-flowspec"},
-		{"IPv4/Flow", []string{"bgp-flowspec"}, "bgp-flowspec"},
-		{"ipv4/flow", []string{"other"}, "bgp-flowspec"}, // Auto-invoked for known family
-		{"ipv4/flow", nil, "bgp-flowspec"},               // Auto-invoked for known family
-		{"ipv4/unicast", []string{"bgp-flowspec"}, ""},   // Unknown family, no plugin
-		{"ipv6/flow-vpn", []string{"bgp-flowspec"}, "bgp-flowspec"},
+		{"ipv4/flow", "bgp-flowspec"},
+		{"IPV4/FLOW", "bgp-flowspec"},
+		{"IPv4/Flow", "bgp-flowspec"},
+		{"ipv4/unicast", ""}, // Unknown family, no plugin
+		{"ipv6/flow-vpn", "bgp-flowspec"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.family, func(t *testing.T) {
-			got := lookupFamilyPlugin(tt.family, tt.plugins)
+			got := lookupFamilyPlugin(tt.family)
 			if got != tt.want {
-				t.Errorf("lookupFamilyPlugin(%q, %v) = %q, want %q",
-					tt.family, tt.plugins, got, tt.want)
+				t.Errorf("lookupFamilyPlugin(%q) = %q, want %q",
+					tt.family, got, tt.want)
 			}
 		})
 	}
@@ -1188,7 +1185,7 @@ func TestDecodeOpenHuman(t *testing.T) {
 	// Simple OPEN message: version 4, AS 65533, hold time 180, router-id 10.0.0.2
 	hexInput := testOpenMsgHex
 
-	output, err := decodeHexPacket(hexInput, "open", "", nil, false)
+	output, err := decodeHexPacket(hexInput, "open", "", false)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1242,7 +1239,7 @@ func TestDecodeOpenHuman(t *testing.T) {
 func TestDecodeOpenJSON(t *testing.T) {
 	hexInput := testOpenMsgHex
 
-	output, err := decodeHexPacket(hexInput, "open", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "open", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1289,7 +1286,7 @@ func TestDecodeUpdateHuman(t *testing.T) {
 	// UPDATE message from test/decode/ipv4-unicast-1.test
 	hexInput := testUpdateMsgHex
 
-	output, err := decodeHexPacket(hexInput, "update", "", nil, false)
+	output, err := decodeHexPacket(hexInput, "update", "", false)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1322,7 +1319,7 @@ func TestDecodeUpdateHuman(t *testing.T) {
 func TestDecodeUpdateJSON(t *testing.T) {
 	hexInput := testUpdateMsgHex
 
-	output, err := decodeHexPacket(hexInput, "update", "", nil, true)
+	output, err := decodeHexPacket(hexInput, "update", "", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1359,7 +1356,7 @@ func TestDecodeNLRIHuman(t *testing.T) {
 	// BGP-LS Link NLRI
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, false)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", false)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1383,7 +1380,7 @@ func TestDecodeNLRIHuman(t *testing.T) {
 func TestDecodeNLRIJSON(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", nil, true)
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -1406,7 +1403,7 @@ func TestDecodeErrorHuman(t *testing.T) {
 	// Invalid hex input
 	hexInput := "ZZZ"
 
-	_, err := decodeHexPacket(hexInput, "open", "", nil, false)
+	_, err := decodeHexPacket(hexInput, "open", "", false)
 	if err == nil {
 		t.Fatal("expected error for invalid hex")
 	}
@@ -1724,7 +1721,7 @@ func TestDecodeInput_ValidFamily_YANG(t *testing.T) {
 func TestDecodeOutput_Unchanged(t *testing.T) {
 	// Decode FlowSpec NLRI - should produce same output as before
 	hexData := testFlowSpecNLRI
-	output, err := decodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, nil, true)
+	output, err := decodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, true)
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
