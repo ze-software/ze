@@ -46,6 +46,10 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("GET /viz/families", d.handleVizFamilies)
 	mux.HandleFunc("GET /viz/all-peers", d.handleVizAllPeers)
 
+	// Multi-panel viz layout.
+	mux.HandleFunc("GET /viz/panels", d.handleVizPanels)
+	mux.HandleFunc("GET /viz/panel-content", d.handleVizPanelContent)
+
 	// Sidebar polling fallbacks (supplement SSE).
 	mux.HandleFunc("GET /sidebar/stats", d.handleSidebarStats)
 	mux.HandleFunc("GET /sidebar/active-set", d.handleSidebarActiveSet)

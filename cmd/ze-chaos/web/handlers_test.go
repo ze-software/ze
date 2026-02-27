@@ -1595,3 +1595,26 @@ func TestLayoutSidebarHasTriggerNotControls(t *testing.T) {
 		t.Error("sidebar missing trigger-params div")
 	}
 }
+
+// TestLayoutIncludesPanelToggle verifies the tab bar has a Panels mode toggle button.
+//
+// VALIDATES: AC-1, AC-4 — layout includes Panels toggle in tab bar.
+// PREVENTS: Missing panel mode entry point.
+func TestLayoutIncludesPanelToggle(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleIndex(w, req)
+	body := w.Body.String()
+
+	if !strings.Contains(body, `/viz/panels`) {
+		t.Error("layout missing /viz/panels link in tab bar")
+	}
+	if !strings.Contains(body, `>Panels</button>`) {
+		t.Error("layout missing Panels button")
+	}
+}

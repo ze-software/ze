@@ -1,4 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — web dashboard UI
+// Related: viz_panels.go — multi-panel viz layout and panel content handlers
 
 package web
 
@@ -251,6 +252,10 @@ func writeLayout(w io.Writer, d *Dashboard) {
     <button hx-get="/viz/chaos-events" hx-target="#viz-content" hx-swap="innerHTML"
             onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
             title="Table of chaos actions injected during the run">Events</button>
+    <span class="tab-separator"></span>
+    <button hx-get="/viz/panels" hx-target="#viz-content" hx-swap="innerHTML"
+            onclick="document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+            title="Show multiple visualizations simultaneously in a 2×2 grid">Panels</button>
     <label class="freeze-toggle" title="Pause all live updates (for screenshots or copy/paste)">
       <input type="checkbox" id="freeze-updates" onchange="window._frozen=this.checked"> Freeze
     </label>

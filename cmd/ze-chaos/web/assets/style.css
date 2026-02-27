@@ -1167,6 +1167,50 @@ span.fm-complete {
 .donut-legend-count { font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
 
 /* Responsive */
+/* Multi-panel viz grid */
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding: 12px;
+  height: 100%;
+}
+.panel-slot {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-card);
+  overflow: hidden;
+  min-height: 200px;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+.panel-header select {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+}
+.panel-content {
+  flex: 1;
+  overflow: auto;
+  padding: 4px;
+}
+.panel-content .viz-panel {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0;
+}
+
 @media (max-width: 900px) {
   .content {
     grid-template-columns: 1fr;
@@ -1175,5 +1219,8 @@ span.fm-complete {
     border-right: none;
     border-bottom: 1px solid var(--border);
     max-height: 200px;
+  }
+  .panel-grid {
+    grid-template-columns: 1fr;
   }
 }
