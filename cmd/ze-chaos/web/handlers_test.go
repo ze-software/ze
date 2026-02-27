@@ -1217,6 +1217,146 @@ func TestRouteControlChannelFull(t *testing.T) {
 	}
 }
 
+// TestHandlePeersGridView verifies GET /peers/grid returns a grid container with cells.
+//
+// VALIDATES: AC-1 — grid endpoint returns grid container with peer cells.
+// PREVENTS: Grid endpoint returning table rows or empty response.
+func TestHandlePeersGridView(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(10)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerDown
+	d.state.Peers[5].Status = PeerSyncing
+
+	req := httptest.NewRequest(http.MethodGet, "/peers/grid", http.NoBody)
+	w := httptest.NewRecorder()
+
+	d.handlePeersGrid(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-grid"`) {
+		t.Error("response missing peer-grid container")
+	}
+	if !strings.Contains(body, `id="peer-cell-0"`) {
+		t.Error("response missing peer-cell-0")
+	}
+	if !strings.Contains(body, `id="peer-cell-9"`) {
+		t.Error("response missing peer-cell-9 (should show all peers)")
+	}
+	if !strings.Contains(body, "status-up") {
+		t.Error("response missing status-up class")
+	}
+	if !strings.Contains(body, "status-down") {
+		t.Error("response missing status-down class")
+	}
+}
+
+// TestHandlePeersGridStatusFilter verifies GET /peers/grid?status=up filters grid cells.
+//
+// VALIDATES: Grid respects status filter parameter.
+// PREVENTS: Grid ignoring filter and always showing all peers.
+func TestHandlePeersGridStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerDown
+	d.state.Peers[2].Status = PeerUp
+
+	req := httptest.NewRequest(http.MethodGet, "/peers/grid?status=up", http.NoBody)
+	w := httptest.NewRecorder()
+
+	d.handlePeersGrid(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-cell-0"`) {
+		t.Error("filtered grid missing peer 0 (up)")
+	}
+	if !strings.Contains(body, `id="peer-cell-2"`) {
+		t.Error("filtered grid missing peer 2 (up)")
+	}
+	if strings.Contains(body, `id="peer-cell-1"`) {
+		t.Error("filtered grid should not contain peer 1 (down)")
+	}
+}
+
+// TestHandlePeersTableView verifies GET /peers/table returns a full table container.
+//
+// VALIDATES: AC-9 — toggling back to table returns complete table with thead and tbody.
+// PREVENTS: Table view missing sort headers after toggle from grid.
+func TestHandlePeersTableView(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.state.Active.Promote(0, PriorityHigh, now)
+	d.state.Active.Promote(2, PriorityMedium, now)
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[2].Status = PeerDown
+
+	req := httptest.NewRequest(http.MethodGet, "/peers/table", http.NoBody)
+	w := httptest.NewRecorder()
+
+	d.handlePeersTable(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", w.Code)
+	}
+
+	body := w.Body.String()
+	if !strings.Contains(body, "peer-table-container") {
+		t.Error("response missing peer-table-container")
+	}
+	if !strings.Contains(body, "<thead>") {
+		t.Error("response missing table header")
+	}
+	if !strings.Contains(body, `id="peer-tbody"`) {
+		t.Error("response missing peer-tbody")
+	}
+	if !strings.Contains(body, `id="peer-0"`) {
+		t.Error("response missing peer 0 row")
+	}
+}
+
+// TestLayoutIncludesGridToggle verifies writeLayout includes toggle buttons.
+//
+// VALIDATES: AC-9 — filter bar has toggle to switch between Table and Grid.
+// PREVENTS: Toggle button missing from dashboard layout.
+func TestLayoutIncludesGridToggle(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	var buf strings.Builder
+	writeLayout(&buf, d)
+	html := buf.String()
+
+	if !strings.Contains(html, "view-toggle") {
+		t.Error("layout missing view-toggle container")
+	}
+	if !strings.Contains(html, "/peers/grid") {
+		t.Error("layout missing grid toggle button target")
+	}
+	if !strings.Contains(html, "/peers/table") {
+		t.Error("layout missing table toggle button target")
+	}
+	if !strings.Contains(html, `id="peer-display"`) {
+		t.Error("layout missing peer-display wrapper")
+	}
+}
+
 // TestProcessEventRouteAction verifies TotalRouteActions counter increments.
 //
 // VALIDATES: EventRouteAction increments TotalRouteActions counter.

@@ -51,6 +51,10 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("GET /sidebar/active-set", d.handleSidebarActiveSet)
 	mux.HandleFunc("GET /sidebar/events", d.handleSidebarEvents)
 
+	// Peer view modes (grid/table toggle).
+	mux.HandleFunc("GET /peers/grid", d.handlePeersGrid)
+	mux.HandleFunc("GET /peers/table", d.handlePeersTable)
+
 	// Peer promote (peer picker).
 	mux.HandleFunc("POST /peers/promote", d.handlePeerPromote)
 
@@ -130,6 +134,31 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	h.write(`<tbody id="peer-tbody">`)
 	writePeerRows(w, d.state, indices)
 	h.write(`</tbody>`)
+}
+
+// handlePeersGrid serves the peer grid view with all peers as colored cells.
+// Query params: status (filter by peer status).
+func (d *Dashboard) handlePeersGrid(w http.ResponseWriter, r *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	statusFilter := r.URL.Query().Get("status")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writePeerGridFiltered(w, d.state, statusFilter)
+}
+
+// handlePeersTable serves the full peer table container (thead + tbody) for
+// toggling back from grid view. The table includes sort headers and active set rows.
+func (d *Dashboard) handlePeersTable(w http.ResponseWriter, _ *http.Request) {
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	indices := d.state.Active.Indices()
+	sortPeers(indices, d.state, "id", "asc")
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	writePeerTable(w, d.state, indices)
 }
 
 // handlePeerClose returns an empty detail div, clearing the detail pane.

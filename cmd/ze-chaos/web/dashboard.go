@@ -655,6 +655,20 @@ func (d *Dashboard) renderPeerRowInsert(idx int) string {
 		"</tr>"
 }
 
+// renderPeerCell returns a grid cell HTML fragment for a single peer.
+// The cell is a colored div with a tooltip showing peer info and hx-get for detail.
+func (d *Dashboard) renderPeerCell(idx int) string {
+	ps := d.state.Peers[idx]
+	if ps == nil {
+		return ""
+	}
+	return `<div id="peer-cell-` + itoa(idx) + `" class="peer-cell ` + ps.Status.CSSClass() +
+		`" title="Peer ` + itoa(idx) + `: ` + ps.Status.String() +
+		` | Sent: ` + itoa(ps.RoutesSent) + ` Recv: ` + itoa(ps.RoutesRecv) +
+		` | Last: ` + eventTypeLabel(ps.LastEvent) +
+		`" hx-get="/peer/` + itoa(idx) + `" hx-target="#peer-detail" hx-swap="outerHTML"></div>`
+}
+
 // renderPeerRemoval returns an empty element to remove a peer row via hx-swap-oob.
 func renderPeerRemoval(idx int) string {
 	return "<tr id=\"peer-" + itoa(idx) + "\" hx-swap-oob=\"delete\"></tr>"

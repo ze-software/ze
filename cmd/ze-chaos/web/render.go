@@ -162,8 +162,17 @@ func writeLayout(w io.Writer, d *Dashboard) {
       <option value="reconnecting">Reconnecting</option>
       <option value="idle">Idle</option>
     </select>
+    <span class="view-toggle">
+      <button class="view-btn active" hx-get="/peers/table" hx-target="#peer-display" hx-swap="innerHTML"
+              onclick="document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+              title="Show peers as a detailed table (active set only)">Table</button>
+      <button class="view-btn" hx-get="/peers/grid" hx-target="#peer-display" hx-swap="innerHTML"
+              onclick="document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')"
+              title="Show all peers as a compact color-coded grid">Grid</button>
+    </span>
   </div>
 
+  <div id="peer-display">
   <div class="peer-table-container">
     <table class="peer-table">
       <thead>
@@ -198,6 +207,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 	h.write(`
       </tbody>
     </table>
+  </div>
   </div>
 
   <div id="peer-detail"></div>
@@ -284,6 +294,70 @@ func writePeerRows(w io.Writer, state *DashboardState, indices []int) {
 		h.writef(`<td>%d</td>`, ps.ChaosCount)
 		h.write(`</tr>`)
 	}
+}
+
+// writePeerTable renders the full peer table container with thead and tbody.
+// Used by the table toggle to restore the table view from grid mode.
+func writePeerTable(w io.Writer, state *DashboardState, indices []int) {
+	h := &htmlWriter{w: w}
+	h.write(`<div class="peer-table-container">
+    <table class="peer-table">
+      <thead>
+        <tr>
+          <th style="width:30px" title="Pin a peer to keep it visible in the table"></th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"id","dir":"asc"}' title="Peer index">ID</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"status","dir":"asc"}' title="BGP session state">Status</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"sent","dir":"desc"}' title="BGP messages (routes) sent to Ze">Msgs&#x2192;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"received","dir":"desc"}' title="BGP messages (routes) received from Ze">Msgs&#x2190;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"bytes-out","dir":"desc"}' title="Total bytes sent to Ze">Bytes&#x2192;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"bytes-in","dir":"desc"}' title="Total bytes received from Ze">Bytes&#x2190;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"rate-out","dir":"desc"}' title="Current send bit rate to Ze">Rate&#x2192;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"rate-in","dir":"desc"}' title="Current receive bit rate from Ze">Rate&#x2190;</th>
+          <th hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+              hx-vals='{"sort":"chaos","dir":"desc"}' title="Chaos events targeting this peer">Chaos</th>
+        </tr>
+      </thead>
+      <tbody id="peer-tbody">`)
+	writePeerRows(w, state, indices)
+	h.write(`
+      </tbody>
+    </table>
+  </div>`)
+}
+
+// writePeerGrid renders a compact grid of all peers as colored cells.
+// Each cell is ~28x28px, colored by status, with a tooltip and click target.
+// The grid container has HTMX polling to auto-refresh.
+func writePeerGrid(w io.Writer, state *DashboardState) {
+	writePeerGridFiltered(w, state, "")
+}
+
+// writePeerGridFiltered renders the peer grid with an optional status filter.
+// When statusFilter is empty, all peers are shown.
+func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter string) {
+	h := &htmlWriter{w: w}
+	h.write(`<div id="peer-grid" class="peer-grid" hx-get="/peers/grid" hx-trigger="every 2s" hx-swap="outerHTML">`)
+	for idx := range state.PeerCount {
+		ps := state.Peers[idx]
+		if ps == nil {
+			continue
+		}
+		if statusFilter != "" && ps.Status.String() != statusFilter {
+			continue
+		}
+		h.writef(`<div id="peer-cell-%d" class="peer-cell %s" title="Peer %d: %s | Sent: %d Recv: %d | Last: %s" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML"></div>`,
+			idx, ps.Status.CSSClass(), idx, ps.Status.String(),
+			ps.RoutesSent, ps.RoutesRecv, eventTypeLabel(ps.LastEvent), idx)
+	}
+	h.write(`</div>`)
 }
 
 // writePeerDetail renders the detail pane for a single peer.

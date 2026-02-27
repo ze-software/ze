@@ -193,6 +193,66 @@ html, body {
 .status-reconnecting .dot, .dot.status-reconnecting { background: var(--yellow); }
 .status-idle .dot, .dot.status-idle { background: var(--text-muted); }
 
+/* Peer grid view */
+.peer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px;
+}
+
+.peer-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.peer-cell:hover {
+  transform: scale(1.3);
+  box-shadow: 0 0 6px rgba(255,255,255,0.3);
+  z-index: 1;
+}
+
+.peer-cell.status-up { background: var(--green); }
+.peer-cell.status-syncing { background: var(--accent); }
+.peer-cell.status-down { background: var(--red); }
+.peer-cell.status-reconnecting { background: var(--yellow); }
+.peer-cell.status-idle { background: var(--text-muted); }
+
+/* View toggle buttons */
+.view-toggle {
+  margin-left: auto;
+  display: flex;
+  gap: 0;
+}
+
+.view-btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+
+.view-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.view-btn:last-child {
+  border-radius: 0 4px 4px 0;
+  border-left: none;
+}
+
+.view-btn.active {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
 /* Pin icon */
 .pin {
   display: inline-block;
