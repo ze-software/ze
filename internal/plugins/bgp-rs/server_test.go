@@ -1176,11 +1176,13 @@ func TestHandleStateUpReplay(t *testing.T) {
 	}
 }
 
-// TestHandleStateUpSequencing verifies peer not in selectForwardTargets during replay.
+// TestReplayingPeerIncludedInForwardTargets verifies that a replaying peer IS included
+// in selectForwardTargets. BGP UPDATE duplicates are idempotent, so forwarding to a
+// replaying peer is safe and prevents route loss when all peers connect simultaneously.
 //
-// VALIDATES: AC-3 — peer X added to forward targets AFTER replay response.
-// PREVENTS: Ghost routes from forwarding during replay.
-func TestHandleStateUpSequencing(t *testing.T) {
+// VALIDATES: Replaying peers receive live forwards — no route loss race condition.
+// PREVENTS: Route loss when peers connect simultaneously and Replaying exclusion drops updates.
+func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
@@ -1190,26 +1192,12 @@ func TestHandleStateUpSequencing(t *testing.T) {
 		Families: map[string]bool{"ipv4/unicast": true}}
 	rs.mu.Unlock()
 
-	// A replaying peer should NOT be in forward targets.
+	// A replaying peer SHOULD be in forward targets (duplicates are idempotent).
 	rs.mu.RLock()
 	targets := rs.selectForwardTargets("10.0.0.2", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
-	for _, addr := range targets {
-		if addr == "10.0.0.1" {
-			t.Error("replaying peer 10.0.0.1 should NOT be in forward targets")
-		}
-	}
-
-	// After replay completes, peer should be in targets.
-	rs.mu.Lock()
-	rs.peers["10.0.0.1"].Replaying = false
-	rs.mu.Unlock()
-
-	rs.mu.RLock()
-	targets = rs.selectForwardTargets("10.0.0.2", map[string]bool{"ipv4/unicast": true})
-	rs.mu.RUnlock()
 	if !slices.Contains(targets, "10.0.0.1") {
-		t.Error("peer 10.0.0.1 should be in forward targets after replay completes")
+		t.Error("replaying peer 10.0.0.1 should be in forward targets")
 	}
 }
 

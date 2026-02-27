@@ -567,7 +567,7 @@ func (rs *RouteServer) dispatchText(text string) {
 func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[string]bool) []string {
 	var targets []string
 	for addr, peer := range rs.peers {
-		if addr == sourcePeer || !peer.Up || peer.Replaying {
+		if addr == sourcePeer || !peer.Up {
 			continue
 		}
 		if peer.Families != nil {
