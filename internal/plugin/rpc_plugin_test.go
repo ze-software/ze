@@ -3,6 +3,8 @@ package plugin
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"os"
 	"testing"
 	"time"
 
@@ -1036,8 +1038,13 @@ func TestRPCDeliverBatchTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
-	// Plugin never reads — should timeout
+	// Plugin never reads — should timeout.
+	// Under load, the timeout may surface as context.DeadlineExceeded (read phase)
+	// or os.ErrDeadlineExceeded / i/o timeout (write phase, kernel deadline fires
+	// before Go runtime context timer). Both are correct timeout behavior.
 	err := engineConn.SendDeliverBatch(ctx, []string{`{"type":"bgp"}`})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.DeadlineExceeded)
+	isCtxTimeout := errors.Is(err, context.DeadlineExceeded)
+	isIOTimeout := errors.Is(err, os.ErrDeadlineExceeded)
+	assert.True(t, isCtxTimeout || isIOTimeout, "expected timeout error, got: %v", err)
 }

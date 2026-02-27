@@ -409,14 +409,24 @@ func TestDeliveryLoopBatching(t *testing.T) {
 		require.True(t, ok, "event %d should be enqueued", i)
 	}
 
-	// Plugin side: read the batch RPC request
+	// Plugin side: read and respond to batch RPCs.
+	// Under load (race detector, full suite), events may arrive in multiple batches
+	// because drainBatch's non-blocking drain can fire before all events are enqueued.
 	pluginConn := NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
-	req, err := pluginConn.ReadRequest(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+	delivered := 0
+	for delivered < len(events) {
+		req, readErr := pluginConn.ReadRequest(ctx)
+		require.NoError(t, readErr)
+		assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
 
-	// Respond OK
-	require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
+		var input struct {
+			Events []json.RawMessage `json:"events"`
+		}
+		require.NoError(t, json.Unmarshal(req.Params, &input))
+		delivered += len(input.Events)
+
+		require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
+	}
 
 	// All 3 results should complete without error
 	for i := range 3 {
