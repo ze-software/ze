@@ -609,9 +609,11 @@ func (d *Dashboard) renderStats() string {
 		`<span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Chaos Rate </span><span class="stat-value ` + ChaosRateColorClass(d.state.ChaosRate()) + `">` + fmt.Sprintf("%.1f/s", d.state.ChaosRate()) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
 		droppedStat(d.state.TotalDropped) +
 		syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration) +
+		speedStat(d.state.Control.SpeedAvailable, d.state.Control.SpeedFactor) +
 		`</div>`
 }
 
@@ -729,6 +731,14 @@ func droppedStat(n int) string {
 		return ""
 	}
 	return `<span class="stat stat-warn"><span class="stat-label">Dropped </span><span class="stat-value">` + itoa(n) + `</span></span>`
+}
+
+// speedStat returns a stat showing the current speed factor, or empty when disabled.
+func speedStat(available bool, factor int) string {
+	if !available {
+		return ""
+	}
+	return `<span class="stat"><span class="stat-label">Speed </span><span class="stat-value">` + itoa(factor) + `x</span></span>`
 }
 
 // syncStat returns a stat showing initial route synchronization progress or duration.

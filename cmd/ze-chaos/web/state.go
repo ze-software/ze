@@ -410,6 +410,10 @@ type DashboardState struct {
 	// lastThroughputAt tracks the last throughput EMA update time.
 	lastThroughputAt time.Time
 
+	// Chaos rate EMA — computed alongside throughput in UpdateThroughput.
+	prevTotalChaos int     // TotalChaos snapshot at last update.
+	chaosRate      float64 // Smoothed chaos events per second.
+
 	// Run metadata.
 	Seed      uint64
 	StartTime time.Time
@@ -627,6 +631,30 @@ func (s *DashboardState) UpdateThroughput(now time.Time) {
 		instantIn := float64(deltaRecv) / elapsed
 		ps.throughputOut = throughputEMAAlpha*instantOut + (1-throughputEMAAlpha)*ps.throughputOut
 		ps.throughputIn = throughputEMAAlpha*instantIn + (1-throughputEMAAlpha)*ps.throughputIn
+	}
+
+	// Chaos rate EMA (events/sec).
+	chaosDelta := s.TotalChaos - s.prevTotalChaos
+	s.prevTotalChaos = s.TotalChaos
+	instantChaos := float64(chaosDelta) / elapsed
+	s.chaosRate = throughputEMAAlpha*instantChaos + (1-throughputEMAAlpha)*s.chaosRate
+}
+
+// ChaosRate returns the smoothed chaos event rate (events/sec).
+func (s *DashboardState) ChaosRate() float64 {
+	return s.chaosRate
+}
+
+// ChaosRateColorClass returns a CSS class based on chaos rate thresholds.
+// Green (low) < 1/s, yellow (moderate) 1-5/s, red (high) > 5/s.
+func ChaosRateColorClass(rate float64) string {
+	switch {
+	case rate > 5.0:
+		return "rate-red"
+	case rate >= 1.0:
+		return "rate-yellow"
+	default:
+		return "rate-green"
 	}
 }
 

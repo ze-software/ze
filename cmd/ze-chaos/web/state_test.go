@@ -565,6 +565,119 @@ func TestRouteMatrixPrefixEviction(t *testing.T) {
 	}
 }
 
+// TestChaosRateEMA verifies chaos event rate EMA computes correct events/sec.
+//
+// VALIDATES: AC-1, AC-8 — chaos rate reflects actual event frequency.
+// PREVENTS: EMA not converging to actual rate.
+func TestChaosRateEMA(t *testing.T) {
+	t.Parallel()
+
+	ds := NewDashboardState(5, 40, 100)
+	now := time.Now()
+
+	// First call initializes — no rate yet.
+	ds.UpdateThroughput(now)
+	if ds.ChaosRate() != 0 {
+		t.Fatalf("initial chaos rate = %f, want 0", ds.ChaosRate())
+	}
+
+	// Simulate 10 chaos events over 1 second.
+	ds.TotalChaos = 10
+	ds.UpdateThroughput(now.Add(time.Second))
+	// EMA with alpha=0.3: 0.3*10 + 0.7*0 = 3.0
+	if got := ds.ChaosRate(); got < 2.9 || got > 3.1 {
+		t.Fatalf("chaos rate after 10 events/1s = %f, want ~3.0", got)
+	}
+
+	// Another tick with same total (no new events): rate decays.
+	ds.UpdateThroughput(now.Add(2 * time.Second))
+	// EMA: 0.3*0 + 0.7*3.0 = 2.1
+	if got := ds.ChaosRate(); got < 2.0 || got > 2.2 {
+		t.Fatalf("chaos rate after decay = %f, want ~2.1", got)
+	}
+}
+
+// TestChaosRateEMAZero verifies zero chaos events gives 0.0 rate.
+//
+// VALIDATES: AC-5 — no chaos events yields zero rate.
+// PREVENTS: Non-zero rate with no chaos activity.
+func TestChaosRateEMAZero(t *testing.T) {
+	t.Parallel()
+
+	ds := NewDashboardState(5, 40, 100)
+	now := time.Now()
+
+	ds.UpdateThroughput(now)
+	ds.UpdateThroughput(now.Add(time.Second))
+	ds.UpdateThroughput(now.Add(2 * time.Second))
+
+	if got := ds.ChaosRate(); got != 0 {
+		t.Fatalf("chaos rate with no events = %f, want 0", got)
+	}
+}
+
+// TestChaosRateEMABurst verifies burst produces high rate that decays.
+//
+// VALIDATES: AC-1 — burst of events produces high rate; decays after burst.
+// PREVENTS: Rate staying high after burst ends.
+func TestChaosRateEMABurst(t *testing.T) {
+	t.Parallel()
+
+	ds := NewDashboardState(5, 40, 100)
+	now := time.Now()
+
+	ds.UpdateThroughput(now)
+
+	// Burst: 100 events in 1 second.
+	ds.TotalChaos = 100
+	ds.UpdateThroughput(now.Add(time.Second))
+	burstRate := ds.ChaosRate()
+	if burstRate < 25 {
+		t.Fatalf("burst rate = %f, want > 25", burstRate)
+	}
+
+	// Let it decay for 5 ticks with no new events.
+	for i := 2; i < 7; i++ {
+		ds.UpdateThroughput(now.Add(time.Duration(i) * time.Second))
+	}
+	decayedRate := ds.ChaosRate()
+	if decayedRate >= burstRate {
+		t.Fatalf("decayed rate %f should be less than burst rate %f", decayedRate, burstRate)
+	}
+	if decayedRate > 6 {
+		t.Fatalf("after 5 decay ticks, rate %f should be < 6", decayedRate)
+	}
+}
+
+// TestChaosRateColorClass verifies rate-to-color mapping.
+//
+// VALIDATES: AC-2 (green), AC-3 (yellow), AC-4 (red), AC-5 (zero=green).
+// PREVENTS: Wrong color thresholds.
+func TestChaosRateColorClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		rate float64
+		want string
+	}{
+		{0.0, "rate-green"},
+		{0.5, "rate-green"},
+		{0.99, "rate-green"},
+		{1.0, "rate-yellow"},
+		{3.0, "rate-yellow"},
+		{5.0, "rate-yellow"},
+		{5.01, "rate-red"},
+		{10.0, "rate-red"},
+		{100.0, "rate-red"},
+	}
+
+	for _, tt := range tests {
+		if got := ChaosRateColorClass(tt.rate); got != tt.want {
+			t.Errorf("ChaosRateColorClass(%f) = %q, want %q", tt.rate, got, tt.want)
+		}
+	}
+}
+
 // TestPeerStatusString verifies string representation of all statuses.
 //
 // VALIDATES: All PeerStatus values have human-readable strings.

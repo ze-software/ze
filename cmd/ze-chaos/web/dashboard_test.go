@@ -713,6 +713,115 @@ func TestDonutSegmentColors(t *testing.T) {
 	}
 }
 
+// --- Chaos Rate Feedback Tests ---
+
+// TestRenderStatsIncludesChaosRate verifies renderStats output contains chaos rate span.
+//
+// VALIDATES: AC-1 — stats panel shows chaos event rate with EMA smoothing.
+// PREVENTS: Missing chaos rate readback in SSE stats updates.
+func TestRenderStatsIncludesChaosRate(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Simulate some chaos events and a throughput update.
+	d.state.TotalChaos = 10
+	now := time.Now()
+	d.state.UpdateThroughput(now)
+	d.state.UpdateThroughput(now.Add(time.Second))
+
+	html := d.renderStats()
+	if !strings.Contains(html, "Chaos Rate") {
+		t.Error("renderStats missing 'Chaos Rate' label")
+	}
+	if !strings.Contains(html, "/s") {
+		t.Error("renderStats missing rate value with /s suffix")
+	}
+	if !strings.Contains(html, "rate-") {
+		t.Error("renderStats missing rate color class")
+	}
+}
+
+// TestRenderStatsIncludesSpeedFactor verifies speed readback when enabled.
+//
+// VALIDATES: AC-6 — stats panel shows current speed factor when enabled.
+// PREVENTS: Missing speed readback.
+func TestRenderStatsIncludesSpeedFactor(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.state.Control.SpeedAvailable = true
+	d.state.Control.SpeedFactor = 100
+
+	html := d.renderStats()
+	if !strings.Contains(html, "Speed") {
+		t.Error("renderStats missing 'Speed' label")
+	}
+	if !strings.Contains(html, "100x") {
+		t.Error("renderStats missing speed factor value '100x'")
+	}
+}
+
+// TestRenderStatsNoSpeedWhenDisabled verifies no speed readback when disabled.
+//
+// VALIDATES: AC-7 — no speed readback when SpeedAvailable is false.
+// PREVENTS: Showing speed readback when not applicable.
+func TestRenderStatsNoSpeedWhenDisabled(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.state.Control.SpeedAvailable = false
+
+	html := d.renderStats()
+	if strings.Contains(html, "Speed") {
+		t.Error("renderStats should not contain 'Speed' when disabled")
+	}
+}
+
+// TestBroadcastStatsWithChaosRate verifies stats SSE fragment has rate after chaos events.
+//
+// VALIDATES: AC-1 — stats fragment contains colored rate value after processing events.
+// PREVENTS: Rate not being updated through SSE broadcast path.
+func TestBroadcastStatsWithChaosRate(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Process chaos events.
+	now := time.Now()
+	for i := range 5 {
+		d.ProcessEvent(peer.Event{
+			Type:      peer.EventChaosExecuted,
+			PeerIndex: i % 5,
+			Time:      now.Add(time.Duration(i) * time.Millisecond),
+		})
+	}
+
+	// Simulate throughput update (normally done in broadcastDirty).
+	d.state.mu.Lock()
+	d.state.UpdateThroughput(now)
+	d.state.UpdateThroughput(now.Add(time.Second))
+	d.state.mu.Unlock()
+
+	d.state.RLock()
+	html := d.renderStats()
+	d.state.RUnlock()
+
+	if !strings.Contains(html, "Chaos Rate") {
+		t.Error("stats after chaos events missing 'Chaos Rate'")
+	}
+	// Rate should be non-zero.
+	if strings.Contains(html, "0.0/s") {
+		t.Error("chaos rate should be non-zero after events")
+	}
+}
+
 // --- Control Strip Tests ---
 
 // TestWriteControlStripRunning verifies the strip shows Running status with Pause button.
