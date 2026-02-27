@@ -79,6 +79,8 @@ const (
 	PeerDown
 	// PeerReconnecting means the peer is reconnecting after chaos.
 	PeerReconnecting
+	// PeerSyncing means the peer has established but is still sending initial routes (pre-EOR).
+	PeerSyncing
 )
 
 // String returns a human-readable status label.
@@ -92,6 +94,8 @@ func (s PeerStatus) String() string {
 		return "down"
 	case PeerReconnecting:
 		return "reconnecting"
+	case PeerSyncing:
+		return "syncing"
 	}
 	return "idle"
 }
@@ -107,6 +111,8 @@ func (s PeerStatus) CSSClass() string {
 		return "status-down"
 	case PeerReconnecting:
 		return cssReconnecting
+	case PeerSyncing:
+		return "status-syncing"
 	}
 	return "status-idle"
 }
@@ -355,6 +361,7 @@ type DashboardState struct {
 	TotalRouteActions int // Route dynamics actions executed (EventRouteAction).
 	TotalDropped      int // Events silently dropped by readLoop (EventDroppedEvents).
 	PeersUp           int
+	PeersSyncing      int // Peers in PeerSyncing state (established, pre-EOR).
 
 	// Byte counters (accumulated from event deltas).
 	TotalBytesSent int64

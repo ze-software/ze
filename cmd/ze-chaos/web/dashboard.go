@@ -294,9 +294,9 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	// Update per-peer state.
 	switch ev.Type {
 	case peer.EventEstablished:
-		ps.Status = PeerUp
-		if prevStatus != PeerUp {
-			d.state.PeersUp++
+		ps.Status = PeerSyncing
+		if prevStatus != PeerSyncing {
+			d.state.PeersSyncing++
 		}
 		// Record negotiated families from EventEstablished.
 		// Reset per-family counters so reconnected peers start fresh.
@@ -312,11 +312,15 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
+		} else if prevStatus == PeerSyncing {
+			d.state.PeersSyncing--
 		}
 	case peer.EventReconnecting:
 		ps.Status = PeerReconnecting
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
+		} else if prevStatus == PeerSyncing {
+			d.state.PeersSyncing--
 		}
 		ps.Reconnects++
 		d.state.TotalReconnects++
@@ -377,6 +381,12 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 				d.state.AllFamilies[f] = true
 			}
 		}
+		// Transition syncing → up on first EOR.
+		if ps.Status == PeerSyncing {
+			ps.Status = PeerUp
+			d.state.PeersSyncing--
+			d.state.PeersUp++
+		}
 		// Track initial EOR per peer for sync duration measurement.
 		if ev.PeerIndex < len(d.state.EORSeen) && !d.state.EORSeen[ev.PeerIndex] {
 			d.state.EORSeen[ev.PeerIndex] = true
@@ -389,6 +399,8 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
+		} else if prevStatus == PeerSyncing {
+			d.state.PeersSyncing--
 		}
 	}
 
@@ -555,6 +567,7 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 func (d *Dashboard) renderStats() string {
 	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
 		`<span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(d.state.PeersUp) + `/` + itoa(d.state.PeerCount) + `</span></span>` +
+		syncingStatInline(d.state.PeersSyncing) +
 		`<span class="stat"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span></span>` +
@@ -650,6 +663,14 @@ func renderPeerRemoval(idx int) string {
 // itoa is a simple int-to-string helper to avoid importing strconv for HTML rendering.
 func itoa(n int) string {
 	return fmt.Sprintf("%d", n)
+}
+
+// syncingStatInline returns a stat showing peers currently in syncing state, or empty when zero.
+func syncingStatInline(n int) string {
+	if n == 0 {
+		return ""
+	}
+	return `<span class="stat" title="Peers established but still receiving initial routes (pre-EOR)"><span class="stat-label">Syncing </span><span class="stat-value">` + itoa(n) + `</span></span>`
 }
 
 // droppedStat returns a warning stat span when events were dropped, or empty string otherwise.

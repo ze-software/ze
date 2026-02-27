@@ -70,7 +70,8 @@ func writeLayout(w io.Writer, d *Dashboard) {
   <div class="card">
     <h3>Stats</h3>
     <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">
-      <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>
+      <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>` +
+		syncingStatInline(s.PeersSyncing) + `
       <span class="stat" title="Total BGP messages (routes) sent to Ze"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
       <span class="stat" title="Total BGP messages (routes) received from Ze"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
       <span class="stat" title="Total bytes sent to Ze by all peers"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(s.TotalBytesSent) + `</span></span>
@@ -156,6 +157,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
       <option value="" selected>Relevant</option>
       <option value="fault">With Fault</option>
       <option value="up">Up</option>
+      <option value="syncing">Syncing</option>
       <option value="down">Down</option>
       <option value="reconnecting">Reconnecting</option>
       <option value="idle">Idle</option>

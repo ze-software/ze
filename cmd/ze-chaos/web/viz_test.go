@@ -1226,14 +1226,39 @@ func TestPeerTransitionRecording(t *testing.T) {
 	if len(transitions) != 3 {
 		t.Fatalf("transitions len = %d, want 3", len(transitions))
 	}
-	if transitions[0].Status != PeerUp {
-		t.Errorf("transition 0 = %v, want PeerUp", transitions[0].Status)
+	if transitions[0].Status != PeerSyncing {
+		t.Errorf("transition 0 = %v, want PeerSyncing", transitions[0].Status)
 	}
 	if transitions[1].Status != PeerDown {
 		t.Errorf("transition 1 = %v, want PeerDown", transitions[1].Status)
 	}
 	if transitions[2].Status != PeerReconnecting {
 		t.Errorf("transition 2 = %v, want PeerReconnecting", transitions[2].Status)
+	}
+}
+
+// TestStatusColor verifies all peer statuses have distinct timeline colors.
+//
+// VALIDATES: AC-7 — PeerSyncing maps to cyan (#58a6ff), all statuses have colors.
+// PREVENTS: Missing color for syncing peers in timeline visualization.
+func TestStatusColor(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		status PeerStatus
+		want   string
+	}{
+		{PeerUp, "#3fb950"},
+		{PeerSyncing, "#58a6ff"},
+		{PeerDown, "#f85149"},
+		{PeerReconnecting, "#d29922"},
+		{PeerIdle, "#6e7681"},
+	}
+
+	for _, tt := range tests {
+		if got := statusColor(tt.status); got != tt.want {
+			t.Errorf("statusColor(%v) = %q, want %q", tt.status, got, tt.want)
+		}
 	}
 }
 

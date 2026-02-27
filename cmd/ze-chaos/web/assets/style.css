@@ -188,6 +188,7 @@ html, body {
 }
 
 .status-up .dot, .dot.status-up { background: var(--green); }
+.status-syncing .dot, .dot.status-syncing { background: var(--accent); }
 .status-down .dot, .dot.status-down { background: var(--red); }
 .status-reconnecting .dot, .dot.status-reconnecting { background: var(--yellow); }
 .status-idle .dot, .dot.status-idle { background: var(--text-muted); }

@@ -102,11 +102,11 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 
 	// Filter by status if requested.
 	if statusFilter == "fault" {
-		// "With Fault" mode: show all non-up peers.
+		// "With Fault" mode: show peers that are down, reconnecting, or idle (not up/syncing).
 		var filtered []int
 		for _, idx := range indices {
 			ps := d.state.Peers[idx]
-			if ps != nil && ps.Status != PeerUp {
+			if ps != nil && ps.Status != PeerUp && ps.Status != PeerSyncing {
 				filtered = append(filtered, idx)
 			}
 		}

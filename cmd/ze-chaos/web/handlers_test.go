@@ -278,13 +278,15 @@ func TestPeersUpCounterAccuracy(t *testing.T) {
 
 	now := time.Now()
 
-	// Establish two peers.
+	// Establish two peers (Established → Syncing → EOR → Up).
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: now})
 	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 1, Time: now})
 
 	d.state.RLock()
 	if d.state.PeersUp != 2 {
-		t.Fatalf("PeersUp after 2 established = %d, want 2", d.state.PeersUp)
+		t.Fatalf("PeersUp after 2 established+EOR = %d, want 2", d.state.PeersUp)
 	}
 	d.state.RUnlock()
 
@@ -311,6 +313,61 @@ func TestPeersUpCounterAccuracy(t *testing.T) {
 		t.Fatalf("PeersUp after duplicate error = %d, want 0", d.state.PeersUp)
 	}
 	d.state.RUnlock()
+}
+
+// TestPeerFilterSyncing verifies the "syncing" status filter shows only syncing peers.
+//
+// VALIDATES: AC-8 — Filter dropdown "Syncing" shows syncing peers; "fault" excludes them.
+// PREVENTS: Syncing peers appearing in fault filter or missing from syncing filter.
+func TestPeerFilterSyncing(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	// Peer 0: syncing (established, no EOR).
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	// Peer 1: up (established + EOR).
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 1, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 1, Time: now})
+	// Peer 2: down.
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 2, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 2, Time: now})
+
+	// Promote all peers to active set so they appear in filtered results.
+	d.state.mu.Lock()
+	for i := range 3 {
+		d.state.Active.Promote(i, PriorityHigh, now)
+	}
+	d.state.mu.Unlock()
+
+	// "syncing" filter: only peer 0.
+	req := httptest.NewRequest("GET", "/peers?status=syncing", http.NoBody)
+	rec := httptest.NewRecorder()
+	d.handlePeers(rec, req)
+	body := rec.Body.String()
+	if !strings.Contains(body, "peer-0") {
+		t.Error("syncing filter should include peer 0")
+	}
+	if strings.Contains(body, "peer-1") || strings.Contains(body, "peer-2") {
+		t.Error("syncing filter should exclude non-syncing peers")
+	}
+
+	// "fault" filter: only peer 2 (down), NOT peer 0 (syncing is not a fault).
+	req = httptest.NewRequest("GET", "/peers?status=fault", http.NoBody)
+	rec = httptest.NewRecorder()
+	d.handlePeers(rec, req)
+	body = rec.Body.String()
+	if !strings.Contains(body, "peer-2") {
+		t.Error("fault filter should include peer 2 (down)")
+	}
+	if strings.Contains(body, "peer-0") {
+		t.Error("fault filter should exclude peer 0 (syncing is not a fault)")
+	}
+	if strings.Contains(body, "peer-1") {
+		t.Error("fault filter should exclude peer 1 (up)")
+	}
 }
 
 // mockControlLogger captures LogControl calls for testing.
@@ -839,6 +896,7 @@ func TestProcessEventIntegration(t *testing.T) {
 	now := time.Now()
 	events := []peer.Event{
 		{Type: peer.EventEstablished, PeerIndex: 0, Time: now},
+		{Type: peer.EventEORSent, PeerIndex: 0, Time: now}, // Completes sync → PeerUp.
 		{Type: peer.EventRouteSent, PeerIndex: 0, Time: now},
 		{Type: peer.EventChaosExecuted, PeerIndex: 1, Time: now, ChaosAction: "disconnect"},
 		{Type: peer.EventDisconnected, PeerIndex: 1, Time: now},

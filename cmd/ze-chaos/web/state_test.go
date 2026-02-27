@@ -580,11 +580,278 @@ func TestPeerStatusString(t *testing.T) {
 		{PeerUp, "up"},
 		{PeerDown, "down"},
 		{PeerReconnecting, "reconnecting"},
+		{PeerSyncing, "syncing"},
 	}
 
 	for _, tt := range tests {
 		if got := tt.status.String(); got != tt.want {
 			t.Errorf("PeerStatus(%d).String() = %q, want %q", tt.status, got, tt.want)
 		}
+	}
+}
+
+// TestPeerStatusCSSClass verifies CSS class mapping for all statuses.
+//
+// VALIDATES: All PeerStatus values have correct CSS classes.
+// PREVENTS: Missing case in CSSClass switch causing wrong styling.
+func TestPeerStatusCSSClass(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		status PeerStatus
+		want   string
+	}{
+		{PeerIdle, "status-idle"},
+		{PeerUp, "status-up"},
+		{PeerDown, "status-down"},
+		{PeerReconnecting, "status-reconnecting"},
+		{PeerSyncing, "status-syncing"},
+	}
+
+	for _, tt := range tests {
+		if got := tt.status.CSSClass(); got != tt.want {
+			t.Errorf("PeerStatus(%d).CSSClass() = %q, want %q", tt.status, got, tt.want)
+		}
+	}
+}
+
+// TestProcessEventSyncingState verifies EventEstablished sets PeerSyncing (not PeerUp).
+//
+// VALIDATES: AC-1 — Established → PeerSyncing, PeersSyncing increments, PeersUp unchanged.
+// PREVENTS: Regression to old behavior where Established went directly to PeerUp.
+func TestProcessEventSyncingState(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEstablished,
+		PeerIndex: 0,
+		Time:      time.Now(),
+		Families:  []string{"ipv4/unicast"},
+	})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerSyncing {
+		t.Fatalf("Status = %v, want PeerSyncing", ps.Status)
+	}
+	if d.state.PeersSyncing != 1 {
+		t.Fatalf("PeersSyncing = %d, want 1", d.state.PeersSyncing)
+	}
+	if d.state.PeersUp != 0 {
+		t.Fatalf("PeersUp = %d, want 0 (should not increment on Established)", d.state.PeersUp)
+	}
+}
+
+// TestProcessEventSyncingToUp verifies EOR transitions syncing peer to PeerUp.
+//
+// VALIDATES: AC-2 — EOR on syncing peer → PeerUp, PeersSyncing--, PeersUp++.
+// PREVENTS: EOR not triggering status promotion.
+func TestProcessEventSyncingToUp(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEstablished,
+		PeerIndex: 0,
+		Time:      now,
+		Families:  []string{"ipv4/unicast"},
+	})
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEORSent,
+		PeerIndex: 0,
+		Time:      now.Add(time.Second),
+	})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerUp {
+		t.Fatalf("Status = %v, want PeerUp after EOR", ps.Status)
+	}
+	if d.state.PeersSyncing != 0 {
+		t.Fatalf("PeersSyncing = %d, want 0", d.state.PeersSyncing)
+	}
+	if d.state.PeersUp != 1 {
+		t.Fatalf("PeersUp = %d, want 1", d.state.PeersUp)
+	}
+}
+
+// TestProcessEventDisconnectWhileSyncing verifies disconnect during sync decrements PeersSyncing.
+//
+// VALIDATES: AC-3 — Disconnect while syncing → PeerDown, PeersSyncing--, PeersUp unchanged.
+// PREVENTS: Counter leak when syncing peer disconnects.
+func TestProcessEventDisconnectWhileSyncing(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEstablished,
+		PeerIndex: 0,
+		Time:      now,
+	})
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventDisconnected,
+		PeerIndex: 0,
+		Time:      now.Add(time.Second),
+	})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerDown {
+		t.Fatalf("Status = %v, want PeerDown", ps.Status)
+	}
+	if d.state.PeersSyncing != 0 {
+		t.Fatalf("PeersSyncing = %d, want 0", d.state.PeersSyncing)
+	}
+	if d.state.PeersUp != 0 {
+		t.Fatalf("PeersUp = %d, want 0", d.state.PeersUp)
+	}
+}
+
+// TestProcessEventErrorWhileSyncing verifies error during sync decrements PeersSyncing.
+//
+// VALIDATES: AC-4 — Error while syncing → PeerDown, PeersSyncing--.
+// PREVENTS: Counter leak when syncing peer errors.
+func TestProcessEventErrorWhileSyncing(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEstablished,
+		PeerIndex: 0,
+		Time:      now,
+	})
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventError,
+		PeerIndex: 0,
+		Time:      now.Add(time.Second),
+	})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerDown {
+		t.Fatalf("Status = %v, want PeerDown", ps.Status)
+	}
+	if d.state.PeersSyncing != 0 {
+		t.Fatalf("PeersSyncing = %d, want 0", d.state.PeersSyncing)
+	}
+}
+
+// TestProcessEventReconnectWhileSyncing verifies reconnect during sync decrements PeersSyncing.
+//
+// VALIDATES: AC-5 — Reconnecting while syncing → PeerReconnecting, PeersSyncing--.
+// PREVENTS: Counter leak when syncing peer reconnects.
+func TestProcessEventReconnectWhileSyncing(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventEstablished,
+		PeerIndex: 0,
+		Time:      now,
+	})
+	d.ProcessEvent(peer.Event{
+		Type:      peer.EventReconnecting,
+		PeerIndex: 0,
+		Time:      now.Add(time.Second),
+	})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerReconnecting {
+		t.Fatalf("Status = %v, want PeerReconnecting", ps.Status)
+	}
+	if d.state.PeersSyncing != 0 {
+		t.Fatalf("PeersSyncing = %d, want 0", d.state.PeersSyncing)
+	}
+}
+
+// TestProcessEventReEstablishAfterChaos verifies re-establish after chaos goes through syncing.
+//
+// VALIDATES: AC-11 — Second Established after disconnect → PeerSyncing again.
+// PREVENTS: Peer skipping syncing state on reconnection.
+func TestProcessEventReEstablishAfterChaos(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	// Full cycle: Established → EOR (up) → Disconnect → Reconnecting → Established again
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: now.Add(time.Second)})
+	d.ProcessEvent(peer.Event{Type: peer.EventDisconnected, PeerIndex: 0, Time: now.Add(2 * time.Second)})
+	d.ProcessEvent(peer.Event{Type: peer.EventReconnecting, PeerIndex: 0, Time: now.Add(3 * time.Second)})
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now.Add(4 * time.Second)})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerSyncing {
+		t.Fatalf("Status after re-establish = %v, want PeerSyncing", ps.Status)
+	}
+	if d.state.PeersSyncing != 1 {
+		t.Fatalf("PeersSyncing = %d, want 1", d.state.PeersSyncing)
+	}
+	if d.state.PeersUp != 0 {
+		t.Fatalf("PeersUp = %d, want 0", d.state.PeersUp)
+	}
+}
+
+// TestProcessEventEOROnNonSyncingPeer verifies EOR on already-up peer is a no-op for status.
+//
+// VALIDATES: AC-2 edge case — EOR on PeerUp doesn't change status or counters.
+// PREVENTS: Double-counting or unexpected transitions from repeated EOR.
+func TestProcessEventEOROnNonSyncingPeer(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	now := time.Now()
+	// Establish and complete sync.
+	d.ProcessEvent(peer.Event{Type: peer.EventEstablished, PeerIndex: 0, Time: now})
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: now.Add(time.Second)})
+
+	// Send another EOR (e.g., second address family).
+	d.ProcessEvent(peer.Event{Type: peer.EventEORSent, PeerIndex: 0, Time: now.Add(2 * time.Second)})
+
+	d.state.RLock()
+	defer d.state.RUnlock()
+
+	ps := d.state.Peers[0]
+	if ps.Status != PeerUp {
+		t.Fatalf("Status = %v, want PeerUp (unchanged)", ps.Status)
+	}
+	if d.state.PeersUp != 1 {
+		t.Fatalf("PeersUp = %d, want 1 (unchanged)", d.state.PeersUp)
+	}
+	if d.state.PeersSyncing != 0 {
+		t.Fatalf("PeersSyncing = %d, want 0", d.state.PeersSyncing)
 	}
 }

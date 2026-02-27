@@ -667,6 +667,8 @@ func statusColor(s PeerStatus) string {
 	switch s {
 	case PeerUp:
 		return "#3fb950"
+	case PeerSyncing:
+		return "#58a6ff"
 	case PeerDown:
 		return "#f85149"
 	case PeerReconnecting:
@@ -1289,7 +1291,7 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 </tr></thead>
 <tbody>`)
 
-	var totalUp, totalDown, totalReconn, totalIdle int
+	var totalUp, totalSyncing, totalDown, totalReconn, totalIdle int
 
 	for _, idx := range indices {
 		ps := s.Peers[idx]
@@ -1300,6 +1302,8 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 		switch ps.Status {
 		case PeerUp:
 			totalUp++
+		case PeerSyncing:
+			totalSyncing++
 		case PeerDown:
 			totalDown++
 		case PeerReconnecting:
@@ -1334,10 +1338,11 @@ func writeAllPeers(w io.Writer, s *DashboardState, sortCol, sortDir string) {
 	h.writef(`<div class="histogram-stats">
   <span class="stat"><span class="stat-label">Total </span><span class="stat-value">%d</span></span>
   <span class="stat"><span class="stat-label">Up </span><span class="stat-value" style="color:var(--green)">%d</span></span>
+  <span class="stat"><span class="stat-label">Syncing </span><span class="stat-value" style="color:var(--accent)">%d</span></span>
   <span class="stat"><span class="stat-label">Down </span><span class="stat-value" style="color:var(--red)">%d</span></span>
   <span class="stat"><span class="stat-label">Reconnecting </span><span class="stat-value" style="color:var(--yellow)">%d</span></span>
   <span class="stat"><span class="stat-label">Idle </span><span class="stat-value">%d</span></span>
-</div>`, len(indices), totalUp, totalDown, totalReconn, totalIdle)
+</div>`, len(indices), totalUp, totalSyncing, totalDown, totalReconn, totalIdle)
 
 	h.write(`<p class="viz-desc">Complete list of all peers, not just the active set. Click a row to view peer details. Sortable by column headers.</p>
 </div>`)
