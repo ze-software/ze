@@ -155,6 +155,7 @@ func writeLayout(w io.Writer, d *Dashboard) {
 </div>
 
 <div class="main">
+  <div id="toast-container" class="toast-container" sse-swap="toast" hx-swap="beforeend"></div>
   <div class="filters">
     <label>Status:</label>
     <select hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML" name="status"
@@ -363,6 +364,38 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter stri
 			ps.RoutesSent, ps.RoutesRecv, eventTypeLabel(ps.LastEvent), idx)
 	}
 	h.write(`</div>`)
+}
+
+// toastForEvent returns a ToastEntry for toast-worthy events, or false for non-toast events.
+func toastForEvent(ev peer.Event) (ToastEntry, bool) {
+	switch ev.Type {
+	case peer.EventDisconnected:
+		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "disconnected", CSSClass: "toast-error", Time: ev.Time}, true
+	case peer.EventReconnecting:
+		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "reconnecting", CSSClass: "toast-warn", Time: ev.Time}, true
+	case peer.EventError:
+		detail := ""
+		if ev.Err != nil {
+			detail = ev.Err.Error()
+		}
+		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "error", Detail: detail, CSSClass: "toast-error", Time: ev.Time}, true
+	case peer.EventChaosExecuted:
+		return ToastEntry{PeerIndex: ev.PeerIndex, Label: "chaos", Detail: ev.ChaosAction, CSSClass: "toast-warn", Time: ev.Time}, true
+	default:
+		return ToastEntry{}, false
+	}
+}
+
+// renderToast returns an HTML fragment for a single toast notification.
+// Uses hx-swap-oob to append to the toast container.
+func renderToast(t ToastEntry) string {
+	detail := ""
+	if t.Detail != "" {
+		detail = ` — ` + escapeHTML(t.Detail)
+	}
+	return `<div class="toast ` + t.CSSClass + `" hx-swap-oob="beforeend:#toast-container">` +
+		`<span class="toast-label">p` + itoa(t.PeerIndex) + ` ` + t.Label + detail + `</span>` +
+		`</div>`
 }
 
 // donutStatusOrder defines the rendering order and colors for donut segments.

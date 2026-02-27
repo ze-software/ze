@@ -1112,6 +1112,15 @@ span.fm-complete {
   z-index: 1;
 }
 
+/* Toast Notifications */
+.toast-container { position: absolute; top: 8px; right: 8px; z-index: 100; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
+.toast { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }
+.toast-error { background: color-mix(in srgb, var(--red) 20%, var(--bg-secondary)); border-left: 3px solid var(--red); color: var(--text-primary); }
+.toast-warn { background: color-mix(in srgb, var(--yellow) 20%, var(--bg-secondary)); border-left: 3px solid var(--yellow); color: var(--text-primary); }
+.toast-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+@keyframes toast-in { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@keyframes toast-out { from { opacity: 1; } to { opacity: 0; pointer-events: none; } }
+
 /* Health Donut */
 .donut-container { display: flex; justify-content: center; padding: 4px 0; }
 .donut { width: 100px; height: 100px; }

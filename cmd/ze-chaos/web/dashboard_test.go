@@ -290,6 +290,132 @@ func TestRenderPeerCellLastEvent(t *testing.T) {
 	}
 }
 
+// TestProcessEventQueuesToast verifies toast-worthy events are queued.
+//
+// VALIDATES: AC-1, AC-4 — disconnect and chaos events produce toasts.
+// PREVENTS: Toast-worthy events being silently ignored.
+func TestProcessEventQueuesToast(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventChaosExecuted, PeerIndex: 2, Time: now, ChaosAction: "tcp-disconnect"})
+
+	d.state.mu.Lock()
+	toasts := d.state.ConsumePendingToasts()
+	d.state.mu.Unlock()
+
+	if len(toasts) != 1 {
+		t.Fatalf("expected 1 toast, got %d", len(toasts))
+	}
+	if toasts[0].Label != "chaos" {
+		t.Errorf("toast label = %q, want %q", toasts[0].Label, "chaos")
+	}
+	if toasts[0].PeerIndex != 2 {
+		t.Errorf("toast peer = %d, want 2", toasts[0].PeerIndex)
+	}
+	if toasts[0].Detail != "tcp-disconnect" {
+		t.Errorf("toast detail = %q, want %q", toasts[0].Detail, "tcp-disconnect")
+	}
+}
+
+// TestProcessEventNonToastEvent verifies non-toast events don't queue.
+//
+// VALIDATES: AC-10 — EventRouteSent does NOT generate a toast.
+// PREVENTS: Flooding toasts with routine events.
+func TestProcessEventNonToastEvent(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	now := time.Now()
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: now})
+
+	d.state.mu.Lock()
+	toasts := d.state.ConsumePendingToasts()
+	d.state.mu.Unlock()
+
+	if len(toasts) != 0 {
+		t.Errorf("non-toast event should not queue, got %d toasts", len(toasts))
+	}
+}
+
+// TestToastQueueMaxFive verifies queue is bounded at 5.
+//
+// VALIDATES: AC-7 — only 5 most recent toasts kept.
+// PREVENTS: Unbounded toast queue growth.
+func TestToastQueueMaxFive(t *testing.T) {
+	t.Parallel()
+
+	state := NewDashboardState(10, 40, 100)
+	for i := range 6 {
+		state.QueueToast(ToastEntry{PeerIndex: i, Label: "test"})
+	}
+
+	toasts := state.ConsumePendingToasts()
+	if len(toasts) != 5 {
+		t.Fatalf("expected 5 toasts, got %d", len(toasts))
+	}
+	// Oldest (peer 0) should be dropped.
+	if toasts[0].PeerIndex != 1 {
+		t.Errorf("oldest toast peer = %d, want 1 (peer 0 should be dropped)", toasts[0].PeerIndex)
+	}
+}
+
+// TestRenderToast verifies toast HTML structure and content.
+//
+// VALIDATES: AC-11 — toast shows peer index, event type, and detail.
+// PREVENTS: Malformed toast HTML.
+func TestRenderToast(t *testing.T) {
+	t.Parallel()
+
+	toast := ToastEntry{PeerIndex: 3, Label: "chaos", Detail: "tcp-disconnect", CSSClass: "toast-warn", Time: time.Now()}
+	html := renderToast(toast)
+
+	if !strings.Contains(html, "toast-warn") {
+		t.Error("toast missing CSS class")
+	}
+	if !strings.Contains(html, "p3") {
+		t.Error("toast missing peer index")
+	}
+	if !strings.Contains(html, "chaos") {
+		t.Error("toast missing label")
+	}
+	if !strings.Contains(html, "tcp-disconnect") {
+		t.Error("toast missing detail")
+	}
+	if !strings.Contains(html, "beforeend:#toast-container") {
+		t.Error("toast missing hx-swap-oob attribute")
+	}
+}
+
+// TestRenderToastColors verifies error vs warning color classes.
+//
+// VALIDATES: AC-9 — disconnect/error use toast-error; chaos/reconnecting use toast-warn.
+// PREVENTS: Wrong color mapping.
+func TestRenderToastColors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		label string
+		css   string
+	}{
+		{"disconnected", "toast-error"},
+		{"error", "toast-error"},
+		{"chaos", "toast-warn"},
+		{"reconnecting", "toast-warn"},
+	}
+	for _, tt := range tests {
+		html := renderToast(ToastEntry{Label: tt.label, CSSClass: tt.css})
+		if !strings.Contains(html, tt.css) {
+			t.Errorf("toast %q missing class %q", tt.label, tt.css)
+		}
+	}
+}
+
 // TestStatusCounts verifies StatusCounts returns correct distribution.
 //
 // VALIDATES: AC-2 — donut has proportional segments for each status.

@@ -424,6 +424,11 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		d.state.TotalBytesRecv += ev.BytesRecv
 	}
 
+	// Queue toast for toast-worthy events.
+	if toast, ok := toastForEvent(ev); ok {
+		d.state.QueueToast(toast)
+	}
+
 	ps.LastEvent = ev.Type
 	ps.LastEventAt = ev.Time
 	ps.Events.Push(ev)
@@ -498,6 +503,7 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 
 	d.state.mu.Lock()
 	dirtyPeers, promotedPeers, dirtyGlobal := d.state.ConsumeDirty()
+	pendingToasts := d.state.ConsumePendingToasts()
 
 	// Update per-peer throughput EMA.
 	d.state.UpdateThroughput(now)
@@ -509,8 +515,13 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	}
 	d.state.mu.Unlock()
 
-	if !dirtyGlobal && len(removed) == 0 && len(promotedPeers) == 0 && !broadcastConvergence {
+	if !dirtyGlobal && len(removed) == 0 && len(promotedPeers) == 0 && len(pendingToasts) == 0 && !broadcastConvergence {
 		return
+	}
+
+	// Broadcast toast notifications.
+	for _, t := range pendingToasts {
+		d.broker.Broadcast(SSEEvent{Event: "toast", Data: renderToast(t)})
 	}
 
 	// Broadcast stats and events updates.

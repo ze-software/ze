@@ -340,6 +340,18 @@ type PeerStateTransition struct {
 	Status PeerStatus
 }
 
+// ToastEntry holds data for a single toast notification.
+type ToastEntry struct {
+	PeerIndex int
+	Label     string // Event type label (e.g., "disconnected", "chaos").
+	Detail    string // Extra detail (e.g., chaos action name).
+	CSSClass  string // Color class: "toast-error" or "toast-warn".
+	Time      time.Time
+}
+
+// maxPendingToasts is the maximum number of toasts queued between broadcast ticks.
+const maxPendingToasts = 5
+
 // DashboardState holds all mutable state for the web dashboard, protected by a RWMutex.
 type DashboardState struct {
 	mu sync.RWMutex
@@ -419,6 +431,10 @@ type DashboardState struct {
 	dirtyPeers    map[int]bool
 	newlyPromoted map[int]bool // peers promoted since last broadcast
 	dirtyGlobal   bool
+
+	// pendingToasts accumulates toast-worthy events between broadcast ticks.
+	// Bounded at maxPendingToasts; oldest dropped when full.
+	pendingToasts []ToastEntry
 }
 
 // NewDashboardState creates a new dashboard state.
@@ -476,6 +492,26 @@ func (s *DashboardState) SortedFamilies() []string {
 	}
 	sortStringSlice(fams)
 	return fams
+}
+
+// QueueToast appends a toast entry, dropping the oldest if at capacity.
+// Must be called under write lock.
+func (s *DashboardState) QueueToast(t ToastEntry) {
+	if len(s.pendingToasts) >= maxPendingToasts {
+		s.pendingToasts = s.pendingToasts[1:]
+	}
+	s.pendingToasts = append(s.pendingToasts, t)
+}
+
+// ConsumePendingToasts returns and clears the pending toast queue.
+// Must be called under write lock.
+func (s *DashboardState) ConsumePendingToasts() []ToastEntry {
+	if len(s.pendingToasts) == 0 {
+		return nil
+	}
+	toasts := s.pendingToasts
+	s.pendingToasts = nil
+	return toasts
 }
 
 // StatusCounts returns the number of peers in each PeerStatus.

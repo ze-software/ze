@@ -1417,6 +1417,28 @@ func TestSidebarStatsIncludesDonut(t *testing.T) {
 	}
 }
 
+// TestLayoutIncludesToastContainer verifies the layout has a toast container.
+//
+// VALIDATES: AC-8 — full page load includes toast container with sse-swap.
+// PREVENTS: Toasts having nowhere to appear.
+func TestLayoutIncludesToastContainer(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+
+	var buf strings.Builder
+	writeLayout(&buf, d)
+	html := buf.String()
+
+	if !strings.Contains(html, `id="toast-container"`) {
+		t.Error("layout missing toast container")
+	}
+	if !strings.Contains(html, `sse-swap="toast"`) {
+		t.Error("toast container missing sse-swap attribute")
+	}
+}
+
 // TestProcessEventRouteAction verifies TotalRouteActions counter increments.
 //
 // VALIDATES: EventRouteAction increments TotalRouteActions counter.
