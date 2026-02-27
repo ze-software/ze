@@ -362,7 +362,7 @@ func writeControlStrip(w io.Writer, cs *ControlState) {
 	h.write(`</div>`)
 }
 
-// writeControlSidebar renders the sidebar portion (trigger dropdown only).
+// writeControlSidebar renders the sidebar portion (trigger buttons + param form).
 // Called when control is active but the main controls are in the strip.
 func writeControlSidebar(w io.Writer, cs *ControlState) {
 	if cs.Status == statusStopped || cs.Status == statusRestarting {
@@ -371,20 +371,23 @@ func writeControlSidebar(w io.Writer, cs *ControlState) {
 	h := &htmlWriter{w: w}
 	h.write(`
   <div class="card">
-    <h3>Trigger</h3>
-    <div class="control-row">
-      <select name="action" hx-get="/control/trigger-form" hx-target="#trigger-params" hx-swap="innerHTML"
-              hx-trigger="change" hx-include="this">
-        <option value="" title="Manually trigger a chaos action on selected peers">Trigger...</option>`)
-	for _, at := range chaosActionTypes() {
-		h.writef(`<option value="%s" title="%s">%s</option>`, at, escapeHTML(chaosActionImpact(at)), at)
-	}
+    <h3>Trigger</h3>`)
+	writeTriggerButtons(h, chaosActionTypes())
 	h.write(`
-      </select>
-    </div>
     <div id="trigger-params"></div>
     <div id="trigger-result"></div>
   </div>`)
+}
+
+// writeTriggerButtons renders individual icon buttons for each chaos action type.
+// Each button fires hx-get to load the param form for that action.
+func writeTriggerButtons(h *htmlWriter, actions []string) {
+	h.write(`<div class="trigger-grid">`)
+	for _, at := range actions {
+		h.writef(`<span class="badge trigger-btn" title="%s" hx-get="/control/trigger-form?action=%s" hx-target="#trigger-params" hx-swap="innerHTML" onclick="document.querySelectorAll('.trigger-btn').forEach(b=>b.classList.remove('trigger-active'));this.classList.add('trigger-active')"><span class="trigger-icon">%s</span> %s</span>`,
+			escapeHTML(chaosActionImpact(at)), at, chaosActionIcon(at), chaosActionLabel(at))
+	}
+	h.write(`</div>`)
 }
 
 // writeTriggerForm renders the parameter form for a specific action type.
@@ -484,6 +487,54 @@ func chaosActionImpact(action string) string {
 		return "Sends SIGHUP to the Ze process. Triggers config re-read. Sessions stay up unless config changed."
 	default:
 		return ""
+	}
+}
+
+// chaosActionIcon returns a Unicode icon for a chaos action type.
+func chaosActionIcon(action string) string {
+	switch action {
+	case "tcp-disconnect":
+		return "\u26a1" // ⚡
+	case "notification-cease":
+		return "\u26d4" // ⛔
+	case "hold-timer-expiry":
+		return "\u23f3" // ⏳
+	case "disconnect-during-burst":
+		return "\U0001f4a5" // 💥
+	case "reconnect-storm":
+		return "\U0001f300" // 🌀
+	case "connection-collision":
+		return "\U0001f4a2" // 💢
+	case "malformed-update":
+		return "\u26a0" // ⚠
+	case "config-reload":
+		return "\U0001f504" // 🔄
+	default:
+		return "\u2753" // ❓
+	}
+}
+
+// chaosActionLabel returns a short label for a chaos action type.
+func chaosActionLabel(action string) string {
+	switch action {
+	case "tcp-disconnect":
+		return "Disconnect"
+	case "notification-cease":
+		return "Cease"
+	case "hold-timer-expiry":
+		return "Hold Expire"
+	case "disconnect-during-burst":
+		return "Burst Drop"
+	case "reconnect-storm":
+		return "Storm"
+	case "connection-collision":
+		return "Collision"
+	case "malformed-update":
+		return "Malformed"
+	case "config-reload":
+		return "Reload"
+	default:
+		return action
 	}
 }
 

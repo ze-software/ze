@@ -824,6 +824,174 @@ func TestBroadcastStatsWithChaosRate(t *testing.T) {
 
 // --- Control Strip Tests ---
 
+// --- Trigger Button Tests ---
+
+// TestChaosActionIcon verifies all action types have non-empty icons.
+//
+// VALIDATES: AC-2 — each trigger button shows a Unicode icon.
+// PREVENTS: Empty icons on buttons.
+func TestChaosActionIcon(t *testing.T) {
+	t.Parallel()
+
+	for _, at := range chaosActionTypes() {
+		icon := chaosActionIcon(at)
+		if icon == "" {
+			t.Errorf("chaosActionIcon(%q) returned empty string", at)
+		}
+	}
+}
+
+// TestChaosActionLabel verifies all action types have short labels.
+//
+// VALIDATES: AC-2 — each trigger button shows a short label.
+// PREVENTS: Empty labels or raw action-type strings on buttons.
+func TestChaosActionLabel(t *testing.T) {
+	t.Parallel()
+
+	for _, at := range chaosActionTypes() {
+		label := chaosActionLabel(at)
+		if label == "" || label == at {
+			t.Errorf("chaosActionLabel(%q) = %q, want a short human label", at, label)
+		}
+	}
+}
+
+// TestWriteTriggerButtons verifies button grid renders all 8 action buttons.
+//
+// VALIDATES: AC-1 — 8 individual trigger buttons visible.
+// PREVENTS: Missing buttons in the trigger grid.
+func TestWriteTriggerButtons(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+	h := &htmlWriter{w: &buf}
+	writeTriggerButtons(h, chaosActionTypes())
+	html := buf.String()
+
+	if !strings.Contains(html, "trigger-grid") {
+		t.Error("missing trigger-grid container")
+	}
+	// Should have 8 trigger buttons (count class="badge trigger-btn").
+	count := strings.Count(html, `class="badge trigger-btn"`)
+	if count != 8 {
+		t.Errorf("expected 8 trigger buttons, got %d", count)
+	}
+	// No dropdown elements.
+	if strings.Contains(html, "<select") || strings.Contains(html, "<option") {
+		t.Error("trigger buttons should not contain select/option elements")
+	}
+}
+
+// TestWriteTriggerButtonHTMX verifies each button has correct hx-get and target.
+//
+// VALIDATES: AC-4 — clicking a button loads the param form for that action.
+// PREVENTS: Broken HTMX wiring on trigger buttons.
+func TestWriteTriggerButtonHTMX(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+	h := &htmlWriter{w: &buf}
+	writeTriggerButtons(h, chaosActionTypes())
+	html := buf.String()
+
+	for _, at := range chaosActionTypes() {
+		want := `hx-get="/control/trigger-form?action=` + at + `"`
+		if !strings.Contains(html, want) {
+			t.Errorf("missing hx-get for action %q", at)
+		}
+	}
+	if !strings.Contains(html, `hx-target="#trigger-params"`) {
+		t.Error("missing hx-target on trigger buttons")
+	}
+}
+
+// TestWriteTriggerButtonTooltips verifies each button has a title with impact text.
+//
+// VALIDATES: AC-3 — hover tooltip shows action impact description.
+// PREVENTS: Missing tooltips on trigger buttons.
+func TestWriteTriggerButtonTooltips(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+	h := &htmlWriter{w: &buf}
+	writeTriggerButtons(h, chaosActionTypes())
+	html := buf.String()
+
+	for _, at := range chaosActionTypes() {
+		impact := chaosActionImpact(at)
+		if !strings.Contains(html, impact[:20]) { // Check first 20 chars of impact
+			t.Errorf("missing tooltip for action %q", at)
+		}
+	}
+}
+
+// TestWriteTriggerButtonIcons verifies each button contains a Unicode icon.
+//
+// VALIDATES: AC-2 — each button shows a Unicode icon character.
+// PREVENTS: Buttons without visual icons.
+func TestWriteTriggerButtonIcons(t *testing.T) {
+	t.Parallel()
+
+	var buf strings.Builder
+	h := &htmlWriter{w: &buf}
+	writeTriggerButtons(h, chaosActionTypes())
+	html := buf.String()
+
+	if !strings.Contains(html, "trigger-icon") {
+		t.Error("missing trigger-icon class")
+	}
+	// Each action's icon should appear.
+	for _, at := range chaosActionTypes() {
+		icon := chaosActionIcon(at)
+		if !strings.Contains(html, icon) {
+			t.Errorf("missing icon %q for action %q", icon, at)
+		}
+	}
+}
+
+// TestControlPanelRendersTriggerButtons verifies writeControlSidebar uses buttons, not dropdown.
+//
+// VALIDATES: AC-1 — control panel renders trigger buttons instead of select/option.
+// PREVENTS: Dropdown remnants in the trigger section.
+func TestControlPanelRendersTriggerButtons(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5}
+	var buf strings.Builder
+	writeControlSidebar(&buf, cs)
+	html := buf.String()
+
+	if !strings.Contains(html, "trigger-grid") {
+		t.Error("sidebar missing trigger-grid")
+	}
+	if !strings.Contains(html, "trigger-btn") {
+		t.Error("sidebar missing trigger-btn")
+	}
+	if strings.Contains(html, "<select") {
+		t.Error("sidebar should not contain select element (replaced by buttons)")
+	}
+	if strings.Contains(html, "<option") {
+		t.Error("sidebar should not contain option elements (replaced by buttons)")
+	}
+}
+
+// TestControlPanelNoTriggerWhenStopped verifies no trigger buttons when stopped.
+//
+// VALIDATES: AC-5 — trigger buttons hidden when Status=stopped.
+// PREVENTS: Showing trigger controls when chaos is stopped.
+func TestControlPanelNoTriggerWhenStopped(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "stopped"}
+	var buf strings.Builder
+	writeControlSidebar(&buf, cs)
+	html := buf.String()
+
+	if strings.Contains(html, "trigger-btn") {
+		t.Error("stopped sidebar should not contain trigger buttons")
+	}
+}
+
 // TestWriteControlStripRunning verifies the strip shows Running status with Pause button.
 //
 // VALIDATES: AC-1 — strip contains status dot, Pause button, rate slider, Stop button.

@@ -926,6 +926,13 @@ html, body {
   opacity: 0.8;
 }
 
+/* Trigger action buttons */
+.trigger-grid { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.trigger-btn { cursor: pointer; border: 1px solid var(--border); padding: 2px 6px; }
+.trigger-btn:hover { border-color: var(--accent); background: rgba(56, 139, 253, 0.1); }
+.trigger-btn.trigger-active { border-color: var(--accent); background: rgba(56, 139, 253, 0.15); font-weight: 700; }
+.trigger-icon { font-style: normal; }
+
 /* Property badges */
 .property-badge {
   display: inline-flex;
