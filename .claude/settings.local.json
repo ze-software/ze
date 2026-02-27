@@ -109,7 +109,7 @@
       "Bash(./bin/ze:*)",
       "Bash(bin/ze-test:*)",
       "Bash(ze bgp decode:*)",
-      "Bash(/Users/thomas/Code/codeberg.org/thomas-mangin/ze/main/.claude/hooks/block-encoding-alloc.sh)"
+      "Bash(bin/go-extract:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
