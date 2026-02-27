@@ -32,7 +32,7 @@ html, body {
 /* Layout: header + content (sidebar + main) */
 .layout {
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto 1fr;
   height: 100vh;
 }
 
@@ -831,6 +831,38 @@ html, body {
   z-index: 0;
 }
 
+/* Control strip (horizontal, between header and content) */
+.control-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 16px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.control-strip .strip-label {
+  color: var(--text-secondary);
+  margin-right: 4px;
+}
+
+.control-strip .strip-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.control-strip .rate-slider {
+  width: 80px;
+  min-width: 60px;
+  flex: 0;
+}
+
 /* Control panel */
 .control-row {
   display: flex;
@@ -863,8 +895,8 @@ html, body {
   cursor: pointer;
 }
 
-/* Control panel selects */
-#control-panel select {
+/* Control sidebar selects (trigger dropdown) */
+.card select {
   background: var(--bg-primary);
   border: 1px solid var(--border);
   color: var(--text-primary);
@@ -874,7 +906,7 @@ html, body {
   font-family: var(--font-mono);
 }
 
-#control-panel select:focus {
+.card select:focus {
   outline: none;
   border-color: var(--accent);
 }

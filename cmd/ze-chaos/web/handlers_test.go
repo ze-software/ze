@@ -1460,3 +1460,138 @@ func TestProcessEventRouteAction(t *testing.T) {
 		t.Errorf("TotalRouteActions = %d, want 2", d.state.TotalRouteActions)
 	}
 }
+
+// --- Control Strip Layout & Handler Tests ---
+
+// TestLayoutIncludesControlStrip verifies the control strip appears between header and content.
+//
+// VALIDATES: AC-1 — strip rendered when control channel is configured.
+// PREVENTS: Strip missing from layout or placed in wrong position.
+func TestLayoutIncludesControlStrip(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+	d.control = make(chan ControlCommand, 1)
+	d.state.Control = ControlState{Status: "running", Rate: 0.5}
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleIndex(w, req)
+	body := w.Body.String()
+
+	if !strings.Contains(body, `id="control-strip"`) {
+		t.Error("layout missing control-strip div")
+	}
+	// Strip should appear between header and content.
+	stripIdx := strings.Index(body, `id="control-strip"`)
+	headerIdx := strings.Index(body, `class="header"`)
+	contentIdx := strings.Index(body, `class="content"`)
+	if stripIdx < headerIdx || stripIdx > contentIdx {
+		t.Error("control-strip not between header and content")
+	}
+}
+
+// TestLayoutOmitsControlStripWhenNoControl verifies no strip when control channel is nil.
+//
+// VALIDATES: AC-2 — no strip when control is not configured.
+// PREVENTS: Empty strip div appearing without control channel.
+func TestLayoutOmitsControlStripWhenNoControl(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+	// d.control is nil by default, d.state.Control.Status is ""
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleIndex(w, req)
+	body := w.Body.String()
+
+	if strings.Contains(body, `id="control-strip"`) {
+		t.Error("layout should not contain control-strip when control is nil")
+	}
+}
+
+// TestControlPauseReturnsStrip verifies POST /control/pause returns strip HTML.
+//
+// VALIDATES: AC-3 — handler returns control-strip (not control-panel).
+// PREVENTS: HTMX swap targeting wrong element after refactoring.
+func TestControlPauseReturnsStrip(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+	d.control = make(chan ControlCommand, 1)
+	d.state.Control = ControlState{Status: "running", Rate: 0.5}
+
+	req := httptest.NewRequest(http.MethodPost, "/control/pause", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleControlPause(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="control-strip"`) {
+		t.Error("pause response missing control-strip div")
+	}
+	if strings.Contains(body, `id="control-panel"`) {
+		t.Error("pause response still references old control-panel ID")
+	}
+	if !strings.Contains(body, "Paused") {
+		t.Error("pause response should show Paused status")
+	}
+}
+
+// TestControlSpeedReturnsStrip verifies POST /control/speed returns strip HTML.
+//
+// VALIDATES: AC-8 — speed handler returns full strip (not separate speed card).
+// PREVENTS: Speed control response targeting wrong element.
+func TestControlSpeedReturnsStrip(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+	d.state.Control = ControlState{Status: "running", Rate: 0.5, SpeedAvailable: true, SpeedFactor: 1}
+
+	req := httptest.NewRequest(http.MethodPost, "/control/speed?factor=10", http.NoBody)
+	req.Form = map[string][]string{"factor": {"10"}}
+	w := httptest.NewRecorder()
+	d.handleControlSpeed(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="control-strip"`) {
+		t.Error("speed response missing control-strip div")
+	}
+	if strings.Contains(body, `id="speed-control"`) {
+		t.Error("speed response still references old speed-control ID")
+	}
+}
+
+// TestLayoutSidebarHasTriggerNotControls verifies sidebar has trigger form, not control buttons.
+//
+// VALIDATES: AC-11 — trigger dropdown in sidebar, controls in strip.
+// PREVENTS: Duplicate controls in both strip and sidebar.
+func TestLayoutSidebarHasTriggerNotControls(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(3)
+	defer d.broker.Close()
+	d.control = make(chan ControlCommand, 1)
+	d.state.Control = ControlState{Status: "running", Rate: 0.5}
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleIndex(w, req)
+	body := w.Body.String()
+
+	// Sidebar should contain the trigger dropdown.
+	sidebarIdx := strings.Index(body, `class="sidebar"`)
+	mainIdx := strings.Index(body, `class="main"`)
+	sidebar := body[sidebarIdx:mainIdx]
+
+	if !strings.Contains(sidebar, "Trigger") {
+		t.Error("sidebar missing Trigger section")
+	}
+	if !strings.Contains(sidebar, "trigger-params") {
+		t.Error("sidebar missing trigger-params div")
+	}
+}

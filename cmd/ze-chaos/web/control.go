@@ -41,7 +41,7 @@ func (d *Dashboard) handleControlPause(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeControlPanel(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // logControl writes a control event to the NDJSON log if a ControlLogger is configured.
@@ -71,7 +71,7 @@ func (d *Dashboard) handleControlResume(w http.ResponseWriter, _ *http.Request) 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeControlPanel(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // handleControlRate handles POST /control/rate.
@@ -107,7 +107,7 @@ func (d *Dashboard) handleControlRate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeControlPanel(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // handleControlTrigger handles POST /control/trigger.
@@ -195,7 +195,7 @@ func (d *Dashboard) handleControlStop(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeControlPanel(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // handleControlSpeed handles POST /control/speed.
@@ -228,7 +228,7 @@ func (d *Dashboard) handleControlSpeed(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeSpeedControl(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // handleControlRestart handles POST /control/restart.
@@ -271,7 +271,7 @@ func (d *Dashboard) handleControlRestart(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	d.state.RLock()
 	defer d.state.RUnlock()
-	writeControlPanel(w, &d.state.Control)
+	writeControlStrip(w, &d.state.Control)
 }
 
 // parseRestartSeed parses a seed string, returning 0 on any error.
@@ -309,8 +309,9 @@ func (d *Dashboard) RouteControlChannel() <-chan ControlCommand {
 	return d.routeControl
 }
 
-// writeControlPanel renders the control panel HTML fragment.
-func writeControlPanel(w io.Writer, cs *ControlState) {
+// writeControlStrip renders the horizontal control strip between header and content.
+// Contains: status dot, pause/resume, rate slider, stop, optional speed, optional restart.
+func writeControlStrip(w io.Writer, cs *ControlState) {
 	statusClass := cssStatusUp
 	statusLabel := "Running"
 	switch {
@@ -325,76 +326,65 @@ func writeControlPanel(w io.Writer, cs *ControlState) {
 		statusLabel = "Paused"
 	}
 
-	_, _ = fmt.Fprintf(w, `<div id="control-panel" class="card">
-<h3>Controls</h3>
-<div class="control-row">
-  <span class="dot %s"></span> <span>%s</span>
-</div>`, statusClass, statusLabel)
+	h := &htmlWriter{w: w}
+	h.writef(`<div id="control-strip" class="control-strip"><span class="dot %s"></span><span class="strip-label">%s</span>`, statusClass, statusLabel)
 
-	if cs.Status != statusStopped {
+	if cs.Status != statusStopped && cs.Status != statusRestarting {
 		if cs.Paused {
-			_, _ = fmt.Fprint(w, `
-<div class="control-row">
-  <span class="badge" hx-post="/control/resume" hx-target="#control-panel" hx-swap="outerHTML" title="Resume chaos event generation">Resume</span>
-  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML" title="Stop the chaos run entirely">Stop</span>
-</div>`)
+			h.write(`<span class="badge" hx-post="/control/resume" hx-target="#control-strip" hx-swap="outerHTML" title="Resume chaos">Resume</span>`)
 		} else {
-			_, _ = fmt.Fprint(w, `
-<div class="control-row">
-  <span class="badge" hx-post="/control/pause" hx-target="#control-panel" hx-swap="outerHTML" title="Pause chaos event generation (BGP sessions stay up)">Pause</span>
-  <span class="badge" hx-post="/control/stop" hx-target="#control-panel" hx-swap="outerHTML" title="Stop the chaos run entirely">Stop</span>
-</div>`)
+			h.write(`<span class="badge" hx-post="/control/pause" hx-target="#control-strip" hx-swap="outerHTML" title="Pause chaos">Pause</span>`)
 		}
 
 		// Rate slider.
-		_, _ = fmt.Fprintf(w, `
-<div class="control-row">
-  <label class="stat-label">Rate: </label>
-  <input type="range" min="0" max="100" value="%d" class="rate-slider"
-         hx-post="/control/rate" hx-target="#control-panel" hx-swap="outerHTML"
-         hx-trigger="change" name="rate"
-         hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}'
-         title="Adjust chaos event frequency (0%% = no chaos, 100%% = maximum rate)">
-  <span class="stat-value">%.0f%%</span>
-</div>`, int(cs.Rate*100), cs.Rate*100)
+		h.writef(`<label class="stat-label">Rate</label><input type="range" min="0" max="100" value="%d" class="rate-slider" hx-post="/control/rate" hx-target="#control-strip" hx-swap="outerHTML" hx-trigger="change" name="rate" hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}' title="Chaos rate"><span class="stat-value">%.0f%%</span>`, int(cs.Rate*100), cs.Rate*100)
 
-		// Trigger dropdown.
-		h := &htmlWriter{w: w}
-		h.write(`
-<div class="control-row">
-  <select name="action" hx-get="/control/trigger-form" hx-target="#trigger-params" hx-swap="innerHTML"
-          hx-trigger="change" hx-include="this">
-    <option value="" title="Manually trigger a chaos action on selected peers">Trigger...</option>`)
-		for _, at := range chaosActionTypes() {
-			h.writef(`<option value="%s" title="%s">%s</option>`, at, escapeHTML(chaosActionImpact(at)), at)
+		h.write(`<span class="badge" hx-post="/control/stop" hx-target="#control-strip" hx-swap="outerHTML" title="Stop chaos">Stop</span>`)
+	}
+
+	// Speed buttons inline (when available).
+	if cs.SpeedAvailable {
+		h.write(`<span class="strip-sep"></span>`)
+		for _, f := range []int{1, 10, 100, 1000} {
+			active := ""
+			if f == cs.SpeedFactor {
+				active = ` style="border-color:#22c55e;font-weight:bold"`
+			}
+			h.writef(`<span class="badge"%s hx-post="/control/speed" hx-target="#control-strip" hx-swap="outerHTML" hx-vals='{"factor":"%d"}' title="%s">%dx</span>`, active, f, speedTitle(f), f)
 		}
-		h.write(`
-  </select>
-</div>
-<div id="trigger-params"></div>
-<div id="trigger-result"></div>`)
 	}
 
-	// Restart with new seed (only when restart channel is configured).
+	// Restart inline (when available).
 	if cs.RestartAvailable {
-		writeRestartSection(w)
+		h.write(`<span class="strip-sep"></span><input type="number" name="seed" min="1" placeholder="seed" class="control-input"><span class="badge" hx-post="/control/restart" hx-target="#control-strip" hx-swap="outerHTML" hx-include="[name='seed']">New Seed</span>`)
 	}
 
-	h := &htmlWriter{w: w}
-	h.write("\n</div>")
+	h.write(`</div>`)
 }
 
-// writeRestartSection renders the seed input and restart button.
-func writeRestartSection(w io.Writer) {
+// writeControlSidebar renders the sidebar portion (trigger dropdown only).
+// Called when control is active but the main controls are in the strip.
+func writeControlSidebar(w io.Writer, cs *ControlState) {
+	if cs.Status == statusStopped || cs.Status == statusRestarting {
+		return
+	}
 	h := &htmlWriter{w: w}
 	h.write(`
-<div class="control-row">
-  <label class="stat-label">Seed: </label>
-  <input type="number" name="seed" min="1" placeholder="new seed" class="control-input">
-  <span class="badge" hx-post="/control/restart" hx-target="#control-panel" hx-swap="outerHTML"
-        hx-include="[name='seed']">New Seed</span>
-</div>
-<div id="control-error"></div>`)
+  <div class="card">
+    <h3>Trigger</h3>
+    <div class="control-row">
+      <select name="action" hx-get="/control/trigger-form" hx-target="#trigger-params" hx-swap="innerHTML"
+              hx-trigger="change" hx-include="this">
+        <option value="" title="Manually trigger a chaos action on selected peers">Trigger...</option>`)
+	for _, at := range chaosActionTypes() {
+		h.writef(`<option value="%s" title="%s">%s</option>`, at, escapeHTML(chaosActionImpact(at)), at)
+	}
+	h.write(`
+      </select>
+    </div>
+    <div id="trigger-params"></div>
+    <div id="trigger-result"></div>
+  </div>`)
 }
 
 // writeTriggerForm renders the parameter form for a specific action type.
@@ -600,34 +590,6 @@ func (d *Dashboard) handleRouteControlStop(w http.ResponseWriter, _ *http.Reques
 	d.state.RLock()
 	defer d.state.RUnlock()
 	writeRouteControlPanel(w, &d.state.Control)
-}
-
-// writeSpeedControl renders the speed control HTML fragment.
-// Shows discrete buttons for 1x/10x/100x/1000x speed factors.
-func writeSpeedControl(w io.Writer, cs *ControlState) {
-	if !cs.SpeedAvailable {
-		return
-	}
-	h := &htmlWriter{w: w}
-	h.writef(`<div id="speed-control" class="card">
-<h3>Speed</h3>
-<div class="control-row">
-  <span class="stat-label">%s</span>
-</div>
-<div class="control-row">`, speedTitle(cs.SpeedFactor))
-	for _, f := range []int{1, 10, 100, 1000} {
-		active := ""
-		if f == cs.SpeedFactor {
-			active = ` style="border-color:#22c55e;font-weight:bold"`
-		}
-		h.writef(`
-  <span class="badge"%s hx-post="/control/speed" hx-target="#speed-control" hx-swap="outerHTML"
-        hx-vals='{"factor":"%d"}' title="%s">%dx</span>`, active, f, speedTitle(f), f)
-	}
-	h.write(`
-</div>
-<div id="speed-error"></div>
-</div>`)
 }
 
 // speedTitle returns a human-readable description for a speed factor.

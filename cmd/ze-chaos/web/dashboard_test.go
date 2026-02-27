@@ -712,3 +712,223 @@ func TestDonutSegmentColors(t *testing.T) {
 		}
 	}
 }
+
+// --- Control Strip Tests ---
+
+// TestWriteControlStripRunning verifies the strip shows Running status with Pause button.
+//
+// VALIDATES: AC-1 — strip contains status dot, Pause button, rate slider, Stop button.
+// PREVENTS: Missing core controls when chaos is running.
+func TestWriteControlStripRunning(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	for _, want := range []string{
+		`id="control-strip"`,
+		`class="control-strip"`,
+		"Running",
+		"Pause",
+		"/control/pause",
+		"rate-slider",
+		"Stop",
+		"/control/stop",
+		`hx-target="#control-strip"`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("running strip missing %q", want)
+		}
+	}
+	if strings.Contains(html, "Resume") {
+		t.Error("running strip should not contain Resume button")
+	}
+}
+
+// TestWriteControlStripPaused verifies the strip shows Paused status with Resume button.
+//
+// VALIDATES: AC-3 — paused state shows Resume and hides Pause.
+// PREVENTS: Incorrect button when paused.
+func TestWriteControlStripPaused(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Paused: true, Rate: 0.0}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	if !strings.Contains(html, "Paused") {
+		t.Error("paused strip missing 'Paused' label")
+	}
+	if !strings.Contains(html, "Resume") {
+		t.Error("paused strip missing Resume button")
+	}
+	if !strings.Contains(html, "/control/resume") {
+		t.Error("paused strip missing /control/resume")
+	}
+}
+
+// TestWriteControlStripStopped verifies the strip shows Stopped with no controls.
+//
+// VALIDATES: AC-6 — stopped state shows no pause/resume/rate/stop buttons.
+// PREVENTS: Showing active controls when stopped.
+func TestWriteControlStripStopped(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "stopped"}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	if !strings.Contains(html, "Stopped") {
+		t.Error("stopped strip missing 'Stopped' label")
+	}
+	if !strings.Contains(html, "status-down") {
+		t.Error("stopped strip missing status-down CSS class")
+	}
+	for _, absent := range []string{"Pause", "Resume", "rate-slider", "/control/stop"} {
+		if strings.Contains(html, absent) {
+			t.Errorf("stopped strip should not contain %q", absent)
+		}
+	}
+}
+
+// TestWriteControlStripRestarting verifies the strip shows Restarting... status.
+//
+// VALIDATES: AC-7 — restarting state shows reconnecting CSS class.
+// PREVENTS: Wrong status display during restart.
+func TestWriteControlStripRestarting(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "restarting"}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	if !strings.Contains(html, "Restarting...") {
+		t.Error("restarting strip missing 'Restarting...' label")
+	}
+	if !strings.Contains(html, "status-reconnecting") {
+		t.Error("restarting strip missing status-reconnecting CSS class")
+	}
+}
+
+// TestWriteControlStripWithSpeed verifies speed buttons appear when available.
+//
+// VALIDATES: AC-8 — speed buttons rendered inline when SpeedAvailable=true.
+// PREVENTS: Missing speed controls in strip.
+func TestWriteControlStripWithSpeed(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5, SpeedAvailable: true, SpeedFactor: 10}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	for _, want := range []string{"1x", "10x", "100x", "1000x", "/control/speed"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("speed strip missing %q", want)
+		}
+	}
+	// Active button should be highlighted.
+	if !strings.Contains(html, `font-weight:bold`) {
+		t.Error("active speed button should be bold")
+	}
+}
+
+// TestWriteControlStripNoSpeed verifies no speed section when unavailable.
+//
+// VALIDATES: AC-9 — no speed controls when SpeedAvailable=false.
+// PREVENTS: Showing speed controls when not applicable.
+func TestWriteControlStripNoSpeed(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	if strings.Contains(html, "/control/speed") {
+		t.Error("strip should not contain speed controls when SpeedAvailable=false")
+	}
+}
+
+// TestWriteControlStripWithRestart verifies restart section appears when available.
+//
+// VALIDATES: AC-10 — seed input and New Seed button rendered inline.
+// PREVENTS: Missing restart controls.
+func TestWriteControlStripWithRestart(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5, RestartAvailable: true}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	for _, want := range []string{"seed", "New Seed", "/control/restart"} {
+		if !strings.Contains(html, want) {
+			t.Errorf("restart strip missing %q", want)
+		}
+	}
+}
+
+// TestWriteControlStripNoRestart verifies no restart section when unavailable.
+//
+// VALIDATES: AC-10 complement — no restart UI when RestartAvailable=false.
+// PREVENTS: Showing restart controls when not configured.
+func TestWriteControlStripNoRestart(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5}
+	var buf strings.Builder
+	writeControlStrip(&buf, cs)
+	html := buf.String()
+
+	if strings.Contains(html, "/control/restart") {
+		t.Error("strip should not contain restart when RestartAvailable=false")
+	}
+}
+
+// TestWriteControlSidebar verifies the sidebar renders only trigger dropdown.
+//
+// VALIDATES: AC-11 — trigger dropdown in sidebar, no status/pause/rate/stop/speed.
+// PREVENTS: Duplicate controls in sidebar.
+func TestWriteControlSidebar(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "running", Rate: 0.5, SpeedAvailable: true}
+	var buf strings.Builder
+	writeControlSidebar(&buf, cs)
+	html := buf.String()
+
+	if !strings.Contains(html, "Trigger") {
+		t.Error("sidebar missing Trigger heading")
+	}
+	if !strings.Contains(html, "trigger-params") {
+		t.Error("sidebar missing trigger-params div")
+	}
+	for _, absent := range []string{"Pause", "Resume", "rate-slider", "/control/stop", "/control/speed"} {
+		if strings.Contains(html, absent) {
+			t.Errorf("sidebar should not contain %q (belongs in strip)", absent)
+		}
+	}
+}
+
+// TestWriteControlSidebarStopped verifies sidebar is empty when stopped.
+//
+// VALIDATES: AC-11 — sidebar hidden when chaos is stopped.
+// PREVENTS: Showing trigger form when chaos is stopped.
+func TestWriteControlSidebarStopped(t *testing.T) {
+	t.Parallel()
+
+	cs := &ControlState{Status: "stopped"}
+	var buf strings.Builder
+	writeControlSidebar(&buf, cs)
+	html := buf.String()
+
+	if html != "" {
+		t.Errorf("sidebar should be empty when stopped, got %q", html)
+	}
+}

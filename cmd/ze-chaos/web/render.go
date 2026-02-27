@@ -63,8 +63,14 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <div class="header">
   <h1>Ze Chaos</h1>
   <span class="run-info">seed: ` + fmt.Sprintf("%d", s.Seed) + ` | peers: ` + itoa(s.PeerCount) + ` | uptime: <span id="uptime" data-start="` + itoa(int(time.Since(s.StartTime).Seconds())) + `">` + uptime + `</span></span>
-</div>
+</div>`)
 
+	// Control strip (between header and content, only when control channel configured).
+	if s.Control.Status != "" {
+		writeControlStrip(w, &s.Control)
+	}
+
+	h.write(`
 <div class="content">
 <div class="sidebar">
   <div class="card">
@@ -117,19 +123,14 @@ func writeLayout(w io.Writer, d *Dashboard) {
     </div>
   </div>`)
 
-	// Control panel (only when control channel is configured).
+	// Trigger sidebar (only when control channel is configured).
 	if s.Control.Status != "" {
-		writeControlPanel(w, &s.Control)
+		writeControlSidebar(w, &s.Control)
 	}
 
 	// Route dynamics control panel (only when route control is configured).
 	if s.Control.RouteStatus != "" {
 		writeRouteControlPanel(w, &s.Control)
-	}
-
-	// Speed control panel (only in in-process mode).
-	if s.Control.SpeedAvailable {
-		writeSpeedControl(w, &s.Control)
 	}
 
 	// Property badges.
