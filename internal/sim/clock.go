@@ -35,6 +35,25 @@ type Clock interface {
 	// NewTimer creates a new Timer that will send the current time on its
 	// channel after at least duration d.
 	NewTimer(d time.Duration) Timer
+
+	// NewTicker returns a new Ticker containing a channel that will send
+	// the current time on the channel after each tick. The period of the
+	// ticks is specified by the duration argument.
+	NewTicker(d time.Duration) Ticker
+}
+
+// Ticker abstracts a repeating ticker for injectable simulation.
+//
+// In production, wraps *time.Ticker. In simulation, ticks are delivered by the
+// clock implementation (FakeClock.FireTickers or VirtualClock.Advance).
+type Ticker interface {
+	// Stop turns off a ticker. After Stop, no more ticks will be sent.
+	// Stop does not close the channel, to prevent a concurrent goroutine
+	// reading from the channel from seeing an erroneous "tick".
+	Stop()
+
+	// C returns the Ticker's channel. A tick is sent on C after each interval.
+	C() <-chan time.Time
 }
 
 // Timer abstracts a single event timer for injectable simulation.
@@ -77,6 +96,22 @@ func (RealClock) AfterFunc(d time.Duration, f func()) Timer {
 func (RealClock) NewTimer(d time.Duration) Timer {
 	return &realTimer{timer: time.NewTimer(d)}
 }
+
+// NewTicker calls time.NewTicker(d) and wraps the result.
+func (RealClock) NewTicker(d time.Duration) Ticker {
+	return &realTicker{ticker: time.NewTicker(d)}
+}
+
+// realTicker wraps *time.Ticker to implement the Ticker interface.
+type realTicker struct {
+	ticker *time.Ticker
+}
+
+// Stop delegates to (*time.Ticker).Stop().
+func (t *realTicker) Stop() { t.ticker.Stop() }
+
+// C returns the ticker's channel.
+func (t *realTicker) C() <-chan time.Time { return t.ticker.C }
 
 // realTimer wraps *time.Timer to implement the Timer interface.
 type realTimer struct {

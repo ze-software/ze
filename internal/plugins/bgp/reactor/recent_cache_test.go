@@ -35,6 +35,7 @@ func newTestUpdate(id uint64) *ReceivedUpdate {
 // PREVENTS: Lost updates, broken forwarding.
 func TestRecentUpdateCacheAdd(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	update := newTestUpdate(1)
 	cache.Add(update)
@@ -60,6 +61,7 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 // PREVENTS: False positives on lookup.
 func TestRecentUpdateCacheNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	_, ok := cache.Get(999)
 	if ok {
@@ -73,6 +75,7 @@ func TestRecentUpdateCacheNotFound(t *testing.T) {
 // PREVENTS: Memory leaks from unflushed entries.
 func TestRecentUpdateCacheDelete(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -101,6 +104,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 // PREVENTS: Accidental entry removal on read.
 func TestCacheGetNonDestructive(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -128,6 +132,7 @@ func TestCacheGetNonDestructive(t *testing.T) {
 // PREVENTS: Race where plugin receives msg-id before Activate completes.
 func TestCacheGetPendingEntry(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	// Deliberately NOT calling Activate — entry is still pending
@@ -149,6 +154,7 @@ func TestCacheGetPendingEntry(t *testing.T) {
 // PREVENTS: UPDATE loss when cache is full.
 func TestRecentUpdateCacheSoftLimit(t *testing.T) {
 	cache := NewRecentUpdateCache(3)
+	defer cache.Stop()
 
 	for i := uint64(1); i <= 5; i++ {
 		cache.Add(newTestUpdate(i))
@@ -174,6 +180,7 @@ func TestRecentUpdateCacheSoftLimit(t *testing.T) {
 // PREVENTS: Missing entries in API response.
 func TestRecentUpdateCacheList(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	ids := cache.List()
 	if len(ids) != 0 {
@@ -211,6 +218,7 @@ func TestCacheNoTTLEviction(t *testing.T) {
 	fc := sim.NewFakeClock(start)
 
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.SetClock(fc)
 
 	cache.Add(newTestUpdate(1))
@@ -223,7 +231,7 @@ func TestCacheNoTTLEviction(t *testing.T) {
 	}
 
 	// Entry at frontier (no later entry acked) — must survive safety valve scan
-	cache.Add(newTestUpdate(2)) // Triggers gap scan
+	cache.runGapScan()
 	if !cache.Contains(1) {
 		t.Error("frontier entry must survive safety valve scan")
 	}
@@ -235,6 +243,7 @@ func TestCacheNoTTLEviction(t *testing.T) {
 // PREVENTS: TTL-based eviction from being reintroduced.
 func TestCacheNoTTLConstructor(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	if cache == nil {
 		t.Fatal("NewRecentUpdateCache(100) returned nil")
 	}
@@ -248,6 +257,7 @@ func TestCacheNoTTLConstructor(t *testing.T) {
 // PREVENTS: Stale entries lingering after all consumers are done.
 func TestCacheImmediateEvictOnZeroConsumers(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Activate(1, 2)
@@ -275,6 +285,7 @@ func TestCacheImmediateEvictOnZeroConsumers(t *testing.T) {
 // PREVENTS: Permanently pending entries when no plugins subscribe.
 func TestCacheActivateZeroConsumersEvictsImmediately(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -301,6 +312,7 @@ func TestCacheActivateZeroConsumersEvictsImmediately(t *testing.T) {
 // causes events to arrive in non-ID-order.
 func TestCacheFIFOOrdering(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Add(newTestUpdate(2))
@@ -336,6 +348,7 @@ func TestCacheFIFOOrdering(t *testing.T) {
 // PREVENTS: Missing acks causing entries to remain in cache.
 func TestCacheFIFOImplicitAck(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	// Add 5 entries, all with same single consumer
 	for i := uint64(1); i <= 5; i++ {
@@ -365,6 +378,7 @@ func TestCacheFIFOImplicitAck(t *testing.T) {
 // PREVENTS: Cross-plugin ack interference.
 func TestCacheFIFOPerPlugin(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Add(newTestUpdate(2))
@@ -417,6 +431,7 @@ func TestCacheFIFOPerPlugin(t *testing.T) {
 func TestCacheOutOfOrderAck(t *testing.T) {
 	t.Run("single_consumer_out_of_order", func(t *testing.T) {
 		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
 
 		// Simulate 4 entries delivered to 1 plugin, processed out of order.
 		cache.Add(newTestUpdate(10))
@@ -452,6 +467,7 @@ func TestCacheOutOfOrderAck(t *testing.T) {
 
 	t.Run("two_consumers_out_of_order_no_double_decrement", func(t *testing.T) {
 		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
 
 		cache.Add(newTestUpdate(20))
 		cache.Add(newTestUpdate(21))
@@ -505,6 +521,7 @@ func TestCacheOutOfOrderAck(t *testing.T) {
 // PREVENTS: Lost acks from fast plugins.
 func TestCacheAckBeforeActivate(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -528,6 +545,7 @@ func TestCacheAckBeforeActivate(t *testing.T) {
 // PREVENTS: Partial early ack handling bugs.
 func TestCacheAckBeforeActivateTwoPlugins(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -563,6 +581,7 @@ func TestCacheAckBeforeActivateTwoPlugins(t *testing.T) {
 // PREVENTS: Premature eviction of routes needed for graceful restart.
 func TestRecentUpdateCacheRetain(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Activate(1, 1)
@@ -589,6 +608,7 @@ func TestRecentUpdateCacheRetain(t *testing.T) {
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	if cache.Retain(999) {
 		t.Error("Retain returned true for non-existent entry")
@@ -601,6 +621,7 @@ func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
 // PREVENTS: Refcount imbalance from API commands.
 func TestCacheRetainAndRelease(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -630,6 +651,7 @@ func TestCacheRetainAndRelease(t *testing.T) {
 // PREVENTS: Memory leaks from permanently retained entries.
 func TestRecentUpdateCacheRelease(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 
@@ -658,6 +680,7 @@ func TestRecentUpdateCacheRelease(t *testing.T) {
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestRecentUpdateCacheReleaseNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	if cache.Release(999) {
 		t.Error("Release returned true for non-existent entry")
@@ -678,6 +701,7 @@ func TestCacheSafetyValveGapDetection(t *testing.T) {
 	// Register "stalled" before entry 100 (lastAck=0), "healthy" after (lastAck=100).
 	// This way "healthy" acking 200 won't implicit-ack entry 100.
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.SetClock(fc)
 
 	cache.RegisterConsumer("stalled")
@@ -699,11 +723,11 @@ func TestCacheSafetyValveGapDetection(t *testing.T) {
 		t.Fatal("entry 100 should exist (stalled plugin hasn't acked)")
 	}
 
-	// Advance past safety valve (5 min + gap scan interval)
-	fc.Add(5*time.Minute + 31*time.Second)
+	// Advance past safety valve (5 min)
+	fc.Add(5*time.Minute + time.Second)
 
-	// Trigger gap scan by adding a new entry
-	cache.Add(newTestUpdate(300))
+	// Trigger gap scan directly (background goroutine uses real ticker)
+	cache.runGapScan()
 
 	// Entry 100 should be force-evicted by safety valve
 	if cache.Contains(100) {
@@ -720,6 +744,7 @@ func TestCacheNoTimeoutAtFrontier(t *testing.T) {
 	fc := sim.NewFakeClock(start)
 
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.SetClock(fc)
 
 	cache.Add(newTestUpdate(1))
@@ -728,8 +753,8 @@ func TestCacheNoTimeoutAtFrontier(t *testing.T) {
 	// Advance well past safety valve duration
 	fc.Add(10 * time.Minute)
 
-	// Trigger gap scan
-	cache.Add(newTestUpdate(2))
+	// Trigger gap scan directly
+	cache.runGapScan()
 
 	// Entry 1 is at frontier (no later entry fully acked) — must survive
 	if !cache.Contains(1) {
@@ -745,6 +770,7 @@ func TestCacheNoTimeoutAtFrontier(t *testing.T) {
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestCacheAckExpiredEntry(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	err := cache.Ack(999, "rr")
 	if !errors.Is(err, ErrUpdateExpired) {
@@ -760,6 +786,7 @@ func TestCacheAckExpiredEntry(t *testing.T) {
 // PREVENTS: Silent failures on invalid msg-ids.
 func TestCacheDecrementNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	if cache.Decrement(999) {
 		t.Error("Decrement returned true for non-existent entry")
@@ -777,6 +804,7 @@ func TestRecentCacheWithFakeClock(t *testing.T) {
 	fc := sim.NewFakeClock(start)
 
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.SetClock(fc)
 
 	// Add and activate with consumer
@@ -811,6 +839,7 @@ func TestRecentCacheWithFakeClock(t *testing.T) {
 // PREVENTS: Race conditions, data corruption.
 func TestRecentUpdateCacheConcurrency(t *testing.T) {
 	cache := NewRecentUpdateCache(1000)
+	defer cache.Stop()
 
 	var wg sync.WaitGroup
 	const goroutines = 10
@@ -852,6 +881,7 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 // PREVENTS: Race conditions in consumer tracking.
 func TestCacheConcurrentAck(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	const numPlugins = 50
 	plugins := make([]string, numPlugins)
@@ -886,6 +916,7 @@ func TestCacheConcurrentAck(t *testing.T) {
 // PREVENTS: Buffer leaks or double-free.
 func TestCacheBufferReturnedOnEviction(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Activate(1, 1)
@@ -915,6 +946,7 @@ func TestCacheBufferReturnedOnEviction(t *testing.T) {
 // PREVENTS: Premature eviction when either layer still holds a reference.
 func TestCacheRetainPlusPluginConsumers(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.Add(newTestUpdate(1))
 	cache.Activate(1, 1)
@@ -948,6 +980,7 @@ func TestCacheRetainPlusPluginConsumers(t *testing.T) {
 // PREVENTS: New plugin accidentally acking old entries via implicit cumulative ack.
 func TestCacheRegisterConsumer(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	// Add entry 1 BEFORE registering plugin
 	cache.Add(newTestUpdate(1))
@@ -979,6 +1012,7 @@ func TestCacheRegisterConsumer(t *testing.T) {
 // PREVENTS: Memory leak when a plugin disconnects without acking.
 func TestCacheUnregisterConsumer(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.RegisterConsumer("pluginA")
 	cache.RegisterConsumer("pluginB")
@@ -1017,6 +1051,7 @@ func TestCacheUnregisterConsumer(t *testing.T) {
 // PREVENTS: Double-decrement of entries already acked by the unregistering plugin.
 func TestCacheUnregisterConsumerPartialAck(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 
 	cache.RegisterConsumer("stays")
 	cache.RegisterConsumer("leaves")
@@ -1057,6 +1092,22 @@ func TestCacheUnregisterConsumerPartialAck(t *testing.T) {
 //
 // VALIDATES: UnregisterConsumer is safe to call for unregistered plugins.
 // PREVENTS: Panic or incorrect state mutation for unknown plugin names.
+func TestCacheUnregisterUnknownConsumer(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+
+	cache.Add(newTestUpdate(1))
+	cache.Activate(1, 1)
+
+	// Should be a no-op, not panic
+	cache.UnregisterConsumer("never-registered")
+
+	// Entry should be unaffected
+	if !cache.Contains(1) {
+		t.Fatal("entry should still exist after unregistering unknown consumer")
+	}
+}
+
 // TestSafetyValveConfigurable verifies that the safety valve duration can be customized.
 //
 // VALIDATES: AC-12 — custom duration applied; default unchanged when unset.
@@ -1067,6 +1118,7 @@ func TestSafetyValveConfigurable(t *testing.T) {
 		fc := sim.NewFakeClock(start)
 
 		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
 		cache.SetClock(fc)
 		cache.SetSafetyValveDuration(10 * time.Second) // Much shorter than default 5min
 
@@ -1083,11 +1135,11 @@ func TestSafetyValveConfigurable(t *testing.T) {
 			t.Fatalf("Ack(200): %v", err)
 		}
 
-		// Advance past custom safety valve (10s) + gap scan interval (30s).
-		fc.Add(41 * time.Second)
+		// Advance past custom safety valve (10s).
+		fc.Add(11 * time.Second)
 
-		// Trigger gap scan.
-		cache.Add(newTestUpdate(300))
+		// Trigger gap scan directly.
+		cache.runGapScan()
 
 		// Entry 100 should be force-evicted with the custom 10s duration.
 		if cache.Contains(100) {
@@ -1100,6 +1152,7 @@ func TestSafetyValveConfigurable(t *testing.T) {
 		fc := sim.NewFakeClock(start)
 
 		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
 		cache.SetClock(fc)
 		// No SetSafetyValveDuration call — default 5min should apply.
 
@@ -1117,7 +1170,7 @@ func TestSafetyValveConfigurable(t *testing.T) {
 
 		// Advance past 10s but NOT past 5min — should NOT evict.
 		fc.Add(41 * time.Second)
-		cache.Add(newTestUpdate(300))
+		cache.runGapScan()
 
 		if !cache.Contains(100) {
 			t.Error("entry 100 should NOT be evicted with default 5min safety valve")
@@ -1126,6 +1179,7 @@ func TestSafetyValveConfigurable(t *testing.T) {
 
 	t.Run("zero_uses_default", func(t *testing.T) {
 		cache := NewRecentUpdateCache(100)
+		defer cache.Stop()
 		cache.SetSafetyValveDuration(0) // Should fall back to default.
 
 		// Verify via the field (internal check).
@@ -1138,21 +1192,6 @@ func TestSafetyValveConfigurable(t *testing.T) {
 	})
 }
 
-func TestCacheUnregisterUnknownConsumer(t *testing.T) {
-	cache := NewRecentUpdateCache(100)
-
-	cache.Add(newTestUpdate(1))
-	cache.Activate(1, 1)
-
-	// Should be a no-op, not panic
-	cache.UnregisterConsumer("never-registered")
-
-	// Entry should be unaffected
-	if !cache.Contains(1) {
-		t.Fatal("entry should still exist after unregistering unknown consumer")
-	}
-}
-
 // --- Unordered (non-FIFO) consumer acking ---
 
 // TestCacheUnorderedConsumerNoSweep verifies that unordered consumers
@@ -1162,6 +1201,7 @@ func TestCacheUnregisterUnknownConsumer(t *testing.T) {
 // PREVENTS: Route loss when per-source-peer workers process entries out of global order.
 func TestCacheUnorderedConsumerNoSweep(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.RegisterConsumer("rr")
 	cache.SetConsumerUnordered("rr")
 
@@ -1211,6 +1251,7 @@ func TestCacheUnorderedConsumerNoSweep(t *testing.T) {
 // PREVENTS: Stuck cache entries when unordered consumer disconnects.
 func TestCacheUnorderedConsumerUnregister(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.RegisterConsumer("rr")
 	cache.SetConsumerUnordered("rr")
 
@@ -1245,6 +1286,7 @@ func TestCacheUnorderedConsumerUnregister(t *testing.T) {
 // PREVENTS: Lost acks when slow workers process older entries after fast workers.
 func TestCacheUnorderedConsumerReAck(t *testing.T) {
 	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
 	cache.RegisterConsumer("rr")
 	cache.SetConsumerUnordered("rr")
 
@@ -1273,4 +1315,265 @@ func TestCacheUnorderedConsumerReAck(t *testing.T) {
 	if cache.Contains(10) {
 		t.Error("entry 10 should be evicted after individual ack")
 	}
+}
+
+// --- Background gap scan (seqmap-2 spec) ---
+
+// TestGapScanRunsInBackground verifies the background goroutine runs the gap scan.
+//
+// VALIDATES: AC-2 — background goroutine ticks and evicts stalled entries.
+// PREVENTS: Stalled entries remaining forever when Add() no longer scans inline.
+func TestGapScanRunsInBackground(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(100)
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(10 * time.Second)
+
+	cache.RegisterConsumer("stalled")
+	cache.Add(newTestUpdate(100))
+	cache.Activate(100, 1)
+
+	cache.RegisterConsumer("healthy")
+	cache.Add(newTestUpdate(200))
+	cache.Activate(200, 1)
+
+	// Create gap
+	if err := cache.Ack(200, "healthy"); err != nil {
+		t.Fatalf("Ack(200): %v", err)
+	}
+
+	// Advance FakeClock past safety valve
+	fc.Add(11 * time.Second)
+
+	// Start() creates the ticker synchronously (registered in FakeClock),
+	// then launches the goroutine.
+	cache.Start()
+	defer cache.Stop()
+
+	// Fire the ticker — buffered(1) channel, safe before goroutine selects.
+	fc.FireTickers()
+	// Let goroutine pick up the tick and run the gap scan.
+	time.Sleep(10 * time.Millisecond)
+
+	// Entry 100 should be force-evicted by background gap scan
+	if cache.Contains(100) {
+		t.Error("stalled entry 100 should be force-evicted by background gap scan")
+	}
+}
+
+// TestAddDoesNotRunGapScanInline verifies Add() no longer triggers gap scan.
+//
+// VALIDATES: AC-1 — Add() holds write lock only for Put + metadata update.
+// PREVENTS: Regression where gap scan is accidentally re-added to Add().
+func TestAddDoesNotRunGapScanInline(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	fc := sim.NewFakeClock(start)
+
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+	cache.SetClock(fc)
+	cache.SetSafetyValveDuration(10 * time.Second)
+
+	cache.RegisterConsumer("stalled")
+	cache.Add(newTestUpdate(100))
+	cache.Activate(100, 1)
+
+	cache.RegisterConsumer("healthy")
+	cache.Add(newTestUpdate(200))
+	cache.Activate(200, 1)
+
+	// Create gap
+	if err := cache.Ack(200, "healthy"); err != nil {
+		t.Fatalf("Ack(200): %v", err)
+	}
+
+	// Advance past safety valve + old gap scan interval
+	fc.Add(11*time.Second + 31*time.Second)
+
+	// Add new entry — this would have triggered gap scan in old implementation
+	cache.Add(newTestUpdate(300))
+
+	// Entry 100 should still exist — Add() no longer runs gap scan inline
+	if !cache.Contains(100) {
+		t.Error("entry 100 should still exist — Add() must not run gap scan inline")
+	}
+}
+
+// TestAckCumulativeSkipsNonCachedIDs verifies cumulative ack with large ID gaps.
+//
+// VALIDATES: AC-4 — cumulative ack visits only cached entries, not every integer.
+// PREVENTS: O(gap) cumulative ack loop when non-UPDATE messages consume IDs.
+func TestAckCumulativeSkipsNonCachedIDs(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+
+	cache.RegisterConsumer("rr")
+	cache.RegisterConsumer("monitor")
+
+	// Add entries at IDs 10, 50, 100 — big gaps (most IDs non-existent)
+	cache.Add(newTestUpdate(10))
+	cache.Add(newTestUpdate(50))
+	cache.Add(newTestUpdate(100))
+	cache.Activate(10, 2)
+	cache.Activate(50, 2)
+	cache.Activate(100, 2)
+
+	// "rr" acks 100 — cumulative ack implicitly acks 10, 50 for "rr"
+	if err := cache.Ack(100, "rr"); err != nil {
+		t.Fatalf("Ack(100): %v", err)
+	}
+
+	// All entries should still exist (monitor hasn't acked)
+	for _, id := range []uint64{10, 50, 100} {
+		if !cache.Contains(id) {
+			t.Errorf("entry %d should still exist (monitor hasn't acked)", id)
+		}
+	}
+
+	// "monitor" acks 100 — cumulative ack for monitor
+	if err := cache.Ack(100, "monitor"); err != nil {
+		t.Fatalf("monitor Ack(100): %v", err)
+	}
+
+	// All entries should be evicted (both consumers acked)
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0 after both consumers acked", cache.Len())
+	}
+}
+
+// TestUnregisterConsumerUsesSince verifies FIFO unregister uses Since.
+//
+// VALIDATES: AC-6 — only entries with seq > lastAck are decremented.
+// PREVENTS: Double-decrement of already-acked entries during unregister.
+func TestUnregisterConsumerUsesSince(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	defer cache.Stop()
+
+	cache.RegisterConsumer("stays")
+	cache.RegisterConsumer("leaves")
+
+	// Add entries with big gaps: 10, 50, 100
+	cache.Add(newTestUpdate(10))
+	cache.Add(newTestUpdate(50))
+	cache.Add(newTestUpdate(100))
+	cache.Activate(10, 2)
+	cache.Activate(50, 2)
+	cache.Activate(100, 2)
+
+	// "leaves" acks up to 50 (lastAck = 50)
+	if err := cache.Ack(50, "leaves"); err != nil {
+		t.Fatalf("leaves Ack(50): %v", err)
+	}
+
+	// Unregister "leaves" — should only affect entry 100 (id > lastAck=50)
+	// Entries 10 and 50 were already acked by "leaves" via cumulative ack
+	cache.UnregisterConsumer("leaves")
+
+	// All entries should still exist ("stays" hasn't acked)
+	for _, id := range []uint64{10, 50, 100} {
+		if !cache.Contains(id) {
+			t.Errorf("entry %d should still exist (stays hasn't acked)", id)
+		}
+	}
+
+	// "stays" acks all
+	if err := cache.Ack(100, "stays"); err != nil {
+		t.Fatalf("stays Ack(100): %v", err)
+	}
+
+	if cache.Len() != 0 {
+		t.Errorf("Len() = %d, want 0", cache.Len())
+	}
+}
+
+// TestStopCleansUpGoroutine verifies Stop() terminates the background goroutine.
+//
+// VALIDATES: AC-3 — background goroutine exits cleanly within one tick interval.
+// PREVENTS: Goroutine leak on cache shutdown.
+func TestStopCleansUpGoroutine(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	cache.SetGapScanInterval(time.Millisecond)
+	cache.Start()
+
+	// Stop should return quickly
+	done := make(chan struct{})
+	go func() {
+		cache.Stop()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// Good — Stop completed
+	case <-time.After(time.Second):
+		t.Fatal("Stop() did not complete within 1 second")
+	}
+}
+
+// TestStopIdempotent verifies Stop() can be called multiple times.
+//
+// VALIDATES: Idempotent Stop — no panic on double close.
+// PREVENTS: Panic from closing an already-closed channel.
+func TestStopIdempotent(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	cache.SetGapScanInterval(time.Millisecond)
+	cache.Start()
+
+	// Calling Stop twice should not panic
+	cache.Stop()
+	cache.Stop()
+}
+
+// TestStopWithoutStart verifies Stop() is safe without Start().
+//
+// VALIDATES: Stop is a no-op when Start was never called.
+// PREVENTS: Nil channel panic when defer cache.Stop() runs without Start().
+func TestStopWithoutStart(t *testing.T) {
+	cache := NewRecentUpdateCache(100)
+	// Should not panic
+	cache.Stop()
+}
+
+// TestConcurrentAddAckWithBackground verifies race-free operation with background scan.
+//
+// VALIDATES: AC-8 — no races with concurrent Add/Get/Ack + background goroutine.
+// PREVENTS: Data race between background gap scan and cache operations.
+func TestConcurrentAddAckWithBackground(t *testing.T) {
+	cache := NewRecentUpdateCache(1000)
+	cache.SetGapScanInterval(time.Millisecond)
+	cache.Start()
+	defer cache.Stop()
+
+	var wg sync.WaitGroup
+	const goroutines = 10
+	const ops = 100
+
+	// Concurrent Add + Activate
+	for g := range goroutines {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for i := range ops {
+				id := uint64(base*ops + i) //nolint:gosec // G115: test values are small
+				cache.Add(newTestUpdate(id))
+				cache.Activate(id, 1)
+			}
+		}(g)
+	}
+
+	// Concurrent Ack
+	for g := range goroutines {
+		wg.Add(1)
+		go func(base int) {
+			defer wg.Done()
+			for i := range ops {
+				id := uint64(base*ops + i) //nolint:gosec // G115: test values are small
+				_ = cache.Ack(id, "plugin")
+			}
+		}(g)
+	}
+
+	wg.Wait()
 }

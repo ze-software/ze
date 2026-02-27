@@ -364,3 +364,77 @@ func TestVirtualClockTimerResetOnStopped(t *testing.T) {
 		t.Error("timer did not fire after Reset on stopped timer")
 	}
 }
+
+// TestVirtualClockNewTickerFires verifies NewTicker fires repeatedly via Advance.
+//
+// VALIDATES: Ticker fires at each interval when Advance passes the deadline,
+// and re-schedules automatically for the next tick.
+// PREVENTS: Ticker only firing once (broken re-scheduling in fire callback).
+func TestVirtualClockNewTickerFires(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	vc := NewVirtualClock(start)
+	ticker := vc.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	// Advance 1s — first tick
+	vc.Advance(time.Second)
+	select {
+	case tm := <-ticker.C():
+		want := start.Add(time.Second)
+		if !tm.Equal(want) {
+			t.Errorf("first tick = %v, want %v", tm, want)
+		}
+	default:
+		t.Fatal("ticker did not fire after first interval")
+	}
+
+	// Advance another 1s — second tick (proves re-scheduling)
+	vc.Advance(time.Second)
+	select {
+	case tm := <-ticker.C():
+		want := start.Add(2 * time.Second)
+		if !tm.Equal(want) {
+			t.Errorf("second tick = %v, want %v", tm, want)
+		}
+	default:
+		t.Fatal("ticker did not fire after second interval")
+	}
+
+	// Advance 3s — should fire 3 ticks (but buffered channel holds 1)
+	vc.Advance(3 * time.Second)
+	select {
+	case <-ticker.C():
+		// At least one tick delivered
+	default:
+		t.Fatal("ticker did not fire after multi-interval advance")
+	}
+}
+
+// TestVirtualClockTickerStop verifies Stop prevents future ticks.
+//
+// VALIDATES: Stop() cancels pending tick and prevents re-scheduling.
+// PREVENTS: Stopped ticker continuing to fire via stale heap entries.
+func TestVirtualClockTickerStop(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	vc := NewVirtualClock(start)
+	ticker := vc.NewTicker(time.Second)
+
+	// First tick fires
+	vc.Advance(time.Second)
+	select {
+	case <-ticker.C():
+		// Good
+	default:
+		t.Fatal("ticker did not fire before Stop")
+	}
+
+	// Stop then advance — should not fire
+	ticker.Stop()
+	vc.Advance(time.Second)
+	select {
+	case <-ticker.C():
+		t.Error("stopped ticker should not fire")
+	default:
+		// Good — no tick
+	}
+}

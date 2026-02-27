@@ -170,6 +170,63 @@ func TestFakeClockDSTFallBack(t *testing.T) {
 	}
 }
 
+// TestFakeClockNewTickerReturnsTicker verifies FakeClock.NewTicker returns a valid Ticker.
+//
+// VALIDATES: NewTicker returns non-nil Ticker with non-nil C() channel.
+// PREVENTS: Nil channel panics when production code selects on ticker.C().
+func TestFakeClockNewTickerReturnsTicker(t *testing.T) {
+	c := NewFakeClock(time.Now())
+	ticker := c.NewTicker(time.Second)
+	if ticker == nil {
+		t.Fatal("NewTicker returned nil")
+	}
+	if ticker.C() == nil {
+		t.Error("NewTicker.C() returned nil, expected non-nil channel")
+	}
+	ticker.Stop()
+}
+
+// TestFakeClockFireTickers verifies FireTickers sends the current fake time to active tickers.
+//
+// VALIDATES: FireTickers delivers a tick with the current fake time.
+// PREVENTS: Background goroutines starving when using FakeClock.
+func TestFakeClockFireTickers(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	c := NewFakeClock(start)
+	ticker := c.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	c.FireTickers()
+
+	select {
+	case tm := <-ticker.C():
+		if !tm.Equal(start) {
+			t.Errorf("tick time = %v, want %v", tm, start)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("FireTickers did not deliver tick")
+	}
+}
+
+// TestFakeTickerStopPreventsFire verifies a stopped ticker does not receive from FireTickers.
+//
+// VALIDATES: Stop() prevents subsequent ticks from being delivered.
+// PREVENTS: Stopped tickers continuing to receive events.
+func TestFakeTickerStopPreventsFire(t *testing.T) {
+	c := NewFakeClock(time.Now())
+	ticker := c.NewTicker(time.Second)
+	ticker.Stop()
+
+	c.FireTickers()
+
+	select {
+	case <-ticker.C():
+		t.Error("stopped ticker should not receive ticks")
+	case <-time.After(50 * time.Millisecond):
+		// OK — stopped ticker didn't fire
+	}
+}
+
 // TestFakeDialerImplementsDialer verifies FakeDialer satisfies Dialer interface.
 //
 // VALIDATES: Compile-time interface conformance.

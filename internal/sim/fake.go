@@ -17,8 +17,9 @@ import (
 // paths that only use Now(). ze-chaos will extend this with
 // time-advancement-triggered timer firing.
 type FakeClock struct {
-	mu  sync.Mutex
-	now time.Time
+	mu      sync.Mutex
+	now     time.Time
+	tickers []*fakeTicker
 }
 
 // NewFakeClock creates a FakeClock starting at the given time.
@@ -72,6 +73,35 @@ func (c *FakeClock) NewTimer(time.Duration) Timer {
 	return &fakeTimer{ch: make(chan time.Time)}
 }
 
+// NewTicker returns a fakeTicker with a buffered channel.
+// The ticker does not fire autonomously. Use FireTickers() to deliver
+// ticks to all active tickers created by this clock.
+func (c *FakeClock) NewTicker(time.Duration) Ticker {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ft := &fakeTicker{ch: make(chan time.Time, 1)}
+	c.tickers = append(c.tickers, ft)
+	return ft
+}
+
+// FireTickers sends the current fake time to all non-stopped tickers.
+// The send is non-blocking (buffered channel, size 1), so it is safe
+// to call before the consumer goroutine enters its select loop.
+func (c *FakeClock) FireTickers() {
+	c.mu.Lock()
+	now := c.now
+	tickers := append([]*fakeTicker(nil), c.tickers...)
+	c.mu.Unlock()
+	for _, ft := range tickers {
+		if !ft.stopped {
+			select {
+			case ft.ch <- now:
+			default: // buffer full — tick already pending, skip
+			}
+		}
+	}
+}
+
 // fakeTimer is a minimal Timer implementation for FakeClock.
 // All operations are no-ops; C() returns a blocking channel (or nil for AfterFunc).
 type fakeTimer struct {
@@ -87,6 +117,20 @@ func (t *fakeTimer) Reset(time.Duration) bool { return true }
 // C returns the timer's channel. Nil for AfterFunc-created timers,
 // blocking channel for NewTimer-created timers.
 func (t *fakeTimer) C() <-chan time.Time { return t.ch }
+
+// fakeTicker is a minimal Ticker implementation for FakeClock.
+// The channel is buffered (size 1). Ticks are delivered by FireTickers(),
+// not autonomously.
+type fakeTicker struct {
+	ch      chan time.Time
+	stopped bool
+}
+
+// Stop marks the ticker as stopped. Subsequent FireTickers() calls skip it.
+func (t *fakeTicker) Stop() { t.stopped = true }
+
+// C returns the ticker's channel.
+func (t *fakeTicker) C() <-chan time.Time { return t.ch }
 
 // FakeDialer is a Dialer implementation that delegates to a configurable function.
 // For testing injection of custom dialers into reactor components.

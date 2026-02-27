@@ -85,6 +85,26 @@ func (vc *VirtualClock) NewTimer(d time.Duration) Timer {
 	return &virtualTimer{clock: vc, entry: entry}
 }
 
+// NewTicker returns a ticker backed by a repeating virtual timer.
+// Each Advance() past a tick deadline fires the tick and re-schedules the next.
+func (vc *VirtualClock) NewTicker(d time.Duration) Ticker {
+	vc.mu.Lock()
+	defer vc.mu.Unlock()
+
+	ch := make(chan time.Time, 1)
+	vt := &virtualTicker{clock: vc, ch: ch, interval: d}
+	entry := &timerEntry{
+		deadline: vc.now.Add(d),
+		callback: vt.fire,
+		seq:      vc.seq,
+	}
+	vc.seq++
+	vt.entry = entry
+	heap.Push(&vc.heap, entry)
+
+	return vt
+}
+
 // Advance moves simulated time forward by d and fires all timers with
 // deadline <= new now, in deadline order (FIFO for same-deadline).
 // Callbacks are called synchronously in the caller's goroutine.
@@ -241,4 +261,62 @@ func (vt *virtualTimer) Reset(d time.Duration) bool {
 // C returns the timer's channel. For AfterFunc-created timers, returns nil.
 func (vt *virtualTimer) C() <-chan time.Time {
 	return vt.entry.ch
+}
+
+// virtualTicker implements Ticker backed by VirtualClock's timer heap.
+// Each time the timer fires, fire() sends on the channel and re-schedules
+// the next tick. Stop() prevents further ticks.
+type virtualTicker struct {
+	clock    *VirtualClock
+	ch       chan time.Time
+	interval time.Duration
+	entry    *timerEntry
+	stopped  bool
+}
+
+// Stop prevents future ticks from firing.
+func (vt *virtualTicker) Stop() {
+	vt.clock.mu.Lock()
+	defer vt.clock.mu.Unlock()
+	vt.stopped = true
+	if vt.entry != nil {
+		vt.entry.stopped = true
+	}
+}
+
+// C returns the ticker's channel.
+func (vt *virtualTicker) C() <-chan time.Time { return vt.ch }
+
+// fire is the callback invoked by Advance() when a tick deadline is reached.
+// It sends the current time on the channel and schedules the next tick.
+// Called with the clock mutex released (Advance releases before firing).
+func (vt *virtualTicker) fire() {
+	vt.clock.mu.Lock()
+	if vt.stopped {
+		vt.clock.mu.Unlock()
+		return
+	}
+	now := vt.clock.now
+	vt.clock.mu.Unlock()
+
+	// Non-blocking send — drop tick if consumer hasn't read the previous one.
+	select {
+	case vt.ch <- now:
+	default: // buffer full — tick already pending, skip
+	}
+
+	// Schedule next tick.
+	vt.clock.mu.Lock()
+	defer vt.clock.mu.Unlock()
+	if vt.stopped {
+		return
+	}
+	entry := &timerEntry{
+		deadline: vt.clock.now.Add(vt.interval),
+		callback: vt.fire,
+		seq:      vt.clock.seq,
+	}
+	vt.clock.seq++
+	vt.entry = entry
+	heap.Push(&vt.clock.heap, entry)
 }

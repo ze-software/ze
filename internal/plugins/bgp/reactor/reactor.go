@@ -870,6 +870,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.ctx, r.cancel = context.WithCancel(ctx)
 	r.startTime = r.clock.Now()
 
+	// Start background gap scan goroutine for the recent update cache.
+	r.recentUpdates.Start()
+
 	// Start legacy listener if ListenAddr is configured (backward compatibility)
 	if r.config.ListenAddr != "" {
 		r.listener = NewListener(r.config.ListenAddr)
@@ -1248,6 +1251,7 @@ func (r *Reactor) cleanup() {
 	waitCancel()
 
 	// Phase 3: Cleanup remaining resources.
+	r.recentUpdates.Stop()
 	if r.ribStore != nil {
 		r.ribStore.Stop()
 	}

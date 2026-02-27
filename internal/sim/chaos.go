@@ -182,6 +182,11 @@ func (c *ChaosClock) NewTimer(d time.Duration) Timer {
 	return c.inner.NewTimer(c.jitteredDuration(d))
 }
 
+// NewTicker creates a ticker with duration d (possibly jittered).
+func (c *ChaosClock) NewTicker(d time.Duration) Ticker {
+	return c.inner.NewTicker(c.jitteredDuration(d))
+}
+
 // =============================================================================
 // ChaosDialer
 // =============================================================================

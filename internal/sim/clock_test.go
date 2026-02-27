@@ -161,3 +161,38 @@ func TestTimerInterfaceSatisfied(t *testing.T) {
 	defer timer.Stop()
 	var _ Timer = timer //nolint:staticcheck // Explicit interface conformance check
 }
+
+// TestRealClockNewTicker verifies RealClock.NewTicker creates a working ticker.
+//
+// VALIDATES: NewTicker fires repeatedly on its channel.
+// PREVENTS: Ticker.C() returning nil or ticker not firing.
+func TestRealClockNewTicker(t *testing.T) {
+	c := RealClock{}
+	ticker := c.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	ch := ticker.C()
+	if ch == nil {
+		t.Fatal("NewTicker.C() returned nil")
+	}
+
+	select {
+	case tm := <-ch:
+		if tm.IsZero() {
+			t.Error("received zero time on ticker channel")
+		}
+	case <-time.After(1 * time.Second):
+		t.Fatal("NewTicker did not fire within 1s")
+	}
+}
+
+// TestTickerInterfaceSatisfied verifies realTicker implements Ticker.
+//
+// VALIDATES: Compile-time interface conformance.
+// PREVENTS: Missing methods on realTicker.
+func TestTickerInterfaceSatisfied(t *testing.T) {
+	c := RealClock{}
+	ticker := c.NewTicker(time.Hour)
+	defer ticker.Stop()
+	var _ Ticker = ticker //nolint:staticcheck // Explicit interface conformance check
+}

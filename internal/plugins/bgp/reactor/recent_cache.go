@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -24,7 +25,7 @@ var cacheLogger = slogutil.LazyLogger("bgp.reactor.cache")
 // via the ZE_CACHE_SAFETY_VALVE environment variable.
 const defaultSafetyValveDuration = 5 * time.Minute
 
-// gapScanInterval controls how often the gap-based safety valve scan runs.
+// gapScanInterval controls how often the background gap-based safety valve scan runs.
 // The scan only matters for fault detection — normal eviction is immediate via Ack().
 const gapScanInterval = 30 * time.Second
 
@@ -39,25 +40,26 @@ const warnInterval = 30 * time.Second
 //   - Mandatory ack: every cache-consumer plugin MUST forward or release each update
 //   - FIFO ordering: plugin acks must follow receive order (implicit cumulative ack)
 //   - Immediate eviction: when all consumers ack, entry evicted in O(1)
-//   - Gap-based safety valve: entries passed over (later entry fully acked) are
-//     force-evicted after safetyValveDuration (crashed plugin detection)
+//   - Gap-based safety valve: background goroutine force-evicts stalled entries
+//     after safetyValveDuration (crashed plugin detection)
 //   - Soft max-entries: warns when exceeding limit but never rejects
 //   - No TTL: entries never expire based on time alone
 //
 // Lifecycle:
-//  1. Add() inserts entry with pending=true, pendingConsumers=0
-//  2. Activate(id, count) sets pendingConsumers from delivery count, clears pending
-//  3. Each consumer calls Get() to read, then Ack(id, plugin) when done
-//  4. When all consumers ack: entry evicted immediately, buffer returned to pool
-//  5. Gap scan (every 30s) force-evicts stalled entries (crashed plugin protection)
+//  1. Start() launches background gap scan goroutine
+//  2. Add() inserts entry with pending=true, pendingConsumers=0
+//  3. Activate(id, count) sets pendingConsumers from delivery count, clears pending
+//  4. Each consumer calls Get() to read, then Ack(id, plugin) when done
+//  5. When all consumers ack: entry evicted immediately, buffer returned to pool
+//  6. Background goroutine force-evicts stalled entries (crashed plugin protection)
+//  7. Stop() shuts down background goroutine
 type RecentUpdateCache struct {
 	mu           sync.RWMutex
 	clock        sim.Clock
-	entries      map[uint64]*cacheEntry
+	entries      *seqmap.Map[uint64, *cacheEntry]
 	maxEntries   int           // Soft limit — warns but never rejects
 	safetyValve  time.Duration // Per-cache safety valve duration
 	lastWarnTime time.Time     // Rate-limits soft-limit warnings
-	lastGapScan  time.Time     // When last gap safety valve scan ran
 
 	// Per-plugin FIFO tracking: last acked message ID per plugin.
 	// Acks for IDs <= this value are silently accepted as no-ops
@@ -80,6 +82,11 @@ type RecentUpdateCache struct {
 	// For these consumers, Ack() uses per-entry semantics: no cumulative
 	// ack loop, and id <= lastAck acks are not skipped.
 	nonFIFOConsumers map[string]bool
+
+	// Background gap scan lifecycle.
+	stopCh       chan struct{}
+	closeOnce    sync.Once
+	scanInterval time.Duration // Defaults to gapScanInterval; overridable for tests
 }
 
 // SetConsumerUnordered marks a registered consumer as non-FIFO (unordered).
@@ -138,17 +145,89 @@ func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked ui
 
 // NewRecentUpdateCache creates a cache with the given soft max size.
 // maxEntries: soft limit — warns when exceeded but never rejects (0 = unlimited).
+// Call Start() to launch the background gap scan goroutine.
 func NewRecentUpdateCache(maxEntries int) *RecentUpdateCache {
-	capacity := maxEntries
-	if capacity == 0 {
-		capacity = 1000 // Default capacity for hint
-	}
 	return &RecentUpdateCache{
 		clock:         sim.RealClock{},
-		entries:       make(map[uint64]*cacheEntry, capacity),
+		entries:       seqmap.New[uint64, *cacheEntry](),
 		maxEntries:    maxEntries,
 		safetyValve:   defaultSafetyValveDuration,
 		pluginLastAck: make(map[string]uint64),
+	}
+}
+
+// Start launches the background gap scan goroutine.
+// Must be called before the cache receives traffic. Safe to omit in tests
+// that don't need background scanning (Stop is still safe to call).
+func (c *RecentUpdateCache) Start() {
+	c.stopCh = make(chan struct{})
+	c.closeOnce = sync.Once{}
+	interval := c.scanInterval
+	if interval == 0 {
+		interval = gapScanInterval
+	}
+	ticker := c.clock.NewTicker(interval)
+	go c.gapScanLoop(ticker)
+}
+
+// Stop shuts down the background gap scan goroutine.
+// Idempotent — safe to call multiple times or without calling Start().
+func (c *RecentUpdateCache) Stop() {
+	if c.stopCh == nil {
+		return
+	}
+	c.closeOnce.Do(func() {
+		close(c.stopCh)
+	})
+}
+
+// SetGapScanInterval overrides the gap scan ticker interval.
+// Must be called before Start(). Intended for tests that need fast ticking.
+func (c *RecentUpdateCache) SetGapScanInterval(d time.Duration) {
+	c.scanInterval = d
+}
+
+// gapScanLoop runs the background gap scan on a ticker.
+// Exits when stopCh is closed.
+func (c *RecentUpdateCache) gapScanLoop(ticker sim.Ticker) {
+	defer ticker.Stop()
+	for {
+		select {
+		case <-c.stopCh:
+			return
+		case <-ticker.C():
+			c.runGapScan()
+		}
+	}
+}
+
+// runGapScan executes the gap-based safety valve scan under write lock.
+// Evicts entries that have been passed over (a later entry is fully acked)
+// and have exceeded the safety valve duration.
+func (c *RecentUpdateCache) runGapScan() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := c.clock.Now()
+
+	// Collect entries to evict (cannot modify seqmap during Range iteration).
+	var toEvict []uint64
+	c.entries.Range(func(id uint64, _ uint64, e *cacheEntry) bool {
+		if e.isGapEvictable(now, id, c.highestFullyAcked, c.safetyValve) {
+			toEvict = append(toEvict, id)
+		}
+		return true
+	})
+
+	for _, id := range toEvict {
+		e, ok := c.entries.Get(id)
+		if !ok {
+			continue
+		}
+		cacheLogger().Warn("safety valve: force-evicting stalled entry",
+			"id", id, "consumers", e.pendingConsumers,
+			"retained-for", now.Sub(e.retainedAt))
+		c.evictLocked(id, e)
 	}
 }
 
@@ -172,47 +251,29 @@ func (c *RecentUpdateCache) SetSafetyValveDuration(d time.Duration) {
 
 // Add inserts an update into the cache with pending=true and zero consumers.
 // The entry is not evictable until Activate() is called.
-// Triggers gap-based safety valve scan at most once per gapScanInterval.
 // Always succeeds — soft limit logs a rate-limited warning but never rejects.
 // Caller must call Activate(id, count) after dispatching to subscribed plugins.
+// Gap scan runs in a background goroutine (Start), not inline here.
 func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	now := c.clock.Now()
 
-	// Gap-based safety valve scan: evict stalled entries (infrequent — every 30s).
-	// Only needed for fault detection; normal eviction is immediate via Ack().
-	if now.Sub(c.lastGapScan) >= gapScanInterval {
-		c.lastGapScan = now
-		for id, e := range c.entries {
-			if !e.isGapEvictable(now, id, c.highestFullyAcked, c.safetyValve) {
-				continue
-			}
-			cacheLogger().Warn("safety valve: force-evicting stalled entry",
-				"id", id, "consumers", e.pendingConsumers,
-				"retained-for", now.Sub(e.retainedAt))
-			ReturnReadBuffer(e.update.poolBuf)
-			ReturnReadBuffer(e.update.ebgpPoolBuf4)
-			ReturnReadBuffer(e.update.ebgpPoolBuf2)
-			delete(c.entries, id)
-		}
-	}
-
 	// Soft limit: warn but never reject (rate-limited to avoid log flood)
-	if c.maxEntries > 0 && len(c.entries) >= c.maxEntries {
+	if c.maxEntries > 0 && c.entries.Len() >= c.maxEntries {
 		if now.Sub(c.lastWarnTime) >= warnInterval {
 			c.lastWarnTime = now
 			cacheLogger().Warn("cache exceeding soft limit",
-				"current", len(c.entries), "limit", c.maxEntries)
+				"current", c.entries.Len(), "limit", c.maxEntries)
 		}
 	}
 
 	msgID := update.WireUpdate.MessageID()
-	c.entries[msgID] = &cacheEntry{
+	c.entries.Put(msgID, msgID, &cacheEntry{
 		update:  update,
 		pending: true, // Protected until Activate()
-	}
+	})
 	if msgID > c.highestAddedID {
 		c.highestAddedID = msgID
 	}
@@ -228,7 +289,7 @@ func (c *RecentUpdateCache) Activate(id uint64, count int) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.entries[id]
+	e, ok := c.entries.Get(id)
 	if !ok {
 		return
 	}
@@ -257,7 +318,7 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	entry, ok := c.entries[id]
+	entry, ok := c.entries.Get(id)
 	if !ok {
 		return nil, false
 	}
@@ -269,7 +330,8 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 // FIFO consumers (default):
 //
 //	When id > lastAck: cumulative ack — implicitly acks all entries between
-//	the plugin's last ack and this id (TCP-like).
+//	the plugin's last ack and this id via seqmap.Since() (O(log n + k) where
+//	k = cached entries in range, not the ID gap).
 //	When id <= lastAck: no-op — this plugin already acked the entry via a
 //	previous cumulative ack. This happens when multi-peer delivery causes
 //	session goroutines to compete for callMu, making delivery order differ
@@ -291,7 +353,7 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	// that other workers haven't processed yet.
 	// No id <= lastAck skip — workers may ack entries below lastAck.
 	if c.nonFIFOConsumers[plugin] {
-		e, ok := c.entries[id]
+		e, ok := c.entries.Get(id)
 		if !ok {
 			return ErrUpdateExpired
 		}
@@ -313,17 +375,30 @@ func (c *RecentUpdateCache) Ack(id uint64, plugin string) error {
 	}
 
 	// Check that the target entry exists
-	e, ok := c.entries[id]
+	e, ok := c.entries.Get(id)
 	if !ok {
 		return ErrUpdateExpired
 	}
 
 	// Forward ack: implicit cumulative ack for entries between lastAck+1 and id.
 	// Acking N means "I've handled everything up to N."
-	for intermediateID := lastAck + 1; intermediateID < id; intermediateID++ {
-		if ie, exists := c.entries[intermediateID]; exists {
-			c.ackEntryLocked(intermediateID, ie)
+	// Uses seqmap.Since() to iterate only cached entries in range — O(log n + k)
+	// where k is the number of cached entries, not the ID gap size.
+	// Collect-then-ack: cannot modify seqmap during Since iteration (compaction).
+	type ackRef struct {
+		id    uint64
+		entry *cacheEntry
+	}
+	var intermediates []ackRef
+	c.entries.Since(lastAck+1, func(key uint64, _ uint64, ie *cacheEntry) bool {
+		if key >= id {
+			return false // Stop before target (handled separately below)
 		}
+		intermediates = append(intermediates, ackRef{key, ie})
+		return true
+	})
+	for _, ref := range intermediates {
+		c.ackEntryLocked(ref.id, ref.entry)
 	}
 
 	// Ack the target entry
@@ -364,7 +439,7 @@ func (c *RecentUpdateCache) evictLocked(id uint64, e *cacheEntry) {
 	ReturnReadBuffer(e.update.poolBuf)
 	ReturnReadBuffer(e.update.ebgpPoolBuf4)
 	ReturnReadBuffer(e.update.ebgpPoolBuf2)
-	delete(c.entries, id)
+	c.entries.Delete(id)
 	if id > c.highestFullyAcked {
 		c.highestFullyAcked = id
 	}
@@ -380,7 +455,7 @@ func (c *RecentUpdateCache) Decrement(id uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	e, ok := c.entries[id]
+	e, ok := c.entries.Get(id)
 	if !ok {
 		return false
 	}
@@ -400,7 +475,7 @@ func (c *RecentUpdateCache) Decrement(id uint64) bool {
 func (c *RecentUpdateCache) Contains(id uint64) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	_, ok := c.entries[id]
+	_, ok := c.entries.Get(id)
 	return ok
 }
 
@@ -410,11 +485,11 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if e, ok := c.entries[id]; ok {
+	if e, ok := c.entries.Get(id); ok {
 		ReturnReadBuffer(e.update.poolBuf)
 		ReturnReadBuffer(e.update.ebgpPoolBuf4)
 		ReturnReadBuffer(e.update.ebgpPoolBuf2)
-		delete(c.entries, id)
+		c.entries.Delete(id)
 		return true
 	}
 	return false
@@ -427,7 +502,7 @@ func (c *RecentUpdateCache) Retain(id uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if e, ok := c.entries[id]; ok {
+	if e, ok := c.entries.Get(id); ok {
 		e.retainCount++
 		if e.retainCount == 1 && e.pendingConsumers == 0 && e.retainedAt.IsZero() {
 			e.retainedAt = c.clock.Now()
@@ -449,7 +524,7 @@ func (c *RecentUpdateCache) Release(id uint64) bool {
 func (c *RecentUpdateCache) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return len(c.entries)
+	return c.entries.Len()
 }
 
 // List returns all cached msg-ids.
@@ -458,10 +533,11 @@ func (c *RecentUpdateCache) List() []uint64 {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	ids := make([]uint64, 0, len(c.entries))
-	for id := range c.entries {
+	ids := make([]uint64, 0, c.entries.Len())
+	c.entries.Range(func(id uint64, _ uint64, _ *cacheEntry) bool {
 		ids = append(ids, id)
-	}
+		return true
+	})
 	return ids
 }
 
@@ -482,10 +558,11 @@ func (c *RecentUpdateCache) RegisterConsumer(name string) {
 }
 
 // UnregisterConsumer removes a cache-consumer plugin and adjusts pending counts.
-// For FIFO consumers: walks entries with id > pluginLastAck[name] (entries
-// below lastAck were already acked via cumulative ack).
-// For unordered consumers: walks ALL entries (cannot use lastAck as a
-// skip marker because entries below lastAck may not have been individually acked).
+// For FIFO consumers: uses seqmap.Since(lastAck+1) to walk only entries above
+// lastAck (entries below were already acked via cumulative ack).
+// For unordered consumers: uses seqmap.Range to walk ALL entries (cannot use
+// lastAck as a skip marker because entries below lastAck may not have been
+// individually acked).
 // Entries that reach zero total consumers are evicted immediately.
 // Called when a cache-consumer plugin disconnects or is removed.
 func (c *RecentUpdateCache) UnregisterConsumer(name string) {
@@ -500,24 +577,38 @@ func (c *RecentUpdateCache) UnregisterConsumer(name string) {
 	isUnordered := c.nonFIFOConsumers[name]
 	delete(c.nonFIFOConsumers, name)
 
-	for id, e := range c.entries {
-		// FIFO consumers: skip entries at or below lastAck (already acked).
-		// Unordered consumers: cannot skip — entries below lastAck may be un-acked.
-		if !isUnordered && id <= lastAck {
-			continue // Plugin already acked this entry
-		}
-		if e.pending {
+	// Collect entries to process (cannot modify seqmap during iteration).
+	type entryRef struct {
+		id    uint64
+		entry *cacheEntry
+	}
+	var refs []entryRef
+	if isUnordered {
+		c.entries.Range(func(id uint64, _ uint64, e *cacheEntry) bool {
+			refs = append(refs, entryRef{id, e})
+			return true
+		})
+	} else {
+		c.entries.Since(lastAck+1, func(id uint64, _ uint64, e *cacheEntry) bool {
+			refs = append(refs, entryRef{id, e})
+			return true
+		})
+	}
+
+	// Process collected entries
+	for _, r := range refs {
+		if r.entry.pending {
 			// Entry not yet activated — record as early ack so Activate()
 			// applies a reduced consumer count (prevents stuck entries
 			// when a plugin disconnects between delivery and activation).
-			e.earlyAckCount++
+			r.entry.earlyAckCount++
 			continue
 		}
-		if e.pendingConsumers > 0 {
-			e.pendingConsumers--
+		if r.entry.pendingConsumers > 0 {
+			r.entry.pendingConsumers--
 		}
-		if e.totalConsumers() <= 0 {
-			c.evictLocked(id, e)
+		if r.entry.totalConsumers() <= 0 {
+			c.evictLocked(r.id, r.entry)
 		}
 	}
 }
