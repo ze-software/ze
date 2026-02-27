@@ -309,6 +309,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			}
 		}
 	case peer.EventDisconnected:
+		ps.ChaosActive = true
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
@@ -316,6 +317,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			d.state.PeersSyncing--
 		}
 	case peer.EventReconnecting:
+		ps.ChaosActive = true
 		ps.Status = PeerReconnecting
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
@@ -357,6 +359,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 	case peer.EventRouteWithdrawn:
 		d.state.TotalWithdrawn++
 	case peer.EventChaosExecuted:
+		ps.ChaosActive = true
 		ps.ChaosCount++
 		d.state.TotalChaos++
 		d.state.ChaosHistory = append(d.state.ChaosHistory, ChaosHistoryEntry{
@@ -396,6 +399,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 			}
 		}
 	case peer.EventError:
+		ps.ChaosActive = true
 		ps.Status = PeerDown
 		if prevStatus == PeerUp {
 			d.state.PeersUp--
@@ -564,6 +568,15 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 	}
 	d.state.mu.RUnlock()
 
+	// Clear transient ChaosActive flags for rendered peers.
+	d.state.mu.Lock()
+	for idx := range dirtyPeers {
+		if ps := d.state.Peers[idx]; ps != nil {
+			ps.ChaosActive = false
+		}
+	}
+	d.state.mu.Unlock()
+
 	// Broadcast removals for decayed peers.
 	for _, idx := range removed {
 		d.broker.Broadcast(SSEEvent{
@@ -677,7 +690,11 @@ func (d *Dashboard) renderPeerCell(idx int) string {
 	if ps == nil {
 		return ""
 	}
-	return `<div id="peer-cell-` + itoa(idx) + `" class="peer-cell ` + ps.Status.CSSClass() +
+	pulseClass := ""
+	if ps.ChaosActive {
+		pulseClass = " pulse"
+	}
+	return `<div id="peer-cell-` + itoa(idx) + `" class="peer-cell ` + ps.Status.CSSClass() + pulseClass +
 		`" title="Peer ` + itoa(idx) + `: ` + ps.Status.String() +
 		` | Sent: ` + itoa(ps.RoutesSent) + ` Recv: ` + itoa(ps.RoutesRecv) +
 		` | Last: ` + eventTypeLabel(ps.LastEvent) +

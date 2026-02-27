@@ -290,6 +290,95 @@ func TestRenderPeerCellLastEvent(t *testing.T) {
 	}
 }
 
+// TestProcessEventSetsChaosActive verifies chaos events set ChaosActive.
+//
+// VALIDATES: AC-1, AC-2, AC-3, AC-4 — chaos event types set ChaosActive.
+// PREVENTS: Chaos pulse not triggering on chaos events.
+func TestProcessEventSetsChaosActive(t *testing.T) {
+	t.Parallel()
+
+	chaosEvents := []peer.EventType{
+		peer.EventChaosExecuted,
+		peer.EventDisconnected,
+		peer.EventError,
+		peer.EventReconnecting,
+	}
+
+	for _, et := range chaosEvents {
+		d := newTestDashboard(5)
+		now := time.Now()
+		d.ProcessEvent(peer.Event{Type: et, PeerIndex: 0, Time: now})
+
+		d.state.RLock()
+		active := d.state.Peers[0].ChaosActive
+		d.state.RUnlock()
+		d.broker.Close()
+
+		if !active {
+			t.Errorf("event %v should set ChaosActive", et)
+		}
+	}
+}
+
+// TestProcessEventNoChaosActiveForRoute verifies route events don't set ChaosActive.
+//
+// VALIDATES: AC-5 — EventRouteSent does not trigger pulse.
+// PREVENTS: Pulse firing on every route event.
+func TestProcessEventNoChaosActiveForRoute(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.ProcessEvent(peer.Event{Type: peer.EventRouteSent, PeerIndex: 0, Time: time.Now()})
+
+	d.state.RLock()
+	active := d.state.Peers[0].ChaosActive
+	d.state.RUnlock()
+
+	if active {
+		t.Error("EventRouteSent should not set ChaosActive")
+	}
+}
+
+// TestRenderPeerCellPulseClass verifies pulse class appears when ChaosActive.
+//
+// VALIDATES: AC-6 — grid cell has "pulse" class during chaos.
+// PREVENTS: Pulse animation not triggering visually.
+func TestRenderPeerCellPulseClass(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[0].ChaosActive = true
+
+	cell := d.renderPeerCell(0)
+	if !strings.Contains(cell, "pulse") {
+		t.Error("cell should have pulse class when ChaosActive")
+	}
+}
+
+// TestRenderPeerCellNoPulseClass verifies no pulse when ChaosActive is false.
+//
+// VALIDATES: AC-7 — grid cell lacks "pulse" class when not in chaos.
+// PREVENTS: Permanent pulse animation.
+func TestRenderPeerCellNoPulseClass(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[0].ChaosActive = false
+
+	cell := d.renderPeerCell(0)
+	if strings.Contains(cell, "pulse") {
+		t.Error("cell should not have pulse class when ChaosActive is false")
+	}
+}
+
 // TestProcessEventQueuesToast verifies toast-worthy events are queued.
 //
 // VALIDATES: AC-1, AC-4 — disconnect and chaos events produce toasts.

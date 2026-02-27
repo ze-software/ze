@@ -1112,6 +1112,10 @@ span.fm-complete {
   z-index: 1;
 }
 
+/* Chaos Pulse Animation */
+.peer-cell.pulse { animation: chaos-pulse 0.5s ease-out 1; }
+@keyframes chaos-pulse { 0% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 8px 4px currentColor; } 100% { box-shadow: 0 0 0 0 transparent; } }
+
 /* Toast Notifications */
 .toast-container { position: absolute; top: 8px; right: 8px; z-index: 100; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
 .toast { padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }

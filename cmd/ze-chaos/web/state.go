@@ -145,6 +145,10 @@ type PeerState struct {
 	// non-unicast (VPN, EVPN, FlowSpec) get RouteCount/4.
 	FamilySentTarget map[string]int
 
+	// ChaosActive is a transient flag set when a chaos event affects this peer.
+	// Cleared after one render cycle in broadcastDirty.
+	ChaosActive bool
+
 	// BytesSent is the cumulative bytes written to the connection by this peer.
 	BytesSent int64
 
