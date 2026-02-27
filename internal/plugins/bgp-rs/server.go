@@ -31,6 +31,16 @@ const statusDone = "done"
 // when many concurrent workers send update-route RPCs.
 const updateRouteTimeout = 60 * time.Second
 
+// replayConvergenceMax is the maximum number of delta replay iterations.
+// Each iteration catches routes that adj-rib-in processed since the previous
+// iteration. Convergence is typically reached in 1-2 iterations.
+const replayConvergenceMax = 10
+
+// replayConvergenceDelay is the pause between delta replay iterations.
+// Gives adj-rib-in's event handler time to process pending deliveries
+// from the engine's DirectBridge (concurrent with replay commands).
+const replayConvergenceDelay = 20 * time.Millisecond
+
 // Event type constants matching ze-bgp message.type values.
 //
 // Note: The engine also sends "borr" (Beginning of Route Refresh, RFC 7313 subtype 1)
@@ -722,10 +732,9 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 // Replays existing routes to the newly-connected peer via DispatchCommand
 // to bgp-adj-rib-in, replacing the previous ROUTE-REFRESH approach which
 // caused a thundering herd (N peers × M families). The replay runs in a
-// per-peer lifecycle goroutine (not blocking the event loop). The peer is
-// marked as "replaying" and excluded from selectForwardTargets until the
-// full replay completes, preventing ghost routes from interleaved forwarding.
-// A delta replay then covers routes that arrived during the full replay.
+// per-peer lifecycle goroutine (not blocking the event loop).
+// A convergent delta replay loop then covers routes that adj-rib-in may not
+// have stored yet at full-replay time (race between event delivery and replay).
 func (rs *RouteServer) handleStateUp(peerAddr string) {
 	// Mark peer as replaying — excluded from selectForwardTargets until complete.
 	// Increment generation so stale goroutines from a previous session (rapid
@@ -784,7 +793,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	}
 
 	// Parse last-index from replay response.
-	lastIndex := parseLastIndex(data)
+	lastIndex, _ := parseReplayResponse(data)
 
 	// Add peer to forward targets (new UPDATEs now flow to this peer).
 	// Only if this goroutine's generation is still current.
@@ -799,26 +808,46 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		return
 	}
 
-	// Delta replay to cover routes that arrived during full replay.
-	if lastIndex > 0 {
-		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
-		_, _, err := rs.dispatchCommand(ctx, deltaCmd)
-		if err != nil {
-			logger().Warn("delta replay failed", "peer", peerAddr, "command", deltaCmd, "error", err)
+	// Convergent delta replay: catch routes that adj-rib-in received after
+	// the full replay snapshot. For internal plugins, events arrive via
+	// DirectBridge on the engine's delivery goroutine while replay commands
+	// arrive on Socket B — these are concurrent, so adj-rib-in may not have
+	// stored recently-delivered routes when the full replay ran. Repeat until
+	// no new routes appear (replayed==0), with a brief pause between attempts
+	// to let adj-rib-in's event handler process pending deliveries.
+	for i := range replayConvergenceMax {
+		if lastIndex == 0 {
+			break
 		}
+		if i > 0 {
+			time.Sleep(replayConvergenceDelay)
+		}
+		deltaCmd := fmt.Sprintf("adj-rib-in replay %s %d", peerAddr, lastIndex)
+		_, deltaData, deltaErr := rs.dispatchCommand(ctx, deltaCmd)
+		if deltaErr != nil {
+			logger().Warn("delta replay failed", "peer", peerAddr, "attempt", i, "error", deltaErr)
+			break
+		}
+		newLast, replayed := parseReplayResponse(deltaData)
+		if replayed == 0 {
+			break
+		}
+		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", replayed)
+		lastIndex = newLast
 	}
 }
 
-// parseLastIndex extracts the last-index value from a replay response JSON.
+// parseReplayResponse extracts last-index and replayed count from a replay response.
 // Expected format: {"last-index":N,"replayed":M}.
-func parseLastIndex(data string) uint64 {
+func parseReplayResponse(data string) (lastIndex uint64, replayed int) {
 	var resp struct {
 		LastIndex uint64 `json:"last-index"`
+		Replayed  int    `json:"replayed"`
 	}
 	if err := json.Unmarshal([]byte(data), &resp); err != nil {
-		return 0
+		return 0, 0
 	}
-	return resp.LastIndex
+	return resp.LastIndex, resp.Replayed
 }
 
 // handleOpen processes OPEN events to capture peer capabilities.
