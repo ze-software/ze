@@ -1,12 +1,12 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin set igp local-preference set 100 extended-community set [target:10000:1 target:65000:1] nhop set 200.10.0.101 nlri ipv4/unicast add 10.0.0.0/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin igp local-preference 100 extended-community [target:10000:1 target:65000:1] nhop 200.10.0.101 nlri ipv4/unicast add 10.0.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C40010100400200400304C80A006540050400000064C0101000022710000000010002FDE800000001800E210001800C0000000000000000C80A00650071003E810000FDE8000000010A000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin set igp local-preference set 100 extended-community set [target:10000:1 target:65000:1] nhop set 200.10.0.101 nlri ipv4/unicast add 10.0.0.128/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin igp local-preference 100 extended-community [target:10000:1 target:65000:1] nhop 200.10.0.101 nlri ipv4/unicast add 10.0.0.128/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C40010100400200400304C80A006540050400000064C0101000022710000000010002FDE800000001800E210001800C0000000000000000C80A00650071003E810000FDE8000000010A000080
-cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin set igp local-preference set 100 extended-community set [target:10000:1 target:65000:1] nhop set 200.10.0.101 nlri ipv4/unicast add 20.0.0.0/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin igp local-preference 100 extended-community [target:10000:1 target:65000:1] nhop 200.10.0.101 nlri ipv4/unicast add 20.0.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C40010100400200400304C80A006540050400000064C0101000022710000000010002FDE800000001800E210001800C0000000000000000C80A00650071003E810000FDE80000000114000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin set igp local-preference set 100 extended-community set [target:10000:1 target:65000:1] nhop set 200.10.0.101 nlri ipv4/unicast add 20.0.0.128/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text rd 65000:1 label 1000 origin igp local-preference 100 extended-community [target:10000:1 target:65000:1] nhop 200.10.0.101 nlri ipv4/unicast add 20.0.0.128/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C40010100400200400304C80A006540050400000064C0101000022710000000010002FDE800000001800E210001800C0000000000000000C80A00650071003E810000FDE80000000114000080
 EOF_PEER
 

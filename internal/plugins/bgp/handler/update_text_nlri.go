@@ -19,10 +19,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 )
 
-// parseNLRISection parses nlri <family> [rd <value>] [label <value>] <nlri-op>+
+// parseNLRISection parses nlri <family> [path-information <id>] [rd <value>] [label <value>] <nlri-op>+
 // <nlri-op> := add <prefix>+ [watchdog set <name>] | del <prefix>+
 // accum contains NLRI accumulators: pathID, RD, labels.
-// In-NLRI modifiers (rd/label without 'set') override accumulated values.
+// In-NLRI modifiers (path-information/rd/label) set per-section values.
 // Returns family, announce list, withdraw list, watchdog name, consumed token count, and any error.
 func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 	// args[0] = "nlri"
@@ -68,22 +68,32 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 	consumed := 2 // "nlri" + family
 	i := 2
 
-	// Parse in-NLRI modifiers: rd <value>, label <value> (without 'set')
-	// These override accumulated values for this nlri section only
+	// Parse in-NLRI modifiers: path-information <id>, rd <value>, label <value>
+	// These set per-section values (info/path-information is per-NLRI-section, not top-level).
 	for i < len(args) {
 		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
 
+		if token == kwPathInfo {
+			// path-information <id> (alias-resolved from "info")
+			if i+1 >= len(args) {
+				return nlriParseResult{}, errors.New("path-information requires a value")
+			}
+			id, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return nlriParseResult{}, fmt.Errorf("invalid path-information: %w", err)
+			}
+			accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			i += 2
+			consumed += 2
+			continue
+		}
+
 		if token == kwRD {
-			// rd <value> (in-NLRI modifier, no 'set')
+			// rd <value> (in-NLRI modifier)
 			if i+1 >= len(args) {
 				return nlriParseResult{}, errors.New("rd requires value (ASN:NN or IP:NN)")
 			}
-			next := args[i+1]
-			// If next token is 'set', this is accumulator syntax - don't handle here
-			if next == kwSet {
-				break
-			}
-			rd, err := nlri.ParseRDString(next)
+			rd, err := nlri.ParseRDString(args[i+1])
 			if err != nil {
 				return nlriParseResult{}, fmt.Errorf("invalid rd: %w", err)
 			}
@@ -94,16 +104,11 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 		}
 
 		if token == kwLabel {
-			// label <value> (in-NLRI modifier, no 'set')
+			// label <value> (in-NLRI modifier)
 			if i+1 >= len(args) {
 				return nlriParseResult{}, errors.New("label requires value (0-1048575)")
 			}
-			next := args[i+1]
-			// If next token is 'set', this is accumulator syntax - don't handle here
-			if next == kwSet {
-				break
-			}
-			label, err := strconv.ParseUint(next, 10, 32)
+			label, err := strconv.ParseUint(args[i+1], 10, 32)
 			if err != nil {
 				return nlriParseResult{}, fmt.Errorf("invalid label: %w", err)
 			}

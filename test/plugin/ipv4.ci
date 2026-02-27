@@ -4,7 +4,7 @@
 stdin=peer:terminator=EOF_PEER
 # Test: IPv4 unicast announce/withdraw with JSON format documentation
 # JSON format: {"ipv4/unicast":[{"next-hop":"...","action":"add|del","nlri":["..."]}]}
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 200 nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
 cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv4/unicast eor
@@ -27,7 +27,7 @@ def main() -> None:
     ready()
 
     # Test unicast functionality using update text syntax (Step 5: bgp peer prefix required)
-    announce_unicast = 'bgp peer * update text origin set igp local-preference set 200 nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24'
+    announce_unicast = 'bgp peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24'
     withdraw_unicast = 'bgp peer * update text nlri ipv4/unicast del 10.0.1.0/24'
 
     messages = [

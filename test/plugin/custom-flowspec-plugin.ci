@@ -59,7 +59,7 @@ def main() -> None:
     # Send marker UPDATE to prove we're the active plugin
     # Prefix 77.77.77.0/24 (0x4d4d4d) is unique to this plugin
     time.sleep(0.2)
-    api.send('bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24')
+    api.send('bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.0/24')
     time.sleep(0.3)
 
     api.wait_for_shutdown()

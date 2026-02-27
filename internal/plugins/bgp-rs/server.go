@@ -60,9 +60,9 @@ const (
 	tokenHoldTime = "hold-time"
 	tokenFamily   = "family"
 
-	// NLRI action tokens from text UPDATE parsing.
-	actionAdd = "add"
-	actionDel = "del"
+	// NLRI action tokens from text UPDATE parsing — shared with textparse.
+	actionAdd = textparse.KWAdd
+	actionDel = textparse.KWDel
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -1017,24 +1017,8 @@ type CapabilityInfo struct {
 // State:          "peer <addr> asn <n> state <state>"
 // Parsed with TextScanner (zero-copy token extraction from original string).
 
-// topLevelKeywords are the keywords recognized by the key-dispatch loop in
-// parseTextNLRIOps. Any token matching one of these stops NLRI collection.
-var topLevelKeywords = map[string]bool{
-	"origin": true, "as-path": true, "med": true, "local-preference": true,
-	"atomic-aggregate": true, "aggregator": true, "originator-id": true,
-	"cluster-list": true, "community": true, "large-community": true,
-	"extended-community": true, "next-hop": true, "nlri": true,
-}
-
-// nlriTypeKeywords are NLRI type keywords that start a new NLRI entry.
-// Used for keyword-boundary format: "nlri add prefix <a> prefix <b>".
-var nlriTypeKeywords = map[string]bool{
-	"prefix": true, "rd": true, "reachability": true,
-	"node": true, "link": true, "srv6-sid": true,
-	"ethernet-ad": true, "mac-ip": true, "multicast": true,
-	"ethernet-segment": true, "ip-prefix": true,
-	"flow": true, "flow-vpn": true,
-}
+// topLevelKeywords and nlriTypeKeywords are now shared from textparse package.
+// Use textparse.IsTopLevelKeyword() and textparse.NLRITypeKeywords.
 
 // buildNLRIEntries splits collected tokens into individual NLRI strings.
 // Accepts two formats:
@@ -1067,7 +1051,7 @@ func buildNLRIEntries(tokens []string) []any {
 	}
 
 	// No commas — check for keyword boundary (repeated type keywords).
-	if nlriTypeKeywords[tokens[0]] {
+	if textparse.NLRITypeKeywords[tokens[0]] {
 		var nlris []any
 		var current []string
 		for _, tok := range tokens {
@@ -1152,7 +1136,7 @@ func parseTextUpdateFamilies(text string) map[string]bool {
 		if !ok {
 			break
 		}
-		if tok == "nlri" {
+		if tok == textparse.KWNLRI {
 			if fam, ok := s.Next(); ok {
 				if strings.Contains(fam, "/") {
 					families[fam] = true
@@ -1166,10 +1150,10 @@ func parseTextUpdateFamilies(text string) map[string]bool {
 // parseTextNLRIOps extracts family operations (add/del + NLRIs) from a text UPDATE.
 // Used by processForward to populate the withdrawal map.
 //
-// Format: "peer <addr> asn <n> <dir> update <id> <attrs> [next-hop <nh>] nlri <fam> add|del <nlris> ..."
+// Format: "peer <addr> asn <n> <dir> update <id> <attrs> [next <nh>] nlri <fam> add|del <nlris> ..."
 //
-// Key-dispatch loop processes keywords sequentially:
-// - Attribute keywords (origin, as-path, etc.): skip value(s)
+// Key-dispatch loop processes keywords sequentially, resolving aliases via textparse.ResolveAlias:
+// - Attribute keywords (origin, path, pref, etc.): skip value(s)
 // - "nlri": consume family, extract action (add/del) and collect NLRI tokens until next keyword.
 func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 	result := make(map[string][]FamilyOperation)
@@ -1180,18 +1164,19 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 		s.Next()
 	}
 
-	// Key-dispatch loop
+	// Key-dispatch loop — resolve aliases so both short (API) and long (config) forms work.
 	for !s.Done() {
-		tok, ok := s.Next()
+		raw, ok := s.Next()
 		if !ok {
 			break
 		}
+		tok := textparse.ResolveAlias(raw)
 
 		switch tok {
-		case "next-hop":
+		case textparse.KWNextHop:
 			s.Next() // consume the address
 
-		case "nlri":
+		case textparse.KWNLRI:
 			// Family: nlri <family> add|del
 			family, ok := s.Next()
 			if !ok || !strings.Contains(family, "/") {
@@ -1203,8 +1188,8 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 			if !ok {
 				continue
 			}
-			if next == "path-id" {
-				s.Next() // consume "path-id"
+			if textparse.ResolveAlias(next) == textparse.KWPathInformation {
+				s.Next() // consume "info"/"path-information"
 				s.Next() // consume the ID value
 				if _, ok = s.Peek(); !ok {
 					continue
@@ -1221,7 +1206,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 			var nlriTokens []string
 			for !s.Done() {
 				next, ok := s.Peek()
-				if !ok || topLevelKeywords[next] {
+				if !ok || textparse.IsTopLevelKeyword(next) {
 					break
 				}
 				tok, _ := s.Next()
@@ -1236,12 +1221,16 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 					FamilyOperation{Action: action, NLRIs: nlris})
 			}
 
-		// Attribute keywords: consume their values
-		case "origin", "med", "local-preference", "aggregator", "originator-id":
-			s.Next() // one scalar value
-		case "as-path", "community", "large-community", "extended-community", "cluster-list":
-			s.Next() // one comma-list value
-		case "atomic-aggregate":
+		// Attribute keywords: consume their values.
+		// Scalar attributes (one value token).
+		case textparse.KWOrigin, textparse.KWMED, textparse.KWLocalPreference,
+			textparse.KWAggregator, textparse.KWOriginatorID:
+			s.Next()
+		// Comma-list attributes (one comma-separated value token).
+		case textparse.KWASPath, textparse.KWCommunity, textparse.KWLargeCommunity,
+			textparse.KWExtendedCommunity, textparse.KWClusterList:
+			s.Next()
+		case textparse.KWAtomicAggregate:
 			// flag, no value
 		}
 	}

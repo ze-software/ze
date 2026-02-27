@@ -122,17 +122,6 @@ func testHasOrigin(t *testing.T, wire *attribute.AttributesWire) bool {
 	return has
 }
 
-// testHasMED checks if MED exists in Wire.
-func testHasMED(t *testing.T, wire *attribute.AttributesWire) bool {
-	t.Helper()
-	if wire == nil {
-		return false
-	}
-	has, err := wire.Has(attribute.AttrMED)
-	require.NoError(t, err)
-	return has
-}
-
 // testExtractASPath extracts AS_PATH as []uint32 from Wire for testing.
 func testExtractASPath(t *testing.T, wire *attribute.AttributesWire) []uint32 {
 	t.Helper()
@@ -208,6 +197,282 @@ func testDecodeEVPN(t *testing.T, n nlri.NLRI) map[string]any {
 	return data[0]
 }
 
+// =============================================================================
+// Phase 2 TDD: Flat Grammar Tests (no set/add/del on attributes)
+// =============================================================================
+
+// TestParseUpdateText_FlatAttributes verifies flat attribute syntax without set keyword.
+//
+// VALIDATES: AC-7: origin/nhop/med/local-preference parsed without set keyword.
+// PREVENTS: Regression to old accumulator-based set syntax.
+func TestParseUpdateText_FlatAttributes(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"origin", "igp",
+		"med", "100",
+		"local-preference", "200",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	wire := result.Groups[0].Wire
+	require.NotNil(t, wire)
+	assert.Equal(t, uint8(0), testExtractOrigin(t, wire))
+	assert.Equal(t, uint32(100), testExtractMED(t, wire))
+	assert.Equal(t, uint32(200), testExtractLocalPref(t, wire))
+
+	// Verify next-hop.
+	nh := result.Groups[0].NextHop
+	assert.True(t, nh.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), nh.Addr)
+}
+
+// TestParseUpdateText_FlatListAttributes verifies list attributes without set keyword.
+//
+// VALIDATES: AC-7: as-path and community parsed flat with comma-separated values.
+// PREVENTS: List attributes requiring old set keyword.
+func TestParseUpdateText_FlatListAttributes(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"as-path", "65001,65002",
+		"community", "65000:100,65000:200",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	wire := result.Groups[0].Wire
+	require.NotNil(t, wire)
+	assert.Equal(t, []uint32{65001, 65002}, testExtractASPath(t, wire))
+	assert.Equal(t, []uint32{0xFDE80064, 0xFDE800C8}, testExtractCommunities(t, wire))
+}
+
+// TestParseUpdateText_FlatNhopSelf verifies nhop self without set keyword.
+//
+// VALIDATES: AC-7: nhop self parsed flat.
+// PREVENTS: nhop self requiring set keyword.
+func TestParseUpdateText_FlatNhopSelf(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "self",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.True(t, result.Groups[0].NextHop.IsSelf())
+}
+
+// TestParseUpdateText_RejectSetKeyword verifies set keyword produces migration hint.
+//
+// VALIDATES: AC-8: origin set igp rejected with error mentioning set removal.
+// PREVENTS: Old accumulator syntax silently working.
+func TestParseUpdateText_RejectSetKeyword(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{"origin set", []string{"origin", "set", "igp", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"med set", []string{"med", "set", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"as-path set", []string{"as-path", "set", "65001", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"community set", []string{"community", "set", "65000:100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		{"nhop set", []string{"nhop", "set", "10.0.0.1", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tc.args)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "set")
+		})
+	}
+}
+
+// TestParseUpdateText_RejectMidStreamAttrs verifies attrs after nlri section are rejected.
+//
+// VALIDATES: AC-9: attributes after first nlri section produce error.
+// PREVENTS: Mid-stream attribute modification (old accumulator model).
+func TestParseUpdateText_RejectMidStreamAttrs(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"origin", "igp",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"origin", "egp",
+		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "attributes must precede all nlri sections")
+}
+
+// TestParseUpdateText_FlatRD verifies rd without set keyword.
+//
+// VALIDATES: rd parsed flat as keyword-value.
+// PREVENTS: rd requiring set keyword.
+func TestParseUpdateText_FlatRD(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "10.0.0.1",
+		"rd", "65000:100",
+		"label", "100",
+		"nlri", "ipv4/vpn", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_FlatLabel verifies label without set keyword.
+//
+// VALIDATES: label parsed flat as keyword-value.
+// PREVENTS: label requiring set keyword.
+func TestParseUpdateText_FlatLabel(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "10.0.0.1",
+		"label", "100",
+		"rd", "65000:200",
+		"nlri", "ipv4/vpn", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_FlatPathInfo verifies path-information as per-NLRI-section modifier.
+//
+// VALIDATES: path-information parsed as in-NLRI modifier (not top-level).
+// PREVENTS: path-information requiring set keyword.
+func TestParseUpdateText_FlatPathInfo(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "path-information", "42", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	assert.Equal(t, uint32(42), result.Groups[0].Announce[0].PathID())
+}
+
+// TestParseUpdateText_ShortAlias_Next verifies "next" is accepted as next-hop alias.
+//
+// VALIDATES: AC-1 — "next" resolves to next-hop.
+// PREVENTS: Short alias "next" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_Next(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"next", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.True(t, result.Groups[0].NextHop.Addr.IsValid())
+}
+
+// TestParseUpdateText_ShortAlias_Pref verifies "pref" is accepted as local-preference alias.
+//
+// VALIDATES: AC-6 — "pref" resolves to local-preference.
+// PREVENTS: Short alias "pref" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_Pref(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"pref", "200",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_ShortAlias_Path verifies "path" is accepted as as-path alias.
+//
+// VALIDATES: AC-2 — "path" with comma list parsed as AS_PATH.
+// PREVENTS: Short alias "path" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_Path(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"path", "65001,65002",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_ShortAlias_SCom verifies "s-com" is accepted as community alias.
+//
+// VALIDATES: AC-6 — "s-com" resolves to community.
+// PREVENTS: Short alias "s-com" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_SCom(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"s-com", "65000:100",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_ShortAlias_LCom verifies "l-com" is accepted as large-community alias.
+//
+// VALIDATES: AC-6 — "l-com" resolves to large-community.
+// PREVENTS: Short alias "l-com" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_LCom(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"l-com", "65000:100:200",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_ShortAlias_ECom verifies "e-com" is accepted as extended-community alias.
+//
+// VALIDATES: AC-6 — "e-com" resolves to extended-community.
+// PREVENTS: Short alias "e-com" rejected as unknown token.
+func TestParseUpdateText_ShortAlias_ECom(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"e-com", "origin:65000:1.2.3.4",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+}
+
+// TestParseUpdateText_PathIDModifier verifies info (path-information) inside nlri section.
+//
+// VALIDATES: AC-5 — "nlri ipv4/unicast info 42 add 10.0.0.0/24" parsed correctly.
+// PREVENTS: info only accepted as top-level keyword.
+func TestParseUpdateText_PathIDModifier(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "info", "42", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	// Verify path-information was applied to the NLRI
+	assert.Equal(t, uint32(42), result.Groups[0].Announce[0].PathID())
+}
+
+// TestParseUpdateText_PathIDRejectTopLevel verifies path-information rejected at top level.
+//
+// VALIDATES: path-information is per-NLRI-section, not top-level.
+// PREVENTS: path-information accepted at top level after relocation.
+func TestParseUpdateText_PathIDRejectTopLevel(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"path-information", "42",
+		"nhop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+}
+
+// TestParseUpdateText_LongForm_NextHop verifies "next-hop" is accepted alongside legacy "nhop".
+//
+// VALIDATES: AC-1 — "next-hop" accepted as canonical form.
+// PREVENTS: Regression where only "nhop" works.
+func TestParseUpdateText_LongForm_NextHop(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"next-hop", "10.0.0.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.True(t, result.Groups[0].NextHop.Addr.IsValid())
+}
+
 // TestParseUpdateText_EmptyInput verifies empty args returns empty result.
 //
 // VALIDATES: Empty args produces empty Groups, no error.
@@ -222,7 +487,7 @@ func TestParseUpdateText_EmptyInput(t *testing.T) {
 
 // TestParseUpdateText_OriginSet verifies origin attribute parsing.
 //
-// VALIDATES: origin set igp/egp/incomplete stores correct value.
+// VALIDATES: origin igp/egp/incomplete stores correct value.
 // PREVENTS: Origin value misinterpretation.
 func TestParseUpdateText_OriginSet(t *testing.T) {
 	tests := []struct {
@@ -238,7 +503,7 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"origin", "set", tc.origin,
+				"origin", tc.origin,
 				"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 			})
 			require.NoError(t, err)
@@ -255,9 +520,9 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 // PREVENTS: Only first attribute being parsed.
 func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"med", "set", "100",
-		"local-preference", "set", "200",
+		"origin", "igp",
+		"med", "100",
+		"local-preference", "200",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -276,7 +541,7 @@ func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 // PREVENTS: Community parsing failures.
 func TestParseUpdateText_CommunitySet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100", "65000:200]",
+		"community", "[65000:100", "65000:200]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -288,116 +553,10 @@ func TestParseUpdateText_CommunitySet(t *testing.T) {
 	assert.Equal(t, uint32(65000<<16|200), comms[1])
 }
 
-// TestParseUpdateText_CommunityAdd verifies community append.
-//
-// VALIDATES: community add prepends to existing list.
-// PREVENTS: Community replacement instead of prepend.
-func TestParseUpdateText_CommunityAdd(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100]",
-		"community", "add", "[65000:200]", // prepends → [200, 100]
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	comms := testExtractCommunities(t, result.Groups[0].Wire)
-	require.Len(t, comms, 2)
-	assert.Equal(t, uint32(65000<<16|200), comms[0]) // prepended first
-	assert.Equal(t, uint32(65000<<16|100), comms[1])
-}
-
-// TestParseUpdateText_CommunityDel verifies community removal.
-//
-// VALIDATES: community del removes matching values.
-// PREVENTS: Community deletion failures.
-func TestParseUpdateText_CommunityDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100", "65000:200", "65000:300]",
-		"community", "del", "[65000:200]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	comms := testExtractCommunities(t, result.Groups[0].Wire)
-	require.Len(t, comms, 2)
-	assert.Equal(t, uint32(65000<<16|100), comms[0])
-	assert.Equal(t, uint32(65000<<16|300), comms[1])
-}
-
-// TestParseUpdateText_CommunityNotFoundDel verifies error on del non-existing.
-//
-// VALIDATES: community del [value] errors if value not in list.
-// PREVENTS: Silent ignore of non-existing delete targets.
-func TestParseUpdateText_CommunityNotFoundDel(t *testing.T) {
-	_, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100]",
-		"community", "del", "[65000:999]", // 65000:999 not in list
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "65000:999")
-	assert.Contains(t, err.Error(), "not found")
-}
-
-// TestParseUpdateText_EmptyListOKDel verifies del [] always succeeds.
-//
-// VALIDATES: community del [] is a no-op (doesn't error).
-// PREVENTS: False errors on empty delete list.
-func TestParseUpdateText_EmptyListOKDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100]",
-		"community", "del", "[]", // empty list = no-op
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-	// Original community preserved
-	comms := testExtractCommunities(t, result.Groups[0].Wire)
-	require.Len(t, comms, 1)
-	assert.Equal(t, uint32(65000<<16|100), comms[0])
-}
-
-// TestParseUpdateText_FirstInstanceOnlyDel verifies del removes first instance only.
-//
-// VALIDATES: community del [X] removes only first X, leaves duplicates.
-// PREVENTS: Removing all instances of a value.
-func TestParseUpdateText_FirstInstanceOnlyDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100", "65000:200", "65000:100]", // 100 appears twice
-		"community", "del", "[65000:100]", // remove first 100 only
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	comms := testExtractCommunities(t, result.Groups[0].Wire)
-	require.Len(t, comms, 2) // 200 and second 100 remain
-	assert.Equal(t, uint32(65000<<16|200), comms[0])
-	assert.Equal(t, uint32(65000<<16|100), comms[1]) // second 100 still there
-}
-
-// TestParseUpdateText_ThenAddSet verifies set-then-add accumulation.
-//
-// VALIDATES: set replaces, then add prepends (65000:400 before 65000:300).
-// PREVENTS: Wrong accumulation order (append instead of prepend).
-func TestParseUpdateText_ThenAddSet(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100]",
-		"community", "add", "[65000:200]",
-		"community", "set", "[65000:300]", // replaces all
-		"community", "add", "[65000:400]", // prepends → [400, 300]
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	comms := testExtractCommunities(t, result.Groups[0].Wire)
-	require.Len(t, comms, 2)
-	assert.Equal(t, uint32(65000<<16|400), comms[0]) // prepended first
-	assert.Equal(t, uint32(65000<<16|300), comms[1])
-}
+// Accumulator tests (CommunityAdd, CommunityDel, CommunityNotFoundDel, EmptyListOKDel,
+// FirstInstanceOnlyDel, ThenAddSet) removed: accumulator model replaced by flat grammar.
+// Equivalent functionality covered by TestParseUpdateText_FlatListAttributes and
+// TestParseUpdateText_RejectSetKeyword.
 
 // TestParseUpdateText_LargeCommunity verifies large community parsing.
 //
@@ -405,7 +564,7 @@ func TestParseUpdateText_ThenAddSet(t *testing.T) {
 // PREVENTS: Large community format errors.
 func TestParseUpdateText_LargeCommunity(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"large-community", "set", "[65000:1:2]",
+		"large-community", "[65000:1:2]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -423,7 +582,7 @@ func TestParseUpdateText_LargeCommunity(t *testing.T) {
 func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 	// Parser supports: origin:ASN:IP, redirect:ASN:target, rate-limit:bps
 	result, err := ParseUpdateText([]string{
-		"extended-community", "set", "[origin:65000:1.2.3.4]",
+		"extended-community", "[origin:65000:1.2.3.4]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -437,11 +596,11 @@ func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 	assert.Equal(t, attribute.ExtendedCommunity{0x00, 0x03, 0xfd, 0xe8, 1, 2, 3, 4}, extcomms[0])
 }
 
-// TestParseUpdateText_ScalarErrorAdd verifies add on scalar fails.
+// TestParseUpdateText_RejectAddOnAttributes verifies add on attributes returns error.
 //
-// VALIDATES: origin add/med/local-pref returns error.
-// PREVENTS: Silent scalar modification via add.
-func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
+// VALIDATES: add keyword rejected on attributes with migration hint.
+// PREVENTS: Silent acceptance of accumulator syntax.
+func TestParseUpdateText_RejectAddOnAttributes(t *testing.T) {
 	tests := []struct {
 		name string
 		args []string
@@ -449,142 +608,20 @@ func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
 		{"origin", []string{"origin", "add", "igp", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		{"med", []string{"med", "add", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		{"local-preference", []string{"local-preference", "add", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		// Note: next-hop and next-hop-self tested separately (not valid inside attr)
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			_, err := ParseUpdateText(tc.args)
 			require.Error(t, err)
-			assert.ErrorIs(t, err, route.ErrAddOnScalar)
+			assert.Contains(t, err.Error(), "keyword removed")
 		})
 	}
 }
 
-// TestParseUpdateText_ScalarDelConditional verifies del with value is conditional for scalars.
-//
-// VALIDATES: origin del <value> succeeds if current matches, fails otherwise.
-// PREVENTS: Confusion about scalar conditional deletion semantics.
-func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
-	// Conditional delete succeeds when value matches
-	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"origin", "del", "igp", // Matches current value
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	// Parser clears ORIGIN; reactor adds it when building UPDATE (RFC 4271 compliance)
-	assert.False(t, testHasOrigin(t, result.Groups[0].Wire))
-
-	// Conditional delete fails when value doesn't match
-	_, err = ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"origin", "del", "egp", // Doesn't match current value
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "origin del: current value is igp, not egp")
-
-	// Conditional delete fails when no current value
-	_, err = ParseUpdateText([]string{
-		"origin", "del", "igp", // No current value
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "origin del: current value is nil")
-}
-
-// TestParseUpdateText_ScalarDelClearsAttribute verifies del without value clears scalar.
-//
-// VALIDATES: origin del (no value) clears the attribute from wire.
-// PREVENTS: Scalar del being a no-op.
-func TestParseUpdateText_ScalarDelClearsAttribute(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"med", "set", "100",
-		"origin", "del", // del without value - clears origin from wire
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	// Parser clears ORIGIN; reactor adds it when building UPDATE (RFC 4271 compliance)
-	assert.False(t, testHasOrigin(t, result.Groups[0].Wire), "origin should be cleared by del")
-	// MED should still be set
-	assert.True(t, testHasMED(t, result.Groups[0].Wire))
-	assert.Equal(t, uint32(100), testExtractMED(t, result.Groups[0].Wire))
-}
-
-// TestParseUpdateText_ASPathAdd verifies add on as-path prepends.
-//
-// VALIDATES: as-path add prepends ASNs to existing path.
-// PREVENTS: AS-PATH prepend not working.
-func TestParseUpdateText_ASPathAdd(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"as-path", "set", "[65001", "65002]",
-		"as-path", "add", "[65000]", // prepends → [65000, 65001, 65002]
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	asPath := testExtractASPath(t, result.Groups[0].Wire)
-	require.Len(t, asPath, 3)
-	assert.Equal(t, uint32(65000), asPath[0]) // prepended
-	assert.Equal(t, uint32(65001), asPath[1])
-	assert.Equal(t, uint32(65002), asPath[2])
-}
-
-// TestParseUpdateText_ASPathDelValue verifies del on as-path removes specific ASN.
-//
-// VALIDATES: as-path del [ASN] removes first occurrence.
-// PREVENTS: AS-PATH del not removing ASN.
-func TestParseUpdateText_ASPathDelValue(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"as-path", "set", "[65000", "65001", "65002]",
-		"as-path", "del", "[65001]", // removes 65001 → [65000, 65002]
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	asPath := testExtractASPath(t, result.Groups[0].Wire)
-	require.Len(t, asPath, 2)
-	assert.Equal(t, uint32(65000), asPath[0])
-	assert.Equal(t, uint32(65002), asPath[1])
-}
-
-// TestParseUpdateText_ASPathDelClear verifies del without value clears as-path.
-//
-// VALIDATES: as-path del (no value) clears entire path.
-// PREVENTS: AS-PATH del not clearing.
-func TestParseUpdateText_ASPathDelClear(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"as-path", "set", "[65000", "65001]",
-		"as-path", "del", // clears entire path
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	asPath := testExtractASPath(t, result.Groups[0].Wire)
-	assert.Empty(t, asPath)
-}
-
-// TestParseUpdateText_ASPathDelNotFound verifies error when ASN not in path.
-//
-// VALIDATES: as-path del [ASN] errors if ASN not present.
-// PREVENTS: Silent ignore of non-existent ASN deletion.
-func TestParseUpdateText_ASPathDelNotFound(t *testing.T) {
-	_, err := ParseUpdateText([]string{
-		"as-path", "set", "[65000", "65001]",
-		"as-path", "del", "[65999]", // 65999 not in path
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "65999")
-	assert.Contains(t, err.Error(), "not found")
-}
+// Accumulator tests removed: ScalarDelConditional, ScalarDelClearsAttribute, ASPathAdd,
+// ASPathDelValue, ASPathDelClear, ASPathDelNotFound — accumulator model replaced by flat grammar.
+// Equivalent rejection tests in TestParseUpdateText_RejectSetKeyword and RejectAddOnAttributes.
 
 // TestParseUpdateText_NLRISectionBasic verifies basic NLRI add.
 //
@@ -729,12 +766,12 @@ func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 
 // TestParseUpdateText_AttrAndNLRI verifies combined attr + nlri.
 //
-// VALIDATES: Attributes applied to NLRI group.
+// VALIDATES: Attributes applied to NLRI group (flat grammar).
 // PREVENTS: Attribute/NLRI disconnection.
 func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"nhop", "set", "192.0.2.1",
+		"origin", "igp",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -748,30 +785,28 @@ func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	require.Len(t, g.Announce, 1)
 }
 
-// TestParseUpdateText_MultipleGroups verifies snapshot deep copy.
+// TestParseUpdateText_MultipleGroups verifies shared attributes across multiple nlri sections.
 //
-// VALIDATES: Each group has independent attribute snapshot.
-// PREVENTS: Shared slice mutation between groups.
+// VALIDATES: Shared attributes applied to both nlri sections.
+// PREVENTS: Attribute loss across multiple nlri sections.
 func TestParseUpdateText_MultipleGroups(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"community", "set", "[65000:100]",
+		"origin", "igp",
+		"community", "[65000:100]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"community", "add", "[65000:200]", // prepends → [200, 100]
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
 
-	// First group: only 65000:100
+	// Both groups share the same community
 	comms0 := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms0, 1)
 	assert.Equal(t, uint32(65000<<16|100), comms0[0])
 
-	// Second group: 65000:200 prepended + 65000:100
 	comms1 := testExtractCommunities(t, result.Groups[1].Wire)
-	require.Len(t, comms1, 2)
-	assert.Equal(t, uint32(65000<<16|200), comms1[0]) // prepended
-	assert.Equal(t, uint32(65000<<16|100), comms1[1])
+	require.Len(t, comms1, 1)
+	assert.Equal(t, uint32(65000<<16|100), comms1[0])
 }
 
 // TestParseUpdateText_IPv6 verifies IPv6 support.
@@ -803,18 +838,17 @@ func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 	assert.ErrorIs(t, err, route.ErrFamilyMismatch)
 }
 
-// TestParseUpdateText_UnknownAttribute verifies unknown attr fails with valid list.
+// TestParseUpdateText_UnknownAttribute verifies unknown attr fails with hint.
 //
-// VALIDATES: Unknown attribute keyword returns error listing valid options.
+// VALIDATES: Unknown attribute keyword returns error with alias hints.
 // PREVENTS: Silent ignore of typos.
 func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"attr", "set", "unknown-attr", "value",
+		"unknown-attr", "value",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown-attr")
-	assert.Contains(t, err.Error(), "valid:")
 }
 
 // TestParseUpdateText_UnsupportedFamily verifies unsupported family fails.
@@ -893,45 +927,36 @@ func TestParseUpdateText_WatchdogLegacy(t *testing.T) {
 	assert.Empty(t, result.Groups)
 }
 
-// TestParseUpdateText_SpecExample verifies full chained example from spec.
+// TestParseUpdateText_SpecExample verifies comprehensive flat grammar example.
 //
-// VALIDATES: Complex multi-section command parses correctly.
+// VALIDATES: Multi-family command with shared attributes parses correctly.
 // PREVENTS: Inter-section interaction bugs.
 func TestParseUpdateText_SpecExample(t *testing.T) {
-	// Example: set attrs, add ipv4 routes, modify attrs, add ipv6 routes with watchdog
 	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"nhop", "set", "192.0.2.1",
-		"community", "set", "[65000:100]",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "del", "10.0.2.0/24",
-		"community", "add", "[65000:200]",
-		"nhop", "set", "2001:db8::1",
-		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48", "watchdog", "set", "test-pool",
+		"origin", "igp",
+		"nhop", "192.0.2.1",
+		"community", "65000:100,65000:200",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24",
+		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 2)
 
-	// First group: ipv4/unicast with original attrs
+	// First group: ipv4/unicast
 	g1 := result.Groups[0]
 	assert.Equal(t, nlri.IPv4Unicast, g1.Family)
 	assert.True(t, g1.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g1.NextHop.Addr)
-	require.Len(t, testExtractCommunities(t, g1.Wire), 1)
+	require.Len(t, testExtractCommunities(t, g1.Wire), 2) // 65000:100 + 65000:200
 	require.Len(t, g1.Announce, 2)
-	require.Len(t, g1.Withdraw, 1)
-	assert.Empty(t, g1.WatchdogName) // No watchdog on first group
 
-	// Second group: ipv6/unicast with modified attrs and watchdog
+	// Second group: ipv6/unicast (shared attrs)
 	g2 := result.Groups[1]
 	assert.Equal(t, nlri.IPv6Unicast, g2.Family)
 	assert.True(t, g2.NextHop.IsExplicit())
-	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), g2.NextHop.Addr)
-	require.Len(t, testExtractCommunities(t, g2.Wire), 2) // 65000:100 + 65000:200
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g2.NextHop.Addr)
+	require.Len(t, testExtractCommunities(t, g2.Wire), 2) // same communities
 	require.Len(t, g2.Announce, 1)
-	assert.Empty(t, g2.Withdraw)
-	assert.Equal(t, "test-pool", g2.WatchdogName)
-
-	assert.Equal(t, "test-pool", result.WatchdogName) // Global for compat
 }
 
 // TestParsedAttrs_Snapshot_DeepCopy verifies snapshot creates independent copies.
@@ -973,18 +998,8 @@ func TestParsedAttrs_Snapshot_DeepCopyPointers(t *testing.T) {
 	assert.Equal(t, uint8(0), extractedOrigin)
 }
 
-// TestParseUpdateText_EmptyAttrSection verifies empty attr section is valid.
-//
-// VALIDATES: with set no attrs before nlri is accepted.
-// PREVENTS: False error on valid syntax.
-func TestParseUpdateText_EmptyAttrSection(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"attr", "set",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-}
+// TestParseUpdateText_EmptyAttrSection removed: tested "attr set" syntax which no longer exists.
+// Flat grammar has no "attr set" — attributes are keyword-value pairs directly.
 
 // TestParseUpdateText_MultipleWatchdog verifies per-group watchdog.
 //
@@ -1053,13 +1068,13 @@ func TestParseUpdateText_FamilyCaseSensitive(t *testing.T) {
 	assert.ErrorIs(t, err, route.ErrInvalidFamily)
 }
 
-// TestParseUpdateText_OnlySet verifies alone set returns empty result.
+// TestParseUpdateText_OnlyAttrs verifies attrs without nlri returns empty result.
 //
-// VALIDATES: Standalone without set nlri returns empty groups.
+// VALIDATES: Attributes without nlri section returns empty groups.
 // PREVENTS: Error on valid partial command.
-func TestParseUpdateText_OnlySet(t *testing.T) {
+func TestParseUpdateText_OnlyAttrs(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
+		"origin", "igp",
 	})
 	require.NoError(t, err)
 	assert.Empty(t, result.Groups)
@@ -1080,28 +1095,8 @@ func TestParseUpdateText_WatchdogBeforeNLRI(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 }
 
-// TestParseUpdateText_AttrBetweenNLRISections verifies attrs between nlri sections.
-//
-// VALIDATES: Interleaved attr/nlri produces correct snapshots.
-// PREVENTS: Attribute leakage between groups.
-func TestParseUpdateText_AttrBetweenNLRISections(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"origin", "set", "egp",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: origin=IGP (0)
-	assert.True(t, testHasOrigin(t, result.Groups[0].Wire))
-	assert.Equal(t, uint8(0), testExtractOrigin(t, result.Groups[0].Wire))
-
-	// Second group: origin=EGP (1)
-	assert.True(t, testHasOrigin(t, result.Groups[1].Wire))
-	assert.Equal(t, uint8(1), testExtractOrigin(t, result.Groups[1].Wire))
-}
+// TestParseUpdateText_AttrBetweenNLRISections removed: tested mid-stream attribute modification
+// which is now rejected by the flat grammar. See TestParseUpdateText_RejectMidStreamAttrs.
 
 // =============================================================================
 // Handler Integration Tests (TDD for handleUpdateText)
@@ -1237,8 +1232,8 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	}
 
 	args := []string{
-		"origin", "set", "igp",
-		"nhop", "set", "10.0.0.1",
+		"origin", "igp",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1266,7 +1261,7 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	}
 
@@ -1291,7 +1286,7 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
 	}
 
@@ -1306,10 +1301,10 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	assert.Len(t, reactor.withdrawCalls[0].NLRIs, 1)
 }
 
-// TestHandleUpdateText_MultipleGroups verifies different attrs per group.
+// TestHandleUpdateText_MultipleGroups verifies shared attrs across nlri sections.
 //
-// VALIDATES: Each NLRI section produces separate reactor call with correct attrs.
-// PREVENTS: Attribute bleeding between groups.
+// VALIDATES: Each NLRI section produces separate reactor call with shared attrs.
+// PREVENTS: Attribute loss between groups.
 func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &plugin.CommandContext{
@@ -1318,10 +1313,9 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
-		"community", "set", "[65000:100]",
+		"nhop", "10.0.0.1",
+		"community", "[65000:100]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"community", "add", "[65000:200]",
 		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
 	}
 
@@ -1332,13 +1326,12 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	// Two groups = two announce calls
 	require.Len(t, reactor.announceCalls, 2)
 
-	// First group: 1 community
+	// Both groups: same 1 community (shared attrs)
 	comms0 := testExtractCommunities(t, reactor.announceCalls[0].Wire)
 	assert.Equal(t, 1, len(comms0))
 
-	// Second group: 2 communities
 	comms1 := testExtractCommunities(t, reactor.announceCalls[1].Wire)
-	assert.Equal(t, 2, len(comms1))
+	assert.Equal(t, 1, len(comms1))
 }
 
 // TestHandleUpdateText_WithdrawUnicast verifies unicast withdrawal batch.
@@ -1399,7 +1392,7 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1420,7 +1413,7 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 		"watchdog", "my-pool",
 	}
@@ -1444,9 +1437,9 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 		Peer:   "*",
 	}
 
-	// Just nhop set, no nlri section
+	// Just nhop, no nlri section
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1467,7 +1460,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "2001:db8::1",
+		"nhop", "2001:db8::1",
 		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
@@ -1491,7 +1484,7 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "self",
+		"nhop", "self",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1515,7 +1508,7 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	}
 
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1537,11 +1530,10 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 		Peer:   "*",
 	}
 
-	// Use separate nhop sections with correct next-hops per family
+	// Single nhop shared across two nlri sections (ipv4 accepted, ipv6 not)
 	args := []string{
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nhop", "set", "2001:db8::1",
 		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
@@ -1569,7 +1561,7 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 
 	args := []string{
 		"text",
-		"nhop", "set", "10.0.0.1",
+		"nhop", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1601,13 +1593,13 @@ func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 // Phase 1: nhop and path-information tests
 // =============================================================================
 
-// TestParseUpdateText_NhopSet verifies nhop set <addr> syntax.
+// TestParseUpdateText_NhopSet verifies nhop <addr> flat syntax.
 //
-// VALIDATES: nhop set <addr> stores next-hop as explicit.
+// VALIDATES: nhop <addr> stores next-hop as explicit.
 // PREVENTS: Missing nhop keyword support.
 func TestParseUpdateText_NhopSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1616,13 +1608,13 @@ func TestParseUpdateText_NhopSet(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
 }
 
-// TestParseUpdateText_NhopSetSelf verifies nhop set self syntax.
+// TestParseUpdateText_NhopSetSelf verifies nhop self flat syntax.
 //
-// VALIDATES: nhop set self stores next-hop as self policy.
+// VALIDATES: nhop self stores next-hop as self policy.
 // PREVENTS: Missing self keyword support.
 func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "self",
+		"nhop", "self",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1630,161 +1622,26 @@ func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 	assert.True(t, result.Groups[0].NextHop.IsSelf())
 }
 
-// TestParseUpdateText_NhopDel verifies nhop del syntax.
-//
-// VALIDATES: nhop del unsets next-hop for subsequent nlri.
-// PREVENTS: Missing nhop del support.
-func TestParseUpdateText_NhopDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nhop", "del",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: has next-hop
-	assert.True(t, result.Groups[0].NextHop.IsExplicit())
-
-	// Second group: next-hop cleared
-	assert.False(t, result.Groups[1].NextHop.IsExplicit())
-	assert.False(t, result.Groups[1].NextHop.IsSelf())
-}
-
-// TestParseUpdateText_NhopDelConditional verifies nhop del with value is conditional.
-//
-// VALIDATES: nhop del <value> succeeds if matches, fails otherwise.
-// PREVENTS: Wrong next-hop being deleted.
-func TestParseUpdateText_NhopDelConditional(t *testing.T) {
-	// Conditional delete succeeds when value matches
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"nhop", "del", "192.0.2.1", // Matches
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	assert.False(t, result.Groups[0].NextHop.IsExplicit()) // Cleared
-
-	// Conditional delete fails when value doesn't match
-	_, err = ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"nhop", "del", "192.0.2.99", // Doesn't match
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nhop del: current value is 192.0.2.1, not 192.0.2.99")
-}
-
-// TestParseUpdateText_NhopPerFamily verifies nhop accumulates correctly.
-//
-// VALIDATES: nhop changes affect only subsequent nlri sections.
-// PREVENTS: nhop applying retroactively.
-func TestParseUpdateText_NhopPerFamily(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"nhop", "set", "2001:db8::1",
-		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// IPv4 group: uses first nhop
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
-
-	// IPv6 group: uses second nhop
-	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), result.Groups[1].NextHop.Addr)
-}
-
-// TestParseUpdateText_PathInfo verifies path-information as accumulator.
-//
-// VALIDATES: path-information set <id> sets path-id for subsequent NLRIs.
-// PREVENTS: Missing ADD-PATH support.
-func TestParseUpdateText_PathInfo(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"path-information", "set", "1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-	require.Len(t, result.Groups[0].Announce, 1)
-	// Path-id should be set on NLRI
-	assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID())
-}
-
-// TestParseUpdateText_PathInfoChange verifies path-information changes mid-command.
-//
-// VALIDATES: path-information can be changed between nlri sections.
-// PREVENTS: Path-id applying retroactively.
-func TestParseUpdateText_PathInfoChange(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"path-information", "set", "1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"path-information", "set", "2",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: path-id=1
-	assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID())
-
-	// Second group: path-id=2
-	assert.Equal(t, uint32(2), result.Groups[1].Announce[0].PathID())
-}
-
-// TestParseUpdateText_PathInfoInvalid verifies invalid path-information fails.
-//
-// VALIDATES: Non-numeric path-information set returns error.
-// PREVENTS: Silent ignore of invalid path-id.
-func TestParseUpdateText_PathInfoInvalid(t *testing.T) {
-	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"path-information", "set", "not-a-number",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid path-information")
-}
-
-// TestParseUpdateText_PathInfoDel verifies path-information del.
-//
-// VALIDATES: path-information del clears path-id.
-// PREVENTS: Path-id persisting unexpectedly.
-func TestParseUpdateText_PathInfoDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"path-information", "set", "1",
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"path-information", "del",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: path-id=1
-	assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID())
-
-	// Second group: path-id=0 (cleared)
-	assert.Equal(t, uint32(0), result.Groups[1].Announce[0].PathID())
-}
+// Accumulator nhop/path-info tests removed: NhopDel, NhopDelConditional, NhopPerFamily,
+// PathInfo, PathInfoChange, PathInfoInvalid, PathInfoDel.
+// Flat grammar has no del/set on nhop or top-level path-information.
+// nhop is a flat keyword-value. path-information is a per-NLRI-section modifier.
+// See TestParseUpdateText_FlatNhopSelf, TestParseUpdateText_FlatPathInfo,
+// TestParseUpdateText_PathIDModifier, TestParseUpdateText_PathIDRejectTopLevel.
 
 // =============================================================================
 // Phase 2: rd and label tests (VPN/Labeled families)
 // =============================================================================
 
-// TestParseUpdateText_RDSet verifies rd set <value> syntax.
+// TestParseUpdateText_RDSet verifies rd <value> flat syntax.
 //
-// VALIDATES: rd set <ASN:value> stores RD for subsequent VPN NLRIs.
-// PREVENTS: Missing RD accumulator support.
+// VALIDATES: rd <ASN:value> stores RD for subsequent VPN NLRIs.
+// PREVENTS: Missing RD support.
 func TestParseUpdateText_RDSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
+		"nhop", "192.0.2.1",
+		"rd", "65000:100",
+		"label", "1000",
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1796,15 +1653,15 @@ func TestParseUpdateText_RDSet(t *testing.T) {
 	assert.Equal(t, "0:65000:100", vpnData["rd"])
 }
 
-// TestParseUpdateText_RDSetIPFormat verifies rd set with IP:value format.
+// TestParseUpdateText_RDSetIPFormat verifies rd with IP:value format.
 //
-// VALIDATES: rd set <IP:value> stores Type 1 RD (IP:assigned).
+// VALIDATES: rd <IP:value> stores Type 1 RD (IP:assigned).
 // PREVENTS: Only ASN:value format working.
 func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "192.0.2.1:100",
-		"label", "set", "1000",
+		"nhop", "192.0.2.1",
+		"rd", "192.0.2.1:100",
+		"label", "1000",
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1814,65 +1671,19 @@ func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 	assert.Equal(t, "1:192.0.2.1:100", vpnData["rd"])
 }
 
-// TestParseUpdateText_RDDel verifies rd del clears RD.
+// Accumulator rd del tests removed: RDDel, RDDelConditional.
+// Flat grammar has no del on rd — rd is a keyword-value pair.
+// See TestParseUpdateText_FlatRD for flat rd syntax.
+
+// TestParseUpdateText_LabelSet verifies label <value> flat syntax.
 //
-// VALIDATES: rd del clears accumulated RD.
-// PREVENTS: RD persisting unexpectedly.
-func TestParseUpdateText_RDDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
-		"rd", "del",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24", // unicast doesn't need RD
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: VPN with RD
-	vpnData := testDecodeVPN(t, result.Groups[0].Announce[0])
-	assert.Equal(t, "0:65000:100", vpnData["rd"])
-
-	// Second group: unicast (no RD check needed, it's INET)
-	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
-}
-
-// TestParseUpdateText_RDDelConditional verifies rd del with value is conditional.
-//
-// VALIDATES: rd del <value> succeeds if matches, fails otherwise.
-// PREVENTS: Wrong RD being deleted.
-func TestParseUpdateText_RDDelConditional(t *testing.T) {
-	// Conditional delete succeeds when value matches
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"rd", "del", "65000:100", // Matches
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	// Conditional delete fails when value doesn't match
-	_, err = ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"rd", "del", "65000:999", // Doesn't match
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rd del: current value is 0:65000:100, not 0:65000:999")
-}
-
-// TestParseUpdateText_LabelSet verifies label set <value> syntax.
-//
-// VALIDATES: label set <value> stores label for VPN/labeled NLRIs.
-// PREVENTS: Missing label accumulator support.
+// VALIDATES: label <value> stores label for VPN/labeled NLRIs.
+// PREVENTS: Missing label support.
 func TestParseUpdateText_LabelSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
+		"nhop", "192.0.2.1",
+		"rd", "65000:100",
+		"label", "1000",
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1885,13 +1696,13 @@ func TestParseUpdateText_LabelSet(t *testing.T) {
 
 // TestParseUpdateText_LabelSetZero verifies label=0 (Explicit Null) is valid.
 //
-// VALIDATES: label set 0 is accepted (RFC 3032 Explicit Null).
+// VALIDATES: label 0 is accepted (RFC 3032 Explicit Null).
 // PREVENTS: Zero label rejection.
 func TestParseUpdateText_LabelSetZero(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "0",
+		"nhop", "192.0.2.1",
+		"rd", "65000:100",
+		"label", "0",
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1904,13 +1715,13 @@ func TestParseUpdateText_LabelSetZero(t *testing.T) {
 
 // TestParseUpdateText_LabelSetMax verifies max label value (20-bit).
 //
-// VALIDATES: label set 1048575 (max 20-bit) is accepted.
+// VALIDATES: label 1048575 (max 20-bit) is accepted.
 // PREVENTS: Valid max label rejection.
 func TestParseUpdateText_LabelSetMax(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1048575", // 0xFFFFF = max 20-bit
+		"nhop", "192.0.2.1",
+		"rd", "65000:100",
+		"label", "1048575", // 0xFFFFF = max 20-bit
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -1923,69 +1734,22 @@ func TestParseUpdateText_LabelSetMax(t *testing.T) {
 
 // TestParseUpdateText_LabelSetOverflow verifies label > 20-bit fails.
 //
-// VALIDATES: label set 1048576+ returns error.
+// VALIDATES: label 1048576+ returns error.
 // PREVENTS: Invalid label values accepted.
 func TestParseUpdateText_LabelSetOverflow(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1048576", // > 20-bit max
+		"nhop", "192.0.2.1",
+		"rd", "65000:100",
+		"label", "1048576", // > 20-bit max
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "label out of range")
 }
 
-// TestParseUpdateText_LabelDel verifies label del clears label.
-//
-// VALIDATES: label del clears accumulated label.
-// PREVENTS: Label persisting unexpectedly.
-func TestParseUpdateText_LabelDel(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
-		"rd", "del",
-		"label", "del",
-		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: VPN with label
-	vpnData := testDecodeVPN(t, result.Groups[0].Announce[0])
-	assert.Equal(t, "0:65000:100", vpnData["rd"])
-
-	// Second group: unicast (no label needed)
-	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
-}
-
-// TestParseUpdateText_LabelDelConditional verifies label del with value is conditional.
-//
-// VALIDATES: label del <value> succeeds if matches, fails otherwise.
-// PREVENTS: Wrong label being deleted.
-func TestParseUpdateText_LabelDelConditional(t *testing.T) {
-	// Conditional delete succeeds when value matches
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"label", "set", "1000",
-		"label", "del", "1000", // Matches
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-
-	// Conditional delete fails when value doesn't match
-	_, err = ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"label", "set", "1000",
-		"label", "del", "2000", // Doesn't match
-		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-	})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "label del: current value is [1000], not [2000]")
-}
+// Accumulator label del tests removed: LabelDel, LabelDelConditional.
+// Flat grammar has no del on label — label is a keyword-value pair.
+// See TestParseUpdateText_FlatLabel for flat label syntax.
 
 // TestParseUpdateText_VPNMissingRD verifies VPN family requires RD.
 //
@@ -1993,8 +1757,8 @@ func TestParseUpdateText_LabelDelConditional(t *testing.T) {
 // PREVENTS: VPN NLRI created without RD.
 func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"label", "set", "1000", // label but no rd
+		"nhop", "192.0.2.1",
+		"label", "1000", // label but no rd
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -2007,8 +1771,8 @@ func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 // PREVENTS: VPN NLRI created without label.
 func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100", // rd but no label
+		"nhop", "192.0.2.1",
+		"rd", "65000:100", // rd but no label
 		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -2021,8 +1785,8 @@ func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 // PREVENTS: Wrong NLRI type for labeled unicast.
 func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"label", "set", "1000",
+		"nhop", "192.0.2.1",
+		"label", "1000",
 		"nlri", "ipv4/nlri-mpls", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2041,7 +1805,7 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 // PREVENTS: LabeledUnicast NLRI created without label.
 func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		// no label
 		"nlri", "ipv4/nlri-mpls", "add", "10.0.0.0/24",
 	})
@@ -2055,9 +1819,9 @@ func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 // PREVENTS: IPv6 VPN family not working.
 func TestParseUpdateText_IPv6VPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "2001:db8::1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
+		"nhop", "2001:db8::1",
+		"rd", "65000:100",
+		"label", "1000",
 		"nlri", "ipv6/mpls-vpn", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
@@ -2074,8 +1838,8 @@ func TestParseUpdateText_IPv6VPN(t *testing.T) {
 // PREVENTS: IPv6 labeled unicast not working.
 func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "2001:db8::1",
-		"label", "set", "1000",
+		"nhop", "2001:db8::1",
+		"label", "1000",
 		"nlri", "ipv6/nlri-mpls", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
@@ -2086,75 +1850,14 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	assert.Equal(t, "2001:db8:1::/48", labeledNLRI.Prefix().String())
 }
 
-// TestParseUpdateText_VPNWithPathInfo verifies VPN with ADD-PATH.
-//
-// VALIDATES: VPN NLRI includes path-id when specified.
-// PREVENTS: Path-id lost for VPN families.
-func TestParseUpdateText_VPNWithPathInfo(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
-		"path-information", "set", "42",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
+// TestParseUpdateText_VPNWithPathInfo removed: tested top-level path-information set syntax.
+// path-information is now a per-NLRI-section modifier.
+// See TestParseUpdateText_FlatPathInfo and TestParseUpdateText_PathIDModifier.
 
-	// Path-id is transport-level, not in VPN decode output; verify WireNLRI exists
-	_, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
-	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
-}
-
-// TestParseUpdateText_RDChangesBetweenSections verifies RD can change.
-//
-// VALIDATES: Different RD values for different VPN nlri sections.
-// PREVENTS: RD changes not taking effect.
-func TestParseUpdateText_RDChangesBetweenSections(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
-		"rd", "set", "65000:200", // Change RD
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: RD 65000:100
-	vpnData1 := testDecodeVPN(t, result.Groups[0].Announce[0])
-	assert.Equal(t, "0:65000:100", vpnData1["rd"])
-
-	// Second group: RD 65000:200
-	vpnData2 := testDecodeVPN(t, result.Groups[1].Announce[0])
-	assert.Equal(t, "0:65000:200", vpnData2["rd"])
-}
-
-// TestParseUpdateText_LabelChangesBetweenSections verifies label can change.
-//
-// VALIDATES: Different label values for different VPN nlri sections.
-// PREVENTS: Label changes not taking effect.
-func TestParseUpdateText_LabelChangesBetweenSections(t *testing.T) {
-	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100",
-		"label", "set", "1000",
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.0.0/24",
-		"label", "set", "2000", // Change label
-		"nlri", "ipv4/mpls-vpn", "add", "10.0.1.0/24",
-	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 2)
-
-	// First group: label 1000 — verify VPN decoded successfully
-	vpnData1 := testDecodeVPN(t, result.Groups[0].Announce[0])
-	assert.Equal(t, "0:65000:100", vpnData1["rd"])
-
-	// Second group: label 2000 — verify VPN decoded successfully
-	vpnData2 := testDecodeVPN(t, result.Groups[1].Announce[0])
-	assert.Equal(t, "0:65000:100", vpnData2["rd"])
-}
+// Mid-stream RD/label change tests removed: RDChangesBetweenSections, LabelChangesBetweenSections.
+// Flat grammar rejects attributes after first nlri section (mid-stream attrs).
+// Use in-NLRI modifier syntax for per-section rd/label overrides.
+// See TestParseUpdateText_InNLRIModifierSyntax, TestParseUpdateText_RejectMidStreamAttrs.
 
 // =============================================================================
 // In-NLRI modifier syntax (rd/label without 'set')
@@ -2166,7 +1869,7 @@ func TestParseUpdateText_LabelChangesBetweenSections(t *testing.T) {
 // PREVENTS: Requiring accumulator syntax for VPN routes.
 func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2184,7 +1887,7 @@ func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 // PREVENTS: Modifiers only applying to first prefix.
 func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000",
 		"add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	})
@@ -2199,15 +1902,15 @@ func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 	}
 }
 
-// TestParseUpdateText_InNLRIModifierOverridesAccumulator verifies in-NLRI modifiers override accumulated.
+// TestParseUpdateText_InNLRIModifierOverridesAccumulator verifies in-NLRI modifiers override top-level.
 //
-// VALIDATES: In-NLRI rd/label overrides accumulated values for that section.
-// PREVENTS: Accumulator values not being overridable.
+// VALIDATES: In-NLRI rd/label overrides top-level values for that section.
+// PREVENTS: Top-level values not being overridable.
 func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
-		"rd", "set", "65000:100", // Accumulated RD
-		"label", "set", "1000", // Accumulated label
+		"nhop", "192.0.2.1",
+		"rd", "65000:100", // Top-level RD
+		"label", "1000", // Top-level label
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:200", "label", "2000", // Override in-section
 		"add", "10.0.0.0/24",
 	})
@@ -2225,7 +1928,7 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 // PREVENTS: IPv6 VPN not supporting in-NLRI modifier syntax.
 func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "2001:db8::1",
+		"nhop", "2001:db8::1",
 		"nlri", "ipv6/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "2001:db8:1::/48",
 	})
 	require.NoError(t, err)
@@ -2242,7 +1945,7 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 // PREVENTS: Label-only modifier not working.
 func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/nlri-mpls", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2260,7 +1963,7 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 // PREVENTS: VPN routes created without label.
 func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -2273,7 +1976,7 @@ func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 // PREVENTS: VPN routes created without RD.
 func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T) {
 	_, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/mpls-vpn", "label", "1000", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -2286,7 +1989,7 @@ func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T)
 // PREVENTS: Modifier values leaking across sections.
 func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"nhop", "set", "192.0.2.1",
+		"nhop", "192.0.2.1",
 		"nlri", "ipv4/mpls-vpn", "rd", "65000:100", "label", "1000", "add", "10.0.0.0/24",
 		"nlri", "ipv4/unicast", "add", "10.0.1.0/24", // unicast doesn't need rd/label
 	})
@@ -2605,11 +2308,11 @@ func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 
 // TestParseUpdateText_ExtCommTrafficRate verifies traffic-rate function.
 //
-// VALIDATES: extended-community set traffic-rate <asn> <rate> creates correct extcomm.
+// VALIDATES: extended-community traffic-rate <asn> <rate> creates correct extcomm.
 // PREVENTS: Traffic-rate function not parsed.
 func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"extended-community", "set", "traffic-rate", "65000", "1000000",
+		"extended-community", "traffic-rate", "65000", "1000000",
 		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2623,7 +2326,7 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 // PREVENTS: Discard sugar not working.
 func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"extended-community", "set", "discard",
+		"extended-community", "discard",
 		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2633,11 +2336,11 @@ func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 
 // TestParseUpdateText_ExtCommRedirect verifies redirect function.
 //
-// VALIDATES: extended-community set redirect <asn> <value> creates redirect RT.
+// VALIDATES: extended-community redirect <asn> <value> creates redirect RT.
 // PREVENTS: Redirect function not parsed.
 func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"extended-community", "set", "redirect", "65000", "100",
+		"extended-community", "redirect", "65000", "100",
 		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -2647,11 +2350,11 @@ func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 
 // TestParseUpdateText_ExtCommTrafficMarking verifies traffic-marking function.
 //
-// VALIDATES: extended-community set traffic-marking <dscp> creates correct extcomm.
+// VALIDATES: extended-community traffic-marking <dscp> creates correct extcomm.
 // PREVENTS: Traffic-marking function not parsed.
 func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"extended-community", "set", "traffic-marking", "46",
+		"extended-community", "traffic-marking", "46",
 		"nlri", "ipv4/flow", "add", "destination", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3449,22 +3152,22 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 	}{
 		{
 			name:       "traffic_rate",
-			extcomm:    []string{"extended-community", "set", "traffic-rate", "65000", "1000000"},
+			extcomm:    []string{"extended-community", "traffic-rate", "65000", "1000000"},
 			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"},
 		},
 		{
 			name:       "discard",
-			extcomm:    []string{"extended-community", "set", "discard"},
+			extcomm:    []string{"extended-community", "discard"},
 			components: []string{"destination", "10.0.0.0/24", "protocol", "udp"},
 		},
 		{
 			name:       "redirect",
-			extcomm:    []string{"extended-community", "set", "redirect", "65000", "100"},
+			extcomm:    []string{"extended-community", "redirect", "65000", "100"},
 			components: []string{"destination", "10.0.0.0/24"},
 		},
 		{
 			name:       "traffic_marking",
-			extcomm:    []string{"extended-community", "set", "traffic-marking", "46"},
+			extcomm:    []string{"extended-community", "traffic-marking", "46"},
 			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp"},
 		},
 	}
@@ -3555,8 +3258,8 @@ func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 // PREVENTS: EOR breaking NLRI parsing or vice versa.
 func TestParseUpdateText_EORWithNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
+		"origin", "igp",
 		"nlri", "ipv6/unicast", "eor",
-		"origin", "set", "igp",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3836,7 +3539,7 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 
 	// Parse valid origin
 	_, err := ParseUpdateText([]string{
-		"origin", "set", "igp",
+		"origin", "igp",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3852,7 +3555,7 @@ func TestUpdateText_OriginValidation_YANG(t *testing.T) {
 	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
-		"origin", "set", "bad",
+		"origin", "bad",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -3870,7 +3573,7 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 
 	// Parse valid MED
 	_, err := ParseUpdateText([]string{
-		"med", "set", "50",
+		"med", "50",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3886,7 +3589,7 @@ func TestUpdateText_MEDRange_YANG(t *testing.T) {
 	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
-		"med", "set", "100",
+		"med", "100",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
@@ -3904,7 +3607,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 
 	// Parse valid local-preference
 	_, err := ParseUpdateText([]string{
-		"local-preference", "set", "100",
+		"local-preference", "100",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -3920,7 +3623,7 @@ func TestUpdateText_LocalPrefRange_YANG(t *testing.T) {
 	plugin.SetYANGValidator(v2)
 
 	_, err = ParseUpdateText([]string{
-		"local-preference", "set", "200",
+		"local-preference", "200",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)

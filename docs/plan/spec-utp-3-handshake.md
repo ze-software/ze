@@ -2,10 +2,19 @@
 
 ## Task
 
-Design and implement a text-format alternative for the 5-stage JSON-RPC plugin handshake. The text handshake must use the same unified grammar as event delivery and text commands, enabling a single parser to handle all plugin IPC.
+Design and implement a text-format alternative for the 5-stage JSON-RPC plugin handshake. The text handshake must use the same unified grammar as event delivery and text commands, sharing keyword tables from `textparse/keywords.go` (each protocol path has its own tokenizer/parser suited to its framing needs).
 
 Parent spec: `spec-utp-0-umbrella.md`.
-Depends on: `spec-utp-1-event-format.md` and `spec-utp-2-command-format.md` (shared tokenizer exists).
+Depends on: `done/302-utp-1-event-format.md` (TextScanner, event format) and `done/306-utp-2-command-format.md` (flat grammar, keyword aliases, shared keyword tables in `textparse/keywords.go`).
+
+### Key Findings from utp-2 (carry forward)
+
+- **No shared tokenizer.** TextScanner (events, zero-alloc) and tokenize() (commands, quotes) remain separate. What's shared is keyword tables in `textparse/keywords.go`.
+- **Internal text producers must match parser.** `FormatRouteCommand()` and `handleRouteRefreshDecision()` were broken when the parser changed. Any new handshake text formatter is a new producer — it must use flat grammar and `textparse` constants.
+- **Flat grammar:** attributes are `key value` (never `key set value`). `add`/`del` only for NLRI operations. Comma-separated lists without brackets.
+- **Short aliases available:** `next`, `pref`, `path`, `s-com`, `l-com`, `x-com`, `info` — all resolved via `textparse.ResolveAlias()`.
+- **Still proposed but not implemented:** uniform event header, event NLRI restructuring (`nlri add/del` instead of `announce`/`withdraw`), dict mode.
+- **Functional test pattern:** `.ci` tests with `cmd=api:` require config-defined routes for reliable BGP session timing.
 
 ## Required Reading
 
@@ -26,6 +35,9 @@ Depends on: `spec-utp-1-event-format.md` and `spec-utp-2-command-format.md` (sha
 - [ ] `internal/plugin/subsystem.go` — plugin lifecycle management
 - [ ] `pkg/plugin/rpc/conn.go` — RPC connection (NUL-framed JSON)
 - [ ] `pkg/plugin/rpc/mux.go` — MuxConn for concurrent RPCs
+- [ ] `internal/plugins/bgp/textparse/keywords.go` — shared keyword constants and alias resolution (created in utp-2)
+- [ ] `internal/plugins/bgp/handler/update_text.go` — command parser (rewritten in utp-2 to flat grammar)
+- [ ] `internal/plugin/bgp/shared/format.go` — `FormatRouteCommand()` (updated in utp-2 — pattern for text producers)
 
 ### RFC Summaries (not protocol work — N/A)
 
@@ -93,7 +105,7 @@ Depends on: `spec-utp-1-event-format.md` and `spec-utp-2-command-format.md` (sha
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Text handshake completes all 5 stages | Plugin reaches ready state, enters event loop |
-| AC-2 | Same tokenizer | Handshake parser shares tokenizer with event/command parsers |
+| AC-2 | Shared keyword tables | Handshake parser uses keyword constants from `textparse/keywords.go` (separate tokenizer is expected — handshake has its own framing needs) |
 | AC-3 | Family declarations | Expressible in unified text grammar |
 | AC-4 | Config delivery | Config data delivered to plugin (format TBD) |
 | AC-5 | Capability injection | Capabilities parsed from text, injected into OPEN |
@@ -177,7 +189,7 @@ error <message>
 ### Runtime RPCs After Stage 5
 
 ```
-update-route peer * command "update text origin set igp nlri ipv4/unicast add 10.0.0.0/24"
+update-route peer * command "update text origin igp next 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24"
 subscribe-events events bgp:update encoding text
 dispatch-command command "rib show" args peer,192.168.1.1
 ```

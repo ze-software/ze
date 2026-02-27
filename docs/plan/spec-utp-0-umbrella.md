@@ -8,7 +8,7 @@ Migrate all plugin IPC to a single unified text protocol. Two migration axes:
 
 **Migration 2 — Current text → Unified text:** Converge the two existing text formats (event delivery + commands) onto one shared grammar and parser.
 
-End state: all plugin IPC (handshake, events, commands) uses one grammar, one tokenizer, one parser.
+End state: all plugin IPC (handshake, events, commands) uses one grammar with shared keyword tables (`textparse/keywords.go`). Tokenizers remain per-protocol (TextScanner for events, tokenize() for commands) because they serve different framing needs.
 
 ## Migration Tracker
 
@@ -33,10 +33,21 @@ End state: all plugin IPC (handshake, events, commands) uses one grammar, one to
 | Event NLRI | `announce`/`withdraw` implicit | `nlri add`/`nlri del` explicit | `spec-utp-1-event-format.md` | Not started |
 | Event capabilities | `cap N name value` repeated | Unchanged (repeated dict key) | `spec-utp-1-event-format.md` | Not started |
 | NLRI String() methods | `set` keyword everywhere | Drop `set`, bare `key value` | `spec-utp-1-event-format.md` | Not started |
-| Command lists | Brackets `[65001 65002]` | Commas `65001,65002` | `spec-utp-2-command-format.md` | Not started |
-| Command NLRI | `nlri <family> add` (close) | Align fully with event format | `spec-utp-2-command-format.md` | Not started |
-| Command path-id | Accumulator `path-information set` | Modifier `nlri path-id <id> add` | `spec-utp-2-command-format.md` | Not started |
-| Shared tokenizer | None (separate parsers) | One tokenizer in shared package | `spec-utp-2-command-format.md` | Not started |
+| Command lists | Brackets `[65001 65002]` | Commas `65001,65002` (brackets still accepted) | `done/306-utp-2-command-format.md` | Done |
+| Command attributes | `origin set igp` (accumulator) | `origin igp` (flat key-value) | `done/306-utp-2-command-format.md` | Done |
+| Command NLRI | `nlri <family> add` (close) | Unchanged — already aligned | `done/306-utp-2-command-format.md` | Done |
+| Command path-id | Accumulator `path-information set` | Per-NLRI modifier `nlri <family> path-information <id> add` | `done/306-utp-2-command-format.md` | Done |
+| Keyword aliases | None | Short (`next`, `pref`, `path`, `s-com`, `l-com`, `x-com`, `info`) + long forms | `done/306-utp-2-command-format.md` | Done |
+| Shared keyword tables | None (separate keyword maps) | `textparse/keywords.go` shared by handler, format, bgp-rs | `done/306-utp-2-command-format.md` | Done |
+| Internal text producers | Used old `set` syntax | `FormatRouteCommand()` + `handleRouteRefreshDecision()` updated to flat grammar | `done/306-utp-2-command-format.md` | Done |
+
+### Still Proposed (documented in `text-format.md`, not yet implemented)
+
+| Component | Current | Target | Spec | Status |
+|-----------|---------|--------|------|--------|
+| Uniform header | Two shapes (state events vs message events) | Uniform `peer <addr> asn <n> state <s> type <t>` for all events | TBD (future spec) | Not started |
+| Event NLRI restructuring | `announce`/`withdraw` positional after attributes | `nlri <family> add/del` explicit (align with command format) | TBD (future spec) | Not started |
+| Dict mode | None | `update dict ...` dict-style attribute format alongside text/hex/b64 | TBD (future spec) | Not started |
 
 ### Documentation
 
@@ -53,14 +64,14 @@ End state: all plugin IPC (handshake, events, commands) uses one grammar, one to
 ```
 spec-utp-0-umbrella.md          ← THIS (umbrella tracker)
     ↓
-spec-utp-1-event-format.md     ← NEXT (implement proposed event format)
+done/302-utp-1-event-format.md ← DONE (TextScanner, uniform header, event format)
     ↓
-spec-utp-2-command-format.md   ← (refactor commands to unified grammar, extract shared tokenizer)
+done/306-utp-2-command-format.md ← DONE (flat grammar, aliases, shared keyword tables)
     ↓
-spec-utp-3-handshake.md        ← (text alternative for JSON-RPC handshake)
+spec-utp-3-handshake.md        ← NEXT (text alternative for JSON-RPC handshake)
 ```
 
-Each spec builds on the shared infrastructure from the previous one. The event format change is smallest (formatter + parser for one direction). The command refactor extracts the shared tokenizer. The handshake is the biggest change (new protocol mode).
+Completed: utp-1 built the TextScanner and event format. utp-2 removed the set/del accumulator model, introduced flat grammar with keyword aliases, and created shared keyword tables in `textparse/keywords.go`. The "shared tokenizer" from the original plan became "shared keyword tables" — TextScanner (events) and tokenize() (commands) serve different needs and remain separate. Next: utp-3 handshake.
 
 ## Required Reading
 
@@ -99,13 +110,15 @@ Each spec builds on the shared infrastructure from the previous one. The event f
 - `announce`/`withdraw` implicit NLRI operations
 - `strings.Fields()` parsing, no shared tokenizer
 
-**Text commands** (`update_text.go` parser, `command.go` dispatcher):
+**Text commands** (`update_text.go` parser, `command.go` dispatcher) — ~~accumulator model~~ flat grammar after utp-2:
 - JSON-RPC wrapped (args array inside `ze-bgp:peer-update`)
-- Accumulator-based attribute building (set/add/del)
+- ~~Accumulator-based attribute building (set/add/del)~~ → Flat key-value attributes (`origin igp`, `next 1.2.3.4`)
 - Explicit `nlri <family> add/del` operations
-- Bracket-delimited lists `[65001 65002]`
+- ~~Bracket-delimited lists `[65001 65002]`~~ → Comma-separated lists (brackets still accepted for transition)
 - Quoted string support in tokenizer
-- Extra features: nhop accumulator, rd, label, path-information, watchdog, eor
+- Short/long keyword aliases via `textparse/keywords.go`
+- ~~nhop accumulator~~ → `next`/`next-hop` alias, ~~path-information accumulator~~ → per-NLRI modifier
+- Extra features: rd, label, watchdog, eor
 
 **Handshake** (`process.go`, `rpc/types.go`, SDK):
 - NUL-framed JSON-RPC 2.0 on Socket A and B
@@ -115,14 +128,15 @@ Each spec builds on the shared infrastructure from the previous one. The event f
 
 ### Key Divergences
 
-| Aspect | Events | Commands | Unification Approach |
-|--------|--------|----------|---------------------|
-| Attribute format | `origin igp` (flat) | `origin set igp` (action) | Events stay flat (reporting), commands keep actions (mutation) |
-| List delimiter | brackets + spaces | brackets + spaces/commas | Commas everywhere, no brackets |
-| NLRI grouping | positional after attrs | explicit `nlri <family>` | Explicit `family` + `nlri add/del` everywhere |
-| Next-hop | per-family inline | top-level accumulator | (to be decided) |
-| Path-ID | in NLRI string | separate accumulator | Modifier `nlri path-id <id> add` everywhere |
-| Peer selector | single address | wildcards (`*`, `!ip`) | Commands keep wildcards, events use single address |
+| Aspect | Events | Commands (post utp-2) | Remaining Gap |
+|--------|--------|----------------------|---------------|
+| Attribute format | `origin igp` (flat) | `origin igp` (flat) — unified | None |
+| List delimiter | brackets + spaces | Commas primary, brackets accepted | Events still use brackets + spaces |
+| NLRI grouping | `announce`/`withdraw` positional | explicit `nlri <family> add/del` | Events not yet restructured |
+| Next-hop | per-family inline | `next <addr>` (alias) | Events use inline next-hop after family |
+| Path-ID | in NLRI string | per-NLRI modifier `path-information <id>` | Events use in-NLRI-string |
+| Peer selector | single address | wildcards (`*`, `!ip`) | Different by design (reporting vs mutation) |
+| Header | two shapes (state vs message) | N/A (commands have no header) | Events need uniform header |
 
 ## Data Flow (MANDATORY)
 
@@ -152,7 +166,7 @@ Each spec builds on the shared infrastructure from the previous one. The event f
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Single BNF grammar | Covers event delivery, commands, and handshake |
-| AC-2 | Shared tokenizer | Used by all three protocol paths |
+| AC-2 | Shared keyword tables | Used by all three protocol paths (separate tokenizers: TextScanner for events, tokenize() for commands) |
 | AC-3 | Backward direction | Event format parseable by same parser as command format |
 | AC-4 | Forward direction | Command format generatable by same formatter |
 | AC-5 | Handshake text mode | All 5 stages expressible in unified grammar |
@@ -191,6 +205,8 @@ Order: event format first (smallest change, validates grammar), then command ref
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| "One tokenizer in shared package" would unify parsing | TextScanner (events, raw strings) and tokenize() (commands, quoted input) serve fundamentally different needs | utp-2 research — event parser needs zero-alloc field scanning, command parser needs quote handling | Changed AC-2 from "shared tokenizer" to "shared keyword tables" |
+| Accumulator model (set/add/del) was needed for mid-stream attribute modification | Attributes are declared once; only NLRI operations need add/del (MP_REACH vs MP_UNREACH) | utp-2 design — the accumulator was overengineered | Simplified command grammar significantly |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |

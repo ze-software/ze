@@ -68,7 +68,7 @@ def main() -> None:
     # Send marker UPDATE to prove we're the active plugin
     # This prefix (99.99.99.0/24) is unique to this external plugin
     time.sleep(0.2)  # Wait for session to be established
-    api.send('bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24')
+    api.send('bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 99.99.99.0/24')
     time.sleep(0.3)
 
     api.wait_for_shutdown()

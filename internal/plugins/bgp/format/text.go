@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/json-format.md — message formatting
+// Related: ../textparse/keywords.go — shared keyword constants and alias resolution
 
 package format
 
@@ -16,6 +17,7 @@ import (
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 )
@@ -642,9 +644,9 @@ func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	// Attributes (shared across all families)
 	formatAttributesText(&sb, result)
 
-	// Announced routes: next-hop <nh> nlri <fam> add <nlri>[,<nlri>]...
+	// Announced routes: next <nh> nlri <fam> add <nlri>[,<nlri>]...
 	for _, fam := range announced {
-		sb.WriteString(" next-hop ")
+		sb.WriteString(" " + textparse.ShortNext + " ")
 		sb.WriteString(fam.NextHop.String())
 		sb.WriteString(" nlri ")
 		sb.WriteString(fam.Family)
@@ -702,22 +704,25 @@ func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
 }
 
 // formatAttributeText formats a single attribute for text output.
-// Known attribute types are formatted with named keys; unknown types use "attr-N" with hex value.
+// Known attribute types are formatted with named keys (short aliases for API output);
+// unknown types use "attr-N" with hex value.
+// Short forms: next (next-hop), path (as-path), pref (local-preference),
+// s-com (community), l-com (large-community), e-com (extended-community).
 func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
 		case *attribute.Origin:
-			sb.WriteString("origin ")
+			sb.WriteString(textparse.KWOrigin + " ")
 			sb.WriteString(strings.ToLower(o.String()))
 		case attribute.Origin:
-			sb.WriteString("origin ")
+			sb.WriteString(textparse.KWOrigin + " ")
 			sb.WriteString(strings.ToLower(o.String()))
 		}
 		return
 	case attribute.AttrASPath:
 		if ap, ok := attr.(*attribute.ASPath); ok {
-			sb.WriteString("as-path ")
+			sb.WriteString(textparse.ShortPath + " ")
 			first := true
 			for _, seg := range ap.Segments {
 				for _, asn := range seg.ASNs {
@@ -732,29 +737,29 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		return
 	case attribute.AttrNextHop:
 		if nh, ok := attr.(*attribute.NextHop); ok {
-			sb.WriteString("next-hop ")
+			sb.WriteString(textparse.ShortNext + " ")
 			sb.WriteString(nh.Addr.String())
 		}
 		return
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			fmt.Fprintf(sb, "med %d", uint32(*m))
+			fmt.Fprintf(sb, textparse.KWMED+" %d", uint32(*m))
 		case attribute.MED:
-			fmt.Fprintf(sb, "med %d", uint32(m))
+			fmt.Fprintf(sb, textparse.KWMED+" %d", uint32(m))
 		}
 		return
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			fmt.Fprintf(sb, "local-preference %d", uint32(*lp))
+			fmt.Fprintf(sb, textparse.ShortPref+" %d", uint32(*lp))
 		case attribute.LocalPref:
-			fmt.Fprintf(sb, "local-preference %d", uint32(lp))
+			fmt.Fprintf(sb, textparse.ShortPref+" %d", uint32(lp))
 		}
 		return
 	case attribute.AttrCommunity:
 		if c, ok := attr.(*attribute.Communities); ok {
-			sb.WriteString("community ")
+			sb.WriteString(textparse.ShortSCom + " ")
 			for i, comm := range *c {
 				if i > 0 {
 					sb.WriteString(",")
@@ -765,7 +770,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		return
 	case attribute.AttrLargeCommunity:
 		if lc, ok := attr.(*attribute.LargeCommunities); ok {
-			sb.WriteString("large-community ")
+			sb.WriteString(textparse.ShortLCom + " ")
 			for i, comm := range *lc {
 				if i > 0 {
 					sb.WriteString(",")
@@ -776,7 +781,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		return
 	case attribute.AttrExtCommunity:
 		if ec, ok := attr.(*attribute.ExtendedCommunities); ok {
-			sb.WriteString("extended-community ")
+			sb.WriteString(textparse.ShortXCom + " ")
 			for i, comm := range *ec {
 				if i > 0 {
 					sb.WriteString(",")

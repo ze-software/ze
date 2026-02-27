@@ -3,7 +3,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Test IPv6 unicast functionality
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["fc00:1::/64"],"next-hop":"2001::11"}]}
 cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv6/unicast eor
@@ -30,7 +30,7 @@ def main() -> None:
     ready()
 
     # Test unicast functionality using update text syntax
-    announce_unicast = 'bgp peer * update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64'
+    announce_unicast = 'bgp peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64'
     withdraw_unicast = 'bgp peer * update text nlri ipv6/unicast del fc00:1::/64'
 
     # Note: MUP commands commented out pending update text MUP support

@@ -1,27 +1,23 @@
 // Design: docs/architecture/api/commands.md — API command handlers
+// Related: update_text_nlri.go — NLRI section parsing
+// Related: update_text_evpn.go — EVPN NLRI parsing
+// Related: update_text_flowspec.go — FlowSpec NLRI parsing
+// Related: update_text_vpls.go — VPLS NLRI parsing
 //
 // update_text.go provides the update text parser for the "update text" command format.
 //
-// Grammar:
+// Grammar (flat — no set/add/del on attributes):
 //
-//	<update-text> := <section>*
-//	<section>     := <scalar-attr> | <list-attr> | <nlri-section> | <wire-attr>
-//
-//	<scalar-attr> := <scalar-name> (set <value> | del [<value>])
-//	<scalar-name> := origin | med | local-preference | nhop | path-information | rd | label
-//
-//	<list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
-//	<list-name>   := as-path | community | large-community | extended-community
-//
+//	<update-text>  := <attribute>* <nlri-section>+
+//	<attribute>    := <attr-name> <value>
+//	<attr-name>    := origin | med | local-preference | as-path | community |
+//	                  large-community | extended-community | nhop | path-information | rd | label
 //	<nlri-section> := nlri <family> <nlri-op>+
-//	<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
+//	<nlri-op>      := add <prefix>+ [watchdog <name>] | del <prefix>+
 //
-//	<wire-attr>    := attr (set <bytes> | del [<bytes>])   // hex/b64 mode only
-//
-// Scalar del [<value>]: unconditional if no value, conditional if value (must match current).
-// List attributes support set/add/del. Attributes accumulate; each nlri captures a snapshot.
-//
-// Standalone watchdog commands: watchdog announce <name>, watchdog withdraw <name>
+// Attributes are flat declarations (keyword + value). No set/add/del on attributes.
+// add/del are NLRI-only keywords (MP_REACH vs MP_UNREACH).
+// Attributes must precede all nlri sections (no interleaving).
 //
 // Note: rd and label are ignored for families that don't support them.
 package handler
@@ -34,8 +30,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
@@ -55,16 +51,16 @@ const (
 	kwAttr     = "attr"
 	kwNLRI     = "nlri"
 	kwWatchdog = "watchdog"
-	kwNhop     = "nhop"             // New: top-level next-hop accumulator
-	kwPathInfo = "path-information" // New: ADD-PATH path-id accumulator
+	kwNhop     = "nhop"             // Top-level next-hop keyword.
+	kwPathInfo = "path-information" // ADD-PATH path-id keyword.
 )
 
-// UpdateText action keywords.
+// UpdateText action keywords (NLRI-only: add=MP_REACH, del=MP_UNREACH).
 const (
 	kwAdd = "add"
 	kwDel = "del"
-	kwSet = "set"
-	kwEOR = "eor" // End-of-RIB marker (RFC 4724)
+	kwSet = "set" // Rejected with migration hint — kept for detection only.
+	kwEOR = "eor" // End-of-RIB marker (RFC 4724).
 )
 
 // Attribute keywords for per-attribute syntax.
@@ -78,14 +74,11 @@ const (
 	kwExtendedCommunity = "extended-community"
 )
 
-// VPN/labeled NLRI accumulator keywords.
+// Structure keywords for NLRI modifiers.
 const (
-	kwRD    = "rd"    // Route Distinguisher for VPN families
-	kwLabel = "label" // MPLS label for VPN/labeled families
+	kwRD    = "rd"    // Route Distinguisher for VPN families.
+	kwLabel = "label" // MPLS label for VPN/labeled families.
 )
-
-// strNil is the string representation of nil for error messages.
-const strNil = "nil"
 
 // isAttributeKeyword returns true if token is a per-attribute keyword.
 func isAttributeKeyword(token string) bool {
@@ -97,32 +90,25 @@ func isAttributeKeyword(token string) bool {
 	return false
 }
 
-// isScalarAttribute returns true if the attribute is scalar (set/del only, no add).
-func isScalarAttribute(token string) bool {
+// isBoundaryKeyword returns true if token starts a new top-level section.
+// Used by NLRI sub-parsers (EVPN, FlowSpec, VPLS) to detect section boundaries.
+// Tokens are already alias-resolved (nhop→next-hop, path-id→path-information).
+func isBoundaryKeyword(token string) bool {
 	switch token {
-	case kwOrigin, kwMED, kwLocalPref, kwRD, kwLabel:
+	case kwAttr, kwNLRI, kwWatchdog, textparse.KWNextHop, kwPathInfo, kwRD, kwLabel:
 		return true
 	}
-	return false
+	return isAttributeKeyword(token)
 }
 
-// isBoundaryKeyword returns true if token starts a new section.
-func isBoundaryKeyword(token string) bool {
-	return token == kwAttr || token == kwNLRI || token == kwWatchdog ||
-		token == kwNhop || token == kwPathInfo || token == kwRD || token == kwLabel ||
-		isAttributeKeyword(token)
-}
-
-// parsedAttrs tracks attribute state during parsing.
-// Includes next-hop and path-id which are NOT part of path attributes.
-// Clear* fields signal "del without value" to remove the attribute entirely.
-// Del*Expected fields signal "del <value>" conditional delete (must match current).
+// parsedAttrs collects attribute declarations during flat parsing.
+// Includes next-hop which is NOT part of path attributes.
+// Path-id moved to per-NLRI-section modifier (in nlriAccum).
 type parsedAttrs struct {
 	NextHop     netip.Addr
 	NextHopSelf bool
-	PathID      uint32 // ADD-PATH path identifier (0 = not set)
 
-	// Path attributes (wire-first: build directly to wire format)
+	// Path attributes (wire-first: build directly to wire format).
 	Origin              *uint8
 	LocalPreference     *uint32
 	MED                 *uint32
@@ -131,203 +117,9 @@ type parsedAttrs struct {
 	LargeCommunities    []bgptypes.LargeCommunity
 	ExtendedCommunities []attribute.ExtendedCommunity
 
-	// VPN/labeled NLRI accumulators
-	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families
-	Labels []uint32                // MPLS labels for VPN/labeled families
-
-	// Clear flags for "del without value" - remove entire attribute
-	ClearOrigin              bool
-	ClearMED                 bool
-	ClearLocalPref           bool
-	ClearASPath              bool
-	ClearCommunities         bool
-	ClearLargeCommunities    bool
-	ClearExtendedCommunities bool
-	ClearRD                  bool
-	ClearLabels              bool
-
-	// Conditional delete expected values - only clear if current matches
-	DelOriginExpected    *uint8
-	DelMEDExpected       *uint32
-	DelLocalPrefExpected *uint32
-}
-
-// applySet merges other into a, overwriting only fields that are set in other.
-func (a *parsedAttrs) applySet(other parsedAttrs) {
-	if other.NextHop.IsValid() {
-		a.NextHop = other.NextHop
-	}
-	if other.NextHopSelf {
-		a.NextHopSelf = true
-	}
-	if other.Origin != nil {
-		a.Origin = other.Origin
-	}
-	if other.LocalPreference != nil {
-		a.LocalPreference = other.LocalPreference
-	}
-	if other.MED != nil {
-		a.MED = other.MED
-	}
-	if other.ASPath != nil {
-		a.ASPath = other.ASPath
-	}
-	if other.Communities != nil {
-		a.Communities = other.Communities
-	}
-	if other.LargeCommunities != nil {
-		a.LargeCommunities = other.LargeCommunities
-	}
-	if other.ExtendedCommunities != nil {
-		a.ExtendedCommunities = other.ExtendedCommunities
-	}
-	// VPN/labeled NLRI accumulators
-	if other.RD.Type != 0 || other.RD.Value != [6]byte{} {
-		a.RD = other.RD
-	}
-	if other.Labels != nil {
-		a.Labels = other.Labels
-	}
-}
-
-// validateListOp checks if other contains only list attributes.
-// Returns error if scalar attrs are set. AS-PATH is treated as list.
-func (a *parsedAttrs) validateListOp(other parsedAttrs, scalarErr error) error {
-	if other.Origin != nil {
-		return fmt.Errorf("origin: %w", scalarErr)
-	}
-	if other.MED != nil {
-		return fmt.Errorf("med: %w", scalarErr)
-	}
-	if other.LocalPreference != nil {
-		return fmt.Errorf("local-preference: %w", scalarErr)
-	}
-	if other.NextHop.IsValid() {
-		return fmt.Errorf("next-hop: %w", scalarErr)
-	}
-	if other.NextHopSelf {
-		return fmt.Errorf("next-hop-self: %w", scalarErr)
-	}
-	return nil
-}
-
-// applyAdd prepends list attributes from other into a.
-// Returns error if non-list attributes are set in other.
-func (a *parsedAttrs) applyAdd(other parsedAttrs) error {
-	if err := a.validateListOp(other, route.ErrAddOnScalar); err != nil {
-		return err
-	}
-	if other.ASPath != nil {
-		a.ASPath = append(other.ASPath, a.ASPath...)
-	}
-	if other.Communities != nil {
-		a.Communities = append(other.Communities, a.Communities...)
-	}
-	if other.LargeCommunities != nil {
-		a.LargeCommunities = append(other.LargeCommunities, a.LargeCommunities...)
-	}
-	if other.ExtendedCommunities != nil {
-		a.ExtendedCommunities = append(other.ExtendedCommunities, a.ExtendedCommunities...)
-	}
-	return nil
-}
-
-// applyDel removes attributes from a.
-// Clear* flags remove entire attribute unconditionally.
-// Del*Expected fields remove only if current value matches (conditional delete).
-// List values remove specific items. Returns error if any value to delete is not found.
-func (a *parsedAttrs) applyDel(other parsedAttrs) error {
-	// Handle conditional scalar deletes first (del <value>)
-	if other.DelOriginExpected != nil {
-		if a.Origin == nil || *a.Origin != *other.DelOriginExpected {
-			currentVal := strNil
-			if a.Origin != nil {
-				currentVal = originToString(*a.Origin)
-			}
-			return fmt.Errorf("origin del: current value is %s, not %s", currentVal, originToString(*other.DelOriginExpected))
-		}
-		a.Origin = nil
-	}
-	if other.DelMEDExpected != nil {
-		if a.MED == nil || *a.MED != *other.DelMEDExpected {
-			currentVal := strNil
-			if a.MED != nil {
-				currentVal = fmt.Sprintf("%d", *a.MED)
-			}
-			return fmt.Errorf("med del: current value is %s, not %d", currentVal, *other.DelMEDExpected)
-		}
-		a.MED = nil
-	}
-	if other.DelLocalPrefExpected != nil {
-		if a.LocalPreference == nil || *a.LocalPreference != *other.DelLocalPrefExpected {
-			currentVal := strNil
-			if a.LocalPreference != nil {
-				currentVal = fmt.Sprintf("%d", *a.LocalPreference)
-			}
-			return fmt.Errorf("local-preference del: current value is %s, not %d", currentVal, *other.DelLocalPrefExpected)
-		}
-		a.LocalPreference = nil
-	}
-
-	// Handle clear flags (del without value - unconditional)
-	if other.ClearOrigin {
-		a.Origin = nil
-	}
-	if other.ClearMED {
-		a.MED = nil
-	}
-	if other.ClearLocalPref {
-		a.LocalPreference = nil
-	}
-	if other.ClearASPath {
-		a.ASPath = nil
-	}
-	if other.ClearCommunities {
-		a.Communities = nil
-	}
-	if other.ClearLargeCommunities {
-		a.LargeCommunities = nil
-	}
-	if other.ClearExtendedCommunities {
-		a.ExtendedCommunities = nil
-	}
-	if other.ClearRD {
-		a.RD = nlri.RouteDistinguisher{}
-	}
-	if other.ClearLabels {
-		a.Labels = nil
-	}
-
-	// Handle del with specific values (list attributes only)
-	if other.ASPath != nil {
-		result, notFound := removeFromSliceStrict(a.ASPath, other.ASPath)
-		if len(notFound) > 0 {
-			return fmt.Errorf("as-path ASN %d not found in current path", notFound[0])
-		}
-		a.ASPath = result
-	}
-	if other.Communities != nil {
-		result, notFound := removeFromSliceStrict(a.Communities, other.Communities)
-		if len(notFound) > 0 {
-			return fmt.Errorf("community %s not found in current list", formatCommunity(notFound[0]))
-		}
-		a.Communities = result
-	}
-	if other.LargeCommunities != nil {
-		result, notFound := removeFromSliceStrict(a.LargeCommunities, other.LargeCommunities)
-		if len(notFound) > 0 {
-			return fmt.Errorf("large-community %s not found in current list", formatLargeCommunity(notFound[0]))
-		}
-		a.LargeCommunities = result
-	}
-	if other.ExtendedCommunities != nil {
-		result, notFound := removeFromSliceStrict(a.ExtendedCommunities, other.ExtendedCommunities)
-		if len(notFound) > 0 {
-			return fmt.Errorf("extended-community not found in current list")
-		}
-		a.ExtendedCommunities = result
-	}
-	return nil
+	// VPN/labeled NLRI modifiers.
+	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families.
+	Labels []uint32                // MPLS labels for VPN/labeled families.
 }
 
 // nlriAccum holds VPN/labeled NLRI accumulator values for snapshot.
@@ -398,69 +190,7 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 		labels = make([]uint32, len(a.Labels))
 		copy(labels, a.Labels)
 	}
-	return wire, nh, nlriAccum{PathID: a.PathID, RD: a.RD, Labels: labels}
-}
-
-// removeFromSliceStrict removes first instance of each element in remove from slice.
-// Returns the result slice and any elements that were not found in slice.
-// Empty remove list returns original slice with no errors.
-// If remove contains duplicates, each removes one more instance from slice.
-func removeFromSliceStrict[T comparable](slice, remove []T) ([]T, []T) {
-	if len(remove) == 0 {
-		return slice, nil // empty remove = no-op, no error
-	}
-	if len(slice) == 0 {
-		return slice, remove // all items not found
-	}
-
-	// Work with a copy to track which indices are removed
-	result := make([]T, len(slice))
-	copy(result, slice)
-	var notFound []T
-
-	for _, r := range remove {
-		found := false
-		for i, v := range result {
-			if v == r {
-				// Remove first occurrence by shifting
-				result = append(result[:i], result[i+1:]...)
-				found = true
-				break
-			}
-		}
-		if !found {
-			notFound = append(notFound, r)
-		}
-	}
-
-	if len(notFound) > 0 {
-		return slice, notFound // return original on error
-	}
-	return result, nil
-}
-
-// formatCommunity formats a community uint32 as "ASN:value".
-func formatCommunity(c uint32) string {
-	return fmt.Sprintf("%d:%d", c>>16, c&0xFFFF)
-}
-
-// formatLargeCommunity formats a bgptypes.LargeCommunity as "GA:LD1:LD2".
-func formatLargeCommunity(lc bgptypes.LargeCommunity) string {
-	return fmt.Sprintf("%d:%d:%d", lc.GlobalAdmin, lc.LocalData1, lc.LocalData2)
-}
-
-// originToString converts origin value to string.
-func originToString(o uint8) string {
-	switch o {
-	case 0:
-		return format.OriginIGP
-	case 1:
-		return format.OriginEGP
-	case 2:
-		return format.OriginIncomplete
-	default:
-		return fmt.Sprintf("%d", o)
-	}
+	return wire, nh, nlriAccum{RD: a.RD, Labels: labels}
 }
 
 // parseCommonAttributeText parses a common BGP attribute by keyword into parsedAttrs.
@@ -719,73 +449,46 @@ func parseCommunityText(s string) (uint32, error) {
 	return uint32(high)<<16 | uint32(low), nil
 }
 
+// errAttrsAfterNLRI is returned when attributes appear after the first nlri section.
+var errAttrsAfterNLRI = errors.New("attributes must precede all nlri sections")
+
+// resolveAliases returns a copy of args with all keyword aliases resolved to canonical forms.
+// Uses textparse.ResolveAlias so "next"→"next-hop", "pref"→"local-preference", etc.
+func resolveAliases(args []string) []string {
+	resolved := make([]string, len(args))
+	for i, token := range args {
+		resolved[i] = textparse.ResolveAlias(token)
+	}
+	return resolved
+}
+
 // ParseUpdateText parses the "update text" command format.
-// Returns the parsed result or an error.
+// Flat grammar: attributes are keyword-value pairs (no set/add/del).
+// Attributes must all precede the nlri sections.
+// All keyword aliases are resolved before parsing (next→next-hop, pref→local-preference, etc.).
 func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
-	var accum parsedAttrs
+	args = resolveAliases(args)
+
+	var attrs parsedAttrs
 	var groups []bgptypes.NLRIGroup
 	var eorFamilies []nlri.Family
 	var watchdog string
+	seenNLRI := false
 	i := 0
 
 	for i < len(args) {
-		switch args[i] { //nolint:gosec // G602 false positive: loop condition guards access
-		case kwAttr:
-			mode, attrs, consumed, err := parseAttrSection(args[i:])
-			if err != nil {
-				return nil, err
-			}
+		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
 
-			switch mode {
-			case kwSet:
-				accum.applySet(attrs)
-			case kwAdd:
-				if err := accum.applyAdd(attrs); err != nil {
-					return nil, err
-				}
-			case kwDel:
-				if err := accum.applyDel(attrs); err != nil {
-					return nil, err
-				}
-			}
-			i += consumed
-
-		case kwNhop:
-			consumed, err := parseNhopSection(args[i:], &accum)
-			if err != nil {
-				return nil, err
-			}
-			i += consumed
-
-		case kwPathInfo:
-			consumed, err := parsePathInfoSection(args[i:], &accum)
-			if err != nil {
-				return nil, err
-			}
-			i += consumed
-
-		case kwRD:
-			consumed, err := parseRDSection(args[i:], &accum)
-			if err != nil {
-				return nil, err
-			}
-			i += consumed
-
-		case kwLabel:
-			consumed, err := parseLabelSection(args[i:], &accum)
-			if err != nil {
-				return nil, err
-			}
-			i += consumed
-
+		switch token {
 		case kwNLRI:
-			wire, nh, nlriAcc := accum.snapshot()
+			seenNLRI = true
+			wire, nh, nlriAcc := attrs.snapshot()
 			result, err := parseNLRISection(args[i:], nlriAcc)
 			if err != nil {
 				return nil, err
 			}
 
-			// RFC 4724: EOR is signaled by valid family with empty announce/withdraw lists
+			// RFC 4724: EOR is signaled by valid family with empty announce/withdraw lists.
 			if len(result.Announce) == 0 && len(result.Withdraw) == 0 && result.Family.AFI != 0 {
 				eorFamilies = append(eorFamilies, result.Family)
 			} else {
@@ -797,7 +500,6 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 					NextHop:      nh,
 					WatchdogName: result.Watchdog,
 				})
-				// Also set global watchdog if specified in nlri section (for backward compat)
 				if result.Watchdog != "" {
 					watchdog = result.Watchdog
 				}
@@ -805,390 +507,131 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 			i += result.Consumed
 
 		case kwWatchdog:
-			// Legacy standalone watchdog - still supported but deprecated
-			// New syntax: nlri ... add ... watchdog set <name>
 			if i+1 >= len(args) {
 				return nil, errors.New("missing watchdog name")
 			}
 			watchdog = args[i+1]
 			i += 2
 
-		default:
-			// Check for per-attribute keywords (origin, med, community, etc.)
-			if isAttributeKeyword(args[i]) { //nolint:gosec // G602 false positive: loop guards access
-				mode, attrs, consumed, err := parsePerAttributeSection(args[i:])
+		case textparse.KWNextHop:
+			if seenNLRI {
+				return nil, errAttrsAfterNLRI
+			}
+			consumed, err := parseNhopFlat(args[i:], &attrs)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
+		case kwRD:
+			if seenNLRI {
+				return nil, errAttrsAfterNLRI
+			}
+			consumed, err := parseRDFlat(args[i:], &attrs)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
+		case kwLabel:
+			if seenNLRI {
+				return nil, errAttrsAfterNLRI
+			}
+			consumed, err := parseLabelFlat(args[i:], &attrs)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
+		default: // attribute keywords and unknown tokens
+			if isAttributeKeyword(token) {
+				if seenNLRI {
+					return nil, errAttrsAfterNLRI
+				}
+				// Reject old set/add/del syntax with migration hint.
+				if i+1 < len(args) && (args[i+1] == kwSet || args[i+1] == kwAdd || args[i+1] == kwDel) {
+					return nil, fmt.Errorf("%s keyword removed for attributes; use: %s <value>", args[i+1], token)
+				}
+				// Flat attribute parsing: keyword + value(s).
+				extra, err := parseCommonAttributeText(token, args, i, &attrs)
 				if err != nil {
 					return nil, err
 				}
-
-				switch mode {
-				case kwSet:
-					accum.applySet(attrs)
-				case kwAdd:
-					if err := accum.applyAdd(attrs); err != nil {
-						return nil, err
-					}
-				case kwDel:
-					if err := accum.applyDel(attrs); err != nil {
-						return nil, err
-					}
+				if extra == 0 {
+					return nil, fmt.Errorf("missing value for %s", token)
 				}
-				i += consumed
+				i += 1 + extra
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community, nhop, nlri, watchdog", args[i]) //nolint:gosec // G602 false positive: loop guards access
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference (pref), as-path (path), community (s-com), large-community (l-com), extended-community (x-com), next-hop (next), path-information (info), rd, label, nlri, watchdog", token)
 		}
 	}
 
 	return &bgptypes.UpdateTextResult{Groups: groups, WatchdogName: watchdog, EORFamilies: eorFamilies}, nil
 }
 
-// parseNhopSection parses nhop <set <addr>|del> section.
-// Returns consumed token count and error.
-func parseNhopSection(args []string, accum *parsedAttrs) (int, error) {
-	// args[0] = "nhop"
+// parseNhopFlat parses next-hop <address|self> (flat, no set/del).
+func parseNhopFlat(args []string, accum *parsedAttrs) (int, error) {
+	// args[0] = "next-hop" (alias-resolved)
 	if len(args) < 2 {
-		return 0, errors.New("nhop requires set or del")
+		return 0, errors.New("next-hop requires a value (address or self)")
 	}
-
-	switch args[1] {
-	case kwSet:
-		if len(args) < 3 {
-			return 0, errors.New("nhop set requires data")
-		}
-		value := args[2]
-		if value == kwSelf {
-			accum.NextHopSelf = true
-			accum.NextHop = netip.Addr{} // Clear any explicit address
-			return 3, nil
-		}
-		addr, err := netip.ParseAddr(value)
-		if err != nil {
-			return 0, fmt.Errorf("invalid next-hop: %w", err)
-		}
-		accum.NextHop = addr
-		accum.NextHopSelf = false
-		return 3, nil
-
-	case kwDel:
-		// del without value: clear unconditionally
-		// del with value: clear only if matches current (conditional delete)
-		if len(args) > 2 && !isBoundaryKeyword(args[2]) {
-			value := args[2]
-			if value == kwSelf {
-				// Conditional delete of "self"
-				if !accum.NextHopSelf {
-					return 0, errors.New("nhop del: current value is not self")
-				}
-			} else {
-				// Conditional delete of specific address
-				addr, err := netip.ParseAddr(value)
-				if err != nil {
-					return 0, fmt.Errorf("invalid next-hop: %w", err)
-				}
-				if accum.NextHop != addr {
-					return 0, fmt.Errorf("nhop del: current value is %s, not %s", accum.NextHop, addr)
-				}
-			}
-			accum.NextHop = netip.Addr{}
-			accum.NextHopSelf = false
-			return 3, nil
-		}
-		// Unconditional delete
+	// Reject old set/del syntax.
+	if args[1] == kwSet || args[1] == kwDel {
+		return 0, fmt.Errorf("set/del keywords removed; use: next-hop <address|self>")
+	}
+	value := args[1]
+	if value == kwSelf {
+		accum.NextHopSelf = true
 		accum.NextHop = netip.Addr{}
-		accum.NextHopSelf = false
 		return 2, nil
-
-	default:
-		return 0, fmt.Errorf("nhop requires set or del, got: %s", args[1])
 	}
+	addr, err := netip.ParseAddr(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid next-hop: %w", err)
+	}
+	accum.NextHop = addr
+	accum.NextHopSelf = false
+	return 2, nil
 }
 
-// parsePathInfoSection parses path-information (set <id> | del [<id>]) section.
-// Returns consumed token count and error.
-func parsePathInfoSection(args []string, accum *parsedAttrs) (int, error) {
-	// args[0] = "path-information"
-	if len(args) < 2 {
-		return 0, errors.New("path-information requires set or del")
-	}
-
-	switch args[1] {
-	case kwSet:
-		if len(args) < 3 {
-			return 0, errors.New("path-information set requires id")
-		}
-		id, err := strconv.ParseUint(args[2], 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid path-information: %w", err)
-		}
-		accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint 32-bit
-		return 3, nil
-
-	case kwDel:
-		// del without value: clear unconditionally
-		// del with value: clear only if matches current (conditional delete)
-		if len(args) > 2 && !isBoundaryKeyword(args[2]) {
-			// Conditional delete - check if value matches
-			id, err := strconv.ParseUint(args[2], 10, 32)
-			if err != nil {
-				return 0, fmt.Errorf("invalid path-information: %w", err)
-			}
-			if uint64(accum.PathID) != id { //nolint:gosec // G115: bounded by ParseUint 32-bit
-				return 0, fmt.Errorf("path-information del: current value is %d, not %d", accum.PathID, id)
-			}
-			accum.PathID = 0
-			return 3, nil
-		}
-		// Unconditional delete
-		accum.PathID = 0
-		return 2, nil
-
-	default:
-		return 0, fmt.Errorf("path-information requires set or del, got: %s", args[1])
-	}
-}
-
-// parseRDSection parses rd (set <value> | del [<value>]) section.
+// parseRDFlat parses rd <value> (flat, no set/del).
 // RD format: ASN:NN or IP:NN (e.g., "65000:100" or "192.0.2.1:100").
-// Returns consumed token count and error.
-func parseRDSection(args []string, accum *parsedAttrs) (int, error) {
+func parseRDFlat(args []string, accum *parsedAttrs) (int, error) {
 	// args[0] = "rd"
 	if len(args) < 2 {
-		return 0, errors.New("rd requires set or del")
+		return 0, errors.New("rd requires a value (ASN:NN or IP:NN)")
 	}
-
-	switch args[1] {
-	case kwSet:
-		if len(args) < 3 {
-			return 0, errors.New("rd set requires value (ASN:NN or IP:NN)")
-		}
-		rd, err := nlri.ParseRDString(args[2])
-		if err != nil {
-			return 0, fmt.Errorf("invalid rd: %w", err)
-		}
-		accum.RD = rd
-		return 3, nil
-
-	case kwDel:
-		// del without value: clear unconditionally
-		// del with value: clear only if matches current (conditional delete)
-		if len(args) > 2 && !isBoundaryKeyword(args[2]) {
-			// Conditional delete - check if value matches
-			rd, err := nlri.ParseRDString(args[2])
-			if err != nil {
-				return 0, fmt.Errorf("invalid rd: %w", err)
-			}
-			if accum.RD != rd {
-				return 0, fmt.Errorf("rd del: current value is %s, not %s", accum.RD, rd)
-			}
-			accum.RD = nlri.RouteDistinguisher{}
-			return 3, nil
-		}
-		// Unconditional delete
-		accum.RD = nlri.RouteDistinguisher{}
-		return 2, nil
-
-	default:
-		return 0, fmt.Errorf("rd requires set or del, got: %s", args[1])
+	if args[1] == kwSet || args[1] == kwDel {
+		return 0, fmt.Errorf("set/del keywords removed; use: rd <value>")
 	}
+	rd, err := nlri.ParseRDString(args[1])
+	if err != nil {
+		return 0, fmt.Errorf("invalid rd: %w", err)
+	}
+	accum.RD = rd
+	return 2, nil
 }
 
-// parseLabelSection parses label (set <value> | del [<value>]) section.
+// parseLabelFlat parses label <value> (flat, no set/del).
 // Label is a single MPLS label value (0-1048575).
-// Returns consumed token count and error.
-func parseLabelSection(args []string, accum *parsedAttrs) (int, error) {
+func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 	// args[0] = "label"
 	if len(args) < 2 {
-		return 0, errors.New("label requires set or del")
+		return 0, errors.New("label requires a value (0-1048575)")
 	}
-
-	switch args[1] {
-	case kwSet:
-		if len(args) < 3 {
-			return 0, errors.New("label set requires value (0-1048575)")
-		}
-		label, err := strconv.ParseUint(args[2], 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid label: %w", err)
-		}
-		if label > 0xFFFFF { // 20-bit max
-			return 0, fmt.Errorf("label out of range (max 1048575): %d", label)
-		}
-		accum.Labels = []uint32{uint32(label)} //nolint:gosec // G115: bounded by check above
-		return 3, nil
-
-	case kwDel:
-		// del without value: clear unconditionally
-		// del with value: clear only if matches current (conditional delete)
-		if len(args) > 2 && !isBoundaryKeyword(args[2]) {
-			// Conditional delete - check if value matches
-			label, err := strconv.ParseUint(args[2], 10, 32)
-			if err != nil {
-				return 0, fmt.Errorf("invalid label: %w", err)
-			}
-			if len(accum.Labels) != 1 || uint64(accum.Labels[0]) != label { //nolint:gosec // G115: bounded by ParseUint
-				currentStr := "[]"
-				if len(accum.Labels) > 0 {
-					currentStr = fmt.Sprintf("[%d]", accum.Labels[0])
-				}
-				return 0, fmt.Errorf("label del: current value is %s, not [%d]", currentStr, label)
-			}
-			accum.Labels = nil
-			return 3, nil
-		}
-		// Unconditional delete
-		accum.Labels = nil
-		return 2, nil
-
-	default:
-		return 0, fmt.Errorf("label requires set or del, got: %s", args[1])
+	if args[1] == kwSet || args[1] == kwDel {
+		return 0, fmt.Errorf("set/del keywords removed; use: label <value>")
 	}
-}
-
-// parseAttrSection parses attr <mode> <key> <value>... until boundary keyword.
-// Returns mode, parsed attrs, consumed token count, and any error.
-func parseAttrSection(args []string) (string, parsedAttrs, int, error) {
-	// args[0] = "attr"
-	if len(args) < 2 {
-		return "", parsedAttrs{}, 0, route.ErrMissingAttrMode
-	}
-	mode := args[1]
-	if mode != kwSet && mode != kwAdd && mode != kwDel {
-		return "", parsedAttrs{}, 0, route.ErrInvalidAttrMode
-	}
-
-	consumed := 2 // "attr" + mode
-	i := 2
-	var attrs parsedAttrs
-
-	for i < len(args) {
-		key := args[i] //nolint:gosec // G602 false positive: loop condition guards access
-
-		// Boundary keywords end this section
-		if isBoundaryKeyword(key) {
-			// attr set/add/del is for wire encoding only, not attribute keywords
-			if i == 2 && isAttributeKeyword(key) {
-				return "", parsedAttrs{}, 0, fmt.Errorf(
-					"'attr' is for hex/b64 wire encoding; for text mode use: %s %s <value>",
-					key, mode)
-			}
-			break
-		}
-
-		// Try parseCommonAttributeText for standard attrs
-		extra, err := parseCommonAttributeText(key, args, i, &attrs)
-		if err != nil {
-			return "", parsedAttrs{}, 0, err
-		}
-		if extra > 0 {
-			i += 1 + extra // key + extra args consumed
-			consumed += 1 + extra
-			continue
-		}
-
-		// Unknown attribute - list valid options
-		return "", parsedAttrs{}, 0, fmt.Errorf("unknown attribute '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community", key)
-	}
-
-	return mode, attrs, consumed, nil
-}
-
-// parsePerAttributeSection parses per-attribute syntax: <attr-name> <set|add|del> [<value>]
-// Returns mode, parsed attrs, consumed token count, and any error.
-func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
-	// args[0] = attribute name (origin, med, etc.)
-	if len(args) < 1 {
-		return "", parsedAttrs{}, 0, errors.New("missing attribute name")
-	}
-	if len(args) < 2 {
-		return "", parsedAttrs{}, 0, fmt.Errorf("missing operation for %s", args[0])
-	}
-
-	attrName := args[0]
-	mode := args[1]
-
-	// Validate mode
-	if mode != kwSet && mode != kwAdd && mode != kwDel {
-		return "", parsedAttrs{}, 0, fmt.Errorf("invalid operation '%s' for %s: use set, add, or del", mode, attrName)
-	}
-
-	// Validate scalar vs list operations
-	if isScalarAttribute(attrName) && mode == kwAdd {
-		return "", parsedAttrs{}, 0, fmt.Errorf("%s: %w", attrName, route.ErrAddOnScalar)
-	}
-
-	// AS-PATH supports set/add/del:
-	// - set: replace entire path
-	// - add: prepend ASN(s) to path
-	// - del: clear entire path (no value) or remove specific ASN (with value)
-
-	consumed := 2 // attr-name + mode
-	var attrs parsedAttrs
-
-	// For del, check if there's a value following
-	if mode == kwDel {
-		hasValue := len(args) > 2 && !isBoundaryKeyword(args[2])
-
-		if !hasValue {
-			// del without value - set clear flag for this attribute (unconditional)
-			switch attrName {
-			case kwOrigin:
-				attrs.ClearOrigin = true
-			case kwMED:
-				attrs.ClearMED = true
-			case kwLocalPref:
-				attrs.ClearLocalPref = true
-			case kwASPath:
-				attrs.ClearASPath = true
-			case kwCommunity:
-				attrs.ClearCommunities = true
-			case kwLargeCommunity:
-				attrs.ClearLargeCommunities = true
-			case kwExtendedCommunity:
-				attrs.ClearExtendedCommunities = true
-			}
-			return mode, attrs, consumed, nil
-		}
-		// hasValue is true - for scalars this is conditional delete
-		if isScalarAttribute(attrName) {
-			// Parse the value and set Del*Expected field
-			valueArgs := append([]string{attrName}, args[2:]...)
-			var tempAttrs parsedAttrs
-			extra, err := parseCommonAttributeText(attrName, valueArgs, 0, &tempAttrs)
-			if err != nil {
-				return "", parsedAttrs{}, 0, err
-			}
-			if extra == 0 {
-				return "", parsedAttrs{}, 0, fmt.Errorf("missing value for %s del", attrName)
-			}
-			// Copy parsed value to Del*Expected field
-			switch attrName {
-			case kwOrigin:
-				attrs.DelOriginExpected = tempAttrs.Origin
-			case kwMED:
-				attrs.DelMEDExpected = tempAttrs.MED
-			case kwLocalPref:
-				attrs.DelLocalPrefExpected = tempAttrs.LocalPreference
-			}
-			return mode, attrs, consumed + extra, nil
-		}
-		// For list attrs, fall through to regular parsing
-	}
-
-	// Parse the value using parseCommonAttributeText
-	// Build args slice: [attrName, value1, value2, ...] (skip mode keyword)
-	// parseCommonAttributeText expects: args[idx]=attrName, args[idx+1]=value
-	valueArgs := append([]string{attrName}, args[2:]...)
-	extra, err := parseCommonAttributeText(attrName, valueArgs, 0, &attrs)
+	label, err := strconv.ParseUint(args[1], 10, 32)
 	if err != nil {
-		return "", parsedAttrs{}, 0, err
+		return 0, fmt.Errorf("invalid label: %w", err)
 	}
-	if extra == 0 {
-		return "", parsedAttrs{}, 0, fmt.Errorf("missing value for %s %s", attrName, mode)
+	if label > 0xFFFFF { // 20-bit max
+		return 0, fmt.Errorf("label out of range (max 1048575): %d", label)
 	}
-
-	consumed += extra // value tokens consumed
-	return mode, attrs, consumed, nil
+	accum.Labels = []uint32{uint32(label)} //nolint:gosec // G115: bounded by check above
+	return 2, nil
 }
 
 // updateRPCs returns RPC registrations for handlers defined in this file.

@@ -35,25 +35,25 @@ EOF_RUN
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 66.66.66.66/32 88.88.88.88/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 66.66.66.66/32 88.88.88.88/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["66.66.66.66/32","88.88.88.88/32"],"next-hop":"1.2.3.4"}]}
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 192.168.1.100 nlri ipv4/unicast add 100.100.100.100/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 192.168.1.100 nlri ipv4/unicast add 100.100.100.100/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["100.100.100.100/32"],"next-hop":"192.168.1.100"}]}
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["77.77.77.77/32"],"next-hop":"1.2.3.4"}]}
 cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv4/unicast del 77.77.77.77/32
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 expect=json:conn=1:seq=2:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"ipv4/unicast":[{"action":"del","nlri":["77.77.77.77/32"]}]}
-cmd=api:conn=1:seq=3:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
+cmd=api:conn=1:seq=3:text=bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["77.77.77.77/32"],"next-hop":"1.2.3.4"}]}
 cmd=api:conn=1:seq=4:text=bgp peer * update text nlri ipv4/unicast del 77.77.77.77/32
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"ipv4/unicast":[{"action":"del","nlri":["77.77.77.77/32"]}]}
-cmd=api:conn=1:seq=5:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
+cmd=api:conn=1:seq=5:text=bgp peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
 expect=json:conn=1:seq=5:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["77.77.77.77/32"],"next-hop":"1.2.3.4"}]}
 cmd=api:conn=1:seq=6:text=bgp peer * update text nlri ipv4/unicast del 77.77.77.77/32

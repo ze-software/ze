@@ -160,7 +160,7 @@ After tokenizing, the parser reads tokens sequentially:
 3. For scalar: consume next token as value
 4. For list: consume next token, split by `,` for individual values
 5. For action key (like `nlri`): peek at next token:
-   - `path-id` — read modifier value, then expect action (`add`/`del`)
+   - `info` (`path-information`) — read modifier value, then expect action (`add`/`del`)
    - `add` / `del` — proceed to step 5a
    - 5a. After action, peek at following token:
      - Known sub-key — dict mode: read sub-key-value pairs until unrecognized token

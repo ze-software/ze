@@ -21,7 +21,7 @@ def main() -> None:
     ready()
 
     # Send a route first
-    send('bgp peer * update text nhop set 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
+    send('bgp peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
 
     # Wait for route to be processed
     wait_for_ack(expected_count=1)

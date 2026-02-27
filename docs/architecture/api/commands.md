@@ -192,11 +192,12 @@ bgp cache 12345 forward !10.0.0.1
 
 ### Route Commands (update text)
 
-All route operations use unified `update text` syntax:
+All route operations use unified `update text` syntax with flat attribute declarations
+(no `set` keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):
 
 ```bash
-# Announce routes
-peer <selector> update text nhop set <ip> [attributes...] nlri <family> add prefix <prefix>...
+# Announce routes (flat attributes, no 'set')
+peer <selector> update text next <ip> [attributes...] nlri <family> add prefix <prefix>...
 
 # Withdraw routes
 peer <selector> update text nlri <family> del prefix <prefix>...
@@ -219,8 +220,8 @@ The following legacy commands have been removed:
 
 | Old Command | Replacement |
 |-------------|-------------|
-| `announce ipv4/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add prefix <p>` |
-| `announce ipv6/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv6/unicast add prefix <p>` |
+| `announce ipv4/unicast <p> next-hop <nh>` | `update text next <nh> nlri ipv4/unicast add prefix <p>` |
+| `announce ipv6/unicast <p> next-hop <nh>` | `update text next <nh> nlri ipv6/unicast add prefix <p>` |
 | `announce eor <afi> <safi>` | `update text nlri <family> eor` |
 | `announce vpls ...` | `update text nlri l2vpn/vpls add ...` |
 | `announce l2vpn ...` | `update text nlri l2vpn/evpn add ...` |
@@ -238,7 +239,7 @@ watchdog withdraw <name>   # Withdraw all routes in pool from peers
 
 Routes are tagged with a pool when announced:
 ```bash
-update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
+update text next 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
 ```
 
 ### RIB Commands
@@ -277,7 +278,7 @@ show adj-rib out [<afi> <safi>]
 All route operations now use `update text` syntax:
 
 ```bash
-update text nhop set <ip> [attributes...] nlri <family> add prefix <prefix>
+update text next <ip> [attributes...] nlri <family> add prefix <prefix>
 update text nlri <family> del prefix <prefix>
 update text nlri <family> eor
 ```
@@ -378,25 +379,43 @@ Special values: `all` (default), `none`
 
 ## Route Attributes
 
+Attributes are flat keyword-value pairs (no `set` keyword). Both short and long forms accepted.
+API text output uses short forms; config output uses long forms.
+
 ```
-next-hop <ip>                    # Next-hop IP (required)
+next <ip>                        # Next-hop IP (required) — long: next-hop
 origin igp|egp|incomplete        # Origin attribute
-as-path [<asn> ...]             # AS path
-local-preference <int>           # Local preference
+path <asn>,<asn>,...             # AS path — long: as-path
+pref <int>                       # Local preference — long: local-preference
 med <int>                        # Multi-exit discriminator
-community [<comm> ...]           # Standard communities
-extended-community [<ext> ...]   # Extended communities
-large-community [<lc> ...]       # Large communities
+s-com <comm>,<comm>,...          # Standard communities — long: community
+x-com <ext>,<ext>,...            # Extended communities — long: extended-community
+l-com <lc>,<lc>,...              # Large communities — long: large-community
 originator-id <ip>               # Originator ID
-cluster-list [<ip> ...]          # Cluster list
-label [<label> ...]              # MPLS labels
-rd <rd>                          # Route distinguisher
-path-information <id>            # ADD-PATH path ID
+cluster-list <ip>,<ip>,...       # Cluster list
+label <label>                    # MPLS label (per-NLRI-section modifier)
+rd <rd>                          # Route distinguisher (per-NLRI-section modifier)
+info <id>                        # ADD-PATH path ID (per-NLRI-section modifier) — long: path-information
 atomic-aggregate                 # Atomic aggregate flag
 aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
 split /<len>                     # Ze: prefix expansion (see below)
 ```
+
+### Keyword Aliases
+
+| Long (config) | Short (API) | Also accepts |
+|----------------|-------------|--------------|
+| `next-hop` | `next` | `nhop` (legacy) |
+| `local-preference` | `pref` | — |
+| `as-path` | `path` | — |
+| `community` | `s-com` | `short-community` |
+| `large-community` | `l-com` | — |
+| `extended-community` | `x-com` | `e-com` |
+| `path-information` | `info` | — |
+| `route-distinguisher` | `rd` | — |
+
+Lists use commas (no spaces): `path 65001,65002`. Brackets accepted for transition: `as-path [65001 65002]`.
 
 ---
 
@@ -414,19 +433,19 @@ split /<target-length>
 
 ```
 # Announce 2 prefixes with one command
-update text nhop set 1.2.3.4 nlri ipv4/unicast add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 nlri ipv4/unicast add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 next-hop 1.2.3.4
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
 # With MPLS label - label applies to each prefix
-update text nhop set 1.2.3.4 nlri ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
+update text next 1.2.3.4 nlri ipv4/nlri-mpls label 100 add prefix 10.0.0.0/22 split /24
 # → 10.0.0.0/24 label 100
 # → 10.0.1.0/24 label 100
 # → 10.0.2.0/24 label 100
 # → 10.0.3.0/24 label 100
 
 # With L3VPN - RD and label apply to each prefix
-update text nhop set 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
+update text next 1.2.3.4 nlri ipv4/mpls-vpn rd 100:1 label 200 add prefix 10.0.0.0/23 split /24
 # → 10.0.0.0/24 rd 100:1 label 200
 # → 10.0.1.0/24 rd 100:1 label 200
 ```
@@ -636,11 +655,11 @@ func ParseSelector(s string) (*Selector, error) {
 ```go
 var Commands = []CommandInfo{
     {"daemon shutdown", false, nil},
-    {"peer * update text", true, []string{"nhop", "origin", ...}},
+    {"peer * update text", true, []string{"next", "origin", ...}},
     // ...
 }
 ```
 
 ---
 
-**Last Updated:** 2025-12-23
+**Last Updated:** 2026-02-27

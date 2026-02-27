@@ -2,13 +2,13 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 med set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C400101004002004003046501650180040400000064400504000000642001000001
-cmd=api:conn=1:seq=2:text=bgp peer * update text origin set igp local-preference set 100 med set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32
+cmd=api:conn=1:seq=2:text=bgp peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0038020000001C400101004002004003046501650180040400000064400504000000642001000002
-cmd=api:conn=1:seq=3:text=bgp peer * update text origin set igp as-path set [1 2 3 4] local-preference set 200 nhop set 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32
+cmd=api:conn=1:seq=3:text=bgp peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002740010100400212020400000001000000020000000300000004400304CA02CA02400504000000C82002000001
-cmd=api:conn=1:seq=4:text=bgp peer * update text origin set igp as-path set [1 2 3 4] local-preference set 200 nhop set 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32
+cmd=api:conn=1:seq=4:text=bgp peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002740010100400212020400000001000000020000000300000004400304CA02CA02400504000000C82002000002
 cmd=api:conn=1:seq=5:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
@@ -25,10 +25,10 @@ def main() -> None:
     ready()
 
     messages = [
-        'bgp peer * update text origin set igp local-preference set 100 med set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32',
-        'bgp peer * update text origin set igp local-preference set 100 med set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32',
-        'bgp peer * update text origin set igp as-path set [1 2 3 4] local-preference set 200 nhop set 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32',
-        'bgp peer * update text origin set igp as-path set [1 2 3 4] local-preference set 200 nhop set 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32',
+        'bgp peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.1/32',
+        'bgp peer * update text origin igp local-preference 100 med 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.0.0.2/32',
+        'bgp peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.1/32',
+        'bgp peer * update text origin igp as-path [1 2 3 4] local-preference 200 nhop 202.2.202.2 nlri ipv4/unicast add 2.0.0.2/32',
     ]
 
     for message in messages:

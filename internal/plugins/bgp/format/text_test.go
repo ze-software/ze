@@ -126,14 +126,14 @@ func TestFormatMessageText(t *testing.T) {
 	if !strings.Contains(got, "origin igp") {
 		t.Error("missing origin")
 	}
-	if !strings.Contains(got, "as-path 65001,65002") {
-		t.Error("missing comma-separated as-path")
+	if !strings.Contains(got, "path 65001,65002") {
+		t.Error("missing comma-separated as-path (short form: path)")
 	}
-	if !strings.Contains(got, "local-preference 100") {
-		t.Error("missing local-preference")
+	if !strings.Contains(got, "pref 100") {
+		t.Error("missing local-preference (short form: pref)")
 	}
-	if !strings.Contains(got, "next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24") {
-		t.Error("missing next-hop/nlri add")
+	if !strings.Contains(got, "next 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24") {
+		t.Error("missing next-hop/nlri add (short form: next)")
 	}
 }
 
@@ -984,6 +984,89 @@ func TestFormatMessageTextEncoding(t *testing.T) {
 	jsonOut := FormatMessage(peer, msg, jsonContent, "")
 	if !strings.HasPrefix(jsonOut, "{") {
 		t.Error("json encoding should produce JSON")
+	}
+}
+
+// TestFormatTextUpdate_ShortAliases verifies text output uses short-form keywords.
+//
+// VALIDATES: AC-13: event text formatter uses short aliases (next, path, pref, s-com, l-com, x-com).
+//
+// PREVENTS: Long-form keywords in API text output making messages unnecessarily verbose.
+func TestFormatTextUpdate_ShortAliases(t *testing.T) {
+	// Build a single attribute and verify text uses short form.
+	tests := []struct {
+		name string
+		code attribute.AttributeCode
+		attr attribute.Attribute
+		want string // expected text output fragment
+	}{
+		{
+			name: "next-hop uses next",
+			code: attribute.AttrNextHop,
+			attr: func() attribute.Attribute {
+				nh := attribute.NextHop{Addr: netip.MustParseAddr("10.0.0.1")}
+				return &nh
+			}(),
+			want: "next 10.0.0.1",
+		},
+		{
+			name: "as-path uses path",
+			code: attribute.AttrASPath,
+			attr: func() attribute.Attribute {
+				ap := attribute.ASPath{Segments: []attribute.ASPathSegment{
+					{Type: 2, ASNs: []uint32{65001, 65002}},
+				}}
+				return &ap
+			}(),
+			want: "path 65001,65002",
+		},
+		{
+			name: "local-preference uses pref",
+			code: attribute.AttrLocalPref,
+			attr: func() attribute.Attribute {
+				lp := attribute.LocalPref(100)
+				return &lp
+			}(),
+			want: "pref 100",
+		},
+		{
+			name: "community uses s-com",
+			code: attribute.AttrCommunity,
+			attr: func() attribute.Attribute {
+				c := attribute.Communities{attribute.Community(65000<<16 | 100)}
+				return &c
+			}(),
+			want: "s-com 65000:100",
+		},
+		{
+			name: "origin unchanged",
+			code: attribute.AttrOrigin,
+			attr: func() attribute.Attribute {
+				o := attribute.Origin(0)
+				return &o
+			}(),
+			want: "origin igp",
+		},
+		{
+			name: "med unchanged",
+			code: attribute.AttrMED,
+			attr: func() attribute.Attribute {
+				m := attribute.MED(42)
+				return &m
+			}(),
+			want: "med 42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sb strings.Builder
+			formatAttributeText(&sb, tt.code, tt.attr)
+			got := sb.String()
+			if got != tt.want {
+				t.Errorf("formatAttributeText() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
