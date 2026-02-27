@@ -1357,6 +1357,66 @@ func TestLayoutIncludesGridToggle(t *testing.T) {
 	}
 }
 
+// TestLayoutIncludesHealthDonut verifies the full page layout contains the SVG donut.
+//
+// VALIDATES: AC-1 — full page load shows donut in stats card.
+// PREVENTS: Donut missing from initial page render.
+func TestLayoutIncludesHealthDonut(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(10)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerDown
+
+	var buf strings.Builder
+	writeLayout(&buf, d)
+	html := buf.String()
+
+	if !strings.Contains(html, "<svg") {
+		t.Error("layout missing donut SVG element")
+	}
+	if !strings.Contains(html, "donut-legend") {
+		t.Error("layout missing donut legend")
+	}
+	// Other stats must still be present.
+	if !strings.Contains(html, "Msgs Sent") {
+		t.Error("layout missing Msgs Sent stat after donut")
+	}
+}
+
+// TestSidebarStatsIncludesDonut verifies the polling fallback includes the donut.
+//
+// VALIDATES: AC-8 — sidebar/stats polling endpoint returns donut.
+// PREVENTS: Donut missing from polling fallback.
+func TestSidebarStatsIncludesDonut(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	mux := http.NewServeMux()
+	if err := registerRoutes(mux, d); err != nil {
+		t.Fatal(err)
+	}
+
+	req := httptest.NewRequest("GET", "/sidebar/stats", http.NoBody)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != 200 {
+		t.Fatalf("sidebar/stats returned %d", rec.Code)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "<svg") {
+		t.Error("sidebar/stats missing donut SVG")
+	}
+	if !strings.Contains(body, "donut-legend") {
+		t.Error("sidebar/stats missing donut legend")
+	}
+}
+
 // TestProcessEventRouteAction verifies TotalRouteActions counter increments.
 //
 // VALIDATES: EventRouteAction increments TotalRouteActions counter.

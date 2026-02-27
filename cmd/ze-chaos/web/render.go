@@ -69,9 +69,14 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <div class="sidebar">
   <div class="card">
     <h3>Stats</h3>
-    <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">
-      <span class="stat" title="BGP sessions currently established / total configured"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(s.PeersUp) + `/` + itoa(s.PeerCount) + `</span></span>` +
-		syncingStatInline(s.PeersSyncing) + `
+    <div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">`)
+
+	// Donut chart showing peer status distribution.
+	counts := s.StatusCounts()
+	writeDonut(w, counts, s.PeerCount)
+	writeDonutLegend(w, counts)
+
+	h.write(`
       <span class="stat" title="Total BGP messages (routes) sent to Ze"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(s.TotalAnnounced) + `</span></span>
       <span class="stat" title="Total BGP messages (routes) received from Ze"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(s.TotalReceived) + `</span></span>
       <span class="stat" title="Total bytes sent to Ze by all peers"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(s.TotalBytesSent) + `</span></span>
@@ -356,6 +361,73 @@ func writePeerGridFiltered(w io.Writer, state *DashboardState, statusFilter stri
 		h.writef(`<div id="peer-cell-%d" class="peer-cell %s" title="Peer %d: %s | Sent: %d Recv: %d | Last: %s" hx-get="/peer/%d" hx-target="#peer-detail" hx-swap="outerHTML"></div>`,
 			idx, ps.Status.CSSClass(), idx, ps.Status.String(),
 			ps.RoutesSent, ps.RoutesRecv, eventTypeLabel(ps.LastEvent), idx)
+	}
+	h.write(`</div>`)
+}
+
+// donutStatusOrder defines the rendering order and colors for donut segments.
+// Each entry maps a PeerStatus to its CSS color variable.
+var donutStatusOrder = []struct {
+	Status PeerStatus
+	Color  string
+	Label  string
+}{
+	{PeerUp, "var(--green)", "Up"},
+	{PeerDown, "var(--red)", "Down"},
+	{PeerReconnecting, "var(--yellow)", "Reconn"},
+	{PeerSyncing, "var(--accent)", "Syncing"},
+	{PeerIdle, "var(--text-muted)", "Idle"},
+}
+
+// writeDonut renders an SVG donut ring chart showing peer status distribution.
+// counts is indexed by PeerStatus. total is the total peer count.
+func writeDonut(w io.Writer, counts [5]int, total int) {
+	h := &htmlWriter{w: w}
+
+	// SVG parameters: viewBox 0 0 120 120, circle at center (60,60), radius 50.
+	// Circumference = 2 * pi * 50 ≈ 314.159.
+	const (
+		cx     = 60
+		cy     = 60
+		radius = 50
+		circ   = 314.159
+	)
+
+	h.write(`<div class="donut-container"><svg class="donut" viewBox="0 0 120 120">`)
+
+	// Background ring (dim border color).
+	h.writef(`<circle cx="%d" cy="%d" r="%d" fill="none" stroke="var(--border)" stroke-width="10"/>`, cx, cy, radius)
+
+	if total > 0 {
+		offset := 0.0 // cumulative offset in dasharray units
+		for _, entry := range donutStatusOrder {
+			count := counts[entry.Status]
+			if count == 0 {
+				continue
+			}
+			segLen := float64(count) / float64(total) * circ
+			// stroke-dasharray: segment gap; stroke-dashoffset rotates start position.
+			// Offset is negative to rotate clockwise from 12 o'clock (-90deg start via rotation).
+			h.writef(`<circle cx="%d" cy="%d" r="%d" fill="none" stroke="%s" stroke-width="10" stroke-dasharray="%.2f %.2f" stroke-dashoffset="%.2f" transform="rotate(-90 %d %d)"/>`,
+				cx, cy, radius, entry.Color, segLen, circ-segLen, -offset, cx, cy)
+			offset += segLen
+		}
+	}
+
+	// Center text showing total count.
+	h.writef(`<text x="%d" y="%d" text-anchor="middle" dominant-baseline="central" class="donut-center">%d</text>`,
+		cx, cy, total)
+
+	h.write(`</svg></div>`)
+}
+
+// writeDonutLegend renders the legend below the donut with per-status counts.
+func writeDonutLegend(w io.Writer, counts [5]int) {
+	h := &htmlWriter{w: w}
+	h.write(`<div class="donut-legend">`)
+	for _, entry := range donutStatusOrder {
+		h.writef(`<span class="donut-legend-item"><span class="donut-legend-dot" style="background:%s"></span>%s <span class="donut-legend-count">%d</span></span>`,
+			entry.Color, entry.Label, counts[entry.Status])
 	}
 	h.write(`</div>`)
 }

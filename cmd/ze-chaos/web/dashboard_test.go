@@ -289,3 +289,211 @@ func TestRenderPeerCellLastEvent(t *testing.T) {
 		t.Error("tooltip should contain last event type")
 	}
 }
+
+// TestStatusCounts verifies StatusCounts returns correct distribution.
+//
+// VALIDATES: AC-2 — donut has proportional segments for each status.
+// PREVENTS: Incorrect status count computation.
+func TestStatusCounts(t *testing.T) {
+	t.Parallel()
+
+	state := NewDashboardState(10, 40, 100)
+	state.Peers[0].Status = PeerUp
+	state.Peers[1].Status = PeerUp
+	state.Peers[2].Status = PeerUp
+	state.Peers[3].Status = PeerUp
+	state.Peers[4].Status = PeerUp
+	state.Peers[5].Status = PeerUp
+	state.Peers[6].Status = PeerSyncing
+	state.Peers[7].Status = PeerSyncing
+	state.Peers[8].Status = PeerDown
+	state.Peers[9].Status = PeerIdle
+
+	counts := state.StatusCounts()
+	if counts[PeerUp] != 6 {
+		t.Errorf("Up count = %d, want 6", counts[PeerUp])
+	}
+	if counts[PeerSyncing] != 2 {
+		t.Errorf("Syncing count = %d, want 2", counts[PeerSyncing])
+	}
+	if counts[PeerDown] != 1 {
+		t.Errorf("Down count = %d, want 1", counts[PeerDown])
+	}
+	if counts[PeerIdle] != 1 {
+		t.Errorf("Idle count = %d, want 1", counts[PeerIdle])
+	}
+	if counts[PeerReconnecting] != 0 {
+		t.Errorf("Reconnecting count = %d, want 0", counts[PeerReconnecting])
+	}
+}
+
+// TestStatusCountsZeroPeers verifies StatusCounts handles zero peers.
+//
+// VALIDATES: AC-5 — zero peers produces no division-by-zero.
+// PREVENTS: Panic on empty peer map.
+func TestStatusCountsZeroPeers(t *testing.T) {
+	t.Parallel()
+
+	state := NewDashboardState(0, 40, 100)
+	counts := state.StatusCounts()
+	for s, c := range counts {
+		if c != 0 {
+			t.Errorf("status %d has count %d, want 0", s, c)
+		}
+	}
+}
+
+// TestRenderDonut verifies donut SVG has correct segments for mixed statuses.
+//
+// VALIDATES: AC-2 — donut has segments proportional to peer status counts.
+// PREVENTS: Missing SVG structure or incorrect segment rendering.
+func TestRenderDonut(t *testing.T) {
+	t.Parallel()
+
+	counts := [5]int{1, 6, 1, 0, 2} // Idle=1, Up=6, Down=1, Reconnecting=0, Syncing=2
+	var buf strings.Builder
+	writeDonut(&buf, counts, 10)
+	html := buf.String()
+
+	if !strings.Contains(html, "<svg") {
+		t.Error("donut missing <svg> element")
+	}
+	if !strings.Contains(html, "donut") {
+		t.Error("donut missing donut class")
+	}
+	if !strings.Contains(html, "<circle") {
+		t.Error("donut missing <circle> elements")
+	}
+	// Center text should show total.
+	if !strings.Contains(html, ">10<") {
+		t.Error("donut center should show total peer count")
+	}
+}
+
+// TestRenderDonutAllUp verifies single-status donut renders as full ring.
+//
+// VALIDATES: AC-3 — all peers Up produces a solid green ring.
+// PREVENTS: Full-ring edge case breaking SVG math.
+func TestRenderDonutAllUp(t *testing.T) {
+	t.Parallel()
+
+	counts := [5]int{0, 10, 0, 0, 0} // All Up
+	var buf strings.Builder
+	writeDonut(&buf, counts, 10)
+	html := buf.String()
+
+	if !strings.Contains(html, "<svg") {
+		t.Fatal("donut missing SVG")
+	}
+	// Should have exactly one circle segment (for Up).
+	circleCount := strings.Count(html, "<circle")
+	// Background circle + 1 segment = 2.
+	if circleCount < 2 {
+		t.Errorf("all-up donut should have at least 2 circles (bg + segment), got %d", circleCount)
+	}
+	if !strings.Contains(html, "var(--green)") {
+		t.Error("all-up donut should use green color")
+	}
+}
+
+// TestRenderDonutZeroPeers verifies zero peers produces empty ring.
+//
+// VALIDATES: AC-5 — zero peers shows empty ring with "0" center.
+// PREVENTS: Division by zero in segment calculation.
+func TestRenderDonutZeroPeers(t *testing.T) {
+	t.Parallel()
+
+	counts := [5]int{0, 0, 0, 0, 0}
+	var buf strings.Builder
+	writeDonut(&buf, counts, 0)
+	html := buf.String()
+
+	if !strings.Contains(html, "<svg") {
+		t.Fatal("donut missing SVG for zero peers")
+	}
+	if !strings.Contains(html, ">0<") {
+		t.Error("zero-peer donut should show 0 in center")
+	}
+}
+
+// TestRenderDonutLegend verifies legend shows per-status counts.
+//
+// VALIDATES: AC-10 — legend below donut shows per-status count labels.
+// PREVENTS: Missing legend or incorrect count labels.
+func TestRenderDonutLegend(t *testing.T) {
+	t.Parallel()
+
+	counts := [5]int{2, 5, 1, 1, 1}
+	var buf strings.Builder
+	writeDonutLegend(&buf, counts)
+	html := buf.String()
+
+	if !strings.Contains(html, "donut-legend") {
+		t.Error("legend missing donut-legend class")
+	}
+	// Check all statuses are labeled.
+	for _, label := range []string{"Up", "Down", "Syncing", "Reconn", "Idle"} {
+		if !strings.Contains(html, label) {
+			t.Errorf("legend missing label %q", label)
+		}
+	}
+	// Check counts.
+	if !strings.Contains(html, ">5<") {
+		t.Error("legend missing Up count 5")
+	}
+}
+
+// TestRenderStatsIncludesDonut verifies renderStats output contains donut SVG.
+//
+// VALIDATES: AC-8 — SSE stats event includes donut.
+// VALIDATES: AC-9 — all other stats still present after donut.
+// PREVENTS: Donut missing from SSE updates, or other stats removed.
+func TestRenderStatsIncludesDonut(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(10)
+	defer d.broker.Close()
+
+	d.state.Peers[0].Status = PeerUp
+	d.state.PeersUp = 1
+
+	html := d.renderStats()
+	if !strings.Contains(html, "<svg") {
+		t.Error("renderStats missing donut SVG")
+	}
+	if !strings.Contains(html, "donut-legend") {
+		t.Error("renderStats missing donut legend")
+	}
+	// Other stats must still be present.
+	if !strings.Contains(html, "Msgs Sent") {
+		t.Error("renderStats missing Msgs Sent stat")
+	}
+	if !strings.Contains(html, "Chaos") {
+		t.Error("renderStats missing Chaos stat")
+	}
+	// SSE attributes must be preserved.
+	if !strings.Contains(html, `sse-swap="stats"`) {
+		t.Error("renderStats missing sse-swap attribute")
+	}
+}
+
+// TestDonutSegmentColors verifies each status maps to correct CSS color.
+//
+// VALIDATES: AC-7 — Up=green, Syncing=cyan, Down=red, Reconnecting=yellow, Idle=grey.
+// PREVENTS: Wrong color mapping in donut segments.
+func TestDonutSegmentColors(t *testing.T) {
+	t.Parallel()
+
+	// One peer of each status.
+	counts := [5]int{1, 1, 1, 1, 1}
+	var buf strings.Builder
+	writeDonut(&buf, counts, 5)
+	html := buf.String()
+
+	colors := []string{"var(--green)", "var(--red)", "var(--yellow)", "var(--accent)", "var(--text-muted)"}
+	for _, c := range colors {
+		if !strings.Contains(html, c) {
+			t.Errorf("donut missing color %s", c)
+		}
+	}
+}

@@ -1112,6 +1112,15 @@ span.fm-complete {
   z-index: 1;
 }
 
+/* Health Donut */
+.donut-container { display: flex; justify-content: center; padding: 4px 0; }
+.donut { width: 100px; height: 100px; }
+.donut-center { fill: var(--text-primary); font-size: 20px; font-weight: 700; font-family: var(--font-mono); }
+.donut-legend { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 4px 0 6px; justify-content: center; }
+.donut-legend-item { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+.donut-legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.donut-legend-count { font-weight: 600; color: var(--text-primary); font-family: var(--font-mono); }
+
 /* Responsive */
 @media (max-width: 900px) {
   .content {

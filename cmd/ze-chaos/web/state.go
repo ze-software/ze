@@ -478,6 +478,18 @@ func (s *DashboardState) SortedFamilies() []string {
 	return fams
 }
 
+// StatusCounts returns the number of peers in each PeerStatus.
+// Must be called under at least a read lock.
+func (s *DashboardState) StatusCounts() [5]int {
+	var counts [5]int
+	for _, ps := range s.Peers {
+		if ps != nil {
+			counts[ps.Status]++
+		}
+	}
+	return counts
+}
+
 // FormatDuration formats a duration in a compact human-readable form.
 // Reimplemented here to avoid coupling with unexported report.formatDuration.
 func FormatDuration(d time.Duration) string {

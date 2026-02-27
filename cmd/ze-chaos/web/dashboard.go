@@ -565,9 +565,13 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 // renderStats returns a minimal stats HTML fragment for SSE.
 // Must preserve sse-swap and hx-swap attributes so future SSE events continue to work.
 func (d *Dashboard) renderStats() string {
+	var donutBuf strings.Builder
+	counts := d.state.StatusCounts()
+	writeDonut(&donutBuf, counts, d.state.PeerCount)
+	writeDonutLegend(&donutBuf, counts)
+
 	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
-		`<span class="stat"><span class="stat-label">Peers </span><span class="stat-value">` + itoa(d.state.PeersUp) + `/` + itoa(d.state.PeerCount) + `</span></span>` +
-		syncingStatInline(d.state.PeersSyncing) +
+		donutBuf.String() +
 		`<span class="stat"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
 		`<span class="stat"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span></span>` +
