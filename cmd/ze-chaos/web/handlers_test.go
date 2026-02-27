@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -1616,5 +1617,190 @@ func TestLayoutIncludesPanelToggle(t *testing.T) {
 	}
 	if !strings.Contains(body, `>Panels</button>`) {
 		t.Error("layout missing Panels button")
+	}
+}
+
+// TestPeerMatchesSearch verifies the search filter helper with table-driven cases.
+//
+// VALIDATES: AC-2, AC-3, AC-5 — search matches index, status, and empty string.
+// PREVENTS: Search filter returning wrong results.
+func TestPeerMatchesSearch(t *testing.T) {
+	t.Parallel()
+
+	ps := &PeerState{Index: 42, Status: PeerDown}
+
+	tests := []struct {
+		name   string
+		search string
+		want   bool
+	}{
+		{"empty matches all", "", true},
+		{"index exact", "42", true},
+		{"index prefix", "4", true},
+		{"status contains", "down", true},
+		{"status case insensitive", "DOWN", true},
+		{"status partial", "dow", true},
+		{"no match", "xyz", false},
+		{"index no match", "99", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			if got := peerMatchesSearch(ps, tt.search); got != tt.want {
+				t.Errorf("peerMatchesSearch(%d/%s, %q) = %v, want %v", ps.Index, ps.Status, tt.search, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestHandlePeersSearchSingle verifies search by peer index returns only that peer.
+//
+// VALIDATES: AC-2 — typing "2" shows peer 2 (if in active set).
+// PREVENTS: Search filter not working with handlePeers endpoint.
+func TestHandlePeersSearchSingle(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	// Promote peers 0-4 into active set.
+	for i := range 5 {
+		d.state.Active.Promote(i, PriorityMedium, time.Now())
+		d.state.Peers[i].Status = PeerUp
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/peers?search=2", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handlePeers(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-2"`) {
+		t.Error("expected peer 2 in search results")
+	}
+	// Peer 0, 1, 3, 4 should not match "2" as prefix.
+	for _, i := range []int{0, 1, 3, 4} {
+		needle := `id="peer-` + strconv.Itoa(i) + `"`
+		if strings.Contains(body, needle) {
+			t.Errorf("peer %d should not match search '2'", i)
+		}
+	}
+}
+
+// TestHandlePeersSearchStatus verifies search by status text.
+//
+// VALIDATES: AC-3 — typing "down" shows only down peers.
+// PREVENTS: Status text search not working.
+func TestHandlePeersSearchStatus(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	for i := range 5 {
+		d.state.Active.Promote(i, PriorityMedium, time.Now())
+	}
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerDown
+	d.state.Peers[2].Status = PeerUp
+	d.state.Peers[3].Status = PeerDown
+	d.state.Peers[4].Status = PeerUp
+
+	req := httptest.NewRequest(http.MethodGet, "/peers?search=down", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handlePeers(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-1"`) {
+		t.Error("expected peer 1 (down) in results")
+	}
+	if !strings.Contains(body, `id="peer-3"`) {
+		t.Error("expected peer 3 (down) in results")
+	}
+	if strings.Contains(body, `id="peer-0"`) {
+		t.Error("peer 0 (up) should not match 'down'")
+	}
+}
+
+// TestHandlePeersSearchWithStatusFilter verifies AND logic between search and status filter.
+//
+// VALIDATES: AC-4 — search + status filter combine with AND logic.
+// PREVENTS: One filter overriding the other.
+func TestHandlePeersSearchWithStatusFilter(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	for i := range 5 {
+		d.state.Active.Promote(i, PriorityMedium, time.Now())
+	}
+	d.state.Peers[0].Status = PeerUp
+	d.state.Peers[1].Status = PeerUp
+	d.state.Peers[2].Status = PeerDown
+	d.state.Peers[3].Status = PeerUp
+	d.state.Peers[4].Status = PeerDown
+
+	// Search "0" + status "up": only peer 0 matches (index starts with "0" AND status is "up").
+	req := httptest.NewRequest(http.MethodGet, "/peers?search=0&status=up", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handlePeers(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, `id="peer-0"`) {
+		t.Error("expected peer 0 in results (index '0' + status 'up')")
+	}
+	if strings.Contains(body, `id="peer-1"`) {
+		t.Error("peer 1 should not match search '0'")
+	}
+}
+
+// TestHandlePeersSearchNoMatch verifies empty result when search has no matches.
+//
+// VALIDATES: AC-6 — no matches produces empty tbody.
+// PREVENTS: Showing wrong peers when search has no match.
+func TestHandlePeersSearchNoMatch(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	for i := range 5 {
+		d.state.Active.Promote(i, PriorityMedium, time.Now())
+		d.state.Peers[i].Status = PeerUp
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/peers?search=99999", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handlePeers(w, req)
+
+	body := w.Body.String()
+	for i := range 5 {
+		needle := `id="peer-` + strconv.Itoa(i) + `"`
+		if strings.Contains(body, needle) {
+			t.Errorf("peer %d should not match search '99999'", i)
+		}
+	}
+}
+
+// TestLayoutIncludesSearchInput verifies the filter bar has a search input.
+//
+// VALIDATES: AC-1, AC-8 — search input visible with debounce trigger.
+// PREVENTS: Missing search input in layout.
+func TestLayoutIncludesSearchInput(t *testing.T) {
+	t.Parallel()
+
+	d := newTestDashboard(5)
+	defer d.broker.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+	d.handleIndex(w, req)
+	body := w.Body.String()
+
+	if !strings.Contains(body, `name="search"`) {
+		t.Error("layout missing search input")
+	}
+	if !strings.Contains(body, `delay:200ms`) {
+		t.Error("search input missing debounce trigger")
 	}
 }

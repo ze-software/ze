@@ -96,7 +96,7 @@ func (d *Dashboard) handleIndex(w http.ResponseWriter, _ *http.Request) {
 }
 
 // handlePeers serves the peer table body fragment with sorting and filtering.
-// Query params: sort (column), dir (asc/desc), status (up/down/reconnecting/idle).
+// Query params: sort (column), dir (asc/desc), status (up/down/reconnecting/idle), search (text filter).
 func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	d.state.RLock()
 	defer d.state.RUnlock()
@@ -104,6 +104,7 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	sortCol := r.URL.Query().Get("sort")
 	sortDir := r.URL.Query().Get("dir")
 	statusFilter := r.URL.Query().Get("status")
+	search := r.URL.Query().Get("search")
 
 	// Get active set peer indices.
 	indices := d.state.Active.Indices()
@@ -130,6 +131,18 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 		indices = filtered
 	}
 
+	// Filter by search text if provided.
+	if search != "" {
+		var filtered []int
+		for _, idx := range indices {
+			ps := d.state.Peers[idx]
+			if ps != nil && peerMatchesSearch(ps, search) {
+				filtered = append(filtered, idx)
+			}
+		}
+		indices = filtered
+	}
+
 	// Sort.
 	sortPeers(indices, d.state, sortCol, sortDir)
 
@@ -138,6 +151,21 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	h.write(`<tbody id="peer-tbody">`)
 	writePeerRows(w, d.state, indices)
 	h.write(`</tbody>`)
+}
+
+// peerMatchesSearch returns true if the peer matches the search text.
+// Matches against peer index (as string prefix) or status text (case-insensitive substring).
+func peerMatchesSearch(ps *PeerState, search string) bool {
+	if search == "" {
+		return true
+	}
+	lower := strings.ToLower(search)
+	// Match peer index as string prefix.
+	if strings.HasPrefix(strconv.Itoa(ps.Index), lower) {
+		return true
+	}
+	// Match status text as case-insensitive substring.
+	return strings.Contains(ps.Status.String(), lower)
 }
 
 // handlePeersGrid serves the peer grid view with all peers as colored cells.

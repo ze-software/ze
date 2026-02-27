@@ -159,9 +159,12 @@ func writeLayout(w io.Writer, d *Dashboard) {
 <div class="main">
   <div id="toast-container" class="toast-container" sse-swap="toast" hx-swap="beforeend"></div>
   <div class="filters">
+    <input type="text" name="search" placeholder="Search peers..." autocomplete="off"
+           hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML"
+           hx-trigger="keyup changed delay:200ms" hx-include="[name='sort'],[name='dir'],[name='status']">
     <label>Status:</label>
     <select hx-get="/peers" hx-target="#peer-tbody" hx-swap="outerHTML" name="status"
-            hx-include="[name='sort'],[name='dir']">
+            hx-include="[name='sort'],[name='dir'],[name='search']">
       <option value="" selected>Relevant</option>
       <option value="fault">With Fault</option>
       <option value="up">Up</option>
