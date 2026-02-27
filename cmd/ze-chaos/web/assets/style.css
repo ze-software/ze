@@ -1211,6 +1211,44 @@ span.fm-complete {
   padding: 0;
 }
 
+/* Convergence trend percentile bars */
+.trend-bars { padding: 8px 16px; }
+.trend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.trend-label {
+  width: 28px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: right;
+}
+.trend-track {
+  flex: 1;
+  height: 18px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.trend-p50 { height: 100%; background: var(--green); border-radius: 3px; transition: width 0.3s; }
+.trend-p90 { height: 100%; background: var(--yellow); border-radius: 3px; transition: width 0.3s; }
+.trend-p99 { height: 100%; background: var(--red); border-radius: 3px; transition: width 0.3s; }
+.trend-value {
+  width: 60px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+.trend-count {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 4px 0;
+}
+
 @media (max-width: 900px) {
   .content {
     grid-template-columns: 1fr;

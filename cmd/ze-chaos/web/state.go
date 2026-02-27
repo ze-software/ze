@@ -7,6 +7,7 @@ package web
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -331,6 +332,29 @@ func (h *ConvergenceHistogram) MaxCount() int {
 	return max
 }
 
+// ConvergencePercentiles holds p50, p90, p99 convergence latencies.
+type ConvergencePercentiles struct {
+	P50, P90, P99 time.Duration
+	Count         int
+}
+
+// ComputeConvergencePercentiles computes p50, p90, p99 from the rolling buffer.
+// The buffer contents are copied and sorted; the original is not modified.
+func ComputeConvergencePercentiles(rb *RingBuffer[time.Duration]) ConvergencePercentiles {
+	items := rb.All()
+	n := len(items)
+	if n == 0 {
+		return ConvergencePercentiles{}
+	}
+	slices.Sort(items)
+	return ConvergencePercentiles{
+		P50:   items[n*50/100],
+		P90:   items[min(n*90/100, n-1)],
+		P99:   items[min(n*99/100, n-1)],
+		Count: n,
+	}
+}
+
 // ChaosHistoryEntry records a single chaos action for the timeline.
 type ChaosHistoryEntry struct {
 	Time      time.Time
@@ -424,6 +448,10 @@ type DashboardState struct {
 	// Warmup duration for chaos timeline rendering.
 	WarmupDuration time.Duration
 
+	// ConvergenceTrend is a rolling window of raw convergence latency values
+	// for percentile computation (p50, p90, p99).
+	ConvergenceTrend *RingBuffer[time.Duration]
+
 	// ConvergenceDeadline for histogram deadline marker.
 	ConvergenceDeadline time.Duration
 
@@ -448,18 +476,19 @@ func NewDashboardState(peerCount, maxVisible, eventBufSize int) *DashboardState 
 		peers[i] = NewPeerState(i, 100) // 100 events per peer ring buffer
 	}
 	return &DashboardState{
-		Peers:           peers,
-		Active:          NewActiveSet(maxVisible),
-		StartTime:       time.Now(),
-		PeerCount:       peerCount,
-		EORSeen:         make([]bool, peerCount),
-		GlobalEvents:    NewRingBuffer[peer.Event](eventBufSize),
-		Convergence:     NewConvergenceHistogram(),
-		PeerTransitions: make(map[int][]PeerStateTransition, peerCount),
-		RouteMatrix:     NewRouteMatrix(),
-		AllFamilies:     make(map[string]bool),
-		dirtyPeers:      make(map[int]bool),
-		newlyPromoted:   make(map[int]bool),
+		Peers:            peers,
+		Active:           NewActiveSet(maxVisible),
+		StartTime:        time.Now(),
+		PeerCount:        peerCount,
+		EORSeen:          make([]bool, peerCount),
+		GlobalEvents:     NewRingBuffer[peer.Event](eventBufSize),
+		Convergence:      NewConvergenceHistogram(),
+		ConvergenceTrend: NewRingBuffer[time.Duration](1000),
+		PeerTransitions:  make(map[int][]PeerStateTransition, peerCount),
+		RouteMatrix:      NewRouteMatrix(),
+		AllFamilies:      make(map[string]bool),
+		dirtyPeers:       make(map[int]bool),
+		newlyPromoted:    make(map[int]bool),
 	}
 }
 

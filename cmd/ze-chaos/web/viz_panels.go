@@ -29,6 +29,7 @@ var vizTabs = []vizTab{
 	{Name: "route-matrix", Label: "Route Matrix", Interval: "2s"},
 	{Name: "chaos-timeline", Label: "Chaos Timeline", Interval: "2s"},
 	{Name: "chaos-events", Label: "Chaos Events", Interval: "2s"},
+	{Name: "convergence-trend", Label: "Conv. Trend", Interval: "2s"},
 }
 
 // defaultPanelSelections holds the initial viz for each of the 4 panel slots.
@@ -170,6 +171,8 @@ func renderVizToBuffer(w io.Writer, d *Dashboard, vizName string) {
 		writeChaosTimeline(w, d.state, d.state.WarmupDuration)
 	case "chaos-events":
 		writeChaosEvents(w, d.state)
+	case "convergence-trend":
+		writeConvergenceTrend(w, d.state.ConvergenceTrend)
 	}
 }
 

@@ -352,6 +352,7 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		if ev.Prefix.IsValid() {
 			if latency := d.state.RouteMatrix.RecordReceived(ev.PeerIndex, ev.Prefix, ev.Time); latency > 0 {
 				d.state.Convergence.Record(latency)
+				d.state.ConvergenceTrend.Push(latency)
 			}
 		} else if ev.Family != "" {
 			d.state.RouteMatrix.RecordNonUnicastReceived(ev.PeerIndex, ev.Family)
@@ -538,12 +539,14 @@ func (d *Dashboard) broadcastDirty(broadcastConvergence bool) {
 		d.broker.Broadcast(SSEEvent{Event: "events", Data: events})
 	}
 
-	// Broadcast convergence histogram (~every 2s).
+	// Broadcast convergence histogram and trend (~every 2s).
 	if broadcastConvergence {
 		d.state.mu.RLock()
 		convergence := d.renderConvergence()
+		trend := d.renderConvergenceTrend()
 		d.state.mu.RUnlock()
 		d.broker.Broadcast(SSEEvent{Event: "convergence", Data: convergence})
+		d.broker.Broadcast(SSEEvent{Event: "convergence-trend", Data: trend})
 	}
 
 	// Broadcast new rows for newly promoted peers.

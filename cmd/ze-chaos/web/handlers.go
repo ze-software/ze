@@ -50,6 +50,9 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("GET /viz/panels", d.handleVizPanels)
 	mux.HandleFunc("GET /viz/panel-content", d.handleVizPanelContent)
 
+	// Convergence trend (rolling percentile chart).
+	mux.HandleFunc("GET /viz/convergence-trend", d.handleVizConvergenceTrend)
+
 	// Sidebar polling fallbacks (supplement SSE).
 	mux.HandleFunc("GET /sidebar/stats", d.handleSidebarStats)
 	mux.HandleFunc("GET /sidebar/active-set", d.handleSidebarActiveSet)

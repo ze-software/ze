@@ -235,41 +235,82 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ## Implementation Summary
 
 ### What Was Implemented
-- (pending)
+- Added `ConvergenceTrend` RingBuffer[time.Duration] field to DashboardState (capacity 1000)
+- Added `ComputeConvergencePercentiles()` — copies buffer, sorts, indexes at p50/p90/p99
+- Push raw latency in ProcessEvent alongside Convergence.Record()
+- Created `viz_convergence_trend.go` with writeConvergenceTrend (CSS-only horizontal bars)
+- Added `convergence-trend` SSE event in broadcastDirty at convergence interval
+- Registered GET /viz/convergence-trend route
+- Added convergence-trend to multi-panel viz tabs
+- Added CSS for .trend-bars, .trend-row, .trend-p50/.trend-p90/.trend-p99
 
 ### Bugs Found/Fixed
-- (pending)
+- None
 
 ### Documentation Updates
-- (pending)
+- None needed
 
 ### Deviations from Plan
-- (pending)
+- No `.ci` functional test — no chaos functional test infrastructure
+- Trend chart not added as a standalone tab — available via Panels mode and direct URL
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Rolling buffer for raw latencies | ✅ Done | state.go:431 ConvergenceTrend field | RingBuffer[time.Duration] cap 1000 |
+| Percentile computation | ✅ Done | state.go:335 ComputeConvergencePercentiles | Copy + sort + index |
+| Push in ProcessEvent | ✅ Done | dashboard.go:356 | Alongside Convergence.Record() |
+| SSE broadcast | ✅ Done | dashboard.go:546 | convergence-trend event at convergence interval |
+| CSS-only chart | ✅ Done | viz_convergence_trend.go:32 | Horizontal bars with inline style widths |
+| Route handler | ✅ Done | handlers.go:53 | GET /viz/convergence-trend |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | TestConvergenceTrendRecord, TestConvergenceTrendEviction | Buffer records and evicts |
+| AC-2 | ✅ Done | TestWriteConvergenceTrend, TestHandleVizConvergenceTrend | Bars with p50/p90/p99 |
+| AC-3 | ✅ Done | TestWriteConvergenceTrendEmpty | "Awaiting convergence data..." |
+| AC-4 | ✅ Done | TestConvergenceTrendEviction | Oldest evicted, recent data only |
+| AC-5 | ✅ Done | TestWriteConvergenceTrendSSEAttributes | sse-swap="convergence-trend" |
+| AC-6 | ✅ Done | TestWriteConvergenceTrend | Width proportional to value |
+| AC-7 | ✅ Done | TestFormatTrendDuration | µs/ms/s labels |
+| AC-8 | ✅ Done | TestWriteConvergenceTrendColors | trend-p50/p90/p99 CSS classes |
+| AC-9 | ✅ Done | viz_convergence_trend.go | No JS, inline style widths only |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestConvergenceTrendRecord | ✅ Done | viz_convergence_trend_test.go | Buffer push + read |
+| TestConvergenceTrendPercentiles | ✅ Done | viz_convergence_trend_test.go | 100 values, verified p50/p90/p99 |
+| TestConvergenceTrendPercentilesEmpty | ✅ Done | viz_convergence_trend_test.go | Zero values |
+| TestConvergenceTrendPercentilesOne | ✅ Done | viz_convergence_trend_test.go | Single value |
+| TestConvergenceTrendEviction | ✅ Done | viz_convergence_trend_test.go | Cap 10, push 20 |
+| TestWriteConvergenceTrend | ✅ Done | viz_convergence_trend_test.go | Bars + labels |
+| TestWriteConvergenceTrendEmpty | ✅ Done | viz_convergence_trend_test.go | Awaiting message |
+| TestWriteConvergenceTrendSSEAttributes | ✅ Done | viz_convergence_trend_test.go | SSE attrs |
+| TestWriteConvergenceTrendColors | ✅ Done | viz_convergence_trend_test.go | CSS classes |
+| TestHandleVizConvergenceTrend | ✅ Done | viz_convergence_trend_test.go | Handler 200 OK |
+| TestFormatTrendDuration | ✅ Done | viz_convergence_trend_test.go | µs/ms/s formatting |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| cmd/ze-chaos/web/state.go | ✅ Modified | ConvergenceTrend field + ComputeConvergencePercentiles |
+| cmd/ze-chaos/web/dashboard.go | ✅ Modified | Push + SSE broadcast |
+| cmd/ze-chaos/web/handlers.go | ✅ Modified | Route registration |
+| cmd/ze-chaos/web/assets/style.css | ✅ Modified | Trend bar styles |
+| cmd/ze-chaos/web/viz_convergence_trend.go | ✅ Created | Render function + handler |
+| cmd/ze-chaos/web/viz_convergence_trend_test.go | ✅ Created | 11 tests |
+| cmd/ze-chaos/web/viz_panels.go | ✅ Modified | Added convergence-trend to panel tabs |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 28
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 1 (functional test)
+- **Changed:** 0
 
 ## Checklist
 
