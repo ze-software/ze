@@ -21,23 +21,18 @@ Phase 1 is fully implemented: `consumers int32`, `Activate()`, `Decrement()`, `p
 ~~2. **TTL expiry**: Entry expires between event dispatch and plugin's `forward` call~~
 ~~3. **Destructive Take()**: `ForwardUpdate` removes the entry — only one consumer ever~~
 
-### Phase 2 — Mandatory consumer acknowledgment
+### Phase 2 — Mandatory consumer acknowledgment (DONE)
 
-Replace TTL-based eviction with mandatory consumer acknowledgment. The cache must never discard an entry based on time — entries are evicted ONLY when all consumers have explicitly acted (forward or drop).
+~~Replace TTL-based eviction with mandatory consumer acknowledgment. The cache must never discard an entry based on time — entries are evicted ONLY when all consumers have explicitly acted (forward or release).~~
 
-**Design principles:**
-1. **No TTL eviction** — entries remain in cache until all subscribed plugins respond with "forward" or "drop". TTL is removed entirely as an eviction mechanism.
-2. **Mandatory action** — every plugin that subscribes to UPDATE events MUST respond to every update it receives. No silent ignoring. A plugin that subscribes is obligated to ack every entry.
-3. **FIFO ordering** — plugin acknowledgments MUST follow receive order. A plugin cannot ack update N before it has acked updates 1..N-1. Buffering within the plugin is permitted, but acks to the engine must be ordered.
-4. **Gap-based safety valve** — timeout applies only to entries that have been **passed over**: a later entry has been fully acked by all plugins, but this older entry still has consumers > 0. This detects crashed or stuck plugins without penalizing slow-but-correct processing. An entry at the processing frontier (nothing after it is fully acked) is never timed out — it's just slow.
-5. **Immediate eviction on last ack** — when `Decrement()` drops consumers to 0, evict the entry immediately (return buffer to pool, delete from map). No TTL delay, no lazy cleanup scan. The normal hot path is O(1).
-6. **Safety-valve-only scan** — the periodic cleanup scan is only needed for gap detection (entries passed over). Normal entries are evicted immediately by `Decrement()`. The scan runs infrequently (every 30-60s) and only matters for fault detection.
-7. **Cache grows as needed** — the soft limit warns but never rejects. Memory is the tradeoff for correctness.
+Phase 2 is fully implemented: TTL removed entirely, `Ack()` replaces `Decrement()` for plugin consumers, FIFO cumulative ack via `seqmap.Since()`, per-plugin tracking via `pluginLastAck`, gap-based safety valve with background goroutine (`Start()`/`Stop()`), `RegisterConsumer()`/`UnregisterConsumer()` lifecycle, unordered consumer support (`SetConsumerUnordered()` for bgp-rs).
 
-**Failure modes addressed by Phase 2:**
-1. **Silent drop via TTL** — plugin too slow → entry expires → UPDATE lost silently. Fix: no TTL, entry stays until acked.
-2. **Plugin ignores update** — plugin receives event, never acts. Fix: mandatory ack — engine detects missing acks via FIFO gap.
-3. **Out-of-order processing** — plugin processes update 5 before update 3, forwarding stale state. Fix: FIFO ordering enforcement.
+**Design changes from original plan:**
+1. ~~`bgp cache N drop` command~~ — not needed. `release` serves as both release and drop (ack without forward).
+2. ~~FIFO violation rejection~~ — out-of-order acks are silently accepted as no-ops (not rejected). Multi-peer delivery causes non-ID-ordered events; rejection would break real workloads.
+3. ~~SDK `DropUpdate()` method~~ — not needed. Plugins use `release` to ack without forwarding.
+4. **Unordered consumers** (not in original plan) — `SetConsumerUnordered()` added for bgp-rs per-source-peer workers that process entries out of global message ID order.
+5. **Count-based + retain split** — `pendingConsumers int` (plugin consumers) + `retainCount int32` (API retains) replaces single `consumers int32`. `totalConsumers()` combines both.
 
 ## Required Reading
 
@@ -87,14 +82,14 @@ Replace TTL-based eviction with mandatory consumer acknowledgment. The cache mus
 - ~~Event dispatch ordering: dispatch AFTER cache insertion (not before)~~ ✅
 - ~~Buffer ownership: cache always owns buffer, `ForwardUpdate` doesn't call `Release()`~~ ✅
 
-**Behavior to change (Phase 2 — mandatory ack):**
-- TTL-based eviction → removed entirely. Entries evicted only when all consumers ack.
-- `ttl` field on `RecentUpdateCache` → removed. Constructor no longer takes `ttl` parameter.
-- Lazy cleanup scan → replaced by ack-driven eviction. When last consumer acks, entry is immediately evictable.
-- Safety valve remains (5 min) but is ONLY for crashed plugin detection, not normal operation.
-- New `bgp cache N drop` command — plugin explicitly drops an update without forwarding.
-- FIFO ordering — engine tracks per-plugin sequence numbers and rejects out-of-order acks.
-- Per-plugin ack tracking — engine knows which plugins have acked which updates, can detect stalled plugins.
+**Behavior to change (Phase 2 — mandatory ack, DONE):**
+- ~~TTL-based eviction → removed entirely. Entries evicted only when all consumers ack.~~ ✅
+- ~~`ttl` field on `RecentUpdateCache` → removed. Constructor no longer takes `ttl` parameter.~~ ✅
+- ~~Lazy cleanup scan → replaced by ack-driven eviction + gap-based background scan.~~ ✅
+- ~~Safety valve → gap-based only (5 min), background goroutine (`Start()`/`Stop()`).~~ ✅
+- ~~FIFO ordering — cumulative ack via `seqmap.Since()`, out-of-order acks are no-ops.~~ ✅
+- ~~Per-plugin ack tracking — `pluginLastAck map[string]uint64`, `RegisterConsumer()`/`UnregisterConsumer()`.~~ ✅
+- ~~Unordered consumer support — `SetConsumerUnordered()` for bgp-rs per-source-peer workers.~~ ✅
 
 ## Data Flow (MANDATORY)
 
@@ -111,20 +106,20 @@ Replace TTL-based eviction with mandatory consumer acknowledgment. The cache mus
 7. `ForwardUpdate` calls `Get(id)` (non-destructive), sends to peers, calls `Decrement(id)` ✅
 8. When all consumers decrement to 0: entry becomes TTL-evictable, lazy cleanup returns buffer to pool
 
-### Transformation Path (Phase 2 — mandatory ack)
+### Transformation Path (Phase 2 — mandatory ack, DONE)
 Steps 1-7 remain the same. Changes to step 5 and 8:
 
-5a. Plugin receives event, parses, decides action:
-    - Forward: `updateRoute("*", "bgp cache N forward selector")` — same as today
-    - Drop: `updateRoute("*", "bgp cache N drop")` — NEW command, explicit discard
-    - Plugin MUST do one of these for every update. No silent ignore.
+~~5a. Plugin receives event, parses, decides action:~~
+~~- Forward: `updateRoute("*", "bgp cache N forward selector")` → calls `ForwardUpdate` → deferred `Ack()`~~ ✅
+~~- Release: `updateRoute("*", "bgp cache N release")` → calls `ReleaseUpdate` → `Ack()` without forwarding~~ ✅
+~~- Plugin MUST do one of these for every update.~~ ✅
 
-5b. Engine validates FIFO ordering per plugin:
-    - Engine tracks `lastAckedID` per plugin
-    - Ack for update N rejected if N > lastAckedID + 1 (gap = missing ack)
-    - Plugin can batch: ack N implicitly acks all updates up to N from that plugin
+~~5b. Engine validates FIFO ordering per plugin:~~
+~~- Engine tracks `pluginLastAck[plugin]` per registered consumer~~ ✅
+~~- Ack for id <= lastAck is a no-op (already covered by cumulative ack)~~ ✅
+~~- Cumulative ack: ack for id N implicitly acks all cached entries between lastAck+1 and N via `seqmap.Since()`~~ ✅
 
-8. When all consumers decrement to 0: entry immediately evicted, buffer returned to pool. No TTL delay.
+~~8. When all consumers ack to 0: entry immediately evicted via `evictLocked()`, buffers returned to pool. No TTL delay.~~ ✅
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -161,19 +156,19 @@ Steps 1-7 remain the same. Changes to step 5 and 8:
 | AC-7 | `ForwardUpdate` with refcounted entry | Uses `Get()` (non-destructive) + `Decrement()`, buffer NOT released by ForwardUpdate | ✅ |
 | AC-8 | Concurrent `Decrement()` from multiple goroutines | Atomic, race-free | ✅ |
 
-### Phase 2 (mandatory ack)
+### Phase 2 (mandatory ack, DONE)
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-9 | Entry with all consumers at 0 (all acked), no TTL field | Entry immediately evicted, buffer returned to pool |
-| AC-10 | Entry with consumers > 0, later entry fully acked, timeout elapsed | Safety valve evicts (gap detected — plugin passed over this entry) |
-| AC-11 | Plugin calls `bgp cache N drop` | Consumer count decremented, entry NOT forwarded, ack recorded |
-| AC-12 | Plugin sends ack for update N without acking N-1 | Engine rejects: FIFO violation. Plugin must ack in receive order |
-| AC-13 | Plugin sends ack for update N, implicitly acking 1..N | All entries 1..N decremented for that plugin |
-| AC-14 | RR plugin receives update, does neither forward nor drop, but later entries are fully acked | Engine detects gap (passed-over entry), force-evicts after timeout |
-| AC-15 | Cache has 500K entries, all with consumers > 0 | No eviction, cache grows as needed. Soft limit warns (rate-limited), never rejects |
-| AC-16 | `NewRecentUpdateCache` constructor | No `ttl` parameter. Cache does not have TTL-based eviction |
-| AC-17 | Entry with consumers > 0, no later entry fully acked, timeout elapsed | NOT evicted — entry is at the processing frontier, plugin is just slow |
+| AC ID | Input / Condition | Expected Behavior | Status |
+|-------|-------------------|-------------------|--------|
+| AC-9 | Entry with all consumers at 0 (all acked), no TTL field | Entry immediately evicted, buffer returned to pool | ✅ |
+| AC-10 | Entry with consumers > 0, later entry fully acked, timeout elapsed | Safety valve evicts (gap detected — plugin passed over this entry) | ✅ |
+| ~~AC-11~~ | ~~Plugin calls `bgp cache N drop`~~ | ~~Consumer count decremented, entry NOT forwarded~~ | Removed — `release` serves as drop |
+| ~~AC-12~~ | ~~Plugin sends ack for update N without acking N-1~~ | ~~Engine rejects: FIFO violation~~ | 🔄 Changed — out-of-order ack is no-op, not rejection |
+| AC-13 | Plugin sends ack for update N, implicitly acking 1..N | All cached entries between lastAck+1..N decremented for that plugin | ✅ |
+| AC-14 | Plugin receives update, does neither forward nor release, but later entries are fully acked | Engine detects gap (passed-over entry), force-evicts after timeout | ✅ |
+| AC-15 | Cache has 500K entries, all with consumers > 0 | No eviction, cache grows as needed. Soft limit warns (rate-limited), never rejects | ✅ |
+| AC-16 | `NewRecentUpdateCache` constructor | No `ttl` parameter. Cache does not have TTL-based eviction | ✅ |
+| AC-17 | Entry with consumers > 0, no later entry fully acked, timeout elapsed | NOT evicted — entry is at the processing frontier, plugin is just slow | ✅ |
 
 ## 🧪 TDD Test Plan
 
@@ -190,19 +185,39 @@ Steps 1-7 remain the same. Changes to step 5 and 8:
 | `TestCacheRetainIncrementsConsumers` | `recent_cache_test.go` | Retain adds 1, Release subtracts 1 (backward compat) | ✅ |
 | `TestCacheBufferReturnedOnEviction` | `recent_cache_test.go` | Buffer returned to pool only when evicted with consumers=0 | ✅ |
 
-### Unit Tests (Phase 2 — mandatory ack)
+### Unit Tests (Phase 2 — mandatory ack, DONE)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCacheNoTTLEviction` | `recent_cache_test.go` | Entry with consumers > 0 is never evicted by time alone | |
-| `TestCacheImmediateEvictOnZeroConsumers` | `recent_cache_test.go` | Entry evicted immediately when last consumer acks (no TTL wait) | |
-| `TestCacheDropCommand` | `recent_cache_test.go` | Drop decrements consumer, does not forward | |
-| `TestCacheFIFOOrdering` | `recent_cache_test.go` | Out-of-order ack rejected per plugin | |
-| `TestCacheFIFOImplicitAck` | `recent_cache_test.go` | Ack for N implicitly acks 1..N for that plugin | |
-| `TestCachePerPluginTracking` | `recent_cache_test.go` | Engine tracks which plugins have acked which updates | |
-| `TestCacheStalledPluginDetection` | `recent_cache_test.go` | Stalled plugin detected via gap-based safety valve, entries force-evicted | |
-| `TestCacheNoTTLConstructor` | `recent_cache_test.go` | Constructor takes no TTL parameter | |
-| `TestCacheNoTimeoutAtFrontier` | `recent_cache_test.go` | Entry at processing frontier (no later entry fully acked) is never timed out | |
-| `TestCacheGapDetection` | `recent_cache_test.go` | Entry with consumers > 0 where later entry is fully acked triggers gap-based timeout | |
+| `TestCacheNoTTLEviction` | `recent_cache_test.go` | Entry with consumers > 0 is never evicted by time alone | ✅ |
+| `TestCacheImmediateEvictOnZeroConsumers` | `recent_cache_test.go` | Entry evicted immediately when last consumer acks | ✅ |
+| `TestCacheNoTTLConstructor` | `recent_cache_test.go` | Constructor takes no TTL parameter | ✅ |
+| `TestCacheFIFOOrdering` | `recent_cache_test.go` | FIFO cumulative ack, out-of-order is no-op | ✅ |
+| `TestCacheFIFOImplicitAck` | `recent_cache_test.go` | Ack for N implicitly acks cached entries up to N | ✅ |
+| `TestCacheFIFOPerPlugin` | `recent_cache_test.go` | Per-plugin independent FIFO tracking | ✅ |
+| `TestCacheOutOfOrderAck` | `recent_cache_test.go` | Multi-peer delivery, large ID gaps, re-ack | ✅ |
+| `TestCacheAckBeforeActivate` | `recent_cache_test.go` | Fast plugin acks before Activate | ✅ |
+| `TestCacheAckBeforeActivateTwoPlugins` | `recent_cache_test.go` | Two plugins, fast+slow ack race | ✅ |
+| `TestCacheSafetyValveGapDetection` | `recent_cache_test.go` | Stalled plugin detected via gap-based safety valve | ✅ |
+| `TestCacheNoTimeoutAtFrontier` | `recent_cache_test.go` | Entry at frontier never timed out | ✅ |
+| `TestCacheAckExpiredEntry` | `recent_cache_test.go` | Ack for evicted entry returns ErrUpdateExpired | ✅ |
+| `TestCacheConcurrentAck` | `recent_cache_test.go` | Race-safe concurrent acks from multiple goroutines | ✅ |
+| `TestCacheRetainPlusPluginConsumers` | `recent_cache_test.go` | API retain + plugin consumers interact correctly | ✅ |
+| `TestCacheRegisterConsumer` | `recent_cache_test.go` | RegisterConsumer initializes pluginLastAck to highestAddedID | ✅ |
+| `TestCacheUnregisterConsumer` | `recent_cache_test.go` | UnregisterConsumer decrements unacked entries | ✅ |
+| `TestCacheUnregisterConsumerPartialAck` | `recent_cache_test.go` | UnregisterConsumer only affects entries above lastAck | ✅ |
+| `TestCacheUnregisterUnknownConsumer` | `recent_cache_test.go` | UnregisterConsumer safe for unregistered plugins | ✅ |
+| `TestSafetyValveConfigurable` | `recent_cache_test.go` | SetSafetyValveDuration overrides default | ✅ |
+| `TestCacheUnorderedConsumerNoSweep` | `recent_cache_test.go` | Unordered consumer per-entry ack, no cumulative sweep | ✅ |
+| `TestCacheUnorderedConsumerUnregister` | `recent_cache_test.go` | UnregisterConsumer walks all entries for unordered | ✅ |
+| `TestCacheUnorderedConsumerReAck` | `recent_cache_test.go` | Unordered consumer re-ack below lastAck works | ✅ |
+| `TestGapScanRunsInBackground` | `recent_cache_test.go` | Background goroutine runs gap scan on ticker | ✅ |
+| `TestAddDoesNotRunGapScanInline` | `recent_cache_test.go` | Add() never triggers inline scan | ✅ |
+| `TestAckCumulativeSkipsNonCachedIDs` | `recent_cache_test.go` | Cumulative ack skips ID gaps efficiently | ✅ |
+| `TestUnregisterConsumerUsesSince` | `recent_cache_test.go` | FIFO unregister uses Since, not Range | ✅ |
+| `TestStopCleansUpGoroutine` | `recent_cache_test.go` | Stop() shuts down background scan | ✅ |
+| `TestStopIdempotent` | `recent_cache_test.go` | Stop() safe to call multiple times | ✅ |
+| `TestStopWithoutStart` | `recent_cache_test.go` | Stop() safe without Start() | ✅ |
+| `TestConcurrentAddAckWithBackground` | `recent_cache_test.go` | Concurrent Add/Ack with background scan, race-free | ✅ |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -213,9 +228,8 @@ Steps 1-7 remain the same. Changes to step 5 and 8:
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| Existing chaos functional test | `make chaos-functional-test` | Exercises RR forwarding under load | |
-| Cache drop command | `test/plugin/` | Plugin sends `bgp cache N drop`, entry not forwarded | |
-| FIFO ordering violation | `test/plugin/` | Plugin acks out of order, engine rejects | |
+| Existing chaos functional test | `make ze-chaos-test` | Exercises RR forwarding under load with cache ack path | ✅ |
+| rs-backpressure | `test/plugin/rs-backpressure.ci` | RS flow control wiring with cache consumer | ✅ |
 
 ## Files to Modify
 
@@ -230,20 +244,21 @@ Steps 1-7 remain the same. Changes to step 5 and 8:
 - ~~`internal/plugins/bgp/server/events.go` — `onMessageReceived` returns `len(procs)`~~ ✅
 - ~~`internal/plugins/bgp/server/hooks.go` — Closure propagates `int` return~~ ✅
 
-### Phase 2 (mandatory ack)
-- `internal/plugins/bgp/reactor/recent_cache.go` — Remove TTL field, remove `ttl` from constructor, remove TTL-based expiry from all methods. Add per-plugin ack tracking. Immediate eviction when consumers reach 0.
-- `internal/plugins/bgp/reactor/reactor.go` — Add `bgp cache N drop` command handler. Add FIFO ordering validation per plugin. Track per-plugin `lastAckedID`.
-- `internal/plugins/bgp/reactor/recent_cache_test.go` — Add Phase 2 tests (no-TTL, drop, FIFO, stalled plugin)
-- `internal/plugins/bgp/handler/cache.go` — Add `handleBgpCacheDrop` handler for the drop command
-- `pkg/plugin/sdk/sdk.go` — Add `DropUpdate(ctx, id)` SDK method for plugins to call drop
+### Phase 2 (mandatory ack, DONE)
+- ~~`internal/plugins/bgp/reactor/recent_cache.go` — TTL removed, `Ack()` method, per-plugin tracking, gap-based safety valve, `RegisterConsumer`/`UnregisterConsumer`, `SetConsumerUnordered`, background goroutine~~ ✅
+- ~~`internal/plugins/bgp/reactor/reactor_api_forward.go` — `ForwardUpdate` deferred `Ack()`, `ReleaseUpdate` with consumer path, `RegisterCacheConsumer`/`UnregisterCacheConsumer`~~ ✅
+- ~~`internal/plugins/bgp/reactor/recent_cache_test.go` — 47 tests covering Phase 2 (FIFO, cumulative ack, gap scan, unordered consumers, lifecycle)~~ ✅
+- ~~`internal/plugins/bgp/server/events.go` — `onMessageReceived` returns cache-consumer count (not total subscriber count)~~ ✅
+- ~~`pkg/plugin/rpc/types.go` — `CacheConsumer` and `CacheConsumerUnordered` registration fields~~ ✅
+- ~~`pkg/plugin/rpc/text.go` — `cache-consumer` and `cache-consumer-unordered` text protocol keywords~~ ✅
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs) | [x] Yes — `bgp cache N drop` | `internal/yang/modules/*.yang` |
+| YANG schema (new RPCs) | [ ] No — no new RPCs | |
 | CLI commands/flags | [ ] No | |
-| Plugin SDK docs | [x] Yes — new `DropUpdate` method | `.claude/rules/plugin-design.md` |
-| Functional test for new RPC/API | [x] Yes — drop command + FIFO | `test/plugin/` |
+| Plugin SDK docs | [ ] No — `cache-consumer` documented in RPC types | |
+| Functional test for new RPC/API | [x] Done — chaos test + rs-backpressure | `test/plugin/` |
 
 ## Files to Create
 
@@ -253,6 +268,11 @@ None — all changes modify existing files.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
+| Plugin declares `cache-consumer: true` in Stage 1 | → | `RegisterCacheConsumer()` in `reactor_api_forward.go` | `rs-backpressure.ci` (bgp-rs declares cache-consumer) |
+| Received UPDATE wire bytes | → | `Add()` → `Activate()` in `recent_cache.go` | `TestCacheNoTTLEviction`, `TestCacheActivateZeroConsumersEvictsImmediately` |
+| Plugin calls `bgp cache N forward selector` | → | `ForwardUpdate()` → deferred `Ack()` | `TestCacheFIFOOrdering`, `TestCacheFIFOImplicitAck` |
+| Plugin calls `bgp cache N release` | → | `ReleaseUpdate()` → `Ack()` | `TestCacheImmediateEvictOnZeroConsumers` |
+| Background ticker fires | → | `runGapScan()` → `isGapEvictable()` | `TestGapScanRunsInBackground`, `TestCacheSafetyValveGapDetection` |
 
 ## Implementation Steps
 
@@ -267,31 +287,17 @@ None — all changes modify existing files.
 ~~7. **Run all tests** — `make ze-lint && make ze-unit-test`~~ ✅
 ~~8. **Final self-review** — Re-read all changes, check for races, unused code, debug statements~~ ✅
 
-### Phase 2 (mandatory ack)
+### Phase 2 (mandatory ack, DONE)
 
-1. **Write Phase 2 unit tests** — No-TTL eviction, drop command, FIFO ordering, stalled plugin detection
-   → **Review:** Coverage for all Phase 2 ACs?
-
-2. **Run tests** — Verify FAIL for the right reasons
-
-3. **Remove TTL from cache** — Remove `ttl` field, remove TTL from constructor, change eviction to ack-only + safety valve
-   → **Review:** All callers of `NewRecentUpdateCache` updated? Existing tests still pass?
-
-4. **Add per-plugin ack tracking** — Track `lastAckedID` per plugin process. Validate FIFO ordering on ack.
-   → **Review:** Data structure for tracking per-plugin state? Cleanup when plugin disconnects?
-
-5. **Add `bgp cache N drop` handler** — New command in cache handler, decrements consumer without forwarding
-   → **Review:** Same FIFO validation as forward? Plugin SDK method added?
-
-6. **Add FIFO enforcement** — Engine validates ack ordering. Implicit ack for updates below N when acking N.
-   → **Review:** What happens when plugin acks N but hasn't acked N-1? Error response? Log warning?
-
-7. **Update SDK** — Add `DropUpdate(ctx, id)` method. Document mandatory ack obligation.
-   → **Review:** SDK docs updated? Plugin examples updated?
-
-8. **Run all tests** — `make ze-lint && make ze-unit-test && make ze-functional-test`
-
-9. **Final self-review** — Verify all Phase 2 ACs demonstrated, FIFO ordering correct under concurrency
+~~1. **Write Phase 2 unit tests** — No-TTL, FIFO ordering, cumulative ack, gap detection, unordered consumers~~ ✅
+~~2. **Run tests** — Verify FAIL~~ ✅
+~~3. **Remove TTL from cache** — TTL field, constructor parameter, and TTL-based eviction all removed~~ ✅
+~~4. **Add per-plugin ack tracking** — `pluginLastAck`, `RegisterConsumer`, `UnregisterConsumer`~~ ✅
+~~5. **Add FIFO enforcement** — Cumulative ack via `seqmap.Since()`, out-of-order ack is no-op~~ ✅
+~~6. **Add unordered consumer support** — `SetConsumerUnordered()` for bgp-rs~~ ✅
+~~7. **Add background gap scan** — `Start()`/`Stop()` lifecycle, `gapScanLoop()`, `runGapScan()`~~ ✅
+~~8. **Wire into reactor** — `ForwardUpdate` deferred `Ack()`, `ReleaseUpdate` consumer path, registration hooks~~ ✅
+~~9. **Run all tests** — `make ze-lint && make ze-unit-test && make ze-functional-test`~~ ✅
 
 ### Failure Routing
 | Failure | Route To |
@@ -351,11 +357,12 @@ Per-entry tracking uses an integer counter (`pendingConsumers int`) instead of a
 | No update loss when cache full | ✅ Done | `recent_cache.go:Add()` | Soft limit, never rejects |
 | Evict only when all consumers done | ✅ Done | `recent_cache.go:Decrement()` | Phase 1 |
 | Safety valve for crashed plugins | ✅ Done | `recent_cache.go:isProtected()` | 5 min timeout |
-| Remove TTL-based eviction | | | Phase 2 |
-| Mandatory consumer ack (forward or drop) | | | Phase 2 |
-| FIFO ordering enforcement | | | Phase 2 |
-| `bgp cache N drop` command | | | Phase 2 |
-| Per-plugin ack tracking | | | Phase 2 |
+| Remove TTL-based eviction | ✅ Done | `recent_cache.go` | No TTL anywhere |
+| Mandatory consumer ack (forward or release) | ✅ Done | `reactor_api_forward.go:ForwardUpdate`, `ReleaseUpdate` | Ack() called by both paths |
+| FIFO ordering enforcement | ✅ Done | `recent_cache.go:Ack()` | Cumulative ack via seqmap.Since() |
+| Per-plugin ack tracking | ✅ Done | `recent_cache.go:pluginLastAck` | RegisterConsumer/UnregisterConsumer lifecycle |
+| Unordered consumer support | ✅ Done | `recent_cache.go:SetConsumerUnordered` | Per-entry ack for bgp-rs |
+| Background gap scan | ✅ Done | `recent_cache.go:Start()/Stop()` | Gap-based safety valve goroutine |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
@@ -366,36 +373,37 @@ Per-entry tracking uses an integer counter (`pendingConsumers int`) instead of a
 | AC-4 | ✅ Done | `TestRecentUpdateCache*` (safety valve) | |
 | AC-5 | ✅ Done | `TestRecentUpdateCache*` (zero consumers) | |
 | AC-6 | ✅ Done | `TestRecentUpdateCacheRetain`, `TestRecentUpdateCacheRelease` | |
-| AC-7 | ✅ Done | `ForwardUpdate` uses `Get()` + `Decrement()` | |
+| AC-7 | ✅ Done | `ForwardUpdate` uses `Get()` + deferred `Ack()` | |
 | AC-8 | ✅ Done | `TestRecentUpdateCacheConcurrency` | |
-| AC-9 | | | Phase 2 |
-| AC-10 | | | Phase 2 |
-| AC-11 | | | Phase 2 |
-| AC-12 | | | Phase 2 |
-| AC-13 | | | Phase 2 |
-| AC-14 | | | Phase 2 |
-| AC-15 | | | Phase 2 |
-| AC-16 | | | Phase 2 |
+| AC-9 | ✅ Done | `TestCacheImmediateEvictOnZeroConsumers` | Immediate eviction on last ack |
+| AC-10 | ✅ Done | `TestCacheSafetyValveGapDetection` | Gap-based safety valve |
+| AC-11 | Removed | N/A | `release` serves as drop — separate drop command not needed |
+| AC-12 | 🔄 Changed | `TestCacheOutOfOrderAck` | Out-of-order ack is no-op, not rejection |
+| AC-13 | ✅ Done | `TestCacheFIFOImplicitAck`, `TestAckCumulativeSkipsNonCachedIDs` | Cumulative ack |
+| AC-14 | ✅ Done | `TestCacheSafetyValveGapDetection` | Gap detection + force-evict |
+| AC-15 | ✅ Done | `TestRecentUpdateCacheSoftLimit` | Soft limit, never rejects |
+| AC-16 | ✅ Done | `TestCacheNoTTLConstructor` | No TTL parameter |
+| AC-17 | ✅ Done | `TestCacheNoTimeoutAtFrontier` | Frontier entries never timed out |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
 | Phase 1 tests | ✅ Done | `recent_cache_test.go` | 17+ tests passing |
-| Phase 2 tests | | | Not yet written |
+| Phase 2 tests | ✅ Done | `recent_cache_test.go` | 47 tests total (Phase 1 + Phase 2) |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
 | Phase 1 files | ✅ Done | All 9 files modified |
-| Phase 2 files | | Not yet started |
+| Phase 2 files | ✅ Done | 6 files modified (cache, reactor_api_forward, events, rpc types, rpc text) |
 
 ### Audit Summary
 - **Total items:** 17 (9 Phase 1 + 8 Phase 2)
-- **Done:** 9 (Phase 1 complete)
+- **Done:** 15
 - **Partial:** 0
 - **Skipped:** 0
-- **Changed:** 0
-- **Pending:** 8 (Phase 2)
+- **Changed:** 1 (AC-12: no-op instead of rejection)
+- **Removed:** 1 (AC-11: drop command superseded by release)
 
 ## Checklist
 
@@ -406,23 +414,23 @@ Per-entry tracking uses an integer counter (`pendingConsumers int`) instead of a
 - [x] No regressions (`make ze-functional-test`)
 - [x] Integration test: cache refcount exercised via chaos functional test
 
-### Goal Gates — Phase 2 (mandatory ack)
-- [ ] Acceptance criteria AC-9..AC-16 all demonstrated
-- [ ] TTL removed from cache entirely
-- [ ] `bgp cache N drop` command implemented and tested
-- [ ] FIFO ordering enforced per plugin
-- [ ] Per-plugin ack tracking implemented
-- [ ] SDK `DropUpdate` method added
-- [ ] Tests pass (`make ze-unit-test`)
-- [ ] No regressions (`make ze-functional-test`)
-- [ ] Integration test: drop command + FIFO ordering via functional test
+### Goal Gates — Phase 2 (mandatory ack, DONE)
+- [x] Acceptance criteria AC-9..AC-16 all demonstrated (AC-11 removed, AC-12 changed)
+- [x] TTL removed from cache entirely
+- [x] FIFO ordering enforced per plugin (cumulative ack)
+- [x] Per-plugin ack tracking implemented
+- [x] Unordered consumer support added
+- [x] Background gap scan implemented
+- [x] Tests pass (`make ze-unit-test`)
+- [x] No regressions (`make ze-functional-test`)
+- [x] Integration test: chaos test + rs-backpressure
 
 ### Quality Gates
-- [ ] `make ze-lint` passes
-- [ ] Implementation Audit fully completed (Phase 1 + Phase 2)
+- [x] `make ze-lint` passes
+- [x] Implementation Audit fully completed (Phase 1 + Phase 2)
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL
+- [x] Implementation complete
+- [x] Tests PASS
