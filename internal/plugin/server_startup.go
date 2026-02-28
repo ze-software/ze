@@ -489,12 +489,10 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		}
 	}
 
-	// Send OK response
-	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
-		return
-	}
-
 	// Final stage transition: Ready -> Running
+	// Move the barrier BEFORE the OK response below. This ensures all plugins
+	// in the tier have registered their commands and reached StageReady
+	// before any of them receive OK and start their runtime event loop.
 	if !s.stageTransition(proc, proc.Name(), StageReady, StageRunning) {
 		return
 	}
@@ -502,6 +500,11 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 
 	if s.reactor != nil {
 		s.reactor.SignalAPIReady()
+	}
+
+	// Send OK response
+	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+		return
 	}
 }
 

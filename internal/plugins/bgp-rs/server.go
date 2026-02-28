@@ -762,24 +762,8 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	defer cancel()
 
 	// Full replay from index 0.
-	// Retry on transient failure: adj-rib-in may not have completed stage 5
-	// (command registration) when bgp-rs's subscriptions activate.
 	cmd := fmt.Sprintf("adj-rib-in replay %s 0", peerAddr)
-	var status, data string
-	var err error
-	for attempt := range 5 {
-		status, data, err = rs.dispatchCommand(ctx, cmd)
-		if err == nil && status == statusDone {
-			break
-		}
-		if ctx.Err() != nil {
-			break
-		}
-		if attempt < 4 {
-			logger().Debug("replay retry", "peer", peerAddr, "attempt", attempt+1, "error", err)
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
+	status, data, err := rs.dispatchCommand(ctx, cmd)
 	if err != nil || status != statusDone {
 		logger().Error("replay failed", "peer", peerAddr, "command", cmd, "status", status, "error", err)
 		// Still add to forward targets so peer gets new routes going forward.
