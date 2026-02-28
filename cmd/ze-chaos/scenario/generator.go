@@ -124,10 +124,29 @@ func generateEBGPASNs(rng *rand.Rand, count int, localAS uint32) []uint32 {
 // familyIPv4Unicast is the mandatory family present on all peers.
 const familyIPv4Unicast = "ipv4/unicast"
 
-// allFamilies is the full set of supported address families.
+// rsFamilies are address families that bgp-rs can fully handle (forward + withdraw).
+// Complex families (VPN, EVPN, FlowSpec) require hex-mode withdrawals that bgp-rs
+// doesn't support yet — the text command parser can't round-trip their NLRI encoding.
+//
+// TODO: ze-chaos currently only supports route-server mode (bgp-rs). Future modes:
+//   - route-reflector: iBGP peers, cluster-id, all families (no NLRI re-encoding needed)
+//   - router: best-path selection, all families via hex withdrawal path
+//
+// When those modes are added, allFamilies should be used for them, and rsFamilies
+// only for route-server mode.
+var rsFamilies = []string{
+	"ipv4/unicast",
+	"ipv6/unicast",
+	"ipv4/multicast",
+	"ipv6/multicast",
+}
+
+// allFamilies is the full set of address families for future router/reflector modes.
 var allFamilies = []string{
 	"ipv4/unicast",
 	"ipv6/unicast",
+	"ipv4/multicast",
+	"ipv6/multicast",
 	"ipv4/vpn",
 	"ipv6/vpn",
 	"l2vpn/evpn",
@@ -138,12 +157,9 @@ var allFamilies = []string{
 // optionalFamilyWeights maps each optional family to its assignment probability.
 // ipv4/unicast is mandatory and always assigned.
 var optionalFamilyWeights = map[string]float64{
-	"ipv6/unicast": 0.7,
-	"ipv4/vpn":     0.4,
-	"ipv6/vpn":     0.3,
-	"l2vpn/evpn":   0.35,
-	"ipv4/flow":    0.3,
-	"ipv6/flow":    0.2,
+	"ipv6/unicast":   0.7,
+	"ipv4/multicast": 0.3,
+	"ipv6/multicast": 0.2,
 }
 
 // buildFamilyPool returns the set of families available for assignment after
@@ -162,7 +178,9 @@ func buildFamilyPool(include, exclude []string) []string {
 			}
 		}
 	} else {
-		base = append(base, allFamilies...)
+		// Route-server mode: only families bgp-rs can fully handle.
+		// See rsFamilies comment for future router/reflector modes.
+		base = append(base, rsFamilies...)
 	}
 
 	if len(exclude) > 0 {
