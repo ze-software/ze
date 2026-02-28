@@ -4,6 +4,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -498,4 +499,86 @@ func TestFwdWorkerBatchAllDoneCalled(t *testing.T) {
 
 	// All 4 done callbacks should have been called
 	assert.Equal(t, int32(4), doneCalled.Load(), "done must be called for every item")
+}
+
+// TestFwdDrainBatchReusesBuffer verifies that drainBatch reuses the
+// caller-provided buffer across calls — no new backing array allocation on the second call.
+//
+// VALIDATES: AC-2 from spec-alloc-1-batch-pooling.md
+// PREVENTS: Per-burst slice allocations in forward pool worker goroutine.
+func TestFwdDrainBatchReusesBuffer(t *testing.T) {
+	ch := make(chan fwdItem, 4)
+	ch <- fwdItem{}
+	ch <- fwdItem{}
+
+	first := fwdItem{}
+
+	// First call: buffer grows from nil.
+	var buf []fwdItem
+	buf = drainBatch(buf, first, ch)
+
+	if len(buf) != 3 {
+		t.Fatalf("expected 3 items, got %d", len(buf))
+	}
+	firstPtr := unsafe.SliceData(buf)
+
+	// Second call: reuse existing buffer.
+	ch <- fwdItem{}
+	first2 := fwdItem{}
+	buf = drainBatch(buf, first2, ch)
+
+	if len(buf) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(buf))
+	}
+	secondPtr := unsafe.SliceData(buf)
+
+	if firstPtr != secondPtr {
+		t.Error("second call allocated a new backing array instead of reusing buffer")
+	}
+}
+
+// TestFwdWorkerIdleRestartFreshBuffer verifies that when a forward pool worker
+// exits on idle timeout and is re-created for a new dispatch, it starts with
+// a fresh buffer (no stale data from previous incarnation).
+//
+// VALIDATES: AC-6 from spec-alloc-1-batch-pooling.md
+// PREVENTS: Stale data leaking across worker incarnations.
+func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
+	batchSizes := make(chan int, 10)
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		batchSizes <- len(items)
+	}, fwdPoolConfig{chanSize: 8, idleTimeout: 50 * time.Millisecond})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Dispatch 3 items to force buffer growth.
+	pool.Dispatch(key, fwdItem{})
+	pool.Dispatch(key, fwdItem{})
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(20 * time.Millisecond)
+
+	// Drain batch sizes from first worker.
+	for len(batchSizes) > 0 {
+		<-batchSizes
+	}
+
+	assert.Equal(t, 1, pool.WorkerCount())
+
+	// Wait for idle timeout — worker exits.
+	time.Sleep(100 * time.Millisecond)
+	assert.Equal(t, 0, pool.WorkerCount())
+
+	// Dispatch a single item — new worker is created with fresh (nil) buffer.
+	pool.Dispatch(key, fwdItem{})
+
+	select {
+	case size := <-batchSizes:
+		// New worker processed exactly 1 item — no stale data from old buffer.
+		assert.Equal(t, 1, size, "restarted worker should see only the new item")
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for restarted worker to process item")
+	}
+	assert.Equal(t, 1, pool.WorkerCount())
 }

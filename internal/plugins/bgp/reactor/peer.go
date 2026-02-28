@@ -932,8 +932,10 @@ func (p *Peer) runOnce() error {
 
 	go func() {
 		defer close(deliveryDone)
+		var batchBuf []deliveryItem
 		for first := range p.deliverChan {
-			batch := drainDeliveryBatch(first, p.deliverChan)
+			batchBuf = drainDeliveryBatch(batchBuf, first, p.deliverChan)
+			batch := batchBuf
 
 			p.mu.RLock()
 			reactor := p.reactor

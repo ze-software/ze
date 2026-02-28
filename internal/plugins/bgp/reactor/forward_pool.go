@@ -99,9 +99,10 @@ type fwdPoolConfig struct {
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
 type fwdWorker struct {
-	ch      chan fwdItem
-	done    chan struct{} // closed when goroutine exits
-	pending atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
+	ch       chan fwdItem
+	done     chan struct{} // closed when goroutine exits
+	pending  atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
+	batchBuf []fwdItem     // reusable drain buffer — owned by runWorker goroutine
 }
 
 // fwdPool manages per-destination-peer worker goroutines for async UPDATE forwarding.
@@ -269,17 +270,18 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 
 // drainBatch collects available items from the channel without blocking.
 // Returns a batch starting with firstItem, followed by any immediately available items.
-func drainBatch(firstItem fwdItem, ch <-chan fwdItem) []fwdItem {
-	batch := []fwdItem{firstItem}
+// buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
+func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem) []fwdItem {
+	buf = append(buf[:0], firstItem)
 	for {
 		select {
 		case extra, ok := <-ch:
 			if !ok {
-				return batch
+				return buf
 			}
-			batch = append(batch, extra)
+			buf = append(buf, extra)
 		default: // non-blocking: no more items ready
-			return batch
+			return buf
 		}
 	}
 }
@@ -307,8 +309,8 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			if !idle.Stop() {
 				fwdDrainTimer(idle)
 			}
-			batch := drainBatch(item, w.ch)
-			fp.safeBatchHandle(key, batch)
+			w.batchBuf = drainBatch(w.batchBuf, item, w.ch)
+			fp.safeBatchHandle(key, w.batchBuf)
 			idle.Reset(fp.cfg.idleTimeout)
 
 		case <-idle.C():

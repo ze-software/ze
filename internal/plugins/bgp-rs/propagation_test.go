@@ -463,7 +463,7 @@ func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
 		families := map[string]bool{"ipv4/unicast": true}
 
 		rs.mu.RLock()
-		targets := rs.selectForwardTargets("10.0.0.1", families)
+		targets := rs.selectForwardTargets(nil, "10.0.0.1", families)
 		rs.mu.RUnlock()
 
 		if len(targets) > 0 {
@@ -519,7 +519,7 @@ func TestSelectTargets_SingleFamily_AllSupport(t *testing.T) {
 
 	// UPDATE from 10.0.0.1 with ipv4/unicast
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	sort.Strings(targets)
@@ -555,7 +555,7 @@ func TestSelectTargets_SingleFamily_PartialSupport(t *testing.T) {
 
 	// ipv6/unicast UPDATE from 10.0.0.1 → only 10.0.0.3 supports it
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv6/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv6/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -589,7 +589,7 @@ func TestSelectTargets_MultiFamilyUpdate_PartialOverlap(t *testing.T) {
 
 	// UPDATE from "10.0.0.0" carries both ipv4/unicast and ipv6/unicast
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{
 		"ipv4/unicast": true,
 		"ipv6/unicast": true,
 	})
@@ -622,7 +622,7 @@ func TestSelectTargets_ExcludesSourcePeer(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -652,7 +652,7 @@ func TestSelectTargets_ExcludesDownPeer(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -679,7 +679,7 @@ func TestSelectTargets_NilFamilies_AcceptsAll(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv6/vpn": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv6/vpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -707,7 +707,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// ipv4/unicast should be rejected — peer explicitly omitted it from MP caps
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -716,7 +716,7 @@ func TestSelectTargets_MPWithoutIPv4_DeclinesIPv4Unicast(t *testing.T) {
 
 	// l2vpn/evpn should be accepted — it's in the MP caps
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets("10.0.0.0", map[string]bool{"l2vpn/evpn": true})
+	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"l2vpn/evpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -740,7 +740,7 @@ func TestSelectTargets_NoTargets_AllExcluded(t *testing.T) {
 
 	// Source is the only peer
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -781,7 +781,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 
 	// Peer is Up=false (no state event yet), so excluded regardless
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets (peer is down), got %d: %v", len(targets), targets)
@@ -793,7 +793,7 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv4/unicast": true})
+	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -832,7 +832,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 
 	// With nil Families, peer should accept ALL families
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"l2vpn/evpn": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"l2vpn/evpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 {
@@ -878,7 +878,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// ipv4/unicast UPDATE should target this peer
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.0", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 	if len(targets) != 1 {
 		t.Fatalf("expected 1 target for ipv4/unicast, got %d", len(targets))
@@ -886,7 +886,7 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 
 	// l2vpn/evpn UPDATE should NOT target this peer
 	rs.mu.RLock()
-	targets = rs.selectForwardTargets("10.0.0.0", map[string]bool{"l2vpn/evpn": true})
+	targets = rs.selectForwardTargets(nil, "10.0.0.0", map[string]bool{"l2vpn/evpn": true})
 	rs.mu.RUnlock()
 	if len(targets) != 0 {
 		t.Errorf("expected 0 targets for l2vpn/evpn, got %d: %v", len(targets), targets)
@@ -942,7 +942,7 @@ func TestPropagation_ThreePeers_SingleFamily(t *testing.T) {
 
 	// Verify forward targets: should be 10.0.0.2 and 10.0.0.3 (not source 10.0.0.1)
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	sort.Strings(targets)
@@ -1038,7 +1038,7 @@ func TestPropagation_FourPeers_SevenFamilies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			rs.mu.RLock()
-			targets := rs.selectForwardTargets(tt.source, tt.families)
+			targets := rs.selectForwardTargets(nil, tt.source, tt.families)
 			rs.mu.RUnlock()
 
 			sort.Strings(targets)
@@ -1067,7 +1067,7 @@ func TestPropagation_UpdateBeforeAnyPeerKnown(t *testing.T) {
 
 	// No peers registered at all
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -1090,7 +1090,7 @@ func TestPropagation_UpdateWhenOnlySourceKnown(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 0 {
@@ -1137,7 +1137,7 @@ func TestPropagation_VPNRoute(t *testing.T) {
 
 	// Verify forward target
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.1", map[string]bool{"ipv4/vpn": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.1", map[string]bool{"ipv4/vpn": true})
 	rs.mu.RUnlock()
 
 	if len(targets) != 1 || targets[0] != "10.0.0.2" {

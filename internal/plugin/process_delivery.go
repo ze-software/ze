@@ -90,25 +90,29 @@ func deliveryTimeoutFromEnv() time.Duration {
 func (p *Process) deliveryLoop() {
 	timeout := deliveryTimeoutFromEnv()
 
+	var batchBuf []EventDelivery
+	var eventsBuf []string
+
 	for first := range p.eventChan {
-		batch := p.drainBatch(first)
-		p.deliverBatch(batch, timeout)
+		batchBuf = p.drainBatch(batchBuf, first)
+		eventsBuf = p.deliverBatch(batchBuf, eventsBuf, timeout)
 	}
 }
 
 // drainBatch collects the first event plus any additional events available
 // without blocking. Returns when the channel is empty or closed.
-func (p *Process) drainBatch(first EventDelivery) []EventDelivery {
-	batch := []EventDelivery{first}
+// buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
+func (p *Process) drainBatch(buf []EventDelivery, first EventDelivery) []EventDelivery {
+	buf = append(buf[:0], first)
 	for {
 		select {
 		case req, ok := <-p.eventChan:
 			if !ok {
-				return batch
+				return buf
 			}
-			batch = append(batch, req)
+			buf = append(buf, req)
 		default: // non-blocking drain complete
-			return batch
+			return buf
 		}
 	}
 }
@@ -116,11 +120,13 @@ func (p *Process) drainBatch(first EventDelivery) []EventDelivery {
 // deliverBatch sends a batch of events and notifies callers.
 // Uses DirectBridge for internal plugins (direct function call),
 // text lines for text-mode plugins, or SendDeliverBatch for JSON-RPC plugins.
-func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
-	events := make([]string, len(batch))
-	for i, req := range batch {
-		events[i] = req.Output
+// eventsBuf is a reusable slice for the string events — returned for reuse.
+func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeout time.Duration) []string {
+	eventsBuf = eventsBuf[:0]
+	for _, req := range batch {
+		eventsBuf = append(eventsBuf, req.Output)
 	}
+	events := eventsBuf
 
 	var batchErr error
 	if p.bridge != nil && p.bridge.Ready() {
@@ -158,6 +164,8 @@ func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
 			}
 		}
 	}
+
+	return eventsBuf
 }
 
 // stopEventChan closes the event channel, causing deliveryLoop to drain and exit.

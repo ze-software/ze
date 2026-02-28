@@ -167,8 +167,9 @@ type RouteServer struct {
 // forwardBatch accumulates forward items for batch RPC.
 // Per-worker state: no concurrent access for a given workerKey.
 type forwardBatch struct {
-	ids      []uint64
-	selector string // comma-joined target peers
+	ids       []uint64
+	selector  string   // comma-joined target peers
+	targetBuf []string // reusable buffer for selectForwardTargets
 }
 
 // forwardCmd is a single fire-and-forget forward RPC to be sent by the background sender.
@@ -574,8 +575,8 @@ func (rs *RouteServer) dispatchText(text string) {
 // selectForwardTargets returns peers that should receive an UPDATE with the given families.
 // A peer is included if it is up, is not the source, and supports at least one family
 // in the UPDATE (or has nil Families, meaning unknown/all-accepted).
-func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[string]bool) []string {
-	var targets []string
+func (rs *RouteServer) selectForwardTargets(buf []string, sourcePeer string, families map[string]bool) []string {
+	buf = buf[:0]
 	for addr, peer := range rs.peers {
 		if addr == sourcePeer || !peer.Up {
 			continue
@@ -592,10 +593,10 @@ func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[stri
 				continue
 			}
 		}
-		targets = append(targets, addr)
+		buf = append(buf, addr)
 	}
-	sort.Strings(targets)
-	return targets
+	sort.Strings(buf)
+	return buf
 }
 
 // batchForwardUpdate accumulates a forward item into the per-worker batch.
@@ -604,9 +605,17 @@ func (rs *RouteServer) selectForwardTargets(sourcePeer string, families map[stri
 // reaches maxBatchSize items. Partial batches are flushed by the onDrained
 // callback when the worker channel empties.
 func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgID uint64, families map[string]bool) {
+	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
+	batch, ok := val.(*forwardBatch)
+	if !ok {
+		rs.releaseCache(msgID)
+		return
+	}
+
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets(sourcePeer, families)
+	batch.targetBuf = rs.selectForwardTargets(batch.targetBuf, sourcePeer, families)
 	rs.mu.RUnlock()
+	targets := batch.targetBuf
 
 	if len(targets) == 0 {
 		rs.releaseCache(msgID)
@@ -614,13 +623,6 @@ func (rs *RouteServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 	}
 
 	sel := strings.Join(targets, ",")
-
-	val, _ := rs.batches.LoadOrStore(key, &forwardBatch{})
-	batch, ok := val.(*forwardBatch)
-	if !ok {
-		rs.releaseCache(msgID)
-		return
-	}
 
 	// Selector changed — flush old batch, start fresh.
 	if batch.selector != "" && batch.selector != sel {

@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP reactor event loop
+// Related: peer.go — per-peer delivery goroutine that calls drainDeliveryBatch
 
 package reactor
 
@@ -26,17 +27,18 @@ const deliveryChannelCapacity = 256
 
 // drainDeliveryBatch collects the first item plus any additional items available
 // without blocking. Same pattern as process.drainBatch but for per-peer delivery.
-func drainDeliveryBatch(first deliveryItem, ch <-chan deliveryItem) []deliveryItem {
-	batch := []deliveryItem{first}
+// buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
+func drainDeliveryBatch(buf []deliveryItem, first deliveryItem, ch <-chan deliveryItem) []deliveryItem {
+	buf = append(buf[:0], first)
 	for {
 		select {
 		case item, ok := <-ch:
 			if !ok {
-				return batch
+				return buf
 			}
-			batch = append(batch, item)
+			buf = append(buf, item)
 		default: // non-blocking drain complete
-			return batch
+			return buf
 		}
 	}
 }

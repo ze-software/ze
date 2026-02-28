@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unsafe"
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -1023,7 +1024,7 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 	// Call 100 times — with unsorted output, Go map randomness would produce
 	// different orderings, causing batch selector mismatches.
 	rs.mu.RLock()
-	first := rs.selectForwardTargets("10.0.0.1", families)
+	first := rs.selectForwardTargets(nil, "10.0.0.1", families)
 	rs.mu.RUnlock()
 
 	want := strings.Join(first, ",")
@@ -1033,7 +1034,7 @@ func TestSelectForwardTargetsDeterministic(t *testing.T) {
 
 	for i := range 100 {
 		rs.mu.RLock()
-		got := rs.selectForwardTargets("10.0.0.1", families)
+		got := rs.selectForwardTargets(nil, "10.0.0.1", families)
 		rs.mu.RUnlock()
 		if sel := strings.Join(got, ","); sel != want {
 			t.Fatalf("iteration %d: selector %q != %q (non-deterministic)", i, sel, want)
@@ -1194,7 +1195,7 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 
 	// A replaying peer SHOULD be in forward targets (duplicates are idempotent).
 	rs.mu.RLock()
-	targets := rs.selectForwardTargets("10.0.0.2", map[string]bool{"ipv4/unicast": true})
+	targets := rs.selectForwardTargets(nil, "10.0.0.2", map[string]bool{"ipv4/unicast": true})
 	rs.mu.RUnlock()
 	if !slices.Contains(targets, "10.0.0.1") {
 		t.Error("replaying peer 10.0.0.1 should be in forward targets")
@@ -1612,5 +1613,46 @@ func TestTextUpdateWithdrawalTracking(t *testing.T) {
 	}
 	if len(delOps[0].NLRIs) != 1 {
 		t.Errorf("NLRIs = %d, want 1", len(delOps[0].NLRIs))
+	}
+}
+
+// TestSelectForwardTargetsReusesBuffer verifies that selectForwardTargets reuses
+// the caller-provided buffer across calls — no new backing array allocation.
+//
+// VALIDATES: AC-5 from spec-alloc-1-batch-pooling.md
+// PREVENTS: Per-UPDATE target slice allocations in bgp-rs forward path.
+func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true}
+	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
+	rs.peers["10.0.0.3"] = &PeerState{Address: "10.0.0.3", Up: true}
+	rs.mu.Unlock()
+
+	families := map[string]bool{"ipv4/unicast": true}
+
+	// First call: buffer grows from nil.
+	rs.mu.RLock()
+	buf := rs.selectForwardTargets(nil, "10.0.0.1", families)
+	rs.mu.RUnlock()
+
+	if len(buf) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(buf))
+	}
+	firstPtr := unsafe.SliceData(buf)
+
+	// Second call: reuse existing buffer.
+	rs.mu.RLock()
+	buf = rs.selectForwardTargets(buf, "10.0.0.1", families)
+	rs.mu.RUnlock()
+
+	if len(buf) != 2 {
+		t.Fatalf("expected 2 targets, got %d", len(buf))
+	}
+	secondPtr := unsafe.SliceData(buf)
+
+	if firstPtr != secondPtr {
+		t.Error("second call allocated a new backing array instead of reusing buffer")
 	}
 }

@@ -2039,8 +2039,10 @@ func startTestDelivery(t *testing.T, r *Reactor, peerAddr netip.Addr, capacity i
 
 	go func() {
 		defer close(done)
+		var batchBuf []deliveryItem
 		for first := range peer.deliverChan {
-			batch := drainDeliveryBatch(first, peer.deliverChan)
+			batchBuf = drainDeliveryBatch(batchBuf, first, peer.deliverChan)
+			batch := batchBuf
 
 			r.mu.RLock()
 			receiver := r.messageReceiver
@@ -2454,8 +2456,10 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
+		var batchBuf []deliveryItem
 		for first := range peer.deliverChan {
-			batch := drainDeliveryBatch(first, peer.deliverChan)
+			batchBuf = drainDeliveryBatch(batchBuf, first, peer.deliverChan)
+			batch := batchBuf
 			batchCallCount.Add(1)
 
 			reactor.mu.RLock()
