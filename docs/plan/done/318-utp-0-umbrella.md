@@ -16,23 +16,23 @@ End state: all plugin IPC (handshake, events, commands) uses one grammar with sh
 
 | Component | Current | Target | Spec | Status |
 |-----------|---------|--------|------|--------|
-| Stage 1 (Registration) | JSON-RPC | Unified text | `spec-utp-3-handshake.md` | Not started |
-| Stage 2 (Config) | JSON-RPC | Text (or hybrid — design TBD) | `spec-utp-3-handshake.md` | Not started |
-| Stage 3 (Capabilities) | JSON-RPC | Unified text | `spec-utp-3-handshake.md` | Not started |
-| Stage 4 (Registry) | JSON-RPC | Unified text | `spec-utp-3-handshake.md` | Not started |
-| Stage 5 (Ready) | JSON-RPC | Unified text | `spec-utp-3-handshake.md` | Not started |
-| Runtime RPCs (Socket A) | JSON-RPC | Unified text | `spec-utp-3-handshake.md` | Not started |
-| Event callbacks (Socket B) | JSON-RPC wrapping text/JSON | Unified text directly | `spec-utp-3-handshake.md` | Not started |
+| Stage 1 (Registration) | JSON-RPC | Unified text | `done/315-utp-3-handshake.md` | Done |
+| Stage 2 (Config) | JSON-RPC | Heredoc JSON (`root <name> json << END`) | `done/315-utp-3-handshake.md` | Done |
+| Stage 3 (Capabilities) | JSON-RPC | Unified text | `done/315-utp-3-handshake.md` | Done |
+| Stage 4 (Registry) | JSON-RPC | Unified text | `done/315-utp-3-handshake.md` | Done |
+| Stage 5 (Ready) | JSON-RPC | Unified text | `done/315-utp-3-handshake.md` | Done |
+| Runtime RPCs (Socket A) | JSON-RPC | TextMuxConn with `#N` serial prefix | `done/315-utp-3-handshake.md` | Done |
+| Event callbacks (Socket B) | JSON-RPC wrapping text/JSON | Plain text lines via TextConnB | `done/315-utp-3-handshake.md` | Done |
 
 ### Migration 2: Current Text → Unified Text
 
 | Component | Current | Target | Spec | Status |
 |-----------|---------|--------|------|--------|
-| Event header | Two shapes (state vs message) | Uniform `peer <ip> asn <asn>` | `spec-utp-1-event-format.md` | Not started |
-| Event attributes | Flat, brackets, spaces | Comma lists, no brackets | `spec-utp-1-event-format.md` | Not started |
-| Event NLRI | `announce`/`withdraw` implicit | `nlri add`/`nlri del` explicit | `spec-utp-1-event-format.md` | Not started |
-| Event capabilities | `cap N name value` repeated | Unchanged (repeated dict key) | `spec-utp-1-event-format.md` | Not started |
-| NLRI String() methods | `set` keyword everywhere | Drop `set`, bare `key value` | `spec-utp-1-event-format.md` | Not started |
+| Event header | Two shapes (state vs message) | Uniform `peer <ip> asn <asn>` | `done/302-utp-1-event-format.md` | Done |
+| Event attributes | Flat, brackets, spaces | Comma lists, no brackets | `done/302-utp-1-event-format.md` | Done |
+| Event NLRI | `announce`/`withdraw` implicit | `nlri add`/`nlri del` explicit | `done/302-utp-1-event-format.md` | Done |
+| Event capabilities | `cap N name value` repeated | Unchanged (repeated dict key) | `done/302-utp-1-event-format.md` | Done |
+| NLRI String() methods | `set` keyword everywhere | Drop `set`, bare `key value` | `done/302-utp-1-event-format.md` | Done |
 | Command lists | Brackets `[65001 65002]` | Commas `65001,65002` (brackets still accepted) | `done/306-utp-2-command-format.md` | Done |
 | Command attributes | `origin set igp` (accumulator) | `origin igp` (flat key-value) | `done/306-utp-2-command-format.md` | Done |
 | Command NLRI | `nlri <family> add` (close) | Unchanged — already aligned | `done/306-utp-2-command-format.md` | Done |
@@ -62,16 +62,16 @@ End state: all plugin IPC (handshake, events, commands) uses one grammar with sh
 ### Execution Order
 
 ```
-spec-utp-0-umbrella.md          ← THIS (umbrella tracker)
+spec-utp-0-umbrella.md              ← THIS (umbrella tracker)
     ↓
-done/302-utp-1-event-format.md ← DONE (TextScanner, uniform header, event format)
+done/302-utp-1-event-format.md      ← DONE (TextScanner, uniform header, event format)
     ↓
-done/306-utp-2-command-format.md ← DONE (flat grammar, aliases, shared keyword tables)
+done/306-utp-2-command-format.md    ← DONE (flat grammar, aliases, shared keyword tables)
     ↓
-spec-utp-3-handshake.md        ← NEXT (text alternative for JSON-RPC handshake)
+done/315-utp-3-handshake.md        ← DONE (text alternative for JSON-RPC handshake)
 ```
 
-Completed: utp-1 built the TextScanner and event format. utp-2 removed the set/del accumulator model, introduced flat grammar with keyword aliases, and created shared keyword tables in `textparse/keywords.go`. The "shared tokenizer" from the original plan became "shared keyword tables" — TextScanner (events) and tokenize() (commands) serve different needs and remain separate. Next: utp-3 handshake.
+All three child specs completed. utp-1 built the TextScanner and event format. utp-2 removed the set/del accumulator model, introduced flat grammar with keyword aliases, and created shared keyword tables in `textparse/keywords.go`. utp-3 implemented a text-mode alternative for the 5-stage handshake with auto-detection (first byte `{` → JSON, letter → text), heredoc JSON config delivery, and TextMuxConn for concurrent post-startup RPCs. The "shared tokenizer" from the original plan became "shared keyword tables" — TextScanner (events) and tokenize() (commands) serve different needs and remain separate.
 
 ## Required Reading
 
@@ -101,7 +101,22 @@ Completed: utp-1 built the TextScanner and event format. utp-2 removed the set/d
 
 ## Current Behavior (MANDATORY)
 
-### Three Separate Protocols Today
+- [ ] `internal/plugins/bgp/format/text.go` — event formatter
+- [ ] `internal/plugins/bgp-rs/server.go` — event parser
+- [ ] `internal/plugins/bgp/handler/update_text.go` — command parser
+- [ ] `internal/plugin/command.go` — command dispatcher + tokenizer
+- [ ] `internal/plugins/bgp/textparse/keywords.go` — shared keyword tables
+- [ ] `pkg/plugin/rpc/types.go` — JSON-RPC type definitions
+- [ ] `pkg/plugin/rpc/text.go` — text serialization for handshake stages
+- [ ] `pkg/plugin/sdk/sdk.go` — SDK handshake (JSON mode)
+- [ ] `pkg/plugin/sdk/sdk_text.go` — SDK handshake (text mode)
+- [ ] `internal/plugin/process.go` — engine-side plugin lifecycle
+- [ ] `internal/plugin/subsystem_text.go` — engine-side text handshake (subsystem)
+- [ ] `internal/plugin/server_startup_text.go` — engine-side text handshake (server)
+
+Behavior to preserve: all three IPC paths (events, commands, handshake) continue to work for JSON-mode plugins. Text mode is an additive alternative, auto-detected from first byte.
+
+Three separate protocols existed before the UTP effort. All three have now been unified onto a shared grammar with shared keyword tables, though each retains its own tokenizer suited to its framing needs.
 
 **Event delivery** (`text.go` formatter, `server.go` parser):
 - Newline-framed text on Socket B
@@ -153,13 +168,23 @@ Completed: utp-1 built the TextScanner and event format. utp-2 removed the set/d
 |----------|-----|----------|
 | Engine → Plugin (events) | Text lines on Socket B | [ ] |
 | Plugin → Engine (commands) | JSON-RPC on Socket A wrapping text args | [ ] |
-| Engine ↔ Plugin (handshake) | JSON-RPC on Socket A and B | [ ] |
+| Engine ↔ Plugin (handshake) | JSON-RPC or text on Socket A and B (auto-detected) | [ ] |
+
+### Integration Points
+| Component | Integrates With | Via |
+|-----------|----------------|-----|
+| Event formatter (`text.go`) | Event parser (`server.go`) | Shared keyword constants from `textparse/keywords.go` |
+| Command parser (`update_text.go`) | Event formatter (`text.go`) | Shared keyword aliases from `textparse/keywords.go` |
+| Text handshake (`text.go`, `text_conn.go`) | SDK (`sdk_text.go`) + engine (`subsystem_text.go`, `server_startup_text.go`) | Auto-detect via `PeekMode`, shared RPC types from `types.go` |
+| Internal text producers (`FormatRouteCommand`) | Command parser | Must output flat grammar matching parser expectations |
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| (to be filled during implementation) | | | |
+| Event formatter | → | TextScanner, uniform header, comma lists, nlri add/del | `TestFormatMessageText` (text_test.go:82), `TestHandleUpdate_ZeBGPFormat` (server_test.go:73) |
+| Command parser | → | Flat grammar, alias resolution, shared keywords | `TestParseUpdateText_FlatAttributes`, `TestParseUpdateText_ShortAlias_*`, functional `update-text-flat.ci` |
+| Plugin startup | → | Text handshake, auto-detect, TextMuxConn | `TestTextAutoDetectHandshake` (rpc_plugin_test.go:1298), functional `text-handshake.ci` |
 
 ## Acceptance Criteria
 
@@ -215,35 +240,55 @@ Order: event format first (smallest change, validates grammar), then command ref
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled after implementation)
+
+**utp-1 (event format):** Uniform `peer <ip> asn <asn>` header for all message types. Comma-separated lists (AS-PATH, communities). `nlri <family> add/del` replacing `announce`/`withdraw`. Dropped `set` from all 14+ NLRI plugin String() methods. Shared TextScanner in `textparse/`. Parser rewrite in bgp-rr using TextScanner with key-dispatch loop.
+
+**utp-2 (command format):** Removed accumulator model (set/add/del on attributes). Flat `key value` grammar. Created `textparse/keywords.go` with shared keyword constants, alias tables, and `ResolveAlias()`. Short aliases (`next`, `pref`, `path`, `s-com`, `l-com`, `x-com`, `info`). Moved path-id to per-NLRI modifier. Updated event formatter to output short aliases. Updated internal text producers (`FormatRouteCommand`, `handleRouteRefreshDecision`).
+
+**utp-3 (handshake):** Text serialization for all 5 handshake stages. Heredoc JSON config delivery (`root <name> json << END`). TextConn (line-based framing), PeekMode (auto-detect first byte). TextMuxConn for concurrent post-stage-5 RPCs with `#N` serial prefix. Engine-side text paths (subsystem + server). SDK text constructors (`NewTextPlugin`, `NewTextFromEnv`). `ze-test text-plugin` test binary.
 
 ### Documentation Updates
-- (to be filled after implementation)
+- `docs/architecture/api/text-format.md` — updated examples, BNF grammar, attribute formats, utp-3 entries
+- `docs/architecture/api/commands.md` — updated to flat grammar, added keyword aliases table
+- `docs/architecture/api/process-protocol.md` — added text mode handshake section
+- `docs/architecture/api/ipc_protocol.md` — added text mode plugin handshake section
+- `.claude/rules/plugin-design.md` — added text mode to 5-stage protocol and architecture table
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Single unified grammar covering events, commands, handshake | ✅ Done | `textparse/keywords.go` + child specs | Shared keyword tables; separate tokenizers per protocol path |
+| Event format unification | ✅ Done | `done/302-utp-1-event-format.md` | Uniform header, comma lists, nlri add/del |
+| Command format unification | ✅ Done | `done/306-utp-2-command-format.md` | Flat grammar, aliases, shared keywords |
+| Text handshake alternative | ✅ Done | `done/315-utp-3-handshake.md` | All 5 stages, auto-detect, TextMuxConn |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | utp-1 + utp-2 + utp-3 collectively | Shared grammar via keyword tables covers all three paths |
+| AC-2 | ✅ Done | `textparse/keywords.go` consumed by handler, format, bgp-rs | Separate tokenizers (TextScanner, tokenize()) share keyword tables |
+| AC-3 | ✅ Done | utp-1 AC-9: `TestHandleUpdate_ZeBGPFormat` | Event format parseable by bgp-rr parser |
+| AC-4 | ✅ Done | utp-2 AC-13: `TestFormatTextUpdate_ShortAliases` | Event formatter uses shared aliases |
+| AC-5 | ✅ Done | utp-3 AC-1: `TestTextHandshakeRoundTrip`, `TestSubsystemAutoDetectText` | All 5 stages in text grammar |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| (umbrella delegates to children) | ✅ Done | 3 child specs | 21+ new unit tests in utp-3, 6+ in utp-2, 12+ in utp-1 |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| (umbrella delegates to children) | ✅ Done | See child spec audits for file-level detail |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 9 (4 requirements + 5 ACs)
+- **Done:** 9
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 0
 
 ## Checklist
 
