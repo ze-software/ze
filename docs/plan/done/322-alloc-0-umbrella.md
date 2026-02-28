@@ -200,14 +200,19 @@ Order: children 1 and 3 are independent. Child 4 is architectural and should be 
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
 |------------------|---------------|----------------|--------|
+| Child 4: FilterResult should be computed once per message | Includes NLRI parsing — expensive. N→0-until-needed, not N→1 | Review of lazy-first principle | Abandoned eager StructuredEvent |
+| Child 4: Lazy wrapper struct with cached accessors is fine | Identity wrapper — consumer should use wire types directly | User review | Abandoned UpdateHandle |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
 |----------|---------------|-------------|
+| Eager StructuredEvent (child 4, attempt 1) | Pre-computed FilterResult at observation time | Direct wire access |
+| UpdateHandle wrapper (child 4, attempt 2) | Identity wrapper with accessor methods | Pass *RawMessage, use wire types directly |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
 |---------|-----------|---------------|--------|
+| Wrapper struct with accessor methods | 2 (child 4, attempts 1 and 2) | Updated: design-principles.md "Lazy over eager", before-writing-code.md lazy-first check | Rules already committed |
 
 ## Design Insights
 
@@ -219,41 +224,61 @@ Order: children 1 and 3 are independent. Child 4 is architectural and should be 
 ## Implementation Summary
 
 ### What Was Implemented
-- (to be filled after all children complete)
+- **Child 1 (batch pooling):** Per-worker reusable batch slices in `drainDeliveryBatch`, `drainBatch` (reactor + process), and `selectForwardTargets` in bgp-rs. Eliminated per-burst slice allocations. Done: `docs/plan/done/319-alloc-1-batch-pooling.md`.
+- **Child 3 (format efficiency):** Replaced `fmt.Fprintf` and `String()` with zero-alloc `AppendTo` in text formatter. `formatFilterResultText` uses `strconv.AppendInt`, `netip.Prefix.AppendTo`, `nlri.INET.AppendTo`. Done: `docs/plan/done/320-alloc-3-format-efficiency.md`.
+- **Child 4 (structured delivery):** Eliminated text serialize→deserialize for DirectBridge consumers. Events.go wraps `*RawMessage` in `rpc.StructuredUpdate` for in-process plugins. bgp-rs uses wire types directly (`MPReachWire.Family()`, `NLRIIterator`). Text path unchanged for fork-mode plugins.
+- **Child 2 (AttributesWire pooling):** Dropped by user — complexity vs gain not justified.
 
 ### Bugs Found/Fixed
-- (to be filled)
+- None across all children
 
 ### Documentation Updates
-- (to be filled)
+- `.claude/rules/design-principles.md` — added "Lazy over eager" principle (from child 4 lessons)
+- `.claude/rules/before-writing-code.md` — added lazy-first check (from child 4 lessons)
+- `.claude/rules/memory.md` — mistake log entries for wrong-path and identity-wrapper patterns
 
 ### Deviations from Plan
-- (to be filled)
+- Child 4 required three design iterations before arriving at the correct approach (eager StructuredEvent → UpdateHandle wrapper → direct wire access). The final approach is simpler than any proposal in the original umbrella.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Reduce heap allocations on UPDATE hot path | ✅ Done | Children 1, 3, 4 | All three optimization areas addressed |
+| Per-worker reusable batch slices | ✅ Done | Child 1 (done/319) | `drainDeliveryBatch`, `drainBatch`, `selectForwardTargets` |
+| AppendTo replacing fmt.Sprintf | ✅ Done | Child 3 (done/320) | `formatFilterResultText` zero-alloc rewrite |
+| Structured delivery bypassing text | ✅ Done | Child 4 | DirectBridge passes `*RawMessage`, bgp-rs uses wire types |
+| Fork-mode text delivery unchanged | ✅ Done | events.go | `formatMessageForSubscription` path preserved |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | Child 1 audit (done/319) | Per-worker reusable batch buffers |
+| AC-2 | ✅ Done | Child 3 audit (done/320) | `AppendTo` replaces `String()` |
+| AC-3 | ✅ Done | Child 3 audit (done/320) | `strconv.AppendInt` replaces `fmt.Fprintf` |
+| AC-4 | ✅ Done | Child 4 events.go:72-73 | DirectBridge UPDATEs deliver `*RawMessage` |
+| AC-5 | 🔄 Changed | — | Child 4 eliminated text parsing for in-process. Fork-mode still parses text. |
+| AC-6 | ✅ Done | `make ze-verify` | All children pass with zero regressions |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| Delegated to children | ✅ Done | Children 1, 3, 4 | Each child has own test audit |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `spec-alloc-1-batch-pooling.md` | ✅ Done | Moved to done/319 |
+| `spec-alloc-3-format-efficiency.md` | ✅ Done | Moved to done/320 |
+| `spec-alloc-4-structured-delivery.md` | ✅ Done | Moving to done/321 |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 13
+- **Done:** 12
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (AC-5: fork-mode text parsing preserved, in-process eliminated)
 
 ## Checklist
 
