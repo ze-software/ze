@@ -242,6 +242,57 @@ func TestINETKey(t *testing.T) {
 	assert.Equal(t, "2001:db8::/32", inet6.Key(), "Key() should return bare CIDR for IPv6")
 }
 
+// TestINETAppendKey verifies AppendKey matches Key() for IPv4 and IPv6 prefixes.
+//
+// VALIDATES: AC-4 from spec-alloc-3-format-efficiency.md
+// PREVENTS: AppendKey producing different output than Key().
+func TestINETAppendKey(t *testing.T) {
+	tests := []struct {
+		name string
+		inet *INET
+	}{
+		{"ipv4/8", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
+		{"ipv4/24", NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
+		{"ipv4/32", NewINET(IPv4Unicast, netip.MustParsePrefix("1.2.3.4/32"), 0)},
+		{"ipv4/0", NewINET(IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0)},
+		{"ipv6/32", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		{"ipv6/128", NewINET(IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
+		{"ipv6/0", NewINET(IPv6Unicast, netip.MustParsePrefix("::/0"), 0)},
+		{"with-pathid", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want := tt.inet.Key()
+			got := string(tt.inet.AppendKey(nil))
+			assert.Equal(t, want, got, "AppendKey must match Key()")
+		})
+	}
+}
+
+// TestINETAppendString verifies AppendString matches String() for IPv4 and IPv6 prefixes.
+//
+// VALIDATES: AC-5 from spec-alloc-3-format-efficiency.md
+// PREVENTS: AppendString producing different output than String().
+func TestINETAppendString(t *testing.T) {
+	tests := []struct {
+		name string
+		inet *INET
+	}{
+		{"ipv4/8", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)},
+		{"ipv4/24", NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)},
+		{"ipv6/32", NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
+		{"ipv6/128", NewINET(IPv6Unicast, netip.MustParsePrefix("::1/128"), 0)},
+		{"with-pathid", NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42)},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			want := tt.inet.String()
+			got := string(tt.inet.AppendString(nil))
+			assert.Equal(t, want, got, "AppendString must match String()")
+		})
+	}
+}
+
 // TestINETErrors verifies error handling.
 func TestINETErrors(t *testing.T) {
 	tests := []struct {

@@ -1061,7 +1061,8 @@ func TestFormatTextUpdate_ShortAliases(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var sb strings.Builder
-			formatAttributeText(&sb, tt.code, tt.attr)
+			var scratch [64]byte
+			formatAttributeText(&sb, tt.code, tt.attr, scratch[:])
 			got := sb.String()
 			if got != tt.want {
 				t.Errorf("formatAttributeText() = %q, want %q", got, tt.want)

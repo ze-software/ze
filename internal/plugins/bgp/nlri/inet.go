@@ -184,6 +184,19 @@ func (i *INET) String() string {
 	return "prefix " + i.prefix.String()
 }
 
+// AppendKey appends the compact unique identifier (bare CIDR) to b.
+// Zero-alloc alternative to Key() for hot paths.
+func (i *INET) AppendKey(b []byte) []byte {
+	return i.prefix.AppendTo(b)
+}
+
+// AppendString appends the command-style representation to b: "prefix <addr/len>".
+// Zero-alloc alternative to String() for hot paths.
+func (i *INET) AppendString(b []byte) []byte {
+	b = append(b, "prefix "...)
+	return i.prefix.AppendTo(b)
+}
+
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
 //

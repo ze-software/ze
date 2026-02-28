@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
@@ -628,9 +629,17 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 // ctx provides ADD-PATH state per family.
 func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
+	var scratch [64]byte
 
 	// Uniform header: peer <ip> asn <asn> <direction> update <id>
-	fmt.Fprintf(&sb, "peer %s asn %d %s update %d", peer.Address, peer.PeerAS, direction, msgID)
+	sb.WriteString("peer ")
+	sb.Write(peer.Address.AppendTo(scratch[:0]))
+	sb.WriteString(" asn ")
+	sb.Write(strconv.AppendUint(scratch[:0], uint64(peer.PeerAS), 10))
+	sb.WriteByte(' ')
+	sb.WriteString(direction)
+	sb.WriteString(" update ")
+	sb.Write(strconv.AppendUint(scratch[:0], msgID, 10))
 
 	announced := result.AnnouncedByFamily(ctx)
 	withdrawn := result.WithdrawnByFamily(ctx)
@@ -642,12 +651,12 @@ func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	}
 
 	// Attributes (shared across all families)
-	formatAttributesText(&sb, result)
+	formatAttributesText(&sb, result, scratch[:])
 
 	// Announced routes: next <nh> nlri <fam> add <nlri>[,<nlri>]...
 	for _, fam := range announced {
 		sb.WriteString(" " + textparse.ShortNext + " ")
-		sb.WriteString(fam.NextHop.String())
+		sb.Write(fam.NextHop.AppendTo(scratch[:0]))
 		sb.WriteString(" nlri ")
 		sb.WriteString(fam.Family)
 		sb.WriteString(" add ")
@@ -667,23 +676,28 @@ func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 }
 
 // writeNLRIList writes NLRIs in compact format.
-// INET NLRIs (which implement Key()) use comma-separated CIDRs: prefix <a>,<b>.
+// INET NLRIs use comma-separated CIDRs: prefix <a>,<b>.
 // Other NLRIs use keyword boundary: <nlri1> <nlri2>.
+// Uses AppendString/AppendKey for INET NLRIs to avoid per-NLRI string allocations.
 func writeNLRIList(sb *strings.Builder, nlris []nlri.NLRI) {
 	if len(nlris) == 0 {
 		return
 	}
 
-	// Check if first NLRI supports compact Key() (INET).
-	type keyer interface{ Key() string }
-	_, useComma := nlris[0].(keyer)
+	// Check if first NLRI is INET (supports zero-alloc append methods).
+	firstINET, useComma := nlris[0].(*nlri.INET)
 
-	sb.WriteString(nlris[0].String())
+	var scratch [64]byte
+	if useComma {
+		sb.Write(firstINET.AppendString(scratch[:0]))
+	} else {
+		sb.WriteString(nlris[0].String())
+	}
 	for _, n := range nlris[1:] {
 		if useComma {
 			sb.WriteByte(',')
-			if k, ok := n.(keyer); ok {
-				sb.WriteString(k.Key())
+			if inet, ok := n.(*nlri.INET); ok {
+				sb.Write(inet.AppendKey(scratch[:0]))
 			} else {
 				sb.WriteString(n.String())
 			}
@@ -696,10 +710,11 @@ func writeNLRIList(sb *strings.Builder, nlris []nlri.NLRI) {
 
 // formatAttributesText formats attributes from FilterResult for text output.
 // Only outputs what's in result.Attributes (lazy parsing - filter controls what's parsed).
-func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
+// scratch is a caller-provided buffer for zero-alloc integer/address formatting.
+func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult, scratch []byte) {
 	for code, attr := range result.Attributes {
 		sb.WriteString(" ")
-		formatAttributeText(sb, code, attr)
+		formatAttributeText(sb, code, attr, scratch)
 	}
 }
 
@@ -708,7 +723,8 @@ func formatAttributesText(sb *strings.Builder, result bgpfilter.FilterResult) {
 // unknown types use "attr-N" with hex value.
 // Short forms: next (next-hop), path (as-path), pref (local-preference),
 // s-com (community), l-com (large-community), e-com (extended-community).
-func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
+// scratch is a caller-provided buffer for zero-alloc integer/address formatting.
+func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute, scratch []byte) {
 	switch code { //nolint:exhaustive // common attributes; unknown handled after switch
 	case attribute.AttrOrigin:
 		switch o := attr.(type) {
@@ -729,7 +745,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 					if !first {
 						sb.WriteString(",")
 					}
-					fmt.Fprintf(sb, "%d", asn)
+					sb.Write(strconv.AppendUint(scratch[:0], uint64(asn), 10))
 					first = false
 				}
 			}
@@ -738,23 +754,27 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 	case attribute.AttrNextHop:
 		if nh, ok := attr.(*attribute.NextHop); ok {
 			sb.WriteString(textparse.ShortNext + " ")
-			sb.WriteString(nh.Addr.String())
+			sb.Write(nh.Addr.AppendTo(scratch[:0]))
 		}
 		return
 	case attribute.AttrMED:
 		switch m := attr.(type) {
 		case *attribute.MED:
-			fmt.Fprintf(sb, textparse.KWMED+" %d", uint32(*m))
+			sb.WriteString(textparse.KWMED + " ")
+			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(*m)), 10))
 		case attribute.MED:
-			fmt.Fprintf(sb, textparse.KWMED+" %d", uint32(m))
+			sb.WriteString(textparse.KWMED + " ")
+			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(m)), 10))
 		}
 		return
 	case attribute.AttrLocalPref:
 		switch lp := attr.(type) {
 		case *attribute.LocalPref:
-			fmt.Fprintf(sb, textparse.ShortPref+" %d", uint32(*lp))
+			sb.WriteString(textparse.ShortPref + " ")
+			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(*lp)), 10))
 		case attribute.LocalPref:
-			fmt.Fprintf(sb, textparse.ShortPref+" %d", uint32(lp))
+			sb.WriteString(textparse.ShortPref + " ")
+			sb.Write(strconv.AppendUint(scratch[:0], uint64(uint32(lp)), 10))
 		}
 		return
 	case attribute.AttrCommunity:
