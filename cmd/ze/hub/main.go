@@ -180,6 +180,14 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 
 	fmt.Println("Ze BGP running. Press Ctrl+C to stop.")
 
+	// Signal readiness to test infrastructure. Written after signal.Notify
+	// and reactor.Start so the test runner knows the daemon is fully operational.
+	if readyFile := os.Getenv("ZE_READY_FILE"); readyFile != "" {
+		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
+			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
+		}
+	}
+
 	select {
 	case <-sigCh:
 		fmt.Println("\nShutting down...")
@@ -260,6 +268,15 @@ func runOrchestratorWithData(configPath string, data []byte) int {
 	if err := o.Start(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "error: start: %v\n", err)
 		return 1
+	}
+	fmt.Fprintf(os.Stderr, "hub: started with config %s\n", configPath)
+
+	// Signal readiness to test infrastructure. Written after signal.Notify
+	// and o.Start so the test runner knows signal handlers are registered.
+	if readyFile := os.Getenv("ZE_READY_FILE"); readyFile != "" {
+		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
+			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
+		}
 	}
 
 	// Wait for shutdown

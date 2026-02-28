@@ -18,8 +18,9 @@ if [ ! -f daemon.pid ]; then
     exit 1
 fi
 PID=$(cat daemon.pid)
-# Wait for daemon to be ready (signal handler registered)
-sleep 1
+# daemon.pid is written only after the hub outputs "started" on stderr,
+# meaning signal handlers are registered. Brief sleep for safety margin.
+sleep 0.2
 # Send SIGHUP to trigger reload
 kill -HUP "$PID" 2>/dev/null
 # Wait for reload to complete

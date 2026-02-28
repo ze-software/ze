@@ -22,6 +22,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
 )
 
+const modeForeground = "foreground"
+
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.
 type syncWriter struct {
@@ -79,6 +81,27 @@ func (sw *syncWriter) String() string {
 	sw.mu.Lock()
 	defer sw.mu.Unlock()
 	return sw.buf.String()
+}
+
+// waitReady polls for a readiness file, returning when found or timeout expires.
+// Used to synchronize daemon.pid creation with foreground process initialization:
+// the process writes the readiness file after registering signal handlers, and
+// the test runner writes daemon.pid only after the readiness file appears.
+func waitReady(ctx context.Context, path string, timeout time.Duration) {
+	waitCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	ticker := time.NewTicker(20 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		select {
+		case <-waitCtx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // runTest executes a single test.
@@ -348,7 +371,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Determine timeout from foreground command or default
 	timeout := opts.Timeout
 	for _, cmd := range cmds {
-		if cmd.Mode == "foreground" && cmd.Timeout != "" {
+		if cmd.Mode == modeForeground && cmd.Timeout != "" {
 			if d, err := time.ParseDuration(cmd.Timeout); err == nil {
 				timeout = d
 			}
@@ -382,6 +405,15 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			os.Remove(name) //nolint:errcheck // best-effort temp file cleanup
 		}
 	}()
+
+	// Check if any command uses ze-peer (which provides BGP-level synchronization).
+	hasPeer := false
+	for _, cmd := range cmds {
+		if strings.Contains(cmd.Exec, "ze-peer") {
+			hasPeer = true
+			break
+		}
+	}
 
 	// Execute commands in order
 	for _, cmd := range cmds {
@@ -515,6 +547,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if binName == "ze" || binName == binNameZePeer {
 			proc.Env = append(proc.Env, fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port))
 		}
+		// Tell foreground ze processes to write a readiness file after signal
+		// handlers are registered. The test runner waits for this file before
+		// writing daemon.pid, eliminating a startup race condition.
+		if cmd.Mode == modeForeground && binName == "ze" && rec.TmpfsTempDir != "" {
+			proc.Env = append(proc.Env,
+				fmt.Sprintf("ZE_READY_FILE=%s", filepath.Join(rec.TmpfsTempDir, "daemon.ready")))
+		}
 
 		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)
 		if rec.TmpfsTempDir != "" {
@@ -561,8 +600,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// Foreground (daemon): start but don't wait - we wait for peer instead
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
-			// Write daemon PID to tmpfs dir so the test peer can send SIGHUP.
+			// Write daemon PID to tmpfs dir so background scripts can send signals.
 			if rec.TmpfsTempDir != "" && proc.Process != nil {
+				// When no ze-peer provides BGP-level synchronization, wait for
+				// the process readiness file before writing daemon.pid. This
+				// prevents a race where signal.sh sends SIGHUP before the
+				// process has registered signal handlers.
+				if !hasPeer {
+					readyPath := filepath.Join(rec.TmpfsTempDir, "daemon.ready")
+					waitReady(testCtx, readyPath, 5*time.Second)
+				}
 				pidPath := filepath.Join(rec.TmpfsTempDir, "daemon.pid")
 				_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 			}
