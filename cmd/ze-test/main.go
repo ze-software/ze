@@ -8,6 +8,7 @@
 //	ze-test editor [flags]         Run editor functional tests (.et files)
 //	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
 //	ze-test syslog [flags]         Run syslog server for testing
+//	ze-test text-plugin            Run minimal text-mode plugin (for .ci tests)
 package main
 
 import (
@@ -39,6 +40,8 @@ func main() {
 		os.Exit(peerCmd())
 	case "syslog":
 		os.Exit(syslogCmd())
+	case "text-plugin":
+		os.Exit(textPluginCmd())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
@@ -55,10 +58,11 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: ze-test <command> [options]
 
 Commands:
-  bgp       Run BGP functional tests (encoding, plugin, decoding, parsing)
-  editor    Run editor functional tests (.et files)
-  peer      BGP test peer (sink/echo/check modes)
-  syslog    Run syslog server for testing
+  bgp          Run BGP functional tests (encoding, plugin, decoding, parsing)
+  editor       Run editor functional tests (.et files)
+  peer         BGP test peer (sink/echo/check modes)
+  syslog       Run syslog server for testing
+  text-plugin  Run minimal text-mode plugin (for .ci tests)
 
 Run 'ze-test <command> --help' for command-specific help.
 `)

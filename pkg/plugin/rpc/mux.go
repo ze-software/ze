@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/ipc_protocol.md — multiplexed plugin RPC
 // Related: conn.go — Conn type and persistent reader (readFrame)
+// Related: text_mux.go — TextMuxConn text-mode multiplexer (#N routing)
 
 package rpc
 

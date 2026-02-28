@@ -176,7 +176,7 @@ peer 10.0.0.1 received update 1 withdraw ipv4/unicast nlri 172.16.0.0/16
 The following changes were planned in the unified text protocol design but are not yet implemented.
 For implemented changes, see the current format sections above.
 
-### Already Implemented (by spec-utp-1, spec-utp-2)
+### Already Implemented (by spec-utp-1, spec-utp-2, spec-utp-3)
 
 | Change | Status |
 |--------|--------|
@@ -186,6 +186,9 @@ For implemented changes, see the current format sections above.
 | Flat grammar for commands (no `set` keyword for attributes) | Implemented — command parser |
 | Alias resolution (short/long/legacy forms accepted) | Implemented — `textparse/keywords.go` |
 | Shared keyword tables across formatter, command parser, event parser | Implemented — `textparse/keywords.go` |
+| Text-mode 5-stage handshake (auto-detected from first byte) | Implemented — `rpc/text.go`, `rpc/text_conn.go` |
+| TextMuxConn with `#N` serial prefix for post-startup concurrent RPCs | Implemented — `rpc/text_mux.go` |
+| Heredoc config delivery (`root <name> json << END`) | Implemented — `rpc/text.go` FormatConfigureText/ParseConfigureText |
 
 ### Still Proposed: Uniform Header
 

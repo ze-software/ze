@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin SDK
+// Related: sdk_text.go — text-mode startup and event loop
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over dual socket pairs.
@@ -43,6 +44,15 @@ type Plugin struct {
 	engineConn   *rpc.Conn    // Socket A: plugin → engine RPCs
 	callbackConn *rpc.Conn    // Socket B: engine → plugin RPCs
 	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
+
+	// Text mode: line-based framing instead of NUL-delimited JSON-RPC.
+	// When textMode is true, text* fields are used instead of engineConn/callbackConn.
+	textMode     bool
+	textConnA    *rpc.TextConn    // Socket A text framing (startup + textMux owner)
+	textConnB    *rpc.TextConn    // Socket B text framing (event loop)
+	textMux      *rpc.TextMuxConn // Multiplexed Socket A for concurrent post-startup text RPCs
+	rawEngineA   net.Conn         // Underlying Socket A (for Close)
+	rawCallbackB net.Conn         // Underlying Socket B (for Close)
 
 	// Direct transport bridge for internal plugins (nil for external).
 	// Discovered via type assertion on engineConn in NewWithConn.
@@ -163,6 +173,9 @@ func envFD(name string) (int, error) {
 // on Read(). Must be called when the plugin is done to prevent goroutine leaks.
 // Safe to call multiple times.
 func (p *Plugin) Close() error {
+	if p.textMode {
+		return p.closeText()
+	}
 	// Close MuxConn first — its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {
@@ -319,6 +332,11 @@ func (p *Plugin) SetCapabilities(caps []CapabilityDecl) {
 // Run executes the 5-stage startup protocol and enters the event loop.
 // Returns nil on clean shutdown (bye received), or error on failure.
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
+	// Text mode: delegate to text-specific startup and event loop.
+	if p.textMode {
+		return p.runText(ctx, reg)
+	}
+
 	// Auto-set WantsValidateOpen if callback is registered.
 	p.mu.Lock()
 	if p.onValidateOpen != nil {

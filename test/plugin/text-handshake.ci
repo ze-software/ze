@@ -1,0 +1,49 @@
+# Test: Text-mode external plugin handshake and event delivery
+#
+# Verifies that an external plugin using the text protocol (line-based framing)
+# completes the 5-stage handshake and receives events without crashing ze.
+# Uses ze-test text-plugin binary (Go, SDK text mode) instead of a Python script.
+#
+# What this proves:
+# - PeekMode detects text mode from first byte on Socket A
+# - handleTextProcessStartup runs 5 text stages with coordinator barriers
+# - Text event delivery (deliverBatch → TextConnB.WriteLine) works
+# - ze exits cleanly after text plugin lifecycle
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=update:value=send-default-route
+# EOR sent via API command proves ze is functional after text handshake
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external text-test {
+		run "ze-test text-plugin";
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.1;
+		local-address 127.0.0.1;
+		local-as 65000;
+		peer-as 65000;
+		connection active;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		process text-test {
+			send [ update ];
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

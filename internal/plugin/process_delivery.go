@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -113,8 +114,8 @@ func (p *Process) drainBatch(first EventDelivery) []EventDelivery {
 }
 
 // deliverBatch sends a batch of events and notifies callers.
-// Uses DirectBridge for internal plugins (direct function call) or
-// SendDeliverBatch for external plugins (JSON-RPC over socket).
+// Uses DirectBridge for internal plugins (direct function call),
+// text lines for text-mode plugins, or SendDeliverBatch for JSON-RPC plugins.
 func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
 	events := make([]string, len(batch))
 	for i, req := range batch {
@@ -124,6 +125,18 @@ func (p *Process) deliverBatch(batch []EventDelivery, timeout time.Duration) {
 	var batchErr error
 	if p.bridge != nil && p.bridge.Ready() {
 		batchErr = p.bridge.DeliverEvents(events)
+	} else if tc := p.TextConnB(); tc != nil {
+		// Text-mode: write each event as a plain text line (fire-and-forget).
+		// WriteLine adds \n, so strip any trailing newline from event text.
+		ctx, cancel := context.WithTimeout(p.ctx, timeout)
+		for _, event := range events {
+			event = strings.TrimRight(event, "\n")
+			if err := tc.WriteLine(ctx, event); err != nil {
+				batchErr = err
+				break
+			}
+		}
+		cancel()
 	} else {
 		connB := p.ConnB()
 		if connB == nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"runtime"
 	"sync"
@@ -564,4 +565,66 @@ func TestConn_MuxConn_Compatibility(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(raw, &resp))
 	assert.Equal(t, "compat-test", resp.Result.Method)
+}
+
+// TestAutoDetectMode verifies first-byte protocol mode detection.
+//
+// VALIDATES: AC-8 — First byte { → JSON mode, letter → text mode. Peeked byte not consumed.
+// PREVENTS: Mode misdetection or consumed bytes breaking subsequent reads.
+func TestAutoDetectMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		send      string
+		wantMode  ConnMode
+		wantFirst byte
+	}{
+		{
+			name:      "JSON mode from opening brace",
+			send:      `{"method":"declare-registration","id":1}`,
+			wantMode:  ModeJSON,
+			wantFirst: '{',
+		},
+		{
+			name:      "text mode from register verb",
+			send:      "register\nfamily ipv4/unicast mode both\n\n",
+			wantMode:  ModeText,
+			wantFirst: 'r',
+		},
+		{
+			name:      "text mode from capabilities verb",
+			send:      "capabilities\ncode 65 encoding hex\n\n",
+			wantMode:  ModeText,
+			wantFirst: 'c',
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			clientEnd, serverEnd := net.Pipe()
+			defer closePipe(t, "clientEnd", clientEnd)
+			defer closePipe(t, "serverEnd", serverEnd)
+
+			// Writer goroutine may see broken pipe when test closes the
+			// pipe after reading just the peeked byte. Error is expected.
+			go func() {
+				if _, writeErr := io.WriteString(serverEnd, tt.send); writeErr != nil {
+					return
+				}
+			}()
+
+			mode, wrapped, err := PeekMode(clientEnd)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMode, mode)
+
+			// Verify peeked byte not consumed — first read returns the peeked byte
+			var buf [1]byte
+			_, readErr := wrapped.Read(buf[:])
+			require.NoError(t, readErr)
+			assert.Equal(t, tt.wantFirst, buf[0], "peeked byte should still be available")
+		})
+	}
 }

@@ -799,11 +799,34 @@ func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (bgptypes.T
 }
 
 // getMatchingPeers returns peers matching the selector.
-// Supports: "*" (all peers), exact IP, or glob patterns (e.g., "192.168.*.*").
+// Supports: "*" (all peers), exact IP, glob patterns (e.g., "192.168.*.*"),
+// or "!addr" exclusion (all peers except the named one).
 func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
+	// Exclusion: "!addr" returns all peers except the one matching addr.
+	if strings.HasPrefix(selector, "!") {
+		excluded := a.getMatchingPeersLocked(selector[1:])
+		excludeSet := make(map[*Peer]struct{}, len(excluded))
+		for _, p := range excluded {
+			excludeSet[p] = struct{}{}
+		}
+		peers := make([]*Peer, 0, len(a.r.peers)-len(excluded))
+		for _, peer := range a.r.peers {
+			if _, skip := excludeSet[peer]; !skip {
+				peers = append(peers, peer)
+			}
+		}
+		return peers
+	}
+
+	return a.getMatchingPeersLocked(selector)
+}
+
+// getMatchingPeersLocked resolves a positive selector (no "!" prefix).
+// Caller must hold a.r.mu (read or write).
+func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
 	// Fast path: all peers
 	if selector == "*" || selector == "" {
 		peers := make([]*Peer, 0, len(a.r.peers))

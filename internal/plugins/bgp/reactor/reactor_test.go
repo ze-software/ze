@@ -2609,3 +2609,43 @@ func TestReactorPauseAllReads(t *testing.T) {
 		require.False(t, p.IsReadPaused(), "peer %s should be resumed", p.Settings().Address)
 	}
 }
+
+// TestGetMatchingPeersExclusion verifies that the "!" prefix excludes the named peer.
+//
+// VALIDATES: "!addr" selector returns all peers except the excluded one.
+// PREVENTS: bgp-rs withdrawal propagation failing with "no peers match selector".
+func TestGetMatchingPeersExclusion(t *testing.T) {
+	r := &Reactor{
+		peers: map[string]*Peer{
+			"127.0.0.1:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.1")}},
+			"127.0.0.2:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.2")}},
+			"127.0.0.3:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.3")}},
+		},
+	}
+	adapter := &reactorAPIAdapter{r: r}
+
+	tests := []struct {
+		name     string
+		selector string
+		wantLen  int
+		excluded string // address that must NOT appear
+	}{
+		{"exclude one peer", "!127.0.0.2", 2, "127.0.0.2"},
+		{"exclude with port", "!127.0.0.1:179", 2, "127.0.0.1"},
+		{"exclude bare IP appends default port", "!127.0.0.3", 2, "127.0.0.3"},
+		{"exclude nonexistent returns all", "!127.0.0.99", 3, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			peers := adapter.getMatchingPeers(tt.selector)
+			assert.Len(t, peers, tt.wantLen)
+			for _, p := range peers {
+				if tt.excluded != "" {
+					assert.NotEqual(t, tt.excluded, p.settings.Address.String(),
+						"excluded peer should not be in result")
+				}
+			}
+		})
+	}
+}

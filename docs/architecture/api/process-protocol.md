@@ -186,6 +186,31 @@ If any plugin fails to complete a stage, startup aborts for all plugins.
 - Prevents race conditions in multi-plugin configurations
 - Guarantees consistent state before BGP peers start
 
+### Text Mode Handshake (Alternative to JSON-RPC)
+
+Plugins may speak a text-based framing instead of NUL-delimited JSON-RPC during
+the 5-stage startup. The engine auto-detects the mode by peeking the first byte
+on Socket A: `{` selects JSON-RPC, any letter selects text mode.
+
+**Text framing:** Each stage message is newline-delimited lines terminated by a
+blank line. Responses are single lines (`ok` or `error <message>`).
+
+| Stage | Socket | Text Format |
+|-------|--------|-------------|
+| 1. Registration | A (plugin→engine) | `register` header + `family`, `command`, `wants-config`, `dependency` lines |
+| 2. Config | B (engine→plugin) | `configure` header + `root <name> json << END` heredoc per config section |
+| 3. Capabilities | A (plugin→engine) | `capabilities` header + `capability <code> <encoding> <payload>` lines |
+| 4. Registry | B (engine→plugin) | `registry` header + `command <name> <plugin> <encoding>` lines |
+| 5. Ready | A (plugin→engine) | `ready` header + optional `subscribe` lines |
+
+**Post-stage-5:** Socket A uses `TextMuxConn` with `#N` serial prefixes for
+concurrent RPCs (same semantics as JSON `MuxConn`). Socket B delivers events
+as plain text lines; `bye` signals shutdown.
+
+**Implementation:** `pkg/plugin/rpc/text.go` (format/parse), `pkg/plugin/rpc/text_conn.go`
+(framing + PeekMode), `pkg/plugin/rpc/text_mux.go` (TextMuxConn),
+`internal/plugin/subsystem_text.go` (engine side), `pkg/plugin/sdk/sdk_text.go` (SDK side).
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes

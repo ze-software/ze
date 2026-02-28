@@ -706,6 +706,32 @@ peer 192.0.2.1 asn 65001 sent keepalive 42
 
 ---
 
+## Text Mode Plugin Handshake
+
+Plugins may use text-based framing for the 5-stage startup instead of
+NUL-delimited JSON-RPC. Mode detection is automatic: the engine peeks the first
+byte on Socket A (`{` → JSON, letter → text). No negotiation is needed.
+
+**Text framing:** Newline-delimited lines, blank line terminates each stage
+message. Responses are single lines (`ok` or `error <message>`).
+
+**Post-stage-5 concurrent RPCs:** `#<id> <method> [<args>]` request format,
+`#<id> ok [<result>]` or `#<id> error <message>` response format. Same `#N`
+serial prefix convention as IPC protocol.
+
+**Config delivery (Stage 2):** Config sections use heredoc format to embed
+arbitrary JSON without escaping: `root <name> json << END` followed by raw JSON
+lines, terminated by `END` on its own line.
+
+**YANG schema delivery:** Skipped in text mode. Internal plugins already have
+schemas registered via `init()` calls. External plugins needing runtime schema
+delivery use JSON mode.
+
+See `process-protocol.md` for the full stage table and `text-format.md` for the
+text grammar reference.
+
+---
+
 ## Plugin Registration
 
 Plugins can register custom commands:

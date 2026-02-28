@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
 // Related: server.go — Server struct and lifecycle
+// Related: server_startup_text.go — text-mode handleTextProcessStartup
 
 package plugin
 
@@ -289,6 +290,19 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 		}
 	}()
 
+	// Detect protocol mode and create typed connections.
+	mode, rawA, rawB, initErr := proc.initConns()
+	if initErr != nil {
+		logger().Error("rpc startup: init conns failed", "plugin", proc.Name(), "error", initErr)
+		return
+	}
+	if mode == rpc.ModeText {
+		tcA := rpc.NewTextConn(rawA, rawA)
+		tcB := rpc.NewTextConn(rawB, rawB)
+		s.handleTextProcessStartup(proc, tcA, tcB)
+		return
+	}
+
 	connA := proc.ConnA()
 	if connA == nil {
 		logger().Debug("rpc startup: no connection (startup failed?)", "plugin", proc.Name())
@@ -449,20 +463,12 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 	// the engine handler is wired.
 	s.wireBridgeDispatch(proc)
 
-	// Send OK response
-	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
-		return
-	}
-
-	// Final stage transition: Ready -> Running
-	if !s.stageTransition(proc, proc.Name(), StageReady, StageRunning) {
-		return
-	}
-	proc.SetStage(StageRunning)
-
-	// Register plugin commands with the dispatcher so inter-plugin dispatch-command
-	// RPCs can route to this process. Commands were declared in Stage 1 (PluginRegistry)
-	// but the dispatcher's CommandRegistry (used by dispatchPlugin) needs its own entries.
+	// Register plugin commands with the dispatcher BEFORE sending the ready OK.
+	// Commands were declared in Stage 1 (PluginRegistry) but the dispatcher's
+	// CommandRegistry (used by dispatchPlugin) needs its own entries.
+	// Registering here — before the StageReady barrier — ensures all plugin
+	// commands are visible by the time the barrier releases and event loops
+	// can trigger inter-plugin dispatch (e.g., bgp-rs dispatching "adj-rib-in replay").
 	if reg := proc.Registration(); reg == nil {
 		logger().Debug("no registration for plugin", "plugin", proc.Name())
 	} else {
@@ -482,6 +488,17 @@ func (s *Server) handleProcessStartupRPC(proc *Process) {
 			}
 		}
 	}
+
+	// Send OK response
+	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+		return
+	}
+
+	// Final stage transition: Ready -> Running
+	if !s.stageTransition(proc, proc.Name(), StageReady, StageRunning) {
+		return
+	}
+	proc.SetStage(StageRunning)
 
 	if s.reactor != nil {
 		s.reactor.SignalAPIReady()

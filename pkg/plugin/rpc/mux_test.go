@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -476,4 +477,122 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 	raw, err := mux.CallRPC(ctx, "test-method", nil)
 	require.NoError(t, err)
 	require.NotNil(t, raw)
+}
+
+// --- TextMuxConn tests ---
+
+// TestTextMuxConnConcurrent verifies concurrent text RPCs route responses by #N ID.
+//
+// VALIDATES: 10 concurrent #N requests on net.Pipe, responses routed to correct callers.
+// PREVENTS: Response misrouting or deadlock under concurrent text RPCs.
+func TestTextMuxConnConcurrent(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Fake text engine: reads "#N method [args]", responds "#N ok method"
+	engineTC := NewTextConn(engineEnd, engineEnd)
+	go func() {
+		for {
+			line, readErr := engineTC.ReadLine(ctx)
+			if readErr != nil {
+				return
+			}
+			// Line format: "#N method [args]"
+			rest := strings.TrimPrefix(line, "#")
+			idStr, methodAndArgs, found := strings.Cut(rest, " ")
+			if !found {
+				return
+			}
+			method, _, _ := strings.Cut(methodAndArgs, " ")
+			resp := fmt.Sprintf("#%s ok %s", idStr, method)
+			if writeErr := engineTC.WriteLine(ctx, resp); writeErr != nil {
+				return
+			}
+		}
+	}()
+
+	pluginTC := NewTextConn(pluginEnd, pluginEnd)
+	mux := NewTextMuxConn(pluginTC)
+	defer func() {
+		if closeErr := mux.Close(); closeErr != nil {
+			t.Logf("mux close: %v", closeErr)
+		}
+	}()
+
+	const n = 10
+	var wg sync.WaitGroup
+	results := make([]string, n)
+	errs := make([]error, n)
+
+	for i := range n {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			method := fmt.Sprintf("method-%d", idx)
+			result, callErr := mux.CallRPC(ctx, method, "")
+			if callErr != nil {
+				errs[idx] = callErr
+				return
+			}
+			results[idx] = result
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i := range n {
+		require.NoError(t, errs[i], "call %d should succeed", i)
+		expected := fmt.Sprintf("method-%d", i)
+		assert.Equal(t, expected, results[i], "call %d should get correct response", i)
+	}
+}
+
+// TestTextMuxConnClose verifies that Close() unblocks pending text RPC callers.
+//
+// VALIDATES: Close TextMuxConn → pending callers get ErrMuxConnClosed.
+// PREVENTS: Goroutine leaks when text MuxConn is closed during active RPCs.
+func TestTextMuxConnClose(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	// Engine reads but never responds.
+	engineTC := NewTextConn(engineEnd, engineEnd)
+	go func() {
+		for {
+			if _, readErr := engineTC.ReadLine(context.Background()); readErr != nil {
+				return
+			}
+		}
+	}()
+
+	pluginTC := NewTextConn(pluginEnd, pluginEnd)
+	mux := NewTextMuxConn(pluginTC)
+
+	ctx := context.Background()
+
+	errCh := make(chan error, 1)
+	go func() {
+		_, callErr := mux.CallRPC(ctx, "will-be-closed", "")
+		errCh <- callErr
+	}()
+
+	// Give the call time to reach the waiting state.
+	time.Sleep(50 * time.Millisecond)
+
+	require.NoError(t, mux.Close())
+
+	select {
+	case closeErr := <-errCh:
+		require.Error(t, closeErr, "CallRPC should return error after Close()")
+	case <-time.After(2 * time.Second):
+		t.Fatal("CallRPC did not unblock after Close()")
+	}
 }

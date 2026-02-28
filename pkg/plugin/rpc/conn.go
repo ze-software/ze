@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
 // Related: mux.go — MuxConn multiplexer (consumes readFrame)
+// Related: text_conn.go — TextConn text-mode framing alternative
 //
 // Package rpc defines the canonical wire-format types and shared connection
 // logic for the ze plugin RPC protocol.

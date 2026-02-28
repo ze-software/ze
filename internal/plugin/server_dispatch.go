@@ -24,7 +24,13 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 
 	connA := proc.ConnA()
 	if connA == nil {
-		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
+		// Text-mode plugins have no post-startup RPC on Socket A.
+		// Wait for server shutdown so cleanup runs at the right time.
+		if proc.TextConnB() != nil {
+			<-s.ctx.Done()
+		} else {
+			logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
+		}
 		return
 	}
 
