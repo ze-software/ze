@@ -157,6 +157,11 @@ type UnicastParams struct {
 	// CLUSTER_LIST (RFC 4456) - cluster IDs traversed.
 	// Used for route reflector configurations.
 	ClusterList []uint32
+
+	// SAFI overrides the default SAFIUnicast when set.
+	// Use attribute.SAFIMulticast for multicast routes.
+	// Zero value defaults to SAFIUnicast.
+	SAFI attribute.SAFI
 }
 
 // BuildUnicast builds an UPDATE message for a unicast route.
@@ -169,8 +174,9 @@ type UnicastParams struct {
 func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	ub.resetScratch()
 
-	// Build attributes in a slice for sorting
-	var attrs []attribute.Attribute
+	// Build attributes in a fixed-size buffer for sorting (max 12 attribute types).
+	var attrBuf [12]attribute.Attribute
+	attrs := attrBuf[:0]
 
 	// 1. ORIGIN (type 1) - RFC 4271 Section 5.1.1
 	attrs = append(attrs, p.Origin)
@@ -191,11 +197,12 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
 	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI, not extended next-hop)
 	// RFC 8950: When extended next-hop is used, next-hop goes in MP_REACH_NLRI
-	if p.Prefix.Addr().Is4() && p.NextHop.Is4() && !p.UseExtendedNextHop {
+	isUnicast := p.SAFI == 0 || p.SAFI == attribute.SAFIUnicast
+	if isUnicast && p.Prefix.Addr().Is4() && p.NextHop.Is4() && !p.UseExtendedNextHop {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
 	// RFC 8950: For IPv6 unicast with IPv4 next-hop, include NEXT_HOP for compatibility
-	if p.Prefix.Addr().Is6() && p.NextHop.Is4() && p.UseExtendedNextHop {
+	if isUnicast && p.Prefix.Addr().Is6() && p.NextHop.Is4() && p.UseExtendedNextHop {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
 
@@ -260,17 +267,18 @@ func (ub *UpdateBuilder) BuildUnicast(p *UnicastParams) *Update {
 	}
 
 	// 14. MP_REACH_NLRI (type 14) - RFC 4760
-	// For IPv6 unicast and RFC 8950 extended next-hop, next-hop and NLRI go here
+	// Non-unicast SAFIs and IPv6 always use MP_REACH_NLRI.
+	// IPv4 unicast uses inline NLRI unless extended next-hop is negotiated.
 	var inlineNLRI []byte
 	switch {
-	case p.Prefix.Addr().Is6():
-		// IPv6 unicast: use MP_REACH_NLRI
-		mpReach := ub.buildMPReachUnicast(p)
+	case !isUnicast, p.Prefix.Addr().Is6():
+		// Non-unicast SAFI or IPv6: use MP_REACH_NLRI
+		mpReach := ub.buildMPReach(p)
 		attrs = append(attrs, mpReach)
 	case p.UseExtendedNextHop && p.Prefix.Addr().Is4() && p.NextHop.Is6():
 		// RFC 8950: IPv4 unicast with IPv6 next-hop via MP_REACH_NLRI
-		// buildMPReachUnicast handles this - AFI is set from prefix, not next-hop
-		mpReach := ub.buildMPReachUnicast(p)
+		// buildMPReach handles this - AFI is set from prefix, not next-hop
+		mpReach := ub.buildMPReach(p)
 		attrs = append(attrs, mpReach)
 	case p.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI
@@ -397,10 +405,11 @@ func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
 	return buf
 }
 
-// buildMPReachUnicast constructs MP_REACH_NLRI for unicast routes.
+// buildMPReach constructs MP_REACH_NLRI for the given params.
 //
-// RFC 4760 Section 3 - MP_REACH_NLRI format for IPv6 unicast.
-func (ub *UpdateBuilder) buildMPReachUnicast(p *UnicastParams) *attribute.MPReachNLRI {
+// RFC 4760 Section 3 - MP_REACH_NLRI format.
+// SAFI is determined by p.SAFI (defaults to SAFIUnicast when zero).
+func (ub *UpdateBuilder) buildMPReach(p *UnicastParams) *attribute.MPReachNLRI {
 	var afi attribute.AFI
 	var nlriAFI nlri.AFI
 
@@ -412,20 +421,30 @@ func (ub *UpdateBuilder) buildMPReachUnicast(p *UnicastParams) *attribute.MPReac
 		nlriAFI = nlri.AFIIPv4
 	}
 
-	// Build NLRI
-	inet := nlri.NewINET(nlri.Family{AFI: nlriAFI, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
+	safi := p.SAFI
+	if safi == 0 {
+		safi = attribute.SAFIUnicast
+	}
+	nlriSAFI := nlri.SAFI(safi)
+
+	inet := nlri.NewINET(nlri.Family{AFI: nlriAFI, SAFI: nlriSAFI}, p.Prefix, p.PathID)
 	nlriBytes := ub.alloc(nlri.LenWithContext(inet, ub.AddPath))
 	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
 	// RFC 2545 Section 3: IPv6 MP_REACH_NLRI may include link-local as second next-hop.
-	nextHops := []netip.Addr{p.NextHop}
+	nhCount := 1
 	if p.LinkLocalNextHop.IsValid() && p.Prefix.Addr().Is6() {
-		nextHops = append(nextHops, p.LinkLocalNextHop)
+		nhCount = 2
+	}
+	nextHops := make([]netip.Addr, nhCount)
+	nextHops[0] = p.NextHop
+	if nhCount == 2 {
+		nextHops[1] = p.LinkLocalNextHop
 	}
 
 	return &attribute.MPReachNLRI{
 		AFI:      afi,
-		SAFI:     attribute.SAFIUnicast,
+		SAFI:     safi,
 		NextHops: nextHops,
 		NLRI:     nlriBytes,
 	}

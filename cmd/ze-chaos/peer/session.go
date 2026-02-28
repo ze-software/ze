@@ -40,13 +40,15 @@ type familyAFISAFI struct {
 // SYNC: Must stay in sync with familyToNLRI in sender.go — both maps
 // must cover the same set of family strings.
 var familyToAFISAFI = map[string]familyAFISAFI{
-	"ipv4/unicast": {nlri.AFIIPv4, nlri.SAFIUnicast},
-	"ipv6/unicast": {nlri.AFIIPv6, nlri.SAFIUnicast},
-	"ipv4/vpn":     {nlri.AFIIPv4, nlri.SAFIVPN},
-	"ipv6/vpn":     {nlri.AFIIPv6, nlri.SAFIVPN},
-	"l2vpn/evpn":   {nlri.AFIL2VPN, nlri.SAFIEVPN},
-	"ipv4/flow":    {nlri.AFIIPv4, nlri.SAFIFlowSpec},
-	"ipv6/flow":    {nlri.AFIIPv6, nlri.SAFIFlowSpec},
+	"ipv4/unicast":   {nlri.AFIIPv4, nlri.SAFIUnicast},
+	"ipv6/unicast":   {nlri.AFIIPv6, nlri.SAFIUnicast},
+	"ipv4/multicast": {nlri.AFIIPv4, nlri.SAFIMulticast},
+	"ipv6/multicast": {nlri.AFIIPv6, nlri.SAFIMulticast},
+	"ipv4/vpn":       {nlri.AFIIPv4, nlri.SAFIVPN},
+	"ipv6/vpn":       {nlri.AFIIPv6, nlri.SAFIVPN},
+	"l2vpn/evpn":     {nlri.AFIL2VPN, nlri.SAFIEVPN},
+	"ipv4/flow":      {nlri.AFIIPv4, nlri.SAFIFlowSpec},
+	"ipv6/flow":      {nlri.AFIIPv6, nlri.SAFIFlowSpec},
 }
 
 // BuildOpen constructs a BGP OPEN message from the session config.

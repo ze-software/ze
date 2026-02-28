@@ -44,6 +44,59 @@ func GenerateIPv4Routes(seed uint64, peerIndex, count, totalPeers int) []netip.P
 	return result
 }
 
+// GenerateIPv4MulticastRoutes produces count unique IPv4 multicast prefixes (224.0.0.0/4).
+func GenerateIPv4MulticastRoutes(seed uint64, peerIndex, count, totalPeers int) []netip.Prefix {
+	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
+	rng := rand.New(rand.NewSource(int64(seed) ^ int64(peerIndex*0x9E3779B9) ^ 0x4D554C54)) // "MULT"
+	candidates := generateMulticastCandidatePool(peerIndex, count, totalPeers)
+	rng.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+	if count > len(candidates) {
+		count = len(candidates)
+	}
+	result := make([]netip.Prefix, count)
+	copy(result, candidates[:count])
+	return result
+}
+
+func generateMulticastCandidatePool(peerIndex, count, totalPeers int) []netip.Prefix {
+	var octets [16]byte
+	for i := range octets {
+		octets[i] = byte(224 + i)
+	}
+	octetsPerPeer := max(len(octets)/max(totalPeers, 1), 1)
+	startIdx := peerIndex * octetsPerPeer
+	endIdx := startIdx + octetsPerPeer
+	if startIdx >= len(octets) {
+		startIdx = len(octets) - 1
+	}
+	if endIdx > len(octets) {
+		endIdx = len(octets)
+	}
+	myOctets := octets[startIdx:endIdx]
+	prefixLen := 24
+	poolSize := len(myOctets) * 256 * 256
+	for poolSize < count && prefixLen < 32 {
+		prefixLen++
+		poolSize *= 2
+	}
+	subnets := 1 << (prefixLen - 24)
+	step := 256 / subnets
+	pool := make([]netip.Prefix, 0, poolSize)
+	for _, first := range myOctets {
+		for second := range 256 {
+			for third := range 256 {
+				for s := range subnets {
+					addr := netip.AddrFrom4([4]byte{first, byte(second), byte(third), byte(s * step)})
+					pool = append(pool, netip.PrefixFrom(addr, prefixLen))
+				}
+			}
+		}
+	}
+	return pool
+}
+
 // generateCandidatePool creates a pool of prefixes for the given peer.
 // Each peer gets a non-overlapping slice of the address space to ensure
 // no two peers generate the same prefix.

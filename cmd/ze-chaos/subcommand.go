@@ -204,6 +204,7 @@ func peerFamilyTargets(profiles []scenario.PeerProfile) map[int]map[string]int {
 			if strings.Contains(fam, "unicast") {
 				fm[fam] = profiles[i].RouteCount
 			} else {
+				// non-unicast (VPN, EVPN, FlowSpec, Multicast) get RouteCount/4
 				fm[fam] = profiles[i].RouteCount / 4
 			}
 		}

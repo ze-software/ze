@@ -56,6 +56,23 @@ func (s *Sender) BuildRoute(prefix netip.Prefix) []byte {
 	return SerializeMessage(update)
 }
 
+// BuildMulticastRoute constructs a serialized multicast UPDATE for a single prefix.
+func (s *Sender) BuildMulticastRoute(prefix netip.Prefix) []byte {
+	params := message.UnicastParams{
+		Prefix:  prefix,
+		NextHop: s.nextHop,
+		Origin:  attribute.OriginIGP,
+		SAFI:    attribute.SAFIMulticast,
+	}
+
+	update := s.builder.BuildUnicast(&params)
+	if update == nil {
+		return nil
+	}
+
+	return SerializeMessage(update)
+}
+
 // BuildWithdrawal constructs a serialized IPv4/unicast withdrawal UPDATE.
 // RFC 4271 Section 4.3: withdrawals use the Withdrawn Routes field with no
 // path attributes and no NLRI. Returns nil for an empty prefix list.
@@ -189,13 +206,15 @@ func BuildEOR(family string) []byte {
 // SYNC: Must stay in sync with familyToAFISAFI in session.go — both maps
 // must cover the same set of family strings.
 var familyToNLRI = map[string]nlri.Family{
-	"ipv4/unicast": nlri.IPv4Unicast,
-	"ipv6/unicast": {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
-	"ipv4/vpn":     {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN},
-	"ipv6/vpn":     {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIVPN},
-	"l2vpn/evpn":   {AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN},
-	"ipv4/flow":    {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIFlowSpec},
-	"ipv6/flow":    {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIFlowSpec},
+	"ipv4/unicast":   nlri.IPv4Unicast,
+	"ipv6/unicast":   {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+	"ipv4/multicast": {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMulticast},
+	"ipv6/multicast": {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMulticast},
+	"ipv4/vpn":       {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN},
+	"ipv6/vpn":       {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIVPN},
+	"l2vpn/evpn":     {AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN},
+	"ipv4/flow":      {AFI: nlri.AFIIPv4, SAFI: nlri.SAFIFlowSpec},
+	"ipv6/flow":      {AFI: nlri.AFIIPv6, SAFI: nlri.SAFIFlowSpec},
 }
 
 // BuildEORIPv4Unicast constructs a serialized End-of-RIB marker for ipv4/unicast.

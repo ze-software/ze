@@ -33,6 +33,55 @@ func GenerateIPv6Routes(seed uint64, peerIndex, count, totalPeers int) []netip.P
 	return result
 }
 
+// GenerateIPv6MulticastRoutes produces count unique IPv6 multicast prefixes (ff00::/8).
+func GenerateIPv6MulticastRoutes(seed uint64, peerIndex, count, totalPeers int) []netip.Prefix {
+	//nolint:gosec // Deterministic RNG from seed — not for cryptography.
+	rng := rand.New(rand.NewSource(int64(seed) ^ int64(peerIndex*0x9E3779B9) ^ 0x4D554C54697636)) // "MULTiv6"
+	candidates := generateIPv6MulticastCandidatePool(peerIndex, count, totalPeers)
+	rng.Shuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
+	if count > len(candidates) {
+		count = len(candidates)
+	}
+	result := make([]netip.Prefix, count)
+	copy(result, candidates[:count])
+	return result
+}
+
+func generateIPv6MulticastCandidatePool(peerIndex, count, totalPeers int) []netip.Prefix {
+	const totalByte1Values = 256
+	valuesPerPeer := max(totalByte1Values/max(totalPeers, 1), 1)
+	startVal := peerIndex * valuesPerPeer
+	endVal := startVal + valuesPerPeer
+	if startVal >= totalByte1Values {
+		startVal = totalByte1Values - 1
+	}
+	if endVal > totalByte1Values {
+		endVal = totalByte1Values
+	}
+	nByte1 := endVal - startVal
+	prefixLen := 48
+	poolSize := nByte1 * 256
+	for poolSize < count && prefixLen < 64 {
+		prefixLen++
+		poolSize *= 2
+	}
+	subnets := 1 << (prefixLen - 48)
+	step := 65536 / subnets
+	pool := make([]netip.Prefix, 0, poolSize)
+	for b1 := startVal; b1 < endVal; b1++ {
+		for b2 := range 256 {
+			for s := range subnets {
+				val := s * step
+				addr := [16]byte{0xff, byte(b1), byte(b2), 0x00, 0x00, 0x00, byte(val >> 8), byte(val & 0xFF)}
+				pool = append(pool, netip.PrefixFrom(netip.AddrFrom16(addr), prefixLen))
+			}
+		}
+	}
+	return pool
+}
+
 // generateIPv6CandidatePool creates a pool of IPv6 prefixes for the given peer.
 // Each peer gets non-overlapping slices of 2001:db8:XX:YY::/48 space.
 //

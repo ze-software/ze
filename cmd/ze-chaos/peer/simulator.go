@@ -363,6 +363,32 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				emit(Event{Type: EventRouteSent, Family: family, BytesSent: int64(len(data))})
 				totalSent++
 			}
+		case "ipv4/multicast":
+			mcastRoutes := scenario.GenerateIPv4MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
+			for _, prefix := range mcastRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := sender.BuildMulticastRoute(prefix)
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				totalSent++
+			}
+		case "ipv6/multicast":
+			mcastRoutes := scenario.GenerateIPv6MulticastRoutes(cfg.Seed, p.Index, p.RouteCount/4, p.TotalPeers)
+			for _, prefix := range mcastRoutes {
+				if ctx.Err() != nil {
+					break
+				}
+				data := senderV6.BuildMulticastRoute(prefix)
+				if _, writeErr = conn.Write(data); writeErr != nil {
+					break
+				}
+				emit(Event{Type: EventRouteSent, Prefix: prefix, Family: family, BytesSent: int64(len(data))})
+				totalSent++
+			}
 		}
 		if writeErr != nil {
 			emit(Event{Type: EventError, Err: fmt.Errorf("sending %s UPDATE: %w", family, writeErr)})
