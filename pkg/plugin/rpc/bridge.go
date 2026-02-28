@@ -18,9 +18,10 @@ import (
 // (instead of connB.SendDeliverBatch) and the plugin calls DispatchRPC directly
 // (instead of engineMux.CallRPC).
 type DirectBridge struct {
-	deliverEvents func(events []string) error
-	dispatchRPC   func(method string, params json.RawMessage) (json.RawMessage, error)
-	ready         atomic.Bool
+	deliverEvents     func(events []string) error
+	deliverStructured func(events []any) error
+	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
+	ready             atomic.Bool
 }
 
 // NewDirectBridge creates a bridge. Both sides must register handlers and call
@@ -53,6 +54,30 @@ func (b *DirectBridge) Ready() bool {
 	return b.ready.Load()
 }
 
+// SetDeliverStructured registers the plugin-side structured event handler.
+// Called by the SDK after startup to enable structured delivery (engine→plugin).
+// When set, the engine delivers structured events directly instead of formatting text.
+func (b *DirectBridge) SetDeliverStructured(fn func(events []any) error) {
+	b.deliverStructured = fn
+}
+
+// HasStructuredHandler reports whether a structured delivery handler is registered.
+func (b *DirectBridge) HasStructuredHandler() bool {
+	return b.deliverStructured != nil
+}
+
+// DeliverStructured calls the plugin's structured event handler directly.
+// Returns error if the bridge is not ready or the handler is not set.
+func (b *DirectBridge) DeliverStructured(events []any) error {
+	if !b.ready.Load() {
+		return errors.New("bridge not ready")
+	}
+	if b.deliverStructured == nil {
+		return errors.New("structured handler not set")
+	}
+	return b.deliverStructured(events)
+}
+
 // DeliverEvents calls the plugin's event handler directly. Returns error if
 // the bridge is not ready or the handler is not set.
 func (b *DirectBridge) DeliverEvents(events []string) error {
@@ -75,6 +100,14 @@ func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.
 		return nil, errors.New("dispatch handler not set")
 	}
 	return b.dispatchRPC(method, params)
+}
+
+// StructuredUpdate carries peer context alongside raw event data through DirectBridge.
+// Used by events.go to deliver UPDATE data to in-process plugins without text formatting.
+// Consumers type-assert Event to the concrete payload type (e.g., *types.RawMessage).
+type StructuredUpdate struct {
+	PeerAddress string // Source peer address string
+	Event       any    // Raw event data (e.g., *types.RawMessage)
 }
 
 // Bridger is implemented by connections that carry a DirectBridge reference.

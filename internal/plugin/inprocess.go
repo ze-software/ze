@@ -5,8 +5,6 @@ package plugin
 import (
 	"net"
 
-	// Import all plugins to trigger init() registration.
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 )
 

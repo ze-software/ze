@@ -64,6 +64,7 @@ type Plugin struct {
 	onConfigure        func([]ConfigSection) error
 	onShareRegistry    func([]RegistryCommand)
 	onEvent            func(string) error
+	onStructuredEvent  func([]any) error
 	onEncodeNLRI       func(family string, args []string) (string, error)
 	onDecodeNLRI       func(family string, hex string) (string, error)
 	onDecodeCapability func(code uint8, hex string) (string, error)
@@ -210,6 +211,15 @@ func (p *Plugin) OnEvent(fn func(string) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.onEvent = fn
+}
+
+// OnStructuredEvent sets the handler for structured event delivery via DirectBridge.
+// When registered, the bridge delivers structured events directly (no text formatting).
+// The handler receives []any where each element is a *rpc.StructuredUpdate.
+func (p *Plugin) OnStructuredEvent(fn func([]any) error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onStructuredEvent = fn
 }
 
 // OnBye sets the handler for shutdown notification.
@@ -392,6 +402,7 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	if p.bridge != nil {
 		p.mu.Lock()
 		onEventFn := p.onEvent
+		onStructuredFn := p.onStructuredEvent
 		p.mu.Unlock()
 
 		p.bridge.SetDeliverEvents(func(events []string) error {
@@ -405,6 +416,9 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 			}
 			return nil
 		})
+		if onStructuredFn != nil {
+			p.bridge.SetDeliverStructured(onStructuredFn)
+		}
 		p.bridge.SetReady()
 	}
 

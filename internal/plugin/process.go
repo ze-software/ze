@@ -286,6 +286,12 @@ func (p *Process) SetWireEncoding(enc WireEncoding) {
 	p.wireEncodingOut.Store(uint32(enc))
 }
 
+// HasStructuredHandler reports whether this process supports structured event delivery.
+// True when the process has a DirectBridge with a registered structured handler.
+func (p *Process) HasStructuredHandler() bool {
+	return p.bridge != nil && p.bridge.HasStructuredHandler()
+}
+
 // Encoding returns the high-level encoding (json or text).
 func (p *Process) Encoding() string {
 	if v := p.encoding.Load(); v != nil {

@@ -30,3 +30,16 @@ Default 15000ms. Longer only for `make ze-verify`, `make ze-unit-test`.
 
 ### Linter Hook
 `auto_linter.sh` runs goimports on Edit/Write. Add import + usage in same edit to avoid cascading removals.
+
+## Mistake Log
+
+### Wrong Production Path (rib-04)
+- Wrote spec pointing at `subsystem.go` stage-1 handler. Production path is `server_startup.go`.
+- Root cause: found *a* handler, assumed it was *the* handler. Never traced the actual call chain.
+- **Rule:** grep for ALL implementations of a protocol step, identify which one the consumer calls.
+
+### Wrapper Struct Pattern (alloc-4, three attempts)
+- Attempt 1: eager `StructuredEvent` pre-computed FilterResult (N→1 when answer is N→0)
+- Attempt 2: `UpdateHandle` wrapped raw data with lazy methods + cached fields (identity wrapper)
+- Root cause: defaulted to "struct with accessor methods" instead of ze pattern: pass raw bytes, use existing iterators
+- **Rule:** before creating any new type for data access, ask "can the consumer use existing wire types directly?"

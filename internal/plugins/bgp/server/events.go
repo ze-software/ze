@@ -7,13 +7,13 @@ package server
 
 import (
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // logger is the bgp.server subsystem logger.
@@ -40,15 +40,23 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 		return 0
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peer.Address.String())
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peerAddr)
 	if len(procs) == 0 {
 		return 0
 	}
-	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction, "count", len(procs))
+	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventType, "dir", msg.Direction, "count", len(procs))
 
-	// Pre-format: encode once per distinct format+encoding combination.
+	// Check if this is an UPDATE (only UPDATEs use DirectBridge structured delivery).
+	isUpdate := msg.Type == message.TypeUPDATE
+
+	// Pre-format text for text/JSON consumers per distinct format+encoding key.
+	// DirectBridge consumers skip text formatting entirely.
 	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
+		if isUpdate && proc.HasStructuredHandler() {
+			continue // DirectBridge — no text formatting needed
+		}
 		cacheKey := proc.Format() + "+" + proc.Encoding()
 		if _, ok := formatOutputs[cacheKey]; !ok {
 			formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
@@ -60,8 +68,14 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	sent := 0
 
 	for _, proc := range procs {
-		output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+		var delivery plugin.EventDelivery
+		if isUpdate && proc.HasStructuredHandler() {
+			delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+		} else {
+			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+			delivery = plugin.EventDelivery{Output: output, Result: results}
+		}
+		if !proc.Deliver(delivery) {
 			continue
 		}
 		sent++
@@ -105,25 +119,39 @@ func onMessageBatchReceived(s *plugin.Server, encoder *format.JSONEncoder, peer 
 	}
 	logger().Debug("OnMessageBatchReceived", "peer", peer.Address.String(), "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
-	// Build format+encoding key map once for the batch.
-	cacheKeys := make(map[string]struct{}, 2)
-	for _, proc := range procs {
-		cacheKeys[proc.Format()+"+"+proc.Encoding()] = struct{}{}
-	}
+	// Check if this is an UPDATE batch (only UPDATEs use DirectBridge structured delivery).
+	isUpdate := msgs[0].Type == message.TypeUPDATE
+	peerAddr := peer.Address.String()
 
-	// Deliver each message: pre-format per mode, fan out to procs, collect results.
-	for i, msg := range msgs {
-		formatOutputs := make(map[string]string, len(cacheKeys))
-		for key := range cacheKeys {
-			fmtPart, encPart, _ := strings.Cut(key, "+")
-			formatOutputs[key] = formatMessageForSubscription(encoder, peer, msg, fmtPart, encPart)
+	// Deliver each message: pre-format text for text/JSON consumers,
+	// pass RawMessage directly for DirectBridge consumers.
+	for i := range msgs {
+		msg := &msgs[i]
+
+		// Pre-format text for text/JSON consumers per distinct format+encoding key.
+		// DirectBridge consumers skip text formatting entirely.
+		formatOutputs := make(map[string]string, 2)
+		for _, proc := range procs {
+			if isUpdate && proc.HasStructuredHandler() {
+				continue // DirectBridge — no text formatting needed
+			}
+			cacheKey := proc.Format() + "+" + proc.Encoding()
+			if _, ok := formatOutputs[cacheKey]; !ok {
+				formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, *msg, proc.Format(), proc.Encoding())
+			}
 		}
 
 		results := make(chan plugin.EventResult, len(procs))
 		sent := 0
 		for _, proc := range procs {
-			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-			if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+			var delivery plugin.EventDelivery
+			if isUpdate && proc.HasStructuredHandler() {
+				delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: msg}, Result: results}
+			} else {
+				output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+				delivery = plugin.EventDelivery{Output: output, Result: results}
+			}
+			if !proc.Deliver(delivery) {
 				continue
 			}
 			sent++
@@ -314,16 +342,21 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	}
 	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType, "count", len(procs))
 
+	// Check if this is an UPDATE (only UPDATEs use DirectBridge structured delivery).
+	isUpdate := msg.Type == message.TypeUPDATE
+	peerAddr := peer.Address.String()
+
 	// Pre-format: encode once per distinct format+encoding combination.
+	// DirectBridge consumers skip text formatting entirely.
 	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
+		if isUpdate && proc.HasStructuredHandler() {
+			continue // DirectBridge — no text formatting needed
+		}
 		cacheKey := proc.Format() + "+" + proc.Encoding()
 		if _, ok := formatOutputs[cacheKey]; !ok {
-			if msg.Type == message.TypeUPDATE {
-				content := bgptypes.ContentConfig{
-					Encoding: proc.Encoding(),
-					Format:   proc.Format(),
-				}
+			if isUpdate {
+				content := bgptypes.ContentConfig{Encoding: proc.Encoding(), Format: proc.Format()}
 				formatOutputs[cacheKey] = format.FormatSentMessage(peer, msg, content)
 			} else {
 				formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
@@ -336,8 +369,14 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	sent := 0
 
 	for _, proc := range procs {
-		output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+		var delivery plugin.EventDelivery
+		if isUpdate && proc.HasStructuredHandler() {
+			delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+		} else {
+			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+			delivery = plugin.EventDelivery{Output: output, Result: results}
+		}
+		if !proc.Deliver(delivery) {
 			continue
 		}
 		sent++

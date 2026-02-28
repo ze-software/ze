@@ -23,6 +23,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+
+	// Import all plugins to trigger init() registration.
+	// Must happen at the binary entry point (not in internal/plugin)
+	// to avoid import cycles: format → plugin → all → bgp-rs → format.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 )
 
 const version = "0.1.0"

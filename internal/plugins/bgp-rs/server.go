@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"os"
 	"sort"
 	"strconv"
@@ -18,8 +19,12 @@ import (
 	"sync/atomic"
 	"time"
 
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/textparse"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -84,15 +89,16 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// forwardCtx holds the source peer and raw text event for a cached UPDATE.
-// sourcePeer is extracted by quickParseTextEvent in dispatchText (cheap) to avoid
-// re-parsing the event in the worker, and to make the source-exclusion
-// data flow explicit. textPayload is the raw text event line(s) for deferred
-// family+NLRI parsing by the worker via parseTextUpdateFamilies/parseTextNLRIOps.
+// forwardCtx holds the source peer and event data for a cached UPDATE.
+// sourcePeer is extracted at dispatch time (cheap) to avoid re-parsing in the worker
+// and to make source-exclusion data flow explicit.
+// For DirectBridge delivery: msg is set (raw wire data, no text parsing needed).
+// For fork-mode delivery: textPayload is set (deferred text parsing by worker).
 // Stored in RouteServer.fwdCtx (sync.Map) keyed by msgID (uint64).
 type forwardCtx struct {
 	sourcePeer  string
 	textPayload string
+	msg         *bgptypes.RawMessage
 }
 
 // withdrawalInfo stores the minimum information needed to send withdrawal
@@ -228,7 +234,20 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	rs.wireFlowControl()
 	defer rs.resumeAllPaused()
 
-	// Register event handler: dispatches BGP events (update, state, open, refresh).
+	// Register structured event handler for DirectBridge delivery.
+	// When active, UPDATE events arrive as *rpc.StructuredUpdate — no text parsing needed.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			if su, ok := event.(*rpc.StructuredUpdate); ok {
+				if msg, ok := su.Event.(*bgptypes.RawMessage); ok {
+					rs.dispatchStructured(su.PeerAddress, msg)
+				}
+			}
+		}
+		return nil
+	})
+
+	// Register text event handler for fork-mode delivery (fallback).
 	// Only a lightweight parse runs here (type + msgID + peerAddr); expensive
 	// parsing and withdrawal map updates are deferred to per-source-peer workers.
 	p.OnEvent(func(eventStr string) error {
@@ -461,8 +480,15 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 		return
 	}
 
-	// Extract family names from text event for forward target selection.
-	families := parseTextUpdateFamilies(ctx.textPayload)
+	// Extract families for forward target selection.
+	// Structured path (DirectBridge): read directly from wire, no text parsing.
+	// Text path (fork-mode): parse from text payload.
+	var families map[string]bool
+	if ctx.msg != nil {
+		families = extractWireFamilies(ctx.msg)
+	} else {
+		families = parseTextUpdateFamilies(ctx.textPayload)
+	}
 	if len(families) == 0 {
 		return
 	}
@@ -474,35 +500,212 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 	// Update withdrawal map: track announced routes for withdrawal on peer-down.
 	// Only family+prefix needed — bgp-adj-rib-in owns full route state.
 	rs.withdrawalMu.Lock()
-	for family, ops := range parseTextNLRIOps(ctx.textPayload) {
-		for _, op := range ops {
+	if ctx.msg != nil {
+		rs.updateWithdrawalMapWire(ctx.sourcePeer, ctx.msg)
+	} else {
+		rs.updateWithdrawalMapText(ctx.sourcePeer, parseTextNLRIOps(ctx.textPayload))
+	}
+	rs.withdrawalMu.Unlock()
+}
+
+// extractWireFamilies extracts address families from a raw UPDATE message.
+// Uses MPReachWire.Family() and MPUnreachWire.Family() (3-byte reads each),
+// and checks for IPv4 body NLRIs. No NLRI parsing needed.
+func extractWireFamilies(msg *bgptypes.RawMessage) map[string]bool {
+	families := make(map[string]bool, 2)
+	wu := msg.WireUpdate
+	if wu == nil {
+		return families
+	}
+
+	if mp, err := wu.MPReach(); err == nil && mp != nil {
+		families[mp.Family().String()] = true
+	}
+	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
+		families[mp.Family().String()] = true
+	}
+	// Check IPv4 body NLRIs (only present for IPv4 unicast).
+	if body, err := wu.NLRI(); err == nil && len(body) > 0 {
+		families["ipv4/unicast"] = true
+	}
+	if wd, err := wu.Withdrawn(); err == nil && len(wd) > 0 {
+		families["ipv4/unicast"] = true
+	}
+
+	return families
+}
+
+// updateWithdrawalMapWire updates the withdrawal map from raw wire UPDATE data.
+// Uses NLRIIterator for zero-allocation NLRI walking on IPv4/IPv6 unicast.
+// Falls back to NLRIs() (allocating) for non-unicast families to produce correct text keys.
+// Caller must hold rs.withdrawalMu.
+func (rs *RouteServer) updateWithdrawalMapWire(sourcePeer string, msg *bgptypes.RawMessage) {
+	if msg.WireUpdate == nil {
+		return
+	}
+	wu := msg.WireUpdate
+
+	// Get encoding context for add-path detection.
+	var encCtx *bgpctx.EncodingContext
+	if msg.AttrsWire != nil {
+		encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
+	}
+
+	// MP_REACH_NLRI — announced routes (add).
+	if mp, err := wu.MPReach(); err == nil && mp != nil {
+		family := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(family)
+		if isUnicast(family) {
+			if iter := mp.NLRIIterator(addPath); iter != nil {
+				rs.walkUnicastNLRIs(sourcePeer, family.String(), iter, actionAdd)
+			}
+		} else {
+			nlris, nlriErr := mp.NLRIs(addPath)
+			rs.walkNLRIsAllocating(sourcePeer, family, nlris, nlriErr)
+		}
+	}
+
+	// MP_UNREACH_NLRI — withdrawn routes (del).
+	if mp, err := wu.MPUnreach(); err == nil && mp != nil {
+		family := mp.Family()
+		addPath := encCtx != nil && encCtx.AddPath(family)
+		if isUnicast(family) {
+			if iter := mp.NLRIIterator(addPath); iter != nil {
+				rs.walkUnicastNLRIs(sourcePeer, family.String(), iter, actionDel)
+			}
+		} else {
+			nlris, nlriErr := mp.NLRIs(addPath)
+			rs.walkUnreachNLRIsAllocating(sourcePeer, family, nlris, nlriErr)
+		}
+	}
+
+	// IPv4 body NLRIs — announced routes (add).
+	addPathV4 := encCtx != nil && encCtx.AddPath(nlri.IPv4Unicast)
+	if iter, err := wu.NLRIIterator(addPathV4); err == nil && iter != nil {
+		rs.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionAdd)
+	}
+
+	// IPv4 body Withdrawn — withdrawn routes (del).
+	if iter, err := wu.WithdrawnIterator(addPathV4); err == nil && iter != nil {
+		rs.walkUnicastNLRIs(sourcePeer, "ipv4/unicast", iter, actionDel)
+	}
+}
+
+// isUnicast returns true for IPv4/IPv6 unicast families where NLRIIterator
+// prefix bytes can be converted to netip.Prefix directly (zero-alloc path).
+func isUnicast(f nlri.Family) bool {
+	return f == nlri.IPv4Unicast || f == nlri.IPv6Unicast
+}
+
+// walkUnicastNLRIs walks NLRIs via iterator and updates the withdrawal map.
+// Converts raw prefix bytes to netip.Prefix for route key — zero allocation per NLRI.
+// Only valid for IPv4/IPv6 unicast families.
+func (rs *RouteServer) walkUnicastNLRIs(sourcePeer, family string, iter *nlri.NLRIIterator, action string) {
+	isV6 := strings.HasPrefix(family, "ipv6/")
+	for {
+		prefix, _, ok := iter.Next()
+		if !ok {
+			break
+		}
+		key := prefixBytesToKey(prefix, isV6)
+		if key == "" {
+			continue
+		}
+		routeKey := family + "|" + key
+		switch action {
+		case actionAdd:
+			if rs.withdrawals[sourcePeer] == nil {
+				rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+			}
+			rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: family, Prefix: "prefix " + key}
+		case actionDel:
+			if rs.withdrawals[sourcePeer] != nil {
+				delete(rs.withdrawals[sourcePeer], routeKey)
+			}
+		}
+	}
+}
+
+// prefixBytesToKey converts raw NLRI prefix bytes from NLRIIterator to a route key string.
+// Input: [bitLen, addr_bytes...] from NLRIIterator.Next().
+// Returns netip.Prefix.String() (e.g., "10.0.0.0/24", "2001:db8::/32").
+func prefixBytesToKey(prefix []byte, isV6 bool) string {
+	if len(prefix) == 0 {
+		return ""
+	}
+	bitLen := int(prefix[0])
+	addrBytes := prefix[1:]
+	if isV6 {
+		var addr [16]byte
+		copy(addr[:], addrBytes)
+		p := netip.PrefixFrom(netip.AddrFrom16(addr), bitLen)
+		return p.Masked().String()
+	}
+	var addr [4]byte
+	copy(addr[:], addrBytes)
+	p := netip.PrefixFrom(netip.AddrFrom4(addr), bitLen)
+	return p.Masked().String()
+}
+
+// walkNLRIsAllocating updates the withdrawal map using parsed NLRI objects (add action).
+// Used for non-unicast families where raw prefix bytes need family-specific decoding.
+// Allocates via NLRIs() — acceptable for rare non-unicast route server traffic.
+func (rs *RouteServer) walkNLRIsAllocating(sourcePeer string, family nlri.Family, nlris []nlri.NLRI, err error) {
+	if err != nil || len(nlris) == 0 {
+		return
+	}
+	familyStr := family.String()
+	if rs.withdrawals[sourcePeer] == nil {
+		rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
+	}
+	for _, n := range nlris {
+		s := n.String()
+		routeKey := familyStr + "|" + nlriKey(s)
+		rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: familyStr, Prefix: s}
+	}
+}
+
+// walkUnreachNLRIsAllocating updates the withdrawal map using parsed NLRI objects (del action).
+// Used for non-unicast MP_UNREACH_NLRI families.
+func (rs *RouteServer) walkUnreachNLRIsAllocating(sourcePeer string, family nlri.Family, nlris []nlri.NLRI, err error) {
+	if err != nil || len(nlris) == 0 {
+		return
+	}
+	familyStr := family.String()
+	if rs.withdrawals[sourcePeer] != nil {
+		for _, n := range nlris {
+			delete(rs.withdrawals[sourcePeer], familyStr+"|"+nlriKey(n.String()))
+		}
+	}
+}
+
+// updateWithdrawalMapText updates the withdrawal map from text-parsed NLRI operations.
+// Caller must hold rs.withdrawalMu.
+func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string][]FamilyOperation) {
+	for family, familyOps := range ops {
+		for _, op := range familyOps {
 			switch op.Action {
 			case actionAdd:
-				if rs.withdrawals[ctx.sourcePeer] == nil {
-					rs.withdrawals[ctx.sourcePeer] = make(map[string]withdrawalInfo)
+				if rs.withdrawals[sourcePeer] == nil {
+					rs.withdrawals[sourcePeer] = make(map[string]withdrawalInfo)
 				}
 				for _, n := range op.NLRIs {
-					if nlri, ok := n.(string); ok && nlri != "" {
-						routeKey := family + "|" + nlriKey(nlri)
-						rs.withdrawals[ctx.sourcePeer][routeKey] = withdrawalInfo{
-							Family: family,
-							Prefix: nlri,
-						}
+					if s, ok := n.(string); ok && s != "" {
+						routeKey := family + "|" + nlriKey(s)
+						rs.withdrawals[sourcePeer][routeKey] = withdrawalInfo{Family: family, Prefix: s}
 					}
 				}
 			case actionDel:
-				if rs.withdrawals[ctx.sourcePeer] != nil {
+				if rs.withdrawals[sourcePeer] != nil {
 					for _, n := range op.NLRIs {
-						if nlri, ok := n.(string); ok && nlri != "" {
-							routeKey := family + "|" + nlriKey(nlri)
-							delete(rs.withdrawals[ctx.sourcePeer], routeKey)
+						if s, ok := n.(string); ok && s != "" {
+							delete(rs.withdrawals[sourcePeer], family+"|"+nlriKey(s))
 						}
 					}
 				}
 			}
 		}
 	}
-	rs.withdrawalMu.Unlock()
 }
 
 // dispatchText routes a text-format event to the appropriate handler.
@@ -568,6 +771,38 @@ func (rs *RouteServer) dispatchText(text string) {
 	case eventOpen:
 		if event := parseTextOpen(payload); event != nil {
 			rs.handleOpen(event)
+		}
+	}
+}
+
+// dispatchStructured routes a structured UPDATE event from DirectBridge delivery.
+// Only UPDATE events arrive via this path — non-UPDATE events (state, open, refresh)
+// are still delivered as text via OnEvent/dispatchText.
+func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMessage) {
+	msgID := msg.MessageID
+
+	if peerAddr == "" {
+		return
+	}
+	rs.fwdCtx.Store(msgID, &forwardCtx{sourcePeer: peerAddr, msg: msg})
+	key := workerKey{sourcePeer: peerAddr}
+	if !rs.workers.Dispatch(key, workItem{msgID: msgID}) {
+		logger().Error("dispatch dropped (pool stopped)", "msgID", msgID, "source-peer", peerAddr)
+		rs.fwdCtx.Delete(msgID)
+		rs.releaseCache(msgID)
+		return
+	}
+
+	// Flow control: pause source peer if worker channel crossed high-water mark.
+	if rs.workers.BackpressureDetected(key) {
+		rs.mu.Lock()
+		if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
+			rs.pausedPeers[peerAddr] = true
+			rs.mu.Unlock()
+			logger().Warn("pausing peer", "source-peer", peerAddr)
+			rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
+		} else {
+			rs.mu.Unlock()
 		}
 	}
 }

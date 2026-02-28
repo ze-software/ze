@@ -15,8 +15,11 @@ import (
 
 // EventDelivery represents a work item for the per-process delivery goroutine.
 // The long-lived goroutine reads these from Process.eventChan and calls SendDeliverEvent.
+// For DirectBridge consumers, Event is set (structured delivery, no text formatting).
+// For text/JSON consumers, Output is set (pre-formatted at observation time).
 type EventDelivery struct {
-	Output string             // Pre-formatted event payload
+	Output string             // Pre-formatted event payload (text/JSON consumers)
+	Event  any                // Structured event for DirectBridge consumers (nil for text/JSON)
 	Result chan<- EventResult // Caller-provided result channel (nil if fire-and-forget)
 }
 
@@ -129,7 +132,14 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	events := eventsBuf
 
 	var batchErr error
-	if p.bridge != nil && p.bridge.Ready() {
+	if p.bridge != nil && p.bridge.Ready() && p.bridge.HasStructuredHandler() && batch[0].Event != nil {
+		// Structured delivery: DirectBridge with structured handler and structured events.
+		structuredBuf := make([]any, len(batch))
+		for i, req := range batch {
+			structuredBuf[i] = req.Event
+		}
+		batchErr = p.bridge.DeliverStructured(structuredBuf)
+	} else if p.bridge != nil && p.bridge.Ready() {
 		batchErr = p.bridge.DeliverEvents(events)
 	} else if tc := p.TextConnB(); tc != nil {
 		// Text-mode: write each event as a plain text line (fire-and-forget).
