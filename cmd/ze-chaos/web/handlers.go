@@ -75,7 +75,6 @@ func registerRoutes(mux *http.ServeMux, d *Dashboard) error {
 	mux.HandleFunc("POST /control/trigger", d.handleControlTrigger)
 	mux.HandleFunc("POST /control/stop", d.handleControlStop)
 	mux.HandleFunc("POST /control/restart", d.handleControlRestart)
-	mux.HandleFunc("GET /control/trigger-form", d.handleControlTriggerForm)
 
 	// Speed control endpoint (in-process mode only).
 	mux.HandleFunc("POST /control/speed", d.handleControlSpeed)
@@ -112,39 +111,7 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	// Get active set peer indices.
 	indices := d.state.Active.Indices()
 
-	// Filter by status if requested.
-	if statusFilter == "fault" {
-		// "With Fault" mode: show peers that are down, reconnecting, or idle (not up/syncing).
-		var filtered []int
-		for _, idx := range indices {
-			ps := d.state.Peers[idx]
-			if ps != nil && ps.Status != PeerUp && ps.Status != PeerSyncing {
-				filtered = append(filtered, idx)
-			}
-		}
-		indices = filtered
-	} else if statusFilter != "" {
-		var filtered []int
-		for _, idx := range indices {
-			ps := d.state.Peers[idx]
-			if ps != nil && ps.Status.String() == statusFilter {
-				filtered = append(filtered, idx)
-			}
-		}
-		indices = filtered
-	}
-
-	// Filter by search text if provided.
-	if search != "" {
-		var filtered []int
-		for _, idx := range indices {
-			ps := d.state.Peers[idx]
-			if ps != nil && peerMatchesSearch(ps, search) {
-				filtered = append(filtered, idx)
-			}
-		}
-		indices = filtered
-	}
+	indices = filterPeerIndices(d.state, indices, statusFilter, search)
 
 	// Sort.
 	sortPeers(indices, d.state, sortCol, sortDir)
@@ -156,11 +123,56 @@ func (d *Dashboard) handlePeers(w http.ResponseWriter, r *http.Request) {
 	h.write(`</tbody>`)
 }
 
+// filterPeerIndices applies status and search filters to a peer index list.
+func filterPeerIndices(state *DashboardState, indices []int, statusFilter, search string) []int {
+	if statusFilter == "fault" {
+		var filtered []int
+		for _, idx := range indices {
+			ps := state.Peers[idx]
+			if ps != nil && ps.Status != PeerUp && ps.Status != PeerSyncing {
+				filtered = append(filtered, idx)
+			}
+		}
+		indices = filtered
+	} else if statusFilter != "" {
+		var filtered []int
+		for _, idx := range indices {
+			ps := state.Peers[idx]
+			if ps != nil && ps.Status.String() == statusFilter {
+				filtered = append(filtered, idx)
+			}
+		}
+		indices = filtered
+	}
+	if search != "" {
+		var filtered []int
+		for _, idx := range indices {
+			ps := state.Peers[idx]
+			if ps != nil && peerMatchesSearch(ps, search) {
+				filtered = append(filtered, idx)
+			}
+		}
+		indices = filtered
+	}
+	return indices
+}
+
 // peerMatchesSearch returns true if the peer matches the search text.
-// Matches against peer index (as string prefix) or status text (case-insensitive substring).
+//
+// Filter syntax (when search contains "," or starts with "-" followed by a digit):
+//
+//	"1,2,4"     — show only peers 1, 2, 4
+//	"1-10"      — show peers 1 through 10
+//	"-3,-5"     — show all peers except 3 and 5
+//	"1-10,-5"   — show peers 1–10 except 5
+//
+// Otherwise falls back to text search: index prefix or status substring.
 func peerMatchesSearch(ps *PeerState, search string) bool {
 	if search == "" {
 		return true
+	}
+	if isFilterSyntax(search) {
+		return peerMatchesFilter(ps.Index, search)
 	}
 	lower := strings.ToLower(search)
 	// Match peer index as string prefix.
@@ -171,25 +183,103 @@ func peerMatchesSearch(ps *PeerState, search string) bool {
 	return strings.Contains(ps.Status.String(), lower)
 }
 
+// isFilterSyntax returns true when search looks like a structured filter
+// (contains commas, or starts with "-" followed by a digit).
+func isFilterSyntax(s string) bool {
+	if strings.Contains(s, ",") {
+		return true
+	}
+	if len(s) >= 2 && s[0] == '-' && s[1] >= '0' && s[1] <= '9' {
+		return true
+	}
+	// Check for range: digit-digit pattern.
+	for i := 1; i < len(s)-1; i++ {
+		if s[i] == '-' && s[i-1] >= '0' && s[i-1] <= '9' && s[i+1] >= '0' && s[i+1] <= '9' {
+			return true
+		}
+	}
+	return false
+}
+
+// peerMatchesFilter checks whether peerIdx is included by the filter expression.
+func peerMatchesFilter(peerIdx int, filter string) bool {
+	var includes []bool // true if any include term was seen
+	excluded := false
+
+	for tok := range strings.SplitSeq(filter, ",") {
+		tok = strings.TrimSpace(tok)
+		if tok == "" {
+			continue
+		}
+
+		// Exclusion: -N
+		if len(tok) >= 2 && tok[0] == '-' {
+			if n, err := strconv.Atoi(tok[1:]); err == nil {
+				if peerIdx == n {
+					excluded = true
+				}
+				continue
+			}
+		}
+
+		// Range: N-M
+		if dashIdx := strings.Index(tok, "-"); dashIdx > 0 && dashIdx < len(tok)-1 {
+			lo, errLo := strconv.Atoi(tok[:dashIdx])
+			hi, errHi := strconv.Atoi(tok[dashIdx+1:])
+			if errLo == nil && errHi == nil {
+				includes = append(includes, peerIdx >= lo && peerIdx <= hi)
+				continue
+			}
+		}
+
+		// Single index: N
+		if n, err := strconv.Atoi(tok); err == nil {
+			includes = append(includes, peerIdx == n)
+			continue
+		}
+	}
+
+	if excluded {
+		return false
+	}
+	// If there were include terms, peer must match at least one.
+	if len(includes) > 0 {
+		for _, m := range includes {
+			if m {
+				return true
+			}
+		}
+		return false
+	}
+	// Only exclusions (no includes) — peer passed exclusion check above.
+	return true
+}
+
 // handlePeersGrid serves the peer grid view with all peers as colored cells.
-// Query params: status (filter by peer status).
+// Query params: status (filter by peer status), search (text filter).
 func (d *Dashboard) handlePeersGrid(w http.ResponseWriter, r *http.Request) {
 	d.state.RLock()
 	defer d.state.RUnlock()
 
 	statusFilter := r.URL.Query().Get("status")
+	search := r.URL.Query().Get("search")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writePeerGridFiltered(w, d.state, statusFilter)
+	writePeerGridFiltered(w, d.state, statusFilter, search)
 }
 
 // handlePeersTable serves the full peer table container (thead + tbody) for
 // toggling back from grid view. The table includes sort headers and active set rows.
-func (d *Dashboard) handlePeersTable(w http.ResponseWriter, _ *http.Request) {
+// Query params: status (filter by peer status), search (text filter).
+func (d *Dashboard) handlePeersTable(w http.ResponseWriter, r *http.Request) {
 	d.state.RLock()
 	defer d.state.RUnlock()
 
+	statusFilter := r.URL.Query().Get("status")
+	search := r.URL.Query().Get("search")
+
 	indices := d.state.Active.Indices()
+	indices = filterPeerIndices(d.state, indices, statusFilter, search)
 	sortPeers(indices, d.state, "id", "asc")
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

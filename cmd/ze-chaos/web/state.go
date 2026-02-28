@@ -44,6 +44,7 @@ type ControlState struct {
 	Rate             float64
 	Status           string // "running", "paused", "stopped", "restarting"
 	RestartAvailable bool   // true when restart channel is configured
+	Seed             uint64 // current seed (displayed next to restart)
 
 	// Route dynamics control state.
 	RoutePaused bool
@@ -685,6 +686,15 @@ func FormatBytes(n int64) string {
 	default:
 		return fmt.Sprintf("%.2f GB", float64(n)/(1024*1024*1024))
 	}
+}
+
+// pctOf returns "N%" for value/total, or "-" when total is zero.
+func pctOf(value, total int) string {
+	if total <= 0 {
+		return "-"
+	}
+	pct := min(value*100/total, 100)
+	return fmt.Sprintf("%d%%", pct)
 }
 
 // FormatBitRate formats a bytes-per-second rate as a human-readable bit rate.

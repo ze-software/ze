@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"math/rand/v2"
 	"os"
 	"time"
 
@@ -162,13 +163,16 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 	// Determine target peers.
 	targets := t.Peers
 	if len(targets) == 0 {
-		// Pick the first established peer.
+		// Pick a random established peer.
 		snap := es.Snapshot()
+		var established []int
 		for i, est := range snap {
 			if est {
-				targets = []int{i}
-				break
+				established = append(established, i)
 			}
+		}
+		if len(established) > 0 {
+			targets = []int{established[rand.IntN(len(established))]} //nolint:gosec // chaos simulator, not crypto
 		}
 	}
 

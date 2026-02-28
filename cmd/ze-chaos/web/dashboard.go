@@ -224,6 +224,7 @@ func New(cfg Config) (*Dashboard, error) {
 	if cfg.RestartCh != nil {
 		state.Control.RestartAvailable = true
 	}
+	state.Control.Seed = state.Seed
 	switch cfg.InitialSpeedFactor {
 	case 0: // disabled
 	case 1, 10, 100, 1000:
@@ -298,6 +299,14 @@ func (d *Dashboard) ProcessEvent(ev peer.Event) {
 		if prevStatus != PeerSyncing {
 			d.state.PeersSyncing++
 		}
+		// Reset per-peer route counters so reconnected peers start fresh.
+		// Global counters (TotalAnnounced, TotalReceived) stay cumulative.
+		d.state.TotalAnnounced -= ps.RoutesSent
+		d.state.TotalReceived -= ps.RoutesRecv
+		d.state.TotalMissing = max(0, d.state.TotalAnnounced-d.state.TotalReceived)
+		ps.RoutesSent = 0
+		ps.RoutesRecv = 0
+		ps.Missing = 0
 		// Record negotiated families from EventEstablished.
 		// Reset per-family counters so reconnected peers start fresh.
 		if len(ev.Families) > 0 {
@@ -596,21 +605,21 @@ func (d *Dashboard) renderStats() string {
 	counts := d.state.StatusCounts()
 	writeDonut(&donutBuf, counts, d.state.PeerCount)
 	writeDonutLegend(&donutBuf, counts)
+	writeDonutEnd(&donutBuf)
 
 	return `<div id="stats" sse-swap="stats" hx-swap="outerHTML" hx-get="/sidebar/stats" hx-trigger="every 500ms">` +
 		donutBuf.String() +
-		`<span class="stat"><span class="stat-label">Msgs Sent </span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Msgs Recv </span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Bytes Sent </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Bytes Recv </span><span class="stat-value">` + FormatBytes(d.state.TotalBytesRecv) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Rate Out </span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(true)) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Rate In </span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(false)) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Withdrawn </span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Wdraw Sent </span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Route Actions </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Chaos Rate </span><span class="stat-value ` + ChaosRateColorClass(d.state.ChaosRate()) + `">` + fmt.Sprintf("%.1f/s", d.state.ChaosRate()) + `</span></span>` +
-		`<span class="stat"><span class="stat-label">Reconnects </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
+		`<div class="stat-grid">` +
+		`<span></span><span class="stat-grid-header">Out</span><span class="stat-grid-header">In</span>` +
+		`<span class="stat-label">Msgs</span><span class="stat-value">` + itoa(d.state.TotalAnnounced) + `</span><span class="stat-value">` + itoa(d.state.TotalReceived) + `</span>` +
+		`<span class="stat-label">Bytes</span><span class="stat-value">` + FormatBytes(d.state.TotalBytesSent) + `</span><span class="stat-value">` + FormatBytes(d.state.TotalBytesRecv) + `</span>` +
+		`<span class="stat-label">Rate</span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(true)) + `</span><span class="stat-value">` + FormatBitRate(d.state.AggregateThroughput(false)) + `</span>` +
+		`<span class="stat-label">Wdraw</span><span class="stat-value">` + itoa(d.state.TotalWithdrawn) + `</span><span class="stat-value">` + itoa(d.state.TotalWdrawSent) + `</span>` +
+		`</div>` +
+		`<span class="stat"><span class="stat-label">Churn </span><span class="stat-value">` + itoa(d.state.TotalRouteActions) + `</span></span>` +
+		`<span class="stat"><span class="stat-label">Chaos </span><span class="stat-value">` + itoa(d.state.TotalChaos) + `</span></span> ` +
+		`<span class="stat"><span class="stat-value ` + ChaosRateColorClass(d.state.ChaosRate()) + `">` + fmt.Sprintf("%.1f/s", d.state.ChaosRate()) + `</span></span> ` +
+		`<span class="stat"><span class="stat-label">Reconn </span><span class="stat-value">` + itoa(d.state.TotalReconnects) + `</span></span>` +
 		droppedStat(d.state.TotalDropped) +
 		syncStat(d.state.EORCount, d.state.PeerCount, d.state.SyncDuration) +
 		speedStat(d.state.Control.SpeedAvailable, d.state.Control.SpeedFactor) +

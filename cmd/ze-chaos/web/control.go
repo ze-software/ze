@@ -168,7 +168,7 @@ func (d *Dashboard) handleControlTrigger(w http.ResponseWriter, r *http.Request)
 		targetDesc = fmt.Sprintf("peer(s) %v", peers)
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="event-row"><span class="event-type event-type-chaos">triggered</span><span>%s on %s</span></div>`,
+	_, _ = fmt.Fprintf(w, `<div id="trigger-result" class="trigger-result"><span class="event-type event-type-chaos">triggered</span> %s on %s</div>`,
 		escapeHTML(actionType), targetDesc)
 }
 
@@ -283,13 +283,6 @@ func parseRestartSeed(s string) uint64 {
 	return v
 }
 
-// handleControlTriggerForm serves the parameter form for a specific action type.
-func (d *Dashboard) handleControlTriggerForm(w http.ResponseWriter, r *http.Request) {
-	actionType := r.URL.Query().Get("action")
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	writeTriggerForm(w, actionType)
-}
-
 // SetPropertyResults updates the dashboard's property badge display.
 // Called by the orchestrator when property results change.
 func (d *Dashboard) SetPropertyResults(results []PropertyBadge) {
@@ -330,16 +323,13 @@ func writeControlStrip(w io.Writer, cs *ControlState) {
 	h.writef(`<div id="control-strip" class="control-strip"><span class="dot %s"></span><span class="strip-label">%s</span>`, statusClass, statusLabel)
 
 	if cs.Status != statusStopped && cs.Status != statusRestarting {
+		h.write(`<span class="badge btn-stop" hx-post="/control/stop" hx-target="#control-strip" hx-swap="outerHTML" title="Stop chaos">Stop</span>`)
+
 		if cs.Paused {
-			h.write(`<span class="badge" hx-post="/control/resume" hx-target="#control-strip" hx-swap="outerHTML" title="Resume chaos">Resume</span>`)
+			h.write(`<span class="badge btn-ctrl" hx-post="/control/resume" hx-target="#control-strip" hx-swap="outerHTML" title="Resume chaos">Resume</span>`)
 		} else {
-			h.write(`<span class="badge" hx-post="/control/pause" hx-target="#control-strip" hx-swap="outerHTML" title="Pause chaos">Pause</span>`)
+			h.write(`<span class="badge btn-ctrl" hx-post="/control/pause" hx-target="#control-strip" hx-swap="outerHTML" title="Pause chaos">Pause</span>`)
 		}
-
-		// Rate slider.
-		h.writef(`<label class="stat-label">Rate</label><input type="range" min="0" max="100" value="%d" class="rate-slider" hx-post="/control/rate" hx-target="#control-strip" hx-swap="outerHTML" hx-trigger="change" name="rate" hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}' title="Chaos rate"><span class="stat-value">%.0f%%</span>`, int(cs.Rate*100), cs.Rate*100)
-
-		h.write(`<span class="badge" hx-post="/control/stop" hx-target="#control-strip" hx-swap="outerHTML" title="Stop chaos">Stop</span>`)
 	}
 
 	// Speed buttons inline (when available).
@@ -354,9 +344,15 @@ func writeControlStrip(w io.Writer, cs *ControlState) {
 		}
 	}
 
-	// Restart inline (when available).
+	// Right-aligned group: rate + seed + restart.
+	h.write(`<span style="flex:1"></span>`)
+	if cs.Status != statusStopped && cs.Status != statusRestarting {
+		h.writef(`<label class="stat-label">Rate</label><input type="range" min="0" max="100" value="%d" class="rate-slider" hx-post="/control/rate" hx-target="#control-strip" hx-swap="outerHTML" hx-trigger="change" name="rate" hx-vals='js:{rate: (parseFloat(event.target.value)/100).toFixed(2)}' title="Chaos event probability (0%% = paused, 100%% = max)"><span class="stat-value">%.0f%%</span>`, int(cs.Rate*100), cs.Rate*100)
+		h.write(`<span class="strip-sep"></span>`)
+	}
+	h.writef(`<span class="strip-label">seed: %d</span>`, cs.Seed)
 	if cs.RestartAvailable {
-		h.write(`<span class="strip-sep"></span><input type="number" name="seed" min="1" placeholder="seed" class="control-input"><span class="badge" hx-post="/control/restart" hx-target="#control-strip" hx-swap="outerHTML" hx-include="[name='seed']">New Seed</span>`)
+		h.write(`<input type="number" name="seed" min="1" placeholder="new" class="control-input"><span class="badge" hx-post="/control/restart" hx-target="#control-strip" hx-swap="outerHTML" hx-include="[name='seed']">New Seed</span>`)
 	}
 
 	h.write(`</div>`)
@@ -371,54 +367,37 @@ func writeControlSidebar(w io.Writer, cs *ControlState) {
 	h := &htmlWriter{w: w}
 	h.write(`
   <div class="card">
-    <h3>Trigger</h3>`)
+    <h3>Trigger</h3>
+    <label class="stat-label">Target Peers</label>`)
+	writePeerPicker(h)
 	writeTriggerButtons(h, chaosActionTypes())
 	h.write(`
-    <div id="trigger-params"></div>
     <div id="trigger-result"></div>
   </div>`)
 }
 
+// writePeerPicker renders the tag-style peer selector.
+// Shows an always-visible number input for adding peers.
+// Selected peers appear as badges with [−] to remove individually.
+// A hidden input name="peers" holds the comma-separated peer list for the trigger form.
+func writePeerPicker(h *htmlWriter) {
+	h.write(`<div class="trigger-peers" id="trigger-peers">
+<input type="hidden" name="peers" id="trigger-peers-value">
+<input type="number" min="0" class="tp-input control-input" id="tp-number-input" placeholder="peer #"
+       onkeydown="if(event.key==='Enter'&&this.value!==''){tpAddVal(parseInt(this.value));this.value=''}">
+<span class="tp-add" title="Add peer" onclick="var i=document.getElementById('tp-number-input');if(i&&i.value!==''){tpAddVal(parseInt(i.value));i.value='';i.focus()}">+</span>
+</div>
+<span class="tp-hint" id="tp-hint">All peers (type peer # + Enter to target specific peers)</span>`)
+}
+
 // writeTriggerButtons renders individual icon buttons for each chaos action type.
-// Each button fires hx-get to load the param form for that action.
+// Clicking a button fires the action immediately via hx-post.
 func writeTriggerButtons(h *htmlWriter, actions []string) {
 	h.write(`<div class="trigger-grid">`)
 	for _, at := range actions {
-		h.writef(`<span class="badge trigger-btn" title="%s" hx-get="/control/trigger-form?action=%s" hx-target="#trigger-params" hx-swap="innerHTML" onclick="document.querySelectorAll('.trigger-btn').forEach(b=>b.classList.remove('trigger-active'));this.classList.add('trigger-active')"><span class="trigger-icon">%s</span> %s</span>`,
-			escapeHTML(chaosActionImpact(at)), at, chaosActionIcon(at), chaosActionLabel(at))
+		h.writef(`<span class="badge trigger-btn" title="%s" hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML" hx-include="[name='peers']" hx-vals='{"action":"%s"}'><span class="trigger-icon">%s</span> %s</span>`,
+			escapeHTML(chaosActionImpact(at)), escapeJSONInAttr(at), chaosActionIcon(at), chaosActionLabel(at))
 	}
-	h.write(`</div>`)
-}
-
-// writeTriggerForm renders the parameter form for a specific action type.
-func writeTriggerForm(w io.Writer, actionType string) {
-	if actionType == "" {
-		return
-	}
-	h := &htmlWriter{w: w}
-
-	// Show impact description for the selected action.
-	if desc := chaosActionImpact(actionType); desc != "" {
-		h.writef(`<div class="action-impact">%s</div>`, escapeHTML(desc))
-	}
-
-	h.write(`<div class="control-row">`)
-
-	// Peer selection.
-	h.write(`<label class="stat-label">Peers: </label>
-<input type="text" name="peers" placeholder="all (or 0,3,7)" class="control-input">`)
-
-	// Action-specific parameters.
-	if actionType == "partial-withdraw" {
-		h.write(`
-<label class="stat-label">Fraction: </label>
-<input type="number" name="fraction" value="0.3" step="0.1" min="0.1" max="1.0" class="control-input">`)
-	}
-
-	h.writef(`
-<span class="badge" hx-post="/control/trigger" hx-target="#trigger-result" hx-swap="outerHTML"
-      hx-include="[name='action'],[name='peers'],[name='fraction']"
-      hx-vals='{"action":"%s"}'>Execute</span>`, escapeJSONInAttr(actionType))
 	h.write(`</div>`)
 }
 

@@ -6,4 +6,4 @@ cmd=background:seq=1:exec=ze-chaos --in-process --web :$PORT --duration 10s --pe
 
 # Dashboard index should contain stats section with counter labels
 http=get:seq=1:url=http://127.0.0.1:$PORT/:status=200:contains=Peers
-http=get:seq=2:url=http://127.0.0.1:$PORT/:status=200:contains=Msgs Sent
+http=get:seq=2:url=http://127.0.0.1:$PORT/:status=200:contains=Msgs

@@ -251,7 +251,7 @@ func TestWritePeerGridStatusFilter(t *testing.T) {
 	state.Peers[4].Status = PeerIdle
 
 	var buf strings.Builder
-	writePeerGridFiltered(&buf, state, "up")
+	writePeerGridFiltered(&buf, state, "up", "")
 	html := buf.String()
 
 	// Should contain cells for peer 0 and 2 (both up).
@@ -679,9 +679,12 @@ func TestRenderStatsIncludesDonut(t *testing.T) {
 	if !strings.Contains(html, "donut-legend") {
 		t.Error("renderStats missing donut legend")
 	}
-	// Other stats must still be present.
-	if !strings.Contains(html, "Msgs Sent") {
-		t.Error("renderStats missing Msgs Sent stat")
+	// Other stats must still be present (stat-grid uses "Msgs" label, not "Msgs Sent").
+	if !strings.Contains(html, "stat-grid") {
+		t.Error("renderStats missing stat-grid")
+	}
+	if !strings.Contains(html, ">Msgs<") {
+		t.Error("renderStats missing Msgs stat in grid")
 	}
 	if !strings.Contains(html, "Chaos") {
 		t.Error("renderStats missing Chaos stat")
@@ -732,11 +735,8 @@ func TestRenderStatsIncludesChaosRate(t *testing.T) {
 	d.state.UpdateThroughput(now.Add(time.Second))
 
 	html := d.renderStats()
-	if !strings.Contains(html, "Chaos Rate") {
-		t.Error("renderStats missing 'Chaos Rate' label")
-	}
 	if !strings.Contains(html, "/s") {
-		t.Error("renderStats missing rate value with /s suffix")
+		t.Error("renderStats missing chaos rate value with /s suffix")
 	}
 	if !strings.Contains(html, "rate-") {
 		t.Error("renderStats missing rate color class")
@@ -813,8 +813,9 @@ func TestBroadcastStatsWithChaosRate(t *testing.T) {
 	html := d.renderStats()
 	d.state.RUnlock()
 
-	if !strings.Contains(html, "Chaos Rate") {
-		t.Error("stats after chaos events missing 'Chaos Rate'")
+	// Chaos rate should be present (as X.Y/s value next to Chaos count).
+	if !strings.Contains(html, "/s") {
+		t.Error("stats after chaos events missing chaos rate")
 	}
 	// Rate should be non-zero.
 	if strings.Contains(html, "0.0/s") {
@@ -882,9 +883,9 @@ func TestWriteTriggerButtons(t *testing.T) {
 	}
 }
 
-// TestWriteTriggerButtonHTMX verifies each button has correct hx-get and target.
+// TestWriteTriggerButtonHTMX verifies each button has correct hx-post and target.
 //
-// VALIDATES: AC-4 — clicking a button loads the param form for that action.
+// VALIDATES: AC-4 — clicking a button fires the action immediately via hx-post.
 // PREVENTS: Broken HTMX wiring on trigger buttons.
 func TestWriteTriggerButtonHTMX(t *testing.T) {
 	t.Parallel()
@@ -894,13 +895,16 @@ func TestWriteTriggerButtonHTMX(t *testing.T) {
 	writeTriggerButtons(h, chaosActionTypes())
 	html := buf.String()
 
+	if !strings.Contains(html, `hx-post="/control/trigger"`) {
+		t.Error("missing hx-post on trigger buttons")
+	}
 	for _, at := range chaosActionTypes() {
-		want := `hx-get="/control/trigger-form?action=` + at + `"`
-		if !strings.Contains(html, want) {
-			t.Errorf("missing hx-get for action %q", at)
+		wantVal := `"action":"` + escapeJSONInAttr(at) + `"`
+		if !strings.Contains(html, wantVal) {
+			t.Errorf("missing hx-vals action for %q", at)
 		}
 	}
-	if !strings.Contains(html, `hx-target="#trigger-params"`) {
+	if !strings.Contains(html, `hx-target="#trigger-result"`) {
 		t.Error("missing hx-target on trigger buttons")
 	}
 }
@@ -951,8 +955,8 @@ func TestWriteTriggerButtonIcons(t *testing.T) {
 
 // TestControlPanelRendersTriggerButtons verifies writeControlSidebar uses buttons, not dropdown.
 //
-// VALIDATES: AC-1 — control panel renders trigger buttons instead of select/option.
-// PREVENTS: Dropdown remnants in the trigger section.
+// VALIDATES: AC-1 — control panel renders trigger buttons and peer picker.
+// PREVENTS: Missing trigger grid or peer picker.
 func TestControlPanelRendersTriggerButtons(t *testing.T) {
 	t.Parallel()
 
@@ -967,11 +971,15 @@ func TestControlPanelRendersTriggerButtons(t *testing.T) {
 	if !strings.Contains(html, "trigger-btn") {
 		t.Error("sidebar missing trigger-btn")
 	}
-	if strings.Contains(html, "<select") {
-		t.Error("sidebar should not contain select element (replaced by buttons)")
+	// Peer picker with inline input and hidden peers value.
+	if !strings.Contains(html, "trigger-peers") {
+		t.Error("sidebar missing peer picker container")
 	}
-	if strings.Contains(html, "<option") {
-		t.Error("sidebar should not contain option elements (replaced by buttons)")
+	if !strings.Contains(html, "tp-input") {
+		t.Error("sidebar missing peer picker input")
+	}
+	if !strings.Contains(html, `name="peers"`) {
+		t.Error("sidebar missing peers hidden input")
 	}
 }
 
@@ -1183,8 +1191,8 @@ func TestWriteControlSidebar(t *testing.T) {
 	if !strings.Contains(html, "Trigger") {
 		t.Error("sidebar missing Trigger heading")
 	}
-	if !strings.Contains(html, "trigger-params") {
-		t.Error("sidebar missing trigger-params div")
+	if !strings.Contains(html, "trigger-result") {
+		t.Error("sidebar missing trigger-result div")
 	}
 	for _, absent := range []string{"Pause", "Resume", "rate-slider", "/control/stop", "/control/speed"} {
 		if strings.Contains(html, absent) {

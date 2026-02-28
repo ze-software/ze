@@ -586,10 +586,9 @@ func TestWriteTriggerFormXSSEscape(t *testing.T) {
 			mustHas:    `a\&#34;b`, // JSON-escaped \" then HTML-escaped " → &#34;
 		},
 		{
-			name:       "single_quote",
-			action:     `a'b`,
-			mustNotHas: `a'b`, // raw single quote in HTML attribute
-			mustHas:    `a&#39;b`,
+			name:    "single_quote",
+			action:  `a'b`,
+			mustHas: `a&#39;b`, // single quote escaped in hx-vals attribute
 		},
 		{
 			name:       "backslash",
@@ -607,7 +606,8 @@ func TestWriteTriggerFormXSSEscape(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var buf strings.Builder
-			writeTriggerForm(&buf, tt.action)
+			h := &htmlWriter{w: &buf}
+			writeTriggerButtons(h, []string{tt.action})
 			out := buf.String()
 
 			if tt.mustNotHas != "" && strings.Contains(out, tt.mustNotHas) {
@@ -1381,9 +1381,12 @@ func TestLayoutIncludesHealthDonut(t *testing.T) {
 	if !strings.Contains(html, "donut-legend") {
 		t.Error("layout missing donut legend")
 	}
-	// Other stats must still be present.
-	if !strings.Contains(html, "Msgs Sent") {
-		t.Error("layout missing Msgs Sent stat after donut")
+	// Other stats must still be present (stat-grid uses "Msgs" label, not "Msgs Sent").
+	if !strings.Contains(html, "stat-grid") {
+		t.Error("layout missing stat-grid after donut")
+	}
+	if !strings.Contains(html, ">Msgs<") {
+		t.Error("layout missing Msgs stat in grid")
 	}
 }
 
@@ -1592,8 +1595,8 @@ func TestLayoutSidebarHasTriggerNotControls(t *testing.T) {
 	if !strings.Contains(sidebar, "Trigger") {
 		t.Error("sidebar missing Trigger section")
 	}
-	if !strings.Contains(sidebar, "trigger-params") {
-		t.Error("sidebar missing trigger-params div")
+	if !strings.Contains(sidebar, "trigger-result") {
+		t.Error("sidebar missing trigger-result div")
 	}
 }
 
@@ -1642,6 +1645,20 @@ func TestPeerMatchesSearch(t *testing.T) {
 		{"status partial", "dow", true},
 		{"no match", "xyz", false},
 		{"index no match", "99", false},
+		// Set syntax: comma-separated peer indices.
+		{"set includes", "10,42,50", true},
+		{"set excludes", "10,20,50", false},
+		// Range syntax: N-M.
+		{"range includes", "40-45", true},
+		{"range excludes", "1-10", false},
+		// Exclusion syntax: -N removes a peer.
+		{"exclude this peer", "-42", false},
+		{"exclude other peer", "-10", true},
+		{"exclude set", "-10,-42", false},
+		{"exclude set miss", "-10,-20", true},
+		// Mixed: range with exclusion.
+		{"range with exclusion", "40-50,-42", false},
+		{"range without exclusion", "40-50,-43", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
