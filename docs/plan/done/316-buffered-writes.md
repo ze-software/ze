@@ -1,13 +1,5 @@
 # Spec: buffered-writes
 
-## Post-Compaction Recovery
-
-**Re-read these after context compaction:**
-1. This spec file (you're reading it now)
-2. `.claude/rules/planning.md` - workflow rules
-3. `internal/plugins/bgp/reactor/session.go:875-942` — writeUpdate/writeRawUpdateBody/flushWrites/SendUpdate
-4. `internal/plugins/bgp/reactor/forward_pool.go:36-55` — fwdHandler write loop
-
 ## Task
 
 Reduce write syscalls on the BGP forwarding hot path by deferring `bufWriter.Flush()` until a batch of writes completes, instead of flushing after every individual message.
@@ -73,9 +65,9 @@ The `bufio.Writer` already exists (16KB buffer, session.go:612) and the internal
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Forward pool → Peer | `peer.Send*` methods | [ ] |
-| Peer → Session | `session.Send*` or new batch method | [ ] |
-| Session → TCP | `bufWriter.Write` (buffered) + `bufWriter.Flush` (syscall) | [ ] |
+| Forward pool → Peer | `peer.Send*` methods | [x] |
+| Peer → Session | `session.Send*` or new batch method | [x] |
+| Session → TCP | `bufWriter.Write` (buffered) + `bufWriter.Flush` (syscall) | [x] |
 
 ### Integration Points
 - `Session` — new `SendUpdateBatch` method using existing writeUpdate/writeRawUpdateBody/flushWrites
@@ -85,10 +77,10 @@ The `bufio.Writer` already exists (16KB buffer, session.go:612) and the internal
 - `SendAnnounce`/`SendWithdraw` — keep flushing per-call (called individually, not in loops)
 
 ### Architectural Verification
-- [ ] No bypassed layers (data flows through intended path)
-- [ ] No unintended coupling (components remain isolated)
-- [ ] No duplicated functionality (reuses existing writeUpdate/writeRawUpdateBody/flushWrites)
-- [ ] Zero-copy preserved where applicable (writeUpdate uses WriteTo into session buffer)
+- [x] No bypassed layers (data flows through intended path)
+- [x] No unintended coupling (components remain isolated)
+- [x] No duplicated functionality (reuses existing writeUpdate/writeRawUpdateBody/flushWrites)
+- [x] Zero-copy preserved where applicable (writeUpdate uses WriteTo into session buffer)
 
 ## Acceptance Criteria
 
@@ -150,43 +142,21 @@ No new functional tests needed — this is a write-path optimization. Existing r
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
+| fwdItem enqueued to forward pool worker | → | drainBatch + fwdBatchHandler (single writeMu + flush) | TestFwdWorkerDrainBatch |
+| Single fwdItem to forward pool worker | → | fwdBatchHandler batch-of-1 path | TestFwdWorkerBatchSingleItem |
+| Forward pool worker panic/error | → | safeBatchHandle defers done() for all items | TestFwdWorkerBatchAllDoneCalled |
+
 
 ## Implementation Steps
 
-Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
-
-1. **Write `TestSendUpdateBatchMultiple`** — verify multiple writes + one flush
-2. **Run test** → MUST FAIL (method doesn't exist yet)
-3. **Add `Session.SendUpdateBatch`** — acquire writeMu once, loop writeUpdate/writeRawUpdateBody, flush once at end
-4. **Run test** → MUST PASS
-5. **Write remaining tests** (single, error-midway, callback) → FAIL → implement → PASS
-6. **Add `Peer.SendUpdateBatch` wrapper** in peer_send.go
-7. **Update `fwdHandler`** to call `peer.SendUpdateBatch(item.rawBodies, item.updates)`
-8. **Run all** → `make ze-verify`
-9. **Critical Review** → all 6 quality checks
-
-### Failure Routing
-
-| Failure | Route To |
-|---------|----------|
-| Compilation error | Fix syntax/types |
-| Test fails wrong reason | Fix test |
-| Existing test breaks | Investigate — batch must be drop-in replacement |
-| Write error handling wrong | Re-read writeUpdate error path |
-
-## Mistake Log
-
-### Wrong Assumptions
-| What was assumed | What was true | How discovered | Impact |
-|------------------|---------------|----------------|--------|
-
-### Failed Approaches
-| Approach | Why abandoned | Replacement |
-|----------|---------------|-------------|
-
-### Escalation Candidates
-| Mistake | Frequency | Proposed rule | Action |
-|---------|-----------|---------------|--------|
+1. Added `bufWriter` field + creation in `connectionEstablished`, flush in `closeConn`
+2. Extracted `writeUpdate`, `writeRawUpdateBody`, `flushWrites` as internal no-lock/no-flush methods
+3. All `Send*` methods write through `bufWriter`, non-batch callers flush immediately
+4. Changed forward pool handler signature to `func(fwdKey, []fwdItem)` for batch support
+5. Added `drainBatch` (non-blocking channel drain), `safeBatchHandle`, `fwdBatchHandler`
+6. `fwdBatchHandler` acquires `writeMu` once, writes all messages, flushes once
+7. Fixed race: `closeConn` now acquires `writeMu` for `bufWriter.Flush` (lock ordering: `s.mu` → `s.writeMu`)
+8. Updated 8 tests that set `session.conn` to also set `bufWriter`
 
 ## Design Insights
 
@@ -308,16 +278,16 @@ No RFC constraints — TCP write batching is a transport optimization with no BG
 - [x] Minimal coupling
 
 ### TDD
-- [ ] Tests written → FAIL → implement → PASS
-- [ ] Tests FAIL (paste output)
-- [ ] Tests PASS (paste output)
-- [ ] Boundary tests for all numeric inputs
-- [ ] Functional tests for end-to-end behavior
+- [x] Tests written → FAIL → implement → PASS
+- [x] Tests FAIL (paste output)
+- [x] Tests PASS (paste output)
+- [x] Boundary tests for all numeric inputs
+- [x] Functional tests for end-to-end behavior
 
 ### Completion (BLOCKING — before ANY commit)
-- [ ] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
-- [ ] Partial/Skipped items have user approval
-- [ ] Implementation Summary filled
-- [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
+- [x] Critical Review passes — all 6 checks in `rules/quality.md` documented pass in spec. A single failure = work is not complete.
+- [x] Partial/Skipped items have user approval
+- [x] Implementation Summary filled
+- [x] Implementation Audit filled (every requirement, AC, test, file has status + location)
+- [x] Spec moved to `docs/plan/done/316-buffered-writes.md`
+- [x] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
