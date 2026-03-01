@@ -116,7 +116,7 @@ func TestWorkerPool_PeerDown(t *testing.T) {
 
 // TestWorkerPool_BackpressureWarning verifies log warning when channel approaches capacity.
 //
-// VALIDATES: Warning logged when channel > 90% full.
+// VALIDATES: Warning logged when channel is full.
 // PREVENTS: Silent queue overflow without operator notification.
 func TestWorkerPool_BackpressureWarning(t *testing.T) {
 	// Handler that blocks until signaled — creates backpressure.
@@ -140,16 +140,15 @@ func TestWorkerPool_BackpressureWarning(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill channel to 90%+ capacity. Worker is blocked on item 1, so items
-	// 2-9 queue up (8 items in buffer of 8). Backpressure check (depth*10 > cap*9)
-	// triggers when depth > 7.2 for cap=8, i.e., at depth=8 (items 2-9).
+	// Fill channel to capacity. Worker is blocked on item 1, so items
+	// 2-9 queue up (8 items in buffer of 8). depth=8 >= cap=8 → triggers.
 	for i := 2; i <= 9; i++ {
 		wp.Dispatch(key, workItem{msgID: uint64(i)})
 	}
 
 	// Check that backpressure was detected.
 	if !wp.BackpressureDetected(key) {
-		t.Error("expected backpressure detection for key with >90% full channel")
+		t.Error("expected backpressure detection for key with full channel")
 	}
 
 	// Unblock to clean up.
@@ -415,7 +414,7 @@ func TestWorkerPool_BackpressureClearedAfterRead(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to >90% (8 items in buffer of 8). depth*10 > cap*9: 8*10=80 > 72.
+	// Fill to capacity (8 items in buffer of 8). depth=8 >= cap=8.
 	for i := 2; i <= 9; i++ {
 		wp.Dispatch(key, workItem{msgID: uint64(i)})
 	}
@@ -462,7 +461,7 @@ func TestWorkerPoolLowWater(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to >90% (8 items in buffer of 8) to trigger backpressure.
+	// Fill to capacity (8 items in buffer of 8) to trigger backpressure.
 	for i := 2; i <= 9; i++ {
 		wp.Dispatch(key, workItem{msgID: uint64(i)})
 	}
@@ -517,7 +516,7 @@ func TestWorkerPoolHighLowCycle(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to >90% to trigger backpressure (8 items in buffer of 8).
+	// Fill to capacity to trigger backpressure (8 items in buffer of 8).
 	for i := 2; i <= 9; i++ {
 		wp.Dispatch(key, workItem{msgID: uint64(i)})
 	}
@@ -978,11 +977,11 @@ func TestDefaultChannelCapacity4096(t *testing.T) {
 	}
 }
 
-// TestBackpressureHighWater90Percent verifies backpressure triggers at >90% capacity.
+// TestBackpressureHighWaterFull verifies backpressure triggers when channel is full.
 //
-// VALIDATES: AC-2 — backpressure triggers at >90%, not 75%.
+// VALIDATES: AC-2 — backpressure triggers at depth >= capacity (channel full).
 // PREVENTS: Premature pause that reduces throughput.
-func TestBackpressureHighWater90Percent(t *testing.T) {
+func TestBackpressureHighWaterFull(t *testing.T) {
 	block := make(chan struct{})
 	var count atomic.Int32
 	handler := func(_ workerKey, _ workItem) {
@@ -992,7 +991,7 @@ func TestBackpressureHighWater90Percent(t *testing.T) {
 	}
 
 	cfg := testPoolConfig()
-	cfg.chanSize = 10 // 90% = 9 items
+	cfg.chanSize = 10
 
 	wp := newWorkerPool(handler, cfg)
 	defer wp.Stop()
@@ -1003,20 +1002,19 @@ func TestBackpressureHighWater90Percent(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to 80% (8 items in channel of 10) — should NOT trigger.
-	for i := uint64(2); i <= 9; i++ {
+	// Fill to 90% (9 items in channel of 10) — should NOT trigger.
+	for i := uint64(2); i <= 10; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 	if wp.BackpressureDetected(key) {
-		t.Error("backpressure should NOT trigger at 80% (8/10)")
+		t.Error("backpressure should NOT trigger at 90% (9/10)")
 	}
 
-	// Fill to 100% (10 items in channel of 10). depth=10: 10*10=100 > 10*9=90 → yes.
-	wp.Dispatch(key, workItem{msgID: 10})
+	// Fill to 100% (10 items in channel of 10). depth=10 >= cap=10 → triggers.
 	wp.Dispatch(key, workItem{msgID: 11})
 
 	if !wp.BackpressureDetected(key) {
-		t.Error("backpressure should trigger at >90% (10/10)")
+		t.Error("backpressure should trigger when channel is full (10/10)")
 	}
 
 	close(block)
@@ -1024,7 +1022,7 @@ func TestBackpressureHighWater90Percent(t *testing.T) {
 
 // TestBackpressureLowWater10Percent verifies low-water callback fires at <10% capacity.
 //
-// VALIDATES: AC-3 — low-water fires at <10%, not 25%.
+// VALIDATES: AC-2 — resume fires at <10% for wide hysteresis band.
 // PREVENTS: Premature resume that causes oscillation.
 func TestBackpressureLowWater10Percent(t *testing.T) {
 	block := make(chan struct{})
@@ -1051,10 +1049,10 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to >90% to trigger backpressure. Need depth > 18.
-	// Worker processing item 1, items 2-20 in channel (19 items). depth=19.
-	// 19*10=190 > 20*9=180 → yes.
-	for i := uint64(2); i <= 20; i++ {
+	// Fill to 100% to trigger backpressure. Need depth >= 20.
+	// Worker processing item 1, items 2-21 fill channel (20 items). depth=20.
+	// 20 >= 20 → triggers.
+	for i := uint64(2); i <= 21; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 
@@ -1066,7 +1064,7 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 	close(block)
 
 	// Wait for all items to process.
-	waitForCount(&count, 20, t)
+	waitForCount(&count, 21, t)
 
 	// Low-water fires at <10% (depth < 2 for cap=20).
 	// After all 20 items processed, depth=0 → low-water fires.
@@ -1083,13 +1081,13 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 
 // TestBackpressureThresholdOscillation verifies wider band reduces pause/resume cycles.
 //
-// VALIDATES: AC-15 — wider backpressure band (90/10) reduces oscillation vs narrow band.
+// VALIDATES: AC-14 — wider backpressure band (100/10) reduces oscillation vs narrow band.
 // PREVENTS: Rapid pause/resume cycling that degrades throughput.
 func TestBackpressureThresholdOscillation(t *testing.T) {
-	// With chanSize=20 and 90%/10% thresholds:
-	// high-water at depth > 18 (need 19+)
-	// low-water at depth < 2 (need 0 or 1)
-	// Band = 80% of capacity = 16 items between high and low
+	// With chanSize=20 and 100%/10% thresholds:
+	// high-water at depth >= 20 (channel full)
+	// low-water at depth < 2 (need 0-1)
+	// Band = 90% of capacity = 18 items between high and low
 	cfg := testPoolConfig()
 	cfg.chanSize = 20
 
@@ -1108,13 +1106,118 @@ func TestBackpressureThresholdOscillation(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 	waitForCount(&count, 1, t)
 
-	// Fill to 85% (17 items in channel of 20). Should NOT trigger at 90%.
-	for i := uint64(2); i <= 18; i++ {
+	// Fill to 95% (19 items in channel of 20). Should NOT trigger at 100%.
+	for i := uint64(2); i <= 20; i++ {
 		wp.Dispatch(key, workItem{msgID: i})
 	}
 
 	if wp.BackpressureDetected(key) {
-		t.Error("backpressure should NOT trigger at 85% (17/20) with 90% threshold")
+		t.Error("backpressure should NOT trigger at 95% (19/20) with 100% threshold")
+	}
+}
+
+// TestBackpressureNoResumeAbove10Percent verifies low-water does NOT fire when
+// depth stays above 10% during backpressure.
+//
+// VALIDATES: AC-14 — no resume when queue is above 10%, even below 50%.
+// PREVENTS: Rapid pause/resume oscillation from premature low-water trigger.
+func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
+	var count atomic.Int32
+	block := make(chan struct{})
+	blockCh := block // Handler captures this copy — immune to block reassignment.
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) >= 6 {
+			<-blockCh // Block from item 6 onwards.
+		}
+	}
+
+	var lwCalls atomic.Int32
+	cfg := testPoolConfig()
+	cfg.chanSize = 10
+
+	wp := newWorkerPool(handler, cfg)
+	wp.onLowWater = func(_ workerKey) { lwCalls.Add(1) }
+	defer func() { close(block); wp.Stop() }()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// Dispatch 11 items: item 1 starts processing immediately,
+	// items 2-11 fill the channel (10 items). depth=10 >= cap=10 → triggers.
+	for i := uint64(1); i <= 11; i++ {
+		wp.Dispatch(key, workItem{msgID: i})
+	}
+	waitForCount(&count, 5, t)
+
+	// Items 1-5 processed. Item 6 is blocked in handler.
+	// Channel: items 7-11 (5 items). depth=5. 5*10=50, 50 > 10 → NOT <10%.
+	// Depth is at 50%, well above 10% — low-water must NOT fire.
+	time.Sleep(50 * time.Millisecond)
+	if lwCalls.Load() > 0 {
+		t.Error("onLowWater should NOT fire when depth is above 10%")
+	}
+
+	// Unblock remaining items → depth drains to 0 < 10% → low-water fires.
+	close(blockCh)
+	block = make(chan struct{}) // Replace so defer close doesn't double-close.
+	waitForCount(&count, 11, t)
+
+	deadline := time.After(2 * time.Second)
+	for lwCalls.Load() < 1 {
+		select {
+		case <-deadline:
+			t.Fatal("timeout: low-water callback never fired after draining below 10%")
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+// TestBackpressureReminder verifies periodic WARN fires during sustained backpressure.
+// checkBackpressure rate-limits logs via bpLastLog — a second WARN fires only
+// after bpReminderInterval has elapsed since the first.
+//
+// VALIDATES: AC-15 — reminder fires after bpReminderInterval during sustained load.
+// PREVENTS: Silent sustained backpressure with no log visibility.
+func TestBackpressureReminder(t *testing.T) {
+	block := make(chan struct{})
+	var count atomic.Int32
+	handler := func(_ workerKey, _ workItem) {
+		if count.Add(1) == 1 {
+			<-block // First item blocks — keeps channel full.
+		}
+	}
+
+	cfg := testPoolConfig()
+	cfg.chanSize = 10
+	cfg.bpReminderInterval = 30 * time.Millisecond // Short interval for test.
+
+	wp := newWorkerPool(handler, cfg)
+	wp.onLowWater = func(_ workerKey) {}
+	defer func() { close(block); wp.Stop() }()
+
+	key := workerKey{sourcePeer: "10.0.0.1"}
+
+	// Fill to capacity: item 1 blocks in handler, items 2-11 fill channel.
+	// depth=10 >= cap=10 → first WARN fires, bpLastLog stored.
+	for i := uint64(1); i <= 11; i++ {
+		wp.Dispatch(key, workItem{msgID: i})
+	}
+
+	if !wp.BackpressureDetected(key) {
+		t.Fatal("expected backpressure detection")
+	}
+
+	// Immediately dispatch again — should NOT log (interval not elapsed).
+	wp.Dispatch(key, workItem{msgID: 12})
+
+	// Wait for interval to elapse, then dispatch — should log reminder.
+	time.Sleep(50 * time.Millisecond)
+	wp.Dispatch(key, workItem{msgID: 13})
+
+	// Verify: second BackpressureDetected means checkBackpressure ran
+	// with the interval elapsed → reminder WARN was emitted.
+	if !wp.BackpressureDetected(key) {
+		t.Error("expected backpressure after reminder interval elapsed")
 	}
 }
 

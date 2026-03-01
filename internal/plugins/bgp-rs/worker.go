@@ -21,8 +21,9 @@ type workItem struct {
 
 // poolConfig holds configuration for a workerPool.
 type poolConfig struct {
-	chanSize    int
-	idleTimeout time.Duration
+	chanSize           int
+	idleTimeout        time.Duration
+	bpReminderInterval time.Duration
 
 	// onItemDrop is called for each work item discarded during PeerDown or Stop
 	// when overflow items remain. Callers use this to clean up associated state
@@ -91,12 +92,19 @@ type workerPool struct {
 	backpressure sync.Map // workerKey → bool
 
 	// inBackpressure tracks keys currently in backpressure state.
-	// Used by low-water check (cleared when channel drains below 10%).
+	// Used by flow control low-water check (cleared when channel drains below 10%).
 	// Separate from backpressure because BackpressureDetected clears on read.
 	inBackpressure sync.Map // workerKey → bool
 
+	// bpLastLog tracks the last time a backpressure WARN was emitted per key.
+	// Used as a rate-limiter: logs only when absent (first event) or when
+	// bpReminderInterval has elapsed (periodic reminder). Cleared on
+	// PeerDown/idle exit so a reconnecting peer gets a fresh WARN.
+	bpLastLog sync.Map // workerKey → time.Time
+
 	// onLowWater is called when a worker's channel drops below 10% after
 	// being in backpressure. Used by dispatch to trigger resume RPCs.
+	// Wide hysteresis band (full→10%) minimizes pause/resume cycles.
 	onLowWater func(key workerKey)
 
 	// count tracks active workers for WorkerCount() without holding mu.
@@ -110,6 +118,9 @@ func newWorkerPool(handler func(key workerKey, item workItem), cfg poolConfig) *
 	}
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
+	}
+	if cfg.bpReminderInterval <= 0 {
+		cfg.bpReminderInterval = 10 * time.Second
 	}
 	return &workerPool{
 		workers: make(map[workerKey]*worker),
@@ -220,18 +231,34 @@ func (wp *workerPool) dropItem(item workItem) {
 	}
 }
 
-// checkBackpressure checks if the worker's depth has crossed the high-water mark.
-// Log only on transition into backpressure (not while already in it).
+// checkBackpressure checks if the worker's depth has reached channel capacity.
+// Triggers when depth >= cap (channel full, overflow active). No headroom is
+// reserved because the overflow buffer handles any in-flight items during
+// pause latency — nothing is ever dropped.
+//
+// Logging is rate-limited by bpLastLog: WARN fires on first detection (absent)
+// or when bpReminderInterval has elapsed (periodic reminder during sustained
+// backpressure). This prevents log spam during pause/resume oscillation.
 func (wp *workerPool) checkBackpressure(key workerKey, w *worker) {
-	if w.depth()*10 > cap(w.ch)*9 { // >90% of channel capacity
-		if _, alreadyInBP := wp.inBackpressure.LoadOrStore(key, true); !alreadyInBP {
+	if w.depth() >= cap(w.ch) { // channel full
+		wp.inBackpressure.Store(key, true)
+		wp.backpressure.Store(key, true)
+
+		var shouldLog bool
+		if lastRaw, ok := wp.bpLastLog.Load(key); !ok {
+			shouldLog = true // First backpressure event for this key.
+		} else {
+			last, _ := lastRaw.(time.Time)
+			shouldLog = time.Since(last) >= wp.cfg.bpReminderInterval
+		}
+		if shouldLog {
 			logger().Warn("backpressure",
 				"source-peer", key.sourcePeer,
 				"queue-depth", w.depth(),
 				"capacity", cap(w.ch),
 			)
+			wp.bpLastLog.Store(key, time.Now())
 		}
-		wp.backpressure.Store(key, true)
 	}
 }
 
@@ -250,6 +277,13 @@ func (wp *workerPool) PeerDown(sourcePeer string) {
 	if !ok {
 		return
 	}
+
+	// Clean up backpressure state for this peer. Without this, a reconnecting
+	// peer inherits stale inBackpressure/bpLastLog from the previous session,
+	// suppressing the initial backpressure log or causing immediate reminders.
+	wp.inBackpressure.Delete(key)
+	wp.backpressure.Delete(key)
+	wp.bpLastLog.Delete(key)
 
 	// Signal drain goroutine to stop, wait for it to exit, then close channel.
 	close(w.closeCh)
@@ -300,7 +334,7 @@ func (wp *workerPool) WorkerCount() int {
 }
 
 // BackpressureDetected returns true if the channel for the given key has
-// triggered a backpressure warning (>90% full) since the last check.
+// triggered a backpressure warning (channel full) since the last check.
 // Clears the flag on read so the caller sees each backpressure event once.
 func (wp *workerPool) BackpressureDetected(key workerKey) bool {
 	_, ok := wp.backpressure.LoadAndDelete(key)
@@ -358,13 +392,15 @@ func (wp *workerPool) runWorker(key workerKey, w *worker) {
 			}
 			wp.safeHandle(key, item)
 
-			// Low-water check: if total depth (channel + overflow) drained below
-			// 10% of channel capacity and was in backpressure, fire onLowWater
-			// callback to trigger resume. The inBackpressure flag is consumed
-			// (deleted) so the callback fires once per high→low transition.
+			// Flow control low-water: if depth dropped below 10%, fire resume.
+			// Wide hysteresis band (full / 10% low) minimizes pause/resume
+			// cycles. The inBackpressure flag is consumed (deleted) so the
+			// callback fires once per high→low transition.
 			if w.depth()*10 < cap(w.ch) { // <10% of channel capacity
-				if _, wasBP := wp.inBackpressure.LoadAndDelete(key); wasBP && wp.onLowWater != nil {
-					wp.onLowWater(key)
+				if _, wasBP := wp.inBackpressure.LoadAndDelete(key); wasBP {
+					if wp.onLowWater != nil {
+						wp.onLowWater(key)
+					}
 				}
 			}
 

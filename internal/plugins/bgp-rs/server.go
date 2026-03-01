@@ -404,7 +404,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 // wireFlowControl connects the worker pool's backpressure signals to
 // pause/resume RPCs. Called once after worker pool creation.
 //
-// High-water (>90%): dispatch() checks BackpressureDetected() after each
+// High-water (channel full): dispatch() checks BackpressureDetected() after each
 // Dispatch and sends "bgp peer pause <addr>" to the engine.
 // Low-water (<10%): the onLowWater callback fires in the worker goroutine
 // and sends "bgp peer resume <addr>" to the engine.
@@ -749,7 +749,7 @@ func (rs *RouteServer) dispatchText(text string) {
 			if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
 				rs.pausedPeers[peerAddr] = true
 				rs.mu.Unlock()
-				logger().Warn("pausing peer", "source-peer", peerAddr)
+				logger().Debug("pausing peer", "source-peer", peerAddr)
 				rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
 			} else {
 				rs.mu.Unlock()
@@ -799,7 +799,7 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 		if rs.pausedPeers != nil && !rs.pausedPeers[peerAddr] {
 			rs.pausedPeers[peerAddr] = true
 			rs.mu.Unlock()
-			logger().Warn("pausing peer", "source-peer", peerAddr)
+			logger().Debug("pausing peer", "source-peer", peerAddr)
 			rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
 		} else {
 			rs.mu.Unlock()

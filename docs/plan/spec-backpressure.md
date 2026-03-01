@@ -110,6 +110,10 @@ Additionally, document (but do NOT implement) a future Tier 2 mechanism: shrinki
 | AC-10 | Pause() called on already-paused session | No-op (idempotent) |
 | AC-11 | Resume() called on non-paused session | No-op (idempotent) |
 | AC-12 | KEEPALIVE timer fires while read is paused | KEEPALIVE is still sent (write path independent) |
+| AC-13 | Worker queue drops below 50% after backpressure | onLowWater fires, "backpressure cleared" logged at INFO |
+| AC-14 | Worker queue oscillates between 50-90% without dropping below 50% | No re-log of "backpressure", inBackpressure stays set |
+| AC-15 | Worker queue stays above 50% for >10 seconds during backpressure | "backpressure" reminder logged at WARN with current depth |
+| AC-16 | Worker queue drops below 50%, refills above 90% | "backpressure" re-logged (full cycle completed) |
 
 ## 🧪 TDD Test Plan
 
@@ -125,6 +129,9 @@ Additionally, document (but do NOT implement) a future Tier 2 mechanism: shrinki
 | `TestReactorPausePeer` | `internal/plugins/bgp/reactor/reactor_test.go` | AC-7: PausePeer pauses specific peer | |
 | `TestReactorPauseAllReads` | `internal/plugins/bgp/reactor/reactor_test.go` | AC-8, AC-9: PauseAllReads/ResumeAllReads affects all peers | |
 | `TestSessionPauseKeepaliveContinues` | `internal/plugins/bgp/reactor/session_test.go` | AC-12: Write path independent of read pause | |
+| `TestBackpressureLowWater50Percent` | `internal/plugins/bgp-rs/worker_test.go` | AC-13: Low-water fires at <50% | |
+| `TestBackpressureNoLowWaterAbove50Percent` | `internal/plugins/bgp-rs/worker_test.go` | AC-14: No low-water when depth stays above 50% | |
+| `TestBackpressureReminder` | `internal/plugins/bgp-rs/worker_test.go` | AC-15: Reminder fires after interval during sustained BP | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 No new numeric inputs introduced.
@@ -221,6 +228,26 @@ In Session.Run() loop, before readAndProcessMessage():
 3. Resume() closes resumeCh, unblocking the select
 
 This gives O(0) overhead on the normal (unpaused) path — just an atomic load.
+
+### Debouncing and Logging Policy (bgp-rs worker pool)
+
+The worker pool in bgp-rs triggers backpressure on the dispatch side and clears it on the worker side. Without debouncing, rapid oscillation produces hundreds of WARN lines per second.
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| High-water threshold | >90% of channel capacity | Trigger backpressure, peer pause |
+| Low-water threshold | <50% of channel capacity | Clear backpressure, peer resume |
+| Reminder interval | 10 seconds | Periodic log during sustained backpressure |
+
+Logging behavior:
+
+| Event | Level | When |
+|-------|-------|------|
+| "backpressure" | WARN | First crossing above 90% |
+| "backpressure" (reminder) | WARN | Every 10s while sustained above 50% |
+| "backpressure cleared" | INFO | Queue drops below 50% |
+
+The `inBackpressure` flag is only cleared at the low-water mark (50%), so re-entry logging requires a full high-water → low-water → high-water cycle. This eliminates log spam from rapid oscillation where the queue briefly dips and refills.
 
 ### TCP Window Squeeze (Future Tier 2 — Research Only)
 

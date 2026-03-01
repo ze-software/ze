@@ -555,7 +555,7 @@ func TestDispatchPauseOnBackpressure(t *testing.T) {
 
 // TestDispatchResumeOnDrain verifies dispatch resumes source peer when channel drains.
 //
-// VALIDATES: AC-2 — resume sent when worker channel drains below 25%.
+// VALIDATES: AC-2 — resume sent when worker channel drains below 10%.
 // PREVENTS: Permanently paused peers after transient load.
 func TestDispatchResumeOnDrain(t *testing.T) {
 	rs := newTestRouteServer(t)

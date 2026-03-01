@@ -319,7 +319,7 @@ func (p *Peer) PauseReading() {
 	}
 
 	session.Pause()
-	peerLogger().Warn("read paused", "peer", p.settings.Address)
+	peerLogger().Debug("read paused", "peer", p.settings.Address)
 }
 
 // ResumeReading resumes reading from this peer's session.
@@ -334,7 +334,7 @@ func (p *Peer) ResumeReading() {
 	}
 
 	session.Resume()
-	peerLogger().Warn("read resumed", "peer", p.settings.Address)
+	peerLogger().Debug("read resumed", "peer", p.settings.Address)
 }
 
 // IsReadPaused reports whether this peer's session read loop is paused.
