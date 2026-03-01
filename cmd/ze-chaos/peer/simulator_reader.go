@@ -164,8 +164,12 @@ func afiSafiFamily(afi uint16, safi uint8) string {
 	switch {
 	case afi == 1 && safi == 1:
 		return familyIPv4Unicast
+	case afi == 1 && safi == 2:
+		return "ipv4/multicast"
 	case afi == 2 && safi == 1:
 		return familyIPv6Unicast
+	case afi == 2 && safi == 2:
+		return "ipv6/multicast"
 	case afi == 1 && safi == 128:
 		return "ipv4/vpn"
 	case afi == 2 && safi == 128:
