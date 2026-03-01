@@ -36,7 +36,7 @@ func GenerateConfig(params ConfigParams) string {
 	// tries to fork a subprocess and fails.
 	if !params.NoPlugin {
 		fmt.Fprintf(&b, "plugin {\n")
-		fmt.Fprintf(&b, "    external rr {\n")
+		fmt.Fprintf(&b, "    external bgp-rs {\n")
 		if params.PprofAddr != "" {
 			// Debug mode: use internal plugin (goroutine + Unix socket pair)
 			// so pprof captures both ze and plugin CPU in a single profile.

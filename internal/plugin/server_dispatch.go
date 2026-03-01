@@ -186,6 +186,7 @@ func (s *Server) handleDispatchCommandRPC(proc *Process, connA *PluginConn, req 
 			}
 			return
 		}
+		logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
 		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
@@ -414,6 +415,7 @@ func (s *Server) handleDispatchCommandDirect(proc *Process, params json.RawMessa
 		if errors.Is(err, ErrSilent) {
 			return directResultResponse(&rpc.DispatchCommandOutput{Status: StatusDone})
 		}
+		logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
 		return directErrorResponse(err.Error())
 	}
 
