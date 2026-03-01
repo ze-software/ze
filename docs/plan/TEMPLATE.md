@@ -143,7 +143,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments
 6. **RFC constraints** → Add quoted requirement comments above enforcing code
 7. **Functional tests** → Create after feature works. Cover user-visible behavior?
-8. **Verify all** → `make ze-lint && make ze-unit-test && make ze-functional-test`
+8. **Verify all** → `make test-all` (lint + all ze tests including fuzz + exabgp)
 9. **Critical Review** → All 6 checks from `rules/quality.md` must pass (Correctness, Simplicity, Consistency, Completeness, Quality, Tests). Document pass/fail. Any failure = fix before continuing.
 10. **Complete spec** → Fill audit tables, move spec to `done/`. BLOCKING: spec is part of the commit, not a follow-up.
 
@@ -227,15 +227,13 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `make ze-unit-test` passes
-- [ ] `make ze-functional-test` passes
+- [ ] `make test-all` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated
 - [ ] Critical Review passes (all 6 checks in `rules/quality.md` — no failures)
 
 ### Quality Gates (SHOULD pass — defer with user approval)
-- [ ] `make ze-lint` passes
 - [ ] RFC constraint comments added
 - [ ] Implementation Audit complete
 - [ ] Mistake Log escalation reviewed

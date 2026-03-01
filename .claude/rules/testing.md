@@ -62,8 +62,8 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 ## Pre-Commit
 
 ```
-[ ] make ze-unit-test passes
-[ ] make ze-lint passes with ZERO issues
-[ ] make ze-functional-test passes
+[ ] make test-all passes (lint + all ze tests)
 [ ] User approval
 ```
+
+Use `make ze-verify` (lint + unit + functional) during development iterations. Use `make test-all` before closing a spec or committing.

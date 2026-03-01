@@ -24,7 +24,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 ## Proof
 
-Paste command output as evidence. `make ze-verify` required before claiming done. "Should work" is not evidence.
+Paste command output as evidence. `make ze-verify` during development; `make test-all` required before closing a spec or committing. "Should work" is not evidence.
 
 ## Critical Reviews
 

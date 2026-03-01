@@ -31,6 +31,22 @@ Default 15000ms. Longer only for `make ze-verify`, `make ze-unit-test`.
 ### Linter Hook
 `auto_linter.sh` runs goimports on Edit/Write. Add import + usage in same edit to avoid cascading removals.
 
+### Architecture Restructuring (arch-0)
+Umbrella spec: `docs/plan/spec-arch-0-system-boundaries.md`. Six phases.
+Key decisions agreed with user:
+- **5 components:** Engine (supervisor), Bus (content-agnostic pub/sub), ConfigProvider, PluginManager, Subsystem
+- **Subsystem ≠ Plugin:** BGP daemon is a subsystem (owns TCP/FSM), bgp-rib/rs/gr are plugins
+- **Bus is content-agnostic:** payload always `[]byte`, bus never type-asserts. Like RabbitMQ/Kafka.
+- **Topics:** hierarchical with `/` separator (`bgp/update`, `bgp/events/peer-up`). Prefix-based subscription matching.
+- **Interfaces in `pkg/ze/`** — public so external plugins can depend on them
+- **ConfigManager is central authority** — editor (`ze config edit`), web UI, subsystems, plugins all use same interface
+- **Performance matters** — user explicitly asked for performance-conscious design
+- **`make test-all`** before closing spec/committing (not just `make ze-verify`)
+- **Cross-check child specs against umbrella** after each phase
+
+### Bash Timeout for test-all
+`make test-all` needs longer timeout (300000ms+) — runs lint + unit + functional + fuzz + exabgp.
+
 ## Mistake Log
 
 ### Wrong Production Path (rib-04)

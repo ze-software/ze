@@ -111,7 +111,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 6. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
 [ ] 8. Move spec: docs/plan/done/NNN-<name>.md
-[ ] 9. Verify: git status + git diff, no unintended changes
+[ ] 9. Verify: `make test-all` + git status + git diff, no unintended changes
 [ ] 10. Executive Summary Report — present to user BEFORE asking to commit
 [ ] 11. Commit (when user approves) — ALL files in ONE commit
 ```
@@ -151,7 +151,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 | Deviations | What differed from spec/plan/instructions and why. "None" is valid. |
 | Not done | Explicit scope boundary. Prevents the assumption that everything related was handled. Surfaces deferred items. |
 | Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. |
-| Verification | What was run, what passed. Not "make ze-verify passes" but actual output or specific test names. |
+| Verification | What was run, what passed. Not "make test-all passes" but actual output or specific test names. |
 
 ## Post-Implementation Updates
 
