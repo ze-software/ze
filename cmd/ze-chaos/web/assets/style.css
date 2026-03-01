@@ -143,7 +143,6 @@ html, body {
 
 /* Main content */
 .main {
-  position: relative;
   overflow-y: auto;
   padding: 12px;
   display: flex;
@@ -1284,7 +1283,7 @@ span.fm-complete {
 @keyframes chaos-pulse { 0% { box-shadow: 0 0 0 0 currentColor; } 50% { box-shadow: 0 0 8px 4px currentColor; } 100% { box-shadow: 0 0 0 0 transparent; } }
 
 /* Toast Notifications */
-.toast-container { position: absolute; top: 8px; right: 8px; z-index: 100; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
+.toast-container { position: fixed; top: 8px; right: 8px; z-index: 1000; display: flex; flex-direction: column; gap: 6px; pointer-events: none; max-width: 300px; }
 .toast { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font-mono); pointer-events: auto; cursor: pointer; animation: toast-in 0.3s ease-out, toast-out 0.5s ease-in 4.5s forwards; }
 .toast-error { background: #552426; border-left: 3px solid var(--red); color: var(--text-primary); }
 .toast-warn { background: #4a3a1a; border-left: 3px solid var(--yellow); color: var(--text-primary); }

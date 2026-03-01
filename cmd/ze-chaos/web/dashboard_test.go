@@ -476,8 +476,8 @@ func TestRenderToast(t *testing.T) {
 	if !strings.Contains(html, "tcp-disconnect") {
 		t.Error("toast missing detail")
 	}
-	if !strings.Contains(html, "beforeend:#toast-container") {
-		t.Error("toast missing hx-swap-oob attribute")
+	if !strings.Contains(html, `onclick="this.remove()"`) {
+		t.Error("toast missing click-to-dismiss handler")
 	}
 }
 

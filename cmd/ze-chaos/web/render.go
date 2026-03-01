@@ -479,13 +479,15 @@ func toastForEvent(ev peer.Event) (ToastEntry, bool) {
 }
 
 // renderToast returns an HTML fragment for a single toast notification.
-// Uses hx-swap-oob to append to the toast container.
+// Delivered via SSE event "toast" — the container's sse-swap="toast" + hx-swap="beforeend"
+// handles insertion. No hx-swap-oob here: OOB treats the root element as a wrapper and
+// discards it, losing the toast div's class/style/onclick.
 func renderToast(t ToastEntry) string {
 	detail := ""
 	if t.Detail != "" {
 		detail = ` — ` + escapeHTML(t.Detail)
 	}
-	return `<div class="toast ` + t.CSSClass + `" hx-swap-oob="beforeend:#toast-container" onclick="this.remove()" onanimationend="if(event.animationName==='toast-out')this.remove()">` +
+	return `<div class="toast ` + t.CSSClass + `" onclick="this.remove()" onanimationend="if(event.animationName==='toast-out')this.remove()">` +
 		`<span class="toast-label">p` + itoa(t.PeerIndex) + ` ` + t.Label + detail + `</span>` +
 		`<span class="toast-close">&times;</span>` +
 		`</div>`
