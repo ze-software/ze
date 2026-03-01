@@ -4,12 +4,16 @@
 
 Ze is a **BGP daemon** written in Go. "Ze" = "The" with a French accent (predecessor: ExaBGP).
 
-**Engine + Plugin architecture:** The engine handles BGP protocol (TCP, FSM, OPEN/UPDATE/NOTIFICATION parsing, capabilities negotiation). Plugins handle policy decisions (RIB storage, route reflection, graceful restart). Engine and plugins communicate over Unix socket pairs using JSON events (engine→plugin) and text commands (plugin→engine).
+**BGP Subsystem + Plugin architecture:** The BGP Subsystem handles protocol (TCP, FSM, OPEN/UPDATE/NOTIFICATION parsing, capabilities negotiation). Plugin Infrastructure manages plugin lifecycle and message routing. Plugins handle policy decisions (RIB storage, route reflection, graceful restart). Communication over Unix socket pairs using JSON events (engine→plugin) and text commands (plugin→engine).
 
 ```
-Engine: Peers (FSM) → Reactor (event loop, BGP cache)
-   ║ JSON + base64 wire bytes (down) / text commands (up)
-Plugin: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
+BGP Subsystem (internal/plugins/bgp/):
+  Peers (FSM) → Wire Layer → Reactor (event loop, BGP cache) → EventDispatcher
+   ║ formatted events (down) / commands (up)
+Plugin Infrastructure (internal/plugin/):
+  Registry · Process Manager · Hub · SDK · DirectBridge
+   ║ JSON events + base64 wire bytes (down) / text commands (up)
+Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 ```
 
 **Key abstractions:**

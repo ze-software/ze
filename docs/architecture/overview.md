@@ -25,24 +25,42 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Ze ENGINE                                       │
+│                    BGP Subsystem  (internal/plugins/bgp/)                   │
 │                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
-│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
-│   │  FSM    │  │  FSM    │  │  FSM    │                                    │
-│   └────┬────┘  └────┬────┘  └────┬────┘                                    │
-│        │            │            │                                          │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────────────────────┐    │
+│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │  │ Capability Negotiation     │    │
+│   │  FSM    │  │  FSM    │  │  FSM    │  │ (ASN4 · AddPath · ExtNH)  │    │
+│   └────┬────┘  └────┬────┘  └────┬────┘  │ ContextID · EncodingContext│    │
+│        │            │            │        └────────────────────────────┘    │
 │        └────────────┼────────────┘                                          │
 │                     ▼                                                       │
-│              ┌─────────────┐                                                │
-│              │   Reactor   │  (event loop, BGP cache)                      │
-│              └─────────────┘                                                │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Wire Layer  (Session Buffer · Message Parse · WireUpdate)         │   │
+│   └────────────────────────────────┬────────────────────────────────────┘   │
+│                                    ▼                                        │
+│   ┌─────────────────────┐  ┌──────────────────┐                            │
+│   │   Reactor           │─▶│ EventDispatcher  │                            │
+│   │ (event loop,        │  │ (type-safe bridge,│                            │
+│   │  BGP cache)         │  │  JSON encoder)   │                            │
+│   └─────────────────────┘  └────────┬─────────┘                            │
+└─────────────────────────────────────┼──────────────────────────────────────┘
+                                      │  formatted events
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Config Pipeline  (internal/config/)                                        │
+│  File → Tree → ResolveBGPTree()                                             │
+│    ├─ PeersFromTree()            → peer definitions → Reactor               │
+│    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│               Plugin Infrastructure  (internal/plugin/)                     │
+│    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
           JSON events (down)  │                 │  commands (up)
           + base64 wire bytes │                 │  update/forward/withdraw
                               ▼                 │
-═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
+═══════════════════════ PROCESS BOUNDARY (Unix socket pairs) ═══════════════
                               │                 ▲
                               ▼                 │
                       ┌───────────────┐
@@ -52,7 +70,9 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 ```
 
 **Key principles:**
-- **Engine** handles BGP protocol, TCP, FSM, message parsing
+- **BGP Subsystem** handles BGP protocol, TCP, FSM, wire parsing, event dispatch
+- **Config Pipeline** parses config and feeds both BGP Subsystem and Plugin Infrastructure
+- **Plugin Infrastructure** manages plugin lifecycle, process spawning, message routing
 - **Plugins** implement RIB storage, policy, route reflection
 - **Pipes** carry JSON events (with base64 wire bytes) and text commands
 
@@ -75,20 +95,22 @@ ze/
 │   └── ze-subsystem/           # Subsystem utility
 │
 ├── internal/
-│   ├── config/                 # Configuration
+│   ├── config/                 # Configuration pipeline
 │   │   ├── loader.go           # Config loading
 │   │   ├── parser.go           # Config parsing
 │   │   ├── editor/             # Interactive config editor
 │   │   └── migration/          # Config migration
 │   │
-│   ├── plugin/                 # Plugin system
+│   ├── plugin/                 # Plugin infrastructure (generic, zero BGP knowledge)
 │   │   ├── server.go           # Plugin server
 │   │   ├── process.go          # External process management
-│   │   ├── handler.go          # Command handlers
+│   │   ├── hub.go              # Message routing
 │   │   ├── types.go            # Shared types
-│   │   ├── wire_update.go      # WireUpdate type
-│   │   │
-│   │   ├── bgp/                # BGP protocol implementation
+│   │   ├── registry/           # Plugin registry
+│   │   └── all/                # Blank imports triggering init()
+│   │
+│   ├── plugins/                # Plugin implementations
+│   │   ├── bgp/                # BGP subsystem (engine core)
 │   │   │   ├── message/        # BGP messages (OPEN, UPDATE, etc.)
 │   │   │   ├── attribute/      # Path attributes
 │   │   │   ├── nlri/           # NLRI types (INET, VPN, EVPN, FlowSpec, etc.)
@@ -96,15 +118,16 @@ ze/
 │   │   │   ├── context/        # Encoding context registry
 │   │   │   ├── fsm/            # Finite state machine
 │   │   │   ├── reactor/        # Core event loop
-│   │   │   ├── rib/            # RIB implementation
+│   │   │   ├── server/         # EventDispatcher (reactor → plugin bridge)
 │   │   │   ├── wire/           # Wire format utilities
 │   │   │   └── schema/         # YANG schema
 │   │   │
-│   │   ├── rib/                # RIB plugin
-│   │   ├── rr/                 # Route reflector plugin
-│   │   ├── gr/                 # Graceful restart plugin
-│   │   ├── flowspec/           # FlowSpec plugin
-│   │   └── hostname/           # Hostname plugin
+│   │   ├── bgp-rib/            # RIB storage + dedup plugin
+│   │   ├── bgp-rs/             # Route server plugin
+│   │   ├── bgp-gr/             # Graceful restart plugin
+│   │   ├── bgp-role/           # Leak prevention plugin
+│   │   ├── bgp-adj-rib-in/     # Adj-RIB-In plugin
+│   │   └── bgp-nlri-*/         # NLRI plugins (VPN, FlowSpec, EVPN, BGP-LS, etc.)
 │   │
 │   ├── hub/                    # Hub architecture
 │   │   └── schema/             # Hub schema

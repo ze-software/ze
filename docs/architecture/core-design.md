@@ -24,24 +24,42 @@ All new code MUST follow these patterns.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Ze ENGINE                                    │
+│                    BGP Subsystem  (internal/plugins/bgp/)                   │
 │                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
-│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
-│   │  FSM    │  │  FSM    │  │  FSM    │                                    │
-│   └────┬────┘  └────┬────┘  └────┬────┘                                    │
-│        │            │            │                                          │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────────────────────┐    │
+│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │  │ Capability Negotiation     │    │
+│   │  FSM    │  │  FSM    │  │  FSM    │  │ (ASN4 · AddPath · ExtNH)  │    │
+│   └────┬────┘  └────┬────┘  └────┬────┘  │ ContextID · EncodingContext│    │
+│        │            │            │        └────────────────────────────┘    │
 │        └────────────┼────────────┘                                          │
 │                     ▼                                                       │
-│              ┌─────────────┐                                                │
-│              │   Reactor   │  (event loop, BGP cache)                      │
-│              └─────────────┘                                                │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  Wire Layer  (Session Buffer · Message Parse · WireUpdate)         │   │
+│   └────────────────────────────────┬────────────────────────────────────┘   │
+│                                    ▼                                        │
+│   ┌─────────────────────┐  ┌──────────────────┐                            │
+│   │   Reactor           │─▶│ EventDispatcher  │                            │
+│   │ (event loop,        │  │ (type-safe bridge,│                            │
+│   │  BGP cache)         │  │  JSON encoder)   │                            │
+│   └─────────────────────┘  └────────┬─────────┘                            │
+└─────────────────────────────────────┼──────────────────────────────────────┘
+                                      │  formatted events
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Config Pipeline  (internal/config/)                                        │
+│  File → Tree → ResolveBGPTree()                                             │
+│    ├─ PeersFromTree()            → peer definitions → Reactor               │
+│    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
+└─────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│               Plugin Infrastructure  (internal/plugin/)                     │
+│    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
           JSON events (down)  │                 │  commands (up)
           + base64 wire bytes │                 │  update/forward/withdraw
                               ▼                 │
-═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
+═══════════════════════ PROCESS BOUNDARY (Unix socket pairs) ═══════════════
                               │                 ▲
                               ▼                 │
                       ┌───────────────┐
@@ -51,7 +69,9 @@ All new code MUST follow these patterns.
 ```
 
 **Key principles:**
-- **Engine** handles BGP protocol, TCP, FSM, message parsing
+- **BGP Subsystem** handles BGP protocol, TCP, FSM, wire parsing, event dispatch
+- **Config Pipeline** parses config and feeds both BGP Subsystem and Plugin Infrastructure
+- **Plugin Infrastructure** manages plugin lifecycle, process spawning, message routing
 - **Plugins** implement RIB storage, policy, route reflection
 - **Pipes** carry JSON events (with base64 wire bytes) and text commands
 - **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`)
@@ -459,12 +479,13 @@ func (a *Attributes) CheckedWriteTo(buf []byte, off int) (int, error)
 ### Receive Path
 
 ```
-Network recv() → WireUpdate → Parse (lazy) → RIB storage
-                                    │
-                                    ├─ Extract NLRIs (iterator)
-                                    ├─ Extract attributes (iterator)
-                                    ├─ Intern each in pools
-                                    └─ Create RouteEntry with refs
+Network recv() → WireUpdate → Reactor → EventDispatcher → Plugin (JSON + base64)
+                                                                │
+                                                                ├─ Parse (lazy)
+                                                                ├─ Extract NLRIs (iterator)
+                                                                ├─ Extract attributes (iterator)
+                                                                ├─ Intern each in pools
+                                                                └─ Create RouteEntry with refs
 ```
 
 ### API Announce Path

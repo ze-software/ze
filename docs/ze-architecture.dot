@@ -1,0 +1,256 @@
+digraph ze {
+    rankdir=TB
+    fontname="Helvetica Neue,Helvetica,Arial,sans-serif"
+    fontsize=11
+    node [fontname="Helvetica Neue,Helvetica,Arial,sans-serif" fontsize=10 shape=none margin=0]
+    edge [fontname="Helvetica Neue,Helvetica,Arial,sans-serif" fontsize=9]
+    bgcolor="white"
+    nodesep=0.7
+    ranksep=0.8
+
+    // ═══════════════════════════════════════
+    //  ROW 1: External inputs
+    // ═══════════════════════════════════════
+
+    external [label=<
+<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="8">
+  <TR>
+    <TD BGCOLOR="#FFECD2" PORT="peers" WIDTH="140"><B>BGP Peers</B><BR/><FONT POINT-SIZE="9">(TCP sessions)</FONT></TD>
+    <TD BGCOLOR="#FFF9C4" PORT="config" WIDTH="140"><B>Config File</B><BR/><FONT POINT-SIZE="9">(YANG-modeled)</FONT></TD>
+    <TD BGCOLOR="#E8D0F0" PORT="cli" WIDTH="140"><B>CLI</B><BR/><FONT POINT-SIZE="9">(cmd/ze/)</FONT></TD>
+  </TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  ROW 2: BGP Subsystem (single node, three internal rows)
+    //    Row A: Peer Sessions + Capability Negotiation
+    //    Row B: Wire Layer
+    //    Row C: Reactor + EventDispatcher
+    // ═══════════════════════════════════════
+
+    bgp [label=<
+<TABLE BORDER="2" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0" BGCOLOR="#EAF2FB" COLOR="#1565C0" STYLE="ROUNDED">
+  <TR><TD COLSPAN="3" ALIGN="LEFT" CELLPADDING="6"><FONT POINT-SIZE="13" COLOR="#0D47A1"><B>  BGP Subsystem</B></FONT>  <FONT POINT-SIZE="9" COLOR="#1565C0">(internal/plugins/bgp/)</FONT></TD></TR>
+
+  <TR><TD CELLPADDING="4" COLSPAN="2">
+
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#BBDEFB" COLOR="#1565C0" STYLE="ROUNDED">
+      <TR><TD COLSPAN="3" ALIGN="CENTER"><FONT POINT-SIZE="9" COLOR="#0D47A1"><B>Peer Sessions (per-peer FSM)</B></FONT></TD></TR>
+      <TR>
+        <TD BGCOLOR="#90CAF9" STYLE="ROUNDED" PORT="fsm">Peer 1 FSM</TD>
+        <TD BGCOLOR="#90CAF9" STYLE="ROUNDED">Peer 2 FSM</TD>
+        <TD BGCOLOR="#90CAF9" STYLE="ROUNDED">Peer N FSM</TD>
+      </TR>
+    </TABLE>
+
+  </TD><TD CELLPADDING="4">
+
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#E8F5E9" COLOR="#2E7D32" STYLE="ROUNDED">
+      <TR><TD COLSPAN="2" ALIGN="CENTER"><FONT POINT-SIZE="9" COLOR="#1B5E20"><B>Capability Negotiation</B></FONT></TD></TR>
+      <TR><TD BGCOLOR="#C8E6C9" STYLE="ROUNDED" COLSPAN="2">Negotiated Capabilities<BR/><FONT POINT-SIZE="8">(ASN4 · AddPath · ExtNH · ExtMsg)</FONT></TD></TR>
+      <TR>
+        <TD BGCOLOR="#A5D6A7" STYLE="ROUNDED">ContextID<BR/><FONT POINT-SIZE="8">(zero-copy key)</FONT></TD>
+        <TD BGCOLOR="#A5D6A7" STYLE="ROUNDED">EncodingContext<BR/><FONT POINT-SIZE="8">(wire encoding)</FONT></TD>
+      </TR>
+    </TABLE>
+
+  </TD></TR>
+
+  <TR><TD CELLPADDING="4" COLSPAN="3">
+
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#E0F2F1" COLOR="#00695C" STYLE="ROUNDED">
+      <TR><TD ALIGN="CENTER" COLSPAN="3"><FONT POINT-SIZE="9" COLOR="#004D40"><B>Wire Layer</B></FONT></TD></TR>
+      <TR>
+        <TD BGCOLOR="#B2DFDB" STYLE="ROUNDED">Session Buffer<BR/><FONT POINT-SIZE="8">(pooled 4K / 64K)</FONT></TD>
+        <TD BGCOLOR="#B2DFDB" STYLE="ROUNDED">Message Parse<BR/><FONT POINT-SIZE="8">(OPEN · UPDATE · NOTIFICATION)</FONT></TD>
+        <TD BGCOLOR="#80CBC4" STYLE="ROUNDED"><B>WireUpdate</B><BR/><FONT POINT-SIZE="8">(lazy-parsed UPDATE body<BR/>zero-copy iterators)</FONT></TD>
+      </TR>
+    </TABLE>
+
+  </TD></TR>
+
+  <TR><TD CELLPADDING="4" COLSPAN="2">
+
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#E8EAF6" COLOR="#283593" STYLE="ROUNDED">
+      <TR><TD ALIGN="CENTER"><FONT POINT-SIZE="9" COLOR="#1A237E"><B>Reactor (event loop)</B></FONT></TD></TR>
+      <TR><TD BGCOLOR="#C5CAE9" STYLE="ROUNDED" PORT="reactor"><B>Reactor</B><BR/><FONT POINT-SIZE="8">(peer management<BR/>event dispatch)</FONT></TD></TR>
+      <TR><TD BGCOLOR="#9FA8DA" STYLE="ROUNDED" PORT="cache"><B>BGP Cache</B><BR/><FONT POINT-SIZE="8">(WireUpdate by msg-id<BR/>for zero-copy forward)</FONT></TD></TR>
+    </TABLE>
+
+  </TD><TD CELLPADDING="4">
+
+    <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#EDE7F6" COLOR="#4527A0" STYLE="ROUNDED">
+      <TR><TD ALIGN="CENTER"><FONT POINT-SIZE="9" COLOR="#311B92"><B>EventDispatcher</B></FONT></TD></TR>
+      <TR><TD BGCOLOR="#D1C4E9" STYLE="ROUNDED" PORT="dispatcher"><B>Type-Safe Dispatch</B><BR/><FONT POINT-SIZE="8">(reactor → event functions<BR/>no any-typed hooks)</FONT></TD></TR>
+      <TR><TD BGCOLOR="#D1C4E9" STYLE="ROUNDED">JSON Encoder<BR/><FONT POINT-SIZE="8">(events → JSON<BR/>+ base64 wire bytes)</FONT></TD></TR>
+    </TABLE>
+
+  </TD></TR>
+
+  <TR><TD CELLPADDING="2" COLSPAN="3"></TD></TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  ROW 3: Config Pipeline (feeds both BGP + Plugin Infra)
+    // ═══════════════════════════════════════
+
+    config [label=<
+<TABLE BORDER="2" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0" BGCOLOR="#FFFDE7" COLOR="#F9A825" STYLE="ROUNDED">
+  <TR><TD COLSPAN="2" ALIGN="LEFT" CELLPADDING="6"><FONT POINT-SIZE="11" COLOR="#F57F17"><B>  Config Pipeline</B></FONT>  <FONT POINT-SIZE="9" COLOR="#F9A825">(internal/config/)</FONT></TD></TR>
+  <TR><TD COLSPAN="2" BGCOLOR="#FFF9C4" STYLE="ROUNDED" CELLPADDING="6" PORT="cfg">File → Tree → ResolveBGPTree()</TD></TR>
+  <TR>
+    <TD BGCOLOR="#FFF9C4" STYLE="ROUNDED" CELLPADDING="6" PORT="peers">PeersFromTree()<BR/><FONT POINT-SIZE="8">(peer definitions)</FONT></TD>
+    <TD BGCOLOR="#FFF9C4" STYLE="ROUNDED" CELLPADDING="6" PORT="plugins">ExtractPluginsFromTree()<BR/><FONT POINT-SIZE="8">(plugin configuration)</FONT></TD>
+  </TR>
+  <TR><TD CELLPADDING="2" COLSPAN="2"></TD></TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  ROW 4: Plugin Infrastructure
+    // ═══════════════════════════════════════
+
+    infra [label=<
+<TABLE BORDER="2" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0" BGCOLOR="#FFF3E0" COLOR="#E65100" STYLE="ROUNDED">
+  <TR><TD COLSPAN="4" ALIGN="LEFT" CELLPADDING="6"><FONT POINT-SIZE="11" COLOR="#E65100"><B>  Plugin Infrastructure</B></FONT>  <FONT POINT-SIZE="9" COLOR="#E65100">(internal/plugin/)</FONT></TD></TR>
+  <TR>
+    <TD BGCOLOR="#FFE0B2" STYLE="ROUNDED" CELLPADDING="6">Plugin Registry<BR/><FONT POINT-SIZE="8">(init() registration)</FONT></TD>
+    <TD BGCOLOR="#FFE0B2" STYLE="ROUNDED" CELLPADDING="6">Process Manager<BR/><FONT POINT-SIZE="8">(spawn · respawn<BR/>backpressure)</FONT></TD>
+    <TD BGCOLOR="#FFCC80" STYLE="ROUNDED" CELLPADDING="6" PORT="hub"><B>Hub</B><BR/><FONT POINT-SIZE="8">(message routing)</FONT></TD>
+    <TD CELLPADDING="4">
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="2" CELLPADDING="4">
+        <TR><TD BGCOLOR="#FFCC80" STYLE="ROUNDED">Plugin SDK<BR/><FONT POINT-SIZE="8">(MuxConn · TextMuxConn)</FONT></TD></TR>
+        <TR><TD BGCOLOR="#FFCC80" STYLE="ROUNDED">DirectBridge<BR/><FONT POINT-SIZE="8">(internal: bypass sockets)</FONT></TD></TR>
+      </TABLE>
+    </TD>
+  </TR>
+  <TR><TD CELLPADDING="2" COLSPAN="4"></TD></TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  ROW 5: Process Boundary
+    // ═══════════════════════════════════════
+
+    boundary [label=<
+<TABLE BORDER="2" CELLBORDER="0" CELLSPACING="0" CELLPADDING="8" BGCOLOR="#FFEBEE" COLOR="#C62828" STYLE="ROUNDED">
+  <TR><TD ALIGN="CENTER"><FONT POINT-SIZE="12" COLOR="#B71C1C"><B>PROCESS  BOUNDARY</B></FONT><BR/>
+  <FONT POINT-SIZE="9" COLOR="#C62828">Unix socket pairs  ·  JSON events (↓)  ·  Text commands (↑)</FONT></TD></TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  ROW 6: Plugins
+    // ═══════════════════════════════════════
+
+    plugins [label=<
+<TABLE BORDER="2" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0" BGCOLOR="#F3E5F5" COLOR="#6A1B9A" STYLE="ROUNDED">
+  <TR><TD COLSPAN="5" ALIGN="LEFT" CELLPADDING="6"><FONT POINT-SIZE="13" COLOR="#6A1B9A"><B>  Plugins</B>  <FONT POINT-SIZE="9">(Go · Python · Rust)</FONT></FONT></TD></TR>
+  <TR><TD CELLPADDING="4" COLSPAN="5">
+
+    <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="8" CELLPADDING="0">
+      <TR>
+        <TD VALIGN="TOP">
+          <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#E1BEE7" COLOR="#7B1FA2" STYLE="ROUNDED">
+            <TR><TD ALIGN="CENTER" COLSPAN="2"><FONT POINT-SIZE="9" COLOR="#4A148C"><B>bgp-rib  (route storage + dedup)</B></FONT></TD></TR>
+            <TR><TD BGCOLOR="#CE93D8" STYLE="ROUNDED" COLSPAN="2" PORT="rib"><B>RIB</B><BR/><FONT POINT-SIZE="8">(NLRI → attribute refs)</FONT></TD></TR>
+            <TR>
+              <TD BGCOLOR="#AB47BC" STYLE="ROUNDED"><FONT COLOR="white"><B>Attribute Pools</B><BR/><FONT POINT-SIZE="8">per-type dedup:<BR/>ORIGIN · AS_PATH<BR/>LOCAL_PREF · MED<BR/>Communities</FONT></FONT></TD>
+              <TD BGCOLOR="#AB47BC" STYLE="ROUNDED"><FONT COLOR="white"><B>NLRI Pools</B><BR/><FONT POINT-SIZE="8">per-family:<BR/>IPv4 · IPv6<BR/>VPN · FlowSpec<BR/>EVPN</FONT></FONT></TD>
+            </TR>
+            <TR><TD BGCOLOR="#CE93D8" STYLE="ROUNDED" COLSPAN="2">Best-Path Selection</TD></TR>
+          </TABLE>
+        </TD>
+
+        <TD VALIGN="TOP">
+          <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4" CELLPADDING="0">
+            <TR><TD BGCOLOR="#E1BEE7" STYLE="ROUNDED" CELLPADDING="6" PORT="rs"><B>bgp-rs</B><BR/><FONT POINT-SIZE="8">(Route Server)</FONT></TD></TR>
+            <TR><TD BGCOLOR="#E1BEE7" STYLE="ROUNDED" CELLPADDING="6"><B>bgp-gr</B><BR/><FONT POINT-SIZE="8">(Graceful Restart)</FONT></TD></TR>
+            <TR><TD BGCOLOR="#E1BEE7" STYLE="ROUNDED" CELLPADDING="6"><B>bgp-role</B><BR/><FONT POINT-SIZE="8">(Leak Prevention)</FONT></TD></TR>
+          </TABLE>
+        </TD>
+
+        <TD VALIGN="TOP">
+          <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="4" CELLPADDING="0">
+            <TR><TD BGCOLOR="#E1BEE7" STYLE="ROUNDED" CELLPADDING="6"><B>bgp-nlri-*</B><BR/><FONT POINT-SIZE="8">(VPN · FlowSpec<BR/>EVPN · BGP-LS)</FONT></TD></TR>
+            <TR><TD BGCOLOR="#E1BEE7" STYLE="ROUNDED" CELLPADDING="6"><B>bgp-adj-rib-in</B><BR/><FONT POINT-SIZE="8">(Adj-RIB-In)</FONT></TD></TR>
+          </TABLE>
+        </TD>
+      </TR>
+    </TABLE>
+
+  </TD></TR>
+  <TR><TD CELLPADDING="2" COLSPAN="5"></TD></TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  BOTTOM: Return paths + Legend
+    // ═══════════════════════════════════════
+
+    bottom [label=<
+<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="12" CELLPADDING="0">
+  <TR>
+    <TD VALIGN="TOP">
+      <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="6" BGCOLOR="#F1F8E9" COLOR="#558B2F" STYLE="ROUNDED">
+        <TR><TD ALIGN="CENTER" COLSPAN="2"><FONT COLOR="#33691E"><B>Return Paths  (plugin → engine)</B></FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#2E7D32">1.</FONT></TD>
+            <TD ALIGN="LEFT"><FONT COLOR="#2E7D32" POINT-SIZE="9">Best-path →  "bgp cache &lt;id&gt; forward &lt;sel&gt;"  →  Hub  →  Reactor</FONT></TD></TR>
+        <TR><TD ALIGN="LEFT"><FONT COLOR="#C62828">2.</FONT></TD>
+            <TD ALIGN="LEFT"><FONT COLOR="#C62828" POINT-SIZE="9">BGP Cache  →  zero-copy forward  →  Session Buffer  →  Peer TCP</FONT></TD></TR>
+      </TABLE>
+    </TD>
+    <TD VALIGN="TOP">
+      <TABLE BORDER="1" CELLBORDER="0" CELLSPACING="0" CELLPADDING="5" BGCOLOR="#FAFAFA" COLOR="#E0E0E0" STYLE="ROUNDED">
+        <TR><TD COLSPAN="4" ALIGN="CENTER"><B>Data Flow Colors</B></TD></TR>
+        <TR>
+          <TD><FONT COLOR="#BF8040" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">TCP from peers</FONT></TD>
+          <TD><FONT COLOR="#00695C" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">Wire byte flow</FONT></TD>
+        </TR>
+        <TR>
+          <TD><FONT COLOR="#283593" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">Internal events</FONT></TD>
+          <TD><FONT COLOR="#F9A825" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">Config pipeline</FONT></TD>
+        </TR>
+        <TR>
+          <TD><FONT COLOR="#C62828" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">JSON events ↓</FONT></TD>
+          <TD><FONT COLOR="#7B1FA2" POINT-SIZE="12"><B>━</B></FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="9">Plugin dispatch</FONT></TD>
+        </TR>
+      </TABLE>
+    </TD>
+  </TR>
+</TABLE>
+    >]
+
+    // ═══════════════════════════════════════
+    //  EDGES
+    // ═══════════════════════════════════════
+
+    external:peers  -> bgp:fsm [color="#BF8040" penwidth=2 label="TCP"]
+    external:config -> config:cfg [color="#C6A700" penwidth=1.5 label="YANG"]
+    external:cli    -> infra:hub [color="#7B1FA2" style=dashed label="IPC"]
+
+    bgp:dispatcher -> infra:hub [color="#C62828" penwidth=3
+                                 label=<<FONT COLOR="#C62828" POINT-SIZE="9"><B>formatted events ↓</B></FONT>>]
+
+    config:peers -> bgp:reactor [color="#F9A825" penwidth=1.5 style=dashed
+                                 label=<<FONT COLOR="#F57F17" POINT-SIZE="9">peer definitions</FONT>>]
+
+    config:plugins -> infra [color="#F9A825" penwidth=1.5 style=dashed
+                              label=<<FONT COLOR="#F57F17" POINT-SIZE="9">plugin config</FONT>>]
+
+    infra -> boundary [color="#E65100" penwidth=2
+                       label=<<FONT COLOR="#E65100" POINT-SIZE="9"><B>JSON ↓ + base64 wire bytes</B></FONT>>]
+
+    boundary -> plugins:rib [color="#7B1FA2" penwidth=2
+                              label=<<FONT COLOR="#7B1FA2" POINT-SIZE="9"><B>to each plugin process</B></FONT>>]
+
+    plugins -> bottom [style=invis]
+}

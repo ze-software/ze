@@ -6,12 +6,19 @@ Full details: `docs/architecture/core-design.md`
 ## System
 
 ```
-Engine: Peers (FSM) → Reactor (event loop, BGP cache)
-   ║ JSON events + base64 wire bytes (down) / commands (up)
-Plugin: RIB, RR, GR, etc. (Go/Python/Rust)
+BGP Subsystem (internal/plugins/bgp/):
+  Peers (FSM) → Wire Layer → Reactor (event loop, BGP cache) → EventDispatcher
+   ║ formatted events (down) / commands (up)
+Plugin Infrastructure (internal/plugin/):
+  Registry · Process Manager · Hub · SDK · DirectBridge
+   ║ JSON events + base64 wire bytes (down) / text commands (up)
+Plugins: RIB, RR, GR, etc. (Go/Python/Rust)
 ```
 
-Engine passes wire bytes to plugins. Plugins implement RIB, dedup, policy.
+BGP Subsystem handles protocol: FSM manages peers, Wire Layer parses messages into
+WireUpdate, Reactor processes events, EventDispatcher bridges to Plugin Infrastructure.
+Plugin Infrastructure manages plugin lifecycle and message routing.
+Plugins implement RIB, dedup, policy.
 
 ## Negotiated Capabilities (per-peer)
 
