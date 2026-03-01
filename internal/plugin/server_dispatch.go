@@ -58,7 +58,7 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *Process) {
 // dispatchPluginRPC handles a single plugin->engine RPC request.
 // Unknown or empty methods get an explicit error per ze's fail-on-unknown rule.
 // Generic RPCs (update-route, subscribe, unsubscribe) are handled directly.
-// BGP codec RPCs (decode-nlri, encode-nlri, etc.) are delegated to BGPHooks.
+// Codec RPCs (decode-nlri, encode-nlri, etc.) are delegated via rpcFallback.
 func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Request) {
 	switch req.Method {
 	case "ze-plugin-engine:update-route":
@@ -75,9 +75,9 @@ func (s *Server) dispatchPluginRPC(proc *Process, connA *PluginConn, req *ipc.Re
 		return
 	}
 
-	// Try BGP codec hook for remaining methods
-	if s.bgpHooks != nil && s.bgpHooks.CodecRPCHandler != nil {
-		codec := s.bgpHooks.CodecRPCHandler(req.Method)
+	// Try RPC fallback for remaining methods (codec RPCs, etc.)
+	if s.rpcFallback != nil {
+		codec := s.rpcFallback(req.Method)
 		if codec != nil {
 			s.handleCodecRPC(proc, connA, req, codec)
 			return
@@ -333,9 +333,9 @@ func (s *Server) dispatchPluginRPCDirect(proc *Process, method string, params js
 		return s.handleUnsubscribeEventsDirect(proc), nil
 	}
 
-	// Try BGP codec hook for remaining methods
-	if s.bgpHooks != nil && s.bgpHooks.CodecRPCHandler != nil {
-		codec := s.bgpHooks.CodecRPCHandler(method)
+	// Try RPC fallback for remaining methods (codec RPCs, etc.)
+	if s.rpcFallback != nil {
+		codec := s.rpcFallback(method)
 		if codec != nil {
 			return handleCodecRPCDirect(codec, params), nil
 		}

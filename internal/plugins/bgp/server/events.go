@@ -1,7 +1,8 @@
-// Design: docs/architecture/core-design.md — BGP server events and hooks
+// Design: docs/architecture/core-design.md — BGP event delivery to plugins
+// Related: event_dispatcher.go — EventDispatcher type that calls these functions
 //
-// Package server provides BGP-specific hook implementations for the plugin server.
-// These functions are registered as BGPHooks callbacks, keeping BGP protocol
+// Package server provides BGP-specific event delivery for the plugin server.
+// These functions implement BGP protocol event dispatch, keeping BGP protocol
 // knowledge out of the generic plugin infrastructure.
 package server
 

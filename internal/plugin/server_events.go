@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/process-protocol.md — reactor event callbacks
+// Design: docs/architecture/api/process-protocol.md — NLRI codec via plugin RPC
 // Related: server.go — Server struct and lifecycle
 
 package plugin
@@ -9,86 +9,6 @@ import (
 	"fmt"
 	"time"
 )
-
-// --- BGP event delegation ---
-// These methods delegate to BGPHooks when set.
-// They are called by the reactor for BGP event delivery.
-
-// OnMessageReceived handles raw BGP messages from peers.
-// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
-// Delegates to BGPHooks.OnMessageReceived when set.
-// Returns the count of cache-consumer plugins that successfully received the event.
-func (s *Server) OnMessageReceived(peer PeerInfo, msg any) int {
-	if s.bgpHooks == nil || s.bgpHooks.OnMessageReceived == nil {
-		return 0
-	}
-	if s.procManager == nil || s.subscriptions == nil {
-		return 0
-	}
-	return s.bgpHooks.OnMessageReceived(s, peer, msg)
-}
-
-// OnPeerStateChange handles peer state transitions.
-// Delegates to BGPHooks.OnPeerStateChange when set.
-func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
-	if s.bgpHooks == nil || s.bgpHooks.OnPeerStateChange == nil {
-		return
-	}
-	if s.procManager == nil || s.subscriptions == nil {
-		return
-	}
-	s.bgpHooks.OnPeerStateChange(s, peer, state)
-}
-
-// OnPeerNegotiated handles capability negotiation completion.
-// neg is format.DecodedNegotiated (typed as any to avoid BGP imports).
-// Delegates to BGPHooks.OnPeerNegotiated when set.
-func (s *Server) OnPeerNegotiated(peer PeerInfo, neg any) {
-	if s.bgpHooks == nil || s.bgpHooks.OnPeerNegotiated == nil {
-		return
-	}
-	if s.procManager == nil || s.subscriptions == nil {
-		return
-	}
-	s.bgpHooks.OnPeerNegotiated(s, peer, neg)
-}
-
-// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
-// msgs is []bgptypes.RawMessage (typed as []any to avoid BGP imports).
-// Delegates to BGPHooks.OnMessageBatchReceived when set.
-// Returns per-message cache-consumer counts for Activate calls.
-func (s *Server) OnMessageBatchReceived(peer PeerInfo, msgs []any) []int {
-	if s.bgpHooks == nil || s.bgpHooks.OnMessageBatchReceived == nil {
-		return make([]int, len(msgs))
-	}
-	if s.procManager == nil || s.subscriptions == nil {
-		return make([]int, len(msgs))
-	}
-	return s.bgpHooks.OnMessageBatchReceived(s, peer, msgs)
-}
-
-// OnMessageSent handles BGP messages sent to peers.
-// msg is bgptypes.RawMessage (typed as any to avoid BGP imports).
-// Delegates to BGPHooks.OnMessageSent when set.
-func (s *Server) OnMessageSent(peer PeerInfo, msg any) {
-	if s.bgpHooks == nil || s.bgpHooks.OnMessageSent == nil {
-		return
-	}
-	if s.procManager == nil || s.subscriptions == nil {
-		return
-	}
-	s.bgpHooks.OnMessageSent(s, peer, msg)
-}
-
-// BroadcastValidateOpen sends validate-open to all plugins that declared WantsValidateOpen.
-// local and remote are *message.Open (typed as any to avoid BGP imports).
-// Returns nil if all accept, or an OpenValidationError on first rejection.
-func (s *Server) BroadcastValidateOpen(peerAddr string, local, remote any) error {
-	if s.bgpHooks == nil || s.bgpHooks.BroadcastValidateOpen == nil {
-		return nil
-	}
-	return s.bgpHooks.BroadcastValidateOpen(s, peerAddr, local, remote)
-}
 
 // EncodeNLRI encodes NLRI by routing to the appropriate family plugin via RPC.
 // Returns error if no plugin registered or plugin not running.

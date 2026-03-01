@@ -59,7 +59,7 @@ type Server struct {
 	reactor       ReactorLifecycle
 	dispatcher    *Dispatcher
 	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
-	bgpHooks      *BGPHooks
+	rpcFallback   func(string) func(json.RawMessage) (any, error)
 	commitManager any
 	procManager   *ProcessManager
 	subscriptions *SubscriptionManager // API-driven event subscriptions
@@ -126,7 +126,7 @@ func NewServer(config *ServerConfig, reactor ReactorLifecycle) *Server {
 		reactor:       reactor,
 		dispatcher:    NewDispatcher(),
 		rpcDispatcher: ipc.NewRPCDispatcher(),
-		bgpHooks:      config.BGPHooks,
+		rpcFallback:   config.RPCFallback,
 		commitManager: config.CommitManager,
 		subscriptions: NewSubscriptionManager(),
 		registry:      NewPluginRegistry(),

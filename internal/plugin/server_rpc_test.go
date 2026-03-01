@@ -50,17 +50,15 @@ func TestConcurrentPluginDispatch(t *testing.T) {
 	s := &Server{
 		subscriptions: NewSubscriptionManager(),
 		dispatcher:    NewDispatcher(),
-		bgpHooks: &BGPHooks{
-			CodecRPCHandler: func(method string) func(json.RawMessage) (any, error) {
-				if method == "test:barrier" {
-					return func(_ json.RawMessage) (any, error) {
-						barrier.Done() // signal arrival
-						barrier.Wait() // wait for both to arrive
-						return map[string]string{"status": "ok"}, nil
-					}
+		rpcFallback: func(method string) func(json.RawMessage) (any, error) {
+			if method == "test:barrier" {
+				return func(_ json.RawMessage) (any, error) {
+					barrier.Done() // signal arrival
+					barrier.Wait() // wait for both to arrive
+					return map[string]string{"status": "ok"}, nil
 				}
-				return nil
-			},
+			}
+			return nil
 		},
 	}
 	s.ctx, s.cancel = context.WithCancel(context.Background())

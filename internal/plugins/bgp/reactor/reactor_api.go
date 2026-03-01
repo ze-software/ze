@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	bgpserver "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
@@ -25,14 +26,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 )
 
-// apiStateObserver emits peer state change messages to the API server.
+// apiStateObserver emits peer state change messages via the EventDispatcher.
 type apiStateObserver struct {
-	server  *plugin.Server
-	reactor *Reactor
+	dispatcher *bgpserver.EventDispatcher
+	reactor    *Reactor
 }
 
 func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
-	if o.server == nil {
+	if o.dispatcher == nil {
 		return
 	}
 	s := peer.Settings()
@@ -44,11 +45,11 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		RouterID:     s.RouterID,
 		State:        peer.State().String(),
 	}
-	o.server.OnPeerStateChange(peerInfo, "up")
+	o.dispatcher.OnPeerStateChange(peerInfo, "up")
 }
 
 func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
-	if o.server == nil {
+	if o.dispatcher == nil {
 		return
 	}
 	s := peer.Settings()
@@ -60,7 +61,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		RouterID:     s.RouterID,
 		State:        peer.State().String(),
 	}
-	o.server.OnPeerStateChange(peerInfo, "down")
+	o.dispatcher.OnPeerStateChange(peerInfo, "down")
 }
 
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.

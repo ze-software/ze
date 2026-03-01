@@ -1134,28 +1134,25 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 
 	// Build a minimal CodecRPCHandler for decode-mp-reach that validates length.
 	// Cannot import bgpserver (import cycle), so provide inline handler.
-	hooks := &BGPHooks{
-		CodecRPCHandler: func(method string) func(json.RawMessage) (any, error) {
-			if method != "ze-plugin-engine:decode-mp-reach" {
-				return nil
+	s := &Server{ctx: ctx, rpcFallback: func(method string) func(json.RawMessage) (any, error) {
+		if method != "ze-plugin-engine:decode-mp-reach" {
+			return nil
+		}
+		return func(params json.RawMessage) (any, error) {
+			var input rpc.DecodeMPReachInput
+			if err := json.Unmarshal(params, &input); err != nil {
+				return nil, fmt.Errorf("invalid params: %w", err)
 			}
-			return func(params json.RawMessage) (any, error) {
-				var input rpc.DecodeMPReachInput
-				if err := json.Unmarshal(params, &input); err != nil {
-					return nil, fmt.Errorf("invalid params: %w", err)
-				}
-				data, err := hex.DecodeString(input.Hex)
-				if err != nil {
-					return nil, fmt.Errorf("invalid hex: %w", err)
-				}
-				if len(data) < 5 {
-					return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
-				}
-				return nil, nil
+			data, err := hex.DecodeString(input.Hex)
+			if err != nil {
+				return nil, fmt.Errorf("invalid hex: %w", err)
 			}
-		},
-	}
-	s := &Server{ctx: ctx, bgpHooks: hooks}
+			if len(data) < 5 {
+				return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(data))
+			}
+			return nil, nil
+		}
+	}}
 
 	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() { _ = pluginEnd.Close(); _ = engineEnd.Close() })

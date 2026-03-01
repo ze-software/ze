@@ -482,11 +482,11 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 		}
 	}
 
-	if r.api == nil {
+	if r.eventDispatcher == nil {
 		return nil
 	}
 
-	return r.api.BroadcastValidateOpen(peerAddr, local, remote)
+	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, local, remote)
 }
 
 // addPathFor returns whether ADD-PATH is negotiated for the given family.

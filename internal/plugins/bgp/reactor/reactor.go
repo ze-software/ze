@@ -182,11 +182,12 @@ type Reactor struct {
 	dialer          sim.Dialer
 	listenerFactory sim.ListenerFactory
 
-	peers     map[string]*Peer     // keyed by "addr:port" (PeerKey format)
-	listener  *Listener            // deprecated: single listener for backward compat
-	listeners map[string]*Listener // keyed by "addr:port" (local endpoint)
-	signals   *SignalHandler
-	api       *plugin.Server // API server for CLI and external processes
+	peers           map[string]*Peer     // keyed by "addr:port" (PeerKey format)
+	listener        *Listener            // deprecated: single listener for backward compat
+	listeners       map[string]*Listener // keyed by "addr:port" (local endpoint)
+	signals         *SignalHandler
+	api             *plugin.Server             // API server for CLI and external processes
+	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
 
 	// Watchdog pools for API-created routes
 	watchdog *WatchdogManager
@@ -527,7 +528,7 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 // notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
 // Called after OPEN exchange completes and peer reaches Established.
 func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
-	if r.api == nil || neg == nil {
+	if r.eventDispatcher == nil || neg == nil {
 		return
 	}
 
@@ -539,7 +540,7 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	}
 
 	decoded := format.NegotiatedToDecoded(neg)
-	r.api.OnPeerNegotiated(peerInfo, decoded)
+	r.eventDispatcher.OnPeerNegotiated(peerInfo, decoded)
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.
@@ -930,7 +931,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			RPCProviders: []func() []plugin.RPCRegistration{
 				handler.BgpHandlerRPCs,
 			},
-			BGPHooks:      bgpserver.NewBGPHooks(),
+			RPCFallback:   bgpserver.CodecRPCHandler,
 			CommitManager: commit.NewCommitManager(),
 		}
 		// Convert plugin configs
@@ -947,10 +948,12 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			})
 		}
 		r.api = plugin.NewServer(apiConfig, &reactorAPIAdapter{r})
-		// Set API server as message receiver for raw byte access
-		r.messageReceiver = r.api
+		// Create EventDispatcher for BGP event delivery (type-safe, no hooks indirection)
+		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
+		// Set EventDispatcher as message receiver for raw byte access
+		r.messageReceiver = r.eventDispatcher
 		// Register API state observer for peer lifecycle events
-		r.AddPeerObserver(&apiStateObserver{server: r.api, reactor: r})
+		r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 
 		// Set plugin count for API sync - wait for all plugins to send "api ready"
 		r.SetAPIProcessCount(len(r.config.Plugins))

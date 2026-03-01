@@ -13,7 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestCodecRPCHandlerRouting verifies codecRPCHandler returns handlers for known methods.
+// TestCodecRPCHandlerRouting verifies CodecRPCHandler returns handlers for known methods.
 //
 // VALIDATES: Each codec method maps to a non-nil handler.
 // PREVENTS: Regression where a method returns nil (would cause "unknown method" error).
@@ -27,13 +27,13 @@ func TestCodecRPCHandlerRouting(t *testing.T) {
 	}
 	for _, m := range methods {
 		t.Run(m, func(t *testing.T) {
-			h := codecRPCHandler(m)
+			h := CodecRPCHandler(m)
 			require.NotNil(t, h, "handler for %s must not be nil", m)
 		})
 	}
 
 	t.Run("unknown_method", func(t *testing.T) {
-		h := codecRPCHandler("ze-plugin-engine:unknown")
+		h := CodecRPCHandler("ze-plugin-engine:unknown")
 		require.Nil(t, h)
 	})
 }

@@ -1,4 +1,5 @@
-// Design: docs/architecture/core-design.md — BGP server events and hooks
+// Design: docs/architecture/core-design.md — BGP codec RPC handlers
+// Related: event_dispatcher.go — event dispatch to plugins
 
 package server
 
@@ -17,10 +18,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// codecRPCHandler returns a codec function for the given RPC method name.
+// CodecRPCHandler returns a codec function for the given RPC method name.
 // Returns nil if the method is not a BGP codec RPC — caller handles unknown methods.
 // The returned function handles param unmarshaling and codec logic.
-func codecRPCHandler(method string) func(json.RawMessage) (any, error) {
+// Wired as ServerConfig.RPCFallback for BGP-specific RPC method resolution.
+func CodecRPCHandler(method string) func(json.RawMessage) (any, error) {
 	switch method {
 	case "ze-plugin-engine:decode-nlri":
 		return handleDecodeNLRI
