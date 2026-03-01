@@ -94,6 +94,12 @@ func ParseEvent(data []byte) (*Event, error) {
 	if eventType != "" && eventType != "state" {
 		var rawPayload map[string]json.RawMessage
 		if err := json.Unmarshal(payloadData, &rawPayload); err == nil {
+			// Extract raw wire bytes BEFORE narrowing payloadData.
+			// The "raw" key (format=full) is at the bgp level, sibling of "update".
+			// After narrowing, payloadData points inside "update" where "raw" doesn't exist.
+			if rawData, ok := rawPayload["raw"]; ok {
+				parseRawFields(&event, rawData)
+			}
 			if nestedData, ok := rawPayload[eventType]; ok && len(nestedData) > 0 {
 				// Only use nested data if it's an object (starts with '{'), not a string.
 				if len(nestedData) > 0 && nestedData[0] == '{' {

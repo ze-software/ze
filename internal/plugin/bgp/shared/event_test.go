@@ -58,32 +58,63 @@ func TestParseEvent_StateFormat(t *testing.T) {
 }
 
 // TestParseEvent_FormatFullRawFields verifies raw hex fields from format=full events.
+// Tests both possible positions: raw inside update (legacy) and raw at bgp level
+// (actual format produced by formatFullFromResult).
 //
 // VALIDATES: ParseEvent extracts raw.attributes, raw.nlri, raw.withdrawn.
 // PREVENTS: Raw hex bytes lost after extraction — adj-rib-in depends on these.
 func TestParseEvent_FormatFullRawFields(t *testing.T) {
-	input := `{"type":"bgp","bgp":{
-		"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
-		"message":{"type":"update","id":1,"direction":"received"},
-		"update":{
-			"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]},
+	// Raw inside update object (legacy test — kept for backwards compatibility).
+	t.Run("raw inside update", func(t *testing.T) {
+		input := `{"type":"bgp","bgp":{
+			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"message":{"type":"update","id":1,"direction":"received"},
+			"update":{
+				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]},
+				"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":"180a0000"},"withdrawn":{"ipv4/unicast":"180a0100"}}
+			}
+		}}`
+
+		event, err := ParseEvent([]byte(input))
+		require.NoError(t, err)
+
+		assert.Equal(t, "40010100", event.RawAttributes)
+		require.Contains(t, event.RawNLRI, "ipv4/unicast")
+		assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
+		require.Contains(t, event.RawWithdrawn, "ipv4/unicast")
+		assert.Equal(t, "180a0100", event.RawWithdrawn["ipv4/unicast"])
+
+		assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
+		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes("ipv4/unicast"))
+		assert.Nil(t, event.GetRawNLRIBytes("ipv6/unicast"), "missing family returns nil")
+	})
+
+	// Raw at bgp level (sibling of update) — actual format from formatFullFromResult.
+	// formatFullFromResult injects raw at the bgp level, not inside update.
+	// ParseEvent must extract it BEFORE narrowing payloadData to the update object.
+	t.Run("raw at bgp level", func(t *testing.T) {
+		input := `{"type":"bgp","bgp":{
+			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"message":{"type":"update","id":1,"direction":"received"},
+			"update":{
+				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
+			},
 			"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":"180a0000"},"withdrawn":{"ipv4/unicast":"180a0100"}}
-		}
-	}}`
+		}}`
 
-	event, err := ParseEvent([]byte(input))
-	require.NoError(t, err)
+		event, err := ParseEvent([]byte(input))
+		require.NoError(t, err)
 
-	assert.Equal(t, "40010100", event.RawAttributes)
-	require.Contains(t, event.RawNLRI, "ipv4/unicast")
-	assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
-	require.Contains(t, event.RawWithdrawn, "ipv4/unicast")
-	assert.Equal(t, "180a0100", event.RawWithdrawn["ipv4/unicast"])
+		assert.Equal(t, "40010100", event.RawAttributes)
+		require.Contains(t, event.RawNLRI, "ipv4/unicast")
+		assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
+		require.Contains(t, event.RawWithdrawn, "ipv4/unicast")
+		assert.Equal(t, "180a0100", event.RawWithdrawn["ipv4/unicast"])
 
-	// Verify byte decoding helpers.
-	assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
-	assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes("ipv4/unicast"))
-	assert.Nil(t, event.GetRawNLRIBytes("ipv6/unicast"), "missing family returns nil")
+		assert.Equal(t, []byte{0x40, 0x01, 0x01, 0x00}, event.GetRawAttributesBytes())
+		assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, event.GetRawNLRIBytes("ipv4/unicast"))
+		assert.Nil(t, event.GetRawNLRIBytes("ipv6/unicast"), "missing family returns nil")
+	})
 }
 
 // TestParseEvent_PeerFormats verifies both flat and nested peer formats.
