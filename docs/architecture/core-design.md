@@ -143,11 +143,10 @@ func (u *WireUpdate) NLRIIterator(addPath bool) (*NLRIIterator, error)
 
 ---
 
-## 4. RIB Storage Model (TARGET DESIGN)
-
-> **Note:** This describes the TARGET architecture. Current implementation may differ.
+## 4. RIB Storage Model
 
 **RIB does NOT store WireUpdate.** It stores individual routes with deduplicated attributes.
+RIB storage lives in plugins (`bgp-rib`, `bgp-adj-rib-in`), not in the engine reactor.
 
 ### Why Not Store WireUpdate?
 
@@ -414,13 +413,17 @@ type FlowSpecRule struct {
 
 ---
 
-## 8. Attribute Handling (TARGET DESIGN)
+## 8. Attribute Handling
 
-> **Note:** This describes the TARGET architecture. Current code has separate `Builder` and `AttributesWire` types.
+`Builder` and `AttributesWire` are intentionally separate types with distinct roles:
+- **`AttributesWire`** — reads/iterates received wire bytes (zero-copy, lazy parsing)
+- **`Builder`** — constructs new attribute wire bytes for outgoing UPDATEs
 
-### Merged Builder/Wire Type
+A merged type was considered but rejected: the read path (iterator-based, context-dependent
+parsing) and write path (field-at-a-time construction) have fundamentally different lifecycles
+and usage patterns. Keeping them separate avoids state confusion and keeps each type focused.
 
-The `attribute.Builder` and `attribute.AttributesWire` should merge:
+### Builder/Wire Interface (reference)
 
 ```go
 type Attributes struct {

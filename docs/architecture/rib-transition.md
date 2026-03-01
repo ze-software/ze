@@ -20,18 +20,24 @@ Ze is transitioning to an architecture where **all RIB data and logic lives in A
 
 ## Current State vs. Target State
 
-### Current: Engine Owns RIB
+### Current: Engine Has No RIB
+
+The reactor no longer holds `ribIn` or `ribStore` fields. Route storage is
+fully owned by plugins (`bgp-rib`, `bgp-adj-rib-in`). The engine retains only:
+- **msg-id cache** (`recentUpdates`) — wire bytes for zero-copy forwarding
+- **watchdog** — per-peer and global route pools (planned extraction to `bgp-watchdog` plugin)
 
 ```
-Engine receives UPDATE → Parse → Store in internal/plugins/bgp/rib/ → Forward
+Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins → Plugins store/forward
 ```
 
-| Component | Location | Issue |
-|-----------|----------|-------|
-| Route storage | Engine (internal/plugins/bgp/rib/) | Tightly coupled |
-| Best-path | Engine | Fixed logic |
-| GR state | Engine | Cannot customize |
-| Policy | Limited | Hard to extend |
+| Component | Location | Status |
+|-----------|----------|--------|
+| Route storage | Plugins (bgp-rib, bgp-adj-rib-in) | Done |
+| Best-path | Plugin (bgp-rs) | Done |
+| GR state | Plugin (bgp-gr) | Done |
+| Policy | Plugins | Done |
+| Watchdog | Engine (reactor) | Planned extraction to bgp-watchdog plugin |
 
 ### Target: API Program Owns RIB
 
@@ -248,17 +254,18 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 ## Implementation Order
 
 ```
-1. Engine: Add raw-attributes/raw-nlri to UPDATE events
+1. ✅ Engine: Add raw-attributes/raw-nlri to UPDATE events
         ↓
-2. Engine: Add msg-id control commands (retain/release/expire/list)
+2. ✅ Engine: Add msg-id control commands (retain/release/expire/list)
         ↓
-3. Engine: Add "peer X announce raw <attrs> nlri <nlri>" command
+3. ✅ Engine: Add "peer X announce raw <attrs> nlri <nlri>" command
         ↓
-4. API: Update ze plugin rr to use wire bytes + pool
+4. ✅ API: Update ze plugin rr to use wire bytes + pool
         ↓
-5. API: Update ze plugin rib with msg-id control
+5. ✅ API: Update ze plugin rib with msg-id control
         ↓
-6. Engine: Remove RIB storage from reactor (API owns)
+6. ⚠️  Engine: Remove RIB storage from reactor (API owns)
+        — ribIn and ribStore removed. Watchdog remains (planned bgp-watchdog plugin).
         ↓
 7. Docs: Update all specs to reflect new architecture
 ```
@@ -467,4 +474,4 @@ Family is required for proper UPDATE construction. This allows API to rebuild UP
 
 ---
 
-**Last Updated: 2026-01-30
+**Last Updated: 2026-03-01

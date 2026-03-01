@@ -1171,7 +1171,6 @@ func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                        
 func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                            { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
-func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                            { return nil }
 func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo                          { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactorBatch) BeginTransaction(_, _ string) error                       { return nil }
 func (m *mockReactorBatch) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
@@ -1193,8 +1192,6 @@ func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                  
 func (m *mockReactorBatch) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error { return nil }
 func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                 { return nil }
 func (m *mockReactorBatch) ClearRIBIn() int                                       { return 0 }
-func (m *mockReactorBatch) ClearRIBOut() int                                      { return 0 }
-func (m *mockReactorBatch) FlushRIBOut() int                                      { return 0 }
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }

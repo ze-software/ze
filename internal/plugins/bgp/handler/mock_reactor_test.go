@@ -145,11 +145,8 @@ func (m *mockReactor) WithdrawNLRIBatch(peer string, batch bgptypes.NLRIBatch) e
 
 // RIB stubs.
 func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
-func (m *mockReactor) RIBOutRoutes() []rib.RouteJSON        { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
-func (m *mockReactor) ClearRIBOut() int                     { return 0 }
-func (m *mockReactor) FlushRIBOut() int                     { return 0 }
 
 // Transaction stubs.
 func (m *mockReactor) BeginTransaction(_, _ string) error { return rib.ErrNoTransaction }

@@ -33,7 +33,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
@@ -189,10 +188,6 @@ type Reactor struct {
 	signals   *SignalHandler
 	api       *plugin.Server // API server for CLI and external processes
 
-	// RIB components
-	ribIn    *rib.IncomingRIB // Adj-RIB-In
-	ribStore *rib.RouteStore  // Global deduplication store
-
 	// Watchdog pools for API-created routes
 	watchdog *WatchdogManager
 
@@ -259,8 +254,6 @@ func New(config *Config) *Reactor {
 		listenerFactory: sim.RealListenerFactory{},
 		peers:           make(map[string]*Peer),
 		listeners:       make(map[string]*Listener),
-		ribIn:           rib.NewIncomingRIB(),
-		ribStore:        rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:        NewWatchdogManager(),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool:         newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: fwdChanSize}),
@@ -1252,9 +1245,6 @@ func (r *Reactor) cleanup() {
 
 	// Phase 3: Cleanup remaining resources.
 	r.recentUpdates.Stop()
-	if r.ribStore != nil {
-		r.ribStore.Stop()
-	}
 
 	r.running = false
 	r.cancel = nil

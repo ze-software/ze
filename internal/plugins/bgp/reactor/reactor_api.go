@@ -632,79 +632,20 @@ func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.
-func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []rib.RouteJSON {
-	if a.r.ribIn == nil {
-		return nil
-	}
-
-	var routes []rib.RouteJSON
-
-	// If peerID specified, get routes for that peer only
-	if peerID != "" {
-		for _, route := range a.r.ribIn.GetPeerRoutes(peerID) {
-			routes = append(routes, route.JSON(peerID))
-		}
-		return routes
-	}
-
-	// Get routes from all peers
-	a.r.mu.RLock()
-	peerIDs := make([]string, 0, len(a.r.peers))
-	for id := range a.r.peers {
-		peerIDs = append(peerIDs, id)
-	}
-	a.r.mu.RUnlock()
-
-	for _, id := range peerIDs {
-		for _, route := range a.r.ribIn.GetPeerRoutes(id) {
-			routes = append(routes, route.JSON(id))
-		}
-	}
-
-	return routes
-}
-
-// RIBOutRoutes returns routes from Adj-RIB-Out.
-//
-// Deprecated: Adj-RIB-Out tracking removed. Returns nil.
-func (a *reactorAPIAdapter) RIBOutRoutes() []rib.RouteJSON {
+// Engine has no RIB — route storage is owned by plugins (bgp-rib, bgp-adj-rib-in).
+func (a *reactorAPIAdapter) RIBInRoutes(_ string) []rib.RouteJSON {
 	return nil
 }
 
 // RIBStats returns RIB statistics.
+// Engine has no RIB — route storage is owned by plugins.
 func (a *reactorAPIAdapter) RIBStats() bgptypes.RIBStatsInfo {
-	stats := bgptypes.RIBStatsInfo{}
-
-	if a.r.ribIn != nil {
-		inStats := a.r.ribIn.Stats()
-		stats.InPeerCount = inStats.PeerCount
-		stats.InRouteCount = inStats.RouteCount
-	}
-
-	// Note: Adj-RIB-Out tracking removed. OutPending/OutWithdrawls/OutSent always 0.
-
-	return stats
+	return bgptypes.RIBStatsInfo{}
 }
 
 // ClearRIBIn clears all routes from Adj-RIB-In.
+// Engine has no RIB — route storage is owned by plugins.
 func (a *reactorAPIAdapter) ClearRIBIn() int {
-	if a.r.ribIn == nil {
-		return 0
-	}
-	return a.r.ribIn.ClearAll()
-}
-
-// ClearRIBOut queues withdrawals for all routes in Adj-RIB-Out.
-//
-// Deprecated: Adj-RIB-Out tracking removed. Returns 0.
-func (a *reactorAPIAdapter) ClearRIBOut() int {
-	return 0
-}
-
-// FlushRIBOut re-queues all sent routes for re-announcement.
-//
-// Deprecated: Adj-RIB-Out tracking removed. Returns 0.
-func (a *reactorAPIAdapter) FlushRIBOut() int {
 	return 0
 }
 

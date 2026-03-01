@@ -97,31 +97,18 @@ type BGPReactor interface {
 	// SendRawMessage sends raw bytes to a peer.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
 
-	// --- RIB operations (6 methods) ---
+	// --- RIB operations ---
+	// Engine has no RIB — route storage is owned by plugins (bgp-rib, bgp-adj-rib-in).
+	// These methods return empty results. Retained for handler compatibility.
 
 	// RIBInRoutes returns routes from Adj-RIB-In for the given peer.
 	RIBInRoutes(peerID string) []rib.RouteJSON
-
-	// RIBOutRoutes returns routes from Adj-RIB-Out.
-	//
-	// Deprecated: Adj-RIB-Out tracking removed. Always returns nil.
-	RIBOutRoutes() []rib.RouteJSON
 
 	// RIBStats returns RIB statistics.
 	RIBStats() RIBStatsInfo
 
 	// ClearRIBIn clears all routes in Adj-RIB-In. Returns count cleared.
 	ClearRIBIn() int
-
-	// ClearRIBOut withdraws all routes from Adj-RIB-Out.
-	//
-	// Deprecated: Always returns 0.
-	ClearRIBOut() int
-
-	// FlushRIBOut re-queues all sent routes for re-announcement.
-	//
-	// Deprecated: Always returns 0.
-	FlushRIBOut() int
 
 	// --- Transactions (6 methods) ---
 
