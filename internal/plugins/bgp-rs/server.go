@@ -168,6 +168,10 @@ type RouteServer struct {
 	// dispatchCommandHook is called instead of SDK DispatchCommand for test inspection.
 	// Nil in production (zero overhead).
 	dispatchCommandHook func(command string) (string, string, error)
+
+	// stopping is set when the plugin is shutting down.
+	// Used to downgrade RPC errors from ERROR to DEBUG during teardown.
+	stopping atomic.Bool
 }
 
 // forwardBatch accumulates forward items for batch RPC.
@@ -291,6 +295,7 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 	p.SetEncoding("text")
 
 	ctx := context.Background()
+	defer rs.stopping.Store(true)
 	err := p.Run(ctx, sdk.Registration{
 		// CacheConsumer: true is required for bgp-cache-forward to work.
 		// Without it, Activate(id, 0) evicts cache entries immediately after
@@ -397,7 +402,11 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
-		logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
+		if rs.stopping.Load() {
+			logger().Debug("update-route failed (shutting down)", "peer", peerSelector, "command", command, "error", err)
+		} else {
+			logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
+		}
 	}
 }
 

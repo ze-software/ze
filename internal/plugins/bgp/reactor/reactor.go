@@ -1375,10 +1375,13 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb ConnectionCallbac
 
 	// Accept connection on peer's session.
 	if err := peer.AcceptConnection(conn); err != nil {
-		// If the session is nil or tearing down and the peer is passive, buffer the
+		// If the session can't accept right now and the peer is passive, buffer the
 		// connection for the next runOnce() cycle instead of closing it. This handles
-		// the race where the remote reconnects faster than our backoff delay.
-		if (errors.Is(err, ErrNotConnected) || errors.Is(err, ErrSessionTearingDown)) && peer.Settings().Connection.IsPassive() {
+		// the race where the remote reconnects faster than our session teardown:
+		// - ErrNotConnected: session is nil (not yet created or already cleaned up)
+		// - ErrSessionTearingDown: session is shutting down
+		// - ErrAlreadyConnected: session still has stale conn ref from previous connection
+		if (errors.Is(err, ErrNotConnected) || errors.Is(err, ErrSessionTearingDown) || errors.Is(err, ErrAlreadyConnected)) && peer.Settings().Connection.IsPassive() {
 			peer.SetInboundConnection(conn)
 			return
 		}
