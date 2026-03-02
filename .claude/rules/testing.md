@@ -49,12 +49,17 @@ make ze-fuzz-one FUZZ=FuzzName TIME=30s       # Single fuzz target
 - `ze-peer`: BGP test peer (`--sink`, `--echo`, `--port`, `--asn`)
 - `ze-test`: Test runner (`ze-test bgp encode --list`, `--all`, by index)
 
+## Temporary Files
+
+Use project `tmp/` (gitignored) for scratch files — never `/tmp`.
+Create a subfolder per debugging task (e.g., `tmp/watchdog-debug/`) to keep artifacts isolated.
+
 ## Debugging Failures
 
 **BLOCKING:** Capture output. Search the log — don't re-run the suite.
 
 ```bash
-make ze-verify > /tmp/ze-test.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" /tmp/ze-test.log
+make ze-verify > tmp/ze-test.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|✗|═══ FAIL" tmp/ze-test.log
 ```
 
 On failure: search the log. On success: one line of exit status. Never `| tail`.
