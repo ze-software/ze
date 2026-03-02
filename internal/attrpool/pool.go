@@ -241,7 +241,7 @@ func (p *Pool) internLocked(data []byte) (Handle, error) {
 	}
 
 	// Create handle with pool idx and buffer bit encoded
-	h := NewHandleWithBuffer(bufIdx, p.idx, 0, slotIdx)
+	h := NewHandleWithBuffer(bufIdx, p.idx, slotIdx)
 
 	// Track buffer reference
 	buf.refCount.Add(1)
@@ -509,7 +509,7 @@ func (p *Pool) MigrateBatch(batchSize int) bool {
 			delete(p.index, oldKey)
 
 			newKey := bytesToString(newBuf.data[newOffset : newOffset+uint32(s.length)])
-			newHandle := NewHandleWithBuffer(newBit, p.idx, 0, p.compactCursor)
+			newHandle := NewHandleWithBuffer(newBit, p.idx, p.compactCursor)
 			p.index[newKey] = newHandle
 
 			migrated++
@@ -615,7 +615,7 @@ func (p *Pool) rebuildIndex() {
 			}
 			offset := s.offsets[bufIdx]
 			key := bytesToString(buf.data[offset : offset+uint32(s.length)])
-			p.index[key] = NewHandleWithBuffer(bufIdx, p.idx, 0, uint32(i))
+			p.index[key] = NewHandleWithBuffer(bufIdx, p.idx, uint32(i))
 		}
 	}
 }

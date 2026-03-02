@@ -14,49 +14,44 @@ import "fmt"
 //
 // Bit layout (32 bits total):
 //
-//	┌─────────┬─────────┬───────┬────────────────────────┐
-//	│BufferBit│ PoolIdx │ Flags │        Slot            │
-//	│ (1 bit) │ (5 bits)│(2 bit)│      (24 bits)         │
-//	└─────────┴─────────┴───────┴────────────────────────┘
-//	 31        30    26  25   24  23                    0
+//	┌─────────┬─────────┬──────────────────────────────┐
+//	│BufferBit│ PoolIdx │            Slot              │
+//	│ (1 bit) │ (5 bits)│          (26 bits)           │
+//	└─────────┴─────────┴──────────────────────────────┘
+//	 31        30    26  25                            0
 //
 // BufferBit: 0 or 1, indicates which buffer contains the data.
 // PoolIdx: 0-30 valid, 31 reserved for InvalidHandle.
-// Flags:   Bit 0 = hasPathID (ADD-PATH present), Bit 1 = reserved.
-// Slot:    0 to 16,777,215 (0xFFFFFF). Full 24-bit range usable.
+// Slot:    0 to 67,108,863 (0x3FFFFFF). Full 26-bit range usable.
 //
 // InvalidHandle (0xFFFFFFFF) has poolIdx=31, making IsValid() return false.
-// Any handle with poolIdx < 31 is valid regardless of bufferBit/flags/slot values.
+// Any handle with poolIdx < 31 is valid regardless of bufferBit/slot values.
 type Handle uint32
 
 // InvalidHandle is the sentinel value indicating no valid handle.
-// Uses bufferBit=1, poolIdx=31 (reserved), flags=3, slot=0xFFFFFF.
+// Uses bufferBit=1, poolIdx=31 (reserved), slot=0x3FFFFFF.
 const InvalidHandle Handle = 0xFFFFFFFF
 
-// NewHandle creates a handle with the given poolIdx, flags, and slot.
+// NewHandle creates a handle with the given poolIdx and slot.
 // poolIdx must be 0-30 (31 is reserved for InvalidHandle).
-// flags must be 0-3 (2 bits).
-// slot must be 0-0xFFFFFF (24 bits).
+// slot must be 0-0x3FFFFFF (26 bits).
 // BufferBit defaults to 0.
-func NewHandle(poolIdx, flags uint8, slot uint32) Handle {
+func NewHandle(poolIdx uint8, slot uint32) Handle {
 	return Handle(
 		uint32(poolIdx&0x1F)<<26 |
-			uint32(flags&0x3)<<24 |
-			(slot & 0x00FFFFFF),
+			(slot & 0x03FFFFFF),
 	)
 }
 
 // NewHandleWithBuffer creates a handle with all fields including bufferBit.
 // bufferBit must be 0 or 1.
 // poolIdx must be 0-30 (31 is reserved for InvalidHandle).
-// flags must be 0-3 (2 bits).
-// slot must be 0-0xFFFFFF (24 bits).
-func NewHandleWithBuffer(bufferBit uint32, poolIdx, flags uint8, slot uint32) Handle {
+// slot must be 0-0x3FFFFFF (26 bits).
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, slot uint32) Handle {
 	return Handle(
 		(bufferBit&0x1)<<31 |
 			uint32(poolIdx&0x1F)<<26 |
-			uint32(flags&0x3)<<24 |
-			(slot & 0x00FFFFFF),
+			(slot & 0x03FFFFFF),
 	)
 }
 
@@ -71,31 +66,14 @@ func (h Handle) PoolIdx() uint8 {
 	return uint8((h >> 26) & 0x1F) //nolint:gosec // G115: Result is 5 bits max (0-31), always fits in uint8.
 }
 
-// Flags returns the flags field (2 bits, 0-3).
-func (h Handle) Flags() uint8 {
-	return uint8((h >> 24) & 0x3) //nolint:gosec // G115: Result is 2 bits max (0-3), always fits in uint8.
-}
-
-// Slot returns the slot index (24 bits, 0-0xFFFFFF).
+// Slot returns the slot index (26 bits, 0-0x3FFFFFF).
 func (h Handle) Slot() uint32 {
-	return uint32(h) & 0x00FFFFFF
+	return uint32(h) & 0x03FFFFFF
 }
 
-// HasPathID returns true if the ADD-PATH path ID flag is set (bit 0 of flags).
-// RFC 7911: When ADD-PATH is negotiated, NLRI includes a path identifier.
-func (h Handle) HasPathID() bool {
-	return h.Flags()&1 != 0
-}
-
-// WithFlags returns a new handle with the given flags, preserving bufferBit, poolIdx, and slot.
-func (h Handle) WithFlags(flags uint8) Handle {
-	// Mask: keep bufferBit (bit 31), poolIdx (bits 30-26), and slot (bits 23-0), clear flags (bits 25-24)
-	return Handle((uint32(h) & 0xFCFFFFFF) | uint32(flags&0x3)<<24)
-}
-
-// WithBufferBit returns a new handle with the given bufferBit, preserving poolIdx, flags, and slot.
+// WithBufferBit returns a new handle with the given bufferBit, preserving poolIdx and slot.
 func (h Handle) WithBufferBit(bit uint32) Handle {
-	// Mask: keep poolIdx (bits 30-26), flags (bits 25-24), and slot (bits 23-0), clear bufferBit (bit 31)
+	// Mask: keep poolIdx (bits 30-26) and slot (bits 25-0), clear bufferBit (bit 31)
 	return Handle((uint32(h) & 0x7FFFFFFF) | (bit&0x1)<<31)
 }
 

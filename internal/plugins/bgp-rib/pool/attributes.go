@@ -65,3 +65,13 @@ var Aggregator = attrpool.NewWithIdx(13, 1<<12) // idx=13, 4KB initial
 // Stores complete attribute wire bytes for attributes not individually pooled.
 // Each entry is prefixed with type code for sorting on reconstruction.
 var OtherAttrs = attrpool.NewWithIdx(14, 1<<16) // idx=14, 64KB initial
+
+// AllPools returns all 13 attribute pools for scheduler construction.
+func AllPools() []*attrpool.Pool {
+	return []*attrpool.Pool{
+		Origin, ASPath, LocalPref, MED, NextHop,
+		Communities, LargeCommunities, ExtCommunities,
+		ClusterList, OriginatorID, AtomicAggregate,
+		Aggregator, OtherAttrs,
+	}
+}

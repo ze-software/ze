@@ -192,47 +192,43 @@ When NLRI is released, it cascades to release its AS_PATH reference.
 
 ## Handle Design (Hybrid Layout)
 
-Handles encode buffer bit, pool index, flags, and slot in a 32-bit value:
+Handles encode buffer bit, pool index, and slot in a 32-bit value:
 
 ```
-┌─────────┬─────────┬───────┬────────────────────────┐
-│BufferBit│ PoolIdx │ Flags │        Slot            │
-│ (1 bit) │ (5 bits)│(2 bit)│      (24 bits)         │
-└─────────┴─────────┴───────┴────────────────────────┘
- 31        30    26  25   24  23                    0
+┌─────────┬─────────┬──────────────────────────────┐
+│BufferBit│ PoolIdx │            Slot              │
+│ (1 bit) │ (5 bits)│          (26 bits)           │
+└─────────┴─────────┴──────────────────────────────┘
+ 31        30    26  25                            0
 ```
 
 | Field | Bits | Range | Purpose |
 |-------|------|-------|---------|
 | BufferBit | 1 | 0-1 | Which buffer contains data |
 | PoolIdx | 5 | 0-30 (31 reserved) | Pool validation |
-| Flags | 2 | 0-3 | ADD-PATH support (bit 0 = hasPathID) |
-| Slot | 24 | 0-16M | Entry index |
+| Slot | 26 | 0-67M | Entry index |
 
 **Implementation** (`internal/attrpool/handle.go`):
 
 ```go
 type Handle uint32
 
-// InvalidHandle uses bufferBit=1, poolIdx=31, flags=3, slot=0xFFFFFF
+// InvalidHandle uses bufferBit=1, poolIdx=31, slot=0x3FFFFFF
 const InvalidHandle Handle = 0xFFFFFFFF
 
-// NewHandle creates handle with poolIdx, flags, slot (bufferBit defaults to 0)
-func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle
+// NewHandle creates handle with poolIdx and slot (bufferBit defaults to 0)
+func NewHandle(poolIdx uint8, slot uint32) Handle
 
 // NewHandleWithBuffer creates handle with all fields
-func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, slot uint32) Handle
 
 // Accessors
 func (h Handle) BufferBit() uint32  // Extract buffer bit (0 or 1)
 func (h Handle) PoolIdx() uint8     // Extract pool index (0-30 valid, 31 invalid)
-func (h Handle) Flags() uint8       // Extract flags (0-3)
-func (h Handle) Slot() uint32       // Extract slot index (0-0xFFFFFF)
-func (h Handle) HasPathID() bool    // True if ADD-PATH flag set
+func (h Handle) Slot() uint32       // Extract slot index (0-0x3FFFFFF)
 func (h Handle) IsValid() bool      // True if poolIdx < 31
 
 // Modifiers
-func (h Handle) WithFlags(flags uint8) Handle       // Change flags only
 func (h Handle) WithBufferBit(bit uint32) Handle    // Change bufferBit only
 ```
 
@@ -250,9 +246,8 @@ InvalidHandle:    0xFFFFFFFF (poolIdx = 31)
 | Aspect | Benefit |
 |--------|---------|
 | Pool validation | Each pool validates handles belong to it via poolIdx |
-| ADD-PATH support | Flags encode path-id presence for BGP |
 | Buffer tracking | MSB distinguishes buffers during compaction |
-| Capacity | 24-bit slot = 16.7M entries per pool |
+| Capacity | 26-bit slot = 67M entries per pool |
 
 **Trade-off:** Max pools reduced from 63 to 31. Sufficient for BGP use.
 
@@ -435,7 +430,7 @@ extracting just the slot. Use `GetBySlot()` to retrieve data:
 
 ```go
 // Store normalized:
-storedSlot := handle.Slot()  // Extract 24-bit slot only
+storedSlot := handle.Slot()  // Extract 26-bit slot only
 
 // Retrieve later:
 data, err := pool.GetBySlot(storedSlot)  // Auto-selects correct buffer
@@ -559,6 +554,20 @@ Scheduler behavior:
 3. If idle: continue active compaction or find next pool
 4. Pool selected if dead ratio >= threshold
 5. Round-robin prevents any pool from starvation
+
+### RIB Plugin Lifecycle Wiring
+
+The scheduler is wired into the RIB plugin via `OnStarted`:
+
+| Lifecycle Event | Action |
+|----------------|--------|
+| Plugin startup (OnStarted) | `go runCompaction(ctx, pool.AllPools())` |
+| Route churn | Dead bytes accumulate, scheduler triggers compaction |
+| Plugin shutdown (context cancel) | Scheduler exits, goroutine stops |
+
+Implementation: `internal/plugins/bgp-rib/compaction.go` (thin wiring), `rib.go` (OnStarted callback).
+
+`pool.AllPools()` in `internal/plugins/bgp-rib/pool/attributes.go` returns all 13 attribute pools.
 
 ---
 
@@ -713,19 +722,16 @@ type SchedulerConfig struct {
 
 ```go
 // Handle creation
-func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle
-func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle
+func NewHandle(poolIdx uint8, slot uint32) Handle
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, slot uint32) Handle
 
 // Handle accessors
 func (h Handle) BufferBit() uint32
 func (h Handle) PoolIdx() uint8
-func (h Handle) Flags() uint8
 func (h Handle) Slot() uint32
-func (h Handle) HasPathID() bool
 func (h Handle) IsValid() bool
 
 // Handle modifiers
-func (h Handle) WithFlags(flags uint8) Handle
 func (h Handle) WithBufferBit(bit uint32) Handle
 
 // Pool creation

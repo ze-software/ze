@@ -363,9 +363,8 @@ func TestPoolExtractsSlot(t *testing.T) {
 	// Length works
 	require.Equal(t, 5, mustLength(t, p, h), "Length must extract slot correctly")
 
-	// WithFlags doesn't break access
-	h2 := h.WithFlags(1)
-	require.Equal(t, []byte("hello"), mustGet(t, p, h2), "Get must work after WithFlags")
+	// Verify pool handles encode poolIdx correctly
+	require.Equal(t, uint8(5), h.PoolIdx(), "PoolIdx must be preserved in handle")
 }
 
 // TestPoolIdxValidation verifies pool rejects invalid idx.

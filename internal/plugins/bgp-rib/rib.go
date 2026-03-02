@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin
 // Detail: rib_nlri.go — NLRI wire format conversion helpers
 // Detail: rib_commands.go — command handling and JSON responses
+// Detail: compaction.go — pool compaction scheduler wiring
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
@@ -19,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -102,6 +104,14 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
 	p.SetStartupSubscriptions([]string{"update direction sent", "state", "refresh"}, nil, "full")
+
+	// Start compaction scheduler after 5-stage startup completes.
+	// The scheduler runs as a goroutine tied to the plugin context,
+	// reclaiming dead buffer space in attribute pools under route churn.
+	p.OnStarted(func(ctx context.Context) error {
+		go runCompaction(ctx, pool.AllPools())
+		return nil
+	})
 
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
