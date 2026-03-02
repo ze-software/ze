@@ -1,5 +1,5 @@
 // Design: docs/architecture/update-building.md — MVPN UPDATE builders
-// Related: update_build.go — core UpdateBuilder struct and unicast builders
+// Overview: update_build.go — core UpdateBuilder struct and unicast builders
 package message
 
 import (

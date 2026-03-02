@@ -1,7 +1,7 @@
 // Design: docs/architecture/rib-transition.md — watchdog plugin extraction
-// Related: register.go — plugin registration
-// Related: server.go — command dispatch and state management
-// Related: config.go — config tree parser
+// Detail: server.go — command dispatch and state management
+// Detail: config.go — config tree parser
+// Detail: pool.go — route pool management
 //
 // Package bgp_watchdog implements a watchdog route management plugin for ze.
 // It manages per-peer config-based watchdog groups. Routes are injected

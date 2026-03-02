@@ -1,8 +1,8 @@
 // Design: docs/architecture/api/commands.md — API command handlers
-// Related: update_text_nlri.go — NLRI section parsing
-// Related: update_text_evpn.go — EVPN NLRI parsing
-// Related: update_text_flowspec.go — FlowSpec NLRI parsing
-// Related: update_text_vpls.go — VPLS NLRI parsing
+// Detail: update_text_nlri.go — NLRI section parsing
+// Detail: update_text_evpn.go — EVPN NLRI parsing
+// Detail: update_text_flowspec.go — FlowSpec NLRI parsing
+// Detail: update_text_vpls.go — VPLS NLRI parsing
 //
 // update_text.go provides the update text parser for the "update text" command format.
 //

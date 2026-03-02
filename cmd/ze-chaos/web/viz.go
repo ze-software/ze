@@ -1,4 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — web dashboard UI
+// Detail: viz_panels.go — multi-panel viz layout and panel content handlers
+// Detail: viz_convergence_trend.go — convergence trend line chart
 
 package web
 

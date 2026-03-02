@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/ipc_protocol.md — text handshake framing
 // Related: conn.go — JSON-mode Conn (NUL-framed)
 // Related: text.go — text format/parse for handshake stages
+// Related: text_mux.go — TextMuxConn concurrent text RPCs
 
 package rpc
 

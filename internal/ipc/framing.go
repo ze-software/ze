@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
-// Related: batch.go — batched event delivery frame construction
+// Detail: batch.go — batched event delivery frame construction
 //
 // Package ipc provides NUL-byte terminated JSON framing for Ze IPC protocol.
 //

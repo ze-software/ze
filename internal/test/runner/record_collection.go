@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — test record collection and querying
-// Related: record.go — Record type definitions and methods
+// Overview: record.go — Record type definitions and methods
 // Related: record_parse.go — CI file parsing and EncodingTests discovery
 
 package runner

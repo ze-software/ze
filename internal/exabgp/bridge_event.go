@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — ZeBGP to ExaBGP JSON event translation
-// Related: bridge.go — startup protocol, bridge runtime
+// Overview: bridge.go — startup protocol, bridge runtime
 // Related: bridge_command.go — ExaBGP text command translation
 
 package exabgp

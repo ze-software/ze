@@ -1,5 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In raw hex storage
-// Related: rib_commands.go — command handlers (status, show, replay)
+// Detail: rib_commands.go — command handlers (status, show, replay)
 //
 // Package bgp_adj_rib_in implements an Adj-RIB-In plugin for ze.
 // It stores all received routes per source peer as raw hex wire bytes

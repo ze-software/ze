@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — custom validators
-// Related: validators_register.go — init registration of validators into registry
+// Detail: validators_register.go — init registration of validators into registry
 
 package config
 

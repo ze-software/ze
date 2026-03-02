@@ -1,7 +1,8 @@
 // Design: docs/architecture/chaos-web-dashboard.md — orchestrator run loop and reporting setup
-// Related: main.go — CLI entry and flag parsing
+// Overview: main.go — CLI entry and flag parsing
 // Related: orchestrator.go — config types, established state, event processor
 // Related: scheduler.go — chaos and route dynamics schedulers
+// Related: guard.go — peerGuard for action compatibility checks
 
 package main
 

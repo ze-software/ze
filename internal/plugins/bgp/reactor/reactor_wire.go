@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — zero-allocation wire UPDATE builders
-// Related: reactor.go — Reactor struct, lifecycle, and connection management
+// Overview: reactor.go — Reactor struct, lifecycle, and connection management
 // Related: reactor_api.go — reactorAPIAdapter for plugin integration
+// Related: reactor_api_forward.go — forwarding uses wire builders
 
 package reactor
 

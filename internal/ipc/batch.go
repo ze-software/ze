@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — batched event delivery
-// Related: framing.go — NUL-delimited frame reader/writer
+// Overview: framing.go — NUL-delimited frame reader/writer
 
 package ipc
 

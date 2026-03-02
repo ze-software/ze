@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/ci-format.md — test BGP peer
-// Related: message.go — BGP message types, wire helpers, and Message struct
-// Related: checker.go — message validation against expected patterns
-// Related: expect.go — .ci file loading and option parsing
+// Detail: message.go — BGP message types, wire helpers, and Message struct
+// Detail: checker.go — message validation against expected patterns
+// Detail: expect.go — .ci file loading and option parsing
 //
 // Package testpeer provides a BGP test peer for functional testing.
 //

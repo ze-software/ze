@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — ExaBGP migration orchestration
-// Related: migrate_routes.go — route conversion to Ze update blocks
-// Related: migrate_family.go — family and nexthop syntax conversion
-// Related: migrate_serialize.go — config tree serialization
+// Detail: migrate_routes.go — route conversion to Ze update blocks
+// Detail: migrate_family.go — family and nexthop syntax conversion
+// Detail: migrate_serialize.go — config tree serialization
 
 package exabgp
 

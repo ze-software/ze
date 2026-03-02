@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
-// Related: decode.go — top-level decode dispatch
+// Overview: decode.go — top-level decode dispatch
 // Related: decode_update.go — UPDATE message decoding calls MP_REACH/MP_UNREACH parsers
 // Related: decode_plugin.go — plugin invocation for NLRI decoding
 

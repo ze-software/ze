@@ -1,28 +1,52 @@
-# Related File References
+# File Cross-References
 
 Rationale: `.claude/rationale/related-refs.md`
 
 ## Purpose
 
-`// Related:` comments let Claude load only needed files without scanning the whole package. Complements `// Design:` (architecture docs) by pointing to sibling source files.
+Cross-reference comments let Claude load only needed files without scanning the whole package. Complements `// Design:` (architecture docs) by pointing to sibling source files.
+
+## Keywords
+
+Three directional keywords express the relationship between files:
+
+| Keyword | Direction | Meaning | Example |
+|---------|-----------|---------|---------|
+| `// Detail:` | Hub → Leaf | "details of this topic are in X" | `reactor.go` → `reactor_api.go` |
+| `// Overview:` | Leaf → Hub | "broader context is in X" | `reactor_api.go` → `reactor.go` |
+| `// Related:` | Peer ↔ Peer | "sibling at same level" | `reactor_api_batch.go` ↔ `reactor_api_routes.go` |
+
+**Hub file** = orchestrator, core types, dispatch (typically shortest name: `server.go`, `decode.go`, `peer.go`).
+**Leaf file** = specific concern split from hub (has suffix: `_text`, `_routes`, `_batch`, or prefix: `cmd_`).
+**Peer files** = siblings at same abstraction level, neither contains the other.
+
+## Bidirectionality (BLOCKING)
+
+Every cross-reference MUST have a back-reference. If A references B, B must reference A.
+
+| A says | B must say |
+|--------|-----------|
+| `// Detail: B.go — topic` | `// Overview: A.go — topic` |
+| `// Overview: B.go — topic` | `// Detail: A.go — topic` |
+| `// Related: B.go — topic` | `// Related: A.go — topic` |
 
 ## Format
 
-Place after `// Design:` at file top. One line per related file with topic annotation:
+Place after `// Design:` at file top. One line per reference with topic annotation:
 
 | Line | Content |
 |------|---------|
 | 1 | `// Design: docs/architecture/config/syntax.md — BGP config types` |
-| 2 | `// Related: bgp_peer.go — peer parsing and process bindings` |
-| 3 | `// Related: bgp_routes.go — route extraction and NLRI parsers` |
+| 2 | `// Detail: bgp_routes.go — route extraction and NLRI parsers` |
+| 3 | `// Related: bgp_peer.go — peer parsing and process bindings` |
 
 ## When to Add
 
 | Situation | Action |
 |-----------|--------|
-| Splitting a file | All resulting files get `// Related:` to siblings |
-| Tightly coupled new file | Add to new file + update siblings |
-| Touching file with stale refs | Fix (remove deleted, add missing) |
+| Splitting a file | Hub gets `// Detail:` to leaves, leaves get `// Overview:` to hub |
+| Tightly coupled new file | Add reference + matching back-reference |
+| Touching file with stale refs | Fix (remove deleted, add missing, fix direction) |
 
 ## When NOT to Add
 
@@ -31,7 +55,7 @@ Place after `// Design:` at file top. One line per related file with topic annot
 
 ## Maintenance
 
-When renaming/deleting a `.go` file, search for `// Related:` references to that filename and update/remove.
+When renaming/deleting a `.go` file, search for `// Detail:`, `// Overview:`, and `// Related:` references to that filename and update/remove.
 
 ## Exempt
 

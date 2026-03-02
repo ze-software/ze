@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — NLRI codec via plugin RPC
-// Related: server.go — Server struct and lifecycle
+// Overview: server.go — Server struct and lifecycle
 
 package plugin
 

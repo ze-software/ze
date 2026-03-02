@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
-// Related: decode.go — top-level decode dispatch calls human formatters
+// Overview: decode.go — top-level decode dispatch calls human formatters
 // Related: decode_mp.go — decodeNLRIOnly calls formatNLRIHuman
 
 package bgp

@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos and route action execution
-// Related: simulator.go — main simulation loop and types
+// Overview: simulator.go — main simulation loop and types
 // Related: simulator_reader.go — message reading and parsing
 
 package peer

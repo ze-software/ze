@@ -1,6 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — web dashboard UI
-// Related: state_activeset.go — active set peer visibility management
-// Related: state_routematrix.go — route flow matrix and heatmap tracking
+// Detail: state_activeset.go — active set peer visibility management
+// Detail: state_routematrix.go — route flow matrix and heatmap tracking
 //
 // Package web implements a live HTMX dashboard for ze-chaos.
 package web

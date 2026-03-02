@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP UPDATE sending
-// Related: peer.go — Peer struct and FSM state machine
+// Overview: peer.go — Peer struct and FSM state machine
 
 package reactor
 

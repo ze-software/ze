@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md — reactor API adapter for plugin integration
-// Related: reactor.go — Reactor struct, lifecycle, and connection management
+// Overview: reactor.go — Reactor struct, lifecycle, and connection management
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
-// Related: reactor_api_routes.go — family-specific route announce/withdraw (L3VPN, labeled, MUP)
-// Related: reactor_api_batch.go — NLRI batch operations and wire attribute building
-// Related: reactor_api_forward.go — UPDATE forwarding, grouped sending, cache ops
+// Detail: reactor_api_routes.go — family-specific route announce/withdraw (L3VPN, labeled, MUP)
+// Detail: reactor_api_batch.go — NLRI batch operations and wire attribute building
+// Detail: reactor_api_forward.go — UPDATE forwarding, grouped sending, cache ops
 package reactor
 
 import (

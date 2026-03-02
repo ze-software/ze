@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — EVPN route type text parsing
-// Related: update_text.go — main update text parser and shared constants
+// Overview: update_text.go — main update text parser and shared constants
 // Related: update_text_nlri.go — generic NLRI section parsing
 // Related: update_text_vpls.go — VPLS text parsing
 package handler

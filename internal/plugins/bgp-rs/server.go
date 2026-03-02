@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — route server plugin
-// Related: worker.go — per-source-peer worker pool with backpressure
-// Related: peer.go — PeerState tracking (families, up/down)
+// Detail: worker.go — per-source-peer worker pool with backpressure
+// Detail: peer.go — PeerState tracking (families, up/down)
 
 package bgp_rs
 

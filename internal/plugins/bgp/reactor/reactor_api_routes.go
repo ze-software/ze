@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — family-specific route announce/withdraw (L3VPN, labeled unicast, MUP, FlowSpec, VPLS, L2VPN)
-// Related: reactor_api.go — API command handling core
+// Overview: reactor_api.go — API command handling core
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_api_forward.go — forwarding and grouped sending
 package reactor

@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — route server plugin
-// Related: server.go — RouteServer dispatch, batch accumulation, async forward
+// Overview: server.go — RouteServer dispatch, batch accumulation, async forward
 
 package bgp_rs
 

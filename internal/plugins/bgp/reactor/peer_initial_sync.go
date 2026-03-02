@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — initial route sending on BGP session establishment
-// Related: peer.go — Peer struct and FSM state machine
+// Overview: peer.go — Peer struct and FSM state machine
 
 package reactor
 

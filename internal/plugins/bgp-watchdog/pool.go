@@ -1,6 +1,7 @@
 // Design: docs/architecture/rib-transition.md — watchdog plugin extraction
-// Related: watchdog.go — plugin main and SDK lifecycle
-// Related: register.go — plugin registration
+// Overview: watchdog.go — plugin main and SDK lifecycle
+// Related: server.go — command dispatch and state management
+// Related: config.go — config tree parser
 
 package bgp_watchdog
 

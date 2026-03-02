@@ -1,8 +1,8 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
 // RFC: rfc/short/rfc7752.md
-// Related: types_descriptor.go — node, link, and prefix descriptor TLV encoding
-// Related: types_nlri.go — concrete NLRI types (Node, Link, Prefix)
-// Related: types_srv6.go — SRv6 SID NLRI and descriptor (RFC 9514)
+// Detail: types_descriptor.go — node, link, and prefix descriptor TLV encoding
+// Detail: types_nlri.go — concrete NLRI types (Node, Link, Prefix)
+// Detail: types_srv6.go — SRv6 SID NLRI and descriptor (RFC 9514)
 //
 // Package bgp_ls implements BGP-LS family types and plugin for ze.
 // RFC 7752: North-Bound Distribution of Link-State and TE Information Using BGP

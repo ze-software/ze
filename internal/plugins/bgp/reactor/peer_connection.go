@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP peer connection management and collision resolution
-// Related: peer.go — Peer struct and FSM state machine
+// Overview: peer.go — Peer struct and FSM state machine
 
 package reactor
 

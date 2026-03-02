@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — RIB route building for BGP UPDATEs
-// Related: peer.go — Peer struct and FSM state machine
+// Overview: peer.go — Peer struct and FSM state machine
 
 package reactor
 

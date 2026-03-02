@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI decoding and JSON formatting
 // RFC: rfc/short/rfc5575.md
-// Related: plugin.go — plugin entry points, CLI, families
+// Overview: plugin.go — plugin entry points, CLI, families
 // Related: plugin_encode_text.go — text-to-wire encoding
 // Related: plugin_protocol.go — stdin/stdout protocol dispatch
 

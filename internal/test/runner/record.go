@@ -1,6 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md — test record types and state
-// Related: record_collection.go — Tests container and querying
-// Related: record_parse.go — CI file parsing and EncodingTests discovery
+// Detail: record_collection.go — Tests container and querying
+// Detail: record_parse.go — CI file parsing and EncodingTests discovery
 
 package runner
 

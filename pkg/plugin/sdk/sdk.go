@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin SDK
-// Related: sdk_text.go — text-mode startup and event loop
+// Detail: sdk_text.go — text-mode startup and event loop
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over dual socket pairs.

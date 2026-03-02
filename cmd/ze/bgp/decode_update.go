@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
-// Related: decode.go — top-level decode dispatch
+// Overview: decode.go — top-level decode dispatch
 // Related: decode_mp.go — MP_REACH/MP_UNREACH parsing
 // Related: decode_extcomm.go — extended community parsing
 // Related: decode_bgpls.go — BGP-LS attribute parsing

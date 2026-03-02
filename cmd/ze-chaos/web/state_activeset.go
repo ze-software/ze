@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — active set peer visibility
-// Related: state.go — PeerState and DashboardState use ActiveSet
+// Overview: state.go — PeerState and DashboardState use ActiveSet
 
 package web
 

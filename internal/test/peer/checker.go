@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — message validation against expectations
-// Related: peer.go — test peer that drives the checker
+// Overview: peer.go — test peer that drives the checker
 // Related: expect.go — .ci file loading that produces checker inputs
 // Related: message.go — Message type checked against expectations
 

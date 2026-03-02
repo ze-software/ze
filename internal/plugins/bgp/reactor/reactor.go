@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — BGP reactor event loop and peer management
-// Related: reactor_api.go — reactorAPIAdapter for plugin integration
-// Related: reactor_wire.go — zero-allocation wire UPDATE builders
+// Detail: reactor_api.go — reactorAPIAdapter for plugin integration
+// Detail: reactor_wire.go — zero-allocation wire UPDATE builders
 //
 // Package reactor implements the BGP reactor - the main orchestrator
 // that manages peer sessions, connections, and signal handling.

@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — .ci file loading and option parsing
-// Related: peer.go — Config struct populated by these parsers
+// Overview: peer.go — Config struct populated by these parsers
 // Related: checker.go — expect rules parsed here feed the Checker
 
 package peer

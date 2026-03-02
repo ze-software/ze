@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — FlowSpec text parsing for update text command
-// Related: update_text.go — shared text attribute parsing types and helpers
+// Overview: update_text.go — shared text attribute parsing types and helpers
 // Related: update_text_nlri.go — NLRI section parsing and dispatch
 package handler
 

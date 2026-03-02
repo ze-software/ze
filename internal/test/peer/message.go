@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — BGP message types and wire helpers
-// Related: peer.go — test peer that uses these messages
+// Overview: peer.go — test peer that uses these messages
 // Related: checker.go — message validation against expectations
 
 package peer

@@ -1,9 +1,9 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
-// Related: decode_open.go — OPEN message decoding
-// Related: decode_update.go — UPDATE message decoding
-// Related: decode_mp.go — MP_REACH/MP_UNREACH NLRI decoding
-// Related: decode_plugin.go — plugin invocation for decode
-// Related: decode_human.go — human-readable output formatting
+// Detail: decode_open.go — OPEN message decoding
+// Detail: decode_update.go — UPDATE message decoding
+// Detail: decode_mp.go — MP_REACH/MP_UNREACH NLRI decoding
+// Detail: decode_plugin.go — plugin invocation for decode
+// Detail: decode_human.go — human-readable output formatting
 
 package bgp
 

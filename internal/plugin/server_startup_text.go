@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — text-mode 5-stage startup
-// Related: server_startup.go — JSON-mode handleProcessStartupRPC
+// Overview: server_startup.go — JSON-mode handleProcessStartupRPC
 // Related: subsystem_text.go — text-mode completeTextProtocol (subsystem path)
 
 package plugin

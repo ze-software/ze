@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/syntax.md — freeform, family, flex, and inline parsing
-// Related: parser.go — config parser core
+// Overview: parser.go — config parser core
 
 package config
 

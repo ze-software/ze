@@ -1,9 +1,9 @@
 // Design: docs/architecture/config/syntax.md — config CLI commands
-// Related: cmd_edit.go — edit subcommand handler
-// Related: cmd_check.go — check subcommand handler
-// Related: cmd_migrate.go — migrate subcommand handler
-// Related: cmd_fmt.go — fmt subcommand handler
-// Related: cmd_dump.go — dump subcommand handler
+// Detail: cmd_edit.go — edit subcommand handler
+// Detail: cmd_check.go — check subcommand handler
+// Detail: cmd_migrate.go — migrate subcommand handler
+// Detail: cmd_fmt.go — fmt subcommand handler
+// Detail: cmd_dump.go — dump subcommand handler
 //
 // Package config provides the ze config subcommand.
 package config

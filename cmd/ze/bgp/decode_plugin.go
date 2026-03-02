@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
-// Related: decode.go — top-level decode dispatch
+// Overview: decode.go — top-level decode dispatch
 // Related: decode_open.go — OPEN message decoding uses plugin invocation
 // Related: decode_mp.go — NLRI parsing uses plugin invocation
 

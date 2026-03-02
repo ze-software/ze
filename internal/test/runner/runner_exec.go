@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — test execution and process orchestration
-// Related: runner.go — Runner struct, Build, Run lifecycle
+// Overview: runner.go — Runner struct, Build, Run lifecycle
 // Related: runner_validate.go — post-execution result validation
 // Related: runner_output.go — output capture and saving
 

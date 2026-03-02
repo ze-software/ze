@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — custom validator registration
-// Related: validators.go — custom validator function definitions
+// Overview: validators.go — custom validator function definitions
 
 package config
 

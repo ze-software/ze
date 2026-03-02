@@ -1,5 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB command handlers
-// Related: rib.go — RIB plugin core types and event handlers
+// Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_nlri.go — NLRI wire format helpers
 package bgp_rib
 

@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/syntax.md — prefix expansion for route splitting
-// Related: loader.go — reactor loading and creation
+// Overview: loader.go — reactor loading and creation
 // Related: peers.go — peer extraction that calls parseSplitLen/expandPrefix
 
 package config

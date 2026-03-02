@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — family and nexthop syntax conversion
-// Related: migrate.go — migration orchestration and neighbor conversion
+// Overview: migrate.go — migration orchestration and neighbor conversion
 // Related: migrate_routes.go — route conversion to update blocks
 // Related: migrate_serialize.go — tree serialization
 

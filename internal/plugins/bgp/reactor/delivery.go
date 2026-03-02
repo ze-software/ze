@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP reactor event loop
-// Related: peer.go — per-peer delivery goroutine that calls drainDeliveryBatch
+// Overview: peer.go — per-peer delivery goroutine that calls drainDeliveryBatch
 
 package reactor
 

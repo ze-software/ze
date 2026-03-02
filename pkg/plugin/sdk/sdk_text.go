@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — text-mode plugin SDK startup
-// Related: sdk.go — JSON-mode Plugin struct and Run()
+// Overview: sdk.go — JSON-mode Plugin struct and Run()
 
 package sdk
 

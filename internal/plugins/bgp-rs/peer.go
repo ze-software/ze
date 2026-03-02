@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — route server plugin
-// Related: server.go — RouteServer uses PeerState for peer tracking and forwarding decisions
+// Overview: server.go — RouteServer uses PeerState for peer tracking and forwarding decisions
 
 package bgp_rs
 

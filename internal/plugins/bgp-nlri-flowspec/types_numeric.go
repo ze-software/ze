@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec numeric/bitmask components
 // RFC: rfc/short/rfc5575.md
-// Related: types.go — core FlowSpec types, constants, and interface
+// Overview: types.go — core FlowSpec types, constants, and interface
 // Related: types_prefix.go — prefix component implementations
 // Related: types_vpn.go — FlowSpec VPN wrapper
 

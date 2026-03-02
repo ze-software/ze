@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config check command
-// Related: main.go — dispatch and exit codes
+// Overview: main.go — dispatch and exit codes
+// Related: cmd_migrate.go — migrate uses findUnsupportedFeatures
 
 package config
 

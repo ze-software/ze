@@ -1,10 +1,10 @@
 // Design: docs/architecture/core-design.md — BGP reactor event loop
-// Related: delivery.go — deliveryItem struct and batch drain
-// Related: peer_connection.go — peer TCP connection management
-// Related: peer_send.go — peer outbound message sending
-// Related: peer_initial_sync.go — initial route synchronization
-// Related: peer_rib_routes.go — RIB route extraction
-// Related: peer_static_routes.go — static route injection
+// Detail: delivery.go — deliveryItem struct and batch drain
+// Detail: peer_connection.go — peer TCP connection management
+// Detail: peer_send.go — peer outbound message sending
+// Detail: peer_initial_sync.go — initial route synchronization
+// Detail: peer_rib_routes.go — RIB route extraction
+// Detail: peer_static_routes.go — static route injection
 
 package reactor
 

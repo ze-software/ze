@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — BGP message reading and parsing
-// Related: simulator.go — main simulation loop and types
+// Overview: simulator.go — main simulation loop and types
 // Related: simulator_actions.go — chaos and route action execution
 
 package peer

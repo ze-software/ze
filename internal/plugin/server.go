@@ -1,8 +1,8 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
-// Related: server_startup.go — 5-stage plugin startup protocol
-// Related: server_client.go — API client connections
-// Related: server_dispatch.go — command dispatch routing
-// Related: server_events.go — event delivery to plugins
+// Detail: server_startup.go — 5-stage plugin startup protocol
+// Detail: server_client.go — API client connections
+// Detail: server_dispatch.go — command dispatch routing
+// Detail: server_events.go — event delivery to plugins
 
 package plugin
 

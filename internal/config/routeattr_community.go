@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/syntax.md — community attribute parsing
-// Related: routeattr.go — core route attribute types
+// Overview: routeattr.go — core route attribute types
 
 package config
 

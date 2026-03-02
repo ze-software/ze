@@ -1,13 +1,13 @@
 // Design: docs/architecture/update-building.md — UPDATE builder common infrastructure
 // RFC: rfc/short/rfc4271.md — UPDATE message construction (Section 4.3)
-// Related: update_build_vpn.go — VPN route building
-// Related: update_build_labeled.go — labeled unicast route building
-// Related: update_build_mvpn.go — MVPN route building
-// Related: update_build_vpls.go — VPLS route building
-// Related: update_build_flowspec.go — FlowSpec route building
-// Related: update_build_evpn.go — EVPN route building
-// Related: update_build_mup.go — MUP route building
-// Related: update_build_grouped.go — grouped and size-aware builders
+// Detail: update_build_vpn.go — VPN route building
+// Detail: update_build_labeled.go — labeled unicast route building
+// Detail: update_build_mvpn.go — MVPN route building
+// Detail: update_build_vpls.go — VPLS route building
+// Detail: update_build_flowspec.go — FlowSpec route building
+// Detail: update_build_evpn.go — EVPN route building
+// Detail: update_build_mup.go — MUP route building
+// Detail: update_build_grouped.go — grouped and size-aware builders
 package message
 
 import (

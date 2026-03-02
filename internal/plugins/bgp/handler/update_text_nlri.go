@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — NLRI section parsing for update text command
-// Related: update_text.go — shared text attribute parsing types and helpers
+// Overview: update_text.go — shared text attribute parsing types and helpers
 // Related: update_text_flowspec.go — FlowSpec NLRI parsing
 // Related: update_text_vpls.go — VPLS NLRI parsing
 // Related: update_text_evpn.go — EVPN NLRI parsing

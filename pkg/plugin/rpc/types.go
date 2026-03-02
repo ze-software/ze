@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
+// Related: text.go — text format/parse uses RPC types
 //
 // Package rpc defines the canonical wire-format types for the ze plugin RPC protocol.
 //

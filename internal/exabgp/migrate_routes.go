@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — ExaBGP route conversion to Ze update blocks
-// Related: migrate.go — migration orchestration and neighbor conversion
+// Overview: migrate.go — migration orchestration and neighbor conversion
 // Related: migrate_family.go — family syntax conversion helpers
 // Related: migrate_serialize.go — tree serialization
 

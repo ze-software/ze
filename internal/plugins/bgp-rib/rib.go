@@ -1,6 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin
-// Related: rib_nlri.go — NLRI wire format conversion helpers
-// Related: rib_commands.go — command handling and JSON responses
+// Detail: rib_nlri.go — NLRI wire format conversion helpers
+// Detail: rib_commands.go — command handling and JSON responses
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).

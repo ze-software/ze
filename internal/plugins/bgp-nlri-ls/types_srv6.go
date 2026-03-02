@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — SRv6 SID NLRI (RFC 9514)
 // RFC: rfc/short/rfc9514.md — BGP-LS SRv6 SID NLRI
 // RFC: rfc/short/rfc7752.md — base BGP-LS framework
-// Related: types.go — core types, bgplsBase, TLV constants, parser functions
+// Overview: types.go — core types, bgplsBase, TLV constants, parser functions
 // Related: types_descriptor.go — NodeDescriptor embedded in BGPLSSRv6SID
 // Related: types_nlri.go — RFC 7752 NLRI types (Node, Link, Prefix)
 package bgp_nlri_ls

@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — NLRI batch announce/withdraw and wire attribute building
-// Related: reactor_api.go — API command handling core
+// Overview: reactor_api.go — API command handling core
 // Related: reactor_api_routes.go — family-specific route types
 // Related: reactor_api_forward.go — forwarding and grouped sending
 package reactor

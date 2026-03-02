@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Detail: routeattr_community.go — community attribute types
+// Detail: routeattr_prefixsid.go — prefix SID attribute types
 
 package config
 

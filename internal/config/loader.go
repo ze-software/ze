@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config file loading and reactor creation
-// Related: loader_routes.go — BGP route type conversion
-// Related: loader_prefix.go — prefix expansion for route splitting
+// Detail: loader_routes.go — BGP route type conversion
+// Detail: loader_prefix.go — prefix expansion for route splitting
 
 package config
 

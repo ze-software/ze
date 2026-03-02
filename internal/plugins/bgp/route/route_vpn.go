@@ -1,5 +1,5 @@
 // Design: docs/architecture/route-types.md — L3VPN route parsing
-// Related: route.go — core route types and attribute parsing
+// Overview: route.go — core route types and attribute parsing
 
 //nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route

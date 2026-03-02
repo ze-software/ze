@@ -1,7 +1,7 @@
 // Design: docs/architecture/testing/ci-format.md — test runner framework
-// Related: runner_exec.go — test execution and process orchestration
-// Related: runner_validate.go — result validation (JSON, logging, HTTP)
-// Related: runner_output.go — output capture, saving, and parsing
+// Detail: runner_exec.go — test execution and process orchestration
+// Detail: runner_validate.go — result validation (JSON, logging, HTTP)
+// Detail: runner_output.go — output capture, saving, and parsing
 
 package runner
 

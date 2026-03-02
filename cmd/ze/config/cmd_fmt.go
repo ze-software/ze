@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config fmt command
-// Related: main.go — dispatch and exit codes
+// Overview: main.go — dispatch and exit codes
 
 package config
 

@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — route flow matrix and heatmap
-// Related: state.go — DashboardState references RouteMatrix
+// Overview: state.go — DashboardState references RouteMatrix
 
 package web
 

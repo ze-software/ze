@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/text-parser.md — shared text event tokenizer
+// Related: keywords.go — shared keyword constants and alias resolution
 
 package textparse
 

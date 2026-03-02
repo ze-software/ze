@@ -1,4 +1,9 @@
 // Design: docs/architecture/route-types.md — route definitions
+// Detail: route_vpn.go — VPN route parsing
+// Detail: route_mup.go — MUP route parsing
+// Detail: route_labeled.go — labeled unicast route parsing
+// Detail: route_community.go — community attribute parsing
+// Detail: route_flowspec.go — FlowSpec route parsing
 
 //nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package route

@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP server events and hooks
+// Overview: event_dispatcher.go — EventDispatcher calls validation functions
 
 package server
 

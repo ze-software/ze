@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — output capture, saving, and parsing
-// Related: runner.go — Runner struct and lifecycle
+// Overview: runner.go — Runner struct and lifecycle
 // Related: runner_exec.go — test execution that produces output
 
 package runner

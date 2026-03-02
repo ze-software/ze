@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin RPC dispatch
-// Related: server.go — Server struct and lifecycle
+// Overview: server.go — Server struct and lifecycle
 
 package plugin
 

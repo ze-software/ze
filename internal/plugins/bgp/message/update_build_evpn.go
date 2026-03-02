@@ -1,6 +1,6 @@
 // Design: docs/architecture/update-building.md — EVPN UPDATE builders
 // RFC: rfc/short/rfc7432.md — EVPN NLRI route types
-// Related: update_build.go — core UpdateBuilder struct and unicast builders
+// Overview: update_build.go — core UpdateBuilder struct and unicast builders
 package message
 
 import (

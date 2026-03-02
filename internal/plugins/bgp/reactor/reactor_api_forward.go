@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — UPDATE forwarding, grouped sending, route refresh
-// Related: reactor_api.go — API command handling core
+// Overview: reactor_api.go — API command handling core
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_api_routes.go — family-specific route types
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders

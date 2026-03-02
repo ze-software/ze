@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — client connection management
-// Related: server.go — Server struct and lifecycle
+// Overview: server.go — Server struct and lifecycle
 
 package plugin
 

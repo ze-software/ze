@@ -1,5 +1,5 @@
 // Design: docs/architecture/config/syntax.md — BGP route type conversion
-// Related: loader.go — reactor loading and creation
+// Overview: loader.go — reactor loading and creation
 // Related: peers.go — peer extraction that calls these converters
 
 package config

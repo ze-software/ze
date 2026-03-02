@@ -1,5 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — result validation (JSON, logging, HTTP)
-// Related: runner.go — Runner struct and lifecycle
+// Overview: runner.go — Runner struct and lifecycle
 // Related: runner_exec.go — test execution that calls validation
 
 package runner

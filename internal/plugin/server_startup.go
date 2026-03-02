@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
-// Related: server.go — Server struct and lifecycle
-// Related: server_startup_text.go — text-mode handleTextProcessStartup
+// Overview: server.go — Server struct and lifecycle
+// Detail: server_startup_text.go — text-mode handleTextProcessStartup
 
 package plugin
 

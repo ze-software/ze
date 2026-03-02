@@ -1,8 +1,8 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
-// Related: orchestrator.go — config types, established state, event processor
-// Related: orchestrator_run.go — orchestrator run loop and reporting setup
-// Related: scheduler.go — chaos and route dynamics schedulers
-// Related: subcommand.go — replay, shrink, diff subcommands and network utilities
+// Detail: orchestrator.go — config types, established state, event processor
+// Detail: orchestrator_run.go — orchestrator run loop and reporting setup
+// Detail: scheduler.go — chaos and route dynamics schedulers
+// Detail: subcommand.go — replay, shrink, diff subcommands and network utilities
 //
 // Command ze-chaos is a chaos monkey tool for testing Ze BGP route server
 // (route server) route propagation behavior.

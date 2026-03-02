@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — event delivery pipeline
-// Related: process.go — Process struct and lifecycle
+// Overview: process.go — Process struct and lifecycle
 // Related: process_manager.go — multi-process coordination and respawn
 
 package plugin

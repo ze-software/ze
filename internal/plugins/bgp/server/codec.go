@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP codec RPC handlers
-// Related: event_dispatcher.go — event dispatch to plugins
+// Overview: event_dispatcher.go — event dispatch to plugins
 
 package server
 

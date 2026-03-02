@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
-// Related: subsystem_text.go — text-mode completeTextProtocol and textProtocolResult
+// Detail: subsystem_text.go — text-mode completeTextProtocol and textProtocolResult
 
 package plugin
 
