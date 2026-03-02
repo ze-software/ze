@@ -31,11 +31,6 @@ func SystemPluginRPCs() []RPCRegistration {
 	return systemRPCs()
 }
 
-// RibPluginRPCs returns all RPCs owned by the RIB module (ze-rib namespace).
-func RibPluginRPCs() []RPCRegistration {
-	return ribRPCs()
-}
-
 // PluginLifecycleRPCs returns all RPCs for plugin lifecycle (ze-plugin namespace).
 func PluginLifecycleRPCs() []RPCRegistration {
 	sess := sessionRPCs() // session ready/ping/bye (session.go)
@@ -53,7 +48,6 @@ func AllBuiltinRPCs() []RPCRegistration {
 	sources := [][]RPCRegistration{
 		BgpPluginRPCs(),
 		SystemPluginRPCs(),
-		RibPluginRPCs(),
 		PluginLifecycleRPCs(),
 	}
 	n := 0

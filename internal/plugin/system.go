@@ -247,12 +247,12 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 		}, fmt.Errorf("missing command name")
 	}
 
-	return lookupCommandHelp(ctx, args[0], "command")
+	return LookupCommandHelp(ctx, args[0], "command")
 }
 
-// lookupCommandHelp looks up a command by name in builtins then plugins.
+// LookupCommandHelp looks up a command by name in builtins then plugins.
 // The kind parameter is used in error messages (e.g., "command", "rib command").
-func lookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error) {
+func LookupCommandHelp(ctx *CommandContext, name, kind string) (*Response, error) {
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
 			return &Response{

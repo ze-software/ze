@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/commands.md — API command handlers
+// Related: rib_meta.go — RIB meta-command handlers (parallel pattern)
 
 package handler
 

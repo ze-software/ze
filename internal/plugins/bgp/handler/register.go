@@ -1,9 +1,12 @@
 // Package handler contains BGP-specific command handlers for the plugin server.
 // These handlers implement BGP peer operations, cache management, commit workflow,
-// raw message sending, and route refresh commands.
+// raw message sending, route refresh commands, and RIB meta-commands.
 //
 // Handlers are registered via BgpHandlerRPCs() which returns RPC registrations
 // injected into the plugin server via ServerConfig.RPCProviders.
+//
+// Detail: bgp.go — BGP introspection and peer operation handlers
+// Detail: rib_meta.go — RIB meta-command handlers
 package handler
 
 import (
@@ -27,6 +30,7 @@ func BgpHandlerRPCs() []plugin.RPCRegistration {
 		RawRPCs(),
 		RefreshRPCs(),
 		UpdateRPCs(),
+		RibMetaRPCs(),
 	}
 	n := 0
 	for _, s := range sources {

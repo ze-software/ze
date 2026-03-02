@@ -17,9 +17,9 @@ import (
 func TestRPCRegistrationTable(t *testing.T) {
 	rpcs := AllBuiltinRPCs()
 
-	// Verify count matches expected (BGP handler RPCs moved to handler/ package,
+	// Verify count matches expected (BGP handler RPCs + RIB meta RPCs moved to handler/ package,
 	// injected via RPCProviders — not counted here)
-	assert.Len(t, rpcs, 26, "expected 26 builtin RPCs (update+watchdog moved to handler/)")
+	assert.Len(t, rpcs, 21, "expected 21 builtin RPCs (update+watchdog+rib moved to handler/)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -58,13 +58,12 @@ func TestRPCRegistrationTable(t *testing.T) {
 func TestRPCRegistrationPerModule(t *testing.T) {
 	bgp := BgpPluginRPCs()
 	system := SystemPluginRPCs()
-	rib := RibPluginRPCs()
 	lifecycle := PluginLifecycleRPCs()
 
 	// Verify per-module counts
+	// RIB meta RPCs moved to handler/ package, injected via RPCProviders
 	assert.Len(t, bgp, 2, "BGP plugin RPCs (update+watchdog moved to handler/)")
 	assert.Len(t, system, 11, "System RPCs")
-	assert.Len(t, rib, 5, "RIB RPCs (data handlers moved to plugin)")
 	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
 
 	// Verify BGP RPCs all have ze-bgp: prefix
@@ -79,13 +78,6 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 		module, _, err := ipc.ParseMethod(reg.WireMethod)
 		require.NoError(t, err)
 		assert.Equal(t, "ze-system", module, "system RPC %s has wrong module", reg.WireMethod)
-	}
-
-	// Verify RIB RPCs all have ze-rib: prefix
-	for _, reg := range rib {
-		module, _, err := ipc.ParseMethod(reg.WireMethod)
-		require.NoError(t, err)
-		assert.Equal(t, "ze-rib", module, "RIB RPC %s has wrong module", reg.WireMethod)
 	}
 
 	// Verify plugin RPCs all have ze-plugin: prefix
@@ -108,8 +100,8 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		methodMap[rpcs[i].WireMethod] = &rpcs[i]
 	}
 
-	// BGP handler methods (peer-list, peer-show, peer-teardown, peer-update, watchdog)
-	// moved to handler/ package and injected via RPCProviders — not in AllBuiltinRPCs.
+	// BGP handler methods + RIB meta RPCs moved to handler/ package,
+	// injected via RPCProviders — not in AllBuiltinRPCs.
 	expectedMethods := []string{
 		"ze-system:daemon-shutdown",
 		"ze-system:daemon-status",
@@ -118,8 +110,6 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		"ze-bgp:unsubscribe",
 		"ze-system:help",
 		"ze-system:command-list",
-		"ze-rib:help",
-		"ze-rib:event-list",
 		"ze-plugin:session-ready",
 		"ze-plugin:session-bye",
 	}
@@ -147,6 +137,6 @@ func TestRPCRegistrationLoadDispatcher(t *testing.T) {
 	// Verify specific methods are registered (peer-list moved to handler/ RPCProviders)
 	assert.True(t, dispatcher.HasMethod("ze-bgp:subscribe"))
 	assert.True(t, dispatcher.HasMethod("ze-system:help"))
-	assert.True(t, dispatcher.HasMethod("ze-rib:help"))
+	// ze-rib:help moved to handler/ RPCProviders
 	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))
 }
