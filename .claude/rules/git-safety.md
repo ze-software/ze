@@ -17,14 +17,21 @@ Post-commit: hash, file count, clean state confirmation.
 
 **`make test-all` (timeout 300s) — not `make ze-verify`, not `go test`, not any subset.**
 
+**BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
+
 ```
-[ ] 1. Run `make test-all` — paste FULL output. ANY failure: STOP.
-[ ] 2. Run `git status` + `git diff --stat` — show user what's committed
-[ ] 3. Executive Summary Report (rules/planning.md) — present to user
-[ ] 4. ASK user: "Ready to commit?" — WAIT for explicit yes
+[ ] 1. Run `make test-all` — capture to tmp/test-all.log. ANY failure: STOP.
+[ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
+[ ] 3. Present what will be committed — concise table, not raw git output:
+      | File | Change |
+      staged files with one-line description of what changed and why
+      Mention any unstaged/untracked files excluded from commit.
+[ ] 4. Executive Summary Report (rules/planning.md) — present to user
+[ ] 5. ASK user: "Ready to commit?" — WAIT for explicit yes
 ```
 
-Never commit with lint issues. Never commit without pasting output.
+**Forbidden:** `git diff --stat`, `git status` dumped raw into output. Summarise for the user.
+Never commit with lint issues. Never commit without test evidence.
 `make ze-verify` is for development iterations only — it skips fuzz and exabgp tests.
 
 ## Forbidden Without Permission

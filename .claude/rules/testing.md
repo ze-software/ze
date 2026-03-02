@@ -68,8 +68,12 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 
 **BLOCKING:** `make test-all` is the ONLY acceptable pre-commit verification. Not `make ze-verify`. Not `go test`. Not any subset.
 
+**BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
+
 ```
-[ ] make test-all passes (lint + all ze tests) — timeout 300s
+[ ] make test-all — capture to tmp/test-all.log (timeout 300s)
+[ ] Report test result: pass/fail. If failures: list every one. No omissions.
+[ ] Keep output concise — failures and summary only, not the full log.
 [ ] User approval
 ```
 
