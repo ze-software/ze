@@ -116,6 +116,29 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 11. Commit (when user approves) — ALL files in ONE commit
 ```
 
+## Deferred Work (BLOCKING)
+
+**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec — not a vague future phase.
+
+| Deferral | Status |
+|----------|--------|
+| "Deferred to spec-X" and spec-X exists with explicit task item for this work | Allowed |
+| "Deferred to Phase N" but no spec for Phase N exists | **Blocked — spec is not done** |
+| "Deferred to next spec" with no filename | **Blocked — spec is not done** |
+| "Will be handled later" | **Blocked — spec is not done** |
+
+Before marking a spec done, for every deferral:
+
+```
+[ ] 1. Receiving spec exists (filename, not "Phase N")
+[ ] 2. Receiving spec has explicit task item listing the deferred work
+[ ] 3. Deferred item is recorded in current spec's Deviations section with receiving spec filename
+```
+
+If the receiving spec does not exist: either do the work now, or create the receiving spec with the deferred items before marking the current spec done.
+
+**The test:** grep the receiving spec for the deferred item. If it's not there, the deferral is a deletion disguised as a postponement.
+
 ## Executive Summary Report
 
 **BLOCKING:** Present to user before every commit request. Format below.
