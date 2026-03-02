@@ -61,8 +61,8 @@ func TestParseConfigBasic(t *testing.T) {
 		t.Errorf("Key = %q, want 77.77.77.77/32#0", entry.Key)
 	}
 
-	// Verify announce command contains expected attributes
-	wantAnnounce := "update text origin igp nhop 1.2.3.4 pref 100 nlri ipv4/unicast add 77.77.77.77/32"
+	// Verify announce command contains expected attributes (long-form keywords via shared.FormatAnnounceCommand)
+	wantAnnounce := "update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 77.77.77.77/32"
 	if entry.AnnounceCmd != wantAnnounce {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", entry.AnnounceCmd, wantAnnounce)
 	}
@@ -386,7 +386,7 @@ func TestParseConfigAllAttributes(t *testing.T) {
 	pool := peerPools["10.0.0.1"].GetPool("dns")
 	route := pool.Routes()[0]
 
-	want := "update text origin igp nhop 10.0.0.1 pref 200 med 50 path 65001,65002 s-com 65000:100,65000:200 l-com 65000:1:2 e-com target:65000:100 nlri ipv4/unicast add 10.0.0.0/24"
+	want := "update text origin igp as-path [65001 65002] med 50 local-preference 200 community [65000:100 65000:200] large-community [65000:1:2] extended-community [target:65000:100] nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24"
 	if route.AnnounceCmd != want {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, want)
 	}

@@ -1,8 +1,7 @@
 // Design: docs/architecture/rib-transition.md — watchdog plugin extraction
+// Overview: watchdog.go — plugin main and SDK lifecycle
 // Related: pool.go — route pool management
-// Related: command.go — text command builder
-// Related: config.go — config tree parser
-// Related: watchdog.go — plugin main and SDK lifecycle
+// Related: config.go — config parsing and route building
 
 package bgp_watchdog
 

@@ -98,3 +98,77 @@ func TestFormatRouteCommand_ExtendedCommunities(t *testing.T) {
 	assert.Contains(t, cmd, "large-community [65001:0:100]")
 	assert.Contains(t, cmd, "extended-community [target:65001:100]")
 }
+
+// TestFormatAnnounceCommand_VPN verifies VPN route with RD and labels.
+//
+// VALIDATES: FormatAnnounceCommand includes rd and label modifiers in NLRI section.
+// PREVENTS: VPN watchdog routes missing route distinguisher or labels.
+func TestFormatAnnounceCommand_VPN(t *testing.T) {
+	route := &Route{
+		Family:  "ipv4/vpn",
+		Prefix:  "10.0.0.0/24",
+		NextHop: "10.0.0.1",
+		Origin:  "igp",
+		RD:      "65000:100",
+		Labels:  []uint32{1000},
+	}
+
+	cmd := FormatAnnounceCommand(route)
+	assert.Equal(t, "update text origin igp nhop 10.0.0.1 nlri ipv4/vpn rd 65000:100 label 1000 add 10.0.0.0/24", cmd)
+}
+
+// TestFormatAnnounceCommand_NhopSelf verifies nhop self keyword.
+//
+// VALIDATES: FormatAnnounceCommand passes "self" as nhop value.
+// PREVENTS: nhop self resolved prematurely instead of by engine per-peer.
+func TestFormatAnnounceCommand_NhopSelf(t *testing.T) {
+	route := &Route{
+		Family:  "ipv4/unicast",
+		Prefix:  "10.0.0.0/24",
+		NextHop: "self",
+		Origin:  "igp",
+	}
+
+	cmd := FormatAnnounceCommand(route)
+	assert.Equal(t, "update text origin igp nhop self nlri ipv4/unicast add 10.0.0.0/24", cmd)
+}
+
+// TestFormatWithdrawCommand verifies withdrawal command generation.
+//
+// VALIDATES: FormatWithdrawCommand produces "update text nlri <family> del <prefix>".
+// PREVENTS: Withdrawal commands missing family or prefix.
+func TestFormatWithdrawCommand(t *testing.T) {
+	tests := []struct {
+		name  string
+		route *Route
+		want  string
+	}{
+		{
+			name:  "basic ipv4",
+			route: &Route{Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+			want:  "update text nlri ipv4/unicast del 10.0.0.0/24",
+		},
+		{
+			name:  "ipv6",
+			route: &Route{Family: "ipv6/unicast", Prefix: "2001:db8:1::/48"},
+			want:  "update text nlri ipv6/unicast del 2001:db8:1::/48",
+		},
+		{
+			name:  "with path-id",
+			route: &Route{Family: "ipv4/unicast", Prefix: "10.0.0.0/24", PathID: 42},
+			want:  "update text nlri ipv4/unicast path-information 42 del 10.0.0.0/24",
+		},
+		{
+			name:  "vpn with rd and label",
+			route: &Route{Family: "ipv4/vpn", Prefix: "10.0.0.0/24", RD: "65000:100", Labels: []uint32{1000}},
+			want:  "update text nlri ipv4/vpn rd 65000:100 label 1000 del 10.0.0.0/24",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := FormatWithdrawCommand(tt.route)
+			assert.Equal(t, tt.want, cmd)
+		})
+	}
+}

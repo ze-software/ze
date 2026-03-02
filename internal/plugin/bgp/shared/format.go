@@ -11,10 +11,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 )
 
-// FormatRouteCommand builds the update text command with full attributes.
-// Format: update text [attrs...] nhop <nh> nlri <family> [path-information <id>] add <prefix>.
-// The peer selector is passed separately to updateRoute.
+// FormatRouteCommand builds the update text announce command with full attributes.
+//
+// Deprecated: use FormatAnnounceCommand instead (identical behavior).
 func FormatRouteCommand(route *Route) string {
+	return FormatAnnounceCommand(route)
+}
+
+// FormatAnnounceCommand builds an "update text" announce command with full attributes.
+// Format: update text [attrs...] nhop <nh> nlri <family> [modifiers] add <prefix>.
+// The peer selector is passed separately to updateRoute.
+func FormatAnnounceCommand(route *Route) string {
 	var sb strings.Builder
 
 	// Base command (peer selector is handled by updateRoute).
@@ -67,14 +74,39 @@ func FormatRouteCommand(route *Route) string {
 	sb.WriteString(" nhop ")
 	sb.WriteString(route.NextHop)
 
-	// NLRI with family and optional path-id (RFC 7911).
+	// NLRI with family and optional modifiers (RFC 7911, RFC 4364).
 	sb.WriteString(" nlri ")
 	sb.WriteString(route.Family)
-	if route.PathID != 0 {
-		fmt.Fprintf(&sb, " path-information %d", route.PathID)
-	}
+	writeNLRIModifiers(&sb, route)
 	sb.WriteString(" add ")
 	sb.WriteString(route.Prefix)
 
 	return sb.String()
+}
+
+// FormatWithdrawCommand builds an "update text" withdrawal command.
+// Withdrawals only need family, prefix, and NLRI modifiers (no attributes).
+func FormatWithdrawCommand(route *Route) string {
+	var sb strings.Builder
+	sb.WriteString("update text nlri ")
+	sb.WriteString(route.Family)
+	writeNLRIModifiers(&sb, route)
+	sb.WriteString(" del ")
+	sb.WriteString(route.Prefix)
+
+	return sb.String()
+}
+
+// writeNLRIModifiers writes per-NLRI-section modifiers: rd, label stack, path-information.
+func writeNLRIModifiers(sb *strings.Builder, route *Route) {
+	if route.RD != "" {
+		sb.WriteString(" rd ")
+		sb.WriteString(route.RD)
+	}
+	for _, label := range route.Labels {
+		fmt.Fprintf(sb, " label %d", label)
+	}
+	if route.PathID != 0 {
+		fmt.Fprintf(sb, " path-information %d", route.PathID)
+	}
 }

@@ -33,6 +33,10 @@ type Route struct {
 	Communities         []string `json:"communities,omitempty"`
 	LargeCommunities    []string `json:"large-communities,omitempty"`
 	ExtendedCommunities []string `json:"extended-communities,omitempty"`
+
+	// VPN fields — used by watchdog and future VPN route replay.
+	RD     string   `json:"rd,omitempty"`     // Route Distinguisher ("ASN:NN" or "IP:NN")
+	Labels []uint32 `json:"labels,omitempty"` // MPLS label stack
 }
 
 // RouteKey creates a unique key for a route.

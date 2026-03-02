@@ -20,7 +20,7 @@ type (
 // Function aliases for package-internal callers.
 var (
 	parseEvent         = shared.ParseEvent
-	formatRouteCommand = shared.FormatRouteCommand
+	formatRouteCommand = shared.FormatAnnounceCommand
 	parseNLRIValue     = shared.ParseNLRIValue
 	routeKey           = shared.RouteKey
 )

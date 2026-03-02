@@ -1,6 +1,7 @@
 // Design: docs/architecture/rib-transition.md — watchdog plugin extraction
+// Overview: watchdog.go — plugin main and SDK lifecycle
+// Related: server.go — command dispatch and state management
 // Related: pool.go — route pool management
-// Related: command.go — text command builder
 
 package bgp_watchdog
 
@@ -10,6 +11,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
 )
 
 // parseConfig extracts per-peer watchdog route pools from a BGP config JSON tree.
@@ -71,9 +74,9 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 
 			_, wdWithdraw := wdMap["withdraw"]
 
-			// Parse attributes
+			// Parse attributes into a base Route (family/prefix/RD/labels added per NLRI)
 			attrMap, _ := getMap(updateTree, "attribute")
-			b := buildCmdFromAttrs(attrMap)
+			base := buildRouteFromAttrs(attrMap)
 
 			// Parse NLRI entries
 			nlriMap, ok := getMap(updateTree, "nlri")
@@ -81,7 +84,7 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 				continue
 			}
 
-			entries := parseNLRIEntries(nlriMap, b, wdWithdraw)
+			entries := parseNLRIEntries(nlriMap, base, wdWithdraw)
 			if len(entries) == 0 {
 				continue
 			}
@@ -105,47 +108,49 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 	return result, nil
 }
 
-// buildCmdFromAttrs creates a cmdBuilder from an attribute map.
-func buildCmdFromAttrs(attrMap map[string]any) cmdBuilder {
-	var b cmdBuilder
+// buildRouteFromAttrs creates a shared.Route with path attributes from an attribute map.
+func buildRouteFromAttrs(attrMap map[string]any) shared.Route {
+	var route shared.Route
 
-	b.origin = getStringAny(attrMap, "origin")
-	b.nextHop = getStringAny(attrMap, "next-hop")
+	route.Origin = getStringAny(attrMap, "origin")
+	route.NextHop = getStringAny(attrMap, "next-hop")
 
 	if v := getStringAny(attrMap, "local-preference"); v != "" {
 		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-			b.localPref = uint32(n)
+			n32 := uint32(n)
+			route.LocalPreference = &n32
 		}
 	}
 
 	if v := getStringAny(attrMap, "med"); v != "" {
 		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-			b.med = uint32(n)
+			n32 := uint32(n)
+			route.MED = &n32
 		}
 	}
 
 	if v := getStringAny(attrMap, "as-path"); v != "" {
-		b.asPath = parseASPath(v)
+		route.ASPath = parseASPath(v)
 	}
 
 	if v := getStringAny(attrMap, "community"); v != "" {
-		b.communities = splitCommaOrSpace(v)
+		route.Communities = splitCommaOrSpace(v)
 	}
 
 	if v := getStringAny(attrMap, "large-community"); v != "" {
-		b.largeCommunities = splitCommaOrSpace(v)
+		route.LargeCommunities = splitCommaOrSpace(v)
 	}
 
 	if v := getStringAny(attrMap, "extended-community"); v != "" {
-		b.extCommunities = splitCommaOrSpace(v)
+		route.ExtendedCommunities = splitCommaOrSpace(v)
 	}
 
-	return b
+	return route
 }
 
 // parseNLRIEntries parses NLRI map entries into PoolEntry objects.
 // Each NLRI entry has family as key and a map with "content" field.
-func parseNLRIEntries(nlriMap map[string]any, base cmdBuilder, initiallyWithdrawn bool) []*PoolEntry {
+func parseNLRIEntries(nlriMap map[string]any, base shared.Route, initiallyWithdrawn bool) []*PoolEntry {
 	var entries []*PoolEntry
 
 	for familyKey, nlriData := range nlriMap {
@@ -196,13 +201,17 @@ func parseNLRIEntries(nlriMap map[string]any, base cmdBuilder, initiallyWithdraw
 
 		// Remaining items are prefixes
 		for _, prefix := range remaining {
-			b := base
-			b.family = family
-			b.prefix = normalizePrefix(prefix)
-			b.rd = rd
-			b.labels = labels
+			route := base
+			route.Family = family
+			route.Prefix = normalizePrefix(prefix)
+			route.RD = rd
+			route.Labels = labels
 
-			entry := NewPoolEntry(b.routeKey(), b.announce(), b.withdraw())
+			entry := NewPoolEntry(
+				watchdogRouteKey(route.Prefix, route.RD, route.PathID),
+				shared.FormatAnnounceCommand(&route),
+				shared.FormatWithdrawCommand(&route),
+			)
 			entry.initiallyAnnounced = !initiallyWithdrawn
 
 			entries = append(entries, entry)
@@ -210,6 +219,16 @@ func parseNLRIEntries(nlriMap map[string]any, base cmdBuilder, initiallyWithdraw
 	}
 
 	return entries
+}
+
+// watchdogRouteKey returns a unique key for a watchdog route.
+// Format: "prefix#pathID" or "rd:prefix#pathID" for VPN routes.
+func watchdogRouteKey(prefix, rd string, pathID uint32) string {
+	key := prefix
+	if rd != "" {
+		key = rd + ":" + key
+	}
+	return fmt.Sprintf("%s#%d", key, pathID)
 }
 
 // parseASPath parses space or comma-separated AS numbers.
