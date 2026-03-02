@@ -8,13 +8,14 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // requireCommitManager returns the commit manager or an error response.
 // Type-asserts from the opaque any stored in plugin.Server.
-func requireCommitManager(ctx *plugin.CommandContext) (*commit.CommitManager, *plugin.Response, error) {
+func requireCommitManager(ctx *pluginserver.CommandContext) (*commit.CommitManager, *plugin.Response, error) {
 	cm := ctx.CommitManager()
 	if cm == nil {
 		return nil, &plugin.Response{
@@ -33,8 +34,8 @@ func requireCommitManager(ctx *plugin.CommandContext) (*commit.CommitManager, *p
 }
 
 // CommitRPCs returns RPC registrations for commit handlers.
-func CommitRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func CommitRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:commit", CLICommand: "bgp commit", Handler: handleCommit, Help: "Named commit operations"},
 	}
 }
@@ -55,7 +56,7 @@ const (
 //	commit <name> eor               - flush with EOR
 //	commit <name> rollback          - discard queued routes
 //	commit <name> show              - show queued count
-func handleCommit(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleCommit(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return &plugin.Response{
 			Status: "error",
@@ -64,7 +65,7 @@ func handleCommit(ctx *plugin.CommandContext, args []string) (*plugin.Response, 
 	}
 
 	// Guard reactor access
-	_, errResp, err := plugin.RequireReactor(ctx)
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -113,7 +114,7 @@ func handleCommit(ctx *plugin.CommandContext, args []string) (*plugin.Response, 
 }
 
 // handleCommitList returns all active commit names.
-func handleCommitList(ctx *plugin.CommandContext) (*plugin.Response, error) {
+func handleCommitList(ctx *pluginserver.CommandContext) (*plugin.Response, error) {
 	cm, errResp, err := requireCommitManager(ctx)
 	if err != nil {
 		return errResp, err
@@ -129,7 +130,7 @@ func handleCommitList(ctx *plugin.CommandContext) (*plugin.Response, error) {
 }
 
 // handleNamedCommitStart begins a new named commit.
-func handleNamedCommitStart(ctx *plugin.CommandContext, name string) (*plugin.Response, error) {
+func handleNamedCommitStart(ctx *pluginserver.CommandContext, name string) (*plugin.Response, error) {
 	cm, errResp, err := requireCommitManager(ctx)
 	if err != nil {
 		return errResp, err
@@ -155,7 +156,7 @@ func handleNamedCommitStart(ctx *plugin.CommandContext, name string) (*plugin.Re
 
 // handleNamedCommitEnd flushes the named commit.
 // If sendEOR is true, sends EOR for affected families after routes.
-func handleNamedCommitEnd(ctx *plugin.CommandContext, name string, sendEOR bool) (*plugin.Response, error) {
+func handleNamedCommitEnd(ctx *pluginserver.CommandContext, name string, sendEOR bool) (*plugin.Response, error) {
 	cm, errResp, cmErr := requireCommitManager(ctx)
 	if cmErr != nil {
 		return errResp, cmErr
@@ -223,7 +224,7 @@ func handleNamedCommitEnd(ctx *plugin.CommandContext, name string, sendEOR bool)
 }
 
 // handleNamedCommitRollback discards all queued routes in the commit.
-func handleNamedCommitRollback(ctx *plugin.CommandContext, name string) (*plugin.Response, error) {
+func handleNamedCommitRollback(ctx *pluginserver.CommandContext, name string) (*plugin.Response, error) {
 	cm, errResp, cmErr := requireCommitManager(ctx)
 	if cmErr != nil {
 		return errResp, cmErr
@@ -247,7 +248,7 @@ func handleNamedCommitRollback(ctx *plugin.CommandContext, name string) (*plugin
 }
 
 // handleNamedCommitShow returns info about a pending commit.
-func handleNamedCommitShow(ctx *plugin.CommandContext, name string) (*plugin.Response, error) {
+func handleNamedCommitShow(ctx *pluginserver.CommandContext, name string) (*plugin.Response, error) {
 	cm, errResp, cmErr := requireCommitManager(ctx)
 	if cmErr != nil {
 		return errResp, cmErr
@@ -280,7 +281,7 @@ func handleNamedCommitShow(ctx *plugin.CommandContext, name string) (*plugin.Res
 
 // handleNamedCommitWithdraw queues a route withdrawal to a named commit.
 // Syntax: commit <name> withdraw route <prefix>.
-func handleNamedCommitWithdraw(ctx *plugin.CommandContext, name string, args []string) (*plugin.Response, error) {
+func handleNamedCommitWithdraw(ctx *pluginserver.CommandContext, name string, args []string) (*plugin.Response, error) {
 	cm, errResp, cmErr := requireCommitManager(ctx)
 	if cmErr != nil {
 		return errResp, cmErr

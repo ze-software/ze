@@ -9,13 +9,14 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // RibMetaRPCs returns RPCs for the ze-rib module meta-commands.
 // Data commands (show/clear in/out) are handled by the RIB plugin, not engine builtins.
 // Only meta-commands that need Dispatcher access remain here.
-func RibMetaRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func RibMetaRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-rib:help", CLICommand: "rib help", Handler: handleRibHelp, Help: "Show RIB subcommands"},
 		{WireMethod: "ze-rib:command-list", CLICommand: "rib command list", Handler: handleRibCommandList, Help: "List RIB commands"},
 		{WireMethod: "ze-rib:command-help", CLICommand: "rib command help", Handler: handleRibCommandHelp, Help: "Show RIB command details"},
@@ -25,7 +26,7 @@ func RibMetaRPCs() []plugin.RPCRegistration {
 }
 
 // handleRibHelp returns list of RIB subcommands.
-func handleRibHelp(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleRibHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	subcommands := []string{
 		"command",
 		"event",
@@ -57,16 +58,16 @@ func handleRibHelp(ctx *plugin.CommandContext, _ []string) (*plugin.Response, er
 }
 
 // handleRibCommandList returns all RIB commands (builtin + plugin).
-func handleRibCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleRibCommandList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
 
-	var commands []plugin.Completion
+	var commands []pluginserver.Completion
 
 	// Add builtin rib commands
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "rib ") {
-				c := plugin.Completion{
+				c := pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				}
@@ -80,7 +81,7 @@ func handleRibCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Re
 		// Add plugin-provided rib commands
 		for _, cmd := range ctx.Dispatcher().Registry().All() {
 			if strings.HasPrefix(cmd.Name, "rib ") {
-				c := plugin.Completion{
+				c := pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Description,
 				}
@@ -101,7 +102,7 @@ func handleRibCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Re
 }
 
 // handleRibCommandHelp returns detailed help for a RIB command.
-func handleRibCommandHelp(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleRibCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -115,11 +116,11 @@ func handleRibCommandHelp(ctx *plugin.CommandContext, args []string) (*plugin.Re
 		name = "rib " + name
 	}
 
-	return plugin.LookupCommandHelp(ctx, name, "rib command")
+	return pluginserver.LookupCommandHelp(ctx, name, "rib command")
 }
 
 // handleRibCommandComplete returns completions for RIB commands.
-func handleRibCommandComplete(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleRibCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -133,7 +134,7 @@ func handleRibCommandComplete(ctx *plugin.CommandContext, args []string) (*plugi
 		partial = "rib " + partial
 	}
 
-	var completions []plugin.Completion
+	var completions []pluginserver.Completion
 
 	if ctx.Dispatcher() != nil {
 		// Complete builtin rib commands
@@ -141,7 +142,7 @@ func handleRibCommandComplete(ctx *plugin.CommandContext, args []string) (*plugi
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "rib ") &&
 				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
-				completions = append(completions, plugin.Completion{
+				completions = append(completions, pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				})
@@ -165,7 +166,7 @@ func handleRibCommandComplete(ctx *plugin.CommandContext, args []string) (*plugi
 }
 
 // handleRibEventList returns available RIB event types.
-func handleRibEventList(_ *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleRibEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	// RIB event types per ipc_protocol.md
 	events := []string{
 		"cache",  // msg-id cache operations (new, expire, evict)

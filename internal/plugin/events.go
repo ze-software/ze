@@ -32,8 +32,8 @@ const (
 	DirectionBoth     = "both"
 )
 
-// validBgpEvents is the set of valid BGP event types.
-var validBgpEvents = map[string]bool{
+// ValidBgpEvents is the set of valid BGP event types.
+var ValidBgpEvents = map[string]bool{
 	EventUpdate:       true,
 	EventOpen:         true,
 	EventNotification: true,
@@ -43,8 +43,8 @@ var validBgpEvents = map[string]bool{
 	EventNegotiated:   true,
 }
 
-// validRibEvents is the set of valid RIB event types.
-var validRibEvents = map[string]bool{
+// ValidRibEvents is the set of valid RIB event types.
+var ValidRibEvents = map[string]bool{
 	EventCache: true,
 	EventRoute: true,
 }

@@ -30,6 +30,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
@@ -636,16 +637,16 @@ func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 
 // updateRPCs returns RPC registrations for handlers defined in this file.
 // Part of the ze-bgp module — aggregated by BgpHandlerRPCs().
-func UpdateRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func UpdateRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:peer-update", CLICommand: "bgp peer update", Handler: handleUpdate, Help: "Batch UPDATE with text/hex/b64 encoding"},
 	}
 }
 
 // handleUpdate dispatches update subcommands by encoding.
 // Syntax: peer <addr> update <encoding> ...
-func handleUpdate(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireReactor(ctx)
+func handleUpdate(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -671,7 +672,7 @@ func handleUpdate(ctx *plugin.CommandContext, args []string) (*plugin.Response, 
 // Parses the update text format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4724 Section 2: End-of-RIB marker.
-func handleUpdateText(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleUpdateText(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	result, err := ParseUpdateText(args)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
@@ -731,7 +732,7 @@ func handleUpdateText(ctx *plugin.CommandContext, args []string) (*plugin.Respon
 
 // DispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
 // Returns response with counts and any warnings, or error response.
-func DispatchNLRIGroups(ctx *plugin.CommandContext, groups []bgptypes.NLRIGroup) (*plugin.Response, error) {
+func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRIGroup) (*plugin.Response, error) {
 	bgpReactor, errResp, bgpErr := requireBGPReactor(ctx)
 	if bgpErr != nil {
 		return errResp, bgpErr

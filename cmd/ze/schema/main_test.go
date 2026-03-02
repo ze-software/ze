@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 )
 
@@ -284,7 +284,7 @@ func TestSchemaImportsPopulated(t *testing.T) {
 // VALIDATES: Registering the same module twice returns nil (no error) and module appears once.
 // PREVENTS: Duplicate registration causing errors or duplicate entries.
 func TestRegisterYANGDeduplication(t *testing.T) {
-	registry := plugin.NewSchemaRegistry()
+	registry := pluginserver.NewSchemaRegistry()
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp first time

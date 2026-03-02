@@ -16,7 +16,7 @@ import (
 	"context"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // PluginDef defines a plugin to be forked by the hub.
@@ -38,9 +38,9 @@ type HubConfig struct {
 // It composes existing plugin infrastructure rather than duplicating it.
 type Orchestrator struct {
 	config     *HubConfig
-	subsystems *plugin.SubsystemManager
-	registry   *plugin.SchemaRegistry
-	pluginHub  *plugin.Hub
+	subsystems *pluginserver.SubsystemManager
+	registry   *pluginserver.SchemaRegistry
+	pluginHub  *pluginserver.Hub
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -53,12 +53,12 @@ func NewOrchestrator(cfg *HubConfig) *Orchestrator {
 		cfg = &HubConfig{}
 	}
 
-	registry := plugin.NewSchemaRegistry()
-	subsystems := plugin.NewSubsystemManager()
+	registry := pluginserver.NewSchemaRegistry()
+	subsystems := pluginserver.NewSubsystemManager()
 
 	// Register subsystems from config
 	for _, p := range cfg.Plugins {
-		subsystems.Register(plugin.SubsystemConfig{
+		subsystems.Register(pluginserver.SubsystemConfig{
 			Name:       p.Name,
 			Binary:     p.Run,
 			ConfigPath: cfg.ConfigPath,
@@ -69,7 +69,7 @@ func NewOrchestrator(cfg *HubConfig) *Orchestrator {
 		config:     cfg,
 		subsystems: subsystems,
 		registry:   registry,
-		pluginHub:  plugin.NewHub(registry, subsystems),
+		pluginHub:  pluginserver.NewHub(registry, subsystems),
 	}
 }
 
@@ -107,11 +107,11 @@ func (o *Orchestrator) Stop() {
 }
 
 // Registry returns the schema registry for handler lookups.
-func (o *Orchestrator) Registry() *plugin.SchemaRegistry {
+func (o *Orchestrator) Registry() *pluginserver.SchemaRegistry {
 	return o.registry
 }
 
 // Subsystems returns the subsystem manager.
-func (o *Orchestrator) Subsystems() *plugin.SubsystemManager {
+func (o *Orchestrator) Subsystems() *pluginserver.SubsystemManager {
 	return o.subsystems
 }

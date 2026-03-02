@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // ConfigState represents which config state to query.
@@ -160,9 +160,9 @@ func copySlice(src []any) []any {
 }
 
 // SchemasByPriority returns all registered schemas sorted by priority (lower first).
-func (o *Orchestrator) SchemasByPriority() []*plugin.Schema {
+func (o *Orchestrator) SchemasByPriority() []*pluginserver.Schema {
 	modules := o.registry.ListModules()
-	schemas := make([]*plugin.Schema, 0, len(modules))
+	schemas := make([]*pluginserver.Schema, 0, len(modules))
 
 	for _, name := range modules {
 		schema, err := o.registry.GetByModule(name)

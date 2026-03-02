@@ -8,12 +8,13 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
 // CacheRPCs returns RPC registrations for cache handlers.
-func CacheRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func CacheRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:cache", CLICommand: "bgp cache", Handler: handleBgpCache, Help: "BGP message cache operations"},
 	}
 }
@@ -27,7 +28,7 @@ func CacheRPCs() []plugin.RPCRegistration {
 //   - bgp cache <id> forward <selector>
 //   - bgp cache <id1>,<id2>,...,<idN> forward <selector>  (batch)
 //   - bgp cache <id1>,<id2>,...,<idN> release              (batch)
-func handleBgpCache(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCache(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return bgpCacheHelp()
 	}
@@ -102,7 +103,7 @@ func bgpCacheHelp() (*plugin.Response, error) {
 }
 
 // handleBgpCacheList returns all cached message IDs.
-func handleBgpCacheList(ctx *plugin.CommandContext) (*plugin.Response, error) {
+func handleBgpCacheList(ctx *pluginserver.CommandContext) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -119,7 +120,7 @@ func handleBgpCacheList(ctx *plugin.CommandContext) (*plugin.Response, error) {
 }
 
 // handleBgpCacheRetain prevents eviction of a cached message.
-func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+func handleBgpCacheRetain(ctx *pluginserver.CommandContext, id uint64) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -143,7 +144,7 @@ func handleBgpCacheRetain(ctx *plugin.CommandContext, id uint64) (*plugin.Respon
 // handleBgpCacheRelease acks without forwarding (cache consumer) or undoes retain (non-consumer).
 // Cache consumer: removes calling plugin from consumer set (FIFO validated).
 // Non-consumer (including non-cache-consumer plugins): decrements API-level retain count.
-func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+func handleBgpCacheRelease(ctx *pluginserver.CommandContext, id uint64) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -165,7 +166,7 @@ func handleBgpCacheRelease(ctx *plugin.CommandContext, id uint64) (*plugin.Respo
 }
 
 // handleBgpCacheExpire removes a cached message immediately.
-func handleBgpCacheExpire(ctx *plugin.CommandContext, id uint64) (*plugin.Response, error) {
+func handleBgpCacheExpire(ctx *pluginserver.CommandContext, id uint64) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -187,7 +188,7 @@ func handleBgpCacheExpire(ctx *plugin.CommandContext, id uint64) (*plugin.Respon
 }
 
 // handleBgpCacheForward forwards a cached UPDATE to peers and records plugin ack.
-func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string) (*plugin.Response, error) {
+func handleBgpCacheForward(ctx *pluginserver.CommandContext, id uint64, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
@@ -227,7 +228,7 @@ func handleBgpCacheForward(ctx *plugin.CommandContext, id uint64, args []string)
 // Parses each ID and dispatches to the per-ID handler for the given action.
 // All valid IDs are processed even if some are invalid — errors are collected
 // and returned as a combined error if any ID failed.
-func handleBgpCacheBatch(ctx *plugin.CommandContext, idList, action string, actionArgs []string) (*plugin.Response, error) {
+func handleBgpCacheBatch(ctx *pluginserver.CommandContext, idList, action string, actionArgs []string) (*plugin.Response, error) {
 	parts := strings.Split(idList, ",")
 	var errs []string
 	processed := 0
@@ -284,7 +285,7 @@ func handleBgpCacheBatch(ctx *plugin.CommandContext, idList, action string, acti
 // Returns empty string for non-plugin callers and for plugins that did not
 // declare cache-consumer: true during registration. Non-cache-consumer plugins
 // are treated the same as external callers for cache operations.
-func cacheConsumerNameFromCtx(ctx *plugin.CommandContext) string {
+func cacheConsumerNameFromCtx(ctx *pluginserver.CommandContext) string {
 	if ctx.Process != nil && ctx.Process.IsCacheConsumer() {
 		return ctx.Process.Name()
 	}

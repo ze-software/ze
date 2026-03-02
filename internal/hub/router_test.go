@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // TestHubCommandRouting verifies command routing by handler prefix.
@@ -18,7 +18,7 @@ func TestHubCommandRouting(t *testing.T) {
 	o := NewOrchestrator(cfg)
 
 	// Register schemas
-	err := o.Registry().Register(&plugin.Schema{
+	err := o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-bgp",
 		Handlers: []string{"bgp", "bgp.peer"},
 		Plugin:   "bgp",
@@ -26,7 +26,7 @@ func TestHubCommandRouting(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = o.Registry().Register(&plugin.Schema{
+	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-rib",
 		Handlers: []string{"rib"},
 		Plugin:   "rib",

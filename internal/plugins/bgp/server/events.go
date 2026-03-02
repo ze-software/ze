@@ -10,6 +10,8 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/process"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
@@ -30,7 +32,7 @@ var logger = slogutil.LazyLogger("bgp.server")
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 // Events are enqueued to each process's delivery channel; no per-event goroutines are created.
 // Format encoding is pre-computed once per distinct format mode.
-func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
+func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if s.Context().Err() != nil {
 		return 0 // Server shutting down, skip event delivery
 	}
@@ -65,16 +67,16 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 	}
 
 	// Enqueue to long-lived per-process delivery goroutines and collect results.
-	results := make(chan plugin.EventResult, len(procs))
+	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
 	for _, proc := range procs {
-		var delivery plugin.EventDelivery
+		var delivery process.EventDelivery
 		if isUpdate && proc.HasStructuredHandler() {
-			delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+			delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
 		} else {
 			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-			delivery = plugin.EventDelivery{Output: output, Result: results}
+			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
 			continue
@@ -101,7 +103,7 @@ func onMessageReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugi
 // Each message gets its own delivery and result collection, preserving per-message
 // cacheCount semantics for cache lifecycle tracking.
 // Returns a slice of cache-consumer counts, one per message.
-func onMessageBatchReceived(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
+func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	counts := make([]int, len(msgs))
 	if len(msgs) == 0 || s.Context().Err() != nil {
 		return counts
@@ -142,15 +144,15 @@ func onMessageBatchReceived(s *plugin.Server, encoder *format.JSONEncoder, peer 
 			}
 		}
 
-		results := make(chan plugin.EventResult, len(procs))
+		results := make(chan process.EventResult, len(procs))
 		sent := 0
 		for _, proc := range procs {
-			var delivery plugin.EventDelivery
+			var delivery process.EventDelivery
 			if isUpdate && proc.HasStructuredHandler() {
-				delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: msg}, Result: results}
+				delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: msg}, Result: results}
 			} else {
 				output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-				delivery = plugin.EventDelivery{Output: output, Result: results}
+				delivery = process.EventDelivery{Output: output, Result: results}
 			}
 			if !proc.Deliver(delivery) {
 				continue
@@ -238,12 +240,12 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerI
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
 // waits for all deliveries to complete. Used by non-cache-consumer event functions.
-func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output, eventName string) {
-	results := make(chan plugin.EventResult, len(procs))
+func deliverToProcs(s *pluginserver.Server, procs []*process.Process, output, eventName string) {
+	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
 	for _, proc := range procs {
-		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
 		sent++
@@ -260,7 +262,7 @@ func deliverToProcs(s *plugin.Server, procs []*plugin.Process, output, eventName
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
-func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
+func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -281,11 +283,11 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 	}
 
 	// Deliver per-process with matching encoding.
-	results := make(chan plugin.EventResult, len(procs))
+	results := make(chan process.EventResult, len(procs))
 	sent := 0
 	for _, proc := range procs {
 		output := formatOutputs[proc.Encoding()]
-		if !proc.Deliver(plugin.EventDelivery{Output: output, Result: results}) {
+		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
 		sent++
@@ -301,7 +303,7 @@ func onPeerStateChange(s *plugin.Server, peer plugin.PeerInfo, state string) {
 // onPeerNegotiated handles capability negotiation completion.
 // neg is format.DecodedNegotiated passed as any from the generic hook.
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
-func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, neg any) {
+func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, neg any) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -327,7 +329,7 @@ func onPeerNegotiated(s *plugin.Server, encoder *format.JSONEncoder, peer plugin
 //
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 // Format encoding is pre-computed once per distinct format mode.
-func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
+func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -366,16 +368,16 @@ func onMessageSent(s *plugin.Server, encoder *format.JSONEncoder, peer plugin.Pe
 	}
 
 	// Enqueue to long-lived per-process delivery goroutines and collect results.
-	results := make(chan plugin.EventResult, len(procs))
+	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
 	for _, proc := range procs {
-		var delivery plugin.EventDelivery
+		var delivery process.EventDelivery
 		if isUpdate && proc.HasStructuredHandler() {
-			delivery = plugin.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+			delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
 		} else {
 			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
-			delivery = plugin.EventDelivery{Output: output, Result: results}
+			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
 			continue

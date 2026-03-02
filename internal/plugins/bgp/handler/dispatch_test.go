@@ -9,17 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 )
 
 // newDispatchContext creates a CommandContext with BGP handler RPCs injected
 // via RPCProviders, simulating the production dispatch chain.
-func newDispatchContext(reactor plugin.ReactorLifecycle) *plugin.CommandContext {
-	server := plugin.NewServer(&plugin.ServerConfig{
-		RPCProviders:  []func() []plugin.RPCRegistration{BgpHandlerRPCs},
+func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
+	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+		RPCProviders:  []func() []pluginserver.RPCRegistration{BgpHandlerRPCs},
 		CommitManager: commit.NewCommitManager(),
 	}, reactor)
-	return &plugin.CommandContext{Server: server}
+	return &pluginserver.CommandContext{Server: server}
 }
 
 // TestDispatchBGPPeerList verifies "bgp peer list" dispatches through RPCProviders.

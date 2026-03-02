@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	plugipc "codeberg.org/thomas-mangin/ze/internal/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/process"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
@@ -20,13 +23,13 @@ import (
 
 // newTestProcWithConn creates a Process with a working ConnB and delivery goroutine for testing.
 // Returns the process and a plugin-side connection for the mock responder.
-func newTestProcWithConn(t *testing.T, name string) (*plugin.Process, *plugin.PluginConn) {
+func newTestProcWithConn(t *testing.T, name string) (*process.Process, *plugipc.PluginConn) {
 	t.Helper()
 
 	engineSide, pluginSide := net.Pipe()
 
-	proc := plugin.NewProcess(plugin.PluginConfig{Name: name})
-	engineConn := plugin.NewPluginConn(engineSide, engineSide)
+	proc := process.NewProcess(plugin.PluginConfig{Name: name})
+	engineConn := plugipc.NewPluginConn(engineSide, engineSide)
 	proc.SetConnB(engineConn)
 	proc.StartDelivery(t.Context())
 
@@ -37,13 +40,13 @@ func newTestProcWithConn(t *testing.T, name string) (*plugin.Process, *plugin.Pl
 		}
 	})
 
-	pluginConn := plugin.NewPluginConn(pluginSide, pluginSide)
+	pluginConn := plugipc.NewPluginConn(pluginSide, pluginSide)
 	return proc, pluginConn
 }
 
 // mockPluginResponder reads RPCs and responds OK after a delay.
 // Exits when context is canceled or connection closes.
-func mockPluginResponder(ctx context.Context, pluginConn *plugin.PluginConn, delay time.Duration) {
+func mockPluginResponder(ctx context.Context, pluginConn *plugipc.PluginConn, delay time.Duration) {
 	for {
 		req, err := pluginConn.ReadRequest(ctx)
 		if err != nil {
@@ -59,10 +62,10 @@ func mockPluginResponder(ctx context.Context, pluginConn *plugin.PluginConn, del
 }
 
 // newTestServer creates a minimal plugin.Server with context set for testing.
-func newTestServer(t *testing.T) *plugin.Server {
+func newTestServer(t *testing.T) *pluginserver.Server {
 	t.Helper()
 
-	srv := plugin.NewServer(&plugin.ServerConfig{}, nil)
+	srv := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
 	require.NoError(t, srv.StartWithContext(t.Context()))
 	t.Cleanup(func() { srv.Stop() })
 	return srv
@@ -94,7 +97,7 @@ func TestParallelPluginFanOut(t *testing.T) {
 		proc, pluginConn := newTestProcWithConn(t, fmt.Sprintf("slow-%d", i))
 		proc.SetCacheConsumer(true)
 
-		srv.Subscriptions().Add(proc, &plugin.Subscription{
+		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
 			Namespace: plugin.NamespaceBGP,
 			EventType: plugin.EventKeepalive,
 			Direction: plugin.DirectionBoth,
@@ -131,7 +134,7 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	// Plugin 1: cache consumer, responds normally
 	proc1, pluginConn1 := newTestProcWithConn(t, "good-1")
 	proc1.SetCacheConsumer(true)
-	srv.Subscriptions().Add(proc1, &plugin.Subscription{
+	srv.Subscriptions().Add(proc1, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,
@@ -141,7 +144,7 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	// Plugin 2: conn closed immediately — delivery fails
 	proc2, pluginConn2 := newTestProcWithConn(t, "broken")
 	proc2.SetCacheConsumer(true)
-	srv.Subscriptions().Add(proc2, &plugin.Subscription{
+	srv.Subscriptions().Add(proc2, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,
@@ -154,7 +157,7 @@ func TestPartialDeliveryFailure(t *testing.T) {
 	// Plugin 3: cache consumer, responds normally
 	proc3, pluginConn3 := newTestProcWithConn(t, "good-2")
 	proc3.SetCacheConsumer(true)
-	srv.Subscriptions().Add(proc3, &plugin.Subscription{
+	srv.Subscriptions().Add(proc3, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,
@@ -197,14 +200,14 @@ func TestPreFormatOptimization(t *testing.T) {
 		proc.SetFormat(fmtMode)
 		proc.SetCacheConsumer(true)
 
-		srv.Subscriptions().Add(proc, &plugin.Subscription{
+		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
 			Namespace: plugin.NamespaceBGP,
 			EventType: plugin.EventKeepalive,
 			Direction: plugin.DirectionBoth,
 		})
 
 		captureCh := captures[i]
-		go func(conn *plugin.PluginConn, ch chan received) {
+		go func(conn *plugipc.PluginConn, ch chan received) {
 			req, err := conn.ReadRequest(context.Background())
 			if err != nil {
 				return
@@ -269,7 +272,7 @@ func TestOnMessageBatchReceivedSingle(t *testing.T) {
 	proc, pluginConn := newTestProcWithConn(t, "single-batch")
 	proc.SetCacheConsumer(true)
 
-	srv.Subscriptions().Add(proc, &plugin.Subscription{
+	srv.Subscriptions().Add(proc, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,
@@ -299,7 +302,7 @@ func TestOnMessageBatchReceivedMultiple(t *testing.T) {
 	proc, pluginConn := newTestProcWithConn(t, "batch-multi")
 	proc.SetCacheConsumer(true)
 
-	srv.Subscriptions().Add(proc, &plugin.Subscription{
+	srv.Subscriptions().Add(proc, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,
@@ -355,7 +358,7 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 	for i := range 2 {
 		proc, pluginConn := newTestProcWithConn(t, fmt.Sprintf("cache-%d", i))
 		proc.SetCacheConsumer(true)
-		srv.Subscriptions().Add(proc, &plugin.Subscription{
+		srv.Subscriptions().Add(proc, &pluginserver.Subscription{
 			Namespace: plugin.NamespaceBGP,
 			EventType: plugin.EventKeepalive,
 			Direction: plugin.DirectionBoth,
@@ -365,7 +368,7 @@ func TestOnMessageBatchReceivedCacheCount(t *testing.T) {
 
 	proc3, pluginConn3 := newTestProcWithConn(t, "non-cache")
 	// proc3 is NOT a cache consumer (default)
-	srv.Subscriptions().Add(proc3, &plugin.Subscription{
+	srv.Subscriptions().Add(proc3, &pluginserver.Subscription{
 		Namespace: plugin.NamespaceBGP,
 		EventType: plugin.EventKeepalive,
 		Direction: plugin.DirectionBoth,

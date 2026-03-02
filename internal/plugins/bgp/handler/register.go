@@ -10,7 +10,7 @@
 package handler
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // Command source constants (mirrored from plugin package for use in handler output).
@@ -21,8 +21,8 @@ const (
 
 // BgpHandlerRPCs returns all RPC registrations from BGP handler files.
 // This is injected into ServerConfig.RPCProviders by the reactor.
-func BgpHandlerRPCs() []plugin.RPCRegistration {
-	sources := [][]plugin.RPCRegistration{
+func BgpHandlerRPCs() []pluginserver.RPCRegistration {
+	sources := [][]pluginserver.RPCRegistration{
 		PeerOpsRPCs(),
 		IntrospectionRPCs(),
 		CacheRPCs(),
@@ -36,7 +36,7 @@ func BgpHandlerRPCs() []plugin.RPCRegistration {
 	for _, s := range sources {
 		n += len(s)
 	}
-	rpcs := make([]plugin.RPCRegistration, 0, n)
+	rpcs := make([]pluginserver.RPCRegistration, 0, n)
 	for _, s := range sources {
 		rpcs = append(rpcs, s...)
 	}

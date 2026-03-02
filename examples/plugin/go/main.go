@@ -103,7 +103,7 @@ func main() {
 	})
 
 	// Register status command
-	p.OnCommand("acme-monitor status", func(ctx *plugin.CommandContext) (any, error) {
+	p.OnCommand("acme-monitor status", func(ctx *pluginserver.CommandContext) (any, error) {
 		return map[string]any{
 			"endpoint": state.Endpoint,
 			"interval": state.Interval,

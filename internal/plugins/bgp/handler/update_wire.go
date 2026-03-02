@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
@@ -371,20 +372,20 @@ func splitWireNLRIs(data []byte, family nlri.Family, addPath bool) ([]nlri.NLRI,
 
 // handleUpdateHex handles: peer <addr> update hex ...
 // Parses wire hex format and dispatches to reactor batch methods.
-func handleUpdateHex(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleUpdateHex(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return handleUpdateWire(ctx, args, plugin.WireEncodingHex)
 }
 
 // handleUpdateB64 handles: peer <addr> update b64 ...
 // Parses wire base64 format and dispatches to reactor batch methods.
-func handleUpdateB64(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleUpdateB64(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return handleUpdateWire(ctx, args, plugin.WireEncodingB64)
 }
 
 // handleUpdateWire handles wire-encoded update commands (hex/b64).
 // Parses the wire format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
-func handleUpdateWire(ctx *plugin.CommandContext, args []string, encoding plugin.WireEncoding) (*plugin.Response, error) {
+func handleUpdateWire(ctx *pluginserver.CommandContext, args []string, encoding plugin.WireEncoding) (*plugin.Response, error) {
 	result, err := ParseUpdateWire(args, encoding)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err

@@ -16,6 +16,7 @@ import (
 
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
@@ -261,7 +262,7 @@ func printSchemaTable(header, kind string, entries []schemaEntry) {
 
 // cmdMethods lists RPCs from YANG API modules.
 func cmdMethods(args, plugins []string) int {
-	return cmdListSchema(args, plugins, "RPC", "Method", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
+	return cmdListSchema(args, plugins, "RPC", "Method", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		rpcs := reg.ListRPCs(module)
 		entries := make([]schemaEntry, len(rpcs))
 		for i, rpc := range rpcs {
@@ -273,7 +274,7 @@ func cmdMethods(args, plugins []string) int {
 
 // cmdEvents lists notifications from YANG API modules.
 func cmdEvents(args, plugins []string) int {
-	return cmdListSchema(args, plugins, "notification", "Event", func(reg *plugin.SchemaRegistry, module string) []schemaEntry {
+	return cmdListSchema(args, plugins, "notification", "Event", func(reg *pluginserver.SchemaRegistry, module string) []schemaEntry {
 		notifs := reg.ListNotifications(module)
 		entries := make([]schemaEntry, len(notifs))
 		for i, notif := range notifs {
@@ -289,7 +290,7 @@ func cmdListSchema(
 	plugins []string,
 	kind string,
 	header string,
-	listFn func(*plugin.SchemaRegistry, string) []schemaEntry,
+	listFn func(*pluginserver.SchemaRegistry, string) []schemaEntry,
 ) int {
 	var module string
 	if len(args) > 0 {
@@ -330,7 +331,7 @@ func apiYANGModules() []struct {
 }
 
 // loadAPIRPCs loads API YANG modules and registers their RPCs and notifications.
-func loadAPIRPCs(registry *plugin.SchemaRegistry) error {
+func loadAPIRPCs(registry *pluginserver.SchemaRegistry) error {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return fmt.Errorf("load core modules: %w", err)
@@ -378,8 +379,8 @@ func loadAPIRPCs(registry *plugin.SchemaRegistry) error {
 // buildSchemaRegistry builds a registry with all available YANG schemas.
 // Loads ze-bgp, internal plugins, and optionally external plugins.
 // Also loads API YANG modules for RPC/notification indexing.
-func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
-	registry := plugin.NewSchemaRegistry()
+func buildSchemaRegistry(extPlugins []string) (*pluginserver.SchemaRegistry, error) {
+	registry := pluginserver.NewSchemaRegistry()
 	loaded := make(map[string]bool)
 
 	// Register ze-bgp schema first (base module) - it provides config, doesn't want it
@@ -421,7 +422,7 @@ func buildSchemaRegistry(extPlugins []string) (*plugin.SchemaRegistry, error) {
 }
 
 // registerYANG registers YANG content and verifies dependencies are available.
-func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName string, handlers, wantsConfig []string, loaded map[string]bool) error {
+func registerYANG(registry *pluginserver.SchemaRegistry, yangContent, pluginName string, handlers, wantsConfig []string, loaded map[string]bool) error {
 	meta, err := yang.ParseYANGMetadata(yangContent)
 	if err != nil {
 		return fmt.Errorf("parse YANG: %w", err)
@@ -460,7 +461,7 @@ func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName strin
 		}
 	}
 
-	return registry.Register(&plugin.Schema{
+	return registry.Register(&pluginserver.Schema{
 		Module:      meta.Module,
 		Namespace:   yang.FormatNamespace(meta.Namespace),
 		Yang:        yangContent,
@@ -472,7 +473,7 @@ func registerYANG(registry *plugin.SchemaRegistry, yangContent, pluginName strin
 }
 
 // tryAutoLoadInternal attempts to auto-load an internal plugin by module name.
-func tryAutoLoadInternal(registry *plugin.SchemaRegistry, moduleName string, loaded map[string]bool) bool {
+func tryAutoLoadInternal(registry *pluginserver.SchemaRegistry, moduleName string, loaded map[string]bool) bool {
 	if _, err := registry.GetByModule(moduleName); err == nil {
 		loaded[moduleName] = true
 		return true
@@ -514,7 +515,7 @@ func getInternalYANG(moduleName, pluginName string) (yangContent string, handler
 // registerInternalYANG registers YANG content from an internal source.
 // Extracts metadata from YANG and registers with the given handlers and plugin ID.
 // Automatically populates WantsConfig from static metadata.
-func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, handlers []string, pluginID string, loaded map[string]bool) error {
+func registerInternalYANG(registry *pluginserver.SchemaRegistry, yangContent string, handlers []string, pluginID string, loaded map[string]bool) error {
 	meta, err := yang.ParseYANGMetadata(yangContent)
 	if err != nil {
 		return err
@@ -539,7 +540,7 @@ func registerInternalYANG(registry *plugin.SchemaRegistry, yangContent string, h
 		wantsConfig = plugin.GetInternalPluginWantsConfig(pluginName)
 	}
 
-	if err := registry.Register(&plugin.Schema{
+	if err := registry.Register(&pluginserver.Schema{
 		Module:      meta.Module,
 		Namespace:   yang.FormatNamespace(meta.Namespace),
 		Yang:        yangContent,

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
@@ -1219,8 +1220,8 @@ func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error    { retu
 // PREVENTS: Handler not calling reactor.
 func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "192.0.2.1",
 	}
 
@@ -1248,8 +1249,8 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 // PREVENTS: Separate calls per NLRI.
 func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1273,8 +1274,8 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 // PREVENTS: Missing withdraw call.
 func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1300,8 +1301,8 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 // PREVENTS: Attribute loss between groups.
 func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1333,8 +1334,8 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 // PREVENTS: Withdraw interpreted as announce.
 func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1358,8 +1359,8 @@ func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 // PREVENTS: Silent failure on bad input.
 func TestHandleUpdateText_ParseError(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1379,8 +1380,8 @@ func TestHandleUpdateText_ParseError(t *testing.T) {
 // PREVENTS: Silent success when no peers match.
 func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersMatching: true}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "192.0.2.99",
 	}
 
@@ -1400,8 +1401,8 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 // PREVENTS: Silent ignore of watchdog.
 func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1425,8 +1426,8 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 // PREVENTS: Silent success with no routes.
 func TestHandleUpdateText_EmptyResult(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1447,8 +1448,8 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 // PREVENTS: IPv6 parsing or dispatch failures.
 func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1471,8 +1472,8 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 // PREVENTS: Flag loss in handler.
 func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1495,8 +1496,8 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 // PREVENTS: Silent success when nothing was sent.
 func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersAccepted: true}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1518,8 +1519,8 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Only IPv6 is not accepted
 	reactor := &mockReactorBatch{noPeersAcceptedFor: nlri.IPv6Unicast}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1547,8 +1548,8 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 // PREVENTS: Wrong subcommand handler.
 func TestHandleUpdate_TextSubcommand(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1570,8 +1571,8 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 // PREVENTS: Silent failure or panic.
 func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 	reactor := &mockReactorBatch{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 

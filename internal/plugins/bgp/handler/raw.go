@@ -10,12 +10,13 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
 // RawRPCs returns RPC registrations for raw message handlers.
-func RawRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func RawRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:peer-raw", CLICommand: "bgp peer raw", Handler: handleRaw, Help: "Send raw bytes to peer (no validation)"},
 	}
 }
@@ -28,7 +29,7 @@ func RawRPCs() []plugin.RPCRegistration {
 // Types: open, update, notification, keepalive, route-refresh
 // Encodings: hex, b64
 // Data: encoded bytes (empty allowed for keepalive).
-func handleRaw(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleRaw(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	_, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err

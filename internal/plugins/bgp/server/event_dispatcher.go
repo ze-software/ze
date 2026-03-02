@@ -9,27 +9,28 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 )
 
 // EventDispatcher bridges the reactor to plugin event delivery.
-// It holds a *plugin.Server for access to subscriptions, context, and processes,
+// It holds a *pluginserver.Server for access to subscriptions, context, and processes,
 // and a shared JSONEncoder for format encoding.
 //
 // EventDispatcher satisfies reactor.MessageReceiver implicitly (OnMessageReceived,
 // OnMessageBatchReceived, OnMessageSent). The reactor sets it as the message
-// receiver instead of using *plugin.Server directly, providing type-safe
+// receiver instead of using *pluginserver.Server directly, providing type-safe
 // BGP event dispatch without any-typed indirection.
 type EventDispatcher struct {
-	server  *plugin.Server
+	server  *pluginserver.Server
 	encoder *format.JSONEncoder
 }
 
 // NewEventDispatcher creates a new EventDispatcher for the given plugin server.
 // The JSONEncoder is created once and reused for all event formatting.
-func NewEventDispatcher(server *plugin.Server) *EventDispatcher {
+func NewEventDispatcher(server *pluginserver.Server) *EventDispatcher {
 	return &EventDispatcher{
 		server:  server,
 		encoder: format.NewJSONEncoder("0.0.1"),

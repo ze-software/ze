@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
@@ -412,8 +413,8 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 // PREVENTS: Handler integration failures.
 func TestHandleUpdateHex_Integration(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -446,8 +447,8 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 // PREVENTS: Handler integration failures.
 func TestHandleUpdateB64_Integration(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -477,8 +478,8 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 // PREVENTS: Withdrawal failures.
 func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -502,8 +503,8 @@ func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 // PREVENTS: Missing operations.
 func TestHandleUpdateHex_MixedAddDel(t *testing.T) {
 	reactor := &mockReactor{}
-	ctx := &plugin.CommandContext{
-		Server: plugin.NewServer(&plugin.ServerConfig{}, reactor),
+	ctx := &pluginserver.CommandContext{
+		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 

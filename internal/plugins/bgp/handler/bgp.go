@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // PeerOpsRPCs returns BGP RPCs for peer operations.
-func PeerOpsRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func PeerOpsRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)"},
 		{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details"},
 		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode"},
@@ -26,8 +27,8 @@ func PeerOpsRPCs() []plugin.RPCRegistration {
 }
 
 // IntrospectionRPCs returns RPC registrations for BGP introspection and plugin config.
-func IntrospectionRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func IntrospectionRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands"},
 		{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands"},
 		{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details"},
@@ -47,7 +48,7 @@ var bgpEventTypes = []string{
 
 // filterPeersBySelector returns peers matching the context's peer selector.
 // If the selector is "*", all peers are returned. Otherwise, filters by IP.
-func filterPeersBySelector(ctx *plugin.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
+func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
 	}
@@ -78,7 +79,7 @@ func filterPeersBySelector(ctx *plugin.CommandContext) ([]plugin.PeerInfo, *plug
 // handleBgpPeerList returns a brief list of peer(s).
 // Used by "bgp peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerList(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err
@@ -95,7 +96,7 @@ func handleBgpPeerList(ctx *plugin.CommandContext, _ []string) (*plugin.Response
 // handleBgpPeerShow returns detailed peer information.
 // Used by "bgp peer <selector> show" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerShow(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err
@@ -112,8 +113,8 @@ func handleBgpPeerShow(ctx *plugin.CommandContext, _ []string) (*plugin.Response
 // handleTeardown handles "bgp peer <ip> teardown <subcode>" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
-func handleTeardown(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireReactor(ctx)
+func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -194,8 +195,8 @@ func parseUint(s string) (uint64, error) {
 //	router-id <id>      - Optional: router ID (default: reactor's RouterID)
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
-func handleBgpPeerAdd(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireReactor(ctx)
+func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -330,8 +331,8 @@ func handleBgpPeerAdd(ctx *plugin.CommandContext, args []string) (*plugin.Respon
 
 // handleBgpPeerRemove handles "bgp peer <ip> remove" command.
 // Removes a peer dynamically at runtime.
-func handleBgpPeerRemove(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireReactor(ctx)
+func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -372,7 +373,7 @@ func handleBgpPeerRemove(ctx *plugin.CommandContext, _ []string) (*plugin.Respon
 
 // handleBgpPeerPause handles "bgp peer <ip> pause" command.
 // Pauses the peer's read loop for flow control (backpressure from plugins).
-func handleBgpPeerPause(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
 		return r.PausePeer(addr)
 	})
@@ -380,15 +381,15 @@ func handleBgpPeerPause(ctx *plugin.CommandContext, _ []string) (*plugin.Respons
 
 // handleBgpPeerResume handles "bgp peer <ip> resume" command.
 // Resumes the peer's read loop after a flow-control pause.
-func handleBgpPeerResume(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
 		return r.ResumePeer(addr)
 	})
 }
 
 // peerFlowControl is the shared implementation for pause/resume handlers.
-func peerFlowControl(ctx *plugin.CommandContext, action string, fn func(plugin.ReactorLifecycle, netip.Addr) error) (*plugin.Response, error) {
-	_, errResp, err := plugin.RequireReactor(ctx)
+func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(plugin.ReactorLifecycle, netip.Addr) error) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
 	}
@@ -448,7 +449,7 @@ func parseRouterID(s string) (uint32, error) {
 }
 
 // handleBgpHelp returns list of bgp subcommands.
-func handleBgpHelp(ctx *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	var commands []string
 
 	if ctx.Dispatcher() != nil {
@@ -468,15 +469,15 @@ func handleBgpHelp(ctx *plugin.CommandContext, _ []string) (*plugin.Response, er
 }
 
 // handleBgpCommandList returns commands in bgp namespace.
-func handleBgpCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
 
-	var commands []plugin.Completion
+	var commands []pluginserver.Completion
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") {
-				c := plugin.Completion{
+				c := pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				}
@@ -497,7 +498,7 @@ func handleBgpCommandList(ctx *plugin.CommandContext, args []string) (*plugin.Re
 }
 
 // handleBgpCommandHelp returns detailed help for a bgp command.
-func handleBgpCommandHelp(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("usage: bgp command help \"<name>\"")
 	}
@@ -523,20 +524,20 @@ func handleBgpCommandHelp(ctx *plugin.CommandContext, args []string) (*plugin.Re
 }
 
 // handleBgpCommandComplete returns completions for bgp commands.
-func handleBgpCommandComplete(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("usage: bgp command complete \"<partial>\"")
 	}
 
 	partial := args[0]
-	var completions []plugin.Completion
+	var completions []pluginserver.Completion
 
 	if ctx.Dispatcher() != nil {
 		lowerPartial := strings.ToLower(partial)
 		for _, cmd := range ctx.Dispatcher().Commands() {
 			if strings.HasPrefix(cmd.Name, "bgp ") &&
 				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
-				completions = append(completions, plugin.Completion{
+				completions = append(completions, pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,
 				})
@@ -553,7 +554,7 @@ func handleBgpCommandComplete(ctx *plugin.CommandContext, args []string) (*plugi
 }
 
 // handleBgpEventList returns available BGP event types.
-func handleBgpEventList(_ *plugin.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
@@ -564,7 +565,7 @@ func handleBgpEventList(_ *plugin.CommandContext, _ []string) (*plugin.Response,
 
 // handleBgpPluginEncoding sets event encoding for this process.
 // Syntax: bgp plugin encoding <json|text>.
-func handleBgpPluginEncoding(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing encoding: bgp plugin encoding <json|text>")
 	}
@@ -589,7 +590,7 @@ func handleBgpPluginEncoding(ctx *plugin.CommandContext, args []string) (*plugin
 
 // handleBgpPluginFormat sets wire format for this process.
 // Syntax: bgp plugin format <hex|base64|parsed|full>.
-func handleBgpPluginFormat(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing format: bgp plugin format <hex|base64|parsed|full>")
 	}
@@ -614,7 +615,7 @@ func handleBgpPluginFormat(ctx *plugin.CommandContext, args []string) (*plugin.R
 
 // handleBgpPluginAck sets ACK timing for this process.
 // Syntax: bgp plugin ack <sync|async>.
-func handleBgpPluginAck(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBgpPluginAck(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) == 0 {
 		return nil, fmt.Errorf("missing mode: bgp plugin ack <sync|async>")
 	}

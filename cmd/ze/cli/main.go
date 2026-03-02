@@ -15,7 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -318,8 +318,8 @@ func formatNumber(v any) any {
 
 // allCLIRPCs returns all RPCs needed for CLI command mapping.
 // Combines builtin RPCs with BGP handler RPCs (moved to handler/ package).
-func allCLIRPCs() []plugin.RPCRegistration {
-	rpcs := plugin.AllBuiltinRPCs()
+func allCLIRPCs() []pluginserver.RPCRegistration {
+	rpcs := pluginserver.AllBuiltinRPCs()
 	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
 	return rpcs
 }

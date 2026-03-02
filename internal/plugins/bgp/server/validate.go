@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -135,7 +135,7 @@ const validateOpenTimeout = 5 * time.Second
 // broadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
 // local and remote are *message.Open passed as any from the generic hook.
 // Iterates processes, sends validate-open RPC, fails fast on first rejection.
-func broadcastValidateOpen(s *plugin.Server, peerAddr string, local, remote any) error {
+func broadcastValidateOpen(s *pluginserver.Server, peerAddr string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
 		return fmt.Errorf("broadcastValidateOpen: local not *message.Open: %T", local)

@@ -11,6 +11,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // pluginFlags collects multiple --plugin flag values.
@@ -137,7 +138,7 @@ Examples:
 	if *showTree {
 		for _, root := range roots {
 			fmt.Printf("\n🌳 Config tree (root=%s):\n", root)
-			subtree := plugin.ExtractConfigSubtree(treeMap, root)
+			subtree := pluginserver.ExtractConfigSubtree(treeMap, root)
 			if subtree != nil {
 				jsonBytes, _ := json.MarshalIndent(subtree, "   ", "  ")
 				fmt.Printf("   %s\n", string(jsonBytes))
@@ -152,7 +153,7 @@ Examples:
 	if *showJSON {
 		for _, root := range roots {
 			fmt.Printf("\n📤 JSON delivery for root=%s:\n", root)
-			subtree := plugin.ExtractConfigSubtree(treeMap, root)
+			subtree := pluginserver.ExtractConfigSubtree(treeMap, root)
 			if subtree != nil {
 				jsonBytes, _ := json.Marshal(subtree)
 				fmt.Printf("   config json %s %s\n", root, string(jsonBytes))

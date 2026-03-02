@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/process"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // TestRibMetaRPCsOnly verifies RibMetaRPCs() returns only meta-commands.
@@ -48,15 +50,15 @@ func TestRibMetaRPCsOnly(t *testing.T) {
 // PREVENTS: Plugin subcommands silently missing from help output after unification.
 func TestRibHelpIncludesPlugin(t *testing.T) {
 	// Create server with rib meta RPCs injected
-	server := plugin.NewServer(&plugin.ServerConfig{
-		RPCProviders: []func() []plugin.RPCRegistration{RibMetaRPCs},
+	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+		RPCProviders: []func() []pluginserver.RPCRegistration{RibMetaRPCs},
 	}, nil)
 
 	// Create a process for plugin command ownership
-	proc := plugin.NewProcess(plugin.PluginConfig{Name: "rib"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "rib"})
 
 	// Register plugin commands that start with "rib "
-	results := server.Dispatcher().Registry().Register(proc, []plugin.CommandDef{
+	results := server.Dispatcher().Registry().Register(proc, []pluginserver.CommandDef{
 		{Name: "rib status", Description: "RIB status"},
 		{Name: "rib show in", Description: "Show inbound RIB"},
 		{Name: "rib adjacent inbound show", Description: "Show adjacent inbound"},
@@ -65,7 +67,7 @@ func TestRibHelpIncludesPlugin(t *testing.T) {
 		require.True(t, r.OK, "failed to register %s: %s", r.Name, r.Error)
 	}
 
-	ctx := &plugin.CommandContext{Server: server}
+	ctx := &pluginserver.CommandContext{Server: server}
 
 	resp, err := handleRibHelp(ctx, nil)
 	require.NoError(t, err)
@@ -103,15 +105,15 @@ func TestRibHelpIncludesPlugin(t *testing.T) {
 // PREVENTS: Plugin data commands missing from command-list output after unification.
 func TestRibCommandListShowsPlugin(t *testing.T) {
 	// Create server with rib meta RPCs injected (builtins loaded automatically)
-	server := plugin.NewServer(&plugin.ServerConfig{
-		RPCProviders: []func() []plugin.RPCRegistration{RibMetaRPCs},
+	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+		RPCProviders: []func() []pluginserver.RPCRegistration{RibMetaRPCs},
 	}, nil)
 
 	// Create a process for plugin command ownership
-	proc := plugin.NewProcess(plugin.PluginConfig{Name: "rib"})
+	proc := process.NewProcess(plugin.PluginConfig{Name: "rib"})
 
 	// Register plugin commands
-	results := server.Dispatcher().Registry().Register(proc, []plugin.CommandDef{
+	results := server.Dispatcher().Registry().Register(proc, []pluginserver.CommandDef{
 		{Name: "rib status", Description: "RIB status"},
 		{Name: "rib show in", Description: "Show inbound RIB"},
 		{Name: "rib clear in", Description: "Clear inbound RIB"},
@@ -120,7 +122,7 @@ func TestRibCommandListShowsPlugin(t *testing.T) {
 		require.True(t, r.OK, "failed to register %s: %s", r.Name, r.Error)
 	}
 
-	ctx := &plugin.CommandContext{Server: server}
+	ctx := &pluginserver.CommandContext{Server: server}
 
 	resp, err := handleRibCommandList(ctx, nil)
 	require.NoError(t, err)
@@ -130,7 +132,7 @@ func TestRibCommandListShowsPlugin(t *testing.T) {
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok, "response data should be map[string]any")
 
-	commands, ok := data["commands"].([]plugin.Completion)
+	commands, ok := data["commands"].([]pluginserver.Completion)
 	require.True(t, ok, "commands should be []Completion")
 
 	// Collect command names

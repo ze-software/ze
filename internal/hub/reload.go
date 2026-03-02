@@ -8,7 +8,7 @@ import (
 	"os"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -93,7 +93,7 @@ func (o *Orchestrator) Reload(configPath string) error {
 	var started []string
 	for _, p := range added {
 		reloadLogger().Info("reload: registering new plugin", slog.String("plugin", p.Name))
-		o.subsystems.Register(plugin.SubsystemConfig{
+		o.subsystems.Register(pluginserver.SubsystemConfig{
 			Name:       p.Name,
 			Binary:     p.Run,
 			ConfigPath: configPath,

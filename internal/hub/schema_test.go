@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )
 
 // TestHubCollectsSchemas verifies schemas collected from plugins.
@@ -19,7 +19,7 @@ func TestHubCollectsSchemas(t *testing.T) {
 	o := NewOrchestrator(cfg)
 
 	// Simulate plugin schema registration
-	schema := &plugin.Schema{
+	schema := &pluginserver.Schema{
 		Module:    "ze-bgp",
 		Namespace: "urn:ze:bgp",
 		Handlers:  []string{"bgp"},
@@ -49,14 +49,14 @@ func TestHubRoutesConfigByHandler(t *testing.T) {
 	o := NewOrchestrator(cfg)
 
 	// Register two handlers
-	err := o.Registry().Register(&plugin.Schema{
+	err := o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-bgp",
 		Handlers: []string{"bgp"},
 		Plugin:   "bgp",
 	})
 	require.NoError(t, err)
 
-	err = o.Registry().Register(&plugin.Schema{
+	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-gr",
 		Handlers: []string{"bgp.peer.capability.graceful-restart"},
 		Plugin:   "gr",
@@ -240,7 +240,7 @@ func TestHubSchemasByPriority(t *testing.T) {
 	o := NewOrchestrator(cfg)
 
 	// Register schemas with different priorities
-	err := o.Registry().Register(&plugin.Schema{
+	err := o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-rib",
 		Handlers: []string{"rib"},
 		Plugin:   "rib",
@@ -248,7 +248,7 @@ func TestHubSchemasByPriority(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = o.Registry().Register(&plugin.Schema{
+	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-bgp",
 		Handlers: []string{"bgp"},
 		Plugin:   "bgp",
@@ -256,7 +256,7 @@ func TestHubSchemasByPriority(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	err = o.Registry().Register(&plugin.Schema{
+	err = o.Registry().Register(&pluginserver.Schema{
 		Module:   "ze-gr",
 		Handlers: []string{"bgp.peer.capability.graceful-restart"},
 		Plugin:   "gr",

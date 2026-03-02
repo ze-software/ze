@@ -10,7 +10,6 @@
 package plugin
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/netip"
 	"time"
@@ -233,16 +232,6 @@ type PluginConfig struct {
 	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
 	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
-}
-
-// ServerConfig holds API server configuration.
-type ServerConfig struct {
-	SocketPath         string                                          // Path to Unix socket
-	Plugins            []PluginConfig                                  // External plugins to spawn
-	ConfiguredFamilies []string                                        // Families configured on peers (for deferred auto-load)
-	RPCProviders       []func() []RPCRegistration                      // Additional RPC sources (e.g., BGP handler RPCs)
-	RPCFallback        func(string) func(json.RawMessage) (any, error) // Resolves RPC methods not in core dispatch
-	CommitManager      any                                             // Commit manager instance (injected by reactor, type-asserted by handlers)
 }
 
 // Format constants for process output formatting.

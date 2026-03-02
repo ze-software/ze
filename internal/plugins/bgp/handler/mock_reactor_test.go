@@ -4,6 +4,7 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/commit"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
@@ -218,9 +219,9 @@ func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
 }
 
 // newTestContext creates a CommandContext backed by a mock reactor.
-func newTestContext(reactor plugin.ReactorLifecycle) *plugin.CommandContext {
-	server := plugin.NewServer(&plugin.ServerConfig{
+func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
+	server := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: commit.NewCommitManager(),
 	}, reactor)
-	return &plugin.CommandContext{Server: server}
+	return &pluginserver.CommandContext{Server: server}
 }

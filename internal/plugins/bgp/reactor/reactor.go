@@ -27,6 +27,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/wireu"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/context"
@@ -184,7 +185,7 @@ type Reactor struct {
 	listener        *Listener            // deprecated: single listener for backward compat
 	listeners       map[string]*Listener // keyed by "addr:port" (local endpoint)
 	signals         *SignalHandler
-	api             *plugin.Server             // API server for CLI and external processes
+	api             *pluginserver.Server       // API server for CLI and external processes
 	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
 
 	// Recent UPDATE cache for efficient forwarding via update-id
@@ -867,10 +868,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Start API server if configured
 	if r.config.APISocketPath != "" {
-		apiConfig := &plugin.ServerConfig{
+		apiConfig := &pluginserver.ServerConfig{
 			SocketPath:         r.config.APISocketPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
-			RPCProviders: []func() []plugin.RPCRegistration{
+			RPCProviders: []func() []pluginserver.RPCRegistration{
 				handler.BgpHandlerRPCs,
 			},
 			RPCFallback:   bgpserver.CodecRPCHandler,
@@ -889,7 +890,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				Internal:      pc.Internal, // Run in-process via goroutine
 			})
 		}
-		r.api = plugin.NewServer(apiConfig, &reactorAPIAdapter{r})
+		r.api = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
 		// Create EventDispatcher for BGP event delivery (type-safe, no hooks indirection)
 		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
 		// Set EventDispatcher as message receiver for raw byte access

@@ -50,12 +50,6 @@ func (s PluginStage) String() string {
 	}
 }
 
-// Family mode constants for declare family commands.
-const (
-	familyModeDecode = "decode"
-	familyModeBoth   = "both"
-)
-
 // PluginRegistration holds Stage 1 registration data from a plugin.
 type PluginRegistration struct {
 	Name               string              // Plugin name (set after Stage 4)

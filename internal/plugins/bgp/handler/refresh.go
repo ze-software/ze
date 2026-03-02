@@ -6,12 +6,13 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
 )
 
 // RefreshRPCs returns RPC registrations for route refresh handlers.
-func RefreshRPCs() []plugin.RPCRegistration {
-	return []plugin.RPCRegistration{
+func RefreshRPCs() []pluginserver.RPCRegistration {
+	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:peer-refresh", CLICommand: "bgp peer refresh", Handler: handleRefresh, Help: "Send ROUTE-REFRESH to peer (RFC 2918)"},
 		{WireMethod: "ze-bgp:peer-borr", CLICommand: "bgp peer borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh"},
 		{WireMethod: "ze-bgp:peer-eorr", CLICommand: "bgp peer eorr", Handler: handleEoRR, Help: "Send End of Route Refresh"},
@@ -21,7 +22,7 @@ func RefreshRPCs() []plugin.RPCRegistration {
 // handleRefresh sends a normal ROUTE-REFRESH message.
 // RFC 2918 Section 3: "A BGP speaker may send a ROUTE-REFRESH message to
 // its peer only if it has received the Route Refresh Capability from its peer.".
-func handleRefresh(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleRefresh(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -32,7 +33,7 @@ func handleRefresh(ctx *plugin.CommandContext, args []string) (*plugin.Response,
 // handleBoRR sends a Beginning of Route Refresh marker.
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
-func handleBoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleBoRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -43,7 +44,7 @@ func handleBoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, er
 // handleEoRR sends an End of Route Refresh marker.
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
-func handleEoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, error) {
+func handleEoRR(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	r, errResp, err := requireBGPReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -54,7 +55,7 @@ func handleEoRR(ctx *plugin.CommandContext, args []string) (*plugin.Response, er
 // handleRefreshMarker implements the shared logic for borr/eorr commands.
 // Usage: bgp peer <selector> {borr|eorr} <family>.
 func handleRefreshMarker(
-	ctx *plugin.CommandContext,
+	ctx *pluginserver.CommandContext,
 	args []string,
 	cmd string,
 	send func(string, uint16, uint8) error,
