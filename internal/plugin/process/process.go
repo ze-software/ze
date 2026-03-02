@@ -592,8 +592,14 @@ func (p *Process) startExternal() error {
 
 	p.running.Store(true)
 
-	// Relay plugin stderr based on ze.log.relay setting
-	go p.relayStderr()
+	// Capture stderr locally before starting goroutines.
+	// relayStderr and monitor both access p.stderr — capturing here avoids
+	// a data race between relayStderr reading the field and monitor nil-ing it.
+	stderr := p.stderr
+
+	// Relay plugin stderr based on ze.log.relay setting.
+	// Tracked by wg so Wait() blocks until relay drains.
+	p.wg.Go(func() { p.relayStderrFrom(stderr) })
 
 	// Monitor process
 	p.wg.Add(1)
@@ -611,23 +617,24 @@ func closeFiles(files ...*os.File) {
 	}
 }
 
-// relayStderr reads plugin stderr and relays to engine logs.
+// relayStderrFrom reads plugin stderr and relays to engine logs.
 // Plugin stderr format: time=... level=DEBUG msg="..." subsystem=gr ...
 // When ze.log.relay=<level>, relays messages at or above that level.
 // When disabled (empty/disabled), discards plugin stderr silently.
-func (p *Process) relayStderr() {
+// Takes an explicit io.Reader to avoid racing with monitor() on p.stderr.
+func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// Get configured relay level
 	relayLevel, enabled := slogutil.RelayLevel()
 	if !enabled {
 		// Discard all stderr when relay disabled
-		scanner := bufio.NewScanner(p.stderr)
+		scanner := bufio.NewScanner(stderr)
 		for scanner.Scan() {
 			// Read but discard
 		}
 		return
 	}
 
-	scanner := bufio.NewScanner(p.stderr)
+	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
 		// Parse the slog line and relay with subsystem=relay
@@ -741,13 +748,11 @@ func (p *Process) monitor() {
 		p.cancel()
 	}
 
-	// Close stderr pipe and RPC connections.
+	// Close RPC connections.
 	// Nil after close to prevent double-close if Stop() races with monitor().
+	// Note: p.stderr is NOT closed here — relayStderrFrom owns a captured copy
+	// of the reader and will exit when cmd.Wait() closes the pipe.
 	p.mu.Lock()
-	if p.stderr != nil {
-		_ = p.stderr.Close()
-		p.stderr = nil
-	}
 	if p.engineConnA != nil {
 		_ = p.engineConnA.Close()
 		p.engineConnA = nil
