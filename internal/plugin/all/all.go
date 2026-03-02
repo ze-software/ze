@@ -25,5 +25,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-route-refresh"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rs"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-softver"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-watchdog"
 )
 

@@ -143,20 +143,6 @@ module ze-bgp-api {
         }
     }
 
-    rpc watchdog-announce {
-        description "Announce watchdog group routes";
-        input {
-            leaf group { type string; mandatory true; description "Watchdog group name"; }
-        }
-    }
-
-    rpc watchdog-withdraw {
-        description "Withdraw watchdog group routes";
-        input {
-            leaf group { type string; mandatory true; description "Watchdog group name"; }
-        }
-    }
-
     // Route refresh (RFC 7313)
 
     rpc peer-borr {

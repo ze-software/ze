@@ -18,7 +18,7 @@ import (
 // PREVENTS: Missing plugin entries in discovery output.
 func TestAvailablePlugins(t *testing.T) {
 	// Expected plugins (sorted - AvailableInternalPlugins returns sorted list)
-	expected := []string{"bgp-adj-rib-in", "bgp-evpn", "bgp-flowspec", "bgp-gr", "bgp-hostname", "bgp-labeled", "bgp-llnh", "bgp-ls", "bgp-mup", "bgp-mvpn", "bgp-rib", "bgp-route-refresh", "bgp-rs", "bgp-rtc", "bgp-softver", "bgp-vpls", "bgp-vpn", "role"}
+	expected := []string{"bgp-adj-rib-in", "bgp-evpn", "bgp-flowspec", "bgp-gr", "bgp-hostname", "bgp-labeled", "bgp-llnh", "bgp-ls", "bgp-mup", "bgp-mvpn", "bgp-rib", "bgp-route-refresh", "bgp-rs", "bgp-rtc", "bgp-softver", "bgp-vpls", "bgp-vpn", "bgp-watchdog", "role"}
 
 	got := plugin.AvailableInternalPlugins()
 	assert.Equal(t, expected, got)

@@ -3,7 +3,7 @@
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
 // Related: reactor_api_routes.go — family-specific route announce/withdraw (L3VPN, labeled, MUP)
 // Related: reactor_api_batch.go — NLRI batch operations and wire attribute building
-// Related: reactor_api_forward.go — UPDATE forwarding, grouped sending, watchdog, cache ops
+// Related: reactor_api_forward.go — UPDATE forwarding, grouped sending, cache ops
 package reactor
 
 import (

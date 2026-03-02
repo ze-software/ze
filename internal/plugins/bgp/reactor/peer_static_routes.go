@@ -175,48 +175,6 @@ func buildStaticRouteUpdateNew(route *StaticRoute, nextHop, linkLocal netip.Addr
 	return ub.BuildUnicast(&p)
 }
 
-// buildStaticRouteWithdraw builds a withdrawal UPDATE for a static route.
-// Handles VPN, labeled-unicast, IPv4 unicast, and IPv6 unicast correctly.
-// buf is a caller-provided buffer (from buildBufPool) for zero-allocation encoding.
-// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
-func buildStaticRouteWithdraw(buf []byte, route *StaticRoute, addPath bool) *message.Update {
-	switch {
-	case route.IsVPN():
-		// VPN route: use MP_UNREACH_NLRI with RD + prefix
-		return buildMPUnreachVPN(buf, route)
-	case route.IsLabeledUnicast():
-		// Labeled unicast: use MP_UNREACH_NLRI with label + prefix
-		return buildMPUnreachLabeledUnicast(buf, route, addPath)
-	case route.Prefix.Addr().Is4():
-		// IPv4 unicast: use WithdrawnRoutes field
-		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		nlriLen := nlri.LenWithContext(inet, addPath)
-		nlri.WriteNLRI(inet, buf, 0, addPath)
-		return &message.Update{
-			WithdrawnRoutes: buf[:nlriLen],
-		}
-	default: // IPv6 unicast
-		// IPv6 unicast: use MP_UNREACH_NLRI
-		// Write NLRI into tail of buf; WriteAttrTo copies it into attr region
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		nlriLen := nlri.LenWithContext(inet, addPath)
-		nlriOff := len(buf) / 2
-		nlri.WriteNLRI(inet, buf, nlriOff, addPath)
-
-		mpUnreach := &attribute.MPUnreachNLRI{
-			AFI:  attribute.AFI(nlri.AFIIPv6),
-			SAFI: attribute.SAFI(nlri.SAFIUnicast),
-			NLRI: buf[nlriOff : nlriOff+nlriLen],
-		}
-
-		attrLen := attribute.WriteAttrTo(mpUnreach, buf, 0)
-		return &message.Update{
-			PathAttributes: buf[:attrLen],
-		}
-	}
-}
-
 // buildMPUnreachVPN builds MP_UNREACH_NLRI for VPN route withdrawal.
 // buf is a caller-provided buffer for zero-allocation encoding.
 // NLRI is written into buf[nlriRegion:] (second half), then WriteAttrTo copies

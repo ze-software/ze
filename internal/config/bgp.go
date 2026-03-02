@@ -100,10 +100,6 @@ type StaticRouteConfig struct {
 
 	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)
 	Split string
-
-	// Watchdog support - routes can be grouped and controlled via API
-	Watchdog         string // Watchdog group name (empty = no watchdog)
-	WatchdogWithdraw bool   // Start in withdrawn state (held until "watchdog announce")
 }
 
 // MVPNRouteConfig holds an MVPN route configuration.

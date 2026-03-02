@@ -9,7 +9,7 @@ import (
 )
 
 // TestAllPluginsRegistered verifies that importing the all package
-// registers all 18 expected internal plugins.
+// registers all 19 expected internal plugins.
 //
 // VALIDATES: Every internal plugin registers via init().
 // PREVENTS: Missing plugin registration when a register.go is forgotten.
@@ -32,6 +32,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-softver",
 		"bgp-vpls",
 		"bgp-vpn",
+		"bgp-watchdog",
 		"role",
 	}
 

@@ -23,7 +23,32 @@ func systemRPCs() []RPCRegistration {
 		{"ze-system:command-list", "system command list", handleSystemCommandList, "List all commands"},
 		{"ze-system:command-help", "system command help", handleSystemCommandHelp, "Show command details"},
 		{"ze-system:command-complete", "system command complete", handleSystemCommandComplete, "Complete command/args"},
+		{"ze-system:dispatch", "system dispatch", handleSystemDispatch, "Dispatch a text command"},
 	}
+}
+
+// handleSystemDispatch dispatches a text command through the standard command dispatcher.
+// This enables API socket clients to invoke any command reachable through the text
+// dispatcher, including plugin-registered commands (e.g., "watchdog announce dnsr").
+// Args are joined into a single command string for the dispatcher.
+func handleSystemDispatch(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: StatusError,
+			Data:   "usage: system dispatch \"<command>\"",
+		}, fmt.Errorf("missing command")
+	}
+
+	d := ctx.Dispatcher()
+	if d == nil {
+		return &Response{
+			Status: StatusError,
+			Data:   "dispatcher not available",
+		}, fmt.Errorf("dispatcher not available")
+	}
+
+	command := strings.Join(args, " ")
+	return d.Dispatch(ctx, command)
 }
 
 // handleSystemHelp returns list of available commands.

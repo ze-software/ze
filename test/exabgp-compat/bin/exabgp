@@ -190,10 +190,14 @@ def run_process_bridge(config_dir: str, run_cmd: str, api_socket_path: str,
 
                 if line.startswith('announce watchdog '):
                     group = line.split(None, 2)[2]
-                    send_rpc(sock, 'ze-bgp:watchdog-announce', {'args': [group]})
+                    resp = send_rpc(sock, 'ze-system:dispatch', {'args': ['bgp watchdog announce ' + group]})
+                    if debug and resp:
+                        print(f"  RPC response: {resp}", file=sys.stderr)
                 elif line.startswith('withdraw watchdog '):
                     group = line.split(None, 2)[2]
-                    send_rpc(sock, 'ze-bgp:watchdog-withdraw', {'args': [group]})
+                    resp = send_rpc(sock, 'ze-system:dispatch', {'args': ['bgp watchdog withdraw ' + group]})
+                    if debug and resp:
+                        print(f"  RPC response: {resp}", file=sys.stderr)
                 # Other ExaBGP commands could be translated here in the future
 
         finally:
@@ -252,7 +256,7 @@ def main():
         # - ze.bgp-hostname: FQDN capability (code 73)
         # - ze.bgp-llnh: Link-local next-hop capability (code 77)
         # - ze.bgp-softver: Software version capability (code 75)
-        cmd = [ze_binary, '--plugin', 'ze.bgp-hostname', '--plugin', 'ze.bgp-llnh', '--plugin', 'ze.bgp-softver', temp_config]
+        cmd = [ze_binary, '--plugin', 'ze.bgp-hostname', '--plugin', 'ze.bgp-llnh', '--plugin', 'ze.bgp-softver', '--plugin', 'ze.bgp-watchdog', temp_config]
 
         # Add environment-based options
         env_vars = get_exabgp_env_vars()

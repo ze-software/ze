@@ -311,3 +311,67 @@ bgp {
 		})
 	}
 }
+
+// TestWatchdogUpdateBlocksFilteredFromStaticRoutes verifies that update blocks with
+// watchdog containers are excluded from extracted static routes.
+//
+// VALIDATES: Watchdog routes owned by bgp-watchdog plugin are not engine static routes.
+// PREVENTS: Regression where watchdog routes leak into initial peer sync.
+func TestWatchdogUpdateBlocksFilteredFromStaticRoutes(t *testing.T) {
+	input := `
+bgp {
+    peer 127.0.0.1 {
+        local-as 65533;
+        peer-as 65533;
+        update {
+            attribute {
+                next-hop 1.2.3.4;
+                origin igp;
+            }
+            nlri {
+                ipv4/unicast add 66.66.66.66;
+            }
+        }
+        update {
+            attribute {
+                next-hop 1.2.3.4;
+                origin igp;
+            }
+            nlri {
+                ipv4/unicast add 77.77.77.77;
+            }
+            watchdog {
+                name dnsr;
+            }
+        }
+        update {
+            attribute {
+                next-hop 1.2.3.4;
+                origin igp;
+            }
+            nlri {
+                ipv4/unicast add 88.88.88.88;
+            }
+        }
+    }
+}
+`
+	p := NewParser(YANGSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err, "parse should succeed")
+
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	peer := peers["127.0.0.1"]
+	require.NotNil(t, peer)
+
+	routes, err := extractRoutesFromTree(peer)
+	require.NoError(t, err, "route extraction should succeed")
+
+	// The watchdog update block (77.77.77.77) should be filtered out.
+	// Only 66.66.66.66 and 88.88.88.88 should remain.
+	require.Len(t, routes.StaticRoutes, 2, "watchdog route should be filtered")
+	require.Equal(t, "66.66.66.66/32", routes.StaticRoutes[0].Prefix.String())
+	require.Equal(t, "88.88.88.88/32", routes.StaticRoutes[1].Prefix.String())
+}

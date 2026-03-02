@@ -17,7 +17,7 @@ import (
 // The Reactor struct (internal/plugins/bgp/reactor/) implements both
 // BGPReactor and plugin.ReactorLifecycle.
 type BGPReactor interface {
-	// --- Route announce (10 methods) ---
+	// --- Route announce (9 methods) ---
 
 	// AnnounceRoute announces a route to peers matching the selector.
 	AnnounceRoute(peerSelector string, route RouteSpec) error
@@ -47,10 +47,7 @@ type BGPReactor interface {
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
 	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error
 
-	// AnnounceWatchdog announces all routes in the named watchdog group.
-	AnnounceWatchdog(peerSelector, name string) error
-
-	// --- Route withdraw (9 methods) ---
+	// --- Route withdraw (7 methods) ---
 
 	// WithdrawRoute withdraws a route from peers matching the selector.
 	WithdrawRoute(peerSelector string, prefix netip.Prefix) error
@@ -76,9 +73,6 @@ type BGPReactor interface {
 	// WithdrawNLRIBatch withdraws a batch of NLRIs.
 	// RFC 4271 Section 4.3, RFC 4760.
 	WithdrawNLRIBatch(peerSelector string, batch NLRIBatch) error
-
-	// WithdrawWatchdog withdraws all routes in the named watchdog group.
-	WithdrawWatchdog(peerSelector, name string) error
 
 	// --- BGP messages (3 methods) ---
 
@@ -146,14 +140,6 @@ type BGPReactor interface {
 
 	// SendRoutes sends routes directly to matching peers using CommitService.
 	SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (TransactionResult, error)
-
-	// --- Watchdog routes (2 methods) ---
-
-	// AddWatchdogRoute adds a route to a global watchdog pool.
-	AddWatchdogRoute(route RouteSpec, poolName string) error
-
-	// RemoveWatchdogRoute removes a route from a global watchdog pool.
-	RemoveWatchdogRoute(routeKey, poolName string) error
 
 	// --- UPDATE cache (5 methods) ---
 

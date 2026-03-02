@@ -19,7 +19,7 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 	// Verify count matches expected (BGP handler RPCs moved to handler/ package,
 	// injected via RPCProviders — not counted here)
-	assert.Len(t, rpcs, 25, "expected 25 builtin RPCs (update+watchdog moved to handler/)")
+	assert.Len(t, rpcs, 26, "expected 26 builtin RPCs (update+watchdog moved to handler/)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -63,7 +63,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 
 	// Verify per-module counts
 	assert.Len(t, bgp, 2, "BGP plugin RPCs (update+watchdog moved to handler/)")
-	assert.Len(t, system, 10, "System RPCs")
+	assert.Len(t, system, 11, "System RPCs")
 	assert.Len(t, rib, 5, "RIB RPCs (data handlers moved to plugin)")
 	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
 

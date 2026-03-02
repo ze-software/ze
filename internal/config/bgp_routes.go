@@ -79,6 +79,15 @@ func extractRoutesFromTree(tree *Tree) (*UpdateBlockRoutes, error) {
 		if err != nil {
 			return nil, fmt.Errorf("update block: %w", err)
 		}
+
+		// All watchdog routes are owned by the bgp-watchdog plugin and must not
+		// be added as engine static routes. The plugin sends them via UpdateRoute
+		// on peer session establishment (for non-withdrawn routes) and on
+		// explicit "watchdog announce" commands (for withdrawn routes).
+		if hasWatchdogContainer(entry.Value) {
+			continue
+		}
+
 		// Aggregate all route types
 		result.StaticRoutes = append(result.StaticRoutes, updateRoutes.StaticRoutes...)
 		result.FlowSpecRoutes = append(result.FlowSpecRoutes, updateRoutes.FlowSpecRoutes...)
@@ -88,6 +97,13 @@ func extractRoutesFromTree(tree *Tree) (*UpdateBlockRoutes, error) {
 	}
 
 	return result, nil
+}
+
+// hasWatchdogContainer returns true if an update block has a watchdog container.
+// All watchdog routes are owned by the bgp-watchdog plugin and must not be
+// added as engine static routes.
+func hasWatchdogContainer(update *Tree) bool {
+	return update.GetContainer("watchdog") != nil
 }
 
 // UpdateBlockRoutes holds all route types extracted from an update { } block.
@@ -108,15 +124,6 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 	attr := update.GetContainer("attribute")
 	if attr == nil {
 		attr = NewTree() // Empty attributes if not specified
-	}
-
-	// Parse watchdog container from update block level
-	// Routes with watchdog { name ...; withdraw true; } are held until "bgp watchdog announce <name>"
-	var watchdog string
-	var watchdogWithdraw bool
-	if wdContainer := update.GetContainer("watchdog"); wdContainer != nil {
-		watchdog, _ = wdContainer.Get("name")
-		_, watchdogWithdraw = wdContainer.Get("withdraw")
 	}
 
 	// Parse nlri list entries - each has key=family and content=operation+payload
@@ -245,12 +252,6 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 			// Apply attributes using shared helper
 			if err := applyAttributesFromTree(attr, &sr); err != nil {
 				return nil, err
-			}
-
-			// Apply watchdog from update block level
-			if watchdog != "" {
-				sr.Watchdog = watchdog
-				sr.WatchdogWithdraw = watchdogWithdraw
 			}
 
 			result.StaticRoutes = append(result.StaticRoutes, sr)
@@ -685,13 +686,6 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 	}
 	if v, ok := tree.Get("split"); ok {
 		sr.Split = v
-	}
-	// Watchdog support
-	if v, ok := tree.Get("watchdog"); ok {
-		sr.Watchdog = v
-	}
-	if _, ok := tree.Get("withdraw"); ok {
-		sr.WatchdogWithdraw = true
 	}
 	return nil
 }

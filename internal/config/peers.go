@@ -259,19 +259,7 @@ func patchStaticRoutes(ps *reactor.PeerSettings, routes []StaticRouteConfig, add
 				return fmt.Errorf("peer %s VPN route %s requires at least one label", addr, prefix)
 			}
 
-			// Route to correct bucket based on watchdog field.
-			if sr.Watchdog != "" {
-				wr := reactor.WatchdogRoute{
-					StaticRoute:        route,
-					InitiallyWithdrawn: sr.WatchdogWithdraw,
-				}
-				if ps.WatchdogGroups == nil {
-					ps.WatchdogGroups = make(map[string][]reactor.WatchdogRoute)
-				}
-				ps.WatchdogGroups[sr.Watchdog] = append(ps.WatchdogGroups[sr.Watchdog], wr)
-			} else {
-				ps.StaticRoutes = append(ps.StaticRoutes, route)
-			}
+			ps.StaticRoutes = append(ps.StaticRoutes, route)
 		}
 	}
 

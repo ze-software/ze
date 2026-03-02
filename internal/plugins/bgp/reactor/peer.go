@@ -192,15 +192,6 @@ type Peer struct {
 
 	mu sync.RWMutex
 
-	// Watchdog runtime state: tracks current announced/withdrawn state per route.
-	// Key: watchdog name, Value: map of route key (prefix string) → isAnnounced.
-	// Initialized from WatchdogGroups on session establishment.
-	watchdogState map[string]map[string]bool
-
-	// Global watchdog manager for API-created pools.
-	// Set by reactor when peer is added. Used to re-send pool routes on reconnect.
-	globalWatchdog *WatchdogManager
-
 	// reactor is set when peer is added to reactor.
 	// Used to notify reactor of state changes.
 	reactor *Reactor
@@ -231,18 +222,8 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMin:  DefaultReconnectMin,
 		reconnectMax:  DefaultReconnectMax,
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
-		watchdogState: make(map[string]map[string]bool),
 		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify: make(chan struct{}, 1),
-	}
-
-	// Initialize watchdog state from config
-	for name, routes := range settings.WatchdogGroups {
-		p.watchdogState[name] = make(map[string]bool)
-		for i := range routes {
-			wr := &routes[i]
-			p.watchdogState[name][wr.RouteKey()] = !wr.InitiallyWithdrawn
-		}
 	}
 
 	return p
@@ -396,14 +377,6 @@ func (p *Peer) clearEncodingContexts() {
 	p.recvCtxID = 0
 	p.sendCtx = nil
 	p.sendCtxID = 0
-}
-
-// SetGlobalWatchdog sets the global watchdog manager for this peer.
-// Called by reactor when peer is added.
-func (p *Peer) SetGlobalWatchdog(wm *WatchdogManager) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.globalWatchdog = wm
 }
 
 // SetReactor sets the reactor reference.

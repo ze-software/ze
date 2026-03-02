@@ -76,7 +76,7 @@ const DefaultHoldTime = 90 * time.Second
 // Fields are stored in both serializable (string/uint) and wire-ready formats.
 //
 // IMMUTABILITY: StaticRoute and its slices (ASPath, Communities, etc.) must not
-// be mutated after being stored. Watchdog pools and peer settings store shallow
+// be mutated after being stored. Peer settings store shallow
 // copies for efficiency; mutation would corrupt internal state.
 type StaticRoute struct {
 	Prefix  netip.Prefix
@@ -160,13 +160,6 @@ func (r *StaticRoute) RouteKey() string {
 		key = r.RD + ":" + key
 	}
 	return fmt.Sprintf("%s#%d", key, r.PathID)
-}
-
-// WatchdogRoute wraps a static route with watchdog metadata.
-// Stored separately from StaticRoutes to avoid bloating that struct.
-type WatchdogRoute struct {
-	StaticRoute             // Embed existing type
-	InitiallyWithdrawn bool // Start in '-' state (held until "watchdog announce")
 }
 
 // MVPNRoute represents an MVPN route (RFC 6514).
@@ -295,11 +288,6 @@ type PeerSettings struct {
 
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
-
-	// WatchdogGroups holds routes controlled by watchdog API.
-	// Key is watchdog name, value is list of routes in that group.
-	// Routes here are NOT in StaticRoutes - they're stored separately.
-	WatchdogGroups map[string][]WatchdogRoute
 
 	// Exotic route types
 	MVPNRoutes     []MVPNRoute

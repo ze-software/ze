@@ -1187,11 +1187,7 @@ func (m *mockReactorBatch) TransactionID(_ string) string { return "" }
 func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil
 }
-func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error                    { return nil }
-func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                    { return nil }
-func (m *mockReactorBatch) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error { return nil }
-func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                 { return nil }
-func (m *mockReactorBatch) ClearRIBIn() int                                       { return 0 }
+func (m *mockReactorBatch) ClearRIBIn() int { return 0 }
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }

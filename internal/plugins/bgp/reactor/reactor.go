@@ -51,13 +51,12 @@ const collisionResolutionTimeout = 5 * time.Second
 
 // Reactor errors.
 var (
-	ErrAlreadyRunning        = errors.New("reactor already running")
-	ErrNotRunning            = errors.New("reactor not running")
-	ErrPeerExists            = errors.New("peer already exists")
-	ErrPeerNotFound          = errors.New("peer not found")
-	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
-	ErrNoConfigPath          = errors.New("config path not set")
-	ErrNoReloadFunc          = errors.New("reload function not set")
+	ErrAlreadyRunning = errors.New("reactor already running")
+	ErrNotRunning     = errors.New("reactor not running")
+	ErrPeerExists     = errors.New("peer already exists")
+	ErrPeerNotFound   = errors.New("peer not found")
+	ErrNoConfigPath   = errors.New("config path not set")
+	ErrNoReloadFunc   = errors.New("reload function not set")
 )
 
 // Config holds reactor configuration.
@@ -173,7 +172,6 @@ type PeerLifecycleObserver interface {
 //   - Graceful shutdown
 //   - API server for external communication
 //   - RIB (Routing Information Base) for route storage
-//   - Watchdog pools for API-controlled route groups
 type Reactor struct {
 	config *Config
 
@@ -188,9 +186,6 @@ type Reactor struct {
 	signals         *SignalHandler
 	api             *plugin.Server             // API server for CLI and external processes
 	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
-
-	// Watchdog pools for API-created routes
-	watchdog *WatchdogManager
 
 	// Recent UPDATE cache for efficient forwarding via update-id
 	recentUpdates *RecentUpdateCache
@@ -255,7 +250,6 @@ func New(config *Config) *Reactor {
 		listenerFactory: sim.RealListenerFactory{},
 		peers:           make(map[string]*Peer),
 		listeners:       make(map[string]*Listener),
-		watchdog:        NewWatchdogManager(),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool:         newFwdPool(fwdBatchHandler, fwdPoolConfig{chanSize: fwdChanSize}),
 		configTree:      config.ConfigTree,
@@ -296,11 +290,6 @@ func (r *Reactor) SetDialer(d sim.Dialer) {
 // Must be called before StartWithContext.
 func (r *Reactor) SetListenerFactory(f sim.ListenerFactory) {
 	r.listenerFactory = f
-}
-
-// WatchdogManager returns the global watchdog pool manager.
-func (r *Reactor) WatchdogManager() *WatchdogManager {
-	return r.watchdog
 }
 
 // findPeerByAddr looks up a peer by address, trying default port first.
@@ -355,52 +344,6 @@ func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
 // SetConfigPath sets the config file path for reload.
 func (r *Reactor) SetConfigPath(path string) {
 	r.config.ConfigPath = path
-}
-
-// AddWatchdogRoute adds a route to a global watchdog pool.
-// Creates the pool if it doesn't exist.
-// The route will be announced to all peers when "watchdog announce <name>" is called.
-// Returns ErrRouteExists if a route with the same key already exists in the pool.
-func (r *Reactor) AddWatchdogRoute(route *StaticRoute, poolName string) error {
-	_, err := r.watchdog.AddRoute(poolName, route)
-	return err
-}
-
-// RemoveWatchdogRoute removes a route from a global watchdog pool.
-// Returns ErrWatchdogNotFound if pool doesn't exist.
-// Returns ErrWatchdogRouteNotFound if route doesn't exist in pool.
-// Sends withdrawals to all peers that had the route announced.
-func (r *Reactor) RemoveWatchdogRoute(routeKey, poolName string) error {
-	// Check pool exists first (for better error message)
-	if r.watchdog.GetPool(poolName) == nil {
-		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, poolName)
-	}
-
-	// Atomically remove route and get its data for withdrawals
-	removedRoute, ok := r.watchdog.RemoveAndGetRoute(poolName, routeKey)
-	if !ok {
-		return fmt.Errorf("%w: %s", ErrWatchdogRouteNotFound, routeKey)
-	}
-
-	// Send withdrawals to all peers that had this route announced
-	// Route is already removed from pool, so no race condition
-	r.mu.RLock()
-	for _, peer := range r.peers {
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
-		peerAddr := peer.Settings().Address.String()
-		// Note: removedRoute.announced is no longer protected by pool mutex,
-		// but it's safe because the route is now orphaned (no concurrent access)
-		if removedRoute.announced[peerAddr] {
-			// RFC 4271 Section 4.3 - Send withdrawal UPDATE (zero-allocation path)
-			// Best effort, continue on error
-			_ = peer.SendWithdraw(removedRoute.Prefix)
-		}
-	}
-	r.mu.RUnlock()
-
-	return nil
 }
 
 // Running returns true if the reactor is running.
@@ -743,7 +686,6 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer := NewPeer(settings)
 	peer.SetClock(r.clock)
 	peer.SetDialer(r.dialer)
-	peer.SetGlobalWatchdog(r.watchdog)
 	peer.SetReactor(r)
 	// Set message callback to forward raw bytes to reactor's message receiver
 	peer.messageCallback = r.notifyMessageReceiver

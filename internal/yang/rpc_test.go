@@ -47,7 +47,7 @@ func TestExtractRPCs(t *testing.T) {
 				"help", "command-list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
 				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
-				"peer-update", "watchdog-announce", "watchdog-withdraw",
+				"peer-update",
 				"peer-borr", "peer-eorr", "peer-raw",
 				"cache", "commit",
 				"subscribe", "unsubscribe", "event-list",
@@ -61,6 +61,7 @@ func TestExtractRPCs(t *testing.T) {
 				"daemon-shutdown", "daemon-status", "daemon-reload",
 				"subsystem-list",
 				"command-list", "command-help", "command-complete",
+				"dispatch",
 			},
 		},
 		{

@@ -27,7 +27,6 @@ func BgpHandlerRPCs() []plugin.RPCRegistration {
 		RawRPCs(),
 		RefreshRPCs(),
 		UpdateRPCs(),
-		WatchdogRPCs(),
 	}
 	n := 0
 	for _, s := range sources {

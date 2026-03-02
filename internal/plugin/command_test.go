@@ -260,6 +260,28 @@ func TestCommandContextAccessors(t *testing.T) {
 	assert.Equal(t, subs, ctx.Subscriptions(), "Subscriptions() should return server's subscriptions")
 }
 
+// TestDispatcherPluginMatch verifies plugin command dispatch via the registry.
+//
+// VALIDATES: Plugin commands are matched by the dispatcher's plugin registry path.
+// PREVENTS: Plugin commands unreachable through normal dispatch.
+func TestDispatcherPluginMatch(t *testing.T) {
+	d := NewDispatcher()
+
+	// Register plugin command with full prefix — plugins that handle
+	// commands arriving via update-route RPC must include the domain prefix
+	// (e.g., "bgp watchdog announce" not "watchdog announce").
+	proc := &Process{config: PluginConfig{Name: "bgp-watchdog"}}
+	d.Registry().Register(proc, []CommandDef{
+		{Name: "bgp watchdog announce", Description: "Announce watchdog group"},
+	})
+
+	// Prefixed command matches (process not running → error, but not ErrUnknownCommand)
+	_, err := d.Dispatch(nil, "bgp watchdog announce dnsr")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrUnknownCommand),
+		"plugin command should match, got: %v", err)
+}
+
 // TestDispatcherCaseInsensitive verifies case handling.
 //
 // VALIDATES: Commands are matched case-insensitively.

@@ -25,7 +25,6 @@ Ze is transitioning to an architecture where **all RIB data and logic lives in A
 The reactor no longer holds `ribIn` or `ribStore` fields. Route storage is
 fully owned by plugins (`bgp-rib`, `bgp-adj-rib-in`). The engine retains only:
 - **msg-id cache** (`recentUpdates`) — wire bytes for zero-copy forwarding
-- **watchdog** — per-peer and global route pools (planned extraction to `bgp-watchdog` plugin)
 
 ```
 Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins → Plugins store/forward
@@ -37,7 +36,7 @@ Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins �
 | Best-path | Plugin (bgp-rs) | Done |
 | GR state | Plugin (bgp-gr) | Done |
 | Policy | Plugins | Done |
-| Watchdog | Engine (reactor) | Planned extraction to bgp-watchdog plugin |
+| Watchdog | Plugin (bgp-watchdog) | Done |
 
 ### Target: API Program Owns RIB
 
@@ -265,7 +264,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 5. ✅ API: Update ze plugin rib with msg-id control
         ↓
 6. ⚠️  Engine: Remove RIB storage from reactor (API owns)
-        — ribIn and ribStore removed. Watchdog remains (planned bgp-watchdog plugin).
+        — ribIn and ribStore removed. Watchdog extracted to bgp-watchdog plugin.
         ↓
 7. Docs: Update all specs to reflect new architecture
 ```

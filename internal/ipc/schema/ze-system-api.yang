@@ -91,4 +91,15 @@ module ze-system-api {
             leaf-list completions { type string; description "Completion candidates"; }
         }
     }
+
+    rpc dispatch {
+        description "Dispatch a text command through the command dispatcher";
+        input {
+            leaf-list args { type string; description "Command words to join and dispatch"; }
+        }
+        output {
+            leaf status { type string; description "Result status (ok or error)"; }
+            leaf data { type string; description "Response data"; }
+        }
+    }
 }

@@ -115,10 +115,6 @@ func (m *mockReactor) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error      
 func (m *mockReactor) AnnounceL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
 func (m *mockReactor) WithdrawL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
 func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error             { return nil }
-func (m *mockReactor) AnnounceWatchdog(_, _ string) error                        { return nil }
-func (m *mockReactor) WithdrawWatchdog(_, _ string) error                        { return nil }
-func (m *mockReactor) AddWatchdogRoute(_ bgptypes.RouteSpec, _ string) error     { return nil }
-func (m *mockReactor) RemoveWatchdogRoute(_, _ string) error                     { return nil }
 func (m *mockReactor) AnnounceLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
 	return nil
 }
