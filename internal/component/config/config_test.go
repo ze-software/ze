@@ -1,4 +1,4 @@
-package configmgr_test
+package config_test
 
 import (
 	"encoding/json"
@@ -8,14 +8,14 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/configmgr"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // VALIDATES: AC-1 — Load stores config, queryable via Get().
 // PREVENTS: Config not stored after Load.
 func TestLoad(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	// Write a test config file.
 	dir := t.TempDir()
@@ -46,7 +46,7 @@ func TestLoad(t *testing.T) {
 // VALIDATES: AC-2 — Get existing root returns correct subtree.
 // PREVENTS: Wrong subtree returned.
 func TestGet(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	dir := t.TempDir()
 	path := filepath.Join(dir, "test.json")
@@ -84,7 +84,7 @@ func TestGet(t *testing.T) {
 // VALIDATES: AC-3 — Get non-existing root returns empty map, nil.
 // PREVENTS: Error on missing root.
 func TestGetNonExisting(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	tree, err := mgr.Get("nonexistent")
 	if err != nil {
@@ -98,7 +98,7 @@ func TestGetNonExisting(t *testing.T) {
 // VALIDATES: AC-4 — RegisterSchema adds module to schema.
 // PREVENTS: Lost schema registrations.
 func TestRegisterSchema(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	if err := mgr.RegisterSchema("bgp-rib", "module bgp-rib {}"); err != nil {
 		t.Fatalf("RegisterSchema failed: %v", err)
@@ -116,7 +116,7 @@ func TestRegisterSchema(t *testing.T) {
 // VALIDATES: AC-5 — RegisterSchema with duplicate name returns error.
 // PREVENTS: Silent schema name collision.
 func TestRegisterSchemaDuplicate(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	if err := mgr.RegisterSchema("bgp-rib", "module bgp-rib {}"); err != nil {
 		t.Fatalf("first RegisterSchema: %v", err)
@@ -131,7 +131,7 @@ func TestRegisterSchemaDuplicate(t *testing.T) {
 // VALIDATES: AC-6 — Validate with no errors returns empty slice.
 // PREVENTS: False validation errors.
 func TestValidate(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	errs := mgr.Validate()
 	if len(errs) != 0 {
@@ -142,7 +142,7 @@ func TestValidate(t *testing.T) {
 // VALIDATES: AC-7 — Save writes config to file.
 // PREVENTS: Config not persisted.
 func TestSave(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	dir := t.TempDir()
 	loadPath := filepath.Join(dir, "input.json")
@@ -174,7 +174,7 @@ func TestSave(t *testing.T) {
 // VALIDATES: AC-8 — Watch channel receives ConfigChange on reload.
 // PREVENTS: Lost reload notifications.
 func TestWatch(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	ch := mgr.Watch("bgp")
 	if ch == nil {
@@ -211,7 +211,7 @@ func TestWatch(t *testing.T) {
 // VALIDATES: AC-11 — Multiple watchers for same root all receive notification.
 // PREVENTS: Lost notifications to some watchers.
 func TestWatchMultiple(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	ch1 := mgr.Watch("bgp")
 	ch2 := mgr.Watch("bgp")
@@ -244,7 +244,7 @@ func TestWatchMultiple(t *testing.T) {
 // VALIDATES: AC-12 — Second Load replaces config and notifies watchers.
 // PREVENTS: Stale config after reload.
 func TestLoadReplacesAndNotifies(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	ch := mgr.Watch("bgp")
 
@@ -303,7 +303,7 @@ func TestLoadReplacesAndNotifies(t *testing.T) {
 // VALIDATES: AC-10 — Schema returns all registered module names.
 // PREVENTS: Missing modules in schema listing.
 func TestSchemaModules(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	names := []string{"bgp-gr", "bgp-rib", "bgp-rs"}
 	for _, name := range names {
@@ -328,7 +328,7 @@ func TestSchemaModules(t *testing.T) {
 // VALIDATES: Full lifecycle: register-schema → load → get → watch → reload.
 // PREVENTS: State machine bugs.
 func TestLifecycle(t *testing.T) {
-	mgr := configmgr.NewConfigManager()
+	mgr := config.NewProvider()
 
 	// Register schema.
 	if err := mgr.RegisterSchema("bgp-rib", "module bgp-rib {}"); err != nil {
@@ -387,8 +387,8 @@ func TestLifecycle(t *testing.T) {
 
 // VALIDATES: ConfigProvider interface satisfaction.
 // PREVENTS: Compile-time interface drift.
-func TestManagerSatisfiesInterface(t *testing.T) {
-	var _ ze.ConfigProvider = (*configmgr.ConfigManager)(nil)
+func TestProviderSatisfiesInterface(t *testing.T) {
+	var _ ze.ConfigProvider = (*config.Provider)(nil)
 }
 
 // writeJSON is a test helper that writes data as JSON to a file.

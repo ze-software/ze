@@ -1,11 +1,11 @@
-package pluginmgr_test
+package plugin_test
 
 import (
 	"context"
 	"sort"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/pluginmgr"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
@@ -33,7 +33,7 @@ func (s *stubConfig) RegisterSchema(string, string) error { return nil }
 // VALIDATES: AC-1 — Plugin registration and lookup.
 // PREVENTS: Lost registrations.
 func TestRegister(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"})
 	if err != nil {
@@ -56,7 +56,7 @@ func TestRegister(t *testing.T) {
 // VALIDATES: AC-2 — Duplicate registration returns error.
 // PREVENTS: Silent name collision.
 func TestRegisterDuplicate(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	if err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"}); err != nil {
 		t.Fatalf("first Register: %v", err)
@@ -71,7 +71,7 @@ func TestRegisterDuplicate(t *testing.T) {
 // VALIDATES: AC-10 — Register after StartAll returns error.
 // PREVENTS: Late registration after lifecycle started.
 func TestRegisterAfterStart(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	if err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"}); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -92,7 +92,7 @@ func TestRegisterAfterStart(t *testing.T) {
 // VALIDATES: AC-3 — StartAll marks all plugins running.
 // PREVENTS: Plugins stuck in not-running state.
 func TestStartAll(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	for _, name := range []string{"bgp-rib", "bgp-rs", "bgp-gr"} {
 		if err := mgr.Register(ze.PluginConfig{Name: name}); err != nil {
@@ -121,7 +121,7 @@ func TestStartAll(t *testing.T) {
 // VALIDATES: AC-4 — StopAll marks all plugins stopped.
 // PREVENTS: Plugins stuck in running state after stop.
 func TestStopAll(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	if err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"}); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -148,7 +148,7 @@ func TestStopAll(t *testing.T) {
 // VALIDATES: AC-5 and AC-6 — Plugin lookup for existing and non-existing.
 // PREVENTS: Wrong lookup results.
 func TestPluginLookup(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	if err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"}); err != nil {
 		t.Fatalf("Register: %v", err)
@@ -170,7 +170,7 @@ func TestPluginLookup(t *testing.T) {
 // VALIDATES: AC-7 — Plugins returns all registered plugins.
 // PREVENTS: Missing plugins in listing.
 func TestPlugins(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	names := []string{"bgp-gr", "bgp-rib", "bgp-rs"}
 	for _, name := range names {
@@ -205,7 +205,7 @@ func TestPlugins(t *testing.T) {
 // VALIDATES: AC-8 — Capabilities returns collected capabilities.
 // PREVENTS: Lost capabilities.
 func TestCapabilities(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	mgr.AddCapability(ze.Capability{Plugin: "bgp-gr", Code: 64, Value: []byte{0x01}})
 	mgr.AddCapability(ze.Capability{Plugin: "bgp-rib", Code: 65, Value: []byte{0x00, 0x01}})
@@ -228,7 +228,7 @@ func TestCapabilities(t *testing.T) {
 // VALIDATES: Full lifecycle: register → start → query → stop.
 // PREVENTS: State machine bugs.
 func TestLifecycle(t *testing.T) {
-	mgr := pluginmgr.NewManager()
+	mgr := plugin.NewManager()
 
 	// Register.
 	if err := mgr.Register(ze.PluginConfig{Name: "bgp-rib", Dependencies: []string{"bgp-rs"}}); err != nil {
@@ -268,5 +268,5 @@ func TestLifecycle(t *testing.T) {
 // VALIDATES: PluginManager interface satisfaction.
 // PREVENTS: Compile-time interface drift.
 func TestManagerSatisfiesInterface(t *testing.T) {
-	var _ ze.PluginManager = (*pluginmgr.Manager)(nil)
+	var _ ze.PluginManager = (*plugin.Manager)(nil)
 }

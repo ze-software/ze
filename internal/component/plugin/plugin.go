@@ -1,7 +1,7 @@
 // Design: docs/plan/spec-arch-0-system-boundaries.md — PluginManager implementation
 // Design: docs/plan/spec-arch-3-plugin-manager.md — PluginManager spec
 
-package pluginmgr
+package plugin
 
 import (
 	"context"
