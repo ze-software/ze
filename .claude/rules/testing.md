@@ -66,9 +66,12 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 
 ## Pre-Commit
 
+**BLOCKING:** `make test-all` is the ONLY acceptable pre-commit verification. Not `make ze-verify`. Not `go test`. Not any subset.
+
 ```
-[ ] make test-all passes (lint + all ze tests)
+[ ] make test-all passes (lint + all ze tests) — timeout 300s
 [ ] User approval
 ```
 
-Use `make ze-verify` (lint + unit + functional) during development iterations. Use `make test-all` before closing a spec or committing.
+During development: `go test`, `make ze-unit-test`, `make ze-verify` are fine for fast iteration.
+Before committing or claiming done: `make test-all`. No exceptions.

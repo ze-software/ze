@@ -24,7 +24,9 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 ## Proof
 
-Paste command output as evidence. `make ze-verify` during development; `make test-all` required before closing a spec or committing. "Should work" is not evidence.
+Paste command output as evidence. "Should work" is not evidence.
+
+**BLOCKING:** `make test-all` (timeout 300s) is the ONLY acceptable verification before committing or claiming done. `make ze-verify` and `go test` are for development iterations only — never sufficient for commit readiness.
 
 ## Critical Reviews
 

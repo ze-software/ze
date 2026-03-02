@@ -45,7 +45,7 @@ Key decisions agreed with user:
 - **Cross-check child specs against umbrella** after each phase
 
 ### Bash Timeout for test-all
-`make test-all` needs longer timeout (300000ms+) — runs lint + unit + functional + fuzz + exabgp.
+`make test-all` needs timeout 300s (5 min) — runs lint + unit + functional + fuzz + exabgp.
 
 ## Mistake Log
 
