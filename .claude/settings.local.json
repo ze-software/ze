@@ -109,7 +109,8 @@
       "Bash(./bin/ze:*)",
       "Bash(bin/ze-test:*)",
       "Bash(ze bgp decode:*)",
-      "Bash(bin/go-extract:*)"
+      "Bash(bin/go-extract:*)",
+      "Bash(dot:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
