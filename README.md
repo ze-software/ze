@@ -6,7 +6,7 @@ Ze is a BGP daemon written in Go, built by the creator of [ExaBGP](https://githu
 
 ## Why Ze
 
-**From the author of ExaBGP** — ExaBGP has been trusted in production networks worldwide for over a decade: traffic engineering, DDoS mitigation, route injection, SDN integration, and network monitoring. Ze applies those lessons to a ground-up redesign.
+ExaBGP has been trusted in production networks worldwide for over a decade: traffic engineering, DDoS mitigation, route injection, SDN integration, and network monitoring. Ze applies those lessons to a ground-up redesign.
 
 | Design goal | Ze's approach |
 |-------------|---------------|
@@ -26,14 +26,14 @@ Ze aims for comprehensive RFC 4271 compliance with broad multiprotocol support:
 IPv4/IPv6 Unicast and Multicast, VPNv4/VPNv6 (RFC 4364, 4659), EVPN (RFC 7432, 9136), FlowSpec (RFC 8955/8956), Labeled Unicast (RFC 8277), BGP-LS (RFC 7752, 9085, 9514), VPLS (RFC 4761/4762), MVPN (RFC 6514), Route Target Constraint (RFC 4684), Mobile User Plane (draft-ietf-bess-mup-safi)
 
 **Capabilities:**
-4-byte ASN (RFC 6793), ADD-PATH (RFC 7911), Extended Messages (RFC 8654), Extended Next-Hop (RFC 8950), Graceful Restart (RFC 4724), Route Refresh (RFC 2918/7313), Role-based filtering (RFC 9234)
+4-byte ASN (RFC 6793), ADD-PATH (RFC 7911), Extended Messages (RFC 8654), Extended Next-Hop (RFC 8950), Graceful Restart (RFC 4724), Route Refresh (RFC 2918/7313), Role-based filtering (RFC 9234), FQDN Hostname (draft-walton-bgp-hostname-capability), Software Version (draft-ietf-idr-software-version)
 
 **Error Handling:**
 Revised error handling with treat-as-withdraw (RFC 7606), shutdown communication (RFC 9003)
 
 ### Plugin Architecture
 
-Ze ships with 15 plugins covering core BGP features and every supported address family:
+Ze ships with 19 plugins covering core BGP features and every supported address family:
 
 **Behavioural plugins:**
 
@@ -41,20 +41,24 @@ Ze ships with 15 plugins covering core BGP features and every supported address 
 |--------|---------|
 | `bgp-rib` | Route Information Base — storage, best-path selection |
 | `bgp-rs` | Route Server (RFC 7947) |
-| `bgp-gr` | Graceful Restart (RFC 4724, RFC 9494) |
+| `bgp-gr` | Graceful Restart (RFC 4724) |
 | `bgp-role` | Role negotiation and OTC filtering (RFC 9234) |
-| `bgp-hostname` | Hostname capability (RFC 9018) |
+| `bgp-hostname` | Hostname capability (draft-walton-bgp-hostname-capability) |
 | `bgp-llnh` | Link-local next-hop handling |
+| `bgp-route-refresh` | Route Refresh capability (RFC 2918, 7313) |
+| `bgp-softver` | Software Version capability (draft-ietf-idr-software-version) |
+| `bgp-adj-rib-in` | Adj-RIB-In storage (raw hex replay) |
+| `bgp-watchdog` | Watchdog route management |
 
 **NLRI family plugins:**
 
 | Plugin | Purpose |
 |--------|---------|
 | `bgp-nlri-evpn` | EVPN types 1-5 — MAC-IP, Ethernet Segment, etc. (RFC 7432, 9136) |
-| `bgp-nlri-vpn` | VPNv4/VPNv6 with Route Distinguisher and label stack (RFC 4364, 4659, 4798) |
+| `bgp-nlri-vpn` | VPNv4/VPNv6 with Route Distinguisher and label stack (RFC 4364, 4659) |
 | `bgp-nlri-flowspec` | FlowSpec traffic filter rules for IPv4/IPv6/VPN (RFC 8955, 8956) |
 | `bgp-nlri-ls` | BGP-LS link-state topology including SRv6 (RFC 7752, 9085, 9514) |
-| `bgp-nlri-labeled` | MPLS labeled unicast with label stacks (RFC 8277, 3032) |
+| `bgp-nlri-labeled` | MPLS labeled unicast with label stacks (RFC 8277) |
 | `bgp-nlri-vpls` | L2VPN VPLS pseudowires (RFC 4761, 4762) |
 | `bgp-nlri-mvpn` | Multicast VPN (RFC 6514) |
 | `bgp-nlri-mup` | Mobile User Plane (draft-ietf-bess-mup-safi) |
@@ -102,12 +106,12 @@ ze config migrate exabgp.conf > ze.conf
 
 ### Testing
 
-- **3700+ test functions** with race detector (`make ze-unit-test`)
+- **4400+ test functions** with race detector (`make ze-unit-test`)
 - **26 linters** via golangci-lint (`make ze-lint`)
 - **Functional tests** — encoding, decoding, plugin communication, config parsing, dynamic reload (`make ze-functional-test`)
 - **ExaBGP compatibility tests** — wire format validation against ExaBGP 5.0 (`make ze-exabgp-test`)
 - **Fuzz testing** — message parsing, attribute handling, NLRI decoding, config tokenisation (`make ze-fuzz-test`)
-- **Chaos testing** — in-process BGP simulation (`make chaos-test`)
+- **Chaos testing** — in-process BGP simulation (`make ze-chaos-test`)
 
 ### ze-test — Functional Test Runner
 
@@ -125,7 +129,7 @@ ze-test peer --mode check test.ci  # validate wire output against expected
 
 ### ze-chaos — Chaos Testing
 
-`ze-chaos` is a chaos monkey that simulates multiple BGP peers against a Ze route server, validates route propagation correctness, and injects faults.
+`ze-chaos` is a chaos simulator that runs multiple BGP peers against a Ze route server, validates route propagation correctness, and injects faults.
 
 The tool outputs the Ze config on **stdout** and all diagnostics on **stderr**, so it can be piped directly to Ze:
 
@@ -179,7 +183,7 @@ bin/ze config.conf
 bin/ze config check config.conf
 
 # Decode a BGP message
-bin/ze bgp decode --update FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...
+bin/ze bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...
 
 # Run all tests
 make test-all
@@ -317,7 +321,7 @@ This separation means you can:
 
 ## Project Status
 
-Ze is in **early active development** with no release yet. The protocol implementation is broad, the plugin architecture is functional, and the test suite is extensive — but interfaces are still evolving and breaking changes should be expected. Ze is not ready for production use.
+Ze is in **early active development**. The protocol implementation is broad, the plugin architecture is functional, and the test suite is extensive — but interfaces are still evolving and breaking changes should be expected.
 
 That said, it already establishes BGP sessions, exchanges routes across all listed address families, and passes thousands of unit, functional, fuzz, and chaos tests. If you're interested in the design or want to contribute, now is a great time to get involved.
 

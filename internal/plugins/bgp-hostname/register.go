@@ -15,7 +15,7 @@ func init() {
 	reg := registry.Registration{
 		Name:            "bgp-hostname",
 		Description:     "FQDN capability decoding",
-		RFCs:            []string{"5765"},
+		RFCs:            []string{"draft-walton-bgp-hostname-capability"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
