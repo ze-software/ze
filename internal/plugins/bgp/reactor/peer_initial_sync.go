@@ -213,15 +213,13 @@ func (p *Peer) sendInitialRoutes() {
 		// If we get here, it was a teardown - break out of loop
 		break
 	}
-	// Remove processed items and clear the sendingInitialRoutes flag atomically.
-	// This ensures ShouldQueue() sees a consistent state: either the flag is set
-	// (new routes will be queued and drained by our loop), or the flag is cleared
-	// and the queue is empty (new routes can be sent directly).
+	// Remove processed items but keep sendingInitialRoutes flag set.
+	// The flag is cleared AFTER EOR to prevent a race where a plugin command
+	// arrives between flag-clear and EOR-send, bypasses the queue, and races
+	// with EOR for the session write lock. With the flag set, concurrent
+	// plugin commands are queued (ShouldQueue=true) and drained after EOR.
 	if processed > 0 {
 		p.opQueue = p.opQueue[processed:]
-	}
-	if !hasTeardown {
-		p.sendingInitialRoutes.Store(0)
 	}
 	p.mu.Unlock()
 
@@ -279,6 +277,70 @@ func (p *Peer) sendInitialRoutes() {
 		_ = p.SendUpdate(message.BuildEOR(family))
 		routesLogger().Debug("sent EOR", "peer", addr, "family", family)
 	}
+
+	// Drain any commands that were queued while EOR was being sent.
+	// The sendingInitialRoutes flag was kept set during EOR to ensure
+	// concurrent plugin commands were queued (not sent directly).
+	// Routes drained here arrive at the peer after EOR, which is correct:
+	// they are incremental updates after the initial RIB dump.
+	p.mu.Lock()
+	finalProcessed := 0
+	for finalProcessed < len(p.opQueue) {
+		op := p.opQueue[finalProcessed]
+		switch op.Type {
+		case PeerOpAnnounce:
+			family := op.Route.NLRI().Family()
+			addPath := p.addPathFor(family)
+			attrBuf := getBuildBuf()
+			update := buildRIBRouteUpdate(attrBuf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			p.mu.Unlock()
+			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
+			putBuildBuf(attrBuf)
+			if sendErr != nil {
+				routesLogger().Debug("send error for late-queued route", "peer", addr, "error", sendErr)
+				p.mu.Lock()
+				finalProcessed++
+				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+					break // Connection error — stop processing
+				}
+				continue
+			}
+			p.mu.Lock()
+			finalProcessed++
+
+		case PeerOpWithdraw:
+			family := op.NLRI.Family()
+			addPath := p.addPathFor(family)
+			wdBuf := getBuildBuf()
+			update := buildWithdrawNLRI(wdBuf, op.NLRI, addPath)
+			p.mu.Unlock()
+			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, family)
+			putBuildBuf(wdBuf)
+			if sendErr != nil {
+				routesLogger().Debug("send error for late-queued withdrawal", "peer", addr, "error", sendErr)
+				p.mu.Lock()
+				finalProcessed++
+				if !errors.Is(sendErr, message.ErrAttributesTooLarge) && !errors.Is(sendErr, message.ErrNLRITooLarge) {
+					break
+				}
+				continue
+			}
+			p.mu.Lock()
+			finalProcessed++
+
+		case PeerOpTeardown:
+			// Teardown should not appear in the post-EOR queue — teardown
+			// is handled in the main drain loop and returns early.
+			routesLogger().Error("unexpected teardown in post-EOR queue", "peer", addr)
+			finalProcessed++
+		}
+	}
+	if finalProcessed > 0 {
+		p.opQueue = p.opQueue[finalProcessed:]
+		routesLogger().Debug("drained late-queued ops after EOR", "peer", addr, "count", finalProcessed)
+	}
+	p.sendingInitialRoutes.Store(0)
+	p.mu.Unlock()
 }
 
 // sendMVPNRoutes sends MVPN routes configured for this peer.

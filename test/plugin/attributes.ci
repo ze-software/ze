@@ -63,6 +63,7 @@ bgp {
 			ipv4/unicast;
 		}
 		process add-remove {
+			send update;
 		}
 	}
 }
