@@ -8,7 +8,7 @@ package bgp_nlri_ls
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
 // NodeDescriptor contains node identification information.

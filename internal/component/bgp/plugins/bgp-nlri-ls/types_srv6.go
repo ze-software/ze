@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
 // ============================================================================

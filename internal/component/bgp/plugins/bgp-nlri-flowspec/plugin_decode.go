@@ -12,7 +12,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // isValidFlowSpecFamily checks if family is a FlowSpec family.

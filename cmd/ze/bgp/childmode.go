@@ -15,7 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

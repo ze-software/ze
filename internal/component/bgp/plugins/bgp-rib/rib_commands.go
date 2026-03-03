@@ -9,9 +9,9 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
 )
 
 // handleCommand processes command requests via SDK execute-command callback.

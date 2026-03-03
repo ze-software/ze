@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/route"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.

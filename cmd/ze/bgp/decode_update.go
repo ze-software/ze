@@ -10,7 +10,7 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // decodeUpdateMessage decodes a BGP UPDATE message and returns Ze format.

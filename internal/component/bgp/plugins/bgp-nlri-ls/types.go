@@ -15,7 +15,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // Type aliases for nlri types used by BGP-LS.

@@ -259,8 +259,8 @@ const summaryWidth = 79
 //
 // Format:
 //
-//	═══ PASS  42/42  100.0%  3.2s
-//	═══ FAIL  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
+//	pass  42/42  100.0%  3.2s
+//	fail  40/42  95.2%  3.2s  failed 2 [A, B]  timeout 1 [C]
 func (d *Display) Summary() {
 	passed, failed, timedOut, _ := d.tests.Summary()
 	total := passed + failed + timedOut
@@ -274,12 +274,10 @@ func (d *Display) Summary() {
 
 	var b strings.Builder
 
-	b.WriteString(d.colors.Cyan("═══ "))
-
 	if allPassed {
-		b.WriteString(d.colors.Green("PASS"))
+		b.WriteString(d.colors.Green("pass"))
 	} else {
-		b.WriteString(d.colors.Red("FAIL"))
+		b.WriteString(d.colors.Red("fail"))
 	}
 
 	fmt.Fprintf(&b, "  %d/%d  %.1f%%  %s", passed, total, rate, formatDuration(elapsed))
@@ -294,7 +292,6 @@ func (d *Display) Summary() {
 		fmt.Fprintf(&b, "  %s %d [%s]", d.colors.Yellow("timeout"), timedOut, strings.Join(nicks, ", "))
 	}
 
-	d.println("")
 	d.println(b.String())
 }
 

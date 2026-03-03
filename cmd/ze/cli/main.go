@@ -13,7 +13,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/handler"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"

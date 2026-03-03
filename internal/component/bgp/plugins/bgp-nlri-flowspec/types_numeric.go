@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
 // Numeric components (Types 3-12)

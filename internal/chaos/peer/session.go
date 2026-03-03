@@ -9,9 +9,9 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // SessionConfig holds the parameters needed to establish a BGP session.

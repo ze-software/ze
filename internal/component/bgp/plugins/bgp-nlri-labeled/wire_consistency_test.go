@@ -6,9 +6,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
 )
 
 // TestLabeledUnicastWireConsistency verifies two code paths produce identical wire format.

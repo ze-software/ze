@@ -6,11 +6,11 @@ import (
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-flowspec"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
 )
 
 // SenderConfig holds the parameters for building UPDATE messages.

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
 // Prefix components (Type 1: Destination, Type 2: Source)

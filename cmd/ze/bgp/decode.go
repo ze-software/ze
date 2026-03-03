@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // Message type constants.

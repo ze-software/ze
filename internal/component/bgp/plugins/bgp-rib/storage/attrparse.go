@@ -3,8 +3,8 @@
 package storage
 
 import (
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
 )
 
 // ParseAttributes parses raw attribute wire bytes into a RouteEntry.

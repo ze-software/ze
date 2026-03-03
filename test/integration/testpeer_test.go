@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 

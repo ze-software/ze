@@ -16,9 +16,9 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"

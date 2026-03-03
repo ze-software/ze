@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/route"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // EncodeRoute encodes a FlowSpec route command into UPDATE body bytes and NLRI bytes.

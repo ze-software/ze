@@ -16,8 +16,8 @@ func TestNoDirectTimeCalls(t *testing.T) {
 	root := findRepoRoot(t)
 
 	dirs := []string{
-		filepath.Join(root, "internal", "component", "bgp", "plugins", "bgp", "reactor"),
-		filepath.Join(root, "internal", "component", "bgp", "plugins", "bgp", "fsm"),
+		filepath.Join(root, "internal", "component", "bgp", "reactor"),
+		filepath.Join(root, "internal", "component", "bgp", "fsm"),
 	}
 
 	forbidden := []string{
@@ -65,7 +65,7 @@ func TestNoDirectTimeCalls(t *testing.T) {
 func TestNoDirectNetCalls(t *testing.T) {
 	root := findRepoRoot(t)
 
-	dir := filepath.Join(root, "internal", "component", "bgp", "plugins", "bgp", "reactor")
+	dir := filepath.Join(root, "internal", "component", "bgp", "reactor")
 
 	forbidden := []string{
 		"net.Listen(",

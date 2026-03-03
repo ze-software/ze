@@ -7,8 +7,8 @@ package bgp
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 

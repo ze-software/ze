@@ -16,7 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
 // executeChaos handles a single chaos action on the simulator's live connection.

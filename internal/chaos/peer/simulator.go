@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 

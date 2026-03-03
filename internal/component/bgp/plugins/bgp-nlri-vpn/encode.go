@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"strings"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 )
 
 // EncodeRoute encodes an L3VPN (mpls-vpn) route command into UPDATE body bytes and NLRI bytes.

@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // EncodeRoute encodes an EVPN route command into UPDATE body bytes and NLRI bytes.

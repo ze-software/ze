@@ -8,7 +8,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // parseFamily converts a family string like "ipv4/unicast" to nlri.Family.
