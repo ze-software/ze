@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 )

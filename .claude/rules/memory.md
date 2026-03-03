@@ -23,7 +23,7 @@ Validate format (contains "/", non-empty parts) — never enumerate all families
 
 ### Config Pipeline
 File → Tree → `ResolveBGPTree()` → `map[string]any` → `reactor.PeersFromTree()`.
-Key files: `config/resolve.go`, `config/peers.go`, `reactor/config.go`.
+Key files: `component/config/resolve.go`, `component/config/peers.go`, `reactor/config.go`.
 
 ### Bash Timeout
 Default 15000ms. Longer only for `make ze-verify`, `make ze-unit-test`.

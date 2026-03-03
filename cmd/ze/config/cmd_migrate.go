@@ -10,8 +10,8 @@ import (
 	"io"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
-	"codeberg.org/thomas-mangin/ze/internal/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
 )
 
 func cmdMigrate(args []string) int {

@@ -6,19 +6,21 @@
 1. This spec file
 2. `.claude/rules/planning.md` - workflow rules
 3. `internal/yang/modules/ze-hub-conf.yang` - core environment schema (daemon/log/debug)
-4. `internal/plugins/bgp/schema/ze-bgp-conf.yang` - BGP config + environment augment
-5. `internal/yang/modules/ze-plugin-conf.yang` - plugin config + environment augment
+4. `internal/component/bgp/schema/ze-bgp-conf.yang` - BGP config + environment augment
+5. `internal/plugin/schema/ze-plugin-conf.yang` - plugin config + environment augment
 6. `internal/config/environment.go` - Environment struct and envOptions table
 7. `internal/yang/loader.go` - YANG loader with `LoadEmbedded()`
 
 ## Task
 
-Three related improvements to YANG schema organization:
+Configuration and YANG schema reorganisation:
 
 1. **YANG split (DONE):** Move environment containers from monolithic `ze-hub-conf.yang` to owning subsystems using YANG `augment`
-2. **Schema relocation:** Move YANG files to the component/infrastructure that owns them
-3. **Init-based registration:** Replace hardcoded `LoadEmbedded()` file list with init()-based module registration
-4. **Dead field cleanup:** Remove environment fields that are never consumed at runtime
+2. **Schema relocation (DONE):** Move YANG schema files to owning packages (`component/bgp/schema/`, `plugin/schema/`)
+3. **Config package move:** Move `internal/config/` and `internal/yang/` into `internal/component/config/` — config is a component, YANG serves config exclusively
+4. **Hub schema move:** Move `ze-hub-conf.yang` from `internal/yang/modules/` to `internal/hub/schema/` (yang package should hold no domain definitions)
+5. **Init-based registration:** Replace hardcoded `LoadEmbedded()` file list with init()-based module registration (requires hook exemption for `register.go`)
+6. **Dead field cleanup:** Remove environment fields that are never consumed at runtime
 
 ## Required Reading
 
@@ -298,22 +300,31 @@ Also requires cleanup in `internal/config/environment.go` — remove correspondi
 4. ~~Update all Go consumers to remove `hubschema` imports~~
 5. ~~Add `ze-hub-conf` and `ze-plugin-conf` to `coreModules` in schema CLI~~
 
-### Phase 2: Schema Relocation
-1. Move `internal/plugins/bgp/schema/` → `internal/component/bgp/schema/`
-2. Move `internal/yang/modules/ze-plugin-conf.yang` → `internal/plugin/schema/` with new `embed.go`
-3. Update `LoadEmbedded()` to load plugin-conf from registry instead of filesystem
-4. Update all `bgpschema` import paths (26+ files)
-5. Update scripts, docs, Makefile references
+### Phase 2: Schema Relocation (DONE)
+1. ~~Move `internal/plugins/bgp/schema/` → `internal/component/bgp/schema/`~~
+2. ~~Move `ze-plugin-conf.yang` → `internal/plugin/schema/` with new `embed.go`~~
+3. ~~Update `LoadEmbedded()` to load plugin-conf from new package~~
+4. ~~Update all `bgpschema` import paths (10 Go files, 4 docs)~~
+5. ~~Create `internal/yang/module_registry.go` — `RegisterModule()` + `LoadRegistered()`~~
 
-### Phase 3: Init-Based YANG Registration
-1. Create `internal/yang/registry.go` — `RegisterModule(name, content)` + `RegisteredModules()`
-2. Add `init()` in `internal/component/bgp/schema/` to register ze-bgp-conf and ze-bgp-api
-3. Add `init()` in `internal/plugin/schema/` to register ze-plugin-conf
-4. Add `Loader.LoadRegistered()` — iterates registry, calls `AddModuleFromText()` for each
-5. Remove manual `AddModuleFromText("ze-bgp-conf.yang", ...)` from 5 files
-6. Remove `bgpschema` imports from config, editor, schema CLI where no longer needed
+### Phase 3: Config and YANG Package Move
+1. Move `internal/config/` → `internal/component/config/` (31 importers)
+2. Move `internal/yang/` → `internal/component/config/yang/` (12 importers)
+3. Merge existing `internal/component/config/` files (config.go, config_test.go)
+4. Update all import paths
 
-### Phase 4: Dead Field Cleanup
+### Phase 4: Hub Schema + Init Registration
+1. Move `ze-hub-conf.yang` from `yang/modules/` → `internal/hub/schema/` with embed.go
+2. Exempt `register.go` files from `block-init-register.sh` hook
+3. Add `register.go` in `component/bgp/schema/` — init() registers ze-bgp-conf and ze-bgp-api
+4. Add `register.go` in `plugin/schema/` — init() registers ze-plugin-conf
+5. Add `register.go` in `hub/schema/` — init() registers ze-hub-conf
+6. Update `LoadEmbedded()` to only load ze-extensions.yang and ze-types.yang (true YANG library)
+7. All consumers call `LoadEmbedded()` + `LoadRegistered()` + `Resolve()`
+8. Remove manual `AddModuleFromText()` calls for bgp from 5+ files
+9. Remove `bgpschema`/`pluginschema` imports where no longer needed
+
+### Phase 5: Dead Field Cleanup
 1. Remove unused YANG leaves: tcp.delay, tcp.acl, reactor.speed, reactor.cache-ttl
 2. Remove unused YANG containers: bgp, cache, api
 3. Remove corresponding `envOptions` entries and struct fields in `environment.go`
@@ -356,22 +367,28 @@ Also requires cleanup in `internal/config/environment.go` — remove correspondi
 
 ## Implementation Summary
 
-### Phase 1 (DONE — not yet committed)
+### Phase 1 (DONE — committed `a38e7781`)
 - `ze-hub-conf.yang` trimmed to daemon/log/debug, moved to `internal/yang/modules/`
 - `ze-bgp-conf.yang` augments environment with tcp/bgp/cache/reactor
 - `ze-plugin-conf.yang` augments environment with api
 - `internal/hub/schema/` package deleted
 - All `hubschema` imports removed from Go code
 - `ze-hub-conf` and `ze-plugin-conf` added to `coreModules` in schema CLI
-- `LoadEmbedded()` updated to include ze-hub-conf
-- `loader_test.go` updated: hub now verified as embedded, stale comments fixed
-- All tests pass (`make test-all` exit 0)
 
-### Phases 2-4
+### Phase 2 (DONE — committed `836f12b1`)
+- `internal/plugins/bgp/schema/` → `internal/component/bgp/schema/`
+- `ze-plugin-conf.yang` → `internal/plugin/schema/` with new embed.go
+- `LoadEmbedded()` loads plugin-conf from `pluginschema` package
+- Module registry created (`internal/yang/module_registry.go`)
+- All bgpschema import paths updated (10 Go files, 4 docs, CLAUDE.md)
+
+### Phases 3-5
 - Not yet implemented
 
 ### Documentation Updates
 - `.claude/rationale/memory.md` — updated YANG paths
+- `CLAUDE.md` — updated schema path references
+- `docs/architecture/system-architecture.md`, `api/architecture.md`, `api/wire-format.md` — updated paths
 
 ### Deviations from Plan
 - `chaos` container was not in the original YANG (mentioned in plan but didn't exist)
@@ -382,14 +399,24 @@ Also requires cleanup in `internal/config/environment.go` — remove correspondi
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 | Hub schema keeps daemon/log/debug | ✅ Done | `internal/yang/modules/ze-hub-conf.yang` | |
-| BGP schema augments tcp/bgp/cache/reactor | ✅ Done | `internal/plugins/bgp/schema/ze-bgp-conf.yang:451-477` | |
-| Plugin schema augments api | ✅ Done | `internal/yang/modules/ze-plugin-conf.yang:51-63` | |
-| Hub schema package deleted | ✅ Done | `internal/hub/schema/` removed | |
+| BGP schema augments tcp/bgp/cache/reactor | ✅ Done | `internal/component/bgp/schema/ze-bgp-conf.yang:451-477` | |
+| Plugin schema augments api | ✅ Done | `internal/plugin/schema/ze-plugin-conf.yang:51-63` | |
+| Hub schema package deleted | ✅ Done | `internal/hub/schema/` removed | Recreated in Phase 4 |
 | All hubschema imports removed | ✅ Done | yang_schema.go, validator.go, completer.go, loader_test_helper.go | |
 | coreModules updated | ✅ Done | `cmd/ze/schema/main.go:38-42` | Added ze-hub-conf, ze-plugin-conf |
 | Tests pass | ✅ Done | `make test-all` exit 0 | |
 
-### Phases 2-4 Audit
+### Phase 2 Audit
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| BGP schema in component/bgp/schema | ✅ Done | `internal/component/bgp/schema/` | 3 files moved |
+| Plugin schema in plugin/schema | ✅ Done | `internal/plugin/schema/` | YANG + embed.go |
+| LoadEmbedded loads plugin-conf | ✅ Done | `internal/yang/loader.go:48-50` | Via pluginschema import |
+| Module registry created | ✅ Done | `internal/yang/module_registry.go` | Not yet wired |
+| Import paths updated | ✅ Done | 10 Go + 4 doc files | goimports fixed ordering |
+| Tests pass | ✅ Done | `make test-all` exit 0 | |
+
+### Phases 3-5 Audit
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
 

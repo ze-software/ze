@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.

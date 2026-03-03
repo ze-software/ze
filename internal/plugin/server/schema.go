@@ -9,8 +9,8 @@ import (
 	"strings"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // Schema represents a YANG schema registered by a plugin.

@@ -11,7 +11,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // ErrOldConfig is returned when fmt is called on an old config.

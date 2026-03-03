@@ -6,11 +6,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
-	"codeberg.org/thomas-mangin/ze/internal/yang"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
-	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
+	// Blank imports trigger init() registration of YANG modules.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
 )
 
 // loadAllAPIModules loads core + all API YANG modules for testing.
@@ -19,11 +21,7 @@ func loadAllAPIModules(t *testing.T) *yang.Loader {
 	loader := yang.NewLoader()
 
 	require.NoError(t, loader.LoadEmbedded(), "load core modules")
-	require.NoError(t, loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG), "load bgp conf")
-	require.NoError(t, loader.AddModuleFromText("ze-bgp-api.yang", bgpschema.ZeBGPAPIYANG), "load bgp api")
-	require.NoError(t, loader.AddModuleFromText("ze-system-api.yang", ipcschema.ZeSystemAPIYANG), "load system api")
-	require.NoError(t, loader.AddModuleFromText("ze-plugin-api.yang", ipcschema.ZePluginAPIYANG), "load plugin api")
-	require.NoError(t, loader.AddModuleFromText("ze-rib-api.yang", ribschema.ZeRibAPIYANG), "load rib api")
+	require.NoError(t, loader.LoadRegistered(), "load registered modules")
 	require.NoError(t, loader.Resolve(), "resolve all modules")
 
 	return loader
@@ -285,6 +283,170 @@ func TestYANGPluginAPIRPCs(t *testing.T) {
 	for _, name := range expectedRPCs {
 		t.Run(name, func(t *testing.T) {
 			assert.True(t, rpcNames[name], "RPC %q should exist in ze-plugin-api", name)
+		})
+	}
+}
+
+// TestExtractRPCs verifies RPC metadata extraction from YANG API modules.
+//
+// VALIDATES: All RPCs from each API module are extracted with correct names and descriptions.
+// PREVENTS: Missing RPCs when building dispatch tables from YANG.
+func TestExtractRPCs(t *testing.T) {
+	loader := loadAllAPIModules(t)
+
+	tests := []struct {
+		name     string
+		module   string
+		wantRPCs []string
+	}{
+		{
+			name:   "bgp-api",
+			module: "ze-bgp-api",
+			wantRPCs: []string{
+				"help", "command-list", "command-help", "command-complete",
+				"plugin-encoding", "plugin-format", "plugin-ack",
+				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
+				"peer-update",
+				"peer-borr", "peer-eorr", "peer-raw",
+				"cache", "commit",
+				"subscribe", "unsubscribe", "event-list",
+			},
+		},
+		{
+			name:   "system-api",
+			module: "ze-system-api",
+			wantRPCs: []string{
+				"help", "version-software", "version-api",
+				"daemon-shutdown", "daemon-status", "daemon-reload",
+				"subsystem-list",
+				"command-list", "command-help", "command-complete",
+				"dispatch",
+			},
+		},
+		{
+			name:   "rib-api",
+			module: "ze-rib-api",
+			wantRPCs: []string{
+				"help", "command-list", "command-help", "command-complete", "event-list",
+				"show-in", "clear-in", "show-out", "clear-out",
+			},
+		},
+		{
+			name:   "plugin-api",
+			module: "ze-plugin-api",
+			wantRPCs: []string{
+				"help", "command-list", "command-help", "command-complete",
+				"session-ready", "peer-session-ready", "session-ping", "session-bye",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rpcs := yang.ExtractRPCs(loader, tt.module)
+			rpcNames := make([]string, len(rpcs))
+			for i, r := range rpcs {
+				rpcNames[i] = r.Name
+				assert.Equal(t, tt.module, r.Module, "module name for %s", r.Name)
+				assert.NotEmpty(t, r.Description, "description for %s", r.Name)
+			}
+			assert.ElementsMatch(t, tt.wantRPCs, rpcNames)
+		})
+	}
+}
+
+// TestExtractRPCInputOutput verifies input/output leaves are extracted from RPCs.
+//
+// VALIDATES: RPC input parameters are extracted with types from YANG definitions.
+// PREVENTS: Missing parameter metadata for dispatch validation.
+func TestExtractRPCInputOutput(t *testing.T) {
+	loader := loadAllAPIModules(t)
+
+	rpcs := yang.ExtractRPCs(loader, "ze-bgp-api")
+
+	// Find peer-teardown - it has input params (selector, subcode)
+	var teardown *yang.RPCMeta
+	for i := range rpcs {
+		if rpcs[i].Name == "peer-teardown" {
+			teardown = &rpcs[i]
+			break
+		}
+	}
+	require.NotNil(t, teardown, "peer-teardown RPC should exist")
+
+	// peer-teardown should have input leaves
+	assert.NotEmpty(t, teardown.Input, "peer-teardown should have input params")
+
+	// Check that known input leaf exists with type
+	inputNames := make(map[string]bool)
+	for _, leaf := range teardown.Input {
+		inputNames[leaf.Name] = true
+		assert.NotEmpty(t, leaf.Type, "leaf %s should have type", leaf.Name)
+	}
+	assert.True(t, inputNames["selector"] || inputNames["subcode"],
+		"peer-teardown should have selector or subcode input, got: %v", inputNames)
+}
+
+// TestExtractRPCOutputLeaves verifies output leaves are extracted from RPCs.
+//
+// VALIDATES: RPC output leaves are extracted with types from YANG definitions.
+// PREVENTS: Missing output metadata for response formatting.
+func TestExtractRPCOutputLeaves(t *testing.T) {
+	loader := loadAllAPIModules(t)
+
+	rpcs := yang.ExtractRPCs(loader, "ze-system-api")
+
+	// Find version-software - it has output params
+	var versionSW *yang.RPCMeta
+	for i := range rpcs {
+		if rpcs[i].Name == "version-software" {
+			versionSW = &rpcs[i]
+			break
+		}
+	}
+	require.NotNil(t, versionSW, "version-software RPC should exist")
+	assert.NotEmpty(t, versionSW.Output, "version-software should have output params")
+}
+
+// TestExtractNotifications verifies notification metadata extraction from YANG.
+//
+// VALIDATES: All notifications from API modules are extracted.
+// PREVENTS: Missing notification definitions breaking event subscriptions.
+func TestExtractNotifications(t *testing.T) {
+	loader := loadAllAPIModules(t)
+
+	tests := []struct {
+		name       string
+		module     string
+		wantNotifs []string
+	}{
+		{
+			name:   "bgp-api",
+			module: "ze-bgp-api",
+			wantNotifs: []string{
+				"peer-state-change", "route-received", "route-update-sent",
+				"eor-received", "graceful-restart-state",
+				"session-established", "session-closed",
+			},
+		},
+		{
+			name:   "rib-api",
+			module: "ze-rib-api",
+			wantNotifs: []string{
+				"rib-change",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			notifs := yang.ExtractNotifications(loader, tt.module)
+			notifNames := make([]string, len(notifs))
+			for i, n := range notifs {
+				notifNames[i] = n.Name
+				assert.Equal(t, tt.module, n.Module, "module name for %s", n.Name)
+			}
+			assert.ElementsMatch(t, tt.wantNotifs, notifNames)
 		})
 	}
 }

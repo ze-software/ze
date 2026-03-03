@@ -6,7 +6,7 @@ Why: `.claude/rules/memory.md`
 - Each plugin/module has `schema/` subdirectory with `embed.go` + `.yang` file
 - `embed.go` uses `//go:embed` to export YANG content as a string variable
 - Import alias convention when multiple `schema` packages: `grschema`, `hostnameschema`, `bgpschema`
-- Core modules: `internal/yang/modules/` (ze-types, ze-extensions, ze-hub-conf)
+- Core modules: `internal/component/config/yang/modules/` (ze-types, ze-extensions, ze-hub-conf)
 - Plugin infra schema: `internal/plugin/schema/` (ze-plugin-conf)
 - BGP component schema: `internal/component/bgp/schema/` (ze-bgp-conf, ze-bgp-api)
 - Plugin modules: `internal/plugins/<name>/schema/` (ze-graceful-restart, etc.)
@@ -37,7 +37,7 @@ When ANY test fails then passes on retry:
 - Config flow: file -> Tree -> ResolveBGPTree() -> map[string]any -> reactor.PeersFromTree()
 - Route extraction: config.PeersFromConfigTree() with 3-layer template inheritance (globs -> templates -> peer)
 - Template resolution shared between ResolveBGPTree (map-level) and PeersFromConfigTree (Tree-level)
-- Key files: `config/resolve.go`, `config/peers.go`, `reactor/config.go`
+- Key files: `component/config/resolve.go`, `component/config/peers.go`, `reactor/config.go`
 - Route types (StaticRouteConfig etc.) remain in config package -- can't move to reactor (import cycle)
 
 ## File Splits (reference)

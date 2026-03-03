@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // Run executes the validate subcommand with the given arguments.

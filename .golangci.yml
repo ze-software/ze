@@ -17,7 +17,7 @@ linters:
         linters:
           - forbidigo
       # Bubbletea tea.Model interface requires value receivers — cannot use pointer
-      - path: "(internal/config/editor/model[^/]*|cmd/ze/cli/main)\\.go"
+      - path: "(internal/component/config/editor/model[^/]*|cmd/ze/cli/main)\\.go"
         text: "hugeParam"
 
   enable:

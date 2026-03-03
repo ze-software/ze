@@ -23,6 +23,12 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
     exit 0
 fi
 
+# Skip register.go files — init() registration is the established pattern
+# for plugins (internal/plugins/*/register.go) and schema packages
+if [[ "$(basename "$FILE_PATH")" == "register.go" ]]; then
+    exit 0
+fi
+
 RED='\033[31m'
 YELLOW='\033[33m'
 BOLD='\033[1m'

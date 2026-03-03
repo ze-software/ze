@@ -11,8 +11,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
-	"codeberg.org/thomas-mangin/ze/internal/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
 )
 
 // checkResult holds results from config check.

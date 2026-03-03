@@ -10,7 +10,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // flexAttrKeywords lists path attribute keywords that go in the attribute block

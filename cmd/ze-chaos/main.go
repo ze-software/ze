@@ -38,6 +38,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/web"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 )
 
 func main() {

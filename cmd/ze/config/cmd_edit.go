@@ -10,8 +10,8 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
-	"codeberg.org/thomas-mangin/ze/internal/config/editor"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
 
 func cmdEdit(args []string) int {

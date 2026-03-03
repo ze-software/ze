@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 func cmdDump(args []string) int {

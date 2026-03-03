@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 

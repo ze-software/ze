@@ -21,7 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
-	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 
 	// Import all plugins to trigger init() registration.

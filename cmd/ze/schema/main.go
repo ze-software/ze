@@ -15,11 +15,11 @@ import (
 	"time"
 
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
-	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").
@@ -338,26 +338,16 @@ func loadAPIRPCs(registry *pluginserver.SchemaRegistry) error {
 	if err := loader.LoadEmbedded(); err != nil {
 		return fmt.Errorf("load core modules: %w", err)
 	}
-
-	// Load conf modules first (API modules may import them)
-	if err := loader.AddModuleFromText(bgpConfModule+".yang", bgpschema.ZeBGPConfYANG); err != nil {
-		return fmt.Errorf("load %s: %w", bgpConfModule, err)
+	// LoadRegistered loads all conf + API modules via init() registration.
+	if err := loader.LoadRegistered(); err != nil {
+		return fmt.Errorf("load registered modules: %w", err)
 	}
-
-	// Load all API YANG modules
-	apiModules := apiYANGModules()
-	for _, mod := range apiModules {
-		if err := loader.AddModuleFromText(mod.name, mod.content); err != nil {
-			return fmt.Errorf("load %s: %w", mod.name, err)
-		}
-	}
-
 	if err := loader.Resolve(); err != nil {
 		return fmt.Errorf("resolve YANG: %w", err)
 	}
 
 	// Extract and register RPCs and notifications from each API module
-	for _, mod := range apiModules {
+	for _, mod := range apiYANGModules() {
 		moduleName := strings.TrimSuffix(mod.name, ".yang")
 
 		rpcs := yang.ExtractRPCs(loader, moduleName)

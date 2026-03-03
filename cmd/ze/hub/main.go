@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	zeconfig "codeberg.org/thomas-mangin/ze/internal/config"
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/hub"
 	"codeberg.org/thomas-mangin/ze/internal/pidfile"
 	"codeberg.org/thomas-mangin/ze/internal/sim"

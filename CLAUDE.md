@@ -23,7 +23,7 @@ Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 - Pool-based dedup — per-attribute-type pools (ORIGIN, AS_PATH, etc.) with refcounted handles
 - Buffer-first encoding — all wire writing uses `WriteTo(buf, off) int` into pooled buffers
 
-**Config:** YANG-modeled (`ze-bgp-conf.yang`), parsed via `internal/config/`. File → Tree → ResolveBGPTree() → `map[string]any` → `reactor.PeersFromTree()`. ExaBGP configs auto-detected and migrated.
+**Config:** YANG-modeled (`ze-bgp-conf.yang`), parsed via `internal/component/config/`. File → Tree → ResolveBGPTree() → `map[string]any` → `reactor.PeersFromTree()`. ExaBGP configs auto-detected and migrated.
 
 **Plugin registry:** `internal/plugin/registry/` — plugins register via `init()` in `register.go`. Engine discovers them through registry, never imports plugin packages directly.
 
@@ -34,7 +34,7 @@ Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 | Engine core | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/ ` |
 | Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
-| Config | `internal/config/`, YANG schemas in `internal/component/bgp/schema/` |
+| Config | `internal/component/config/`, YANG schemas in `internal/component/bgp/schema/` |
 | CLI | `cmd/ze/` (subcommands: bgp, validate, etc.) |
 | IPC/Hub | `internal/hub/`, `internal/ipc/` |
 | Tests | `test/` (.ci functional tests), `*_test.go` (unit) |
