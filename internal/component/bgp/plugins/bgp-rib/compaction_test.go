@@ -12,6 +12,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 )
 
+func mustIntern(t *testing.T, p *attrpool.Pool, data []byte) attrpool.Handle {
+	t.Helper()
+	h, err := p.Intern(data)
+	require.NoError(t, err)
+	return h
+}
+
 // TestCompactionSchedulerStartsOnPluginStartup verifies that runCompaction
 // starts the scheduler and it performs compaction when pools have dead entries.
 //
@@ -19,12 +26,13 @@ import (
 //
 // PREVENTS: Scheduler never running, leaving dead bytes unreclaimed.
 func TestCompactionSchedulerStartsOnPluginStartup(t *testing.T) {
-	p := attrpool.NewWithIdx(2, 1024)
+	p, err := attrpool.NewWithIdx(2, 1024)
+	require.NoError(t, err)
 
 	// Create dead entries: intern then release
 	var handles []attrpool.Handle
 	for i := range 20 {
-		h := p.Intern([]byte{byte(i), byte(i + 1), byte(i + 2)})
+		h := mustIntern(t, p, []byte{byte(i), byte(i + 1), byte(i + 2)})
 		handles = append(handles, h)
 	}
 	// Release first 15 (75% dead ratio — well above 25% threshold)
@@ -51,7 +59,8 @@ func TestCompactionSchedulerStartsOnPluginStartup(t *testing.T) {
 //
 // PREVENTS: Goroutine leak when plugin shuts down.
 func TestCompactionSchedulerStopsOnShutdown(t *testing.T) {
-	p := attrpool.NewWithIdx(2, 1024)
+	p, err := attrpool.NewWithIdx(2, 1024)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -85,7 +94,8 @@ func TestCompactionSchedulerStopsOnShutdown(t *testing.T) {
 //
 // PREVENTS: Buffer memory leak under sustained route churn.
 func TestSchedulerCompactsAfterChurn(t *testing.T) {
-	p := attrpool.NewWithIdx(2, 4096)
+	p, err := attrpool.NewWithIdx(2, 4096)
+	require.NoError(t, err)
 
 	// Simulate route churn: intern all first, then release most.
 	// Must batch interns before releases to prevent free-list slot reuse,
@@ -93,7 +103,7 @@ func TestSchedulerCompactsAfterChurn(t *testing.T) {
 	var handles []attrpool.Handle
 	for i := range 100 {
 		data := []byte{byte(i >> 8), byte(i), 0xAA, 0xBB}
-		handles = append(handles, p.Intern(data))
+		handles = append(handles, mustIntern(t, p, data))
 	}
 	// Release 75% — well above 25% dead ratio threshold
 	var liveHandles []attrpool.Handle

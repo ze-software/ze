@@ -33,6 +33,9 @@ var ErrSlotDead = errors.New("handle references dead slot")
 // ErrPoolFull is returned when pool has reached MaxSlots limit.
 var ErrPoolFull = errors.New("pool has reached maximum slot count (16,777,215)")
 
+// ErrInvalidIdx is returned when pool idx is >= 31 (reserved for InvalidHandle).
+var ErrInvalidIdx = errors.New("pool idx must be 0-30 (31 reserved for InvalidHandle)")
+
 // MaxDataLength is the maximum length of data that can be interned.
 // Limited by uint16 length field in slot struct.
 const MaxDataLength = 65535
@@ -110,15 +113,16 @@ type slot struct {
 // New creates a pool with idx=0 and the given initial buffer capacity.
 // For pools with specific idx, use NewWithIdx.
 func New(initialCapacity int) *Pool {
-	return NewWithIdx(0, initialCapacity)
+	p, _ := NewWithIdx(0, initialCapacity) // idx=0 is always valid
+	return p
 }
 
 // NewWithIdx creates a pool with the given index and initial buffer capacity.
 // idx must be 0-30 (31 is reserved for InvalidHandle).
-// Panics if idx >= 31.
-func NewWithIdx(idx uint8, initialCapacity int) *Pool {
+// Returns ErrInvalidIdx if idx >= 31.
+func NewWithIdx(idx uint8, initialCapacity int) (*Pool, error) {
 	if idx >= 31 {
-		panic("pool idx must be 0-30, 31 is reserved for InvalidHandle")
+		return nil, ErrInvalidIdx
 	}
 	if initialCapacity < 64 {
 		initialCapacity = 64
@@ -132,7 +136,7 @@ func NewWithIdx(idx uint8, initialCapacity int) *Pool {
 	}
 	// Initialize buffer 0 (currentBit starts at 0)
 	p.buffers[0].data = make([]byte, 0, initialCapacity)
-	return p
+	return p, nil
 }
 
 // Touch marks the pool as recently active.
@@ -153,14 +157,11 @@ func (p *Pool) IsIdle(d time.Duration) bool {
 // Intern stores data in the pool with deduplication.
 // Returns a handle that can be used to retrieve the data.
 // If identical data already exists, increments refCount and returns existing handle.
-// Panics if pool is shutdown, data too large, or pool is full.
-// Use InternWithError for error returns instead of panics.
-func (p *Pool) Intern(data []byte) Handle {
-	h, err := p.internLocked(data)
-	if err != nil {
-		panic("pool: " + err.Error())
-	}
-	return h
+// Returns ErrPoolShutdown if pool is shutdown.
+// Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
+// Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
+func (p *Pool) Intern(data []byte) (Handle, error) {
+	return p.internLocked(data)
 }
 
 // internLocked performs the actual intern operation under lock.
@@ -332,14 +333,6 @@ func (p *Pool) Shutdown() {
 // IsShutdown returns true if the pool has been shutdown.
 func (p *Pool) IsShutdown() bool {
 	return p.shutdown.Load()
-}
-
-// InternWithError is like Intern but returns an error instead of panicking.
-// Returns ErrPoolShutdown if pool is shutdown.
-// Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
-// Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
-func (p *Pool) InternWithError(data []byte) (Handle, error) {
-	return p.internLocked(data)
 }
 
 // AddRef increments the reference count for the handle.

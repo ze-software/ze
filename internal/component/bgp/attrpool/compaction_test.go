@@ -18,9 +18,9 @@ func TestCompactionReclaimsDeadSpace(t *testing.T) {
 	p := New(1024)
 
 	// Create entries
-	h1 := p.Intern([]byte("AAAA"))
-	h2 := p.Intern([]byte("BBBB"))
-	h3 := p.Intern([]byte("CCCC"))
+	h1 := mustIntern(t, p, []byte("AAAA"))
+	h2 := mustIntern(t, p, []byte("BBBB"))
+	h3 := mustIntern(t, p, []byte("CCCC"))
 
 	_ = h1
 	_ = h3
@@ -51,9 +51,9 @@ func TestCompactionReclaimsDeadSpace(t *testing.T) {
 func TestCompactionPreservesLiveData(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("AAAA"))
-	h2 := p.Intern([]byte("BBBB"))
-	h3 := p.Intern([]byte("CCCC"))
+	h1 := mustIntern(t, p, []byte("AAAA"))
+	h2 := mustIntern(t, p, []byte("BBBB"))
+	h3 := mustIntern(t, p, []byte("CCCC"))
 
 	// Release middle entry
 	_ = p.Release(h2)
@@ -79,12 +79,12 @@ func TestCompactionMultipleRounds(t *testing.T) {
 	p := New(1024)
 
 	// Round 1: create and release
-	h1 := p.Intern([]byte("round1"))
+	h1 := mustIntern(t, p, []byte("round1"))
 	_ = p.Release(h1)
 	p.Compact()
 
 	// Round 2: create and release
-	h2 := p.Intern([]byte("round2"))
+	h2 := mustIntern(t, p, []byte("round2"))
 	d2, err := p.Get(h2)
 	require.NoError(t, err)
 	require.Equal(t, []byte("round2"), d2)
@@ -92,7 +92,7 @@ func TestCompactionMultipleRounds(t *testing.T) {
 	p.Compact()
 
 	// Round 3: create and keep
-	h3 := p.Intern([]byte("round3"))
+	h3 := mustIntern(t, p, []byte("round3"))
 	p.Compact()
 	d3, err := p.Get(h3)
 	require.NoError(t, err)
@@ -107,8 +107,8 @@ func TestCompactionMultipleRounds(t *testing.T) {
 func TestCompactionWithNoDeadEntries(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("live1"))
-	h2 := p.Intern([]byte("live2"))
+	h1 := mustIntern(t, p, []byte("live1"))
+	h2 := mustIntern(t, p, []byte("live2"))
 
 	// Compact with no dead entries
 	p.Compact()
@@ -135,7 +135,7 @@ func TestCompactionEmptyPool(t *testing.T) {
 	})
 
 	// Pool should still be usable
-	h := p.Intern([]byte("after-compact"))
+	h := mustIntern(t, p, []byte("after-compact"))
 	d, err := p.Get(h)
 	require.NoError(t, err)
 	require.Equal(t, []byte("after-compact"), d)
@@ -149,9 +149,9 @@ func TestCompactionEmptyPool(t *testing.T) {
 func TestCompactionAllDead(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("dead1"))
-	h2 := p.Intern([]byte("dead2"))
-	h3 := p.Intern([]byte("dead3"))
+	h1 := mustIntern(t, p, []byte("dead1"))
+	h2 := mustIntern(t, p, []byte("dead2"))
+	h3 := mustIntern(t, p, []byte("dead3"))
 
 	_ = p.Release(h1)
 	_ = p.Release(h2)
@@ -164,7 +164,7 @@ func TestCompactionAllDead(t *testing.T) {
 	require.Equal(t, int32(0), m.DeadSlots, "no dead slots after compaction")
 
 	// Pool should still be usable
-	h := p.Intern([]byte("new-after-all-dead"))
+	h := mustIntern(t, p, []byte("new-after-all-dead"))
 	d, err := p.Get(h)
 	require.NoError(t, err)
 	require.Equal(t, []byte("new-after-all-dead"), d)
@@ -182,7 +182,7 @@ func TestConcurrentAccessDuringCompaction(t *testing.T) {
 	// Pre-populate
 	handles := make([]Handle, 1000)
 	for i := range handles {
-		handles[i] = p.Intern(fmt.Appendf(nil, "data-%04d", i))
+		handles[i] = mustIntern(t, p, fmt.Appendf(nil, "data-%04d", i))
 	}
 
 	// Release half to create dead space
@@ -221,7 +221,7 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 
 	// Pre-populate and create dead space
 	for i := range 100 {
-		h := p.Intern(fmt.Appendf(nil, "pre-%d", i))
+		h := mustIntern(t, p, fmt.Appendf(nil, "pre-%d", i))
 		if i%2 == 0 {
 			_ = p.Release(h)
 		}
@@ -240,7 +240,7 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			newHandles[idx] = p.Intern(fmt.Appendf(nil, "new-%d", idx))
+			newHandles[idx] = mustIntern(t, p, fmt.Appendf(nil, "new-%d", idx))
 		}(i)
 	}
 

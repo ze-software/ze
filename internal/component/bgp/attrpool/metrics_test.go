@@ -15,8 +15,8 @@ import (
 func TestMetricsAccuracy(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("AAAA"))
-	h2 := p.Intern([]byte("BBBB"))
+	h1 := mustIntern(t, p, []byte("AAAA"))
+	h2 := mustIntern(t, p, []byte("BBBB"))
 	_ = h1
 	_ = p.Release(h2)
 
@@ -38,9 +38,9 @@ func TestMetricsDeduplicationRate(t *testing.T) {
 	p := New(1024)
 
 	// 3 interns, 2 hits (same data)
-	p.Intern([]byte("data"))
-	p.Intern([]byte("data"))
-	p.Intern([]byte("data"))
+	mustIntern(t, p, []byte("data"))
+	mustIntern(t, p, []byte("data"))
+	mustIntern(t, p, []byte("data"))
 
 	m := p.Metrics()
 
@@ -57,8 +57,8 @@ func TestMetricsDeduplicationRate(t *testing.T) {
 func TestMetricsAfterCompaction(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("to-be-released"))
-	p.Intern([]byte("keep-alive"))
+	h := mustIntern(t, p, []byte("to-be-released"))
+	mustIntern(t, p, []byte("keep-alive"))
 	_ = p.Release(h)
 
 	before := p.Metrics()
@@ -82,7 +82,7 @@ func TestMetricsBufferSize(t *testing.T) {
 	before := p.Metrics()
 	require.Equal(t, int64(0), before.BufferSize)
 
-	p.Intern([]byte("some data here"))
+	mustIntern(t, p, []byte("some data here"))
 
 	after := p.Metrics()
 	require.Greater(t, after.BufferSize, int64(0))
@@ -96,9 +96,9 @@ func TestMetricsBufferSize(t *testing.T) {
 func TestMetricsZeroDeduplicationRate(t *testing.T) {
 	p := New(1024)
 
-	p.Intern([]byte("unique1"))
-	p.Intern([]byte("unique2"))
-	p.Intern([]byte("unique3"))
+	mustIntern(t, p, []byte("unique1"))
+	mustIntern(t, p, []byte("unique2"))
+	mustIntern(t, p, []byte("unique3"))
 
 	m := p.Metrics()
 

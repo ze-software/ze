@@ -15,7 +15,7 @@ func TestShutdownRejectsNewOperations(t *testing.T) {
 	p := New(1024)
 	p.Shutdown()
 
-	h, err := p.InternWithError([]byte("data"))
+	h, err := p.Intern([]byte("data"))
 	require.ErrorIs(t, err, ErrPoolShutdown)
 	require.Equal(t, InvalidHandle, h)
 }
@@ -43,7 +43,7 @@ func TestShutdownIdempotent(t *testing.T) {
 func TestShutdownExistingHandlesStillWork(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("existing-data"))
+	h := mustIntern(t, p, []byte("existing-data"))
 
 	p.Shutdown()
 
@@ -61,7 +61,7 @@ func TestShutdownExistingHandlesStillWork(t *testing.T) {
 func TestShutdownReleasesStillWork(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("data"))
+	h := mustIntern(t, p, []byte("data"))
 
 	p.Shutdown()
 
@@ -93,7 +93,7 @@ func TestIsShutdown(t *testing.T) {
 // PREVENTS: Metrics collection failing during shutdown.
 func TestShutdownMetricsStillWork(t *testing.T) {
 	p := New(1024)
-	p.Intern([]byte("data"))
+	mustIntern(t, p, []byte("data"))
 
 	p.Shutdown()
 

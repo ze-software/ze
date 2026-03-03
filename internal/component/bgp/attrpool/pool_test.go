@@ -31,6 +31,20 @@ func mustRelease(t *testing.T, p *Pool, h Handle) {
 	require.NoError(t, err)
 }
 
+func mustIntern(t *testing.T, p *Pool, data []byte) Handle {
+	t.Helper()
+	h, err := p.Intern(data)
+	require.NoError(t, err)
+	return h
+}
+
+func mustNewWithIdx(t *testing.T, idx uint8, cap int) *Pool {
+	t.Helper()
+	p, err := NewWithIdx(idx, cap)
+	require.NoError(t, err)
+	return p
+}
+
 // TestInternDeduplication verifies that interning identical data returns
 // the same handle and increments reference count.
 //
@@ -41,8 +55,8 @@ func mustRelease(t *testing.T, p *Pool, h Handle) {
 func TestInternDeduplication(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("hello"))
-	h2 := p.Intern([]byte("hello"))
+	h1 := mustIntern(t, p, []byte("hello"))
+	h2 := mustIntern(t, p, []byte("hello"))
 
 	require.Equal(t, h1, h2, "identical data must return same handle")
 	require.True(t, h1.IsValid(), "handle must be valid")
@@ -57,8 +71,8 @@ func TestInternDeduplication(t *testing.T) {
 func TestInternUnique(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("hello"))
-	h2 := p.Intern([]byte("world"))
+	h1 := mustIntern(t, p, []byte("hello"))
+	h2 := mustIntern(t, p, []byte("world"))
 
 	require.NotEqual(t, h1, h2, "different data must return different handles")
 }
@@ -72,7 +86,7 @@ func TestGetReturnsCorrectData(t *testing.T) {
 	p := New(1024)
 	data := []byte("test data 12345")
 
-	h := p.Intern(data)
+	h := mustIntern(t, p, data)
 	got := mustGet(t, p, h)
 
 	require.Equal(t, data, got, "Get must return original data")
@@ -86,9 +100,9 @@ func TestGetReturnsCorrectData(t *testing.T) {
 func TestGetMultipleEntries(t *testing.T) {
 	p := New(1024)
 
-	h1 := p.Intern([]byte("first"))
-	h2 := p.Intern([]byte("second"))
-	h3 := p.Intern([]byte("third"))
+	h1 := mustIntern(t, p, []byte("first"))
+	h2 := mustIntern(t, p, []byte("second"))
+	h3 := mustIntern(t, p, []byte("third"))
 
 	require.Equal(t, []byte("first"), mustGet(t, p, h1))
 	require.Equal(t, []byte("second"), mustGet(t, p, h2))
@@ -105,8 +119,8 @@ func TestReleaseDecrementsRefCount(t *testing.T) {
 	p := New(1024)
 
 	// Intern twice (refCount = 2)
-	h := p.Intern([]byte("data"))
-	_ = p.Intern([]byte("data"))
+	h := mustIntern(t, p, []byte("data"))
+	mustIntern(t, p, []byte("data"))
 
 	// Release once (refCount = 1)
 	mustRelease(t, p, h)
@@ -125,12 +139,12 @@ func TestReleaseDecrementsRefCount(t *testing.T) {
 func TestReleaseToZeroMarksDead(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("data"))
+	h := mustIntern(t, p, []byte("data"))
 	mustRelease(t, p, h)
 
 	// After release to zero, entry should be dead
 	// New intern of same data should get new handle (or reuse slot)
-	h2 := p.Intern([]byte("data"))
+	h2 := mustIntern(t, p, []byte("data"))
 	// Either same slot reused or new slot - both are valid
 	require.True(t, h2.IsValid())
 
@@ -147,7 +161,7 @@ func TestReleaseToZeroMarksDead(t *testing.T) {
 func TestDoubleReleaseError(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("data"))
+	h := mustIntern(t, p, []byte("data"))
 
 	// First release should succeed
 	err := p.Release(h)
@@ -162,23 +176,23 @@ func TestDoubleReleaseError(t *testing.T) {
 	require.ErrorIs(t, err, ErrSlotDead, "Get on released handle must return ErrSlotDead")
 }
 
-// TestInternWithErrorDataTooLarge verifies InternWithError returns error for large data.
+// TestInternDataTooLargeError verifies Intern returns error for large data.
 //
-// VALIDATES: InternWithError doesn't panic on large data.
+// VALIDATES: Intern returns error on large data.
 //
 // PREVENTS: Panic in error-returning function (API inconsistency).
-func TestInternWithErrorDataTooLarge(t *testing.T) {
+func TestInternDataTooLargeError(t *testing.T) {
 	p := New(1024)
 
 	// Data exceeding MaxDataLength should return error, not panic
 	tooLarge := make([]byte, MaxDataLength+1)
-	h, err := p.InternWithError(tooLarge)
+	h, err := p.Intern(tooLarge)
 	require.ErrorIs(t, err, ErrDataTooLarge)
 	require.Equal(t, InvalidHandle, h)
 
 	// Max length should still work
 	maxData := make([]byte, MaxDataLength)
-	h, err = p.InternWithError(maxData)
+	h, err = p.Intern(maxData)
 	require.NoError(t, err)
 	require.True(t, h.IsValid())
 }
@@ -191,7 +205,7 @@ func TestInternWithErrorDataTooLarge(t *testing.T) {
 func TestInternEmpty(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte{})
+	h := mustIntern(t, p, []byte{})
 	require.True(t, h.IsValid())
 
 	got := mustGet(t, p, h)
@@ -206,7 +220,7 @@ func TestInternEmpty(t *testing.T) {
 func TestInternNil(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern(nil)
+	h := mustIntern(t, p, nil)
 	require.True(t, h.IsValid())
 
 	got := mustGet(t, p, h)
@@ -229,7 +243,7 @@ func TestConcurrentIntern(t *testing.T) {
 			defer wg.Done()
 			for j := range 1000 {
 				data := fmt.Appendf(nil, "data-%d-%d", id, j)
-				h := p.Intern(data)
+				h := mustIntern(t, p, data)
 				got := mustGet(t, p, h)
 				assert.Equal(t, data, got)
 			}
@@ -254,7 +268,7 @@ func TestConcurrentInternDedup(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			handles[idx] = p.Intern([]byte("shared-data"))
+			handles[idx] = mustIntern(t, p, []byte("shared-data"))
 		}(i)
 	}
 
@@ -278,7 +292,7 @@ func TestConcurrentRelease(t *testing.T) {
 	// Intern same data 100 times (refCount = 100)
 	var handles []Handle
 	for range 100 {
-		handles = append(handles, p.Intern([]byte("shared")))
+		handles = append(handles, mustIntern(t, p, []byte("shared")))
 	}
 
 	// Release from multiple goroutines
@@ -295,7 +309,7 @@ func TestConcurrentRelease(t *testing.T) {
 
 	// After all releases, data should be dead
 	// Re-interning should work
-	h := p.Intern([]byte("shared"))
+	h := mustIntern(t, p, []byte("shared"))
 	require.True(t, h.IsValid())
 }
 
@@ -307,10 +321,10 @@ func TestConcurrentRelease(t *testing.T) {
 func TestLength(t *testing.T) {
 	p := New(1024)
 
-	h := p.Intern([]byte("hello world"))
+	h := mustIntern(t, p, []byte("hello world"))
 	require.Equal(t, 11, mustLength(t, p, h))
 
-	h2 := p.Intern([]byte{})
+	h2 := mustIntern(t, p, []byte{})
 	require.Equal(t, 0, mustLength(t, p, h2))
 }
 
@@ -328,7 +342,7 @@ func TestLargeData(t *testing.T) {
 		large[i] = byte(i % 256)
 	}
 
-	h := p.Intern(large)
+	h := mustIntern(t, p, large)
 	got := mustGet(t, p, h)
 
 	require.Equal(t, large, got)
@@ -341,8 +355,8 @@ func TestLargeData(t *testing.T) {
 //
 // PREVENTS: Wrong pool lookup when multiple pools exist.
 func TestPoolIdxEncoding(t *testing.T) {
-	p := NewWithIdx(5, 1024) // idx=5
-	h := p.Intern([]byte("test"))
+	p := mustNewWithIdx(t, 5, 1024) // idx=5
+	h := mustIntern(t, p, []byte("test"))
 
 	require.Equal(t, uint8(5), h.PoolIdx(), "handle must encode pool idx")
 	require.True(t, h.IsValid(), "handle must be valid")
@@ -354,8 +368,8 @@ func TestPoolIdxEncoding(t *testing.T) {
 //
 // PREVENTS: Using full handle as slot index (would be wrong offset).
 func TestPoolExtractsSlot(t *testing.T) {
-	p := NewWithIdx(5, 1024)
-	h := p.Intern([]byte("hello"))
+	p := mustNewWithIdx(t, 5, 1024)
+	h := mustIntern(t, p, []byte("hello"))
 
 	// Get works with encoded handle
 	require.Equal(t, []byte("hello"), mustGet(t, p, h), "Get must extract slot correctly")
@@ -373,9 +387,8 @@ func TestPoolExtractsSlot(t *testing.T) {
 //
 // PREVENTS: Creating pool with reserved idx=31.
 func TestPoolIdxValidation(t *testing.T) {
-	require.Panics(t, func() {
-		NewWithIdx(31, 1024) // Reserved idx
-	}, "pool must reject idx=31")
+	_, err := NewWithIdx(31, 1024)
+	require.ErrorIs(t, err, ErrInvalidIdx, "pool must reject idx=31")
 }
 
 // TestPoolIdxBoundary verifies boundary values for pool idx.
@@ -386,21 +399,20 @@ func TestPoolIdxValidation(t *testing.T) {
 // PREVENTS: Off-by-one errors in idx validation.
 func TestPoolIdxBoundary(t *testing.T) {
 	t.Run("idx_0_valid", func(t *testing.T) {
-		p := NewWithIdx(0, 64)
-		h := p.Intern([]byte("a"))
+		p := mustNewWithIdx(t, 0, 64)
+		h := mustIntern(t, p, []byte("a"))
 		require.Equal(t, uint8(0), h.PoolIdx())
 	})
 
 	t.Run("idx_30_last_valid", func(t *testing.T) {
-		p := NewWithIdx(30, 64)
-		h := p.Intern([]byte("b"))
+		p := mustNewWithIdx(t, 30, 64)
+		h := mustIntern(t, p, []byte("b"))
 		require.Equal(t, uint8(30), h.PoolIdx())
 	})
 
 	t.Run("idx_31_reserved", func(t *testing.T) {
-		require.Panics(t, func() {
-			NewWithIdx(31, 64)
-		})
+		_, err := NewWithIdx(31, 64)
+		require.ErrorIs(t, err, ErrInvalidIdx)
 	})
 }
 
@@ -410,13 +422,13 @@ func TestPoolIdxBoundary(t *testing.T) {
 //
 // PREVENTS: Pool confusion when routing NLRI handles to correct pool.
 func TestPoolMultiplePools(t *testing.T) {
-	p0 := NewWithIdx(0, 64)
-	p1 := NewWithIdx(1, 64)
-	p5 := NewWithIdx(5, 64)
+	p0 := mustNewWithIdx(t, 0, 64)
+	p1 := mustNewWithIdx(t, 1, 64)
+	p5 := mustNewWithIdx(t, 5, 64)
 
-	h0 := p0.Intern([]byte("data"))
-	h1 := p1.Intern([]byte("data"))
-	h5 := p5.Intern([]byte("data"))
+	h0 := mustIntern(t, p0, []byte("data"))
+	h1 := mustIntern(t, p1, []byte("data"))
+	h5 := mustIntern(t, p5, []byte("data"))
 
 	require.Equal(t, uint8(0), h0.PoolIdx())
 	require.Equal(t, uint8(1), h1.PoolIdx())
@@ -434,10 +446,10 @@ func TestPoolMultiplePools(t *testing.T) {
 //
 // PREVENTS: Silent data corruption from using handle with wrong pool.
 func TestPoolWrongPoolError(t *testing.T) {
-	p0 := NewWithIdx(0, 64)
-	p1 := NewWithIdx(1, 64)
+	p0 := mustNewWithIdx(t, 0, 64)
+	p1 := mustNewWithIdx(t, 1, 64)
 
-	h0 := p0.Intern([]byte("data"))
+	h0 := mustIntern(t, p0, []byte("data"))
 
 	// Using h0 (from p0) with p1 should return ErrWrongPool
 	_, err := p1.Get(h0)
@@ -466,15 +478,15 @@ func TestMaxSlotsConstant(t *testing.T) {
 // PREVENTS: Panic when second Intern triggers dedup path with idx>0.
 // REPRODUCES: Bug found during code review - p.slots[h] instead of p.slots[h.Slot()].
 func TestPoolIdxDeduplication(t *testing.T) {
-	p := NewWithIdx(5, 1024)
+	p := mustNewWithIdx(t, 5, 1024)
 
 	// First intern - creates new entry
-	h1 := p.Intern([]byte("test"))
+	h1 := mustIntern(t, p, []byte("test"))
 	require.Equal(t, uint8(5), h1.PoolIdx())
 	require.Equal(t, uint32(0), h1.Slot())
 
 	// Second intern of same data - triggers dedup path
-	h2 := p.Intern([]byte("test"))
+	h2 := mustIntern(t, p, []byte("test"))
 	require.Equal(t, h1, h2, "dedup should return same handle")
 
 	// Verify data is correct
@@ -494,7 +506,7 @@ func TestInternMaxLength(t *testing.T) {
 	for i := range maxData {
 		maxData[i] = byte(i % 256)
 	}
-	h := p.Intern(maxData)
+	h := mustIntern(t, p, maxData)
 	require.True(t, h.IsValid())
 	require.Equal(t, MaxDataLength, mustLength(t, p, h))
 
@@ -503,7 +515,7 @@ func TestInternMaxLength(t *testing.T) {
 	require.Equal(t, maxData, got)
 }
 
-// TestInternTooLarge verifies data exceeding MaxDataLength panics.
+// TestInternTooLarge verifies data exceeding MaxDataLength returns error.
 //
 // VALIDATES: Large data is rejected, not silently truncated.
 //
@@ -511,11 +523,10 @@ func TestInternMaxLength(t *testing.T) {
 func TestInternTooLarge(t *testing.T) {
 	p := New(1024 * 1024)
 
-	// One byte over limit should panic
+	// One byte over limit should return error
 	tooLarge := make([]byte, MaxDataLength+1)
-	require.Panics(t, func() {
-		p.Intern(tooLarge)
-	}, "data exceeding MaxDataLength must panic")
+	_, err := p.Intern(tooLarge)
+	require.ErrorIs(t, err, ErrDataTooLarge, "data exceeding MaxDataLength must return error")
 }
 
 // TestPoolIdxRebuildIndex verifies rebuildIndex includes poolIdx in handles.
@@ -525,18 +536,18 @@ func TestInternTooLarge(t *testing.T) {
 // PREVENTS: rebuildIndex creating handles with poolIdx=0 instead of pool's idx.
 func TestPoolIdxRebuildIndex(t *testing.T) {
 	// Start with tiny capacity to force buffer growth
-	p := NewWithIdx(7, 64)
+	p := mustNewWithIdx(t, 7, 64)
 
 	// Intern enough data to trigger buffer growth
 	var handles []Handle
 	for i := range 100 {
-		h := p.Intern(fmt.Appendf(nil, "data-%d-padding-to-make-it-longer", i))
+		h := mustIntern(t, p, fmt.Appendf(nil, "data-%d-padding-to-make-it-longer", i))
 		handles = append(handles, h)
 		require.Equal(t, uint8(7), h.PoolIdx(), "handle %d should have poolIdx=7", i)
 	}
 
 	// Now dedup should still work - this exercises rebuilt index
-	h := p.Intern([]byte("data-0-padding-to-make-it-longer"))
+	h := mustIntern(t, p, []byte("data-0-padding-to-make-it-longer"))
 	require.Equal(t, handles[0], h, "dedup should return original handle after buffer growth")
 	require.Equal(t, uint8(7), h.PoolIdx(), "deduped handle should have poolIdx=7")
 }
@@ -547,9 +558,9 @@ func TestPoolIdxRebuildIndex(t *testing.T) {
 //
 // PREVENTS: Use-after-free when multiple owners release same handle.
 func TestPoolAddRef(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
-	h := p.Intern([]byte("shared-data"))
+	h := mustIntern(t, p, []byte("shared-data"))
 
 	// Add reference
 	require.NoError(t, p.AddRef(h))
@@ -576,9 +587,9 @@ func TestPoolAddRef(t *testing.T) {
 //
 // PREVENTS: Data corruption when handles stored without bufferBit.
 func TestPoolGetBySlot(t *testing.T) {
-	p := NewWithIdx(5, 1024)
+	p := mustNewWithIdx(t, 5, 1024)
 
-	h := p.Intern([]byte("slot-data"))
+	h := mustIntern(t, p, []byte("slot-data"))
 	slotIdx := h.Slot()
 
 	// Get by slot
@@ -598,9 +609,9 @@ func TestPoolGetBySlot(t *testing.T) {
 //
 // PREVENTS: Memory leaks when handles stored without bufferBit.
 func TestPoolReleaseBySlot(t *testing.T) {
-	p := NewWithIdx(5, 1024)
+	p := mustNewWithIdx(t, 5, 1024)
 
-	h := p.Intern([]byte("release-by-slot"))
+	h := mustIntern(t, p, []byte("release-by-slot"))
 	slotIdx := h.Slot()
 
 	// Release by slot
@@ -617,12 +628,12 @@ func TestPoolReleaseBySlot(t *testing.T) {
 //
 // PREVENTS: Data loss or corruption during background compaction.
 func TestPoolIncrementalCompaction(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create several entries
-	h1 := p.Intern([]byte("entry-1"))
-	h2 := p.Intern([]byte("entry-2"))
-	h3 := p.Intern([]byte("entry-3"))
+	h1 := mustIntern(t, p, []byte("entry-1"))
+	h2 := mustIntern(t, p, []byte("entry-2"))
+	h3 := mustIntern(t, p, []byte("entry-3"))
 
 	// Release one to create dead space
 	require.NoError(t, p.Release(h2))
@@ -655,10 +666,10 @@ func TestPoolIncrementalCompaction(t *testing.T) {
 //
 // PREVENTS: Handle invalidation during background compaction.
 func TestPoolBothHandlesValidDuringCompaction(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create entry before compaction
-	h1 := p.Intern([]byte("before-compact"))
+	h1 := mustIntern(t, p, []byte("before-compact"))
 	originalBit := h1.BufferBit()
 
 	// Start compaction (flips currentBit)
@@ -670,7 +681,7 @@ func TestPoolBothHandlesValidDuringCompaction(t *testing.T) {
 	require.Equal(t, []byte("before-compact"), data)
 
 	// New intern creates handle with new bufferBit
-	h2 := p.Intern([]byte("during-compact"))
+	h2 := mustIntern(t, p, []byte("during-compact"))
 	require.NotEqual(t, originalBit, h2.BufferBit(), "new handle should have different bufferBit")
 
 	// Both handles work
@@ -693,11 +704,11 @@ func TestPoolBothHandlesValidDuringCompaction(t *testing.T) {
 //
 // PREVENTS: Data corruption from concurrent compaction methods.
 func TestCompactDuringIncrementalCompaction(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create entries
-	h1 := p.Intern([]byte("entry-1"))
-	h2 := p.Intern([]byte("entry-2"))
+	h1 := mustIntern(t, p, []byte("entry-1"))
+	h2 := mustIntern(t, p, []byte("entry-2"))
 
 	// Release one to create dead space
 	require.NoError(t, p.Release(h1))
@@ -729,10 +740,10 @@ func TestCompactDuringIncrementalCompaction(t *testing.T) {
 //
 // PREVENTS: Duplicate storage when interning data that exists but hasn't migrated.
 func TestInternDuringCompactionUnmigratedData(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create entry before compaction
-	h1 := p.Intern([]byte("existing-data"))
+	h1 := mustIntern(t, p, []byte("existing-data"))
 	originalSlot := h1.Slot()
 
 	// Start compaction but don't migrate anything yet
@@ -740,7 +751,7 @@ func TestInternDuringCompactionUnmigratedData(t *testing.T) {
 	require.Equal(t, PoolCompacting, p.State())
 
 	// Intern same data - should find existing entry (unmigrated)
-	h2 := p.Intern([]byte("existing-data"))
+	h2 := mustIntern(t, p, []byte("existing-data"))
 
 	// Should return same slot (dedup worked)
 	require.Equal(t, originalSlot, h2.Slot(), "should dedup to same slot")
@@ -765,10 +776,10 @@ func TestInternDuringCompactionUnmigratedData(t *testing.T) {
 //
 // PREVENTS: Buffer refCount mismatch causing premature or delayed buffer release.
 func TestReleaseOldHandleDuringCompaction(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create entry before compaction
-	h := p.Intern([]byte("release-test"))
+	h := mustIntern(t, p, []byte("release-test"))
 	originalBit := h.BufferBit()
 
 	// Start compaction (flips currentBit)
@@ -796,12 +807,12 @@ func TestReleaseOldHandleDuringCompaction(t *testing.T) {
 // PREVENTS: Index corruption from using uninitialized offsets for unmigrated slots.
 func TestBufferGrowthDuringCompaction(t *testing.T) {
 	// Start with tiny buffer to force growth
-	p := NewWithIdx(0, 64)
+	p := mustNewWithIdx(t, 0, 64)
 
 	// Create several entries before compaction
-	h1 := p.Intern([]byte("pre-compact-1"))
-	h2 := p.Intern([]byte("pre-compact-2"))
-	h3 := p.Intern([]byte("pre-compact-3"))
+	h1 := mustIntern(t, p, []byte("pre-compact-1"))
+	h2 := mustIntern(t, p, []byte("pre-compact-2"))
+	h3 := mustIntern(t, p, []byte("pre-compact-3"))
 
 	// Start compaction
 	p.StartCompaction()
@@ -813,7 +824,7 @@ func TestBufferGrowthDuringCompaction(t *testing.T) {
 	// This forces ensureCapacity -> rebuildIndex
 	var newHandles []Handle
 	for i := range 50 {
-		h := p.Intern(fmt.Appendf(nil, "new-data-during-compact-%d-padding", i))
+		h := mustIntern(t, p, fmt.Appendf(nil, "new-data-during-compact-%d-padding", i))
 		newHandles = append(newHandles, h)
 	}
 
@@ -851,10 +862,10 @@ func TestBufferGrowthDuringCompaction(t *testing.T) {
 // PREVENTS: Deduplication failure causing duplicate storage after buffer growth.
 func TestDedupAfterBufferGrowthDuringCompaction(t *testing.T) {
 	// Start with tiny buffer to force growth
-	p := NewWithIdx(0, 64)
+	p := mustNewWithIdx(t, 0, 64)
 
 	// Create entry before compaction
-	h1 := p.Intern([]byte("dedup-test-data"))
+	h1 := mustIntern(t, p, []byte("dedup-test-data"))
 	originalSlot := h1.Slot()
 
 	// Start compaction but don't migrate
@@ -862,12 +873,12 @@ func TestDedupAfterBufferGrowthDuringCompaction(t *testing.T) {
 
 	// Trigger buffer growth by interning lots of new data
 	for i := range 50 {
-		p.Intern(fmt.Appendf(nil, "grow-buffer-data-%d-padding-to-make-longer", i))
+		mustIntern(t, p, fmt.Appendf(nil, "grow-buffer-data-%d-padding-to-make-longer", i))
 	}
 
 	// Now try to dedup with the unmigrated entry
 	// This MUST return the same slot (dedup should work)
-	h2 := p.Intern([]byte("dedup-test-data"))
+	h2 := mustIntern(t, p, []byte("dedup-test-data"))
 
 	require.Equal(t, originalSlot, h2.Slot(),
 		"dedup must work for unmigrated slots after buffer growth")
@@ -890,17 +901,17 @@ func TestDedupAfterBufferGrowthDuringCompaction(t *testing.T) {
 //
 // PREVENTS: MigrateBatch reading garbage offsets for slots created after compaction started.
 func TestNewSlotsDuringCompaction(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create initial entries
-	h1 := p.Intern([]byte("before-compact"))
+	h1 := mustIntern(t, p, []byte("before-compact"))
 
 	// Start compaction
 	p.StartCompaction()
 
 	// Add new slots DURING compaction
-	h2 := p.Intern([]byte("during-compact-1"))
-	h3 := p.Intern([]byte("during-compact-2"))
+	h2 := mustIntern(t, p, []byte("during-compact-1"))
+	h3 := mustIntern(t, p, []byte("during-compact-2"))
 
 	// Migrate all - should NOT corrupt new slots
 	for !p.MigrateBatch(100) {
@@ -926,10 +937,10 @@ func TestNewSlotsDuringCompaction(t *testing.T) {
 //
 // PREVENTS: Dedup returning stale handle that reads wrong data after slot reuse.
 func TestSlotReuseStaleIndexEntry(t *testing.T) {
-	p := NewWithIdx(0, 1024)
+	p := mustNewWithIdx(t, 0, 1024)
 
 	// Create entry before compaction
-	h1 := p.Intern([]byte("original-data"))
+	h1 := mustIntern(t, p, []byte("original-data"))
 	slot1 := h1.Slot()
 
 	// Start compaction
@@ -939,14 +950,14 @@ func TestSlotReuseStaleIndexEntry(t *testing.T) {
 	require.NoError(t, p.Release(h1))
 
 	// Reuse the slot with different data
-	h2 := p.Intern([]byte("different-data"))
+	h2 := mustIntern(t, p, []byte("different-data"))
 
 	// The slot should be reused
 	require.Equal(t, slot1, h2.Slot(), "slot should be reused from free list")
 
 	// Now try to dedup with original data
 	// This should NOT return the old stale handle
-	h3 := p.Intern([]byte("original-data"))
+	h3 := mustIntern(t, p, []byte("original-data"))
 
 	// Get should return correct data
 	data, err := p.Get(h3)

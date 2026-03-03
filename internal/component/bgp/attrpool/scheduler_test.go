@@ -19,7 +19,7 @@ func TestSchedulerRoundRobin(t *testing.T) {
 	for i := range pools {
 		pools[i] = New(1024)
 		// Create dead entries to make pools need compaction
-		h := pools[i].Intern([]byte("dead"))
+		h := mustIntern(t, pools[i], []byte("dead"))
 		_ = pools[i].Release(h)
 	}
 
@@ -63,7 +63,7 @@ func TestSchedulerRespectsQuietPeriod(t *testing.T) {
 	p := New(1024)
 
 	// Create dead entry
-	h := p.Intern([]byte("data"))
+	h := mustIntern(t, p, []byte("data"))
 	_ = p.Release(h)
 
 	s := NewScheduler([]*Pool{p}, SchedulerConfig{
@@ -145,8 +145,8 @@ func TestSchedulerSkipsCleanPools(t *testing.T) {
 	p := New(1024)
 
 	// Only live entries, no dead
-	p.Intern([]byte("live1"))
-	p.Intern([]byte("live2"))
+	mustIntern(t, p, []byte("live1"))
+	mustIntern(t, p, []byte("live2"))
 
 	s := NewScheduler([]*Pool{p}, SchedulerConfig{
 		QuietPeriod:   0,
@@ -168,7 +168,7 @@ func TestSchedulerCompactsHighDeadRatio(t *testing.T) {
 	// Create many unique entries, then release most
 	handles := make([]Handle, 10)
 	for i := range handles {
-		handles[i] = p.Intern([]byte{byte(i)}) // Unique data for each
+		handles[i] = mustIntern(t, p, []byte{byte(i)}) // Unique data for each
 	}
 	// Release 8 out of 10 (80% dead)
 	for i := range 8 {

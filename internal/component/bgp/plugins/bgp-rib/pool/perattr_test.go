@@ -9,6 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func mustIntern(t *testing.T, p *attrpool.Pool, data []byte) attrpool.Handle {
+	t.Helper()
+	h, err := p.Intern(data)
+	require.NoError(t, err)
+	return h
+}
+
 // TestPerAttributePools_Existence verifies per-attribute pools are defined.
 //
 // VALIDATES: All per-attribute pools exist with correct pool indices.
@@ -39,7 +46,7 @@ func TestPerAttributePools_Existence(t *testing.T) {
 			require.NotNil(t, tc.pool, "pool %s should not be nil", tc.name)
 
 			// Verify pool index via handle (public API).
-			h := tc.pool.Intern([]byte{0x00})
+			h := mustIntern(t, tc.pool, []byte{0x00})
 			assert.Equal(t, tc.idx, h.PoolIdx(), "pool %s should have idx %d", tc.name, tc.idx)
 			require.NoError(t, tc.pool.Release(h))
 		})
@@ -74,7 +81,7 @@ func TestPerAttributePools_UniqueIndices(t *testing.T) {
 
 	seen := make(map[uint8]string)
 	for _, pe := range allPools {
-		h := pe.pool.Intern([]byte{0x00})
+		h := mustIntern(t, pe.pool, []byte{0x00})
 		idx := h.PoolIdx()
 		_ = pe.pool.Release(h)
 
@@ -93,7 +100,7 @@ func TestPerAttributePools_InternAndGet(t *testing.T) {
 	// Use Origin pool as representative (smallest expected entries)
 	testData := []byte{0x00} // IGP
 
-	h := Origin.Intern(testData)
+	h := mustIntern(t, Origin, testData)
 	require.True(t, h.IsValid(), "handle should be valid")
 	assert.Equal(t, uint8(2), h.PoolIdx(), "handle should have Origin pool idx")
 
@@ -113,8 +120,8 @@ func TestPerAttributePools_Deduplication(t *testing.T) {
 	// Use LocalPref pool - few unique values expected
 	testData := []byte{0x00, 0x00, 0x00, 0x64} // LOCAL_PREF = 100
 
-	h1 := LocalPref.Intern(testData)
-	h2 := LocalPref.Intern(testData)
+	h1 := mustIntern(t, LocalPref, testData)
+	h2 := mustIntern(t, LocalPref, testData)
 
 	// Same data should return same slot (deduplication)
 	assert.Equal(t, h1.Slot(), h2.Slot(), "same data should return same slot")
@@ -131,7 +138,7 @@ func TestPerAttributePools_Deduplication(t *testing.T) {
 func TestPerAttributePools_CrossPoolRejection(t *testing.T) {
 	testData := []byte{0x01}
 
-	h := Origin.Intern(testData)
+	h := mustIntern(t, Origin, testData)
 	defer func() { _ = Origin.Release(h) }()
 
 	// Try to use Origin handle with ASPath pool

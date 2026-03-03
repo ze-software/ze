@@ -10,6 +10,13 @@ import (
 	pool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 )
 
+func mustIntern(t *testing.T, p *attrpool.Pool, data []byte) attrpool.Handle {
+	t.Helper()
+	h, err := p.Intern(data)
+	require.NoError(t, err)
+	return h
+}
+
 // TestRouteEntry_NewEmpty verifies empty RouteEntry has InvalidHandle for all fields.
 //
 // VALIDATES: New RouteEntry correctly initializes all handles to InvalidHandle.
@@ -44,7 +51,7 @@ func TestRouteEntry_HasAttribute(t *testing.T) {
 	assert.False(t, entry.HasMED(), "MED should be absent")
 
 	// Set Origin to a valid handle
-	h := pool.Origin.Intern([]byte{0x00}) // IGP
+	h := mustIntern(t, pool.Origin, []byte{0x00}) // IGP
 	defer func() { _ = pool.Origin.Release(h) }()
 
 	entry.Origin = h
@@ -60,8 +67,8 @@ func TestRouteEntry_Release(t *testing.T) {
 	entry := NewRouteEntry()
 
 	// Intern some test data
-	entry.Origin = pool.Origin.Intern([]byte{0x00})
-	entry.LocalPref = pool.LocalPref.Intern([]byte{0x00, 0x00, 0x00, 0x64})
+	entry.Origin = mustIntern(t, pool.Origin, []byte{0x00})
+	entry.LocalPref = mustIntern(t, pool.LocalPref, []byte{0x00, 0x00, 0x00, 0x64})
 
 	// Verify handles are valid
 	require.True(t, entry.Origin.IsValid())
@@ -82,7 +89,7 @@ func TestRouteEntry_AddRef(t *testing.T) {
 	entry := NewRouteEntry()
 
 	// Intern test data
-	entry.Origin = pool.Origin.Intern([]byte{0x01}) // EGP
+	entry.Origin = mustIntern(t, pool.Origin, []byte{0x01}) // EGP
 
 	// Add ref (simulating sharing)
 	err := entry.AddRef()
@@ -100,8 +107,8 @@ func TestRouteEntry_AddRef(t *testing.T) {
 // PREVENTS: Independent entries accidentally sharing without refcount.
 func TestRouteEntry_Clone(t *testing.T) {
 	entry := NewRouteEntry()
-	entry.Origin = pool.Origin.Intern([]byte{0x02})             // INCOMPLETE
-	entry.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
+	entry.Origin = mustIntern(t, pool.Origin, []byte{0x02})             // INCOMPLETE
+	entry.MED = mustIntern(t, pool.MED, []byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
 
 	clone := entry.Clone()
 	require.NotNil(t, clone, "Clone should succeed")
@@ -126,8 +133,8 @@ func TestRouteEntry_SharedOrigin(t *testing.T) {
 
 	// Both routes have ORIGIN=IGP
 	originIGP := []byte{0x00}
-	entry1.Origin = pool.Origin.Intern(originIGP)
-	entry2.Origin = pool.Origin.Intern(originIGP)
+	entry1.Origin = mustIntern(t, pool.Origin, originIGP)
+	entry2.Origin = mustIntern(t, pool.Origin, originIGP)
 
 	// Should have same slot (deduplication)
 	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
@@ -144,14 +151,15 @@ func TestRouteEntry_SharedOrigin(t *testing.T) {
 // PREVENTS: Returning clone with incorrect refcounts.
 func TestRouteEntry_CloneReturnsNilOnError(t *testing.T) {
 	// Create a temporary pool that we can shutdown.
-	tempPool := attrpool.NewWithIdx(20, 64)
-	h := tempPool.Intern([]byte{0x01})
+	tempPool, err := attrpool.NewWithIdx(20, 64)
+	require.NoError(t, err)
+	h := mustIntern(t, tempPool, []byte{0x01})
 
 	entry := NewRouteEntry()
 	// Manually set a handle from the temp pool (hacky but tests the behavior).
 	// We can't easily test this without a shutdown pool, so we just verify
 	// that Clone returns non-nil in the normal case.
-	entry.Origin = pool.Origin.Intern([]byte{0x00})
+	entry.Origin = mustIntern(t, pool.Origin, []byte{0x00})
 
 	clone := entry.Clone()
 	assert.NotNil(t, clone, "Clone should succeed with valid pools")
@@ -177,13 +185,13 @@ func TestRouteEntry_DifferentMED(t *testing.T) {
 	originIGP := []byte{0x00}
 	localPref100 := []byte{0x00, 0x00, 0x00, 0x64}
 
-	entry1.Origin = pool.Origin.Intern(originIGP)
-	entry1.LocalPref = pool.LocalPref.Intern(localPref100)
-	entry1.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
+	entry1.Origin = mustIntern(t, pool.Origin, originIGP)
+	entry1.LocalPref = mustIntern(t, pool.LocalPref, localPref100)
+	entry1.MED = mustIntern(t, pool.MED, []byte{0x00, 0x00, 0x00, 0x0A}) // MED=10
 
-	entry2.Origin = pool.Origin.Intern(originIGP)
-	entry2.LocalPref = pool.LocalPref.Intern(localPref100)
-	entry2.MED = pool.MED.Intern([]byte{0x00, 0x00, 0x00, 0x14}) // MED=20
+	entry2.Origin = mustIntern(t, pool.Origin, originIGP)
+	entry2.LocalPref = mustIntern(t, pool.LocalPref, localPref100)
+	entry2.MED = mustIntern(t, pool.MED, []byte{0x00, 0x00, 0x00, 0x14}) // MED=20
 
 	// ORIGIN and LOCAL_PREF should share slots
 	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),

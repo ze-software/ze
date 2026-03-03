@@ -5,14 +5,23 @@ import (
 	"testing"
 )
 
+func benchIntern(b *testing.B, p *Pool, data []byte) Handle {
+	b.Helper()
+	h, err := p.Intern(data)
+	if err != nil {
+		b.Fatal(err)
+	}
+	return h
+}
+
 // BenchmarkInternExisting measures performance of interning existing data.
 // Target: < 100ns per operation.
 func BenchmarkInternExisting(b *testing.B) {
 	p := New(1024 * 1024)
-	p.Intern([]byte("benchmark-data"))
+	benchIntern(b, p, []byte("benchmark-data"))
 
 	for b.Loop() {
-		p.Intern([]byte("benchmark-data"))
+		benchIntern(b, p, []byte("benchmark-data"))
 	}
 }
 
@@ -22,7 +31,7 @@ func BenchmarkInternNew(b *testing.B) {
 	p := New(1024 * 1024 * 100) // 100MB to avoid reallocation
 
 	for i := 0; b.Loop(); i++ {
-		p.Intern(fmt.Appendf(nil, "data-%d", i))
+		benchIntern(b, p, fmt.Appendf(nil, "data-%d", i))
 	}
 }
 
@@ -30,10 +39,12 @@ func BenchmarkInternNew(b *testing.B) {
 // Target: < 50ns per operation.
 func BenchmarkGet(b *testing.B) {
 	p := New(1024)
-	h := p.Intern([]byte("benchmark-data"))
+	h := benchIntern(b, p, []byte("benchmark-data"))
 
 	for b.Loop() {
-		_, _ = p.Get(h)
+		if _, err := p.Get(h); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -45,7 +56,7 @@ func BenchmarkRelease(b *testing.B) {
 
 	// Pre-allocate unique handles
 	for i := range b.N {
-		handles[i] = p.Intern(fmt.Appendf(nil, "data-%d", i))
+		handles[i] = benchIntern(b, p, fmt.Appendf(nil, "data-%d", i))
 	}
 
 	b.ResetTimer()
@@ -57,10 +68,12 @@ func BenchmarkRelease(b *testing.B) {
 // BenchmarkLength measures performance of getting data length.
 func BenchmarkLength(b *testing.B) {
 	p := New(1024)
-	h := p.Intern([]byte("benchmark-data"))
+	h := benchIntern(b, p, []byte("benchmark-data"))
 
 	for b.Loop() {
-		_, _ = p.Length(h)
+		if _, err := p.Length(h); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -69,7 +82,7 @@ func BenchmarkMetrics(b *testing.B) {
 	p := New(1024)
 	// Add some entries
 	for i := range 100 {
-		p.Intern(fmt.Appendf(nil, "data-%d", i))
+		benchIntern(b, p, fmt.Appendf(nil, "data-%d", i))
 	}
 
 	for b.Loop() {
@@ -85,7 +98,7 @@ func BenchmarkCompact(b *testing.B) {
 		// Create entries
 		handles := make([]Handle, 1000)
 		for j := range 1000 {
-			handles[j] = p.Intern(fmt.Appendf(nil, "data-%d", j))
+			handles[j] = benchIntern(b, p, fmt.Appendf(nil, "data-%d", j))
 		}
 		// Release half
 		for j := range 500 {
@@ -105,7 +118,7 @@ func BenchmarkConcurrentIntern(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			p.Intern(fmt.Appendf(nil, "data-%d", i))
+			benchIntern(b, p, fmt.Appendf(nil, "data-%d", i))
 			i++
 		}
 	})
@@ -114,11 +127,13 @@ func BenchmarkConcurrentIntern(b *testing.B) {
 // BenchmarkConcurrentGet measures Get performance under concurrent load.
 func BenchmarkConcurrentGet(b *testing.B) {
 	p := New(1024)
-	h := p.Intern([]byte("benchmark-data"))
+	h := benchIntern(b, p, []byte("benchmark-data"))
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_, _ = p.Get(h)
+			if _, err := p.Get(h); err != nil {
+				b.Fatal(err)
+			}
 		}
 	})
 }
@@ -129,11 +144,11 @@ func BenchmarkDeduplication(b *testing.B) {
 
 	// Pre-populate with some entries
 	for i := range 100 {
-		p.Intern(fmt.Appendf(nil, "data-%d", i))
+		benchIntern(b, p, fmt.Appendf(nil, "data-%d", i))
 	}
 
 	for i := 0; b.Loop(); i++ {
 		// 50% hit rate
-		p.Intern(fmt.Appendf(nil, "data-%d", i%100))
+		benchIntern(b, p, fmt.Appendf(nil, "data-%d", i%100))
 	}
 }

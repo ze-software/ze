@@ -3,6 +3,8 @@
 package storage
 
 import (
+	"fmt"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 )
@@ -25,6 +27,8 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 	// Track unknown attributes to accumulate
 	var otherAttrs []byte
 
+	var err error
+
 	iter := attribute.NewAttrIterator(raw)
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
 		switch typeCode {
@@ -33,73 +37,121 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 			if entry.Origin.IsValid() {
 				_ = pool.Origin.Release(entry.Origin)
 			}
-			entry.Origin = pool.Origin.Intern(value)
+			entry.Origin, err = pool.Origin.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "origin", err)
+			}
 
 		case attribute.AttrASPath:
 			if entry.ASPath.IsValid() {
 				_ = pool.ASPath.Release(entry.ASPath)
 			}
-			entry.ASPath = pool.ASPath.Intern(value)
+			entry.ASPath, err = pool.ASPath.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "as-path", err)
+			}
 
 		case attribute.AttrNextHop:
 			if entry.NextHop.IsValid() {
 				_ = pool.NextHop.Release(entry.NextHop)
 			}
-			entry.NextHop = pool.NextHop.Intern(value)
+			entry.NextHop, err = pool.NextHop.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "next-hop", err)
+			}
 
 		case attribute.AttrMED:
 			if entry.MED.IsValid() {
 				_ = pool.MED.Release(entry.MED)
 			}
-			entry.MED = pool.MED.Intern(value)
+			entry.MED, err = pool.MED.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "med", err)
+			}
 
 		case attribute.AttrLocalPref:
 			if entry.LocalPref.IsValid() {
 				_ = pool.LocalPref.Release(entry.LocalPref)
 			}
-			entry.LocalPref = pool.LocalPref.Intern(value)
+			entry.LocalPref, err = pool.LocalPref.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "local-pref", err)
+			}
 
 		case attribute.AttrCommunity:
 			if entry.Communities.IsValid() {
 				_ = pool.Communities.Release(entry.Communities)
 			}
-			entry.Communities = pool.Communities.Intern(value)
+			entry.Communities, err = pool.Communities.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "communities", err)
+			}
 
 		case attribute.AttrLargeCommunity:
 			if entry.LargeCommunities.IsValid() {
 				_ = pool.LargeCommunities.Release(entry.LargeCommunities)
 			}
-			entry.LargeCommunities = pool.LargeCommunities.Intern(value)
+			entry.LargeCommunities, err = pool.LargeCommunities.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "large-communities", err)
+			}
 
 		case attribute.AttrExtCommunity:
 			if entry.ExtCommunities.IsValid() {
 				_ = pool.ExtCommunities.Release(entry.ExtCommunities)
 			}
-			entry.ExtCommunities = pool.ExtCommunities.Intern(value)
+			entry.ExtCommunities, err = pool.ExtCommunities.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "ext-communities", err)
+			}
 
 		case attribute.AttrClusterList:
 			if entry.ClusterList.IsValid() {
 				_ = pool.ClusterList.Release(entry.ClusterList)
 			}
-			entry.ClusterList = pool.ClusterList.Intern(value)
+			entry.ClusterList, err = pool.ClusterList.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "cluster-list", err)
+			}
 
 		case attribute.AttrOriginatorID:
 			if entry.OriginatorID.IsValid() {
 				_ = pool.OriginatorID.Release(entry.OriginatorID)
 			}
-			entry.OriginatorID = pool.OriginatorID.Intern(value)
+			entry.OriginatorID, err = pool.OriginatorID.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "originator-id", err)
+			}
 
 		case attribute.AttrAtomicAggregate:
 			if entry.AtomicAggregate.IsValid() {
 				_ = pool.AtomicAggregate.Release(entry.AtomicAggregate)
 			}
-			entry.AtomicAggregate = pool.AtomicAggregate.Intern(value)
+			entry.AtomicAggregate, err = pool.AtomicAggregate.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "atomic-aggregate", err)
+			}
 
 		case attribute.AttrAggregator:
 			if entry.Aggregator.IsValid() {
 				_ = pool.Aggregator.Release(entry.Aggregator)
 			}
-			entry.Aggregator = pool.Aggregator.Intern(value)
+			entry.Aggregator, err = pool.Aggregator.Intern(value)
+			if err != nil {
+				entry.Release()
+				return nil, fmt.Errorf("intern %s: %w", "aggregator", err)
+			}
 
 		case attribute.AttrMPReachNLRI,
 			attribute.AttrMPUnreachNLRI,
@@ -115,8 +167,7 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 			// Prefix with type code for sorted reconstruction.
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 
-		default:
-			// Unknown attribute - accumulate for OtherAttrs.
+		default: // Unknown attribute - accumulate for OtherAttrs.
 			// Prefix with type code for sorted reconstruction.
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 		}
@@ -124,7 +175,11 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 
 	// Intern accumulated unknown attributes.
 	if len(otherAttrs) > 0 {
-		entry.OtherAttrs = pool.OtherAttrs.Intern(otherAttrs)
+		entry.OtherAttrs, err = pool.OtherAttrs.Intern(otherAttrs)
+		if err != nil {
+			entry.Release()
+			return nil, fmt.Errorf("intern %s: %w", "other-attrs", err)
+		}
 	}
 
 	return entry, nil
