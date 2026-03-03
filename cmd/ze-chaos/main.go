@@ -34,10 +34,10 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/inprocess"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/web"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/inprocess"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 )
 

@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/replay"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/shrink"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/replay"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
 )
 
 // runReplay opens an event log file and replays it through the validation model.

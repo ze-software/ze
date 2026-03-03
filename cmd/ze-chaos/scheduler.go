@@ -1,8 +1,6 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos and route dynamics schedulers
 // Related: orchestrator_run.go — orchestrator that launches schedulers
 // Related: orchestrator.go — ChaosConfig, RouteConfig, establishedState types
-// Related: guard.go — peerGuard for action compatibility checks
-
 package main
 
 import (
@@ -12,10 +10,11 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/chaos"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/route"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/web"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 )
 
 // reconnectBackoff is the delay before a peer reconnects after a chaos disconnect.
@@ -52,8 +51,8 @@ func runPeerLoop(ctx context.Context, cfg peer.SimulatorConfig, peerIndex int, e
 // interval and dispatches chaos actions to per-peer channels.
 // When controlCh is non-nil, it also processes dashboard control commands
 // (pause, resume, rate change, manual trigger, stop).
-func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *peerGuard, channels []chan chaos.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
-	sched := chaos.NewScheduler(chaos.SchedulerConfig{
+func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, controlCh <-chan web.ControlCommand, quiet bool) {
+	sched := engine.NewScheduler(engine.SchedulerConfig{
 		Seed:      seed,
 		PeerCount: peerCount,
 		Rate:      cfg.Rate,
@@ -67,7 +66,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 	paused := false
 
 	// dispatchAction sends a chaos action to the peer's channel (non-blocking).
-	dispatchAction := func(a chaos.ScheduledAction) {
+	dispatchAction := func(a engine.ScheduledAction) {
 		if ok, reason := guard.AllowChaos(a.PeerIndex, a.Action.Type); !ok {
 			if !quiet {
 				fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | blocked %s for peer %d (%s)\n",
@@ -85,7 +84,7 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 			// scheduler sees the new state on its next tick, closing the
 			// cross-scheduler race window. Event-loop updates still serve
 			// as authoritative correction (establishment, disconnect).
-			if a.Action.Type == chaos.ActionHoldTimerExpiry {
+			if a.Action.Type == engine.ActionHoldTimerExpiry {
 				guard.OnHoldTimerExpiry(a.PeerIndex)
 			}
 		default:
@@ -151,8 +150,8 @@ func runScheduler(ctx context.Context, cfg ChaosConfig, seed uint64, peerCount i
 }
 
 // handleManualTrigger dispatches a manually-triggered chaos action.
-func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, guard *peerGuard, channels []chan chaos.ChaosAction, quiet bool) {
-	actionType, ok := chaos.ActionTypeFromString(t.ActionType)
+func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedState, guard *guard.Guard, channels []chan engine.ChaosAction, quiet bool) {
+	actionType, ok := engine.ActionTypeFromString(t.ActionType)
 	if !ok {
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | unknown trigger action: %s\n", t.ActionType)
@@ -187,7 +186,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 			}
 			continue
 		}
-		action := chaos.ChaosAction{Type: actionType}
+		action := engine.ChaosAction{Type: actionType}
 		if !quiet {
 			fmt.Fprintf(os.Stderr, "ze-chaos | scheduler | manual %s -> peer %d\n",
 				actionType, idx)
@@ -195,7 +194,7 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 		select {
 		case channels[idx] <- action:
 			// Update guard immediately on successful dispatch.
-			if actionType == chaos.ActionHoldTimerExpiry {
+			if actionType == engine.ActionHoldTimerExpiry {
 				guard.OnHoldTimerExpiry(idx)
 			}
 		default:
@@ -208,10 +207,10 @@ func handleManualTrigger(t *web.ManualTrigger, peerCount int, es *establishedSta
 }
 
 // runRouteScheduler runs the route dynamics scheduler in a goroutine.
-// It mirrors runScheduler but dispatches route.Action instead of chaos.ChaosAction.
+// It mirrors runScheduler but dispatches route.Action instead of engine.ChaosAction.
 // When controlCh is non-nil, it processes dashboard control commands
 // (pause, resume, rate change, stop).
-func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *peerGuard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
+func runRouteScheduler(ctx context.Context, cfg RouteConfig, seed uint64, peerCount int, es *establishedState, guard *guard.Guard, channels []chan route.Action, controlCh <-chan web.ControlCommand, quiet bool) {
 	sched := route.NewScheduler(route.SchedulerConfig{
 		Seed:       seed + 1, // Different seed from chaos to avoid correlated scheduling.
 		PeerCount:  peerCount,

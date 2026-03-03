@@ -1,17 +1,15 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
 // Related: orchestrator_run.go — orchestrator run loop and reporting setup
 // Overview: main.go — CLI entry and flag parsing
-// Related: guard.go — peerGuard for action compatibility checks
-
 package main
 
 import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
 )
 
 // ChaosConfig holds chaos injection parameters passed from CLI flags.

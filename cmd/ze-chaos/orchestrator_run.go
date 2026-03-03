@@ -2,8 +2,6 @@
 // Overview: main.go — CLI entry and flag parsing
 // Related: orchestrator.go — config types, established state, event processor
 // Related: scheduler.go — chaos and route dynamics schedulers
-// Related: guard.go — peerGuard for action compatibility checks
-
 package main
 
 import (
@@ -18,13 +16,14 @@ import (
 
 	"golang.org/x/term"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/chaos"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/report"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/route"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/validation"
-	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/web"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/guard"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
+	"codeberg.org/thomas-mangin/ze/internal/chaos/web"
 )
 
 // runOrchestrator launches N peer simulators and validates route propagation.
@@ -92,14 +91,14 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 
 	// Established state tracking (shared with scheduler goroutine).
 	established := newEstablishedState(n)
-	guard := newPeerGuard(n)
+	guard := guard.New(n)
 
 	// Per-peer chaos channels (only allocated when chaos is enabled).
-	var chaosChannels []chan chaos.ChaosAction
+	var chaosChannels []chan engine.ChaosAction
 	if chaosEnabled {
-		chaosChannels = make([]chan chaos.ChaosAction, n)
+		chaosChannels = make([]chan engine.ChaosAction, n)
 		for i := range n {
-			chaosChannels[i] = make(chan chaos.ChaosAction, 1)
+			chaosChannels[i] = make(chan engine.ChaosAction, 1)
 		}
 	}
 
@@ -143,7 +142,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			defer wg.Done()
 
 			// Chaos channel for this peer (nil when chaos is disabled).
-			var chaosCh <-chan chaos.ChaosAction
+			var chaosCh <-chan engine.ChaosAction
 			if chaosEnabled {
 				chaosCh = chaosChannels[prof.Index]
 			}
@@ -228,7 +227,7 @@ func runOrchestrator(ctx context.Context, cfg orchestratorConfig) int {
 			established.Set(ev.PeerIndex, false)
 			guard.OnDisconnected(ev.PeerIndex)
 		case peer.EventChaosExecuted:
-			if ev.ChaosAction == chaos.ActionHoldTimerExpiry.String() {
+			if ev.ChaosAction == engine.ActionHoldTimerExpiry.String() {
 				guard.OnHoldTimerExpiry(ev.PeerIndex)
 			}
 		case peer.EventRouteAction:
