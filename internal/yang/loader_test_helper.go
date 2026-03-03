@@ -3,7 +3,7 @@
 package yang
 
 import (
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 )
 
 // LoadAllForTesting loads all YANG modules including module-specific ones.

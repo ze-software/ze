@@ -9,8 +9,8 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/config"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 

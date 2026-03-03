@@ -126,7 +126,7 @@ RPC definitions live in YANG API modules, separate from config modules:
 
 | Module | File | Contains |
 |--------|------|----------|
-| ze-bgp-api | `internal/plugins/bgp/schema/ze-bgp-api.yang` | BGP RPCs + notifications |
+| ze-bgp-api | `internal/component/bgp/schema/ze-bgp-api.yang` | BGP RPCs + notifications |
 | ze-system-api | `internal/ipc/schema/ze-system-api.yang` | System RPCs |
 | ze-rib-api | `internal/plugin/rib/schema/ze-rib-api.yang` | RIB RPCs + notifications |
 | ze-plugin-api | `internal/ipc/schema/ze-plugin-api.yang` | Plugin lifecycle RPCs |

@@ -8,6 +8,8 @@ import (
 	"fmt"
 
 	"github.com/openconfig/goyang/pkg/yang"
+
+	pluginschema "codeberg.org/thomas-mangin/ze/internal/plugin/schema"
 )
 
 //go:embed modules
@@ -25,15 +27,15 @@ func NewLoader() *Loader {
 	}
 }
 
-// LoadEmbedded loads the embedded core YANG modules (extensions, types, hub, plugin).
+// LoadEmbedded loads the embedded core YANG modules (extensions, types, hub)
+// and schema-package YANG modules (plugin-conf).
 // Module-specific YANG (bgp) must be loaded separately via AddModuleFromText.
 func (l *Loader) LoadEmbedded() error {
-	// Core modules — order matters: extensions first, hub before plugin (plugin augments hub).
+	// Core modules embedded in internal/yang/modules/ — extensions first, then types, then hub.
 	files := []string{
 		"modules/ze-extensions.yang",
 		"modules/ze-types.yang",
 		"modules/ze-hub-conf.yang",
-		"modules/ze-plugin-conf.yang",
 	}
 
 	for _, path := range files {
@@ -44,6 +46,11 @@ func (l *Loader) LoadEmbedded() error {
 		if err := l.AddModuleFromText(path, string(content)); err != nil {
 			return fmt.Errorf("load %s: %w", path, err)
 		}
+	}
+
+	// Plugin conf — embedded in its own package (internal/plugin/schema/).
+	if err := l.AddModuleFromText("ze-plugin-conf.yang", pluginschema.ZePluginConfYANG); err != nil {
+		return fmt.Errorf("load ze-plugin-conf: %w", err)
 	}
 
 	return nil

@@ -6,8 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
-	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
 )

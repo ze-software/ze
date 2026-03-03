@@ -34,7 +34,7 @@ Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 | Engine core | `internal/plugins/bgp/` (reactor, FSM, wire, message, capability) |
 | Plugin impls | `internal/plugins/bgp-rib/`, `bgp-rs/`, `bgp-gr/`, `bgp-nlri-*/ ` |
 | Plugin infra | `internal/plugin/` (registry, process, hub, SDK) |
-| Config | `internal/config/`, YANG schemas in `internal/plugins/bgp/schema/` |
+| Config | `internal/config/`, YANG schemas in `internal/component/bgp/schema/` |
 | CLI | `cmd/ze/` (subcommands: bgp, validate, etc.) |
 | IPC/Hub | `internal/hub/`, `internal/ipc/` |
 | Tests | `test/` (.ci functional tests), `*_test.go` (unit) |

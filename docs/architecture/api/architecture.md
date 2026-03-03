@@ -12,7 +12,7 @@
 | Backpressure (1000/100) | ✅ Done | `internal/plugin/process.go` |
 | Respawn limits (5/60s) | ✅ Done | `internal/plugin/process.go` |
 | Command dispatch | ✅ Done | `internal/plugin/command.go`, `internal/ipc/dispatch.go` |
-| YANG API schema | ✅ Done | `internal/plugins/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
+| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
 | Plugin commands | ✅ Done | `internal/plugin/registry.go`, `internal/plugin/plugin.go` |
 | Route injection | ✅ Done | `internal/plugin/rib/` |
 | BGP cache commands | ✅ Done | `internal/plugin/cache.go` |
@@ -233,7 +233,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 
 | Module | Location | RPCs | Notifications |
 |--------|----------|------|---------------|
-| `ze-bgp-api` | `internal/plugins/bgp/schema/` | 26 | 7 |
+| `ze-bgp-api` | `internal/component/bgp/schema/` | 26 | 7 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
