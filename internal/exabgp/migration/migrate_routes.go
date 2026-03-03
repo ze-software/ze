@@ -3,7 +3,7 @@
 // Related: migrate_family.go — family syntax conversion helpers
 // Related: migrate_serialize.go — tree serialization
 
-package exabgp
+package migration
 
 import (
 	"encoding/hex"

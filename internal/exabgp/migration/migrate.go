@@ -3,7 +3,8 @@
 // Detail: migrate_family.go — family and nexthop syntax conversion
 // Detail: migrate_serialize.go — config tree serialization
 
-package exabgp
+// Package migration converts ExaBGP configuration to Ze format.
+package migration
 
 import (
 	"errors"

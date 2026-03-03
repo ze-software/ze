@@ -1,4 +1,4 @@
-package exabgp
+package bridge
 
 import (
 	"bufio"

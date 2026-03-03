@@ -3,7 +3,7 @@
 // Related: migrate_routes.go — route conversion to update blocks
 // Related: migrate_family.go — family syntax conversion helpers
 
-package exabgp
+package migration
 
 import (
 	"sort"

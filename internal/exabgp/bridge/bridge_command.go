@@ -2,7 +2,7 @@
 // Overview: bridge.go — startup protocol, bridge runtime
 // Related: bridge_event.go — ZeBGP to ExaBGP JSON event translation
 
-package exabgp
+package bridge
 
 import (
 	"fmt"

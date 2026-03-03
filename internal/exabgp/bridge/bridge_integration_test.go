@@ -1,6 +1,6 @@
 //go:build integration
 
-package exabgp
+package bridge
 
 import (
 	"bufio"

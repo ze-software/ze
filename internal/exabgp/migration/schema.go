@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md — external format translation
 
-package exabgp
+package migration
 
 import (
 	_ "embed"

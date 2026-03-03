@@ -2,7 +2,7 @@
 // Overview: bridge.go — startup protocol, bridge runtime
 // Related: bridge_command.go — ExaBGP text command translation
 
-package exabgp
+package bridge
 
 import (
 	"os"

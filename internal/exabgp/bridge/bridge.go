@@ -2,8 +2,8 @@
 // Detail: bridge_event.go — ZeBGP to ExaBGP JSON event translation
 // Detail: bridge_command.go — ExaBGP text command translation
 //
-// Package exabgp provides compatibility tools for ExaBGP plugins and configs.
-package exabgp
+// Package bridge provides runtime ExaBGP plugin protocol translation.
+package bridge
 
 import (
 	"bufio"

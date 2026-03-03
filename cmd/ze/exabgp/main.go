@@ -12,7 +12,8 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/exabgp"
+	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
+	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
 )
 
 const (
@@ -131,7 +132,7 @@ Use in ze config:
 
 	// Validate families
 	for _, fam := range families {
-		if err := exabgp.ValidateFamily(fam); err != nil {
+		if err := bridge.ValidateFamily(fam); err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return exitError
 		}
@@ -151,13 +152,13 @@ Use in ze config:
 	}()
 
 	// Run the bridge
-	bridge := exabgp.NewBridge(pluginCmd)
+	b := bridge.NewBridge(pluginCmd)
 	if len(families) > 0 {
-		bridge.Families = families
+		b.Families = families
 	}
-	bridge.RouteRefresh = *routeRefresh
-	bridge.AddPathMode = *addPath
-	if err := bridge.Run(ctx); err != nil {
+	b.RouteRefresh = *routeRefresh
+	b.AddPathMode = *addPath
+	if err := b.Run(ctx); err != nil {
 		// Don't print error for normal exit
 		if ctx.Err() == nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -215,14 +216,14 @@ Example:
 	}
 
 	// Parse with ExaBGP schema.
-	tree, err := exabgp.ParseExaBGPConfig(string(data))
+	tree, err := migration.ParseExaBGPConfig(string(data))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error parsing config: %v\n", err)
 		return exitError
 	}
 
 	// Migrate.
-	result, err := exabgp.MigrateFromExaBGP(tree)
+	result, err := migration.MigrateFromExaBGP(tree)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error migrating config: %v\n", err)
 		return exitError
@@ -248,7 +249,7 @@ Example:
 	}
 
 	// Serialize and output.
-	output := exabgp.SerializeTree(result.Tree)
+	output := migration.SerializeTree(result.Tree)
 	fmt.Print(output)
 
 	return exitOK

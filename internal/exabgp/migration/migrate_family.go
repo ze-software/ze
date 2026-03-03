@@ -3,7 +3,7 @@
 // Related: migrate_routes.go — route conversion to update blocks
 // Related: migrate_serialize.go — tree serialization
 
-package exabgp
+package migration
 
 import (
 	"sort"
