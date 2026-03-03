@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -72,7 +73,7 @@ Options:
 		fmt.Fprintln(os.Stderr)
 	}
 
-	bgpTree, err := config.ResolveBGPTree(tree)
+	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error resolving config: %v\n", err)
 		return 1

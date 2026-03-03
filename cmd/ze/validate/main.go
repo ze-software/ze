@@ -12,6 +12,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 )
 
 // Run executes the validate subcommand with the given arguments.
@@ -145,7 +147,7 @@ func validateConfig(input, path string) *ValidationResult {
 	}
 
 	// Resolve templates and get BGP tree as map.
-	bgpTree, err := config.ResolveBGPTree(tree)
+	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
 	if err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, ValidationError{
@@ -161,7 +163,7 @@ func validateConfig(input, path string) *ValidationResult {
 	result.Warnings = semanticValidation(bgpTree)
 
 	// Full validation: peer settings, route extraction, and capability constraints.
-	if _, err := config.PeersFromConfigTree(tree); err != nil {
+	if _, err := bgpconfig.PeersFromConfigTree(tree); err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, ValidationError{
 			Message: err.Error(),

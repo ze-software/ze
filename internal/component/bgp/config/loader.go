@@ -2,7 +2,7 @@
 // Detail: loader_routes.go — BGP route type conversion
 // Detail: loader_prefix.go — prefix expansion for route splitting
 
-package config
+package bgpconfig
 
 import (
 	"fmt"
@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
@@ -50,18 +51,18 @@ func normalizeListenAddr(addr string, defaultPort int) string {
 
 // parseTreeWithYANG parses config with optional plugin YANG schemas.
 // Returns the parsed tree for further processing by callers.
-func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error) {
+func parseTreeWithYANG(input string, pluginYANG map[string]string) (*config.Tree, error) {
 	// Parse input using YANG-derived schema with plugin augmentations
-	var schema *Schema
+	var schema *config.Schema
 	if len(pluginYANG) > 0 {
-		schema = YANGSchemaWithPlugins(pluginYANG)
+		schema = config.YANGSchemaWithPlugins(pluginYANG)
 	} else {
-		schema = YANGSchema()
+		schema = config.YANGSchema()
 	}
 	if schema == nil {
 		return nil, fmt.Errorf("failed to load YANG schema")
 	}
-	p := NewParser(schema)
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		// Check if this looks like old syntax and provide migration hint
@@ -78,7 +79,7 @@ func parseTreeWithYANG(input string, pluginYANG map[string]string) (*Tree, error
 
 	// Extract environment block and apply log config early.
 	// Lazy loggers (LazyLogger) will pick up these settings on first use.
-	envValues := ExtractEnvironment(tree)
+	envValues := config.ExtractEnvironment(tree)
 	slogutil.ApplyLogConfig(envValues)
 
 	return tree, nil
@@ -235,7 +236,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	}
 
 	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
-	if v := YANGValidatorWithPlugins(pluginYANG); v != nil {
+	if v := config.YANGValidatorWithPlugins(pluginYANG); v != nil {
 		plugin.SetYANGValidator(v)
 	}
 
@@ -345,10 +346,10 @@ func expandDependencies(plugins []reactor.PluginConfig) ([]reactor.PluginConfig,
 }
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
-func CreateReactorFromTree(tree *Tree, configDir string, plugins []reactor.PluginConfig) (*reactor.Reactor, error) {
+func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reactor.PluginConfig) (*reactor.Reactor, error) {
 	// Load environment with config block values (if any)
-	envValues := ExtractEnvironment(tree)
-	env, err := LoadEnvironmentWithConfig(envValues)
+	envValues := config.ExtractEnvironment(tree)
+	env, err := config.LoadEnvironmentWithConfig(envValues)
 	if err != nil {
 		return nil, fmt.Errorf("load environment: %w", err)
 	}
@@ -465,11 +466,11 @@ func createReloadFunc() reactor.ReloadFunc {
 		}
 
 		// Parse the config using YANG-derived schema.
-		schema := YANGSchema()
+		schema := config.YANGSchema()
 		if schema == nil {
 			return nil, fmt.Errorf("failed to load YANG schema")
 		}
-		p := NewParser(schema)
+		p := config.NewParser(schema)
 		tree, err := p.Parse(string(data))
 		if err != nil {
 			return nil, fmt.Errorf("parse config: %w", err)

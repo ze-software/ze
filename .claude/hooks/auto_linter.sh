@@ -56,9 +56,11 @@ if command -v gofmt &> /dev/null; then
     gofmt -w "$FILE_PATH" 2>/dev/null || true
 fi
 
-# Run goimports if available (auto-fix)
+# Run goimports if available (auto-fix).
+# -local matches golangci-lint's goimports.local-prefixes setting
+# to maintain consistent 3-group import ordering (stdlib / third-party / local).
 if command -v goimports &> /dev/null; then
-    goimports -w "$FILE_PATH" 2>/dev/null || true
+    goimports -local codeberg.org/thomas-mangin/ze -w "$FILE_PATH" 2>/dev/null || true
 fi
 
 # Run golangci-lint if available

@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/peer"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/report"
 	"codeberg.org/thomas-mangin/ze/cmd/ze-chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
@@ -116,7 +116,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Scoped narrowly: set before load, unset immediately after.
 	socketPath := filepath.Join(tmpDir, "ze.socket")
 	_ = os.Setenv("ze.bgp.api.socketpath", socketPath) //nolint:errcheck // best-effort env setup
-	reactor, err := config.LoadReactorWithPlugins(zeConfig, "-", []string{"ze.bgp-rs"})
+	reactor, err := bgpconfig.LoadReactorWithPlugins(zeConfig, "-", []string{"ze.bgp-rs"})
 	_ = os.Unsetenv("ze.bgp.api.socketpath") //nolint:errcheck // best-effort cleanup
 	if err != nil {
 		return nil, fmt.Errorf("create reactor: %w", err)

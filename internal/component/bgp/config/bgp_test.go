@@ -1,15 +1,17 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // schemaWithGR returns a YANG schema with the GR plugin YANG loaded.
 // GR schema is loaded via init()-based registration (all_import_test.go → plugin/all).
-func schemaWithGR() *Schema {
-	return YANGSchema()
+func schemaWithGR() *config.Schema {
+	return config.YANGSchema()
 }
 
 // TestBGPSchemaNeighbor verifies group configuration parsing.
@@ -31,7 +33,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -78,7 +80,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -115,7 +117,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -159,7 +161,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -244,7 +246,7 @@ bgp {
     }
 }
 `
-	p := NewParser(schemaWithGR()) // Use schema with GR plugin YANG
+	p := config.NewParser(schemaWithGR()) // Use schema with GR plugin YANG
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -293,7 +295,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -335,7 +337,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -377,7 +379,7 @@ plugin {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -408,7 +410,7 @@ bgp {
     listen 0.0.0.0:179;
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 

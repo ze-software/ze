@@ -1,6 +1,6 @@
-// Design: docs/architecture/config/syntax.md — config parsing and loading
+// Design: docs/architecture/config/syntax.md — BGP route extraction from config tree
 
-package config
+package bgpconfig
 
 import (
 	"fmt"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
@@ -26,7 +27,7 @@ const (
 
 // parseAnnounceAFIRoutes parses routes from an AFI container (ipv4 or ipv6).
 // Handles unicast, multicast, nlri-mpls, and mpls-vpn SAFIs.
-func parseAnnounceAFIRoutes(afiTree *Tree) ([]StaticRouteConfig, error) {
+func parseAnnounceAFIRoutes(afiTree *config.Tree) ([]StaticRouteConfig, error) {
 	var routes []StaticRouteConfig
 	safis := []string{"unicast", "multicast", "nlri-mpls", "mpls-vpn"}
 	for _, safi := range safis {
@@ -45,7 +46,7 @@ func parseAnnounceAFIRoutes(afiTree *Tree) ([]StaticRouteConfig, error) {
 // Handles both static { route ... } and announce { ipv4/ipv6 { unicast/multicast ... } } blocks.
 // Uses GetListOrdered to preserve config order.
 // Returns UpdateBlockRoutes containing all route types (static, flowspec, vpls, mvpn, mup).
-func extractRoutesFromTree(tree *Tree) (*UpdateBlockRoutes, error) {
+func extractRoutesFromTree(tree *config.Tree) (*UpdateBlockRoutes, error) {
 	result := &UpdateBlockRoutes{}
 
 	// Static routes - use ordered iteration to preserve config order
@@ -102,7 +103,7 @@ func extractRoutesFromTree(tree *Tree) (*UpdateBlockRoutes, error) {
 // hasWatchdogContainer returns true if an update block has a watchdog container.
 // All watchdog routes are owned by the bgp-watchdog plugin and must not be
 // added as engine static routes.
-func hasWatchdogContainer(update *Tree) bool {
+func hasWatchdogContainer(update *config.Tree) bool {
 	return update.GetContainer("watchdog") != nil
 }
 
@@ -117,13 +118,13 @@ type UpdateBlockRoutes struct {
 
 // extractRoutesFromUpdateBlock parses a single update { attribute { } nlri { } } block.
 // Returns all route types (static, flowspec, vpls, mvpn, mup) for each NLRI in the block.
-func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
+func extractRoutesFromUpdateBlock(update *config.Tree) (*UpdateBlockRoutes, error) {
 	result := &UpdateBlockRoutes{}
 
 	// Parse attributes from attribute { } container
 	attr := update.GetContainer("attribute")
 	if attr == nil {
-		attr = NewTree() // Empty attributes if not specified
+		attr = config.NewTree() // Empty attributes if not specified
 	}
 
 	// Parse nlri list entries - each has key=family and content=operation+payload
@@ -133,7 +134,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 	}
 
 	for _, nlriEntry := range nlriEntries {
-		family := StripListKeySuffix(nlriEntry.Key)
+		family := config.StripListKeySuffix(nlriEntry.Key)
 		content, _ := nlriEntry.Value.Get("content")
 		line := family
 		if content != "" {
@@ -264,7 +265,7 @@ func extractRoutesFromUpdateBlock(update *Tree) (*UpdateBlockRoutes, error) {
 // parseFlowSpecNLRILine parses a FlowSpec NLRI line like:
 // "ipv4/flow source-ipv4 10.0.0.1/32 destination-port =80 protocol =tcp".
 // RFC 8955 Section 4 defines the FlowSpec NLRI format.
-func parseFlowSpecNLRILine(line string, attr *Tree) (FlowSpecRouteConfig, error) {
+func parseFlowSpecNLRILine(line string, attr *config.Tree) (FlowSpecRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
 		return FlowSpecRouteConfig{}, fmt.Errorf("flowspec nlri requires match criteria")
@@ -361,7 +362,7 @@ func normalizeFlowSpecCriterion(criterion string) string {
 
 // parseVPLSNLRILine parses a VPLS NLRI line like:
 // "l2vpn/vpls rd 192.168.201.1:123 ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702".
-func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
+func parseVPLSNLRILine(line string, attr *config.Tree) (VPLSRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
 		return VPLSRouteConfig{}, fmt.Errorf("vpls nlri requires fields")
@@ -448,7 +449,7 @@ func parseVPLSNLRILine(line string, attr *Tree) (VPLSRouteConfig, error) {
 
 // parseMVPNNLRILine parses an MVPN NLRI line like:
 // "ipv4/mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000".
-func parseMVPNNLRILine(line string, attr *Tree) (MVPNRouteConfig, error) {
+func parseMVPNNLRILine(line string, attr *config.Tree) (MVPNRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
 		return MVPNRouteConfig{}, fmt.Errorf("mvpn nlri requires route type and fields")
@@ -530,7 +531,7 @@ func parseMVPNNLRILine(line string, attr *Tree) (MVPNRouteConfig, error) {
 
 // parseMUPNLRILine parses a MUP NLRI line like:
 // "ipv4/mup mup-isd 10.0.1.0/24 rd 100:100".
-func parseMUPNLRILine(line string, attr *Tree) (MUPRouteConfig, error) {
+func parseMUPNLRILine(line string, attr *config.Tree) (MUPRouteConfig, error) {
 	parts := strings.Fields(line)
 	if len(parts) < 2 {
 		return MUPRouteConfig{}, fmt.Errorf("mup nlri requires route type and fields")
@@ -612,7 +613,7 @@ func parseMUPNLRILine(line string, attr *Tree) (MUPRouteConfig, error) {
 
 // applyAttributesFromTree applies path attributes from a Tree to a StaticRouteConfig.
 // Used by both parseRouteConfig (announce/static syntax) and extractRoutesFromUpdateBlock (update syntax).
-func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
+func applyAttributesFromTree(tree *config.Tree, sr *StaticRouteConfig) error {
 	if v, ok := tree.Get("next-hop"); ok {
 		if v == configSelf {
 			sr.NextHopSelf = true
@@ -692,7 +693,7 @@ func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
 
 // parseRouteConfig extracts a StaticRouteConfig from a parsed route tree.
 // The prefix key may have a #N suffix for duplicate routes (ADD-PATH support).
-func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
+func parseRouteConfig(prefix string, route *config.Tree) (StaticRouteConfig, error) {
 	sr := StaticRouteConfig{}
 
 	// Strip #N suffix added by AddListEntry for duplicate keys
@@ -730,7 +731,7 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 }
 
 // extractMVPNRoutes extracts MVPN routes from announce { ipv4/ipv6 { mcast-vpn ... } }.
-func extractMVPNRoutes(tree *Tree) []MVPNRouteConfig {
+func extractMVPNRoutes(tree *config.Tree) []MVPNRouteConfig {
 	var routes []MVPNRouteConfig
 
 	announce := tree.GetContainer("announce")
@@ -757,7 +758,7 @@ func extractMVPNRoutes(tree *Tree) []MVPNRouteConfig {
 	return routes
 }
 
-func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig {
+func parseMVPNRoute(routeType string, route *config.Tree, isIPv6 bool) MVPNRouteConfig {
 	r := MVPNRouteConfig{
 		RouteType: routeType,
 		IsIPv6:    isIPv6,
@@ -977,7 +978,7 @@ func parseVPLSFromInline(inline string) VPLSRouteConfig {
 
 // extractVPLSRoutes extracts VPLS routes from l2vpn { vpls ... } and announce { l2vpn { vpls ... } }.
 // Order: announce inline first, then l2vpn named, then l2vpn inline (to match ExaBGP behavior).
-func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
+func extractVPLSRoutes(tree *config.Tree) []VPLSRouteConfig {
 	var routes []VPLSRouteConfig
 
 	// From announce { l2vpn { vpls ... } } - inline routes first
@@ -1017,7 +1018,7 @@ func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
 	return routes
 }
 
-func parseVPLSRoute(name string, route *Tree) VPLSRouteConfig {
+func parseVPLSRoute(name string, route *config.Tree) VPLSRouteConfig {
 	r := VPLSRouteConfig{Name: name}
 
 	if v, ok := route.Get("rd"); ok {
@@ -1079,7 +1080,7 @@ func parseVPLSRoute(name string, route *Tree) VPLSRouteConfig {
 }
 
 // extractFlowSpecRoutes extracts FlowSpec routes from flow { route ... }.
-func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
+func extractFlowSpecRoutes(tree *config.Tree) []FlowSpecRouteConfig {
 	flow := tree.GetContainer("flow")
 	if flow == nil {
 		return nil
@@ -1096,7 +1097,7 @@ func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
 	return routes
 }
 
-func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
+func parseFlowSpecRoute(name string, route *config.Tree) FlowSpecRouteConfig {
 	r := FlowSpecRouteConfig{
 		Name: name,
 		NLRI: make(map[string][]string),
@@ -1254,7 +1255,7 @@ func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
 }
 
 // extractMUPRoutes extracts MUP routes from announce { ipv4/ipv6 { mup ... } }.
-func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
+func extractMUPRoutes(tree *config.Tree) []MUPRouteConfig {
 	var routes []MUPRouteConfig
 
 	announce := tree.GetContainer("announce")
@@ -1297,7 +1298,7 @@ func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
 	return routes
 }
 
-func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
+func parseMUPRoute(routeType string, route *config.Tree, isIPv6 bool) MUPRouteConfig {
 	r := MUPRouteConfig{
 		RouteType: routeType,
 		IsIPv6:    isIPv6,

@@ -1,10 +1,12 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // TestPeersFromConfigTreeBasic verifies basic peer extraction without routes.
@@ -12,12 +14,12 @@ import (
 // VALIDATES: PeersFromConfigTree returns correct PeerSettings from a simple tree.
 // PREVENTS: Regression where basic fields (address, AS, hold-time) are lost.
 func TestPeersFromConfigTreeBasic(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("router-id", "1.2.3.4")
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "180")
 	peerTree.Set("local-address", "auto")
@@ -39,18 +41,18 @@ func TestPeersFromConfigTreeBasic(t *testing.T) {
 // VALIDATES: Static routes from peer tree are extracted, converted, and patched into PeerSettings.
 // PREVENTS: Route loss when extracting routes from peer tree subtrees.
 func TestPeersFromConfigTreeStaticRoute(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("router-id", "1.2.3.4")
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("local-address", "auto")
 
 	// Build static route: static { route 10.10.0.0/24 { next-hop 192.168.1.1; origin igp; } }
-	staticTree := NewTree()
-	routeTree := NewTree()
+	staticTree := config.NewTree()
+	routeTree := config.NewTree()
 	routeTree.Set("next-hop", "192.168.1.1")
 	routeTree.Set("origin", "igp")
 	staticTree.AddListEntry("route", "10.10.0.0/24", routeTree)
@@ -73,19 +75,19 @@ func TestPeersFromConfigTreeStaticRoute(t *testing.T) {
 // VALIDATES: Template values are applied to peer AND routes are extracted from peer tree.
 // PREVENTS: Template resolution breaking route extraction pipeline.
 func TestPeersFromConfigTreeTemplateWithRoutes(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("router-id", "1.2.3.4")
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "base")
 	peerTree.Set("local-address", "auto")
 
 	// Static route on the peer itself.
-	staticTree := NewTree()
-	routeTree := NewTree()
+	staticTree := config.NewTree()
+	routeTree := config.NewTree()
 	routeTree.Set("next-hop", "172.16.0.1")
 	routeTree.Set("origin", "igp")
 	staticTree.AddListEntry("route", "192.168.0.0/16", routeTree)
@@ -95,8 +97,8 @@ func TestPeersFromConfigTreeTemplateWithRoutes(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 
 	// Template provides hold-time.
-	tmpl := NewTree()
-	groupTree := NewTree()
+	tmpl := config.NewTree()
+	groupTree := config.NewTree()
 	groupTree.Set("hold-time", "300")
 	tmpl.AddListEntry("group", "base", groupTree)
 	tree.SetContainer("template", tmpl)
@@ -120,12 +122,12 @@ func TestPeersFromConfigTreeTemplateWithRoutes(t *testing.T) {
 func TestPeersFromConfigTreePortOverride(t *testing.T) {
 	t.Setenv("ze_bgp_tcp_port", "1790")
 
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("router-id", "1.2.3.4")
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("local-address", "auto")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
@@ -143,8 +145,8 @@ func TestPeersFromConfigTreePortOverride(t *testing.T) {
 // VALIDATES: Empty peer list returns empty slice, not error.
 // PREVENTS: Panic on configs with no peers (validation-only configs).
 func TestPeersFromConfigTreeNoPeers(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("router-id", "1.2.3.4")
 	bgp.Set("local-as", "65000")
 	tree.SetContainer("bgp", bgp)

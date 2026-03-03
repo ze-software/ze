@@ -1,24 +1,26 @@
-// Design: docs/architecture/config/syntax.md — config parsing and loading
+// Design: docs/architecture/config/syntax.md — BGP template resolution and inheritance
 
-package config
+package bgpconfig
 
 import (
 	"fmt"
 	"maps"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // templateData holds parsed template information for inheritance resolution.
 type templateData struct {
-	named    map[string]*Tree  // Named templates (inherit by name)
-	patterns map[string]string // Template patterns (for validation)
-	globs    []PeerGlob        // Auto-matching glob patterns
+	named    map[string]*config.Tree // Named templates (inherit by name)
+	patterns map[string]string       // Template patterns (for validation)
+	globs    []PeerGlob              // Auto-matching glob patterns
 }
 
 // extractTemplateData extracts templates and glob patterns from the config tree.
 // Shared by ResolveBGPTree (map-level resolution) and PeersFromConfigTree (route extraction).
-func extractTemplateData(tree *Tree) templateData {
+func extractTemplateData(tree *config.Tree) templateData {
 	td := templateData{
-		named:    make(map[string]*Tree),
+		named:    make(map[string]*config.Tree),
 		patterns: make(map[string]string),
 	}
 
@@ -61,8 +63,8 @@ func extractTemplateData(tree *Tree) templateData {
 
 // resolveInheritedTrees returns template trees for a peer's inherit directives.
 // Used by PeersFromConfigTree to extract routes from all template layers.
-func resolveInheritedTrees(addr string, peerTree *Tree, td templateData) []*Tree {
-	var result []*Tree
+func resolveInheritedTrees(addr string, peerTree *config.Tree, td templateData) []*config.Tree {
+	var result []*config.Tree
 
 	// Check ordered list of inherit entries.
 	for _, entry := range peerTree.GetListOrdered("inherit") {
@@ -105,7 +107,7 @@ func resolveInheritedTrees(addr string, peerTree *Tree, td templateData) []*Tree
 //
 // Each layer deep-merges into the previous, so containers like capability are merged
 // at the key level, not replaced wholesale.
-func ResolveBGPTree(tree *Tree) (map[string]any, error) {
+func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	bgp := tree.GetContainer("bgp")
 	if bgp == nil {
 		return nil, fmt.Errorf("missing required bgp { } block")
@@ -160,8 +162,8 @@ func ResolveBGPTree(tree *Tree) (map[string]any, error) {
 
 // resolveInheritedTemplates handles the 'inherit' directive for a peer.
 // Supports both list-ordered inherit (multiple templates) and single value.
-func resolveInheritedTemplates(addr string, peerTree *Tree, templates map[string]*Tree, templatePatterns map[string]string, resolved map[string]any) error {
-	var inheritedTemplates []*Tree
+func resolveInheritedTemplates(addr string, peerTree *config.Tree, templates map[string]*config.Tree, templatePatterns map[string]string, resolved map[string]any) error {
+	var inheritedTemplates []*config.Tree
 
 	// Check ordered list of inherit entries.
 	for _, entry := range peerTree.GetListOrdered("inherit") {

@@ -5,6 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	// Blank imports trigger init() registration of YANG modules.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-softver/schema"
 )
 
 func TestYANGSchemaLoads(t *testing.T) {

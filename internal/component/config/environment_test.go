@@ -4,6 +4,10 @@ package config
 import (
 	"strings"
 	"testing"
+
+	// Blank import triggers init() registration of all plugin YANG modules.
+	// Needed by TestParseEnvironmentBlockApplied for the "api" environment field.
+	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 )
 
 func TestLoadEnvironmentDefaults(t *testing.T) {

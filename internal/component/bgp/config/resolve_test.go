@@ -1,10 +1,12 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // resolvedPeer extracts a peer's map from a ResolveBGPTree result, failing the test if missing.
@@ -92,12 +94,12 @@ func TestDeepMergeMaps(t *testing.T) {
 // PREVENTS: Resolution breaking when no templates exist.
 func TestResolveBGPTreeSimple(t *testing.T) {
 	// Build tree: bgp { local-as 65000; router-id 1.2.3.4; peer 10.0.0.1 { peer-as 65001; } }
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 	bgp.Set("router-id", "1.2.3.4")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "180")
 
@@ -126,12 +128,12 @@ func TestResolveBGPTreeSimple(t *testing.T) {
 // PREVENTS: Template inheritance being lost during resolution.
 func TestResolveBGPTreeTemplateInherit(t *testing.T) {
 	// Build tree with template and peer that inherits it.
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 	bgp.Set("router-id", "1.2.3.4")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "my-template")
 
@@ -139,10 +141,10 @@ func TestResolveBGPTreeTemplateInherit(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 
 	// Template: template { group my-template { hold-time 300; capability { route-refresh true; } } }
-	tmpl := NewTree()
-	tmplGroup := NewTree()
+	tmpl := config.NewTree()
+	tmplGroup := config.NewTree()
 	tmplGroup.Set("hold-time", "300")
-	capTree := NewTree()
+	capTree := config.NewTree()
 	capTree.Set("route-refresh", "true")
 	tmplGroup.SetContainer("capability", capTree)
 	tmpl.AddListEntry("group", "my-template", tmplGroup)
@@ -171,11 +173,11 @@ func TestResolveBGPTreeTemplateInherit(t *testing.T) {
 // VALIDATES: Peer-level values take precedence over template values.
 // PREVENTS: Template values incorrectly winning over peer's own configuration.
 func TestResolveBGPTreePeerOverridesTemplate(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "90")
 	peerTree.Set("inherit", "my-template")
@@ -183,8 +185,8 @@ func TestResolveBGPTreePeerOverridesTemplate(t *testing.T) {
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
-	tmpl := NewTree()
-	tmplGroup := NewTree()
+	tmpl := config.NewTree()
+	tmplGroup := config.NewTree()
 	tmplGroup.Set("hold-time", "300")      // Template sets 300, peer sets 90 — peer wins.
 	tmplGroup.Set("connection", "passive") // Only in template — should appear in resolved.
 	tmpl.AddListEntry("group", "my-template", tmplGroup)
@@ -203,18 +205,18 @@ func TestResolveBGPTreePeerOverridesTemplate(t *testing.T) {
 // VALIDATES: Glob patterns auto-apply to matching peers.
 // PREVENTS: Glob templates being silently skipped.
 func TestResolveBGPTreeGlobMatch(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	// Template: template { match 10.0.0.* { hold-time 300; } }
-	tmpl := NewTree()
-	matchTree := NewTree()
+	tmpl := config.NewTree()
+	matchTree := config.NewTree()
 	matchTree.Set("hold-time", "300")
 	tmpl.AddListEntry("match", "10.0.0.*", matchTree)
 	tree.SetContainer("template", tmpl)
@@ -231,18 +233,18 @@ func TestResolveBGPTreeGlobMatch(t *testing.T) {
 // VALIDATES: Peer values override glob-matched template values.
 // PREVENTS: Glob templates incorrectly taking precedence over peer config.
 func TestResolveBGPTreeGlobPlusPeerOverride(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "60") // Peer overrides glob.
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
-	tmpl := NewTree()
-	matchTree := NewTree()
+	tmpl := config.NewTree()
+	matchTree := config.NewTree()
 	matchTree.Set("hold-time", "300")
 	matchTree.Set("connection", "passive") // Only in glob — should appear.
 	tmpl.AddListEntry("match", "10.0.0.*", matchTree)
@@ -261,28 +263,28 @@ func TestResolveBGPTreeGlobPlusPeerOverride(t *testing.T) {
 // VALIDATES: Three-layer template resolution produces correct merged output.
 // PREVENTS: Layer ordering bugs where wrong layer wins.
 func TestResolveBGPTreeAllThreeLayers(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("hold-time", "45") // Layer 3: peer value wins for hold-time.
 	peerTree.Set("inherit", "my-tmpl")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
-	tmpl := NewTree()
+	tmpl := config.NewTree()
 
 	// Glob match: layer 1.
-	matchTree := NewTree()
+	matchTree := config.NewTree()
 	matchTree.Set("hold-time", "300")      // Overridden by template, then peer.
 	matchTree.Set("connection", "passive") // Not overridden by template or peer.
 	matchTree.Set("description", "from-glob")
 	tmpl.AddListEntry("match", "10.0.0.*", matchTree)
 
 	// Named template: layer 2.
-	groupTree := NewTree()
+	groupTree := config.NewTree()
 	groupTree.Set("description", "from-template") // Overrides glob's description.
 	groupTree.Set("hold-time", "180")             // Overridden by peer.
 	groupTree.Set("group-updates", "false")       // Not overridden by peer.
@@ -305,7 +307,7 @@ func TestResolveBGPTreeAllThreeLayers(t *testing.T) {
 // VALIDATES: Clear error for missing bgp block.
 // PREVENTS: Panic on nil bgp container.
 func TestResolveBGPTreeMissingBGP(t *testing.T) {
-	tree := NewTree()
+	tree := config.NewTree()
 	_, err := ResolveBGPTree(tree)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "bgp")
@@ -316,11 +318,11 @@ func TestResolveBGPTreeMissingBGP(t *testing.T) {
 // VALIDATES: Clear error when inherited template doesn't exist.
 // PREVENTS: Silent failure when template name is misspelled.
 func TestResolveBGPTreeInheritNotFound(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "nonexistent")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
@@ -336,8 +338,8 @@ func TestResolveBGPTreeInheritNotFound(t *testing.T) {
 // VALIDATES: Config with no peers returns valid map with no peer key.
 // PREVENTS: Error on configs used for validation only (no peers).
 func TestResolveBGPTreeNoPeers(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 	tree.SetContainer("bgp", bgp)
 
@@ -351,20 +353,20 @@ func TestResolveBGPTreeNoPeers(t *testing.T) {
 // VALIDATES: New-syntax templates with inherit-name are resolved correctly.
 // PREVENTS: New syntax templates being ignored.
 func TestResolveBGPTreeNewSyntaxTemplate(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "fast-peer")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	// New syntax: template { bgp { peer 10.0.0.* { inherit-name fast-peer; hold-time 30; } } }
-	tmpl := NewTree()
-	bgpTmpl := NewTree()
-	peerTmplTree := NewTree()
+	tmpl := config.NewTree()
+	bgpTmpl := config.NewTree()
+	peerTmplTree := config.NewTree()
 	peerTmplTree.Set("inherit-name", "fast-peer")
 	peerTmplTree.Set("hold-time", "30")
 	bgpTmpl.AddListEntry("peer", "10.0.0.*", peerTmplTree)
@@ -387,19 +389,19 @@ func TestResolveBGPTreeNewSyntaxTemplate(t *testing.T) {
 // VALIDATES: Unnamed new-syntax templates auto-match peers like globs.
 // PREVENTS: New syntax auto-matching being broken.
 func TestResolveBGPTreeNewSyntaxAutoGlob(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	// template { bgp { peer 10.0.0.* { hold-time 300; } } } — no inherit-name, auto-glob.
-	tmpl := NewTree()
-	bgpTmpl := NewTree()
-	globTree := NewTree()
+	tmpl := config.NewTree()
+	bgpTmpl := config.NewTree()
+	globTree := config.NewTree()
 	globTree.Set("hold-time", "300")
 	bgpTmpl.AddListEntry("peer", "10.0.0.*", globTree)
 	tmpl.SetContainer("bgp", bgpTmpl)
@@ -417,24 +419,24 @@ func TestResolveBGPTreeNewSyntaxAutoGlob(t *testing.T) {
 // VALIDATES: Capability containers from glob, template, and peer are deep-merged.
 // PREVENTS: Container replacement instead of key-level merge.
 func TestResolveBGPTreeDeepContainerMerge(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
 	// Peer has extended-message capability.
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "base")
-	peerCap := NewTree()
+	peerCap := config.NewTree()
 	peerCap.Set("extended-message", "enable")
 	peerTree.SetContainer("capability", peerCap)
 	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	// Template has route-refresh.
-	tmpl := NewTree()
-	groupTree := NewTree()
-	tmplCap := NewTree()
+	tmpl := config.NewTree()
+	groupTree := config.NewTree()
+	tmplCap := config.NewTree()
 	tmplCap.Set("route-refresh", "true")
 	groupTree.SetContainer("capability", tmplCap)
 	tmpl.AddListEntry("group", "base", groupTree)
@@ -455,20 +457,20 @@ func TestResolveBGPTreeDeepContainerMerge(t *testing.T) {
 // VALIDATES: Peer address must match template pattern when pattern exists.
 // PREVENTS: Peer inheriting from template intended for different address range.
 func TestResolveBGPTreePatternValidation(t *testing.T) {
-	tree := NewTree()
-	bgp := NewTree()
+	tree := config.NewTree()
+	bgp := config.NewTree()
 	bgp.Set("local-as", "65000")
 
 	// Peer 192.168.1.1 tries to inherit from template with pattern 10.0.0.*.
-	peerTree := NewTree()
+	peerTree := config.NewTree()
 	peerTree.Set("peer-as", "65001")
 	peerTree.Set("inherit", "ten-net")
 	bgp.AddListEntry("peer", "192.168.1.1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
-	tmpl := NewTree()
-	bgpTmpl := NewTree()
-	peerTmplTree := NewTree()
+	tmpl := config.NewTree()
+	bgpTmpl := config.NewTree()
+	peerTmplTree := config.NewTree()
 	peerTmplTree.Set("inherit-name", "ten-net")
 	peerTmplTree.Set("hold-time", "30")
 	bgpTmpl.AddListEntry("peer", "10.0.0.*", peerTmplTree)

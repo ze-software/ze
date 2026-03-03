@@ -1,7 +1,7 @@
 // Design: docs/architecture/config/syntax.md — community attribute parsing
 // Overview: routeattr.go — core route attribute types
 
-package config
+package bgpconfig
 
 import (
 	"encoding/hex"

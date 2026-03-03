@@ -12,6 +12,7 @@ import (
 	"syscall"
 	"time"
 
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/hub"
 	"codeberg.org/thomas-mangin/ze/internal/pidfile"
@@ -113,7 +114,7 @@ func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
 // triggers shutdown when the upstream process exits (pipe mode).
 func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
 	// Use YANG-based config parser with CLI plugins
-	reactor, err := zeconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
+	reactor, err := bgpconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1

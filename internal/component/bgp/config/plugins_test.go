@@ -1,4 +1,4 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 )
 
@@ -15,11 +16,11 @@ import (
 // VALIDATES: Config-file internal plugins detected via ResolvePlugin.
 // PREVENTS: Internal plugins being treated as external (fork instead of goroutine).
 func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
-	tree := NewTree()
-	pluginContainer := NewTree()
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
 
-	ext := NewTree()
+	ext := config.NewTree()
 	ext.Set("run", "ze.bgp-rs")
 	pluginContainer.AddListEntry("external", "rr", ext)
 
@@ -38,11 +39,11 @@ func TestExtractPluginsFromTree_InternalPlugin(t *testing.T) {
 // VALIDATES: External plugins have Internal=false.
 // PREVENTS: External plugins running as goroutines.
 func TestExtractPluginsFromTree_ExternalPlugin(t *testing.T) {
-	tree := NewTree()
-	pluginContainer := NewTree()
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
 
-	ext := NewTree()
+	ext := config.NewTree()
 	ext.Set("run", "/usr/bin/custom-plugin")
 	pluginContainer.AddListEntry("external", "custom", ext)
 
@@ -60,11 +61,11 @@ func TestExtractPluginsFromTree_ExternalPlugin(t *testing.T) {
 // VALIDATES: Unknown "ze.typo" is not blindly marked Internal.
 // PREVENTS: Bug where strings.HasPrefix fast-path skipped validation.
 func TestExtractPluginsFromTree_UnknownInternalPlugin(t *testing.T) {
-	tree := NewTree()
-	pluginContainer := NewTree()
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
 
-	ext := NewTree()
+	ext := config.NewTree()
 	ext.Set("run", "ze.nonexistent")
 	pluginContainer.AddListEntry("external", "bad", ext)
 

@@ -2,7 +2,7 @@
 // Overview: loader.go — reactor loading and creation
 // Related: peers.go — peer extraction that calls these converters
 
-package config
+package bgpconfig
 
 import (
 	"encoding/hex"

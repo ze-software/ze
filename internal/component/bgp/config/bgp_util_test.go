@@ -1,10 +1,12 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 func TestIPGlobMatch(t *testing.T) {
@@ -137,7 +139,7 @@ plugin {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	plugins, err := ExtractPluginsFromTree(tree)
@@ -159,7 +161,7 @@ plugin {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	plugins, err := ExtractPluginsFromTree(tree)
@@ -181,7 +183,7 @@ plugin {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
@@ -203,7 +205,7 @@ plugin {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
@@ -238,7 +240,7 @@ plugin {
     }
 }
 `
-			p := NewParser(YANGSchema())
+			p := config.NewParser(config.YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
 			plugins, err := ExtractPluginsFromTree(tree)

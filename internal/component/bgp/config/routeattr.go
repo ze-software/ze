@@ -1,8 +1,8 @@
-// Design: docs/architecture/config/syntax.md — config parsing and loading
+// Design: docs/architecture/config/syntax.md — BGP route attribute parsing
 // Detail: routeattr_community.go — community attribute types
 // Detail: routeattr_prefixsid.go — prefix SID attribute types
 
-package config
+package bgpconfig
 
 import (
 	"encoding/hex"

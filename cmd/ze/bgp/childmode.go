@@ -13,7 +13,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/sim"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -174,7 +174,7 @@ func runChildModeWithArgs(args []string) int {
 		return 1
 	}
 
-	reactor, err := config.LoadReactorFile(configPath)
+	reactor, err := bgpconfig.LoadReactorFile(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1

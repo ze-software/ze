@@ -1,7 +1,7 @@
 // Design: docs/architecture/config/syntax.md — prefix-SID and SRv6 attribute parsing
 // Overview: routeattr.go — core route attribute types
 
-package config
+package bgpconfig
 
 import (
 	"fmt"

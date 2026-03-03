@@ -1,4 +1,4 @@
-package config
+package bgpconfig
 
 import (
 	"net"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
@@ -397,7 +398,7 @@ func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
 }
 
 // TestLoadReactor_MVPNRouteReflector verifies full config→reactor flow for RFC 4456.
-// TestPluginOnlySchema verifies that PluginOnlySchema() only parses plugin blocks.
+// TestPluginOnlySchema verifies that config.PluginOnlySchema() only parses plugin blocks.
 //
 // VALIDATES: First phase parsing extracts only plugin definitions.
 // PREVENTS: Non-plugin config blocks being parsed in first phase.
@@ -414,8 +415,8 @@ plugin {
     }
 }
 `
-	// PluginOnlySchema should only parse plugin blocks
-	p := NewParser(PluginOnlySchema())
+	// config.PluginOnlySchema should only parse plugin blocks
+	p := config.NewParser(config.PluginOnlySchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -446,7 +447,7 @@ plugin {
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.
 //
-// VALIDATES: PluginOnlySchema only accepts plugin blocks.
+// VALIDATES: config.PluginOnlySchema only accepts plugin blocks.
 // PREVENTS: Accidental parsing of peer/template blocks in first phase.
 func TestPluginOnlySchemaRejectsUnknown(t *testing.T) {
 	input := `
@@ -454,7 +455,7 @@ peer 192.0.2.1 {
     peer-as 65001;
 }
 `
-	p := NewParser(PluginOnlySchema())
+	p := config.NewParser(config.PluginOnlySchema())
 	_, err := p.Parse(input)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unknown top-level keyword: peer")
@@ -465,7 +466,7 @@ peer 192.0.2.1 {
 // VALIDATES: Schema.ExtendCapability adds new capability sub-blocks.
 // PREVENTS: Plugin-declared capabilities being rejected as unknown.
 func TestSchemaExtendCapability(t *testing.T) {
-	schema := YANGSchema()
+	schema := config.YANGSchema()
 
 	// Before extension, custom capability should fail
 	inputBefore := `
@@ -480,13 +481,13 @@ bgp {
     }
 }
 `
-	p := NewParser(schema)
+	p := config.NewParser(schema)
 	_, err := p.Parse(inputBefore)
 	require.Error(t, err, "custom-cap should be unknown before extension")
 
 	// Extend schema with custom capability
 	err = schema.ExtendCapability("custom-cap",
-		Field("some-value", Leaf(TypeUint32)),
+		config.Field("some-value", config.Leaf(config.TypeUint32)),
 	)
 	require.NoError(t, err)
 
@@ -503,7 +504,7 @@ bgp {
     }
 }
 `
-	p = NewParser(schema)
+	p = config.NewParser(schema)
 	tree, err := p.Parse(inputAfter)
 	require.NoError(t, err)
 
@@ -838,8 +839,8 @@ bgp {
     }
 }
 `
-	// YANGSchema() now includes all internal plugin YANG (hostname, gr, etc.)
-	p := NewParser(YANGSchema())
+	// config.YANGSchema() now includes all internal plugin YANG (hostname, gr, etc.)
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 
 	// Parsing should succeed - internal plugin YANG is always loaded

@@ -1,6 +1,6 @@
-// Design: docs/architecture/config/syntax.md — config parsing and loading
+// Design: docs/architecture/config/syntax.md — BGP config types and tree-to-map conversion
 
-package config
+package bgpconfig
 
 import (
 	"net/netip"

@@ -1,12 +1,13 @@
-// Design: docs/architecture/config/syntax.md — config parsing and loading
+// Design: docs/architecture/config/syntax.md — BGP plugin extraction from config
 
-package config
+package bgpconfig
 
 import (
 	"fmt"
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
 )
@@ -17,7 +18,7 @@ import (
 // Sources:
 //  1. Explicit plugins: plugin { external <name> { run; encoder; timeout; } }
 //  2. Inline plugins: peer process bindings with "run" defined (discovered after template resolution)
-func ExtractPluginsFromTree(tree *Tree) ([]reactor.PluginConfig, error) {
+func ExtractPluginsFromTree(tree *config.Tree) ([]reactor.PluginConfig, error) {
 	var plugins []reactor.PluginConfig
 
 	// Source 1: Explicit plugins from plugin { external <name> { ... } }
@@ -45,7 +46,7 @@ func ExtractPluginsFromTree(tree *Tree) ([]reactor.PluginConfig, error) {
 				pc.StageTimeout = d
 			}
 			// Default: text encoder plugins receive updates
-			if pc.Encoder == EncoderText {
+			if pc.Encoder == config.EncoderText {
 				pc.ReceiveUpdate = true
 			}
 
@@ -119,8 +120,8 @@ func extractInlinePluginsFromMap(bgpTree map[string]any) []reactor.PluginConfig 
 			pc := reactor.PluginConfig{
 				Name:          name,
 				Run:           run,
-				Encoder:       EncoderText, // Default to text encoder
-				ReceiveUpdate: true,        // Default: receive updates
+				Encoder:       config.EncoderText, // Default to text encoder
+				ReceiveUpdate: true,               // Default: receive updates
 			}
 			markInternalPlugin(&pc)
 			plugins = append(plugins, pc)
@@ -147,7 +148,7 @@ func markInternalPlugin(pc *reactor.PluginConfig) {
 
 // ValidatePluginReferences checks that all process binding plugin references
 // point to declared plugins. Skip bindings with inline Run (defines plugin inline).
-func ValidatePluginReferences(tree *Tree, plugins []reactor.PluginConfig) error {
+func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig) error {
 	bgpContainer := tree.GetContainer("bgp")
 	if bgpContainer == nil {
 		return nil
@@ -165,7 +166,7 @@ func ValidatePluginReferences(tree *Tree, plugins []reactor.PluginConfig) error 
 		peerTree := entry.Value
 		processList := peerTree.GetList("process")
 		for name, processTree := range processList {
-			if name == KeyDefault {
+			if name == config.KeyDefault {
 				continue
 			}
 			// Skip inline plugins (have run defined)

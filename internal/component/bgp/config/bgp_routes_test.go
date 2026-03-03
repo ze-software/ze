@@ -1,9 +1,11 @@
-package config
+package bgpconfig
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // TestParseUpdateBlock_InvalidMED verifies error on invalid MED value.
@@ -28,7 +30,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	_, err := p.Parse(input)
 	// YANG schema validates uint32, so error happens at parse time
 	require.Error(t, err)
@@ -60,7 +62,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -80,19 +82,19 @@ bgp {
 	require.Len(t, nlriEntries, 3, "expected 3 NLRI list entries")
 
 	// First entry: ipv4/unicast
-	require.Equal(t, "ipv4/unicast", StripListKeySuffix(nlriEntries[0].Key))
+	require.Equal(t, "ipv4/unicast", config.StripListKeySuffix(nlriEntries[0].Key))
 	content0, ok := nlriEntries[0].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 10.0.0.0/24", content0)
 
 	// Second entry: ipv4/unicast#1 (duplicate key)
-	require.Equal(t, "ipv4/unicast", StripListKeySuffix(nlriEntries[1].Key))
+	require.Equal(t, "ipv4/unicast", config.StripListKeySuffix(nlriEntries[1].Key))
 	content1, ok := nlriEntries[1].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 10.0.1.0/24", content1)
 
 	// Third entry: ipv6/unicast
-	require.Equal(t, "ipv6/unicast", StripListKeySuffix(nlriEntries[2].Key))
+	require.Equal(t, "ipv6/unicast", config.StripListKeySuffix(nlriEntries[2].Key))
 	content2, ok := nlriEntries[2].Value.Get("content")
 	require.True(t, ok)
 	require.Equal(t, "add 2001:db8::/32", content2)
@@ -133,7 +135,7 @@ bgp {
     }
 }
 `
-			p := NewParser(YANGSchema())
+			p := config.NewParser(config.YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "parse should succeed (freeform NLRI)")
 
@@ -183,7 +185,7 @@ bgp {
     }
 }
 `
-			p := NewParser(YANGSchema())
+			p := config.NewParser(config.YANGSchema())
 			_, err := p.Parse(input)
 			require.NoError(t, err, "expected no error for %s", tt.name)
 		})
@@ -212,7 +214,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	_, err := p.Parse(input)
 	require.NoError(t, err, "multiple prefixes on one line should parse successfully")
 }
@@ -239,7 +241,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	_, err := p.Parse(input)
 	require.NoError(t, err, "VPN route with add should parse successfully")
 }
@@ -266,7 +268,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	_, err := p.Parse(input)
 	require.NoError(t, err, "FlowSpec route with add should parse successfully")
 }
@@ -305,7 +307,7 @@ bgp {
     }
 }
 `
-			p := NewParser(YANGSchema())
+			p := config.NewParser(config.YANGSchema())
 			_, err := p.Parse(input)
 			require.NoError(t, err, "expected no error for %s", tt.name)
 		})
@@ -356,7 +358,7 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	p := config.NewParser(config.YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err, "parse should succeed")
 

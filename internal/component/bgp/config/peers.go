@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — peer configuration extraction and route expansion
 
-package config
+package bgpconfig
 
 import (
 	"fmt"
@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
@@ -24,7 +25,7 @@ import (
 //
 // Routes stay in the config package because they depend on config-internal
 // types (StaticRouteConfig, ParseRouteAttributes, etc.) that reactor cannot import.
-func PeersFromConfigTree(tree *Tree) ([]*reactor.PeerSettings, error) {
+func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	// Step 1: Resolve templates at the map level.
 	bgpTree, err := ResolveBGPTree(tree)
 	if err != nil {
@@ -104,7 +105,7 @@ func PeersFromConfigTree(tree *Tree) ([]*reactor.PeerSettings, error) {
 }
 
 // patchRoutes extracts routes from a peer's *Tree and patches them into PeerSettings.
-func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *Tree) error {
+func patchRoutes(ps *reactor.PeerSettings, addr string, peerTree *config.Tree) error {
 	// Extract routes from peer's own tree.
 	routes, err := extractRoutesFromTree(peerTree)
 	if err != nil {
