@@ -145,7 +145,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 7. **Functional tests** → Create after feature works. Cover user-visible behavior?
 8. **Verify all** → `make test-all` (lint + all ze tests including fuzz + exabgp)
 9. **Critical Review** → All 6 checks from `rules/quality.md` must pass (Correctness, Simplicity, Consistency, Completeness, Quality, Tests). Document pass/fail. Any failure = fix before continuing.
-10. **Complete spec** → Fill audit tables, move spec to `done/`. BLOCKING: spec is part of the commit, not a follow-up.
+10. **Complete spec** → Fill audit tables, write learned summary to `docs/learned/NNN-<name>.md`, delete spec from `docs/plan/`. BLOCKING: summary is part of the commit, not a follow-up.
 
 ### Failure Routing
 
@@ -197,7 +197,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 
 ## Implementation Audit
 
-<!-- BLOCKING: Complete BEFORE moving spec to done. See rules/implementation-audit.md -->
+<!-- BLOCKING: Complete BEFORE writing learned summary. See rules/implementation-audit.md -->
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
@@ -257,5 +257,5 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
+- [ ] **Summary included in commit** — NEVER commit implementation without the completed summary. One commit = code + tests + summary.

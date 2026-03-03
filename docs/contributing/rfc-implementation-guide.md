@@ -1,6 +1,6 @@
-# RFC Implementation Guide for ZeBGP
+# RFC Implementation Guide for Ze
 
-This guide provides a step-by-step checklist for implementing an RFC in ZeBGP. Use it alongside `planning.md` to ensure complete implementations.
+This guide provides a step-by-step checklist for implementing an RFC in Ze. Use it alongside `planning.md` to ensure complete implementations.
 
 ## Overview
 
@@ -8,14 +8,14 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 | Component | Package | When Needed |
 |-----------|---------|-------------|
-| Capability | `internal/plugins/bgp/capability/` | RFC introduces a capability |
-| Attribute | `internal/plugins/bgp/attribute/` | RFC introduces path attributes |
-| NLRI | `internal/plugins/bgp/nlri/` | RFC introduces new AFI/SAFI |
-| Message | `internal/plugins/bgp/message/` | RFC modifies message format |
-| FSM | `internal/plugins/bgp/fsm/` | RFC affects state machine |
-| Config | `internal/config/` | RFC needs configuration |
-| Plugin | `internal/plugin/` | RFC needs plugin commands |
-| Context | `internal/plugins/bgp/context/` | RFC affects encoding context |
+| Capability | `internal/component/bgp/capability/` | RFC introduces a capability |
+| Attribute | `internal/component/bgp/attribute/` | RFC introduces path attributes |
+| NLRI | `internal/component/bgp/nlri/` | RFC introduces new AFI/SAFI |
+| Message | `internal/component/bgp/message/` | RFC modifies message format |
+| FSM | `internal/component/bgp/fsm/` | RFC affects state machine |
+| Config | `internal/component/config/` | RFC needs configuration |
+| Plugin | `internal/component/plugin/` | RFC needs plugin commands |
+| Context | `internal/component/bgp/context/` | RFC affects encoding context |
 
 ## Phase 0: Preparation
 
@@ -33,9 +33,9 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 ```
 [ ] Search for existing partial implementation: grep -r "RFC NNNN" internal/
-[ ] Check if related capabilities exist: internal/plugins/bgp/capability/
-[ ] Check if related attributes exist: internal/plugins/bgp/attribute/
-[ ] Check if related NLRI types exist: internal/plugins/bgp/nlri/
+[ ] Check if related capabilities exist: internal/component/bgp/capability/
+[ ] Check if related attributes exist: internal/component/bgp/attribute/
+[ ] Check if related NLRI types exist: internal/component/bgp/nlri/
 [ ] Read architecture docs for affected areas (see planning.md keyword table)
 ```
 
@@ -45,14 +45,14 @@ If this RFC adds features that ExaBGP users might rely on, check if migration su
 
 | RFC Affects | Migration Impact | Action |
 |-------------|------------------|--------|
-| API commands/events | ExaBGP plugins expect different JSON format | Update `internal/exabgp/bridge.go` |
-| Config syntax | ExaBGP configs have different syntax | Update `internal/exabgp/migrate.go` |
-| Capabilities | ExaBGP may configure differently | Check migrate.go handles it |
+| API commands/events | ExaBGP plugins expect different JSON format | Update `internal/exabgp/bridge/` |
+| Config syntax | ExaBGP configs have different syntax | Update `internal/exabgp/migration/` |
+| Capabilities | ExaBGP may configure differently | Check migration handles it |
 
 ```
 [ ] Does ExaBGP support this RFC feature?
-[ ] If yes: is config migration needed? (internal/exabgp/migrate.go)
-[ ] If yes: is API bridge update needed? (internal/exabgp/bridge.go)
+[ ] If yes: is config migration needed? (internal/exabgp/migration/)
+[ ] If yes: is API bridge update needed? (internal/exabgp/bridge/)
 ```
 
 See `.claude/rules/compatibility.md` for architecture details.
@@ -74,7 +74,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 1.1 Define Capability
 
 ```
-[ ] Add capability code constant to internal/plugins/bgp/capability/codes.go
+[ ] Add capability code constant to internal/component/bgp/capability/capability.go
     - Code<Name> Code = NN  // RFC NNNN
 
 [ ] Create capability struct in appropriate file (or new file)
@@ -84,8 +84,8 @@ See `.claude/rules/compatibility.md` for architecture details.
 
 [ ] Implement Capability interface:
     - Code() Code
-    - Pack() []byte
-    - String() string (for debugging)
+    - Len() int
+    - WriteTo(buf []byte, off int) int
 
 [ ] Implement ConfigProvider interface if cap provides plugin config:
     - ConfigValues() map[string]string
@@ -114,7 +114,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 1.4 Tests
 
 ```
-[ ] Unit test: Pack() round-trips correctly
+[ ] Unit test: WriteTo round-trips correctly
 [ ] Unit test: Parse valid wire bytes
 [ ] Unit test: Parse rejects malformed bytes
 [ ] Unit test: Negotiation logic (both have, one has, neither has)
@@ -130,7 +130,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 2.1 Define Attribute
 
 ```
-[ ] Add attribute code constant to internal/plugins/bgp/attribute/codes.go
+[ ] Add attribute code constant to internal/component/bgp/attribute/attribute.go
     - Attr<Name> AttributeCode = NN  // RFC NNNN
 
 [ ] Create attribute struct (new file if complex, or add to existing)
@@ -140,6 +140,7 @@ See `.claude/rules/compatibility.md` for architecture details.
     - Flags() AttributeFlags
     - Len() int
     - WriteTo(buf []byte, off int) int
+    - WriteToWithContext(buf []byte, off int, ctx *PackContext) int (if context-dependent)
     - String() string
 ```
 
@@ -188,8 +189,8 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 3.1 Define Family
 
 ```
-[ ] Add AFI constant if new: internal/plugins/bgp/nlri/afi.go
-[ ] Add SAFI constant if new: internal/plugins/bgp/nlri/safi.go
+[ ] Add AFI constant if new: internal/component/bgp/nlri/constants.go
+[ ] Add SAFI constant if new: internal/component/bgp/nlri/constants.go
 [ ] Add Family constant: var <Name> = Family{AFI: ..., SAFI: ...}
 [ ] Register in familyNames map for string parsing
 ```
@@ -201,15 +202,16 @@ See `.claude/rules/compatibility.md` for architecture details.
 
 [ ] Implement NLRI interface:
     - Family() Family
-    - Bytes() []byte
-    - Len() int
+    - Bytes() []byte (payload only, no path ID; returned slice may be shared)
+    - Len() int (payload length, no path ID)
     - PathID() uint32
-    - WriteTo(buf []byte, off int) int
+    - WriteTo(buf []byte, off int) int (payload only, no path ID)
+    - SupportsAddPath() bool
     - String() string
 
 [ ] If ADD-PATH supported:
-    - LenWithContext(addPath bool) int
-    - Use WriteNLRI() helper for writing
+    - SupportsAddPath() returns true
+    - Use WriteNLRI() helper for ADD-PATH aware encoding
 ```
 
 ### 3.3 Wire Format
@@ -219,6 +221,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 [ ] Implement constructor(s) for creating NLRI
 [ ] Implement parser for wire bytes
 [ ] Handle variable-length fields correctly
+[ ] Add UPDATE builder in internal/component/bgp/message/update_build_<type>.go if needed
 ```
 
 ### 3.4 Iterator Support
@@ -233,7 +236,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ```
 [ ] Unit test: WriteTo produces correct wire bytes
 [ ] Unit test: Parse valid wire bytes
-[ ] Unit test: Round-trip (create → write → parse → compare)
+[ ] Unit test: Round-trip (create -> write -> parse -> compare)
 [ ] Unit test: ADD-PATH handling (with/without path ID)
 [ ] Unit test: String() produces readable output
 [ ] Boundary test: max prefix length, label values, etc.
@@ -248,7 +251,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 4.1 New Message Type
 
 ```
-[ ] Add message type constant to internal/plugins/bgp/message/types.go
+[ ] Add message type constant to internal/component/bgp/message/message.go
 [ ] Create message struct implementing Message interface:
     - Type() MessageType
     - Len(ctx *EncodingContext) int
@@ -315,7 +318,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 6.1 Schema Definition
 
 ```
-[ ] Add schema nodes to internal/config/schema.go
+[ ] Add schema nodes to internal/component/config/schema.go
 [ ] Define value types and constraints
 [ ] Add validation rules
 [ ] Document config syntax in schema comments
@@ -332,7 +335,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 6.3 Validation
 
 ```
-[ ] Config rejects unknown keys (ZeBGP rule)
+[ ] Config rejects unknown keys (Ze rule)
 [ ] Config validates value ranges
 [ ] Config validates inter-field dependencies
 ```
@@ -419,9 +422,9 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ```
 [ ] Identify user-facing scenarios this RFC enables
 [ ] For each scenario, create a functional test that:
-    → Configures the feature as a user would
-    → Exercises the feature through normal usage (API commands, peer interaction)
-    → Verifies the observable outcome (wire bytes sent, events received, state changes)
+    -> Configures the feature as a user would
+    -> Exercises the feature through normal usage (API commands, peer interaction)
+    -> Verifies the observable outcome (wire bytes sent, events received, state changes)
 ```
 
 **Example scenarios by RFC type:**
@@ -497,7 +500,7 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 
 ```
 [ ] Ensure rfc/short/rfcNNNN.md is complete
-[ ] Add ZeBGP implementation notes section
+[ ] Add Ze implementation notes section
 [ ] Cross-reference related RFCs
 ```
 
@@ -515,15 +518,15 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 Before marking implementation complete:
 
 ```
-[ ] All unit tests pass: make test
-[ ] All linting passes: make lint (zero issues)
-[ ] All functional tests pass: make functional
+[ ] All tests pass: make test-all (timeout 300s)
+[ ] All linting passes: make ze-lint (zero issues)
+[ ] All functional tests pass: make ze-functional-test
 [ ] RFC section comments on all protocol code
 [ ] RFC constraint comments with quoted requirements
-[ ] No backwards-compatibility shims (ZeBGP rule)
-[ ] No version numbers in config (ZeBGP rule)
+[ ] No backwards-compatibility shims (Ze rule)
+[ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated
-[ ] Spec moved to docs/plan/done/NNN-<name>.md
+[ ] Write learned summary to docs/learned/NNN-<name>.md
 [ ] All changes in single commit
 ```
 
@@ -541,7 +544,7 @@ func (x *Type) WriteTo(buf []byte, off int) int {
 }
 
 // Context-dependent types add this
-func (x *Type) WriteToWithContext(buf []byte, off int, ctx *EncodingContext) int {
+func (x *Type) WriteToWithContext(buf []byte, off int, ctx *PackContext) int {
     // Use ctx for ASN4, ADD-PATH decisions
 }
 ```
@@ -554,7 +557,8 @@ type MyCap struct {
 }
 
 func (c *MyCap) Code() Code { return CodeMyCap }
-func (c *MyCap) Pack() []byte { /* wire bytes */ }
+func (c *MyCap) Len() int { /* TLV value length */ }
+func (c *MyCap) WriteTo(buf []byte, off int) int { /* write into buf */ }
 
 func parseMyCap(data []byte) (*MyCap, error) { /* parse */ }
 ```
@@ -583,8 +587,10 @@ type MyNLRI struct {
 
 func (n *MyNLRI) Family() Family { return n.family }
 func (n *MyNLRI) PathID() uint32 { return n.pathID }
+func (n *MyNLRI) Bytes() []byte { /* payload only, no path ID */ }
 func (n *MyNLRI) Len() int { /* payload length, no path ID */ }
-func (n *MyNLRI) WriteTo(buf []byte, off int) int { /* write */ }
+func (n *MyNLRI) WriteTo(buf []byte, off int) int { /* write payload */ }
+func (n *MyNLRI) SupportsAddPath() bool { return true }
 ```
 
 ### Test Pattern
@@ -616,8 +622,8 @@ func TestMyFeature(t *testing.T) {
 
 | RFC | Components | Good Reference |
 |-----|------------|----------------|
-| RFC 4724 (GR) | Capability, FSM | `internal/plugins/bgp/capability/session.go` |
-| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/plugins/bgp/capability/encoding.go` |
-| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/plugins/bgp/nlri/`, `internal/plugins/bgp/attribute/mpreach.go` |
-| RFC 8955 (FlowSpec) | NLRI | `internal/plugins/bgp/nlri/flowspec.go` |
-| RFC 7432 (EVPN) | NLRI | `internal/plugins/bgp/nlri/evpn.go` |
+| RFC 4724 (GR) | Capability, FSM | `internal/component/bgp/capability/session.go` |
+| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/component/bgp/capability/encoding.go` |
+| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/component/bgp/nlri/`, `internal/component/bgp/attribute/mpnlri.go` |
+| RFC 8955 (FlowSpec) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_flowspec.go` |
+| RFC 7432 (EVPN) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_evpn.go` |

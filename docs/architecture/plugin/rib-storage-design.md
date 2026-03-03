@@ -1,7 +1,7 @@
 # Plugin RIB Storage Design
 
 **Status:** Design Reference for API Programs
-**Location:** Moved from `docs/plan/done/059-spec-pool-handle-migration.md`
+**Location:** Derived from `docs/learned/059-spec-pool-handle-migration.md`
 
 This document describes the pool-based RIB storage design for API programs (plugins).
 The Ze engine does NOT implement this - it belongs in API programs like `ze plugin bgp-rs`.

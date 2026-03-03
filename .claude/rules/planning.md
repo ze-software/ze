@@ -5,7 +5,7 @@ Rationale: `.claude/rationale/planning.md`
 
 ## Spec Selection
 
-One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after moving to `docs/plan/done/`.
+One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after writing summary to `docs/learned/`.
 
 ## Plan File Location
 
@@ -52,7 +52,7 @@ Present BEFORE writing code. Must include: docs read + insights, current behavio
 
 - **Style:** Tables and prose, never code (`rules/spec-no-code.md`)
 - **Editing:** Append-only. Strikethrough + reason for superseded content.
-- **Deletion allowed:** Moving to done, user requests, typo fixes only.
+- **Deletion allowed:** Writing summary to learned, user requests, typo fixes only.
 - **Research capture (MUST DO):** All findings from RESEARCH phase go in spec exhaustively — file surveys, function lists, split decisions, reasons for NOT splitting. Spec is single source of truth. Implementation sessions execute from spec alone.
 
 ## Spec Sets
@@ -64,7 +64,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 | Naming | `spec-<prefix>-<N>-<name>.md` |
 | Umbrella | `spec-utp-0-umbrella.md` |
 | Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
-| Done path | `docs/plan/done/NNN-<prefix>-<N>-<name>.md` |
+| Done path | `docs/learned/NNN-<prefix>-<N>-<name>.md` |
 
 - **Prefix:** short mnemonic for the effort (e.g., `utp` = unified text protocol)
 - **Number:** 0 = umbrella, 1+ = children in execution order
@@ -89,7 +89,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 
 ## Retroactive Specs
 
-If a spec describes work that is **already implemented**, run the full Completion Checklist immediately — audit, move to `done/`, include in the same commit as the code. Never commit a spec in `docs/plan/` for work that's already done.
+If a spec describes work that is **already implemented**, run the full Completion Checklist immediately — audit, write summary to `docs/learned/`, include in the same commit as the code. Never commit a spec in `docs/plan/` for work that's already done.
 
 ## Completion Checklist
 
@@ -110,7 +110,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 5. Critical Review (BLOCKING — rules/quality.md)
 [ ] 6. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 8. Move spec: docs/plan/done/NNN-<name>.md
+[ ] 8. Write learned summary: docs/learned/NNN-<name>.md (see docs/plan/TEMPLATE.md for summary format)
 [ ] 9. Verify: `make test-all` + git status + git diff, no unintended changes
 [ ] 10. Executive Summary Report — present to user BEFORE asking to commit
 [ ] 11. Commit (when user approves) — ALL files in ONE commit
@@ -193,13 +193,29 @@ If the receiving spec does not exist: either do the work now, or create the rece
 | Plugin SDK methods | `.claude/rules/plugin-design.md` SDK tables |
 | Test format (.ci) | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` |
 
-## Moving Completed Specs
+## Writing Learned Summaries
+
+When a spec is complete, write a concise summary to `docs/learned/` using the next available number:
 
 ```bash
-LAST=`command ls -1 docs/plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
+LAST=`command ls -1 docs/learned/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
 test -z "$LAST" && LAST=0
 NEXT=`printf "%03d" \`expr $LAST + 1\``
-mv docs/plan/spec-<name>.md docs/plan/done/${NEXT}-<name>.md
+# Write summary to docs/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
 ```
 
-Include moved spec in same commit as code changes.
+The summary (~20-30 lines) uses this fixed 5-section format:
+
+| Section | Content |
+|---------|---------|
+| `# NNN — Name` | Title from spec filename |
+| `## Objective` | 1-2 sentences: what was the goal |
+| `## Decisions` | Bullet points: what was decided and why |
+| `## Patterns` | Bullet points: patterns discovered or confirmed |
+| `## Gotchas` | Bullet points: what surprised, failed, or trapped (never skip) |
+| `## Files` | Key files modified/created |
+
+Quality check: "If I deleted this entry, would a future session miss something that code alone cannot tell them?"
+Source: extract from Implementation Summary, Design Insights, Mistake Log, and Deviations sections of the spec.
+The original spec file in `docs/plan/` is deleted after the summary is written.
+Include the summary in the same commit as code changes.

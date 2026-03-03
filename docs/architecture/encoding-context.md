@@ -540,13 +540,13 @@ Context IDs must be registered via `Registry.Register()`:
 
 ## Related Specs
 
-- `docs/plan/done/039-spec-encoding-context-impl.md` - Original design (completed)
+- `docs/learned/039-spec-encoding-context-impl.md` - Original design (completed)
 - `docs/plan/spec-context-full-integration.md` - Full integration plan (active)
-- `docs/plan/done/063-spec-afi-safi-map-refactor.md` - NegotiatedCapabilities, Family consolidation (completed)
-- `docs/plan/done/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (completed)
-- `docs/plan/done/059-spec-pool-handle-migration.md` - Migration to pool handles (completed)
-- `docs/plan/done/070-spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
-- `docs/plan/done/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
+- `docs/learned/063-spec-afi-safi-map-refactor.md` - NegotiatedCapabilities, Family consolidation (completed)
+- `docs/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (completed)
+- `docs/learned/059-spec-pool-handle-migration.md` - Migration to pool handles (completed)
+- `docs/learned/070-spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
+- `docs/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
 
 ---
 

@@ -552,7 +552,7 @@ Route key format: `family + "|" + prefix`
 ### Completion
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-plugin-rr.md`
+- [ ] Write learned summary to `docs/learned/NNN-plugin-rr.md`
 - [ ] All files committed together
 
 ## References

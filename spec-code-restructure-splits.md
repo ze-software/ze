@@ -382,5 +382,5 @@ Commit only after the review is complete and approved.
 ### Completion
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-code-restructure-splits.md`
+- [ ] Write learned summary to `docs/learned/NNN-code-restructure-splits.md`
 - [ ] All files committed together

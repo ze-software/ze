@@ -752,5 +752,5 @@ Each phase ends with a Self-Critical Review.
 ### Completion
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-bgp-chaos.md`
+- [ ] Write learned summary to `docs/learned/NNN-bgp-chaos.md`
 - [ ] All files committed together

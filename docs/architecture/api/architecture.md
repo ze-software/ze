@@ -926,7 +926,7 @@ Key operations:
 
 ## Route Reflection via API (Cache Pattern)
 
-> **Implementation spec:** `docs/plan/done/148-api-command-restructure-step-8.md`
+> **Implementation spec:** `docs/learned/148-api-command-restructure-step-8.md`
 
 Ze implements route reflection through the API, not internally. This enables
 external policy engines to make routing decisions.

@@ -286,5 +286,5 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Spec moved to `docs/plan/done/NNN-route-type-consolidation.md`
-- [ ] Spec included in commit
+- [ ] Write learned summary to `docs/learned/NNN-route-type-consolidation.md`
+- [ ] Summary included in commit

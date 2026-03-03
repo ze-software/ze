@@ -41,7 +41,7 @@ Only added to files with strong coupling to siblings — not every file.
   → Constraint: splitting is within packages, never across
 
 ### Prior Specs
-- [ ] `docs/plan/done/221-file-splitting.md` — previous split work
+- [ ] `docs/learned/221-file-splitting.md` — previous split work
   → Decision: Go compiles all files in a package together — splitting has zero semantic effect
   → Constraint: shared test helpers stay in base `_test.go` file
   → Constraint: file-local types must move with the functions that use them

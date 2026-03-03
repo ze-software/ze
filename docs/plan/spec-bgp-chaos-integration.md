@@ -415,4 +415,4 @@ expect=exit:code=0
 ### Completion
 - [ ] Spec Propagation Task completed
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-bgp-chaos-integration.md`
+- [ ] Write learned summary to `docs/learned/NNN-bgp-chaos-integration.md`

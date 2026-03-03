@@ -39,7 +39,7 @@ Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 | IPC/Hub | `internal/hub/`, `internal/ipc/` |
 | Tests | `test/` (.ci functional tests), `*_test.go` (unit) |
 | Architecture docs | `docs/architecture/` (→ see `.claude/INDEX.md` for navigation) |
-| Specs | `docs/plan/spec-*.md` (active), `docs/plan/done/` (completed) |
+| Specs | `docs/plan/spec-*.md` (active), `docs/learned/` (summaries) |
 | RFCs | `rfc/short/` (summaries), `rfc/full/` |
 
 ## Navigation

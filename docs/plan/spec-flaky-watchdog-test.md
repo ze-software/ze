@@ -217,5 +217,5 @@ None expected.
 - [ ] Critical Review passes
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] Spec included in commit
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
+- [ ] Summary included in commit

@@ -37,7 +37,7 @@ Every gate includes a mandatory challenge — surface concerns, not just summari
 
 1. ASK the user what feature/task they want to spec (if not provided as argument)
 2. Search `docs/plan/spec-*.md` for related active specs
-3. Search `docs/plan/done/*.md` for completed related work
+3. Search `docs/learned/*.md` for completed related work
 4. Check `.claude/INDEX.md` for relevant architecture docs
 5. Present:
    - Related specs found (if any)

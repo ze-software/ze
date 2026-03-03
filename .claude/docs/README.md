@@ -12,7 +12,7 @@ This folder is for Claude-specific documentation.
 | Claude rules | `.claude/rules/` |
 | Claude commands | `.claude/commands/` |
 | Implementation plans | `docs/plan/` |
-| Completed plans | `docs/plan/done/` |
+| Learned summaries | `docs/learned/` |
 
 ## ExaBGP Reference
 

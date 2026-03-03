@@ -285,5 +285,5 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] **Spec included in commit** — NEVER commit implementation without the completed spec. One commit = code + tests + spec.
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
+- [ ] **Summary included in commit** — NEVER commit implementation without the completed summary. One commit = code + tests + summary.

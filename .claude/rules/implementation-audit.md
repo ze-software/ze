@@ -5,7 +5,7 @@ Rationale: `.claude/rationale/implementation-audit.md`
 
 ## When
 
-Before: moving spec to `docs/plan/done/`, claiming "done", asking to commit.
+Before: writing summary to `docs/learned/`, claiming "done", asking to commit.
 
 ## Process
 

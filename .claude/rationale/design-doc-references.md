@@ -14,7 +14,7 @@ Without traceability, developers cannot find the reasoning behind code decisions
 | API docs | `docs/architecture/api/` | API command handling files |
 | Config docs | `docs/architecture/config/` | Config parsing files |
 | RFC summaries | `rfc/short/` | Protocol implementation files |
-| Completed specs | `docs/plan/done/` | Files created by a specific spec |
+| Learned summaries | `docs/learned/` | Files created by a specific spec |
 
 ## Format Examples
 

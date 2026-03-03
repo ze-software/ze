@@ -277,5 +277,5 @@ Buffered TCP writes and TCP buffer tuning were tried and reverted — the bottle
 - [ ] Critical Review passes
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Spec moved to `docs/plan/done/`
-- [ ] Spec included in commit
+- [ ] Write learned summary to `docs/learned/`
+- [ ] Summary included in commit

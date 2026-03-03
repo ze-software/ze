@@ -15,7 +15,7 @@ Separate BGP-specific code from `internal/component/config/` into `internal/comp
 
 The generic config package (`internal/component/config/`) currently contains ~15 BGP-specific files that import deep BGP subsystem types (`reactor`, `capability`, `nlri`, `message`). These should live under the BGP component, leaving the config package content-agnostic.
 
-Also: remove dead environment fields (Phase 5 deferred from `docs/plan/done/334-yang-reorganisation.md`).
+Also: remove dead environment fields (Phase 5 deferred from `docs/learned/334-yang-reorganisation.md`).
 
 ## Required Reading
 
@@ -325,5 +325,5 @@ N/A — pure refactoring, no new numeric inputs.
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] Spec included in commit
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
+- [ ] Summary included in commit

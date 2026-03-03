@@ -110,4 +110,4 @@ Ze is a BGP daemon with a plugin architecture. Read `docs/architecture/core-desi
 - Architecture docs: `docs/architecture/` (see `.claude/INDEX.md` for full map)
 - RFC summaries: `rfc/short/` (implementation-ready)
 - Full RFCs: `rfc/full/`
-- Spec system: `docs/plan/spec-*.md` (active), `docs/plan/done/` (completed)
+- Spec system: `docs/plan/spec-*.md` (active), `docs/learned/` (summaries)

@@ -2,9 +2,11 @@
 
 Rationale: `.claude/rationale/spec-preservation.md`
 
-Completed specs are institutional memory.
+Completed specs become learned summaries in `docs/learned/NNN-<name>.md`.
 
-**Keep:** Task description, key insights, data flow, design decisions, integration points, boundaries, files modified, references.
-**Remove:** Empty audit tables, unchecked checklists, post-compaction instructions, BLOCKING markers, blank status columns.
+**Extract into summary:** Objective, key decisions, patterns, gotchas, files changed.
+**Discard:** Audit tables, checklists, post-compaction instructions, BLOCKING markers, status columns, template scaffolding.
 
-Principle: delete process scaffolding, preserve knowledge.
+The original spec in `docs/plan/` is deleted after the summary is written.
+
+Principle: transform scaffolding into knowledge. See `docs/learned/METHODOLOGY.md` for the extraction recipe and `planning.md` for the summary format.

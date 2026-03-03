@@ -375,7 +375,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Implementation Audit
 
-<!-- BLOCKING: Complete BEFORE moving spec to done. See rules/implementation-audit.md -->
+<!-- BLOCKING: Complete BEFORE writing learned summary. See rules/implementation-audit.md -->
 
 ### Requirements from Task
 
@@ -547,5 +547,5 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Completion (after tests pass)
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-chaos-web-dashboard.md`
+- [ ] Write learned summary to `docs/learned/NNN-chaos-web-dashboard.md`
 - [ ] All files committed together

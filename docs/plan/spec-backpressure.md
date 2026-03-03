@@ -396,5 +396,5 @@ RFC 4271 Section 6.5: Hold timer resets on any received BGP message. Pausing rea
 ### Completion
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
 - [ ] All files committed together

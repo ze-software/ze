@@ -668,5 +668,5 @@ Tests are defined per child spec. The umbrella lists the top-level tests that pr
 - [ ] Partial/Skipped items have user approval
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled (every requirement, AC, test, file has status + location)
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
 - [ ] **Spec included in commit** — NEVER commit implementation without the completed spec

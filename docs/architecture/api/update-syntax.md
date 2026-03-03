@@ -5,7 +5,7 @@
 **PARTIALLY IMPLEMENTED** - Text mode works, wire modes (hex/b64) implemented.
 
 Legacy `announce route` / `announce attributes` commands removed.
-See `docs/plan/done/089-new-syntax.md` for migration details.
+See `docs/learned/089-new-syntax.md` for migration details.
 
 ---
 

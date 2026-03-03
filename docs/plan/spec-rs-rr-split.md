@@ -398,8 +398,8 @@ RFC 4456 §3: "When an RR receives a ROUTE-REFRESH from an iBGP peer, it should 
 - [ ] Critical Review passes
 - [ ] Implementation Summary filled
 - [ ] Implementation Audit filled
-- [ ] Spec moved to `docs/plan/done/`
-- [ ] Spec included in commit
+- [ ] Write learned summary to `docs/learned/`
+- [ ] Summary included in commit
 
 ## Verification
 

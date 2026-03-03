@@ -30,7 +30,7 @@ Rationale: `.claude/rationale/documentation.md`
 | Config docs | `docs/architecture/config/` |
 | RFC summaries | `rfc/short/` |
 | Active specs | `docs/plan/` |
-| Completed specs | `docs/plan/done/` |
+| Learned summaries | `docs/learned/` |
 
 ## Single Source of Truth
 

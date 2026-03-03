@@ -328,4 +328,4 @@ Arguments are split by whitespace. The `--decode` flag is always appended last.
 
 - `docs/architecture/api/plugin-protocol.md` - Engine-plugin protocol
 - `docs/architecture/debugging/plugin-testing.md` - Testing plugins
-- `docs/plan/done/198-plugin-invocation.md` - Implementation spec
+- `docs/learned/198-plugin-invocation.md` - Implementation spec

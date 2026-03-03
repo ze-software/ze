@@ -28,7 +28,7 @@
 | **Cache Control** | API retains cache entries for replay, releases when done |
 | **Fail-fast** | GR/RR configured without capable API = refuse to start |
 
-**Full spec:** `docs/plan/done/172-api-capability-contract.md`
+**Full spec:** `docs/learned/172-api-capability-contract.md`
 
 ---
 

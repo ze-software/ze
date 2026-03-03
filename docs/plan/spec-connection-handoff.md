@@ -306,7 +306,7 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ## Implementation Audit
 
-<!-- BLOCKING: Complete BEFORE moving spec to done. See rules/implementation-audit.md -->
+<!-- BLOCKING: Complete BEFORE writing learned summary. See rules/implementation-audit.md -->
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
@@ -386,5 +386,5 @@ Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 - [ ] Implementation Audit completed (all items have status + location)
 - [ ] All Partial/Skipped items have user approval
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [ ] Write learned summary to `docs/learned/NNN-<name>.md`
 - [ ] All files committed together

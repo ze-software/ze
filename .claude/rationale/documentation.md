@@ -12,7 +12,7 @@ AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lo
 4. RFC summaries? -> `rfc/short/`
 5. Wire format reference? -> `docs/architecture/wire/`
 6. Implementation plan? -> `docs/plan/`
-7. Completed plan? -> `docs/plan/done/`
+7. Learned summary? -> `docs/learned/`
 
 ## Directory Structure
 
@@ -35,8 +35,10 @@ docs/
 
 docs/plan/
   spec-*.md                # Active specs
-  done/                    # Completed specs
   TEMPLATE.md              # Spec template
+
+docs/learned/
+  NNN-*.md                 # Learned summaries (completed spec knowledge)
 ```
 
 ## Go File Naming Pattern
