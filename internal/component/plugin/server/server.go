@@ -386,16 +386,6 @@ func isAlphaSerial(serial string) bool {
 	return true
 }
 
-// GetPluginCapabilities returns all global plugin-declared capabilities for OPEN injection.
-//
-// Deprecated: Use GetPluginCapabilitiesForPeer for per-peer capability support.
-func (s *Server) GetPluginCapabilities() []plugin.InjectedCapability {
-	if s.capInjector == nil {
-		return nil
-	}
-	return s.capInjector.GetCapabilities()
-}
-
 // GetPluginCapabilitiesForPeer returns plugin-declared capabilities for a specific peer.
 // Returns global capabilities plus any peer-specific capabilities (per-peer takes precedence).
 func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []plugin.InjectedCapability {

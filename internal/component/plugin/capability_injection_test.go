@@ -119,7 +119,7 @@ func TestCapabilityInjection(t *testing.T) {
 		require.NoError(t, injector.AddPluginCapabilities(caps))
 
 		// Get capabilities to inject
-		toInject := injector.GetCapabilities()
+		toInject := injector.GetCapabilitiesForPeer("")
 		require.Len(t, toInject, 1)
 		assert.Equal(t, uint8(73), toInject[0].Code)
 		assert.Equal(t, []byte("router1.example.com"), toInject[0].Value)
@@ -138,7 +138,7 @@ func TestCapabilityInjection(t *testing.T) {
 		injector := NewCapabilityInjector()
 		require.NoError(t, injector.AddPluginCapabilities(caps))
 
-		toInject := injector.GetCapabilities()
+		toInject := injector.GetCapabilitiesForPeer("")
 		require.Len(t, toInject, 2)
 
 		// Find by code
@@ -179,7 +179,7 @@ func TestCapabilityInjection(t *testing.T) {
 		}
 		require.NoError(t, injector.AddPluginCapabilities(caps2))
 
-		toInject := injector.GetCapabilities()
+		toInject := injector.GetCapabilitiesForPeer("")
 		require.Len(t, toInject, 2)
 	})
 }
@@ -229,6 +229,6 @@ func TestNoCapabilities(t *testing.T) {
 	injector := NewCapabilityInjector()
 	require.NoError(t, injector.AddPluginCapabilities(caps))
 
-	toInject := injector.GetCapabilities()
+	toInject := injector.GetCapabilitiesForPeer("")
 	assert.Empty(t, toInject)
 }

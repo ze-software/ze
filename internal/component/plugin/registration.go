@@ -317,17 +317,6 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	return nil
 }
 
-// GetCapabilities returns all global capabilities to inject into OPEN.
-//
-// Deprecated: Use GetCapabilitiesForPeer for per-peer capability support.
-func (ci *CapabilityInjector) GetCapabilities() []InjectedCapability {
-	ci.mu.RLock()
-	defer ci.mu.RUnlock()
-	result := make([]InjectedCapability, len(ci.globalCaps))
-	copy(result, ci.globalCaps)
-	return result
-}
-
 // GetCapabilitiesForPeer returns capabilities for a specific peer.
 // Returns global capabilities plus any peer-specific capabilities.
 // Per-peer capabilities override global capabilities with the same code.
