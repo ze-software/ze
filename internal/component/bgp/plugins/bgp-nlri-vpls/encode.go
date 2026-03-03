@@ -4,6 +4,7 @@
 package bgp_nlri_vpls
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -13,6 +14,83 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
+
+// EncodeNLRIHex encodes VPLS NLRI from CLI-style args and returns uppercase hex.
+// Args format: ["rd", "1:1", "ve-id", "1", "ve-block-offset", "0", "ve-block-size", "10", "label-base", "100"]
+// This implements the InProcessNLRIEncoder signature for the plugin registry.
+func EncodeNLRIHex(family string, args []string) (string, error) {
+	if family != "l2vpn/vpls" {
+		return "", fmt.Errorf("unsupported family for VPLS: %s", family)
+	}
+
+	var rd RouteDistinguisher
+	var veID, veBlockOffset, veBlockSize uint16
+	var labelBase uint32
+	var hasRD bool
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "rd":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("rd requires value")
+			}
+			parsed, err := ParseRDString(args[i])
+			if err != nil {
+				return "", fmt.Errorf("invalid rd: %w", err)
+			}
+			rd = parsed
+			hasRD = true
+		case "ve-id":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("ve-id requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 16)
+			if err != nil {
+				return "", fmt.Errorf("invalid ve-id: %w", err)
+			}
+			veID = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
+		case "ve-block-offset":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("ve-block-offset requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 16)
+			if err != nil {
+				return "", fmt.Errorf("invalid ve-block-offset: %w", err)
+			}
+			veBlockOffset = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
+		case "ve-block-size":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("ve-block-size requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 16)
+			if err != nil {
+				return "", fmt.Errorf("invalid ve-block-size: %w", err)
+			}
+			veBlockSize = uint16(v) //nolint:gosec // validated by ParseUint with bitSize 16
+		case "label-base", "label":
+			i++
+			if i >= len(args) {
+				return "", fmt.Errorf("label requires value")
+			}
+			v, err := strconv.ParseUint(args[i], 10, 32)
+			if err != nil {
+				return "", fmt.Errorf("invalid label: %w", err)
+			}
+			labelBase = uint32(v) //nolint:gosec // validated by ParseUint with bitSize 32
+		}
+	}
+
+	if !hasRD {
+		return "", fmt.Errorf("rd required for VPLS")
+	}
+
+	v := NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
+	return strings.ToUpper(hex.EncodeToString(v.Bytes())), nil
+}
 
 // EncodeRoute encodes a VPLS route command into UPDATE body bytes and NLRI bytes.
 // This implements the InProcessRouteEncoder signature for the plugin registry.

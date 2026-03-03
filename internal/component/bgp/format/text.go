@@ -15,7 +15,6 @@ import (
 	bgpfilter "codeberg.org/thomas-mangin/ze/internal/component/bgp/filter"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
@@ -359,14 +358,9 @@ type familyOperation struct {
 // RFC 8277: Labeled Unicast NLRI includes labels.
 // RFC 8955: FlowSpec NLRI includes match components.
 func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
-	// Core type: LabeledUnicast lives in nlri package, not a plugin
-	if lu, ok := n.(*labeled.LabeledUnicast); ok {
-		formatLabeledUnicastJSON(sb, lu)
-		return
-	}
-
-	// Try registry-based decode for plugin NLRI types (VPN, EVPN, FlowSpec).
+	// Try registry-based decode for plugin NLRI types (VPN, EVPN, FlowSpec, Labeled).
 	// The registry routes to the plugin's InProcessNLRIDecoder by family.
+	// Path-id is transport-level (ADD-PATH) and not included in decoder output.
 	familyStr := n.Family().String()
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
@@ -391,31 +385,6 @@ func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
 
 	// Complex NLRI (has path-id or not a simple prefix): output as object
 	formatNLRIJSON(sb, n)
-}
-
-// formatLabeledUnicastJSON formats a LabeledUnicast NLRI as structured JSON.
-// RFC 8277: {"prefix":"10.0.0.0/24", "labels":[100]}.
-func formatLabeledUnicastJSON(sb *strings.Builder, v *labeled.LabeledUnicast) {
-	sb.WriteString(`{"prefix":"`)
-	sb.WriteString(v.Prefix().String())
-	sb.WriteString(`"`)
-
-	if labels := v.Labels(); len(labels) > 0 {
-		sb.WriteString(`,"labels":[`)
-		for i, l := range labels {
-			if i > 0 {
-				sb.WriteString(",")
-			}
-			fmt.Fprintf(sb, "%d", l)
-		}
-		sb.WriteString(`]`)
-	}
-
-	if pathID := v.PathID(); pathID != 0 {
-		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
-	}
-
-	sb.WriteString(`}`)
 }
 
 // prefixer is implemented by NLRI types that have a Prefix() method.

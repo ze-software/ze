@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
 	"github.com/stretchr/testify/assert"
@@ -20,7 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-evpn"
 	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-flowspec"
-	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled" // blank import: registers InProcessNLRIDecoder
 	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-vpls"
 	vpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-vpn"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
@@ -1787,10 +1788,12 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
-	require.True(t, ok, "expected LabeledUnicast NLRI")
-	require.Len(t, labeledNLRI.Labels(), 1)
-	assert.Equal(t, uint32(1000), labeledNLRI.Labels()[0])
+	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	require.NoError(t, err)
+	assert.Contains(t, decoded, `"prefix":"10.0.0.0/24"`)
+	assert.Contains(t, decoded, `"labels":[1000]`)
 }
 
 // TestParseUpdateText_LabeledUnicastMissingLabel verifies labeled unicast requires label.
@@ -1839,9 +1842,11 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
-	require.True(t, ok)
-	assert.Equal(t, "2001:db8:1::/48", labeledNLRI.Prefix().String())
+	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	require.NoError(t, err)
+	assert.Contains(t, decoded, `"prefix":"2001:db8:1::/48"`)
 }
 
 // TestParseUpdateText_VPNWithPathInfo removed: tested top-level path-information set syntax.
@@ -1945,10 +1950,11 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	labeledNLRI, ok := result.Groups[0].Announce[0].(*labeled.LabeledUnicast)
-	require.True(t, ok, "expected LabeledUnicast NLRI")
-	require.Len(t, labeledNLRI.Labels(), 1)
-	assert.Equal(t, uint32(1000), labeledNLRI.Labels()[0])
+	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	require.NoError(t, err)
+	assert.Contains(t, decoded, `"labels":[1000]`)
 }
 
 // TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel verifies rd-only still requires label.
@@ -3282,12 +3288,15 @@ func TestParseUpdateText_VPLSBasic(t *testing.T) {
 	require.Len(t, result.Groups[0].Announce, 1)
 	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
 
-	vpls, ok := result.Groups[0].Announce[0].(*vplspkg.VPLS)
-	require.True(t, ok, "expected VPLS NLRI, got %T", result.Groups[0].Announce[0])
-	assert.Equal(t, uint16(1), vpls.VEID())
-	assert.Equal(t, uint16(0), vpls.VEBlockOffset())
-	assert.Equal(t, uint16(10), vpls.VEBlockSize())
-	assert.Equal(t, uint32(1000), vpls.LabelBase())
+	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
+	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
+	// Parse wire bytes via VPLS parser (test imports tolerated)
+	vplsNLRI, _, err := vplspkg.ParseVPLS(wireNLRI.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, uint16(1), vplsNLRI.VEID())
+	assert.Equal(t, uint16(0), vplsNLRI.VEBlockOffset())
+	assert.Equal(t, uint16(10), vplsNLRI.VEBlockSize())
+	assert.Equal(t, uint32(1000), vplsNLRI.LabelBase())
 }
 
 // TestParseUpdateText_VPLSWithdraw verifies VPLS withdrawal parsing.

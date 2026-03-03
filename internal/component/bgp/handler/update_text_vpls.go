@@ -4,13 +4,15 @@
 package handler
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	vplspkg "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-vpls"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // VPLS NLRI keywords for text parsing.
@@ -149,8 +151,27 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 		return nlriParseResult{}, errors.New("vpls requires rd")
 	}
 
-	// Create VPLS NLRI
-	vplsNLRI := vplspkg.NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
+	// Create VPLS NLRI via registry encoder (avoids direct plugin import)
+	encodeArgs := []string{
+		"rd", rd.String(),
+		"ve-id", strconv.FormatUint(uint64(veID), 10),
+		"ve-block-offset", strconv.FormatUint(uint64(veBlockOffset), 10),
+		"ve-block-size", strconv.FormatUint(uint64(veBlockSize), 10),
+		"label-base", strconv.FormatUint(uint64(labelBase), 10),
+	}
+
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
+	if err != nil {
+		return nlriParseResult{}, fmt.Errorf("vpls encode: %w", err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nlriParseResult{}, fmt.Errorf("vpls hex decode: %w", err)
+	}
+	vplsNLRI, err := nlri.NewWireNLRI(family, wireBytes, false)
+	if err != nil {
+		return nlriParseResult{}, err
+	}
 
 	// Add to appropriate list
 	switch mode {

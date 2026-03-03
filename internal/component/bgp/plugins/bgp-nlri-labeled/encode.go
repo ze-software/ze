@@ -16,6 +16,88 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
+// DecodeNLRIHex decodes labeled unicast NLRI from hex and returns JSON.
+// This implements the InProcessNLRIDecoder signature for the plugin registry.
+//
+// Wire format (RFC 8277 Section 2.2): [length_byte][label_stack (3*N bytes)][prefix_bytes].
+// Output JSON: {"prefix":"10.0.0.0/24","labels":[100]}.
+func DecodeNLRIHex(family, hexStr string) (string, error) {
+	fam, ok := nlri.ParseFamily(family)
+	if !ok {
+		return "", fmt.Errorf("unknown family: %s", family)
+	}
+	if fam.SAFI != SAFIMPLSLabel {
+		return "", fmt.Errorf("unsupported family for labeled unicast: %s", family)
+	}
+
+	data, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid hex: %w", err)
+	}
+
+	if len(data) < 4 { // minimum: 1 length + 3 label bytes
+		return "", fmt.Errorf("truncated labeled unicast NLRI")
+	}
+
+	totalBits := int(data[0])
+
+	// Parse label stack: each label is 3 bytes (20-bit label + 3-bit TC + 1-bit S)
+	pos := 1
+	var labels []uint32
+	for pos+3 <= len(data) {
+		label := uint32(data[pos])<<12 | uint32(data[pos+1])<<4 | uint32(data[pos+2])>>4
+		bos := data[pos+2] & 0x01
+		labels = append(labels, label)
+		pos += 3
+		if bos == 1 {
+			break
+		}
+	}
+
+	// Parse prefix
+	prefixBits := totalBits - len(labels)*24
+	if prefixBits < 0 {
+		return "", fmt.Errorf("invalid labeled unicast: totalBits=%d labels=%d", totalBits, len(labels))
+	}
+
+	prefixBytes := nlri.PrefixBytes(prefixBits)
+	if pos+prefixBytes > len(data) {
+		return "", fmt.Errorf("truncated prefix in labeled unicast NLRI")
+	}
+
+	var addr netip.Addr
+	if fam.AFI == AFIIPv4 {
+		var b [4]byte
+		copy(b[:], data[pos:pos+prefixBytes])
+		addr = netip.AddrFrom4(b)
+	} else {
+		var b [16]byte
+		copy(b[:], data[pos:pos+prefixBytes])
+		addr = netip.AddrFrom16(b)
+	}
+	prefix := netip.PrefixFrom(addr, prefixBits)
+
+	// Build JSON
+	var sb strings.Builder
+	sb.WriteString(`{"prefix":"`)
+	sb.WriteString(prefix.String())
+	sb.WriteString(`"`)
+
+	if len(labels) > 0 {
+		sb.WriteString(`,"labels":[`)
+		for i, l := range labels {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(&sb, "%d", l)
+		}
+		sb.WriteString(`]`)
+	}
+
+	sb.WriteString(`}`)
+	return sb.String(), nil
+}
+
 // EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.
 // Args format: ["prefix", "10.0.0.0/24", "label", "100", "path-id", "1"]
 // This implements the InProcessNLRIEncoder signature for the plugin registry.

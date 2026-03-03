@@ -17,6 +17,7 @@ func init() {
 		Features:              "nlri",
 		Families:              []string{"l2vpn/vpls"},
 		RunEngine:             RunVPLSPlugin,
+		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))

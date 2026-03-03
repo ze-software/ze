@@ -1294,7 +1294,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			labels:     []uint32{300},
 			pathID:     42,
 			wantLabels: `"labels":[300]`,
-			wantPathID: true,
+			wantPathID: false, // path-id is transport-level (ADD-PATH), not in decoder output
 		},
 	}
 
@@ -1308,9 +1308,9 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 				tc.pathID,
 			)
 
-			// Format using formatLabeledUnicastJSON
+			// Format using formatNLRIJSONValue (routes through registry decoder)
 			var sb strings.Builder
-			formatLabeledUnicastJSON(&sb, lu)
+			formatNLRIJSONValue(&sb, lu)
 			output := sb.String()
 
 			// Verify prefix

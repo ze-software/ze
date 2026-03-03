@@ -14,7 +14,6 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -320,7 +319,28 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 		return nil, 0, fmt.Errorf("%w: label required for %s", route.ErrMissingLabel, family)
 	}
 
-	return labeled.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
+	// Build args for registry encoder: "prefix" <val> "label" <val>... ["path-id" <val>]
+	encodeArgs := []string{"prefix", prefix.String()}
+	for _, l := range accum.Labels {
+		encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
+	}
+	if accum.PathID != 0 {
+		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
+	}
+
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
+	if err != nil {
+		return nil, 0, fmt.Errorf("labeled encode: %w", err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nil, 0, fmt.Errorf("labeled hex decode: %w", err)
+	}
+	wire, err := nlri.NewWireNLRI(family, wireBytes, accum.PathID != 0)
+	if err != nil {
+		return nil, 0, err
+	}
+	return wire, 0, nil
 }
 
 // isSupportedFamily returns true if the family is supported in text mode.
