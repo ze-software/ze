@@ -502,12 +502,10 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 		return
 	}
 
-	// Accumulate forward in per-worker batch (flushed on batch-full or channel drain).
-	forwarded = true
-	rs.batchForwardUpdate(key, ctx.sourcePeer, msgID, families)
-
-	// Update withdrawal map: track announced routes for withdrawal on peer-down.
-	// Only family+prefix needed — bgp-adj-rib-in owns full route state.
+	// Update withdrawal map BEFORE forwarding: the forward path can trigger
+	// cache eviction (asyncForward → ForwardUpdate → Ack → evictLocked) which
+	// frees the pool buffer backing ctx.msg.WireUpdate. Reading WireUpdate
+	// after the forward would be a use-after-free race.
 	rs.withdrawalMu.Lock()
 	if ctx.msg != nil {
 		rs.updateWithdrawalMapWire(ctx.sourcePeer, ctx.msg)
@@ -515,6 +513,10 @@ func (rs *RouteServer) processForward(key workerKey, msgID uint64) {
 		rs.updateWithdrawalMapText(ctx.sourcePeer, parseTextNLRIOps(ctx.textPayload))
 	}
 	rs.withdrawalMu.Unlock()
+
+	// Accumulate forward in per-worker batch (flushed on batch-full or channel drain).
+	forwarded = true
+	rs.batchForwardUpdate(key, ctx.sourcePeer, msgID, families)
 }
 
 // extractWireFamilies extracts address families from a raw UPDATE message.
@@ -731,6 +733,12 @@ func (rs *RouteServer) updateWithdrawalMapText(sourcePeer string, ops map[string
 // (RFC 7313 enhanced route refresh markers) which the engine delivers under the "refresh"
 // subscription but encodes with distinct message.type values.
 func (rs *RouteServer) dispatchText(text string) {
+	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
+	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).
+	if rs.stopping.Load() {
+		return
+	}
+
 	eventType, msgID, peerAddr, payload, err := quickParseTextEvent(text)
 	if err != nil {
 		logger().Warn("parse error", "error", err, "line", text[:min(100, len(text))])
@@ -788,6 +796,12 @@ func (rs *RouteServer) dispatchText(text string) {
 // Only UPDATE events arrive via this path — non-UPDATE events (state, open, refresh)
 // are still delivered as text via OnEvent/dispatchText.
 func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMessage) {
+	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
+	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).
+	if rs.stopping.Load() {
+		return
+	}
+
 	msgID := msg.MessageID
 
 	if peerAddr == "" {

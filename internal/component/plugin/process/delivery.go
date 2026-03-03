@@ -132,13 +132,25 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	events := eventsBuf
 
 	var batchErr error
-	if p.bridge != nil && p.bridge.Ready() && p.bridge.HasStructuredHandler() && batch[0].Event != nil {
-		// Structured delivery: DirectBridge with structured handler and structured events.
-		structuredBuf := make([]any, len(batch))
-		for i, req := range batch {
-			structuredBuf[i] = req.Event
+	if p.bridge != nil && p.bridge.Ready() && p.bridge.HasStructuredHandler() {
+		// Mixed batches can contain both structured events (UPDATE via DirectBridge)
+		// and text events (state-down, open, refresh). Deliver each through its
+		// correct path — using batch[0] to choose for the whole batch loses events.
+		var structuredBuf []any
+		var textBuf []string
+		for _, req := range batch {
+			if req.Event != nil {
+				structuredBuf = append(structuredBuf, req.Event)
+			} else if req.Output != "" {
+				textBuf = append(textBuf, req.Output)
+			}
 		}
-		batchErr = p.bridge.DeliverStructured(structuredBuf)
+		if len(structuredBuf) > 0 {
+			batchErr = p.bridge.DeliverStructured(structuredBuf)
+		}
+		if batchErr == nil && len(textBuf) > 0 {
+			batchErr = p.bridge.DeliverEvents(textBuf)
+		}
 	} else if p.bridge != nil && p.bridge.Ready() {
 		batchErr = p.bridge.DeliverEvents(events)
 	} else if tc := p.TextConnB(); tc != nil {
