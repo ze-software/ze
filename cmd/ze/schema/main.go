@@ -36,8 +36,10 @@ const externalPluginTimeout = 10 * time.Second
 
 // Core YANG modules that are always available (not shown as imports).
 var coreModules = map[string]bool{
-	"ze-types":      true,
-	"ze-extensions": true,
+	"ze-types":       true,
+	"ze-extensions":  true,
+	"ze-hub-conf":    true,
+	"ze-plugin-conf": true,
 }
 
 // Run executes the schema subcommand with the given arguments.

@@ -10,7 +10,6 @@ import (
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
-	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
@@ -70,9 +69,6 @@ func loadYANGModules(pluginYANG map[string]string) *yang.Loader {
 		return nil
 	}
 	// Load module-specific YANG from their packages (module-specific YANG lives with its code)
-	if err := loader.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
-		return nil
-	}
 	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return nil
 	}

@@ -74,45 +74,6 @@ module ze-hub-conf {
             ze:allow-unknown-fields;
         }
 
-        container tcp {
-            description "TCP settings";
-            leaf port { type uint16; }
-            leaf attempts { type int32; }
-            leaf delay { type int32; }
-            leaf acl { type boolean; }
-        }
-
-        container bgp {
-            description "BGP protocol settings";
-            leaf connection { type string; description "Connection mode: both, passive, active"; }
-            leaf openwait { type int32; }
-        }
-
-        container cache {
-            description "Cache settings";
-            leaf attributes { type boolean; }
-        }
-
-        container api {
-            description "API settings";
-            leaf ack { type boolean; }
-            leaf chunk { type int32; }
-            leaf encoder { type string; }
-            leaf compact { type boolean; }
-            leaf respawn { type boolean; }
-            leaf terminate { type boolean; }
-            leaf cli { type boolean; }
-            leaf pipename { type string; }
-            leaf socketname { type string; }
-        }
-
-        container reactor {
-            description "Reactor settings";
-            leaf speed { type string; }
-            leaf cache-ttl { type uint32; description "Update cache TTL in seconds (0=immediate, default 60)"; }
-            leaf cache-max { type uint32; description "Update cache max entries (0=unlimited, default 1000000)"; }
-        }
-
         container debug {
             description "Debug settings";
             leaf pdb { type boolean; }

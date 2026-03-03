@@ -3,6 +3,7 @@ module ze-plugin-conf {
     prefix plug;
 
     import ze-extensions { prefix ze; }
+    import ze-hub-conf { prefix hub; }
 
     description "Plugin configuration for ZeBGP";
 
@@ -43,6 +44,22 @@ module ze-plugin-conf {
                 type string;
                 description "Startup timeout (e.g., 10s, 1m)";
             }
+        }
+    }
+
+    // Plugin-owned environment settings — augment hub's environment container
+    augment "/hub:environment" {
+        container api {
+            description "API settings";
+            leaf ack { type boolean; }
+            leaf chunk { type int32; }
+            leaf encoder { type string; }
+            leaf compact { type boolean; }
+            leaf respawn { type boolean; }
+            leaf terminate { type boolean; }
+            leaf cli { type boolean; }
+            leaf pipename { type string; }
+            leaf socketname { type string; }
         }
     }
 }

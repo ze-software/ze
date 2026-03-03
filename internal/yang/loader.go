@@ -25,13 +25,14 @@ func NewLoader() *Loader {
 	}
 }
 
-// LoadEmbedded loads the embedded core YANG modules (extensions, types, plugin).
-// Module-specific YANG (hub, bgp) must be loaded separately via AddModuleFromText.
+// LoadEmbedded loads the embedded core YANG modules (extensions, types, hub, plugin).
+// Module-specific YANG (bgp) must be loaded separately via AddModuleFromText.
 func (l *Loader) LoadEmbedded() error {
-	// Core modules only - module-specific YANG lives in their respective packages
+	// Core modules — order matters: extensions first, hub before plugin (plugin augments hub).
 	files := []string{
-		"modules/ze-extensions.yang", // Must be first - defines extensions used by other modules
+		"modules/ze-extensions.yang",
 		"modules/ze-types.yang",
+		"modules/ze-hub-conf.yang",
 		"modules/ze-plugin-conf.yang",
 	}
 

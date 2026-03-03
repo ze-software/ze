@@ -10,7 +10,6 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
-	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
@@ -34,10 +33,7 @@ func NewCompleter() *Completer {
 	if err := loader.LoadEmbedded(); err != nil {
 		return &Completer{}
 	}
-	// Load module-specific YANG from their packages
-	if err := loader.AddModuleFromText("ze-hub-conf.yang", hubschema.ZeHubConfYANG); err != nil {
-		return &Completer{}
-	}
+	// Load module-specific YANG (hub is embedded, bgp loaded from its package)
 	if err := loader.AddModuleFromText("ze-bgp-conf.yang", bgpschema.ZeBGPConfYANG); err != nil {
 		return &Completer{}
 	}

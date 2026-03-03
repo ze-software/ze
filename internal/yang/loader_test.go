@@ -12,7 +12,7 @@ import (
 //
 // VALIDATES: Core YANG modules (extensions, types, plugin) load without errors.
 // PREVENTS: Syntax errors in YANG files breaking startup.
-// NOTE: ze-bgp is in internal/plugins/bgp/schema, ze-hub is in internal/hub/schema.
+// NOTE: ze-bgp is in internal/plugins/bgp/schema, ze-hub is embedded in internal/yang/modules.
 func TestLoader_EmbeddedModules(t *testing.T) {
 	loader := NewLoader()
 
@@ -22,10 +22,11 @@ func TestLoader_EmbeddedModules(t *testing.T) {
 	err = loader.Resolve()
 	require.NoError(t, err, "resolving modules should succeed")
 
-	// Verify core modules are loaded (ze-bgp and ze-hub are now external)
+	// Verify core modules are loaded (ze-bgp is external, ze-hub is now embedded)
 	names := loader.ModuleNames()
 	assert.Contains(t, names, "ze-extensions", "ze-extensions module should be loaded")
 	assert.Contains(t, names, "ze-types", "ze-types module should be loaded")
+	assert.Contains(t, names, "ze-hub-conf", "ze-hub-conf module should be loaded")
 	assert.Contains(t, names, "ze-plugin-conf", "ze-plugin-conf module should be loaded")
 }
 
@@ -99,11 +100,11 @@ func TestLoader_ZeBgpModule(t *testing.T) {
 //
 // VALIDATES: ze-hub-conf module defines expected containers.
 // PREVENTS: Missing hub/environment configuration elements.
-// NOTE: Uses LoadAllForTesting since ze-hub-conf is now in internal/hub/schema.
+// NOTE: ze-hub-conf is now embedded in internal/yang/modules, loaded by LoadEmbedded().
 func TestLoader_ZeHubModule(t *testing.T) {
 	loader := NewLoader()
 
-	err := loader.LoadAllForTesting()
+	err := loader.LoadEmbedded()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
