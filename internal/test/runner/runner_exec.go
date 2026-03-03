@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
-	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
+	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
 
 const modeForeground = "foreground"

@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/test/ci"
-	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
+	"codeberg.org/thomas-mangin/ze/internal/test/tmpfs"
 )
 
 // EncodingTests manages encoding test discovery.

@@ -135,7 +135,7 @@ var dirMapping = map[string][]string{
 	"internal/test/runner":            {"// Design: docs/architecture/testing/ci-format.md — test runner framework"},
 	"internal/test/syslog":            {"// Design: docs/architecture/testing/ci-format.md — syslog test helpers"},
 	"internal/test":                   {"// Design: docs/architecture/testing/ci-format.md — test infrastructure"},
-	"internal/tmpfs":                  {"// Design: docs/architecture/system-architecture.md — temporary filesystem management"},
+	"internal/test/tmpfs":             {"// Design: docs/architecture/system-architecture.md — temporary filesystem management"},
 	"internal/component/config/yang":  {"// Design: docs/architecture/config/yang-config-design.md — YANG schema handling"},
 	"pkg/plugin/rpc":                  {"// Design: docs/architecture/api/ipc_protocol.md — plugin RPC types"},
 	"pkg/plugin/sdk":                  {"// Design: docs/architecture/api/process-protocol.md — plugin SDK"},
