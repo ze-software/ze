@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-adj-rib-in/schema"
 	"codeberg.org/thomas-mangin/ze/internal/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
@@ -94,7 +94,7 @@ func RunAdjRIBInPlugin(engineConn, callbackConn net.Conn) int {
 	}
 
 	p.OnEvent(func(jsonStr string) error {
-		event, err := shared.ParseEvent([]byte(jsonStr))
+		event, err := bgp.ParseEvent([]byte(jsonStr))
 		if err != nil {
 			logger().Warn("parse error", "error", err, "line", jsonStr[:min(100, len(jsonStr))])
 			return nil
@@ -137,7 +137,7 @@ func (r *AdjRIBInManager) updateRoute(peerSelector, command string) {
 }
 
 // dispatch routes an event to the appropriate handler.
-func (r *AdjRIBInManager) dispatch(event *shared.Event) {
+func (r *AdjRIBInManager) dispatch(event *bgp.Event) {
 	eventType := event.GetEventType()
 
 	switch eventType {
@@ -150,7 +150,7 @@ func (r *AdjRIBInManager) dispatch(event *shared.Event) {
 
 // handleReceived processes received UPDATE events from peers.
 // Stores routes as raw hex from format=full events.
-func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
+func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 	peerAddr := event.GetPeerAddress()
 	if peerAddr == "" {
 		return
@@ -183,11 +183,11 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 				nhopHex := nhopToHex(op.NextHop)
 
 				for i, nlriVal := range op.NLRIs {
-					prefix, pathID := shared.ParseNLRIValue(nlriVal)
+					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 					if prefix == "" {
 						continue
 					}
-					key := shared.RouteKey(family, prefix, pathID)
+					key := bgp.RouteKey(family, prefix, pathID)
 
 					// Get individual NLRI hex from the correct source:
 					// - Simple families: split raw bytes give per-prefix hex
@@ -224,11 +224,11 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 					continue
 				}
 				for _, nlriVal := range op.NLRIs {
-					prefix, pathID := shared.ParseNLRIValue(nlriVal)
+					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 					if prefix == "" {
 						continue
 					}
-					key := shared.RouteKey(family, prefix, pathID)
+					key := bgp.RouteKey(family, prefix, pathID)
 					r.ribIn[peerAddr].Delete(key)
 				}
 			}
@@ -237,7 +237,7 @@ func (r *AdjRIBInManager) handleReceived(event *shared.Event) {
 }
 
 // handleState processes peer state changes.
-func (r *AdjRIBInManager) handleState(event *shared.Event) {
+func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	peerAddr := event.GetPeerAddress()
 	state := event.GetPeerState()
 

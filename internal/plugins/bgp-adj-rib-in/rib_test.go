@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 	"codeberg.org/thomas-mangin/ze/internal/seqmap"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -60,12 +60,12 @@ func TestStoreReceivedRoute(t *testing.T) {
 	r := newTestManager(t)
 
 	// format=full event: ORIGIN IGP (40 01 01 00), 10.0.0.0/24 (18 0a 00 00)
-	event := &shared.Event{
-		Message:       &shared.MessageInfo{Type: "update", ID: 100},
+	event := &bgp.Event{
+		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
@@ -107,12 +107,12 @@ func TestStoreAllFamilies(t *testing.T) {
 	// VPN family route - raw NLRI bytes contain RD+labels+prefix in wire format.
 	// The raw blob "deadbeef" must be stored as-is; prefixToWireHex would produce
 	// bare IPv4 bytes "180a0000" which is wrong for VPN wire format.
-	event := &shared.Event{
-		Message:       &shared.MessageInfo{Type: "update", ID: 200},
+	event := &bgp.Event{
+		Message:       &bgp.MessageInfo{Type: "update", ID: 200},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/mpls-vpn": "deadbeef"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/mpls-vpn": {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
@@ -145,12 +145,12 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 	peerJSON := testPeerJSON(t)
 
 	// First announce
-	announce := &shared.Event{
-		Message:       &shared.MessageInfo{Type: "update", ID: 100},
+	announce := &bgp.Event{
+		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
@@ -160,12 +160,12 @@ func TestRemoveWithdrawnRoute(t *testing.T) {
 	require.Equal(t, 1, r.ribIn["10.0.0.1"].Len())
 
 	// Then withdraw
-	withdraw := &shared.Event{
-		Message: &shared.MessageInfo{Type: "update", ID: 101},
+	withdraw := &bgp.Event{
+		Message: &bgp.MessageInfo{Type: "update", ID: 101},
 		Peer:    peerJSON,
 		// Withdrawals may have raw-withdrawn but not raw-attributes
 		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/unicast": {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
 			},
@@ -276,12 +276,12 @@ func TestSequenceIndexMonotonic(t *testing.T) {
 	// Insert 3 routes
 	for i, prefix := range []string{"10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24"} {
 		nlriHex := []string{"180a0000", "180a0001", "180a0002"}
-		event := &shared.Event{
-			Message:       &shared.MessageInfo{Type: "update", ID: uint64(100 + i)},
+		event := &bgp.Event{
+			Message:       &bgp.MessageInfo{Type: "update", ID: uint64(100 + i)},
 			Peer:          peerJSON,
 			RawAttributes: "40010100",
 			RawNLRI:       map[string]string{"ipv4/unicast": nlriHex[i]},
-			FamilyOps: map[string][]shared.FamilyOperation{
+			FamilyOps: map[string][]bgp.FamilyOperation{
 				"ipv4/unicast": {
 					{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{prefix}},
 				},
@@ -324,9 +324,9 @@ func TestClearPeerOnDown(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 
 	// Peer goes down
-	downEvent := &shared.Event{
+	downEvent := &bgp.Event{
 		Type: "state",
-		Peer: mustMarshal(t, shared.PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer: mustMarshal(t, bgp.PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
 	}
 	// State can be in flat peer format or top-level
 	downEvent.State = "down"
@@ -436,12 +436,12 @@ func TestMultipleNLRIsPerUpdate(t *testing.T) {
 	r := newTestManager(t)
 
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
-	event := &shared.Event{
-		Message:       &shared.MessageInfo{Type: "update", ID: 100},
+	event := &bgp.Event{
+		Message:       &bgp.MessageInfo{Type: "update", ID: 100},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
@@ -510,12 +510,12 @@ func TestComplexFamilyMultiNLRI(t *testing.T) {
 
 	// VPN UPDATE with 2 parsed NLRIs but a single concatenated raw blob.
 	// The raw blob contains both NLRIs in wire format (RD+labels+prefix).
-	event := &shared.Event{
-		Message:       &shared.MessageInfo{Type: "update", ID: 300},
+	event := &bgp.Event{
+		Message:       &bgp.MessageInfo{Type: "update", ID: 300},
 		Peer:          testPeerJSON(t),
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/mpls-vpn": "aabbccdd11223344"},
-		FamilyOps: map[string][]shared.FamilyOperation{
+		FamilyOps: map[string][]bgp.FamilyOperation{
 			"ipv4/mpls-vpn": {
 				{NextHop: "10.0.0.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},

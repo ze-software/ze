@@ -1,8 +1,8 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — shared NLRI parsing
+// Design: docs/architecture/plugin/rib-storage-design.md — NLRI value parsing
 // Related: route.go — Route struct uses parsed NLRI values
 // Related: event.go — event parsing and family operations
 // Related: format.go — route command formatting
-package shared
+package bgp
 
 // ParseNLRIValue extracts prefix and path-id from an NLRI value.
 // Handles both new format {"prefix":"...", "path-id":N} and legacy string format.

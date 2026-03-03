@@ -21,7 +21,7 @@
 | RR plugin | ✅ Done | `internal/plugin/rr/` |
 | RIB plugin | ✅ Done | `internal/plugins/bgp-rib/` |
 | Adj-RIB-In plugin | ✅ Done | `internal/plugins/bgp-adj-rib-in/` |
-| Shared BGP types | ✅ Done | `internal/plugin/bgp/shared/` |
+| Shared BGP types | ✅ Done | `internal/component/bgp/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
 
 ---

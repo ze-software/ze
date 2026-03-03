@@ -1,8 +1,8 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — shared route formatting
+// Design: docs/architecture/plugin/rib-storage-design.md — route command formatting
 // Related: route.go — Route struct formatted by this file
 // Related: event.go — event parsing and family operations
 // Related: nlri.go — NLRI value parsing
-package shared
+package bgp
 
 import (
 	"fmt"
@@ -10,13 +10,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
 )
-
-// FormatRouteCommand builds the update text announce command with full attributes.
-//
-// Deprecated: use FormatAnnounceCommand instead (identical behavior).
-func FormatRouteCommand(route *Route) string {
-	return FormatAnnounceCommand(route)
-}
 
 // FormatAnnounceCommand builds an "update text" announce command with full attributes.
 // Format: update text [attrs...] nhop <nh> nlri <family> [modifiers] add <prefix>.

@@ -1,8 +1,8 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — shared event parsing
+// Design: docs/architecture/plugin/rib-storage-design.md — BGP event parsing
 // Related: route.go — Route struct used by event consumers
 // Related: format.go — route command formatting
 // Related: nlri.go — NLRI value parsing
-package shared
+package bgp
 
 import (
 	"encoding/hex"

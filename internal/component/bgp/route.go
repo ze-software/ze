@@ -1,14 +1,14 @@
-// Design: docs/architecture/plugin/rib-storage-design.md — shared BGP route types
+// Design: docs/architecture/plugin/rib-storage-design.md — BGP route types for plugins
 // Related: event.go — event parsing and family operations
 // Related: format.go — route command formatting
 // Related: nlri.go — NLRI value parsing
 //
-// Package shared provides common types used by multiple BGP plugins
-// (bgp-rib, bgp-adj-rib-in, and future RIB plugins).
+// Package bgp provides common BGP domain types used by multiple BGP plugins
+// (bgp-rib, bgp-adj-rib-in, bgp-watchdog, and future plugins).
 //
 // RFC 7911: ADD-PATH path-id is included in route keys when present.
 // Multiple paths to the same prefix with different path-ids are stored separately.
-package shared
+package bgp
 
 import (
 	"fmt"

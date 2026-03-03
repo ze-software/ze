@@ -173,4 +173,4 @@ All messages start with `peer <ip> asn <n>`. Quick parse: byte-scan for first 4 
 
 ### Proposed Shared Parser Location (future)
 
-Move from bgp-rs to `internal/plugin/bgp/shared/textparse.go` so other plugins can reuse the text parser.
+Move from bgp-rs to `internal/component/bgp/textparse.go` so other plugins can reuse the text parser.

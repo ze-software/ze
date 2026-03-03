@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/shared"
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 )
 
 // parseConfig extracts per-peer watchdog route pools from a BGP config JSON tree.
@@ -108,9 +108,9 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 	return result, nil
 }
 
-// buildRouteFromAttrs creates a shared.Route with path attributes from an attribute map.
-func buildRouteFromAttrs(attrMap map[string]any) shared.Route {
-	var route shared.Route
+// buildRouteFromAttrs creates a bgp.Route with path attributes from an attribute map.
+func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
+	var route bgp.Route
 
 	route.Origin = getStringAny(attrMap, "origin")
 	route.NextHop = getStringAny(attrMap, "next-hop")
@@ -150,7 +150,7 @@ func buildRouteFromAttrs(attrMap map[string]any) shared.Route {
 
 // parseNLRIEntries parses NLRI map entries into PoolEntry objects.
 // Each NLRI entry has family as key and a map with "content" field.
-func parseNLRIEntries(nlriMap map[string]any, base shared.Route, initiallyWithdrawn bool) []*PoolEntry {
+func parseNLRIEntries(nlriMap map[string]any, base bgp.Route, initiallyWithdrawn bool) []*PoolEntry {
 	var entries []*PoolEntry
 
 	for familyKey, nlriData := range nlriMap {
@@ -209,8 +209,8 @@ func parseNLRIEntries(nlriMap map[string]any, base shared.Route, initiallyWithdr
 
 			entry := NewPoolEntry(
 				watchdogRouteKey(route.Prefix, route.RD, route.PathID),
-				shared.FormatAnnounceCommand(&route),
-				shared.FormatWithdrawCommand(&route),
+				bgp.FormatAnnounceCommand(&route),
+				bgp.FormatWithdrawCommand(&route),
 			)
 			entry.initiallyAnnounced = !initiallyWithdrawn
 
