@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
 )
 
 // TestOpenMessageBuild verifies that BuildOpen produces a valid OPEN

@@ -10,12 +10,12 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/route"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/route"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.

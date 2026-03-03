@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	grschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-gr/schema"
+	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-gr/schema"
 )
 
 // serializeSchemaWithGR returns schema with GR plugin YANG for serialize tests.

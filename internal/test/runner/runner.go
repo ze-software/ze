@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 var logger = slogutil.LazyLogger("test.runner")

@@ -8,10 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.

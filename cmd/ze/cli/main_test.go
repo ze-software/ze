@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // mockServer simulates the API server using NUL-framed JSON RPC.

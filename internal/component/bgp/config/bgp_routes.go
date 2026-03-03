@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
 )
 
 // NLRI operation keywords.

@@ -1,0 +1,279 @@
+package server
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+)
+
+// TestRPCRegistrationTable verifies the builtin RPC registration table.
+//
+// VALIDATES: All handlers mapped to valid wire methods and unique CLI commands.
+// PREVENTS: Lost handlers during migration from RegisterBuiltin pattern.
+func TestRPCRegistrationTable(t *testing.T) {
+	rpcs := AllBuiltinRPCs()
+
+	// Verify count matches expected (BGP handler RPCs + RIB meta RPCs moved to handler/ package,
+	// injected via RPCProviders — not counted here)
+	assert.Len(t, rpcs, 21, "expected 21 builtin RPCs (update+watchdog+rib moved to handler/)")
+
+	// Track uniqueness
+	wireMethodsSeen := make(map[string]bool)
+	cliCommandsSeen := make(map[string]bool)
+
+	for _, reg := range rpcs {
+		t.Run(reg.WireMethod, func(t *testing.T) {
+			// Valid wire method format
+			_, _, err := ipc.ParseMethod(reg.WireMethod)
+			require.NoError(t, err, "invalid wire method format")
+
+			// Non-empty CLI command
+			assert.NotEmpty(t, reg.CLICommand, "missing CLI command")
+
+			// Non-nil handler
+			assert.NotNil(t, reg.Handler, "missing handler")
+
+			// Non-empty help
+			assert.NotEmpty(t, reg.Help, "missing help text")
+
+			// Unique wire method
+			assert.False(t, wireMethodsSeen[reg.WireMethod], "duplicate wire method: %s", reg.WireMethod)
+			wireMethodsSeen[reg.WireMethod] = true
+
+			// Unique CLI command
+			assert.False(t, cliCommandsSeen[reg.CLICommand], "duplicate CLI command: %s", reg.CLICommand)
+			cliCommandsSeen[reg.CLICommand] = true
+		})
+	}
+}
+
+// TestRPCRegistrationPerModule verifies each module registers the expected RPCs.
+//
+// VALIDATES: Per-module registration functions return correct counts.
+// PREVENTS: Commands accidentally placed in wrong module.
+func TestRPCRegistrationPerModule(t *testing.T) {
+	bgp := BgpPluginRPCs()
+	system := SystemPluginRPCs()
+	lifecycle := PluginLifecycleRPCs()
+
+	// Verify per-module counts
+	// RIB meta RPCs moved to handler/ package, injected via RPCProviders
+	assert.Len(t, bgp, 2, "BGP plugin RPCs (update+watchdog moved to handler/)")
+	assert.Len(t, system, 11, "System RPCs")
+	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
+
+	// Verify BGP RPCs all have ze-bgp: prefix
+	for _, reg := range bgp {
+		module, _, err := ipc.ParseMethod(reg.WireMethod)
+		require.NoError(t, err)
+		assert.Equal(t, "ze-bgp", module, "BGP RPC %s has wrong module", reg.WireMethod)
+	}
+
+	// Verify system RPCs all have ze-system: prefix
+	for _, reg := range system {
+		module, _, err := ipc.ParseMethod(reg.WireMethod)
+		require.NoError(t, err)
+		assert.Equal(t, "ze-system", module, "system RPC %s has wrong module", reg.WireMethod)
+	}
+
+	// Verify plugin RPCs all have ze-plugin: prefix
+	for _, reg := range lifecycle {
+		module, _, err := ipc.ParseMethod(reg.WireMethod)
+		require.NoError(t, err)
+		assert.Equal(t, "ze-plugin", module, "plugin RPC %s has wrong module", reg.WireMethod)
+	}
+}
+
+// TestRPCRegistrationExpectedMethods verifies specific critical wire methods are present.
+//
+// VALIDATES: Essential commands are not accidentally removed.
+// PREVENTS: Missing critical handlers after refactoring.
+func TestRPCRegistrationExpectedMethods(t *testing.T) {
+	rpcs := AllBuiltinRPCs()
+
+	methodMap := make(map[string]*RPCRegistration, len(rpcs))
+	for i := range rpcs {
+		methodMap[rpcs[i].WireMethod] = &rpcs[i]
+	}
+
+	// BGP handler methods + RIB meta RPCs moved to handler/ package,
+	// injected via RPCProviders — not in AllBuiltinRPCs.
+	expectedMethods := []string{
+		"ze-system:daemon-shutdown",
+		"ze-system:daemon-status",
+		"ze-system:daemon-reload",
+		"ze-bgp:subscribe",
+		"ze-bgp:unsubscribe",
+		"ze-system:help",
+		"ze-system:command-list",
+		"ze-plugin:session-ready",
+		"ze-plugin:session-bye",
+	}
+
+	for _, method := range expectedMethods {
+		_, exists := methodMap[method]
+		assert.True(t, exists, "missing expected wire method: %s", method)
+	}
+}
+
+// TestRPCRegistrationLoadDispatcher verifies handlers load into RPCDispatcher.
+//
+// VALIDATES: AllBuiltinRPCs register with RPCDispatcher successfully.
+// PREVENTS: Registration errors from invalid wire methods.
+func TestRPCRegistrationLoadDispatcher(t *testing.T) {
+	dispatcher := ipc.NewRPCDispatcher()
+
+	for _, reg := range AllBuiltinRPCs() {
+		err := dispatcher.Register(reg.WireMethod, func(_ string, _ json.RawMessage) (any, error) {
+			return struct{}{}, nil
+		})
+		require.NoError(t, err, "failed to register %s", reg.WireMethod)
+	}
+
+	// Verify specific methods are registered (peer-list moved to handler/ RPCProviders)
+	assert.True(t, dispatcher.HasMethod("ze-bgp:subscribe"))
+	assert.True(t, dispatcher.HasMethod("ze-system:help"))
+	// ze-rib:help moved to handler/ RPCProviders
+	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))
+}
+
+// TestRPCRegistrationToRegistry verifies the full RPC→conversion→registry integration path.
+//
+// VALIDATES: DeclareRegistrationInput fields flow through registrationFromRPC() into
+// PluginRegistry, with correct command routing and family decode lookups.
+// PREVENTS: Regression where RPC fields are converted but never reach the registry.
+func TestRPCRegistrationToRegistry(t *testing.T) {
+	t.Parallel()
+	registry := plugin.NewPluginRegistry()
+
+	input := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{
+			{Name: "ipv4/unicast", Mode: "both"},
+			{Name: "ipv4/flow", Mode: "decode"},
+			{Name: "l2vpn/evpn", Mode: "decode"},
+			{Name: "ipv6/unicast", Mode: "encode"},
+		},
+		Commands: []rpc.CommandDecl{
+			{Name: "rib adjacent in show", Description: "Show adjacent RIB"},
+			{Name: "peer * refresh", Description: "Refresh peer"},
+		},
+		WantsConfig: []string{"bgp"},
+		Schema: &rpc.SchemaDecl{
+			Module:    "ze-rib-conf",
+			Namespace: "urn:ze:rib:conf",
+			YANGText:  "module ze-rib-conf { }",
+			Handlers:  []string{"rib"},
+		},
+	}
+
+	reg := registrationFromRPC(input)
+	reg.Name = "rib"
+	require.NoError(t, registry.Register(reg))
+
+	// Verify multi-word commands are routable
+	assert.Equal(t, "rib", registry.LookupCommand("rib adjacent in show"))
+	assert.Equal(t, "rib", registry.LookupCommand("peer * refresh"))
+	assert.Empty(t, registry.LookupCommand("unknown cmd"))
+
+	// Verify decode families registered
+	assert.Equal(t, "rib", registry.LookupFamily("ipv4/flow"))
+	assert.Equal(t, "rib", registry.LookupFamily("l2vpn/evpn"))
+	assert.Equal(t, "rib", registry.LookupFamily("ipv4/unicast")) // "both" → also in decode
+
+	// Verify encode-only family is NOT in decode lookup
+	assert.Empty(t, registry.LookupFamily("ipv6/unicast"))
+
+	// Verify GetDecodeFamilies returns all decode-registered families
+	decodeFamilies := registry.GetDecodeFamilies()
+	assert.Contains(t, decodeFamilies, "ipv4/flow")
+	assert.Contains(t, decodeFamilies, "l2vpn/evpn")
+	assert.Contains(t, decodeFamilies, "ipv4/unicast")
+	assert.NotContains(t, decodeFamilies, "ipv6/unicast")
+
+	// Verify command info includes encoding default
+	info := registry.BuildCommandInfo()
+	require.Contains(t, info, "rib")
+	assert.Len(t, info["rib"], 2)
+}
+
+// TestRPCCapabilityToInjector verifies the full RPC→conversion→injector integration path.
+//
+// VALIDATES: DeclareCapabilitiesInput fields flow through capabilitiesFromRPC() into
+// CapabilityInjector with correct payload decoding and per-peer scoping.
+// PREVENTS: Capability bytes lost or corrupted between RPC and OPEN injection.
+func TestRPCCapabilityToInjector(t *testing.T) {
+	t.Parallel()
+	injector := plugin.NewCapabilityInjector()
+
+	input := &rpc.DeclareCapabilitiesInput{
+		Capabilities: []rpc.CapabilityDecl{
+			{Code: 73, Encoding: "b64", Payload: "dGVzdA=="},                          // global
+			{Code: 64, Encoding: "hex", Payload: "0078", Peers: []string{"10.0.0.1"}}, // per-peer
+		},
+	}
+
+	caps := capabilitiesFromRPC(input)
+	caps.PluginName = "hostname"
+	require.NoError(t, injector.AddPluginCapabilities(caps))
+
+	// Global capability available for any peer
+	allCaps := injector.GetCapabilitiesForPeer("10.0.0.2")
+	require.Len(t, allCaps, 1)
+	assert.Equal(t, uint8(73), allCaps[0].Code)
+	assert.Equal(t, []byte("test"), allCaps[0].Value) // b64 "dGVzdA==" → "test"
+
+	// Specific peer gets both global and per-peer
+	peerCaps := injector.GetCapabilitiesForPeer("10.0.0.1")
+	require.Len(t, peerCaps, 2)
+
+	// Per-peer comes first (takes precedence)
+	assert.Equal(t, uint8(64), peerCaps[0].Code)
+	assert.Equal(t, []byte{0x00, 0x78}, peerCaps[0].Value) // hex "0078"
+	// Global second
+	assert.Equal(t, uint8(73), peerCaps[1].Code)
+}
+
+// TestRPCRegistrationConflictThroughConversion verifies conflicts are detected
+// when two plugins register via the RPC path.
+//
+// VALIDATES: Command/family conflicts detected even when registration comes from RPC input.
+// PREVENTS: Silent command overwrites when multiple plugins register via YANG RPC.
+func TestRPCRegistrationConflictThroughConversion(t *testing.T) {
+	t.Parallel()
+	registry := plugin.NewPluginRegistry()
+
+	// First plugin registers via RPC
+	input1 := &rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+	}
+	reg1 := registrationFromRPC(input1)
+	reg1.Name = "rib"
+	require.NoError(t, registry.Register(reg1))
+
+	// Second plugin tries same command
+	input2 := &rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: "rib show"}},
+	}
+	reg2 := registrationFromRPC(input2)
+	reg2.Name = "rib2"
+	err := registry.Register(reg2)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "command conflict")
+
+	// Third plugin tries same decode family
+	input3 := &rpc.DeclareRegistrationInput{
+		Families: []rpc.FamilyDecl{{Name: "ipv4/flow", Mode: "decode"}},
+	}
+	reg3 := registrationFromRPC(input3)
+	reg3.Name = "flowspec"
+	err = registry.Register(reg3)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "family conflict")
+}

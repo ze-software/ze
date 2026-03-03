@@ -20,7 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // defaultWriteDeadline is used when the context has no deadline.

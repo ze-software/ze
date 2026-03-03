@@ -10,7 +10,7 @@ import (
 	"os"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/ze/internal/pidfile"
+	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
 )
 
 // Exit codes for signal command.

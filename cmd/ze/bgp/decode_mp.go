@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
 )
 
 // buildMPReachZe builds Ze format NLRI operations from MP_REACH_NLRI.

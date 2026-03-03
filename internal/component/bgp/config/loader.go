@@ -15,14 +15,16 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/sim"
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // configLogger is the config subsystem logger (lazy initialization).
@@ -435,10 +437,10 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 	// Inject chaos wrappers from config environment block.
 	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.
 	if env.Chaos.Seed != 0 {
-		resolved := sim.ResolveSeed(env.Chaos.Seed)
+		resolved := chaos.ResolveSeed(env.Chaos.Seed)
 		chaosLogger := slogutil.Logger("chaos")
-		chaosCfg := sim.ChaosConfig{Seed: resolved, Rate: env.Chaos.Rate, Logger: chaosLogger}
-		clock, dialer, lf := sim.NewChaosWrappers(sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, chaosCfg)
+		chaosCfg := chaos.ChaosConfig{Seed: resolved, Rate: env.Chaos.Rate, Logger: chaosLogger}
+		clock, dialer, lf := chaos.NewChaosWrappers(clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, chaosCfg)
 		r.SetClock(clock)
 		r.SetDialer(dialer)
 		r.SetListenerFactory(lf)

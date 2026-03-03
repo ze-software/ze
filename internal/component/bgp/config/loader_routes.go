@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // FlowSpec action names.

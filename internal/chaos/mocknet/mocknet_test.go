@@ -2,12 +2,13 @@ package mocknet
 
 import (
 	"context"
+
 	"errors"
 	"io"
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/sim"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 // TestConnPairReadWrite verifies net.Pipe pair: write on one end, read on other.
@@ -253,16 +254,16 @@ func TestMockListenerClose(t *testing.T) {
 
 // TestMockListenerFactoryImplements verifies compile-time interface conformance.
 //
-// VALIDATES: MockListenerFactory satisfies sim.ListenerFactory.
+// VALIDATES: MockListenerFactory satisfies network.ListenerFactory.
 // PREVENTS: Missing methods breaking injection into reactor.
 func TestMockListenerFactoryImplements(t *testing.T) {
-	var _ sim.ListenerFactory = &MockListenerFactory{}
+	var _ network.ListenerFactory = &MockListenerFactory{}
 }
 
 // TestMockDialerImplements verifies compile-time interface conformance.
 //
-// VALIDATES: MockDialer satisfies sim.Dialer.
+// VALIDATES: MockDialer satisfies network.Dialer.
 // PREVENTS: Missing methods breaking injection into reactor.
 func TestMockDialerImplements(t *testing.T) {
-	var _ sim.Dialer = &MockDialer{}
+	var _ network.Dialer = &MockDialer{}
 }

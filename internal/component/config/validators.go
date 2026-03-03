@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // AddressFamilyValidator returns a validator that checks if a value is a registered address family.

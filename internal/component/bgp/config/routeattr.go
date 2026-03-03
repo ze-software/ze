@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/parse"
+	"codeberg.org/thomas-mangin/ze/internal/core/parse"
 )
 
 // Origin represents the ORIGIN path attribute.

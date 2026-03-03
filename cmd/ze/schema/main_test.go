@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // TestRunNoArgs verifies missing args returns exit code 1.

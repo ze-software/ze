@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
 )
 
 // FormatAnnounceCommand builds an "update text" announce command with full attributes.

@@ -7,9 +7,9 @@ package bgp
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // pluginCapabilityMap maps capability codes to plugin names.

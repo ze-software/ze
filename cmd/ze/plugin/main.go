@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // Run executes the plugin subcommand with the given arguments.

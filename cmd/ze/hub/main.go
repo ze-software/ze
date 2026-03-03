@@ -12,12 +12,14 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/hub"
-	"codeberg.org/thomas-mangin/ze/internal/pidfile"
-	"codeberg.org/thomas-mangin/ze/internal/sim"
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/component/hub"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // Run executes the hub with the given config file path and optional CLI plugins.
@@ -123,18 +125,18 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 	// Inject chaos wrappers if chaos mode is enabled.
 	// CLI flags override env vars/config; seed=0 means disabled, -1 means time-based.
 	if chaosSeed != 0 {
-		chaosSeed = sim.ResolveSeed(chaosSeed)
+		chaosSeed = chaos.ResolveSeed(chaosSeed)
 		if chaosRate < 0 {
 			chaosRate = 0.1 // Default rate when not specified by CLI
 		}
 		logger := slogutil.Logger("chaos")
-		cfg := sim.ChaosConfig{
+		cfg := chaos.ChaosConfig{
 			Seed:   chaosSeed,
 			Rate:   chaosRate,
 			Logger: logger,
 		}
-		clock, dialer, listenerFactory := sim.NewChaosWrappers(
-			sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, cfg,
+		clock, dialer, listenerFactory := chaos.NewChaosWrappers(
+			clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg,
 		)
 		reactor.SetClock(clock)
 		reactor.SetDialer(dialer)

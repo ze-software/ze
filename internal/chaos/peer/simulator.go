@@ -15,8 +15,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/route"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/sim"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
 // Family string constants used in event tagging and NLRI dispatch.
@@ -81,7 +81,7 @@ type SimulatorConfig struct {
 	// Clock is an optional virtual clock for in-process mode.
 	// When non-nil, the keepalive loop uses this clock instead of real time.
 	// This allows VirtualClock.Advance() to drive keepalive timing deterministically.
-	Clock sim.Clock
+	Clock clock.Clock
 }
 
 // ChaosResult describes the outcome of a chaos action on this simulator.

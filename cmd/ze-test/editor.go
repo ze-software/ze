@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	editortesting "codeberg.org/thomas-mangin/ze/internal/component/config/editor/testing"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 

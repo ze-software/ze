@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // reloadTimeout is the maximum time to wait for a daemon reload response.

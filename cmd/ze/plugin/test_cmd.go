@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // pluginFlags collects multiple --plugin flag values.

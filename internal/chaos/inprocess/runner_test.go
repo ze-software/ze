@@ -14,7 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/shrink"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/validation"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all" // register YANG schemas + plugins
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // register YANG schemas + plugins
 )
 
 // eventTypeCounts returns a map of event type → count for determinism comparison.

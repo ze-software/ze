@@ -12,7 +12,7 @@ import (
 	// Blank imports trigger init() registration of YANG modules.
 	// bgp/schema already imported in reader_test.go (same package).
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
-	_ "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 )
 
 // newTestLoader creates a resolved YANG loader with all registered modules.

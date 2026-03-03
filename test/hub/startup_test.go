@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/hub"
+	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 )
 
 // TestHubStartupWithBGP verifies hub starts BGP plugin correctly.

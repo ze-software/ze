@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	_ "codeberg.org/thomas-mangin/ze/internal/plugin/all"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
 // TestExtractPluginsFromTree_InternalPlugin verifies that explicit plugins

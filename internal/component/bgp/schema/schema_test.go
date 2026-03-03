@@ -11,7 +11,7 @@ import (
 	// Blank imports trigger init() registration of YANG modules.
 	// bgp/schema registers automatically (same package).
 	// hub/schema needed because ze-bgp-conf imports ze-hub-conf.
-	_ "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 )
 
 // TestSchema_ZeBgpModule verifies ze-bgp-conf.yang content.

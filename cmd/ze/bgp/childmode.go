@@ -13,10 +13,12 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/sim"
-	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // isChildMode returns true if ze bgp should run as a hub child process.
@@ -233,7 +235,7 @@ func injectChaosFromEnv(r *reactor.Reactor, seedStr, rateStr string) {
 	if err != nil || seed == 0 {
 		return
 	}
-	seed = sim.ResolveSeed(seed)
+	seed = chaos.ResolveSeed(seed)
 
 	rate := 0.1
 	if rateStr != "" {
@@ -243,13 +245,13 @@ func injectChaosFromEnv(r *reactor.Reactor, seedStr, rateStr string) {
 	}
 
 	logger := slogutil.Logger("chaos")
-	cfg := sim.ChaosConfig{
+	cfg := chaos.ChaosConfig{
 		Seed:   seed,
 		Rate:   rate,
 		Logger: logger,
 	}
-	clock, dialer, listenerFactory := sim.NewChaosWrappers(
-		sim.RealClock{}, &sim.RealDialer{}, sim.RealListenerFactory{}, cfg,
+	clock, dialer, listenerFactory := chaos.NewChaosWrappers(
+		clock.RealClock{}, &network.RealDialer{}, network.RealListenerFactory{}, cfg,
 	)
 	r.SetClock(clock)
 	r.SetDialer(dialer)

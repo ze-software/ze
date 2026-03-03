@@ -13,10 +13,10 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/handler"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"

@@ -12,12 +12,12 @@ import (
 	"sync"
 	"time"
 
+	chaossim "codeberg.org/thomas-mangin/ze/internal/chaos"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/mocknet"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/peer"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
-	"codeberg.org/thomas-mangin/ze/internal/sim"
 )
 
 // RunConfig holds parameters for an in-process chaos run.
@@ -125,7 +125,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 
 	// Create virtual clock starting at a fixed epoch for determinism.
 	epoch := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
-	vc := sim.NewVirtualClock(epoch)
+	vc := chaossim.NewVirtualClock(epoch)
 
 	// Create mock network components.
 	dialer := mocknet.NewMockDialer()

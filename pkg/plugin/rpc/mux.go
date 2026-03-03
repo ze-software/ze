@@ -12,7 +12,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // ErrMuxConnClosed is returned when CallRPC is called on a closed MuxConn.

@@ -14,12 +14,12 @@ import (
 	"strings"
 	"time"
 
+	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
-	ipcschema "codeberg.org/thomas-mangin/ze/internal/ipc/schema"
-	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/plugin/server"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	ipcschema "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 )
 
 // Plugin ID prefix for internal plugins (e.g., "ze.bgp", "ze.gr").

@@ -9,11 +9,11 @@ import (
 	"strconv"
 	"strings"
 
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/plugins/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/reactor"
 )
 
 // PeersFromConfigTree builds PeerSettings from a config tree.

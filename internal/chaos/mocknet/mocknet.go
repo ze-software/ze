@@ -75,7 +75,7 @@ func (m *ConnPairManager) NewPair() (peerEnd, reactorEnd net.Conn, err error) {
 	return dialed, result.conn, nil
 }
 
-// MockDialer implements sim.Dialer by returning pre-registered connections.
+// MockDialer implements network.Dialer by returning pre-registered connections.
 // Used when the reactor dials out to peers (active peers from reactor's perspective).
 type MockDialer struct {
 	mu    sync.Mutex
@@ -121,7 +121,7 @@ func (d *MockDialer) DialContext(ctx context.Context, network, address string) (
 	return conn, nil
 }
 
-// MockListenerFactory implements sim.ListenerFactory by creating MockListeners.
+// MockListenerFactory implements network.ListenerFactory by creating MockListeners.
 type MockListenerFactory struct {
 	mu        sync.Mutex
 	listeners map[string]*MockListener // key: "network:address"

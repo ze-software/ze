@@ -14,7 +14,7 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/message"
 )
 
 // readLoop reads BGP messages from conn and emits route events.

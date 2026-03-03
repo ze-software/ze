@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp/attribute"
 )
 
 // Community represents standard BGP communities (RFC 1997).
