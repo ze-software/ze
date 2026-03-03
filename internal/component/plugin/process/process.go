@@ -387,7 +387,10 @@ func (p *Process) SetCapabilities(caps *plugin.PluginCapabilities) {
 }
 
 // Cmd returns the underlying exec.Cmd for external plugins (nil for internal).
+// Protected by mu since startExternal() writes p.cmd under the same lock.
 func (p *Process) Cmd() *exec.Cmd {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.cmd
 }
 
@@ -592,10 +595,12 @@ func (p *Process) startExternal() error {
 
 	p.running.Store(true)
 
-	// Capture stderr locally before starting goroutines.
+	// Capture stderr and cmd locally before starting goroutines.
 	// relayStderr and monitor both access p.stderr — capturing here avoids
 	// a data race between relayStderr reading the field and monitor nil-ing it.
+	// Similarly, cmd is captured so monitor() doesn't race on p.cmd.
 	stderr := p.stderr
+	cmd := p.cmd
 
 	// Relay plugin stderr based on ze.log.relay setting.
 	// Tracked by wg so Wait() blocks until relay drains.
@@ -603,7 +608,7 @@ func (p *Process) startExternal() error {
 
 	// Monitor process
 	p.wg.Add(1)
-	go p.monitor()
+	go p.monitorCmd(cmd)
 
 	return nil
 }
@@ -734,12 +739,13 @@ func (p *Process) Wait(ctx context.Context) error {
 	}
 }
 
-// monitor waits for the process to exit.
-func (p *Process) monitor() {
+// monitorCmd waits for the process to exit.
+// Takes cmd as a parameter to avoid racing on p.cmd with other goroutines.
+func (p *Process) monitorCmd(cmd *exec.Cmd) {
 	defer p.wg.Done()
 
 	// Wait for process to exit
-	_ = p.cmd.Wait()
+	_ = cmd.Wait()
 
 	p.running.Store(false)
 
