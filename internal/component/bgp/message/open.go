@@ -73,6 +73,20 @@ func (o *Open) Len(_ *EncodingContext) int {
 	return HeaderLen + 10 + optLen
 }
 
+// writeFixedFields encodes the common OPEN fixed fields (Version, MyAS, HoldTime, BGPIdentifier)
+// starting at bodyOff. Returns 9 (the number of bytes written).
+// RFC 4271 Section 4.2 - fixed field layout: Version(1) + MyAS(2) + HoldTime(2) + BGPID(4).
+func (o *Open) writeFixedFields(buf []byte, bodyOff int) {
+	buf[bodyOff] = o.Version
+	myAS := o.MyAS
+	if o.ASN4 > 0 && o.ASN4 > 65535 {
+		myAS = AS_TRANS
+	}
+	binary.BigEndian.PutUint16(buf[bodyOff+1:], myAS)
+	binary.BigEndian.PutUint16(buf[bodyOff+3:], o.HoldTime)
+	binary.BigEndian.PutUint32(buf[bodyOff+5:], o.BGPIdentifier)
+}
+
 // WriteTo writes the complete OPEN message to buf at offset.
 // Returns number of bytes written.
 // RFC 4271 Section 4.2 - OPEN message format.
@@ -88,18 +102,7 @@ func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	writeHeader(buf, off, TypeOPEN, totalLen)
 
 	bodyOff := off + HeaderLen
-	// Version
-	buf[bodyOff] = o.Version
-	// My AS (use AS_TRANS if ASN4 > 65535)
-	myAS := o.MyAS
-	if o.ASN4 > 0 && o.ASN4 > 65535 {
-		myAS = AS_TRANS
-	}
-	binary.BigEndian.PutUint16(buf[bodyOff+1:], myAS)
-	// Hold Time
-	binary.BigEndian.PutUint16(buf[bodyOff+3:], o.HoldTime)
-	// BGP Identifier
-	binary.BigEndian.PutUint32(buf[bodyOff+5:], o.BGPIdentifier)
+	o.writeFixedFields(buf, bodyOff)
 	// Opt Param Length
 	buf[bodyOff+9] = byte(optLen)
 	// Optional Parameters
@@ -115,18 +118,7 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 	writeHeader(buf, off, TypeOPEN, totalLen)
 
 	bodyOff := off + HeaderLen
-	// Version
-	buf[bodyOff] = o.Version
-	// My AS
-	myAS := o.MyAS
-	if o.ASN4 > 0 && o.ASN4 > 65535 {
-		myAS = AS_TRANS
-	}
-	binary.BigEndian.PutUint16(buf[bodyOff+1:], myAS)
-	// Hold Time
-	binary.BigEndian.PutUint16(buf[bodyOff+3:], o.HoldTime)
-	// BGP Identifier
-	binary.BigEndian.PutUint32(buf[bodyOff+5:], o.BGPIdentifier)
+	o.writeFixedFields(buf, bodyOff)
 	// RFC 9072: Extended format markers
 	buf[bodyOff+9] = ExtendedParamMarker  // Non-Ext OP Len = 255
 	buf[bodyOff+10] = ExtendedParamMarker // Non-Ext OP Type = 255

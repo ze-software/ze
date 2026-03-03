@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
@@ -41,13 +40,7 @@ Options:
 
 	configPath := fs.Arg(0)
 
-	var data []byte
-	var err error
-	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(configPath) //nolint:gosec // Path from CLI
-	}
+	data, err := loadConfigData(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error reading config: %v\n", err)
 		return 1

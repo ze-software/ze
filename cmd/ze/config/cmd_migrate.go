@@ -7,7 +7,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -117,13 +116,7 @@ func printMigrateResult(result *migration.MigrateResult) {
 }
 
 func cmdMigrateDryRun(configPath string) int {
-	var data []byte
-	var err error
-	if configPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from user
-	}
+	data, err := loadConfigData(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -194,13 +187,7 @@ func printMigrateWarnings(warnings []string) {
 }
 
 func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration.MigrateResult, []string, error) {
-	var data []byte
-	var err error
-	if inputPath == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(inputPath) //nolint:gosec // Config path from user
-	}
+	data, err := loadConfigData(inputPath)
 	if err != nil {
 		return "", nil, nil, err
 	}

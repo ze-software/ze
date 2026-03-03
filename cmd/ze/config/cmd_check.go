@@ -7,7 +7,6 @@ package config
 import (
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -95,13 +94,7 @@ func checkEnvironment(jsonOutput bool) int {
 }
 
 func configCheckData(path string) checkResult {
-	var data []byte
-	var err error
-	if path == "-" {
-		data, err = io.ReadAll(os.Stdin)
-	} else {
-		data, err = os.ReadFile(path) //nolint:gosec // Config path from user
-	}
+	data, err := loadConfigData(path)
 	if err != nil {
 		return checkResult{err: err}
 	}

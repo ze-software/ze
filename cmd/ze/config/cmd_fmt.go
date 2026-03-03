@@ -7,7 +7,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"strings"
 
@@ -79,20 +78,10 @@ Examples:
 
 	configPath := fs.Arg(0)
 
-	var input []byte
-	var err error
-	if configPath == "-" {
-		input, err = io.ReadAll(os.Stdin)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: reading stdin: %v\n", err)
-			return exitError
-		}
-	} else {
-		input, err = os.ReadFile(configPath) //nolint:gosec // Config path from user
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			return exitError
-		}
+	input, err := loadConfigData(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
 	}
 
 	schema := config.YANGSchema()

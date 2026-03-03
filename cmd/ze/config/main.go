@@ -10,6 +10,7 @@ package config
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -57,6 +58,14 @@ func Run(args []string) int {
 	fmt.Fprintf(os.Stderr, "unknown config subcommand: %s\n", subcmd)
 	usage()
 	return 1
+}
+
+// loadConfigData reads config from the given path, or stdin if path is "-".
+func loadConfigData(path string) ([]byte, error) {
+	if path == "-" {
+		return io.ReadAll(os.Stdin)
+	}
+	return os.ReadFile(path) //nolint:gosec // Config path from user CLI
 }
 
 func usage() {
