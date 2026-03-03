@@ -413,11 +413,11 @@ for _, c := range nlriPool.Release(h) {
 - [x] Implement round-robin scheduler (Issue #3) - ✅ Added `lastIndex` cursor
 
 ### Implementation Phase (Current)
-- [ ] Create `internal/attrpool/handle.go` - Handle type (30m)
-- [ ] Create `internal/attrpool/pool.go` - Core Pool type (2-3h)
-- [ ] Create `internal/attrpool/pool_test.go` - Core tests (1h)
-- [ ] Create `internal/attrpool/compaction.go` - Compaction logic (1h)
-- [ ] Create `internal/attrpool/scheduler.go` - CompactionScheduler (45m)
+- [ ] Create `internal/component/bgp/attrpool/handle.go` - Handle type (30m)
+- [ ] Create `internal/component/bgp/attrpool/pool.go` - Core Pool type (2-3h)
+- [ ] Create `internal/component/bgp/attrpool/pool_test.go` - Core tests (1h)
+- [ ] Create `internal/component/bgp/attrpool/compaction.go` - Compaction logic (1h)
+- [ ] Create `internal/component/bgp/attrpool/scheduler.go` - CompactionScheduler (45m)
 
 ### Before Testing
 - [ ] Add debug handle validation (Issue #4) - debug.go/debug_release.go (30m)

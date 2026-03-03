@@ -546,18 +546,18 @@ Duplicate paths are **rejected with error**. Each path must be unique within a T
 
 ## Files to Create
 
-- `internal/env/env.go` - Shared env var handling (extract from slogutil)
-- `internal/env/env_test.go` - Tests for env handling
+- `internal/config/env/env.go` - Shared env var handling (extract from slogutil)
+- `internal/config/env/env_test.go` - Tests for env handling
 - `internal/tmpfs/tmpfs.go` - Core Tmpfs parser and types
 - `internal/tmpfs/tmpfs_test.go` - Unit tests
 - `internal/tmpfs/security_test.go` - Security boundary tests
-- `internal/tmpfs/limits.go` - Constants and limit checking (uses internal/env)
+- `internal/tmpfs/limits.go` - Constants and limit checking (uses internal/config/env)
 - `internal/tmpfs/write.go` - Temp dir creation and file writing
 - `internal/tmpfs/cleanup.go` - Signal handling and cleanup
 
 ## Files to Modify
 
-- `internal/slogutil/slogutil.go` - Use internal/env instead of private getEnv
+- `internal/slogutil/slogutil.go` - Use internal/config/env instead of private getEnv
 - `internal/test/ci/ciformat.go` - Integrate Tmpfs parsing
 - `internal/test/runner/record.go` - Use Tmpfs for test execution, config rewriting
 
@@ -631,7 +631,7 @@ func rewriteConfig(config string, tmpfs *Tmpfs) string {
 
 ### Python Interpreter Selection
 
-Environment variable overrides default (uses `internal/env`):
+Environment variable overrides default (uses `internal/config/env`):
 
 | `ze.bgp.path.python` / `zebgp_path_python` | Interpreter Used |
 |-------------------------------------------|------------------|

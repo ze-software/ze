@@ -1044,7 +1044,7 @@ func DetermineMode(peers []PeerConfig) UpdateMode {
 
 ### Phase 1: Pool Core ✅
 
-**File:** `internal/attrpool/pool.go`
+**File:** `internal/component/bgp/attrpool/pool.go`
 
 > **Note:** The implementation uses a hybrid handle layout. See `docs/architecture/pool-architecture.md` for current design.
 
@@ -1078,7 +1078,7 @@ func (p *Pool) ReleaseBySlot(slotIdx uint32) error
 
 ### Phase 2: Global Pool
 
-**File:** `internal/attrpool/global.go`
+**File:** `internal/component/bgp/attrpool/global.go`
 
 ```go
 // Global pool shared across all peers
@@ -1179,7 +1179,7 @@ type FamilyRIB struct {
 
 **Status:** Not needed for MVP. Pool grows without reclaiming. Add when memory pressure matters.
 
-**File:** `internal/attrpool/scheduler.go`
+**File:** `internal/component/bgp/attrpool/scheduler.go`
 
 #### The Problem: Fragmentation
 
@@ -1362,15 +1362,15 @@ For route reflectors forwarding same UPDATE to many peers → significant saving
 ## Checklist
 
 ### Phase 1: Pool Core ✅
-- [x] Implement `internal/attrpool/pool.go`
-- [x] Implement `internal/attrpool/handle.go`
+- [x] Implement `internal/component/bgp/attrpool/pool.go`
+- [x] Implement `internal/component/bgp/attrpool/handle.go`
 - [x] Implement `pool.Lookup()` for read-only handle lookup
 - [x] Tests for Intern/Get/Lookup/AddRef/Release
 - [x] Tests for deduplication
 - [x] Tests for concurrent access
 
 ### Phase 2: Global Pool
-- [ ] Create `internal/attrpool/global.go` with single global pool
+- [ ] Create `internal/component/bgp/attrpool/global.go` with single global pool
 - [ ] Add `Attrs` and `NLRIs` aliases pointing to same pool
 - [ ] Remove old separate pools if they exist
 
@@ -1483,7 +1483,7 @@ See `docs/plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Dedup
 
 **Dependencies:**
 - `internal/plugins/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
-- `internal/attrpool/pool.go` - Pool infrastructure (exists, extend)
+- `internal/component/bgp/attrpool/pool.go` - Pool infrastructure (exists, extend)
 
 ---
 

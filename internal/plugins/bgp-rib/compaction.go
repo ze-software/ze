@@ -6,7 +6,7 @@ package bgp_rib
 import (
 	"context"
 
-	"codeberg.org/thomas-mangin/ze/internal/attrpool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 )
 
 // runCompaction runs the compaction scheduler for the given pools.

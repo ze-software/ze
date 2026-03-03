@@ -3,7 +3,7 @@ package pool
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/attrpool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

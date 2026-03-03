@@ -16,7 +16,7 @@ Rename "ze-bgp" to "ze bgp" across the entire codebase:
 
 **Key insights:**
 - 2418 occurrences across 420 files
-- Environment variables handled in `internal/env/env.go` with "zebgp." prefix
+- Environment variables handled in `internal/config/env/env.go` with "zebgp." prefix
 - CLI entry point in `cmd/ze/bgp/main.go`
 
 ## Scope
@@ -58,7 +58,7 @@ Directory changes:
 | `zebgp_*` (underscore) | `ze_bgp_*` |
 
 Files affected:
-- `internal/env/env.go` - prefix change
+- `internal/config/env/env.go` - prefix change
 
 ### 4. Documentation Updates
 All `.md` files with "ze-bgp" references:
@@ -84,7 +84,7 @@ All `.md` files with "ze-bgp" references:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEnvPrefix` | `internal/env/env_test.go` | New `ze.bgp.` prefix works | |
+| `TestEnvPrefix` | `internal/config/env/env_test.go` | New `ze.bgp.` prefix works | |
 | `TestCLIHelp` | `cmd/ze/cli_test.go` | Help shows `ze bgp` usage | |
 
 ### Functional Tests
@@ -96,8 +96,8 @@ All `.md` files with "ze-bgp" references:
 
 ### Core Changes
 - `go.mod` - module path
-- `internal/env/env.go` - prefix from "ze-bgp" to "ze.bgp"
-- `internal/env/env_test.go` - update test expectations
+- `internal/config/env/env.go` - prefix from "ze-bgp" to "ze.bgp"
+- `internal/config/env/env_test.go` - update test expectations
 - `internal/slogutil/slogutil.go` - comments reference prefix
 - `Makefile` - binary names
 
@@ -119,7 +119,7 @@ All `.md` files with "ze-bgp" references:
 
 1. **Update go.mod** - Change module path
 2. **Update imports** - Mass replace in all Go files
-3. **Update env prefix** - Change "ze-bgp" to "ze.bgp" in internal/env/env.go
+3. **Update env prefix** - Change "ze-bgp" to "ze.bgp" in internal/config/env/env.go
 4. **Restructure CLI** - Create `cmd/ze/` with `bgp` subcommand
 5. **Rename test binaries** - `ze-peer`, `ze-test`
 6. **Update Makefile** - New binary paths
@@ -139,8 +139,8 @@ find . -name "*.go" -exec sed -i '' 's|codeberg.org/thomas-mangin/ze|codeberg.or
 ```
 
 ### Phase 2: Environment Variables
-- `internal/env/env.go`: "zebgp." → "ze.bgp."
-- `internal/env/env_test.go`: update expectations
+- `internal/config/env/env.go`: "zebgp." → "ze.bgp."
+- `internal/config/env/env_test.go`: update expectations
 
 ### Phase 3: CLI Restructure (Option A)
 - Create `cmd/ze/main.go` with `bgp` subcommand dispatch

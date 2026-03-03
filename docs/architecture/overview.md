@@ -222,7 +222,7 @@ BGP capabilities and negotiation:
 - Extended Message, Route Refresh
 - Graceful Restart
 
-### 4.8 Pool (`internal/attrpool/`)
+### 4.8 Pool (`internal/component/bgp/attrpool/`)
 
 Memory-efficient deduplication:
 - Per-attribute-type pools

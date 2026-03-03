@@ -63,7 +63,7 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 - [ ] `internal/plugins/bgp-rib/storage/routeentry.go` - RouteEntry with per-attribute pool handles
 - [ ] `internal/plugins/bgp-rib/storage/familyrib.go` - per-family NLRI → RouteEntry
 - [ ] `internal/plugins/bgp-rib/pool/attributes.go` - 13 per-attribute-type pools
-- [ ] `internal/attrpool/` - generic pool implementation
+- [ ] `internal/component/bgp/attrpool/` - generic pool implementation
 
 **Behavior to preserve:**
 - (to be documented after reading source files)

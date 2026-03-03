@@ -10,7 +10,7 @@
 | Concept | Description |
 |---------|-------------|
 | **Purpose** | Deduplicate attributes/NLRIs in API programs |
-| **Location** | API program (Go: `internal/attrpool/`, Python/Rust: implement equivalent) |
+| **Location** | API program (Go: `internal/component/bgp/attrpool/`, Python/Rust: implement equivalent) |
 | **Key Pattern** | Double-buffer with hybrid handles: `Handle = bufferBit(1) \| poolIdx(5) \| flags(2) \| slot(24)` |
 | **Core Types** | `Handle`, `Pool`, `Scheduler` |
 | **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.Release()`, `Pool.MigrateBatch()` |
@@ -208,7 +208,7 @@ Handles encode buffer bit, pool index, and slot in a 32-bit value:
 | PoolIdx | 5 | 0-30 (31 reserved) | Pool validation |
 | Slot | 26 | 0-67M | Entry index |
 
-**Implementation** (`internal/attrpool/handle.go`):
+**Implementation** (`internal/component/bgp/attrpool/handle.go`):
 
 ```go
 type Handle uint32
@@ -676,7 +676,7 @@ When buffer capacity is exceeded, the pool must:
 
 **Cost:** O(live slots) iteration, but only happens on buffer growth (rare in steady state).
 
-**Implementation:** See `internal/attrpool/pool.go:rebuildIndex()`
+**Implementation:** See `internal/component/bgp/attrpool/pool.go:rebuildIndex()`
 
 ---
 
@@ -809,7 +809,7 @@ entry, _ := storage.ParseAttributes(attrBytes)  // Parses into per-type handles
 ## Related Docs
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
-- `internal/attrpool/` - Pool implementation
+- `internal/component/bgp/attrpool/` - Pool implementation
 - `internal/plugin/rib/storage/` - RIB storage using pool
 - `internal/plugin/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
 

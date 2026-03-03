@@ -3,7 +3,7 @@
 package storage
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/attrpool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/plugins/bgp-rib/pool"
 )
 

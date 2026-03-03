@@ -6,7 +6,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/architecture/pool-architecture.md` - pool design
-4. `internal/attrpool/handle.go` - handle bit layout
+4. `internal/component/bgp/attrpool/handle.go` - handle bit layout
 5. `internal/plugins/bgp-rib/rib.go` - plugin entry point
 
 ## Task
@@ -41,14 +41,14 @@ N/A — this is infrastructure, not protocol work.
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/attrpool/handle.go` (115L) — Handle uint32 with BufferBit(1) + PoolIdx(5) + Flags(2) + Slot(24)
+- [ ] `internal/component/bgp/attrpool/handle.go` (115L) — Handle uint32 with BufferBit(1) + PoolIdx(5) + Flags(2) + Slot(24)
   → Constraint: InvalidHandle = 0xFFFFFFFF (poolIdx=31)
   → Constraint: IsValid() checks poolIdx < 31
   → Constraint: Flags always passed as 0 — HasPathID never set
-- [ ] `internal/attrpool/pool.go` (746L) — Pool struct with double-buffer, Intern/Get/Release, Compact(), StartCompaction/MigrateBatch
+- [ ] `internal/component/bgp/attrpool/pool.go` (746L) — Pool struct with double-buffer, Intern/Get/Release, Compact(), StartCompaction/MigrateBatch
   → Constraint: Intern() creates handles with flags=0 (line 244: `NewHandleWithBuffer(bufIdx, p.idx, 0, slotIdx)`)
   → Constraint: MigrateBatch also hardcodes flags=0 (line 512: `NewHandleWithBuffer(newBit, p.idx, 0, p.compactCursor)`)
-- [ ] `internal/attrpool/scheduler.go` (153L) — Round-robin scheduler, uses MigrateBatch for incremental compaction
+- [ ] `internal/component/bgp/attrpool/scheduler.go` (153L) — Round-robin scheduler, uses MigrateBatch for incremental compaction
   → Constraint: Respects QuietPeriod via Touch()/IsIdle()
   → Constraint: Only one pool compacts at a time — already correct design
 - [ ] `internal/plugins/bgp-rib/pool/attributes.go` (68L) — 13 global pool instances, idx 2-14
@@ -131,9 +131,9 @@ N/A — this is infrastructure, not protocol work.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestHandleWithoutFlags` | `internal/attrpool/handle_test.go` | AC-1, AC-2: Handle layout encodes/decodes without flags | |
-| `TestHandleWithoutFlagsInvalidHandle` | `internal/attrpool/handle_test.go` | AC-1: InvalidHandle sentinel still works | |
-| `TestHandleWithoutFlagsMaxSlot` | `internal/attrpool/handle_test.go` | AC-1: 26-bit slot max value (67,108,863) | |
+| `TestHandleWithoutFlags` | `internal/component/bgp/attrpool/handle_test.go` | AC-1, AC-2: Handle layout encodes/decodes without flags | |
+| `TestHandleWithoutFlagsInvalidHandle` | `internal/component/bgp/attrpool/handle_test.go` | AC-1: InvalidHandle sentinel still works | |
+| `TestHandleWithoutFlagsMaxSlot` | `internal/component/bgp/attrpool/handle_test.go` | AC-1: 26-bit slot max value (67,108,863) | |
 | `TestCompactionSchedulerStartsOnPluginStartup` | `internal/plugins/bgp-rib/compaction_test.go` | AC-3: Scheduler starts in OnStarted | |
 | `TestCompactionSchedulerStopsOnShutdown` | `internal/plugins/bgp-rib/compaction_test.go` | AC-4: Scheduler exits on context cancel | |
 | `TestSchedulerCompactsAfterChurn` | `internal/plugins/bgp-rib/compaction_test.go` | AC-5: Dead bytes reclaimed after churn | |
@@ -152,9 +152,9 @@ None — all tests listed above are required.
 
 ## Files to Modify
 
-- `internal/attrpool/handle.go` — Remove Flags field: BufferBit(1) + PoolIdx(5) + Slot(26). Remove Flags(), HasPathID(), WithFlags(). Update NewHandle/NewHandleWithBuffer signatures (drop flags param).
-- `internal/attrpool/pool.go` — Update calls to NewHandle/NewHandleWithBuffer (remove flags=0 arg). No other changes — double-buffer and all methods preserved.
-- `internal/attrpool/handle_test.go` — Update tests for new layout, remove flags-related tests.
+- `internal/component/bgp/attrpool/handle.go` — Remove Flags field: BufferBit(1) + PoolIdx(5) + Slot(26). Remove Flags(), HasPathID(), WithFlags(). Update NewHandle/NewHandleWithBuffer signatures (drop flags param).
+- `internal/component/bgp/attrpool/pool.go` — Update calls to NewHandle/NewHandleWithBuffer (remove flags=0 arg). No other changes — double-buffer and all methods preserved.
+- `internal/component/bgp/attrpool/handle_test.go` — Update tests for new layout, remove flags-related tests.
 - `internal/plugins/bgp-rib/rib.go` — Wire scheduler: construct with AllPools() in OnStarted, run in goroutine with plugin context.
 - `internal/plugins/bgp-rib/pool/attributes.go` — Add `AllPools() []*attrpool.Pool` returning all 13 pools.
 - `docs/architecture/pool-architecture.md` — Update handle layout diagram (remove Flags bits), add scheduler wiring section.
@@ -292,9 +292,9 @@ N/A — infrastructure change, no protocol impact.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
-| `internal/attrpool/handle.go` | ✅ Done | Removed Flags field, updated layout |
-| `internal/attrpool/pool.go` | ✅ Done | Updated 3 NewHandleWithBuffer calls |
-| `internal/attrpool/handle_test.go` | ✅ Done | Rewritten for new layout + boundary + fuzz |
+| `internal/component/bgp/attrpool/handle.go` | ✅ Done | Removed Flags field, updated layout |
+| `internal/component/bgp/attrpool/pool.go` | ✅ Done | Updated 3 NewHandleWithBuffer calls |
+| `internal/component/bgp/attrpool/handle_test.go` | ✅ Done | Rewritten for new layout + boundary + fuzz |
 | `internal/plugins/bgp-rib/rib.go` | ✅ Done | OnStarted wiring + pool import + cross-ref |
 | `internal/plugins/bgp-rib/compaction.go` | ✅ Created | runCompaction thin wiring |
 | `internal/plugins/bgp-rib/compaction_test.go` | ✅ Created | 3 wiring tests |

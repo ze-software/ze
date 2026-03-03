@@ -254,7 +254,7 @@ func packUpdateWithLimit(attrs []byte, nlris []nlri.NLRI, maxSize int) (*Update,
 
 Mitigation options:
 1. **Per-peer route limits** - Configure max routes per adj-rib-out
-2. **Shared attribute storage** - Use internal/store for deduplication
+2. **Shared attribute storage** - Use internal/component/bgp/store for deduplication
 3. **No wire cache** - Trade memory for CPU (re-encode on replay)
 
 ## Testing Strategy
