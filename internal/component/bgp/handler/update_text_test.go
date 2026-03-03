@@ -1174,18 +1174,6 @@ func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                       
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error            { return nil }
 func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON                     { return nil }
 func (m *mockReactorBatch) RIBStats() bgptypes.RIBStatsInfo                          { return bgptypes.RIBStatsInfo{} }
-func (m *mockReactorBatch) BeginTransaction(_, _ string) error                       { return nil }
-func (m *mockReactorBatch) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, nil
-}
-func (m *mockReactorBatch) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, nil
-}
-func (m *mockReactorBatch) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, nil
-}
-func (m *mockReactorBatch) InTransaction(_ string) bool   { return false }
-func (m *mockReactorBatch) TransactionID(_ string) string { return "" }
 func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{}, nil
 }

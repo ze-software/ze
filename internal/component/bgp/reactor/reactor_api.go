@@ -709,37 +709,6 @@ func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
 	return ""
 }
 
-// Transaction support for commit-based batching.
-// Note: Per-peer Adj-RIB-Out transactions removed. Use CommitManager instead.
-
-// BeginTransaction starts a new transaction for batched route updates.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> start".
-func (a *reactorAPIAdapter) BeginTransaction(peerSelector, label string) error {
-	return errors.New("per-peer transactions removed; use 'commit <name> start' instead")
-}
-
-// CommitTransaction commits the current transaction.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
-}
-
-// CommitTransactionWithLabel commits, verifying the label matches.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
-}
-
-// RollbackTransaction discards all queued routes in the transaction.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> rollback".
-func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
-}
-
 // getMatchingPeers returns peers matching the selector.
 // Supports: "*" (all peers), exact IP, glob patterns (e.g., "192.168.*.*"),
 // or "!addr" exclusion (all peers except the named one).
@@ -851,20 +820,6 @@ func ipGlobMatch(pattern, ip string) bool {
 
 	// For IPv6 or exact match, just compare strings
 	return pattern == ip
-}
-
-// InTransaction returns true if any matching peer has an active transaction.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Always returns false.
-func (a *reactorAPIAdapter) InTransaction(peerSelector string) bool {
-	return false
-}
-
-// TransactionID returns the transaction label for the first matching peer.
-//
-// Deprecated: Per-peer Adj-RIB-Out removed. Always returns empty string.
-func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
-	return ""
 }
 
 // SignalAPIReady signals that an API process is ready.

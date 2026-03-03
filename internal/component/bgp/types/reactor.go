@@ -104,38 +104,6 @@ type BGPReactor interface {
 	// ClearRIBIn clears all routes in Adj-RIB-In. Returns count cleared.
 	ClearRIBIn() int
 
-	// --- Transactions (6 methods) ---
-
-	// BeginTransaction starts a new transaction with optional label.
-	//
-	// Deprecated: Use "commit <name> start" instead.
-	BeginTransaction(peerSelector, label string) error
-
-	// CommitTransaction commits the current transaction.
-	//
-	// Deprecated: Use "commit <name> end" instead.
-	CommitTransaction(peerSelector string) (TransactionResult, error)
-
-	// CommitTransactionWithLabel commits, verifying the label matches.
-	//
-	// Deprecated: Use "commit <name> end" instead.
-	CommitTransactionWithLabel(peerSelector, label string) (TransactionResult, error)
-
-	// RollbackTransaction discards all queued routes in the transaction.
-	//
-	// Deprecated: Use "commit <name> rollback" instead.
-	RollbackTransaction(peerSelector string) (TransactionResult, error)
-
-	// InTransaction returns true if a transaction is active.
-	//
-	// Deprecated: Always returns false.
-	InTransaction(peerSelector string) bool
-
-	// TransactionID returns the current transaction label.
-	//
-	// Deprecated: Always returns empty string.
-	TransactionID(peerSelector string) string
-
 	// --- Commit (1 method) ---
 
 	// SendRoutes sends routes directly to matching peers using CommitService.

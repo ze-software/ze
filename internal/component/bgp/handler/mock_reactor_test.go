@@ -145,20 +145,6 @@ func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }
 func (m *mockReactor) ClearRIBIn() int                      { return 0 }
 
-// Transaction stubs.
-func (m *mockReactor) BeginTransaction(_, _ string) error { return rib.ErrNoTransaction }
-func (m *mockReactor) CommitTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
-}
-func (m *mockReactor) CommitTransactionWithLabel(_, _ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
-}
-func (m *mockReactor) RollbackTransaction(_ string) (bgptypes.TransactionResult, error) {
-	return bgptypes.TransactionResult{}, rib.ErrNoTransaction
-}
-func (m *mockReactor) InTransaction(_ string) bool   { return false }
-func (m *mockReactor) TransactionID(_ string) string { return "" }
-
 func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (bgptypes.TransactionResult, error) {
 	return bgptypes.TransactionResult{
 		RoutesAnnounced: len(routes),
