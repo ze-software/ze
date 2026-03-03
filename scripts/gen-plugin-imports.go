@@ -115,7 +115,7 @@ func discoverPlugins(pluginsDir string) ([]string, error) {
 }
 
 // discoverSchemaPackages finds schema packages that register YANG modules.
-// Scans for schema/register.go files that import yang/registry.
+// Scans for schema/register.go files that import the yang package.
 // Excludes packages under internal/plugins/ (covered by plugin imports).
 func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 	var imports []string
@@ -136,8 +136,8 @@ func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 		if strings.HasPrefix(rel, "plugins/") {
 			return nil
 		}
-		// Verify it imports yang/registry
-		if !fileImports(path, "yang/registry") {
+		// Verify it imports the yang package (for RegisterModule)
+		if !fileImports(path, "config/yang") {
 			return nil
 		}
 		// Convert directory to import path

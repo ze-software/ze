@@ -1,9 +1,9 @@
 package schema
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 func init() {
-	registry.RegisterModule("ze-graceful-restart.yang", ZeGracefulRestartYANG)
+	yang.RegisterModule("ze-graceful-restart.yang", ZeGracefulRestartYANG)
 }

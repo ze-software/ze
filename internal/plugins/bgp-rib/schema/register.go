@@ -1,10 +1,10 @@
 package schema
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 func init() {
-	registry.RegisterModule("ze-rib.yang", ZeRibYANG)
-	registry.RegisterModule("ze-rib-api.yang", ZeRibAPIYANG)
+	yang.RegisterModule("ze-rib.yang", ZeRibYANG)
+	yang.RegisterModule("ze-rib-api.yang", ZeRibAPIYANG)
 }

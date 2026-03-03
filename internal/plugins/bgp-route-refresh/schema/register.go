@@ -1,9 +1,9 @@
 package schema
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 func init() {
-	registry.RegisterModule("ze-route-refresh.yang", ZeRouteRefreshYANG)
+	yang.RegisterModule("ze-route-refresh.yang", ZeRouteRefreshYANG)
 }

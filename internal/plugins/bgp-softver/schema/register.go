@@ -1,9 +1,9 @@
 package schema
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 func init() {
-	registry.RegisterModule("ze-softver.yang", ZeSoftverYANG)
+	yang.RegisterModule("ze-softver.yang", ZeSoftverYANG)
 }

@@ -1,10 +1,10 @@
 package schema
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 func init() {
-	registry.RegisterModule("ze-bgp-conf.yang", ZeBGPConfYANG)
-	registry.RegisterModule("ze-bgp-api.yang", ZeBGPAPIYANG)
+	yang.RegisterModule("ze-bgp-conf.yang", ZeBGPConfYANG)
+	yang.RegisterModule("ze-bgp-api.yang", ZeBGPAPIYANG)
 }

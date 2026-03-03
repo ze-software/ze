@@ -8,8 +8,6 @@ import (
 	"fmt"
 
 	"github.com/openconfig/goyang/pkg/yang"
-
-	"codeberg.org/thomas-mangin/ze/internal/component/config/yang/registry"
 )
 
 //go:embed modules
@@ -52,7 +50,7 @@ func (l *Loader) LoadEmbedded() error {
 // LoadRegistered loads all init()-registered YANG modules into the loader.
 // Call after LoadEmbedded() and before Resolve().
 func (l *Loader) LoadRegistered() error {
-	for _, mod := range registry.Modules() {
+	for _, mod := range modules {
 		if err := l.AddModuleFromText(mod.Name, mod.Content); err != nil {
 			return err
 		}
