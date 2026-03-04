@@ -37,6 +37,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
 // reactorLogger is the reactor subsystem logger (lazy initialization).
@@ -1110,18 +1111,7 @@ func (r *Reactor) validatePeerFamilies(peers map[string]*Peer) error {
 
 // Wait waits for the reactor to stop.
 func (r *Reactor) Wait(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		r.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return syncutil.WaitGroupWait(ctx, &r.wg)
 }
 
 // monitor watches for shutdown and cleans up.

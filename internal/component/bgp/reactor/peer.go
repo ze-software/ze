@@ -30,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/source"
+	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
 // peerLogger is the peer subsystem logger (lazy initialization).
@@ -693,18 +694,7 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 
 // Wait waits for the peer to stop.
 func (p *Peer) Wait(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		p.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return syncutil.WaitGroupWait(ctx, &p.wg)
 }
 
 // run is the main peer loop.

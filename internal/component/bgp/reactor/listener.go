@@ -10,6 +10,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
 // Listener errors.
@@ -134,18 +135,7 @@ func (l *Listener) Stop() {
 
 // Wait waits for the listener to stop.
 func (l *Listener) Wait(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		l.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return syncutil.WaitGroupWait(ctx, &l.wg)
 }
 
 // acceptLoop accepts connections until stopped.

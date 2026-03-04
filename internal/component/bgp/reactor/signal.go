@@ -8,6 +8,8 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
 // SignalCallback is called when a signal is received.
@@ -112,18 +114,7 @@ func (h *SignalHandler) Stop() {
 
 // Wait waits for the handler to stop.
 func (h *SignalHandler) Wait(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		h.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return syncutil.WaitGroupWait(ctx, &h.wg)
 }
 
 // run is the main signal handling loop.

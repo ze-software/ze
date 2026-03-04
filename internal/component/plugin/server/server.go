@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
 )
 
 // logger is the plugin server subsystem logger (lazy initialization).
@@ -272,18 +273,7 @@ func (s *Server) Stop() {
 
 // Wait waits for the server to stop.
 func (s *Server) Wait(ctx context.Context) error {
-	done := make(chan struct{})
-	go func() {
-		s.wg.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
-	}
+	return syncutil.WaitGroupWait(ctx, &s.wg)
 }
 
 // acceptLoop accepts incoming connections.
