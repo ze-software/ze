@@ -281,15 +281,7 @@ func parseVPNNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI,
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
-	if err != nil {
-		return nil, 0, fmt.Errorf("vpn encode: %w", err)
-	}
-	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
-	if err != nil {
-		return nil, 0, fmt.Errorf("vpn hex decode: %w", err)
-	}
-	wire, err := nlri.NewWireNLRI(family, wireBytes, accum.PathID != 0)
+	wire, err := encodeViaRegistry(family, encodeArgs, accum.PathID != 0)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -328,19 +320,46 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
-	if err != nil {
-		return nil, 0, fmt.Errorf("labeled encode: %w", err)
-	}
-	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
-	if err != nil {
-		return nil, 0, fmt.Errorf("labeled hex decode: %w", err)
-	}
-	wire, err := nlri.NewWireNLRI(family, wireBytes, accum.PathID != 0)
+	wire, err := encodeViaRegistry(family, encodeArgs, accum.PathID != 0)
 	if err != nil {
 		return nil, 0, err
 	}
 	return wire, 0, nil
+}
+
+// encodeViaRegistry encodes NLRI args via the plugin registry and wraps as WireNLRI.
+// Common encode tail for all family-specific section parsers.
+func encodeViaRegistry(family nlri.Family, args []string, hasAddPath bool) (nlri.NLRI, error) {
+	hexStr, err := registry.EncodeNLRIByFamily(family.String(), args)
+	if err != nil {
+		return nil, fmt.Errorf("%s encode: %w", family, err)
+	}
+	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	if err != nil {
+		return nil, fmt.Errorf("%s hex decode: %w", family, err)
+	}
+	return nlri.NewWireNLRI(family, wireBytes, hasAddPath)
+}
+
+// buildNLRIResult constructs a section parse result with empty-check validation.
+func buildNLRIResult(family nlri.Family, announce, withdraw []nlri.NLRI, consumed int) (nlriParseResult, error) {
+	if len(announce) == 0 && len(withdraw) == 0 {
+		return nlriParseResult{}, route.ErrEmptyNLRISection
+	}
+	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
+}
+
+// buildSingleNLRIResult wraps one NLRI into announce or withdraw based on mode.
+// Used by section parsers (EVPN, VPLS) that produce exactly one NLRI.
+func buildSingleNLRIResult(family nlri.Family, mode string, n nlri.NLRI, consumed int) (nlriParseResult, error) {
+	switch mode {
+	case kwAdd:
+		return buildNLRIResult(family, []nlri.NLRI{n}, nil, consumed)
+	case kwDel:
+		return buildNLRIResult(family, nil, []nlri.NLRI{n}, consumed)
+	default: // no mode set — neither add nor del was specified
+		return nlriParseResult{}, route.ErrEmptyNLRISection
+	}
 }
 
 // isSupportedFamily returns true if the family is supported in text mode.

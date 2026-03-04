@@ -4,15 +4,12 @@
 package handler
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"strconv"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // VPLS NLRI keywords for text parsing.
@@ -43,7 +40,6 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 	i := 2
 
 	mode := "" // "", "add", or "del"
-	var announce, withdraw []nlri.NLRI
 
 	// VPLS fields
 	var rd nlri.RouteDistinguisher
@@ -160,30 +156,10 @@ func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 		"label-base", strconv.FormatUint(uint64(labelBase), 10),
 	}
 
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
-	if err != nil {
-		return nlriParseResult{}, fmt.Errorf("vpls encode: %w", err)
-	}
-	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
-	if err != nil {
-		return nlriParseResult{}, fmt.Errorf("vpls hex decode: %w", err)
-	}
-	vplsNLRI, err := nlri.NewWireNLRI(family, wireBytes, false)
+	vplsNLRI, err := encodeViaRegistry(family, encodeArgs, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
 
-	// Add to appropriate list
-	switch mode {
-	case kwAdd:
-		announce = append(announce, vplsNLRI)
-	case kwDel:
-		withdraw = append(withdraw, vplsNLRI)
-	}
-
-	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlriParseResult{}, route.ErrEmptyNLRISection
-	}
-
-	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
+	return buildSingleNLRIResult(family, mode, vplsNLRI, consumed)
 }

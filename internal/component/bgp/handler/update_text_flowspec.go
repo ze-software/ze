@@ -4,14 +4,11 @@
 package handler
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // isFlowSpecBoundary returns true if token ends FlowSpec section (next section starts).
@@ -80,11 +77,7 @@ func parseFlowSpecSection(args []string, family nlri.Family) (nlriParseResult, e
 		consumed += extra
 	}
 
-	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlriParseResult{}, route.ErrEmptyNLRISection
-	}
-
-	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
+	return buildNLRIResult(family, announce, withdraw, consumed)
 }
 
 // parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
@@ -144,19 +137,9 @@ func parseFlowSpecComponents(args []string, family nlri.Family) (nlri.NLRI, int,
 	}
 	pluginArgs = append(pluginArgs, args[start:i]...)
 
-	// Call flowspec encoder via registry (in-process fast path)
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), pluginArgs)
-	if err != nil {
-		return nil, 0, fmt.Errorf("flowspec encode: %w", err)
-	}
-	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
-	if err != nil {
-		return nil, 0, fmt.Errorf("flowspec hex decode: %w", err)
-	}
-
-	// Return WireNLRI wrapping the encoded bytes
-	// FlowSpec doesn't support ADD-PATH per RFC 8955
-	wire, err := nlri.NewWireNLRI(family, wireBytes, false)
+	// Call encoder via registry (in-process fast path).
+	// FlowSpec doesn't support ADD-PATH per RFC 8955.
+	wire, err := encodeViaRegistry(family, pluginArgs, false)
 	if err != nil {
 		return nil, 0, err
 	}

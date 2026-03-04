@@ -5,7 +5,6 @@
 package handler
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -14,7 +13,6 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/route"
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
 // EVPN route type keywords.
@@ -51,7 +49,6 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 	i := 2
 
 	mode := "" // "", "add", or "del"
-	var announce, withdraw []nlri.NLRI
 
 	// EVPN common fields
 	var rd nlri.RouteDistinguisher
@@ -279,32 +276,12 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlriParse
 			"ip", originatorIP.String())
 	}
 
-	hexStr, err := registry.EncodeNLRIByFamily(family.String(), encodeArgs)
-	if err != nil {
-		return nlriParseResult{}, fmt.Errorf("evpn encode: %w", err)
-	}
-	evpnBytes, err := hex.DecodeString(strings.ToLower(hexStr))
-	if err != nil {
-		return nlriParseResult{}, fmt.Errorf("evpn hex decode: %w", err)
-	}
-	evpnNLRI, err := nlri.NewWireNLRI(family, evpnBytes, false)
+	evpnNLRI, err := encodeViaRegistry(family, encodeArgs, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}
 
-	// Add to appropriate list
-	switch mode {
-	case kwAdd:
-		announce = append(announce, evpnNLRI)
-	case kwDel:
-		withdraw = append(withdraw, evpnNLRI)
-	}
-
-	if len(announce) == 0 && len(withdraw) == 0 {
-		return nlriParseResult{}, route.ErrEmptyNLRISection
-	}
-
-	return nlriParseResult{Family: family, Announce: announce, Withdraw: withdraw, Consumed: consumed}, nil
+	return buildSingleNLRIResult(family, mode, evpnNLRI, consumed)
 }
 
 // parseMAC parses a MAC address string (e.g., "00:11:22:33:44:55").
