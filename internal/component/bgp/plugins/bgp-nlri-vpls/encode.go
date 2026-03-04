@@ -19,7 +19,7 @@ import (
 // Args format: ["rd", "1:1", "ve-id", "1", "ve-block-offset", "0", "ve-block-size", "10", "label-base", "100"]
 // This implements the InProcessNLRIEncoder signature for the plugin registry.
 func EncodeNLRIHex(family string, args []string) (string, error) {
-	if family != "l2vpn/vpls" {
+	if family != familyVPLS {
 		return "", fmt.Errorf("unsupported family for VPLS: %s", family)
 	}
 

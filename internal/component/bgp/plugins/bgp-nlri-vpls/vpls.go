@@ -18,6 +18,9 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
+// familyVPLS is the canonical address family string for VPLS.
+const familyVPLS = "l2vpn/vpls"
+
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
@@ -37,7 +40,7 @@ func RunVPLSPlugin(engineConn, callbackConn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Families: []sdk.FamilyDecl{
-			{Name: "l2vpn/vpls", Mode: "decode"},
+			{Name: familyVPLS, Mode: "decode"},
 		},
 	})
 	if err != nil {
@@ -51,7 +54,7 @@ func RunVPLSPlugin(engineConn, callbackConn net.Conn) int {
 // DecodeNLRIHex decodes VPLS NLRI from hex bytes, returning JSON.
 // This is the in-process fast path registered in the plugin registry.
 func DecodeNLRIHex(family, hexStr string) (string, error) {
-	if family != "l2vpn/vpls" {
+	if family != familyVPLS {
 		return "", fmt.Errorf("unsupported family: %s", family)
 	}
 
@@ -86,8 +89,8 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		_ = e
 	}
 
-	if family != "l2vpn/vpls" {
-		writeErr("error: invalid family: %s (expected l2vpn/vpls)\n", family)
+	if family != familyVPLS {
+		writeErr("error: invalid family: %s (expected %s)\n", family, familyVPLS)
 		return 1
 	}
 

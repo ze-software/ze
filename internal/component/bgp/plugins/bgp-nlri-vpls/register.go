@@ -18,7 +18,7 @@ func init() {
 		RFCs:                  []string{"4761", "4762"},
 		SupportsNLRI:          true,
 		Features:              "nlri",
-		Families:              []string{"l2vpn/vpls"},
+		Families:              []string{familyVPLS},
 		RunEngine:             RunVPLSPlugin,
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
@@ -33,7 +33,7 @@ func init() {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, _ *flag.FlagSet) int {
-			return RunCLIDecode(hex, "l2vpn/vpls", text, out, errOut)
+			return RunCLIDecode(hex, familyVPLS, text, out, errOut)
 		}
 		return cli.RunPlugin(cfg, args)
 	}
