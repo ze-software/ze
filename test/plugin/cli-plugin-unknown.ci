@@ -1,0 +1,6 @@
+# cli-plugin-unknown - verify ze plugin with unknown subcommand exits 1
+# Tests: CLI dispatch rejects unknown plugin names with error.
+
+cmd=foreground:seq=1:exec=ze plugin nonexistent-plugin-xyz
+expect=exit:code=1
+expect=stderr:contains=unknown plugin

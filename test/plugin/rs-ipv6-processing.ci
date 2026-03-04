@@ -1,0 +1,45 @@
+# rs-ipv6-processing - verify RS processes IPv6 UPDATE via MP_REACH_NLRI
+# Tests: RS plugin processes non-IPv4 UPDATE (MP_REACH_NLRI for IPv6 unicast).
+# Single-peer: exercises AFI/SAFI dispatching in RS without forwarding.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: Expect IPv6 EOR after session establishment
+# MP_UNREACH_NLRI: AFI=2 (IPv6), SAFI=1 (Unicast), no NLRI
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+
+# Step 2: Send IPv6 UPDATE announcing fc00:1::/64 via MP_REACH_NLRI
+# Path attrs: ORIGIN=IGP, AS_PATH=empty, LOCAL_PREF=100
+# MP_REACH_NLRI: AFI=2, SAFI=1, NH=2001::11 (16 bytes), NLRI=fc00:1::/64
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
+
+# Step 3: Send IPv6 withdrawal via MP_UNREACH_NLRI for fc00:1::/64
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0026020000000F800F0C00020140FC00000100000000
+EOF_PEER
+
+# ze bgp configuration with RS plugin and IPv6 family
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rr {
+		run "ze.bgp-rs";
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.2;
+		local-address 127.0.0.1;
+		local-as 65001;
+		peer-as 65001;
+		connection active;
+		group-updates disable;
+		family {
+			ipv6/unicast;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

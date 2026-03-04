@@ -1,0 +1,44 @@
+# rs-ipv4-withdrawal - verify RS processes IPv4 announce then withdrawal
+# Tests: RS plugin handles UPDATE with NLRI, then withdrawal for same prefix.
+# Single-peer: exercises RIB store/remove path without forwarding.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: Expect EOR (empty UPDATE for ipv4/unicast) after session establishment
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Step 2: Send UPDATE announcing 10.0.0.0/24
+# ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=10.0.1.1, LOCAL_PREF=100
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A00010140050400000064180A0000
+
+# Step 3: Send withdrawal for 10.0.0.0/24
+# Withdrawn Routes Length=4, Withdrawn=24 10.0.0 (10.0.0.0/24), Path Attrs Length=0
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00000000
+EOF_PEER
+
+# ze bgp configuration with internal RS plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external rr {
+		run "ze.bgp-rs";
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.2;
+		local-address 127.0.0.1;
+		local-as 65001;
+		peer-as 65001;
+		connection active;
+		group-updates disable;
+		family {
+			ipv4/unicast;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

@@ -1,0 +1,6 @@
+# cli-exabgp-help - verify ze exabgp --help exits 0 and shows usage
+# Tests: CLI dispatch correctly handles help flag for exabgp subcommand.
+
+cmd=foreground:seq=1:exec=ze exabgp --help
+expect=exit:code=0
+expect=stderr:contains=ExaBGP compatibility

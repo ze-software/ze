@@ -1,0 +1,6 @@
+# cli-plugin-help - verify ze plugin --help exits 0 and shows usage
+# Tests: CLI dispatch correctly handles help flag for plugin subcommand.
+
+cmd=foreground:seq=1:exec=ze plugin --help
+expect=exit:code=0
+expect=stderr:contains=ze plugin
