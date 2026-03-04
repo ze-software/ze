@@ -153,7 +153,7 @@ Also: remove dead environment fields (Phase 5 deferred from `docs/learned/334-ya
 |-------|-------------------|-------------------|
 | AC-1 | `internal/component/config/*.go` (non-test) | No imports of `reactor`, `capability`, `nlri`, `message`, `bgptypes` |
 | AC-2 | `internal/component/bgp/config/` | Contains all BGP-specific config files |
-| AC-3 | `make test-all` | All tests pass |
+| AC-3 | `make ze-test` | All tests pass |
 | AC-4 | `go build ./...` | No import cycles |
 | AC-5 | Dead environment fields | tcp.delay, tcp.acl, reactor.speed, reactor.cache-ttl removed from YANG |
 | AC-6 | Dead environment containers | bgp, cache, api containers removed from YANG |
@@ -230,7 +230,7 @@ N/A — pure refactoring, no new numeric inputs.
 2. Remove unused YANG containers: bgp, cache, api
 3. Remove corresponding `envOptions` entries and struct fields in `environment.go`
 4. Update environment tests
-5. Verify `make test-all`
+5. Verify `make ze-test`
 
 ### Failure Routing
 
@@ -297,7 +297,7 @@ N/A — pure refactoring, no new numeric inputs.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-7 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `make test-all` passes (lint + all ze tests)
+- [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

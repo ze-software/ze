@@ -26,7 +26,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-**BLOCKING:** `make test-all` (timeout 300s) is the ONLY acceptable verification before committing or claiming done. `make ze-verify` and `go test` are for development iterations only — never sufficient for commit readiness.
+**BLOCKING:** `make ze-test` (timeout 300s) is the ONLY acceptable verification before committing or claiming done. `make ze-verify` and `go test` are for development iterations only — never sufficient for commit readiness.
 
 ## Critical Reviews
 

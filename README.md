@@ -186,7 +186,7 @@ bin/ze config check config.conf
 bin/ze bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...
 
 # Run all tests
-make test-all
+make ze-test
 ```
 
 ### Configuration

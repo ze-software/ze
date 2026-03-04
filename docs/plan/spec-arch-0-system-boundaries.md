@@ -639,7 +639,7 @@ Tests are defined per child spec. The umbrella lists the top-level tests that pr
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-10 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `make test-all` passes (lint + all ze tests)
+- [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`, `pkg/*`)
 - [ ] Integration completeness proven end-to-end
 - [ ] Architecture docs updated

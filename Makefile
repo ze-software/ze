@@ -2,7 +2,7 @@
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
-.PHONY: test-all check
+.PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -170,12 +170,12 @@ ze-exabgp-test: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
 	./test/exabgp-compat/bin/functional encoding --timeout 60
 
-# Run all ze tests
-ze-test: ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
+# Run all ze tests (use before commits)
+ze-test: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test ze-fuzz-test
 	@echo "All ze tests passed"
 
-# Ze verification (use during development)
-ze-verify: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
+# All tests except fuzz (use during development)
+ze-verify: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test
 	@echo "Ze verification passed"
 
 # Ze CI check
@@ -218,12 +218,6 @@ ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 # Chaos verification
 ze-chaos-verify: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "Chaos verification passed"
-
-# ─── Aggregates ──────────────────────────────────────────────────────────────
-
-# Run ALL ze tests (use before commits)
-test-all: ze-lint ze-chaos-lint ze-test ze-chaos-test
-	@echo "All tests passed"
 
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
@@ -278,8 +272,8 @@ help:
 	@echo "  ze-exabgp-test        - Run ExaBGP compatibility tests only"
 	@echo "  ze-fuzz-test          - Run all fuzz tests (15s per target)"
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
-	@echo "  ze-test               - All ze tests (unit + functional + exabgp + fuzz)"
-	@echo "  ze-verify             - ze-lint + ze-unit-test + ze-functional-test (development)"
+	@echo "  ze-test               - All tests: lint + unit + functional + exabgp + chaos + fuzz (before commits)"
+	@echo "  ze-verify             - All tests except fuzz (development)"
 	@echo "  ze-ci                 - ze-lint + ze-unit-test + build"
 	@echo ""
 	@echo "  Chaos tests:"
@@ -289,9 +283,6 @@ help:
 	@echo "  ze-chaos-web-test        - Run chaos web dashboard HTTP tests"
 	@echo "  ze-chaos-test            - All chaos tests (unit + functional + web)"
 	@echo "  ze-chaos-verify          - ze-chaos-lint + all chaos tests"
-	@echo ""
-	@echo "  Aggregates:"
-	@echo "  test-all              - ze-lint + ze-test (before commits)"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"

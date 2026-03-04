@@ -65,11 +65,10 @@ Spec template: `docs/plan/TEMPLATE.md`.
 make ze-unit-test          # Unit tests with race detector
 make ze-functional-test    # Functional tests
 make ze-lint               # 26 linters
-make ze-verify             # lint + unit + functional
+make ze-verify             # All tests except fuzz (development)
 make ze-ci                 # lint + unit + build
-make ze-fuzz-test          # Fuzz tests (10s per target)
+make ze-fuzz-test          # Fuzz tests (15s per target)
 make ze-exabgp-test        # ExaBGP compatibility
-make ze-test               # All ze tests
 make ze-chaos-test         # Chaos unit + functional
-make test-all              # lint + all ze tests
+make ze-test               # All tests: lint + unit + functional + exabgp + chaos + fuzz (before commits)
 ```

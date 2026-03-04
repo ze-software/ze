@@ -92,7 +92,7 @@ make ze-test              # All ze tests (unit + functional + exabgp + fuzz)
 make chaos-test           # All chaos tests (unit + functional)
 make lint                 # 26 linters via golangci-lint
 make verify               # lint + ze-unit-test + ze-functional-test
-make test-all             # lint + ze-test
+make ze-test              # All tests: lint + unit + functional + exabgp + chaos + fuzz
 ```
 
 ## Key Architecture

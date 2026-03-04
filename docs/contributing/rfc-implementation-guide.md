@@ -518,7 +518,7 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 Before marking implementation complete:
 
 ```
-[ ] All tests pass: make test-all (timeout 300s)
+[ ] All tests pass: make ze-test (timeout 300s)
 [ ] All linting passes: make ze-lint (zero issues)
 [ ] All functional tests pass: make ze-functional-test
 [ ] RFC section comments on all protocol code

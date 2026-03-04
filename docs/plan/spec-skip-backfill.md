@@ -104,7 +104,7 @@ Audit all `Len()`-then-`WriteTo()` call sites, enforce skip-and-backfill as the 
 | AC-3 | `update_split.go` SplitUpdate path | No double `Len()` traversal on same attribute chunk |
 | AC-4 | `.claude/rules/buffer-first.md` | Documents skip-and-backfill pattern with before/after examples |
 | AC-5 | `reactor_wire.go` | Has comment block documenting skip-and-backfill pattern for future contributors |
-| AC-6 | All existing tests | `make test-all` passes — zero functional regressions |
+| AC-6 | All existing tests | `make ze-test` passes — zero functional regressions |
 
 ## Audit: Len()-then-WriteTo() Call Sites
 
@@ -148,7 +148,7 @@ N/A — no new numeric inputs. This is a refactor + enforcement spec.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | Existing split tests | `message/update_split_test.go` | Large UPDATEs split correctly | |
-| `make test-all` | All | No regressions | |
+| `make ze-test` | All | No regressions | |
 
 ### Future
 - Property test: `WriteTo` output identical regardless of whether `Len()` was called first (fuzz)
@@ -182,7 +182,7 @@ None.
 5. **Update `buffer-first.md`** → Add "Skip-and-Backfill" section documenting the pattern, add Len-then-WriteTo to banned table for hot paths
 6. **Update `block-encoding-alloc.sh`** → Add check for `.Len()` followed by `.WriteTo()` on same variable in hot-path files. Expand scope to include `reactor_wire*` files
 7. **Add pattern comment to `reactor_wire.go`** → Document skip-and-backfill at top of WriteAnnounceUpdate
-8. **Verify all** → `make test-all`
+8. **Verify all** → `make ze-test`
 9. **Critical Review** → All 6 quality checks
 10. **Complete spec** → Audit, learned summary, commit
 
@@ -258,7 +258,7 @@ N/A — this spec is about internal encoding patterns, not protocol compliance.
 ### Goal Gates (MUST pass)
 - [ ] AC-1..AC-6 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
-- [ ] `make test-all` passes (lint + all ze tests)
+- [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated
 - [ ] Architecture docs updated (`buffer-first.md`)
 - [ ] Critical Review passes

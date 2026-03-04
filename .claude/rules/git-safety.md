@@ -15,12 +15,12 @@ Post-commit: hash, file count, clean state confirmation.
 
 ## Before Any Commit (BLOCKING)
 
-**`make test-all` (timeout 300s) — not `make ze-verify`, not `go test`, not any subset.**
+**`make ze-test` (timeout 300s) — not `make ze-verify`, not `go test`, not any subset.**
 
 **BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
 
 ```
-[ ] 1. Run `make test-all` — capture to tmp/test-all.log. ANY failure: STOP.
+[ ] 1. Run `make ze-test` — capture to tmp/ze-test.log. ANY failure: STOP.
 [ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
 [ ] 3. Present what will be committed — concise table, not raw git output:
       | File | Change |
