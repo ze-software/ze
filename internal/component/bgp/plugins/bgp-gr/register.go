@@ -14,13 +14,14 @@ import (
 func init() {
 	reg := registry.Registration{
 		Name:            "bgp-gr",
-		Description:     "Graceful Restart capability plugin",
+		Description:     "Graceful Restart capability and mechanism plugin",
 		RFCs:            []string{"4724"},
 		SupportsCapa:    true,
 		Features:        "capa yang",
 		ConfigRoots:     []string{"bgp"},
 		YANG:            grschema.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64},
+		Dependencies:    []string{"bgp-rib"},
 		RunEngine:       RunGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)

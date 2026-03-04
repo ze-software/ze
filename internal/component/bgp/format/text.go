@@ -882,22 +882,42 @@ func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direc
 // FormatStateChange formats a peer state change event.
 // State events are separate from BGP protocol messages.
 // Common states: "up", "down", "connected", "established".
-func FormatStateChange(peer plugin.PeerInfo, state, encoding string) string {
+// FormatStateChange formats a peer state change event.
+// reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
+func FormatStateChange(peer plugin.PeerInfo, state, reason, encoding string) string {
 	if encoding == plugin.EncodingJSON {
-		return formatStateChangeJSON(peer, state)
+		return formatStateChangeJSON(peer, state, reason)
 	}
-	return formatStateChangeText(peer, state)
+	return formatStateChangeText(peer, state, reason)
 }
 
-func formatStateChangeJSON(peer plugin.PeerInfo, state string) string {
-	// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"up"}}
-	// State is a simple string value at bgp level
+func formatStateChangeJSON(peer plugin.PeerInfo, state, reason string) string {
+	// ze-bgp JSON format with reason for down events.
+	// reason is only present for "down" events — "up" has no close reason.
+	if reason != "" {
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s","reason":"%s"}}`+"\n",
+			peer.Address, peer.PeerAS, state, reason)
+	}
 	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
 		peer.Address, peer.PeerAS, state)
 }
 
-func formatStateChangeText(peer plugin.PeerInfo, state string) string {
+func formatStateChangeText(peer plugin.PeerInfo, state, reason string) string {
+	if reason != "" {
+		return fmt.Sprintf("peer %s asn %d state %s reason %s\n", peer.Address, peer.PeerAS, state, reason)
+	}
 	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
+}
+
+// FormatEOR formats an End-of-RIB marker event.
+// RFC 4724 Section 2: EOR signals that initial routing information exchange is complete.
+// family is the address family (e.g., "ipv4/unicast", "ipv6/unicast").
+func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
+	if encoding == plugin.EncodingJSON {
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"%s","asn":%d},"eor":{"family":"%s"}}}`+"\n",
+			peer.Address, peer.PeerAS, family)
+	}
+	return fmt.Sprintf("peer %s asn %d eor %s\n", peer.Address, peer.PeerAS, family)
 }
 
 // FormatNegotiated formats negotiated capabilities event.

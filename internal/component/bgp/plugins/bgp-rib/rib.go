@@ -66,7 +66,14 @@ type RIBManager struct {
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
 
-	mu sync.RWMutex // protects ribInPool, ribOut, peerUp
+	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
+	// RFC 4724: When a GR-capable peer goes down, routes are retained until
+	// the restart timer expires or the peer re-establishes and sends EOR.
+	// Set by "rib retain-routes <peer>" command from bgp-gr plugin.
+	// Cleared by "rib release-routes <peer>" or when the peer comes back up.
+	retainedPeers map[string]bool
+
+	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, retainedPeers
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -78,10 +85,11 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	r := &RIBManager{
-		plugin:    p,
-		ribInPool: make(map[string]*storage.PeerRIB),
-		ribOut:    make(map[string]map[string]*Route),
-		peerUp:    make(map[string]bool),
+		plugin:        p,
+		ribInPool:     make(map[string]*storage.PeerRIB),
+		ribOut:        make(map[string]map[string]*Route),
+		peerUp:        make(map[string]bool),
+		retainedPeers: make(map[string]bool),
 	}
 
 	// Register event handler: dispatches BGP events (update, sent, state, refresh)
@@ -128,6 +136,9 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 			{Name: "rib adjacent inbound empty"},
 			{Name: "rib adjacent outbound show"},
 			{Name: "rib adjacent outbound resend"},
+			// GR support: route retention (RFC 4724)
+			{Name: "rib retain-routes"},
+			{Name: "rib release-routes"},
 		},
 	})
 	if err != nil {
@@ -384,6 +395,8 @@ func (r *RIBManager) handleRefresh(event *Event) {
 
 // handleState processes peer state changes.
 // Handles state transitions atomically to avoid races between up/down events.
+// RFC 4724: When retainedPeers[peer] is set (by bgp-gr via "rib retain-routes"),
+// Adj-RIB-In is preserved on peer-down instead of being deleted.
 func (r *RIBManager) handleState(event *Event) {
 	peerAddr := event.GetPeerAddress()
 	state := event.GetPeerState()
@@ -396,15 +409,20 @@ func (r *RIBManager) handleState(event *Event) {
 	var routesToReplay []*Route
 
 	if isUp && !wasUp {
-		// Peer came up - copy routes for replay while holding lock
+		// Peer came up - clear retain flag (fresh session replaces stale state).
+		delete(r.retainedPeers, peerAddr)
+
+		// Copy routes for replay while holding lock
 		routes := r.ribOut[peerAddr]
 		routesToReplay = make([]*Route, 0, len(routes))
 		for _, rt := range routes {
 			routesToReplay = append(routesToReplay, rt)
 		}
 	} else if !isUp && wasUp {
-		// Peer went down - clear Adj-RIB-In while holding lock
-		if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+		// Peer went down - clear Adj-RIB-In unless retained for GR.
+		if r.retainedPeers[peerAddr] {
+			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
+		} else if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
 			peerRIB.Release()
 			delete(r.ribInPool, peerAddr)
 		}

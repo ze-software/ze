@@ -8,12 +8,14 @@ package server
 
 import (
 	"fmt"
+	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -28,6 +30,9 @@ var logger = slogutil.LazyLogger("bgp.server")
 // Only plugins that declared cache-consumer: true during registration AND where
 // delivery succeeded are counted. Non-cache-consumer plugins receive the event
 // but are not counted (they don't participate in cache lifecycle tracking).
+//
+// For received UPDATEs, also checks for EOR markers (RFC 4724 Section 2) and
+// fires a separate EventEOR to subscribers if detected.
 //
 // Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
 // Events are enqueued to each process's delivery channel; no per-event goroutines are created.
@@ -92,6 +97,14 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 			logger().Error("OnMessageReceived write failed", "proc", r.ProcName, "err", r.Err)
 		} else if r.CacheConsumer {
 			cacheCount++
+		}
+	}
+
+	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
+	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
+	if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
+		if family, ok := msg.WireUpdate.IsEOR(); ok {
+			onEORReceived(s, peer, family.String())
 		}
 	}
 
@@ -170,6 +183,13 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 			}
 		}
 		counts[i] = cacheCount
+
+		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
+		if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
+			if family, ok := msg.WireUpdate.IsEOR(); ok {
+				onEORReceived(s, peer, family.String())
+			}
+		}
 	}
 
 	return counts
@@ -259,10 +279,59 @@ func deliverToProcs(s *pluginserver.Server, procs []*process.Process, output, ev
 	}
 }
 
+// sortByReverseDependencyTier sorts processes so that plugins with MORE dependencies
+// (higher topological tier) come first. This ensures that dependent plugins (e.g., bgp-gr)
+// process events before the plugins they depend on (e.g., bgp-rib).
+//
+// Used for state and EOR events where ordering matters for inter-plugin coordination
+// (e.g., bgp-gr must send retain-routes before bgp-rib processes peer-down).
+//
+// If TopologicalTiers fails (cycle or unknown plugins), falls back to name-based sort
+// for deterministic but arbitrary ordering.
+func sortByReverseDependencyTier(procs []*process.Process) {
+	if len(procs) <= 1 {
+		return
+	}
+
+	// Collect process names for tier computation.
+	names := make([]string, len(procs))
+	for i, p := range procs {
+		names[i] = p.Name()
+	}
+
+	tiers, err := registry.TopologicalTiers(names)
+	if err != nil {
+		// Fallback: sort by name for deterministic ordering.
+		sort.Slice(procs, func(i, j int) bool {
+			return procs[i].Name() < procs[j].Name()
+		})
+		return
+	}
+
+	// Build name → tier index map.
+	tierOf := make(map[string]int, len(names))
+	for tierIdx, tier := range tiers {
+		for _, name := range tier {
+			tierOf[name] = tierIdx
+		}
+	}
+
+	// Sort: higher tier first (reverse topological order).
+	sort.Slice(procs, func(i, j int) bool {
+		ti, tj := tierOf[procs[i].Name()], tierOf[procs[j].Name()]
+		if ti != tj {
+			return ti > tj // Higher tier first
+		}
+		return procs[i].Name() < procs[j].Name() // Deterministic within tier
+	})
+}
+
 // onPeerStateChange handles peer state transitions.
 // Called by reactor when peer state changes (not a BGP message).
-// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
-func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state string) {
+// reason is the close reason (empty for "up"): "tcp-failure", "notification", etc.
+// State events are delivered sequentially in reverse dependency order so that
+// plugins with dependencies (e.g., bgp-gr) process before their dependencies (e.g., bgp-rib).
+func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reason string) {
 	if s.Context().Err() != nil {
 		return // Server shutting down, skip event delivery
 	}
@@ -271,28 +340,29 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state strin
 	if len(procs) == 0 {
 		return
 	}
-	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state, "count", len(procs))
+
+	// Sort by reverse dependency tier: dependents first, dependencies last.
+	sortByReverseDependencyTier(procs)
+
+	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state, "reason", reason, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
 	formatOutputs := make(map[string]string, 2)
 	for _, proc := range procs {
 		enc := proc.Encoding()
 		if _, ok := formatOutputs[enc]; !ok {
-			formatOutputs[enc] = format.FormatStateChange(peer, state, enc)
+			formatOutputs[enc] = format.FormatStateChange(peer, state, reason, enc)
 		}
 	}
 
-	// Deliver per-process with matching encoding.
-	results := make(chan process.EventResult, len(procs))
-	sent := 0
+	// Deliver sequentially in dependency order — each process must complete
+	// before the next starts, enabling inter-plugin coordination.
 	for _, proc := range procs {
 		output := formatOutputs[proc.Encoding()]
+		results := make(chan process.EventResult, 1)
 		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
-		sent++
-	}
-	for range sent {
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
@@ -320,6 +390,49 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 	output := format.FormatNegotiated(peer, decoded, encoder)
 
 	deliverToProcs(s, procs, output, "OnPeerNegotiated")
+}
+
+// onEORReceived handles End-of-RIB marker detection.
+// RFC 4724 Section 2: EOR signals completion of initial routing exchange for a family.
+// Called when an incoming UPDATE is detected as an EOR marker.
+// EOR events are delivered sequentially in reverse dependency order, like state events,
+// to enable inter-plugin coordination (e.g., bgp-gr triggers stale route purge).
+func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventEOR, plugin.DirectionReceived, peer.Address.String())
+	if len(procs) == 0 {
+		return
+	}
+
+	// Sort by reverse dependency tier: dependents first, dependencies last.
+	sortByReverseDependencyTier(procs)
+
+	logger().Debug("OnEORReceived", "peer", peer.Address.String(), "family", family, "count", len(procs))
+
+	// Pre-format once per distinct encoding.
+	formatOutputs := make(map[string]string, 2)
+	for _, proc := range procs {
+		enc := proc.Encoding()
+		if _, ok := formatOutputs[enc]; !ok {
+			formatOutputs[enc] = format.FormatEOR(peer, family, enc)
+		}
+	}
+
+	// Deliver sequentially in dependency order.
+	for _, proc := range procs {
+		output := formatOutputs[proc.Encoding()]
+		results := make(chan process.EventResult, 1)
+		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
+			continue
+		}
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn("OnEORReceived write failed", "proc", r.ProcName, "err", r.Err)
+		}
+	}
 }
 
 // onMessageSent handles BGP messages sent to peers.

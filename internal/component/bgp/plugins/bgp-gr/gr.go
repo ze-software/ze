@@ -1,11 +1,14 @@
 // Design: docs/architecture/core-design.md — graceful restart plugin
 // RFC: rfc/short/rfc4724.md
+// Detail: gr_state.go — GR state machine (per-peer timers, stale family tracking)
 //
-// Package gr implements a Graceful Restart capability plugin for ze.
-// It receives per-peer GR config (restart-time) during Stage 2 and
-// registers GR capabilities per-peer during Stage 3.
+// Package gr implements a Graceful Restart plugin for ze (RFC 4724).
+// It receives per-peer GR config (restart-time) during Stage 2,
+// registers GR capabilities per-peer during Stage 3, and implements
+// Receiving Speaker procedures during the event loop.
 //
-// RFC 4724: Graceful Restart Mechanism for BGP.
+// Event subscriptions: open (received), state, eor.
+// Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes.
 package bgp_gr
 
 import (
@@ -19,8 +22,10 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -47,13 +52,35 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
+// grPlugin holds runtime state for the GR plugin during the event loop.
+// Created in RunGRPlugin after the 5-stage handshake completes.
+type grPlugin struct {
+	sdk *sdk.Plugin
+
+	mu       sync.Mutex
+	peerCaps map[string]*grPeerCap // peerAddr → last seen GR capability from OPEN
+	state    *grStateManager       // RFC 4724 Receiving Speaker state machine
+}
+
 // RunGRPlugin runs the GR plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-// It receives per-peer GR config during Stage 2 and registers per-peer
-// GR capabilities (code 64) during Stage 3.
+// It receives per-peer GR config during Stage 2, registers per-peer
+// GR capabilities (code 64) during Stage 3, and runs RFC 4724
+// Receiving Speaker procedures during the event loop.
 func RunGRPlugin(engineConn, callbackConn net.Conn) int {
 	p := sdk.NewWithConn("bgp-gr", engineConn, callbackConn)
 	defer func() { _ = p.Close() }()
+
+	gp := &grPlugin{
+		sdk:      p,
+		peerCaps: make(map[string]*grPeerCap),
+	}
+
+	// Create state manager with timer-expiry callback.
+	// When a peer's restart timer fires, release retained routes via bgp-rib.
+	gp.state = newGRStateManager(func(peerAddr string) {
+		gp.onTimerExpired(peerAddr)
+	})
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time,
 	// then set capabilities for Stage 3.
@@ -69,6 +96,20 @@ func RunGRPlugin(engineConn, callbackConn net.Conn) int {
 		return nil
 	})
 
+	// Subscribe to events needed for Receiving Speaker procedures:
+	//   open direction received — capture peer's GR capability from OPEN
+	//   state — detect peer up/down (with reason for GR vs normal teardown)
+	//   eor — track End-of-RIB per family for stale route purge
+	p.SetStartupSubscriptions(
+		[]string{"open direction received", "state", "eor"},
+		nil, "full",
+	)
+
+	// Event handler: dispatch JSON events to the appropriate GR handler.
+	p.OnEvent(func(event string) error {
+		return gp.handleEvent(event)
+	})
+
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig: []string{"bgp"},
@@ -79,6 +120,210 @@ func RunGRPlugin(engineConn, callbackConn net.Conn) int {
 	}
 
 	return 0
+}
+
+// handleEvent parses a JSON event and dispatches to the appropriate handler.
+// Events arrive as ze-bgp JSON: {"type":"bgp","bgp":{...}}.
+func (gp *grPlugin) handleEvent(event string) error {
+	var envelope map[string]any
+	if err := json.Unmarshal([]byte(event), &envelope); err != nil {
+		logger().Debug("gr: invalid event JSON", "err", err)
+		return nil // Don't fail on unparseable events
+	}
+
+	bgpPayload, ok := envelope["bgp"].(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	msgObj, _ := bgpPayload["message"].(map[string]any)
+	msgType, _ := msgObj["type"].(string)
+
+	peerObj, _ := bgpPayload["peer"].(map[string]any)
+	peerAddr, _ := peerObj["address"].(string)
+	if peerAddr == "" {
+		return nil
+	}
+
+	switch msgType {
+	case "open":
+		gp.handleOpenEvent(peerAddr, bgpPayload)
+	case "state":
+		gp.handleStateEvent(peerAddr, bgpPayload)
+	case "eor":
+		gp.handleEOREvent(peerAddr, bgpPayload)
+	}
+
+	return nil
+}
+
+// handleOpenEvent extracts the GR capability from a received OPEN message.
+// Stores the parsed capability for use when the peer's session later drops.
+func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
+	openObj, ok := payload["open"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	caps, ok := openObj["capabilities"].([]any)
+	if !ok {
+		return
+	}
+
+	// Find GR capability (code 64) in capabilities list
+	for _, capRaw := range caps {
+		capObj, ok := capRaw.(map[string]any)
+		if !ok {
+			continue
+		}
+		code, _ := capObj["code"].(float64)
+		if int(code) != 64 {
+			continue
+		}
+		hexValue, _ := capObj["value"].(string)
+		if hexValue == "" {
+			continue
+		}
+
+		data, err := hex.DecodeString(hexValue)
+		if err != nil {
+			logger().Debug("gr: invalid cap 64 hex", "peer", peerAddr, "err", err)
+			continue
+		}
+
+		result, err := decodeGR(data)
+		if err != nil {
+			logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
+			continue
+		}
+
+		// Convert grResult to grPeerCap for state machine use
+		peerCap := grResultToPeerCap(result)
+
+		gp.mu.Lock()
+		gp.peerCaps[peerAddr] = peerCap
+		gp.mu.Unlock()
+
+		logger().Debug("gr: stored peer capability",
+			"peer", peerAddr,
+			"restart-time", peerCap.RestartTime,
+			"families", len(peerCap.Families))
+		return // Only one GR capability per OPEN
+	}
+}
+
+// handleStateEvent processes peer up/down state changes.
+// RFC 4724 Section 4.2:
+//   - TCP failure for GR-capable peer → retain routes, start timer
+//   - NOTIFICATION → standard BGP (no retention)
+//   - Peer reconnects → validate new GR cap, purge non-forwarding families
+func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
+	state, _ := payload["state"].(string)
+
+	switch state {
+	case "down":
+		reason, _ := payload["reason"].(string)
+		wasNotification := reason == "notification"
+
+		gp.mu.Lock()
+		cap := gp.peerCaps[peerAddr]
+		gp.mu.Unlock()
+
+		activated := gp.state.onSessionDown(peerAddr, cap, wasNotification)
+		if activated {
+			// Tell bgp-rib to retain this peer's routes during restart
+			gp.dispatchRIBCommand("rib retain-routes " + peerAddr)
+		}
+
+	case "up":
+		gp.mu.Lock()
+		newCap := gp.peerCaps[peerAddr]
+		gp.mu.Unlock()
+
+		purged := gp.state.onSessionReestablished(peerAddr, newCap)
+		if len(purged) > 0 {
+			logger().Debug("gr: purged families on reconnect", "peer", peerAddr, "families", purged)
+			// If all families purged, release retained routes
+			if !gp.state.peerActive(peerAddr) {
+				gp.releaseRoutes(peerAddr)
+			}
+		}
+	}
+}
+
+// handleEOREvent processes End-of-RIB markers.
+// RFC 4724 Section 4.2: On EOR receipt, remove stale routes for that family.
+func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
+	eorObj, ok := payload["eor"].(map[string]any)
+	if !ok {
+		return
+	}
+
+	family, _ := eorObj["family"].(string)
+	if family == "" {
+		return
+	}
+
+	shouldPurge := gp.state.onEORReceived(peerAddr, family)
+	if shouldPurge {
+		logger().Debug("gr: EOR received, stale routes purged", "peer", peerAddr, "family", family)
+
+		// If GR is now complete (all EORs received), release retained routes
+		if !gp.state.peerActive(peerAddr) {
+			gp.releaseRoutes(peerAddr)
+		}
+	}
+}
+
+// onTimerExpired is called when a peer's restart timer fires.
+// RFC 4724 Section 4.2: delete all stale routes from the peer.
+func (gp *grPlugin) onTimerExpired(peerAddr string) {
+	gp.releaseRoutes(peerAddr)
+}
+
+// releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
+func (gp *grPlugin) releaseRoutes(peerAddr string) {
+	gp.dispatchRIBCommand("rib release-routes " + peerAddr)
+}
+
+// dispatchRIBCommand sends a command to the engine for inter-plugin coordination.
+// Logs errors but does not fail — the GR state machine proceeds regardless.
+func (gp *grPlugin) dispatchRIBCommand(command string) {
+	if gp.sdk == nil {
+		return // unit test — no SDK available
+	}
+	ctx := context.Background()
+	status, _, err := gp.sdk.DispatchCommand(ctx, command)
+	if err != nil {
+		logger().Warn("gr: dispatch failed", "command", command, "err", err)
+	} else {
+		logger().Debug("gr: dispatch ok", "command", command, "status", status)
+	}
+}
+
+// grResultToPeerCap converts a decoded GR wire result to the state machine's
+// capability representation, mapping AFI/SAFI numbers to family strings.
+func grResultToPeerCap(r *grResult) *grPeerCap {
+	cap := &grPeerCap{
+		RestartTime: r.RestartTime,
+		Families:    make([]grCapFamily, 0, len(r.Families)),
+	}
+	for _, f := range r.Families {
+		family := afiSAFIToFamily(f.AFI, f.SAFI)
+		if family != "" {
+			cap.Families = append(cap.Families, grCapFamily{
+				Family:       family,
+				ForwardState: f.ForwardState,
+			})
+		}
+	}
+	return cap
+}
+
+// afiSAFIToFamily converts AFI/SAFI numbers to ze family string format.
+// Delegates to nlri.Family.String() — single source of truth for family names.
+func afiSAFIToFamily(afi uint16, safi uint8) string {
+	return nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
 }
 
 // extractGRCapabilities parses bgp config JSON and returns per-peer GR capabilities.

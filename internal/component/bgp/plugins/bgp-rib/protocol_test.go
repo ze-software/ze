@@ -63,7 +63,10 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "rib adjacent inbound empty")
 	assert.Contains(t, commandNames, "rib adjacent outbound show")
 	assert.Contains(t, commandNames, "rib adjacent outbound resend")
-	assert.Len(t, regInput.Commands, 10, "rib registers exactly 10 commands")
+	// GR support commands (RFC 4724)
+	assert.Contains(t, commandNames, "rib retain-routes")
+	assert.Contains(t, commandNames, "rib release-routes")
+	assert.Len(t, regInput.Commands, 12, "rib registers exactly 12 commands")
 
 	require.NoError(t, connA.SendOK(ctx, stage1.ID))
 

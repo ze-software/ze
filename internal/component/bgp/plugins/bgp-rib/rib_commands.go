@@ -29,6 +29,10 @@ func (r *RIBManager) handleCommand(command, selector string) (string, string, er
 		return statusDone, r.outboundShowJSON(selector), nil
 	case "rib clear out", "rib adjacent outbound resend":
 		return statusDone, r.outboundResendJSON(selector), nil
+	case "rib retain-routes":
+		return statusDone, r.retainRoutesJSON(selector), nil
+	case "rib release-routes":
+		return statusDone, r.releaseRoutesJSON(selector), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}
@@ -212,4 +216,48 @@ func (r *RIBManager) statusJSON() string {
 
 	return fmt.Sprintf(`{"running":true,"peers":%d,"routes_in":%d,"routes_out":%d}`,
 		len(r.peerUp), routesIn, routesOut)
+}
+
+// retainRoutesJSON marks a peer's Adj-RIB-In for retention during GR.
+// RFC 4724: Receiving speaker retains routes from restarting peer.
+// Called by bgp-gr plugin via DispatchCommand("rib retain-routes <peer>").
+func (r *RIBManager) retainRoutesJSON(selector string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	retained := 0
+	for peer := range r.ribInPool {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		r.retainedPeers[peer] = true
+		retained++
+	}
+
+	data, _ := json.Marshal(map[string]any{"retained-peers": retained})
+	return string(data)
+}
+
+// releaseRoutesJSON clears the retain flag and deletes Adj-RIB-In for matching peers.
+// RFC 4724: Called when restart timer expires or GR completes.
+// Called by bgp-gr plugin via DispatchCommand("rib release-routes <peer>").
+func (r *RIBManager) releaseRoutesJSON(selector string) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	released := 0
+	for peer := range r.retainedPeers {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		delete(r.retainedPeers, peer)
+		if peerRIB := r.ribInPool[peer]; peerRIB != nil {
+			peerRIB.Release()
+			delete(r.ribInPool, peer)
+		}
+		released++
+	}
+
+	data, _ := json.Marshal(map[string]any{"released-peers": released})
+	return string(data)
 }

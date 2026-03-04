@@ -109,7 +109,9 @@ func (s SAFI) String() string {
 		return "flow-vpn"
 	case SAFIBGPLinkState:
 		return familyBGPLS
-	default:
+	case SAFIBGPLinkStateVPN:
+		return "bgp-ls-vpn"
+	default: //nolint:exhaustive // unknown SAFIs formatted numerically
 		return fmt.Sprintf("safi-%d", s)
 	}
 }
@@ -158,7 +160,9 @@ func (f Family) String() string {
 		return "l2vpn/vpls"
 	case f.AFI == AFIBGPLS && f.SAFI == SAFIBGPLinkState:
 		return "bgp-ls/bgp-ls"
-	default:
+	case f.AFI == AFIBGPLS && f.SAFI == SAFIBGPLinkStateVPN:
+		return "bgp-ls/bgp-ls-vpn"
+	default: // compose from AFI.String() + SAFI.String()
 		return fmt.Sprintf("%s/%s", f.AFI.String(), f.SAFI.String())
 	}
 }

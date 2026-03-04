@@ -268,7 +268,7 @@ func validateEventType(namespace, eventType string) error {
 	switch namespace {
 	case plugin.NamespaceBGP:
 		if !plugin.ValidBgpEvents[eventType] {
-			return fmt.Errorf("invalid bgp event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated)", eventType)
+			return fmt.Errorf("invalid bgp event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated, eor)", eventType)
 		}
 	case plugin.NamespaceRIB:
 		if !plugin.ValidRibEvents[eventType] {

@@ -33,6 +33,7 @@ func TestFormatStateChange(t *testing.T) {
 	tests := []struct {
 		name     string
 		state    string
+		reason   string
 		encoding string
 		want     string
 	}{
@@ -43,32 +44,96 @@ func TestFormatStateChange(t *testing.T) {
 			want:     "peer 10.0.0.1 asn 65001 state established\n",
 		},
 		{
-			name:     "text down",
+			name:     "text down no reason",
 			state:    "down",
 			encoding: plugin.EncodingText,
 			want:     "peer 10.0.0.1 asn 65001 state down\n",
 		},
 		{
+			name:     "text down with reason",
+			state:    "down",
+			reason:   "tcp-failure",
+			encoding: plugin.EncodingText,
+			want:     "peer 10.0.0.1 asn 65001 state down reason tcp-failure\n",
+		},
+		{
 			name:     "json established",
 			state:    "established",
 			encoding: plugin.EncodingJSON,
-			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
 		},
 		{
-			name:     "json down",
+			name:     "json down no reason",
 			state:    "down",
 			encoding: plugin.EncodingJSON,
-			// ze-bgp JSON: {"type":"bgp","bgp":{"message":{"type":"state"},"peer":{...},"state":"..."}}
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
+		},
+		{
+			name:     "json down with reason",
+			state:    "down",
+			reason:   "notification",
+			encoding: plugin.EncodingJSON,
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down","reason":"notification"}}` + "\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatStateChange(peer, tt.state, tt.encoding)
+			got := FormatStateChange(peer, tt.state, tt.reason, tt.encoding)
 			if got != tt.want {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFormatEOR tests End-of-RIB marker event formatting.
+//
+// VALIDATES: EOR events format correctly for both encodings with family info.
+// PREVENTS: EOR events not being delivered or formatted incorrectly.
+func TestFormatEOR(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	tests := []struct {
+		name     string
+		family   string
+		encoding string
+		want     string
+	}{
+		{
+			name:     "ipv4/unicast text",
+			family:   "ipv4/unicast",
+			encoding: plugin.EncodingText,
+			want:     "peer 10.0.0.1 asn 65001 eor ipv4/unicast\n",
+		},
+		{
+			name:     "ipv6/unicast text",
+			family:   "ipv6/unicast",
+			encoding: plugin.EncodingText,
+			want:     "peer 10.0.0.1 asn 65001 eor ipv6/unicast\n",
+		},
+		{
+			name:     "ipv4/unicast json",
+			family:   "ipv4/unicast",
+			encoding: plugin.EncodingJSON,
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001},"eor":{"family":"ipv4/unicast"}}}` + "\n",
+		},
+		{
+			name:     "ipv6/unicast json",
+			family:   "ipv6/unicast",
+			encoding: plugin.EncodingJSON,
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001},"eor":{"family":"ipv6/unicast"}}}` + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatEOR(peer, tt.family, tt.encoding)
+			if got != tt.want {
+				t.Errorf("FormatEOR(%q, %q)\n  got:  %q\n  want: %q", tt.family, tt.encoding, got, tt.want)
 			}
 		})
 	}

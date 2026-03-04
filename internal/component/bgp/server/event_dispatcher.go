@@ -87,11 +87,22 @@ func (d *EventDispatcher) OnMessageSent(peer plugin.PeerInfo, msg any) {
 
 // OnPeerStateChange handles peer state transitions.
 // Called by apiStateObserver when peers are established or closed.
-func (d *EventDispatcher) OnPeerStateChange(peer plugin.PeerInfo, state string) {
+// reason is the close reason (e.g., "tcp-failure", "notification") — empty for "up".
+func (d *EventDispatcher) OnPeerStateChange(peer plugin.PeerInfo, state, reason string) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
-	onPeerStateChange(d.server, peer, state)
+	onPeerStateChange(d.server, peer, state, reason)
+}
+
+// OnEORReceived handles End-of-RIB marker detection for an UPDATE.
+// RFC 4724 Section 2: EOR signals completion of initial routing exchange.
+// Called after normal UPDATE delivery when the UPDATE is detected as an EOR marker.
+func (d *EventDispatcher) OnEORReceived(peer plugin.PeerInfo, family string) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onEORReceived(d.server, peer, family)
 }
 
 // OnPeerNegotiated handles capability negotiation completion.

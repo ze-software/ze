@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
 // TestWireUpdate_Derived verifies derived accessors return correct slices.
@@ -1207,5 +1208,94 @@ func TestWireUpdate_CachedError(t *testing.T) {
 	}
 	if !errors.Is(err3, ErrUpdateTruncated) {
 		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err3)
+	}
+}
+
+// TestWireUpdate_IsEOR verifies End-of-RIB marker detection.
+//
+// VALIDATES: RFC 4724 Section 2 EOR detection for IPv4 unicast and multiprotocol families.
+// PREVENTS: Missing EOR detection that would break graceful restart stale route purge.
+func TestWireUpdate_IsEOR(t *testing.T) {
+	tests := []struct {
+		name     string
+		payload  []byte
+		wantEOR  bool
+		wantAFI  uint16
+		wantSAFI uint8
+	}{
+		{
+			name:     "IPv4 unicast EOR (empty UPDATE)",
+			payload:  []byte{0x00, 0x00, 0x00, 0x00},
+			wantEOR:  true,
+			wantAFI:  1,
+			wantSAFI: 1,
+		},
+		{
+			name: "IPv6 unicast EOR (MP_UNREACH_NLRI with AFI/SAFI only)",
+			// WithdrawnLen=0, AttrLen=7, MP_UNREACH attr: flags=0x90 (opt+ext-len), code=15, len=3, AFI=2, SAFI=1
+			payload: []byte{
+				0x00, 0x00, // Withdrawn routes length = 0
+				0x00, 0x07, // Total path attribute length = 7
+				0x90, 0x0f, 0x00, 0x03, // Attr: optional, extended-length, code 15, length 3
+				0x00, 0x02, // AFI = 2 (IPv6)
+				0x01, // SAFI = 1 (unicast)
+			},
+			wantEOR:  true,
+			wantAFI:  2,
+			wantSAFI: 1,
+		},
+		{
+			name: "not EOR: MP_UNREACH with actual withdrawn routes",
+			// MP_UNREACH with AFI=2, SAFI=1, plus a withdrawn /64 prefix.
+			payload: func() []byte {
+				mpValue := []byte{
+					0x00, 0x02, // AFI = 2
+					0x01,                                                 // SAFI = 1
+					0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00, // /64 prefix
+				}
+				attrs := []byte{0x80, 0x0f, byte(len(mpValue))}
+				attrs = append(attrs, mpValue...)
+				p := make([]byte, 4+len(attrs))
+				binary.BigEndian.PutUint16(p[2:4], uint16(len(attrs))) //nolint:gosec // test
+				copy(p[4:], attrs)
+				return p
+			}(),
+			wantEOR: false,
+		},
+		{
+			name: "not EOR: UPDATE with NLRI",
+			// WithdrawnLen=0, AttrLen=0, NLRI=10.0.0.0/24
+			payload: []byte{0x00, 0x00, 0x00, 0x00, 0x18, 0x0a, 0x00, 0x00},
+			wantEOR: false,
+		},
+		{
+			name: "not EOR: UPDATE with withdrawn routes",
+			// WithdrawnLen=4, Withdrawn=10.0.0.0/24, AttrLen=0
+			payload: []byte{0x00, 0x04, 0x18, 0x0a, 0x00, 0x00, 0x00, 0x00},
+			wantEOR: false,
+		},
+		{
+			name:    "not EOR: malformed payload",
+			payload: []byte{0x00},
+			wantEOR: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wu := NewWireUpdate(tt.payload, 0)
+			family, isEOR := wu.IsEOR()
+			if isEOR != tt.wantEOR {
+				t.Errorf("IsEOR() = %v, want %v", isEOR, tt.wantEOR)
+			}
+			if tt.wantEOR {
+				if family.AFI != nlri.AFI(tt.wantAFI) {
+					t.Errorf("IsEOR() AFI = %d, want %d", family.AFI, tt.wantAFI)
+				}
+				if family.SAFI != nlri.SAFI(tt.wantSAFI) {
+					t.Errorf("IsEOR() SAFI = %d, want %d", family.SAFI, tt.wantSAFI)
+				}
+			}
+		})
 	}
 }

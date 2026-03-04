@@ -45,7 +45,7 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		RouterID:     s.RouterID,
 		State:        peer.State().String(),
 	}
-	o.dispatcher.OnPeerStateChange(peerInfo, "up")
+	o.dispatcher.OnPeerStateChange(peerInfo, "up", "")
 }
 
 func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
@@ -61,7 +61,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		RouterID:     s.RouterID,
 		State:        peer.State().String(),
 	}
-	o.dispatcher.OnPeerStateChange(peerInfo, "down")
+	o.dispatcher.OnPeerStateChange(peerInfo, "down", reason)
 }
 
 // reactorAPIAdapter implements plugin.ReactorLifecycle + bgptypes.BGPReactor for the Reactor.
