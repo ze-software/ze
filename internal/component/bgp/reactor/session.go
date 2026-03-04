@@ -240,6 +240,10 @@ func NewSession(settings *PeerSettings) *Session {
 	})
 
 	s.timers.OnKeepaliveTimerExpires(func() {
+		// RFC 4271 Section 8.2.2: Event 11 (KeepaliveTimer_Expires)
+		// "sends a KEEPALIVE message" — fire the FSM event first, then send.
+		_ = s.fsm.Event(fsm.EventKeepaliveTimerExpires)
+
 		s.mu.Lock()
 		conn := s.conn
 		s.mu.Unlock()

@@ -97,6 +97,8 @@ const (
 
 	// EventConnectRetryTimerExpires: RFC 4271 Section 8.1.3 Event 9 (Mandatory)
 	// Generated when the ConnectRetryTimer expires.
+	// NOTE: Never generated in production — see ARCHITECTURAL NOTES in fsm.go.
+	// Peer-level exponential backoff (peer.go run loop) replaces this timer.
 	EventConnectRetryTimerExpires
 
 	// EventHoldTimerExpires: RFC 4271 Section 8.1.3 Event 10 (Mandatory)

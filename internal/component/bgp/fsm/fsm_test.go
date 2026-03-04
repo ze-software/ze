@@ -317,3 +317,195 @@ func TestFSMActiveToOpenSent(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, StateOpenSent, fsm.State())
 }
+
+// TestFSMExhaustiveTransitions verifies every (state, event) → next state
+// combination per RFC 4271 Section 8.2.2.
+//
+// VALIDATES: All 90+ state×event combinations produce the correct next state,
+// including "any other event" cases that RFC requires to transition to Idle.
+//
+// PREVENTS: Unexpected events being silently ignored instead of resetting the
+// FSM to Idle, which could leave a session stuck in an intermediate state.
+func TestFSMExhaustiveTransitions(t *testing.T) {
+	tests := []struct {
+		name    string
+		from    State
+		passive bool
+		event   Event
+		to      State
+	}{
+		// === IDLE state ===
+		// RFC 4271 Section 8.2.2: ManualStart → Connect (active) or Active (passive)
+		// All other events: no state change (stay Idle)
+		{"Idle_ManualStart_active", StateIdle, false, EventManualStart, StateConnect},
+		{"Idle_ManualStart_passive", StateIdle, true, EventManualStart, StateActive},
+		{"Idle_ManualStop", StateIdle, false, EventManualStop, StateIdle},
+		{"Idle_ConnectRetryTimerExpires", StateIdle, false, EventConnectRetryTimerExpires, StateIdle},
+		{"Idle_HoldTimerExpires", StateIdle, false, EventHoldTimerExpires, StateIdle},
+		{"Idle_KeepaliveTimerExpires", StateIdle, false, EventKeepaliveTimerExpires, StateIdle},
+		{"Idle_TCPConnectionConfirmed", StateIdle, false, EventTCPConnectionConfirmed, StateIdle},
+		{"Idle_TCPConnectionFails", StateIdle, false, EventTCPConnectionFails, StateIdle},
+		{"Idle_BGPOpen", StateIdle, false, EventBGPOpen, StateIdle},
+		{"Idle_BGPHeaderErr", StateIdle, false, EventBGPHeaderErr, StateIdle},
+		{"Idle_BGPOpenMsgErr", StateIdle, false, EventBGPOpenMsgErr, StateIdle},
+		{"Idle_NotifMsgVerErr", StateIdle, false, EventNotifMsgVerErr, StateIdle},
+		{"Idle_NotifMsg", StateIdle, false, EventNotifMsg, StateIdle},
+		{"Idle_KeepaliveMsg", StateIdle, false, EventKeepaliveMsg, StateIdle},
+		{"Idle_UpdateMsg", StateIdle, false, EventUpdateMsg, StateIdle},
+		{"Idle_UpdateMsgErr", StateIdle, false, EventUpdateMsgErr, StateIdle},
+
+		// === CONNECT state ===
+		// RFC 4271 Section 8.2.2: Start events ignored, TCPConfirmed → OpenSent,
+		// TCPFails/errors → Idle, ConnectRetry → Connect, all others → Idle
+		{"Connect_ManualStart", StateConnect, false, EventManualStart, StateConnect},
+		{"Connect_ManualStop", StateConnect, false, EventManualStop, StateIdle},
+		{"Connect_ConnectRetryTimerExpires", StateConnect, false, EventConnectRetryTimerExpires, StateConnect},
+		{"Connect_HoldTimerExpires", StateConnect, false, EventHoldTimerExpires, StateIdle},
+		{"Connect_KeepaliveTimerExpires", StateConnect, false, EventKeepaliveTimerExpires, StateIdle},
+		{"Connect_TCPConnectionConfirmed", StateConnect, false, EventTCPConnectionConfirmed, StateOpenSent},
+		{"Connect_TCPConnectionFails", StateConnect, false, EventTCPConnectionFails, StateIdle},
+		{"Connect_BGPOpen", StateConnect, false, EventBGPOpen, StateIdle},
+		{"Connect_BGPHeaderErr", StateConnect, false, EventBGPHeaderErr, StateIdle},
+		{"Connect_BGPOpenMsgErr", StateConnect, false, EventBGPOpenMsgErr, StateIdle},
+		{"Connect_NotifMsgVerErr", StateConnect, false, EventNotifMsgVerErr, StateIdle},
+		{"Connect_NotifMsg", StateConnect, false, EventNotifMsg, StateIdle},
+		{"Connect_KeepaliveMsg", StateConnect, false, EventKeepaliveMsg, StateIdle},
+		{"Connect_UpdateMsg", StateConnect, false, EventUpdateMsg, StateIdle},
+		{"Connect_UpdateMsgErr", StateConnect, false, EventUpdateMsgErr, StateIdle},
+
+		// === ACTIVE state ===
+		// RFC 4271 Section 8.2.2: Start events ignored, TCPConfirmed → OpenSent,
+		// ConnectRetry (non-passive) → Connect, ConnectRetry (passive) → Active,
+		// TCPFails/errors → Idle, all others → Idle
+		{"Active_ManualStart", StateActive, false, EventManualStart, StateActive},
+		{"Active_ManualStop", StateActive, false, EventManualStop, StateIdle},
+		{"Active_ConnectRetryTimerExpires_nonpassive", StateActive, false, EventConnectRetryTimerExpires, StateConnect},
+		{"Active_ConnectRetryTimerExpires_passive", StateActive, true, EventConnectRetryTimerExpires, StateActive},
+		{"Active_HoldTimerExpires", StateActive, false, EventHoldTimerExpires, StateIdle},
+		{"Active_KeepaliveTimerExpires", StateActive, false, EventKeepaliveTimerExpires, StateIdle},
+		{"Active_TCPConnectionConfirmed", StateActive, false, EventTCPConnectionConfirmed, StateOpenSent},
+		{"Active_TCPConnectionFails", StateActive, false, EventTCPConnectionFails, StateIdle},
+		{"Active_BGPOpen", StateActive, false, EventBGPOpen, StateIdle},
+		{"Active_BGPHeaderErr", StateActive, false, EventBGPHeaderErr, StateIdle},
+		{"Active_BGPOpenMsgErr", StateActive, false, EventBGPOpenMsgErr, StateIdle},
+		{"Active_NotifMsgVerErr", StateActive, false, EventNotifMsgVerErr, StateIdle},
+		{"Active_NotifMsg", StateActive, false, EventNotifMsg, StateIdle},
+		{"Active_KeepaliveMsg", StateActive, false, EventKeepaliveMsg, StateIdle},
+		{"Active_UpdateMsg", StateActive, false, EventUpdateMsg, StateIdle},
+		{"Active_UpdateMsgErr", StateActive, false, EventUpdateMsgErr, StateIdle},
+
+		// === OPENSENT state ===
+		// RFC 4271 Section 8.2.2: BGPOpen → OpenConfirm, HoldTimer/errors → Idle,
+		// TCPFails → Idle (violation: RFC says Active), all others → Idle (FSM Error)
+		{"OpenSent_ManualStart", StateOpenSent, false, EventManualStart, StateIdle},
+		{"OpenSent_ManualStop", StateOpenSent, false, EventManualStop, StateIdle},
+		{"OpenSent_ConnectRetryTimerExpires", StateOpenSent, false, EventConnectRetryTimerExpires, StateIdle},
+		{"OpenSent_HoldTimerExpires", StateOpenSent, false, EventHoldTimerExpires, StateIdle},
+		{"OpenSent_KeepaliveTimerExpires", StateOpenSent, false, EventKeepaliveTimerExpires, StateIdle},
+		{"OpenSent_TCPConnectionConfirmed", StateOpenSent, false, EventTCPConnectionConfirmed, StateIdle},
+		{"OpenSent_TCPConnectionFails", StateOpenSent, false, EventTCPConnectionFails, StateIdle},
+		{"OpenSent_BGPOpen", StateOpenSent, false, EventBGPOpen, StateOpenConfirm},
+		{"OpenSent_BGPHeaderErr", StateOpenSent, false, EventBGPHeaderErr, StateIdle},
+		{"OpenSent_BGPOpenMsgErr", StateOpenSent, false, EventBGPOpenMsgErr, StateIdle},
+		{"OpenSent_NotifMsgVerErr", StateOpenSent, false, EventNotifMsgVerErr, StateIdle},
+		{"OpenSent_NotifMsg", StateOpenSent, false, EventNotifMsg, StateIdle},
+		{"OpenSent_KeepaliveMsg", StateOpenSent, false, EventKeepaliveMsg, StateIdle},
+		{"OpenSent_UpdateMsg", StateOpenSent, false, EventUpdateMsg, StateIdle},
+		{"OpenSent_UpdateMsgErr", StateOpenSent, false, EventUpdateMsgErr, StateIdle},
+
+		// === OPENCONFIRM state ===
+		// RFC 4271 Section 8.2.2: KeepaliveMsg → Established, HoldTimer/errors → Idle,
+		// TCPFails → Idle, all others → Idle (FSM Error)
+		{"OpenConfirm_ManualStart", StateOpenConfirm, false, EventManualStart, StateIdle},
+		{"OpenConfirm_ManualStop", StateOpenConfirm, false, EventManualStop, StateIdle},
+		{"OpenConfirm_ConnectRetryTimerExpires", StateOpenConfirm, false, EventConnectRetryTimerExpires, StateIdle},
+		{"OpenConfirm_HoldTimerExpires", StateOpenConfirm, false, EventHoldTimerExpires, StateIdle},
+		{"OpenConfirm_KeepaliveTimerExpires", StateOpenConfirm, false, EventKeepaliveTimerExpires, StateOpenConfirm},
+		{"OpenConfirm_TCPConnectionConfirmed", StateOpenConfirm, false, EventTCPConnectionConfirmed, StateIdle},
+		{"OpenConfirm_TCPConnectionFails", StateOpenConfirm, false, EventTCPConnectionFails, StateIdle},
+		{"OpenConfirm_BGPOpen", StateOpenConfirm, false, EventBGPOpen, StateIdle},
+		{"OpenConfirm_BGPHeaderErr", StateOpenConfirm, false, EventBGPHeaderErr, StateIdle},
+		{"OpenConfirm_BGPOpenMsgErr", StateOpenConfirm, false, EventBGPOpenMsgErr, StateIdle},
+		{"OpenConfirm_NotifMsgVerErr", StateOpenConfirm, false, EventNotifMsgVerErr, StateIdle},
+		{"OpenConfirm_NotifMsg", StateOpenConfirm, false, EventNotifMsg, StateIdle},
+		{"OpenConfirm_KeepaliveMsg", StateOpenConfirm, false, EventKeepaliveMsg, StateEstablished},
+		{"OpenConfirm_UpdateMsg", StateOpenConfirm, false, EventUpdateMsg, StateIdle},
+		{"OpenConfirm_UpdateMsgErr", StateOpenConfirm, false, EventUpdateMsgErr, StateIdle},
+
+		// === ESTABLISHED state ===
+		// RFC 4271 Section 8.2.2: KeepaliveMsg/UpdateMsg → Established,
+		// HoldTimer/errors/TCPFails → Idle, all others → Idle (FSM Error)
+		{"Established_ManualStart", StateEstablished, false, EventManualStart, StateIdle},
+		{"Established_ManualStop", StateEstablished, false, EventManualStop, StateIdle},
+		{"Established_ConnectRetryTimerExpires", StateEstablished, false, EventConnectRetryTimerExpires, StateIdle},
+		{"Established_HoldTimerExpires", StateEstablished, false, EventHoldTimerExpires, StateIdle},
+		{"Established_KeepaliveTimerExpires", StateEstablished, false, EventKeepaliveTimerExpires, StateEstablished},
+		{"Established_TCPConnectionConfirmed", StateEstablished, false, EventTCPConnectionConfirmed, StateIdle},
+		{"Established_TCPConnectionFails", StateEstablished, false, EventTCPConnectionFails, StateIdle},
+		{"Established_BGPOpen", StateEstablished, false, EventBGPOpen, StateIdle},
+		{"Established_BGPHeaderErr", StateEstablished, false, EventBGPHeaderErr, StateIdle},
+		{"Established_BGPOpenMsgErr", StateEstablished, false, EventBGPOpenMsgErr, StateIdle},
+		{"Established_NotifMsgVerErr", StateEstablished, false, EventNotifMsgVerErr, StateIdle},
+		{"Established_NotifMsg", StateEstablished, false, EventNotifMsg, StateIdle},
+		{"Established_KeepaliveMsg", StateEstablished, false, EventKeepaliveMsg, StateEstablished},
+		{"Established_UpdateMsg", StateEstablished, false, EventUpdateMsg, StateEstablished},
+		{"Established_UpdateMsgErr", StateEstablished, false, EventUpdateMsgErr, StateIdle},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			f := New()
+			f.SetPassive(tt.passive)
+			f.setState(tt.from)
+
+			err := f.Event(tt.event)
+			require.NoError(t, err)
+			require.Equal(t, tt.to, f.State(),
+				"from %s + %s: expected %s, got %s",
+				tt.from, tt.event, tt.to, f.State())
+		})
+	}
+}
+
+// TestFSMUnexpectedEventCallback verifies that the callback fires when an
+// unexpected event causes a transition to Idle.
+//
+// VALIDATES: RFC 4271 Section 8.2.2 "any other event" transitions invoke the
+// state callback so the reactor is notified of session teardown.
+//
+// PREVENTS: Silent FSM resets where the reactor never learns the session dropped.
+func TestFSMUnexpectedEventCallback(t *testing.T) {
+	// Each entry picks an event that hits the default→Idle handler in that state.
+	tests := []struct {
+		state State
+		event Event
+	}{
+		{StateConnect, EventUpdateMsg},                    // no UPDATE before OPEN exchange
+		{StateActive, EventUpdateMsg},                     // no UPDATE before OPEN exchange
+		{StateOpenSent, EventUpdateMsg},                   // no UPDATE before OPEN confirmed
+		{StateOpenConfirm, EventConnectRetryTimerExpires}, // architecturally unreachable
+		{StateEstablished, EventConnectRetryTimerExpires}, // architecturally unreachable
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.state.String(), func(t *testing.T) {
+			f := New()
+			f.setState(tt.state)
+
+			var called bool
+			var fromState, toState State
+
+			f.SetCallback(func(from, to State) {
+				called = true
+				fromState = from
+				toState = to
+			})
+
+			err := f.Event(tt.event)
+			require.NoError(t, err)
+			require.True(t, called, "callback should fire on unexpected event → Idle")
+			require.Equal(t, tt.state, fromState)
+			require.Equal(t, StateIdle, toState)
+		})
+	}
+}

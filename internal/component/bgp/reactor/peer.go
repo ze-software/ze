@@ -698,6 +698,14 @@ func (p *Peer) Wait(ctx context.Context) error {
 }
 
 // run is the main peer loop.
+//
+// This loop replaces the RFC 4271 ConnectRetryTimer (Event 9) with exponential
+// backoff. The RFC's timer assumes non-blocking TCP connections where the FSM
+// sits in Connect/Active waiting for both TCP completion and the retry timer.
+// Ze uses blocking DialContext, so the session either connects or fails before
+// returning. The retry delay between attempts is managed here at the Peer level
+// with exponential backoff (min 5s → max 60s), which is more robust than the
+// RFC's fixed 120s ConnectRetryTimer.
 func (p *Peer) run() {
 	defer p.wg.Done()
 	defer p.cleanup()
