@@ -8,6 +8,7 @@ package bgp_nlri_labeled
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -47,6 +48,56 @@ func RunLabeledPlugin(engineConn, callbackConn net.Conn) int {
 	}
 
 	return 0
+}
+
+// RunCLIDecode decodes labeled unicast NLRI from hex for CLI usage (ze plugin bgp-labeled --nlri).
+func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
+	writeErr := func(format string, args ...any) {
+		_, e := fmt.Fprintf(errOut, format, args...)
+		_ = e
+	}
+
+	jsonStr, err := DecodeNLRIHex(family, hexData)
+	if err != nil {
+		writeErr("error: %v\n", err)
+		return 1
+	}
+
+	if textOutput {
+		text := formatLabeledText(jsonStr)
+		if _, e := fmt.Fprintln(output, text); e != nil {
+			return 1
+		}
+		return 0
+	}
+
+	if _, e := fmt.Fprintln(output, jsonStr); e != nil {
+		return 1
+	}
+	return 0
+}
+
+// formatLabeledText converts JSON output to human-readable text.
+// Input: {"prefix":"10.0.0.0/8","labels":[100]}
+// Output: 10.0.0.0/8 label=100.
+func formatLabeledText(jsonStr string) string {
+	var result struct {
+		Prefix string   `json:"prefix"`
+		Labels []uint32 `json:"labels"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &result); err != nil {
+		return jsonStr
+	}
+	var sb strings.Builder
+	sb.WriteString(result.Prefix)
+	for i, l := range result.Labels {
+		if i == 0 {
+			fmt.Fprintf(&sb, " label=%d", l)
+		} else {
+			fmt.Fprintf(&sb, ",%d", l)
+		}
+	}
+	return sb.String()
 }
 
 // RunDecode runs the labeled unicast plugin in decode mode for ze bgp decode.

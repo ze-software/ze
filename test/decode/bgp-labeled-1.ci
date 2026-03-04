@@ -1,0 +1,10 @@
+# bgp-labeled-1 decoding test - Labeled IPv4 Unicast NLRI via ze-test decode
+# Tests labeled unicast 10.0.0.0/8 with label=100 per RFC 8277 Section 2.2
+#
+# Wire bytes breakdown:
+# 20 = prefix length 32 bits (24 label + 8 prefix)
+# 00 06 41 = label 100 (value << 4 | S-bit=1)
+# 0A = 10 (10.0.0.0/8)
+stdin=payload:hex=200006410A
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/mpls-label -:stdin=payload
+expect=json:json={ "prefix": "10.0.0.0/8", "labels": [100] }

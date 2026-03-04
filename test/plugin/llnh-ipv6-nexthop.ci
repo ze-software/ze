@@ -1,0 +1,42 @@
+# llnh-ipv6-nexthop - verify LLNH plugin injects capability 77 in OPEN
+# Tests: link-local-nexthop capability (code 77, empty payload) appears in OPEN
+# when bgp-llnh plugin is loaded and peer has link-local-nexthop enabled.
+#
+# Capability 77 (0x4D) with zero-length payload: cap-code=4D, cap-len=00
+# Expected in OPEN opt params as: param-type(02) + param-len(02) + cap-code(4D) + cap-len(00)
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=open:value=inspect-open-message
+option=timeout:value=10s
+
+# Full OPEN message (exact hex match):
+# marker(16xFF) + len(0031=49) + type(01=OPEN) + version(04) + ASN(0001) + hold(005A=90s)
+# + router-id(01020304=1.2.3.4) + opt-params-len(14=20)
+# + MP IPv6/unicast: param(02) len(06) cap(01) cap-len(04) AFI(0002) res(00) SAFI(01)
+# + ASN4: param(02) len(06) cap(41) cap-len(04) ASN(00000001)
+# + LLNH: param(02) len(02) cap(4D) cap-len(00)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003101040001005A01020304140206010400020001020641040000000102024D00
+EOF_PEER
+
+# ze bgp configuration with link-local-nexthop enabled
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		connection active;
+		family {
+			ipv6/unicast;
+		}
+		capability {
+			link-local-nexthop;
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-llnh -:stdin=ze-bgp:timeout=10s
