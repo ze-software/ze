@@ -64,7 +64,7 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid IP address: %s", selector),
-		}, err
+		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
 	}
 
 	for _, p := range allPeers {
@@ -140,16 +140,22 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, err
+		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
 	// Parse subcode
 	code, err := parseUint(args[0])
-	if err != nil || code > 255 {
+	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid subcode: %s", args[0]),
-		}, fmt.Errorf("invalid subcode: %s", args[0])
+		}, fmt.Errorf("invalid subcode %s: %w", args[0], err)
+	}
+	if code > 255 {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("invalid subcode: %s (must be 0-255)", args[0]),
+		}, fmt.Errorf("subcode out of range: %d", code)
 	}
 	subcode := uint8(code)
 
@@ -157,7 +163,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("teardown failed: %v", err),
-		}, err
+		}, fmt.Errorf("teardown peer %s: %w", addr, err)
 	}
 
 	return &plugin.Response{
@@ -215,7 +221,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, err
+		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
 	// Parse options
@@ -229,8 +235,11 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}
 			i++
 			asn, err := parseUint(args[i])
-			if err != nil || asn > 0xFFFFFFFF {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
+			if err != nil {
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn %s: %w", args[i], err)
+			}
+			if asn > 0xFFFFFFFF {
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s (out of range)", args[i])}, fmt.Errorf("asn out of range: %d", asn)
 			}
 			config.PeerAS = uint32(asn)
 
@@ -240,8 +249,11 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}
 			i++
 			asn, err := parseUint(args[i])
-			if err != nil || asn > 0xFFFFFFFF {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
+			if err != nil {
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as %s: %w", args[i], err)
+			}
+			if asn > 0xFFFFFFFF {
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s (out of range)", args[i])}, fmt.Errorf("local-as out of range: %d", asn)
 			}
 			config.LocalAS = uint32(asn)
 
@@ -252,7 +264,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			i++
 			localAddr, err := netip.ParseAddr(args[i])
 			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address %s: %w", args[i], err)
 			}
 			config.LocalAddress = localAddr
 
@@ -263,7 +275,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			i++
 			rid, err := parseRouterID(args[i])
 			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, fmt.Errorf("invalid router-id %s: %w", args[i], err)
 			}
 			config.RouterID = rid
 
@@ -274,19 +286,19 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			i++
 			seconds, err := parseUint(args[i])
 			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, fmt.Errorf("invalid hold-time %s: %w", args[i], err)
 			}
 			// RFC 4271: hold time 0 is valid (no keepalives), 3-65535 are valid
 			// Cap at reasonable maximum to prevent overflow (1 day = 86400s)
 			const maxHoldTime = 86400
 			if seconds > maxHoldTime {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time out of range: %d (max %d)", seconds, maxHoldTime)
 			}
 			config.HoldTime = time.Duration(seconds) * time.Second
 
 		case "connection":
 			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "connection requires a value (both, passive, active)"}, fmt.Errorf("connection requires a value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "connection requires a value (both, passive, active)"}, fmt.Errorf("missing connection value")
 			}
 			i++
 			v := args[i] //nolint:gosec // bounds checked by i+1 >= len(args) guard above
@@ -316,7 +328,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("failed to add peer: %v", err),
-		}, err
+		}, fmt.Errorf("add peer %s: %w", addr, err)
 	}
 
 	return &plugin.Response{
@@ -351,7 +363,7 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, err
+		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
 	// Remove peer via reactor
@@ -359,7 +371,7 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("failed to remove peer: %v", err),
-		}, err
+		}, fmt.Errorf("remove peer %s: %w", addr, err)
 	}
 
 	return &plugin.Response{
@@ -407,14 +419,14 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, err
+		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
 	}
 
 	if err := fn(ctx.Reactor(), addr); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("%s failed: %v", action, err),
-		}, err
+		}, fmt.Errorf("%s peer %s: %w", action, addr, err)
 	}
 
 	return &plugin.Response{
