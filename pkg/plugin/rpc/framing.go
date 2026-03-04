@@ -1,11 +1,8 @@
-// Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
+// Design: docs/architecture/api/ipc_protocol.md — NUL-delimited frame I/O
 // Detail: batch.go — batched event delivery frame construction
-//
-// Package ipc provides NUL-byte terminated JSON framing for Ze IPC protocol.
-//
-// Messages are UTF-8 JSON objects terminated by a NUL byte (0x00).
-// NUL cannot appear in valid JSON, making it an unambiguous delimiter.
-package ipc
+// Related: conn.go — Conn uses FrameReader/FrameWriter for RPC framing
+
+package rpc
 
 import (
 	"bufio"

@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // reloadTimeout is the maximum time to wait for a daemon reload response.
@@ -40,19 +40,19 @@ func NewSocketReloadNotifier(socketPath string) ReloadNotifier {
 		}
 
 		// Send reload request
-		req := ipc.Request{Method: "ze-system:daemon-reload"}
+		req := rpc.Request{Method: "ze-system:daemon-reload"}
 		reqBytes, err := json.Marshal(req)
 		if err != nil {
 			return fmt.Errorf("marshal reload request: %w", err)
 		}
 
-		writer := ipc.NewFrameWriter(conn)
+		writer := rpc.NewFrameWriter(conn)
 		if err := writer.Write(reqBytes); err != nil {
 			return fmt.Errorf("send reload request: %w", err)
 		}
 
 		// Read response
-		reader := ipc.NewFrameReader(conn)
+		reader := rpc.NewFrameReader(conn)
 		respBytes, err := reader.Read()
 		if err != nil {
 			return fmt.Errorf("read reload response: %w", err)

@@ -1,4 +1,6 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
+// Related: message.go — Request/RPCResult/RPCError wire types
+// Related: framing.go — NUL-delimited FrameReader/FrameWriter
 // Related: mux.go — MuxConn multiplexer (consumes readFrame)
 // Related: text_conn.go — TextConn text-mode framing alternative
 // Related: bridge.go — DirectBridge for internal plugins
@@ -19,8 +21,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // defaultWriteDeadline is used when the context has no deadline.
@@ -43,8 +43,8 @@ const defaultWriteDeadline = 30 * time.Second
 // Callers must call Close() to release resources. Close() unblocks the
 // persistent reader by closing the read connection.
 type Conn struct {
-	reader    *ipc.FrameReader
-	writer    *ipc.FrameWriter
+	reader    *FrameReader
+	writer    *FrameWriter
 	readConn  net.Conn
 	writeConn net.Conn
 
@@ -63,8 +63,8 @@ type Conn struct {
 // For single-socket use, pass the same conn for both arguments.
 func NewConn(readConn, writeConn net.Conn) *Conn {
 	return &Conn{
-		reader:    ipc.NewFrameReader(readConn),
-		writer:    ipc.NewFrameWriter(writeConn),
+		reader:    NewFrameReader(readConn),
+		writer:    NewFrameWriter(writeConn),
 		readConn:  readConn,
 		writeConn: writeConn,
 	}
@@ -157,12 +157,12 @@ func (c *Conn) WriteRawFrame(data []byte) error {
 
 // ReadRequest reads the next incoming RPC request from the read connection.
 // Uses the persistent reader — no goroutine is spawned per call.
-func (c *Conn) ReadRequest(ctx context.Context) (*ipc.Request, error) {
+func (c *Conn) ReadRequest(ctx context.Context) (*Request, error) {
 	data, err := c.readFrame(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var req ipc.Request
+	var req Request
 	if err := json.Unmarshal(data, &req); err != nil {
 		return nil, fmt.Errorf("unmarshal request: %w", err)
 	}
@@ -179,7 +179,7 @@ func (c *Conn) SendResult(ctx context.Context, id json.RawMessage, data any) err
 			return fmt.Errorf("marshal result data: %w", err)
 		}
 	}
-	resp := &ipc.RPCResult{
+	resp := &RPCResult{
 		Result: result,
 		ID:     id,
 	}
@@ -188,13 +188,13 @@ func (c *Conn) SendResult(ctx context.Context, id json.RawMessage, data any) err
 
 // SendOK sends an empty successful RPC response.
 func (c *Conn) SendOK(ctx context.Context, id json.RawMessage) error {
-	resp := &ipc.RPCResult{ID: id}
+	resp := &RPCResult{ID: id}
 	return c.WriteWithContext(ctx, resp)
 }
 
 // SendError sends an error RPC response with the given ID and error name.
 func (c *Conn) SendError(ctx context.Context, id json.RawMessage, errorName string) error {
-	resp := &ipc.RPCError{
+	resp := &RPCError{
 		Error: errorName,
 		ID:    id,
 	}
@@ -221,7 +221,7 @@ func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.Raw
 		}
 	}
 
-	req := &ipc.Request{
+	req := &Request{
 		Method: method,
 		Params: paramsRaw,
 		ID:     id,
@@ -293,7 +293,7 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 		return fmt.Errorf("set write deadline: %w", err)
 	}
 	c.mu.Lock()
-	err := ipc.WriteBatchFrame(c.writer.RawWriter(), id, events)
+	err := WriteBatchFrame(c.writer.RawWriter(), id, events)
 	c.mu.Unlock()
 	// Clear deadline regardless of write outcome.
 	if clearErr := c.writeConn.SetWriteDeadline(time.Time{}); clearErr != nil {

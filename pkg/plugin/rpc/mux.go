@@ -11,8 +11,6 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // ErrMuxConnClosed is returned when CallRPC is called on a closed MuxConn.
@@ -91,7 +89,7 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 		paramsRaw = b
 	}
 
-	req := &ipc.Request{
+	req := &Request{
 		Method: method,
 		Params: paramsRaw,
 		ID:     id,

@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestBatchRoundTrip verifies write batch frame → read with FrameReader → parse events.
@@ -23,11 +25,11 @@ func TestBatchRoundTrip(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteBatchFrame(&buf, 42, events)
+	err := rpc.WriteBatchFrame(&buf, 42, events)
 	require.NoError(t, err)
 
 	// Read back with FrameReader — batch frame must be a valid NUL-delimited frame
-	reader := NewFrameReader(&buf)
+	reader := rpc.NewFrameReader(&buf)
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
@@ -42,7 +44,7 @@ func TestBatchRoundTrip(t *testing.T) {
 	assert.Equal(t, uint64(42), rpcReq.ID)
 
 	// Parse events from params
-	got, err := ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(rpcReq.Params)
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 
@@ -63,10 +65,10 @@ func TestBatchSingleEvent(t *testing.T) {
 	event := []byte(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`)
 
 	var buf bytes.Buffer
-	err := WriteBatchFrame(&buf, 1, [][]byte{event})
+	err := rpc.WriteBatchFrame(&buf, 1, [][]byte{event})
 	require.NoError(t, err)
 
-	reader := NewFrameReader(&buf)
+	reader := rpc.NewFrameReader(&buf)
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
@@ -75,7 +77,7 @@ func TestBatchSingleEvent(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(frame, &rpcReq))
 
-	got, err := ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(rpcReq.Params)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.JSONEq(t, string(event), string(got[0]))
@@ -110,7 +112,7 @@ func TestBatchParseEvents(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := ParseBatchEvents([]byte(tc.params))
+			got, err := rpc.ParseBatchEvents([]byte(tc.params))
 			require.NoError(t, err)
 			assert.Len(t, got, tc.want)
 		})
@@ -132,7 +134,7 @@ func TestBatchParseEventsError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseBatchEvents([]byte(tc.params))
+			_, err := rpc.ParseBatchEvents([]byte(tc.params))
 			require.Error(t, err)
 		})
 	}
@@ -150,7 +152,7 @@ func TestBatchFramePooledBuffer(t *testing.T) {
 	// Call WriteBatchFrame multiple times — should reuse pool buffers
 	for range 100 {
 		var buf bytes.Buffer
-		err := WriteBatchFrame(&buf, 1, events)
+		err := rpc.WriteBatchFrame(&buf, 1, events)
 		require.NoError(t, err)
 		assert.True(t, buf.Len() > 0)
 	}
@@ -168,10 +170,10 @@ func TestBatchFrameLargePayload(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := WriteBatchFrame(&buf, 99, events)
+	err := rpc.WriteBatchFrame(&buf, 99, events)
 	require.NoError(t, err)
 
-	reader := NewFrameReader(&buf)
+	reader := rpc.NewFrameReader(&buf)
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
@@ -180,7 +182,7 @@ func TestBatchFrameLargePayload(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(frame, &rpcReq))
 
-	got, err := ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(rpcReq.Params)
 	require.NoError(t, err)
 	assert.Len(t, got, 64)
 }
@@ -197,10 +199,10 @@ func TestBatchTextEventRoundTrip(t *testing.T) {
 	events := [][]byte{textEvent1, textEvent2}
 
 	var buf bytes.Buffer
-	err := WriteBatchFrame(&buf, 7, events)
+	err := rpc.WriteBatchFrame(&buf, 7, events)
 	require.NoError(t, err)
 
-	reader := NewFrameReader(&buf)
+	reader := rpc.NewFrameReader(&buf)
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
@@ -210,7 +212,7 @@ func TestBatchTextEventRoundTrip(t *testing.T) {
 	}
 	require.NoError(t, json.Unmarshal(frame, &rpcReq))
 
-	got, err := ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(rpcReq.Params)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 
@@ -231,10 +233,10 @@ func TestBatchFrameIDIncrement(t *testing.T) {
 	ids := make(map[uint64]bool)
 	for i := range uint64(10) {
 		var buf bytes.Buffer
-		err := WriteBatchFrame(&buf, i+1, events)
+		err := rpc.WriteBatchFrame(&buf, i+1, events)
 		require.NoError(t, err)
 
-		reader := NewFrameReader(&buf)
+		reader := rpc.NewFrameReader(&buf)
 		frame, err := reader.Read()
 		require.NoError(t, err)
 

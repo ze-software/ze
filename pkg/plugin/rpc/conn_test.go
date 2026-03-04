@@ -13,8 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // sendFrame sends a NUL-terminated JSON frame on conn.
@@ -58,9 +56,9 @@ func TestConn_ReadRequest_PersistentReader(t *testing.T) {
 	// first ReadRequest, so we must not block the test goroutine on Write.
 	const count = 10
 	go func() {
-		sendFrame(t, serverEnd, &ipc.Request{Method: "test-method", ID: json.RawMessage(`1`)})
+		sendFrame(t, serverEnd, &Request{Method: "test-method", ID: json.RawMessage(`1`)})
 		for i := range count {
-			sendFrame(t, serverEnd, &ipc.Request{
+			sendFrame(t, serverEnd, &Request{
 				Method: "ping",
 				ID:     json.RawMessage(fmt.Sprintf("%d", i+2)),
 			})
@@ -100,7 +98,7 @@ func TestConn_ReadRequest_Sequential(t *testing.T) {
 	methods := []string{"alpha", "beta", "gamma", "delta"}
 	go func() {
 		for _, m := range methods {
-			sendFrame(t, serverEnd, &ipc.Request{
+			sendFrame(t, serverEnd, &Request{
 				Method: m,
 				ID:     json.RawMessage(`"` + m + `"`),
 			})
@@ -143,7 +141,7 @@ func TestConn_ReadRequest_ContextCancel(t *testing.T) {
 	defer longCancel()
 
 	// Send from goroutine — net.Pipe is synchronous.
-	go sendFrame(t, serverEnd, &ipc.Request{Method: "after-cancel", ID: json.RawMessage(`2`)})
+	go sendFrame(t, serverEnd, &Request{Method: "after-cancel", ID: json.RawMessage(`2`)})
 
 	got, err := conn.ReadRequest(longCtx)
 	require.NoError(t, err)
@@ -203,7 +201,7 @@ func TestConn_ReaderError_Propagates(t *testing.T) {
 	defer cancel()
 
 	// Send one frame from goroutine (net.Pipe is synchronous), then close.
-	go sendFrame(t, serverEnd, &ipc.Request{Method: "before-break", ID: json.RawMessage(`1`)})
+	go sendFrame(t, serverEnd, &Request{Method: "before-break", ID: json.RawMessage(`1`)})
 
 	got, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
@@ -243,9 +241,9 @@ func TestConn_NoGoroutineLeak(t *testing.T) {
 
 	// Send all frames from a goroutine — net.Pipe is synchronous.
 	go func() {
-		sendFrame(t, serverEnd, &ipc.Request{Method: "warmup", ID: json.RawMessage(`0`)})
+		sendFrame(t, serverEnd, &Request{Method: "warmup", ID: json.RawMessage(`0`)})
 		for i := range n {
-			sendFrame(t, serverEnd, &ipc.Request{
+			sendFrame(t, serverEnd, &Request{
 				Method: "test",
 				ID:     json.RawMessage(fmt.Sprintf("%d", i+1)),
 			})
@@ -292,7 +290,7 @@ func TestConn_CallRPC_DeadlineWrite(t *testing.T) {
 	defer cancel()
 
 	// Engine echoes method name.
-	fakeEngine(ctx, engineEnd, func(req *ipc.Request) any {
+	fakeEngine(ctx, engineEnd, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 
@@ -340,7 +338,7 @@ func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 		if unmarshalErr := json.Unmarshal(data, &probe); unmarshalErr != nil {
 			return
 		}
-		resp := &ipc.RPCResult{ID: probe.ID}
+		resp := &RPCResult{ID: probe.ID}
 		if writeErr := engineConn.WriteFrame(resp); writeErr != nil {
 			return
 		}
@@ -377,7 +375,7 @@ func TestConn_WriteWithContext_Deadline(t *testing.T) {
 	// Read from server side in background.
 	readDone := make(chan []byte, 1)
 	go func() {
-		fr := ipc.NewFrameReader(serverEnd)
+		fr := NewFrameReader(serverEnd)
 		data, readErr := fr.Read()
 		if readErr != nil {
 			readDone <- nil
@@ -390,14 +388,14 @@ func TestConn_WriteWithContext_Deadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	msg := &ipc.Request{Method: "test-write", ID: json.RawMessage(`1`)}
+	msg := &Request{Method: "test-write", ID: json.RawMessage(`1`)}
 	err := conn.WriteWithContext(ctx, msg)
 	require.NoError(t, err)
 
 	select {
 	case data := <-readDone:
 		require.NotNil(t, data)
-		var got ipc.Request
+		var got Request
 		require.NoError(t, json.Unmarshal(data, &got))
 		assert.Equal(t, "test-write", got.Method)
 	case <-time.After(2 * time.Second):
@@ -423,7 +421,7 @@ func TestConn_WriteWithContext_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	msg := &ipc.Request{Method: "should-fail", ID: json.RawMessage(`1`)}
+	msg := &Request{Method: "should-fail", ID: json.RawMessage(`1`)}
 	err := conn.WriteWithContext(ctx, msg)
 	require.Error(t, err)
 }
@@ -483,7 +481,7 @@ func TestConn_CallRPC_Serialization(t *testing.T) {
 	defer cancel()
 
 	// Engine echoes method name with a small delay to ensure overlap.
-	fakeEngineWithDelay(ctx, engineEnd, 10*time.Millisecond, func(req *ipc.Request) any {
+	fakeEngineWithDelay(ctx, engineEnd, 10*time.Millisecond, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 
@@ -542,7 +540,7 @@ func TestConn_MuxConn_Compatibility(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	fakeEngine(ctx, engineEnd, func(req *ipc.Request) any {
+	fakeEngine(ctx, engineEnd, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 

@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestRPCDispatchSimple verifies basic method routing to handler.
@@ -21,13 +23,13 @@ func TestRPCDispatchSimple(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req := &Request{
+	req := &rpc.Request{
 		Method: "ze-bgp:peer-list",
 		ID:     json.RawMessage(`1`),
 	}
 
 	resp := d.Dispatch(req)
-	result, ok := resp.(*RPCResult)
+	result, ok := resp.(*rpc.RPCResult)
 	require.True(t, ok, "expected RPCResult, got %T", resp)
 	assert.NotNil(t, result.Result)
 	assert.Equal(t, json.RawMessage(`1`), result.ID)
@@ -49,14 +51,14 @@ func TestRPCDispatchWithParams(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req := &Request{
+	req := &rpc.Request{
 		Method: "ze-bgp:peer-teardown",
 		Params: json.RawMessage(`{"selector":"10.0.0.1","subcode":2}`),
 		ID:     json.RawMessage(`2`),
 	}
 
 	resp := d.Dispatch(req)
-	_, ok := resp.(*RPCResult)
+	_, ok := resp.(*rpc.RPCResult)
 	require.True(t, ok)
 	assert.Equal(t, "ze-bgp:peer-teardown", receivedMethod)
 	assert.JSONEq(t, `{"selector":"10.0.0.1","subcode":2}`, string(receivedParams))
@@ -69,13 +71,13 @@ func TestRPCDispatchWithParams(t *testing.T) {
 func TestRPCDispatchUnknownMethod(t *testing.T) {
 	d := NewRPCDispatcher()
 
-	req := &Request{
+	req := &rpc.Request{
 		Method: "ze-bgp:nonexistent",
 		ID:     json.RawMessage(`3`),
 	}
 
 	resp := d.Dispatch(req)
-	errResp, ok := resp.(*RPCError)
+	errResp, ok := resp.(*rpc.RPCError)
 	require.True(t, ok, "expected RPCError, got %T", resp)
 	assert.Contains(t, errResp.Error, "unknown")
 	assert.Equal(t, json.RawMessage(`3`), errResp.ID)
@@ -93,13 +95,13 @@ func TestRPCDispatchHandlerError(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req := &Request{
+	req := &rpc.Request{
 		Method: "ze-bgp:peer-teardown",
 		ID:     json.RawMessage(`4`),
 	}
 
 	resp := d.Dispatch(req)
-	errResp, ok := resp.(*RPCError)
+	errResp, ok := resp.(*rpc.RPCError)
 	require.True(t, ok, "expected RPCError, got %T", resp)
 	assert.Equal(t, "peer-not-found", errResp.Error)
 	assert.Equal(t, json.RawMessage(`4`), errResp.ID)
@@ -124,12 +126,12 @@ func TestRPCDispatchInvalidMethod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := &Request{
+			req := &rpc.Request{
 				Method: tt.method,
 				ID:     json.RawMessage(`99`),
 			}
 			resp := d.Dispatch(req)
-			errResp, ok := resp.(*RPCError)
+			errResp, ok := resp.(*rpc.RPCError)
 			require.True(t, ok, "expected RPCError for method %q, got %T", tt.method, resp)
 			assert.NotEmpty(t, errResp.Error)
 		})
@@ -181,13 +183,13 @@ func TestRPCDispatchNilResult(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	req := &Request{
+	req := &rpc.Request{
 		Method: "ze-system:daemon-shutdown",
 		ID:     json.RawMessage(`7`),
 	}
 
 	resp := d.Dispatch(req)
-	result, ok := resp.(*RPCResult)
+	result, ok := resp.(*rpc.RPCResult)
 	require.True(t, ok)
 	assert.Equal(t, json.RawMessage(`7`), result.ID)
 }

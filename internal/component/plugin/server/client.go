@@ -8,7 +8,7 @@ import (
 	"encoding/json"
 	"net"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // Client represents a connected API client.
@@ -50,8 +50,8 @@ func (s *Server) clientLoop(client *Client) {
 	defer s.removeClient(client)
 	defer client.conn.Close() //nolint:errcheck // best-effort cleanup on defer
 
-	reader := ipc.NewFrameReader(client.conn)
-	writer := ipc.NewFrameWriter(client.conn)
+	reader := rpc.NewFrameReader(client.conn)
+	writer := rpc.NewFrameWriter(client.conn)
 
 	for {
 		select {
@@ -69,9 +69,9 @@ func (s *Server) clientLoop(client *Client) {
 			continue
 		}
 
-		var req ipc.Request
+		var req rpc.Request
 		if err := json.Unmarshal(msg, &req); err != nil {
-			errResp := &ipc.RPCError{Error: "invalid-json"}
+			errResp := &rpc.RPCError{Error: "invalid-json"}
 			if writeErr := s.writeRPCResponse(writer, errResp); writeErr != nil {
 				return
 			}
@@ -87,7 +87,7 @@ func (s *Server) clientLoop(client *Client) {
 
 // writeRPCResponse marshals and writes an RPC response via NUL-framed writer.
 // Returns error if the write fails (caller should close connection).
-func (s *Server) writeRPCResponse(writer *ipc.FrameWriter, result any) error {
+func (s *Server) writeRPCResponse(writer *rpc.FrameWriter, result any) error {
 	respJSON, err := json.Marshal(result)
 	if err != nil {
 		logger().Warn("failed to marshal RPC response", "error", err)

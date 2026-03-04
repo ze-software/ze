@@ -17,7 +17,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	plugipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -40,8 +39,8 @@ func rpcCall(t *testing.T, conn net.Conn, method string, id int) map[string]any 
 // rpcCallWithParams sends a NUL-framed JSON RPC request with params and reads the response.
 func rpcCallWithParams(t *testing.T, conn net.Conn, method string, id int, params any) map[string]any {
 	t.Helper()
-	writer := ipc.NewFrameWriter(conn)
-	reader := ipc.NewFrameReader(conn)
+	writer := rpc.NewFrameWriter(conn)
+	reader := rpc.NewFrameReader(conn)
 
 	req := map[string]any{"method": method, "id": id}
 	if params != nil {
@@ -291,7 +290,7 @@ func TestServerEmptyFrame(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	writer := ipc.NewFrameWriter(conn)
+	writer := rpc.NewFrameWriter(conn)
 
 	// Send empty frame (just NUL byte)
 	require.NoError(t, writer.Write([]byte{}))
@@ -321,8 +320,8 @@ func TestServerInvalidJSON(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	writer := ipc.NewFrameWriter(conn)
-	reader := ipc.NewFrameReader(conn)
+	writer := rpc.NewFrameWriter(conn)
+	reader := rpc.NewFrameReader(conn)
 
 	// Send invalid JSON
 	require.NoError(t, writer.Write([]byte("not valid json")))
@@ -602,25 +601,25 @@ func TestServerNULProtocol(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Send NUL-terminated JSON request
-	req := ipc.Request{
+	req := rpc.Request{
 		Method: "ze-system:version-software",
 		ID:     json.RawMessage(`1`),
 	}
 	reqJSON, err := json.Marshal(req)
 	require.NoError(t, err)
 
-	writer := ipc.NewFrameWriter(conn)
+	writer := rpc.NewFrameWriter(conn)
 	err = writer.Write(reqJSON)
 	require.NoError(t, err)
 
 	// Read NUL-terminated JSON response (with deadline to avoid hanging)
 	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
-	reader := ipc.NewFrameReader(conn)
+	reader := rpc.NewFrameReader(conn)
 	respBytes, err := reader.Read()
 	require.NoError(t, err, "server must respond with NUL-terminated JSON")
 
 	// Parse response as RPCResult
-	var result ipc.RPCResult
+	var result rpc.RPCResult
 	err = json.Unmarshal(respBytes, &result)
 	require.NoError(t, err)
 
@@ -653,24 +652,24 @@ func TestServerNULProtocolUnknownMethod(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Send request with unknown method
-	req := ipc.Request{
+	req := rpc.Request{
 		Method: "ze-system:nonexistent",
 		ID:     json.RawMessage(`2`),
 	}
 	reqJSON, _ := json.Marshal(req)
 
-	writer := ipc.NewFrameWriter(conn)
+	writer := rpc.NewFrameWriter(conn)
 	err = writer.Write(reqJSON)
 	require.NoError(t, err)
 
 	// Read response
 	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
-	reader := ipc.NewFrameReader(conn)
+	reader := rpc.NewFrameReader(conn)
 	respBytes, err := reader.Read()
 	require.NoError(t, err)
 
 	// Parse as RPCError
-	var errResp ipc.RPCError
+	var errResp rpc.RPCError
 	err = json.Unmarshal(respBytes, &errResp)
 	require.NoError(t, err)
 
@@ -704,23 +703,23 @@ func TestServerNULProtocolWithParams(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Send daemon-status request (no params needed)
-	req := ipc.Request{
+	req := rpc.Request{
 		Method: "ze-system:daemon-status",
 		ID:     json.RawMessage(`42`),
 	}
 	reqJSON, _ := json.Marshal(req)
 
-	writer := ipc.NewFrameWriter(conn)
+	writer := rpc.NewFrameWriter(conn)
 	err = writer.Write(reqJSON)
 	require.NoError(t, err)
 
 	// Read response
 	require.NoError(t, conn.SetReadDeadline(time.Now().Add(2*time.Second)))
-	reader := ipc.NewFrameReader(conn)
+	reader := rpc.NewFrameReader(conn)
 	respBytes, err := reader.Read()
 	require.NoError(t, err)
 
-	var result ipc.RPCResult
+	var result rpc.RPCResult
 	err = json.Unmarshal(respBytes, &result)
 	require.NoError(t, err)
 

@@ -1,4 +1,4 @@
-// Design: docs/architecture/api/ipc_protocol.md — IPC framing and dispatch
+// Design: docs/architecture/api/ipc_protocol.md — response mapping and error normalization
 
 package ipc
 
@@ -6,33 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// Request represents an IPC request on the wire.
-// Method uses "module:rpc-name" format (e.g., "ze-bgp:peer-list").
-type Request struct {
-	Method string          `json:"method"`           // module:rpc-name
-	Params json.RawMessage `json:"params,omitempty"` // Input parameters
-	ID     json.RawMessage `json:"id,omitempty"`     // Correlation ID (string or number)
-	More   bool            `json:"more,omitempty"`   // Request streaming responses
-}
-
-// RPCResult represents a successful IPC response on the wire.
-type RPCResult struct {
-	Result    json.RawMessage `json:"result"`              // Output data
-	ID        json.RawMessage `json:"id,omitempty"`        // Echoed from request
-	Continues bool            `json:"continues,omitempty"` // More responses follow
-}
-
-// RPCError represents an IPC error response on the wire.
-type RPCError struct {
-	Error  string          `json:"error"`            // Error identity name
-	Params json.RawMessage `json:"params,omitempty"` // Error parameters
-	ID     json.RawMessage `json:"id,omitempty"`     // Echoed from request
-}
-
 // MapResponse converts the current plugin Response fields to an IPC wire message.
-// Returns either *RPCResult (success) or *RPCError (error).
+// Returns either *rpc.RPCResult (success) or *rpc.RPCError (error).
 func MapResponse(status, serial string, partial bool, data any) any {
 	var id json.RawMessage
 	if serial != "" {
@@ -48,7 +27,7 @@ func MapResponse(status, serial string, partial bool, data any) any {
 
 	if status == "error" {
 		errMsg := normalizeErrorName(data)
-		resp := &RPCError{
+		resp := &rpc.RPCError{
 			Error: errMsg,
 			ID:    id,
 		}
@@ -66,7 +45,7 @@ func MapResponse(status, serial string, partial bool, data any) any {
 		}
 	}
 
-	resp := &RPCResult{
+	resp := &rpc.RPCResult{
 		Result:    result,
 		ID:        id,
 		Continues: partial,

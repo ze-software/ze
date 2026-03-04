@@ -11,7 +11,6 @@ import (
 	"io"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -70,7 +69,7 @@ func (p *Plugin) eventLoop(ctx context.Context) error {
 }
 
 // dispatchCallback routes a callback request to the appropriate handler and sends the response.
-func (p *Plugin) dispatchCallback(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) dispatchCallback(ctx context.Context, req *rpc.Request) error {
 	switch req.Method {
 	case "ze-plugin-callback:deliver-event":
 		if handleErr := p.handleDeliverEvent(req.Params); handleErr != nil {
@@ -115,7 +114,7 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *ipc.Request) error {
 }
 
 // handleByeAndRespond handles bye by responding first, then invoking callback.
-func (p *Plugin) handleByeAndRespond(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) handleByeAndRespond(ctx context.Context, req *rpc.Request) error {
 	// Send response before invoking callback
 	if err := p.callbackConn.SendOK(ctx, req.ID); err != nil {
 		return err
@@ -203,7 +202,7 @@ func (p *Plugin) handleDeliverEvent(params json.RawMessage) error {
 // handleDeliverBatch processes a batched event delivery by dispatching each
 // event to the onEvent handler. Short-circuits on the first handler error.
 func (p *Plugin) handleDeliverBatch(params json.RawMessage) error {
-	events, err := ipc.ParseBatchEvents(params)
+	events, err := rpc.ParseBatchEvents(params)
 	if err != nil {
 		return err
 	}
@@ -231,7 +230,7 @@ func (p *Plugin) handleDeliverBatch(params json.RawMessage) error {
 
 // handleNLRICallback handles an NLRI-related RPC by unmarshalling params, invoking
 // a handler function, and sending either the result or an error response.
-func (p *Plugin) handleNLRICallback(ctx context.Context, req *ipc.Request, handler func(json.RawMessage) (any, error)) error {
+func (p *Plugin) handleNLRICallback(ctx context.Context, req *rpc.Request, handler func(json.RawMessage) (any, error)) error {
 	if handler == nil {
 		return p.callbackConn.SendError(ctx, req.ID, req.Method+" not supported")
 	}
@@ -316,7 +315,7 @@ func (p *Plugin) decodeCapabilityHandler() func(json.RawMessage) (any, error) {
 	}
 }
 
-func (p *Plugin) handleExecuteCommand(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) handleExecuteCommand(ctx context.Context, req *rpc.Request) error {
 	p.mu.Lock()
 	fn := p.onExecuteCommand
 	p.mu.Unlock()
@@ -344,7 +343,7 @@ func (p *Plugin) handleExecuteCommand(ctx context.Context, req *ipc.Request) err
 // handleConfigRPC is a shared handler for config-verify and config-apply RPCs.
 // Both follow the same pattern: unmarshal params, call handler, return status/error result.
 // The handler function receives raw params and returns an error (reject) or nil (accept).
-func (p *Plugin) handleConfigRPC(ctx context.Context, req *ipc.Request, handler func(json.RawMessage) error) error {
+func (p *Plugin) handleConfigRPC(ctx context.Context, req *rpc.Request, handler func(json.RawMessage) error) error {
 	if handler == nil {
 		// No handler = graceful no-op (not all plugins care about config).
 		return p.callbackConn.SendResult(ctx, req.ID, &struct {
@@ -364,7 +363,7 @@ func (p *Plugin) handleConfigRPC(ctx context.Context, req *ipc.Request, handler 
 	}{Status: "ok"})
 }
 
-func (p *Plugin) handleConfigVerify(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) handleConfigVerify(ctx context.Context, req *rpc.Request) error {
 	p.mu.Lock()
 	fn := p.onConfigVerify
 	p.mu.Unlock()
@@ -383,7 +382,7 @@ func (p *Plugin) handleConfigVerify(ctx context.Context, req *ipc.Request) error
 	return p.handleConfigRPC(ctx, req, handler)
 }
 
-func (p *Plugin) handleConfigApply(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) handleConfigApply(ctx context.Context, req *rpc.Request) error {
 	p.mu.Lock()
 	fn := p.onConfigApply
 	p.mu.Unlock()
@@ -402,7 +401,7 @@ func (p *Plugin) handleConfigApply(ctx context.Context, req *ipc.Request) error 
 	return p.handleConfigRPC(ctx, req, handler)
 }
 
-func (p *Plugin) handleValidateOpen(ctx context.Context, req *ipc.Request) error {
+func (p *Plugin) handleValidateOpen(ctx context.Context, req *rpc.Request) error {
 	p.mu.Lock()
 	fn := p.onValidateOpen
 	p.mu.Unlock()

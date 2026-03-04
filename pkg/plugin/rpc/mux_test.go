@@ -12,14 +12,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
 
 // fakeEngine starts a goroutine that reads requests from conn and sends
 // responses with matching IDs. The handler func receives the request and
 // returns the result to embed in the response. Closing ctx stops the engine.
-func fakeEngine(ctx context.Context, conn net.Conn, handler func(*ipc.Request) any) {
+func fakeEngine(ctx context.Context, conn net.Conn, handler func(*Request) any) {
 	rpcConn := NewConn(conn, conn)
 	go func() {
 		for {
@@ -36,7 +34,7 @@ func fakeEngine(ctx context.Context, conn net.Conn, handler func(*ipc.Request) a
 				}
 				resultRaw = b
 			}
-			resp := &ipc.RPCResult{
+			resp := &RPCResult{
 				Result: resultRaw,
 				ID:     req.ID,
 			}
@@ -48,7 +46,7 @@ func fakeEngine(ctx context.Context, conn net.Conn, handler func(*ipc.Request) a
 }
 
 // fakeEngineWithDelay is like fakeEngine but adds a per-request delay.
-func fakeEngineWithDelay(ctx context.Context, conn net.Conn, delay time.Duration, handler func(*ipc.Request) any) {
+func fakeEngineWithDelay(ctx context.Context, conn net.Conn, delay time.Duration, handler func(*Request) any) {
 	rpcConn := NewConn(conn, conn)
 	go func() {
 		for {
@@ -66,7 +64,7 @@ func fakeEngineWithDelay(ctx context.Context, conn net.Conn, delay time.Duration
 				}
 				resultRaw = b
 			}
-			resp := &ipc.RPCResult{
+			resp := &RPCResult{
 				Result: resultRaw,
 				ID:     req.ID,
 			}
@@ -100,7 +98,7 @@ func TestMuxConn_SequentialCallRPC(t *testing.T) {
 	defer cancel()
 
 	// Engine echoes back method name as result.
-	fakeEngine(ctx, engineEnd, func(req *ipc.Request) any {
+	fakeEngine(ctx, engineEnd, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 
@@ -150,7 +148,7 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 
 	// Engine responds with the request method — allows verifying correct routing.
 	// Add small delay so both requests are in-flight simultaneously.
-	fakeEngineWithDelay(ctx, engineEnd, 50*time.Millisecond, func(req *ipc.Request) any {
+	fakeEngineWithDelay(ctx, engineEnd, 50*time.Millisecond, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 
@@ -316,7 +314,7 @@ func TestMuxConn_ManyConcurrent(t *testing.T) {
 	defer cancel()
 
 	// Engine responds with the method name.
-	fakeEngine(ctx, engineEnd, func(req *ipc.Request) any {
+	fakeEngine(ctx, engineEnd, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 
@@ -449,7 +447,7 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 		}
 
 		// Send a spurious response with a different ID.
-		spurious := &ipc.RPCResult{
+		spurious := &RPCResult{
 			ID: json.RawMessage(`999`),
 		}
 		if err := engineConn.WriteFrame(spurious); err != nil {
@@ -457,7 +455,7 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 		}
 
 		// Then send the real response.
-		realResp := &ipc.RPCResult{
+		realResp := &RPCResult{
 			ID: req.ID,
 		}
 		if err := engineConn.WriteFrame(realResp); err != nil {

@@ -16,7 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -117,8 +117,8 @@ type rpcResponse struct {
 // cliClient handles communication with the API server using NUL-framed JSON RPC.
 type cliClient struct {
 	conn    net.Conn
-	reader  *ipc.FrameReader
-	writer  *ipc.FrameWriter
+	reader  *rpc.FrameReader
+	writer  *rpc.FrameWriter
 	cmdMap  map[string]string // lowercase CLI command → wire method
 	cmdKeys []string          // sorted by length descending for longest-match
 }
@@ -147,8 +147,8 @@ func newCLIClient(socketPath string) (*cliClient, error) {
 
 	return &cliClient{
 		conn:    conn,
-		reader:  ipc.NewFrameReader(conn),
-		writer:  ipc.NewFrameWriter(conn),
+		reader:  rpc.NewFrameReader(conn),
+		writer:  rpc.NewFrameWriter(conn),
 		cmdMap:  cmdMap,
 		cmdKeys: keys,
 	}, nil
@@ -212,7 +212,7 @@ func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
 	}
 
 	// Build JSON RPC request
-	req := ipc.Request{Method: method}
+	req := rpc.Request{Method: method}
 	if len(args) > 0 {
 		params := struct {
 			Args []string `json:"args,omitempty"`

@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -256,7 +255,7 @@ func deliverEventSync(t *testing.T, ctx context.Context, conn *rpc.Conn, event s
 }
 
 // readRequestTimeout reads the next RPC request with a 5-second timeout.
-func readRequestTimeout(t *testing.T, ctx context.Context, conn *rpc.Conn) *ipc.Request {
+func readRequestTimeout(t *testing.T, ctx context.Context, conn *rpc.Conn) *rpc.Request {
 	t.Helper()
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()

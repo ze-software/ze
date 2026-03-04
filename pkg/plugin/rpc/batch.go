@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/ipc_protocol.md — batched event delivery
 // Overview: framing.go — NUL-delimited frame reader/writer
 
-package ipc
+package rpc
 
 import (
 	"encoding/json"

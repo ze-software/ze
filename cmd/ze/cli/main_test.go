@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // mockServer simulates the API server using NUL-framed JSON RPC.
@@ -58,8 +58,8 @@ func (s *mockServer) serve() {
 func (s *mockServer) handleConn(conn net.Conn) {
 	defer conn.Close() //nolint:errcheck // test cleanup
 
-	reader := ipc.NewFrameReader(conn)
-	writer := ipc.NewFrameWriter(conn)
+	reader := rpc.NewFrameReader(conn)
+	writer := rpc.NewFrameWriter(conn)
 
 	for {
 		msg, err := reader.Read()
@@ -67,9 +67,9 @@ func (s *mockServer) handleConn(conn net.Conn) {
 			return
 		}
 
-		var req ipc.Request
+		var req rpc.Request
 		if err := json.Unmarshal(msg, &req); err != nil {
-			resp := &ipc.RPCError{Error: "invalid-json"}
+			resp := &rpc.RPCError{Error: "invalid-json"}
 			data, merr := json.Marshal(resp)
 			if merr != nil {
 				return
@@ -94,25 +94,25 @@ func (s *mockServer) handleConn(conn net.Conn) {
 func (s *mockServer) handleRPC(method string) any {
 	switch method {
 	case "ze-system:version-software":
-		return &ipc.RPCResult{Result: mustJSON(map[string]any{"version": "0.1.0"})}
+		return &rpc.RPCResult{Result: mustJSON(map[string]any{"version": "0.1.0"})}
 	case "ze-system:help":
-		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+		return &rpc.RPCResult{Result: mustJSON(map[string]any{
 			"commands": []string{"daemon shutdown", "peer list", "system help"},
 		})}
 	case "ze-system:daemon-status":
-		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+		return &rpc.RPCResult{Result: mustJSON(map[string]any{
 			"uptime":     "1h30m",
 			"peer-count": 2,
 		})}
 	case "ze-bgp:peer-list":
-		return &ipc.RPCResult{Result: mustJSON(map[string]any{
+		return &rpc.RPCResult{Result: mustJSON(map[string]any{
 			"peers": []any{
 				map[string]any{"Address": "10.0.0.1", "State": "established"},
 				map[string]any{"Address": "10.0.0.2", "State": "idle"},
 			},
 		})}
 	default:
-		return &ipc.RPCError{Error: "unknown-method"}
+		return &rpc.RPCError{Error: "unknown-method"}
 	}
 }
 

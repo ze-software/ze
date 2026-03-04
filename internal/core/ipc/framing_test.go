@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // TestNULFramingRead verifies reading NUL-terminated messages.
@@ -58,7 +60,7 @@ func TestNULFramingRead(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			reader := NewFrameReader(strings.NewReader(tc.input))
+			reader := rpc.NewFrameReader(strings.NewReader(tc.input))
 			var got []string
 			for {
 				msg, err := reader.Read()
@@ -110,7 +112,7 @@ func TestNULFramingWrite(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			writer := NewFrameWriter(&buf)
+			writer := rpc.NewFrameWriter(&buf)
 			for _, msg := range tc.msgs {
 				err := writer.Write(msg)
 				require.NoError(t, err)
@@ -127,7 +129,7 @@ func TestNULFramingWrite(t *testing.T) {
 func TestNULFramingMultiple(t *testing.T) {
 	// Simulate a batch of messages arriving together
 	batch := `{"id":1}` + "\x00" + `{"id":2}` + "\x00" + `{"id":3}` + "\x00"
-	reader := NewFrameReader(strings.NewReader(batch))
+	reader := rpc.NewFrameReader(strings.NewReader(batch))
 
 	msg1, err := reader.Read()
 	require.NoError(t, err)
@@ -153,7 +155,7 @@ func TestNULFramingPartial(t *testing.T) {
 	// Use a pipe to simulate slow arrival
 	pr, pw := io.Pipe()
 
-	reader := NewFrameReader(pr)
+	reader := rpc.NewFrameReader(pr)
 	done := make(chan []byte, 1)
 
 	go func() {
@@ -189,13 +191,13 @@ func TestNULFramingRoundTrip(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	writer := NewFrameWriter(&buf)
+	writer := rpc.NewFrameWriter(&buf)
 	for _, msg := range messages {
 		err := writer.Write([]byte(msg))
 		require.NoError(t, err)
 	}
 
-	reader := NewFrameReader(&buf)
+	reader := rpc.NewFrameReader(&buf)
 	for _, want := range messages {
 		got, err := reader.Read()
 		require.NoError(t, err)
@@ -214,25 +216,25 @@ func TestNULFramingRoundTrip(t *testing.T) {
 func TestNULFramingMaxSize(t *testing.T) {
 	// Message at exactly MaxMessageSize should succeed
 	t.Run("at_limit", func(t *testing.T) {
-		msg := bytes.Repeat([]byte("x"), MaxMessageSize)
+		msg := bytes.Repeat([]byte("x"), rpc.MaxMessageSize)
 		var buf bytes.Buffer
 		buf.Write(msg)
 		buf.WriteByte(0)
 
-		reader := NewFrameReader(&buf)
+		reader := rpc.NewFrameReader(&buf)
 		got, err := reader.Read()
 		require.NoError(t, err)
-		assert.Len(t, got, MaxMessageSize)
+		assert.Len(t, got, rpc.MaxMessageSize)
 	})
 
 	// Message exceeding MaxMessageSize should fail
 	t.Run("over_limit", func(t *testing.T) {
-		msg := bytes.Repeat([]byte("x"), MaxMessageSize+1)
+		msg := bytes.Repeat([]byte("x"), rpc.MaxMessageSize+1)
 		var buf bytes.Buffer
 		buf.Write(msg)
 		buf.WriteByte(0)
 
-		reader := NewFrameReader(&buf)
+		reader := rpc.NewFrameReader(&buf)
 		_, err := reader.Read()
 		require.Error(t, err, "should reject oversized message")
 		assert.Contains(t, err.Error(), "exceeds maximum", "error should mention size limit")

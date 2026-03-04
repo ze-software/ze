@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // RPCHandler processes an RPC method call.
@@ -54,10 +56,10 @@ func (d *RPCDispatcher) HasMethod(method string) bool {
 }
 
 // Dispatch routes a Request to the registered handler and returns an RPCResult or RPCError.
-func (d *RPCDispatcher) Dispatch(req *Request) any {
+func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	// Validate method format
 	if _, _, err := ParseMethod(req.Method); err != nil {
-		return &RPCError{
+		return &rpc.RPCError{
 			Error: normalizeErrorName(err),
 			ID:    req.ID,
 		}
@@ -69,7 +71,7 @@ func (d *RPCDispatcher) Dispatch(req *Request) any {
 	d.mu.RUnlock()
 
 	if !exists {
-		return &RPCError{
+		return &rpc.RPCError{
 			Error: "unknown-method",
 			ID:    req.ID,
 		}
@@ -78,7 +80,7 @@ func (d *RPCDispatcher) Dispatch(req *Request) any {
 	// Call handler
 	result, err := handler(req.Method, req.Params)
 	if err != nil {
-		return &RPCError{
+		return &rpc.RPCError{
 			Error: normalizeErrorName(err),
 			ID:    req.ID,
 		}
@@ -90,14 +92,14 @@ func (d *RPCDispatcher) Dispatch(req *Request) any {
 		var marshalErr error
 		resultJSON, marshalErr = json.Marshal(result)
 		if marshalErr != nil {
-			return &RPCError{
+			return &rpc.RPCError{
 				Error: "marshal-error",
 				ID:    req.ID,
 			}
 		}
 	}
 
-	return &RPCResult{
+	return &rpc.RPCResult{
 		Result: resultJSON,
 		ID:     req.ID,
 	}
