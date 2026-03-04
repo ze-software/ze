@@ -1,0 +1,8 @@
+# plugin-rtc-nlri - verify RTC plugin NLRI decode
+# Tests Route Target Constraint NLRI decoding via plugin CLI
+# NLRI: prefix-len=96, origin-AS=65001, RT type 2 (ASN=65001, value=100)
+
+cmd=foreground:seq=1:exec=ze plugin bgp-rtc --nlri 600000fde900020000fde90064
+expect=exit:code=0
+expect=stdout:contains=origin-as
+expect=stdout:contains=65001

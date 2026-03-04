@@ -1,0 +1,10 @@
+# bgp-rtc-1 decoding test - RTC NLRI via ze-test decode
+# Tests Route Target Constraint with origin AS 65001
+#
+# Wire bytes breakdown:
+# 60 = prefix length 96 bits
+# 00 00 FD E9 = origin AS 65001
+# 00 02 0000FDE9 0064 = route target (type 2: ASN=65001, value=100)
+stdin=payload:hex=600000fde900020000fde90064
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/rtc -:stdin=payload
+expect=json:json={ "origin-as": 65001, "is-default": false }

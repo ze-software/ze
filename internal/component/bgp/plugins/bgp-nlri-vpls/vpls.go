@@ -7,6 +7,10 @@ package bgp_nlri_vpls
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"io"
 	"log/slog"
 	"net"
 
@@ -42,4 +46,86 @@ func RunVPLSPlugin(engineConn, callbackConn net.Conn) int {
 	}
 
 	return 0
+}
+
+// DecodeNLRIHex decodes VPLS NLRI from hex bytes, returning JSON.
+// This is the in-process fast path registered in the plugin registry.
+func DecodeNLRIHex(family, hexStr string) (string, error) {
+	if family != "l2vpn/vpls" {
+		return "", fmt.Errorf("unsupported family: %s", family)
+	}
+
+	data, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return "", fmt.Errorf("invalid hex: %w", err)
+	}
+
+	vpls, _, err := ParseVPLS(data)
+	if err != nil {
+		return "", fmt.Errorf("parse VPLS failed: %w", err)
+	}
+
+	result := vplsToJSON(vpls)
+	jsonBytes, err := json.Marshal(result)
+	if err != nil {
+		return "", fmt.Errorf("JSON encoding failed: %w", err)
+	}
+
+	return string(jsonBytes), nil
+}
+
+// RunCLIDecode decodes VPLS NLRI from hex string for CLI mode.
+// This is for direct CLI invocation: ze plugin bgp-vpls --nlri.
+func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Writer) int {
+	writeErr := func(format string, args ...any) {
+		_, e := fmt.Fprintf(errOut, format, args...)
+		_ = e
+	}
+	writeOut := func(s string) {
+		_, e := fmt.Fprintln(output, s)
+		_ = e
+	}
+
+	if family != "l2vpn/vpls" {
+		writeErr("error: invalid family: %s (expected l2vpn/vpls)\n", family)
+		return 1
+	}
+
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		writeErr("error: invalid hex: %v\n", err)
+		return 1
+	}
+
+	vpls, _, err := ParseVPLS(data)
+	if err != nil {
+		writeErr("error: parse VPLS failed: %v\n", err)
+		return 1
+	}
+
+	if textOutput {
+		writeOut(vpls.String())
+		return 0
+	}
+
+	result := vplsToJSON(vpls)
+	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		writeErr("error: JSON encoding failed: %v\n", err)
+		return 1
+	}
+	writeOut(string(jsonBytes))
+	return 0
+}
+
+// vplsToJSON converts a parsed VPLS NLRI to a JSON-friendly map.
+func vplsToJSON(v *VPLS) map[string]any {
+	return map[string]any{
+		"rd":              v.RD().String(),
+		"ve-id":           v.VEID(),
+		"ve-block-offset": v.VEBlockOffset(),
+		"ve-block-size":   v.VEBlockSize(),
+		"label-base":      v.LabelBase(),
+		"raw":             fmt.Sprintf("%X", v.Bytes()),
+	}
 }

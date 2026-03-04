@@ -1,0 +1,13 @@
+# bgp-vpls-1 decoding test - VPLS NLRI via ze-test decode
+# Tests VPLS NLRI with RD 0:65001:100, VE-ID=5, block-offset=100, block-size=200, label-base=16000
+#
+# Wire bytes breakdown:
+# 00 11 = length 17
+# 00 00 FD E9 00 00 00 64 = RD type 0: ASN=65001, value=100
+# 00 05 = VE-ID 5
+# 00 64 = VE block offset 100
+# 00 C8 = VE block size 200
+# 03 E8 01 = label base 16000
+stdin=payload:hex=00110000fde9000000640005006400c803e801
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri l2vpn/vpls -:stdin=payload
+expect=json:json={ "rd": "0:65001:100", "ve-id": 5, "ve-block-offset": 100, "ve-block-size": 200, "label-base": 16000 }

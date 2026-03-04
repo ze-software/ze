@@ -1,0 +1,8 @@
+# plugin-mup-nlri - verify MUP plugin NLRI decode
+# Tests MUP ISD route type 1 decoding via plugin CLI
+# NLRI: route-type=1, arch-type=1, RD type 0 (65001:100), data 10.0.0.1
+
+cmd=foreground:seq=1:exec=ze plugin bgp-mup --nlri 0100010c0000fde9000000640a000001
+expect=exit:code=0
+expect=stdout:contains=route-type
+expect=stdout:contains=rd

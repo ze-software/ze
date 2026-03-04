@@ -1,0 +1,8 @@
+# plugin-vpls-nlri - verify VPLS plugin NLRI decode
+# Tests VPLS NLRI decoding via plugin CLI
+# NLRI: RD type 0 (65001:100), VE-ID=5, block-offset=100, block-size=200, label-base=16000
+
+cmd=foreground:seq=1:exec=ze plugin bgp-vpls --nlri 00110000fde9000000640005006400c803e801
+expect=exit:code=0
+expect=stdout:contains=ve-id
+expect=stdout:contains=label-base

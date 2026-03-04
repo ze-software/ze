@@ -1,0 +1,12 @@
+# bgp-mup-1 decoding test - MUP IPv4 NLRI via ze-test decode
+# Tests MUP ISD route type 1 with RD 0:65001:100, arch-type 1
+#
+# Wire bytes breakdown:
+# 01 = route type 1 (ISD)
+# 00 01 = arch type 1
+# 0c = length 12
+# 00 00 FD E9 00 00 00 64 = RD type 0: ASN=65001, value=100
+# 0a 00 00 01 = 10.0.0.1
+stdin=payload:hex=0100010c0000fde9000000640a000001
+cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/mup -:stdin=payload
+expect=json:json={ "route-type": 1, "arch-type": 1, "rd": "0:65001:100" }
