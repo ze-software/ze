@@ -31,6 +31,8 @@ if [[ "$FILE_PATH" =~ update_build ]]; then
     IS_ENCODE=1
 elif [[ "$FILE_PATH" =~ /message/pack ]]; then
     IS_ENCODE=1
+elif [[ "$FILE_PATH" =~ reactor_wire ]]; then
+    IS_ENCODE=1
 fi
 
 if [[ "$IS_ENCODE" -eq 0 ]]; then
@@ -90,6 +92,21 @@ if [[ -n "$BUILD_RETURN_MATCHES" ]]; then
     while IFS= read -r line; do
         [[ -n "$line" ]] && ERRORS+=("  $line")
     done <<< "$BUILD_RETURN_MATCHES"
+fi
+
+# 6. Check for Len()-then-WriteTo() double traversal (anti-pattern in hot paths)
+# Detect: x.Len() followed by WriteAttrTo(x, ...) — should use WriteAttrToWithLen.
+# Allow: CheckedWriteTo (capacity guard), WriteAttrToWithLen (already fixed).
+LEN_WRITE_MATCHES=$(echo "$CONTENT" | grep -nE '\.Len\(\)' | grep -viE '(CheckedWriteTo|WriteAttrToWithLen|// .*Len)' | head -3 || true)
+if [[ -n "$LEN_WRITE_MATCHES" ]]; then
+    # Only flag if there's also a WriteAttrTo (not WithLen) call nearby
+    HAS_WRITE_ATTR_TO=$(echo "$CONTENT" | grep -cE 'WriteAttrTo\(' | grep -v 'WriteAttrToWithLen\|WriteAttrToWithContext' || true)
+    if [[ "$HAS_WRITE_ATTR_TO" -gt 0 ]]; then
+        ERRORS+=(".Len() with WriteAttrTo() — use WriteAttrToWithLen() or skip-and-backfill:")
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && ERRORS+=("  $line")
+        done <<< "$LEN_WRITE_MATCHES"
+    fi
 fi
 
 if [[ ${#ERRORS[@]} -gt 0 ]]; then

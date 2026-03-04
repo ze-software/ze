@@ -15,6 +15,14 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
+// Skip-and-backfill encoding pattern:
+// All UPDATE builders in this file use skip-and-backfill instead of Len()-then-WriteTo().
+// 1. Write fixed marker/type bytes
+// 2. Skip variable-length fields (save position for backfill)
+// 3. Write payload forward at advancing offset
+// 4. Backfill length fields at saved positions
+// This avoids the double traversal of computing Len() then calling WriteTo().
+
 // Zero-allocation attribute writers.
 // These functions write attributes directly to the buffer without allocating structs.
 

@@ -220,14 +220,15 @@ func splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttr
 		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
 			chunkAttrs := append([]byte(nil), baseAttrs...)
-			// Write attribute with header
+			// Write attribute with header — use pre-computed length to avoid
+			// double Len() traversal (WriteAttrTo would call Len() again).
 			attrLen := chunk.Len()
 			hdrLen := 3
 			if attrLen > 255 {
 				hdrLen = 4
 			}
 			attrBuf := make([]byte, hdrLen+attrLen)
-			attribute.WriteAttrTo(chunk, attrBuf, 0)
+			attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
 			chunkAttrs = append(chunkAttrs, attrBuf...)
 			updates = append(updates, &Update{
 				PathAttributes: chunkAttrs,
@@ -261,14 +262,15 @@ func splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttr
 		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
 			chunkAttrs := append([]byte(nil), baseAttrs...)
-			// Write attribute with header
+			// Write attribute with header — use pre-computed length to avoid
+			// double Len() traversal (WriteAttrTo would call Len() again).
 			attrLen := chunk.Len()
 			hdrLen := 3
 			if attrLen > 255 {
 				hdrLen = 4
 			}
 			attrBuf := make([]byte, hdrLen+attrLen)
-			attribute.WriteAttrTo(chunk, attrBuf, 0)
+			attribute.WriteAttrToWithLen(chunk, attrBuf, 0, attrLen)
 			chunkAttrs = append(chunkAttrs, attrBuf...)
 			updates = append(updates, &Update{
 				PathAttributes: chunkAttrs,

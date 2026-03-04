@@ -16,6 +16,17 @@ Pool buffer = RFC max length = bounded encoding space.
 
 Get buffer from pool → write with `WriteTo(buf, off) int` → return to pool.
 
+## Pattern: Skip-and-Backfill (hot path)
+
+For messages with variable-length sections and fixed-position length fields:
+
+1. Write fixed bytes (marker, type)
+2. **Skip** length field — save position (`lengthPos := off; off += 2`)
+3. Write payload forward at advancing offset
+4. **Backfill** length at saved position (`buf[lengthPos] = byte(totalLen >> 8)`)
+
+This avoids the `Len()`-then-`WriteTo()` double traversal. See `reactor_wire.go` for the canonical implementation.
+
 ## Banned in Encoding Code
 
 | Banned | Use Instead |
@@ -25,6 +36,7 @@ Get buffer from pool → write with `WriteTo(buf, off) int` → return to pool.
 | `buildFoo() ([]byte, error)` | `writeFoo(buf, off) int` |
 | `.Bytes()` | `.WriteTo(buf, off)` + `.Len()` |
 | `.Pack()` | `.WriteTo(buf, off)` |
+| `x.Len()` then `x.WriteTo()` in hot path | Skip-and-backfill, or `WriteAttrToWithLen()` |
 
 ## `make([]byte)` IS OK For
 

@@ -236,6 +236,15 @@ func WriteAttrTo(attr Attribute, buf []byte, off int) int {
 	return hdrLen + n
 }
 
+// WriteAttrToWithLen writes a complete attribute (header + value) into buf at offset,
+// using a pre-computed value length to avoid a redundant Len() call.
+// Use when the caller already knows the attribute's value length.
+func WriteAttrToWithLen(attr Attribute, buf []byte, off, valueLen int) int {
+	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec // G115: valueLen bounded by BGP attr max (65535)
+	n := attr.WriteTo(buf, off+hdrLen)
+	return hdrLen + n
+}
+
 // WriteAttrToWithContext writes a complete attribute with context-dependent encoding.
 // Returns total bytes written.
 // Zero-allocation: calculates length without packing.
