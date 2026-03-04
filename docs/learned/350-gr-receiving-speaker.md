@@ -1,4 +1,4 @@
-# 339 — GR Receiving Speaker (RFC 4724)
+# 350 — GR Receiving Speaker (RFC 4724)
 
 ## Objective
 

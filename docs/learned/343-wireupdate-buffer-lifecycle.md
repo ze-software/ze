@@ -1,4 +1,4 @@
-# 070 — WireUpdate Buffer Lifecycle
+# 343 — WireUpdate Buffer Lifecycle
 
 ## Objective
 

@@ -382,7 +382,7 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 - `docs/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
 - `docs/learned/059-spec-pool-handle-migration.md` - Pool handle integration (completed)
-- `docs/learned/070-spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
+- `docs/learned/343-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
 - `docs/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
 
 ---

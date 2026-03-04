@@ -1,4 +1,4 @@
-# 156 — Hub Phase 5: Third-Party Plugin Support
+# 348 — Hub Phase 5: Third-Party Plugin Support
 
 ## Objective
 
