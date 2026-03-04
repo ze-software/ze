@@ -4,15 +4,68 @@
 package config
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
+	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
+
+const createPromptTimeout = 10 * time.Second
+
+// promptCreateConfig asks the user whether to create a missing config file.
+// Returns true if the file was created, false otherwise.
+func promptCreateConfig(path string) bool {
+	return doPromptCreateConfig(path, os.Stdin, os.Stderr, createPromptTimeout)
+}
+
+// doPromptCreateConfig is the testable core of promptCreateConfig.
+func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout time.Duration) bool { //nolint:cyclop // linear flow with early returns
+	fmt.Fprintf(errw, "config file not found: %s\n", path) //nolint:errcheck // terminal output
+	fmt.Fprintf(errw, "create it? [y/N] ")                 //nolint:errcheck // terminal output
+
+	ch := make(chan string, 1)
+	go func() {
+		reader := bufio.NewReader(in)
+		line, _ := reader.ReadString('\n') //nolint:errcheck // EOF returns empty string, handled below
+		ch <- strings.ToLower(strings.TrimSpace(line))
+	}()
+
+	var answer string
+	select {
+	case answer = <-ch:
+	case <-time.After(timeout):
+		fmt.Fprintln(errw)                                 //nolint:errcheck // terminal output
+		fmt.Fprintf(errw, "error: no response, exiting\n") //nolint:errcheck // terminal output
+		return false
+	}
+
+	if answer != "y" && answer != "yes" {
+		return false
+	}
+
+	if dir := filepath.Dir(path); dir != "." {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
+			fmt.Fprintf(errw, "error: cannot create directory: %v\n", err) //nolint:errcheck // terminal output
+			return false
+		}
+	}
+
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		fmt.Fprintf(errw, "error: cannot create file: %v\n", err) //nolint:errcheck // terminal output
+		return false
+	}
+
+	return true
+}
 
 func cmdEdit(args []string) int {
 	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
@@ -64,10 +117,11 @@ Examples:
 
 	configPath := fs.Arg(0)
 
-	// Check if file exists
+	// Offer to create if file doesn't exist
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
-		return 1
+		if !promptCreateConfig(configPath) {
+			return 1
+		}
 	}
 
 	// Create editor
