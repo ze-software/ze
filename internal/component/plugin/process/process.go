@@ -528,7 +528,9 @@ func (p *Process) startInternal() error {
 			}
 		}()
 
-		_ = runner(enginePluginSide, callbackPluginSide)
+		if code := runner(enginePluginSide, callbackPluginSide); code != 0 {
+			logger().Warn("internal plugin exited with non-zero code", "plugin", p.config.Name, "code", code)
+		}
 	})
 
 	return nil
@@ -606,9 +608,8 @@ func (p *Process) startExternal() error {
 	// Tracked by wg so Wait() blocks until relay drains.
 	p.wg.Go(func() { p.relayStderrFrom(stderr) })
 
-	// Monitor process
-	p.wg.Add(1)
-	go p.monitorCmd(cmd)
+	// Monitor process — tracked by wg so Wait() blocks until cleanup completes.
+	p.wg.Go(func() { p.monitorCmd(cmd) })
 
 	return nil
 }
@@ -742,8 +743,6 @@ func (p *Process) Wait(ctx context.Context) error {
 // monitorCmd waits for the process to exit.
 // Takes cmd as a parameter to avoid racing on p.cmd with other goroutines.
 func (p *Process) monitorCmd(cmd *exec.Cmd) {
-	defer p.wg.Done()
-
 	// Wait for process to exit
 	_ = cmd.Wait()
 

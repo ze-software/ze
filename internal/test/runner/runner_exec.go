@@ -255,46 +255,12 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 
-	// Kill processes on context cancellation (exec.CommandContext + Start() doesn't auto-kill)
-	go func() {
-		<-testCtx.Done()
-		if peerCmd.Process != nil {
-			_ = peerCmd.Process.Kill()
-		}
-		if clientCmd.Process != nil {
-			_ = clientCmd.Process.Kill()
-		}
-	}()
+	// Wait for peer to finish.
+	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).
+	err = peerCmd.Wait()
 
-	// Wait for peer to finish
-	peerDone := make(chan error, 1)
-	go func() {
-		peerDone <- peerCmd.Wait()
-	}()
-
-	// Wait for peer to finish (context kill goroutine handles timeout)
-	err = <-peerDone
-
-	// Gracefully stop client - send SIGTERM first to allow cleanup
-	if clientCmd.Process != nil {
-		_ = clientCmd.Process.Signal(syscall.SIGTERM)
-		// Wait briefly for graceful shutdown, then force kill
-		done := make(chan struct{})
-		go func() {
-			_ = clientCmd.Wait()
-			close(done)
-		}()
-		select {
-		case <-done:
-			// Process exited gracefully
-		case <-time.After(2 * time.Second):
-			// Force kill if still running
-			_ = clientCmd.Process.Kill()
-			<-done
-		}
-	} else {
-		_ = clientCmd.Wait()
-	}
+	// Gracefully stop client - SIGTERM first, force kill after timeout
+	terminateGracefully(clientCmd, 2*time.Second)
 
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
@@ -641,51 +607,23 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Kill processes on context cancellation
-	go func() {
-		<-testCtx.Done()
-		for _, p := range bgProcs {
-			if p.Process != nil {
-				_ = p.Process.Kill()
-			}
-		}
-	}()
-
+	// Wait for the signaling process to finish.
+	// exec.CommandContext auto-kills on context cancellation (Go 1.20+).
 	var err error
 
-	// If testing exit code, wait for foreground process instead of peer
 	if rec.ExpectExitCode != nil && fgProc != nil {
-		fgDone := make(chan error, 1)
-		go func() {
-			fgDone <- fgProc.Wait()
-		}()
-		err = <-fgDone
+		// Testing exit code: wait for foreground process
+		err = fgProc.Wait()
 	} else if peerProc != nil {
-		// Wait for peer (first background process, typically ze-peer) to finish.
-		// The peer validates messages and exits when done (success/fail/timeout).
-		// Daemons (foreground) run until killed.
-		peerDone := make(chan error, 1)
-		go func() {
-			peerDone <- peerProc.Wait()
-		}()
-		err = <-peerDone
+		// Wait for peer (validates messages and exits when done).
+		// Daemons run until killed below.
+		err = peerProc.Wait()
 	}
 
 	// Gracefully stop remaining processes (daemons)
 	for _, p := range bgProcs {
 		if p != peerProc && p.Process != nil {
-			_ = p.Process.Signal(syscall.SIGTERM)
-			done := make(chan struct{})
-			go func(proc *exec.Cmd) {
-				_ = proc.Wait()
-				close(done)
-			}(p)
-			select {
-			case <-done:
-			case <-time.After(2 * time.Second):
-				_ = p.Process.Kill()
-				<-done
-			}
+			terminateGracefully(p, 2*time.Second)
 		}
 	}
 
@@ -779,4 +717,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		rec.Error = err
 	}
 	return false
+}
+
+// terminateGracefully sends SIGTERM to a process and waits for it to exit.
+// If it doesn't exit within timeout, it is forcefully killed.
+// No goroutines are spawned — time.AfterFunc handles the deadline.
+func terminateGracefully(cmd *exec.Cmd, timeout time.Duration) {
+	if cmd.Process == nil {
+		_ = cmd.Wait()
+		return
+	}
+	_ = cmd.Process.Signal(syscall.SIGTERM)
+	timer := time.AfterFunc(timeout, func() {
+		_ = cmd.Process.Kill()
+	})
+	_ = cmd.Wait()
+	timer.Stop()
 }
