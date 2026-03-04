@@ -584,7 +584,7 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 	r.ribOut["10.0.0.1"] = map[string]*Route{"b": {}, "c": {}}
 
-	status, data, err := r.handleCommand("rib adjacent status", "")
+	status, data, err := r.handleCommand("rib adjacent status", "", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"running":true`)
@@ -659,7 +659,7 @@ func TestHandleCommand_RIBAdjacentInboundShow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand("rib adjacent inbound show", tt.selector)
+			status, data, err := r.handleCommand("rib adjacent inbound show", tt.selector, nil)
 			require.NoError(t, err)
 			assert.Equal(t, "done", status)
 			if tt.wantPeer1 {
@@ -709,7 +709,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	}
 	r.handleReceived(event2)
 
-	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1")
+	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"cleared":1`)
@@ -735,7 +735,7 @@ func TestHandleCommand_RIBAdjacentOutboundShow(t *testing.T) {
 		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 	}
 
-	status, data, err := r.handleCommand("rib adjacent outbound show", "10.0.0.1")
+	status, data, err := r.handleCommand("rib adjacent outbound show", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, "10.0.0.1")
@@ -758,7 +758,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
 
-	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1")
+	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
@@ -780,7 +780,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	}
 	// peerUp["10.0.0.1"] is NOT set (peer is down)
 
-	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1")
+	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"resent":0`, "should not resend to down peer")
@@ -794,7 +794,7 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 func TestHandleCommand_UnknownCommand(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	status, _, err := r.handleCommand("rib unknown command", "")
+	status, _, err := r.handleCommand("rib unknown command", "", nil)
 	assert.Equal(t, "error", status)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown command")
@@ -839,7 +839,7 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*")
+			status, data, err := r.handleCommand(tt.command, "*", nil)
 			if tt.wantOK {
 				require.NoError(t, err, "command %q should succeed", tt.command)
 				assert.Equal(t, "done", status)
@@ -887,7 +887,7 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*")
+			status, data, err := r.handleCommand(tt.command, "*", nil)
 			require.NoError(t, err, "legacy command %q should succeed", tt.command)
 			assert.Equal(t, "done", status)
 			assert.Contains(t, data, tt.wantIn, "legacy command %q data", tt.command)
@@ -1218,7 +1218,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Call show command via handleCommand
-	status, data, err := r.handleCommand("rib adjacent inbound show", "*")
+	status, data, err := r.handleCommand("rib adjacent inbound show", "*", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, "10.0.0.1", "should contain peer address")
@@ -1248,7 +1248,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Call empty command via handleCommand
-	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1")
+	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"cleared":1`)

@@ -52,6 +52,8 @@ type ReactorStats struct {
 	StartTime time.Time
 	Uptime    time.Duration
 	PeerCount int
+	RouterID  uint32 // Local BGP router identifier (uint32 IP)
+	LocalAS   uint32 // Local AS number
 }
 
 // DynamicPeerConfig contains minimal configuration for adding a peer dynamically.
@@ -66,6 +68,15 @@ type DynamicPeerConfig struct {
 	Connection   string        // Connection mode: "both" (default), "passive", "active"
 }
 
+// PeerCapabilitiesInfo holds negotiated and configured capability data for API display.
+type PeerCapabilitiesInfo struct {
+	Families             []string          // Negotiated address families (e.g., "ipv4/unicast")
+	ExtendedMessage      bool              // RFC 8654: Extended message support
+	EnhancedRouteRefresh bool              // RFC 7313: Enhanced route refresh
+	ASN4                 bool              // RFC 6793: 4-byte ASN support
+	AddPath              map[string]string // RFC 7911: family → "send" for families with ADD-PATH (nil if none)
+}
+
 // ReactorIntrospector provides read-only access to peer and reactor state.
 type ReactorIntrospector interface {
 	// Peers returns information about all configured peers.
@@ -73,6 +84,10 @@ type ReactorIntrospector interface {
 
 	// Stats returns reactor-level statistics.
 	Stats() ReactorStats
+
+	// PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
+	// Returns nil if peer not found or negotiation not complete.
+	PeerNegotiatedCapabilities(addr netip.Addr) *PeerCapabilitiesInfo
 
 	// GetPeerProcessBindings returns process bindings for a specific peer.
 	GetPeerProcessBindings(peerAddr netip.Addr) []PeerProcessBinding

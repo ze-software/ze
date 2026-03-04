@@ -52,7 +52,11 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	asn4 := p.asn4()
 	addPath := p.addPathFor(family)
 
-	return session.SendAnnounce(route, localAS, isIBGP, asn4, addPath)
+	if err := session.SendAnnounce(route, localAS, isIBGP, asn4, addPath); err != nil {
+		return err
+	}
+	p.IncrRoutesSent(1)
+	return nil
 }
 
 // SendWithdraw sends a BGP UPDATE message for withdrawing a route.
@@ -77,7 +81,11 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 	}
 	addPath := p.addPathFor(family)
 
-	return session.SendWithdraw(prefix, addPath)
+	if err := session.SendWithdraw(prefix, addPath); err != nil {
+		return err
+	}
+	p.IncrRoutesSent(1)
+	return nil
 }
 
 // SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).

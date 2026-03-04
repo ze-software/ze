@@ -233,7 +233,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 
 | Module | Location | RPCs | Notifications |
 |--------|----------|------|---------------|
-| `ze-bgp-api` | `internal/component/bgp/schema/` | 26 | 7 |
+| `ze-bgp-api` | `internal/component/bgp/schema/` | 24 | 7 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
@@ -248,7 +248,8 @@ Handlers are organized by domain, each file providing a `*RPCs()` function:
 
 | File | Function | Module |
 |------|----------|--------|
-| `bgp.go` | `handlerBgpRPCs()` + `bgpRPCs()` | ze-bgp |
+| `bgp.go` | `PeerOpsRPCs()` + `IntrospectionRPCs()` | ze-bgp |
+| `bgp_summary.go` | `SummaryRPCs()` | ze-bgp |
 | `system.go` | `systemRPCs()` | ze-system |
 | `rib_handler.go` | `ribRPCs()` | ze-rib |
 | `session.go` | `sessionRPCs()` | ze-plugin |

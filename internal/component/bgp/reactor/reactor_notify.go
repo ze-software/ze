@@ -104,6 +104,19 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			RouterID:     s.RouterID,
 			State:        peer.State().String(),
 		}
+		// Increment per-peer message counters (lock-free atomics).
+		if direction == plugin.DirectionReceived {
+			peer.IncrMessageReceived()
+			// Count received routes for UPDATE messages.
+			// Uses +1 per UPDATE as approximation; individual NLRI counting
+			// would require iterating the wireUpdate which is deferred to the
+			// consumer (RIB plugin) for zero-copy reasons.
+			if msgType == message.TypeUPDATE {
+				peer.IncrRoutesReceived(1)
+			}
+		} else {
+			peer.IncrMessageSent()
+		}
 	} else {
 		peerInfo = plugin.PeerInfo{Address: peerAddr}
 	}
@@ -178,7 +191,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// If a fast plugin calls "forward" before Activate(), Get() still works
 	// (pending entries are accessible) and Decrement() adjusts the count
 	// (negative is corrected when Activate adds N).
-	if direction == "received" && wireUpdate != nil && buf != nil {
+	if direction == plugin.DirectionReceived && wireUpdate != nil && buf != nil {
 		r.recentUpdates.Add(&ReceivedUpdate{
 			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
 			poolBuf:      buf,        // Cache owns buf
@@ -189,7 +202,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Sent messages: synchronous delivery, no async channel.
-	if direction == "sent" {
+	if direction == plugin.DirectionSent {
 		receiver.OnMessageSent(peerInfo, msg)
 		return kept
 	}

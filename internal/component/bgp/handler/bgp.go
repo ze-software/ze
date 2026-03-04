@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — API command handlers
 // Related: rib_meta.go — RIB meta-command handlers (parallel pattern)
+// Detail: bgp_summary.go — summary, capabilities, and clear soft handlers
 
 package handler
 

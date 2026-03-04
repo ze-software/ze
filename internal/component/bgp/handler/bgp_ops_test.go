@@ -505,3 +505,188 @@ func TestPeerPauseUnknown(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
+
+// TestBgpSummaryHandler verifies the bgp summary handler returns per-peer rows.
+//
+// VALIDATES: Summary handler formats tabular data with peer stats (AC-3).
+// PREVENTS: Missing peer statistics in summary output.
+func TestBgpSummaryHandler(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:          netip.MustParseAddr("192.0.2.1"),
+				PeerAS:           65001,
+				State:            "established",
+				Uptime:           5 * time.Minute,
+				MessagesReceived: 100,
+				MessagesSent:     50,
+				RoutesReceived:   10,
+				RoutesSent:       5,
+			},
+			{
+				Address: netip.MustParseAddr("192.0.2.2"),
+				PeerAS:  65002,
+				State:   "idle",
+			},
+		},
+		stats: plugin.ReactorStats{
+			StartTime: time.Now().Add(-time.Hour),
+			Uptime:    time.Hour,
+			PeerCount: 2,
+		},
+	}
+	ctx := newTestContext(reactor)
+
+	resp, err := handleBgpSummary(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+
+	summary, ok := data["summary"].(map[string]any)
+	require.True(t, ok, "expected summary key")
+
+	// Check aggregate fields
+	assert.Equal(t, 2, summary["peers-configured"])
+	assert.Equal(t, 1, summary["peers-established"])
+
+	// Check per-peer rows
+	peers, ok := summary["peers"].([]map[string]any)
+	require.True(t, ok, "expected peers array of maps")
+	assert.Len(t, peers, 2)
+
+	// Verify first peer has stats
+	p1 := peers[0]
+	assert.Equal(t, "192.0.2.1", p1["address"])
+	assert.Equal(t, uint32(65001), p1["peer-as"])
+	assert.Equal(t, "established", p1["state"])
+	assert.Equal(t, uint64(100), p1["messages-received"])
+	assert.Equal(t, uint64(50), p1["messages-sent"])
+	assert.Equal(t, uint32(10), p1["routes-received"])
+	assert.Equal(t, uint32(5), p1["routes-sent"])
+}
+
+// TestBgpSummaryNilReactor verifies summary handler errors without reactor.
+//
+// VALIDATES: Handler returns error when reactor is nil.
+// PREVENTS: Nil pointer dereference.
+func TestBgpSummaryNilReactor(t *testing.T) {
+	ctx := newTestContext(nil)
+	_, err := handleBgpSummary(ctx, nil)
+	require.Error(t, err)
+}
+
+// TestBgpPeerCapabilitiesHandler verifies peer capabilities response.
+//
+// VALIDATES: Capabilities handler returns negotiated capabilities (AC-2).
+// PREVENTS: Capabilities not exposed to operators.
+func TestBgpPeerCapabilitiesHandler(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address: netip.MustParseAddr("192.0.2.1"),
+				PeerAS:  65001,
+				State:   "established",
+			},
+		},
+		peerCaps: &plugin.PeerCapabilitiesInfo{
+			Families:        []string{"ipv4/unicast", "ipv6/unicast"},
+			ASN4:            true,
+			ExtendedMessage: true,
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["peer"])
+	assert.Equal(t, "established", data["state"])
+
+	caps, ok := data["negotiated"].(map[string]any)
+	require.True(t, ok, "expected negotiated caps")
+	assert.Equal(t, true, caps["asn4"])
+	assert.Equal(t, true, caps["extended-message"])
+	families, ok := caps["families"].([]string)
+	require.True(t, ok)
+	assert.Len(t, families, 2)
+}
+
+// TestBgpPeerCapabilitiesNoPeer verifies error for wildcard selector.
+//
+// VALIDATES: Capabilities handler requires specific peer.
+// PREVENTS: Ambiguous capabilities output for wildcard selector.
+func TestBgpPeerCapabilitiesNoPeer(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "*"
+
+	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
+// TestBgpPeerCapabilitiesNotFound verifies error for unknown peer.
+//
+// VALIDATES: Capabilities handler returns error for unknown peer address.
+// PREVENTS: Nil pointer on peer not found.
+func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.99"
+
+	resp, err := handleBgpPeerCapabilities(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
+// TestBgpPeerClearSoftHandler verifies soft clear triggers route refresh.
+//
+// VALIDATES: Clear soft sends ROUTE-REFRESH per negotiated family (AC-5).
+// PREVENTS: Soft reset not actually refreshing routes.
+func TestBgpPeerClearSoftHandler(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerClearSoft(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "192.0.2.1", data["peer"])
+	assert.Equal(t, "soft-clear", data["action"])
+
+	families, ok := data["families-refreshed"].([]string)
+	require.True(t, ok)
+	assert.Len(t, families, 2)
+	require.Len(t, reactor.softClearCalls, 1)
+}
+
+// TestBgpPeerClearSoftNoPeer verifies error for wildcard selector.
+//
+// VALIDATES: Clear soft requires specific peer address.
+// PREVENTS: Wildcard soft clear without operator intent.
+func TestBgpPeerClearSoftNoPeer(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "*"
+
+	resp, err := handleBgpPeerClearSoft(ctx, nil)
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+}

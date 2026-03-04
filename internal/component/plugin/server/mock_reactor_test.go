@@ -40,6 +40,10 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig {
 	return nil
 }
 
+func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
+	return nil
+}
+
 func (m *mockReactor) Stop() {
 	m.stopped = true
 }

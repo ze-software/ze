@@ -18,6 +18,7 @@ type NegotiatedCapabilities struct {
 	families             map[nlri.Family]bool // private for O(1) lookup
 	ExtendedMessage      bool                 // RFC 8654: Extended message support
 	EnhancedRouteRefresh bool                 // RFC 7313: Enhanced route refresh
+	ASN4                 bool                 // RFC 6793: 4-byte ASN support
 }
 
 // NewNegotiatedCapabilities creates from capability negotiation result.
@@ -30,6 +31,7 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 		families:             make(map[nlri.Family]bool),
 		ExtendedMessage:      neg.ExtendedMessage,
 		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
+		ASN4:                 neg.ASN4,
 	}
 
 	for _, f := range neg.Families() {

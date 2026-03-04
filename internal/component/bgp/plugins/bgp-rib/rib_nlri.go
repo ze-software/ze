@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — NLRI wire format helpers
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_commands.go — command handling and JSON responses
+// Related: rib_attr_format.go — attribute formatting for show enrichment
 package bgp_rib
 
 import (

@@ -127,6 +127,8 @@ type Stats struct {
 	StartTime time.Time
 	Uptime    time.Duration
 	PeerCount int
+	RouterID  uint32
+	LocalAS   uint32
 }
 
 // ConnectionCallback is called when a connection is matched to a peer.
@@ -381,6 +383,8 @@ func (r *Reactor) Stats() *Stats {
 	stats := &Stats{
 		StartTime: r.startTime,
 		PeerCount: len(r.peers),
+		RouterID:  r.config.RouterID,
+		LocalAS:   r.config.LocalAS,
 	}
 	if r.running {
 		stats.Uptime = time.Since(r.startTime)

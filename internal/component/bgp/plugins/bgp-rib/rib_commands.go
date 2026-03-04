@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB command handlers
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_nlri.go — NLRI wire format helpers
+// Related: rib_attr_format.go — attribute formatting for show enrichment
 package bgp_rib
 
 import (
@@ -10,19 +11,18 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
 // Supports both short names (rib show in) and legacy names (rib adjacent inbound show).
-func (r *RIBManager) handleCommand(command, selector string) (string, string, error) {
+func (r *RIBManager) handleCommand(command, selector string, args []string) (string, string, error) {
 	switch command {
 	case "rib status", "rib adjacent status":
 		return statusDone, r.statusJSON(), nil
 	case "rib show in", "rib adjacent inbound show":
-		return statusDone, r.inboundShowJSON(selector), nil
+		return statusDone, r.inboundShowJSON(selector, args), nil
 	case "rib clear in", "rib adjacent inbound empty":
 		return statusDone, r.inboundEmptyJSON(selector), nil
 	case "rib show out", "rib adjacent outbound show":
@@ -68,7 +68,10 @@ func matchesPeer(peerAddr, selector string) bool {
 }
 
 // inboundShowJSON returns Adj-RIB-In routes filtered by selector as JSON.
-func (r *RIBManager) inboundShowJSON(selector string) string {
+// Optional args filter by family (e.g., "ipv4/unicast") or prefix (e.g., "10.0.0.0/24").
+func (r *RIBManager) inboundShowJSON(selector string, args []string) string {
+	familyFilter, prefixFilter := parseShowFilters(args)
+
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -80,15 +83,22 @@ func (r *RIBManager) inboundShowJSON(selector string) string {
 		}
 		var routeList []map[string]any
 		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry *storage.RouteEntry) bool {
-			routeMap := map[string]any{
-				"family": formatFamily(family),
-				"prefix": formatNLRIAsPrefix(family, nlriBytes),
+			familyStr := formatFamily(family)
+			prefixStr := formatNLRIAsPrefix(family, nlriBytes)
+
+			if familyFilter != "" && familyStr != familyFilter {
+				return true
 			}
-			// Add next-hop if available from RouteEntry.
-			if entry != nil && entry.HasNextHop() {
-				if nhData, err := pool.NextHop.Get(entry.NextHop); err == nil {
-					routeMap["next-hop"] = formatNextHop(nhData)
-				}
+			if prefixFilter != "" && prefixStr != prefixFilter {
+				return true
+			}
+
+			routeMap := map[string]any{
+				"family": familyStr,
+				"prefix": prefixStr,
+			}
+			if entry != nil {
+				enrichRouteMapFromEntry(routeMap, entry)
 			}
 			routeList = append(routeList, routeMap)
 			return true
@@ -100,6 +110,24 @@ func (r *RIBManager) inboundShowJSON(selector string) string {
 
 	data, _ := json.Marshal(map[string]any{"adj_rib_in": result})
 	return string(data)
+}
+
+// parseShowFilters extracts family and prefix filters from command args.
+// Family: "afi/safi" (e.g., "ipv4/unicast") — starts with letter, no colons.
+// Prefix: IP/len (e.g., "10.0.0.0/24", "fc00::/7") — has digits or colons.
+func parseShowFilters(args []string) (familyFilter, prefixFilter string) {
+	for _, arg := range args {
+		if !strings.Contains(arg, "/") {
+			continue
+		}
+		// Family names never contain colons; IPv6 prefixes always do.
+		if arg[0] >= 'a' && arg[0] <= 'z' && !strings.Contains(arg, ":") {
+			familyFilter = arg
+		} else {
+			prefixFilter = arg
+		}
+	}
+	return
 }
 
 // inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
@@ -141,6 +169,7 @@ func (r *RIBManager) outboundShowJSON(selector string) string {
 			if rt.PathID != 0 {
 				routeMap["path-id"] = rt.PathID
 			}
+			enrichRouteMapFromRoute(routeMap, rt)
 			routeList = append(routeList, routeMap)
 		}
 		result[peer] = routeList

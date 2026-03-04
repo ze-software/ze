@@ -4,6 +4,7 @@
 // Detail: cmd_migrate.go — migrate subcommand handler
 // Detail: cmd_fmt.go — fmt subcommand handler
 // Detail: cmd_dump.go — dump subcommand handler
+// Detail: cmd_diff.go — diff subcommand handler
 //
 // Package config provides the ze config subcommand.
 package config
@@ -30,6 +31,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"migrate": cmdMigrate,
 	"fmt":     cmdFmt,
 	"dump":    cmdDump,
+	"diff":    cmdDiff,
 }
 
 // Run executes the config subcommand with the given arguments.
@@ -79,6 +81,7 @@ Commands:
   migrate <file> Convert configuration to current format
   fmt <file>     Format and normalize configuration file
   dump <file>    Dump parsed configuration
+  diff <f1> <f2> Compare two configuration files
 
 Examples:
   ze config edit config.conf
@@ -86,5 +89,7 @@ Examples:
   ze config migrate config.conf -o new.conf
   ze config fmt config.conf
   ze config dump config.conf
+  ze config diff old.conf new.conf
+  ze config diff --json old.conf new.conf
 `)
 }

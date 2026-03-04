@@ -1,0 +1,44 @@
+# Test: ze config diff with changed peer-as and added peer
+# VALIDATES: AC-10 — changed values appear in diff output
+# VALIDATES: AC-11 — added peer subtree appears in diff output
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65001;
+	}
+}
+EOF_CONF
+
+tmpfs=old.conf:terminator=EOF_OLD
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65001;
+	}
+}
+EOF_OLD
+
+tmpfs=new.conf:terminator=EOF_NEW
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65002;
+	}
+	peer 10.0.0.2 {
+		local-address 10.0.0.254;
+		peer-as 65003;
+	}
+}
+EOF_NEW
+
+cmd=foreground:seq=1:exec=ze config diff old.conf new.conf
+expect=exit:code=0
+expect=stdout:contains=peer-as
+expect=stdout:contains=10.0.0.2

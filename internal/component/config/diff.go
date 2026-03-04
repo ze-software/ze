@@ -17,8 +17,8 @@ type ConfigDiff struct {
 
 // DiffPair holds old and new values for a changed key.
 type DiffPair struct {
-	Old any
-	New any
+	Old any `json:"old"`
+	New any `json:"new"`
 }
 
 // DiffMaps computes a deep diff between two map[string]any.

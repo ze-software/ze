@@ -1,6 +1,7 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB plugin
 // Detail: rib_nlri.go — NLRI wire format conversion helpers
 // Detail: rib_commands.go — command handling and JSON responses
+// Detail: rib_attr_format.go — attribute formatting for show enrichment
 // Detail: compaction.go — pool compaction scheduler wiring
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
@@ -105,7 +106,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 
 	// Register command handler: responds to "rib adjacent ..." commands
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, string, error) {
-		return r.handleCommand(command, peer)
+		return r.handleCommand(command, peer, args)
 	})
 
 	// Register event subscriptions atomically with startup completion.

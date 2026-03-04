@@ -1,0 +1,38 @@
+# Test: ze config diff with identical files
+# VALIDATES: AC-9 — identical files produce "No differences", exit 0
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65001;
+	}
+}
+EOF_CONF
+
+tmpfs=file1.conf:terminator=EOF_FILE1
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65001;
+	}
+}
+EOF_FILE1
+
+tmpfs=file2.conf:terminator=EOF_FILE2
+bgp {
+	router-id 1.1.1.1;
+	local-as 65000;
+	peer 10.0.0.1 {
+		local-address 10.0.0.254;
+		peer-as 65001;
+	}
+}
+EOF_FILE2
+
+cmd=foreground:seq=1:exec=ze config diff file1.conf file2.conf
+expect=exit:code=0
+expect=stdout:contains=No differences

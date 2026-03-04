@@ -88,6 +88,11 @@ type BGPReactor interface {
 	// RFC 2918 Section 3.
 	SendRefresh(peerSelector string, afi uint16, safi uint8) error
 
+	// SoftClearPeer sends ROUTE-REFRESH for all negotiated families of matching peers.
+	// Returns the list of families refreshed.
+	// RFC 2918 Section 3: soft reset via route refresh.
+	SoftClearPeer(peerSelector string) ([]string, error)
+
 	// SendRawMessage sends raw bytes to a peer.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
 

@@ -1181,7 +1181,10 @@ func (m *mockReactorBatch) ClearRIBIn() int { return 0 }
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
 	return nil
 }
-func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig      { return nil }
+func (m *mockReactorBatch) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
+func (m *mockReactorBatch) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
+	return nil
+}
 func (m *mockReactorBatch) GetConfigTree() map[string]any                                { return nil }
 func (m *mockReactorBatch) SetConfigTree(_ map[string]any)                               {}
 func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64, _ string) error { return nil }
@@ -1202,6 +1205,7 @@ func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error
 func (m *mockReactorBatch) SendRefresh(_ string, _ uint16, _ uint8) error { return nil }
 func (m *mockReactorBatch) SendBoRR(_ string, _ uint16, _ uint8) error    { return nil }
 func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error    { return nil }
+func (m *mockReactorBatch) SoftClearPeer(_ string) ([]string, error)      { return nil, nil }
 
 // TestHandleUpdateText_SimpleAnnounce verifies single route announcement.
 //

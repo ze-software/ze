@@ -5,6 +5,7 @@
 // Detail: peer_initial_sync.go — initial route synchronization
 // Detail: peer_rib_routes.go — RIB route extraction
 // Detail: peer_static_routes.go — static route injection
+// Detail: peer_stats.go — atomic message/route counters and uptime
 
 package reactor
 
@@ -155,6 +156,9 @@ type Peer struct {
 	recvCtxID bgpctx.ContextID
 	sendCtx   *bgpctx.EncodingContext
 	sendCtxID bgpctx.ContextID
+
+	// Per-peer message and route counters for operational statistics.
+	counters peerCounters
 
 	state           atomic.Int32
 	callback        PeerCallback
@@ -839,6 +843,7 @@ func (p *Peer) runOnce() error {
 			p.negotiated.Store(NewNegotiatedCapabilities(neg))
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
+			p.SetEstablishedNow()
 			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
 			// Reset per-session API sync: count plugins with SendUpdate permission.
@@ -955,6 +960,7 @@ func (p *Peer) runOnce() error {
 func (p *Peer) cleanup() {
 	p.negotiated.Store(nil) // Clear negotiated capabilities
 	p.clearEncodingContexts()
+	p.ClearStats()
 	p.mu.Lock()
 	if p.session != nil {
 		if err := p.session.Close(); err != nil {

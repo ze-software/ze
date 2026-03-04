@@ -6,6 +6,7 @@
 // injected into the plugin server via ServerConfig.RPCProviders.
 //
 // Detail: bgp.go — BGP introspection and peer operation handlers
+// Detail: bgp_summary.go — BGP summary, capabilities, and clear soft handlers
 // Detail: rib_meta.go — RIB meta-command handlers
 package handler
 
@@ -24,6 +25,7 @@ const (
 func BgpHandlerRPCs() []pluginserver.RPCRegistration {
 	sources := [][]pluginserver.RPCRegistration{
 		PeerOpsRPCs(),
+		SummaryRPCs(),
 		IntrospectionRPCs(),
 		CacheRPCs(),
 		CommitRPCs(),

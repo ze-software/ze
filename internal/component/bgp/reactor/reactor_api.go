@@ -26,6 +26,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
+// addPathSendDirection is the ADD-PATH direction value for families where we send path-IDs.
+// RFC 7911 Section 4: "send" means we include a Path Identifier when advertising.
+const addPathSendDirection = "send"
+
 // apiStateObserver emits peer state change messages via the EventDispatcher.
 type apiStateObserver struct {
 	dispatcher *bgpserver.EventDispatcher
@@ -77,20 +81,119 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	result := make([]plugin.PeerInfo, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
+		stats := p.Stats()
 		info := plugin.PeerInfo{
-			Address:      s.Address,
-			LocalAddress: netip.Addr{}, // TODO: get from session
-			LocalAS:      s.LocalAS,
-			PeerAS:       s.PeerAS,
-			RouterID:     s.RouterID,
-			State:        p.State().String(),
+			Address:          s.Address,
+			LocalAddress:     s.LocalAddress,
+			LocalAS:          s.LocalAS,
+			PeerAS:           s.PeerAS,
+			RouterID:         s.RouterID,
+			State:            p.State().String(),
+			MessagesReceived: stats.MessagesReceived,
+			MessagesSent:     stats.MessagesSent,
+			RoutesReceived:   stats.RoutesReceived,
+			RoutesSent:       stats.RoutesSent,
 		}
-		if p.State() == PeerStateEstablished {
-			info.Uptime = time.Since(a.r.startTime) // TODO: track per-peer
+		if estAt := p.EstablishedAt(); !estAt.IsZero() {
+			info.Uptime = a.r.clock.Now().Sub(estAt)
 		}
 		result = append(result, info)
 	}
 	return result
+}
+
+// PeerNegotiatedCapabilities returns negotiated capabilities for a peer.
+// Returns nil if peer not found or negotiation not complete.
+func (a *reactorAPIAdapter) PeerNegotiatedCapabilities(addr netip.Addr) *plugin.PeerCapabilitiesInfo {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	peer, ok := a.r.findPeerByAddr(addr)
+	if !ok {
+		return nil
+	}
+
+	neg := peer.negotiated.Load()
+	if neg == nil {
+		return nil
+	}
+
+	families := neg.Families()
+	familyStrs := make([]string, len(families))
+	for i, f := range families {
+		familyStrs[i] = f.String()
+	}
+
+	// Build ADD-PATH map: family → direction for families where we send path-IDs.
+	// RFC 7911: ADD-PATH is negotiated per-family in sendCtx.
+	var addPath map[string]string
+	for _, f := range families {
+		if peer.addPathFor(f) {
+			if addPath == nil {
+				addPath = make(map[string]string)
+			}
+			addPath[f.String()] = addPathSendDirection
+		}
+	}
+
+	return &plugin.PeerCapabilitiesInfo{
+		Families:             familyStrs,
+		ExtendedMessage:      neg.ExtendedMessage,
+		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
+		ASN4:                 neg.ASN4,
+		AddPath:              addPath,
+	}
+}
+
+// SoftClearPeer sends ROUTE-REFRESH for all negotiated families of matching peers.
+// RFC 2918 Section 3: soft reset via route refresh.
+func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error) {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	familySet := make(map[string]bool)
+	var lastErr error
+	matched := false
+
+	for addrStr, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrStr) {
+			continue
+		}
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+		matched = true
+
+		neg := peer.negotiated.Load()
+		if neg == nil {
+			continue
+		}
+
+		for _, f := range neg.Families() {
+			rr := &message.RouteRefresh{
+				AFI:     message.AFI(f.AFI),
+				SAFI:    message.SAFI(f.SAFI),
+				Subtype: message.RouteRefreshNormal,
+			}
+			data := message.PackTo(rr, nil)
+			if err := peer.SendRawMessage(0, data); err != nil {
+				lastErr = err
+			} else {
+				familySet[f.String()] = true
+			}
+		}
+	}
+
+	if !matched {
+		return nil, ErrPeerNotFound
+	}
+
+	families := make([]string, 0, len(familySet))
+	for f := range familySet {
+		families = append(families, f)
+	}
+
+	return families, lastErr
 }
 
 // GetPeerCapabilityConfigs returns capability configurations for all peers.
@@ -155,6 +258,8 @@ func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 		StartTime: stats.StartTime,
 		Uptime:    stats.Uptime,
 		PeerCount: stats.PeerCount,
+		RouterID:  stats.RouterID,
+		LocalAS:   stats.LocalAS,
 	}
 }
 

@@ -15,8 +15,9 @@ import (
 
 // mockReactor implements plugin.ReactorLifecycle for handler tests.
 type mockReactor struct {
-	peers []plugin.PeerInfo
-	stats plugin.ReactorStats
+	peers    []plugin.PeerInfo
+	stats    plugin.ReactorStats
+	peerCaps *plugin.PeerCapabilitiesInfo
 
 	rawMessages []struct {
 		addr    netip.Addr
@@ -27,6 +28,9 @@ type mockReactor struct {
 	sendRefreshCalled bool
 	sendBoRRCalled    bool
 	sendEoRRCalled    bool
+
+	// Soft clear tracking
+	softClearCalls []string // peer selectors
 
 	// Peer operations tracking
 	teardownCalls []struct {
@@ -67,14 +71,17 @@ func (m *mockReactor) VerifyConfig(_ map[string]any) error                      
 func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error                          { return nil }
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
 func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
-func (m *mockReactor) GetConfigTree() map[string]any                                   { return nil }
-func (m *mockReactor) SetConfigTree(_ map[string]any)                                  {}
-func (m *mockReactor) SignalAPIReady()                                                 {}
-func (m *mockReactor) AddAPIProcessCount(_ int)                                        {}
-func (m *mockReactor) SignalPluginStartupComplete()                                    {}
-func (m *mockReactor) SignalPeerAPIReady(_ string)                                     {}
-func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool)                          {}
-func (m *mockReactor) UnregisterCacheConsumer(_ string)                                {}
+func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
+	return m.peerCaps
+}
+func (m *mockReactor) GetConfigTree() map[string]any          { return nil }
+func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
+func (m *mockReactor) SignalAPIReady()                        {}
+func (m *mockReactor) AddAPIProcessCount(_ int)               {}
+func (m *mockReactor) SignalPluginStartupComplete()           {}
+func (m *mockReactor) SignalPeerAPIReady(_ string)            {}
+func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
+func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
 
 func (m *mockReactor) PausePeer(addr netip.Addr) error {
 	m.pausedPeers = append(m.pausedPeers, addr)
@@ -202,6 +209,11 @@ func (m *mockReactor) SendBoRR(_ string, _ uint16, _ uint8) error {
 func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
 	m.sendEoRRCalled = true
 	return nil
+}
+
+func (m *mockReactor) SoftClearPeer(selector string) ([]string, error) {
+	m.softClearCalls = append(m.softClearCalls, selector)
+	return []string{"ipv4/unicast", "ipv6/unicast"}, nil
 }
 
 // newTestContext creates a CommandContext backed by a mock reactor.

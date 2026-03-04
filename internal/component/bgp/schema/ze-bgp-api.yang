@@ -100,6 +100,42 @@ module ze-bgp-api {
         }
     }
 
+    rpc summary {
+        description "Show BGP summary (peer table with statistics)";
+        output {
+            leaf uptime { type string; description "Daemon uptime"; }
+            leaf peers-configured { type uint32; description "Total configured peers"; }
+            leaf peers-established { type uint32; description "Peers in Established state"; }
+            list peer {
+                uses zt:peer-info;
+            }
+        }
+    }
+
+    rpc peer-capabilities {
+        description "Show negotiated capabilities for peer";
+        input {
+            leaf selector { type zt:peer-selector; mandatory true; description "Peer filter"; }
+        }
+        output {
+            leaf peer { type zt:ip-address; description "Peer address"; }
+            leaf state { type string; description "FSM state"; }
+            leaf negotiation-complete { type boolean; description "True if OPEN exchange completed"; }
+        }
+    }
+
+    rpc peer-clear-soft {
+        description "Soft-clear peer (send ROUTE-REFRESH per negotiated family)";
+        input {
+            leaf selector { type zt:peer-selector; mandatory true; description "Peer address"; }
+        }
+        output {
+            leaf peer { type zt:ip-address; description "Peer address"; }
+            leaf action { type string; description "Always soft-clear"; }
+            leaf-list families-refreshed { type zt:address-family; description "Families refreshed"; }
+        }
+    }
+
     rpc peer-add {
         description "Add a new peer";
         input {

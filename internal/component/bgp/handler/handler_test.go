@@ -18,8 +18,8 @@ import (
 func TestBgpHandlerRPCs(t *testing.T) {
 	rpcs := BgpHandlerRPCs()
 
-	// 7 peer ops + 8 introspection + 1 cache + 1 commit + 1 raw + 3 refresh + 1 update + 5 rib meta = 27
-	assert.Len(t, rpcs, 27, "expected 27 BGP handler RPCs")
+	// 7 peer ops + 3 summary/caps/clear + 8 introspection + 1 cache + 1 commit + 1 raw + 3 refresh + 1 update + 5 rib meta = 30
+	assert.Len(t, rpcs, 30, "expected 30 BGP handler RPCs")
 
 	// Verify all have required fields
 	wireMethodsSeen := make(map[string]bool)
