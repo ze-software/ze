@@ -1,0 +1,84 @@
+# Watchdog reconnect: config routes resent, watchdog (withdraw=true) not resent
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection A: Config routes (66.66.66.66/32 + 88.88.88.88/32, and 100.100.100.100/32) + EOR
+# Watchdog route 77.77.77.77/32 has withdraw=true so must NOT appear
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=notification:conn=1:seq=2:text=Peer Reset
+
+# Connection B: Same config routes resent on reconnect + EOR
+# Watchdog route still not sent (withdraw=true, no announce command issued)
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.10;
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+		connection active;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 192.168.1.100;
+			}
+			nlri {
+				ipv4/unicast add 100.100.100.100/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast add 66.66.66.66/32;
+				ipv4/unicast add 88.88.88.88/32;
+			}
+		}
+		update {
+			attribute {
+				origin igp;
+				local-preference 100;
+				next-hop 1.2.3.4;
+			}
+			nlri {
+				ipv4/unicast add 77.77.77.77/32;
+			}
+			watchdog {
+				name dnsr;
+				withdraw true;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-watchdog -:stdin=ze-bgp:timeout=20s

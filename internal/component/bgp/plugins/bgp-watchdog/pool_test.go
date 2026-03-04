@@ -314,6 +314,63 @@ func TestPoolSetConcurrency(t *testing.T) {
 	}
 }
 
+// VALIDATES: AnnounceInitial only marks initiallyAnnounced entries
+// PREVENTS: Withdrawn routes promoted to announced on session establishment
+
+func TestAnnounceInitialPool(t *testing.T) {
+	ps := NewPoolSet()
+
+	// Route A: initiallyAnnounced
+	routeA := NewPoolEntry("10.0.0.0/24#0", "announce-a", "withdraw-a")
+	routeA.initiallyAnnounced = true
+	addRoute(t, ps, "dns", routeA)
+
+	// Route B: initially withdrawn (default)
+	routeB := NewPoolEntry("10.0.1.0/24#0", "announce-b", "withdraw-b")
+	addRoute(t, ps, "dns", routeB)
+
+	// Route C: another initiallyAnnounced
+	routeC := NewPoolEntry("10.0.2.0/24#0", "announce-c", "withdraw-c")
+	routeC.initiallyAnnounced = true
+	addRoute(t, ps, "dns", routeC)
+
+	// AnnounceInitial should only mark A and C
+	announced := ps.AnnounceInitial("dns", "peer1")
+	if len(announced) != 2 {
+		t.Fatalf("AnnounceInitial count = %d, want 2", len(announced))
+	}
+
+	// Verify route B is NOT announced
+	if routeB.IsAnnounced("peer1") {
+		t.Error("route B should NOT be announced (initiallyAnnounced=false)")
+	}
+
+	// Verify routes A and C ARE announced
+	if !routeA.IsAnnounced("peer1") {
+		t.Error("route A should be announced")
+	}
+	if !routeC.IsAnnounced("peer1") {
+		t.Error("route C should be announced")
+	}
+
+	// Second call should return empty (already announced)
+	announced2 := ps.AnnounceInitial("dns", "peer1")
+	if len(announced2) != 0 {
+		t.Errorf("second AnnounceInitial count = %d, want 0", len(announced2))
+	}
+
+	// Different peer should still get the initial routes
+	announced3 := ps.AnnounceInitial("dns", "peer2")
+	if len(announced3) != 2 {
+		t.Errorf("peer2 AnnounceInitial count = %d, want 2", len(announced3))
+	}
+
+	// Nonexistent pool returns nil
+	if result := ps.AnnounceInitial("missing", "peer1"); result != nil {
+		t.Error("AnnounceInitial on missing pool should return nil")
+	}
+}
+
 // VALIDATES: RemoveRoute returns removed entry data
 // PREVENTS: Lost route data needed for withdrawal commands
 
