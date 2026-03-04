@@ -283,11 +283,37 @@ VyOS source reference: `~/Code/github.com/vyos/vyos-1x/interface-definitions/`
 
 ### Hierarchy (VyOS-aligned)
 
-The top-level `interface` container groups interfaces by type (like VyOS's `set interfaces <type>`), with each type as a YANG `list` keyed by name:
+The top-level `interface` container groups interfaces by type (like VyOS's `set interfaces <type>`), with each type as a YANG `list` keyed by name.
+
+**Naming convention:** interface names are prefixed by type. The prefix identifies the interface type unambiguously:
+
+| Type | Prefix | Example Names |
+|------|--------|---------------|
+| Ethernet | `eth` | `eth0`, `eth1` |
+| Dummy | `dum` | `dum0`, `dum1` |
+| Veth | `veth` | `veth0`, `veth1` |
+| Bridge | `br` | `br0`, `br1` |
+| Loopback | `lo` | `lo` (singleton) |
+| VLAN | `<parent>.<id>` | `eth0.100`, `eth1.200` |
+
+Linux also uses kernel-assigned names (`ens3`, `enp0s3`, `eno1`) for ethernet — these are accepted as-is under the `ethernet` type.
 
 | YANG Path | Node Type | VyOS Equivalent | Description |
 |-----------|-----------|-----------------|-------------|
 | `interface` | container | `interfaces` | Top-level interface container |
+| `interface/ethernet` | list (key: `name`) | `interfaces ethernet <name>` | Physical ethernet interfaces (configure only, not created) |
+| `interface/ethernet/name` | leaf string | tagNode key | Interface name (e.g., `eth0`, `ens3`) |
+| `interface/ethernet/address` | leaf-list string | `address` multi leafNode | IP addresses in CIDR notation |
+| `interface/ethernet/description` | leaf string | `description` leafNode | Human-readable description (max 255) |
+| `interface/ethernet/mtu` | leaf uint16 | `mtu` leafNode | MTU (68-16000, default 1500) |
+| `interface/ethernet/disable` | leaf empty | `disable` valueless | Administrative shutdown |
+| `interface/ethernet/vrf` | leaf string | `vrf` leafNode | VRF membership |
+| `interface/ethernet/vlan` | list (key: `id`) | `interfaces ethernet <name> vif <id>` | 802.1Q VLAN sub-interfaces |
+| `interface/ethernet/vlan/id` | leaf uint16 | tagNode key | VLAN ID (1-4094) |
+| `interface/ethernet/vlan/address` | leaf-list string | `address` multi leafNode | IP addresses in CIDR notation |
+| `interface/ethernet/vlan/description` | leaf string | `description` leafNode | Human-readable description |
+| `interface/ethernet/vlan/mtu` | leaf uint16 | `mtu` leafNode | MTU (68-16000, default parent MTU) |
+| `interface/ethernet/vlan/vrf` | leaf string | `vrf` leafNode | VRF membership |
 | `interface/dummy` | list (key: `name`) | `interfaces dummy <name>` | Dummy/loopback-like interfaces |
 | `interface/dummy/name` | leaf string | tagNode key | Interface name (e.g., `dum0`) |
 | `interface/dummy/address` | leaf-list string | `address` multi leafNode | IP addresses in CIDR notation |
@@ -354,6 +380,9 @@ Ze's config file maps to a VyOS-like CLI syntax. These are the config stanzas (n
 
 | Config Path | Description | VyOS Equivalent |
 |-------------|-------------|-----------------|
+| `interface ethernet eth0 { address 10.0.0.1/24; }` | Configure physical interface | `set interfaces ethernet eth0 address 10.0.0.1/24` |
+| `interface ethernet eth0 { mtu 9000; }` | Set MTU (jumbo frames) | `set interfaces ethernet eth0 mtu 9000` |
+| `interface ethernet eth0 { vlan 100 { address 10.0.100.1/24; } }` | VLAN sub-interface | `set interfaces ethernet eth0 vif 100 address 10.0.100.1/24` |
 | `interface dummy dum0 { }` | Create dummy interface | `set interfaces dummy dum0` |
 | `interface dummy dum0 { address 10.0.0.1/32; }` | Assign address | `set interfaces dummy dum0 address 10.0.0.1/32` |
 | `interface dummy dum0 { mtu 9000; }` | Set MTU | `set interfaces dummy dum0 mtu 9000` |
@@ -437,6 +466,7 @@ New subcommand: `ze interface`
 | MTU | 68-65535 | 65535 | 67 | 65536 |
 | Prefix length IPv4 | 0-32 | 32 | N/A | 33 |
 | Prefix length IPv6 | 0-128 | 128 | N/A | 129 |
+| VLAN ID | 1-4094 | 4094 | 0 | 4095 |
 | Interface name | 1-15 chars (Linux IFNAMSIZ-1) | 15 chars | empty | 16 chars |
 
 ### Functional Tests
