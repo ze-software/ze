@@ -1,6 +1,7 @@
 package bgp_nlri_labeled
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 
@@ -20,6 +21,9 @@ func init() {
 		InProcessNLRIDecoder:  DecodeNLRIHex,
 		InProcessNLRIEncoder:  EncodeNLRIHex,
 		InProcessRouteEncoder: EncodeRoute,
+		InProcessDecoder: func(input, output *bytes.Buffer) int {
+			return RunDecode(input, output)
+		},
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
 		},
@@ -29,6 +33,7 @@ func init() {
 		cfg.ConfigLogger = func(level string) {
 			SetLogger(slogutil.PluginLogger(reg.Name, level))
 		}
+		cfg.RunDecode = RunDecode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

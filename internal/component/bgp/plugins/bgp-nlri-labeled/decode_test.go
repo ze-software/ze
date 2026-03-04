@@ -1,4 +1,4 @@
-package bgp_nlri_rtc
+package bgp_nlri_labeled
 
 import (
 	"bytes"
@@ -12,7 +12,8 @@ import (
 // VALIDATES: RunDecode produces "decoded json" with correct fields for valid NLRI.
 // PREVENTS: Regression in in-process decode path used by CLI fallback.
 func TestRunDecode(t *testing.T) {
-	input := "decode nlri ipv4/rtc 600000fde900020000fde90064\n"
+	// Wire: 30=48 bits (24 label + 24 prefix), 00 06 41=label 100 with S-bit, 0a0000=10.0.0.0/24
+	input := "decode nlri ipv4/mpls-label 300006410a0000\n"
 	var output bytes.Buffer
 	RunDecode(strings.NewReader(input), &output)
 
@@ -20,11 +21,11 @@ func TestRunDecode(t *testing.T) {
 	if !strings.Contains(response, "decoded json") {
 		t.Fatalf("expected 'decoded json' prefix, got: %s", response)
 	}
-	if !strings.Contains(response, `"origin-as"`) {
-		t.Errorf("missing origin-as in response: %s", response)
+	if !strings.Contains(response, `"prefix"`) {
+		t.Errorf("missing prefix in response: %s", response)
 	}
-	if !strings.Contains(response, `"is-default"`) {
-		t.Errorf("missing is-default in response: %s", response)
+	if !strings.Contains(response, `"labels"`) {
+		t.Errorf("missing labels in response: %s", response)
 	}
 }
 
@@ -43,10 +44,10 @@ func TestRunDecodeUnknown(t *testing.T) {
 	}
 }
 
-// TestDecodeNLRIHex tests RTC NLRI hex decoding.
+// TestDecodeNLRIHex tests labeled unicast NLRI hex decoding.
 //
-// VALIDATES: DecodeNLRIHex produces correct JSON for valid RTC NLRI.
-// PREVENTS: Regression in RTC decode pipeline (hex→parse→JSON).
+// VALIDATES: DecodeNLRIHex produces correct JSON for valid labeled unicast NLRI.
+// PREVENTS: Regression in labeled unicast decode pipeline (hex->parse->JSON).
 func TestDecodeNLRIHex(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -57,29 +58,36 @@ func TestDecodeNLRIHex(t *testing.T) {
 		wantErr   bool
 	}{
 		{
-			name:      "rtc origin-as",
-			family:    "ipv4/rtc",
-			hex:       "600000fde900020000fde90064",
-			wantKey:   "origin-as",
-			wantValue: float64(65001),
+			// 30=48 bits total (24 label + 24 prefix), 00 06 41=label 100 (S-bit set), 0a0000=10.0.0.0/24
+			name:      "ipv4 labeled prefix",
+			family:    "ipv4/mpls-label",
+			hex:       "300006410a0000",
+			wantKey:   "prefix",
+			wantValue: "10.0.0.0/24",
 		},
 		{
-			name:      "rtc is-default false",
-			family:    "ipv4/rtc",
-			hex:       "600000fde900020000fde90064",
-			wantKey:   "is-default",
-			wantValue: false,
+			name:      "ipv4 labeled label",
+			family:    "ipv4/mpls-label",
+			hex:       "300006410a0000",
+			wantKey:   "labels",
+			wantValue: nil, // array, checked separately
 		},
 		{
 			name:    "unsupported family",
-			family:  "ipv6/rtc",
-			hex:     "600000fde900020000fde90064",
+			family:  "ipv4/unicast",
+			hex:     "300006410a0000",
 			wantErr: true,
 		},
 		{
 			name:    "invalid hex",
-			family:  "ipv4/rtc",
+			family:  "ipv4/mpls-label",
 			hex:     "ZZZZ",
+			wantErr: true,
+		},
+		{
+			name:    "truncated data",
+			family:  "ipv4/mpls-label",
+			hex:     "38",
 			wantErr: true,
 		},
 	}
@@ -101,6 +109,15 @@ func TestDecodeNLRIHex(t *testing.T) {
 			if err := json.Unmarshal([]byte(result), &m); err != nil {
 				t.Fatalf("invalid JSON: %v", err)
 			}
+
+			if tt.wantValue == nil {
+				// Just check key exists
+				if _, ok := m[tt.wantKey]; !ok {
+					t.Fatalf("missing key %q in JSON: %s", tt.wantKey, result)
+				}
+				return
+			}
+
 			got, ok := m[tt.wantKey]
 			if !ok {
 				t.Fatalf("missing key %q in JSON: %s", tt.wantKey, result)

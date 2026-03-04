@@ -6,9 +6,13 @@
 package bgp_nlri_labeled
 
 import (
+	"bufio"
 	"context"
+	"fmt"
+	"io"
 	"log/slog"
 	"net"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -42,5 +46,39 @@ func RunLabeledPlugin(engineConn, callbackConn net.Conn) int {
 		return 1
 	}
 
+	return 0
+}
+
+// RunDecode runs the labeled unicast plugin in decode mode for ze bgp decode.
+// It reads "decode nlri <family> <hex>" requests from input and writes
+// "decoded json <json>" or "decoded unknown" responses to output.
+func RunDecode(input io.Reader, output io.Writer) int {
+	write := func(s string) {
+		if _, err := fmt.Fprintln(output, s); err != nil {
+			logger.Debug("write error", "err", err)
+		}
+	}
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+			family := parts[2]
+			hexData := parts[3]
+
+			jsonStr, err := DecodeNLRIHex(family, hexData)
+			if err == nil {
+				write("decoded json " + jsonStr)
+				continue
+			}
+		}
+
+		write("decoded unknown")
+	}
 	return 0
 }

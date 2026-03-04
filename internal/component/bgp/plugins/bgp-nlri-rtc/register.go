@@ -1,6 +1,7 @@
 package bgp_nlri_rtc
 
 import (
+	"bytes"
 	"flag"
 	"io"
 	"log/slog"
@@ -13,13 +14,16 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:                 "bgp-rtc",
-		Description:          "Route Target Constraint family plugin (RFC 4684)",
-		RFCs:                 []string{"4684"},
-		SupportsNLRI:         true,
-		Features:             "nlri",
-		Families:             []string{"ipv4/rtc"},
-		RunEngine:            RunRTCPlugin,
+		Name:         "bgp-rtc",
+		Description:  "Route Target Constraint family plugin (RFC 4684)",
+		RFCs:         []string{"4684"},
+		SupportsNLRI: true,
+		Features:     "nlri",
+		Families:     []string{"ipv4/rtc"},
+		RunEngine:    RunRTCPlugin,
+		InProcessDecoder: func(input, output *bytes.Buffer) int {
+			return RunDecode(input, output)
+		},
 		InProcessNLRIDecoder: DecodeNLRIHex,
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
@@ -33,6 +37,7 @@ func init() {
 		cfg.RunCLIWithCtx = func(hex string, text bool, out, errOut io.Writer, _ *flag.FlagSet) int {
 			return RunCLIDecode(hex, "ipv4/rtc", text, out, errOut)
 		}
+		cfg.RunDecode = RunDecode
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {

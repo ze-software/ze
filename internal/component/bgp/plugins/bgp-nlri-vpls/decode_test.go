@@ -1,9 +1,47 @@
 package bgp_nlri_vpls
 
 import (
+	"bytes"
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+// TestRunDecode tests the stdin/stdout decode protocol.
+//
+// VALIDATES: RunDecode produces "decoded json" with correct fields for valid NLRI.
+// PREVENTS: Regression in in-process decode path used by CLI fallback.
+func TestRunDecode(t *testing.T) {
+	input := "decode nlri l2vpn/vpls 00110000fde9000000640005006400c803e801\n"
+	var output bytes.Buffer
+	RunDecode(strings.NewReader(input), &output)
+
+	response := output.String()
+	if !strings.Contains(response, "decoded json") {
+		t.Fatalf("expected 'decoded json' prefix, got: %s", response)
+	}
+	if !strings.Contains(response, `"rd"`) {
+		t.Errorf("missing rd in response: %s", response)
+	}
+	if !strings.Contains(response, `"ve-id"`) {
+		t.Errorf("missing ve-id in response: %s", response)
+	}
+}
+
+// TestRunDecodeUnknown tests that unrecognized commands produce "decoded unknown".
+//
+// VALIDATES: RunDecode handles invalid input gracefully.
+// PREVENTS: Panic or hang on malformed protocol input.
+func TestRunDecodeUnknown(t *testing.T) {
+	input := "invalid command\n"
+	var output bytes.Buffer
+	RunDecode(strings.NewReader(input), &output)
+
+	response := output.String()
+	if !strings.Contains(response, "decoded unknown") {
+		t.Fatalf("expected 'decoded unknown', got: %s", response)
+	}
+}
 
 // TestDecodeNLRIHex tests VPLS NLRI hex decoding.
 //

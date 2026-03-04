@@ -6,6 +6,7 @@
 package bgp_nlri_mup
 
 import (
+	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -122,13 +123,43 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
+// RunDecode implements the stdin/stdout decode protocol for in-process use.
+// Reads lines like "decode nlri <family> <hex>", writes "decoded json <json>".
+func RunDecode(input io.Reader, output io.Writer) int {
+	write := func(s string) {
+		if _, err := fmt.Fprintln(output, s); err != nil {
+			logger.Debug("write error", "err", err)
+		}
+	}
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+			family := parts[2]
+			hexData := parts[3]
+			jsonStr, err := DecodeNLRIHex(family, hexData)
+			if err == nil {
+				write("decoded json " + jsonStr)
+				continue
+			}
+		}
+		write("decoded unknown")
+	}
+	return 0
+}
+
 // mupToJSON converts a parsed MUP NLRI to a JSON-friendly map.
 func mupToJSON(m *MUP) map[string]any {
 	return map[string]any{
 		"route-type": int(m.RouteType()),
 		"arch-type":  int(m.ArchType()),
 		"rd":         m.RD().String(),
-		"raw":        fmt.Sprintf("%X", m.Bytes()),
 	}
 }
 

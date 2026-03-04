@@ -6,6 +6,7 @@
 package bgp_nlri_vpls
 
 import (
+	"bufio"
 	"context"
 	"encoding/hex"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -121,6 +123,37 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 	return 0
 }
 
+// RunDecode implements the stdin/stdout decode protocol for in-process use.
+// Reads lines like "decode nlri <family> <hex>", writes "decoded json <json>".
+func RunDecode(input io.Reader, output io.Writer) int {
+	write := func(s string) {
+		if _, err := fmt.Fprintln(output, s); err != nil {
+			logger.Debug("write error", "err", err)
+		}
+	}
+
+	scanner := bufio.NewScanner(input)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+
+		parts := strings.Fields(line)
+		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
+			family := parts[2]
+			hexData := parts[3]
+			jsonStr, err := DecodeNLRIHex(family, hexData)
+			if err == nil {
+				write("decoded json " + jsonStr)
+				continue
+			}
+		}
+		write("decoded unknown")
+	}
+	return 0
+}
+
 // vplsToJSON converts a parsed VPLS NLRI to a JSON-friendly map.
 func vplsToJSON(v *VPLS) map[string]any {
 	return map[string]any{
@@ -129,6 +162,5 @@ func vplsToJSON(v *VPLS) map[string]any {
 		"ve-block-offset": v.VEBlockOffset(),
 		"ve-block-size":   v.VEBlockSize(),
 		"label-base":      v.LabelBase(),
-		"raw":             fmt.Sprintf("%X", v.Bytes()),
 	}
 }

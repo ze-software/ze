@@ -4,7 +4,7 @@
 # Wire bytes breakdown:
 # 60 = prefix length 96 bits
 # 00 00 FD E9 = origin AS 65001
-# 00 02 0000FDE9 0064 = route target (type 2: ASN=65001, value=100)
+# 00 02 0000FDE9 0064 = route target (type 0x00 sub-type 0x02: 2-byte ASN=0, assigned=4259905636)
 stdin=payload:hex=600000fde900020000fde90064
 cmd=foreground:seq=1:exec=ze-test decode --json --nlri ipv4/rtc -:stdin=payload
-expect=json:json={ "origin-as": 65001, "is-default": false }
+expect=json:json={ "origin-as": 65001, "is-default": false, "route-target": "0:4259905636" }
