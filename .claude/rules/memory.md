@@ -47,6 +47,11 @@ Key decisions agreed with user:
 ### Bash Timeout for test-all
 `make test-all` needs timeout 300s (5 min) — runs lint + unit + functional + fuzz + exabgp.
 
+### SDK Type Aliases Are Intentional
+`pkg/plugin/sdk/sdk_types.go` re-exports `rpc.*` types as `sdk.*` aliases. This is deliberate —
+external plugin authors import only `sdk`, never `rpc`. Decouples public API from internal structure.
+Do NOT flag these as "identity wrappers adding no value."
+
 ## Mistake Log
 
 ### Wrong Production Path (rib-04)

@@ -1,5 +1,13 @@
 // Design: docs/architecture/api/process-protocol.md — re-exported RPC type aliases
 // Overview: sdk.go — plugin SDK core
+//
+// These type aliases re-export canonical types from pkg/plugin/rpc so that
+// external plugin authors only need to import the sdk package. This decouples
+// the public SDK surface from the internal RPC wire types — rpc can be
+// restructured without breaking plugin code.
+//
+// For the canonical type definitions and field documentation, see:
+//   pkg/plugin/rpc/types.go
 
 package sdk
 
