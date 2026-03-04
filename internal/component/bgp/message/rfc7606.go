@@ -345,196 +345,233 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 	}
 }
 
+// attrValidatorFn checks a single attribute and returns a validation result, or nil if valid.
+type attrValidatorFn func(code uint8, length int, data []byte, isIBGP, asn4 bool) *RFC7606ValidationResult
+
+// attrValidators maps attribute type codes to per-attribute RFC 7606 validators.
+// nil entries mean no specific validation for that code.
+var attrValidators [256]attrValidatorFn
+
+func init() {
+	attrValidators[attrCodeOrigin] = validateOriginAttr
+	attrValidators[attrCodeASPath] = validateASPathAttr
+	attrValidators[attrCodeNextHop] = validateNextHopAttr
+	attrValidators[attrCodeMED] = validateMEDAttr
+	attrValidators[attrCodeLocalPref] = validateLocalPrefAttr
+	attrValidators[attrCodeAtomicAgg] = validateAtomicAggAttr
+	attrValidators[attrCodeAggregator] = validateAggregatorAttr
+	attrValidators[attrCodeCommunity] = validateCommunityAttr
+	attrValidators[attrCodeOriginatorID] = validateOriginatorIDAttr
+	attrValidators[attrCodeClusterList] = validateClusterListAttr
+	attrValidators[attrCodeExtCommunity] = validateExtCommunityAttr
+	attrValidators[attrCodeLargeCommunity] = validateLargeCommunityAttr
+	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
+	attrValidators[attrCodeMPUnreachNLRI] = validateMPUnreachAttr
+}
+
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
 func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 bool) *RFC7606ValidationResult {
-	switch code {
-	case attrCodeOrigin:
-		// RFC 7606 Section 7.1: ORIGIN must be length 1
-		if length != 1 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN length %d != 1", length),
-			}
-		}
-		// RFC 7606 Section 7.1: ORIGIN value must be 0 (IGP), 1 (EGP), or 2 (INCOMPLETE)
-		if len(attrData) > 0 && attrData[0] > 2 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN undefined value %d", attrData[0]),
-			}
-		}
+	if fn := attrValidators[code]; fn != nil {
+		return fn(code, length, attrData, isIBGP, asn4)
+	}
+	return nil
+}
 
-	case attrCodeASPath:
-		// RFC 7606 Section 7.2: Validate AS_PATH segment structure
-		if result := validateASPath(attrData, asn4); result != nil {
-			return result
-		}
-
-	case attrCodeNextHop:
-		// RFC 7606 Section 7.3: NEXT_HOP must be length 4
-		if length != 4 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.3: NEXT_HOP length %d != 4", length),
-			}
-		}
-
-	case attrCodeMED:
-		// RFC 7606 Section 7.4: MED must be length 4
-		if length != 4 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.4: MED length %d != 4", length),
-			}
-		}
-
-	case attrCodeLocalPref:
-		// RFC 7606 Section 7.5: LOCAL_PREF from EBGP must be discarded
-		if !isIBGP {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonEBGPInvalid,
-				Description: "RFC 7606 Section 7.5: LOCAL_PREF from external neighbor must be discarded",
-			}
-		}
-		// RFC 7606 Section 7.5: LOCAL_PREF must be length 4
-		if length != 4 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.5: LOCAL_PREF length %d != 4", length),
-			}
-		}
-
-	case attrCodeAtomicAgg:
-		// RFC 7606 Section 7.6: ATOMIC_AGGREGATE must be length 0
-		// Action is attribute-discard, not treat-as-withdraw
-		if length != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonInvalidLength,
-				Description: fmt.Sprintf("RFC 7606 Section 7.6: ATOMIC_AGGREGATE length %d != 0", length),
-			}
-		}
-
-	case attrCodeAggregator:
-		// RFC 7606 Section 7.7: AGGREGATOR length depends on 4-octet AS capability
-		// - asn4=false: length must be 6 (2-byte AS + 4-byte Router ID)
-		// - asn4=true: length must be 8 (4-byte AS + 4-byte Router ID)
-		// Action is attribute-discard for wrong length
-		expectedLen := 6
-		if asn4 {
-			expectedLen = 8
-		}
-		if length != expectedLen {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonInvalidLength,
-				Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d, expected %d (asn4=%t)", length, expectedLen, asn4),
-			}
-		}
-
-	case attrCodeCommunity:
-		// RFC 7606 Section 7.8: Community must be non-zero multiple of 4
-		if length == 0 || length%4 != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.8: Community length %d not multiple of 4", length),
-			}
-		}
-
-	case attrCodeOriginatorID:
-		// RFC 7606 Section 7.9: ORIGINATOR_ID from EBGP must be discarded
-		if !isIBGP {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonEBGPInvalid,
-				Description: "RFC 7606 Section 7.9: ORIGINATOR_ID from external neighbor must be discarded",
-			}
-		}
-		// RFC 7606 Section 7.9: ORIGINATOR_ID must be length 4
-		if length != 4 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.9: ORIGINATOR_ID length %d != 4", length),
-			}
-		}
-
-	case attrCodeClusterList:
-		// RFC 7606 Section 7.10: CLUSTER_LIST from EBGP must be discarded
-		if !isIBGP {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonEBGPInvalid,
-				Description: "RFC 7606 Section 7.10: CLUSTER_LIST from external neighbor must be discarded",
-			}
-		}
-		// RFC 7606 Section 7.10: CLUSTER_LIST must be non-zero multiple of 4
-		if length == 0 || length%4 != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.10: CLUSTER_LIST length %d not multiple of 4", length),
-			}
-		}
-
-	case attrCodeExtCommunity:
-		// RFC 7606 Section 7.14: Extended Community must be non-zero multiple of 8
-		if length == 0 || length%8 != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.14: Extended Community length %d not multiple of 8", length),
-			}
-		}
-
-	case attrCodeLargeCommunity:
-		// RFC 8092 Section 5: Large Community must be non-zero multiple of 12
-		if length == 0 || length%12 != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionTreatAsWithdraw,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 8092 Section 5: Large Community length %d not multiple of 12", length),
-			}
-		}
-
-	case attrCodeMPReachNLRI:
-		// RFC 7606 Section 5.3: "The length of the MP_REACH_NLRI ... shall be no less than 5"
-		if length < 5 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionSessionReset,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_REACH_NLRI length %d < 5", length),
-			}
-		}
-		// RFC 7606 Section 7.11: Validate next-hop length per AFI/SAFI
-		if result := validateMPReachNextHop(attrData); result != nil {
-			return result
-		}
-
-	case attrCodeMPUnreachNLRI:
-		// RFC 7606 Section 5.3: "The length of the MP_UNREACH_NLRI ... shall be no less than 3"
-		// Minimum: AFI (2 bytes) + SAFI (1 byte) = 3 bytes.
-		if length < 3 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionSessionReset,
-				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_UNREACH_NLRI length %d < 3", length),
-			}
+// RFC 7606 Section 7.1: ORIGIN must be length 1, value 0-2.
+func validateOriginAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+	if length != 1 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN length %d != 1", length),
 		}
 	}
+	if len(attrData) > 0 && attrData[0] > 2 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN undefined value %d", attrData[0]),
+		}
+	}
+	return nil
+}
 
+// RFC 7606 Section 7.2: Validate AS_PATH segment structure.
+func validateASPathAttr(_ uint8, _ int, attrData []byte, _, asn4 bool) *RFC7606ValidationResult {
+	return validateASPath(attrData, asn4)
+}
+
+// RFC 7606 Section 7.3: NEXT_HOP must be length 4.
+func validateNextHopAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length != 4 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.3: NEXT_HOP length %d != 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.4: MED must be length 4.
+func validateMEDAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length != 4 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.4: MED length %d != 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.5: LOCAL_PREF from EBGP discarded; must be length 4.
+func validateLocalPrefAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+	if !isIBGP {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonEBGPInvalid,
+			Description: "RFC 7606 Section 7.5: LOCAL_PREF from external neighbor must be discarded",
+		}
+	}
+	if length != 4 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.5: LOCAL_PREF length %d != 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.6: ATOMIC_AGGREGATE must be length 0 (attribute-discard).
+func validateAtomicAggAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonInvalidLength,
+			Description: fmt.Sprintf("RFC 7606 Section 7.6: ATOMIC_AGGREGATE length %d != 0", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.7: AGGREGATOR length depends on 4-octet AS capability (attribute-discard).
+func validateAggregatorAttr(code uint8, length int, _ []byte, _, asn4 bool) *RFC7606ValidationResult {
+	expectedLen := 6
+	if asn4 {
+		expectedLen = 8
+	}
+	if length != expectedLen {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonInvalidLength,
+			Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d, expected %d (asn4=%t)", length, expectedLen, asn4),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.8: Community must be non-zero multiple of 4.
+func validateCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length == 0 || length%4 != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.8: Community length %d not multiple of 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.9: ORIGINATOR_ID from EBGP discarded; must be length 4.
+func validateOriginatorIDAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+	if !isIBGP {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonEBGPInvalid,
+			Description: "RFC 7606 Section 7.9: ORIGINATOR_ID from external neighbor must be discarded",
+		}
+	}
+	if length != 4 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.9: ORIGINATOR_ID length %d != 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.10: CLUSTER_LIST from EBGP discarded; must be non-zero multiple of 4.
+func validateClusterListAttr(code uint8, length int, _ []byte, isIBGP, _ bool) *RFC7606ValidationResult {
+	if !isIBGP {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonEBGPInvalid,
+			Description: "RFC 7606 Section 7.10: CLUSTER_LIST from external neighbor must be discarded",
+		}
+	}
+	if length == 0 || length%4 != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.10: CLUSTER_LIST length %d not multiple of 4", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 7.14: Extended Community must be non-zero multiple of 8.
+func validateExtCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length == 0 || length%8 != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 7.14: Extended Community length %d not multiple of 8", length),
+		}
+	}
+	return nil
+}
+
+// RFC 8092 Section 5: Large Community must be non-zero multiple of 12.
+func validateLargeCommunityAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length == 0 || length%12 != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 8092 Section 5: Large Community length %d not multiple of 12", length),
+		}
+	}
+	return nil
+}
+
+// RFC 7606 Section 5.3/7.11: MP_REACH_NLRI minimum length 5, next-hop validation.
+func validateMPReachAttr(code uint8, length int, attrData []byte, _, _ bool) *RFC7606ValidationResult {
+	if length < 5 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_REACH_NLRI length %d < 5", length),
+		}
+	}
+	return validateMPReachNextHop(attrData)
+}
+
+// RFC 7606 Section 5.3: MP_UNREACH_NLRI minimum length 3.
+func validateMPUnreachAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+	if length < 3 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_UNREACH_NLRI length %d < 3", length),
+		}
+	}
 	return nil
 }
 

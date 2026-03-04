@@ -5,6 +5,7 @@ package attribute
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -186,6 +187,15 @@ func (AtomicAggregate) WriteToWithContext(_ []byte, _ int, _, _ *bgpctx.Encoding
 // CheckedWriteTo validates capacity before writing (always succeeds, zero length).
 func (AtomicAggregate) CheckedWriteTo(_ []byte, _ int) (int, error) {
 	return 0, nil
+}
+
+// ParseAtomicAggregate validates and returns an AtomicAggregate.
+// RFC 4271: ATOMIC_AGGREGATE has length 0.
+func ParseAtomicAggregate(data []byte) (Attribute, error) {
+	if len(data) != 0 {
+		return nil, fmt.Errorf("ATOMIC_AGGREGATE must be empty, got %d bytes", len(data))
+	}
+	return AtomicAggregate{}, nil
 }
 
 // Aggregator represents the AGGREGATOR attribute.

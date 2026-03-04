@@ -360,6 +360,33 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
 	return buf[:off], nil
 }
 
+// knownAttrParsers maps attribute type codes to parser functions.
+// nil entries mean unknown or known-without-parser — caller creates OpaqueAttribute.
+// Two parsers (AS_PATH, AGGREGATOR) use the fourByteAS parameter; the rest ignore it.
+var knownAttrParsers [256]func(data []byte, fourByteAS bool) (Attribute, error)
+
+func init() {
+	knownAttrParsers[AttrOrigin] = func(d []byte, _ bool) (Attribute, error) { return ParseOrigin(d) }
+	knownAttrParsers[AttrASPath] = func(d []byte, asn4 bool) (Attribute, error) { return ParseASPath(d, asn4) }
+	knownAttrParsers[AttrNextHop] = func(d []byte, _ bool) (Attribute, error) { return ParseNextHop(d) }
+	knownAttrParsers[AttrMED] = func(d []byte, _ bool) (Attribute, error) { return ParseMED(d) }
+	knownAttrParsers[AttrLocalPref] = func(d []byte, _ bool) (Attribute, error) { return ParseLocalPref(d) }
+	knownAttrParsers[AttrAtomicAggregate] = func(d []byte, _ bool) (Attribute, error) { return ParseAtomicAggregate(d) }
+	knownAttrParsers[AttrAggregator] = func(d []byte, asn4 bool) (Attribute, error) { return ParseAggregator(d, asn4) }
+	knownAttrParsers[AttrCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseCommunities(d) }
+	knownAttrParsers[AttrOriginatorID] = func(d []byte, _ bool) (Attribute, error) { return ParseOriginatorID(d) }
+	knownAttrParsers[AttrClusterList] = func(d []byte, _ bool) (Attribute, error) { return ParseClusterList(d) }
+	knownAttrParsers[AttrMPReachNLRI] = func(d []byte, _ bool) (Attribute, error) { return ParseMPReachNLRI(d) }
+	knownAttrParsers[AttrMPUnreachNLRI] = func(d []byte, _ bool) (Attribute, error) { return ParseMPUnreachNLRI(d) }
+	knownAttrParsers[AttrExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseExtendedCommunities(d) }
+	knownAttrParsers[AttrAS4Path] = func(d []byte, _ bool) (Attribute, error) { return ParseAS4Path(d) }
+	knownAttrParsers[AttrAS4Aggregator] = func(d []byte, _ bool) (Attribute, error) { return ParseAS4Aggregator(d) }
+	knownAttrParsers[AttrLargeCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseLargeCommunities(d) }
+	knownAttrParsers[AttrIPv6ExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseIPv6ExtendedCommunities(d) }
+	// Known codes without parsers yet (PMSI, TunnelEncap, AIGP, BGPLS, PrefixSID):
+	// left nil — treated as opaque, same as truly unknown codes.
+}
+
 // parseKnownAttribute parses a known attribute value by code.
 // Returns (nil, nil) for unknown attribute codes - caller handles as OpaqueAttribute.
 // Known attributes derive their flags from type; only OpaqueAttribute needs stored flags.
@@ -368,52 +395,11 @@ func parseKnownAttribute(code AttributeCode, data []byte, ctx *bgpctx.EncodingCo
 	if ctx == nil {
 		return nil, fmt.Errorf("nil encoding context")
 	}
-	fourByteAS := ctx.ASN4()
 
-	switch code {
-	case AttrOrigin:
-		return ParseOrigin(data)
-	case AttrASPath:
-		return ParseASPath(data, fourByteAS)
-	case AttrNextHop:
-		return ParseNextHop(data)
-	case AttrMED:
-		return ParseMED(data)
-	case AttrLocalPref:
-		return ParseLocalPref(data)
-	case AttrAtomicAggregate:
-		// RFC 4271: ATOMIC_AGGREGATE has length 0
-		if len(data) != 0 {
-			return nil, fmt.Errorf("ATOMIC_AGGREGATE must be empty, got %d bytes", len(data))
-		}
-		return &AtomicAggregate{}, nil
-	case AttrAggregator:
-		return ParseAggregator(data, fourByteAS)
-	case AttrOriginatorID:
-		return ParseOriginatorID(data)
-	case AttrClusterList:
-		return ParseClusterList(data)
-	case AttrCommunity:
-		return ParseCommunities(data)
-	case AttrMPReachNLRI:
-		return ParseMPReachNLRI(data)
-	case AttrMPUnreachNLRI:
-		return ParseMPUnreachNLRI(data)
-	case AttrExtCommunity:
-		return ParseExtendedCommunities(data)
-	case AttrAS4Path:
-		return ParseAS4Path(data)
-	case AttrAS4Aggregator:
-		return ParseAS4Aggregator(data)
-	case AttrLargeCommunity:
-		return ParseLargeCommunities(data)
-	case AttrIPv6ExtCommunity:
-		return ParseIPv6ExtendedCommunities(data)
-	case AttrPMSI, AttrTunnelEncap, AttrAIGP, AttrBGPLS, AttrPrefixSID:
-		// Known codes without parsers yet - treat as opaque
-		return nil, nil //nolint:nilnil // nil signals unknown, caller creates OpaqueAttribute
-	default:
-		// Unknown - caller will create OpaqueAttribute with preserved flags
+	fn := knownAttrParsers[code]
+	if fn == nil {
 		return nil, nil //nolint:nilnil // nil signals unknown, caller creates OpaqueAttribute
 	}
+
+	return fn(data, ctx.ASN4())
 }

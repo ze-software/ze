@@ -6,11 +6,69 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 )
 
+// attrInterner binds a pool to a RouteEntry field for table-driven internment.
+type attrInterner struct {
+	pool *attrpool.Pool
+	name string
+	get  func(*RouteEntry) attrpool.Handle
+	set  func(*RouteEntry, attrpool.Handle)
+}
+
+// attrInterners maps attribute type codes to their pool+field bindings.
+// nil entries route to OtherAttrs accumulation.
+var attrInterners [256]*attrInterner
+
+func init() {
+	reg := func(code attribute.AttributeCode, p *attrpool.Pool, name string,
+		get func(*RouteEntry) attrpool.Handle, set func(*RouteEntry, attrpool.Handle),
+	) {
+		attrInterners[code] = &attrInterner{pool: p, name: name, get: get, set: set}
+	}
+
+	reg(attribute.AttrOrigin, pool.Origin, "origin",
+		func(e *RouteEntry) attrpool.Handle { return e.Origin },
+		func(e *RouteEntry, h attrpool.Handle) { e.Origin = h })
+	reg(attribute.AttrASPath, pool.ASPath, "as-path",
+		func(e *RouteEntry) attrpool.Handle { return e.ASPath },
+		func(e *RouteEntry, h attrpool.Handle) { e.ASPath = h })
+	reg(attribute.AttrNextHop, pool.NextHop, "next-hop",
+		func(e *RouteEntry) attrpool.Handle { return e.NextHop },
+		func(e *RouteEntry, h attrpool.Handle) { e.NextHop = h })
+	reg(attribute.AttrMED, pool.MED, "med",
+		func(e *RouteEntry) attrpool.Handle { return e.MED },
+		func(e *RouteEntry, h attrpool.Handle) { e.MED = h })
+	reg(attribute.AttrLocalPref, pool.LocalPref, "local-pref",
+		func(e *RouteEntry) attrpool.Handle { return e.LocalPref },
+		func(e *RouteEntry, h attrpool.Handle) { e.LocalPref = h })
+	reg(attribute.AttrAtomicAggregate, pool.AtomicAggregate, "atomic-aggregate",
+		func(e *RouteEntry) attrpool.Handle { return e.AtomicAggregate },
+		func(e *RouteEntry, h attrpool.Handle) { e.AtomicAggregate = h })
+	reg(attribute.AttrAggregator, pool.Aggregator, "aggregator",
+		func(e *RouteEntry) attrpool.Handle { return e.Aggregator },
+		func(e *RouteEntry, h attrpool.Handle) { e.Aggregator = h })
+	reg(attribute.AttrCommunity, pool.Communities, "communities",
+		func(e *RouteEntry) attrpool.Handle { return e.Communities },
+		func(e *RouteEntry, h attrpool.Handle) { e.Communities = h })
+	reg(attribute.AttrLargeCommunity, pool.LargeCommunities, "large-communities",
+		func(e *RouteEntry) attrpool.Handle { return e.LargeCommunities },
+		func(e *RouteEntry, h attrpool.Handle) { e.LargeCommunities = h })
+	reg(attribute.AttrExtCommunity, pool.ExtCommunities, "ext-communities",
+		func(e *RouteEntry) attrpool.Handle { return e.ExtCommunities },
+		func(e *RouteEntry, h attrpool.Handle) { e.ExtCommunities = h })
+	reg(attribute.AttrClusterList, pool.ClusterList, "cluster-list",
+		func(e *RouteEntry) attrpool.Handle { return e.ClusterList },
+		func(e *RouteEntry, h attrpool.Handle) { e.ClusterList = h })
+	reg(attribute.AttrOriginatorID, pool.OriginatorID, "originator-id",
+		func(e *RouteEntry) attrpool.Handle { return e.OriginatorID },
+		func(e *RouteEntry, h attrpool.Handle) { e.OriginatorID = h })
+}
+
 // ParseAttributes parses raw attribute wire bytes into a RouteEntry.
-// Each known attribute type is interned in its dedicated pool.
+// Each known attribute type is interned in its dedicated pool via the attrInterners table.
 // Unknown attributes are accumulated into OtherAttrs as a blob.
 //
 // Uses AttrIterator for zero-allocation iteration over attributes.
@@ -24,157 +82,30 @@ func ParseAttributes(raw []byte) (*RouteEntry, error) {
 		return entry, nil
 	}
 
-	// Track unknown attributes to accumulate
 	var otherAttrs []byte
-
-	var err error
 
 	iter := attribute.NewAttrIterator(raw)
 	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
-		switch typeCode {
-		case attribute.AttrOrigin:
+		if h := attrInterners[typeCode]; h != nil {
 			// Release previous handle if duplicate attribute (malformed but handle it).
-			if entry.Origin.IsValid() {
-				_ = pool.Origin.Release(entry.Origin)
+			if cur := h.get(entry); cur.IsValid() {
+				_ = h.pool.Release(cur)
 			}
-			entry.Origin, err = pool.Origin.Intern(value)
+			handle, err := h.pool.Intern(value)
 			if err != nil {
 				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "origin", err)
+				return nil, fmt.Errorf("intern %s: %w", h.name, err)
 			}
-
-		case attribute.AttrASPath:
-			if entry.ASPath.IsValid() {
-				_ = pool.ASPath.Release(entry.ASPath)
-			}
-			entry.ASPath, err = pool.ASPath.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "as-path", err)
-			}
-
-		case attribute.AttrNextHop:
-			if entry.NextHop.IsValid() {
-				_ = pool.NextHop.Release(entry.NextHop)
-			}
-			entry.NextHop, err = pool.NextHop.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "next-hop", err)
-			}
-
-		case attribute.AttrMED:
-			if entry.MED.IsValid() {
-				_ = pool.MED.Release(entry.MED)
-			}
-			entry.MED, err = pool.MED.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "med", err)
-			}
-
-		case attribute.AttrLocalPref:
-			if entry.LocalPref.IsValid() {
-				_ = pool.LocalPref.Release(entry.LocalPref)
-			}
-			entry.LocalPref, err = pool.LocalPref.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "local-pref", err)
-			}
-
-		case attribute.AttrCommunity:
-			if entry.Communities.IsValid() {
-				_ = pool.Communities.Release(entry.Communities)
-			}
-			entry.Communities, err = pool.Communities.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "communities", err)
-			}
-
-		case attribute.AttrLargeCommunity:
-			if entry.LargeCommunities.IsValid() {
-				_ = pool.LargeCommunities.Release(entry.LargeCommunities)
-			}
-			entry.LargeCommunities, err = pool.LargeCommunities.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "large-communities", err)
-			}
-
-		case attribute.AttrExtCommunity:
-			if entry.ExtCommunities.IsValid() {
-				_ = pool.ExtCommunities.Release(entry.ExtCommunities)
-			}
-			entry.ExtCommunities, err = pool.ExtCommunities.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "ext-communities", err)
-			}
-
-		case attribute.AttrClusterList:
-			if entry.ClusterList.IsValid() {
-				_ = pool.ClusterList.Release(entry.ClusterList)
-			}
-			entry.ClusterList, err = pool.ClusterList.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "cluster-list", err)
-			}
-
-		case attribute.AttrOriginatorID:
-			if entry.OriginatorID.IsValid() {
-				_ = pool.OriginatorID.Release(entry.OriginatorID)
-			}
-			entry.OriginatorID, err = pool.OriginatorID.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "originator-id", err)
-			}
-
-		case attribute.AttrAtomicAggregate:
-			if entry.AtomicAggregate.IsValid() {
-				_ = pool.AtomicAggregate.Release(entry.AtomicAggregate)
-			}
-			entry.AtomicAggregate, err = pool.AtomicAggregate.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "atomic-aggregate", err)
-			}
-
-		case attribute.AttrAggregator:
-			if entry.Aggregator.IsValid() {
-				_ = pool.Aggregator.Release(entry.Aggregator)
-			}
-			entry.Aggregator, err = pool.Aggregator.Intern(value)
-			if err != nil {
-				entry.Release()
-				return nil, fmt.Errorf("intern %s: %w", "aggregator", err)
-			}
-
-		case attribute.AttrMPReachNLRI,
-			attribute.AttrMPUnreachNLRI,
-			attribute.AttrAS4Path,
-			attribute.AttrAS4Aggregator,
-			attribute.AttrPMSI,
-			attribute.AttrTunnelEncap,
-			attribute.AttrIPv6ExtCommunity,
-			attribute.AttrAIGP,
-			attribute.AttrBGPLS,
-			attribute.AttrPrefixSID:
-			// Known but not individually pooled - store in OtherAttrs.
-			// Prefix with type code for sorted reconstruction.
-			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
-
-		default: // Unknown attribute - accumulate for OtherAttrs.
-			// Prefix with type code for sorted reconstruction.
+			h.set(entry, handle)
+		} else {
+			// Unknown or known-but-not-pooled — accumulate for OtherAttrs.
 			otherAttrs = appendOtherAttr(otherAttrs, flags, typeCode, value)
 		}
 	}
 
 	// Intern accumulated unknown attributes.
 	if len(otherAttrs) > 0 {
+		var err error
 		entry.OtherAttrs, err = pool.OtherAttrs.Intern(otherAttrs)
 		if err != nil {
 			entry.Release()
