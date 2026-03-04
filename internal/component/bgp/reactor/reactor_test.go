@@ -21,6 +21,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
+// Compile-time interface satisfaction checks.
+// reactorAPIAdapter must implement all sub-interfaces and the composed ReactorLifecycle.
+var (
+	_ plugin.ReactorIntrospector       = (*reactorAPIAdapter)(nil)
+	_ plugin.ReactorPeerController     = (*reactorAPIAdapter)(nil)
+	_ plugin.ReactorConfigurator       = (*reactorAPIAdapter)(nil)
+	_ plugin.ReactorStartupCoordinator = (*reactorAPIAdapter)(nil)
+	_ plugin.ReactorCacheCoordinator   = (*reactorAPIAdapter)(nil)
+	_ plugin.ReactorLifecycle          = (*reactorAPIAdapter)(nil)
+)
+
 // findMPAttribute scans attribute bytes for an MP attribute and validates AFI/SAFI.
 // Returns true if found and validates expected AFI/SAFI values.
 func findMPAttribute(t *testing.T, data []byte, targetCode attribute.AttributeCode, expectedAFI uint16, expectedSAFI uint8) bool {

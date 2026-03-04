@@ -66,12 +66,8 @@ type DynamicPeerConfig struct {
 	Connection   string        // Connection mode: "both" (default), "passive", "active"
 }
 
-// ReactorLifecycle defines generic lifecycle operations for the reactor.
-// These methods are protocol-agnostic and handle peer management,
-// configuration, introspection, and startup coordination.
-type ReactorLifecycle interface {
-	// --- Introspection (4 methods) ---
-
+// ReactorIntrospector provides read-only access to peer and reactor state.
+type ReactorIntrospector interface {
 	// Peers returns information about all configured peers.
 	Peers() []PeerInfo
 
@@ -83,9 +79,11 @@ type ReactorLifecycle interface {
 
 	// GetPeerCapabilityConfigs returns capability configurations for all peers.
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
+}
 
-	// --- Lifecycle (2 methods) ---
-
+// ReactorPeerController manages peer lifecycle: shutdown, teardown, flow control,
+// and dynamic peer add/remove.
+type ReactorPeerController interface {
 	// Stop signals the reactor to shut down.
 	Stop()
 
@@ -101,8 +99,15 @@ type ReactorLifecycle interface {
 	// Used by flow control to release backpressure when a plugin's worker pool drains.
 	ResumePeer(addr netip.Addr) error
 
-	// --- Configuration (6 methods) ---
+	// AddDynamicPeer adds a peer with the given configuration.
+	AddDynamicPeer(config DynamicPeerConfig) error
 
+	// RemovePeer removes a peer by address.
+	RemovePeer(addr netip.Addr) error
+}
+
+// ReactorConfigurator handles configuration reload, verification, and application.
+type ReactorConfigurator interface {
 	// Reload reloads the configuration from the config file via reloadFunc.
 	Reload() error
 
@@ -112,20 +117,15 @@ type ReactorLifecycle interface {
 	// ApplyConfigDiff applies peer changes from a BGP config tree.
 	ApplyConfigDiff(bgpTree map[string]any) error
 
-	// AddDynamicPeer adds a peer with the given configuration.
-	AddDynamicPeer(config DynamicPeerConfig) error
-
-	// RemovePeer removes a peer by address.
-	RemovePeer(addr netip.Addr) error
-
 	// GetConfigTree returns the full config as a map for plugin config delivery.
 	GetConfigTree() map[string]any
 
 	// SetConfigTree replaces the running config tree after a successful reload.
 	SetConfigTree(tree map[string]any)
+}
 
-	// --- Startup coordination (4 methods) ---
-
+// ReactorStartupCoordinator handles plugin startup protocol signaling.
+type ReactorStartupCoordinator interface {
 	// SignalAPIReady signals that an API process is ready.
 	SignalAPIReady()
 
@@ -137,9 +137,10 @@ type ReactorLifecycle interface {
 
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	SignalPeerAPIReady(peerAddr string)
+}
 
-	// --- Cache consumer lifecycle (2 methods) ---
-
+// ReactorCacheCoordinator manages cache consumer registration and cleanup.
+type ReactorCacheCoordinator interface {
 	// RegisterCacheConsumer initializes tracking for a cache-consumer plugin.
 	// unordered=false: FIFO consumer (cumulative ack — existing behavior).
 	// unordered=true: per-entry ack only, no cumulative sweep. Required for
@@ -150,6 +151,16 @@ type ReactorLifecycle interface {
 	// UnregisterCacheConsumer removes a cache-consumer plugin and adjusts pending counts.
 	// Called when a cache-consumer plugin disconnects or exits.
 	UnregisterCacheConsumer(name string)
+}
+
+// ReactorLifecycle is the full reactor interface composed from focused sub-interfaces.
+// Consumers should prefer the narrowest sub-interface that satisfies their needs.
+type ReactorLifecycle interface {
+	ReactorIntrospector
+	ReactorPeerController
+	ReactorConfigurator
+	ReactorStartupCoordinator
+	ReactorCacheCoordinator
 }
 
 // PeerProcessBinding describes which plugin receives messages from a peer.
