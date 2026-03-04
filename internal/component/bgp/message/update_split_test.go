@@ -630,6 +630,68 @@ func TestSplitUpdateWithAddPath_FalseDoesNotAssumePathId(t *testing.T) {
 }
 
 // =============================================================================
+// ExtractMPFamily Tests
+// =============================================================================
+
+// TestExtractMPFamily verifies MP family extraction from raw PathAttributes.
+//
+// VALIDATES: ExtractMPFamily returns correct AFI/SAFI from MP_REACH_NLRI and MP_UNREACH_NLRI.
+// PREVENTS: Forward path using wrong ADD-PATH state for non-IPv4 families.
+func TestExtractMPFamily(t *testing.T) {
+	tests := []struct {
+		name      string
+		pathAttrs []byte
+		wantOK    bool
+		wantAFI   uint16
+		wantSAFI  uint8
+	}{
+		{
+			name: "MP_REACH IPv6/unicast",
+			pathAttrs: func() []byte {
+				// Build MP_REACH_NLRI: flags=0x90 (optional, extended), type=14, len=7
+				// Value: AFI=2(IPv6), SAFI=1(unicast), NH_LEN=0, reserved=0
+				return []byte{0x90, 0x0E, 0x00, 0x04, 0x00, 0x02, 0x01, 0x00}
+			}(),
+			wantOK:   true,
+			wantAFI:  2,
+			wantSAFI: 1,
+		},
+		{
+			name: "MP_UNREACH IPv6/unicast",
+			pathAttrs: func() []byte {
+				// MP_UNREACH_NLRI: flags=0x90, type=15, len=3
+				// Value: AFI=2, SAFI=1
+				return []byte{0x90, 0x0F, 0x00, 0x03, 0x00, 0x02, 0x01}
+			}(),
+			wantOK:   true,
+			wantAFI:  2,
+			wantSAFI: 1,
+		},
+		{
+			name:      "no MP attributes (IPv4 only)",
+			pathAttrs: []byte{0x40, 0x01, 0x01, 0x00}, // ORIGIN IGP
+			wantOK:    false,
+		},
+		{
+			name:      "empty attributes",
+			pathAttrs: nil,
+			wantOK:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			family, ok := ExtractMPFamily(tt.pathAttrs)
+			assert.Equal(t, tt.wantOK, ok)
+			if tt.wantOK {
+				assert.Equal(t, tt.wantAFI, uint16(family.AFI))
+				assert.Equal(t, tt.wantSAFI, uint8(family.SAFI))
+			}
+		})
+	}
+}
+
+// =============================================================================
 // Mixed UPDATE Splitting Tests
 // =============================================================================
 

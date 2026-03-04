@@ -59,6 +59,10 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: found *a* handler, assumed it was *the* handler. Never traced the actual call chain.
 - **Rule:** grep for ALL implementations of a protocol step, identify which one the consumer calls.
 
+### Count-Only Test Assertions (addpath-rib)
+- Test asserted `Len()==2` on map-backed store. Wrong parsing produced entries that deduped to same count.
+- **Rule:** When testing wire parsing into map storage, assert on content (keys/values via Lookup) not just count.
+
 ### Wrapper Struct Pattern (alloc-4, three attempts)
 - Attempt 1: eager `StructuredEvent` pre-computed FilterResult (N→1 when answer is N→0)
 - Attempt 2: `UpdateHandle` wrapped raw data with lazy methods + cached fields (identity wrapper)

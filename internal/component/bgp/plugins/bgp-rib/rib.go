@@ -303,9 +303,9 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			continue
 		}
 
-		// Split concatenated NLRIs and insert each
-		// TODO: detect ADD-PATH from negotiation
-		addPath := false
+		// Split concatenated NLRIs and insert each.
+		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
+		addPath := event.AddPath[familyStr]
 		prefixes := splitNLRIs(nlriBytes, addPath)
 		for _, wirePrefix := range prefixes {
 			peerRIB.Insert(family, attrBytes, wirePrefix)
@@ -332,8 +332,9 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			continue
 		}
 
-		// Split and remove each
-		addPath := false
+		// Split and remove each.
+		// RFC 7911: ADD-PATH per-family flag from negotiated capabilities (via format=full JSON).
+		addPath := event.AddPath[familyStr]
 		withdrawns := splitNLRIs(wdBytes, addPath)
 		for _, wd := range withdrawns {
 			peerRIB.Remove(family, wd)

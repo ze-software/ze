@@ -193,6 +193,7 @@ func parseRawFields(event *Event, rawData json.RawMessage) {
 		Attributes string            `json:"attributes,omitempty"`
 		NLRI       map[string]string `json:"nlri,omitempty"`
 		Withdrawn  map[string]string `json:"withdrawn,omitempty"`
+		AddPath    map[string]bool   `json:"add-path,omitempty"` // RFC 7911: per-family ADD-PATH flags
 	}
 	if err := json.Unmarshal(rawData, &rawFields); err == nil {
 		if rawFields.Attributes != "" {
@@ -203,6 +204,9 @@ func parseRawFields(event *Event, rawData json.RawMessage) {
 		}
 		if len(rawFields.Withdrawn) > 0 {
 			event.RawWithdrawn = rawFields.Withdrawn
+		}
+		if len(rawFields.AddPath) > 0 {
+			event.AddPath = rawFields.AddPath
 		}
 	}
 }
@@ -280,6 +284,10 @@ type Event struct {
 	RawAttributes string            `json:"raw-attributes,omitempty"` // Path attributes (without MP_REACH/UNREACH)
 	RawNLRI       map[string]string `json:"raw-nlri,omitempty"`       // family -> hex bytes
 	RawWithdrawn  map[string]string `json:"raw-withdrawn,omitempty"`  // family -> hex bytes
+
+	// RFC 7911: ADD-PATH per-family flags from negotiated capabilities (format=full only).
+	// When true for a family, NLRI wire bytes include 4-byte path-ID prefix.
+	AddPath map[string]bool `json:"-"` // Populated by parseRawFields from raw.add-path
 }
 
 // FamilyOperation represents a single add or del operation for a family.

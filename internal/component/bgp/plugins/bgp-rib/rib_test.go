@@ -10,6 +10,7 @@ import (
 
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
 )
 
@@ -1562,4 +1563,87 @@ func TestParseEvent_BackwardsCompatible(t *testing.T) {
 	// Should still work via existing parsing logic
 	assert.Equal(t, "update", event.GetEventType())
 	assert.Equal(t, uint64(456), event.GetMsgID())
+}
+
+// TestHandleReceived_AddPathNLRI verifies ADD-PATH NLRIs are split correctly.
+//
+// VALIDATES: AC-4 — ADD-PATH NLRIs with 4-byte path-ID prefix are correctly stored.
+// PREVENTS: Path-ID bytes being misinterpreted as prefix length.
+func TestHandleReceived_AddPathNLRI(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// ADD-PATH NLRI: [path-id:4][prefix-len:1][prefix-bytes]
+	// 10.0.0.0/24 with path-id 42: 00 00 00 2a 18 0a 00 00
+	// 10.0.1.0/24 with path-id 43: 00 00 00 2b 18 0a 00 01
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 300},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "0000002a180a00000000002b180a0001"},
+		AddPath:       map[string]bool{"ipv4/unicast": true},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
+			},
+		},
+	}
+
+	r.handleReceived(event)
+
+	require.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 ADD-PATH routes in pool")
+
+	// Verify actual stored wire bytes contain correct ADD-PATH NLRIs (not garbage from wrong parsing).
+	// With addPath=true: key is [path-id:4][prefix-len:1][prefix-bytes].
+	// With addPath=false: path-id bytes would be misread as prefix-lengths, producing different keys.
+	ipv4u := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	_, found42 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	_, found43 := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2b, 0x18, 0x0a, 0x00, 0x01})
+	assert.True(t, found42, "route with path-id 42 (10.0.0.0/24) must be stored with correct ADD-PATH wire key")
+	assert.True(t, found43, "route with path-id 43 (10.0.1.0/24) must be stored with correct ADD-PATH wire key")
+}
+
+// TestHandleReceived_AddPathWithdraw verifies ADD-PATH withdrawals match stored routes.
+//
+// VALIDATES: AC-6 — ADD-PATH withdrawals with path-ID correctly remove stored routes.
+// PREVENTS: Withdrawal failing to match because path-ID bytes weren't consumed.
+func TestHandleReceived_AddPathWithdraw(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// First announce with ADD-PATH
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 300},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "0000002a180a0000"},
+		AddPath:       map[string]bool{"ipv4/unicast": true},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+			},
+		},
+	}
+	r.handleReceived(announce)
+
+	// Verify announcement stored with correct ADD-PATH wire key
+	ipv4u := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	_, found := r.ribInPool["10.0.0.1"].Lookup(ipv4u, []byte{0x00, 0x00, 0x00, 0x2a, 0x18, 0x0a, 0x00, 0x00})
+	require.True(t, found, "route must be stored with ADD-PATH wire key before withdrawal")
+
+	// Then withdraw with ADD-PATH
+	withdraw := &Event{
+		Message:      &MessageInfo{Type: "update", ID: 301},
+		Peer:         peerJSON,
+		RawWithdrawn: map[string]string{"ipv4/unicast": "0000002a180a0000"},
+		AddPath:      map[string]bool{"ipv4/unicast": true},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
+			},
+		},
+	}
+	r.handleReceived(withdraw)
+	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len(), "ADD-PATH withdrawal should remove the route")
 }

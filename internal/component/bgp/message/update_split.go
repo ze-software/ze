@@ -92,6 +92,22 @@ func SplitUpdateWithAddPath(u *Update, maxSize int, addPath bool) ([]*Update, er
 	return splitUpdateIPv4(u, maxSize, addPath)
 }
 
+// ExtractMPFamily returns the address family from MP_REACH_NLRI or MP_UNREACH_NLRI
+// in raw PathAttributes bytes. Returns false if no MP attribute is found.
+// RFC 4760: MP attribute value starts with AFI(2) + SAFI(1).
+func ExtractMPFamily(pathAttrs []byte) (nlri.Family, bool) {
+	// Try MP_REACH_NLRI first (type 14), then MP_UNREACH_NLRI (type 15).
+	for _, code := range []attribute.AttributeCode{attribute.AttrMPReachNLRI, attribute.AttrMPUnreachNLRI} {
+		info := findMPAttribute(pathAttrs, code)
+		if info.found && len(info.value) >= 3 {
+			afi := nlri.AFI(uint16(info.value[0])<<8 | uint16(info.value[1]))
+			safi := nlri.SAFI(info.value[2])
+			return nlri.Family{AFI: afi, SAFI: safi}, true
+		}
+	}
+	return nlri.Family{}, false
+}
+
 // mpAttrInfo holds information about an MP attribute in PathAttributes.
 type mpAttrInfo struct {
 	found bool   // Whether the attribute was found

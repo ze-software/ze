@@ -117,6 +117,47 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 	})
 }
 
+// TestParseEvent_AddPathField verifies ADD-PATH per-family flags from format=full events.
+//
+// VALIDATES: ParseEvent extracts raw.add-path map into Event.AddPath.
+// PREVENTS: RIB plugin unable to determine ADD-PATH state from event JSON.
+func TestParseEvent_AddPathField(t *testing.T) {
+	t.Run("add_path_present", func(t *testing.T) {
+		input := `{"type":"bgp","bgp":{
+			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"message":{"type":"update","id":1,"direction":"received"},
+			"update":{
+				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
+			},
+			"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":"180a0000"},"add-path":{"ipv4/unicast":true}}
+		}}`
+
+		event, err := ParseEvent([]byte(input))
+		require.NoError(t, err)
+
+		require.NotNil(t, event.AddPath, "AddPath map should be populated")
+		assert.True(t, event.AddPath["ipv4/unicast"], "IPv4 unicast should be true")
+		_, hasIPv6 := event.AddPath["ipv6/unicast"]
+		assert.False(t, hasIPv6, "IPv6 unicast should be absent")
+	})
+
+	t.Run("add_path_absent", func(t *testing.T) {
+		input := `{"type":"bgp","bgp":{
+			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"message":{"type":"update","id":1,"direction":"received"},
+			"update":{
+				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
+			},
+			"raw":{"attributes":"40010100","nlri":{"ipv4/unicast":"180a0000"}}
+		}}`
+
+		event, err := ParseEvent([]byte(input))
+		require.NoError(t, err)
+
+		assert.Empty(t, event.AddPath, "AddPath map should be nil/empty when no add-path in JSON")
+	})
+}
+
 // TestParseEvent_PeerFormats verifies both flat and nested peer formats.
 //
 // VALIDATES: GetPeerAddress/GetPeerASN work for both sent (flat) and received (nested) events.

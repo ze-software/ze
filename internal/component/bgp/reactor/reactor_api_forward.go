@@ -275,12 +275,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
 					len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
 				if repackedSize > maxMsgSize {
-					// Split via parsed UPDATE using destination's ADD-PATH state
-					// TODO: SplitUpdateWithAddPath uses single addPath for all families.
-					// For mixed-family UPDATEs, this may be incorrect. Consider updating
-					// SplitUpdateWithAddPath to accept EncodingContext in future.
+					// Split via parsed UPDATE using destination's ADD-PATH state.
+					// RFC 7911: ADD-PATH is negotiated per AFI/SAFI, so determine
+					// the UPDATE's dominant family and query that.
 					destSendCtx := peer.SendContext()
-					addPath := destSendCtx != nil && destSendCtx.AddPathFor(nlri.IPv4Unicast)
+					addPath := addPathForUpdate(destSendCtx, parsedUpdate)
 
 					chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
 					if splitErr != nil {
@@ -318,6 +317,27 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 
 	return nil
+}
+
+// addPathForUpdate determines the ADD-PATH flag for splitting a parsed UPDATE.
+// RFC 7911: ADD-PATH is negotiated per AFI/SAFI. UPDATEs contain either:
+//   - IPv4 unicast NLRIs in the legacy NLRI field (no MP attributes)
+//   - MP_REACH_NLRI/MP_UNREACH_NLRI for other families
+//
+// This extracts the dominant family and queries the destination's context.
+func addPathForUpdate(ctx *bgpctx.EncodingContext, u *message.Update) bool {
+	if ctx == nil {
+		return false
+	}
+
+	// Check for MP_REACH_NLRI (type 14) to determine family.
+	// Attribute format: [flags:1][type:1][len:1-2][AFI:2][SAFI:1]...
+	if family, ok := message.ExtractMPFamily(u.PathAttributes); ok {
+		return ctx.AddPathFor(family)
+	}
+
+	// No MP attributes — IPv4 unicast (legacy NLRI field).
+	return ctx.AddPathFor(nlri.IPv4Unicast)
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.

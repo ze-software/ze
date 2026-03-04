@@ -222,6 +222,47 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 					rawObj.WriteString(`}`)
 					hasContent = true
 				}
+
+				// RFC 7911 Section 3: ADD-PATH per-family flags from negotiated capabilities.
+				// Consumers (e.g., bgp-rib) need this to parse NLRI wire bytes correctly —
+				// ADD-PATH prepends a 4-byte path-ID before each NLRI.
+				if ctx != nil {
+					var addPathBuf strings.Builder
+					addPathFirst := true
+					for family := range rawComps.NLRI {
+						if ctx.AddPathFor(family) {
+							if addPathFirst {
+								addPathBuf.WriteString(`"add-path":{`)
+							} else {
+								addPathBuf.WriteString(",")
+							}
+							addPathFirst = false
+							fmt.Fprintf(&addPathBuf, `"%s":true`, family.String())
+						}
+					}
+					for family := range rawComps.Withdrawn {
+						if ctx.AddPathFor(family) {
+							if _, inNLRI := rawComps.NLRI[family]; inNLRI {
+								continue // already emitted from NLRI loop
+							}
+							if addPathFirst {
+								addPathBuf.WriteString(`"add-path":{`)
+							} else {
+								addPathBuf.WriteString(",")
+							}
+							addPathFirst = false
+							fmt.Fprintf(&addPathBuf, `"%s":true`, family.String())
+						}
+					}
+					if !addPathFirst {
+						addPathBuf.WriteString(`}`)
+						if hasContent {
+							rawObj.WriteString(",")
+						}
+						rawObj.WriteString(addPathBuf.String())
+						hasContent = true
+					}
+				}
 			}
 		}
 

@@ -1,15 +1,20 @@
 package format
 
 import (
+	"encoding/json"
 	"net/netip"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
@@ -344,5 +349,107 @@ func TestNegotiatedToDecoded(t *testing.T) {
 		require.Equal(t, uint16(0), decoded.HoldTime)
 		require.False(t, decoded.ASN4)
 		require.Empty(t, decoded.Families)
+	})
+}
+
+// TestFormatFullAddPathFlags verifies format=full raw block includes per-family ADD-PATH flags.
+//
+// VALIDATES: AC-1 (ADD-PATH peer → add-path in raw block), AC-2 (no ADD-PATH → omitted),
+// AC-3 (partial: IPv4 has ADD-PATH, IPv6 absent).
+// PREVENTS: RIB plugin unable to determine ADD-PATH state from event JSON.
+func TestFormatFullAddPathFlags(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	// Build UPDATE with path-id in NLRI (ADD-PATH format)
+	body := buildTestUpdateBodyWithPathID(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		42,
+	)
+
+	t.Run("add_path_peer_emits_flags", func(t *testing.T) {
+		// Create encoding context with ADD-PATH for IPv4 unicast only
+		addPathMap := map[nlri.Family]bool{nlri.IPv4Unicast: true}
+		ctx := bgpctx.EncodingContextWithAddPath(true, addPathMap)
+		ctxID := bgpctx.Registry.Register(ctx)
+
+		wireUpdate := wireu.NewWireUpdate(body, ctxID)
+		attrsWire, err := wireUpdate.Attrs()
+		require.NoError(t, err)
+
+		msg := bgptypes.RawMessage{
+			Type:       message.TypeUPDATE,
+			RawBytes:   body,
+			AttrsWire:  attrsWire,
+			WireUpdate: wireUpdate,
+			Direction:  "received",
+		}
+
+		content := bgptypes.ContentConfig{
+			Encoding: plugin.EncodingJSON,
+			Format:   plugin.FormatFull,
+		}
+
+		output := FormatMessage(peer, msg, content, "")
+
+		var result map[string]any
+		err = json.Unmarshal([]byte(output), &result)
+		require.NoError(t, err, "JSON must be valid: %s", output)
+
+		// Navigate to raw block
+		bgpObj, ok := result["bgp"].(map[string]any)
+		require.True(t, ok, "bgp object must exist")
+		raw, ok := bgpObj["raw"].(map[string]any)
+		require.True(t, ok, "raw block must exist in format=full")
+
+		// AC-1: ADD-PATH flags present for negotiated family
+		addPath, ok := raw["add-path"].(map[string]any)
+		require.True(t, ok, "add-path must exist in raw block: %s", output)
+		assert.Equal(t, true, addPath["ipv4/unicast"], "IPv4 unicast should be true")
+
+		// AC-3: IPv6 not present (not negotiated)
+		_, hasIPv6 := addPath["ipv6/unicast"]
+		assert.False(t, hasIPv6, "IPv6 unicast should be absent (not negotiated)")
+	})
+
+	t.Run("no_add_path_omits_field", func(t *testing.T) {
+		// Create encoding context WITHOUT ADD-PATH
+		ctx := bgpctx.EncodingContextWithAddPath(true, nil)
+		ctxID := bgpctx.Registry.Register(ctx)
+
+		wireUpdate := wireu.NewWireUpdate(body, ctxID)
+		attrsWire, err := wireUpdate.Attrs()
+		require.NoError(t, err)
+
+		msg := bgptypes.RawMessage{
+			Type:       message.TypeUPDATE,
+			RawBytes:   body,
+			AttrsWire:  attrsWire,
+			WireUpdate: wireUpdate,
+			Direction:  "received",
+		}
+
+		content := bgptypes.ContentConfig{
+			Encoding: plugin.EncodingJSON,
+			Format:   plugin.FormatFull,
+		}
+
+		output := FormatMessage(peer, msg, content, "")
+
+		var result map[string]any
+		err = json.Unmarshal([]byte(output), &result)
+		require.NoError(t, err, "JSON must be valid: %s", output)
+
+		bgpObj, ok := result["bgp"].(map[string]any)
+		require.True(t, ok, "bgp object must exist")
+		raw, ok := bgpObj["raw"].(map[string]any)
+		require.True(t, ok, "raw block must exist in format=full")
+
+		// AC-2: add-path key omitted when no families have ADD-PATH
+		_, hasAddPath := raw["add-path"]
+		assert.False(t, hasAddPath, "add-path should be absent when no ADD-PATH negotiated")
 	})
 }
