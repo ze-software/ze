@@ -166,17 +166,10 @@ func (s *watchdogServer) handleStateUp(peerAddr string) {
 			continue
 		}
 
-		// First pass: mark initially-announced routes as announced for this peer
-		// (only if they haven't been explicitly toggled yet)
-		for _, entry := range pool.Routes() {
-			if entry.initiallyAnnounced && !entry.IsAnnounced(peerAddr) {
-				// Check if this peer has ever been seen for this entry.
-				// AnnouncePool sets announced[peer]=true, WithdrawPool sets false.
-				// A fresh entry has no key at all — that's the initial state.
-				pools.AnnouncePool(poolName, peerAddr)
-				break // AnnouncePool handles the whole pool
-			}
-		}
+		// First pass: mark only initiallyAnnounced routes as announced for this peer.
+		// Routes with initiallyAnnounced=false (withdraw=true in config) are left
+		// untouched — they require an explicit "watchdog announce" command.
+		pools.AnnounceInitial(poolName, peerAddr)
 
 		// Second pass: send all announced routes
 		announced := pools.AnnouncedForPeer(poolName, peerAddr)

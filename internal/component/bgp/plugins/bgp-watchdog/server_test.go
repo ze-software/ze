@@ -300,6 +300,53 @@ func TestStateDownPreventsRoutesSending(t *testing.T) {
 	}
 }
 
+// VALIDATES: Mixed initial state — only initiallyAnnounced routes sent on first session
+// PREVENTS: AnnouncePool over-announcing withdrawn routes in mixed pools
+
+func TestStateUpMixedInitialState(t *testing.T) {
+	var sent []sentRoute
+	var mu sync.Mutex
+	mgr := newWatchdogServer(func(peer, cmd string) {
+		mu.Lock()
+		sent = append(sent, sentRoute{peer, cmd})
+		mu.Unlock()
+	})
+
+	mgr.peerPools["10.0.0.5"] = NewPoolSet()
+
+	// Route A: initially announced (default config route)
+	routeA := NewPoolEntry("10.0.0.0/24#0",
+		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24",
+		"update text nlri ipv4/unicast del 10.0.0.0/24")
+	routeA.initiallyAnnounced = true
+	if err := mgr.peerPools["10.0.0.5"].AddRoute("dnsr", routeA); err != nil {
+		t.Fatal(err)
+	}
+
+	// Route B: initially withdrawn (withdraw=true in config)
+	routeB := NewPoolEntry("10.0.1.0/24#0",
+		"update text origin igp nhop 1.2.3.4 nlri ipv4/unicast add 10.0.1.0/24",
+		"update text nlri ipv4/unicast del 10.0.1.0/24")
+	// initiallyAnnounced defaults to false
+	if err := mgr.peerPools["10.0.0.5"].AddRoute("dnsr", routeB); err != nil {
+		t.Fatal(err)
+	}
+
+	// First session establishment — only route A should be sent
+	mgr.handleStateUp("10.0.0.5")
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Should send exactly 1 route (the initially-announced one)
+	if len(sent) != 1 {
+		t.Fatalf("sent %d routes, want 1 (only initially-announced)", len(sent))
+	}
+	if !strings.Contains(sent[0].cmd, "add 10.0.0.0/24") {
+		t.Errorf("cmd = %q, want route A (10.0.0.0/24), not route B", sent[0].cmd)
+	}
+}
+
 // sentRoute records a route sent to the engine for test assertions.
 type sentRoute struct {
 	peer string

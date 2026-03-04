@@ -119,6 +119,21 @@ func (s *PoolSet) WithdrawPool(poolName, peerAddr string) []*PoolEntry {
 	return pool.withdrawForPeer(peerAddr)
 }
 
+// AnnounceInitial marks only initiallyAnnounced routes as announced for a peer.
+// Routes that are not initiallyAnnounced are left untouched.
+// Returns entries that were marked as announced.
+func (s *PoolSet) AnnounceInitial(poolName, peerAddr string) []*PoolEntry {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	pool, exists := s.pools[poolName]
+	if !exists {
+		return nil
+	}
+
+	return pool.announceInitialForPeer(peerAddr)
+}
+
 // AnnouncedForPeer returns all routes in a pool that are announced for a peer.
 func (s *PoolSet) AnnouncedForPeer(poolName, peerAddr string) []*PoolEntry {
 	s.mu.RLock()
@@ -194,6 +209,20 @@ func (p *RoutePool) removeRoute(routeKey string) *PoolEntry {
 	}
 	delete(p.routes, routeKey)
 	return entry
+}
+
+func (p *RoutePool) announceInitialForPeer(peerAddr string) []*PoolEntry {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	var announced []*PoolEntry
+	for _, e := range p.routes {
+		if e.initiallyAnnounced && !e.announced[peerAddr] {
+			e.announced[peerAddr] = true
+			announced = append(announced, e)
+		}
+	}
+	return announced
 }
 
 func (p *RoutePool) announceForPeer(peerAddr string) []*PoolEntry {
