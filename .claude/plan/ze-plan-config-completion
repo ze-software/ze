@@ -1,0 +1,122 @@
+# Plan: `ze config completion` CLI command
+
+## Context
+
+The `ze config edit` completion system (YANG-driven, in `completer.go`) has bugs that are hard to diagnose because completion can only be tested through:
+1. Unit tests against the `Completer` type directly (no config context)
+2. `.et` functional tests driving the full TUI headlessly (heavyweight, slow)
+
+Neither approach supports quick command-line probing of "what completions does this input produce at this path?" — the kind of thing needed to triage bugs and write regression tests.
+
+## Approach: `ze config completion` subcommand
+
+A new non-interactive CLI command that loads a config file + YANG schema, queries the `Completer`, and prints results to stdout.
+
+### Interface
+
+```
+ze config completion [options] <config-file> [input-text]
+
+Options:
+  --context <path>   Dot-separated context path (e.g., "bgp.peer.1.1.1.1")
+  --json             Output as JSON (default: text table)
+  --ghost            Show ghost text instead of completions
+
+Examples:
+  ze config completion config.conf "set "
+  ze config completion config.conf "set " --context bgp
+  ze config completion config.conf "set local" --context bgp
+  ze config completion config.conf "edit " --context bgp
+  ze config completion config.conf --json "set p" --context bgp.peer.1.1.1.1
+  ze config completion config.conf --ghost "set router" --context bgp
+```
+
+### Text output format (default)
+
+```
+TYPE        TEXT            DESCRIPTION
+keyword     local-as        Local AS number (required)
+keyword     router-id       Router identifier
+keyword     peer            BGP peers
+```
+
+For ghost: prints just the ghost text string (or empty line).
+
+### JSON output format
+
+```json
+[{"text":"local-as","description":"Local AS number (required)","type":"keyword"},...]
+```
+
+For ghost: `{"ghost":"<text>"}`.
+
+## Files
+
+| File | Action |
+|------|--------|
+| `cmd/ze/config/cmd_completion.go` | **Create** — handler, ~80 lines |
+| `cmd/ze/config/main.go` | **Edit** — add `"completion": cmdCompletion` to handler map + usage |
+
+### Implementation details
+
+`cmd_completion.go`:
+1. `flag.NewFlagSet("config completion", ...)` with `--context`, `--json`, `--ghost`
+2. Parse config file using existing `config.YANGSchema()` + `config.NewParser(schema)`
+3. Create `editor.NewCompleter()`, call `completer.SetTree(tree)`
+4. Split `--context` on `.` to get `contextPath []string`
+5. Call `completer.Complete(input, contextPath)` or `completer.GhostText(input, contextPath)`
+6. Output as text table or JSON
+
+The `Completer` is already a standalone type — no TUI dependency needed. This is just wiring it to CLI.
+
+### Functional tests
+
+Add `.ci` tests in `test/config/completion/` (new dir) to exercise the command:
+
+| Test | What it validates |
+|------|-------------------|
+| `root-commands.ci` | Empty input returns editor commands |
+| `bgp-set-keywords.ci` | `set ` at bgp context shows YANG children |
+| `peer-fields.ci` | `set ` inside peer context shows peer-as, address |
+| `value-hints.ci` | `set router-id ` shows value type hint |
+| `ghost-text.ci` | `--ghost` flag returns ghost text |
+| `json-output.ci` | `--json` flag returns valid JSON array |
+| `list-keys.ci` | `edit peer ` shows existing peer IPs from config |
+
+These use the existing `.ci` test format (`expect=stdout:contains=`, `expect=exit:code=0`).
+
+## Completer Bugs (in scope)
+
+Tests exposed these bugs in `internal/component/config/editor/completer.go`:
+
+| Bug | Description | Test |
+|-----|-------------|------|
+| Missing `environment` | `environment` not exposed as root-level completion target | `cli-completion-env-*.ci` |
+| Missing `plugin` | `plugin` not exposed as root-level completion target | `cli-completion-plugin-external.ci` |
+| `show`/`edit` missing leaves | `show+` and `edit+` only return containers, should also return leaves | `cli-completion-show-targets.ci`, `cli-completion-bgp-edit.ci` |
+| Set-path list key navigation | `set bgp peer 1.1.1.1 ` should descend into peer context, shows list keys instead | `cli-completion-set-deep-path.ci` |
+
+These are bugs in the Completer, not the test infrastructure. The tests express correct expectations.
+
+## Test Infrastructure
+
+| Change | Description |
+|--------|-------------|
+| `test/ui/` directory | New test directory for UI/completion functional tests |
+| `ze-test bgp ui` command | New test runner subcommand using `EncodingTests` runner |
+| `make ze-ui-test` | Individual make target for UI tests |
+| `--input` flag with `+` encoding | `+` = space, avoids shell quoting issues in test runner |
+| `--context` with `/` separator | `/` = path separator, avoids `strings.Fields()` splitting |
+
+## Verification
+
+```bash
+# Unit: existing completer_test.go still passes
+go test -race ./internal/component/config/editor/... -v
+
+# UI tests
+make ze-ui-test
+
+# Full suite
+make ze-test
+```
