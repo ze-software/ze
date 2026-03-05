@@ -5,7 +5,10 @@ package editor
 import (
 	"fmt"
 	"maps"
+	"net"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -180,7 +183,17 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 			return c.matchChildren(currentPath, token)
 		}
 
-		// Navigate deeper (token is either a schema child or a list key value)
+		// Navigate deeper (token is either a schema child or a list key value).
+		// If the current path ends at a list needing a key, validate the token as a key value.
+		if tokensAdded > 0 && c.isListNeedingKey(currentPath) {
+			listPath := make([]string, len(currentPath))
+			copy(listPath, currentPath)
+			keyEntry := c.getListKeyEntry(listPath)
+			if !validateLeafValue(keyEntry, token) {
+				// Invalid key value — return no completions (user needs to fix the key)
+				return nil
+			}
+		}
 		currentPath = append(currentPath, token)
 		tokensAdded++
 	}
@@ -287,8 +300,9 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		}
 	}
 
-	// Single entry — auto-select, no key needed
-	if entryCount == 1 {
+	// Single entry with no prefix — auto-select, no key needed.
+	// When user has typed a prefix, still offer it as a completion so Tab can accept it.
+	if entryCount == 1 && prefix == "" {
 		return nil
 	}
 
@@ -325,13 +339,25 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 		}
 	}
 
-	// Add hint for new entry when no entries exist
-	if entryCount == 0 {
+	if prefix == "" && entryCount == 0 {
+		// No entries and nothing typed — show placeholder hint (display-only, not applicable)
 		completions = append(completions, Completion{
 			Text:        "<value>",
 			Description: "New " + listName + " key",
-			Type:        "list-key",
+			Type:        "hint",
 		})
+	} else if prefix != "" && len(completions) == 0 {
+		// User typed a value that doesn't match any existing key —
+		// validate against YANG key type before offering as completion.
+		listPath := append(append([]string{}, contextPath...), listName)
+		keyEntry := c.getListKeyEntry(listPath)
+		if validateLeafValue(keyEntry, prefix) {
+			completions = append(completions, Completion{
+				Text:        prefix,
+				Description: "New " + listName + " key",
+				Type:        "list-key",
+			})
+		}
 	}
 
 	return completions
@@ -467,7 +493,7 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 // valueCompletions returns completions for a leaf value.
 func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Completion {
 	if entry.Type == nil {
-		return []Completion{{Text: "<value>", Description: "value", Type: "value"}}
+		return []Completion{{Text: "<value>", Description: "value", Type: "hint"}}
 	}
 
 	// Handle enums
@@ -493,9 +519,9 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 		}, prefix)
 	}
 
-	// Type hint based on YANG type
+	// Type hint based on YANG type — hint-only, not applicable by Tab
 	hint := c.typeHint(entry.Type)
-	return []Completion{{Text: "<" + hint + ">", Description: hint + " value", Type: "value"}}
+	return []Completion{{Text: "<" + hint + ">", Description: hint + " value", Type: "hint"}}
 }
 
 // typeHint returns a hint string for a YANG type.
@@ -674,4 +700,121 @@ func commonPrefix(a, b string) string {
 		}
 	}
 	return a[:minLen]
+}
+
+// ValidateValueAtPath validates a value against the YANG type at the given path.
+// Returns nil if valid, an error describing why the value is invalid.
+// Path should include the leaf name (e.g., ["bgp", "peer", "1.1.1.1", "hold-time"]).
+func (c *Completer) ValidateValueAtPath(path []string, value string) error {
+	if c.loader == nil {
+		return nil // No schema loaded — cannot validate
+	}
+	entry := c.getEntry(path)
+	if entry == nil {
+		return nil // Unknown path — cannot validate (let runtime catch it)
+	}
+	if entry.Kind != gyang.LeafEntry {
+		return nil // Not a leaf — value validation doesn't apply
+	}
+	if !validateLeafValue(entry, value) {
+		hint := c.typeHint(entry.Type)
+		return fmt.Errorf("invalid value %q for %s (expected %s)", value, path[len(path)-1], hint)
+	}
+	return nil
+}
+
+// getListKeyEntry returns the YANG entry for a list's key leaf.
+// For example, peer list with key "address" returns the address leaf entry.
+func (c *Completer) getListKeyEntry(listPath []string) *gyang.Entry {
+	listEntry := c.getEntry(listPath)
+	if listEntry == nil || !listEntry.IsList() || listEntry.Key == "" {
+		return nil
+	}
+	if listEntry.Dir == nil {
+		return nil
+	}
+	keyLeaf, ok := listEntry.Dir[listEntry.Key]
+	if !ok {
+		return nil
+	}
+	return keyLeaf
+}
+
+// validateLeafValue checks if a value is valid for a given YANG leaf type.
+// Returns true if the value passes type validation, false if it's clearly invalid.
+// Used to prevent Tab from accepting invalid list keys or set values.
+func validateLeafValue(entry *gyang.Entry, value string) bool {
+	if entry == nil || entry.Type == nil {
+		return true // No type info — accept anything
+	}
+	return validateYangType(entry.Type, value)
+}
+
+// validateYangType checks a value against a resolved YANG type.
+// Types not explicitly handled are accepted (completer assists, validator enforces).
+func validateYangType(t *gyang.YangType, value string) bool {
+	if t == nil {
+		return true
+	}
+
+	// Recognized types with validation
+	switch t.Kind { //nolint:exhaustive // unrecognized types accepted — completer assists, validator enforces
+	case gyang.Yunion:
+		// Union: valid if any member type accepts it
+		for _, member := range t.Type {
+			if validateYangType(member, value) {
+				return true
+			}
+		}
+		return false
+
+	case gyang.Ystring:
+		if len(t.Pattern) > 0 {
+			return validateStringPatterns(t, value)
+		}
+
+	case gyang.Yuint8:
+		return validateUintRange(value, 0, 255)
+	case gyang.Yuint16:
+		return validateUintRange(value, 0, 65535)
+	case gyang.Yuint32:
+		return validateUintRange(value, 0, 4294967295)
+
+	case gyang.Ybool:
+		return value == "true" || value == "false"
+
+	case gyang.Yenum:
+		if t.Enum == nil {
+			return true
+		}
+		return slices.Contains(t.Enum.Names(), value)
+	}
+
+	return true // Unrecognized types accepted — completer is best-effort, validator is authoritative
+}
+
+// validateStringPatterns checks if a value could match any of the YANG patterns.
+// For IP address types specifically, uses net.ParseIP for robust validation.
+func validateStringPatterns(t *gyang.YangType, value string) bool {
+	// Check if any pattern looks like an IP address pattern.
+	// YANG ip-address typedef resolves to union of string-with-pattern types.
+	// Rather than implementing full regex (YANG uses XSD patterns, not Go regex),
+	// detect IP types by their pattern structure and use net.ParseIP.
+	for _, p := range t.Pattern {
+		if strings.Contains(p, "25[0-5]") || strings.Contains(p, "[0-9a-fA-F]") {
+			// IPv4 or IPv6 pattern — validate with net.ParseIP
+			return net.ParseIP(value) != nil
+		}
+	}
+	// Non-IP string patterns: accept (full XSD regex validation is complex)
+	return true
+}
+
+// validateUintRange validates a string as an unsigned integer within [min, max].
+func validateUintRange(value string, minVal, maxVal uint64) bool {
+	n, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return false
+	}
+	return n >= minVal && n <= maxVal
 }

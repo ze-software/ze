@@ -169,9 +169,8 @@ func (m Model) View() string {
 }
 
 // overlayDropdown renders the dropdown as a floating overlay on the base view.
+// The dropdown is positioned above the prompt line to avoid covering the typed command.
 func (m Model) overlayDropdown(base string) string {
-	dropdown := m.renderDropdownBox()
-
 	// Find the prompt line position
 	baseLines := strings.Split(base, "\n")
 	promptLineIdx := len(baseLines) - 1
@@ -179,8 +178,14 @@ func (m Model) overlayDropdown(base string) string {
 		promptLineIdx--
 	}
 
-	// Position dropdown starting on the line after prompt
-	y := promptLineIdx + 1
+	// Available space above the prompt (lines 0..promptLineIdx-1)
+	availableAbove := max(promptLineIdx, 3)
+
+	dropdown := m.renderDropdownBox(availableAbove)
+
+	// Position dropdown above the prompt line
+	dropdownHeight := strings.Count(dropdown, "\n") + 1
+	y := max(promptLineIdx-dropdownHeight, 0)
 	x := 2 // Indent slightly from left edge
 
 	return placeOverlay(x, y, dropdown, base)
@@ -319,9 +324,19 @@ func skipWidth(s string, width int) string {
 }
 
 // renderDropdownBox renders the dropdown with a simple format.
-// Uses plain text (no ANSI) for consistent width calculations.
-func (m Model) renderDropdownBox() string {
-	maxShow := min(6, len(m.completions))
+// availableHeight is the number of screen lines available for the entire dropdown
+// (including borders). Uses plain text (no ANSI) for consistent width calculations.
+func (m Model) renderDropdownBox(availableHeight int) string {
+	// Compute max visible items from available height:
+	// 2 lines for borders (top + bottom), 1 line for "more" indicator if truncated.
+	maxItems := availableHeight - 2
+	if len(m.completions) > maxItems && maxItems > 1 {
+		maxItems-- // Reserve line for "... N more" indicator
+	}
+	if maxItems < 1 {
+		maxItems = 1
+	}
+	maxShow := min(maxItems, len(m.completions))
 
 	// Calculate scroll offset
 	start := 0

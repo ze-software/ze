@@ -85,6 +85,11 @@ type Model struct {
 	pasteBuffer       strings.Builder // Accumulates pasted lines
 	pasteModeLocation string          // "absolute" or "relative"
 	pasteModeAction   string          // "replace" or "merge"
+
+	// Command history
+	history    []string // Previous commands (oldest first)
+	historyIdx int      // Current position in history (-1 = not browsing)
+	historyTmp string   // Saved current input when browsing history
 }
 
 // PipeFilter represents a filter in a pipe chain.
@@ -153,9 +158,9 @@ func NewModel(ed *Editor) (Model, error) {
 	ti.Placeholder = "type command or Tab for suggestions"
 	ti.Focus()
 	ti.CharLimit = 512
-	ti.Width = 60
+	ti.Width = 120
 
-	vp := viewport.New(80, 20)
+	vp := viewport.New(120, 20)
 	vp.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
@@ -200,9 +205,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.textInput.Width = min(msg.Width-4, 80)
+		m.textInput.Width = msg.Width - 4
 		// Resize viewport
-		m.viewport.Width = min(msg.Width-4, 80)
+		m.viewport.Width = msg.Width - 4
 		m.viewport.Height = max(msg.Height-10, 5)
 		// Show config on first size event (startup)
 		if !m.showViewport && m.viewportContent == "" {
@@ -306,13 +311,21 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePasteModeKey(msg)
 	}
 
-	// Handle viewport scrolling (when no dropdown)
+	// Handle viewport scrolling with Shift+Arrow (when no dropdown)
 	if m.showViewport && !m.showDropdown {
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
-		case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown:
+		case tea.KeyShiftUp, tea.KeyShiftDown, tea.KeyPgUp, tea.KeyPgDown:
 			m.viewport, cmd = m.viewport.Update(msg)
 			return m, cmd
 		}
+	}
+
+	// Handle command history with Up/Down arrows
+	switch msg.Type { //nolint:exhaustive // only handle specific keys
+	case tea.KeyUp:
+		return m.handleHistoryUp(), nil
+	case tea.KeyDown:
+		return m.handleHistoryDown(), nil
 	}
 
 	switch msg.Type { //nolint:exhaustive // only handle specific keys
@@ -430,9 +443,18 @@ func (m Model) handleTab() (tea.Model, tea.Cmd) {
 	}
 
 	if len(m.completions) == 1 {
-		// Single completion: apply it
+		// Skip hint-only completions (e.g., <value>, <string>) — display-only, not applicable
+		if m.completions[0].Type == "hint" {
+			return m, nil
+		}
+		// Single completion: apply it and advance
 		m.applyCompletion(m.completions[0])
 		m.updateCompletions()
+		// Auto-show dropdown if applying the completion reveals next-level options
+		if len(m.completions) > 1 {
+			m.showDropdown = true
+			m.selected = 0
+		}
 		return m, nil
 	}
 
@@ -465,6 +487,24 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == "" {
 		return m, nil
 	}
+
+	// Handle exit/quit directly (not via async command dispatch)
+	if input == "exit" || input == "quit" {
+		if m.editor.Dirty() {
+			m.textInput.SetValue("")
+			m.statusMessage = "Unsaved changes. Use 'commit' or 'discard' first, or Esc to force quit."
+			return m, nil
+		}
+		m.quitting = true
+		return m, tea.Quit
+	}
+
+	// Save to history
+	if len(m.history) == 0 || m.history[len(m.history)-1] != input {
+		m.history = append(m.history, input)
+	}
+	m.historyIdx = -1
+	m.historyTmp = ""
 
 	// Clear input
 	m.textInput.SetValue("")
@@ -553,6 +593,47 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 	// Apply the result
 	m.ApplyResult(result)
 	return m, nil
+}
+
+// handleHistoryUp recalls the previous command from history.
+func (m Model) handleHistoryUp() tea.Model {
+	if len(m.history) == 0 {
+		return m
+	}
+
+	if m.historyIdx == -1 {
+		// Start browsing: save current input, go to most recent
+		m.historyTmp = m.textInput.Value()
+		m.historyIdx = len(m.history) - 1
+	} else if m.historyIdx > 0 {
+		m.historyIdx--
+	}
+
+	m.textInput.SetValue(m.history[m.historyIdx])
+	m.textInput.CursorEnd()
+	m.updateCompletions()
+	return m
+}
+
+// handleHistoryDown recalls the next command from history, or restores the original input.
+func (m Model) handleHistoryDown() tea.Model {
+	if m.historyIdx == -1 {
+		return m
+	}
+
+	if m.historyIdx < len(m.history)-1 {
+		m.historyIdx++
+		m.textInput.SetValue(m.history[m.historyIdx])
+	} else {
+		// Back to current input
+		m.historyIdx = -1
+		m.textInput.SetValue(m.historyTmp)
+		m.historyTmp = ""
+	}
+
+	m.textInput.CursorEnd()
+	m.updateCompletions()
+	return m
 }
 
 // applyCompletion applies a completion to the input.

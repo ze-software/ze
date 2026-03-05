@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -386,4 +387,221 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 
 	// Should return a batched command (including validation tick)
 	assert.NotNil(t, cmd, "should return command for debounced validation")
+}
+
+// TestExitCommandQuits verifies that typing "exit" quits the editor.
+//
+// VALIDATES: "exit" command triggers tea.Quit.
+// PREVENTS: "exit" being silently ignored.
+func TestExitCommandQuits(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Type "exit" and press Enter
+	model.textInput.SetValue("exit")
+	newModel, cmd := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	// Should be quitting
+	assert.True(t, m.quitting, "exit should set quitting flag")
+	assert.NotNil(t, cmd, "exit should return a tea.Cmd (tea.Quit)")
+}
+
+// TestExitBlockedByDirty verifies that "exit" warns when there are unsaved changes.
+//
+// VALIDATES: "exit" with dirty state shows warning instead of quitting.
+// PREVENTS: Losing unsaved changes on exit.
+func TestExitBlockedByDirty(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	// Mark as dirty
+	ed.MarkDirty()
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Type "exit" and press Enter
+	model.textInput.SetValue("exit")
+	newModel, _ := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	// Should NOT be quitting — dirty state blocks it
+	assert.False(t, m.quitting, "exit should not quit with unsaved changes")
+	assert.Contains(t, m.StatusMessage(), "Unsaved", "should show unsaved changes warning")
+}
+
+// TestCommandHistoryRecall verifies Up/Down arrows recall previously executed commands.
+//
+// VALIDATES: Up arrow recalls previous command, Down returns to current input.
+// PREVENTS: Command history not working after entering commands.
+func TestCommandHistoryRecall(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Simulate executing two commands by populating history directly
+	model.history = []string{"show", "edit bgp"}
+	model.historyIdx = -1
+
+	// Press Up — should recall most recent command
+	m := model.handleHistoryUp()
+	updated, ok := m.(Model)
+	require.True(t, ok)
+	assert.Equal(t, "edit bgp", updated.InputValue(), "first Up should recall most recent")
+	assert.Equal(t, 1, updated.historyIdx)
+
+	// Press Up again — should recall older command
+	m = updated.handleHistoryUp()
+	updated, ok = m.(Model)
+	require.True(t, ok)
+	assert.Equal(t, "show", updated.InputValue(), "second Up should recall older command")
+	assert.Equal(t, 0, updated.historyIdx)
+
+	// Press Down — should return to more recent
+	m = updated.handleHistoryDown()
+	updated, ok = m.(Model)
+	require.True(t, ok)
+	assert.Equal(t, "edit bgp", updated.InputValue(), "Down should go to more recent")
+
+	// Press Down again — should restore original input
+	m = updated.handleHistoryDown()
+	updated, ok = m.(Model)
+	require.True(t, ok)
+	assert.Empty(t, updated.InputValue(), "Down past end restores original input")
+	assert.Equal(t, -1, updated.historyIdx)
+}
+
+// TestCommandHistorySavedOnEnter verifies commands are saved to history when executed.
+//
+// VALIDATES: Executed commands appear in history.
+// PREVENTS: History empty after running commands.
+func TestCommandHistorySavedOnEnter(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Type and execute "show"
+	model.textInput.SetValue("show")
+	newModel, _ := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	assert.Equal(t, []string{"show"}, m.history, "command should be saved to history")
+}
+
+// TestCommandHistoryNoDuplicates verifies consecutive identical commands are not duplicated.
+//
+// VALIDATES: Same command entered twice only appears once in history.
+// PREVENTS: History cluttered with repeated identical commands.
+func TestCommandHistoryNoDuplicates(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Execute "show" twice
+	model.textInput.SetValue("show")
+	newModel, _ := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+
+	m.textInput.SetValue("show")
+	newModel, _ = m.handleEnter()
+	m, ok = newModel.(Model)
+	require.True(t, ok)
+
+	assert.Equal(t, []string{"show"}, m.history, "duplicate consecutive commands should not be added")
+}
+
+// TestTabOnListKeyShowsChildrenImmediately verifies that pressing Tab on a typed
+// list key value accepts it and immediately shows the next-level completions.
+//
+// VALIDATES: Tab on "set bgp peer 10.0.0.1" adds space and shows peer children.
+// PREVENTS: User needing to press Tab twice — once to accept key, once to see children.
+func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Simulate typing "set bgp peer 10.0.0.1"
+	model.textInput.SetValue("set bgp peer 10.0.0.1")
+	model.updateCompletions()
+
+	// Press Tab — should accept the key
+	newModel, _ := model.handleTab()
+	m, ok := newModel.(Model)
+	require.True(t, ok, "handleTab should return a Model")
+
+	// Input should now have trailing space (key accepted)
+	assert.True(t, strings.HasSuffix(m.InputValue(), " "),
+		"input should end with space after Tab accepts key")
+
+	// Children should be shown immediately (dropdown visible with peer children)
+	assert.True(t, m.ShowDropdown(), "dropdown should be visible with next-level completions")
+	assert.Greater(t, len(m.Completions()), 1, "should have multiple peer children")
+
+	// Should contain peer-specific fields
+	texts := completionTexts(m.Completions())
+	assert.Contains(t, texts, "peer-as", "should show peer-as in children")
 }

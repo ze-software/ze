@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -225,6 +226,113 @@ func TestModelContextHighlighting(t *testing.T) {
 
 	// Error line should be highlighted with ANSI escape codes
 	assert.Contains(t, model.viewportContent, "\x1b[", "error line should be highlighted")
+}
+
+// makeTestCompletions creates N test completions for dropdown tests.
+func makeTestCompletions(n int) []Completion {
+	comps := make([]Completion, n)
+	for i := range n {
+		comps[i] = Completion{
+			Text:        fmt.Sprintf("cmd%d", i+1),
+			Description: fmt.Sprintf("Command %d", i+1),
+			Type:        "command",
+		}
+	}
+	return comps
+}
+
+// TestDropdownShowsAllItemsWhenSpaceAvailable verifies all items shown when screen is large enough.
+//
+// VALIDATES: Dropdown shows all completions when screen has enough space.
+// PREVENTS: Hardcoded 6-item limit hiding available completions.
+func TestDropdownShowsAllItemsWhenSpaceAvailable(t *testing.T) {
+	m := Model{
+		completions:  makeTestCompletions(10),
+		selected:     0,
+		showDropdown: true,
+	}
+
+	dropdown := m.renderDropdownBox(20) // 20 lines available — plenty for 10 items
+	assert.NotContains(t, dropdown, "more", "all items should be visible without truncation")
+	// Verify all 10 items present
+	for i := range 10 {
+		assert.Contains(t, dropdown, fmt.Sprintf("cmd%d", i+1), "should contain item %d", i+1)
+	}
+}
+
+// TestDropdownTruncatesWhenSpaceLimited verifies truncation when screen is small.
+//
+// VALIDATES: Dropdown truncates when insufficient screen space.
+// PREVENTS: Dropdown overflowing screen bounds.
+func TestDropdownTruncatesWhenSpaceLimited(t *testing.T) {
+	m := Model{
+		completions:  makeTestCompletions(20),
+		selected:     0,
+		showDropdown: true,
+	}
+
+	dropdown := m.renderDropdownBox(6) // 6 lines: 2 borders + "more" = 3 items max
+	assert.Contains(t, dropdown, "more", "should show truncation indicator")
+	// Count content lines (between borders)
+	lines := strings.Split(dropdown, "\n")
+	contentLines := 0
+	for _, line := range lines {
+		if strings.HasPrefix(line, "│") {
+			contentLines++
+		}
+	}
+	// 6 available - 2 borders - 1 "more" = 3 item lines + 1 more line = 4 content lines
+	assert.Equal(t, 4, contentLines, "should show 3 items + 1 more indicator")
+}
+
+// TestDropdownPositionedAbovePrompt verifies dropdown renders above the command line.
+//
+// VALIDATES: Dropdown appears above the command line, not below it.
+// PREVENTS: Dropdown overlaying the typed command.
+func TestDropdownPositionedAbovePrompt(t *testing.T) {
+	// Build a base view with prompt near the bottom (like the real View())
+	var lines []string
+	lines = append(lines, "Ze Editor", "")
+	// Pad to push prompt to line 22 (0-indexed) in a 24-line terminal
+	for len(lines) < 23 {
+		lines = append(lines, "")
+	}
+	lines = append(lines, "ze# show") // prompt at line 23
+	base := strings.Join(lines, "\n")
+
+	m := Model{
+		completions:  makeTestCompletions(3),
+		selected:     0,
+		showDropdown: true,
+		height:       24,
+		width:        80,
+	}
+
+	result := m.overlayDropdown(base)
+	resultLines := strings.Split(result, "\n")
+
+	// Find prompt line — should still be intact
+	promptIdx := -1
+	for i, line := range resultLines {
+		if strings.Contains(line, "ze# show") {
+			promptIdx = i
+			break
+		}
+	}
+	require.NotEqual(t, -1, promptIdx, "prompt line should exist in output")
+
+	// Find dropdown top border
+	dropdownIdx := -1
+	for i, line := range resultLines {
+		if strings.Contains(line, "Completions") {
+			dropdownIdx = i
+			break
+		}
+	}
+	require.NotEqual(t, -1, dropdownIdx, "dropdown should exist in output")
+
+	// Dropdown must be ABOVE the prompt
+	assert.Less(t, dropdownIdx, promptIdx, "dropdown should be above the prompt line")
 }
 
 // TestModelStatusBarNoErrorsWhenValid verifies no indicator when valid.

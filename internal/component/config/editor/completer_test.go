@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -66,7 +67,7 @@ func TestCompleterValueTypeHints(t *testing.T) {
 	// After "set router-id " inside bgp context should hint value
 	completions := c.Complete("set router-id ", []string{"bgp"})
 	require.NotEmpty(t, completions)
-	assert.Equal(t, "value", completions[0].Type)
+	assert.Equal(t, "hint", completions[0].Type)
 }
 
 func TestCompleterGhostTextSingleMatch(t *testing.T) {
@@ -237,6 +238,230 @@ func TestCompleterListKeySingleEntry(t *testing.T) {
 	contextPath := []string{"bgp", "peer", "1.1.1.1"}
 	completions := c.Complete("edit update ", contextPath)
 	assert.Empty(t, completions, "single entry should not show key completions")
+}
+
+// TestCompleterListKeyTypedValueAccepted verifies that typing a new list key
+// value and pressing Tab accepts it (offers it as a completion to add space).
+//
+// VALIDATES: Typed list key is accepted and offered as completion.
+// PREVENTS: "set bgp peer 10.0.0.1<Tab>" replacing IP with "<value>" or doing nothing.
+func TestCompleterListKeyTypedValueAccepted(t *testing.T) {
+	c := NewCompleter()
+
+	// No existing peers — empty tree
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	c.SetTree(tree)
+
+	// User has typed a new peer IP without trailing space
+	completions := c.Complete("set bgp peer 10.0.0.1", nil)
+
+	texts := completionTexts(completions)
+	// Should offer the typed value as a completion (Tab accepts it, adds space)
+	assert.Contains(t, texts, "10.0.0.1",
+		"typed value should be offered as completion so Tab accepts it")
+	// Should NOT contain <value> placeholder
+	assert.NotContains(t, texts, "<value>",
+		"should not show <value> placeholder when user has typed a value")
+}
+
+// TestCompleterListKeyAcceptedThenShowsChildren verifies that after accepting
+// a list key (trailing space), completions switch to showing children.
+//
+// VALIDATES: After Tab accepts key, next completions show peer children.
+// PREVENTS: Getting stuck at key position instead of advancing to children.
+func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
+	c := NewCompleter()
+
+	// Tree with the peer already added (simulates after key is accepted)
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	peer := config.NewTree()
+	bgp.AddListEntry("peer", "10.0.0.1", peer)
+	c.SetTree(tree)
+
+	// After Tab accepted the key, input now has trailing space
+	completions := c.Complete("set bgp peer 10.0.0.1 ", nil)
+
+	texts := completionTexts(completions)
+	// Should show peer children, not key completions
+	assert.Contains(t, texts, "peer-as", "should show peer children after key")
+	assert.Contains(t, texts, "hold-time", "should show peer children after key")
+	assert.NotContains(t, texts, "<value>", "should not show key hint inside peer")
+}
+
+// TestCompleterListKeyEmptyShowsHint verifies that empty list key position
+// still shows the <value> hint when no text is typed.
+//
+// VALIDATES: <value> hint shown when user hasn't typed anything at list key position.
+// PREVENTS: Removing helpful hint for empty list key position.
+func TestCompleterListKeyEmptyShowsHint(t *testing.T) {
+	c := NewCompleter()
+
+	// No existing peers — empty tree
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	c.SetTree(tree)
+
+	// Trailing space — user is at the key position but hasn't typed anything
+	completions := c.Complete("set bgp peer ", nil)
+
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "<value>",
+		"empty list key position should show <value> hint")
+}
+
+// TestCompleterListKeySingleEntryWithPrefix verifies that typing a list key
+// that matches the single existing entry still offers it as a completion.
+//
+// VALIDATES: "set bgp peer 1.1.1.1<Tab>" works even when 1.1.1.1 is the only peer.
+// PREVENTS: Tab doing nothing because single-entry auto-select returns nil.
+func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
+	c := NewCompleter()
+
+	// Build a tree with exactly one peer
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	peer := config.NewTree()
+	peer.Set("peer-as", "65001")
+	bgp.AddListEntry("peer", "1.1.1.1", peer)
+	c.SetTree(tree)
+
+	// "set bgp peer 1.1.1.1" (no trailing space) should offer the typed value
+	completions := c.Complete("set bgp peer 1.1.1.1", nil)
+	require.NotEmpty(t, completions, "single entry with matching prefix should still offer completion")
+
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "1.1.1.1", "should offer the typed key as completion")
+}
+
+// TestCompleterListKeyInvalidIPRejected verifies that an invalid IP address
+// is not offered as a completion for the peer list key.
+//
+// VALIDATES: "set bgp peer not-an-ip<Tab>" does not offer "not-an-ip" as completion.
+// PREVENTS: Tab accepting invalid list key values that fail YANG type validation.
+func TestCompleterListKeyInvalidIPRejected(t *testing.T) {
+	c := NewCompleter()
+
+	// No existing peers
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	c.SetTree(tree)
+
+	// Invalid IP: should NOT be offered as completion
+	completions := c.Complete("set bgp peer not-an-ip", nil)
+	texts := completionTexts(completions)
+	assert.NotContains(t, texts, "not-an-ip",
+		"invalid IP should not be offered as peer key completion")
+
+	// Partial invalid IP: "999.999.999.999"
+	completions = c.Complete("set bgp peer 999.999.999.999", nil)
+	texts = completionTexts(completions)
+	assert.NotContains(t, texts, "999.999.999.999",
+		"out-of-range IP should not be offered as peer key completion")
+
+	// Valid IP: should be offered
+	completions = c.Complete("set bgp peer 10.0.0.1", nil)
+	texts = completionTexts(completions)
+	assert.Contains(t, texts, "10.0.0.1",
+		"valid IP should be offered as peer key completion")
+
+	// Valid IPv6: should be offered
+	completions = c.Complete("set bgp peer ::1", nil)
+	texts = completionTexts(completions)
+	assert.Contains(t, texts, "::1",
+		"valid IPv6 should be offered as peer key completion")
+}
+
+// TestCompleterInvalidKeyWithSpaceNoChildren verifies that after typing
+// an invalid list key followed by a space, no children are shown.
+//
+// VALIDATES: "set bgp peer 1.1.1 " does NOT show peer-as, hold-time, etc.
+// PREVENTS: Navigating past an invalid key and showing schema children.
+func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
+	c := NewCompleter()
+
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	tree.SetContainer("bgp", bgp)
+	c.SetTree(tree)
+
+	// Invalid IP with trailing space — should show NO completions
+	completions := c.Complete("set bgp peer 1.1.1 ", nil)
+	assert.Empty(t, completions,
+		"invalid key with trailing space should not show children")
+
+	// Valid IP with trailing space — should show children
+	completions = c.Complete("set bgp peer 1.1.1.1 ", nil)
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "peer-as",
+		"valid key with trailing space should show children")
+}
+
+// TestCompleterValidateValueAtPath verifies that ValidateValueAtPath
+// checks values against YANG leaf types.
+//
+// VALIDATES: Invalid values for typed leaves are rejected.
+// PREVENTS: Setting non-IP address for peer address, non-numeric for hold-time.
+func TestCompleterValidateValueAtPath(t *testing.T) {
+	c := NewCompleter()
+
+	tests := []struct {
+		name  string
+		path  []string
+		value string
+		valid bool
+	}{
+		{"valid hold-time", []string{"bgp", "peer", "hold-time"}, "90", true},
+		{"zero hold-time", []string{"bgp", "peer", "hold-time"}, "0", true},
+		{"invalid hold-time string", []string{"bgp", "peer", "hold-time"}, "abc", false},
+		{"hold-time too large", []string{"bgp", "peer", "hold-time"}, "99999999", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := c.ValidateValueAtPath(tt.path, tt.value)
+			if tt.valid {
+				assert.NoError(t, err, "value %q should be valid for %v", tt.value, tt.path)
+			} else {
+				assert.Error(t, err, "value %q should be invalid for %v", tt.value, tt.path)
+			}
+		})
+	}
+}
+
+// TestCompleterHintTypeNotApplicable verifies that hint-type completions
+// (like <value>, <string>) are typed as "hint" so Tab skips them.
+//
+// VALIDATES: Placeholder completions use "hint" type, not "value".
+// PREVENTS: Tab replacing user input with literal "<value>" text.
+func TestCompleterHintTypeNotApplicable(t *testing.T) {
+	c := NewCompleter()
+
+	// "set bgp peer " with no tree entries → shows <value> hint
+	completions := c.Complete("set bgp peer ", nil)
+	require.NotEmpty(t, completions)
+
+	// Find the <value> completion
+	for _, comp := range completions {
+		if comp.Text == "<value>" {
+			assert.Equal(t, "hint", comp.Type,
+				"<value> placeholder should have hint type, not value/list-key")
+		}
+	}
+
+	// Value type hints (e.g., "set router-id " → <value>) should also be hints
+	completions = c.Complete("set router-id ", []string{"bgp"})
+	require.NotEmpty(t, completions)
+	assert.Equal(t, "hint", completions[0].Type,
+		"type hint should use hint type")
+	assert.True(t, strings.HasPrefix(completions[0].Text, "<"),
+		"type hint text should start with <")
 }
 
 func completionTexts(completions []Completion) []string {

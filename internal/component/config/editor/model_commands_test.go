@@ -605,6 +605,40 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	assert.Equal(t, 1, count, "should have exactly one description entry")
 }
 
+// TestSetCommandRejectsInvalidValue verifies that set rejects values
+// that don't match the YANG leaf type.
+//
+// VALIDATES: "set hold-time abc" returns error for non-numeric value.
+// PREVENTS: Invalid typed values being accepted and only caught at commit.
+func TestSetCommandRejectsInvalidValue(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter peer context
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Set hold-time to invalid string — should fail
+	_, err = model.dispatchCommand("set hold-time abc")
+	require.Error(t, err, "should reject non-numeric hold-time")
+	assert.Contains(t, err.Error(), "invalid value")
+
+	// Set hold-time to valid value — should succeed
+	_, err = model.dispatchCommand("set hold-time 180")
+	require.NoError(t, err, "should accept valid numeric hold-time")
+}
+
 // TestJoinTokensWithQuotes verifies quote handling in token rejoining.
 //
 // VALIDATES: Tokens with spaces, embedded quotes, and empty strings are properly quoted.

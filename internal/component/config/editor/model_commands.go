@@ -38,7 +38,8 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	switch cmd {
 	case "exit", "quit":
-		return commandResult{}, nil // Will be handled by quit logic
+		// Handled directly in handleEnter() before dispatch — should not reach here.
+		return commandResult{}, nil
 
 	case "help", "?":
 		return commandResult{showHelp: true}, nil
@@ -279,6 +280,11 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
+
+	// Validate value against YANG type before applying
+	if err := m.completer.ValidateValueAtPath(path, value); err != nil {
+		return commandResult{}, err
+	}
 
 	// Mutate the tree directly
 	if err := m.editor.SetValue(containerPath, key, value); err != nil {
