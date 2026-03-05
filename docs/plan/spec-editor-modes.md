@@ -224,37 +224,86 @@ All mode commands start with `/` to avoid collision with config or operational c
 ## Implementation Summary
 
 ### What Was Implemented
+- Dual-mode editor: ModeEdit (config editing) and ModeCommand (operational commands)
+- Mode switching via `/command` and `/edit` with per-mode state save/restore (viewport, scroll, history, historyTmp)
+- CommandCompleter wrapping RPC command tree for operational command completion
+- Command execution via injected executor function (daemon socket RPC)
+- No-daemon UX: warning on mode switch, error on command execute
+- List key rejection in YANG validation and completion filtering
+- Union type hints in error messages
+- Mode-aware prompt rendering and header indicator
 
 ### Bugs Found/Fixed
+- List key (`address`) was settable inside peer block and offered as completion
+- `local-address` accepted garbage (YANG type was string, changed to union of ip-address + auto)
+- `isTemplate` branch in `buildPrompt` was dead code (identical to non-template branch)
 
 ### Documentation Updates
+- Help overlay: added "Modes:" section with `/command` and `/edit`
+- CLI usage text: added "Mode switching:" section
 
 ### Deviations from Plan
+- Spec said modify `model_commands.go` to intercept `/` prefix — actually done in `model.go:handleEnter()` (simpler, before command dispatch)
+- `completer.go` was modified (list key filtering, typeHint improvements) — spec said no changes needed
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Mode concept (edit/command) | ✅ Done | model_mode.go:14-21 | EditorMode enum |
+| `/command` and `/edit` toggle | ✅ Done | model.go:500-512 | handleEnter intercept |
+| Command mode autocomplete | ✅ Done | completer_command.go | CommandCompleter wraps RPC tree |
+| Screen state save/restore | ✅ Done | model_mode.go:53-87 | modeState struct |
+| Mode-aware prompt | ✅ Done | model_render.go:485-487 | `ze> ` for command, `ze# ` for edit |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | TestModeSwitchToCommand, mode-switch-basic.et | |
+| AC-2 | ✅ Done | TestModeSwitchToEdit, mode-switch-basic.et | |
+| AC-3 | ✅ Done | TestCommandModeCompletionsWired, TestCommandModeCompletions | |
+| AC-4 | ✅ Done | TestCommandModeSubcommandCompletions | |
+| AC-5 | ✅ Done | TestCommandModeDispatch | Via commandResultMsg through Update |
+| AC-6 | ✅ Done | TestModeScreenRestore, mode-switch-restore.et | |
+| AC-7 | ✅ Done | TestModeScreenRestore | |
+| AC-8 | ✅ Done | TestEditModeUnchanged, mode-switch-restore.et | |
+| AC-9 | ✅ Done | TestModeSwitchNoop, mode-switch-basic.et | |
+| AC-10 | ✅ Done | TestModeSwitchNoop, mode-switch-basic.et | |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestModeSwitchToCommand | ✅ Done | model_mode_test.go:13 | |
+| TestModeSwitchToEdit | ✅ Done | model_mode_test.go:28 | |
+| TestModeSwitchNoop | ✅ Done | model_mode_test.go:39 | |
+| TestModeScreenRestore | ✅ Done | model_mode_test.go:61 | |
+| TestCommandModeCompletions | ✅ Done | completer_command_test.go:40 | |
+| TestCommandModeDispatch | ✅ Done | model_mode_test.go:129 | |
+| TestEditModeUnchanged | ✅ Done | model_mode_test.go:209 | |
+| TestCommandModeGhostText | ✅ Done | completer_command_test.go:100 + model_mode_test.go:188 | |
+| mode-switch-basic.et | ✅ Done | test/editor/mode/ | Functional |
+| mode-switch-restore.et | ✅ Done | test/editor/mode/ | Functional |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| model.go | ✅ Modified | Mode fields, handleEnter intercept, mode-aware completions |
+| model_render.go | ✅ Modified | Mode-aware prompt, header indicator, help overlay |
+| ~~model_commands.go~~ | 🔄 Changed | Not modified — intercept done in model.go instead |
+| completer.go | ✅ Modified | List key filtering, typeHint union support (unplanned improvement) |
+| model_mode.go | ✅ Created | EditorMode, modeState, SwitchMode, executeOperationalCommand |
+| model_mode_test.go | ✅ Created | 11 unit tests for mode switching |
+| completer_command.go | ✅ Created | CommandCompleter for operational commands |
+| completer_command_test.go | ✅ Created | 6 unit tests for command completions |
+| cmd/ze/config/cmd_edit.go | ✅ Modified | wireCommandExecutor, buildEditorCommandTree, usage text |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 25 (5 requirements + 10 AC + 10 tests)
+- **Done:** 25
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (model_commands.go → model.go)
 
 ## Checklist
 

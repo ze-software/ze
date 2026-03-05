@@ -5,21 +5,194 @@ package config
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// wireCommandExecutor tries to connect to the daemon socket and sets up the command executor.
+// If the daemon is not running, command mode will show an error on Enter (best-effort).
+// Returns the connection (caller must close) or nil if no daemon.
+func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
+	var d net.Dialer
+	conn, err := d.DialContext(context.Background(), "unix", socketPath)
+	if err != nil {
+		return nil // No daemon — command mode will report "no daemon connection"
+	}
+
+	reader := rpc.NewFrameReader(conn)
+	writer := rpc.NewFrameWriter(conn)
+
+	// Build command map for resolving CLI text → wire method
+	cmdMap, cmdKeys := buildCommandMap()
+
+	m.SetCommandExecutor(func(input string) (string, error) {
+		method, args := resolveEditorCommand(cmdMap, cmdKeys, input)
+		if method == "" {
+			return "", fmt.Errorf("unknown command: %s", input)
+		}
+
+		req := rpc.Request{Method: method}
+		if len(args) > 0 {
+			params := struct {
+				Args []string `json:"args,omitempty"`
+			}{Args: args}
+			paramBytes, err := json.Marshal(params)
+			if err != nil {
+				return "", fmt.Errorf("marshal params: %w", err)
+			}
+			req.Params = paramBytes
+		}
+
+		reqBytes, err := json.Marshal(req)
+		if err != nil {
+			return "", fmt.Errorf("marshal request: %w", err)
+		}
+		if err := writer.Write(reqBytes); err != nil {
+			return "", fmt.Errorf("send: %w", err)
+		}
+
+		respBytes, err := reader.Read()
+		if err != nil {
+			return "", fmt.Errorf("receive: %w", err)
+		}
+
+		var resp struct {
+			Result json.RawMessage `json:"result,omitempty"`
+			Error  string          `json:"error,omitempty"`
+		}
+		if err := json.Unmarshal(respBytes, &resp); err != nil {
+			return "", fmt.Errorf("parse response: %w", err)
+		}
+
+		if resp.Error != "" {
+			return "", fmt.Errorf("%s", resp.Error)
+		}
+
+		if len(resp.Result) == 0 || string(resp.Result) == "null" {
+			return "OK", nil
+		}
+
+		return formatJSONResult(resp.Result), nil
+	})
+
+	return conn
+}
+
+// buildCommandMap builds the CLI command → wire method mapping from registered RPCs.
+func buildCommandMap() (map[string]string, []string) {
+	cmdMap := make(map[string]string)
+	for _, reg := range allEditorRPCs() {
+		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
+	}
+
+	keys := make([]string, 0, len(cmdMap))
+	for k := range cmdMap {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return len(keys[i]) > len(keys[j])
+	})
+
+	return cmdMap, keys
+}
+
+// allEditorRPCs returns all RPCs for command resolution.
+func allEditorRPCs() []pluginserver.RPCRegistration {
+	rpcs := pluginserver.AllBuiltinRPCs()
+	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
+	return rpcs
+}
+
+// formatJSONResult pretty-prints a JSON result, falling back to raw string.
+func formatJSONResult(raw json.RawMessage) string {
+	var data any
+	if json.Unmarshal(raw, &data) != nil {
+		return string(raw)
+	}
+	formatted, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return string(raw)
+	}
+	return string(formatted)
+}
+
+// resolveEditorCommand finds the wire method for a text command.
+// Tries "bgp <input>" first (default subsystem), then raw input.
+func resolveEditorCommand(cmdMap map[string]string, cmdKeys []string, input string) (string, []string) {
+	if m, a := matchEditorCommand(cmdMap, cmdKeys, "bgp "+input); m != "" {
+		return m, a
+	}
+	return matchEditorCommand(cmdMap, cmdKeys, input)
+}
+
+// matchEditorCommand does longest-prefix matching against registered CLI commands.
+func matchEditorCommand(cmdMap map[string]string, cmdKeys []string, input string) (string, []string) {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	for _, key := range cmdKeys {
+		if strings.HasPrefix(lower, key) {
+			if len(lower) == len(key) || lower[len(key)] == ' ' {
+				remaining := strings.TrimSpace(input[len(key):])
+				var args []string
+				if remaining != "" {
+					args = strings.Fields(remaining)
+				}
+				return cmdMap[key], args
+			}
+		}
+	}
+	return "", nil
+}
+
 const createPromptTimeout = 10 * time.Second
+
+// buildEditorCommandTree builds a CommandNode tree from all registered RPCs.
+// Strips the "bgp " prefix for BGP commands so the user types "peer list" not "bgp peer list".
+func buildEditorCommandTree() *editor.CommandNode {
+	rpcs := pluginserver.AllBuiltinRPCs()
+	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
+
+	root := &editor.CommandNode{Children: make(map[string]*editor.CommandNode)}
+	for _, reg := range rpcs {
+		cmd := strings.TrimPrefix(reg.CLICommand, "bgp ")
+		parts := strings.Fields(cmd)
+		if len(parts) == 0 {
+			continue
+		}
+
+		current := root
+		for _, part := range parts {
+			if current.Children == nil {
+				current.Children = make(map[string]*editor.CommandNode)
+			}
+			child, ok := current.Children[part]
+			if !ok {
+				child = &editor.CommandNode{Name: part}
+				current.Children[part] = child
+			}
+			current = child
+		}
+		current.Description = reg.Help
+	}
+
+	return root
+}
 
 // promptCreateConfig asks the user whether to create a missing config file.
 // Returns true if the file was created, false otherwise.
@@ -94,6 +267,10 @@ Commands:
   rollback <N>          Restore backup N
   exit/quit             Exit (prompts if unsaved changes)
 
+Mode switching:
+  /command              Switch to operational command mode
+  /edit                 Switch back to config edit mode
+
 Tab completion:
   Type partial text + Tab for completion
   Multiple matches show dropdown, Tab cycles through
@@ -158,6 +335,13 @@ Examples:
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
+	}
+
+	// Wire command mode: completer from RPC registrations, executor from daemon socket.
+	// Command mode is best-effort — works without a running daemon (completions only).
+	m.SetCommandCompleter(editor.NewCommandCompleter(buildEditorCommandTree()))
+	if conn := wireCommandExecutor(&m, config.DefaultSocketPath()); conn != nil {
+		defer conn.Close() //nolint:errcheck // best-effort cleanup
 	}
 
 	// Run Bubble Tea program

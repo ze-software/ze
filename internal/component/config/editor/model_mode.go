@@ -1,0 +1,109 @@
+// Design: docs/architecture/config/yang-config-design.md — editor mode switching
+// Overview: model.go — editor model and update loop
+// Detail: completer_command.go — command mode operational completion
+// Related: model_render.go — mode-aware prompt rendering
+
+package editor
+
+import (
+	"fmt"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// EditorMode represents the current editor mode.
+type EditorMode int
+
+const (
+	// ModeEdit is the config editing mode (default).
+	ModeEdit EditorMode = iota
+	// ModeCommand is the operational command mode.
+	ModeCommand
+)
+
+// Mode name constants.
+const (
+	modeNameEdit    = "edit"
+	modeNameCommand = "command"
+)
+
+// String returns the mode name.
+func (m EditorMode) String() string {
+	if m == ModeCommand {
+		return modeNameCommand
+	}
+	return modeNameEdit
+}
+
+// modeState saves the screen state for a mode.
+type modeState struct {
+	viewportContent string   // Content displayed in viewport
+	viewportYOffset int      // Vertical scroll position
+	showViewport    bool     // Whether viewport was active
+	statusMessage   string   // Status message at time of switch
+	history         []string // Command history for this mode
+	historyIdx      int      // Current history position (-1 = not browsing)
+	historyTmp      string   // Saved input when browsing history
+}
+
+// Mode returns the current editor mode.
+func (m Model) Mode() EditorMode {
+	return m.mode
+}
+
+// SwitchMode switches the editor to the given mode, saving and restoring screen state.
+func (m *Model) SwitchMode(target EditorMode) {
+	if m.mode == target {
+		m.statusMessage = "already in " + target.String() + " mode"
+		return
+	}
+
+	// Save current mode's state
+	m.modeStates[m.mode] = modeState{
+		viewportContent: m.viewportContent,
+		viewportYOffset: m.viewport.YOffset,
+		showViewport:    m.showViewport,
+		statusMessage:   m.statusMessage,
+		history:         m.history,
+		historyIdx:      m.historyIdx,
+		historyTmp:      m.historyTmp,
+	}
+
+	// Switch mode
+	m.mode = target
+
+	// Restore target mode's state
+	saved := m.modeStates[target]
+	m.viewportContent = saved.viewportContent
+	m.showViewport = saved.showViewport
+	m.statusMessage = saved.statusMessage
+	m.history = saved.history
+	m.historyIdx = saved.historyIdx
+	m.historyTmp = saved.historyTmp
+
+	m.viewport.SetContent(saved.viewportContent)
+	m.viewport.YOffset = saved.viewportYOffset
+
+	// Warn when entering command mode without a daemon connection
+	if target == ModeCommand && m.commandExecutor == nil {
+		m.statusMessage = "no daemon connection — completions available, but commands will not execute"
+	}
+}
+
+// executeOperationalCommand sends a command to the daemon via the injected executor.
+// Returns a tea.Cmd that produces a commandResultMsg with the response.
+func (m Model) executeOperationalCommand(input string) tea.Cmd {
+	executor := m.commandExecutor
+	return func() tea.Msg {
+		if executor == nil {
+			return commandResultMsg{
+				err: fmt.Errorf("no daemon connection (command mode requires a running daemon)"),
+			}
+		}
+		output, err := executor(input)
+		if err != nil {
+			return commandResultMsg{err: err}
+		}
+		return commandResultMsg{result: commandResult{output: output}}
+	}
+}

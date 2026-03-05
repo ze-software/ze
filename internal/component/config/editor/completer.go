@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Related: completer_command.go — command mode operational completion
 
 package editor
 
@@ -447,11 +448,14 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 		return c.valueCompletions(entry, prefix)
 	}
 
-	// Get children
+	// Get children, excluding list key (it's implicit in the identifier position)
 	var completions []Completion
 	children := c.getSortedChildren(entry)
 
 	for _, name := range children {
+		if entry.IsList() && entry.Key == name {
+			continue // Skip list key — already set as the identifier
+		}
 		if prefix == "" || strings.HasPrefix(name, prefix) {
 			child := entry.Dir[name]
 			completions = append(completions, Completion{
@@ -529,7 +533,7 @@ func (c *Completer) typeHint(t *gyang.YangType) string {
 	if t == nil {
 		return "value"
 	}
-	//nolint:exhaustive // default handles all other types
+	//nolint:exhaustive // fallthrough uses type name for unlisted YANG kinds
 	switch t.Kind {
 	case gyang.Ystring:
 		return "string"
@@ -543,9 +547,24 @@ func (c *Completer) typeHint(t *gyang.YangType) string {
 		return "boolean"
 	case gyang.Yenum:
 		return "enum"
-	default:
-		return "value"
 	}
+	// For union types: list member type names for clarity
+	if t.Kind == gyang.Yunion && len(t.Type) > 0 {
+		names := make([]string, 0, len(t.Type))
+		for _, member := range t.Type {
+			if member.Name != "" {
+				names = append(names, member.Name)
+			}
+		}
+		if len(names) > 0 {
+			return strings.Join(names, " or ")
+		}
+	}
+	// For typedef and other types: use the YANG type name if available
+	if t.Name != "" && t.Name != "union" {
+		return t.Name
+	}
+	return "value"
 }
 
 // entryDescription returns description for a YANG entry.
@@ -715,6 +734,14 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 	}
 	if entry.Kind != gyang.LeafEntry {
 		return nil // Not a leaf — value validation doesn't apply
+	}
+	// Reject setting a list key leaf — the key is already the list identifier
+	// (e.g., "address" in "peer 1.1.1.1" is the key, not a settable field)
+	if len(path) >= 2 {
+		parentEntry := c.getEntry(path[:len(path)-1])
+		if parentEntry != nil && parentEntry.IsList() && parentEntry.Key == path[len(path)-1] {
+			return fmt.Errorf("%s is the list key (already set as the identifier)", path[len(path)-1])
+		}
 	}
 	if !validateLeafValue(entry, value) {
 		hint := c.typeHint(entry.Type)

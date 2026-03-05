@@ -25,6 +25,7 @@ type State interface {
 	ViewportContent() string
 	ConfirmTimerActive() bool
 	TriggerCompletions()
+	Mode() editor.EditorMode
 }
 
 // validExpectationTypes lists all recognized expectation types.
@@ -43,6 +44,7 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"prompt":     checkPrompt,
 	"viewport":   checkViewport,
 	"timer":      checkTimer,
+	"mode":       checkMode,
 }
 
 // CheckExpectation verifies a single expectation against the current state.
@@ -345,16 +347,18 @@ func checkDropdown(exp Expectation, state State) error {
 
 // checkPrompt verifies prompt text expectations.
 func checkPrompt(exp Expectation, state State) error {
-	// Prompt is derived from context path - build expected prompt
-	// For now, just check context-based prompt
 	if expected, hasContains := exp.Values["contains"]; hasContains {
-		// Build prompt from context
-		path := state.ContextPath()
+		// Build prompt based on current mode
 		var prompt string
-		if len(path) == 0 {
-			prompt = "ze#"
+		if state.Mode() == editor.ModeCommand {
+			prompt = "ze>"
 		} else {
-			prompt = fmt.Sprintf("ze[%s]#", strings.Join(path, " "))
+			path := state.ContextPath()
+			if len(path) == 0 {
+				prompt = "ze#"
+			} else {
+				prompt = fmt.Sprintf("ze[%s]#", strings.Join(path, " "))
+			}
 		}
 
 		if !strings.Contains(prompt, expected) {
@@ -386,6 +390,20 @@ func checkViewport(exp Expectation, state State) error {
 	}
 
 	return fmt.Errorf("viewport expectation requires 'contains' or 'not-contains' key")
+}
+
+// checkMode verifies editor mode expectations.
+func checkMode(exp Expectation, state State) error {
+	mode := state.Mode().String()
+
+	if expected, hasIs := exp.Values["is"]; hasIs {
+		if mode != expected {
+			return fmt.Errorf("expected mode:%s, got %s", expected, mode)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("mode expectation requires 'is' key (e.g., mode:is=edit or mode:is=command)")
 }
 
 // checkTimer verifies commit confirm timer state.

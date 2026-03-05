@@ -1,0 +1,41 @@
+# Test: Mode switching between edit and command modes
+# VALIDATES: AC-1 — /command switches to command mode
+# VALIDATES: AC-2 — /edit switches to edit mode
+# VALIDATES: AC-9 — /edit while in edit mode is no-op
+# VALIDATES: AC-10 — /command while in command mode is no-op
+# PREVENTS: Mode state corruption on switch
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Initially in edit mode
+expect=mode:is=edit
+
+# Switch to command mode
+input=type:text=/command
+input=enter
+expect=mode:is=command
+expect=status:contains=no daemon connection
+
+# /command again is no-op
+input=type:text=/command
+input=enter
+expect=mode:is=command
+expect=status:contains=already in command mode
+
+# Switch back to edit mode
+input=type:text=/edit
+input=enter
+expect=mode:is=edit
+
+# /edit again is no-op
+input=type:text=/edit
+input=enter
+expect=mode:is=edit
+expect=status:contains=already in edit mode

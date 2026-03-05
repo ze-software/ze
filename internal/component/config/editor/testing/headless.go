@@ -237,6 +237,11 @@ func (hm *HeadlessModel) TriggerCompletions() {
 	hm.model.UpdateCompletions()
 }
 
+// Mode returns the current editor mode.
+func (hm *HeadlessModel) Mode() editor.EditorMode {
+	return hm.model.Mode()
+}
+
 // SetReloadNotifier configures a reload notifier on the underlying editor.
 // Used by the .et test runner to simulate daemon reload behavior.
 func (hm *HeadlessModel) SetReloadNotifier(fn editor.ReloadNotifier) {

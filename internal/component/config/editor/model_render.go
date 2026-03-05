@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Related: model_mode.go — mode-aware prompt rendering
 
 package editor
 
@@ -95,7 +96,7 @@ func (m Model) View() string {
 	var lines []string
 
 	// Header (2 lines: header + blank)
-	header := "Ze Editor"
+	header := "Ze Editor [" + m.mode.String() + "]"
 	if m.editor.Dirty() {
 		header += " [modified]"
 	}
@@ -433,6 +434,10 @@ func (m Model) renderHelpOverlay(base string) string {
   rollback <N>         Restore backup N
   exit                 Exit editor
 
+Modes:
+  /command             Switch to operational command mode
+  /edit                Switch back to config edit mode
+
 Load:
   load file absolute replace <path>    Replace entire config from file
   load file absolute merge <path>      Merge file at root
@@ -477,16 +482,15 @@ Press Esc to close this help.`
 
 // buildPrompt returns the context-aware prompt string.
 func (m Model) buildPrompt() string {
+	if m.mode == ModeCommand {
+		return promptStyle.Render("ze> ")
+	}
+
 	if len(m.contextPath) == 0 {
 		return promptStyle.Render("ze# ")
 	}
 
 	contextStr := strings.Join(m.contextPath, " ")
-	if m.isTemplate {
-		return promptStyle.Render("ze") +
-			contextStyle.Render("["+contextStr+"]") +
-			promptStyle.Render("# ")
-	}
 	return promptStyle.Render("ze") +
 		contextStyle.Render("["+contextStr+"]") +
 		promptStyle.Render("# ")

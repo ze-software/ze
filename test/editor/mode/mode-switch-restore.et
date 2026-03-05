@@ -1,0 +1,40 @@
+# Test: Viewport content preserved across mode switches
+# VALIDATES: AC-6 — edit viewport restored after command mode
+# VALIDATES: AC-8 — edit mode commands still work after mode switch
+# PREVENTS: Lost config content on mode toggle
+# NOTE: AC-7 (command viewport restore) tested by TestModeScreenRestore unit test
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Set some config in edit mode
+input=type:text=set bgp local-as 65000
+input=enter
+expect=dirty:true
+
+# Show current config to populate viewport
+input=type:text=show
+input=enter
+expect=content:contains=local-as 65000
+
+# Switch to command mode — edit content should be saved
+input=type:text=/command
+input=enter
+expect=mode:is=command
+
+# Switch back to edit — config should still be there
+input=type:text=/edit
+input=enter
+expect=mode:is=edit
+expect=dirty:true
+
+# Verify edit mode commands still work (AC-8)
+input=type:text=show
+input=enter
+expect=content:contains=local-as 65000

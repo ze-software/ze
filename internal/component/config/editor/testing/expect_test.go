@@ -303,6 +303,23 @@ func TestExpectDropdown(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestExpectMode(t *testing.T) {
+	expEdit := Expectation{Type: "mode", Values: map[string]string{"is": "edit"}}
+	expCommand := Expectation{Type: "mode", Values: map[string]string{"is": "command"}}
+
+	err := CheckExpectation(expEdit, &MockState{mode: editor.ModeEdit})
+	assert.NoError(t, err)
+
+	err = CheckExpectation(expEdit, &MockState{mode: editor.ModeCommand})
+	assert.Error(t, err)
+
+	err = CheckExpectation(expCommand, &MockState{mode: editor.ModeCommand})
+	assert.NoError(t, err)
+
+	err = CheckExpectation(expCommand, &MockState{mode: editor.ModeEdit})
+	assert.Error(t, err)
+}
+
 // TestExpectUnknownType verifies error on unknown expectation.
 //
 // VALIDATES: Unknown expectation types produce error.
@@ -331,6 +348,7 @@ type MockState struct {
 	workingContent     string
 	viewportContent    string
 	confirmTimerActive bool
+	mode               editor.EditorMode
 }
 
 func (m *MockState) ContextPath() []string                            { return m.contextPath }
@@ -346,6 +364,7 @@ func (m *MockState) WorkingContent() string                           { return m
 func (m *MockState) ViewportContent() string                          { return m.viewportContent }
 func (m *MockState) ConfirmTimerActive() bool                         { return m.confirmTimerActive }
 func (m *MockState) TriggerCompletions()                              {}
+func (m *MockState) Mode() editor.EditorMode                          { return m.mode }
 
 // mockError is a simple error type for testing.
 type mockError struct{ msg string }

@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Detail: model_mode.go — editor mode switching (edit/command)
 
 package editor
 
@@ -90,6 +91,12 @@ type Model struct {
 	history    []string // Previous commands (oldest first)
 	historyIdx int      // Current position in history (-1 = not browsing)
 	historyTmp string   // Saved current input when browsing history
+
+	// Mode state
+	mode             EditorMode                   // Current editor mode (edit or command)
+	modeStates       map[EditorMode]modeState     // Saved screen state per mode
+	commandCompleter *CommandCompleter            // Completer for command mode (nil if no daemon)
+	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
 }
 
 // PipeFilter represents a filter in a pipe chain.
@@ -186,6 +193,8 @@ func NewModel(ed *Editor) (Model, error) {
 		selected:           -1,
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
+		mode:               ModeEdit,
+		modeStates:         make(map[EditorMode]modeState),
 	}, nil
 }
 
@@ -488,6 +497,20 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle mode switching commands (intercepted before normal dispatch)
+	if input == "/command" {
+		m.textInput.SetValue("")
+		m.SwitchMode(ModeCommand)
+		m.updateCompletions()
+		return m, nil
+	}
+	if input == "/edit" {
+		m.textInput.SetValue("")
+		m.SwitchMode(ModeEdit)
+		m.updateCompletions()
+		return m, nil
+	}
+
 	// Handle exit/quit directly (not via async command dispatch)
 	if input == "exit" || input == "quit" {
 		if m.editor.Dirty() {
@@ -513,7 +536,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	m.ghostText = ""
 	m.completions = nil
 
-	// Execute command
+	// Execute command — dispatch based on mode
+	if m.mode == ModeCommand {
+		return m, m.executeOperationalCommand(input)
+	}
 	return m, m.executeCommand(input)
 }
 
@@ -661,8 +687,14 @@ func (m *Model) applyCompletion(comp Completion) {
 // updateCompletions updates completions based on current input.
 func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
-	m.completions = m.completer.Complete(input, m.contextPath)
-	m.ghostText = m.completer.GhostText(input, m.contextPath)
+
+	if m.mode == ModeCommand && m.commandCompleter != nil {
+		m.completions = m.commandCompleter.Complete(input)
+		m.ghostText = m.commandCompleter.GhostText(input)
+	} else {
+		m.completions = m.completer.Complete(input, m.contextPath)
+		m.ghostText = m.completer.GhostText(input, m.contextPath)
+	}
 
 	// Reset dropdown state when input changes
 	if !m.showDropdown {
@@ -746,6 +778,20 @@ func (m Model) ConfirmTimerActive() bool {
 // ViewportContent returns the content currently displayed in the viewport.
 func (m Model) ViewportContent() string {
 	return m.viewportContent
+}
+
+// SetCommandCompleter sets the command mode completer.
+// When set, command mode provides operational command completions.
+// When nil, command mode has no completions (editor-only / standalone mode).
+func (m *Model) SetCommandCompleter(cc *CommandCompleter) {
+	m.commandCompleter = cc
+}
+
+// SetCommandExecutor sets the function used to execute operational commands in command mode.
+// The function receives a command string and returns the output or an error.
+// When nil, command mode shows an error on Enter.
+func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
+	m.commandExecutor = fn
 }
 
 // UpdateCompletions refreshes the completion list based on current input.

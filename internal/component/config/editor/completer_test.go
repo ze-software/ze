@@ -58,7 +58,7 @@ func TestCompleterNestedPath(t *testing.T) {
 
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "peer-as")
-	assert.Contains(t, texts, "address")
+	assert.NotContains(t, texts, "address", "list key 'address' should not appear in completions")
 }
 
 func TestCompleterValueTypeHints(t *testing.T) {
