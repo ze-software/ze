@@ -1,0 +1,15 @@
+# Test: ze config completion — environment log fields
+# VALIDATES: Log container shows level, backend, destination
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context environment/log --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=level
+expect=stdout:contains=backend
+expect=stdout:contains=destination

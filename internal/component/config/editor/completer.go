@@ -4,6 +4,7 @@ package editor
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 
@@ -172,8 +173,8 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 
 		if isLast && !endsWithSpace {
 			// Partial match on this token
-			// Check if we're at a list (and we navigated there via tokens) - show existing keys
-			if tokensAdded > 0 && c.isList(currentPath) {
+			// Check if we're at a list that hasn't been keyed yet — show existing keys
+			if tokensAdded > 0 && c.isListNeedingKey(currentPath) {
 				return c.listKeyCompletions(currentPath[len(currentPath)-1], token, currentPath[:len(currentPath)-1])
 			}
 			return c.matchChildren(currentPath, token)
@@ -185,13 +186,36 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 	}
 
 	// If we ended with space, show next level
-	// Check if current path points to a list (and we navigated there via tokens) - show existing keys
-	if tokensAdded > 0 && c.isList(currentPath) && len(currentPath) > 0 {
+	// Check if current path ends at a list that still needs a key
+	if tokensAdded > 0 && c.isListNeedingKey(currentPath) && len(currentPath) > 0 {
 		listName := currentPath[len(currentPath)-1]
 		parentPath := currentPath[:len(currentPath)-1]
 		return c.listKeyCompletions(listName, "", parentPath)
 	}
 	return c.matchChildren(currentPath, "")
+}
+
+// isListNeedingKey returns true if the path ends at a list element (not a key value).
+// Path ["bgp", "peer"] → true (peer is a list, needs a key).
+// Path ["bgp", "peer", "1.1.1.1"] → false (1.1.1.1 is a key, we're inside the entry).
+func (c *Completer) isListNeedingKey(path []string) bool {
+	if len(path) == 0 {
+		return false
+	}
+	entry := c.getEntry(path)
+	if entry == nil || !entry.IsList() {
+		return false
+	}
+	// Check if the last element is a schema child name (list name) or a key value.
+	// If the parent's schema has the last element as a child, it's the list name itself.
+	lastName := path[len(path)-1]
+	parentEntry := c.getEntry(path[:len(path)-1])
+	if parentEntry != nil && parentEntry.Dir != nil {
+		if _, isSchemaChild := parentEntry.Dir[lastName]; isSchemaChild {
+			return true // Last element IS the list name → needs a key
+		}
+	}
+	return false // Last element is a key value → inside the entry
 }
 
 // completeEditPath completes paths for edit command.
@@ -327,21 +351,32 @@ func (c *Completer) navigateTreeToPath(contextPath []string) *config.Tree {
 		return nil
 	}
 
-	entry := c.loader.GetEntry("ze-bgp-conf")
-	if entry == nil {
+	if len(contextPath) == 0 {
 		return tree
 	}
 
+	// Find the module that owns the first path element
+	entry := c.findModuleEntry(contextPath[0])
+	if entry == nil {
+		return nil
+	}
+
 	for i := 0; i < len(contextPath); i++ {
-		part := contextPath[i]
-		if entry.Dir == nil {
-			return nil
+		var part string
+		if i == 0 {
+			// First element already resolved to entry
+			part = contextPath[0]
+		} else {
+			part = contextPath[i]
+			if entry.Dir == nil {
+				return nil
+			}
+			child, ok := entry.Dir[part]
+			if !ok {
+				return nil
+			}
+			entry = child
 		}
-		child, ok := entry.Dir[part]
-		if !ok {
-			return nil
-		}
-		entry = child
 
 		// If this is a list, next path element is the key value
 		if entry.IsList() && i+1 < len(contextPath) {
@@ -404,7 +439,8 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 	return completions
 }
 
-// matchEditTargets returns completions for containers and lists.
+// matchEditTargets returns completions for show/edit targets.
+// Includes containers, lists, and leaves — anything that can be shown or navigated.
 func (c *Completer) matchEditTargets(path []string, prefix string) []Completion {
 	entry := c.getEntry(path)
 	if entry == nil {
@@ -417,13 +453,11 @@ func (c *Completer) matchEditTargets(path []string, prefix string) []Completion 
 	for _, name := range children {
 		if prefix == "" || strings.HasPrefix(name, prefix) {
 			child := entry.Dir[name]
-			if child.Dir != nil { // Container or list
-				completions = append(completions, Completion{
-					Text:        name,
-					Description: c.entryDescription(child),
-					Type:        "keyword",
-				})
-			}
+			completions = append(completions, Completion{
+				Text:        name,
+				Description: c.entryDescription(child),
+				Type:        "keyword",
+			})
 		}
 	}
 
@@ -494,7 +528,7 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 		return ""
 	}
 	desc := entry.Description
-	if entry.Mandatory == gyang.TSTrue {
+	if entry.Mandatory == gyang.TSTrue && !strings.Contains(desc, "(required)") {
 		if desc != "" {
 			desc += " (required)"
 		} else {
@@ -504,21 +538,30 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 	return desc
 }
 
+// confModules lists the YANG config modules to search for schema entries.
+var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf"}
+
 // getEntry returns the YANG entry at the given path.
 // Handles list keys by skipping key values (e.g., "peer", "1.1.1.1" → navigate to peer list children).
+// Searches all config modules to find the path root.
 func (c *Completer) getEntry(path []string) *gyang.Entry {
 	if c.loader == nil {
 		return nil
 	}
 
-	// Start with bgp module
-	entry := c.loader.GetEntry("ze-bgp-conf")
+	// Empty path: return a virtual root with children from all modules
+	if len(path) == 0 {
+		return c.mergedRoot()
+	}
+
+	// Find which module owns the first path element
+	entry := c.findModuleEntry(path[0])
 	if entry == nil {
 		return nil
 	}
 
-	// Navigate through path, handling list keys
-	for i := 0; i < len(path); i++ {
+	// Navigate through remaining path, handling list keys
+	for i := 1; i < len(path); i++ {
 		part := path[i]
 		if entry.Dir == nil {
 			return nil
@@ -540,6 +583,40 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 	}
 
 	return entry
+}
+
+// mergedRoot returns a virtual root entry with children from all config modules.
+func (c *Completer) mergedRoot() *gyang.Entry {
+	root := &gyang.Entry{
+		Kind: gyang.DirectoryEntry,
+		Dir:  make(map[string]*gyang.Entry),
+	}
+	for _, modName := range confModules {
+		modEntry := c.loader.GetEntry(modName)
+		if modEntry == nil || modEntry.Dir == nil {
+			continue
+		}
+		maps.Copy(root.Dir, modEntry.Dir)
+	}
+	if len(root.Dir) == 0 {
+		return nil
+	}
+	return root
+}
+
+// findModuleEntry searches all config modules for a top-level child by name,
+// returning the child entry (not the module root).
+func (c *Completer) findModuleEntry(name string) *gyang.Entry {
+	for _, modName := range confModules {
+		modEntry := c.loader.GetEntry(modName)
+		if modEntry == nil || modEntry.Dir == nil {
+			continue
+		}
+		if child, ok := modEntry.Dir[name]; ok {
+			return child
+		}
+	}
+	return nil
 }
 
 // getChildrenAtPath returns children names at path.

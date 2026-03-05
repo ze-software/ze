@@ -1,0 +1,27 @@
+# Test: ze config completion — peer with process list configured
+# VALIDATES: Process list keys shown when multiple processes exist
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+		process my-watcher {
+			run /usr/bin/watcher;
+			receive update;
+		}
+		process my-filter {
+			run /usr/bin/filter;
+			send update;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1 --input edit+process+ test.conf
+expect=exit:code=0
+expect=stdout:contains=my-watcher
+expect=stdout:contains=my-filter
+expect=stdout:contains=*

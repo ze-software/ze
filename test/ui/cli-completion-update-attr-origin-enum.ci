@@ -1,0 +1,19 @@
+# Test: ze config completion — update attribute origin enum values
+# VALIDATES: Origin leaf shows igp/egp/incomplete enum values
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/update/attribute --input set+origin+ test.conf
+expect=exit:code=0
+expect=stdout:contains=igp
+expect=stdout:contains=egp
+expect=stdout:contains=incomplete

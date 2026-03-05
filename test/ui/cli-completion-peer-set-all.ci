@@ -1,0 +1,47 @@
+# Test: ze config completion — peer level all fields
+# VALIDATES: "set " inside peer shows all peer fields including plugin augments
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1 --input set+ test.conf
+expect=exit:code=0
+# Core peer fields
+expect=stdout:contains=peer-as
+expect=stdout:contains=local-address
+expect=stdout:contains=local-as
+expect=stdout:contains=router-id
+expect=stdout:contains=hold-time
+expect=stdout:contains=connection
+expect=stdout:contains=description
+expect=stdout:contains=port
+expect=stdout:contains=md5-password
+expect=stdout:contains=ttl-security
+expect=stdout:contains=outgoing-ttl
+expect=stdout:contains=incoming-ttl
+expect=stdout:contains=auto-flush
+expect=stdout:contains=adj-rib-out
+expect=stdout:contains=adj-rib-in
+expect=stdout:contains=manual-eor
+expect=stdout:contains=group-updates
+expect=stdout:contains=inherit
+# Containers/lists
+expect=stdout:contains=capability
+expect=stdout:contains=family
+expect=stdout:contains=update
+expect=stdout:contains=add-path
+expect=stdout:contains=process
+expect=stdout:contains=rib
+# Plugin augments
+expect=stdout:contains=role
+expect=stdout:contains=role-strict
+expect=stdout:contains=host-name
+expect=stdout:contains=domain-name

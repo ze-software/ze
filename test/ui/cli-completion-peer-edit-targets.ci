@@ -1,0 +1,22 @@
+# Test: ze config completion — peer edit targets
+# VALIDATES: "edit " inside peer shows all children
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1 --input edit+ test.conf
+expect=exit:code=0
+expect=stdout:contains=capability
+expect=stdout:contains=family
+expect=stdout:contains=update
+expect=stdout:contains=add-path
+expect=stdout:contains=process
+expect=stdout:contains=rib

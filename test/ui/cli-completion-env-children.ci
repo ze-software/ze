@@ -1,0 +1,19 @@
+# Test: ze config completion — environment children
+# VALIDATES: Environment container shows all sub-containers
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context environment --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=daemon
+expect=stdout:contains=log
+expect=stdout:contains=debug
+expect=stdout:contains=tcp
+expect=stdout:contains=api
+expect=stdout:contains=cache
+expect=stdout:contains=reactor

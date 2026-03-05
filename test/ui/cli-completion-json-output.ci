@@ -1,0 +1,17 @@
+# Test: ze config completion — JSON output format
+# VALIDATES: --json flag produces valid JSON with correct structure
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --json --context bgp --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains="Text"
+expect=stdout:contains="Description"
+expect=stdout:contains="Type"
+expect=stdout:contains=router-id
+expect=stdout:contains=local-as

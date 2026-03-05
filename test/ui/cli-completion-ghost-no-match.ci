@@ -1,0 +1,12 @@
+# Test: ze config completion — ghost text no match
+# VALIDATES: Ghost text returns empty for no match
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --ghost --context bgp --input set+xyz test.conf
+expect=exit:code=0

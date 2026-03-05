@@ -1,0 +1,140 @@
+// Design: docs/architecture/config/yang-config-design.md — config completion command
+// Overview: main.go — dispatch and exit codes
+
+package config
+
+import (
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
+)
+
+func cmdCompletion(args []string) int {
+	fs := flag.NewFlagSet("config completion", flag.ExitOnError)
+	context := fs.String("context", "", "context path with / separator (e.g., bgp/peer/1.1.1.1)")
+	inputFlag := fs.String("input", "", "input text to complete (e.g., \"set \", \"set local\")")
+	jsonOutput := fs.Bool("json", false, "output as JSON")
+	ghost := fs.Bool("ghost", false, "show ghost text instead of completions")
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: ze config completion [options] <config-file>
+
+Query the YANG-driven completion engine non-interactively.
+Useful for testing and debugging config editor completions.
+Use - to read config from stdin.
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Input uses + for spaces (unquoted), or regular spaces (quoted):
+  --input set+           equivalent to "set "
+  --input set+local      equivalent to "set local"
+
+Examples:
+  ze config completion --input set+ config.conf
+  ze config completion --context bgp --input set+ config.conf
+  ze config completion --context bgp --input set+local config.conf
+  ze config completion --json --context bgp/peer/1.1.1.1 --input set+p config.conf
+  ze config completion --ghost --context bgp --input set+router config.conf
+`)
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	if fs.NArg() < 1 {
+		fmt.Fprintf(os.Stderr, "error: missing config file (use - for stdin)\n")
+		fs.Usage()
+		return 1
+	}
+
+	configPath := fs.Arg(0)
+	// Decode + as space in input (allows unquoted args in test runners)
+	input := strings.ReplaceAll(*inputFlag, "+", " ")
+
+	// Parse context path (/-separated to work in both shell and test runner)
+	var contextPath []string
+	if *context != "" {
+		contextPath = strings.Split(*context, "/")
+	}
+
+	// Load and parse config
+	data, err := loadConfigData(configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error reading config: %v\n", err)
+		return exitError
+	}
+
+	schema := config.YANGSchema()
+	if schema == nil {
+		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+		return exitError
+	}
+
+	p := config.NewParser(schema)
+	tree, err := p.Parse(string(data))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error parsing config: %v\n", err)
+		return exitError
+	}
+
+	// Create completer with config tree for data-aware completion
+	completer := editor.NewCompleter()
+	completer.SetTree(tree)
+
+	if *ghost {
+		return outputGhost(completer, input, contextPath, *jsonOutput)
+	}
+
+	return outputCompletions(completer, input, contextPath, *jsonOutput)
+}
+
+func outputGhost(c *editor.Completer, input string, contextPath []string, asJSON bool) int {
+	text := c.GhostText(input, contextPath)
+
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		if err := enc.Encode(map[string]string{"ghost": text}); err != nil {
+			fmt.Fprintf(os.Stderr, "error encoding JSON: %v\n", err)
+			return exitError
+		}
+		return exitOK
+	}
+
+	fmt.Println(text)
+	return exitOK
+}
+
+func outputCompletions(c *editor.Completer, input string, contextPath []string, asJSON bool) int {
+	completions := c.Complete(input, contextPath)
+
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		if err := enc.Encode(completions); err != nil {
+			fmt.Fprintf(os.Stderr, "error encoding JSON: %v\n", err)
+			return exitError
+		}
+		return exitOK
+	}
+
+	if len(completions) == 0 {
+		return exitOK
+	}
+
+	for _, comp := range completions {
+		if comp.Description != "" {
+			fmt.Printf("%-12s %-24s %s\n", comp.Type, comp.Text, comp.Description)
+		} else {
+			fmt.Printf("%-12s %s\n", comp.Type, comp.Text)
+		}
+	}
+
+	return exitOK
+}

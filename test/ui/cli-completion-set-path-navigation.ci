@@ -1,0 +1,15 @@
+# Test: ze config completion — set path navigation through containers
+# VALIDATES: "set bgp " at root navigates into bgp and shows its children
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --input set+bgp+ test.conf
+expect=exit:code=0
+expect=stdout:contains=router-id
+expect=stdout:contains=local-as
+expect=stdout:contains=peer

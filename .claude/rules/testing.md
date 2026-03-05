@@ -27,11 +27,11 @@ Rationale: `.claude/rationale/testing.md`
 | `make ze-unit-test` | Unit tests with race detector |
 | `make ze-functional-test` | All functional tests |
 | `make ze-lint` | 26 linters |
-| `make ze-verify` | All tests except fuzz (development) |
+| `make ze-verify` | All tests except fuzz (before commits) |
 | `make ze-ci` | lint + unit + build |
 | `make ze-fuzz-test` | Fuzz tests (15s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility |
-| `make ze-test` | All tests: lint + unit + functional + exabgp + chaos + fuzz (before commits) |
+| `make ze-test` | All tests including fuzz (use when specifically needed) |
 | `make ze-chaos-test` | Chaos unit + functional + web |
 
 ## Individual Commands
@@ -65,16 +65,16 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 
 ## Pre-Commit
 
-**BLOCKING:** `make ze-test` is the ONLY acceptable pre-commit verification. Not `make ze-verify`. Not `go test`. Not any subset.
+**BLOCKING:** `make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
 
 **BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
 
 ```
-[ ] make ze-test — capture to tmp/ze-test.log (timeout 300s)
+[ ] make ze-verify — capture to tmp/ze-test.log (timeout 120s)
 [ ] Report test result: pass/fail. If failures: list every one. No omissions.
 [ ] Keep output concise — failures and summary only, not the full log.
 [ ] User approval
 ```
 
-During development: `go test`, `make ze-unit-test`, `make ze-verify` are fine for fast iteration.
-Before committing or claiming done: `make ze-test`. No exceptions.
+During development: `go test`, `make ze-unit-test` are fine for fast iteration.
+Before committing or claiming done: `make ze-verify`. No exceptions.

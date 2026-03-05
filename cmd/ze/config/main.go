@@ -5,6 +5,7 @@
 // Detail: cmd_fmt.go — fmt subcommand handler
 // Detail: cmd_dump.go — dump subcommand handler
 // Detail: cmd_diff.go — diff subcommand handler
+// Detail: cmd_completion.go — completion query handler
 //
 // Package config provides the ze config subcommand.
 package config
@@ -26,12 +27,13 @@ const (
 // Using a map avoids both if-else chains (gocritic lint) and switch default
 // (hook false positive for /config/ path).
 var subcommandHandlers = map[string]func([]string) int{
-	"edit":    cmdEdit,
-	"check":   cmdCheck,
-	"migrate": cmdMigrate,
-	"fmt":     cmdFmt,
-	"dump":    cmdDump,
-	"diff":    cmdDiff,
+	"edit":       cmdEdit,
+	"check":      cmdCheck,
+	"migrate":    cmdMigrate,
+	"fmt":        cmdFmt,
+	"dump":       cmdDump,
+	"diff":       cmdDiff,
+	"completion": cmdCompletion,
 }
 
 // Run executes the config subcommand with the given arguments.
@@ -76,12 +78,13 @@ func usage() {
 Configuration management commands.
 
 Commands:
-  edit <file>    Interactive configuration editor
-  check <file>   Check config status and deprecated patterns
-  migrate <file> Convert configuration to current format
-  fmt <file>     Format and normalize configuration file
-  dump <file>    Dump parsed configuration
-  diff <f1> <f2> Compare two configuration files
+  edit <file>       Interactive configuration editor
+  check <file>      Check config status and deprecated patterns
+  migrate <file>    Convert configuration to current format
+  fmt <file>        Format and normalize configuration file
+  dump <file>       Dump parsed configuration
+  diff <f1> <f2>    Compare two configuration files
+  completion <file> Query completion engine (testing/debugging)
 
 Examples:
   ze config edit config.conf
@@ -91,5 +94,6 @@ Examples:
   ze config dump config.conf
   ze config diff old.conf new.conf
   ze config diff --json old.conf new.conf
+  ze config completion --input set+ --context bgp/peer/1.1.1.1 config.conf
 `)
 }

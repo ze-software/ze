@@ -1,0 +1,13 @@
+# Test: ze config completion — partial command matching
+# VALIDATES: Typing partial command filters completions
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --input se test.conf
+expect=exit:code=0
+expect=stdout:contains=set

@@ -1,0 +1,25 @@
+# Test: ze config completion — peer with family list configured
+# VALIDATES: Completion works at family level with existing families
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+		family ipv4/unicast {
+			mode enable;
+		}
+		family ipv6/unicast {
+			mode enable;
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1 --input edit+family+ test.conf
+expect=exit:code=0
+expect=stdout:contains=ipv4/unicast
+expect=stdout:contains=ipv6/unicast
+expect=stdout:contains=*

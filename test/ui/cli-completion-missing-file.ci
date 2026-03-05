@@ -1,0 +1,6 @@
+# Test: ze config completion — missing config file
+# VALIDATES: Missing config file returns error exit code
+
+cmd=foreground:seq=1:exec=ze config completion --input set+ nonexistent.conf
+expect=exit:code=2
+expect=stderr:contains=error

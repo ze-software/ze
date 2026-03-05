@@ -1,0 +1,15 @@
+# Test: ze config completion — template level children
+# VALIDATES: Template container shows bgp, group, match sub-containers
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context template --input edit+ test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp
+expect=stdout:contains=group
+expect=stdout:contains=match

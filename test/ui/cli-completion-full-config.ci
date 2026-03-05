@@ -1,0 +1,44 @@
+# Test: ze config completion — full config with multiple sections
+# VALIDATES: Completion works with a comprehensive config across all sections
+
+tmpfs=test.conf:terminator=EOF_CONF
+environment {
+	log {
+		level info;
+	}
+	tcp {
+		port 179;
+	}
+}
+bgp {
+	router-id 10.0.0.1;
+	local-as 65000;
+	peer 192.168.1.1 {
+		peer-as 65001;
+		local-address 192.168.1.254;
+		hold-time 90;
+		connection passive;
+		role customer;
+		capability {
+			asn4 true;
+			graceful-restart {
+				restart-time 120;
+			}
+		}
+		family ipv4/unicast {
+			mode enable;
+		}
+	}
+	peer 192.168.2.1 {
+		peer-as 65002;
+		local-address 192.168.2.254;
+		role provider;
+	}
+}
+EOF_CONF
+
+# Root level — verify all top-level sections visible with full config
+cmd=foreground:seq=1:exec=ze config completion --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp
+expect=stdout:contains=environment

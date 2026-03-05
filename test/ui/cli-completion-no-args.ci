@@ -1,0 +1,6 @@
+# Test: ze config completion — no arguments
+# VALIDATES: Missing config file arg shows usage error
+
+cmd=foreground:seq=1:exec=ze config completion
+expect=exit:code=1
+expect=stderr:contains=missing config file

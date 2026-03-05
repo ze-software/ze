@@ -1,0 +1,14 @@
+# Test: ze config completion — root set targets
+# VALIDATES: "set " at root shows top-level containers from YANG
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp
+expect=stdout:contains=template

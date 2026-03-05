@@ -1,0 +1,16 @@
+# Test: ze config completion — list keys with single entry (auto-select)
+# VALIDATES: Single peer list entry returns no keys (auto-selected)
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp --input edit+peer+ test.conf
+expect=exit:code=0

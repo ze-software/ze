@@ -1,0 +1,28 @@
+# Test: ze config completion — peer with capabilities configured
+# VALIDATES: Completion works when capabilities are already set in config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+		capability {
+			asn4 true;
+			add-path {
+				send true;
+				receive true;
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/capability --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=asn4
+expect=stdout:contains=add-path
+expect=stdout:contains=graceful-restart
+expect=stdout:contains=hostname
+expect=stdout:contains=software-version

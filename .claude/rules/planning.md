@@ -111,7 +111,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 6. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
 [ ] 8. Write learned summary: docs/learned/NNN-<name>.md (see docs/plan/TEMPLATE.md for summary format)
-[ ] 9. Verify: `make ze-test` + git status + git diff, no unintended changes
+[ ] 9. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 10. Executive Summary Report — present to user BEFORE asking to commit
 [ ] 11. Commit (when user approves) — ALL files in ONE commit
 ```

@@ -1,0 +1,12 @@
+# Test: ze config completion — help flag
+# VALIDATES: --help shows usage text
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --help
+expect=exit:code=0
+expect=stderr:contains=completion
+expect=stderr:contains=context
+expect=stderr:contains=ghost

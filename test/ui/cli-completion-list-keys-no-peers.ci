@@ -1,0 +1,14 @@
+# Test: ze config completion — list keys with no entries
+# VALIDATES: Empty peer list shows wildcard and new-key hint
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp --input edit+peer+ test.conf
+expect=exit:code=0
+expect=stdout:contains=*
+expect=stdout:contains=<value>

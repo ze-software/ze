@@ -5,6 +5,7 @@
 // Subcommands:
 //
 //	ze-test bgp [type] [flags]     Run BGP functional tests
+//	ze-test ui [flags]             Run UI functional tests (completion, CLI)
 //	ze-test editor [flags]         Run editor functional tests (.et files)
 //	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
 //	ze-test syslog [flags]         Run syslog server for testing
@@ -36,6 +37,8 @@ func main() {
 		os.Exit(bgpCmd())
 	case "editor":
 		os.Exit(editorCmd())
+	case "ui":
+		os.Exit(uiCmd())
 	case "peer":
 		os.Exit(peerCmd())
 	case "syslog":
@@ -60,6 +63,7 @@ func printUsage() {
 Commands:
   bgp          Run BGP functional tests (encoding, plugin, decoding, parsing)
   editor       Run editor functional tests (.et files)
+  ui           Run UI functional tests (completion, CLI)
   peer         BGP test peer (sink/echo/check modes)
   syslog       Run syslog server for testing
   text-plugin  Run minimal text-mode plugin (for .ci tests)

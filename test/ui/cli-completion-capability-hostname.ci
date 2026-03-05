@@ -1,0 +1,18 @@
+# Test: ze config completion — hostname capability (plugin augment)
+# VALIDATES: Hostname plugin augments capability with hostname container
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/capability/hostname --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=host
+expect=stdout:contains=domain

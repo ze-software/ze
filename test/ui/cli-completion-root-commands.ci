@@ -1,0 +1,20 @@
+# Test: ze config completion — empty input shows editor commands
+# VALIDATES: Root level returns all 13 editor commands
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion test.conf
+expect=exit:code=0
+expect=stdout:contains=set
+expect=stdout:contains=delete
+expect=stdout:contains=edit
+expect=stdout:contains=show
+expect=stdout:contains=commit
+expect=stdout:contains=discard
+expect=stdout:contains=exit
+expect=stdout:contains=help

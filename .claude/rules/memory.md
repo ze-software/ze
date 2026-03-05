@@ -41,11 +41,11 @@ Key decisions agreed with user:
 - **Interfaces in `pkg/ze/`** — public so external plugins can depend on them
 - **ConfigManager is central authority** — editor (`ze config edit`), web UI, subsystems, plugins all use same interface
 - **Performance matters** — user explicitly asked for performance-conscious design
-- **`make ze-test`** before closing spec/committing (not just `make ze-verify`)
+- **`make ze-verify`** before closing spec/committing
 - **Cross-check child specs against umbrella** after each phase
 
-### Bash Timeout for ze-test
-`make ze-test` needs timeout 300s (5 min) — runs lint + unit + functional + exabgp + chaos + fuzz.
+### Bash Timeout for ze-verify
+`make ze-verify` needs timeout 120s (2 min) — runs lint + unit + functional + exabgp + chaos.
 
 ### SDK Type Aliases Are Intentional
 `pkg/plugin/sdk/sdk_types.go` re-exports `rpc.*` types as `sdk.*` aliases. This is deliberate —

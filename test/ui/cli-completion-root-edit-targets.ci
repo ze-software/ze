@@ -1,0 +1,14 @@
+# Test: ze config completion — root edit targets
+# VALIDATES: "edit " at root shows containers/lists only
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --input edit+ test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp
+expect=stdout:contains=template

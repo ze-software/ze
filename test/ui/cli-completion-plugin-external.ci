@@ -1,0 +1,16 @@
+# Test: ze config completion — plugin external fields
+# VALIDATES: Plugin external container shows run, encoder, respawn, timeout
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context plugin/external --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=run
+expect=stdout:contains=encoder
+expect=stdout:contains=respawn
+expect=stdout:contains=timeout

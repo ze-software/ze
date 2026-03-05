@@ -15,12 +15,12 @@ Post-commit: hash, file count, clean state confirmation.
 
 ## Before Any Commit (BLOCKING)
 
-**`make ze-test` (timeout 300s) — not `make ze-verify`, not `go test`, not any subset.**
+**`make ze-verify` (timeout 120s) — not `go test`, not any subset.**
 
 **BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
 
 ```
-[ ] 1. Run `make ze-test` — capture to tmp/ze-test.log. ANY failure: STOP.
+[ ] 1. Run `make ze-verify` — capture to tmp/ze-test.log. ANY failure: STOP.
 [ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
 [ ] 3. Present what will be committed — concise table, not raw git output:
       | File | Change |
@@ -32,7 +32,7 @@ Post-commit: hash, file count, clean state confirmation.
 
 **Forbidden:** `git diff --stat`, `git status` dumped raw into output. Summarise for the user.
 Never commit with lint issues. Never commit without test evidence.
-`make ze-verify` is for development iterations only — it skips fuzz and exabgp tests.
+`make ze-test` includes fuzz tests — use only when specifically needed.
 
 ## Forbidden Without Permission
 

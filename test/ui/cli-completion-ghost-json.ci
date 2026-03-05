@@ -1,0 +1,14 @@
+# Test: ze config completion — ghost text JSON output
+# VALIDATES: --ghost --json returns ghost key in JSON
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --ghost --json --context bgp --input set+router test.conf
+expect=exit:code=0
+expect=stdout:contains="ghost"
+expect=stdout:contains=-id

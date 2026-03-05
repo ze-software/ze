@@ -1,6 +1,6 @@
 .PHONY: all build ze chaos test clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
-.PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-editor-test
+.PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: check
 
@@ -78,6 +78,7 @@ ze-functional-test: bin/ze bin/ze-test
 	bin/ze-test bgp parse --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }parse"; }; \
 	bin/ze-test bgp decode --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }decode"; }; \
 	bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
+	bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
 	bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
 	if [ $$failed -gt 0 ]; then \
 		printf "\n════════════════════════════════════════\n"; \
@@ -90,7 +91,7 @@ ze-functional-test: bin/ze bin/ze-test
 		exit 1; \
 	else \
 		printf "\n════════════════════════════════════════\n"; \
-		printf "\033[32mPASS  all 6 suites\033[0m\n\n"; \
+		printf "\033[32mPASS  all 7 suites\033[0m\n\n"; \
 	fi
 
 # Run ze functional test suites individually
@@ -108,6 +109,9 @@ ze-parse-test: bin/ze-test
 
 ze-reload-test: bin/ze-test
 	@bin/ze-test bgp reload --all
+
+ze-ui-test: bin/ze-test
+	@bin/ze-test ui --all
 
 ze-editor-test: bin/ze-test
 	@bin/ze-test editor
@@ -262,12 +266,13 @@ help:
 	@echo "  ze-lint               - Run linter on ze packages"
 	@echo "  ze-unit-test          - Run ze unit tests with race detector"
 	@echo "  ze-unit-test-cover    - Run ze unit tests with coverage report"
-	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, editor)"
+	@echo "  ze-functional-test    - Run ze functional tests (encode, plugin, parse, decode, reload, ui, editor)"
 	@echo "  ze-encode-test        - Run encode functional tests only"
 	@echo "  ze-plugin-test        - Run plugin functional tests only"
 	@echo "  ze-decode-test        - Run decode functional tests only"
 	@echo "  ze-parse-test         - Run parse functional tests only"
 	@echo "  ze-reload-test        - Run reload functional tests only"
+	@echo "  ze-ui-test            - Run UI functional tests only (completion)"
 	@echo "  ze-editor-test        - Run editor functional tests only"
 	@echo "  ze-exabgp-test        - Run ExaBGP compatibility tests only"
 	@echo "  ze-fuzz-test          - Run all fuzz tests (15s per target)"

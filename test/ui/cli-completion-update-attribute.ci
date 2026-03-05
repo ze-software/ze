@@ -1,0 +1,32 @@
+# Test: ze config completion — update attribute fields
+# VALIDATES: Update attribute container shows all attribute children
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4;
+	local-as 65000;
+	peer 1.1.1.1 {
+		peer-as 65001;
+		local-address 127.0.0.1;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/update/attribute --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=origin
+expect=stdout:contains=next-hop
+expect=stdout:contains=med
+expect=stdout:contains=local-preference
+expect=stdout:contains=as-path
+expect=stdout:contains=community
+expect=stdout:contains=large-community
+expect=stdout:contains=extended-community
+expect=stdout:contains=aggregator
+expect=stdout:contains=atomic-aggregate
+expect=stdout:contains=originator-id
+expect=stdout:contains=cluster-list
+expect=stdout:contains=label
+expect=stdout:contains=rd
+expect=stdout:contains=path-information
+expect=stdout:contains=split
