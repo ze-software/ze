@@ -108,13 +108,18 @@ module ze-bgp-conf {
         }
 
         leaf local-address {
-            type string;
+            type union {
+                type zt:ip-address;
+                type enumeration {
+                    enum auto;
+                }
+            }
             mandatory true;
-            description "Local address for connection (use IP address or 'auto')";
+            description "Local address for connection (use IP address or 'auto') (required)";
         }
 
         leaf link-local {
-            type string;
+            type zt:ipv6-address;
             description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
         }
 
@@ -148,9 +153,7 @@ module ze-bgp-conf {
         }
 
         leaf port {
-            type uint16 {
-                range "1..65535";
-            }
+            type zt:port;
             description "Per-peer listen port (overrides global tcp.port for this peer)";
         }
 
@@ -165,7 +168,7 @@ module ze-bgp-conf {
             key "name";
             description "Address families to negotiate";
             leaf name {
-                type string;
+                type zt:address-family;
                 ze:validate "registered-address-family";
                 description "AFI/SAFI (e.g. ipv4/unicast)";
             }
@@ -187,7 +190,7 @@ module ze-bgp-conf {
             leaf asn4 {
                 type boolean;
                 default true;
-                description "4-byte ASN support (true/false/enable/disable/require/refuse)";
+                description "4-byte ASN support";
             }
 
             container route-refresh {
@@ -220,8 +223,8 @@ module ze-bgp-conf {
             list nexthop {
                 key "family";
                 description "Extended Next Hop capability (RFC 8950)";
-                leaf family { type string; description "NLRI family (e.g. ipv4/unicast)"; }
-                leaf nhafi { type string; description "Next-hop AFI (e.g. ipv6)"; }
+                leaf family { type zt:address-family; description "NLRI family (e.g. ipv4/unicast)"; }
+                leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)"; }
                 leaf mode {
                     type enumeration {
                         enum enable { description "Enable extended next hop"; }
@@ -249,17 +252,17 @@ module ze-bgp-conf {
         }
 
         leaf ttl-security {
-            type uint16;
+            type uint8;
             description "TTL security (GTSM)";
         }
 
         leaf outgoing-ttl {
-            type uint16;
+            type uint8;
             description "Outgoing TTL";
         }
 
         leaf incoming-ttl {
-            type uint16;
+            type uint8;
             description "Incoming TTL";
         }
 
@@ -298,7 +301,15 @@ module ze-bgp-conf {
                     }
                     description "ORIGIN attribute (RFC 4271 Section 4.3)";
                 }
-                leaf next-hop { type string; description "Next hop address or 'self'"; }
+                leaf next-hop {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum self;
+                        }
+                    }
+                    description "Next hop address or 'self'";
+                }
                 leaf med { type uint32; description "Multi-Exit Discriminator"; }
                 leaf local-preference { type uint32; description "Local preference"; }
                 leaf-list as-path { type string; description "AS path"; }
@@ -308,11 +319,11 @@ module ze-bgp-conf {
                 leaf label { type string; description "MPLS label"; }
                 leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
                 leaf path-information { type string; description "ADD-PATH path-id"; }
-                leaf rd { type string; description "Route Distinguisher (RFC 4364)"; }
+                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364)"; }
                 leaf aggregator { type string; description "Aggregator AS:IP"; }
                 leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
                 leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                leaf-list cluster-list { type string; description "Cluster list"; }
+                leaf-list cluster-list { type zt:ipv4-address; description "Cluster list"; }
                 leaf-list attribute { type string; description "Generic hex attributes"; }
                 container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
                 container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
@@ -321,7 +332,7 @@ module ze-bgp-conf {
 
             list nlri {
                 key "name";
-                leaf name { type string; description "Address family (e.g., ipv4/unicast)"; }
+                leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)"; }
                 leaf content { type string; description "Operation, qualifiers, and payload"; }
             }
 
@@ -336,7 +347,7 @@ module ze-bgp-conf {
         list add-path {
             key "family";
             description "Per-family ADD-PATH configuration (RFC 7911)";
-            leaf family { type string; description "Address family (e.g. ipv4/unicast)"; }
+            leaf family { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
             leaf direction {
                 type enumeration {
                     enum send { description "Send ADD-PATH"; }
@@ -433,9 +444,9 @@ module ze-bgp-conf {
                     description "Group updates";
                 }
                 leaf auto-commit-delay {
-                    type string;
-                    default "0";
-                    description "Auto-commit delay";
+                    type uint32;
+                    default 0;
+                    description "Auto-commit delay in milliseconds";
                 }
                 leaf max-batch-size {
                     type int32;
@@ -451,7 +462,7 @@ module ze-bgp-conf {
     augment "/hub:environment" {
         container tcp {
             description "TCP settings";
-            leaf port { type uint16; }
+            leaf port { type zt:port; }
             leaf attempts { type int32; }
             leaf delay { type int32; }
             leaf acl { type boolean; }
@@ -459,7 +470,14 @@ module ze-bgp-conf {
 
         container bgp {
             description "BGP protocol settings";
-            leaf connection { type string; description "Connection mode: both, passive, active"; }
+            leaf connection {
+                type enumeration {
+                    enum both { description "Initiate and accept connections"; }
+                    enum passive { description "Accept only"; }
+                    enum active { description "Initiate only"; }
+                }
+                description "Connection mode";
+            }
             leaf openwait { type int32; }
         }
 
