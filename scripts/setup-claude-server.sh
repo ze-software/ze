@@ -136,6 +136,22 @@ else
     echo "cc alias already in .bashrc"
 fi
 
+# SSH agent — persist across mosh sessions using fixed socket
+if ! grep -q 'SSH_AUTH_SOCK.*agent.sock' "$BASHRC" 2>/dev/null; then
+    cat >> "$BASHRC" << 'SSHAGENT'
+
+# SSH agent — persist across mosh sessions using fixed socket
+export SSH_AUTH_SOCK="$HOME/.ssh/agent.sock"
+if ! ssh-add -l &>/dev/null; then
+    rm -f "$SSH_AUTH_SOCK"
+    eval "$(ssh-agent -a "$SSH_AUTH_SOCK" -s)" > /dev/null
+fi
+SSHAGENT
+    echo "Added ssh-agent to .bashrc"
+else
+    echo "ssh-agent already in .bashrc"
+fi
+
 # Auto cd to ze repo on login
 if ! grep -q 'cd.*ze/main' "$BASHRC" 2>/dev/null; then
     cat >> "$BASHRC" << 'AUTOCD'
