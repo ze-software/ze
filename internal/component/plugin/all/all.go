@@ -3,7 +3,7 @@
 // Package all imports all internal plugins and schema packages,
 // triggering their init() registration.
 //
-// To add a plugin, create internal/plugins/<name>/register.go with an init()
+// To add a plugin, create internal/component/bgp/plugins/<name>/register.go with an init()
 // that calls registry.Register(). Then run: make generate
 package all
 
@@ -35,3 +35,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-watchdog"
 )
+

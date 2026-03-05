@@ -2,7 +2,7 @@
 //
 // gen-plugin-imports generates internal/plugin/all/all.go from register.go discovery.
 //
-// It scans internal/plugins/*/register.go to find plugin packages and
+// It scans internal/component/bgp/plugins/*/register.go to find plugin packages and
 // internal/**/schema/register.go to find YANG schema packages, then generates
 // the blank-import file that triggers init() registration.
 //
@@ -33,7 +33,7 @@ func main() {
 		fatal(err)
 	}
 
-	plugins, err := discoverPlugins(filepath.Join(root, "internal", "plugins"))
+	plugins, err := discoverPlugins(filepath.Join(root, "internal", "component", "bgp", "plugins"))
 	if err != nil {
 		fatal(err)
 	}
@@ -43,7 +43,7 @@ func main() {
 		fatal(err)
 	}
 
-	output := filepath.Join(root, "internal", "plugin", "all", "all.go")
+	output := filepath.Join(root, "internal", "component", "plugin", "all", "all.go")
 	if err := generateAllGo(output, module, plugins, schemas); err != nil {
 		fatal(err)
 	}
@@ -133,7 +133,7 @@ func discoverSchemaPackages(internalDir, module string) ([]string, error) {
 		}
 		// Skip plugins — already covered by plugin imports
 		rel, _ := filepath.Rel(internalDir, path)
-		if strings.HasPrefix(rel, "plugins/") {
+		if strings.HasPrefix(rel, "plugins/") || strings.Contains(rel, "/plugins/") {
 			return nil
 		}
 		// Verify it imports the yang package (for RegisterModule)
@@ -185,7 +185,7 @@ func generateAllGo(path, module string, plugins, schemas []string) error {
 	fmt.Fprintln(w, "// Package all imports all internal plugins and schema packages,")
 	fmt.Fprintln(w, "// triggering their init() registration.")
 	fmt.Fprintln(w, "//")
-	fmt.Fprintln(w, "// To add a plugin, create internal/plugins/<name>/register.go with an init()")
+	fmt.Fprintln(w, "// To add a plugin, create internal/component/bgp/plugins/<name>/register.go with an init()")
 	fmt.Fprintln(w, "// that calls registry.Register(). Then run: make generate")
 	fmt.Fprintln(w, "package all")
 	fmt.Fprintln(w)
@@ -202,7 +202,7 @@ func generateAllGo(path, module string, plugins, schemas []string) error {
 	}
 
 	for _, name := range plugins {
-		fmt.Fprintf(w, "\t_ \"%s/internal/plugins/%s\"\n", module, name)
+		fmt.Fprintf(w, "\t_ \"%s/internal/component/bgp/plugins/%s\"\n", module, name)
 	}
 	fmt.Fprintln(w, ")")
 	fmt.Fprintln(w)
