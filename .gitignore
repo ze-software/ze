@@ -17,6 +17,9 @@ research/output/
 coverage.out
 coverage.html
 
+# Python
+__pycache__/
+
 # macOS
 .DS_Store
 
