@@ -225,7 +225,6 @@ func TestConn_ReaderError_Propagates(t *testing.T) {
 // VALIDATES: AC-1, AC-11 — Goroutine count stable across many calls.
 // PREVENTS: Goroutine leak from per-call spawning.
 func TestConn_NoGoroutineLeak(t *testing.T) {
-	t.Parallel()
 
 	clientEnd, serverEnd := net.Pipe()
 	defer closePipe(t, "clientEnd", clientEnd)
