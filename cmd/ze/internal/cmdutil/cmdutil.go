@@ -1,4 +1,7 @@
 // Design: docs/architecture/api/commands.md — shared CLI command utilities
+// Related: ../../run/main.go — ze run consumer
+// Related: ../../show/main.go — ze show consumer
+// Related: ../../cli/main.go — CLI client and BuildCommandTree
 //
 // Package cmdutil provides shared logic for ze show and ze run subcommands.
 // Both commands discover commands dynamically from RPC registrations and delegate

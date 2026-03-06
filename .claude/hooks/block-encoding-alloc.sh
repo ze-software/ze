@@ -24,7 +24,7 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
 fi
 
 # Only check hot-path encoding — UPDATE building and message packing.
-# Plugin encode.go, helpers.go, and reactor_registry.go are NOT hot path
+# Plugin encode.go and helpers.go are NOT hot path
 # (CLI/registry/API routes called at human speed — pools are wrong there).
 IS_ENCODE=0
 if [[ "$FILE_PATH" =~ update_build ]]; then

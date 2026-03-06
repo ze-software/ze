@@ -1,5 +1,7 @@
 // Design: docs/architecture/api/commands.md — show convenience command
 // Related: ../run/main.go — ze run (all commands)
+// Related: ../cli/main.go — CLI client and BuildCommandTree
+// Related: ../internal/cmdutil/cmdutil.go — shared command utilities
 //
 // Package show provides the ze show subcommand.
 // It discovers available read-only commands dynamically from the RPC registrations

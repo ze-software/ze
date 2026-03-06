@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — interactive CLI
 // Related: ../run/main.go — run convenience command (uses BuildCommandTree)
 // Related: ../show/main.go — show convenience command (uses BuildCommandTree)
+// Related: ../internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
 //
 // Package cli provides the ze cli subcommand.
 package cli
