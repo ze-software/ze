@@ -503,7 +503,7 @@ func TestHandleCommand_Unknown(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for unknown command")
 	}
-	if status != "error" {
+	if status != statusError {
 		t.Errorf("expected status error, got %q", status)
 	}
 }
@@ -1654,5 +1654,157 @@ func TestSelectForwardTargetsReusesBuffer(t *testing.T) {
 
 	if firstPtr != secondPtr {
 		t.Error("second call allocated a new backing array instead of reusing buffer")
+	}
+}
+
+// --- EOR tests ---
+
+// TestReplayForPeer_SendsEOR verifies EOR sent per family after replay completes.
+//
+// VALIDATES: AC-5 — peer up triggers EOR per negotiated family after replay.
+// PREVENTS: Missing End-of-RIB marker causing peers to never leave initial table exchange.
+func TestReplayForPeer_SendsEOR(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
+
+	var mu sync.Mutex
+	var commands []string
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		commands = append(commands, peer+"\t"+cmd)
+		mu.Unlock()
+	}
+
+	// Set up peer with two families.
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address:  "10.0.0.1",
+		Up:       true,
+		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	time.Sleep(200 * time.Millisecond) // Let replay goroutine complete.
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	// Collect EOR commands.
+	var eorCmds []string
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "eor") {
+			eorCmds = append(eorCmds, cmd)
+		}
+	}
+	if len(eorCmds) != 2 {
+		t.Fatalf("expected 2 EOR commands (one per family), got %d: %v", len(eorCmds), eorCmds)
+	}
+
+	// Verify both families got EOR.
+	hasIPv4 := slices.ContainsFunc(eorCmds, func(s string) bool {
+		return strings.Contains(s, "ipv4/unicast")
+	})
+	hasIPv6 := slices.ContainsFunc(eorCmds, func(s string) bool {
+		return strings.Contains(s, "ipv6/unicast")
+	})
+	if !hasIPv4 {
+		t.Error("missing EOR for ipv4/unicast")
+	}
+	if !hasIPv6 {
+		t.Error("missing EOR for ipv6/unicast")
+	}
+
+	// Verify command format: peer selector is the peer address, command contains "update text nlri <family> eor".
+	for _, cmd := range eorCmds {
+		if !strings.HasPrefix(cmd, "10.0.0.1\t") {
+			t.Errorf("EOR command should target peer 10.0.0.1, got: %s", cmd)
+		}
+		if !strings.Contains(cmd, "update text nlri") {
+			t.Errorf("EOR command has wrong format: %s", cmd)
+		}
+	}
+}
+
+// TestReplayForPeer_NoFamilies_NoEOR verifies no EOR sent when peer has no families.
+//
+// VALIDATES: AC-5 edge case — peer with empty/nil families does not trigger EOR.
+// PREVENTS: Panic or spurious EOR for peers without negotiated families.
+func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusDone, `{"last-index":0,"replayed":0}`, nil
+	}
+
+	var mu sync.Mutex
+	var commands []string
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		commands = append(commands, cmd)
+		mu.Unlock()
+	}
+
+	// Peer with nil families (OPEN not yet processed).
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address: "10.0.0.1",
+		Up:      true,
+	}
+	rs.mu.Unlock()
+
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "eor") {
+			t.Errorf("expected no EOR commands for peer without families, got: %s", cmd)
+		}
+	}
+}
+
+// TestReplayForPeer_FailedReplay_NoEOR verifies no EOR sent when replay fails.
+//
+// VALIDATES: AC-5 error path — failed replay does not send EOR.
+// PREVENTS: EOR sent before any routes were actually replayed.
+func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
+	rs := newTestRouteServer(t)
+
+	rs.dispatchCommandHook = func(cmd string) (string, string, error) {
+		return statusError, "", fmt.Errorf("replay failed")
+	}
+
+	var mu sync.Mutex
+	var commands []string
+	rs.updateRouteHook = func(peer, cmd string) {
+		mu.Lock()
+		commands = append(commands, cmd)
+		mu.Unlock()
+	}
+
+	rs.mu.Lock()
+	rs.peers["10.0.0.1"] = &PeerState{
+		Address:  "10.0.0.1",
+		Up:       true,
+		Families: map[string]bool{"ipv4/unicast": true},
+	}
+	rs.mu.Unlock()
+
+	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	time.Sleep(200 * time.Millisecond)
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	for _, cmd := range commands {
+		if strings.Contains(cmd, "eor") {
+			t.Errorf("expected no EOR after failed replay, got: %s", cmd)
+		}
 	}
 }

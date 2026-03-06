@@ -29,6 +29,9 @@ import (
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
 
+// statusError is the command response status for failed operations.
+const statusError = "error"
+
 // updateRouteTimeout is the context deadline for updateRoute RPC calls.
 // Set to 60s (was 10s) as defense-in-depth against transient congestion
 // when many concurrent workers send update-route RPCs.

@@ -7,6 +7,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 )
 
@@ -148,6 +149,34 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 		logger().Debug("delta replay caught new routes", "peer", peerAddr, "attempt", i, "replayed", replayed)
 		lastIndex = newLast
 	}
+
+	// Send End-of-RIB per negotiated family (RFC 4271).
+	// Re-check generation: peer may have reconnected during the delta loop.
+	rs.sendEOR(peerAddr, gen)
+}
+
+// sendEOR sends End-of-RIB markers for each of the peer's negotiated families.
+// Checks generation to avoid sending EOR from a stale replay goroutine.
+func (rs *RouteServer) sendEOR(peerAddr string, gen uint64) {
+	rs.mu.RLock()
+	p := rs.peers[peerAddr]
+	if p == nil || p.ReplayGen != gen || len(p.Families) == 0 {
+		rs.mu.RUnlock()
+		return
+	}
+	families := make([]string, 0, len(p.Families))
+	for f := range p.Families {
+		families = append(families, f)
+	}
+	rs.mu.RUnlock()
+
+	// Sort for deterministic ordering in tests and logs.
+	sort.Strings(families)
+
+	for _, family := range families {
+		rs.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", family))
+	}
+	logger().Info("sent EOR", "peer", peerAddr, "families", families)
 }
 
 // parseReplayResponse extracts last-index and replayed count from a replay response.
@@ -254,7 +283,7 @@ func (rs *RouteServer) handleCommand(command string) (string, string, error) {
 	case "rs peers":
 		return statusDone, rs.peersJSON(), nil
 	default: // fail on unknown command
-		return "error", "", fmt.Errorf("unknown command: %s", command)
+		return statusError, "", fmt.Errorf("unknown command: %s", command)
 	}
 }
 
