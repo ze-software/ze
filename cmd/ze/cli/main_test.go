@@ -529,7 +529,7 @@ func TestCLIClient_PrintResponseNestedData(t *testing.T) {
 // VALIDATES: Command tree has expected commands and hierarchy.
 // PREVENTS: Typos in command names or broken hierarchy.
 func TestCommandTree(t *testing.T) {
-	tree := buildCommandTree()
+	tree := BuildCommandTree(false)
 
 	// Check top-level commands exist
 	topLevel := []string{"daemon", "peer", "rib", "system"}

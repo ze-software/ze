@@ -284,8 +284,8 @@ func validateEventType(namespace, eventType string) error {
 // Part of the ze-bgp module — aggregated by BgpPluginRPCs().
 func subscribeRPCs() []RPCRegistration {
 	return []RPCRegistration{
-		{"ze-bgp:subscribe", "subscribe", handleSubscribe, "Subscribe to events"},
-		{"ze-bgp:unsubscribe", "unsubscribe", handleUnsubscribe, "Unsubscribe from events"},
+		{WireMethod: "ze-bgp:subscribe", CLICommand: "subscribe", Handler: handleSubscribe, Help: "Subscribe to events"},
+		{WireMethod: "ze-bgp:unsubscribe", CLICommand: "unsubscribe", Handler: handleUnsubscribe, Help: "Unsubscribe from events"},
 	}
 }
 

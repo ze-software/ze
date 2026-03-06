@@ -21,4 +21,5 @@ type RPCRegistration struct {
 	CLICommand string  // CLI text command (e.g., "bgp peer list")
 	Handler    Handler // Handler function
 	Help       string  // Human-readable description
+	ReadOnly   bool    // True if command only reads state (safe for "ze show")
 }

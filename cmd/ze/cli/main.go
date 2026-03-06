@@ -1,4 +1,6 @@
 // Design: docs/architecture/core-design.md — interactive CLI
+// Related: ../run/main.go — run convenience command (uses BuildCommandTree)
+// Related: ../show/main.go — show convenience command (uses BuildCommandTree)
 //
 // Package cli provides the ze cli subcommand.
 package cli
@@ -132,7 +134,7 @@ func newCLIClient(socketPath string) (*cliClient, error) {
 
 	// Build command map from all registered RPCs (builtins + BGP handlers)
 	cmdMap := make(map[string]string)
-	for _, reg := range allCLIRPCs() {
+	for _, reg := range AllCLIRPCs() {
 		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
 	}
 
@@ -316,20 +318,26 @@ func formatNumber(v any) any {
 	return v
 }
 
-// allCLIRPCs returns all RPCs needed for CLI command mapping.
+// AllCLIRPCs returns all RPCs needed for CLI command mapping.
 // Combines builtin RPCs with BGP handler RPCs (moved to handler/ package).
-func allCLIRPCs() []pluginserver.RPCRegistration {
+// Exported so other CLI commands (e.g., ze show) can build from the same source.
+func AllCLIRPCs() []pluginserver.RPCRegistration {
 	rpcs := pluginserver.AllBuiltinRPCs()
 	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
 	return rpcs
 }
 
-// buildCommandTree builds the command tree from registered RPCs.
+// BuildCommandTree builds the command tree from registered RPCs.
 // Strips the "bgp " prefix for BGP commands to create the user-facing tree.
-func buildCommandTree() *Command {
+// If readOnly is true, only includes RPCs marked ReadOnly (for "ze show").
+func BuildCommandTree(readOnly bool) *Command {
 	root := &Command{Children: make(map[string]*Command)}
 
-	for _, reg := range allCLIRPCs() {
+	for _, reg := range AllCLIRPCs() {
+		if readOnly && !reg.ReadOnly {
+			continue
+		}
+
 		cmd := reg.CLICommand
 
 		// Strip "bgp " prefix for BGP commands (user types "peer list", not "bgp peer list")
@@ -366,7 +374,7 @@ type Command struct {
 }
 
 // commandTree holds all available commands for completion.
-var commandTree = buildCommandTree()
+var commandTree = BuildCommandTree(false)
 
 // Styles.
 var (

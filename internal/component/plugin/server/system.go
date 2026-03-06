@@ -15,17 +15,17 @@ import (
 // operations affecting all plugins, not BGP-specific.
 func systemRPCs() []RPCRegistration {
 	return []RPCRegistration{
-		{"ze-system:help", "system help", handleSystemHelp, "Show available commands"},
-		{"ze-system:version-software", "system version software", handleSystemVersionSoftware, "Show ze version"},
-		{"ze-system:version-api", "system version api", handleSystemVersionAPI, "Show IPC protocol version"},
-		{"ze-system:daemon-shutdown", "daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon"},
-		{"ze-system:daemon-status", "daemon status", handleDaemonStatus, "Show daemon status"},
-		{"ze-system:daemon-reload", "daemon reload", handleDaemonReload, "Reload the configuration"},
-		{"ze-system:subsystem-list", "system subsystem list", handleSystemSubsystemList, "List available subsystems"},
-		{"ze-system:command-list", "system command list", handleSystemCommandList, "List all commands"},
-		{"ze-system:command-help", "system command help", handleSystemCommandHelp, "Show command details"},
-		{"ze-system:command-complete", "system command complete", handleSystemCommandComplete, "Complete command/args"},
-		{"ze-system:dispatch", "system dispatch", handleSystemDispatch, "Dispatch a text command"},
+		{WireMethod: "ze-system:help", CLICommand: "system help", Handler: handleSystemHelp, Help: "Show available commands", ReadOnly: true},
+		{WireMethod: "ze-system:version-software", CLICommand: "system version software", Handler: handleSystemVersionSoftware, Help: "Show ze version", ReadOnly: true},
+		{WireMethod: "ze-system:version-api", CLICommand: "system version api", Handler: handleSystemVersionAPI, Help: "Show IPC protocol version", ReadOnly: true},
+		{WireMethod: "ze-system:daemon-shutdown", CLICommand: "daemon shutdown", Handler: handleDaemonShutdown, Help: "Gracefully shutdown the daemon"},
+		{WireMethod: "ze-system:daemon-status", CLICommand: "daemon status", Handler: handleDaemonStatus, Help: "Show daemon status", ReadOnly: true},
+		{WireMethod: "ze-system:daemon-reload", CLICommand: "daemon reload", Handler: handleDaemonReload, Help: "Reload the configuration"},
+		{WireMethod: "ze-system:subsystem-list", CLICommand: "system subsystem list", Handler: handleSystemSubsystemList, Help: "List available subsystems", ReadOnly: true},
+		{WireMethod: "ze-system:command-list", CLICommand: "system command list", Handler: handleSystemCommandList, Help: "List all commands", ReadOnly: true},
+		{WireMethod: "ze-system:command-help", CLICommand: "system command help", Handler: handleSystemCommandHelp, Help: "Show command details", ReadOnly: true},
+		{WireMethod: "ze-system:command-complete", CLICommand: "system command complete", Handler: handleSystemCommandComplete, Help: "Complete command/args", ReadOnly: true},
+		{WireMethod: "ze-system:dispatch", CLICommand: "system dispatch", Handler: handleSystemDispatch, Help: "Dispatch a text command"},
 	}
 }
 
@@ -388,10 +388,13 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
 	defer cancel()
 	rpcOut, rpcErr := connB.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
-	if rpcErr != nil {
+	switch {
+	case rpcErr != nil:
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
-	} else if rpcOut != nil {
+	case rpcOut != nil:
 		ctx.Dispatcher().Pending().Complete(serial, &plugin.Response{Status: rpcOut.Status, Data: rpcOut.Data})
+	case rpcOut == nil: // no output and no error — complete with empty result
+		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 	}
 
 	// Wait for response

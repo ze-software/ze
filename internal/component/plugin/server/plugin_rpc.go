@@ -12,10 +12,10 @@ import (
 // Part of the ze-plugin module — aggregated by PluginLifecycleRPCs().
 func pluginRPCs() []RPCRegistration {
 	return []RPCRegistration{
-		{"ze-plugin:help", "plugin help", handlePluginHelp, "List plugin subcommands"},
-		{"ze-plugin:command-list", "plugin command list", handlePluginCommandList, "List plugin commands"},
-		{"ze-plugin:command-help", "plugin command help", handlePluginCommandHelp, "Show command details"},
-		{"ze-plugin:command-complete", "plugin command complete", handlePluginCommandComplete, "Complete command/args"},
+		{WireMethod: "ze-plugin:help", CLICommand: "plugin help", Handler: handlePluginHelp, Help: "List plugin subcommands", ReadOnly: true},
+		{WireMethod: "ze-plugin:command-list", CLICommand: "plugin command list", Handler: handlePluginCommandList, Help: "List plugin commands", ReadOnly: true},
+		{WireMethod: "ze-plugin:command-help", CLICommand: "plugin command help", Handler: handlePluginCommandHelp, Help: "Show command details", ReadOnly: true},
+		{WireMethod: "ze-plugin:command-complete", CLICommand: "plugin command complete", Handler: handlePluginCommandComplete, Help: "Complete command/args", ReadOnly: true},
 	}
 }
 

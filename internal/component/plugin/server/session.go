@@ -15,10 +15,10 @@ var ErrSilent = errors.New("silent")
 // sessionRPCs returns RPC registrations for handlers defined in this file.
 func sessionRPCs() []RPCRegistration {
 	return []RPCRegistration{
-		{"ze-plugin:session-ready", "plugin session ready", handlePluginSessionReady, "Signal plugin init complete"},
-		{"ze-plugin:peer-session-ready", "bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete"},
-		{"ze-plugin:session-ping", "plugin session ping", handlePluginSessionPing, "Health check (returns PID)"},
-		{"ze-plugin:session-bye", "plugin session bye", handlePluginSessionBye, "Disconnect"},
+		{WireMethod: "ze-plugin:session-ready", CLICommand: "plugin session ready", Handler: handlePluginSessionReady, Help: "Signal plugin init complete"},
+		{WireMethod: "ze-plugin:peer-session-ready", CLICommand: "bgp peer plugin session ready", Handler: handlePluginSessionReady, Help: "Signal peer-specific plugin init complete"},
+		{WireMethod: "ze-plugin:session-ping", CLICommand: "plugin session ping", Handler: handlePluginSessionPing, Help: "Health check (returns PID)", ReadOnly: true},
+		{WireMethod: "ze-plugin:session-bye", CLICommand: "plugin session bye", Handler: handlePluginSessionBye, Help: "Disconnect"},
 	}
 }
 

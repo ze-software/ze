@@ -17,11 +17,11 @@ import (
 // Only meta-commands that need Dispatcher access remain here.
 func RibMetaRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-rib:help", CLICommand: "rib help", Handler: handleRibHelp, Help: "Show RIB subcommands"},
-		{WireMethod: "ze-rib:command-list", CLICommand: "rib command list", Handler: handleRibCommandList, Help: "List RIB commands"},
-		{WireMethod: "ze-rib:command-help", CLICommand: "rib command help", Handler: handleRibCommandHelp, Help: "Show RIB command details"},
-		{WireMethod: "ze-rib:command-complete", CLICommand: "rib command complete", Handler: handleRibCommandComplete, Help: "Complete RIB command/args"},
-		{WireMethod: "ze-rib:event-list", CLICommand: "rib event list", Handler: handleRibEventList, Help: "List RIB event types"},
+		{WireMethod: "ze-rib:help", CLICommand: "rib help", Handler: handleRibHelp, Help: "Show RIB subcommands", ReadOnly: true},
+		{WireMethod: "ze-rib:command-list", CLICommand: "rib command list", Handler: handleRibCommandList, Help: "List RIB commands", ReadOnly: true},
+		{WireMethod: "ze-rib:command-help", CLICommand: "rib command help", Handler: handleRibCommandHelp, Help: "Show RIB command details", ReadOnly: true},
+		{WireMethod: "ze-rib:command-complete", CLICommand: "rib command complete", Handler: handleRibCommandComplete, Help: "Complete RIB command/args", ReadOnly: true},
+		{WireMethod: "ze-rib:event-list", CLICommand: "rib event list", Handler: handleRibEventList, Help: "List RIB event types", ReadOnly: true},
 	}
 }
 

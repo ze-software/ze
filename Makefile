@@ -170,9 +170,10 @@ ze-fuzz-one:
 	go test -fuzz=$(FUZZ) -fuzztime=$(TIME) $(PKG)
 
 # Run ExaBGP compatibility tests (Ze encoding matches ExaBGP)
+# Uses uv to auto-install psutil dependency
 ze-exabgp-test: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
-	./test/exabgp-compat/bin/functional encoding --timeout 60
+	uv run --with psutil ./test/exabgp-compat/bin/functional encoding --timeout 60
 
 # Run all ze tests (use before commits)
 ze-test: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test ze-fuzz-test

@@ -17,8 +17,8 @@ import (
 // PeerOpsRPCs returns BGP RPCs for peer operations.
 func PeerOpsRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)"},
-		{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details"},
+		{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
+		{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details", ReadOnly: true},
 		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode"},
 		{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically"},
 		{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically"},
@@ -30,11 +30,11 @@ func PeerOpsRPCs() []pluginserver.RPCRegistration {
 // IntrospectionRPCs returns RPC registrations for BGP introspection and plugin config.
 func IntrospectionRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands"},
-		{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands"},
-		{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details"},
-		{WireMethod: "ze-bgp:command-complete", CLICommand: "bgp command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args"},
-		{WireMethod: "ze-bgp:event-list", CLICommand: "bgp event list", Handler: handleBgpEventList, Help: "List available BGP event types"},
+		{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands", ReadOnly: true},
+		{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands", ReadOnly: true},
+		{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
+		{WireMethod: "ze-bgp:command-complete", CLICommand: "bgp command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
+		{WireMethod: "ze-bgp:event-list", CLICommand: "bgp event list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
 		{WireMethod: "ze-bgp:plugin-encoding", CLICommand: "bgp plugin encoding", Handler: handleBgpPluginEncoding, Help: "Set event encoding (json|text)"},
 		{WireMethod: "ze-bgp:plugin-format", CLICommand: "bgp plugin format", Handler: handleBgpPluginFormat, Help: "Set wire format (hex|base64|parsed|full)"},
 		{WireMethod: "ze-bgp:plugin-ack", CLICommand: "bgp plugin ack", Handler: handleBgpPluginAck, Help: "Set ACK timing (sync|async)"},

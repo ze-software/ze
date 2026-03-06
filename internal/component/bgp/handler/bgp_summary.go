@@ -14,8 +14,8 @@ import (
 // SummaryRPCs returns RPC registrations for BGP summary and capability commands.
 func SummaryRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:summary", CLICommand: "bgp summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)"},
-		{WireMethod: "ze-bgp:peer-capabilities", CLICommand: "bgp peer capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)"},
+		{WireMethod: "ze-bgp:summary", CLICommand: "bgp summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)", ReadOnly: true},
+		{WireMethod: "ze-bgp:peer-capabilities", CLICommand: "bgp peer capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)", ReadOnly: true},
 		{WireMethod: "ze-bgp:peer-clear-soft", CLICommand: "bgp peer clear soft", Handler: handleBgpPeerClearSoft, Help: "Soft-clear peer (send ROUTE-REFRESH for all families)"},
 	}
 }
