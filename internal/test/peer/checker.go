@@ -363,8 +363,10 @@ func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool)
 		}
 	}
 
-	// No match - if KEEPALIVE, silently accept
-	if msg.IsKeepalive() {
+	// No match - if KEEPALIVE or EOR, silently accept.
+	// EOR (End-of-RIB) may arrive before expected messages due to
+	// initial route sync racing with the read loop.
+	if msg.IsKeepalive() || msg.IsEOR() {
 		return false, true
 	}
 

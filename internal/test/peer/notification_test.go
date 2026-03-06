@@ -177,3 +177,79 @@ func TestCheckerNoNotificationAction(t *testing.T) {
 		t.Error("expect:bgp should not be treated as notification action")
 	}
 }
+
+// TestCheckerEORSilentAccept verifies that unexpected EOR messages are
+// silently accepted when pending expectations exist, just like KEEPALIVEs.
+//
+// VALIDATES: EOR arriving before expected messages does not cause mismatch.
+// PREVENTS: Flaky tests when initial sync EOR races with the read loop.
+func TestCheckerEORSilentAccept(t *testing.T) {
+	// Expect a NOTIFICATION (error code 1, subcode 0, text data).
+	notifHex := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004003010063616E206E6F74206465636F646520757064617465206D657373616765206F662074797065202232353522"
+	expected := []string{"expect=bgp:conn=1:seq=1:hex=" + notifHex}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
+	c.Init()
+
+	// Build an IPv4 unicast EOR message (empty UPDATE: marker + 0017 + type 02 + 00000000).
+	eorHeader := make([]byte, HeaderLen)
+	copy(eorHeader, Marker)
+	eorHeader[16] = 0x00
+	eorHeader[17] = 0x17
+	eorHeader[18] = MsgUPDATE
+	eorBody := []byte{0x00, 0x00, 0x00, 0x00}
+	eorMsg := &Message{Header: eorHeader, Body: eorBody}
+
+	// EOR should be silently accepted (not match, not fail).
+	matched, silent := c.ExpectedOrKeepalive(eorMsg)
+	if matched {
+		t.Error("EOR should not match NOTIFICATION expectation")
+	}
+	if !silent {
+		t.Error("EOR should be silently accepted when pending expectations exist")
+	}
+
+	// Now send the expected NOTIFICATION — it should match.
+	notifBytes, _ := hex.DecodeString(notifHex)
+	notifMsg := &Message{Header: notifBytes[:HeaderLen], Body: notifBytes[HeaderLen:]}
+	matched, silent = c.ExpectedOrKeepalive(notifMsg)
+	if !matched {
+		t.Error("NOTIFICATION should match the pending expectation")
+	}
+	if silent {
+		t.Error("NOTIFICATION match should not be silent")
+	}
+}
+
+// TestCheckerEORExplicitExpectation verifies that explicitly expected EOR
+// messages are matched normally and not silently swallowed.
+//
+// VALIDATES: EOR in expectations is consumed by hex match, not silent accept.
+// PREVENTS: Silent accept masking a missing EOR that was explicitly expected.
+func TestCheckerEORExplicitExpectation(t *testing.T) {
+	eorHex := "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"
+	expected := []string{"expect=bgp:conn=1:seq=1:hex=" + eorHex}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
+	c.Init()
+
+	eorHeader := make([]byte, HeaderLen)
+	copy(eorHeader, Marker)
+	eorHeader[16] = 0x00
+	eorHeader[17] = 0x17
+	eorHeader[18] = MsgUPDATE
+	eorBody := []byte{0x00, 0x00, 0x00, 0x00}
+	eorMsg := &Message{Header: eorHeader, Body: eorBody}
+
+	matched, silent := c.ExpectedOrKeepalive(eorMsg)
+	if !matched {
+		t.Error("explicitly expected EOR should be matched, not silently accepted")
+	}
+	if silent {
+		t.Error("matched EOR should not be silent")
+	}
+}

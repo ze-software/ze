@@ -448,12 +448,14 @@ func (c *Completer) matchChildren(path []string, prefix string) []Completion {
 		return c.valueCompletions(entry, prefix)
 	}
 
-	// Get children, excluding list key (it's implicit in the identifier position)
+	// Get children, excluding list key when inside an entry (key already set as identifier).
+	// When AT the list level (no key provided yet), show the key so users can set it.
 	var completions []Completion
 	children := c.getSortedChildren(entry)
+	skipKey := entry.IsList() && !c.isListNeedingKey(path)
 
 	for _, name := range children {
-		if entry.IsList() && entry.Key == name {
+		if skipKey && entry.Key == name {
 			continue // Skip list key — already set as the identifier
 		}
 		if prefix == "" || strings.HasPrefix(name, prefix) {

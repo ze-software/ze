@@ -52,13 +52,13 @@ func TestCompleterSetPartialKeyword(t *testing.T) {
 func TestCompleterNestedPath(t *testing.T) {
 	c := NewCompleter()
 
-	// Inside bgp.peer context, should show peer children from YANG
+	// At bgp.peer list level (no key selected), should show all children including key
 	completions := c.Complete("set ", []string{"bgp", "peer"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "peer-as")
-	assert.NotContains(t, texts, "address", "list key 'address' should not appear in completions")
+	assert.Contains(t, texts, "address", "list key 'address' should appear at list level")
 }
 
 func TestCompleterValueTypeHints(t *testing.T) {
@@ -290,6 +290,7 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 	assert.Contains(t, texts, "peer-as", "should show peer children after key")
 	assert.Contains(t, texts, "hold-time", "should show peer children after key")
 	assert.NotContains(t, texts, "<value>", "should not show key hint inside peer")
+	assert.NotContains(t, texts, "address", "list key 'address' hidden inside entry")
 }
 
 // TestCompleterListKeyEmptyShowsHint verifies that empty list key position
