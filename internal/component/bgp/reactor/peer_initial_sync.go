@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"time"
 
@@ -18,6 +19,19 @@ import (
 // Routes with identical attributes are grouped into a single UPDATE message.
 // Uses atomic flag to prevent concurrent execution if session reconnects quickly.
 func (p *Peer) sendInitialRoutes() {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			peerLogger().Error("sendInitialRoutes panic recovered",
+				"peer", p.settings.Address,
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+			// Clear flag so ShouldQueue() returns false and peer isn't stuck.
+			p.sendingInitialRoutes.Store(0)
+		}
+	}()
 	addr := p.settings.Address.String()
 	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 

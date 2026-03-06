@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -718,8 +719,12 @@ func (p *Peer) run() {
 		default: // no cancellation pending
 		}
 
-		// Attempt connection
-		err := p.runOnce()
+		// Attempt connection with panic recovery.
+		// Any panic within the session lifecycle (connect, FSM, message handling)
+		// is caught and treated as a connection error, triggering reconnect with
+		// backoff rather than killing the peer goroutine. This matches ExaBGP's
+		// failure domain model: per-peer faults cause session teardown, not daemon crash.
+		err := p.safeRunOnce()
 
 		select {
 		case <-p.ctx.Done():
@@ -764,6 +769,26 @@ func (p *Peer) run() {
 			delay = p.reconnectMin
 		}
 	}
+}
+
+// safeRunOnce wraps runOnce with panic recovery. If runOnce panics, the panic
+// is logged with a stack trace and converted to an error so the reconnect loop
+// in run() handles it with normal backoff. This is the primary failure domain
+// boundary: any bug in session lifecycle triggers reconnection, not daemon crash.
+func (p *Peer) safeRunOnce() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			peerLogger().Error("session panic recovered",
+				"peer", p.settings.Address,
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+			err = fmt.Errorf("panic in session: %v", r)
+		}
+	}()
+	return p.runOnce()
 }
 
 // runOnce attempts a single connection cycle.
@@ -904,6 +929,21 @@ func (p *Peer) runOnce() error {
 
 	go func() {
 		defer close(deliveryDone)
+		// Recovery exits the loop — remaining buffered items are dropped.
+		// This is intentional: a panic indicates a bug, and the session will
+		// be torn down (runOnce waits on <-deliveryDone). The recovery ensures
+		// deliveryDone closes so shutdown isn't blocked, not continued processing.
+		defer func() {
+			if r := recover(); r != nil {
+				buf := make([]byte, 4096)
+				n := runtime.Stack(buf, false)
+				peerLogger().Error("delivery goroutine panic recovered",
+					"peer", p.settings.Address,
+					"panic", r,
+					"stack", string(buf[:n]),
+				)
+			}
+		}()
 		var batchBuf []deliveryItem
 		for first := range p.deliverChan {
 			batchBuf = drainDeliveryBatch(batchBuf, first, p.deliverChan)

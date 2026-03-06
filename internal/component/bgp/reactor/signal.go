@@ -6,6 +6,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"runtime"
 	"sync"
 	"syscall"
 
@@ -128,9 +129,26 @@ func (h *SignalHandler) run() {
 			return
 
 		case sig := <-h.sigChan:
-			h.handleSignal(sig)
+			h.safeHandleSignal(sig)
 		}
 	}
+}
+
+// safeHandleSignal wraps handleSignal with panic recovery so that a panic
+// in a signal callback doesn't kill the signal handling loop.
+func (h *SignalHandler) safeHandleSignal(sig os.Signal) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			reactorLogger().Error("signal handler panic recovered",
+				"signal", sig,
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+		}
+	}()
+	h.handleSignal(sig)
 }
 
 // handleSignal dispatches a signal to the appropriate callback.

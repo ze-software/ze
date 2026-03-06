@@ -4,6 +4,7 @@
 package bgp_rs
 
 import (
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -196,6 +197,20 @@ func (wp *workerPool) ensureDraining(_ workerKey, w *worker) {
 // into the channel as space opens. Exits when overflow is empty or closeCh fires.
 func (wp *workerPool) drainLoop(w *worker) {
 	defer w.drainWg.Done()
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			logger().Error("drain loop panic recovered",
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+			// Clear draining flag so peer shutdown isn't blocked.
+			w.overflowMu.Lock()
+			w.draining = false
+			w.overflowMu.Unlock()
+		}
+	}()
 
 	for {
 		w.overflowMu.Lock()

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"net"
+	"runtime"
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
@@ -150,6 +151,17 @@ func (l *Listener) acceptLoop() {
 
 	// Close listener on context cancellation to unblock Accept().
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				buf := make([]byte, 4096)
+				n := runtime.Stack(buf, false)
+				sessionLogger().Error("listener cancel goroutine panic recovered",
+					"addr", l.addr,
+					"panic", r,
+					"stack", string(buf[:n]),
+				)
+			}
+		}()
 		<-l.ctx.Done()
 		l.mu.RLock()
 		ln := l.listener
@@ -179,13 +191,34 @@ func (l *Listener) acceptLoop() {
 		l.mu.RUnlock()
 
 		if handler != nil {
-			go handler(conn)
+			go l.safeHandle(conn, handler)
 		} else {
 			if err := conn.Close(); err != nil {
 				sessionLogger().Debug("close unhandled conn", "err", err)
 			}
 		}
 	}
+}
+
+// safeHandle wraps a connection handler with panic recovery so that a panic
+// in one connection's handler doesn't kill the accept loop or leak connections.
+func (l *Listener) safeHandle(conn net.Conn, handler ConnectionHandler) {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			sessionLogger().Error("connection handler panic recovered",
+				"addr", l.addr,
+				"remote", conn.RemoteAddr(),
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+			if err := conn.Close(); err != nil {
+				sessionLogger().Debug("close after handler panic", "err", err)
+			}
+		}
+	}()
+	handler(conn)
 }
 
 // cleanup runs when listener stops.

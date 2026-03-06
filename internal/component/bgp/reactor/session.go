@@ -15,6 +15,7 @@ import (
 	"errors"
 	"net"
 	"net/netip"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -445,6 +446,19 @@ func (s *Session) Run(ctx context.Context) error {
 	// to unblock ReadFull. Sets closeReason before closing so the read loop
 	// can distinguish cancel from hold timer from teardown.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				buf := make([]byte, 4096)
+				n := runtime.Stack(buf, false)
+				sessionLogger().Error("session cancel goroutine panic recovered",
+					"peer", s.settings.Address,
+					"panic", r,
+					"stack", string(buf[:n]),
+				)
+				// Best-effort cleanup: close connection to unblock read loop.
+				s.closeConn()
+			}
+		}()
 		var reason error
 		select {
 		case <-ctx.Done():

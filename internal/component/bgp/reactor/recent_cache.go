@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"errors"
+	"runtime"
 	"sync"
 	"time"
 
@@ -196,9 +197,25 @@ func (c *RecentUpdateCache) gapScanLoop(ticker clock.Ticker) {
 		case <-c.stopCh:
 			return
 		case <-ticker.C():
-			c.runGapScan()
+			c.safeRunGapScan()
 		}
 	}
+}
+
+// safeRunGapScan wraps runGapScan with panic recovery so that a panic
+// in the scan doesn't kill the background maintenance loop.
+func (c *RecentUpdateCache) safeRunGapScan() {
+	defer func() {
+		if r := recover(); r != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			reactorLogger().Error("gap scan panic recovered",
+				"panic", r,
+				"stack", string(buf[:n]),
+			)
+		}
+	}()
+	c.runGapScan()
 }
 
 // runGapScan executes the gap-based safety valve scan under write lock.

@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -733,6 +734,16 @@ func (r *Reactor) Wait(ctx context.Context) error {
 // monitor watches for shutdown and cleans up.
 func (r *Reactor) monitor() {
 	defer r.wg.Done()
+	defer func() {
+		if rec := recover(); rec != nil {
+			buf := make([]byte, 4096)
+			n := runtime.Stack(buf, false)
+			reactorLogger().Error("monitor panic recovered",
+				"panic", rec,
+				"stack", string(buf[:n]),
+			)
+		}
+	}()
 
 	<-r.ctx.Done()
 
