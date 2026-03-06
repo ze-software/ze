@@ -240,6 +240,13 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 	if !hasIPv6 {
 		t.Error("missing EOR for ipv6/unicast")
 	}
+
+	// Verify EOR command format matches engine's ParseUpdateText format.
+	for _, cmd := range eorCmds {
+		if !strings.Contains(cmd, "update text nlri") {
+			t.Errorf("EOR command has wrong format (want 'update text nlri <family> eor'): %s", cmd)
+		}
+	}
 }
 
 // TestPersist_HandleOpen verifies OPEN event captures families.

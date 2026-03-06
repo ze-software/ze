@@ -1,0 +1,5 @@
+# plugin-persist-features - verify persist plugin --features output
+# Tests that ze plugin bgp-persist --features exits successfully
+
+cmd=foreground:seq=1:exec=ze plugin bgp-persist --features
+expect=exit:code=0

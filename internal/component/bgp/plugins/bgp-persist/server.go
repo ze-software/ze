@@ -295,7 +295,7 @@ func (ps *PersistServer) peerFamilies(peerAddr string) map[string]bool {
 // sendEOR sends End-of-RIB markers for each negotiated family.
 func (ps *PersistServer) sendEOR(peerAddr string, families map[string]bool) {
 	for family := range families {
-		ps.updateRoute(peerAddr, fmt.Sprintf("bgp eor %s %s", family, peerAddr))
+		ps.updateRoute(peerAddr, fmt.Sprintf("update text nlri %s eor", family))
 	}
 }
 
