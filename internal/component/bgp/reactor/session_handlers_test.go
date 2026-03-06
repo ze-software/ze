@@ -346,6 +346,60 @@ func TestHandleRouteRefresh_UnknownSubtype(t *testing.T) {
 	}
 }
 
+// TestHandleRouteRefresh_NoCapability verifies ROUTE-REFRESH is ignored when
+// Route Refresh capability was not negotiated.
+// RFC 2918 Section 3: receiver SHOULD advertise capability.
+func TestHandleRouteRefresh_NoCapability(t *testing.T) {
+	s := newOpenSentSession(t)
+
+	// Set negotiated without RouteRefresh
+	s.negotiated = capability.Negotiate(
+		[]capability.Capability{
+			&capability.ASN4{ASN: 65001},
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		},
+		[]capability.Capability{
+			&capability.ASN4{ASN: 65002},
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		},
+		65001, 65002,
+	)
+
+	// Valid ROUTE-REFRESH body: AFI=1 (IPv4), Subtype=0 (normal), SAFI=1 (Unicast)
+	body := []byte{0x00, 0x01, 0x00, 0x01}
+
+	err := s.handleRouteRefresh(body)
+	assert.NoError(t, err) // Silently ignored, no error
+}
+
+// TestHandleRouteRefresh_NonNegotiatedFamily verifies ROUTE-REFRESH for a non-negotiated
+// address family is ignored.
+// RFC 2918 Section 4: SHOULD ignore for AFI/SAFI not advertised.
+func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
+	s := newOpenSentSession(t)
+
+	// Negotiate with IPv4 unicast and RouteRefresh
+	s.negotiated = capability.Negotiate(
+		[]capability.Capability{
+			&capability.ASN4{ASN: 65001},
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+			&capability.RouteRefresh{},
+		},
+		[]capability.Capability{
+			&capability.ASN4{ASN: 65002},
+			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+			&capability.RouteRefresh{},
+		},
+		65001, 65002,
+	)
+
+	// Request ROUTE-REFRESH for IPv6 unicast (not negotiated)
+	body := []byte{0x00, 0x02, 0x00, 0x01} // AFI=2 (IPv6), Subtype=0, SAFI=1
+
+	err := s.handleRouteRefresh(body)
+	assert.NoError(t, err) // Silently ignored
+}
+
 // TestHandleUpdate_FamilyMismatchIgnoreMode verifies IgnoreFamilyMismatch mode.
 // RFC 4760 Section 6: lenient mode logs but doesn't reject.
 func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {

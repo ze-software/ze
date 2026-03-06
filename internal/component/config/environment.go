@@ -247,9 +247,12 @@ func ResolveConfigPath(path string) string {
 		}
 	}
 	if configHome != "" {
-		candidate := filepath.Clean(configHome + "/ze/" + name)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
+		base := filepath.Join(configHome, "ze")
+		candidate := filepath.Join(base, name)
+		if strings.HasPrefix(candidate, base+string(filepath.Separator)) {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
 		}
 	}
 
@@ -262,9 +265,12 @@ func ResolveConfigPath(path string) string {
 		if dir == "" {
 			continue
 		}
-		candidate := filepath.Clean(dir + "/ze/" + name)
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate
+		base := filepath.Join(dir, "ze")
+		candidate := filepath.Join(base, name)
+		if strings.HasPrefix(candidate, base+string(filepath.Separator)) {
+			if _, err := os.Stat(candidate); err == nil {
+				return candidate
+			}
 		}
 	}
 

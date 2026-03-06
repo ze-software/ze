@@ -115,6 +115,35 @@ func TestDetectConfigType(t *testing.T) {
 	}
 }
 
+// TestIsLocalhostPprof verifies pprof address localhost validation.
+//
+// VALIDATES: Only loopback addresses are accepted for pprof.
+// PREVENTS: Exposing pprof on public interfaces (CWE-200).
+func TestIsLocalhostPprof(t *testing.T) {
+	tests := []struct {
+		name string
+		addr string
+		want bool
+	}{
+		{"localhost_ipv4", "127.0.0.1:6060", true},
+		{"localhost_ipv6", "[::1]:6060", true},
+		{"localhost_name", "localhost:6060", true},
+		{"all_interfaces", "0.0.0.0:6060", false},
+		{"empty_host", ":6060", false},
+		{"public_ip", "192.168.1.1:6060", false},
+		{"ipv6_all", "[::]:6060", false},
+		{"no_port", "127.0.0.1", false},
+		{"garbage", "not-an-address", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isLocalhostPprof(tt.addr)
+			assert.Equal(t, tt.want, got, "isLocalhostPprof(%q)", tt.addr)
+		})
+	}
+}
+
 // TestDetectConfigTypeFileError verifies error handling for missing files.
 //
 // VALIDATES: Missing file returns ConfigTypeUnknown.

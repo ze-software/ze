@@ -267,20 +267,19 @@ func (p *Peer) ResetAPISync(expectedCount int) {
 
 // SignalAPIReady is called when "plugin session ready" is received for this peer.
 // When all expected signals are received, unblocks waitForAPISync.
+//
+// Uses a single Lock (not RLock→WLock upgrade) to prevent a race where
+// ResetAPISync replaces apiSyncReady between the read and close operations.
 func (p *Peer) SignalAPIReady() {
 	count := p.apiSyncCount.Add(1)
-	p.mu.RLock()
+	p.mu.Lock()
 	expected := p.apiSyncExpected
-	ready := p.apiSyncReady
-	p.mu.RUnlock()
-
-	if count >= expected && ready != nil {
-		p.mu.Lock()
+	if count >= expected && p.apiSyncReady != nil {
 		p.apiSyncReadyOnce.Do(func() {
 			close(p.apiSyncReady)
 		})
-		p.mu.Unlock()
 	}
+	p.mu.Unlock()
 }
 
 // waitForAPISync blocks until all API processes signal ready or timeout.

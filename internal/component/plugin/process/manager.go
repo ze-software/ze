@@ -7,8 +7,6 @@ package process
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"sync"
 	"time"
 
@@ -22,6 +20,10 @@ const (
 
 	// RespawnWindow is the time window for respawn limit tracking.
 	RespawnWindow = 60 * time.Second
+
+	// MaxTotalRespawns is the cumulative respawn limit before permanent disable.
+	// Prevents a permanently broken plugin from cycling indefinitely across windows.
+	MaxTotalRespawns = 20
 )
 
 // Respawn errors.
@@ -39,6 +41,9 @@ type ProcessManager struct {
 	// Respawn tracking: name -> list of respawn timestamps
 	respawnTimes map[string][]time.Time
 
+	// Cumulative respawn counts (never reset)
+	totalRespawns map[string]int
+
 	// Disabled processes (respawn limit exceeded)
 	disabled map[string]bool
 
@@ -50,10 +55,11 @@ type ProcessManager struct {
 // NewProcessManager creates a new process manager.
 func NewProcessManager(configs []plugin.PluginConfig) *ProcessManager {
 	return &ProcessManager{
-		configs:      configs,
-		processes:    make(map[string]*Process),
-		respawnTimes: make(map[string][]time.Time),
-		disabled:     make(map[string]bool),
+		configs:       configs,
+		processes:     make(map[string]*Process),
+		respawnTimes:  make(map[string][]time.Time),
+		totalRespawns: make(map[string]int),
+		disabled:      make(map[string]bool),
 	}
 }
 
@@ -249,11 +255,20 @@ func (pm *ProcessManager) Respawn(name string) error {
 		}
 	}
 
-	// Check limit
+	// Check per-window limit
 	if len(validTimes) >= RespawnLimit {
 		pm.disabled[name] = true
-		fmt.Fprintf(os.Stderr, "PROCESS %s: respawn limit exceeded (%d in %v), process disabled\n",
-			name, RespawnLimit, RespawnWindow)
+		logger().Warn("respawn limit exceeded, process disabled",
+			"process", name, "limit", RespawnLimit, "window", RespawnWindow)
+		return ErrRespawnLimitExceeded
+	}
+
+	// Check cumulative limit (prevents cycling indefinitely across windows)
+	pm.totalRespawns[name]++
+	if pm.totalRespawns[name] > MaxTotalRespawns {
+		pm.disabled[name] = true
+		logger().Warn("cumulative respawn limit exceeded, process disabled",
+			"process", name, "total", pm.totalRespawns[name], "limit", MaxTotalRespawns)
 		return ErrRespawnLimitExceeded
 	}
 

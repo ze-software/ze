@@ -105,7 +105,10 @@ func ParseRegistrationText(text string) (DeclareRegistrationInput, error) {
 		if line == "" {
 			break
 		}
-		fields := tokenizeLine(line)
+		fields, err := tokenizeLine(line)
+		if err != nil {
+			return result, fmt.Errorf("text registration: %w", err)
+		}
 		if len(fields) < 2 {
 			return result, fmt.Errorf("text registration: short line: %q", line)
 		}
@@ -115,7 +118,7 @@ func ParseRegistrationText(text string) (DeclareRegistrationInput, error) {
 			return result, fmt.Errorf("text registration: unknown keyword %q", keyword)
 		}
 
-		var err error
+		err = nil // reset for per-keyword parsing
 		switch keyword {
 		case "family":
 			var f FamilyDecl
@@ -414,14 +417,27 @@ func ParseReadyText(text string) (ReadyInput, error) {
 
 // --- Helpers ---
 
-// tokenizeLine splits a line respecting double-quoted strings.
-func tokenizeLine(line string) []string {
+// tokenizeLine splits a line respecting double-quoted strings with backslash escapes.
+// Inside quotes: \" produces a literal quote, \\ produces a literal backslash.
+// Returns error on unclosed quotes.
+func tokenizeLine(line string) ([]string, error) {
 	var tokens []string
 	var current strings.Builder
 	inQuote := false
 
-	for i := range len(line) {
+	for i := 0; i < len(line); i++ {
 		ch := line[i]
+
+		// Handle backslash escapes inside quotes
+		if inQuote && ch == '\\' && i+1 < len(line) {
+			next := line[i+1]
+			if next == '"' || next == '\\' {
+				current.WriteByte(next)
+				i++
+				continue
+			}
+		}
+
 		switch {
 		case ch == '"':
 			inQuote = !inQuote
@@ -434,11 +450,16 @@ func tokenizeLine(line string) []string {
 			current.WriteByte(ch)
 		}
 	}
+
+	if inQuote {
+		return nil, fmt.Errorf("unclosed quote in line: %s", line)
+	}
+
 	if current.Len() > 0 {
 		tokens = append(tokens, current.String())
 	}
 
-	return tokens
+	return tokens, nil
 }
 
 func firstLine(lines []string) string {

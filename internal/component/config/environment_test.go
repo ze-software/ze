@@ -2,6 +2,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -209,6 +211,36 @@ func TestSocketPath(t *testing.T) {
 			t.Errorf("SocketPath() = %q, want %q", got, want)
 		}
 	})
+}
+
+// TestResolveConfigPathTraversal verifies path traversal prevention in XDG config search.
+//
+// VALIDATES: Config names with ../ do not escape the config directory.
+// PREVENTS: Path traversal via crafted config filenames (CWE-22).
+func TestResolveConfigPathTraversal(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a file outside the ze/ config dir
+	outside := filepath.Join(dir, "secret.conf")
+	if err := os.WriteFile(outside, []byte("secret"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create the ze/ config dir (empty)
+	zeDir := filepath.Join(dir, "ze")
+	if err := os.MkdirAll(zeDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	// Clear XDG_CONFIG_DIRS to avoid matching real system files
+	t.Setenv("XDG_CONFIG_DIRS", t.TempDir())
+
+	// Attempt traversal — should NOT resolve to the secret file
+	result := ResolveConfigPath("../secret.conf")
+	if result == outside {
+		t.Errorf("path traversal succeeded: resolved to %q", result)
+	}
 }
 
 // =============================================================================

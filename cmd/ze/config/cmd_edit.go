@@ -232,10 +232,14 @@ func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout tim
 		}
 	}
 
-	if err := os.WriteFile(path, nil, 0o600); err != nil {
+	// Use O_CREATE|O_EXCL for atomic create — prevents TOCTOU symlink attacks
+	// between the Stat check and file creation.
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600) //nolint:gosec // config path from user
+	if err != nil {
 		fmt.Fprintf(errw, "error: cannot create file: %v\n", err) //nolint:errcheck // terminal output
 		return false
 	}
+	f.Close() //nolint:errcheck,gosec // empty file, close error is non-fatal
 
 	return true
 }

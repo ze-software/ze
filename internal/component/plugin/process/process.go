@@ -553,6 +553,13 @@ func (p *Process) startExternal() error {
 		return fmt.Errorf("getting plugin files: %w", err)
 	}
 
+	// Validate Run command is not empty
+	if p.config.Run == "" {
+		closeFiles(pluginEngineFile, pluginCallbackFile)
+		pairs.Close()
+		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
+	}
+
 	// Create command
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
@@ -574,8 +581,8 @@ func (p *Process) startExternal() error {
 		return err
 	}
 
-	// Create new process group
-	p.cmd.SysProcAttr = nil // Default is fine for now
+	// Apply process resource limits (platform-specific)
+	p.cmd.SysProcAttr = newSysProcAttr()
 
 	// Start process
 	if err := p.cmd.Start(); err != nil {

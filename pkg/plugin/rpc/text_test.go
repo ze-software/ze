@@ -239,6 +239,44 @@ func TestTextRegistrationEdgeCases(t *testing.T) {
 	}
 }
 
+// TestTokenizeLineEscapes verifies backslash escape handling in tokenizer.
+//
+// VALIDATES: Escaped quotes and backslashes are handled correctly inside quotes.
+// PREVENTS: Protocol injection via unbalanced quotes (CWE-74).
+func TestTokenizeLineEscapes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		want    []string
+		wantErr bool
+	}{
+		{"simple", `foo bar`, []string{"foo", "bar"}, false},
+		{"quoted", `foo "bar baz"`, []string{"foo", "bar baz"}, false},
+		{"escaped_quote", `foo "bar\"baz"`, []string{"foo", `bar"baz`}, false},
+		{"escaped_backslash", `foo "bar\\baz"`, []string{"foo", `bar\baz`}, false},
+		{"unclosed_quote", `foo "bar`, nil, true},
+		{"empty_quoted", `foo ""`, []string{"foo"}, false},
+		{"multiple_spaces", `foo   bar`, []string{"foo", "bar"}, false},
+		{"backslash_outside_quotes", `foo b\ar`, []string{"foo", `b\ar`}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := tokenizeLine(tt.input)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // TestTextConfigHeredocRoundTrip verifies text format/parse round-trip for ConfigureInput with heredoc.
 //
 // VALIDATES: Config sections use heredoc-delimited JSON that round-trips correctly.

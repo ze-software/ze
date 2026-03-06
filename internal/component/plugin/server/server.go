@@ -238,6 +238,12 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 			return err
 		}
 
+		// Restrict socket permissions to owner only (CWE-732: no world access)
+		if err := os.Chmod(s.config.SocketPath, 0o600); err != nil {
+			listener.Close() //nolint:errcheck,gosec // cleanup on chmod failure
+			return fmt.Errorf("set socket permissions: %w", err)
+		}
+
 		s.listener = listener
 		s.running.Store(true)
 
