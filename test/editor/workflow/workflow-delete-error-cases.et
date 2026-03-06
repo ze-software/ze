@@ -1,0 +1,23 @@
+# Test: Delete error cases — missing args
+# VALIDATES: spec-editor-4 AC-7: delete without args returns error
+# PREVENTS: Delete command without arguments being accepted
+# NOTE: delete on nonexistent leaf/peer is currently a silent no-op (pre-existing)
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Delete without args
+input=type:text=delete
+input=enter
+expect=error:contains=usage
+expect=dirty:false

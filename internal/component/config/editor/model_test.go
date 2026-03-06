@@ -605,3 +605,107 @@ func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 	texts := completionTexts(m.Completions())
 	assert.Contains(t, texts, "peer-as", "should show peer-as in children")
 }
+
+// TestExitAfterDiscard verifies that "exit" works after set + discard.
+//
+// VALIDATES: AC-3 from spec-editor-1: exit works after set then discard.
+// PREVENTS: Exit blocked after discard clears dirty state.
+func TestExitAfterDiscard(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Set a value — makes editor dirty
+	_, err = model.dispatchCommand("set bgp router-id 5.6.7.8")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty(), "should be dirty after set")
+
+	// Discard — should clear dirty
+	_, err = model.dispatchCommand("discard")
+	require.NoError(t, err)
+	assert.False(t, ed.Dirty(), "should NOT be dirty after discard")
+
+	// Exit — should succeed
+	model.textInput.SetValue("exit")
+	newModel, cmd := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+	assert.True(t, m.quitting, "exit should succeed after discard")
+	assert.NotNil(t, cmd, "exit should return tea.Quit")
+}
+
+// TestExitAfterCommit verifies that "exit" works after set + commit.
+//
+// VALIDATES: AC-4 from spec-editor-1: exit works after set then commit.
+// PREVENTS: Exit blocked after commit clears dirty state.
+func TestExitAfterCommit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	// Set a value — makes editor dirty
+	_, err = model.dispatchCommand("set bgp router-id 5.6.7.8")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty(), "should be dirty after set")
+
+	// Commit — should save and clear dirty
+	_, err = model.dispatchCommand("commit")
+	require.NoError(t, err)
+	assert.False(t, ed.Dirty(), "should NOT be dirty after commit")
+
+	// Exit — should succeed
+	model.textInput.SetValue("exit")
+	newModel, cmd := model.handleEnter()
+	m, ok := newModel.(Model)
+	require.True(t, ok)
+	assert.True(t, m.quitting, "exit should succeed after commit")
+	assert.NotNil(t, cmd, "exit should return tea.Quit")
+}
+
+// TestNoFalseDirtyOnOpen verifies that opening the editor doesn't set dirty flag.
+//
+// VALIDATES: AC-5 from spec-editor-1: no false dirty on open.
+// PREVENTS: Serialization round-trip drift causing false dirty state.
+func TestNoFalseDirtyOnOpen(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	assert.False(t, ed.Dirty(), "editor should NOT be dirty immediately after open")
+
+	// Also verify with peer config (more complex serialization)
+	configPath2 := filepath.Join(tmpDir, "test2.conf")
+	err = os.WriteFile(configPath2, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed2, err := NewEditor(configPath2)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	assert.False(t, ed2.Dirty(), "editor should NOT be dirty with peer config")
+}

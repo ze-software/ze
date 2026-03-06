@@ -864,3 +864,73 @@ func TestEditorSetWorkingContentParse(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "5.6.7.8", rid)
 }
+
+// TestDirtyFalseAfterDiscard verifies that Dirty() returns false after Discard().
+//
+// VALIDATES: spec-editor-1 AC-3: Discard clears dirty flag.
+// PREVENTS: Dirty stuck true after discard, blocking exit.
+func TestDirtyFalseAfterDiscard(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte("bgp { router-id 1.2.3.4; }"), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	assert.False(t, ed.Dirty(), "should start clean")
+
+	// Mark dirty (simulates a set command)
+	ed.MarkDirty()
+	assert.True(t, ed.Dirty(), "should be dirty after MarkDirty")
+
+	// Discard
+	err = ed.Discard()
+	require.NoError(t, err)
+	assert.False(t, ed.Dirty(), "should NOT be dirty after Discard")
+}
+
+// TestSerializationRoundTrip verifies parse→serialize→parse produces same content.
+//
+// VALIDATES: spec-editor-1 AC-5: no false dirty from serialization drift.
+// PREVENTS: Re-serialization changing content, causing perceived dirty state.
+func TestSerializationRoundTrip(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{"simple", "bgp { router-id 1.2.3.4; }"},
+		{"with-peer", `bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			schema := config.YANGSchema()
+			require.NotNil(t, schema)
+
+			parser := config.NewParser(schema)
+			tree1, err := parser.Parse(tt.content)
+			require.NoError(t, err)
+
+			// Serialize (round-trip 1)
+			serialized1 := config.Serialize(tree1, schema)
+
+			// Parse again (round-trip 2)
+			tree2, err := parser.Parse(serialized1)
+			require.NoError(t, err)
+			serialized2 := config.Serialize(tree2, schema)
+
+			// Second round-trip must be stable
+			assert.Equal(t, serialized1, serialized2,
+				"serialization must be stable after first round-trip")
+		})
+	}
+}

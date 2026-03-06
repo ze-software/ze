@@ -5,6 +5,8 @@ package bus
 
 import (
 	"fmt"
+	"log/slog"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -199,14 +201,26 @@ func (b *Bus) findOrCreateWorker(consumer ze.Consumer) *worker {
 // deliveryLoop is the long-lived goroutine per consumer.
 // It drains all available events from the channel into a batch,
 // then delivers them in a single Deliver call.
+// Recovers from consumer panics to prevent one misbehaving consumer
+// from crashing the bus.
 func deliveryLoop(w *worker) {
 	defer close(w.done)
 
 	var buf []ze.Event
 	for first := range w.ch {
 		buf = drainBatch(buf, first, w.ch)
-		_ = w.consumer.Deliver(buf)
+		safeDeliver(w.consumer, buf)
 	}
+}
+
+// safeDeliver calls consumer.Deliver with panic recovery.
+func safeDeliver(c ze.Consumer, events []ze.Event) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			slog.Error("bus consumer panic", "panic", rec, "stack", string(debug.Stack()))
+		}
+	}()
+	_ = c.Deliver(events)
 }
 
 // drainBatch collects the first event plus all immediately available events.

@@ -17,7 +17,7 @@ import (
 // RawRPCs returns RPC registrations for raw message handlers.
 func RawRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:peer-raw", CLICommand: "bgp peer raw", Handler: handleRaw, Help: "Send raw bytes to peer (no validation)"},
+		{WireMethod: "ze-bgp:peer-raw", CLICommand: "bgp peer raw", Handler: handleRaw, Help: "Send raw bytes to peer (no validation)", RequiresSelector: true},
 	}
 }
 

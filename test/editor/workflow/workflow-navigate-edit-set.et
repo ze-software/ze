@@ -1,0 +1,49 @@
+# Test: Navigate, edit, set — full navigation workflow
+# VALIDATES: spec-editor-4: navigation + edit + set integration
+# PREVENTS: Context navigation breaking set command
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate into peer
+input=type:text=edit bgp peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Show current context content
+input=type:text=show
+input=enter
+expect=viewport:contains=peer-as
+expect=viewport:contains=hold-time
+
+# Set a value in context
+input=type:text=set hold-time 120
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+
+# Go up one level
+input=type:text=up
+input=enter
+expect=context:path=bgp
+
+# Go back to root
+input=type:text=top
+input=enter
+expect=context:root
+
+# Show full config
+input=type:text=show
+input=enter
+expect=viewport:contains=1.1.1.1

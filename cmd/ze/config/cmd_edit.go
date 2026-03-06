@@ -313,8 +313,14 @@ Examples:
 	}
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
-	// Wire reload notification: commit will notify daemon via API socket
-	ed.SetReloadNotifier(editor.NewSocketReloadNotifier(config.DefaultSocketPath()))
+	// Probe daemon socket at startup: only wire reload if daemon is reachable
+	socketPath := config.DefaultSocketPath()
+	probeCtx, probeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer probeCancel()
+	if conn, err := (&net.Dialer{}).DialContext(probeCtx, "unix", socketPath); err == nil {
+		conn.Close() //nolint:errcheck,gosec // Probe connection, close error is irrelevant
+		ed.SetReloadNotifier(editor.NewSocketReloadNotifier(socketPath))
+	}
 
 	// Check for pending edit file from previous session
 	if ed.HasPendingEdit() {

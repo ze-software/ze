@@ -899,7 +899,179 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 	result, err := model.cmdCommit()
 	require.NoError(t, err, "commit should succeed without notifier")
 	assert.Contains(t, result.statusMessage, "committed")
+	assert.Contains(t, result.statusMessage, "daemon not running", "standalone mode should inform daemon is not running")
 	assert.NotContains(t, result.statusMessage, "reloaded", "standalone mode should not claim reloaded")
+}
+
+// TestSetThroughList verifies set with full path through a list from root context.
+//
+// VALIDATES: spec-editor-2 AC-1: "set bgp peer 1.1.1.1 hold-time 90" from root.
+// PREVENTS: Positional path splitting breaking list paths.
+func TestSetThroughList(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Set hold-time through list from root — no edit context
+	result, err := model.dispatchCommand("set bgp peer 1.1.1.1 hold-time 120")
+	require.NoError(t, err, "set through list should succeed")
+	assert.Contains(t, result.statusMessage, "Set")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "120", "hold-time should be updated to 120")
+}
+
+// TestSetRejectsNonLeafPath verifies set rejects paths that don't resolve to a leaf.
+//
+// VALIDATES: spec-editor-2 AC-4: "set bgp nonexistent value" → error.
+// PREVENTS: ValidateValueAtPath silently passing non-leaf paths.
+func TestSetRejectsNonLeafPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// "bgp" is a container, not a leaf — set should reject
+	_, err = model.dispatchCommand("set bgp nonexistent value")
+	require.Error(t, err, "set on unknown path should fail")
+}
+
+// TestSetInContextPreserved verifies set still works within an edit context.
+//
+// VALIDATES: spec-editor-2 AC-5: existing context-relative set still works.
+// PREVENTS: Regressions in existing set behavior.
+func TestSetInContextPreserved(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Enter peer context
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	require.NoError(t, err)
+	model.ApplyResult(editResult)
+
+	// Set within context — should still work
+	result, err := model.dispatchCommand("set hold-time 120")
+	require.NoError(t, err, "context-relative set should still work")
+	assert.Contains(t, result.statusMessage, "Set")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "120", "hold-time should be updated to 120")
+}
+
+// TestSetThroughListDescription verifies set of a string value through a list from root.
+//
+// VALIDATES: spec-editor-2 AC-6: set description through list correctly stores value.
+// PREVENTS: String values through list paths being mishandled.
+func TestSetThroughListDescription(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigWithPeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.dispatchCommand(`set bgp peer 1.1.1.1 description "my peer"`)
+	require.NoError(t, err, "set description through list should succeed")
+	assert.Contains(t, result.statusMessage, "Set")
+
+	content := ed.WorkingContent()
+	assert.Contains(t, content, "my peer", "description should contain 'my peer'")
+}
+
+// TestSetRejectsConfigFalse verifies set rejects paths through config false containers.
+//
+// VALIDATES: spec-editor-2 AC-2: "set bgp rib ..." → error (config false).
+// PREVENTS: Writing to read-only state (rib is config false in YANG).
+func TestSetRejectsConfigFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("set bgp rib adj-rib-in peer * route-count 5")
+	require.Error(t, err, "set on config false path should fail")
+	assert.Contains(t, err.Error(), "read-only")
+}
+
+// TestSetRejectsMissingListKey verifies set rejects a list path without a key.
+//
+// VALIDATES: spec-editor-2 AC-3: "set bgp peer hold-time 90" (missing key) → error.
+// PREVENTS: Ambiguous set when list key is missing.
+func TestSetRejectsMissingListKey(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// "set bgp peer hold-time 90" — peer is a list, "hold-time" is not a valid key value,
+	// but more importantly "90" should not land in a random place.
+	_, err = model.dispatchCommand("set bgp peer hold-time 90")
+	require.Error(t, err, "set on list without key should fail")
+}
+
+// TestSetRejectsUnknownPath verifies set rejects a path with unknown elements.
+//
+// VALIDATES: spec-editor-2 AC-4: unknown path element → error.
+// PREVENTS: Creating garbage tree entries for non-existent config paths.
+func TestSetRejectsUnknownPath(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("set bgp totally-unknown-leaf value")
+	require.Error(t, err, "set with unknown path should fail")
+	assert.Contains(t, err.Error(), "unknown path")
 }
 
 // TestSocketReloadNotifierNoDaemon verifies socket notifier fails gracefully.

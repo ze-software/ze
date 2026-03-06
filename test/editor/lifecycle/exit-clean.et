@@ -1,0 +1,21 @@
+# Test: Exit works on clean editor (no changes)
+# VALIDATES: spec-editor-1 AC-1: editor not dirty after open
+# PREVENTS: False dirty on open blocking exit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify editor starts clean — exit should work
+expect=dirty:false
+expect=error:none

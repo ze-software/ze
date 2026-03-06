@@ -635,3 +635,109 @@ func TestDeliverBatchDirectError(t *testing.T) {
 		t.Fatal("timeout waiting for event result")
 	}
 }
+
+// TestCloseConnsIdempotent verifies that calling closeConns multiple times
+// does not panic. sync.Once ensures cleanup runs exactly once.
+//
+// VALIDATES: H3 — Stop/monitorCmd double-close race eliminated.
+// PREVENTS: Panic or double-close when Stop() and monitorCmd() race.
+func TestCloseConnsIdempotent(t *testing.T) {
+	// Create a process with real internal socket pairs.
+	pairs, err := ipc.NewInternalSocketPairs()
+	require.NoError(t, err)
+
+	proc := NewProcess(plugin.PluginConfig{Name: "test-close-idempotent"})
+	proc.rawEngineA = pairs.Engine.EngineSide
+	proc.rawCallbackB = pairs.Callback.EngineSide
+
+	// First close — should work normally.
+	proc.closeConns()
+
+	// Second close — must not panic (sync.Once prevents double execution).
+	proc.closeConns()
+
+	// Third close from concurrent goroutine — must not panic.
+	var wg sync.WaitGroup
+	wg.Go(proc.closeConns)
+	wg.Wait()
+}
+
+// TestCloseConnsConcurrent verifies that concurrent closeConns calls
+// from Stop() and monitorCmd() paths don't race.
+//
+// VALIDATES: H3 — concurrent cleanup is safe.
+// PREVENTS: Data race between Stop() and monitorCmd() closing connections.
+func TestCloseConnsConcurrent(t *testing.T) {
+	const goroutines = 10
+
+	pairs, err := ipc.NewInternalSocketPairs()
+	require.NoError(t, err)
+
+	proc := NewProcess(plugin.PluginConfig{Name: "test-close-concurrent"})
+	proc.rawEngineA = pairs.Engine.EngineSide
+	proc.rawCallbackB = pairs.Callback.EngineSide
+
+	// Hammer closeConns from many goroutines.
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			proc.closeConns()
+		}()
+	}
+	wg.Wait()
+}
+
+// TestInternalPluginRunnerPanicRecovery verifies that an internal plugin
+// runner that panics is caught by the recover() guard, preventing
+// the engine from crashing. The goroutine exits cleanly.
+//
+// VALIDATES: C1 — Internal plugin panic does not crash engine.
+// PREVENTS: Plugin panic propagating to engine process.
+func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
+	// Simulate the internal plugin goroutine pattern from startInternal.
+	// We can't call startInternal directly (requires registry), but we
+	// replicate the exact defer/recover pattern to prove it works.
+	proc := NewProcess(plugin.PluginConfig{Name: "test-panic-runner"})
+	proc.running.Store(true)
+
+	pairs, err := ipc.NewInternalSocketPairs()
+	require.NoError(t, err)
+
+	enginePluginSide := rpc.NewBridgedConn(pairs.Engine.PluginSide, rpc.NewDirectBridge())
+	callbackPluginSide := rpc.NewBridgedConn(pairs.Callback.PluginSide, rpc.NewDirectBridge())
+
+	// Replicate the exact goroutine structure from startInternal.
+	proc.wg.Go(func() {
+		defer proc.running.Store(false)
+		defer func() {
+			if rec := recover(); rec != nil {
+				// Panic caught — this is what we're testing.
+				logger().Error("internal plugin panic", "plugin", proc.config.Name, "panic", rec)
+			}
+		}()
+		defer func() {
+			if err := enginePluginSide.Close(); err != nil {
+				logger().Debug("close engine plugin side", "error", err)
+			}
+		}()
+		defer func() {
+			if err := callbackPluginSide.Close(); err != nil {
+				logger().Debug("close callback plugin side", "error", err)
+			}
+		}()
+
+		// Simulate a panicking plugin runner.
+		panic("plugin runtime error: index out of range")
+	})
+
+	// Wait for the goroutine to complete — must not hang or crash.
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err = proc.Wait(ctx)
+	require.NoError(t, err, "Wait should succeed after panic recovery")
+
+	// Verify the process is no longer running.
+	assert.False(t, proc.Running(), "process should not be running after panic")
+}

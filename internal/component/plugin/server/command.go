@@ -72,7 +72,9 @@ func BuiltinCount() int {
 // LoadBuiltins registers all builtin handlers with the dispatcher.
 func LoadBuiltins(d *Dispatcher) {
 	for _, reg := range AllBuiltinRPCs() {
-		d.Register(reg.CLICommand, reg.Handler, reg.Help)
+		d.RegisterWithOptions(reg.CLICommand, reg.Handler, reg.Help, RegisterOptions{
+			RequiresSelector: reg.RequiresSelector,
+		})
 	}
 }
 
@@ -147,9 +149,15 @@ func (c *CommandContext) PeerSelector() string {
 
 // Command represents a registered command with metadata.
 type Command struct {
-	Name    string
-	Handler Handler
-	Help    string
+	Name             string
+	Handler          Handler
+	Help             string
+	RequiresSelector bool // True if command requires explicit peer selector (not default "*")
+}
+
+// RegisterOptions holds optional settings for command registration.
+type RegisterOptions struct {
+	RequiresSelector bool // True if "bgp peer <command>" must have an explicit peer selector
 }
 
 // Dispatcher routes commands to handlers.
@@ -207,6 +215,19 @@ func (d *Dispatcher) Register(name string, handler Handler, help string) {
 	d.registry.AddBuiltin(name)
 }
 
+// RegisterWithOptions adds a builtin command handler with additional options.
+func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help string, opts RegisterOptions) {
+	key := strings.ToLower(name)
+	d.commands[key] = &Command{
+		Name:             name,
+		Handler:          handler,
+		Help:             help,
+		RequiresSelector: opts.RequiresSelector,
+	}
+	d.updateSortedKeys()
+	d.registry.AddBuiltin(name)
+}
+
 // updateSortedKeys rebuilds the sorted key list for longest-match lookup.
 func (d *Dispatcher) updateSortedKeys() {
 	d.sortedKeys = make([]string, 0, len(d.commands))
@@ -246,10 +267,12 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	// Check for "bgp peer <selector>" prefix
 	// Format: bgp peer <addr|*> <command>
 	peerSelector := "*"
+	hasExplicitSelector := false
 	if len(tokens) >= 4 && strings.EqualFold(tokens[0], "bgp") && strings.EqualFold(tokens[1], "peer") {
 		// Check if third token looks like IP/glob (contains dots, colons, or is "*")
 		if looksLikeIPOrGlob(tokens[2]) {
 			peerSelector = tokens[2]
+			hasExplicitSelector = true
 			if ctx != nil {
 				ctx.Peer = peerSelector
 			}
@@ -275,6 +298,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 				break // sortedKeys is longest-first, so first match is best
 			}
 		}
+	}
+
+	// Enforce peer selector for commands that require it
+	if matchedCmd != nil && matchedCmd.RequiresSelector && !hasExplicitSelector {
+		return nil, fmt.Errorf("%s requires a peer selector: %s <address> %s",
+			matchedCmd.Name, "bgp peer",
+			strings.TrimPrefix(strings.ToLower(matchedCmd.Name), "bgp peer "))
 	}
 
 	// If no builtin match, try forked subsystems

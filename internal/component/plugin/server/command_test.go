@@ -308,3 +308,101 @@ func TestDispatcherCaseInsensitive(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, called)
 }
+
+// TestDispatchRejectsNoSelector verifies that mutating peer commands
+// without a peer selector are rejected at the dispatcher level.
+//
+// VALIDATES: spec-editor-3 AC-1: "bgp peer eorr ipv4/unicast" → error.
+// PREVENTS: Destructive commands silently operating on all peers.
+func TestDispatchRejectsNoSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	d.RegisterWithOptions("bgp peer eorr", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		t.Fatal("handler should not be called without selector")
+		return &plugin.Response{Status: "done"}, nil
+	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "bgp peer eorr ipv4/unicast")
+	require.Error(t, err, "mutating command without selector must be rejected")
+	assert.Contains(t, err.Error(), "requires a peer selector")
+}
+
+// TestDispatchWithSelector verifies that mutating peer commands work with a selector.
+//
+// VALIDATES: spec-editor-3 AC-2: "bgp peer 1.1.1.1 eorr ipv4/unicast" → works.
+// PREVENTS: Selector-requiring commands broken when selector is provided.
+func TestDispatchWithSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: "done"}, nil
+	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "bgp peer 1.1.1.1 eorr ipv4/unicast")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "1.1.1.1", calledWithPeer)
+}
+
+// TestDispatchReadOnlyNoSelector verifies that read-only peer commands
+// default to all peers when no selector is provided.
+//
+// VALIDATES: spec-editor-3 AC-5: "bgp peer list" → works (defaults to *).
+// PREVENTS: Read-only commands broken by selector enforcement.
+func TestDispatchReadOnlyNoSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	called := false
+	d.RegisterWithOptions("bgp peer list", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		called = true
+		return &plugin.Response{Status: "done"}, nil
+	}, "List peers", RegisterOptions{RequiresSelector: false})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "bgp peer list")
+	require.NoError(t, err)
+	assert.True(t, called)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchTeardownNoSelector verifies teardown without selector is rejected.
+//
+// VALIDATES: spec-editor-3 AC-4: "bgp peer teardown 3" → error.
+// PREVENTS: Teardown operating on all peers silently.
+func TestDispatchTeardownNoSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	d.RegisterWithOptions("bgp peer teardown", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		t.Fatal("handler should not be called without selector")
+		return &plugin.Response{Status: "done"}, nil
+	}, "Teardown peer", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "bgp peer teardown 3")
+	require.Error(t, err, "teardown without selector must be rejected")
+	assert.Contains(t, err.Error(), "requires a peer selector")
+}
+
+// TestDispatchWildcardSelector verifies that "*" counts as a valid selector.
+//
+// VALIDATES: spec-editor-3 AC-3: "bgp peer * eorr ipv4/unicast" → works.
+// PREVENTS: Explicit wildcard rejected when it should be allowed.
+func TestDispatchWildcardSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: "done"}, nil
+	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "bgp peer * eorr ipv4/unicast")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "*", calledWithPeer)
+}

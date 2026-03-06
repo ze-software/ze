@@ -487,3 +487,44 @@ func TestConcurrentPublish(t *testing.T) {
 func TestBusSatisfiesInterface(t *testing.T) {
 	var _ ze.Bus = (*bus.Bus)(nil)
 }
+
+// panicConsumer panics on every Deliver call.
+type panicConsumer struct{}
+
+func (panicConsumer) Deliver([]ze.Event) error {
+	panic("consumer exploded")
+}
+
+// VALIDATES: H2 — Bus delivery loop survives consumer panic.
+// PREVENTS: One misbehaving consumer crashing the bus delivery goroutine.
+func TestDeliveryLoopRecoversPanic(t *testing.T) {
+	b := bus.NewBus()
+	defer b.Stop()
+
+	if _, err := b.CreateTopic("test/panic"); err != nil {
+		t.Fatalf("CreateTopic: %v", err)
+	}
+
+	// Subscribe a panicking consumer and a normal collector.
+	pc := panicConsumer{}
+	if _, err := b.Subscribe("test/panic", nil, pc); err != nil {
+		t.Fatalf("Subscribe panic consumer: %v", err)
+	}
+
+	good := newCollector()
+	if _, err := b.Subscribe("test/panic", nil, good); err != nil {
+		t.Fatalf("Subscribe good consumer: %v", err)
+	}
+
+	// Publish two events. The panicking consumer should not crash the bus.
+	b.Publish("test/panic", []byte("first"), nil)
+	b.Publish("test/panic", []byte("second"), nil)
+
+	// The good consumer should still receive both events.
+	good.waitFor(t, 2, 2*time.Second)
+
+	events := good.collected()
+	if len(events) != 2 {
+		t.Fatalf("good consumer got %d events, want 2", len(events))
+	}
+}

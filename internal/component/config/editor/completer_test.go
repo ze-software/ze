@@ -465,6 +465,33 @@ func TestCompleterHintTypeNotApplicable(t *testing.T) {
 		"type hint text should start with <")
 }
 
+// TestValidateRejectsNonLeafPath verifies that ValidateValueAtPath rejects non-leaf paths.
+//
+// VALIDATES: spec-editor-2: non-leaf and unknown paths are rejected.
+// PREVENTS: Setting values on containers or unknown schema elements.
+func TestValidateRejectsNonLeafPath(t *testing.T) {
+	c := NewCompleter()
+
+	tests := []struct {
+		name    string
+		path    []string
+		value   string
+		wantErr string
+	}{
+		{"container path", []string{"bgp", "peer"}, "value", "not a settable leaf"},
+		{"unknown leaf", []string{"bgp", "nonexistent"}, "value", "unknown path"},
+		{"root container", []string{"bgp"}, "value", "not a settable leaf"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := c.ValidateValueAtPath(tt.path, tt.value)
+			require.Error(t, err, "should reject %v", tt.path)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
 func completionTexts(completions []Completion) []string {
 	texts := make([]string, len(completions))
 	for i, c := range completions {

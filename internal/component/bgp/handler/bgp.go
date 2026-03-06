@@ -19,11 +19,11 @@ func PeerOpsRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
 		{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
 		{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details", ReadOnly: true},
-		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode"},
-		{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically"},
-		{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically"},
-		{WireMethod: "ze-bgp:peer-pause", CLICommand: "bgp peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)"},
-		{WireMethod: "ze-bgp:peer-resume", CLICommand: "bgp peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)"},
+		{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-pause", CLICommand: "bgp peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-resume", CLICommand: "bgp peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
 	}
 }
 

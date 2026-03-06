@@ -92,7 +92,7 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		// New syntax: load <source> <location> <action> [file]
 		return m.cmdLoadNew(args)
 
-	case "set":
+	case "set": //nolint:goconst // command name used as literal in dispatch
 		return m.cmdSet(args)
 
 	case "delete":
@@ -281,6 +281,12 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
+	// Validate the full token path (with list keys) against schema.
+	// This catches missing list keys and unknown path elements.
+	if _, err := m.completer.validateTokenPath(path); err != nil {
+		return commandResult{}, err
+	}
+
 	// Validate value against YANG type before applying
 	if err := m.completer.ValidateValueAtPath(path, value); err != nil {
 		return commandResult{}, err
@@ -432,7 +438,7 @@ func (m *Model) scheduleValidation() tea.Cmd {
 }
 
 // cmdCommit saves changes with validation check.
-// After successful save, attempts to notify the running daemon via ReloadNotifier.
+// If a ReloadNotifier is set (daemon was reachable at startup), attempts to reload.
 // Reload failure does not fail the commit — config is saved regardless.
 func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
@@ -449,7 +455,7 @@ func (m *Model) cmdCommit() (commandResult, error) {
 
 	// Notify daemon of config change (best-effort)
 	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed"}, nil
+		return commandResult{statusMessage: "Configuration committed (daemon not running)"}, nil
 	}
 	if err := m.editor.NotifyReload(); err != nil {
 		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err)}, nil

@@ -732,10 +732,15 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 	}
 	entry := c.getEntry(path)
 	if entry == nil {
-		return nil // Unknown path — cannot validate (let runtime catch it)
+		return fmt.Errorf("unknown path: %s", strings.Join(path, " "))
 	}
 	if entry.Kind != gyang.LeafEntry {
-		return nil // Not a leaf — value validation doesn't apply
+		return fmt.Errorf("%s is not a settable leaf", path[len(path)-1])
+	}
+	// Reject config false paths — read-only state cannot be set.
+	// Check the leaf itself and all ancestors (config false is inherited per RFC 7950 §7.21.1).
+	if c.isConfigFalse(path) {
+		return fmt.Errorf("path %s is read-only (config false)", strings.Join(path, " "))
 	}
 	// Reject setting a list key leaf — the key is already the list identifier
 	// (e.g., "address" in "peer 1.1.1.1" is the key, not a settable field)
@@ -750,6 +755,68 @@ func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 		return fmt.Errorf("invalid value %q for %s (expected %s)", value, path[len(path)-1], hint)
 	}
 	return nil
+}
+
+// isConfigFalse checks if any node in the path has config false set.
+// YANG config false is inherited: if a container is config false, all children are too.
+func (c *Completer) isConfigFalse(path []string) bool {
+	if c.loader == nil {
+		return false
+	}
+	// Check each prefix of the path for config false
+	for i := 1; i <= len(path); i++ {
+		entry := c.getEntry(path[:i])
+		if entry != nil && entry.Config == gyang.TSFalse {
+			return true
+		}
+	}
+	return false
+}
+
+// validateTokenPath walks the full token path (including list key values) against the schema.
+// Unlike getEntry (which skips list keys silently), this enforces that every list has a key value.
+// Returns the leaf entry at the end of the path, or an error if the path is invalid.
+func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
+	if c.loader == nil {
+		return nil, fmt.Errorf("no schema loaded")
+	}
+	if len(tokens) == 0 {
+		return nil, fmt.Errorf("empty path")
+	}
+
+	entry := c.findModuleEntry(tokens[0])
+	if entry == nil {
+		return nil, fmt.Errorf("unknown path: %s", tokens[0])
+	}
+
+	for i := 1; i < len(tokens); i++ {
+		part := tokens[i]
+		if entry.Dir == nil {
+			return nil, fmt.Errorf("unknown path: %s", strings.Join(tokens[:i+1], " "))
+		}
+		child, ok := entry.Dir[part]
+		if !ok {
+			return nil, fmt.Errorf("unknown path: %s", strings.Join(tokens[:i+1], " "))
+		}
+		entry = child
+
+		// If this is a list, the next token MUST be a key value (not a schema child name).
+		// If the next token is a known child, the user forgot the list key.
+		if entry.IsList() {
+			if i+1 >= len(tokens) {
+				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> ...)", part, part)
+			}
+			nextToken := tokens[i+1]
+			if _, isChild := entry.Dir[nextToken]; isChild {
+				// Next token is a schema child, not a key value — key is missing
+				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
+			}
+			// Next token is the key value — skip it
+			i++
+		}
+	}
+
+	return entry, nil
 }
 
 // getListKeyEntry returns the YANG entry for a list's key leaf.

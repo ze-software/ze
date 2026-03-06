@@ -1,0 +1,32 @@
+# Test: Exit works after set + commit
+# VALIDATES: spec-editor-1 AC-4: commit clears dirty, enabling exit
+# PREVENTS: Dirty stuck true after commit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Start clean
+expect=dirty:false
+
+# Make a change
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+
+# Commit — should clear dirty
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=status:contains=committed
+expect=error:none

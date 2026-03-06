@@ -17,9 +17,10 @@ const (
 
 // RPCRegistration maps a YANG RPC wire method to its handler function and CLI command.
 type RPCRegistration struct {
-	WireMethod string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
-	CLICommand string  // CLI text command (e.g., "bgp peer list")
-	Handler    Handler // Handler function
-	Help       string  // Human-readable description
-	ReadOnly   bool    // True if command only reads state (safe for "ze show")
+	WireMethod       string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
+	CLICommand       string  // CLI text command (e.g., "bgp peer list")
+	Handler          Handler // Handler function
+	Help             string  // Human-readable description
+	ReadOnly         bool    // True if command only reads state (safe for "ze show")
+	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 }

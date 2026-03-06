@@ -1,0 +1,36 @@
+# Test: Delete peer workflow — remove peer, commit
+# VALIDATES: spec-editor-4 AC-2: delete peer workflow
+# PREVENTS: Peer deletion leaving orphan config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Verify peer is present initially
+input=type:text=show
+input=enter
+expect=viewport:contains=1.1.1.1
+
+# Delete the peer
+input=type:text=delete bgp peer 1.1.1.1
+input=enter
+expect=status:contains=Deleted
+expect=dirty:true
+expect=error:none
+
+# Commit the deletion
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none

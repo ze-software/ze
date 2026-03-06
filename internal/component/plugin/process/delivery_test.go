@@ -2,6 +2,8 @@ package process
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"unsafe"
 
@@ -89,5 +91,47 @@ func TestDeliverBatchReusesEventsSlice(t *testing.T) {
 
 	if firstPtr != secondPtr {
 		t.Error("second call allocated a new backing array instead of reusing eventsBuf")
+	}
+}
+
+// TestSafeBridgeCallRecoversPanic verifies that safeBridgeCall catches panics
+// from DirectBridge handlers and returns them as errors.
+//
+// VALIDATES: H1 — DirectBridge panic does not crash delivery loop.
+// PREVENTS: Internal plugin panic propagating to engine event loop.
+func TestSafeBridgeCallRecoversPanic(t *testing.T) {
+	err := safeBridgeCall(func() error {
+		panic("plugin handler exploded")
+	})
+	if err == nil {
+		t.Fatal("expected error from panicking bridge call, got nil")
+	}
+	if !strings.Contains(err.Error(), "plugin panic") {
+		t.Errorf("error should mention 'plugin panic', got: %v", err)
+	}
+}
+
+// TestSafeBridgeCallPassesError verifies that safeBridgeCall passes through
+// normal errors without interference.
+//
+// VALIDATES: H1 — normal errors unaffected by panic recovery.
+// PREVENTS: Panic recovery swallowing legitimate errors.
+func TestSafeBridgeCallPassesError(t *testing.T) {
+	want := errors.New("normal failure")
+	got := safeBridgeCall(func() error {
+		return want
+	})
+	if !errors.Is(got, want) {
+		t.Errorf("expected %v, got %v", want, got)
+	}
+}
+
+// TestSafeBridgeCallSuccess verifies that safeBridgeCall returns nil on success.
+func TestSafeBridgeCallSuccess(t *testing.T) {
+	err := safeBridgeCall(func() error {
+		return nil
+	})
+	if err != nil {
+		t.Errorf("expected nil, got %v", err)
 	}
 }

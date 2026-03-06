@@ -13,9 +13,9 @@ import (
 // RefreshRPCs returns RPC registrations for route refresh handlers.
 func RefreshRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:peer-refresh", CLICommand: "bgp peer refresh", Handler: handleRefresh, Help: "Send ROUTE-REFRESH to peer (RFC 2918)"},
-		{WireMethod: "ze-bgp:peer-borr", CLICommand: "bgp peer borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh"},
-		{WireMethod: "ze-bgp:peer-eorr", CLICommand: "bgp peer eorr", Handler: handleEoRR, Help: "Send End of Route Refresh"},
+		{WireMethod: "ze-bgp:peer-refresh", CLICommand: "bgp peer refresh", Handler: handleRefresh, Help: "Send ROUTE-REFRESH to peer (RFC 2918)", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-borr", CLICommand: "bgp peer borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh", RequiresSelector: true},
+		{WireMethod: "ze-bgp:peer-eorr", CLICommand: "bgp peer eorr", Handler: handleEoRR, Help: "Send End of Route Refresh", RequiresSelector: true},
 	}
 }
 

@@ -1,0 +1,34 @@
+# Test: Set error cases — invalid paths and values
+# VALIDATES: spec-editor-4 AC-6: set on nonexistent path returns error
+# PREVENTS: Invalid set commands silently corrupting config
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Set on unknown path
+input=type:text=set bgp nonexistent-thing value
+input=enter
+expect=error:contains=unknown path
+expect=dirty:false
+
+# Set with missing value (only one arg)
+input=type:text=set bgp
+input=enter
+expect=error:contains=usage
+expect=dirty:false
+
+# Set on list without key
+input=type:text=set bgp peer hold-time 90
+input=enter
+expect=error:contains=list
+expect=dirty:false

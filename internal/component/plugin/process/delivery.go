@@ -7,11 +7,26 @@ package process
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
 )
+
+// safeBridgeCall calls fn with panic recovery. If the plugin handler panics,
+// the panic is caught and returned as an error instead of crashing the
+// engine's delivery loop.
+func safeBridgeCall(fn func() error) (err error) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("plugin panic: %v", rec)
+			logger().Error("DirectBridge panic", "panic", rec, "stack", string(debug.Stack()))
+		}
+	}()
+	return fn()
+}
 
 // EventDelivery represents a work item for the per-process delivery goroutine.
 // The long-lived goroutine reads these from Process.eventChan and calls SendDeliverEvent.
@@ -146,13 +161,13 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 			}
 		}
 		if len(structuredBuf) > 0 {
-			batchErr = p.bridge.DeliverStructured(structuredBuf)
+			batchErr = safeBridgeCall(func() error { return p.bridge.DeliverStructured(structuredBuf) })
 		}
 		if batchErr == nil && len(textBuf) > 0 {
-			batchErr = p.bridge.DeliverEvents(textBuf)
+			batchErr = safeBridgeCall(func() error { return p.bridge.DeliverEvents(textBuf) })
 		}
 	} else if p.bridge != nil && p.bridge.Ready() {
-		batchErr = p.bridge.DeliverEvents(events)
+		batchErr = safeBridgeCall(func() error { return p.bridge.DeliverEvents(events) })
 	} else if tc := p.TextConnB(); tc != nil {
 		// Text-mode: write each event as a plain text line (fire-and-forget).
 		// WriteLine adds \n, so strip any trailing newline from event text.

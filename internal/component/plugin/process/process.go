@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -96,10 +97,11 @@ type Process struct {
 	eventClosed bool
 	eventMu     sync.RWMutex
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	wg     sync.WaitGroup
-	mu     sync.Mutex
+	ctx         context.Context
+	cancel      context.CancelFunc
+	wg          sync.WaitGroup
+	mu          sync.Mutex
+	cleanupOnce sync.Once // ensures connection cleanup runs exactly once
 }
 
 // NewProcess creates a new process with the given configuration.
@@ -519,6 +521,11 @@ func (p *Process) startInternal() error {
 	p.wg.Go(func() {
 		defer p.running.Store(false)
 		defer func() {
+			if rec := recover(); rec != nil {
+				logger().Error("internal plugin panic", "plugin", p.config.Name, "panic", rec, "stack", string(debug.Stack()))
+			}
+		}()
+		defer func() {
 			if err := enginePluginSide.Close(); err != nil {
 				logger().Debug("close engine plugin side", "error", err)
 			}
@@ -678,32 +685,37 @@ func (p *Process) Stop() {
 	// (which fail fast since context is canceled) then exits.
 	p.stopEventChan()
 
-	// Close connections to unblock pending reads and writes.
-	// Internal plugins: closing connections is the primary stop mechanism.
-	// External RPC plugins: context cancellation kills the process via exec.CommandContext;
-	// closing connections unblocks any goroutines waiting on socket I/O.
-	p.mu.Lock()
-	if p.engineConnA != nil {
-		p.engineConnA.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.engineConnA = nil
-	}
-	if p.engineConnB != nil {
-		p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.engineConnB = nil
-	}
-	if p.textConnB != nil {
-		p.textConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.textConnB = nil
-	}
-	if p.rawEngineA != nil {
-		p.rawEngineA.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.rawEngineA = nil
-	}
-	if p.rawCallbackB != nil {
-		p.rawCallbackB.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.rawCallbackB = nil
-	}
-	p.mu.Unlock()
+	p.closeConns()
+}
+
+// closeConns closes all RPC connections exactly once. Safe to call from
+// both Stop() and monitorCmd() concurrently — sync.Once ensures the
+// cleanup runs only on the first call.
+func (p *Process) closeConns() {
+	p.cleanupOnce.Do(func() {
+		p.mu.Lock()
+		if p.engineConnA != nil {
+			p.engineConnA.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.engineConnA = nil
+		}
+		if p.engineConnB != nil {
+			p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.engineConnB = nil
+		}
+		if p.textConnB != nil {
+			p.textConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.textConnB = nil
+		}
+		if p.rawEngineA != nil {
+			p.rawEngineA.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.rawEngineA = nil
+		}
+		if p.rawCallbackB != nil {
+			p.rawCallbackB.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.rawCallbackB = nil
+		}
+		p.mu.Unlock()
+	})
 }
 
 // SendShutdown sends a graceful shutdown signal (bye RPC) to the plugin.
@@ -750,30 +762,8 @@ func (p *Process) monitorCmd(cmd *exec.Cmd) {
 		p.cancel()
 	}
 
-	// Close RPC connections.
-	// Nil after close to prevent double-close if Stop() races with monitor().
+	// Close RPC connections via sync.Once — safe if Stop() races with monitor.
 	// Note: p.stderr is NOT closed here — relayStderrFrom owns a captured copy
 	// of the reader and will exit when cmd.Wait() closes the pipe.
-	p.mu.Lock()
-	if p.engineConnA != nil {
-		_ = p.engineConnA.Close()
-		p.engineConnA = nil
-	}
-	if p.engineConnB != nil {
-		_ = p.engineConnB.Close()
-		p.engineConnB = nil
-	}
-	if p.textConnB != nil {
-		_ = p.textConnB.Close()
-		p.textConnB = nil
-	}
-	if p.rawEngineA != nil {
-		p.rawEngineA.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.rawEngineA = nil
-	}
-	if p.rawCallbackB != nil {
-		p.rawCallbackB.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.rawCallbackB = nil
-	}
-	p.mu.Unlock()
+	p.closeConns()
 }

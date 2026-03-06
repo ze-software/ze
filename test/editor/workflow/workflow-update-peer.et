@@ -1,0 +1,41 @@
+# Test: Update peer workflow — edit into peer, change hold-time, commit
+# VALIDATES: spec-editor-4 AC-3: update peer workflow
+# VALIDATES: spec-editor-4 AC-5: exit after workflow
+# PREVENTS: Context-relative set breaking on update
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Navigate into the peer
+input=type:text=edit bgp peer 1.1.1.1
+input=enter
+expect=context:path=bgp.peer.1.1.1.1
+
+# Update hold-time using context-relative path
+input=type:text=set hold-time 120
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+expect=error:none
+
+# Go back to root and commit
+input=type:text=top
+input=enter
+expect=context:root
+
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none

@@ -1,0 +1,46 @@
+# Test: Multiple changes in single session — set + delete, then commit
+# VALIDATES: spec-editor-4: multiple operations before commit
+# PREVENTS: Multiple mutations interfering with each other
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Change router-id
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+
+# Change hold-time through list
+input=type:text=set bgp peer 1.1.1.1 hold-time 120
+input=enter
+expect=status:contains=Set
+
+# Change local-as
+input=type:text=set bgp local-as 65100
+input=enter
+expect=status:contains=Set
+
+# Single commit for all changes
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify all changes applied
+input=type:text=show
+input=enter
+expect=viewport:contains=5.6.7.8
+expect=viewport:contains=65100

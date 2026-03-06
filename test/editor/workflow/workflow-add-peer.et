@@ -1,0 +1,43 @@
+# Test: Add peer workflow — set peer-as and hold-time, commit
+# VALIDATES: spec-editor-4 AC-1: complete add-peer workflow
+# VALIDATES: spec-editor-4 AC-5: exit after workflow
+# PREVENTS: Multi-step peer creation failing silently
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Start clean
+expect=dirty:false
+
+# Add a new peer with required attributes
+input=type:text=set bgp peer 10.0.0.1 peer-as 65001
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+expect=error:none
+
+# Set hold-time on the same peer
+input=type:text=set bgp peer 10.0.0.1 hold-time 90
+input=enter
+expect=status:contains=Set
+expect=error:none
+
+# Commit the changes
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+expect=error:none
+
+# Verify the peer exists in content
+input=type:text=show
+input=enter
+expect=viewport:contains=10.0.0.1
+expect=viewport:contains=65001

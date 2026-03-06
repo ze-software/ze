@@ -639,7 +639,7 @@ func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 // Part of the ze-bgp module — aggregated by BgpHandlerRPCs().
 func UpdateRPCs() []pluginserver.RPCRegistration {
 	return []pluginserver.RPCRegistration{
-		{WireMethod: "ze-bgp:peer-update", CLICommand: "bgp peer update", Handler: handleUpdate, Help: "Batch UPDATE with text/hex/b64 encoding"},
+		{WireMethod: "ze-bgp:peer-update", CLICommand: "bgp peer update", Handler: handleUpdate, Help: "Batch UPDATE with text/hex/b64 encoding", RequiresSelector: true},
 	}
 }
 

@@ -1,0 +1,36 @@
+# Test: Set command rejects config false paths
+# VALIDATES: spec-editor-2 AC-2: set on read-only path rejected
+# VALIDATES: spec-editor-2 AC-4: set on unknown path rejected
+# VALIDATES: spec-editor-2 AC-3: set on list without key rejected
+# PREVENTS: Writing to YANG config false state nodes
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Set on unknown path should fail
+input=type:text=set bgp totally-unknown-leaf value
+input=enter
+expect=error:contains=unknown path
+expect=dirty:false
+
+# Set on list without key should fail
+input=type:text=set bgp peer hold-time 90
+input=enter
+expect=error:contains=list
+expect=dirty:false
+
+# Set on config false path should fail (rib is config false in YANG)
+input=type:text=set bgp rib adj-rib-in peer * route-count 5
+input=enter
+expect=error:contains=read-only
+expect=dirty:false
