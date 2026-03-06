@@ -236,6 +236,49 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 	assert.True(t, pm.IsDisabled("crash"), "process should be disabled after exceeding respawn limit")
 }
 
+// TestProcessManagerCumulativeRespawnLimit verifies process disabled after MaxTotalRespawns across windows.
+//
+// VALIDATES: Cumulative respawn counter prevents indefinite cycling across time windows.
+// PREVENTS: Plugin cycling forever by staying just under per-window limit.
+func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
+	script := filepath.Join(t.TempDir(), "crash.sh")
+	writeScript(t, script, "#!/bin/sh\nexit 1\n")
+
+	pm := NewProcessManager([]plugin.PluginConfig{
+		{Name: "cycle", Run: script, Encoder: "json", RespawnEnabled: true},
+	})
+
+	err := pm.Start()
+	require.NoError(t, err)
+	defer pm.Stop()
+
+	// Simulate respawns across multiple windows by clearing per-window times
+	// after each batch (simulates window expiry). The cumulative counter never resets.
+	var hitLimit bool
+	for batch := range MaxTotalRespawns {
+		respawnErr := pm.Respawn("cycle")
+		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
+			hitLimit = true
+			break
+		}
+		require.NoError(t, respawnErr, "respawn %d should succeed within cumulative limit", batch)
+		time.Sleep(10 * time.Millisecond)
+
+		// Clear per-window tracking to simulate window expiry (same package access)
+		pm.mu.Lock()
+		pm.respawnTimes["cycle"] = nil
+		pm.mu.Unlock()
+	}
+
+	// The next respawn after MaxTotalRespawns should be rejected
+	if !hitLimit {
+		finalErr := pm.Respawn("cycle")
+		assert.ErrorIs(t, finalErr, ErrRespawnLimitExceeded, "should hit cumulative limit")
+	}
+
+	assert.True(t, pm.IsDisabled("cycle"), "process should be disabled after cumulative limit")
+}
+
 // TestProcessManagerRespawnNotStarted verifies Respawn fails if manager not started.
 //
 // VALIDATES: Respawn returns error when ProcessManager.ctx is nil.

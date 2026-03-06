@@ -240,21 +240,26 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 		return fmt.Errorf("unpack ROUTE-REFRESH: %w", err)
 	}
 
+	// Cannot process ROUTE-REFRESH before capabilities are negotiated.
+	if s.negotiated == nil {
+		sessionLogger().Debug("ignoring route-refresh before negotiation complete",
+			"peer", s.settings.Address)
+		return nil
+	}
+
 	// RFC 2918 Section 3: Only process ROUTE-REFRESH if the capability was negotiated.
-	if s.negotiated != nil && !s.negotiated.RouteRefresh {
+	if !s.negotiated.RouteRefresh {
 		sessionLogger().Debug("ignoring route-refresh from peer without capability",
 			"peer", s.settings.Address)
 		return nil
 	}
 
 	// RFC 2918 Section 4: Ignore ROUTE-REFRESH for AFI/SAFI not negotiated.
-	if s.negotiated != nil {
-		family := capability.Family{AFI: capability.AFI(rr.AFI), SAFI: capability.SAFI(rr.SAFI)}
-		if !s.negotiated.SupportsFamily(family) {
-			sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
-				"peer", s.settings.Address, "afi", rr.AFI, "safi", rr.SAFI)
-			return nil
-		}
+	family := capability.Family{AFI: capability.AFI(rr.AFI), SAFI: capability.SAFI(rr.SAFI)}
+	if !s.negotiated.SupportsFamily(family) {
+		sessionLogger().Debug("ignoring route-refresh for non-negotiated family",
+			"peer", s.settings.Address, "afi", rr.AFI, "safi", rr.SAFI)
+		return nil
 	}
 
 	// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
