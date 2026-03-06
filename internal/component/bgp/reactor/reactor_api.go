@@ -1,7 +1,6 @@
 // Design: docs/architecture/core-design.md — reactor API adapter for plugin integration
 // Overview: reactor.go — Reactor struct, lifecycle, and connection management
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
-// Detail: reactor_api_routes.go — family-specific route announce/withdraw (L3VPN, labeled, MUP)
 // Detail: reactor_api_batch.go — NLRI batch operations and wire attribute building
 // Detail: reactor_api_forward.go — UPDATE forwarding, grouped sending, cache ops
 package reactor
@@ -18,10 +17,8 @@ import (
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
@@ -266,125 +263,6 @@ func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 // Stop signals the reactor to stop.
 func (a *reactorAPIAdapter) Stop() {
 	a.r.Stop()
-}
-
-// AnnounceRoute announces a route to matching peers.
-// If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
-func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route bgptypes.RouteSpec) error {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return errors.New("no peers match selector")
-	}
-
-	// Build NLRI
-	var n nlri.NLRI
-	if route.Prefix.Addr().Is4() {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-	} else {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-	}
-
-	// Build attributes from RouteSpec.Wire (wire-first approach)
-	var attrs []attribute.Attribute
-	var userASPath []uint32
-
-	if route.Wire != nil {
-		// Parse attributes from wire format
-		var err error
-		attrs, err = route.Wire.All()
-		if err != nil {
-			return fmt.Errorf("failed to parse route attributes: %w", err)
-		}
-		// Extract AS_PATH if present
-		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
-			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
-				userASPath = asp.Segments[0].ASNs
-			}
-		}
-	} else {
-		// No wire attributes - use defaults
-		attrs = append(attrs, attribute.OriginIGP)
-	}
-
-	var lastErr error
-	for _, peer := range peers {
-		isIBGP := peer.Settings().IsIBGP()
-
-		// Resolve next-hop per peer using RouteNextHop policy
-		nextHopAddr, nhErr := peer.resolveNextHop(route.NextHop, n.Family())
-		if nhErr != nil {
-			// Log but continue - skip this peer if next-hop can't be resolved
-			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
-			continue
-		}
-
-		// Build AS_PATH: empty for iBGP, prepend LocalAS for eBGP
-		// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
-		var asPath *attribute.ASPath
-		switch {
-		case len(userASPath) > 0:
-			asPath = &attribute.ASPath{
-				Segments: []attribute.ASPathSegment{
-					{Type: attribute.ASSequence, ASNs: userASPath},
-				},
-			}
-		case isIBGP:
-			asPath = &attribute.ASPath{Segments: nil}
-		default: // eBGP: prepend local AS
-			asPath = &attribute.ASPath{
-				Segments: []attribute.ASPathSegment{
-					{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
-				},
-			}
-		}
-
-		ribRoute := rib.NewRouteWithASPath(n, nextHopAddr, attrs, asPath)
-
-		// Create resolved route spec for buildAnnounceUpdate
-		resolvedRoute := route
-		resolvedRoute.NextHop = bgptypes.NewNextHopExplicit(nextHopAddr)
-
-		if !peer.ShouldQueue() {
-			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
-			if err := peer.SendAnnounce(resolvedRoute, a.r.config.LocalAS); err != nil {
-				lastErr = err
-			}
-		} else {
-			// Session not established or queue draining: queue to preserve order
-			peer.QueueAnnounce(ribRoute)
-		}
-	}
-	return lastErr
-}
-
-// WithdrawRoute withdraws a route from matching peers.
-func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Prefix) error {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return errors.New("no peers match selector")
-	}
-
-	// Build NLRI for queueing
-	var n nlri.NLRI
-	if prefix.Addr().Is4() {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
-	} else {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
-	}
-
-	var lastErr error
-	for _, peer := range peers {
-		if !peer.ShouldQueue() {
-			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
-			if err := peer.SendWithdraw(prefix); err != nil {
-				lastErr = err
-			}
-		} else {
-			// Session not established or queue draining: queue to preserve order
-			peer.QueueWithdraw(n)
-		}
-	}
-	return lastErr
 }
 
 // sendToMatchingPeers sends an UPDATE to peers matching the selector.

@@ -112,25 +112,7 @@ func (m *mockReactor) RemovePeer(addr netip.Addr) error {
 }
 
 // BGP reactor stubs (not tracked unless needed).
-func (m *mockReactor) AnnounceRoute(_ string, _ bgptypes.RouteSpec) error        { return nil }
-func (m *mockReactor) WithdrawRoute(_ string, _ netip.Prefix) error              { return nil }
-func (m *mockReactor) AnnounceFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
-func (m *mockReactor) WithdrawFlowSpec(_ string, _ bgptypes.FlowSpecRoute) error { return nil }
-func (m *mockReactor) AnnounceVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
-func (m *mockReactor) WithdrawVPLS(_ string, _ bgptypes.VPLSRoute) error         { return nil }
-func (m *mockReactor) AnnounceL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
-func (m *mockReactor) WithdrawL2VPN(_ string, _ bgptypes.L2VPNRoute) error       { return nil }
-func (m *mockReactor) AnnounceL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
-func (m *mockReactor) WithdrawL3VPN(_ string, _ bgptypes.L3VPNRoute) error       { return nil }
-func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error             { return nil }
-func (m *mockReactor) AnnounceLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
-	return nil
-}
-func (m *mockReactor) WithdrawLabeledUnicast(_ string, _ bgptypes.LabeledUnicastRoute) error {
-	return nil
-}
-func (m *mockReactor) AnnounceMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
-func (m *mockReactor) WithdrawMUPRoute(_ string, _ bgptypes.MUPRouteSpec) error { return nil }
+func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error { return nil }
 func (m *mockReactor) AnnounceNLRIBatch(peer string, batch bgptypes.NLRIBatch) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string

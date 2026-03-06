@@ -17,28 +17,7 @@ import (
 // The Reactor struct (internal/plugins/bgp/reactor/) implements both
 // BGPReactor and plugin.ReactorLifecycle.
 type BGPReactor interface {
-	// --- Route announce (9 methods) ---
-
-	// AnnounceRoute announces a route to peers matching the selector.
-	AnnounceRoute(peerSelector string, route RouteSpec) error
-
-	// AnnounceFlowSpec announces a FlowSpec route to peers.
-	AnnounceFlowSpec(peerSelector string, route FlowSpecRoute) error
-
-	// AnnounceVPLS announces a VPLS route to peers.
-	AnnounceVPLS(peerSelector string, route VPLSRoute) error
-
-	// AnnounceL2VPN announces an L2VPN/EVPN route to peers.
-	AnnounceL2VPN(peerSelector string, route L2VPNRoute) error
-
-	// AnnounceL3VPN announces an L3VPN (MPLS VPN) route to peers.
-	AnnounceL3VPN(peerSelector string, route L3VPNRoute) error
-
-	// AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
-	AnnounceLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
-
-	// AnnounceMUPRoute announces a MUP route (SAFI 85) to peers.
-	AnnounceMUPRoute(peerSelector string, route MUPRouteSpec) error
+	// --- Route announce ---
 
 	// AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
 	// RFC 4271 Section 4.3, RFC 4760, RFC 8654.
@@ -47,28 +26,7 @@ type BGPReactor interface {
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
 	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error
 
-	// --- Route withdraw (7 methods) ---
-
-	// WithdrawRoute withdraws a route from peers matching the selector.
-	WithdrawRoute(peerSelector string, prefix netip.Prefix) error
-
-	// WithdrawFlowSpec withdraws a FlowSpec route from peers.
-	WithdrawFlowSpec(peerSelector string, route FlowSpecRoute) error
-
-	// WithdrawVPLS withdraws a VPLS route from peers.
-	WithdrawVPLS(peerSelector string, route VPLSRoute) error
-
-	// WithdrawL2VPN withdraws an L2VPN/EVPN route from peers.
-	WithdrawL2VPN(peerSelector string, route L2VPNRoute) error
-
-	// WithdrawL3VPN withdraws an L3VPN route from peers.
-	WithdrawL3VPN(peerSelector string, route L3VPNRoute) error
-
-	// WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
-	WithdrawLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
-
-	// WithdrawMUPRoute withdraws a MUP route from peers.
-	WithdrawMUPRoute(peerSelector string, route MUPRouteSpec) error
+	// --- Route withdraw ---
 
 	// WithdrawNLRIBatch withdraws a batch of NLRIs.
 	// RFC 4271 Section 4.3, RFC 4760.

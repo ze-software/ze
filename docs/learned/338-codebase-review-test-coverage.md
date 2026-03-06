@@ -38,7 +38,6 @@ Close test coverage gaps found during full codebase review. Added 15 fuzz target
 - `internal/component/bgp/reactor/peer_connection_test.go` — peer connection tests
 - `internal/component/bgp/reactor/peer_send_test.go` — peer send tests
 - `internal/component/bgp/reactor/reactor_wire_test.go` — wire operation tests
-- `internal/component/bgp/reactor/reactor_registry_test.go` — registry tests
 - `internal/component/bgp/reactor/session_flow_test.go` — session flow tests
 - `internal/component/bgp/reactor/peersettings_test.go` — settings tests
 - `internal/component/bgp/reactor/peer_static_routes_test.go` — static route tests

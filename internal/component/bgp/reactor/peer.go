@@ -38,10 +38,6 @@ import (
 // Controlled by ze.log.bgp.reactor.peer environment variable.
 var peerLogger = slogutil.LazyLogger("bgp.reactor.peer")
 
-// safiMUP is the SAFI for Mobile User Plane (draft-mpmz-bess-mup-safi).
-// Not in capability package as it's not yet standardized (SAFI 85).
-const safiMUP = 85
-
 // PeerState represents the high-level state of a peer.
 type PeerState int32
 

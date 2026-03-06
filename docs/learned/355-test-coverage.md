@@ -21,7 +21,7 @@ Add ~4,300 lines of test code across 21 files covering reactor pure functions, c
 
 ## Gotchas
 
-- `reactor_api.go` (858L), `reactor_api_batch.go` (610L), `reactor_api_routes.go` (973L) intentionally deferred — require full reactor+RIB+plugin infrastructure, already exercised by functional tests
+- `reactor_api.go` (858L), `reactor_api_batch.go` (610L) intentionally deferred — require full reactor+RIB+plugin infrastructure, already exercised by functional tests
 - `cmd/ze-test/` not tested — it IS the test infrastructure; low value testing the test runner
 - `peer_initial_sync.go`, `peer_rib_routes.go` deeply integrated with RIB plugin, tested via `rib-reconnect.ci`
 
@@ -35,7 +35,6 @@ Add ~4,300 lines of test code across 21 files covering reactor pure functions, c
 - `internal/component/bgp/reactor/session_validate_test.go` — RFC 7606 enforcement
 - `internal/component/bgp/reactor/peer_send_test.go` — send with no session, wire bytes
 - `internal/component/bgp/reactor/peer_connection_test.go` — collision resolution, pending connections
-- `internal/component/bgp/reactor/reactor_registry_test.go` — VPN/labeled NLRI encoding
 - `internal/component/bgp/reactor/peer_static_routes_test.go` — static route building
 - `internal/component/config/migration/migration_test.go` — config transformation pipeline
 - `internal/component/plugin/cli/cli_test.go` — RunPlugin flags, hex input, env FD

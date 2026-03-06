@@ -14,7 +14,7 @@ Three directional keywords express the relationship between files:
 |---------|-----------|---------|---------|
 | `// Detail:` | Hub → Leaf | "details of this topic are in X" | `reactor.go` → `reactor_api.go` |
 | `// Overview:` | Leaf → Hub | "broader context is in X" | `reactor_api.go` → `reactor.go` |
-| `// Related:` | Peer ↔ Peer | "sibling at same level" | `reactor_api_batch.go` ↔ `reactor_api_routes.go` |
+| `// Related:` | Peer ↔ Peer | "sibling at same level" | `reactor_api_batch.go` ↔ `reactor_api_forward.go` |
 
 **Hub file** = orchestrator, core types, dispatch (typically shortest name: `server.go`, `decode.go`, `peer.go`).
 **Leaf file** = specific concern split from hub (has suffix: `_text`, `_routes`, `_batch`, or prefix: `cmd_`).
