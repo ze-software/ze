@@ -28,6 +28,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-rtc"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-vpls"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-vpn"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-persist"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-role"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh"
