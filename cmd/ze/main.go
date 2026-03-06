@@ -14,11 +14,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
+	zerun "codeberg.org/thomas-mangin/ze/cmd/ze/run"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -142,6 +145,12 @@ dispatch:
 		os.Exit(exabgp.Run(args[1:]))
 	case "signal":
 		os.Exit(zesignal.Run(args[1:]))
+	case "show":
+		os.Exit(show.Run(args[1:]))
+	case "run":
+		os.Exit(zerun.Run(args[1:]))
+	case "completion":
+		os.Exit(zecompletion.Run(args[1:]))
 	case "version":
 		fmt.Printf("ze %s\n", version)
 		os.Exit(0)
@@ -240,12 +249,15 @@ Commands:
   config    Configuration management
   schema    Schema discovery
   cli      Interactive CLI for running daemons
+  show     Show daemon state (read-only commands)
+  run      Execute daemon command (all commands)
   bgp      BGP protocol tools (decode, encode)
   plugin   Plugin system (rib, rr, gr, etc.)
   signal   Send signals to running daemon (reload, stop, status)
-  exabgp   ExaBGP bridge tools
-  version  Show version
-  help     Show this help
+  exabgp       ExaBGP bridge tools
+  completion   Generate shell completion scripts
+  version      Show version
+  help         Show this help
 
 Examples:
   ze config.conf                      Start with config
@@ -253,6 +265,10 @@ Examples:
   ze --plugins                        List available plugins
   ze cli                              Interactive CLI
   ze cli --run "peer list"            Execute CLI command
+  ze show help                         List read-only commands
+  ze show <command>                    Show daemon state
+  ze run help                          List all commands
+  ze run <command>                     Execute daemon command
   ze bgp help                         Show BGP commands
 `)
 }
