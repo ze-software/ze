@@ -40,7 +40,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	defer cancel()
 
 	// ── Stage 1: declare-registration ───────────────────────────────────
-	// The rib plugin declares its commands (10 total: 5 short + 5 long names).
+	// The rib plugin declares its commands (14 total: 7 short + 5 long + 2 GR).
 	stage1 := readRequestTimeout(t, ctx, connA)
 	require.Equal(t, "ze-plugin-engine:declare-registration", stage1.Method)
 
@@ -66,7 +66,10 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// GR support commands (RFC 4724)
 	assert.Contains(t, commandNames, "rib retain-routes")
 	assert.Contains(t, commandNames, "rib release-routes")
-	assert.Len(t, regInput.Commands, 12, "rib registers exactly 12 commands")
+	// Best-path commands (RFC 4271 §9.1.2)
+	assert.Contains(t, commandNames, "rib show best")
+	assert.Contains(t, commandNames, "rib best status")
+	assert.Len(t, regInput.Commands, 14, "rib registers exactly 14 commands")
 
 	require.NoError(t, connA.SendOK(ctx, stage1.ID))
 
@@ -108,9 +111,9 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	require.NotNil(t, readyInput.Subscribe,
 		"ready RPC MUST include Subscribe — atomic subscription prevents race")
 	assert.ElementsMatch(t,
-		[]string{"update direction sent", "state", "refresh"},
+		[]string{"update direction sent", "update direction received", "state", "refresh"},
 		readyInput.Subscribe.Events,
-		"rib subscribes to sent updates, state changes, and route-refresh")
+		"rib subscribes to sent/received updates, state changes, and route-refresh")
 	assert.Equal(t, "full", readyInput.Subscribe.Format,
 		"rib uses full format for events")
 

@@ -2,6 +2,7 @@
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_nlri.go — NLRI wire format helpers
+// Related: bestpath.go — best-path selection (asPathLength, firstASInPath shared concern)
 package bgp_rib
 
 import (

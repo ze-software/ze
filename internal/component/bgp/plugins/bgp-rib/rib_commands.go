@@ -2,6 +2,7 @@
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: rib_attr_format.go — attribute formatting for show enrichment
+// Related: bestpath.go — best-path selection (extractCandidate, gatherCandidates, SelectBest)
 package bgp_rib
 
 import (
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
 )
 
@@ -33,6 +35,10 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 		return statusDone, r.retainRoutesJSON(selector), nil
 	case "rib release-routes":
 		return statusDone, r.releaseRoutesJSON(selector), nil
+	case "rib show best":
+		return statusDone, r.bestPathShowJSON(selector, args), nil
+	case "rib best status":
+		return statusDone, r.bestPathStatusJSON(), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}
@@ -108,7 +114,7 @@ func (r *RIBManager) inboundShowJSON(selector string, args []string) string {
 		}
 	}
 
-	data, _ := json.Marshal(map[string]any{"adj_rib_in": result})
+	data, _ := json.Marshal(map[string]any{"adj-rib-in": result})
 	return string(data)
 }
 
@@ -142,6 +148,7 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 		cleared += peerRIB.Len()
 		peerRIB.Release()
 		delete(r.ribInPool, peer)
+		delete(r.peerMeta, peer)
 	}
 	r.mu.Unlock()
 
@@ -175,7 +182,7 @@ func (r *RIBManager) outboundShowJSON(selector string) string {
 		result[peer] = routeList
 	}
 
-	data, _ := json.Marshal(map[string]any{"adj_rib_out": result})
+	data, _ := json.Marshal(map[string]any{"adj-rib-out": result})
 	return string(data)
 }
 
@@ -243,7 +250,7 @@ func (r *RIBManager) statusJSON() string {
 		routesOut += len(routes)
 	}
 
-	return fmt.Sprintf(`{"running":true,"peers":%d,"routes_in":%d,"routes_out":%d}`,
+	return fmt.Sprintf(`{"running":true,"peers":%d,"routes-in":%d,"routes-out":%d}`,
 		len(r.peerUp), routesIn, routesOut)
 }
 
@@ -284,9 +291,191 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 			peerRIB.Release()
 			delete(r.ribInPool, peer)
 		}
+		delete(r.peerMeta, peer)
 		released++
 	}
 
 	data, _ := json.Marshal(map[string]any{"released-peers": released})
 	return string(data)
+}
+
+// bestPathShowJSON computes and returns the best route per prefix across all peers.
+// RFC 4271 §9.1.2: Decision Process Phase 2 — on-demand computation.
+// Optional args filter by family or prefix (same as inboundShowJSON).
+func (r *RIBManager) bestPathShowJSON(selector string, args []string) string {
+	familyFilter, prefixFilter := parseShowFilters(args)
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	// Collect all unique (family, nlriKey) across matching peers.
+	type routeKey struct {
+		family  nlri.Family
+		nlriKey string
+		familyS string
+		prefixS string
+	}
+	seen := make(map[string]routeKey) // "familyStr|nlriKey" → routeKey
+
+	for peer, peerRIB := range r.ribInPool {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, _ *storage.RouteEntry) bool {
+			fStr := formatFamily(family)
+			pStr := formatNLRIAsPrefix(family, nlriBytes)
+
+			if familyFilter != "" && fStr != familyFilter {
+				return true
+			}
+			if prefixFilter != "" && pStr != prefixFilter {
+				return true
+			}
+
+			key := fStr + "|" + string(nlriBytes)
+			if _, ok := seen[key]; !ok {
+				seen[key] = routeKey{family: family, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
+			}
+			return true
+		})
+	}
+
+	// For each unique prefix, gather candidates and select best.
+	type bestResult struct {
+		Family   string         `json:"family"`
+		Prefix   string         `json:"prefix"`
+		BestPeer string         `json:"best-peer"`
+		Attrs    map[string]any `json:"attributes,omitempty"`
+	}
+
+	var results []bestResult
+	for _, rk := range seen {
+		candidates := r.gatherCandidates(rk.family, []byte(rk.nlriKey))
+		best := SelectBest(candidates)
+		if best == nil {
+			continue
+		}
+
+		br := bestResult{
+			Family:   rk.familyS,
+			Prefix:   rk.prefixS,
+			BestPeer: best.PeerAddr,
+		}
+
+		// Enrich with attributes from the best route's pool entry.
+		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
+			if entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey)); ok && entry != nil {
+				attrs := make(map[string]any)
+				enrichRouteMapFromEntry(attrs, entry)
+				if len(attrs) > 0 {
+					br.Attrs = attrs
+				}
+			}
+		}
+
+		results = append(results, br)
+	}
+
+	// Sort by family then prefix for stable output.
+	sort.Slice(results, func(i, j int) bool {
+		if results[i].Family != results[j].Family {
+			return results[i].Family < results[j].Family
+		}
+		return results[i].Prefix < results[j].Prefix
+	})
+
+	data, _ := json.Marshal(map[string]any{"best-path": results})
+	return string(data)
+}
+
+// bestPathStatusJSON returns summary statistics about the best-path computation.
+func (r *RIBManager) bestPathStatusJSON() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	totalPeers := len(r.ribInPool)
+	totalRoutes := 0
+	for _, peerRIB := range r.ribInPool {
+		totalRoutes += peerRIB.Len()
+	}
+
+	data, _ := json.Marshal(map[string]any{
+		"running":        true,
+		"peers-with-rib": totalPeers,
+		"total-routes":   totalRoutes,
+	})
+	return string(data)
+}
+
+// gatherCandidates collects best-path candidates for a given (family, nlri) across all peers.
+// Returns extracted Candidate structs ready for SelectBest.
+// Caller must hold at least read lock.
+func (r *RIBManager) gatherCandidates(family nlri.Family, nlriBytes []byte) []*Candidate {
+	var candidates []*Candidate
+	for peer, peerRIB := range r.ribInPool {
+		entry, ok := peerRIB.Lookup(family, nlriBytes)
+		if !ok || entry == nil {
+			continue
+		}
+		c := r.extractCandidate(peer, entry)
+		candidates = append(candidates, c)
+	}
+	return candidates
+}
+
+// extractCandidate builds a Candidate from a RouteEntry by reading pool handles.
+// Extracts attribute values needed for RFC 4271 §9.1.2 comparison.
+func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry) *Candidate {
+	c := &Candidate{
+		PeerAddr:  peerAddr,
+		LocalPref: 100, // RFC 4271 default
+	}
+
+	// Peer metadata for eBGP/iBGP detection.
+	if meta := r.peerMeta[peerAddr]; meta != nil {
+		c.PeerASN = meta.PeerASN
+		c.LocalASN = meta.LocalASN
+	}
+
+	// LOCAL_PREF (type 5): 4 bytes, higher wins.
+	if entry.HasLocalPref() {
+		if data, err := pool.LocalPref.Get(entry.LocalPref); err == nil {
+			if v, ok := formatUint32Attr(data); ok {
+				c.LocalPref = v
+			}
+		}
+	}
+
+	// AS_PATH (type 2): wire bytes, count length and extract first AS.
+	if entry.HasASPath() {
+		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
+			c.ASPathLen = asPathLength(data)
+			c.FirstAS = firstASInPath(data)
+		}
+	}
+
+	// ORIGIN (type 1): 1 byte (0=IGP, 1=EGP, 2=INCOMPLETE).
+	if entry.HasOrigin() {
+		if data, err := pool.Origin.Get(entry.Origin); err == nil && len(data) > 0 {
+			c.Origin = data[0]
+		}
+	}
+
+	// MED (type 4): 4 bytes, lower wins.
+	if entry.HasMED() {
+		if data, err := pool.MED.Get(entry.MED); err == nil {
+			if v, ok := formatUint32Attr(data); ok {
+				c.MED = v
+			}
+		}
+	}
+
+	// ORIGINATOR_ID (type 9): 4 bytes, used as Router ID tiebreak (RFC 4456).
+	if entry.HasOriginatorID() {
+		if data, err := pool.OriginatorID.Get(entry.OriginatorID); err == nil {
+			c.OriginatorID = formatNextHop(data) // same 4-byte IP format
+		}
+	}
+
+	return c
 }

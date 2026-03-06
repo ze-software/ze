@@ -2,6 +2,7 @@
 // Detail: rib_nlri.go — NLRI wire format conversion helpers
 // Detail: rib_commands.go — command handling and JSON responses
 // Detail: rib_attr_format.go — attribute formatting for show enrichment
+// Detail: bestpath.go — best-path selection algorithm (RFC 4271 §9.1.2)
 // Detail: compaction.go — pool compaction scheduler wiring
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
@@ -13,6 +14,7 @@ package bgp_rib
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -51,6 +53,13 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
+// PeerMeta stores per-peer metadata for best-path comparison.
+// Extracted from received UPDATE events (nested peer format).
+type PeerMeta struct {
+	PeerASN  uint32 // peer's AS number
+	LocalASN uint32 // local AS number (for eBGP/iBGP detection)
+}
+
 // RIBManager implements a BGP RIB plugin.
 // It tracks routes received from and sent to peers.
 type RIBManager struct {
@@ -67,6 +76,9 @@ type RIBManager struct {
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
 
+	// peerMeta tracks per-peer metadata for best-path comparison.
+	peerMeta map[string]*PeerMeta // peerAddr -> metadata
+
 	// retainedPeers tracks peers whose Adj-RIB-In is retained during GR.
 	// RFC 4724: When a GR-capable peer goes down, routes are retained until
 	// the restart timer expires or the peer re-establishes and sends EOR.
@@ -74,7 +86,7 @@ type RIBManager struct {
 	// Cleared by "rib release-routes <peer>" or when the peer comes back up.
 	retainedPeers map[string]bool
 
-	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, retainedPeers
+	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -90,6 +102,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 		ribInPool:     make(map[string]*storage.PeerRIB),
 		ribOut:        make(map[string]map[string]*Route),
 		peerUp:        make(map[string]bool),
+		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
 	}
 
@@ -112,7 +125,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	// Register event subscriptions atomically with startup completion.
 	// Included in the "ready" RPC so the engine registers them before SignalAPIReady,
 	// ensuring the rib sees every "sent" event from the very first route.
-	p.SetStartupSubscriptions([]string{"update direction sent", "state", "refresh"}, nil, "full")
+	p.SetStartupSubscriptions([]string{"update direction sent", "update direction received", "state", "refresh"}, nil, "full")
 
 	// Start compaction scheduler after 5-stage startup completes.
 	// The scheduler runs as a goroutine tied to the plugin context,
@@ -140,6 +153,9 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 			// GR support: route retention (RFC 4724)
 			{Name: "rib retain-routes"},
 			{Name: "rib release-routes"},
+			// Best-path selection (RFC 4271 §9.1.2)
+			{Name: "rib show best"},
+			{Name: "rib best status"},
 		},
 	})
 	if err != nil {
@@ -279,6 +295,9 @@ func (r *RIBManager) handleReceived(event *Event) {
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
+	r.updatePeerMeta(event, peerAddr)
 
 	r.handleReceivedPool(event, peerAddr)
 }
@@ -423,9 +442,12 @@ func (r *RIBManager) handleState(event *Event) {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.
 		if r.retainedPeers[peerAddr] {
 			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
-		} else if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
-			peerRIB.Release()
-			delete(r.ribInPool, peerAddr)
+		} else {
+			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+				peerRIB.Release()
+				delete(r.ribInPool, peerAddr)
+			}
+			delete(r.peerMeta, peerAddr)
 		}
 	}
 	r.mu.Unlock()
@@ -453,6 +475,34 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 
 	// Signal done with peer-specific ready - ze can now send EOR for this peer
 	r.updateRoute(peerAddr, "plugin session ready")
+}
+
+// updatePeerMeta extracts and stores peer metadata from received events.
+// Uses the nested peer format which includes both local and peer ASN.
+// Caller must hold write lock.
+func (r *RIBManager) updatePeerMeta(event *Event, peerAddr string) {
+	peerASN := event.GetPeerASN()
+	localASN := getLocalASN(event)
+	if peerASN == 0 && localASN == 0 {
+		return
+	}
+	r.peerMeta[peerAddr] = &PeerMeta{
+		PeerASN:  peerASN,
+		LocalASN: localASN,
+	}
+}
+
+// getLocalASN extracts the local ASN from an event's nested peer format.
+// Received events use PeerInfoNested which has ASN.Local and ASN.Peer.
+func getLocalASN(event *Event) uint32 {
+	if len(event.Peer) == 0 {
+		return 0
+	}
+	var nested PeerInfoNested
+	if err := json.Unmarshal(event.Peer, &nested); err == nil && nested.ASN.Local > 0 {
+		return nested.ASN.Local
+	}
+	return 0
 }
 
 // GetYANG returns the embedded YANG schema for the RIB plugin.

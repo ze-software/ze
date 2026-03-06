@@ -213,41 +213,73 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 ## Implementation Summary
 
 ### What Was Implemented
-- (pending — spec is deferred)
+- Best-path selection algorithm (RFC 4271 Section 9.1.2 Phase 2) as pure functions in bestpath.go
+- Candidate struct with extracted attribute values — no pool dependency in comparison logic
+- 7 of 7 applicable steps: LOCAL_PREF, AS_PATH length, ORIGIN, MED (same neighbor AS), eBGP/iBGP, ORIGINATOR_ID, peer address tiebreak. Step 6 (IGP cost) deferred — requires IGP integration.
+- On-demand best-path computation via "rib show best" and "rib best status" commands
+- PeerMeta tracking (peer ASN, local ASN) extracted from received UPDATE events for eBGP/iBGP detection
+- Subscribed to "update direction received" to populate ribInPool (was dead code — only "sent" was subscribed)
+- 14 unit tests covering all RFC steps, wire parsing helpers, and multi-candidate scenarios
 
 ### Bugs Found/Fixed
-- (pending)
+- ribInPool was dead code: bgp-rib only subscribed to "update direction sent". Adding "update direction received" activates it.
+- newTestRIBManager() in rib_test.go missing peerMeta map initialization — caused nil map panic
 
 ### Documentation Updates
-- (pending)
+- Cross-references added: rib.go Detail to bestpath.go, rib_attr_format.go Related to bestpath.go
 
 ### Deviations from Plan
-- (pending)
+- Used direct event subscription instead of dispatch-command notifications from bgp-adj-rib-in. Simpler, no inter-plugin coupling, leverages existing handleReceivedPool code.
+- Pool architecture review: analysis only — current pool design is clean. NLRI is already a map key in FamilyRIB, not pooled. No changes needed.
+- Best-path computed on-demand at query time (YAGNI) — no real-time Loc-RIB maintenance until export policy exists.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
-
-### Acceptance Criteria
-| AC ID | Status | Demonstrated By | Notes |
-|-------|--------|-----------------|-------|
+| Best-path selection algorithm | Done | bestpath.go:34-127 | All 7 applicable steps |
+| Candidate extraction from pools | Done | rib_commands.go:extractCandidate | Reads pool handles |
+| On-demand best-path query | Done | rib_commands.go:bestPathShowJSON | "rib show best" command |
+| Best-path status | Done | rib_commands.go:bestPathStatusJSON | "rib best status" command |
+| PeerMeta tracking | Done | rib.go:updatePeerMeta | Extracts ASN from received events |
+| Subscribe to received updates | Done | rib.go subscriptions | "update direction received" added |
+| Pool architecture review | Done (analysis) | N/A | Current design is clean, no changes needed |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestBestPath_SingleCandidate | Done | bestpath_test.go:11 | |
+| TestBestPath_Empty | Done | bestpath_test.go:26 | |
+| TestBestPath_LocalPref | Done | bestpath_test.go:41 | Step 1 |
+| TestBestPath_ASPathLength | Done | bestpath_test.go:80 | Step 2 |
+| TestBestPath_Origin | Done | bestpath_test.go:114 | Step 3 |
+| TestBestPath_MED_SameNeighborAS | Done | bestpath_test.go:154 | Step 4 |
+| TestBestPath_EBGPOverIBGP | Done | bestpath_test.go:214 | Step 5 |
+| TestBestPath_OriginatorID | Done | bestpath_test.go:284 | Step 7 |
+| TestBestPath_PeerAddress | Done | bestpath_test.go:328 | Step 8 |
+| TestBestPath_MultipleCandidate | Done | bestpath_test.go:341 | 4 candidates |
+| TestBestPath_FullTiebreak | Done | bestpath_test.go:359 | All steps evaluated |
+| TestASPathLength | Done | bestpath_test.go | Wire byte parsing |
+| TestFirstASInPath | Done | bestpath_test.go | Wire byte extraction |
+| TestComparePair | Done | bestpath_test.go | Pairwise comparison |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| bestpath.go | Created | Pure comparison functions, Candidate struct |
+| bestpath_test.go | Created | 14 test functions |
+| rib.go | Modified | PeerMeta, subscription, metadata extraction |
+| rib_commands.go | Modified | show best, best status commands, candidate extraction |
+| rib_test.go | Modified | peerMeta map init in test helper |
+| protocol_test.go | Modified | Updated command count (14) and subscription list |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 21
+- **Done:** 21
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (dispatch-command replaced with direct subscription)
 
 ## Checklist
 

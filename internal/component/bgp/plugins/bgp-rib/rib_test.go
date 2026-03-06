@@ -30,10 +30,12 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 	p := sdk.NewWithConn("rib-test", engineConn, callbackConn)
 	t.Cleanup(func() { _ = p.Close() })
 	return &RIBManager{
-		plugin:    p,
-		ribInPool: make(map[string]*storage.PeerRIB),
-		ribOut:    make(map[string]map[string]*Route),
-		peerUp:    make(map[string]bool),
+		plugin:        p,
+		ribInPool:     make(map[string]*storage.PeerRIB),
+		ribOut:        make(map[string]map[string]*Route),
+		peerUp:        make(map[string]bool),
+		peerMeta:      make(map[string]*PeerMeta),
+		retainedPeers: make(map[string]bool),
 	}
 }
 
@@ -303,6 +305,9 @@ func TestHandleState_PeerDown(t *testing.T) {
 	// ribInPool should be cleared (PeerRIB deleted)
 	_, exists := r.ribInPool["10.0.0.1"]
 	assert.False(t, exists, "PeerRIB should be deleted on peer down")
+	// peerMeta should be cleared alongside ribInPool
+	_, metaExists := r.peerMeta["10.0.0.1"]
+	assert.False(t, metaExists, "peerMeta should be deleted on peer down")
 	// ribOut should be preserved for replay
 	assert.Len(t, r.ribOut["10.0.0.1"], 1)
 }
@@ -336,8 +341,8 @@ func TestStatusJSON(t *testing.T) {
 	status := r.statusJSON()
 	assert.Contains(t, status, `"running":true`)
 	assert.Contains(t, status, `"peers":2`)
-	assert.Contains(t, status, `"routes_in":2`)
-	assert.Contains(t, status, `"routes_out":1`)
+	assert.Contains(t, status, `"routes-in":2`)
+	assert.Contains(t, status, `"routes-out":1`)
 }
 
 // TestDispatch_RoutesToCorrectHandler verifies event routing.
@@ -588,8 +593,8 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"running":true`)
-	assert.Contains(t, data, `"routes_in":1`)
-	assert.Contains(t, data, `"routes_out":2`)
+	assert.Contains(t, data, `"routes-in":1`)
+	assert.Contains(t, data, `"routes-out":2`)
 }
 
 // TestHandleCommand_RIBAdjacentInboundShow verifies inbound show with selector.
@@ -833,7 +838,7 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 		{"rib status", "rib status", true, `"running":true`},
 		{"rib show in", "rib show in", true, "10.0.0.1"},
 		{"rib clear in", "rib clear in", true, `"cleared"`},
-		{"rib show out", "rib show out", true, "adj_rib_out"},
+		{"rib show out", "rib show out", true, "adj-rib-out"},
 		{"rib clear out", "rib clear out", true, `"resent"`},
 	}
 
@@ -881,7 +886,7 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 		{"adjacent status", "rib adjacent status", `"running":true`},
 		{"adjacent inbound show", "rib adjacent inbound show", "10.0.0.1"},
 		{"adjacent inbound empty", "rib adjacent inbound empty", `"cleared"`},
-		{"adjacent outbound show", "rib adjacent outbound show", "adj_rib_out"},
+		{"adjacent outbound show", "rib adjacent outbound show", "adj-rib-out"},
 		{"adjacent outbound resend", "rib adjacent outbound resend", `"resent"`},
 	}
 
@@ -1191,7 +1196,7 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 	r.peerUp["10.0.0.1"] = true
 
 	status := r.statusJSON()
-	assert.Contains(t, status, `"routes_in":2`, "status should count pool routes")
+	assert.Contains(t, status, `"routes-in":2`, "status should count pool routes")
 }
 
 // TestHandleCommand_InboundShow_PoolStorage verifies show command reads from pool storage.
@@ -1646,4 +1651,125 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 	}
 	r.handleReceived(withdraw)
 	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len(), "ADD-PATH withdrawal should remove the route")
+}
+
+// TestExtractCandidate_PoolWiring verifies extractCandidate reads pool handles correctly.
+// This is the wiring test that bridges pool storage to the best-path comparison algorithm.
+//
+// VALIDATES: Pool handle → Candidate field mapping is correct.
+// PREVENTS: Wrong pool type used for a field, wrong field mapping, or nil-pointer on access.
+func TestExtractCandidate_PoolWiring(t *testing.T) {
+	r := newTestRIBManager(t)
+	peerJSON := mustMarshal(t, map[string]any{
+		"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
+		"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+	})
+
+	// Raw attributes: ORIGIN=IGP(0), AS_PATH=SEQUENCE[65001,65002], LOCAL_PREF=200, MED=50.
+	// ORIGIN: flags=40, type=01, len=01, value=00 (IGP)
+	// AS_PATH: flags=40, type=02, len=0A, SEQ(02) count(02) 65001(0000FDE9) 65002(0000FDEA)
+	// MED: flags=80, type=04, len=04, value=00000032 (50)
+	// LOCAL_PREF: flags=40, type=05, len=04, value=000000C8 (200)
+	rawAttrs := "4001010040020A020200" + "00FDE900" + "00FDEA80040400000032400504000000C8"
+
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 500},
+		Peer:          peerJSON,
+		RawAttributes: rawAttrs,
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(event)
+
+	// Verify peerMeta was populated from the event.
+	require.NotNil(t, r.peerMeta["10.0.0.1"], "peerMeta should be populated")
+	assert.Equal(t, uint32(65001), r.peerMeta["10.0.0.1"].PeerASN)
+	assert.Equal(t, uint32(65000), r.peerMeta["10.0.0.1"].LocalASN)
+
+	// Extract candidate from pool entry.
+	peerRIB := r.ribInPool["10.0.0.1"]
+	require.NotNil(t, peerRIB)
+
+	var entry *storage.RouteEntry
+	peerRIB.Iterate(func(_ nlri.Family, _ []byte, e *storage.RouteEntry) bool {
+		entry = e
+		return false // stop after first
+	})
+	require.NotNil(t, entry, "should have a route entry")
+
+	c := r.extractCandidate("10.0.0.1", entry)
+
+	assert.Equal(t, "10.0.0.1", c.PeerAddr)
+	assert.Equal(t, uint32(65001), c.PeerASN, "PeerASN from peerMeta")
+	assert.Equal(t, uint32(65000), c.LocalASN, "LocalASN from peerMeta")
+	assert.Equal(t, OriginIGP, c.Origin, "ORIGIN=IGP from pool")
+	assert.Equal(t, uint32(200), c.LocalPref, "LOCAL_PREF=200 from pool")
+	assert.Equal(t, uint32(50), c.MED, "MED=50 from pool")
+	assert.Equal(t, 2, c.ASPathLen, "AS_PATH length=2 from pool (SEQUENCE[65001,65002])")
+	assert.Equal(t, uint32(65001), c.FirstAS, "FirstAS=65001 from pool")
+}
+
+// TestPeerMetaCleanup_ClearAndRelease verifies peerMeta is cleaned up by
+// inboundEmptyJSON (rib clear in) and releaseRoutesJSON (rib release-routes).
+//
+// VALIDATES: peerMeta deleted alongside ribInPool in clear and release paths.
+// PREVENTS: peerMeta memory leak when routes are cleared or GR-released.
+func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
+	t.Run("rib clear in", func(t *testing.T) {
+		r := newTestRIBManager(t)
+		peerJSON := mustMarshal(t, map[string]any{
+			"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
+			"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+		})
+		event := &Event{
+			Message:       &MessageInfo{Type: "update", ID: 1},
+			Peer:          peerJSON,
+			RawAttributes: "40010100",
+			RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+			FamilyOps: map[string][]FamilyOperation{
+				"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			},
+		}
+		r.handleReceived(event)
+		require.NotNil(t, r.peerMeta["10.0.0.1"], "peerMeta should exist before clear")
+
+		r.inboundEmptyJSON("*")
+
+		_, ribExists := r.ribInPool["10.0.0.1"]
+		assert.False(t, ribExists, "ribInPool should be cleared")
+		_, metaExists := r.peerMeta["10.0.0.1"]
+		assert.False(t, metaExists, "peerMeta should be cleared with ribInPool")
+	})
+
+	t.Run("rib release-routes", func(t *testing.T) {
+		r := newTestRIBManager(t)
+		peerJSON := mustMarshal(t, map[string]any{
+			"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
+			"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+		})
+		event := &Event{
+			Message:       &MessageInfo{Type: "update", ID: 1},
+			Peer:          peerJSON,
+			RawAttributes: "40010100",
+			RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+			FamilyOps: map[string][]FamilyOperation{
+				"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			},
+		}
+		r.handleReceived(event)
+		require.NotNil(t, r.peerMeta["10.0.0.1"], "peerMeta should exist before release")
+
+		// Mark peer as retained, then release.
+		r.retainedPeers["10.0.0.1"] = true
+		r.releaseRoutesJSON("*")
+
+		_, ribExists := r.ribInPool["10.0.0.1"]
+		assert.False(t, ribExists, "ribInPool should be cleared on release")
+		_, metaExists := r.peerMeta["10.0.0.1"]
+		assert.False(t, metaExists, "peerMeta should be cleared on release")
+		_, retainExists := r.retainedPeers["10.0.0.1"]
+		assert.False(t, retainExists, "retainedPeers should be cleared on release")
+	})
 }
