@@ -129,6 +129,7 @@ type RouteServer struct {
 	// Workers send msgIDs here instead of blocking on synchronous RPCs.
 	// A background releaseLoop goroutine drains the channel.
 	releaseCh   chan uint64
+	releaseStop chan struct{} // signal releaseLoop to exit
 	releaseDone chan struct{} // closed when releaseLoop exits
 
 	// batches holds per-worker batch state for accumulating forward RPCs.
@@ -140,6 +141,7 @@ type RouteServer struct {
 	// flushBatch sends commands here instead of calling updateRoute directly.
 	// A background forwardLoop goroutine drains the channel and calls updateRoute.
 	forwardCh   chan forwardCmd
+	forwardStop chan struct{} // signal forwardLoop to exit
 	forwardDone chan struct{} // closed when forwardLoop exits
 
 	// withdrawalMu protects the withdrawals map.
@@ -314,42 +316,72 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 }
 
 // startReleaseLoop starts the background goroutine for async cache release.
+// Uses a separate stop channel instead of closing releaseCh to avoid a race
+// between close(releaseCh) and sends from PeerDown'd workers whose
+// happens-before chain runs through a different goroutine path.
 func (rs *RouteServer) startReleaseLoop() {
 	rs.releaseCh = make(chan uint64, 256)
+	rs.releaseStop = make(chan struct{})
 	rs.releaseDone = make(chan struct{})
 	go func() {
 		defer close(rs.releaseDone)
-		for msgID := range rs.releaseCh {
-			rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+		for {
+			select {
+			case msgID := <-rs.releaseCh:
+				rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+			case <-rs.releaseStop:
+				// Drain remaining buffered items before exiting.
+				for {
+					select {
+					case msgID := <-rs.releaseCh:
+						rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+					default: // buffer empty — drain complete
+						return
+					}
+				}
+			}
 		}
 	}()
 }
 
-// stopReleaseLoop closes the release channel and waits for the goroutine to exit.
-// Must be called after workers.Stop() to avoid sending on a closed channel.
+// stopReleaseLoop signals the release goroutine to stop and waits for it to exit.
 func (rs *RouteServer) stopReleaseLoop() {
-	close(rs.releaseCh)
+	close(rs.releaseStop)
 	<-rs.releaseDone
 }
 
 // startForwardLoop starts the background goroutine for fire-and-forget cache-forward RPCs.
 // Capacity 16 batches — each batch is up to 50 IDs, so ~800 updates buffered.
 // If the channel fills, workers block (natural backpressure from engine).
+// Uses a separate stop channel (same pattern as releaseLoop) to avoid
+// close/send race on forwardCh.
 func (rs *RouteServer) startForwardLoop() {
 	rs.forwardCh = make(chan forwardCmd, 16)
+	rs.forwardStop = make(chan struct{})
 	rs.forwardDone = make(chan struct{})
 	go func() {
 		defer close(rs.forwardDone)
-		for cmd := range rs.forwardCh {
-			rs.updateRoute(cmd.peer, cmd.cmd)
+		for {
+			select {
+			case cmd := <-rs.forwardCh:
+				rs.updateRoute(cmd.peer, cmd.cmd)
+			case <-rs.forwardStop:
+				for {
+					select {
+					case cmd := <-rs.forwardCh:
+						rs.updateRoute(cmd.peer, cmd.cmd)
+					default: // buffer empty — drain complete
+						return
+					}
+				}
+			}
 		}
 	}()
 }
 
-// stopForwardLoop closes the forward channel and waits for the goroutine to exit.
-// Must be called after workers.Stop() to avoid sending on a closed channel.
+// stopForwardLoop signals the forward goroutine to stop and waits for it to exit.
 func (rs *RouteServer) stopForwardLoop() {
-	close(rs.forwardCh)
+	close(rs.forwardStop)
 	<-rs.forwardDone
 }
 
