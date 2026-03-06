@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -31,6 +32,9 @@ func Run(args []string) int {
 	reg := registry.Lookup(args[0])
 	if reg == nil {
 		fmt.Fprintf(os.Stderr, "unknown plugin subcommand: %s\n", args[0])
+		if s := suggest.Command(args[0], append(registry.Names(), "test", "help")); s != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+		}
 		usage()
 		return 1
 	}

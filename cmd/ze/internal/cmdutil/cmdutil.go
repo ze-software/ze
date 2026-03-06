@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
 // RunCommand extracts --socket flag, validates command words against the tree,
@@ -46,6 +47,9 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 
 	if !IsValidCommand(cmdWords, tree) {
 		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", strings.Join(cmdWords, " "))
+		if suggestion := SuggestFromTree(cmdWords[0], tree); suggestion != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
+		}
 		fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", cmdName)
 		return 1
 	}
@@ -78,6 +82,18 @@ func IsValidCommand(words []string, tree *cli.Command) bool {
 	}
 
 	return current.Description != "" || len(current.Children) > 0
+}
+
+// SuggestFromTree returns a "did you mean?" suggestion for the first command word.
+func SuggestFromTree(word string, tree *cli.Command) string {
+	if tree.Children == nil {
+		return ""
+	}
+	candidates := make([]string, 0, len(tree.Children))
+	for k := range tree.Children {
+		candidates = append(candidates, k)
+	}
+	return suggest.Command(word, candidates)
 }
 
 // CommandEntry holds a top-level command name and description for help display.

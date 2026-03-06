@@ -10,6 +10,7 @@ import (
 	"os"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
 )
 
@@ -95,6 +96,9 @@ Examples:
 		return cmdSignal(command, info)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
+		if s := suggest.Command(command, []string{"reload", "stop", "quit", "status"}); s != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+		}
 		fs.Usage()
 		return ExitNotRunning
 	}

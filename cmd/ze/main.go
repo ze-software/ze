@@ -19,6 +19,7 @@ import (
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zerun "codeberg.org/thomas-mangin/ze/cmd/ze/run"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
@@ -192,6 +193,13 @@ dispatch:
 
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
+	commands := []string{
+		"bgp", "plugin", "cli", "config", "validate", "schema",
+		"exabgp", "signal", "show", "run", "completion", "version", "help",
+	}
+	if suggestion := suggest.Command(arg, commands); suggestion != "" {
+		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
+	}
 	usage()
 	os.Exit(1)
 }

@@ -6,6 +6,8 @@ package bgp
 import (
 	"fmt"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
 // Run executes the bgp subcommand with the given arguments.
@@ -36,6 +38,9 @@ func Run(args []string) int {
 
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
+	if s := suggest.Command(arg, []string{"decode", "encode", "help"}); s != "" {
+		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+	}
 	usage()
 	return 1
 }

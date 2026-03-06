@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 )
 
 const emptyConfig = `ze bgp {
@@ -390,6 +392,91 @@ func TestPeerSettingsEqual(t *testing.T) {
 			assert.Equal(t, tt.equal, result, "peerSettingsEqual mismatch")
 		})
 	}
+}
+
+// TestPeerSettingsEqualCapabilityChange verifies that capability content changes
+// are detected by peerSettingsEqual, not just capability count changes.
+//
+// VALIDATES: Changing ADD-PATH mode triggers peer restart on reload.
+// PREVENTS: Capability content changes being silently ignored (count-only comparison).
+func TestPeerSettingsEqualCapabilityChange(t *testing.T) {
+	base := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	base.Capabilities = []capability.Capability{
+		&capability.RouteRefresh{},
+		&capability.AddPath{Families: []capability.AddPathFamily{
+			{AFI: 1, SAFI: 1, Mode: capability.AddPathReceive},
+		}},
+	}
+
+	tests := []struct {
+		name  string
+		caps  []capability.Capability
+		equal bool
+	}{
+		{
+			"identical_caps",
+			[]capability.Capability{
+				&capability.RouteRefresh{},
+				&capability.AddPath{Families: []capability.AddPathFamily{
+					{AFI: 1, SAFI: 1, Mode: capability.AddPathReceive},
+				}},
+			},
+			true,
+		},
+		{
+			"addpath_mode_changed",
+			[]capability.Capability{
+				&capability.RouteRefresh{},
+				&capability.AddPath{Families: []capability.AddPathFamily{
+					{AFI: 1, SAFI: 1, Mode: capability.AddPathBoth},
+				}},
+			},
+			false,
+		},
+		{
+			"cap_added",
+			[]capability.Capability{
+				&capability.RouteRefresh{},
+				&capability.AddPath{Families: []capability.AddPathFamily{
+					{AFI: 1, SAFI: 1, Mode: capability.AddPathReceive},
+				}},
+				&capability.ExtendedMessage{},
+			},
+			false,
+		},
+		{
+			"cap_removed",
+			[]capability.Capability{
+				&capability.RouteRefresh{},
+			},
+			false,
+		},
+		{
+			"empty_vs_nonempty",
+			nil,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			other := NewPeerSettings(base.Address, base.LocalAS, base.PeerAS, base.RouterID)
+			other.Capabilities = tt.caps
+
+			result := peerSettingsEqual(base, other)
+			assert.Equal(t, tt.equal, result, "peerSettingsEqual mismatch for %s", tt.name)
+		})
+	}
+}
+
+// TestCapabilitiesEqualEmpty verifies edge cases for capabilitiesEqual.
+//
+// VALIDATES: Both nil and empty capability slices compare equal.
+// PREVENTS: Nil vs empty slice causing false positives.
+func TestCapabilitiesEqualEmpty(t *testing.T) {
+	assert.True(t, capabilitiesEqual(nil, nil))
+	assert.True(t, capabilitiesEqual([]capability.Capability{}, []capability.Capability{}))
+	assert.True(t, capabilitiesEqual(nil, []capability.Capability{}))
 }
 
 // --- VerifyConfig / ApplyConfigDiff tests ---

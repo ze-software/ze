@@ -6,6 +6,7 @@
 // Detail: cmd_dump.go — dump subcommand handler
 // Detail: cmd_diff.go — diff subcommand handler
 // Detail: cmd_completion.go — completion query handler
+// Detail: cmd_set.go — set subcommand handler
 //
 // Package config provides the ze config subcommand.
 package config
@@ -14,6 +15,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
 // Exit codes for config commands.
@@ -33,6 +36,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"fmt":        cmdFmt,
 	"dump":       cmdDump,
 	"diff":       cmdDiff,
+	"set":        cmdSet,
 	"completion": cmdCompletion,
 }
 
@@ -60,6 +64,13 @@ func Run(args []string) int {
 
 	// Unknown subcommand
 	fmt.Fprintf(os.Stderr, "unknown config subcommand: %s\n", subcmd)
+	candidates := make([]string, 0, len(subcommandHandlers))
+	for k := range subcommandHandlers {
+		candidates = append(candidates, k)
+	}
+	if s := suggest.Command(subcmd, candidates); s != "" {
+		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+	}
 	usage()
 	return 1
 }
@@ -84,6 +95,7 @@ Commands:
   fmt <file>        Format and normalize configuration file
   dump <file>       Dump parsed configuration
   diff <f1> <f2>    Compare two configuration files
+  set <file> <path> <value>  Set a configuration value
   completion <file> Query completion engine (testing/debugging)
 
 Examples:
@@ -94,6 +106,7 @@ Examples:
   ze config dump config.conf
   ze config diff old.conf new.conf
   ze config diff --json old.conf new.conf
+  ze config set config.conf bgp local-as 65000
   ze config completion --input set+ --context bgp/peer/1.1.1.1 config.conf
 `)
 }

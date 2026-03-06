@@ -6,10 +6,12 @@
 package reactor
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"maps"
 	"net/netip"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -568,12 +570,48 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 		return false
 	}
 
-	// Compare capabilities count (deep comparison would be expensive).
-	if len(a.Capabilities) != len(b.Capabilities) {
+	// Compare capabilities by wire encoding.
+	// Reload is rare, capabilities are small (<20 bytes each, <10 per peer).
+	if !capabilitiesEqual(a.Capabilities, b.Capabilities) {
 		return false
 	}
 
 	return true
+}
+
+// capabilitiesEqual compares two capability slices by wire encoding.
+// Capabilities are sorted by code, then serialized and compared byte-by-byte.
+func capabilitiesEqual(a, b []capability.Capability) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 {
+		return true
+	}
+
+	// Serialize each capability and compare.
+	// Capabilities are small (typically <20 bytes each).
+	encodeAll := func(caps []capability.Capability) []byte {
+		// Sort by code for deterministic comparison.
+		sorted := make([]capability.Capability, len(caps))
+		copy(sorted, caps)
+		slices.SortFunc(sorted, func(x, y capability.Capability) int {
+			return int(x.Code()) - int(y.Code())
+		})
+
+		var total int
+		for _, c := range sorted {
+			total += c.Len()
+		}
+		buf := make([]byte, total)
+		off := 0
+		for _, c := range sorted {
+			off += c.WriteTo(buf, off)
+		}
+		return buf[:off]
+	}
+
+	return bytes.Equal(encodeAll(a), encodeAll(b))
 }
 
 // TeardownPeer gracefully closes a peer session with NOTIFICATION.

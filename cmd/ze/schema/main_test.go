@@ -1,6 +1,9 @@
 package schema
 
 import (
+	"encoding/json"
+	"io"
+	"os"
 	"slices"
 	"strings"
 	"testing"
@@ -8,6 +11,25 @@ import (
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
+
+// captureStdout runs fn and returns whatever it wrote to os.Stdout.
+func captureStdout(t *testing.T, fn func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	old := os.Stdout
+	os.Stdout = w
+	fn()
+	w.Close() //nolint:errcheck,gosec // test cleanup
+	os.Stdout = old
+	out, err := io.ReadAll(r)
+	if err != nil {
+		t.Fatalf("read pipe: %v", err)
+	}
+	return string(out)
+}
 
 // TestRunNoArgs verifies missing args returns exit code 1.
 //
@@ -604,6 +626,154 @@ func TestBuildSchemaRegistryNotifications(t *testing.T) {
 	for _, method := range expected {
 		if !wireSet[method] {
 			t.Errorf("expected %s notification in registry", method)
+		}
+	}
+}
+
+// TestCmdListJSON verifies list --json outputs valid JSON with expected fields.
+//
+// VALIDATES: --json flag produces valid JSON array with module entries.
+// PREVENTS: --json flag being ignored, producing invalid JSON, or empty output.
+func TestCmdListJSON(t *testing.T) {
+	var code int
+	output := captureStdout(t, func() {
+		code = cmdList([]string{"--json"}, nil)
+	})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	var entries []map[string]any
+	if err := json.Unmarshal([]byte(output), &entries); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected non-empty JSON array")
+	}
+	// Every entry must have "module" and "namespace" keys.
+	foundBGP := false
+	for _, e := range entries {
+		if _, ok := e["module"]; !ok {
+			t.Errorf("entry missing 'module' key: %v", e)
+		}
+		if _, ok := e["namespace"]; !ok {
+			t.Errorf("entry missing 'namespace' key: %v", e)
+		}
+		if e["module"] == "ze-bgp-conf" {
+			foundBGP = true
+		}
+	}
+	if !foundBGP {
+		t.Error("expected ze-bgp-conf in JSON list output")
+	}
+}
+
+// TestCmdShowJSON verifies show --json outputs valid JSON with module metadata.
+//
+// VALIDATES: --json flag produces valid JSON object with module, namespace, yang fields.
+// PREVENTS: --json flag producing invalid JSON or missing YANG content.
+func TestCmdShowJSON(t *testing.T) {
+	var code int
+	output := captureStdout(t, func() {
+		code = cmdShow([]string{"--json", "ze-bgp-conf"}, nil)
+	})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(output), &obj); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output)
+	}
+	if obj["module"] != "ze-bgp-conf" {
+		t.Errorf("module = %v, want 'ze-bgp-conf'", obj["module"])
+	}
+	if _, ok := obj["yang"]; !ok {
+		t.Error("expected 'yang' key in show JSON output")
+	}
+}
+
+// TestCmdHandlersJSON verifies handlers --json outputs valid JSON map.
+//
+// VALIDATES: --json flag produces valid JSON object mapping handlers to modules.
+// PREVENTS: --json flag being ignored or producing invalid JSON.
+func TestCmdHandlersJSON(t *testing.T) {
+	var code int
+	output := captureStdout(t, func() {
+		code = cmdHandlers([]string{"--json"}, nil)
+	})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(output), &obj); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output)
+	}
+	if len(obj) == 0 {
+		t.Error("expected non-empty JSON object for handlers")
+	}
+	if _, ok := obj["bgp"]; !ok {
+		t.Error("expected 'bgp' handler in JSON output")
+	}
+}
+
+// TestCmdMethodsJSON verifies methods --json outputs valid JSON array.
+//
+// VALIDATES: --json flag produces valid JSON array with method, module, description fields.
+// PREVENTS: --json flag producing invalid JSON or missing fields.
+func TestCmdMethodsJSON(t *testing.T) {
+	var code int
+	output := captureStdout(t, func() {
+		code = cmdMethods([]string{"--json"}, nil)
+	})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	var entries []map[string]string
+	if err := json.Unmarshal([]byte(output), &entries); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected non-empty JSON array for methods")
+	}
+	for _, e := range entries {
+		if e["method"] == "" {
+			t.Errorf("entry missing 'method': %v", e)
+		}
+		if e["module"] == "" {
+			t.Errorf("entry missing 'module': %v", e)
+		}
+	}
+}
+
+// TestCmdEventsJSON verifies events --json outputs valid JSON array.
+//
+// VALIDATES: --json flag produces valid JSON array with event entries.
+// PREVENTS: --json flag producing invalid JSON or empty output.
+func TestCmdEventsJSON(t *testing.T) {
+	var code int
+	output := captureStdout(t, func() {
+		code = cmdEvents([]string{"--json"}, nil)
+	})
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	var entries []map[string]string
+	if err := json.Unmarshal([]byte(output), &entries); err != nil {
+		t.Fatalf("invalid JSON: %v\noutput: %s", err, output)
+	}
+	if len(entries) == 0 {
+		t.Fatal("expected non-empty JSON array for events")
+	}
+	for _, e := range entries {
+		if e["method"] == "" {
+			t.Errorf("entry missing 'method': %v", e)
+		}
+		if e["module"] == "" {
+			t.Errorf("entry missing 'module': %v", e)
 		}
 	}
 }

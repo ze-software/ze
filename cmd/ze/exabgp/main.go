@@ -12,6 +12,7 @@ import (
 	"strings"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
 )
@@ -39,6 +40,9 @@ func Run(args []string) int {
 		return exitOK
 	default:
 		fmt.Fprintf(os.Stderr, "unknown exabgp subcommand: %s\n", args[0])
+		if s := suggest.Command(args[0], []string{"plugin", "migrate", "help"}); s != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
+		}
 		usage()
 		return exitError
 	}

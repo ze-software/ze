@@ -10,6 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -610,6 +613,149 @@ func TestCLIClient_ResponseWithStringList(t *testing.T) {
 
 	if !strings.Contains(output, "- ") {
 		t.Errorf("output should format list items with '- ': %q", output)
+	}
+}
+
+// TestHistoryUpDown verifies Up/Down arrow navigation through command history.
+//
+// VALIDATES: History recall via Up/Down arrows works correctly.
+// PREVENTS: History browsing returning wrong entries or panicking.
+func TestHistoryUpDown(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+		history:    []string{"peer list", "daemon status", "system help"},
+	}
+
+	// Up once → most recent ("system help")
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "system help" {
+		t.Errorf("first Up = %q, want 'system help'", m.textInput.Value())
+	}
+	if m.historyIdx != 2 {
+		t.Errorf("historyIdx = %d, want 2", m.historyIdx)
+	}
+
+	// Up again → "daemon status"
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "daemon status" {
+		t.Errorf("second Up = %q, want 'daemon status'", m.textInput.Value())
+	}
+
+	// Up again → "peer list"
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "peer list" {
+		t.Errorf("third Up = %q, want 'peer list'", m.textInput.Value())
+	}
+
+	// Up at top → stays at "peer list"
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "peer list" {
+		t.Errorf("Up at top = %q, want 'peer list'", m.textInput.Value())
+	}
+
+	// Down → "daemon status"
+	m = m.handleHistoryDown()
+	if m.textInput.Value() != "daemon status" {
+		t.Errorf("Down = %q, want 'daemon status'", m.textInput.Value())
+	}
+
+	// Down → "system help"
+	m = m.handleHistoryDown()
+	if m.textInput.Value() != "system help" {
+		t.Errorf("Down = %q, want 'system help'", m.textInput.Value())
+	}
+
+	// Down past end → restores original input
+	m = m.handleHistoryDown()
+	if m.textInput.Value() != "" {
+		t.Errorf("Down past end = %q, want empty (original)", m.textInput.Value())
+	}
+	if m.historyIdx != -1 {
+		t.Errorf("historyIdx = %d, want -1 after restoring", m.historyIdx)
+	}
+}
+
+// TestHistoryPreservesInput verifies current input is saved when browsing history.
+//
+// VALIDATES: Partial input is restored when pressing Down past the end.
+// PREVENTS: Losing user's in-progress input when browsing history.
+func TestHistoryPreservesInput(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+		history:    []string{"peer list"},
+	}
+	m.textInput.SetValue("daemon st")
+
+	// Up → recalls "peer list", saves "daemon st"
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "peer list" {
+		t.Errorf("Up = %q, want 'peer list'", m.textInput.Value())
+	}
+	if m.historyTmp != "daemon st" {
+		t.Errorf("historyTmp = %q, want 'daemon st'", m.historyTmp)
+	}
+
+	// Down → restores "daemon st"
+	m = m.handleHistoryDown()
+	if m.textInput.Value() != "daemon st" {
+		t.Errorf("Down = %q, want 'daemon st'", m.textInput.Value())
+	}
+}
+
+// TestHistoryEmpty verifies Up/Down on empty history is a no-op.
+//
+// VALIDATES: No crash when browsing history with no entries.
+// PREVENTS: Index out of bounds on empty history.
+func TestHistoryEmpty(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+	}
+	m.textInput.SetValue("test")
+
+	m = m.handleHistoryUp()
+	if m.textInput.Value() != "test" {
+		t.Errorf("Up on empty history = %q, want 'test'", m.textInput.Value())
+	}
+
+	m = m.handleHistoryDown()
+	if m.textInput.Value() != "test" {
+		t.Errorf("Down on empty history = %q, want 'test'", m.textInput.Value())
+	}
+}
+
+// TestHistoryDedup verifies consecutive duplicate commands are not stored twice.
+//
+// VALIDATES: Duplicate consecutive commands produce single history entry.
+// PREVENTS: History filling with repeated identical commands.
+func TestHistoryDedup(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+	}
+
+	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+
+	// Type "peer list" and press Enter three times through Update().
+	for range 3 {
+		m.textInput.SetValue("peer list")
+		updated, _ := m.Update(enterKey)
+		m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	}
+
+	if len(m.history) != 1 {
+		t.Errorf("history len = %d, want 1 (dedup)", len(m.history))
+	}
+
+	// Different command should be added.
+	m.textInput.SetValue("daemon status")
+	updated, _ := m.Update(enterKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+
+	if len(m.history) != 2 {
+		t.Errorf("history len = %d, want 2", len(m.history))
 	}
 }
 

@@ -97,8 +97,9 @@ func runBGP(args []string) int {
 	ti.Width = 60
 
 	m := model{
-		textInput: ti,
-		client:    client,
+		textInput:  ti,
+		client:     client,
+		historyIdx: -1,
 	}
 
 	// Run the bubbletea program
@@ -398,6 +399,9 @@ type model struct {
 	quitting    bool
 	width       int
 	height      int
+	history     []string // Previous commands (oldest first)
+	historyIdx  int      // Current position in history (-1 = not browsing)
+	historyTmp  string   // Saved current input when browsing history
 }
 
 type suggestion struct {
@@ -445,6 +449,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
+		case tea.KeyUp:
+			m = m.handleHistoryUp()
+			return m, nil
+
+		case tea.KeyDown:
+			m = m.handleHistoryDown()
+			return m, nil
+
 		case tea.KeyEnter:
 			input := strings.TrimSpace(m.textInput.Value())
 			if input == "" {
@@ -455,6 +467,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.quitting = true
 				return m, tea.Quit
 			}
+
+			// Save to history (deduplicate consecutive duplicates)
+			if len(m.history) == 0 || m.history[len(m.history)-1] != input {
+				m.history = append(m.history, input)
+			}
+			m.historyIdx = -1
+			m.historyTmp = ""
 
 			// Execute command
 			m.textInput.SetValue("")
@@ -483,6 +502,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.textInput, cmd = m.textInput.Update(msg)
 	return m, cmd
+}
+
+// handleHistoryUp recalls the previous command from history.
+func (m model) handleHistoryUp() model {
+	if len(m.history) == 0 {
+		return m
+	}
+
+	if m.historyIdx == -1 {
+		// Start browsing: save current input, go to most recent
+		m.historyTmp = m.textInput.Value()
+		m.historyIdx = len(m.history) - 1
+	} else if m.historyIdx > 0 {
+		m.historyIdx--
+	}
+
+	m.textInput.SetValue(m.history[m.historyIdx])
+	m.textInput.CursorEnd()
+	m.updateSuggestions()
+	return m
+}
+
+// handleHistoryDown recalls the next command from history, or restores the original input.
+func (m model) handleHistoryDown() model {
+	if m.historyIdx == -1 {
+		return m
+	}
+
+	if m.historyIdx < len(m.history)-1 {
+		m.historyIdx++
+		m.textInput.SetValue(m.history[m.historyIdx])
+	} else {
+		// Back to current input
+		m.historyIdx = -1
+		m.textInput.SetValue(m.historyTmp)
+		m.historyTmp = ""
+	}
+
+	m.textInput.CursorEnd()
+	m.updateSuggestions()
+	return m
 }
 
 func (m *model) applySelectedSuggestion() {
