@@ -628,7 +628,7 @@ func TestServerNULProtocol(t *testing.T) {
 
 	// Verify result contains version
 	assert.Contains(t, string(result.Result), `"version"`)
-	assert.Contains(t, string(result.Result), Version)
+	assert.Contains(t, string(result.Result), version)
 }
 
 // TestServerNULProtocolUnknownMethod verifies error response for unknown wire methods.

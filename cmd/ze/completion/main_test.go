@@ -203,7 +203,7 @@ func TestZshGlobalFlags(t *testing.T) {
 	out := buf.String()
 
 	for _, flag := range []string{
-		"--debug", "--help", "--plugin", "--plugins", "--pprof",
+		"--debug", "--help", "--version", "--plugin", "--plugins", "--pprof",
 		"--chaos-seed", "--chaos-rate",
 	} {
 		if !strings.Contains(out, flag) {

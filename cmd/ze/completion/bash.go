@@ -34,7 +34,7 @@ _ze_find_subcmd() {
     _ze_subcmd_idx=0
     for (( i=1; i < cword; i++ )); do
         case "${words[i]}" in
-            -d|--debug)
+            -d|--debug|-V|--version)
                 ;;
             --plugin|--pprof|--chaos-seed|--chaos-rate)
                 (( i++ ))  # skip argument

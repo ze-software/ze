@@ -99,7 +99,8 @@ func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*plugin.Respons
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
-			"version": Version,
+			"version":    version,
+			"build-date": buildDate,
 		},
 	}, nil
 }

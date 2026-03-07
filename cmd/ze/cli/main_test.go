@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -97,7 +98,8 @@ func (s *mockServer) handleConn(conn net.Conn) {
 func (s *mockServer) handleRPC(method string) any {
 	switch method {
 	case "ze-system:version-software":
-		return &rpc.RPCResult{Result: mustJSON(map[string]any{"version": "0.1.0"})}
+		v, d := pluginserver.GetVersion()
+		return &rpc.RPCResult{Result: mustJSON(map[string]any{"version": v, "build-date": d})}
 	case "ze-system:help":
 		return &rpc.RPCResult{Result: mustJSON(map[string]any{
 			"commands": []string{"daemon shutdown", "peer list", "system help"},

@@ -34,6 +34,8 @@ _ze() {
         '--debug[Enable debug logging]' \
         '-h[Show help]' \
         '--help[Show help]' \
+        '-V[Show version]' \
+        '--version[Show version]' \
         '--plugin[Load plugin before starting]:plugin name:' \
         '--plugins[List available internal plugins]' \
         '--pprof[Start pprof HTTP server]:address:' \

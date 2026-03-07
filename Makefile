@@ -8,6 +8,11 @@
 export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 
+# Version: YY.MM.DD from current date, injected via ldflags.
+ZE_VERSION := $(shell date +%y.%m.%d)
+ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+ZE_LDFLAGS := -X main.version=$(ZE_VERSION) -X main.buildDate=$(ZE_BUILD_DATE)
+
 # Packages
 ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
 CHAOS_PACKAGES = ./cmd/ze-chaos/...
@@ -25,7 +30,7 @@ build: generate bin/ze bin/ze-test bin/ze-chaos
 
 ze:
 	@mkdir -p bin
-	go build -o bin/ze ./cmd/ze
+	go build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 chaos:
 	@mkdir -p bin
@@ -39,7 +44,7 @@ test:
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	go build -o bin/ze ./cmd/ze
+	go build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."

@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
 	// Import all plugins to trigger init() registration.
 	// Must happen at the binary entry point (not in internal/plugin)
@@ -35,9 +36,20 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 )
 
-const version = "0.1.0"
+// version and buildDate are set via ldflags at build time.
+// Format: -ldflags "-X main.version=YY.MM.DD -X main.buildDate=YYYY-MM-DD".
+var (
+	version   = "dev"
+	buildDate = "unknown"
+)
+
+func printVersion() {
+	fmt.Printf("ze %s (built %s)\n", version, buildDate)
+}
 
 func main() {
+	pluginserver.SetVersion(version, buildDate)
+
 	if len(os.Args) < 2 {
 		usage()
 		os.Exit(1)
@@ -49,7 +61,7 @@ func main() {
 	var chaosRate float64 = -1 // -1 means "not set by CLI"
 	var pprofAddr string
 	args := os.Args[1:]
-	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d") {
+	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d" || args[0] == "-V") {
 		switch args[0] {
 		case "-d", "--debug":
 			_ = os.Setenv("ze.log", "debug")
@@ -101,6 +113,9 @@ func main() {
 			// Handle here to avoid breaking the loop — this is a standalone flag
 			args = args[0:] // Keep it for dispatch below
 			goto dispatch
+		case "--version", "-V":
+			printVersion()
+			os.Exit(0)
 		case "--help", "-h":
 			args = args[0:]
 			goto dispatch
@@ -158,7 +173,7 @@ dispatch:
 	case "completion":
 		os.Exit(zecompletion.Run(args[1:]))
 	case "version":
-		fmt.Printf("ze %s\n", version)
+		printVersion()
 		os.Exit(0)
 	case "help", "-h", "--help":
 		usage()
@@ -254,6 +269,7 @@ Options:
   --plugin <name>       Load plugin before starting (repeatable)
   --plugins             List available internal plugins
   --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)
+  -V, --version         Show version and exit
   --chaos-seed <N>      Enable chaos self-test mode with PRNG seed N (-1 = time-based)
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 
