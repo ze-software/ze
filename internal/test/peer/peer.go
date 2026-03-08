@@ -28,6 +28,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/decode"
 )
 
+// ErrOpenMismatch is returned when the received OPEN message doesn't match expectations.
+var ErrOpenMismatch = errors.New("OPEN mismatch")
+
+// ErrConnectionClosed is returned when the connection closes before all expected messages are received.
+var ErrConnectionClosed = errors.New("connection closed before completion")
+
 // Mode specifies testpeer operation mode.
 type Mode int
 
@@ -276,7 +282,7 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 	if p.config.InspectOpenMessage {
 		msg := &Message{Header: header, Body: body}
 		if !p.checker.Expected(msg) {
-			return Result{Success: false, Error: errors.New("OPEN mismatch")}
+			return Result{Success: false, Error: ErrOpenMismatch}
 		}
 		if p.checker.Completed() {
 			return Result{Success: true}
@@ -348,7 +354,7 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 				if p.checker.ExpectingClose() {
 					return Result{Success: true}
 				}
-				return Result{Success: false, Error: errors.New("connection closed before completion")}
+				return Result{Success: false, Error: ErrConnectionClosed}
 			}
 			return Result{Success: false, Error: fmt.Errorf("read: %w", err)}
 		}

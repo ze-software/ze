@@ -436,10 +436,10 @@ func TestParseAttributes_BoundaryLengths(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			entry, err := ParseAttributes(tc.attr)
-			if tc.wantErr {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry, err := ParseAttributes(tt.attr)
+			if tt.wantErr {
 				if err == nil {
 					t.Error("expected error, got nil")
 				}

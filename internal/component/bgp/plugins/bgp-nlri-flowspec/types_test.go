@@ -543,10 +543,10 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
 			original := NewFlowSpec(IPv4FlowSpec)
-			for _, c := range tc.components {
+			for _, c := range tt.components {
 				original.AddComponent(c)
 			}
 
@@ -554,7 +554,7 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 			parsed, err := ParseFlowSpec(IPv4FlowSpec, data)
 			require.NoError(t, err)
 
-			assert.Equal(t, len(tc.components), len(parsed.Components()))
+			assert.Equal(t, len(tt.components), len(parsed.Components()))
 		})
 	}
 }

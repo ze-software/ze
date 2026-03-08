@@ -130,10 +130,10 @@ func TestChunkMPNLRI_IPv6_EdgePrefixLengths(t *testing.T) {
 		{"128", 128, 16}, // /128 = 17 bytes total
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			nlri := make([]byte, 1+tc.dataBytes)
-			nlri[0] = tc.prefixLen
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			nlri := make([]byte, 1+tt.dataBytes)
+			nlri[0] = tt.prefixLen
 			// Fill with non-zero to detect corruption
 			for i := 1; i < len(nlri); i++ {
 				nlri[i] = byte(i)
@@ -997,7 +997,7 @@ func TestSplitUpdate_DetectsMPUnreach(t *testing.T) {
 
 // TestSplitUpdate_PreservesOtherAttrs verifies non-MP attributes preserved.
 //
-// VALIDATES: ORIGIN, AS_PATH, etc. identical in all split chunks.
+// VALIDATES: ORIGIN, AS_PATH, ett. identical in all split chunks.
 // PREVENTS: Attribute loss or corruption during MP split.
 func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 	// Build UPDATE with ORIGIN + AS_PATH + MP_REACH_NLRI

@@ -279,9 +279,9 @@ func TestParseUpdateText_RejectSetKeyword(t *testing.T) {
 		{"nhop set", []string{"nhop", "set", "10.0.0.1", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseUpdateText(tc.args)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tt.args)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "set")
 		})
@@ -502,16 +502,16 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 		{"incomplete", "incomplete", 2},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"origin", tc.origin,
+				"origin", tt.origin,
 				"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
 			require.NotNil(t, result.Groups[0].Wire)
-			assert.Equal(t, tc.want, testExtractOrigin(t, result.Groups[0].Wire))
+			assert.Equal(t, tt.want, testExtractOrigin(t, result.Groups[0].Wire))
 		})
 	}
 }
@@ -612,9 +612,9 @@ func TestParseUpdateText_RejectAddOnAttributes(t *testing.T) {
 		{"local-preference", []string{"local-preference", "add", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseUpdateText(tc.args)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tt.args)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "keyword removed")
 		})
@@ -1046,14 +1046,14 @@ func TestParseUpdateText_MulticastFamily(t *testing.T) {
 		{"ipv6/multicast", "ipv6/multicast", "ff00::/8", nlri.IPv6Multicast},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", tc.family, "add", tc.prefix,
+				"nlri", tt.family, "add", tt.prefix,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
-			assert.Equal(t, tc.want, result.Groups[0].Family)
+			assert.Equal(t, tt.want, result.Groups[0].Family)
 		})
 	}
 }
@@ -2016,10 +2016,10 @@ func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 		{"numeric", "89", 89}, // OSPF
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", "protocol", tc.protocol,
+				"nlri", "ipv4/flow", "add", "protocol", tt.protocol,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2051,10 +2051,10 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 		{"bare", "80", flowspec.FlowOpEqual, 80}, // default to equal
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", "destination-port", tc.port,
+				"nlri", "ipv4/flow", "add", "destination-port", tt.port,
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2209,9 +2209,9 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 		{"exact_combined", []string{"=syn&ack"}, flowspec.FlowOpMatch, 0x12}, // exact SYN+ACK
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2238,9 +2238,9 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 		{"combined", []string{"dont-fragment&first-fragment"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
@@ -2480,17 +2480,17 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 		{"fragment", []string{"fragment", "dont-fragment"}, flowspec.FlowFragment},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add"}, tc.component...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add"}, tt.component...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "component %s failed", tc.name)
+			require.NoError(t, err, "component %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
 			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
-			require.Len(t, fs.Components(), 1, "expected 1 component for %s", tc.name)
-			assert.Equal(t, tc.wantType, fs.Components()[0].Type())
+			require.Len(t, fs.Components(), 1, "expected 1 component for %s", tt.name)
+			assert.Equal(t, tt.wantType, fs.Components()[0].Type())
 		})
 	}
 }
@@ -2597,9 +2597,9 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -2617,12 +2617,12 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 			require.True(t, ok, "component should have Matches() method")
 
 			matches := mg.Matches()
-			require.Len(t, matches, len(tc.wantOps), "wrong number of matches")
+			require.Len(t, matches, len(tt.wantOps), "wrong number of matches")
 
 			for i, m := range matches {
-				assert.Equal(t, tc.wantOps[i], m.Op, "match[%d] Op mismatch", i)
-				assert.Equal(t, tc.wantAnds[i], m.And, "match[%d] And mismatch", i)
-				assert.Equal(t, tc.wantVals[i], m.Value, "match[%d] Value mismatch", i)
+				assert.Equal(t, tt.wantOps[i], m.Op, "match[%d] Op mismatch", i)
+				assert.Equal(t, tt.wantAnds[i], m.And, "match[%d] And mismatch", i)
+				assert.Equal(t, tt.wantVals[i], m.Value, "match[%d] Value mismatch", i)
 			}
 		})
 	}
@@ -2676,9 +2676,9 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err)
 
@@ -2687,8 +2687,8 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 
 			// Get component bytes
 			gotBytes := fs.Components()[0].Bytes()
-			assert.Equal(t, tc.wantBytes, gotBytes,
-				"wire bytes mismatch\nwant: %02x\ngot:  %02x", tc.wantBytes, gotBytes)
+			assert.Equal(t, tt.wantBytes, gotBytes,
+				"wire bytes mismatch\nwant: %02x\ngot:  %02x", tt.wantBytes, gotBytes)
 		})
 	}
 }
@@ -2745,11 +2745,11 @@ func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 		{"match_push", []string{"=push"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "tcp-flags"}, tt.flags...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "tcp-flags %v failed", tc.flags)
+			require.NoError(t, err, "tcp-flags %v failed", tt.flags)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
@@ -2791,11 +2791,11 @@ func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 		{"df_and_not_isf", []string{"dont-fragment", "&!is-fragment"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tc.flags...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add", "fragment"}, tt.flags...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "fragment %v failed", tc.flags)
+			require.NoError(t, err, "fragment %v failed", tt.flags)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
@@ -2863,16 +2863,16 @@ func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "add"}, tc.components...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "add"}, tt.components...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "components %v failed", tc.components)
+			require.NoError(t, err, "components %v failed", tt.components)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
 			fs := testExtractFlowSpec(t, result.Groups[0].Announce[0])
-			assert.Len(t, fs.Components(), tc.wantCount, "expected %d components", tc.wantCount)
+			assert.Len(t, fs.Components(), tt.wantCount, "expected %d components", tt.wantCount)
 		})
 	}
 }
@@ -2894,11 +2894,11 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 		{"ipv6_tcp_flags", "ipv6/flow", []string{"protocol", "tcp", "tcp-flags", "syn"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", tc.family, "add"}, tc.components...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", tt.family, "add"}, tt.components...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "IPv6 %s failed", tc.name)
+			require.NoError(t, err, "IPv6 %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
@@ -2926,16 +2926,16 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 		{"ipv6_vpn_full", "ipv6/flow-vpn", "65000:300", "0:65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", tc.family, "add", "rd", tc.rdInput}, tc.components...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", tt.family, "add", "rd", tt.rdInput}, tt.components...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "VPN %s failed", tc.name)
+			require.NoError(t, err, "VPN %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 
 			fsv := testExtractFlowSpecVPN(t, result.Groups[0].Announce[0])
-			assert.Equal(t, tc.rdOutput, fsv.RD().String())
+			assert.Equal(t, tt.rdOutput, fsv.RD().String())
 		})
 	}
 }
@@ -2955,11 +2955,11 @@ func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 		{"full_rule", []string{"destination", "10.0.0.0/24", "source", "192.168.0.0/16", "protocol", "tcp", "tcp-flags", "syn"}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", "ipv4/flow", "del"}, tc.components...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flow", "del"}, tt.components...)
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "withdraw %s failed", tc.name)
+			require.NoError(t, err, "withdraw %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
 			require.Empty(t, result.Groups[0].Announce)
 			require.Len(t, result.Groups[0].Withdraw, 1)
@@ -3072,12 +3072,12 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := ParseUpdateText(tc.args)
-			require.Error(t, err, "expected error for %s", tc.name)
-			assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(tc.wantErr),
-				"error %q should contain %q", err.Error(), tc.wantErr)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tt.args)
+			require.Error(t, err, "expected error for %s", tt.name)
+			assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(tt.wantErr),
+				"error %q should contain %q", err.Error(), tt.wantErr)
 		})
 	}
 }
@@ -3102,12 +3102,12 @@ func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
 		{"source_port_max", "source-port", "65535"},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParseUpdateText([]string{
-				"nlri", "ipv4/flow", "add", tc.component, tc.value,
+				"nlri", "ipv4/flow", "add", tt.component, tt.value,
 			})
-			require.NoError(t, err, "%s=%s should be valid", tc.component, tc.value)
+			require.NoError(t, err, "%s=%s should be valid", tt.component, tt.value)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 		})
@@ -3146,12 +3146,12 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			nlriPart := append([]string{"nlri", "ipv4/flow", "add"}, tc.components...)
-			args := append(tc.extcomm, nlriPart...) //nolint:gocritic // appendAssign: intentional
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nlriPart := append([]string{"nlri", "ipv4/flow", "add"}, tt.components...)
+			args := append(tt.extcomm, nlriPart...) //nolint:gocritic // appendAssign: intentional
 			result, err := ParseUpdateText(args)
-			require.NoError(t, err, "extcomm+flowspec %s failed", tc.name)
+			require.NoError(t, err, "extcomm+flowspec %s failed", tt.name)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
 			require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)

@@ -16,6 +16,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )
 
+// ErrTestsFailed is returned when one or more tests fail.
+var ErrTestsFailed = errors.New("tests failed")
+
 func uiCmd() int {
 	if err := uiMain(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err) //nolint:errcheck // terminal output
@@ -141,7 +144,7 @@ Examples:
 	}
 
 	if !r.Run(ctx, opts) {
-		return errors.New("tests failed")
+		return ErrTestsFailed
 	}
 
 	return nil

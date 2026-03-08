@@ -244,16 +244,16 @@ func TestCollisionBGPIDComparison(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			session, client, server := setupOpenConfirmSession(t, tc.localID)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session, client, server := setupOpenConfirmSession(t, tt.localID)
 			defer func() { _ = client.Close() }()
 			defer func() { _ = server.Close() }()
 
-			shouldAccept, shouldCloseExisting := session.DetectCollision(tc.remoteID)
+			shouldAccept, shouldCloseExisting := session.DetectCollision(tt.remoteID)
 
-			assert.Equal(t, tc.wantAccept, shouldAccept, "accept mismatch")
-			assert.Equal(t, tc.wantCloseExisting, shouldCloseExisting, "close existing mismatch")
+			assert.Equal(t, tt.wantAccept, shouldAccept, "accept mismatch")
+			assert.Equal(t, tt.wantCloseExisting, shouldCloseExisting, "close existing mismatch")
 		})
 	}
 }
@@ -529,13 +529,13 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			settings := NewPeerSettings(
 				netip.MustParseAddr("192.0.2.1"),
 				65001, 65002, 0x01020304,
 			)
-			settings.Connection = tc.connection
+			settings.Connection = tt.connection
 			session := NewSession(settings)
 
 			// Session starts in Idle - don't start it to stay in Idle
@@ -545,8 +545,8 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 			shouldAccept, shouldCloseExisting := session.DetectCollision(0xFFFFFFFF)
 
 			// Non-collision states should accept
-			assert.True(t, shouldAccept, "%s should accept", tc.name)
-			assert.False(t, shouldCloseExisting, "%s should not close existing", tc.name)
+			assert.True(t, shouldAccept, "%s should accept", tt.name)
+			assert.False(t, shouldCloseExisting, "%s should not close existing", tt.name)
 		})
 	}
 }

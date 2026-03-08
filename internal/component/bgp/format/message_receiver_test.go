@@ -220,9 +220,9 @@ func TestDecodeOpenInvalid(t *testing.T) {
 		{"truncated", []byte{0x04, 0xfd, 0xe9, 0x00}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			decoded := DecodeOpen(tc.bytes)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoded := DecodeOpen(tt.bytes)
 			// Should return zero values, not panic
 			require.Equal(t, uint8(0), decoded.Version)
 		})
@@ -283,9 +283,9 @@ func TestDecodeNotificationInvalid(t *testing.T) {
 		{"too_short", []byte{0x06}},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			decoded := DecodeNotification(tc.bytes)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decoded := DecodeNotification(tt.bytes)
 			require.Equal(t, uint8(0), decoded.ErrorCode)
 		})
 	}

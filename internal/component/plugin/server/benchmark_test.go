@@ -69,11 +69,11 @@ func BenchmarkDispatch(b *testing.B) {
 		{"rib_help", "rib help"},
 	}
 
-	for _, tc := range commands {
-		b.Run(tc.name, func(b *testing.B) {
+	for _, tt := range commands {
+		b.Run(tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				benchResp, benchErr = d.Dispatch(ctx, tc.cmd)
+				benchResp, benchErr = d.Dispatch(ctx, tt.cmd)
 			}
 		})
 	}
@@ -114,11 +114,11 @@ func BenchmarkTokenize(b *testing.B) {
 		{"long_update", `update text origin set igp as-path set [ 65001 65002 65003 ] nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 10.0.2.0/24`},
 	}
 
-	for _, tc := range inputs {
-		b.Run(tc.name, func(b *testing.B) {
+	for _, tt := range inputs {
+		b.Run(tt.name, func(b *testing.B) {
 			b.ReportAllocs()
 			for range b.N {
-				_ = tokenize(tc.input)
+				_ = tokenize(tt.input)
 			}
 		})
 	}
@@ -137,11 +137,11 @@ func BenchmarkEventThroughput(b *testing.B) {
 		{"update_large", generateLargeUpdateEvent(100)},
 	}
 
-	for _, tc := range events {
-		b.Run(tc.name, func(b *testing.B) {
+	for _, tt := range events {
+		b.Run(tt.name, func(b *testing.B) {
 			var buf bytes.Buffer
-			buf.Grow(len(tc.event) * 100)
-			eventBytes := []byte(tc.event + "\n")
+			buf.Grow(len(tt.event) * 100)
+			eventBytes := []byte(tt.event + "\n")
 
 			b.ReportAllocs()
 			b.SetBytes(int64(len(eventBytes)))

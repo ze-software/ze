@@ -63,24 +63,24 @@ func TestWireFormatRequest(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			var got rpc.Request
-			err := json.Unmarshal([]byte(tc.json), &got)
-			if tc.wantErr {
+			err := json.Unmarshal([]byte(tt.json), &got)
+			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.want.Method, got.Method)
-			assert.Equal(t, tc.want.More, got.More)
+			assert.Equal(t, tt.want.Method, got.Method)
+			assert.Equal(t, tt.want.More, got.More)
 
 			// Compare RawMessage fields as JSON
-			if tc.want.Params != nil {
-				assert.JSONEq(t, string(tc.want.Params), string(got.Params))
+			if tt.want.Params != nil {
+				assert.JSONEq(t, string(tt.want.Params), string(got.Params))
 			}
-			if tc.want.ID != nil {
-				assert.Equal(t, string(tc.want.ID), string(got.ID))
+			if tt.want.ID != nil {
+				assert.Equal(t, string(tt.want.ID), string(got.ID))
 			}
 		})
 	}
@@ -130,11 +130,11 @@ func TestWireFormatResponse(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			data, err := json.Marshal(tc.resp)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.resp)
 			require.NoError(t, err)
-			assert.JSONEq(t, tc.want, string(data))
+			assert.JSONEq(t, tt.want, string(data))
 		})
 	}
 }
@@ -183,11 +183,11 @@ func TestWireFormatError(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			data, err := json.Marshal(tc.resp)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.resp)
 			require.NoError(t, err)
-			assert.JSONEq(t, tc.want, string(data))
+			assert.JSONEq(t, tt.want, string(data))
 		})
 	}
 }
@@ -309,30 +309,30 @@ func TestResponseMapping(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			result := MapResponse(tc.status, tc.serial, tc.partial, tc.data)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := MapResponse(tt.status, tt.serial, tt.partial, tt.data)
 			require.NotNil(t, result)
 
-			if tc.wantResp {
+			if tt.wantResp {
 				resp, ok := result.(*rpc.RPCResult)
 				require.True(t, ok, "expected *RPCResult")
-				assert.Equal(t, tc.wantCont, resp.Continues)
-				if tc.wantID != "" {
-					assert.Equal(t, tc.wantID, string(resp.ID))
+				assert.Equal(t, tt.wantCont, resp.Continues)
+				if tt.wantID != "" {
+					assert.Equal(t, tt.wantID, string(resp.ID))
 				}
-				if tc.wantResult != "" {
-					assert.JSONEq(t, tc.wantResult, string(resp.Result))
+				if tt.wantResult != "" {
+					assert.JSONEq(t, tt.wantResult, string(resp.Result))
 				}
 			} else {
 				errResp, ok := result.(*rpc.RPCError)
 				require.True(t, ok, "expected *RPCError type")
 				assert.NotEmpty(t, errResp.Error)
-				if tc.wantError != "" {
-					assert.Equal(t, tc.wantError, errResp.Error)
+				if tt.wantError != "" {
+					assert.Equal(t, tt.wantError, errResp.Error)
 				}
-				if tc.wantID != "" {
-					assert.Equal(t, tc.wantID, string(errResp.ID))
+				if tt.wantID != "" {
+					assert.Equal(t, tt.wantID, string(errResp.ID))
 				}
 			}
 		})

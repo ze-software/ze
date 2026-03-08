@@ -299,13 +299,13 @@ func TestBGPLSRoundTrip(t *testing.T) {
 		},
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			data := tc.nlri.Bytes()
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			data := tt.nlri.Bytes()
 			parsed, err := ParseBGPLS(data)
 			require.NoError(t, err)
 
-			assert.Equal(t, tc.nlri.NLRIType(), parsed.NLRIType())
+			assert.Equal(t, tt.nlri.NLRIType(), parsed.NLRIType())
 		})
 	}
 }

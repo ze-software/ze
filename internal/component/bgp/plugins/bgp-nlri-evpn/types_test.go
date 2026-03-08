@@ -643,15 +643,15 @@ func TestParseESIString(t *testing.T) {
 		{"00:11:22", ESI{}, true},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.input, func(t *testing.T) {
-			result, err := ParseESIString(tc.input)
-			if tc.wantErr {
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := ParseESIString(tt.input)
+			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expected, result)
+			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
@@ -772,18 +772,18 @@ func TestLenWithContext_EVPN(t *testing.T) {
 
 	addPathValues := []bool{false, true}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, addPath := range addPathValues {
 			ctxName := "AddPath=false"
 			if addPath {
 				ctxName = "AddPath=true"
 			}
-			name := tc.name + "_" + ctxName
+			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
-				predictedLen := nlri.LenWithContext(tc.nlri, addPath)
+				predictedLen := nlri.LenWithContext(tt.nlri, addPath)
 				buf := make([]byte, predictedLen+10)
-				written := nlri.WriteNLRI(tc.nlri, buf, 0, addPath)
+				written := nlri.WriteNLRI(tt.nlri, buf, 0, addPath)
 
 				if written != predictedLen {
 					t.Errorf("LenWithContext=%d but WriteNLRI wrote %d bytes",

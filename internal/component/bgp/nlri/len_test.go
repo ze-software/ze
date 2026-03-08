@@ -46,11 +46,11 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 		{"AddPath=true", true},
 	}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, ap := range addPathValues {
-			name := tc.name + "_" + ap.name
+			name := tt.name + "_" + ap.name
 			t.Run(name, func(t *testing.T) {
-				nlri := tc.nlri
+				nlri := tt.nlri
 
 				// Get length via LenWithContext
 				lenFromFunc := LenWithContext(nlri, ap.addPath)
@@ -93,10 +93,10 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 
 	addPathValues := []bool{false, true}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, addPath := range addPathValues {
 			// Skip ADD-PATH tests for NLRI types that don't support it
-			if addPath && !tc.supportsAddPath {
+			if addPath && !tt.supportsAddPath {
 				continue
 			}
 
@@ -104,10 +104,10 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 			if addPath {
 				ctxName = "AddPath=true"
 			}
-			name := tc.name + "_" + ctxName
+			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
-				nlri := tc.nlri
+				nlri := tt.nlri
 
 				// Get predicted length
 				predictedLen := LenWithContext(nlri, addPath)

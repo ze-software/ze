@@ -185,12 +185,12 @@ func TestSchemaValidateValue(t *testing.T) {
 		{TypePrefix, "10.0.0.0", true}, // plain IP allowed as /32
 	}
 
-	for _, tc := range tests {
-		err := ValidateValue(tc.typ, tc.value)
-		if tc.valid {
-			require.NoError(t, err, "expected %q valid for %v", tc.value, tc.typ)
+	for _, tt := range tests {
+		err := ValidateValue(tt.typ, tt.value)
+		if tt.valid {
+			require.NoError(t, err, "expected %q valid for %v", tt.value, tt.typ)
 		} else {
-			require.Error(t, err, "expected %q invalid for %v", tc.value, tc.typ)
+			require.Error(t, err, "expected %q invalid for %v", tt.value, tt.typ)
 		}
 	}
 }

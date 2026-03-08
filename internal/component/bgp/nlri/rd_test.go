@@ -154,16 +154,16 @@ func TestParseRDString(t *testing.T) {
 		{"100", RDType0, [6]byte{}, true},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.input, func(t *testing.T) {
-			result, err := ParseRDString(tc.input)
-			if tc.wantErr {
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result, err := ParseRDString(tt.input)
+			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tc.expectType, result.Type)
-			assert.Equal(t, tc.expectValue, result.Value)
+			assert.Equal(t, tt.expectType, result.Type)
+			assert.Equal(t, tt.expectValue, result.Value)
 		})
 	}
 }

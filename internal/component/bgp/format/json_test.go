@@ -1146,12 +1146,12 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
 
 			// Verify RD String() output
-			assert.Equal(t, tc.wantRD, rd.String(), "RD should include type prefix")
+			assert.Equal(t, tt.wantRD, rd.String(), "RD should include type prefix")
 
 			// Create IPVPN NLRI and verify JSON output
 			vpnNLRI := vpn.NewVPN(
@@ -1168,7 +1168,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 			output := sb.String()
 
 			// Verify RD in JSON output
-			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tt.wantRD),
 				"JSON should contain RD with type prefix")
 		})
 	}
@@ -1298,14 +1298,14 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			// Create LabeledUnicast NLRI
 			lu := labeled.NewLabeledUnicast(
 				nlri.IPv4LabeledUnicast,
-				netip.MustParsePrefix(tc.prefix),
-				tc.labels,
-				tc.pathID,
+				netip.MustParsePrefix(tt.prefix),
+				tt.labels,
+				tt.pathID,
 			)
 
 			// Format using formatNLRIJSONValue (routes through registry decoder)
@@ -1314,16 +1314,16 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			output := sb.String()
 
 			// Verify prefix
-			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tc.prefix),
+			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tt.prefix),
 				"JSON should contain prefix")
 
 			// Verify labels
-			assert.Contains(t, output, tc.wantLabels,
+			assert.Contains(t, output, tt.wantLabels,
 				"JSON should contain labels array")
 
 			// Verify path-id
-			if tc.wantPathID {
-				assert.Contains(t, output, fmt.Sprintf(`"path-id":%d`, tc.pathID),
+			if tt.wantPathID {
+				assert.Contains(t, output, fmt.Sprintf(`"path-id":%d`, tt.pathID),
 					"JSON should contain path-id")
 			} else {
 				assert.NotContains(t, output, `"path-id"`,
@@ -1446,16 +1446,16 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			// Create IPVPN NLRI
-			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
+			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
 			vpnNLRI := vpn.NewVPN(
 				nlri.IPv4VPN,
 				rd,
-				tc.labels,
-				netip.MustParsePrefix(tc.prefix),
-				tc.pathID,
+				tt.labels,
+				netip.MustParsePrefix(tt.prefix),
+				tt.pathID,
 			)
 
 			// Format using formatNLRIJSONValue (registry-based decode)
@@ -1464,20 +1464,20 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			output := sb.String()
 
 			// Verify prefix
-			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tc.prefix),
+			assert.Contains(t, output, fmt.Sprintf(`"prefix":%q`, tt.prefix),
 				"JSON should contain prefix")
 
 			// Verify RD with type prefix
-			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tt.wantRD),
 				"JSON should contain RD with type prefix")
 
 			// Verify labels
-			assert.Contains(t, output, tc.wantLabels,
+			assert.Contains(t, output, tt.wantLabels,
 				"JSON should contain labels array")
 
 			// Verify path-id
-			if tc.wantPathID {
-				assert.Contains(t, output, fmt.Sprintf(`"path-id":%d`, tc.pathID),
+			if tt.wantPathID {
+				assert.Contains(t, output, fmt.Sprintf(`"path-id":%d`, tt.pathID),
 					"JSON should contain path-id")
 			} else {
 				assert.NotContains(t, output, `"path-id"`,
@@ -1540,12 +1540,12 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			// Create FlowSpecVPN
-			rd := nlri.RouteDistinguisher{Type: tc.rdType, Value: tc.rdValue}
+			rd := nlri.RouteDistinguisher{Type: tt.rdType, Value: tt.rdValue}
 			fsv := flowspec.NewFlowSpecVPN(nlri.IPv4FlowSpec, rd)
-			for _, comp := range tc.components {
+			for _, comp := range tt.components {
 				fsv.AddComponent(comp)
 			}
 
@@ -1555,11 +1555,11 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 			output := sb.String()
 
 			// Verify RD with type prefix
-			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tc.wantRD),
+			assert.Contains(t, output, fmt.Sprintf(`"rd":%q`, tt.wantRD),
 				"JSON should contain RD with type prefix")
 
 			// Verify structured component key exists (plugin uses structured JSON, not spec string)
-			assert.Contains(t, output, fmt.Sprintf("%q", tc.wantKey),
+			assert.Contains(t, output, fmt.Sprintf("%q", tt.wantKey),
 				"JSON should contain component key")
 
 			// Verify valid JSON
@@ -1569,7 +1569,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 			// Verify required fields exist
 			assert.Contains(t, parsed, "rd", "JSON should have rd field")
-			assert.Contains(t, parsed, tc.wantKey, "JSON should have component key")
+			assert.Contains(t, parsed, tt.wantKey, "JSON should have component key")
 		})
 	}
 }

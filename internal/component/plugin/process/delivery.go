@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+// ErrConnectionClosed is returned when the plugin connection is closed during event delivery.
+var ErrConnectionClosed = errors.New("connection closed")
+
 // safeBridgeCall calls fn with panic recovery. If the plugin handler panics,
 // the panic is caught and returned as an error instead of crashing the
 // engine's delivery loop.
@@ -183,7 +186,7 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	} else {
 		connB := p.ConnB()
 		if connB == nil {
-			batchErr = errors.New("connection closed")
+			batchErr = ErrConnectionClosed
 		} else {
 			ctx, cancel := context.WithTimeout(p.ctx, timeout)
 			batchErr = connB.SendDeliverBatch(ctx, events)

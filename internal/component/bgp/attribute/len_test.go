@@ -71,11 +71,11 @@ func TestAttrLenWithContext_MatchesActualWriteLen(t *testing.T) {
 		{"ASN4=false", bgpctx.EncodingContextForASN4(false)},
 	}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, ctxCase := range contexts {
-			name := tc.name + "_" + ctxCase.name
+			name := tt.name + "_" + ctxCase.name
 			t.Run(name, func(t *testing.T) {
-				attr := tc.attr
+				attr := tt.attr
 				ctx := ctxCase.ctx
 
 				// Get length via attrLenWithContext
@@ -115,7 +115,7 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 		bgpctx.EncodingContextForASN4(false),
 	}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, ctx := range contexts {
 			ctxName := ctxNameNil
 			if ctx != nil {
@@ -125,10 +125,10 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 					ctxName = "ASN4=false"
 				}
 			}
-			name := tc.name + "_" + ctxName
+			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
-				attr := tc.attr
+				attr := tt.attr
 
 				// Get predicted length
 				predictedLen := attrLenWithContext(attr, ctx)
@@ -171,7 +171,7 @@ func TestWriteAttrToWithContext_Consistency(t *testing.T) {
 		bgpctx.EncodingContextForASN4(false),
 	}
 
-	for _, tc := range testCases {
+	for _, tt := range testCases {
 		for _, ctx := range contexts {
 			ctxName := ctxNameNil
 			if ctx != nil {
@@ -181,10 +181,10 @@ func TestWriteAttrToWithContext_Consistency(t *testing.T) {
 					ctxName = "ASN4=false"
 				}
 			}
-			name := tc.name + "_" + ctxName
+			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
-				attr := tc.attr
+				attr := tt.attr
 
 				// Encode using WriteAttrToWithContext
 				expectedBuf := make([]byte, 4096)

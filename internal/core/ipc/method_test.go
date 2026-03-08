@@ -62,12 +62,12 @@ func TestMethodNameParsing(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			module, rpc, err := ParseMethod(tc.method)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			module, rpc, err := ParseMethod(tt.method)
 			require.NoError(t, err)
-			assert.Equal(t, tc.wantModule, module)
-			assert.Equal(t, tc.wantRPC, rpc)
+			assert.Equal(t, tt.wantModule, module)
+			assert.Equal(t, tt.wantRPC, rpc)
 		})
 	}
 }
@@ -92,10 +92,10 @@ func TestMethodNameValidation(t *testing.T) {
 		{"too_long", string(make([]byte, 257))},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, _, err := ParseMethod(tc.method)
-			require.Error(t, err, "should reject: %q", tc.method)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseMethod(tt.method)
+			require.Error(t, err, "should reject: %q", tt.method)
 		})
 	}
 }
@@ -143,10 +143,10 @@ func TestFormatMethod(t *testing.T) {
 		{"plugin_ready", "ze-plugin-api", "session-ready", "ze-plugin-api:session-ready"},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got := FormatMethod(tc.module, tc.rpc)
-			assert.Equal(t, tc.want, got)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatMethod(tt.module, tt.rpc)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

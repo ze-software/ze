@@ -41,14 +41,14 @@ func TestPerAttributePools_Existence(t *testing.T) {
 		{"OtherAttrs", OtherAttrs, 14},
 	}
 
-	for _, tc := range pools {
-		t.Run(tc.name, func(t *testing.T) {
-			require.NotNil(t, tc.pool, "pool %s should not be nil", tc.name)
+	for _, tt := range pools {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotNil(t, tt.pool, "pool %s should not be nil", tt.name)
 
 			// Verify pool index via handle (public API).
-			h := mustIntern(t, tc.pool, []byte{0x00})
-			assert.Equal(t, tc.idx, h.PoolIdx(), "pool %s should have idx %d", tc.name, tc.idx)
-			require.NoError(t, tc.pool.Release(h))
+			h := mustIntern(t, tt.pool, []byte{0x00})
+			assert.Equal(t, tt.idx, h.PoolIdx(), "pool %s should have idx %d", tt.name, tt.idx)
+			require.NoError(t, tt.pool.Release(h))
 		})
 	}
 }
