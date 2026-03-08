@@ -33,14 +33,14 @@ func TestParseIP(t *testing.T) {
 		{"2001:db8::1", netip.MustParseAddr("2001:db8::1")},
 	}
 
-	for _, tc := range tests {
-		sel, err := Parse(tc.input)
+	for _, tt := range tests {
+		sel, err := Parse(tt.input)
 		if err != nil {
-			t.Errorf("Parse(%q) error: %v", tc.input, err)
+			t.Errorf("Parse(%q) error: %v", tt.input, err)
 			continue
 		}
-		if sel.IP != tc.want {
-			t.Errorf("Parse(%q).IP = %v, want %v", tc.input, sel.IP, tc.want)
+		if sel.IP != tt.want {
+			t.Errorf("Parse(%q).IP = %v, want %v", tt.input, sel.IP, tt.want)
 		}
 	}
 }
@@ -98,13 +98,13 @@ func TestParseEdgeCases(t *testing.T) {
 		{"  !10.0.0.1  ", false}, // Whitespace with exclude
 	}
 
-	for _, tc := range tests {
-		_, err := Parse(tc.input)
-		if tc.wantErr && err == nil {
-			t.Errorf("Parse(%q) expected error", tc.input)
+	for _, tt := range tests {
+		_, err := Parse(tt.input)
+		if tt.wantErr && err == nil {
+			t.Errorf("Parse(%q) expected error", tt.input)
 		}
-		if !tc.wantErr && err != nil {
-			t.Errorf("Parse(%q) unexpected error: %v", tc.input, err)
+		if !tt.wantErr && err != nil {
+			t.Errorf("Parse(%q) unexpected error: %v", tt.input, err)
 		}
 	}
 }
@@ -140,19 +140,19 @@ func TestParseMultiIP(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		sel, err := Parse(tc.input)
+	for _, tt := range tests {
+		sel, err := Parse(tt.input)
 		if err != nil {
-			t.Errorf("Parse(%q) error: %v", tc.input, err)
+			t.Errorf("Parse(%q) error: %v", tt.input, err)
 			continue
 		}
-		if len(sel.IPs) != len(tc.want) {
-			t.Errorf("Parse(%q).IPs len = %d, want %d", tc.input, len(sel.IPs), len(tc.want))
+		if len(sel.IPs) != len(tt.want) {
+			t.Errorf("Parse(%q).IPs len = %d, want %d", tt.input, len(sel.IPs), len(tt.want))
 			continue
 		}
 		for i, ip := range sel.IPs {
-			if ip != tc.want[i] {
-				t.Errorf("Parse(%q).IPs[%d] = %v, want %v", tc.input, i, ip, tc.want[i])
+			if ip != tt.want[i] {
+				t.Errorf("Parse(%q).IPs[%d] = %v, want %v", tt.input, i, ip, tt.want[i])
 			}
 		}
 	}
@@ -202,11 +202,11 @@ func TestMatchesMultiIP(t *testing.T) {
 		{netip.MustParseAddr("10.0.0.4"), false}, // Not in list
 	}
 
-	for _, tc := range tests {
-		got := sel.Matches(tc.peer)
-		if got != tc.want {
+	for _, tt := range tests {
+		got := sel.Matches(tt.peer)
+		if got != tt.want {
 			t.Errorf("Selector(%q).Matches(%v) = %v, want %v",
-				"10.0.0.1,10.0.0.3", tc.peer, got, tc.want)
+				"10.0.0.1,10.0.0.3", tt.peer, got, tt.want)
 		}
 	}
 }
@@ -257,15 +257,15 @@ func TestMatches(t *testing.T) {
 		{"!10.0.0.1", peers[2], true},
 	}
 
-	for _, tc := range tests {
-		sel, err := Parse(tc.selector)
+	for _, tt := range tests {
+		sel, err := Parse(tt.selector)
 		if err != nil {
-			t.Fatalf("Parse(%q) error: %v", tc.selector, err)
+			t.Fatalf("Parse(%q) error: %v", tt.selector, err)
 		}
-		got := sel.Matches(tc.peer)
-		if got != tc.want {
+		got := sel.Matches(tt.peer)
+		if got != tt.want {
 			t.Errorf("Selector(%q).Matches(%v) = %v, want %v",
-				tc.selector, tc.peer, got, tc.want)
+				tt.selector, tt.peer, got, tt.want)
 		}
 	}
 }

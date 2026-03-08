@@ -158,8 +158,7 @@ func TestProcessNotFound(t *testing.T) {
 	}
 
 	// Wait for process to exit due to missing script
-	time.Sleep(100 * time.Millisecond)
-	assert.False(t, proc.Running(), "process should exit when script not found")
+	require.Eventually(t, func() bool { return !proc.Running() }, time.Second, 10*time.Millisecond, "process should exit when script not found")
 }
 
 // TestProcessManagerNoProcesses verifies empty config handling.

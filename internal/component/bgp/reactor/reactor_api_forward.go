@@ -2,6 +2,7 @@
 // Overview: reactor_api.go — API command handling core
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
+// Related: forward_pool.go — per-peer forward worker pool used by ForwardUpdate
 package reactor
 
 import (
@@ -176,18 +177,18 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	if hasEBGPasn4 || hasEBGPasn2 {
 		srcCtxID := update.WireUpdate.SourceCtxID()
 		srcCtx := bgpctx.Registry.Get(srcCtxID)
-		srcAsn4 := srcCtx != nil && srcCtx.ASN4()
+		srcASN4 := srcCtx != nil && srcCtx.ASN4()
 
 		if hasEBGPasn4 {
 			var err error
-			ebgpWireASN4, err = update.EBGPWire(ebgpLocalAS, srcAsn4, true)
+			ebgpWireASN4, err = update.EBGPWire(ebgpLocalAS, srcASN4, true)
 			if err != nil {
 				fwdLogger().Warn("EBGP ASN4 wire rewrite failed", "id", updateID, "err", err)
 			}
 		}
 		if hasEBGPasn2 {
 			var err error
-			ebgpWireASN2, err = update.EBGPWire(ebgpLocalAS, srcAsn4, false)
+			ebgpWireASN2, err = update.EBGPWire(ebgpLocalAS, srcASN4, false)
 			if err != nil {
 				fwdLogger().Warn("EBGP ASN2 wire rewrite failed", "id", updateID, "err", err)
 			}

@@ -4,6 +4,12 @@
 // Detail: reactor_connection.go — TCP accept, collision detection (RFC 4271 §6.8)
 // Detail: reactor_notify.go — peer lifecycle events and message receiver dispatch
 // Detail: reactor_peers.go — peer add/remove/lookup
+// Detail: config.go — config tree parsing (PeersFromTree)
+// Detail: listener.go — TCP listener management
+// Detail: signal.go — OS signal handling
+// Detail: forward_pool.go — per-peer forward worker pool
+// Detail: recent_cache.go — recent UPDATE cache
+// Detail: api_sync.go — API process synchronization
 //
 // Package reactor implements the BGP reactor - the main orchestrator
 // that manages peer sessions, connections, and signal handling.

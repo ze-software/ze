@@ -1,5 +1,6 @@
 // Design: docs/architecture/update-building.md — UPDATE builder common infrastructure
 // RFC: rfc/short/rfc4271.md — UPDATE message construction (Section 4.3)
+// Overview: update.go — UPDATE message wire representation
 // Detail: update_build_vpn.go — VPN route building
 // Detail: update_build_labeled.go — labeled unicast route building
 // Detail: update_build_mvpn.go — MVPN route building
@@ -8,6 +9,8 @@
 // Detail: update_build_evpn.go — EVPN route building
 // Detail: update_build_mup.go — MUP route building
 // Detail: update_build_grouped.go — grouped and size-aware builders
+// Related: update_split.go — UPDATE splitting and chunking
+// Related: common_attrs.go — shared attribute extraction helpers
 package message
 
 import (

@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc7606.md — attribute discard error handling
+// Related: rfc7606.go — RFC 7606 revised error handling actions
 
 package message
 

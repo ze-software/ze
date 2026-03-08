@@ -54,12 +54,14 @@ func TestFwdPool_IdleTimeout(t *testing.T) {
 	defer pool.Stop()
 
 	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 1, pool.WorkerCount())
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 1
+	}, time.Second, time.Millisecond, "worker should be spawned")
 
-	// Wait for idle timeout + margin
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, 0, pool.WorkerCount())
+	// Wait for idle timeout
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 0
+	}, time.Second, time.Millisecond, "worker should exit after idle timeout")
 }
 
 // TestFwdPool_Stop verifies all workers drain and exit on Stop.
@@ -74,8 +76,9 @@ func TestFwdPool_Stop(t *testing.T) {
 
 	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
 	pool.Dispatch(fwdKey{peerAddr: "2.2.2.2"}, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 2, pool.WorkerCount())
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 2
+	}, time.Second, time.Millisecond, "both workers should be spawned")
 
 	close(blocker) // Unblock handlers
 	pool.Stop()
@@ -495,11 +498,10 @@ func TestFwdWorkerBatchAllDoneCalled(t *testing.T) {
 	pool.Dispatch(key, fwdItem{done: doneFunc})
 	pool.Dispatch(key, fwdItem{done: doneFunc})
 
-	// Wait for processing
-	time.Sleep(100 * time.Millisecond)
-
 	// All 4 done callbacks should have been called
-	assert.Equal(t, int32(4), doneCalled.Load(), "done must be called for every item")
+	require.Eventually(t, func() bool {
+		return doneCalled.Load() == 4
+	}, time.Second, time.Millisecond, "done must be called for every item")
 }
 
 // TestFwdDrainBatchReusesBuffer verifies that drainBatch reuses the
@@ -558,18 +560,21 @@ func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
 	pool.Dispatch(key, fwdItem{})
 	pool.Dispatch(key, fwdItem{})
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(20 * time.Millisecond)
+
+	// Wait for worker to process items and report batch size.
+	require.Eventually(t, func() bool {
+		return len(batchSizes) > 0
+	}, time.Second, time.Millisecond, "worker should process first batch")
 
 	// Drain batch sizes from first worker.
 	for len(batchSizes) > 0 {
 		<-batchSizes
 	}
 
-	assert.Equal(t, 1, pool.WorkerCount())
-
 	// Wait for idle timeout — worker exits.
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal(t, 0, pool.WorkerCount())
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 0
+	}, time.Second, time.Millisecond, "worker should exit after idle timeout")
 
 	// Dispatch a single item — new worker is created with fresh (nil) buffer.
 	pool.Dispatch(key, fwdItem{})

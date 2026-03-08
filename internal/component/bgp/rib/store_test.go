@@ -9,6 +9,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
+// VALIDATES: Identical attributes return the same interned value; different attributes differ.
+// PREVENTS: Deduplication failure causing memory bloat.
 func TestRouteStore_InternAttribute(t *testing.T) {
 	store := NewRouteStore(10)
 	defer store.Stop()
@@ -35,6 +37,8 @@ func TestRouteStore_InternAttribute(t *testing.T) {
 	}
 }
 
+// VALIDATES: Identical NLRIs return equal interned bytes.
+// PREVENTS: NLRI deduplication failure in route store.
 func TestRouteStore_InternNLRI(t *testing.T) {
 	store := NewRouteStore(10)
 	defer store.Stop()
@@ -54,6 +58,8 @@ func TestRouteStore_InternNLRI(t *testing.T) {
 	}
 }
 
+// VALIDATES: Identical routes return same interned route with correct reference count.
+// PREVENTS: Route deduplication failure or wrong reference counting.
 func TestRouteStore_InternRoute(t *testing.T) {
 	store := NewRouteStore(10)
 	defer store.Stop()
@@ -84,6 +90,8 @@ func TestRouteStore_InternRoute(t *testing.T) {
 	}
 }
 
+// VALIDATES: Route is removed only after all references are released.
+// PREVENTS: Premature route eviction or leaked routes after release.
 func TestRouteStore_ReleaseRoute(t *testing.T) {
 	store := NewRouteStore(10)
 	defer store.Stop()
@@ -118,6 +126,8 @@ func TestRouteStore_ReleaseRoute(t *testing.T) {
 	}
 }
 
+// VALIDATES: Stats correctly report route count, NLRI families, and attribute types.
+// PREVENTS: Wrong statistics in monitoring or diagnostics output.
 func TestRouteStore_Stats(t *testing.T) {
 	store := NewRouteStore(10)
 	defer store.Stop()

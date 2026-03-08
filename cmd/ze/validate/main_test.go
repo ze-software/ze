@@ -6,6 +6,9 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // validConfig is a minimal valid BGP configuration for testing.
@@ -23,22 +26,15 @@ const validConfig = `bgp {
 // PREVENTS: Regression in config validation acceptance.
 func TestRunValidConfig(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ze-validate-test-*.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	t.Cleanup(func() { os.Remove(tmpFile.Name()) }) //nolint:errcheck,gosec // test cleanup
 
-	if _, err := tmpFile.WriteString(validConfig); err != nil {
-		t.Fatal(err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatal(err)
-	}
+	_, err = tmpFile.WriteString(validConfig)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
 
 	code := Run([]string{"-q", tmpFile.Name()})
-	if code != 0 {
-		t.Errorf("expected exit code 0, got %d", code)
-	}
+	assert.Equal(t, 0, code, "valid config should return exit code 0")
 }
 
 // TestRunInvalidConfig verifies invalid config returns exit code 1.
@@ -48,22 +44,15 @@ func TestRunValidConfig(t *testing.T) {
 func TestRunInvalidConfig(t *testing.T) {
 	content := `not valid config syntax`
 	tmpFile, err := os.CreateTemp("", "ze-validate-test-*.conf")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	t.Cleanup(func() { os.Remove(tmpFile.Name()) }) //nolint:errcheck,gosec // test cleanup
 
-	if _, err := tmpFile.WriteString(content); err != nil {
-		t.Fatal(err)
-	}
-	if err := tmpFile.Close(); err != nil {
-		t.Fatal(err)
-	}
+	_, err = tmpFile.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, tmpFile.Close())
 
 	code := Run([]string{"-q", tmpFile.Name()})
-	if code != 1 {
-		t.Errorf("expected exit code 1 for invalid config, got %d", code)
-	}
+	assert.Equal(t, 1, code, "invalid config should return exit code 1")
 }
 
 // TestRunMissingFile verifies missing file returns exit code 2.
@@ -72,9 +61,7 @@ func TestRunInvalidConfig(t *testing.T) {
 // PREVENTS: Confusing error for missing vs invalid.
 func TestRunMissingFile(t *testing.T) {
 	code := Run([]string{"-q", "/nonexistent/path/config.conf"})
-	if code != 2 {
-		t.Errorf("expected exit code 2 for missing file, got %d", code)
-	}
+	assert.Equal(t, 2, code, "missing file should return exit code 2")
 }
 
 // TestRunNoArgs verifies missing args returns exit code 1.
@@ -83,9 +70,7 @@ func TestRunMissingFile(t *testing.T) {
 // PREVENTS: Panic on empty args.
 func TestRunNoArgs(t *testing.T) {
 	code := Run([]string{})
-	if code != 1 {
-		t.Errorf("expected exit code 1 for no args, got %d", code)
-	}
+	assert.Equal(t, 1, code, "no args should return exit code 1")
 }
 
 // TestRunStdin verifies reading config from stdin works.
@@ -99,9 +84,7 @@ func TestRunStdin(t *testing.T) {
 
 	// Create pipe for stdin
 	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	os.Stdin = r
 
 	// Write content in goroutine
@@ -111,9 +94,7 @@ func TestRunStdin(t *testing.T) {
 	}()
 
 	code := Run([]string{"-q", "-"})
-	if code != 0 {
-		t.Errorf("expected exit code 0 for valid stdin, got %d", code)
-	}
+	assert.Equal(t, 0, code, "valid stdin should return exit code 0")
 }
 
 // TestExtractLine verifies line number extraction from error messages.
@@ -134,9 +115,7 @@ func TestExtractLine(t *testing.T) {
 
 	for _, tt := range tests {
 		got := extractLine(tt.input)
-		if got != tt.want {
-			t.Errorf("extractLine(%q) = %d, want %d", tt.input, got, tt.want)
-		}
+		assert.Equal(t, tt.want, got, "extractLine(%q)", tt.input)
 	}
 }
 
@@ -148,15 +127,12 @@ func TestValidationResultValid(t *testing.T) {
 	result := validateConfig(validConfig, "test.conf")
 
 	if !result.Valid {
-		t.Errorf("expected Valid=true, got false")
 		for _, e := range result.Errors {
 			t.Logf("error: %s", e.Message)
 		}
 	}
-
-	if result.Path != "test.conf" {
-		t.Errorf("expected Path=%q, got %q", "test.conf", result.Path)
-	}
+	require.True(t, result.Valid, "expected Valid=true")
+	assert.Equal(t, "test.conf", result.Path)
 }
 
 // TestValidationResultInvalid verifies validation result for invalid config.
@@ -167,13 +143,8 @@ func TestValidationResultInvalid(t *testing.T) {
 	content := `invalid syntax here`
 	result := validateConfig(content, "bad.conf")
 
-	if result.Valid {
-		t.Errorf("expected Valid=false for invalid config")
-	}
-
-	if len(result.Errors) == 0 {
-		t.Errorf("expected at least one error")
-	}
+	assert.False(t, result.Valid, "expected Valid=false for invalid config")
+	assert.NotEmpty(t, result.Errors, "expected at least one error")
 }
 
 // TestSemanticValidationWarnings verifies semantic checks produce warnings.
@@ -182,10 +153,7 @@ func TestValidationResultInvalid(t *testing.T) {
 // PREVENTS: Silent config issues.
 func TestSemanticValidationWarnings(t *testing.T) {
 	result := validateConfig(validConfig, "test.conf")
-
-	if !result.Valid {
-		t.Fatalf("expected valid config")
-	}
+	require.True(t, result.Valid, "expected valid config")
 
 	// Should have warning about missing router-id
 	hasRouterIDWarning := false
@@ -195,7 +163,5 @@ func TestSemanticValidationWarnings(t *testing.T) {
 			break
 		}
 	}
-	if !hasRouterIDWarning {
-		t.Errorf("expected warning about missing router-id")
-	}
+	assert.True(t, hasRouterIDWarning, "expected warning about missing router-id")
 }

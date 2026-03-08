@@ -1,4 +1,4 @@
-module ze-adj-rib-in {
+module ze-adj-rib-in-api {
   namespace "urn:ze:adj-rib-in";
   prefix adj-rib-in;
 

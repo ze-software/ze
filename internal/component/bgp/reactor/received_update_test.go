@@ -357,8 +357,8 @@ func TestReceivedUpdate_EBGPWireConcurrent(t *testing.T) {
 	for i := range goroutines {
 		go func(idx int) {
 			defer wg.Done()
-			dstAsn4 := idx%2 == 0
-			results[idx], errs[idx] = update.EBGPWire(65000, true, dstAsn4)
+			dstASN4 := idx%2 == 0
+			results[idx], errs[idx] = update.EBGPWire(65000, true, dstASN4)
 		}(i)
 	}
 	wg.Wait()

@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — environment extraction from config tree
+// Overview: environment.go — environment configuration loading and defaults
 
 package config
 

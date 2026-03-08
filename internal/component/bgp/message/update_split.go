@@ -1,4 +1,7 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// Overview: update.go — UPDATE message wire representation
+// Related: update_build.go — UPDATE builder infrastructure
+// Related: chunk_mp_nlri.go — MP NLRI chunking for multi-family splitting
 
 package message
 

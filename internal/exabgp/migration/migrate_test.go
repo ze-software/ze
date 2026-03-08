@@ -6,6 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -21,21 +24,15 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Extended message should always be present in migrated configs.
-	if !strings.Contains(output, "extended-message enable") {
-		t.Errorf("expected 'extended-message enable' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "extended-message enable")
 }
 
 // TestMigrateHostnameToCapability verifies host-name/domain-name conversion.
@@ -52,35 +49,21 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Hostname should be inside capability block, not at peer level.
-	if !strings.Contains(output, "hostname {") {
-		t.Errorf("expected 'hostname {' block in capability, got:\n%s", output)
-	}
-	if !strings.Contains(output, "host my-host") {
-		t.Errorf("expected 'host my-host' in hostname block, got:\n%s", output)
-	}
-	if !strings.Contains(output, "domain example.com") {
-		t.Errorf("expected 'domain example.com' in hostname block, got:\n%s", output)
-	}
+	assert.Contains(t, output, "hostname {")
+	assert.Contains(t, output, "host my-host")
+	assert.Contains(t, output, "domain example.com")
 
 	// Legacy fields should NOT appear at peer level.
-	if strings.Contains(output, "host-name") {
-		t.Errorf("should not contain legacy 'host-name' field:\n%s", output)
-	}
-	if strings.Contains(output, "domain-name") {
-		t.Errorf("should not contain legacy 'domain-name' field:\n%s", output)
-	}
+	assert.NotContains(t, output, "host-name")
+	assert.NotContains(t, output, "domain-name")
 }
 
 // TestMigrateLinkLocalNexthop verifies link-local-nexthop capability migration.
@@ -98,25 +81,17 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// link-local-nexthop should be preserved now that the llnh plugin exists.
-	if !strings.Contains(output, "link-local-nexthop enable") {
-		t.Errorf("expected 'link-local-nexthop enable' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "link-local-nexthop enable")
 	// extended-message should still be present.
-	if !strings.Contains(output, "extended-message enable") {
-		t.Errorf("expected 'extended-message enable' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "extended-message enable")
 }
 
 // TestMigrateASN4Disable verifies asn4 disable is preserved, not converted to enable.
@@ -134,23 +109,15 @@ neighbor 127.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
-	if !strings.Contains(output, "asn4 disable") {
-		t.Errorf("expected 'asn4 disable' in output:\n%s", output)
-	}
-	if strings.Contains(output, "asn4 enable") {
-		t.Errorf("should not contain 'asn4 enable':\n%s", output)
-	}
+	assert.Contains(t, output, "asn4 disable")
+	assert.NotContains(t, output, "asn4 enable")
 }
 
 // TestMigrateSplitRoute verifies split directive is preserved during migration.
@@ -168,20 +135,14 @@ neighbor 127.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
-	if !strings.Contains(output, "split /24") {
-		t.Errorf("expected 'split /24' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "split /24")
 }
 
 // TestMigrateLinkLocal verifies local-link-local field is renamed to link-local during migration.
@@ -197,23 +158,15 @@ neighbor ::1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
-	if !strings.Contains(output, "link-local fe80::1") {
-		t.Errorf("expected 'link-local fe80::1' in output:\n%s", output)
-	}
-	if strings.Contains(output, "local-link-local") {
-		t.Errorf("should not contain 'local-link-local' (ExaBGP name), should be 'link-local':\n%s", output)
-	}
+	assert.Contains(t, output, "link-local fe80::1")
+	assert.NotContains(t, output, "local-link-local")
 }
 
 // TestMigrateSimple verifies basic neighbor→peer conversion.
@@ -229,26 +182,19 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	// Check peer exists
 	peers := result.Tree.GetList("peer")
-	if _, ok := peers["10.0.0.1"]; !ok {
-		t.Error("expected peer 10.0.0.1")
-	}
+	_, ok := peers["10.0.0.1"]
+	assert.True(t, ok, "expected peer 10.0.0.1")
 
 	// Check neighbor removed
 	neighbors := result.Tree.GetList("neighbor")
-	if len(neighbors) != 0 {
-		t.Errorf("neighbors should be empty, got: %v", neighbors)
-	}
+	assert.Empty(t, neighbors, "neighbors should be empty")
 }
 
 // TestMigrateWithGR verifies graceful-restart injects RIB plugin.
@@ -267,37 +213,27 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	// Check RIB plugin injected
 	plugins := result.Tree.GetList("plugin")
-	if _, ok := plugins["rib"]; !ok {
-		t.Error("expected plugin rib to be injected for GR")
-	}
+	_, ok := plugins["rib"]
+	assert.True(t, ok, "expected plugin rib to be injected for GR")
 
 	// Check peer has RIB process binding
 	peers := result.Tree.GetList("peer")
 	peerTree, ok := peers["10.0.0.1"]
-	if !ok {
-		t.Fatal("expected peer 10.0.0.1")
-	}
+	require.True(t, ok, "expected peer 10.0.0.1")
 
 	processes := peerTree.GetList("process")
-	if _, ok := processes["rib"]; !ok {
-		t.Error("expected process rib binding in peer")
-	}
+	_, ok = processes["rib"]
+	assert.True(t, ok, "expected process rib binding in peer")
 
 	// Check RIB injected should be in result.RIBInjected
-	if !result.RIBInjected {
-		t.Error("expected RIBInjected=true")
-	}
+	assert.True(t, result.RIBInjected, "expected RIBInjected=true")
 }
 
 // TestMigrateWithGRBare verifies bare graceful-restart; converts to enable.
@@ -315,24 +251,16 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Must contain "graceful-restart enable;" not "graceful-restart true;"
-	if !strings.Contains(output, "graceful-restart enable;") {
-		t.Errorf("expected 'graceful-restart enable;' in output:\n%s", output)
-	}
-	if strings.Contains(output, "graceful-restart true;") {
-		t.Errorf("should not contain 'graceful-restart true;' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "graceful-restart enable;")
+	assert.NotContains(t, output, "graceful-restart true;")
 }
 
 // TestMigrateWithRR verifies route-refresh injects RIB plugin.
@@ -351,48 +279,34 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	// Check RIB plugin injected
 	plugins := result.Tree.GetList("plugin")
-	if _, ok := plugins["rib"]; !ok {
-		t.Error("expected plugin rib to be injected for route-refresh")
-	}
+	_, ok := plugins["rib"]
+	assert.True(t, ok, "expected plugin rib to be injected for route-refresh")
 
 	// Check process binding includes refresh
 	peers := result.Tree.GetList("peer")
 	peerTree := peers["10.0.0.1"]
 	processes := peerTree.GetList("process")
 	ribProcess := processes["rib"]
-	if ribProcess == nil {
-		t.Fatal("expected process rib binding")
-	}
+	require.NotNil(t, ribProcess, "expected process rib binding")
 
 	// Verify send leaf-list includes refresh
 	sendValue, ok := ribProcess.Get("send")
-	if !ok {
-		t.Fatal("expected send leaf-list in rib process")
-	}
-	if !strings.Contains(sendValue, "refresh") {
-		t.Errorf("expected send to include refresh, got %q", sendValue)
-	}
+	require.True(t, ok, "expected send leaf-list in rib process")
+	assert.Contains(t, sendValue, "refresh")
 
 	// Check capability uses enable syntax
 	capBlock := peerTree.GetContainer("capability")
-	if capBlock == nil {
-		t.Fatal("expected capability block")
-	}
+	require.NotNil(t, capBlock, "expected capability block")
 	rrValue, ok := capBlock.Get("route-refresh")
-	if !ok || rrValue != "enable" {
-		t.Errorf("expected route-refresh enable, got %v", rrValue)
-	}
+	require.True(t, ok, "expected route-refresh key")
+	assert.Equal(t, "enable", rrValue, "expected route-refresh enable")
 }
 
 // TestMigrateProcess verifies processes are collected for wrapper handling.
@@ -416,33 +330,21 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	// Processes should NOT be converted to plugins (protocol incompatible).
 	plugins := result.Tree.GetList("plugin")
 	for name := range plugins {
-		if strings.Contains(name, "compat") {
-			t.Errorf("should not create bridge plugin, found: %s", name)
-		}
+		assert.NotContains(t, name, "compat", "should not create bridge plugin")
 	}
 
 	// Processes should be stored in result for wrapper to handle.
-	if len(result.Processes) != 1 {
-		t.Fatalf("expected 1 external process, got %d", len(result.Processes))
-	}
-	if result.Processes[0].Name != "my-plugin" {
-		t.Errorf("expected process name 'my-plugin', got %q", result.Processes[0].Name)
-	}
-	if result.Processes[0].RunCmd != "/path/to/plugin.py" {
-		t.Errorf("expected run cmd '/path/to/plugin.py', got %q", result.Processes[0].RunCmd)
-	}
+	require.Len(t, result.Processes, 1, "expected 1 external process")
+	assert.Equal(t, "my-plugin", result.Processes[0].Name)
+	assert.Equal(t, "/path/to/plugin.py", result.Processes[0].RunCmd)
 }
 
 // TestMigrateL2VPNSupported verifies L2VPN/VPLS configs are now migrated successfully.
@@ -460,19 +362,13 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate should succeed for L2VPN: %v", err)
-	}
+	require.NoError(t, err, "migrate should succeed for L2VPN")
 
 	output := SerializeTree(result.Tree)
-	if !strings.Contains(output, "update {") {
-		t.Errorf("expected update block for L2VPN route, got:\n%s", output)
-	}
+	assert.Contains(t, output, "update {", "expected update block for L2VPN route")
 }
 
 // TestMigrateNil verifies nil input handling.
@@ -481,12 +377,8 @@ neighbor 10.0.0.1 {
 // PREVENTS: Panic on nil tree.
 func TestMigrateNil(t *testing.T) {
 	result, err := MigrateFromExaBGP(nil)
-	if err == nil {
-		t.Error("expected error for nil tree")
-	}
-	if result != nil {
-		t.Error("expected nil result for nil tree")
-	}
+	assert.Error(t, err, "expected error for nil tree")
+	assert.Nil(t, result, "expected nil result for nil tree")
 }
 
 // TestMigrateFamilyConversion verifies family syntax conversion.
@@ -505,31 +397,19 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	// Serialize and check family syntax.
 	output := SerializeTree(result.Tree)
 
 	// Must have ZeBGP format (slash), not ExaBGP (space).
-	if !strings.Contains(output, "ipv4/unicast") {
-		t.Errorf("expected ipv4/unicast, got:\n%s", output)
-	}
-	if !strings.Contains(output, "ipv6/unicast") {
-		t.Errorf("expected ipv6/unicast, got:\n%s", output)
-	}
-	if strings.Contains(output, "ipv4 unicast") {
-		t.Errorf("should not contain 'ipv4 unicast' (ExaBGP format)")
-	}
-	if strings.Contains(output, "ipv6 unicast") {
-		t.Errorf("should not contain 'ipv6 unicast' (ExaBGP format)")
-	}
+	assert.Contains(t, output, "ipv4/unicast")
+	assert.Contains(t, output, "ipv6/unicast")
+	assert.NotContains(t, output, "ipv4 unicast")
+	assert.NotContains(t, output, "ipv6 unicast")
 }
 
 // TestMigrateTemplate verifies template inheritance expansion.
@@ -557,44 +437,28 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Peer should have inherited local-as from template.
-	if !strings.Contains(output, "local-as 65001") {
-		t.Errorf("expected inherited 'local-as 65001', got:\n%s", output)
-	}
+	assert.Contains(t, output, "local-as 65001", "expected inherited local-as")
 
 	// Peer should have its own peer-as.
-	if !strings.Contains(output, "peer-as 65002") {
-		t.Errorf("expected 'peer-as 65002', got:\n%s", output)
-	}
+	assert.Contains(t, output, "peer-as 65002")
 
 	// Template should NOT appear in output (expanded inline).
-	if strings.Contains(output, "template") {
-		t.Errorf("should not contain 'template' block:\n%s", output)
-	}
-	if strings.Contains(output, "peer base") {
-		t.Errorf("should not contain 'peer base' (template name):\n%s", output)
-	}
+	assert.NotContains(t, output, "template", "template block should be expanded")
+	assert.NotContains(t, output, "peer base", "template name should not appear")
 
 	// Family should be inherited and converted.
-	if !strings.Contains(output, "ipv4/unicast") {
-		t.Errorf("expected inherited 'ipv4/unicast', got:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast", "expected inherited family")
 
 	// Capability should be inherited with enable.
-	if !strings.Contains(output, "route-refresh enable") {
-		t.Errorf("expected inherited 'route-refresh enable', got:\n%s", output)
-	}
+	assert.Contains(t, output, "route-refresh enable", "expected inherited capability")
 }
 
 // TestMigrateStaticBlock verifies static block conversion to update blocks.
@@ -612,34 +476,22 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Static block should be converted to update block.
-	if strings.Contains(output, "static {") {
-		t.Errorf("static block should be converted to update, got:\n%s", output)
-	}
-	if !strings.Contains(output, "update {") {
-		t.Errorf("expected update block, got:\n%s", output)
-	}
+	assert.NotContains(t, output, "static {", "static block should be converted")
+	assert.Contains(t, output, "update {", "expected update block")
 
 	// Route should appear in nlri block.
-	if !strings.Contains(output, "ipv4/unicast add 192.168.0.0/24;") {
-		t.Errorf("expected nlri entry, got:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast add 192.168.0.0/24;", "expected nlri entry")
 
 	// Next-hop should appear in attribute block.
-	if !strings.Contains(output, "next-hop 10.0.0.1;") {
-		t.Errorf("expected next-hop in attribute, got:\n%s", output)
-	}
+	assert.Contains(t, output, "next-hop 10.0.0.1;", "expected next-hop in attribute")
 }
 
 // TestMigrateStaticPathInformation verifies path-information is preserved.
@@ -657,9 +509,7 @@ neighbor 127.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	// Debug: check what's parsed
 	for _, nb := range tree.GetListOrdered("neighbor") {
@@ -676,17 +526,13 @@ neighbor 127.0.0.1 {
 	}
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 	t.Logf("Migration output:\n%s", output)
 
 	// path-information should appear in attribute block.
-	if !strings.Contains(output, "path-information 1.2.3.4") {
-		t.Errorf("expected path-information in attribute block, got:\n%s", output)
-	}
+	assert.Contains(t, output, "path-information 1.2.3.4", "expected path-information in attribute block")
 }
 
 // TestMigrateAnnounceBlock verifies announce block conversion to update blocks.
@@ -706,37 +552,23 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Announce block should be converted to update block.
-	if strings.Contains(output, "announce {") {
-		t.Errorf("announce block should be converted to update, got:\n%s", output)
-	}
-	if !strings.Contains(output, "update {") {
-		t.Errorf("expected update block, got:\n%s", output)
-	}
+	assert.NotContains(t, output, "announce {", "announce block should be converted")
+	assert.Contains(t, output, "update {", "expected update block")
 
 	// Route should appear in nlri block.
-	if !strings.Contains(output, "ipv4/unicast add 10.0.0.0/24;") {
-		t.Errorf("expected nlri entry, got:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast add 10.0.0.0/24;", "expected nlri entry")
 
 	// Attributes should appear in attribute block.
-	if !strings.Contains(output, "next-hop 192.168.1.1;") {
-		t.Errorf("expected next-hop in attribute, got:\n%s", output)
-	}
-	if !strings.Contains(output, "local-preference 100;") {
-		t.Errorf("expected local-preference in attribute, got:\n%s", output)
-	}
+	assert.Contains(t, output, "next-hop 192.168.1.1;", "expected next-hop in attribute")
+	assert.Contains(t, output, "local-preference 100;", "expected local-preference in attribute")
 }
 
 // TestNeedsRIBPlugin verifies RIB requirement detection.
@@ -801,14 +633,10 @@ neighbor 10.0.0.1 {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree, err := ParseExaBGPConfig(tt.input)
-			if err != nil {
-				t.Fatalf("parse: %v", err)
-			}
+			require.NoError(t, err, "parse")
 
 			got := NeedsRIBPlugin(tree)
-			if got != tt.wantRIB {
-				t.Errorf("NeedsRIBPlugin() = %v, want %v", got, tt.wantRIB)
-			}
+			assert.Equal(t, tt.wantRIB, got, "NeedsRIBPlugin()")
 		})
 	}
 }
@@ -830,27 +658,17 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Nexthop block should be inside capability with family syntax conversion.
-	if !strings.Contains(output, "capability {") {
-		t.Errorf("expected capability block in output:\n%s", output)
-	}
-	if !strings.Contains(output, "nexthop {") {
-		t.Errorf("expected nexthop block in output:\n%s", output)
-	}
-	if !strings.Contains(output, "ipv4/unicast ipv6;") {
-		t.Errorf("expected 'ipv4/unicast ipv6;' in nexthop block:\n%s", output)
-	}
+	assert.Contains(t, output, "capability {", "expected capability block")
+	assert.Contains(t, output, "nexthop {", "expected nexthop block")
+	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected converted family syntax")
 }
 
 // TestMigrateNexthopExplicitAndBlock verifies both explicit capability and block together.
@@ -873,27 +691,18 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Nexthop block should appear exactly once (inside capability).
-	count := strings.Count(output, "nexthop {")
-	if count != 1 {
-		t.Errorf("expected exactly 1 'nexthop {', got %d in:\n%s", count, output)
-	}
+	assert.Equal(t, 1, strings.Count(output, "nexthop {"), "expected exactly 1 nexthop block")
 
 	// Nexthop block content should be present.
-	if !strings.Contains(output, "ipv4/unicast ipv6;") {
-		t.Errorf("expected nexthop block content in output:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected nexthop block content")
 }
 
 // TestMigrateNexthopBlock verifies nexthop block migration with multiple entries.
@@ -913,40 +722,24 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Nexthop block should be inside capability.
-	if !strings.Contains(output, "capability {") {
-		t.Errorf("expected capability block in output:\n%s", output)
-	}
-	if !strings.Contains(output, "nexthop {") {
-		t.Errorf("expected nexthop block in output:\n%s", output)
-	}
+	assert.Contains(t, output, "capability {", "expected capability block")
+	assert.Contains(t, output, "nexthop {", "expected nexthop block")
 
 	// Check nexthop block syntax conversion.
-	if !strings.Contains(output, "ipv4/unicast ipv6;") {
-		t.Errorf("expected 'ipv4/unicast ipv6;' in output:\n%s", output)
-	}
-	if !strings.Contains(output, "ipv4/mpls-vpn ipv6;") {
-		t.Errorf("expected 'ipv4/mpls-vpn ipv6;' in output:\n%s", output)
-	}
-	if !strings.Contains(output, "ipv6/unicast ipv4;") {
-		t.Errorf("expected 'ipv6/unicast ipv4;' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast ipv6;")
+	assert.Contains(t, output, "ipv4/mpls-vpn ipv6;")
+	assert.Contains(t, output, "ipv6/unicast ipv4;")
 
 	// Should NOT have space-separated format.
-	if strings.Contains(output, "ipv4 unicast ipv6") {
-		t.Errorf("should not contain ExaBGP format 'ipv4 unicast ipv6'")
-	}
+	assert.NotContains(t, output, "ipv4 unicast ipv6", "should not contain ExaBGP format")
 }
 
 // TestMigrateNexthopExplicitCapabilityIgnored verifies explicit capability is ignored.
@@ -969,31 +762,21 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Explicit nexthop capability is NOT migrated - it's useless without nexthop block.
-	if strings.Contains(output, "nexthop enable") {
-		t.Errorf("should not contain 'nexthop enable' (useless without nexthop block):\n%s", output)
-	}
+	assert.NotContains(t, output, "nexthop enable", "useless without nexthop block")
 
 	// Should NOT have nexthop block (none in input).
-	if strings.Contains(output, "nexthop {") {
-		t.Errorf("should not have nexthop block:\n%s", output)
-	}
+	assert.NotContains(t, output, "nexthop {", "no nexthop block in input")
 
 	// Should still have peer block.
-	if !strings.Contains(output, "peer 10.0.0.1") {
-		t.Errorf("expected peer block:\n%s", output)
-	}
+	assert.Contains(t, output, "peer 10.0.0.1", "expected peer block")
 }
 
 // TestMigrateNexthopBothCapabilityAndBlock verifies behavior when both are present.
@@ -1016,27 +799,18 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Nexthop block should be inside capability (only once).
-	count := strings.Count(output, "nexthop {")
-	if count != 1 {
-		t.Errorf("expected exactly 1 'nexthop {', got %d in:\n%s", count, output)
-	}
+	assert.Equal(t, 1, strings.Count(output, "nexthop {"), "expected exactly 1 nexthop block")
 
 	// Nexthop block content should be present.
-	if !strings.Contains(output, "ipv4/unicast ipv6;") {
-		t.Errorf("expected 'ipv4/unicast ipv6;' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected nexthop block content")
 }
 
 // TestMigrateNexthopBlockSAFINormalization verifies SAFI name normalization.
@@ -1055,29 +829,19 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Both should be normalized to mpls-label.
-	if !strings.Contains(output, "ipv4/mpls-label ipv6;") {
-		t.Errorf("expected 'ipv4/mpls-label ipv6;' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/mpls-label ipv6;", "expected normalized SAFI")
 
 	// Should NOT have ExaBGP SAFI names.
-	if strings.Contains(output, "nlri-mpls") {
-		t.Errorf("should not contain 'nlri-mpls' (ExaBGP name)")
-	}
-	if strings.Contains(output, "labeled-unicast") {
-		t.Errorf("should not contain 'labeled-unicast' (ExaBGP name)")
-	}
+	assert.NotContains(t, output, "nlri-mpls", "ExaBGP name should be normalized")
+	assert.NotContains(t, output, "labeled-unicast", "ExaBGP name should be normalized")
 }
 
 // TestMigrateTemplateWithNexthop verifies nexthop inheritance from templates.
@@ -1100,39 +864,25 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("migrate: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
 
 	// Template should NOT appear (expanded inline).
-	if strings.Contains(output, "peer base") {
-		t.Errorf("should not contain 'peer base' (template):\n%s", output)
-	}
+	assert.NotContains(t, output, "peer base", "template should be expanded")
 
 	// Inherited local-as should be present.
-	if !strings.Contains(output, "local-as 65001") {
-		t.Errorf("expected inherited 'local-as 65001', got:\n%s", output)
-	}
+	assert.Contains(t, output, "local-as 65001", "expected inherited local-as")
 
 	// Nexthop block should be inside capability.
-	if !strings.Contains(output, "capability {") {
-		t.Errorf("expected capability block in output:\n%s", output)
-	}
-	if !strings.Contains(output, "nexthop {") {
-		t.Errorf("expected nexthop block in output:\n%s", output)
-	}
+	assert.Contains(t, output, "capability {", "expected capability block")
+	assert.Contains(t, output, "nexthop {", "expected nexthop block")
 
 	// Nexthop block should be converted.
-	if !strings.Contains(output, "ipv4/unicast ipv6") {
-		t.Errorf("expected 'ipv4/unicast ipv6', got:\n%s", output)
-	}
+	assert.Contains(t, output, "ipv4/unicast ipv6", "expected converted family syntax")
 }
 
 // TestMigrateFileBasedTests runs file-based migration tests.
@@ -1170,15 +920,11 @@ func TestMigrateFileBasedTests(t *testing.T) {
 
 			// Parse input with ExaBGP schema.
 			tree, err := ParseExaBGPConfig(string(inputData))
-			if err != nil {
-				t.Fatalf("parse input: %v", err)
-			}
+			require.NoError(t, err, "parse input")
 
 			// Migrate.
 			result, err := MigrateFromExaBGP(tree)
-			if err != nil {
-				t.Fatalf("migrate: %v", err)
-			}
+			require.NoError(t, err, "migrate")
 
 			// Serialize result.
 			gotOutput := SerializeTree(result.Tree)
@@ -1187,9 +933,7 @@ func TestMigrateFileBasedTests(t *testing.T) {
 			want := strings.TrimSpace(string(expectedData))
 			got := strings.TrimSpace(gotOutput)
 
-			if got != want {
-				t.Errorf("migration output mismatch:\n--- got ---\n%s\n--- want ---\n%s", got, want)
-			}
+			assert.Equal(t, want, got, "migration output mismatch")
 
 			// Also run structural validation for extra coverage.
 			validateMigrationResult(t, name, gotOutput, result)
@@ -1234,59 +978,35 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 	switch testName {
 	case "simple":
 		// Should have peer, not neighbor.
-		if !strings.Contains(got, "peer 10.0.0.1") {
-			t.Error("expected 'peer 10.0.0.1' in output")
-		}
+		assert.Contains(t, got, "peer 10.0.0.1")
 
 	case "graceful-restart":
 		// Should have RIB plugin injected.
-		if !result.RIBInjected {
-			t.Error("expected RIBInjected=true for graceful-restart")
-		}
-		if !strings.Contains(got, "plugin bgp-rib") {
-			t.Error("expected 'plugin bgp-rib' in output")
-		}
+		assert.True(t, result.RIBInjected, "expected RIBInjected=true for graceful-restart")
+		assert.Contains(t, got, "plugin bgp-rib")
 
 	case "route-refresh":
 		// Should have RIB plugin injected.
-		if !result.RIBInjected {
-			t.Error("expected RIBInjected=true for route-refresh")
-		}
+		assert.True(t, result.RIBInjected, "expected RIBInjected=true for route-refresh")
 		// Should have route-refresh enable.
-		if !strings.Contains(got, "route-refresh enable") {
-			t.Error("expected 'route-refresh enable' in output")
-		}
+		assert.Contains(t, got, "route-refresh enable")
 
 	case "process":
 		// ExaBGP processes are stored in result.Processes for the wrapper to handle
 		// (protocol incompatible — ExaBGP uses stdout text, Ze uses YANG RPC sockets).
-		if len(result.Processes) != 1 {
-			t.Errorf("expected 1 external process, got %d", len(result.Processes))
-		}
+		assert.Len(t, result.Processes, 1, "expected 1 external process")
 		// No bridge plugins should be created in the migrated config.
-		if strings.Contains(got, "-compat") {
-			t.Error("should not create bridge plugin in config (handled by wrapper)")
-		}
+		assert.NotContains(t, got, "-compat", "should not create bridge plugin in config")
 
 	case "nexthop":
 		// Should have nexthop block inside capability.
-		if !strings.Contains(got, "capability {") {
-			t.Error("expected capability block in output")
-		}
-		if !strings.Contains(got, "nexthop {") {
-			t.Error("expected nexthop block inside capability")
-		}
+		assert.Contains(t, got, "capability {")
+		assert.Contains(t, got, "nexthop {")
 		// Should NOT have RIB injected (nexthop doesn't require state storage).
-		if result.RIBInjected {
-			t.Error("nexthop should not trigger RIB injection")
-		}
+		assert.False(t, result.RIBInjected, "nexthop should not trigger RIB injection")
 		// Should have nexthop block with converted syntax.
-		if !strings.Contains(got, "ipv4/unicast ipv6") {
-			t.Error("expected 'ipv4/unicast ipv6' in output")
-		}
-		if strings.Contains(got, "ipv4 unicast ipv6") {
-			t.Error("should not contain ExaBGP format 'ipv4 unicast ipv6'")
-		}
+		assert.Contains(t, got, "ipv4/unicast ipv6")
+		assert.NotContains(t, got, "ipv4 unicast ipv6", "should not contain ExaBGP format")
 	}
 
 	// Log output for debugging.
@@ -1348,13 +1068,9 @@ func TestTokenizeFlexValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tokenizeFlexValue(tt.input)
-			if len(got) != len(tt.want) {
-				t.Fatalf("tokenizeFlexValue(%q)\ngot  %d tokens: %v\nwant %d tokens: %v", tt.input, len(got), got, len(tt.want), tt.want)
-			}
+			require.Len(t, got, len(tt.want), "tokenizeFlexValue(%q) token count", tt.input)
 			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Errorf("token[%d] = %q, want %q", i, got[i], tt.want[i])
-				}
+				assert.Equal(t, tt.want[i], got[i], "token[%d]", i)
 			}
 		})
 	}
@@ -1415,25 +1131,17 @@ func TestSplitFlexAttrs(t *testing.T) {
 			gotAttrs, gotNLRI := splitFlexAttrs(tt.input)
 
 			// Check attributes
-			if len(gotAttrs) != len(tt.wantAttrs) {
-				t.Errorf("attrs count: got %d, want %d\ngot:  %v\nwant: %v", len(gotAttrs), len(tt.wantAttrs), gotAttrs, tt.wantAttrs)
-			}
+			require.Len(t, gotAttrs, len(tt.wantAttrs), "attrs count")
 			for k, want := range tt.wantAttrs {
-				if got, ok := gotAttrs[k]; !ok {
-					t.Errorf("missing attr %q", k)
-				} else if got != want {
-					t.Errorf("attr[%q] = %q, want %q", k, got, want)
-				}
+				got, ok := gotAttrs[k]
+				require.True(t, ok, "missing attr %q", k)
+				assert.Equal(t, want, got, "attr[%q]", k)
 			}
 
 			// Check NLRI parts
-			if len(gotNLRI) != len(tt.wantNLRI) {
-				t.Fatalf("nlri count: got %d, want %d\ngot:  %v\nwant: %v", len(gotNLRI), len(tt.wantNLRI), gotNLRI, tt.wantNLRI)
-			}
+			require.Len(t, gotNLRI, len(tt.wantNLRI), "nlri count")
 			for i := range gotNLRI {
-				if gotNLRI[i] != tt.wantNLRI[i] {
-					t.Errorf("nlri[%d] = %q, want %q", i, gotNLRI[i], tt.wantNLRI[i])
-				}
+				assert.Equal(t, tt.wantNLRI[i], gotNLRI[i], "nlri[%d]", i)
 			}
 		})
 	}
@@ -1479,37 +1187,27 @@ func TestConvertFlexToUpdate(t *testing.T) {
 			convertFlexToUpdate(tt.afi, tt.safi, tt.values, dst)
 
 			updates := dst.GetListOrdered("update")
-			if len(updates) != len(tt.values) {
-				t.Fatalf("got %d updates, want %d", len(updates), len(tt.values))
-			}
+			require.Len(t, updates, len(tt.values), "update count")
 
 			update := updates[0].Value
 
 			// Check attribute block
 			attr := update.GetContainer("attribute")
-			if attr == nil {
-				t.Fatal("missing attribute block")
-			}
-			if nh, ok := attr.Get("next-hop"); !ok || nh != tt.wantNHop {
-				t.Errorf("next-hop = %q, want %q", nh, tt.wantNHop)
-			}
-			if origin, ok := attr.Get("origin"); !ok || origin != "igp" {
-				t.Errorf("origin = %q, want %q", origin, "igp")
-			}
+			require.NotNil(t, attr, "missing attribute block")
+			nh, ok := attr.Get("next-hop")
+			require.True(t, ok, "missing next-hop")
+			assert.Equal(t, tt.wantNHop, nh, "next-hop")
+			origin, ok := attr.Get("origin")
+			require.True(t, ok, "missing origin")
+			assert.Equal(t, "igp", origin, "origin")
 
 			// Check nlri list entries — key=family, content=nlri-parts
 			nlriEntries := update.GetListOrdered("nlri")
-			if len(nlriEntries) == 0 {
-				t.Fatal("missing nlri block")
-			}
+			require.NotEmpty(t, nlriEntries, "missing nlri block")
 			entry := nlriEntries[0]
-			if entry.Key != tt.wantFamily {
-				t.Errorf("nlri family = %q, want %q", entry.Key, tt.wantFamily)
-			}
+			assert.Equal(t, tt.wantFamily, entry.Key, "nlri family")
 			content, _ := entry.Value.Get("content")
-			if content != tt.wantNLRI {
-				t.Errorf("nlri content = %q, want %q", content, tt.wantNLRI)
-			}
+			assert.Equal(t, tt.wantNLRI, content, "nlri content")
 		})
 	}
 }
@@ -1539,17 +1237,11 @@ neighbor 10.0.0.1 {
 }
 `
 			tree, err := ParseExaBGPConfig(input)
-			if err != nil {
-				t.Fatalf("parse: %v", err)
-			}
+			require.NoError(t, err, "parse")
 
 			_, err = MigrateFromExaBGP(tree)
-			if err == nil {
-				t.Fatalf("expected error for unsupported capability %q, got nil", tt.cap)
-			}
-			if !strings.Contains(err.Error(), "unsupported capability") {
-				t.Errorf("error should mention 'unsupported capability', got: %v", err)
-			}
+			require.Error(t, err, "expected error for unsupported capability %q", tt.cap)
+			assert.Contains(t, err.Error(), "unsupported capability")
 		})
 	}
 }
@@ -1570,17 +1262,11 @@ neighbor 10.0.0.1 {
 }
 `
 	tree, err := ParseExaBGPConfig(input)
-	if err != nil {
-		t.Fatalf("parse: %v", err)
-	}
+	require.NoError(t, err, "parse")
 
 	result, err := MigrateFromExaBGP(tree)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err, "migrate")
 
 	output := SerializeTree(result.Tree)
-	if !strings.Contains(output, "route-refresh enable") {
-		t.Errorf("expected 'route-refresh enable' in output:\n%s", output)
-	}
+	assert.Contains(t, output, "route-refresh enable")
 }

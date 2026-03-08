@@ -1,4 +1,5 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — router-ID conflict detection
+// Overview: peer.go — Peer struct and FSM state machine
 
 package reactor
 

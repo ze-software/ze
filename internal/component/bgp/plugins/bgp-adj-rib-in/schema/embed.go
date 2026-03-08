@@ -3,5 +3,5 @@ package schema
 
 import _ "embed"
 
-//go:embed ze-adj-rib-in.yang
+//go:embed ze-adj-rib-in-api.yang
 var ZeAdjRibInYANG string

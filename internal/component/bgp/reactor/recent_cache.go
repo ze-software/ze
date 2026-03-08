@@ -1,4 +1,6 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — recent UPDATE cache
+// Overview: reactor.go — BGP reactor event loop and peer management
+// Related: received_update.go — ReceivedUpdate stored in cache
 
 package reactor
 

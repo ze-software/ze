@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Related: schema.go — schema types and validation
 //
 // Package config provides YANG-to-schema conversion.
 package config

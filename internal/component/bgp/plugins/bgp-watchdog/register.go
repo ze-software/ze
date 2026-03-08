@@ -35,7 +35,7 @@ func pluginSetup() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		slogutil.Logger("bgp-watchdog").Error("registration failed", "error", err)
+		slogutil.Logger("bgp.watchdog").Error("registration failed", "error", err)
 		os.Exit(1)
 	}
 }

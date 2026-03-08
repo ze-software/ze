@@ -1,4 +1,5 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — negotiated capability tracking
+// Related: session_negotiate.go — capability negotiation produces NegotiatedCapabilities
 
 package reactor
 

@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+// VALIDATES: ColoredCharDiff produces non-empty output for differing strings.
+// PREVENTS: Panic or empty diff output in test failure reports.
 func TestColoredCharDiff(t *testing.T) {
 	tests := []struct {
 		name     string

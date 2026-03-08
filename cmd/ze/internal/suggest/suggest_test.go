@@ -1,6 +1,10 @@
 package suggest
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
 
 // VALIDATES: Command returns closest match when within distance threshold.
 // PREVENTS: wrong or missing suggestions for typos.
@@ -24,21 +28,13 @@ func TestCommand(t *testing.T) {
 
 	for _, tt := range tests {
 		got := Command(tt.input, commands)
-		if got != tt.want {
-			t.Errorf("Command(%q) = %q, want %q", tt.input, got, tt.want)
-		}
+		assert.Equal(t, tt.want, got, "Command(%q)", tt.input)
 	}
 }
 
 // VALIDATES: Command returns "" for empty candidates.
 // PREVENTS: panic on nil/empty slice.
 func TestCommandNoCandidates(t *testing.T) {
-	got := Command("bgp", nil)
-	if got != "" {
-		t.Errorf("Command with nil candidates = %q, want empty", got)
-	}
-	got = Command("bgp", []string{})
-	if got != "" {
-		t.Errorf("Command with empty candidates = %q, want empty", got)
-	}
+	assert.Equal(t, "", Command("bgp", nil), "nil candidates")
+	assert.Equal(t, "", Command("bgp", []string{}), "empty candidates")
 }

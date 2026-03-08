@@ -1,4 +1,6 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — per-peer forward worker pool
+// Overview: reactor.go — BGP reactor event loop and peer management
+// Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
 
 package reactor
 

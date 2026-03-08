@@ -58,23 +58,23 @@ func TestNULFramingRead(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			reader := rpc.NewFrameReader(strings.NewReader(tc.input))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reader := rpc.NewFrameReader(strings.NewReader(tt.input))
 			var got []string
 			for {
 				msg, err := reader.Read()
 				if errors.Is(err, io.EOF) {
 					break
 				}
-				if tc.wantErr {
+				if tt.wantErr {
 					require.Error(t, err)
 					return
 				}
 				require.NoError(t, err)
 				got = append(got, string(msg))
 			}
-			assert.Equal(t, tc.wantMsgs, got)
+			assert.Equal(t, tt.wantMsgs, got)
 		})
 	}
 }
@@ -109,15 +109,15 @@ func TestNULFramingWrite(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			writer := rpc.NewFrameWriter(&buf)
-			for _, msg := range tc.msgs {
+			for _, msg := range tt.msgs {
 				err := writer.Write(msg)
 				require.NoError(t, err)
 			}
-			assert.Equal(t, tc.want, buf.String())
+			assert.Equal(t, tt.want, buf.String())
 		})
 	}
 }

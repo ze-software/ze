@@ -64,6 +64,9 @@ func runPeerTest(t *testing.T, peerConfig *peer.Config) peer.Result {
 }
 
 // TestPeerSinkMode tests that testpeer works in sink mode.
+//
+// VALIDATES: Test peer in sink mode accepts connections without error.
+// PREVENTS: Broken test infrastructure for BGP session tests.
 func TestPeerSinkMode(t *testing.T) {
 	port := findFreePort(t)
 
@@ -81,6 +84,9 @@ func TestPeerSinkMode(t *testing.T) {
 }
 
 // TestPeerCheckMode tests that testpeer validates expected messages.
+//
+// VALIDATES: Test peer in check mode completes when expectations are empty.
+// PREVENTS: Check mode hanging or panicking with no expectations.
 func TestPeerCheckMode(t *testing.T) {
 	port := findFreePort(t)
 
@@ -99,6 +105,9 @@ func TestPeerCheckMode(t *testing.T) {
 }
 
 // TestPeerEchoMode tests that testpeer echoes messages back.
+//
+// VALIDATES: Test peer in echo mode reflects messages without error.
+// PREVENTS: Echo mode failing to establish or crashing on message relay.
 func TestPeerEchoMode(t *testing.T) {
 	port := findFreePort(t)
 

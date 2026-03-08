@@ -1,9 +1,19 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc4271.md — UPDATE message format (Section 4.3)
+// Overview: message.go — Message interface and writeHeader
+// Detail: update_build.go — UPDATE builder infrastructure
+// Detail: update_split.go — UPDATE splitting and chunking
+// Related: open.go — OPEN message parsing and encoding
+// Related: notification.go — NOTIFICATION message parsing and encoding
+// Related: keepalive.go — KEEPALIVE message encoding
+// Related: routerefresh.go — ROUTE-REFRESH message encoding
+// Related: eor.go — end-of-RIB marker UPDATE construction
 
 package message
 
 import (
+	"encoding/binary"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wire"
 )
 
@@ -119,18 +129,14 @@ func (u *Update) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	off++
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes Length (2 octets)
-	withdrawnLen := len(u.WithdrawnRoutes)
-	buf[off] = byte(withdrawnLen >> 8)
-	buf[off+1] = byte(withdrawnLen)
+	binary.BigEndian.PutUint16(buf[off:off+2], uint16(len(u.WithdrawnRoutes))) //nolint:gosec // bounded by BGP max
 	off += 2
 
 	// RFC 4271 Section 4.3 - Withdrawn Routes
 	off += copy(buf[off:], u.WithdrawnRoutes)
 
 	// RFC 4271 Section 4.3 - Total Path Attribute Length (2 octets)
-	attrLen := len(u.PathAttributes)
-	buf[off] = byte(attrLen >> 8)
-	buf[off+1] = byte(attrLen)
+	binary.BigEndian.PutUint16(buf[off:off+2], uint16(len(u.PathAttributes))) //nolint:gosec // bounded by BGP max
 	off += 2
 
 	// RFC 4271 Section 4.3 - Path Attributes
@@ -141,8 +147,7 @@ func (u *Update) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 
 	// Backfill total length
 	totalLen := off - start
-	buf[lengthPos] = byte(totalLen >> 8)
-	buf[lengthPos+1] = byte(totalLen)
+	binary.BigEndian.PutUint16(buf[lengthPos:lengthPos+2], uint16(totalLen)) //nolint:gosec // bounded by BGP max
 
 	return totalLen
 }

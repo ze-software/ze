@@ -4,6 +4,7 @@
 package bgpcmdcommit
 
 import (
+	"errors"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -14,6 +15,16 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
+// Sentinel errors for commit handlers.
+var (
+	// ErrCommitManagerNotAvailable is returned when the commit manager is nil.
+	ErrCommitManagerNotAvailable = errors.New("commit manager not available")
+
+	// ErrCommitManagerTypeAssertionFailed is returned when the commit manager
+	// cannot be type-asserted to *commit.CommitManager.
+	ErrCommitManagerTypeAssertionFailed = errors.New("commit manager type assertion failed")
+)
+
 // requireCommitManager returns the commit manager or an error response.
 // Type-asserts from the opaque any stored in plugin.Server.
 func requireCommitManager(ctx *pluginserver.CommandContext) (*commit.CommitManager, *plugin.Response, error) {
@@ -22,14 +33,14 @@ func requireCommitManager(ctx *pluginserver.CommandContext) (*commit.CommitManag
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "commit manager not available",
-		}, fmt.Errorf("commit manager not available")
+		}, ErrCommitManagerNotAvailable
 	}
 	typed, ok := cm.(*commit.CommitManager)
 	if !ok {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "commit manager not available",
-		}, fmt.Errorf("commit manager type assertion failed")
+		}, ErrCommitManagerTypeAssertionFailed
 	}
 	return typed, nil, nil
 }

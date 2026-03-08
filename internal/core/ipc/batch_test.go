@@ -110,11 +110,11 @@ func TestBatchParseEvents(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := rpc.ParseBatchEvents([]byte(tc.params))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := rpc.ParseBatchEvents([]byte(tt.params))
 			require.NoError(t, err)
-			assert.Len(t, got, tc.want)
+			assert.Len(t, got, tt.want)
 		})
 	}
 }
@@ -132,9 +132,9 @@ func TestBatchParseEventsError(t *testing.T) {
 		{name: "events_not_array", params: `{"events":"string"}`},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := rpc.ParseBatchEvents([]byte(tc.params))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := rpc.ParseBatchEvents([]byte(tt.params))
 			require.Error(t, err)
 		})
 	}

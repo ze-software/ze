@@ -186,12 +186,11 @@ func TestReactorPeersStartOnRun(t *testing.T) {
 	err = reactor.Start()
 	require.NoError(t, err)
 
-	// Give peers time to start
-	time.Sleep(20 * time.Millisecond)
-
-	peers := reactor.Peers()
-	require.Len(t, peers, 1)
-	require.NotEqual(t, PeerStateStopped, peers[0].State(), "peer should be running")
+	// Wait for peer to start
+	require.Eventually(t, func() bool {
+		peers := reactor.Peers()
+		return len(peers) == 1 && peers[0].State() != PeerStateStopped
+	}, time.Second, time.Millisecond, "peer should be running")
 
 	reactor.Stop()
 
@@ -264,9 +263,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	require.NoError(t, err)
 	defer func() { _ = conn.Close() }()
 
-	time.Sleep(50 * time.Millisecond)
-
-	require.True(t, accepted.Load(), "connection should be matched to peer")
+	require.Eventually(t, accepted.Load, time.Second, time.Millisecond, "connection should be matched to peer")
 }
 
 // TestReactorContextCancellation verifies reactor stops on context cancel.

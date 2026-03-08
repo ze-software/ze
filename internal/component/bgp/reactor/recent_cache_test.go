@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/test/sim"
@@ -1354,13 +1356,11 @@ func TestGapScanRunsInBackground(t *testing.T) {
 
 	// Fire the ticker — buffered(1) channel, safe before goroutine selects.
 	fc.FireTickers()
-	// Let goroutine pick up the tick and run the gap scan.
-	time.Sleep(10 * time.Millisecond)
 
 	// Entry 100 should be force-evicted by background gap scan
-	if cache.Contains(100) {
-		t.Error("stalled entry 100 should be force-evicted by background gap scan")
-	}
+	require.Eventually(t, func() bool {
+		return !cache.Contains(100)
+	}, time.Second, time.Millisecond, "stalled entry 100 should be force-evicted by background gap scan")
 }
 
 // TestAddDoesNotRunGapScanInline verifies Add() no longer triggers gap scan.

@@ -226,9 +226,9 @@ func TestRewriteASPath_FullSequence255(t *testing.T) {
 }
 
 // TestRewriteASPath_ASTransEncoding verifies that when localASN > 65535
-// and dstAsn4=false, AS_TRANS (23456) is used per RFC 6793.
+// and dstASN4=false, AS_TRANS (23456) is used per RFC 6793.
 //
-// VALIDATES: AC-6 — localASN=70000 with dstAsn4=false encodes AS_TRANS=23456.
+// VALIDATES: AC-6 — localASN=70000 with dstASN4=false encodes AS_TRANS=23456.
 // PREVENTS: Large ASN corruption in 2-byte mode.
 func TestRewriteASPath_ASTransEncoding(t *testing.T) {
 	// Build with ASN4: AS_SEQUENCE [64512]
@@ -373,7 +373,7 @@ func TestRewriteASPath_WithWithdrawn(t *testing.T) {
 }
 
 // FuzzRewriteASPath verifies RewriteASPath does not panic on arbitrary input.
-// Fuzzes both srcAsn4/dstAsn4 combinations.
+// Fuzzes both srcASN4/dstASN4 combinations.
 //
 // VALIDATES: No panic on arbitrary input.
 // PREVENTS: Panics from malformed wire data.
@@ -391,13 +391,13 @@ func FuzzRewriteASPath(f *testing.F) {
 	f.Add([]byte{0, 0, 0, 0}, uint32(65000), true, true) // empty attrs
 	f.Add([]byte{}, uint32(1), false, false)             // empty
 
-	f.Fuzz(func(_ *testing.T, payload []byte, localASN uint32, srcAsn4, dstAsn4 bool) {
+	f.Fuzz(func(_ *testing.T, payload []byte, localASN uint32, srcASN4, dstASN4 bool) {
 		if localASN == 0 {
 			return // Reserved ASN, skip
 		}
 		dst := make([]byte, len(payload)+1024)
 		// Must not panic — errors are expected for malformed input
-		if _, err := RewriteASPath(dst, payload, localASN, srcAsn4, dstAsn4); err != nil {
+		if _, err := RewriteASPath(dst, payload, localASN, srcASN4, dstASN4); err != nil {
 			return // Errors are fine, only panics are bugs
 		}
 	})

@@ -6,6 +6,7 @@
 // Detail: peer_rib_routes.go — RIB route extraction
 // Detail: peer_static_routes.go — static route injection
 // Detail: peer_stats.go — atomic message/route counters and uptime
+// Detail: routerid_unique.go — router-ID conflict detection
 
 package reactor
 

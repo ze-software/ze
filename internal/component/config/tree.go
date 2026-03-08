@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — Tree data structure
 // Related: parser.go — config parser core
+// Related: serialize.go — Tree serialization to config text
 
 package config
 

@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Related: yang_schema.go — YANG-to-schema conversion
+// Related: validators.go — custom schema validators
 //
 // Package config implements schema-driven configuration parsing.
 //

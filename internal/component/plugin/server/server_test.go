@@ -113,10 +113,9 @@ func TestServerAcceptClient(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Give server time to accept
-	time.Sleep(10 * time.Millisecond)
-
-	assert.Equal(t, 1, server.ClientCount())
+	require.Eventually(t, func() bool {
+		return server.ClientCount() == 1
+	}, time.Second, time.Millisecond, "server should accept client")
 }
 
 // TestServerMultipleClients verifies concurrent clients.
@@ -146,8 +145,9 @@ func TestServerMultipleClients(t *testing.T) {
 		}
 	}()
 
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 5, server.ClientCount())
+	require.Eventually(t, func() bool {
+		return server.ClientCount() == 5
+	}, time.Second, time.Millisecond, "all 5 clients should be accepted")
 }
 
 // TestServerCommandExecution verifies end-to-end command flow.
@@ -201,15 +201,17 @@ func TestServerClientDisconnect(t *testing.T) {
 	// Connect client
 	conn := dialUnix(t, sockPath)
 
-	time.Sleep(10 * time.Millisecond)
-	assert.Equal(t, 1, server.ClientCount())
+	require.Eventually(t, func() bool {
+		return server.ClientCount() == 1
+	}, time.Second, time.Millisecond, "server should accept client")
 
 	// Disconnect
 	_ = conn.Close()
 
-	// Wait for server to notice
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 0, server.ClientCount())
+	// Wait for server to notice disconnect
+	require.Eventually(t, func() bool {
+		return server.ClientCount() == 0
+	}, time.Second, time.Millisecond, "server should detect client disconnect")
 }
 
 // TestServerUnknownCommand verifies error response.

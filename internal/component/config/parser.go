@@ -1,7 +1,10 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Detail: parser_list.go — list and multi-leaf parsing
 // Detail: parser_freeform.go — freeform, flex, and inline parsing
+// Detail: tokenizer.go — lexical tokenizer for config input
 // Related: tree.go — Tree data structure
+// Related: setparser.go — set-style config parsing
+// Related: reader.go — config file loading and handler routing
 
 package config
 

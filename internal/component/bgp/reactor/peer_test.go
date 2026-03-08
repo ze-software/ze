@@ -67,10 +67,9 @@ func TestPeerStartStop(t *testing.T) {
 	// Start peer
 	peer.Start()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
-
-	require.NotEqual(t, PeerStateStopped, peer.State(), "state should change after Start")
+	require.Eventually(t, func() bool {
+		return peer.State() != PeerStateStopped
+	}, time.Second, time.Millisecond, "state should change after Start")
 
 	// Stop peer
 	peer.Stop()
@@ -122,16 +121,15 @@ func TestPeerReconnect(t *testing.T) {
 	peer.Start()
 
 	// Wait for multiple reconnect attempts
-	time.Sleep(100 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return connectCount.Load() >= 2
+	}, time.Second, time.Millisecond, "peer should reconnect at least twice")
 
 	peer.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	_ = peer.Wait(ctx)
-
-	count := connectCount.Load()
-	require.GreaterOrEqual(t, count, int32(2), "peer should reconnect at least twice, got %d", count)
 }
 
 // TestPeerContextCancellation verifies peer stops on context cancellation.
@@ -151,8 +149,9 @@ func TestPeerContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	peer.StartWithContext(ctx)
 
-	time.Sleep(10 * time.Millisecond)
-	require.NotEqual(t, PeerStateStopped, peer.State())
+	require.Eventually(t, func() bool {
+		return peer.State() != PeerStateStopped
+	}, time.Second, time.Millisecond, "peer should leave Stopped state")
 
 	// Cancel context
 	cancel()
@@ -202,10 +201,10 @@ func TestPeerStateTransitions(t *testing.T) {
 	peer.Start()
 
 	// Should transition to Connecting
-	time.Sleep(50 * time.Millisecond)
-	state := peer.State()
-	require.True(t, state == PeerStateConnecting || state == PeerStateActive,
-		"state should be Connecting or Active, got %v", state)
+	require.Eventually(t, func() bool {
+		s := peer.State()
+		return s == PeerStateConnecting || s == PeerStateActive
+	}, time.Second, time.Millisecond, "state should be Connecting or Active")
 
 	peer.Stop()
 

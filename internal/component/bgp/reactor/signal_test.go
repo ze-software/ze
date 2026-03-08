@@ -64,10 +64,7 @@ func TestSignalHandlerSIGTERM(t *testing.T) {
 	err := syscall.Kill(os.Getpid(), syscall.SIGTERM)
 	require.NoError(t, err)
 
-	// Wait for callback
-	time.Sleep(50 * time.Millisecond)
-
-	require.True(t, called.Load(), "shutdown callback should be called on SIGTERM")
+	require.Eventually(t, called.Load, time.Second, time.Millisecond, "shutdown callback should be called on SIGTERM")
 }
 
 // TestSignalHandlerSIGHUP verifies SIGHUP handling.
@@ -90,10 +87,7 @@ func TestSignalHandlerSIGHUP(t *testing.T) {
 	err := syscall.Kill(os.Getpid(), syscall.SIGHUP)
 	require.NoError(t, err)
 
-	// Wait for callback
-	time.Sleep(50 * time.Millisecond)
-
-	require.True(t, called.Load(), "reload callback should be called on SIGHUP")
+	require.Eventually(t, called.Load, time.Second, time.Millisecond, "reload callback should be called on SIGHUP")
 }
 
 // TestSignalHandlerSIGUSR1 verifies SIGUSR1 handling.
@@ -116,10 +110,7 @@ func TestSignalHandlerSIGUSR1(t *testing.T) {
 	err := syscall.Kill(os.Getpid(), syscall.SIGUSR1)
 	require.NoError(t, err)
 
-	// Wait for callback
-	time.Sleep(50 * time.Millisecond)
-
-	require.True(t, called.Load(), "status callback should be called on SIGUSR1")
+	require.Eventually(t, called.Load, time.Second, time.Millisecond, "status callback should be called on SIGUSR1")
 }
 
 // TestSignalHandlerContextCancellation verifies handler stops on context cancellation.
@@ -167,13 +158,18 @@ func TestSignalHandlerMultipleSignals(t *testing.T) {
 	handler.Start()
 	defer handler.Stop()
 
-	// Send multiple signals
+	// Send multiple signals, waiting for each to be handled before sending the next.
 	_ = syscall.Kill(os.Getpid(), syscall.SIGHUP)
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool { return reloadCount.Load() >= 1 },
+		time.Second, time.Millisecond, "first SIGHUP should be handled")
+
 	_ = syscall.Kill(os.Getpid(), syscall.SIGUSR1)
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool { return statusCount.Load() >= 1 },
+		time.Second, time.Millisecond, "SIGUSR1 should be handled")
+
 	_ = syscall.Kill(os.Getpid(), syscall.SIGHUP)
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool { return reloadCount.Load() >= 2 },
+		time.Second, time.Millisecond, "second SIGHUP should be handled")
 
 	require.Equal(t, int32(2), reloadCount.Load(), "reload should be called twice")
 	require.Equal(t, int32(1), statusCount.Load(), "status should be called once")

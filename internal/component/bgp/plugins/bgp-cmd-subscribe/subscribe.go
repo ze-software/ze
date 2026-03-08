@@ -4,10 +4,19 @@
 package bgpcmdsubscribe
 
 import (
-	"fmt"
+	"errors"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+)
+
+// Sentinel errors for subscribe/unsubscribe handlers.
+var (
+	// ErrNoProcessContext is returned when the command context has no process.
+	ErrNoProcessContext = errors.New("no process context")
+
+	// ErrNoSubscriptionManager is returned when no subscription manager is available.
+	ErrNoSubscriptionManager = errors.New("no subscription manager")
 )
 
 func init() {
@@ -31,14 +40,14 @@ func handleSubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin.R
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "subscribe requires a process context",
-		}, fmt.Errorf("no process context")
+		}, ErrNoProcessContext
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "subscription manager not available",
-		}, fmt.Errorf("no subscription manager")
+		}, ErrNoSubscriptionManager
 	}
 
 	ctx.Subscriptions().Add(ctx.Process, sub)
@@ -67,14 +76,14 @@ func handleUnsubscribe(ctx *pluginserver.CommandContext, args []string) (*plugin
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "unsubscribe requires a process context",
-		}, fmt.Errorf("no process context")
+		}, ErrNoProcessContext
 	}
 
 	if ctx.Subscriptions() == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   "subscription manager not available",
-		}, fmt.Errorf("no subscription manager")
+		}, ErrNoSubscriptionManager
 	}
 
 	removed := ctx.Subscriptions().Remove(ctx.Process, sub)

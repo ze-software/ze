@@ -55,13 +55,11 @@ func TestPeerRunRecoversPanic(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	peer.StartWithContext(ctx)
 
-	// Let the peer loop run several iterations — each will panic and recover.
-	time.Sleep(80 * time.Millisecond)
-
-	// If we get here, the peer goroutine survived the panics.
+	// Wait for the peer to survive multiple panic-and-recover iterations.
 	// Verify the peer is still running (not in Stopped state).
-	state := peer.State()
-	assert.NotEqual(t, PeerStateStopped, state, "peer should still be running after panics")
+	require.Eventually(t, func() bool {
+		return peer.State() != PeerStateStopped
+	}, time.Second, time.Millisecond, "peer should still be running after panics")
 
 	// Clean shutdown.
 	cancel()
@@ -168,10 +166,9 @@ func TestListenerHandlerRecoversPanic(t *testing.T) {
 	require.NoError(t, closeErr)
 
 	// Wait for handlers to run.
-	time.Sleep(50 * time.Millisecond)
-
-	assert.GreaterOrEqual(t, handled.Load(), int32(2),
-		"listener should handle connections after a handler panic")
+	require.Eventually(t, func() bool {
+		return handled.Load() >= 2
+	}, time.Second, time.Millisecond, "listener should handle connections after a handler panic")
 }
 
 // TestSignalHandlerRecoversPanic verifies that a panic in a signal callback

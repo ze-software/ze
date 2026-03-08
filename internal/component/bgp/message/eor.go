@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc4724.md — end-of-RIB marker (graceful restart)
+// Related: update.go — UPDATE message wire representation
 
 package message
 

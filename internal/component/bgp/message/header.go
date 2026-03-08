@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc4271.md — message header format (Section 4.1)
+// Overview: message.go — Message interface and writeHeader
 //
 // Package message provides BGP message types and parsing.
 package message

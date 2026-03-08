@@ -18,6 +18,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// ErrSubsystemNotRunning is returned when a command targets a non-running subsystem.
+var ErrSubsystemNotRunning = errors.New("subsystem not running")
+
+// ErrSubsystemConnectionClosed is returned when the subsystem's connection is no longer available.
+var ErrSubsystemConnectionClosed = errors.New("subsystem connection closed")
+
 // SubsystemConfig describes a forked subsystem process.
 type SubsystemConfig struct {
 	Name       string   // Subsystem name (cache, route, session)
@@ -262,13 +268,13 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 	h.mu.RUnlock()
 
 	if proc == nil || !proc.Running() {
-		return nil, errors.New("subsystem not running")
+		return nil, ErrSubsystemNotRunning
 	}
 
 	// Send command via RPC execute-command
 	connB := proc.ConnB()
 	if connB == nil {
-		return nil, errors.New("subsystem connection closed")
+		return nil, ErrSubsystemConnectionClosed
 	}
 	out, err := connB.SendExecuteCommand(ctx, "", command, nil, "")
 	if err != nil {

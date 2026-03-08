@@ -1,4 +1,5 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — OS signal handling
+// Overview: reactor.go — BGP reactor event loop and peer management
 
 package reactor
 

@@ -122,6 +122,9 @@ func waitForEstablished(ctx context.Context, t *testing.T, r *reactor.Reactor) b
 }
 
 // TestSessionEstablishment verifies that two ZeBGP peers can establish a session.
+//
+// VALIDATES: Two peers with active+passive roles reach Established state.
+// PREVENTS: Regression in BGP session handshake (OPEN/KEEPALIVE exchange).
 func TestSessionEstablishment(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
@@ -147,11 +150,17 @@ func TestSessionEstablishment(t *testing.T) {
 // TestSessionActiveActive verifies two active peers can establish a session.
 // NOTE: This requires BGP collision detection (RFC 4271 Section 6.8) which
 // is not yet implemented. Skipping for now.
+//
+// VALIDATES: Active-active peers establish session via collision detection.
+// PREVENTS: Dual-active connections causing deadlock or crash.
 func TestSessionActiveActive(t *testing.T) {
 	t.Skip("collision detection not implemented")
 }
 
 // TestSessionIBGP verifies iBGP session (same AS).
+//
+// VALIDATES: iBGP peers (same AS number) establish session successfully.
+// PREVENTS: iBGP session rejection due to same-AS check error.
 func TestSessionIBGP(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
@@ -171,6 +180,9 @@ func TestSessionIBGP(t *testing.T) {
 }
 
 // TestSession4ByteAS verifies session with 4-byte AS numbers.
+//
+// VALIDATES: 4-byte AS numbers negotiate and establish correctly.
+// PREVENTS: ASN4 capability negotiation failure for large AS numbers.
 func TestSession4ByteAS(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
 	defer cancel()
@@ -190,6 +202,9 @@ func TestSession4ByteAS(t *testing.T) {
 }
 
 // TestSessionReconnect verifies reconnection after disconnect.
+//
+// VALIDATES: Peer reconnects and establishes after delayed peer startup.
+// PREVENTS: Permanent connection failure after initial connect attempt fails.
 func TestSessionReconnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

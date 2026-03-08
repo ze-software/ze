@@ -1,4 +1,5 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// Related: update_build.go — UPDATE builder infrastructure
 //
 // Package message provides BGP message building and parsing.
 //

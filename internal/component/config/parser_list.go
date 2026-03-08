@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — list and multi-leaf parsing
 // Overview: parser.go — config parser core
+// Related: parser_freeform.go — freeform, flex, and inline parsing
 
 package config
 

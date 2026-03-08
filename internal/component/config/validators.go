@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — custom validators
 // Detail: validators_register.go — init registration of validators into registry
+// Related: schema.go — schema types and validation
 
 package config
 

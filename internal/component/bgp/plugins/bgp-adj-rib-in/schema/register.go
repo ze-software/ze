@@ -5,5 +5,5 @@ import (
 )
 
 func init() {
-	yang.RegisterModule("ze-adj-rib-in.yang", ZeAdjRibInYANG)
+	yang.RegisterModule("ze-adj-rib-in-api.yang", ZeAdjRibInYANG)
 }

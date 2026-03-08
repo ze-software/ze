@@ -1,4 +1,6 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — config tree parsing (PeersFromTree)
+// Overview: reactor.go — BGP reactor event loop and peer management
+// Related: peersettings.go — PeerSettings type produced by config parsing
 
 package reactor
 

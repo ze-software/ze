@@ -19,6 +19,12 @@ var ErrUnknownCommand = errors.New("unknown command")
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
 
+// ErrPluginProcessNotRunning is returned when a plugin command targets a non-running process.
+var ErrPluginProcessNotRunning = errors.New("plugin process not running")
+
+// ErrPluginConnectionClosed is returned when the plugin's connection is no longer available.
+var ErrPluginConnectionClosed = errors.New("plugin connection closed")
+
 // AllBuiltinRPCs returns all RPCs registered via init() + RegisterRPCs().
 // Includes server, handler, and editor RPCs (when their packages are imported).
 func AllBuiltinRPCs() []RPCRegistration {
@@ -346,12 +352,12 @@ func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector strin
 func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
 	proc := cmd.Process
 	if proc == nil || !proc.Running() {
-		return nil, errors.New("plugin process not running")
+		return nil, ErrPluginProcessNotRunning
 	}
 
 	connB := proc.ConnB()
 	if connB == nil {
-		return nil, errors.New("plugin connection closed")
+		return nil, ErrPluginConnectionClosed
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cmd.Timeout)

@@ -1,4 +1,6 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — immutable received UPDATE snapshot
+// Related: recent_cache.go — RecentUpdateCache stores ReceivedUpdate entries
+// Related: reactor_notify.go — creates ReceivedUpdate on inbound UPDATE
 
 package reactor
 
@@ -78,22 +80,22 @@ func getReadBuf(extendedMessage bool) []byte {
 // EBGPWire returns a WireUpdate with the local ASN prepended to AS_PATH.
 // RFC 4271 Section 9.1.2: EBGP speakers MUST prepend their own AS number.
 //
-// Lazy: first call per dstAsn4 variant generates and caches the result.
+// Lazy: first call per dstASN4 variant generates and caches the result.
 // Subsequent calls return the cached pointer. Thread-safe via ebgpMu.
 //
 // Parameters:
 //   - localASN: the local AS number to prepend
-//   - srcAsn4: whether the source UPDATE uses 4-byte ASN encoding
-//   - dstAsn4: whether the destination peer expects 4-byte ASN encoding
+//   - srcASN4: whether the source UPDATE uses 4-byte ASN encoding
+//   - dstASN4: whether the destination peer expects 4-byte ASN encoding
 //
 // The returned WireUpdate shares the original SourceCtxID for zero-copy
 // compatibility checks with other peers using the same encoding context.
-func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcAsn4, dstAsn4 bool) (*wireu.WireUpdate, error) {
+func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wireu.WireUpdate, error) {
 	u.ebgpMu.Lock()
 	defer u.ebgpMu.Unlock()
 
 	// Check cache
-	if dstAsn4 {
+	if dstASN4 {
 		if u.ebgpWireASN4 != nil {
 			return u.ebgpWireASN4, nil
 		}
@@ -110,7 +112,7 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcAsn4, dstAsn4 bool) (*wire
 	extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 	dst := getReadBuf(extendedMessage)
 
-	n, err := wireu.RewriteASPath(dst, payload, localASN, srcAsn4, dstAsn4)
+	n, err := wireu.RewriteASPath(dst, payload, localASN, srcASN4, dstASN4)
 	if err != nil {
 		ReturnReadBuffer(dst) // Return buffer on error
 		return nil, fmt.Errorf("EBGP wire rewrite: %w", err)
@@ -122,7 +124,7 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcAsn4, dstAsn4 bool) (*wire
 	wu.SetSourceID(u.WireUpdate.SourceID())
 
 	// Cache result
-	if dstAsn4 {
+	if dstASN4 {
 		u.ebgpWireASN4 = wu
 		u.ebgpPoolBuf4 = dst
 	} else {

@@ -1,4 +1,5 @@
-// Design: docs/architecture/core-design.md — BGP reactor event loop
+// Design: docs/architecture/core-design.md — peer configuration settings
+// Related: config.go — config tree parsing produces PeerSettings
 //
 // Package reactor implements the BGP reactor - the main orchestrator
 // that manages peer sessions, connections, and signal handling.

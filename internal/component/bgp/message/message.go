@@ -1,4 +1,12 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
+// Detail: header.go — message header constants and parsing
+// Detail: update.go — UPDATE message wire representation
+// Detail: open.go — OPEN message parsing and encoding
+// Detail: notification.go — NOTIFICATION message parsing and encoding
+// Detail: keepalive.go — KEEPALIVE message encoding
+// Detail: routerefresh.go — ROUTE-REFRESH message encoding
+// Detail: errors.go — wire format error definitions
+// Detail: family.go — address family types
 
 package message
 

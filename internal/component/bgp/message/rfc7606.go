@@ -1,5 +1,6 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc7606.md — revised error handling for UPDATE messages
+// Related: attr_discard.go — ATTR_DISCARD in-place marker implementation
 
 package message
 

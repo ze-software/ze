@@ -1,6 +1,11 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc2918.md — route refresh message format
 // RFC: rfc/short/rfc7313.md — enhanced route refresh
+// Overview: message.go — Message interface and writeHeader
+// Related: open.go — OPEN message parsing and encoding
+// Related: notification.go — NOTIFICATION message parsing and encoding
+// Related: keepalive.go — KEEPALIVE message encoding
+// Related: update.go — UPDATE message wire representation
 
 package message
 

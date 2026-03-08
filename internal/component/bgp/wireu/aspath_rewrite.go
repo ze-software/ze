@@ -23,11 +23,11 @@ import (
 //   - dst: destination buffer (must have room for patched payload)
 //   - payload: UPDATE body (wdLen(2) + withdrawn + attrLen(2) + attrs + nlri)
 //   - localASN: the local AS number to prepend
-//   - srcAsn4: whether the source encoded AS_PATH with 4-byte ASNs
-//   - dstAsn4: whether the destination wants 4-byte ASN encoding
+//   - srcASN4: whether the source encoded AS_PATH with 4-byte ASNs
+//   - dstASN4: whether the destination wants 4-byte ASN encoding
 //
 // Returns the number of bytes written to dst, or an error.
-func RewriteASPath(dst, payload []byte, localASN uint32, srcAsn4, dstAsn4 bool) (int, error) {
+func RewriteASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool) (int, error) {
 	// Parse UPDATE body layout: wdLen(2) + withdrawn(wdLen) + attrLen(2) + attrs(attrLen) + nlri
 	if len(payload) < 4 {
 		return 0, fmt.Errorf("rewrite AS_PATH: %w", ErrUpdateTruncated)
@@ -91,16 +91,16 @@ func RewriteASPath(dst, payload []byte, localASN uint32, srcAsn4, dstAsn4 bool) 
 
 	if aspAttrOff == -1 {
 		// No AS_PATH found — insert one
-		return rewriteInsertASPath(dst, payload, localASN, dstAsn4, attrLen, attrLenOff, nlriStart)
+		return rewriteInsertASPath(dst, payload, localASN, dstASN4, attrLen, attrLenOff, nlriStart)
 	}
 
-	return rewritePrependASPath(dst, payload, localASN, srcAsn4, dstAsn4,
+	return rewritePrependASPath(dst, payload, localASN, srcASN4, dstASN4,
 		aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen)
 }
 
 // rewriteInsertASPath handles the case where no AS_PATH exists in the payload.
 // Inserts a complete AS_PATH attribute at the end of the attributes section.
-func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstAsn4 bool,
+func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstASN4 bool,
 	attrLen, attrLenOff, nlriStart int) (int, error) {
 
 	// Build the new AS_PATH: AS_SEQUENCE with just localASN
@@ -111,7 +111,7 @@ func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstAsn4 bool,
 	}
 
 	// Calculate new attribute wire size (header + value)
-	newValueLen := newPath.LenWithASN4(dstAsn4)
+	newValueLen := newPath.LenWithASN4(dstASN4)
 	newHdrLen := 3
 	if newValueLen > 255 {
 		newHdrLen = 4
@@ -123,7 +123,7 @@ func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstAsn4 bool,
 
 	// Write new AS_PATH attribute at end of attrs section
 	off += attribute.WriteHeaderTo(dst, off, attribute.FlagTransitive, attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
-	off += newPath.WriteToWithASN4(dst, off, dstAsn4)
+	off += newPath.WriteToWithASN4(dst, off, dstASN4)
 
 	// Copy NLRI (if any)
 	off += copy(dst[off:], payload[nlriStart:])
@@ -137,14 +137,14 @@ func rewriteInsertASPath(dst, payload []byte, localASN uint32, dstAsn4 bool,
 
 // rewritePrependASPath handles the case where an AS_PATH exists.
 // Parses it, prepends localASN, re-encodes, and adjusts lengths.
-func rewritePrependASPath(dst, payload []byte, localASN uint32, srcAsn4, dstAsn4 bool,
+func rewritePrependASPath(dst, payload []byte, localASN uint32, srcASN4, dstASN4 bool,
 	aspAttrOff, aspHdrLen, aspValueLen, attrLenOff, attrLen int) (int, error) {
 
 	// Parse existing AS_PATH value
 	aspValueStart := aspAttrOff + aspHdrLen
 	aspValue := payload[aspValueStart : aspValueStart+aspValueLen]
 
-	existingPath, err := attribute.ParseASPath(aspValue, srcAsn4)
+	existingPath, err := attribute.ParseASPath(aspValue, srcASN4)
 	if err != nil {
 		return 0, fmt.Errorf("rewrite AS_PATH: parse existing: %w", err)
 	}
@@ -154,7 +154,7 @@ func rewritePrependASPath(dst, payload []byte, localASN uint32, srcAsn4, dstAsn4
 
 	// Compute new sizes
 	oldAttrWireSize := aspHdrLen + aspValueLen
-	newValueLen := existingPath.LenWithASN4(dstAsn4)
+	newValueLen := existingPath.LenWithASN4(dstASN4)
 	newHdrLen := 3
 	if newValueLen > 255 {
 		newHdrLen = 4
@@ -172,7 +172,7 @@ func rewritePrependASPath(dst, payload []byte, localASN uint32, srcAsn4, dstAsn4
 	off += attribute.WriteHeaderTo(dst, off, attribute.FlagTransitive, attribute.AttrASPath, uint16(newValueLen)) //nolint:gosec // bounded by BGP max
 
 	// 3. Write new AS_PATH value
-	off += existingPath.WriteToWithASN4(dst, off, dstAsn4)
+	off += existingPath.WriteToWithASN4(dst, off, dstASN4)
 
 	// 4. Copy bytes after old AS_PATH attribute (remaining attrs + NLRI)
 	aspAttrEnd := aspAttrOff + oldAttrWireSize

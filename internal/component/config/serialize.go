@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Related: tree.go — Tree data structure
 
 package config
 

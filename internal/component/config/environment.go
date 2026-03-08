@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Detail: environment_extract.go — extraction of environment values from config tree
 //
 // Package config provides configuration parsing for ze.
 package config

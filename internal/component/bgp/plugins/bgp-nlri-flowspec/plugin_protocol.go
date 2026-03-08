@@ -34,7 +34,7 @@ const (
 // Protocol writes are fire-and-forget; pipe failure causes exit.
 func protocolWrite(output io.Writer, s string) {
 	_, err := io.WriteString(output, s)
-	_ = err
+	_ = err // Protocol writes are fire-and-forget; pipe failure terminates the process
 }
 
 // RunFlowSpecDecode runs the plugin in decode/encode mode for ze bgp decode/encode.

@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
+// Related: parser.go — config parser core
 
 package config
 

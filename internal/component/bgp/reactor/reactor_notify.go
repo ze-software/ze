@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — peer lifecycle events and message receiver dispatch
 // Overview: reactor.go — BGP reactor event loop and peer management
+// Related: received_update.go — ReceivedUpdate created on inbound UPDATE
 
 package reactor
 

@@ -1,5 +1,10 @@
 // Design: docs/architecture/wire/messages.md — BGP message types
 // RFC: rfc/short/rfc4271.md — KEEPALIVE message format (Section 4.4)
+// Overview: message.go — Message interface and writeHeader
+// Related: open.go — OPEN message parsing and encoding
+// Related: notification.go — NOTIFICATION message parsing and encoding
+// Related: routerefresh.go — ROUTE-REFRESH message encoding
+// Related: update.go — UPDATE message wire representation
 
 package message
 

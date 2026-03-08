@@ -1,7 +1,6 @@
 package bgp
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,6 +11,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Shared test binary setup - built once, used by all tests that need it.
@@ -119,73 +121,43 @@ func TestDecodeOpen(t *testing.T) {
 	hexInput := testOpenMsgHex
 
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Parse JSON output
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output: %s", output)
 
 	// Ze format: top-level "type" should be "bgp"
-	if result["type"] != testTypeBGP {
-		t.Errorf("expected type 'bgp', got %v", result["type"])
-	}
+	assert.Equal(t, testTypeBGP, result["type"], "top-level type")
 
 	// Ze format: data under "bgp" key
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'bgp' field")
-	}
+	require.True(t, ok, "missing or invalid 'bgp' field")
 
 	// Ze format: message.type should be "open"
 	msg, ok := bgp["message"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'message' field in bgp")
-	}
-	if msg["type"] != "open" {
-		t.Errorf("expected message.type 'open', got %v", msg["type"])
-	}
+	require.True(t, ok, "missing or invalid 'message' field in bgp")
+	assert.Equal(t, "open", msg["type"], "message.type")
 
 	// Ze format: flat peer structure
 	peer, ok := bgp["peer"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'peer' field in bgp")
-	}
-	if peer["address"] != "127.0.0.1" {
-		t.Errorf("expected peer.address '127.0.0.1', got %v", peer["address"])
-	}
-	if peer["asn"] != float64(65533) {
-		t.Errorf("expected peer.asn 65533, got %v", peer["asn"])
-	}
+	require.True(t, ok, "missing or invalid 'peer' field in bgp")
+	assert.Equal(t, "127.0.0.1", peer["address"], "peer.address")
+	assert.Equal(t, float64(65533), peer["asn"], "peer.asn")
 
 	// Check open section
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'open' section in bgp")
-	}
+	require.True(t, ok, "missing or invalid 'open' section in bgp")
 
 	// Verify key fields
-	if openSection["asn"] != float64(65533) {
-		t.Errorf("expected asn 65533, got %v", openSection["asn"])
-	}
-	if openSection["hold-time"] != float64(180) {
-		t.Errorf("expected hold-time 180, got %v", openSection["hold-time"])
-	}
-	if openSection["router-id"] != "10.0.0.2" {
-		t.Errorf("expected router-id 10.0.0.2, got %v", openSection["router-id"])
-	}
+	assert.Equal(t, float64(65533), openSection["asn"], "open.asn")
+	assert.Equal(t, float64(180), openSection["hold-time"], "open.hold-time")
+	assert.Equal(t, "10.0.0.2", openSection["router-id"], "open.router-id")
 
 	// Ze format: capabilities should be an array, not a map
 	caps, ok := openSection["capabilities"].([]any)
-	if !ok {
-		t.Fatal("missing or invalid 'capabilities' array in open")
-	}
-	if len(caps) == 0 {
-		t.Error("expected at least one capability")
-	}
+	require.True(t, ok, "missing or invalid 'capabilities' array in open")
+	assert.NotEmpty(t, caps, "expected at least one capability")
 }
 
 // TestDecodeOpenFQDNWithoutPlugin verifies FQDN capability shows as unknown without plugin.
@@ -199,29 +171,19 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output")
 
 	// Ze format: navigate through bgp.open.capabilities
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing bgp section")
-	}
+	require.True(t, ok, "missing bgp section")
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing open section")
-	}
+	require.True(t, ok, "missing open section")
 	// Ze format: capabilities is an array
 	caps, ok := openSection["capabilities"].([]any)
-	if !ok {
-		t.Fatal("missing capabilities array (Ze format uses array, not map)")
-	}
+	require.True(t, ok, "missing capabilities array (Ze format uses array, not map)")
 
 	// Find capability with code 73 (FQDN) in the array
 	var cap73 map[string]any
@@ -236,25 +198,18 @@ func TestDecodeOpenFQDNWithoutPlugin(t *testing.T) {
 		}
 	}
 
-	if cap73 == nil {
-		t.Fatal("missing capability with code 73")
-	}
+	require.NotNil(t, cap73, "missing capability with code 73")
 
 	// Auto-loading: registered plugins are invoked automatically.
 	// Accept decoded (in-process available) or unknown (decode unavailable).
 	name, _ := cap73["name"].(string)
 	switch name {
 	case "fqdn":
-		if cap73["hostname"] != "my-host-name" {
-			t.Errorf("expected hostname 'my-host-name', got %v", cap73["hostname"])
-		}
-		if cap73["domain"] != "my-domain-name.com" {
-			t.Errorf("expected domain 'my-domain-name.com', got %v", cap73["domain"])
-		}
+		assert.Equal(t, "my-host-name", cap73["hostname"])
+		assert.Equal(t, "my-domain-name.com", cap73["domain"])
 	case testCapNameUnknown:
-		if _, hasRaw := cap73["raw"]; !hasRaw {
-			t.Error("unknown capability should have 'raw' field")
-		}
+		_, hasRaw := cap73["raw"]
+		assert.True(t, hasRaw, "unknown capability should have 'raw' field")
 	default:
 		t.Errorf("unexpected capability name: %v", name)
 	}
@@ -274,29 +229,19 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 
 	// Decode WITH plugin
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output")
 
 	// Ze format: navigate through bgp.open.capabilities
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing bgp section")
-	}
+	require.True(t, ok, "missing bgp section")
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing open section")
-	}
+	require.True(t, ok, "missing open section")
 	// Ze format: capabilities is an array
 	caps, ok := openSection["capabilities"].([]any)
-	if !ok {
-		t.Fatal("missing capabilities array")
-	}
+	require.True(t, ok, "missing capabilities array")
 
 	// Find capability with code 73 in the array
 	var cap73 map[string]any
@@ -311,26 +256,19 @@ func TestDecodeOpenFQDNWithPlugin(t *testing.T) {
 		}
 	}
 
-	if cap73 == nil {
-		t.Fatal("missing capability with code 73")
-	}
+	require.NotNil(t, cap73, "missing capability with code 73")
 
 	// Accept either decoded (production) or unknown (test environment)
 	name, _ := cap73["name"].(string)
 	switch name {
 	case "fqdn":
 		// Plugin decode worked - verify fields
-		if cap73["hostname"] != "my-host-name" {
-			t.Errorf("expected hostname 'my-host-name', got %v", cap73["hostname"])
-		}
-		if cap73["domain"] != "my-domain-name.com" {
-			t.Errorf("expected domain 'my-domain-name.com', got %v", cap73["domain"])
-		}
+		assert.Equal(t, "my-host-name", cap73["hostname"])
+		assert.Equal(t, "my-domain-name.com", cap73["domain"])
 	case testCapNameUnknown:
 		// Plugin not available in test env - verify fallback has raw data
-		if _, hasRaw := cap73["raw"]; !hasRaw {
-			t.Error("unknown capability should have 'raw' field")
-		}
+		_, hasRaw := cap73["raw"]
+		assert.True(t, hasRaw, "unknown capability should have 'raw' field")
 	default:
 		t.Errorf("unexpected capability name: %v", name)
 	}
@@ -346,28 +284,18 @@ func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output")
 
 	// Ze format: navigate through bgp.open.capabilities
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing bgp section")
-	}
+	require.True(t, ok, "missing bgp section")
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing open section")
-	}
+	require.True(t, ok, "missing open section")
 	caps, ok := openSection["capabilities"].([]any)
-	if !ok {
-		t.Fatal("missing capabilities array")
-	}
+	require.True(t, ok, "missing capabilities array")
 
 	// Find capability with code 64 (GR)
 	var cap64 map[string]any
@@ -382,9 +310,7 @@ func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
 		}
 	}
 
-	if cap64 == nil {
-		t.Fatal("missing capability with code 64")
-	}
+	require.NotNil(t, cap64, "missing capability with code 64")
 
 	// Auto-loading: registered plugins are invoked automatically.
 	// Accept decoded (in-process available) or unknown (decode unavailable).
@@ -393,9 +319,8 @@ func TestDecodeOpenGRWithoutPlugin(t *testing.T) {
 	case "graceful-restart":
 		// Plugin decoded successfully — no further field checks needed.
 	case testCapNameUnknown:
-		if _, hasRaw := cap64["raw"]; !hasRaw {
-			t.Error("unknown capability should have 'raw' field")
-		}
+		_, hasRaw := cap64["raw"]
+		assert.True(t, hasRaw, "unknown capability should have 'raw' field")
 	default:
 		t.Errorf("unexpected capability name: %v", name)
 	}
@@ -411,28 +336,18 @@ func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
 
 	// Decode without explicit --plugin flag — registered plugins are auto-invoked.
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output")
 
 	// Ze format: navigate through bgp.open.capabilities
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing bgp section")
-	}
+	require.True(t, ok, "missing bgp section")
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing open section")
-	}
+	require.True(t, ok, "missing open section")
 	caps, ok := openSection["capabilities"].([]any)
-	if !ok {
-		t.Fatal("missing capabilities array")
-	}
+	require.True(t, ok, "missing capabilities array")
 
 	// Find capability with code 2 (Route Refresh)
 	var cap2 map[string]any
@@ -447,9 +362,7 @@ func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
 		}
 	}
 
-	if cap2 == nil {
-		t.Fatal("missing capability with code 2")
-	}
+	require.NotNil(t, cap2, "missing capability with code 2")
 
 	// Auto-loading: registered plugins are invoked automatically.
 	// Accept decoded (in-process available) or unknown (decode unavailable).
@@ -458,9 +371,8 @@ func TestDecodeOpenRRWithoutPlugin(t *testing.T) {
 	case "route-refresh":
 		// Plugin decoded successfully.
 	case testCapNameUnknown:
-		if _, hasRaw := cap2["raw"]; !hasRaw {
-			t.Error("unknown capability should have 'raw' field")
-		}
+		_, hasRaw := cap2["raw"]
+		assert.True(t, hasRaw, "unknown capability should have 'raw' field")
 	default:
 		t.Errorf("unexpected capability name: %v", name)
 	}
@@ -476,58 +388,37 @@ func TestDecodeUpdate(t *testing.T) {
 	hexInput := testUpdateMsgHex
 
 	output, err := decodeHexPacket(hexInput, "update", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Parse JSON output
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output: %s", output)
 
 	// Ze format: top-level "type" should be "bgp"
-	if result["type"] != testTypeBGP {
-		t.Errorf("expected type 'bgp', got %v", result["type"])
-	}
+	assert.Equal(t, testTypeBGP, result["type"], "top-level type")
 
 	// Ze format: data under "bgp" key
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'bgp' field")
-	}
+	require.True(t, ok, "missing or invalid 'bgp' field")
 
 	// Ze format: message.type should be "update"
 	msg, ok := bgp["message"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'message' field in bgp")
-	}
-	if msg["type"] != "update" {
-		t.Errorf("expected message.type 'update', got %v", msg["type"])
-	}
+	require.True(t, ok, "missing or invalid 'message' field in bgp")
+	assert.Equal(t, "update", msg["type"], "message.type")
 
 	// Ze format: flat peer structure
 	peer, ok := bgp["peer"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'peer' field in bgp")
-	}
-	if peer["address"] == nil {
-		t.Error("missing peer.address")
-	}
-	if peer["asn"] == nil {
-		t.Error("missing peer.asn")
-	}
+	require.True(t, ok, "missing or invalid 'peer' field in bgp")
+	assert.NotNil(t, peer["address"], "peer.address")
+	assert.NotNil(t, peer["asn"], "peer.asn")
 
 	// Ze format: update section under bgp.update
 	update, ok := bgp["update"].(map[string]any)
-	if !ok {
-		t.Fatal("missing or invalid 'update' section in bgp")
-	}
+	require.True(t, ok, "missing or invalid 'update' section in bgp")
 
 	// Ze format: attributes under "attr" (not "attribute")
-	if _, ok := update["attr"].(map[string]any); !ok {
-		t.Error("missing 'attr' field in update (Ze format uses 'attr', not 'attribute')")
-	}
+	_, ok = update["attr"].(map[string]any)
+	assert.True(t, ok, "missing 'attr' field in update (Ze format uses 'attr', not 'attribute')")
 }
 
 // TestDecodeHexNormalization verifies hex input is normalized correctly.
@@ -550,10 +441,7 @@ func TestDecodeHexNormalization(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			normalized := normalizeHex(tt.input)
-			expected := "FFFFFFFFFFFFFFFF"
-			if normalized != expected {
-				t.Errorf("got %q, want %q", normalized, expected)
-			}
+			assert.Equal(t, "FFFFFFFFFFFFFFFF", normalized)
 		})
 	}
 }
@@ -663,17 +551,10 @@ func TestExtendedCommunities(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got := parseExtendedCommunities(tt.data)
 
-			if len(got) != len(tt.want) {
-				t.Errorf("parseExtendedCommunities() returned %d communities, want %d",
-					len(got), len(tt.want))
-				return
-			}
+			require.Len(t, got, len(tt.want), "community count")
 
 			for i := range got {
-				if got[i]["string"] != tt.want[i]["string"] {
-					t.Errorf("community[%d].string = %q, want %q",
-						i, got[i]["string"], tt.want[i]["string"])
-				}
+				assert.Equal(t, tt.want[i]["string"], got[i]["string"], "community[%d].string", i)
 			}
 		})
 	}
@@ -689,14 +570,10 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
 	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// Ze format: navigate through bgp.update.attr
 	bgp, _ := result["bgp"].(map[string]any)          //nolint:forcetypeassert // test
@@ -704,15 +581,10 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	attrs, _ := update["attr"].(map[string]any)       //nolint:forcetypeassert // test
 	extComm, _ := attrs["extended-community"].([]any) //nolint:forcetypeassert // test
 
-	if len(extComm) != 1 {
-		t.Errorf("expected 1 extended-community, got %d", len(extComm))
-		return
-	}
+	require.Len(t, extComm, 1, "extended-community count")
 
 	comm, _ := extComm[0].(map[string]any) //nolint:forcetypeassert // test
-	if comm["string"] != "rate-limit:0" {
-		t.Errorf("expected 'rate-limit:0', got %v", comm["string"])
-	}
+	assert.Equal(t, "rate-limit:0", comm["string"])
 }
 
 // =============================================================================
@@ -729,14 +601,10 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	hexInput := testBGPLSLinkUpdate
 
 	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// Ze format: navigate through bgp.update.family
 	bgp, _ := result["bgp"].(map[string]any)       //nolint:forcetypeassert // test
@@ -744,36 +612,21 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	bgplsOps, _ := update["bgp-ls/bgp-ls"].([]any) //nolint:forcetypeassert // test
 
 	// Ze format: operations array with action/nlri
-	if len(bgplsOps) == 0 {
-		t.Fatal("no BGP-LS operations found")
-	}
+	require.NotEmpty(t, bgplsOps, "no BGP-LS operations found")
 
 	// Get first operation's nlri array
 	op, _ := bgplsOps[0].(map[string]any) //nolint:forcetypeassert // test
 	routes, _ := op["nlri"].([]any)       //nolint:forcetypeassert // test
 
-	if len(routes) == 0 {
-		t.Fatal("no BGP-LS routes found")
-	}
+	require.NotEmpty(t, routes, "no BGP-LS routes found")
 
 	route, _ := routes[0].(map[string]any) //nolint:forcetypeassert // test
 
 	// Check required BGP-LS fields
-	if route["ls-nlri-type"] != testBGPLSLinkNLRIType {
-		t.Errorf("expected ls-nlri-type '%s', got %v", testBGPLSLinkNLRIType, route["ls-nlri-type"])
-	}
-
-	if route["protocol-id"] == nil {
-		t.Error("missing protocol-id field")
-	}
-
-	if route["local-node-descriptors"] == nil {
-		t.Error("missing local-node-descriptors field")
-	}
-
-	if route["remote-node-descriptors"] == nil {
-		t.Error("missing remote-node-descriptors field")
-	}
+	assert.Equal(t, testBGPLSLinkNLRIType, route["ls-nlri-type"], "ls-nlri-type")
+	assert.NotNil(t, route["protocol-id"], "protocol-id")
+	assert.NotNil(t, route["local-node-descriptors"], "local-node-descriptors")
+	assert.NotNil(t, route["remote-node-descriptors"], "remote-node-descriptors")
 }
 
 // TestBGPLSProtocolIDs verifies BGP-LS protocol ID formatting.
@@ -797,9 +650,7 @@ func TestBGPLSProtocolIDs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("proto_%d", tt.protoID), func(t *testing.T) {
 			// Protocol ID should be numeric in JSON output (matching ExaBGP)
-			if int(tt.protoID) != tt.want {
-				t.Errorf("protocol-id %d should equal %d", tt.protoID, tt.want)
-			}
+			assert.Equal(t, tt.want, int(tt.protoID), "protocol-id")
 		})
 	}
 }
@@ -814,14 +665,10 @@ func TestBGPLSAttribute(t *testing.T) {
 	hexInput := testBGPLSLinkUpdate
 
 	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// Ze format: navigate through bgp.update.attr
 	bgp, _ := result["bgp"].(map[string]any)    //nolint:forcetypeassert // test
@@ -830,14 +677,10 @@ func TestBGPLSAttribute(t *testing.T) {
 
 	// Check for bgp-ls attribute
 	bgplsAttr, ok := attrs["bgp-ls"].(map[string]any)
-	if !ok {
-		t.Fatal("missing bgp-ls attribute")
-	}
+	require.True(t, ok, "missing bgp-ls attribute")
 
 	// Check igp-metric
-	if bgplsAttr["igp-metric"] == nil {
-		t.Error("missing igp-metric in bgp-ls attribute")
-	}
+	assert.NotNil(t, bgplsAttr["igp-metric"], "missing igp-metric in bgp-ls attribute")
 }
 
 // TestBGPLSInterfaceAddresses verifies interface/neighbor address parsing.
@@ -851,40 +694,28 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	hexInput := testBGPLSLinkUpdate
 
 	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// Ze format: navigate through bgp.update.family
 	bgp, _ := result["bgp"].(map[string]any)       //nolint:forcetypeassert // test
 	update, _ := bgp["update"].(map[string]any)    //nolint:forcetypeassert // test
 	bgplsOps, _ := update["bgp-ls/bgp-ls"].([]any) //nolint:forcetypeassert // test
 
-	if len(bgplsOps) == 0 {
-		t.Fatal("no BGP-LS operations found")
-	}
+	require.NotEmpty(t, bgplsOps, "no BGP-LS operations found")
 
 	op, _ := bgplsOps[0].(map[string]any) //nolint:forcetypeassert // test
 	routes, _ := op["nlri"].([]any)       //nolint:forcetypeassert // test
 
-	if len(routes) == 0 {
-		t.Fatal("no BGP-LS routes found")
-	}
+	require.NotEmpty(t, routes, "no BGP-LS routes found")
 
 	route, _ := routes[0].(map[string]any) //nolint:forcetypeassert // test
 
 	// Check for address arrays (should exist even if empty)
-	if route["interface-addresses"] == nil {
-		t.Error("missing interface-addresses field")
-	}
-	if route["neighbor-addresses"] == nil {
-		t.Error("missing neighbor-addresses field")
-	}
+	assert.NotNil(t, route["interface-addresses"], "missing interface-addresses field")
+	assert.NotNil(t, route["neighbor-addresses"], "missing neighbor-addresses field")
 }
 
 // TestBGPLSRawNLRIFormat verifies raw NLRI decoding (nlri type tests).
@@ -898,31 +729,16 @@ func TestBGPLSRawNLRIFormat(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// For nlri type, output should be flat (no exabgp/neighbor wrapper)
-	if result["ls-nlri-type"] != testBGPLSLinkNLRIType {
-		t.Errorf("expected ls-nlri-type '%s', got %v", testBGPLSLinkNLRIType, result["ls-nlri-type"])
-	}
-
-	if result["protocol-id"] == nil {
-		t.Error("missing protocol-id field")
-	}
-
-	if result["local-node-descriptors"] == nil {
-		t.Error("missing local-node-descriptors field")
-	}
-
-	if result["remote-node-descriptors"] == nil {
-		t.Error("missing remote-node-descriptors field")
-	}
+	assert.Equal(t, testBGPLSLinkNLRIType, result["ls-nlri-type"])
+	assert.NotNil(t, result["protocol-id"], "missing protocol-id field")
+	assert.NotNil(t, result["local-node-descriptors"], "missing local-node-descriptors field")
+	assert.NotNil(t, result["remote-node-descriptors"], "missing remote-node-descriptors field")
 }
 
 // TestBGPLSL3RoutingTopology verifies l3-routing-topology field.
@@ -935,25 +751,17 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// l3-routing-topology should be 0 (from identifier field)
-	if result["l3-routing-topology"] == nil {
-		t.Error("missing l3-routing-topology field")
-	}
+	assert.NotNil(t, result["l3-routing-topology"], "missing l3-routing-topology field")
 
 	// Should be 0 for this test case
 	if topo, ok := result["l3-routing-topology"].(float64); ok {
-		if topo != 0 {
-			t.Errorf("expected l3-routing-topology 0, got %v", topo)
-		}
+		assert.Equal(t, float64(0), topo, "l3-routing-topology")
 	}
 }
 
@@ -1006,42 +814,31 @@ func TestParseSRMPLSAdjSID(t *testing.T) {
 			parseSRMPLSAdjSID(result, "sr-adj", tt.data)
 
 			if tt.wantSIDs == nil {
-				if _, ok := result["sr-adj"]; ok {
-					t.Error("expected no sr-adj entry for short data")
-				}
+				_, ok := result["sr-adj"]
+				assert.False(t, ok, "expected no sr-adj entry for short data")
 				return
 			}
 
 			entries, ok := result["sr-adj"].([]map[string]any)
-			if !ok || len(entries) == 0 {
-				t.Fatal("expected sr-adj array with entries")
-			}
+			require.True(t, ok && len(entries) > 0, "expected sr-adj array with entries")
 
 			entry := entries[0]
 			sids, ok := entry["sids"].([]int)
-			if !ok {
-				t.Fatal("expected sids array")
-			}
+			require.True(t, ok, "expected sids array")
 
-			if len(sids) != len(tt.wantSIDs) {
-				t.Errorf("got %d SIDs, want %d", len(sids), len(tt.wantSIDs))
-			}
+			require.Len(t, sids, len(tt.wantSIDs), "SID count")
 			for i, want := range tt.wantSIDs {
-				if i < len(sids) && sids[i] != want {
-					t.Errorf("SID[%d] = %d, want %d", i, sids[i], want)
-				}
+				assert.Equal(t, want, sids[i], "SID[%d]", i)
 			}
 
 			flags, ok := entry["flags"].(map[string]any)
-			if !ok {
-				t.Fatal("expected flags map")
-			}
+			require.True(t, ok, "expected flags map")
 
-			if v, ok := flags["V"].(int); ok && v != tt.wantV {
-				t.Errorf("V flag = %d, want %d", v, tt.wantV)
+			if v, ok := flags["V"].(int); ok {
+				assert.Equal(t, tt.wantV, v, "V flag")
 			}
-			if l, ok := flags["L"].(int); ok && l != tt.wantL {
-				t.Errorf("L flag = %d, want %d", l, tt.wantL)
+			if l, ok := flags["L"].(int); ok {
+				assert.Equal(t, tt.wantL, l, "L flag")
 			}
 		})
 	}
@@ -1061,24 +858,17 @@ func TestDecodeNLRIFlag(t *testing.T) {
 
 	// decodeHexPacket with "nlri" type and family
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// NLRI mode should produce flat JSON (no bgp wrapper envelope)
-	if _, hasBgp := result["bgp"]; hasBgp {
-		t.Error("NLRI mode should not have bgp wrapper")
-	}
+	_, hasBgp := result["bgp"]
+	assert.False(t, hasBgp, "NLRI mode should not have bgp wrapper")
 
 	// Should have BGP-LS fields
-	if result["ls-nlri-type"] == nil {
-		t.Error("missing ls-nlri-type field")
-	}
+	assert.NotNil(t, result["ls-nlri-type"], "missing ls-nlri-type field")
 }
 
 // TestDecodeNLRIFlagWithPlugin verifies --nlri with plugin falls back correctly.
@@ -1091,19 +881,13 @@ func TestDecodeNLRIFlagWithPlugin(t *testing.T) {
 	hexInput := "0701180a0000" // Simple FlowSpec: destination 10.0.0.0/24
 
 	output, err := decodeHexPacket(hexInput, "nlri", "ipv4/flow", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON")
 
 	// Should have some output (either plugin or fallback)
-	if len(result) == 0 {
-		t.Error("expected non-empty result")
-	}
+	assert.NotEmpty(t, result, "expected non-empty result")
 }
 
 // TestLookupFamilyPlugin verifies family plugin lookup with case insensitivity.
@@ -1125,10 +909,7 @@ func TestLookupFamilyPlugin(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.family, func(t *testing.T) {
 			got := lookupFamilyPlugin(tt.family)
-			if got != tt.want {
-				t.Errorf("lookupFamilyPlugin(%q) = %q, want %q",
-					tt.family, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got, "lookupFamilyPlugin(%q)", tt.family)
 		})
 	}
 }
@@ -1147,30 +928,17 @@ func TestSRAdjMultipleInstances(t *testing.T) {
 	parseSRMPLSAdjSID(result, "sr-adj", []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00})
 
 	entries, ok := result["sr-adj"].([]map[string]any)
-	if !ok {
-		t.Fatal("expected sr-adj to be array")
-	}
-
-	if len(entries) != 2 {
-		t.Errorf("expected 2 sr-adj entries, got %d", len(entries))
-	}
+	require.True(t, ok, "expected sr-adj to be array")
+	require.Len(t, entries, 2, "sr-adj entry count")
 
 	// Verify both SIDs are preserved
 	sids0, ok := entries[0]["sids"].([]int)
-	if !ok || len(sids0) == 0 {
-		t.Fatal("expected sids array in first entry")
-	}
+	require.True(t, ok && len(sids0) > 0, "expected sids array in first entry")
 	sids1, ok := entries[1]["sids"].([]int)
-	if !ok || len(sids1) == 0 {
-		t.Fatal("expected sids array in second entry")
-	}
+	require.True(t, ok && len(sids1) > 0, "expected sids array in second entry")
 
-	if sids0[0] != 299792 {
-		t.Errorf("first SID = %d, want 299792", sids0[0])
-	}
-	if sids1[0] != 299776 {
-		t.Errorf("second SID = %d, want 299776", sids1[0])
-	}
+	assert.Equal(t, 299792, sids0[0], "first SID")
+	assert.Equal(t, 299776, sids1[0], "second SID")
 }
 
 // =============================================================================
@@ -1186,50 +954,23 @@ func TestDecodeOpenHuman(t *testing.T) {
 	hexInput := testOpenMsgHex
 
 	output, err := decodeHexPacket(hexInput, "open", "", false)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
-	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err == nil {
-		t.Error("human output should not be valid JSON")
-	}
+	assert.Error(t, json.Unmarshal([]byte(output), &map[string]any{}), "human output should not be valid JSON")
 
 	// Check for expected structure
-	if !strings.Contains(output, "BGP OPEN Message") {
-		t.Error("missing 'BGP OPEN Message' header")
-	}
-	if !strings.Contains(output, "Version:") {
-		t.Error("missing 'Version:' field")
-	}
-	if !strings.Contains(output, "ASN:") {
-		t.Error("missing 'ASN:' field")
-	}
-	if !strings.Contains(output, "65533") {
-		t.Error("missing ASN value 65533")
-	}
-	if !strings.Contains(output, "Hold Time:") {
-		t.Error("missing 'Hold Time:' field")
-	}
-	if !strings.Contains(output, "180") {
-		t.Error("missing hold time value 180")
-	}
-	if !strings.Contains(output, "Router ID:") {
-		t.Error("missing 'Router ID:' field")
-	}
-	if !strings.Contains(output, "10.0.0.2") {
-		t.Error("missing router ID value 10.0.0.2")
-	}
-	if !strings.Contains(output, "Capabilities:") {
-		t.Error("missing 'Capabilities:' section")
-	}
-	if !strings.Contains(output, "multiprotocol") {
-		t.Error("missing multiprotocol capability")
-	}
-	if !strings.Contains(output, "ipv4/unicast") {
-		t.Error("missing ipv4/unicast family")
-	}
+	assert.Contains(t, output, "BGP OPEN Message")
+	assert.Contains(t, output, "Version:")
+	assert.Contains(t, output, "ASN:")
+	assert.Contains(t, output, "65533")
+	assert.Contains(t, output, "Hold Time:")
+	assert.Contains(t, output, "180")
+	assert.Contains(t, output, "Router ID:")
+	assert.Contains(t, output, "10.0.0.2")
+	assert.Contains(t, output, "Capabilities:")
+	assert.Contains(t, output, "multiprotocol")
+	assert.Contains(t, output, "ipv4/unicast")
 }
 
 // TestDecodeOpenJSON verifies OPEN message with --json flag produces Ze JSON output.
@@ -1240,42 +981,26 @@ func TestDecodeOpenJSON(t *testing.T) {
 	hexInput := testOpenMsgHex
 
 	output, err := decodeHexPacket(hexInput, "open", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// JSON output should be valid JSON
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("--json output should be valid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "--json output should be valid JSON")
 
 	// Ze format: check required JSON fields
-	if result["type"] != testTypeBGP {
-		t.Errorf("expected type 'bgp', got %v", result["type"])
-	}
+	assert.Equal(t, testTypeBGP, result["type"], "top-level type")
 
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing 'bgp' field")
-	}
+	require.True(t, ok, "missing 'bgp' field")
 
 	msg, ok := bgp["message"].(map[string]any)
-	if !ok {
-		t.Fatal("missing 'message' field")
-	}
-	if msg["type"] != "open" {
-		t.Errorf("expected message.type 'open', got %v", msg["type"])
-	}
+	require.True(t, ok, "missing 'message' field")
+	assert.Equal(t, "open", msg["type"], "message.type")
 
 	openSection, ok := bgp["open"].(map[string]any)
-	if !ok {
-		t.Fatal("missing 'open' section")
-	}
+	require.True(t, ok, "missing 'open' section")
 
-	if openSection["asn"] != float64(65533) {
-		t.Errorf("expected asn 65533, got %v", openSection["asn"])
-	}
+	assert.Equal(t, float64(65533), openSection["asn"], "asn")
 }
 
 // TestDecodeUpdateHuman verifies UPDATE message decoding produces human-readable output.
@@ -1287,29 +1012,16 @@ func TestDecodeUpdateHuman(t *testing.T) {
 	hexInput := testUpdateMsgHex
 
 	output, err := decodeHexPacket(hexInput, "update", "", false)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
-	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err == nil {
-		t.Error("human output should not be valid JSON")
-	}
+	assert.Error(t, json.Unmarshal([]byte(output), &map[string]any{}), "human output should not be valid JSON")
 
 	// Check for expected structure
-	if !strings.Contains(output, "BGP UPDATE Message") {
-		t.Error("missing 'BGP UPDATE Message' header")
-	}
-	if !strings.Contains(output, "Attributes:") {
-		t.Error("missing 'Attributes:' section")
-	}
-	if !strings.Contains(output, "origin") {
-		t.Error("missing 'origin' attribute")
-	}
-	if !strings.Contains(output, "igp") {
-		t.Error("missing origin value 'igp'")
-	}
+	assert.Contains(t, output, "BGP UPDATE Message")
+	assert.Contains(t, output, "Attributes:")
+	assert.Contains(t, output, "origin")
+	assert.Contains(t, output, "igp")
 }
 
 // TestDecodeUpdateJSON verifies UPDATE message with --json flag produces Ze JSON output.
@@ -1320,32 +1032,20 @@ func TestDecodeUpdateJSON(t *testing.T) {
 	hexInput := testUpdateMsgHex
 
 	output, err := decodeHexPacket(hexInput, "update", "", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("--json output should be valid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "--json output should be valid JSON")
 
 	// Ze format: type is "bgp", event type is in message.type
-	if result["type"] != testTypeBGP {
-		t.Errorf("expected type 'bgp', got %v", result["type"])
-	}
+	assert.Equal(t, testTypeBGP, result["type"], "top-level type")
 
 	bgp, ok := result["bgp"].(map[string]any)
-	if !ok {
-		t.Fatal("missing 'bgp' field")
-	}
+	require.True(t, ok, "missing 'bgp' field")
 
 	msg, ok := bgp["message"].(map[string]any)
-	if !ok {
-		t.Fatal("missing 'message' field")
-	}
-	if msg["type"] != "update" {
-		t.Errorf("expected message.type 'update', got %v", msg["type"])
-	}
+	require.True(t, ok, "missing 'message' field")
+	assert.Equal(t, "update", msg["type"], "message.type")
 }
 
 // TestDecodeNLRIHuman verifies NLRI decoding produces human-readable output.
@@ -1357,20 +1057,13 @@ func TestDecodeNLRIHuman(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", false)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Human output should NOT be valid JSON
-	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err == nil {
-		t.Error("human output should not be valid JSON")
-	}
+	assert.Error(t, json.Unmarshal([]byte(output), &map[string]any{}), "human output should not be valid JSON")
 
 	// Check for expected structure - should have NLRI info
-	if !strings.Contains(output, "NLRI") && !strings.Contains(output, "BGP-LS") {
-		t.Error("missing NLRI header in human output")
-	}
+	assert.True(t, strings.Contains(output, "NLRI") || strings.Contains(output, "BGP-LS"), "missing NLRI header in human output")
 }
 
 // TestDecodeNLRIJSON verifies NLRI decoding with --json flag produces JSON output.
@@ -1381,18 +1074,12 @@ func TestDecodeNLRIJSON(t *testing.T) {
 	hexInput := testBGPLSLinkNLRI
 
 	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls", true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	var result map[string]any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("--json output should be valid JSON: %v", err)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "--json output should be valid JSON")
 
-	if result["ls-nlri-type"] != "bgpls-link" {
-		t.Errorf("expected ls-nlri-type 'bgpls-link', got %v", result["ls-nlri-type"])
-	}
+	assert.Equal(t, "bgpls-link", result["ls-nlri-type"])
 }
 
 // TestDecodeErrorHuman verifies error output in human-readable mode.
@@ -1404,14 +1091,8 @@ func TestDecodeErrorHuman(t *testing.T) {
 	hexInput := "ZZZ"
 
 	_, err := decodeHexPacket(hexInput, "open", "", false)
-	if err == nil {
-		t.Fatal("expected error for invalid hex")
-	}
-
-	// Error message should contain useful info
-	if !strings.Contains(err.Error(), "invalid hex") {
-		t.Errorf("expected 'invalid hex' in error, got: %v", err)
-	}
+	require.Error(t, err, "expected error for invalid hex")
+	assert.Contains(t, err.Error(), "invalid hex")
 }
 
 // TestParsePluginName verifies plugin name syntax parsing.
@@ -1456,33 +1137,12 @@ func TestParsePluginName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			name, mode, path, args := parsePluginName(tt.input)
-			if name != tt.wantName {
-				t.Errorf("name = %q, want %q", name, tt.wantName)
-			}
-			if mode != tt.wantMode {
-				t.Errorf("mode = %v, want %v", mode, tt.wantMode)
-			}
-			if path != tt.wantPath {
-				t.Errorf("path = %q, want %q", path, tt.wantPath)
-			}
-			if !slicesEqual(args, tt.wantArgs) {
-				t.Errorf("args = %v, want %v", args, tt.wantArgs)
-			}
+			assert.Equal(t, tt.wantName, name, "name")
+			assert.Equal(t, tt.wantMode, mode, "mode")
+			assert.Equal(t, tt.wantPath, path, "path")
+			assert.Equal(t, tt.wantArgs, args, "args")
 		})
 	}
-}
-
-// slicesEqual compares two string slices for equality.
-func slicesEqual(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 // TestParsePluginNameBoundary verifies edge cases in plugin name parsing.
@@ -1512,18 +1172,10 @@ func TestParsePluginNameBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("input=%q", tt.input), func(t *testing.T) {
 			name, mode, path, args := parsePluginName(tt.input)
-			if name != tt.wantName {
-				t.Errorf("name = %q, want %q", name, tt.wantName)
-			}
-			if mode != tt.wantMode {
-				t.Errorf("mode = %v, want %v", mode, tt.wantMode)
-			}
-			if path != tt.wantPath {
-				t.Errorf("path = %q, want %q", path, tt.wantPath)
-			}
-			if !slicesEqual(args, tt.wantArgs) {
-				t.Errorf("args = %v, want %v", args, tt.wantArgs)
-			}
+			assert.Equal(t, tt.wantName, name, "name")
+			assert.Equal(t, tt.wantMode, mode, "mode")
+			assert.Equal(t, tt.wantPath, path, "path")
+			assert.Equal(t, tt.wantArgs, args, "args")
 		})
 	}
 }
@@ -1534,20 +1186,18 @@ func TestParsePluginNameBoundary(t *testing.T) {
 // PREVENTS: Wrong invocation path for ze- prefix.
 func TestInvokePluginDirect(t *testing.T) {
 	result := invokePluginNLRIDecode("ze-bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	if result == nil {
-		t.Fatal("ze-bgp-flowspec direct decode returned nil")
-	}
+	require.NotNil(t, result, "ze-bgp-flowspec direct decode returned nil")
+	assertNonEmptyDecodeResult(t, result)
+}
 
-	// Verify we got a decoded result (map or array).
+// assertNonEmptyDecodeResult verifies that a decode result is a non-empty map or array.
+func assertNonEmptyDecodeResult(t *testing.T, result any) {
+	t.Helper()
 	switch v := result.(type) {
 	case map[string]any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result map")
-		}
+		assert.NotEmpty(t, v, "expected non-empty result map")
 	case []any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result array")
-		}
+		assert.NotEmpty(t, v, "expected non-empty result array")
 	default:
 		t.Fatalf("unexpected result type %T", result)
 	}
@@ -1559,23 +1209,8 @@ func TestInvokePluginDirect(t *testing.T) {
 // PREVENTS: Wrong invocation path for ze. prefix.
 func TestInvokePluginInternal(t *testing.T) {
 	result := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	if result == nil {
-		t.Fatal("ze.flowspec internal decode returned nil")
-	}
-
-	// Verify we got a decoded result (map or array).
-	switch v := result.(type) {
-	case map[string]any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result map")
-		}
-	case []any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result array")
-		}
-	default:
-		t.Fatalf("unexpected result type %T", result)
-	}
+	require.NotNil(t, result, "ze.flowspec internal decode returned nil")
+	assertNonEmptyDecodeResult(t, result)
 }
 
 // TestInvokePluginFork verifies plain name uses subprocess (with in-process retry).
@@ -1584,23 +1219,8 @@ func TestInvokePluginInternal(t *testing.T) {
 // PREVENTS: Plain names not being handled correctly.
 func TestInvokePluginFork(t *testing.T) {
 	result := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	if result == nil {
-		t.Fatal("flowspec fork decode returned nil")
-	}
-
-	// Verify we got a decoded result (map or array).
-	switch v := result.(type) {
-	case map[string]any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result map")
-		}
-	case []any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result array")
-		}
-	default:
-		t.Fatalf("unexpected result type %T", result)
-	}
+	require.NotNil(t, result, "flowspec fork decode returned nil")
+	assertNonEmptyDecodeResult(t, result)
 }
 
 // TestInvokePluginForkPath verifies path-based fork uses external binary.
@@ -1614,29 +1234,12 @@ func TestInvokePluginForkPath(t *testing.T) {
 	// Create a wrapper script that calls ze plugin flowspec --decode.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"
 	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s plugin bgp-flowspec \"$@\"\n", binPath)
-	if err := os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755); err != nil { //nolint:gosec // executable script
-		t.Fatalf("failed to write wrapper: %v", err)
-	}
+	require.NoError(t, os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755), "failed to write wrapper") //nolint:gosec // executable script
 
 	// Invoke via path - this should call the wrapper with --decode.
 	result := invokePluginNLRIDecode(wrapperPath, testFlowSpecFamily, testFlowSpecNLRI)
-	if result == nil {
-		t.Fatal("path-based fork decode returned nil")
-	}
-
-	// Verify we got a decoded result.
-	switch v := result.(type) {
-	case map[string]any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result map")
-		}
-	case []any:
-		if len(v) == 0 {
-			t.Fatal("expected non-empty result array")
-		}
-	default:
-		t.Fatalf("unexpected result type %T", result)
-	}
+	require.NotNil(t, result, "path-based fork decode returned nil")
+	assertNonEmptyDecodeResult(t, result)
 }
 
 // TestInvokePluginModeConsistency verifies all three modes produce same result.
@@ -1648,33 +1251,20 @@ func TestInvokePluginModeConsistency(t *testing.T) {
 	internalResult := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	forkResult := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 
-	if directResult == nil || internalResult == nil || forkResult == nil {
-		t.Fatalf("one or more modes returned nil: direct=%v internal=%v fork=%v",
-			directResult != nil, internalResult != nil, forkResult != nil)
-	}
+	require.NotNil(t, directResult, "direct returned nil")
+	require.NotNil(t, internalResult, "internal returned nil")
+	require.NotNil(t, forkResult, "fork returned nil")
 
 	// Marshal to JSON for comparison.
 	directJSON, err := json.Marshal(directResult)
-	if err != nil {
-		t.Fatalf("marshal direct failed: %v", err)
-	}
+	require.NoError(t, err, "marshal direct")
 	internalJSON, err := json.Marshal(internalResult)
-	if err != nil {
-		t.Fatalf("marshal internal failed: %v", err)
-	}
+	require.NoError(t, err, "marshal internal")
 	forkJSON, err := json.Marshal(forkResult)
-	if err != nil {
-		t.Fatalf("marshal fork failed: %v", err)
-	}
+	require.NoError(t, err, "marshal fork")
 
-	if !bytes.Equal(directJSON, internalJSON) {
-		t.Errorf("direct vs internal mismatch:\n  direct: %s\n  internal: %s",
-			directJSON, internalJSON)
-	}
-	if !bytes.Equal(directJSON, forkJSON) {
-		t.Errorf("direct vs fork mismatch:\n  direct: %s\n  fork: %s",
-			directJSON, forkJSON)
-	}
+	assert.Equal(t, string(directJSON), string(internalJSON), "direct vs internal mismatch")
+	assert.Equal(t, string(directJSON), string(forkJSON), "direct vs fork mismatch")
 }
 
 // =============================================================================
@@ -1695,10 +1285,7 @@ func TestDecodeInput_ValidFamily_YANG(t *testing.T) {
 	}
 
 	for _, fam := range validFamilies {
-		err := validateDecodeFamily(fam)
-		if err != nil {
-			t.Errorf("valid format family %q should be accepted, got error: %v", fam, err)
-		}
+		assert.NoError(t, validateDecodeFamily(fam), "valid format family %q should be accepted", fam)
 	}
 
 	// Invalid format: missing slash, empty, or empty parts
@@ -1707,10 +1294,7 @@ func TestDecodeInput_ValidFamily_YANG(t *testing.T) {
 	}
 
 	for _, fam := range invalidFamilies {
-		err := validateDecodeFamily(fam)
-		if err == nil {
-			t.Errorf("invalid format family %q should be rejected", fam)
-		}
+		assert.Error(t, validateDecodeFamily(fam), "invalid format family %q should be rejected", fam)
 	}
 }
 
@@ -1722,18 +1306,12 @@ func TestDecodeOutput_Unchanged(t *testing.T) {
 	// Decode FlowSpec NLRI - should produce same output as before
 	hexData := testFlowSpecNLRI
 	output, err := decodeHexPacket(hexData, msgTypeNLRI, testFlowSpecFamily, true)
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
+	require.NoError(t, err, "decode failed")
 
 	// Verify it's valid JSON
 	var result any
-	if err := json.Unmarshal([]byte(output), &result); err != nil {
-		t.Fatalf("invalid JSON output: %v\nOutput: %s", err, output)
-	}
+	require.NoError(t, json.Unmarshal([]byte(output), &result), "invalid JSON output: %s", output)
 
 	// Should be a non-empty result
-	if result == nil {
-		t.Fatal("expected non-nil decode result")
-	}
+	require.NotNil(t, result, "expected non-nil decode result")
 }
