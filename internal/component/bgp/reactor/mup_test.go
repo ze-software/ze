@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	mup "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-mup"
+	mup "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/mup"
 )
 
 // TestParseRD verifies Route Distinguisher parsing.

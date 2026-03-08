@@ -70,7 +70,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 
 	assert.Equal(t, 0, counts["ze-bgp"], "ze-bgp RPCs registered from bgp/plugins/bgp-cmd-*, not here")
 	assert.Equal(t, 11, counts["ze-system"], "ze-system RPCs")
-	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/bgp-cmd-peer)")
+	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
 	assert.Equal(t, 0, counts["ze-editor"], "ze-editor RPCs registered from editor package, not here")
 	assert.Equal(t, 0, counts["ze-rib"], "ze-rib RPCs live in bgp-rib plugin, not here")
 }

@@ -27,15 +27,15 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-cache"             // init() registers cache command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-commit"            // init() registers commit command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-meta"              // init() registers help/discovery RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-peer"              // init() registers peer management RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-raw"               // init() registers raw message RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-subscribe"         // init() registers subscribe/unsubscribe RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-update"            // init() registers update parsing RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh/handler" // init() registers route-refresh command RPCs
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/meta"              // init() registers help/discovery RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/subscribe"         // init() registers subscribe/unsubscribe RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -504,7 +504,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			SocketPath:         r.config.APISocketPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
 			RPCFallback:        bgpserver.CodecRPCHandler,
-			CommitManager:      commit.NewCommitManager(),
+			CommitManager:      transaction.NewCommitManager(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

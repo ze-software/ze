@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/schema"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"

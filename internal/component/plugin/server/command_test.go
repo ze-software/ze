@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -244,7 +244,7 @@ func TestCommandContextNilServer(t *testing.T) {
 func TestCommandContextAccessors(t *testing.T) {
 	reactor := &mockReactor{}
 	dispatcher := NewDispatcher()
-	cm := commit.NewCommitManager()
+	cm := transaction.NewCommitManager()
 	subs := NewSubscriptionManager()
 
 	srv := &Server{

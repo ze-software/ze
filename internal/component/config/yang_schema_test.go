@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	// Blank imports trigger init() registration of YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-softver/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 )
 

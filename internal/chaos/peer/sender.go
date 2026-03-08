@@ -9,8 +9,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-evpn"
-	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-flowspec"
+	evpn "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/evpn"
+	flowspec "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/flowspec"
 )
 
 // SenderConfig holds the parameters for building UPDATE messages.

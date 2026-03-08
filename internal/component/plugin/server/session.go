@@ -46,7 +46,7 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*plugin.Response, er
 }
 
 // handlePluginSessionReady signals that an API process has completed initialization.
-// Unblocks reactor startup. Peer-specific ready is handled in bgp/plugins/bgp-cmd-peer/session.go.
+// Unblocks reactor startup. Peer-specific ready is handled in bgp/plugins/cmd/peer/session.go.
 func handlePluginSessionReady(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx.Reactor() != nil {
 		ctx.Reactor().SignalAPIReady()

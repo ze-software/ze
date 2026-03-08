@@ -9,7 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 	// Blank imports trigger init() registration of YANG modules.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"

@@ -282,16 +282,18 @@ func checkFileSizes(root string) {
 
 func checkPluginStructure(root string) {
 	pluginDir := filepath.Join(root, "internal/component/bgp/plugins")
-	entries, err := os.ReadDir(pluginDir)
+
+	cmdDir := filepath.Join(pluginDir, "cmd")
+	cmdEntries, err := os.ReadDir(cmdDir)
 	if err != nil {
 		return
 	}
 
-	for _, e := range entries {
-		if !e.IsDir() || !strings.HasPrefix(e.Name(), "bgp-cmd-") {
+	for _, e := range cmdEntries {
+		if !e.IsDir() {
 			continue
 		}
-		dir := filepath.Join(pluginDir, e.Name())
+		dir := filepath.Join(cmdDir, e.Name())
 		name := e.Name()
 
 		// Check required files.
