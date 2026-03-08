@@ -3,6 +3,8 @@
 // Package bgpcmdraw provides the raw BGP message injection handler.
 //
 // Each handler file self-registers via init() + pluginserver.RegisterRPCs().
+//
+// Detail: raw.go — BGP raw message injection handler
 package bgpcmdraw
 
 import (

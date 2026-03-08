@@ -470,7 +470,7 @@ func applyPipeFilter(content string, filter PipeFilter) (string, error) {
 	lines := strings.Split(content, "\n")
 
 	switch filter.Type {
-	case "grep":
+	case cmdGrep:
 		var matched []string
 		for _, line := range lines {
 			if strings.Contains(line, filter.Arg) {
@@ -479,7 +479,7 @@ func applyPipeFilter(content string, filter PipeFilter) (string, error) {
 		}
 		return strings.Join(matched, "\n"), nil
 
-	case "head":
+	case cmdHead:
 		n := 10 // default
 		if filter.Arg != "" {
 			if parsed, err := parseIntArg(filter.Arg); err == nil && parsed > 0 {
@@ -491,7 +491,7 @@ func applyPipeFilter(content string, filter PipeFilter) (string, error) {
 		}
 		return strings.Join(lines[:n], "\n"), nil
 
-	case "tail":
+	case cmdTail:
 		n := 10 // default
 		if filter.Arg != "" {
 			if parsed, err := parseIntArg(filter.Arg); err == nil && parsed > 0 {
@@ -503,7 +503,7 @@ func applyPipeFilter(content string, filter PipeFilter) (string, error) {
 		}
 		return strings.Join(lines[len(lines)-n:], "\n"), nil
 
-	case "compare":
+	case cmdCompare:
 		// Compare filter marks each line with + or - based on content
 		// This is a simplified version - it just prefixes lines to indicate changes
 		// A proper implementation would need the original content to compute a real diff
@@ -666,9 +666,9 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	// Only show supports piping currently
 	cmd := cmdTokens[0]
 	switch cmd {
-	case "show":
+	case cmdShow:
 		return m.cmdShowPipe(cmdTokens[1:], filters)
-	case "errors":
+	case cmdErrors:
 		result, err := m.cmdErrors()
 		if err != nil {
 			return result, err

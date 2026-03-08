@@ -37,31 +37,31 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	}
 
 	switch cmd {
-	case "exit", "quit":
+	case cmdExit, cmdQuit:
 		// Handled directly in handleEnter() before dispatch — should not reach here.
 		return commandResult{}, nil
 
-	case "help", "?":
+	case cmdHelp, "?":
 		return commandResult{showHelp: true}, nil
 
-	case "top":
+	case cmdTop:
 		return m.cmdTop()
 
-	case "up":
+	case cmdUp:
 		return m.cmdUp()
 
-	case "edit":
+	case cmdEdit:
 		return m.cmdEdit(args)
 
 	case cmdShow:
 		return m.cmdShow(args)
 
-	case "compare":
+	case cmdCompare:
 		return commandResult{output: m.editor.Diff()}, nil
 
-	case "commit":
+	case cmdCommit:
 		// Check for "commit confirm <N>"
-		if len(args) >= 1 && args[0] == "confirm" {
+		if len(args) >= 1 && args[0] == cmdConfirm {
 			if len(args) < 2 {
 				return commandResult{}, fmt.Errorf("usage: commit confirm <seconds>")
 			}
@@ -73,32 +73,32 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		}
 		return m.cmdCommit()
 
-	case "confirm":
+	case cmdConfirm:
 		return m.cmdConfirm()
 
-	case "abort":
+	case cmdAbort:
 		return m.cmdAbort()
 
-	case "discard":
+	case cmdDiscard:
 		return m.cmdDiscard()
 
-	case "history":
+	case cmdHistory:
 		return m.cmdHistory()
 
-	case "rollback":
+	case cmdRollback:
 		return m.cmdRollback(args)
 
-	case "load":
+	case cmdLoad:
 		// New syntax: load <source> <location> <action> [file]
 		return m.cmdLoadNew(args)
 
-	case "set": //nolint:goconst // command name used as literal in dispatch
+	case cmdSet:
 		return m.cmdSet(args)
 
-	case "delete":
+	case cmdDelete:
 		return m.cmdDelete(args)
 
-	case "errors":
+	case cmdErrors:
 		return m.cmdErrors()
 	}
 

@@ -3,6 +3,8 @@
 // Package bgpcmdsubscribe provides event subscription command handlers.
 //
 // Each handler file self-registers via init() + pluginserver.RegisterRPCs().
+//
+// Detail: subscribe.go — event subscription handlers
 package bgpcmdsubscribe
 
 import (

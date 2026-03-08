@@ -3,6 +3,8 @@
 // Package bgpcmdcommit provides BGP named commit workflow command handlers.
 //
 // Each handler file self-registers via init() + pluginserver.RegisterRPCs().
+//
+// Detail: commit.go — BGP named commit workflow handlers
 package bgpcmdcommit
 
 import (

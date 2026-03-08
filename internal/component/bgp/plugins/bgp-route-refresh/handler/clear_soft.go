@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — BGP soft clear handler
 // Overview: ../register.go — bgp-route-refresh SDK plugin registration
+// Related: refresh.go — BGP route refresh handlers
 
 package handler
 

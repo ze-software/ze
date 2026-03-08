@@ -109,7 +109,30 @@ type PipeFilter struct {
 const validationDebounce = 100 * time.Millisecond
 
 // Command names (used in multiple switch statements).
-const cmdShow = "show"
+const (
+	cmdSet      = "set"
+	cmdShow     = "show"
+	cmdDelete   = "delete"
+	cmdCompare  = "compare"
+	cmdEdit     = "edit"
+	cmdCommit   = "commit"
+	cmdConfirm  = "confirm"
+	cmdAbort    = "abort"
+	cmdDiscard  = "discard"
+	cmdHistory  = "history"
+	cmdRollback = "rollback"
+	cmdLoad     = "load"
+	cmdErrors   = "errors"
+	cmdTop      = "top"
+	cmdUp       = "up"
+	cmdExit     = "exit"
+	cmdQuit     = "quit"
+	cmdHelp     = "help"
+	cmdCommand  = "command"
+	cmdGrep     = "grep"
+	cmdHead     = "head"
+	cmdTail     = "tail"
+)
 
 // Load command keywords.
 const (
@@ -507,7 +530,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.updateCompletions()
 		return m, nil
 	}
-	if input == "/edit" || (m.mode == ModeCommand && input == modeNameEdit) {
+	if input == "/edit" || (m.mode == ModeCommand && input == cmdEdit) {
 		m.textInput.SetValue("")
 		m.SwitchMode(ModeEdit)
 		m.updateCompletions()
@@ -515,7 +538,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Handle exit/quit directly (not via async command dispatch)
-	if input == "exit" || input == "quit" {
+	if input == cmdExit || input == cmdQuit {
 		if m.editor.Dirty() {
 			m.textInput.SetValue("")
 			m.statusMessage = "Unsaved changes. Use 'commit' or 'discard' first, or Esc to force quit."

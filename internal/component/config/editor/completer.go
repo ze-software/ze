@@ -53,20 +53,20 @@ func (c *Completer) SetTree(tree *config.Tree) {
 
 // commands returns the available editor commands.
 var commands = []Completion{
-	{Text: "set", Description: "Set a configuration value", Type: "command"},
-	{Text: "delete", Description: "Delete a configuration value", Type: "command"},
-	{Text: "edit", Description: "Enter a subsection context", Type: "command"},
-	{Text: "show", Description: "Display configuration", Type: "command"},
-	{Text: "compare", Description: "Show diff vs original", Type: "command"},
-	{Text: "commit", Description: "Save changes with backup", Type: "command"},
-	{Text: "discard", Description: "Revert all changes", Type: "command"},
-	{Text: "top", Description: "Return to root context", Type: "command"},
-	{Text: "up", Description: "Go up one level", Type: "command"},
-	{Text: "history", Description: "List backup files", Type: "command"},
-	{Text: "rollback", Description: "Restore from backup", Type: "command"},
-	{Text: "exit", Description: "Exit editor", Type: "command"},
-	{Text: "help", Description: "Show help", Type: "command"},
-	{Text: "command", Description: "Switch to operational command mode", Type: "command"},
+	{Text: cmdSet, Description: "Set a configuration value", Type: "command"},
+	{Text: cmdDelete, Description: "Delete a configuration value", Type: "command"},
+	{Text: cmdEdit, Description: "Enter a subsection context", Type: "command"},
+	{Text: cmdShow, Description: "Display configuration", Type: "command"},
+	{Text: cmdCompare, Description: "Show diff vs original", Type: "command"},
+	{Text: cmdCommit, Description: "Save changes with backup", Type: "command"},
+	{Text: cmdDiscard, Description: "Revert all changes", Type: "command"},
+	{Text: cmdTop, Description: "Return to root context", Type: "command"},
+	{Text: cmdUp, Description: "Go up one level", Type: "command"},
+	{Text: cmdHistory, Description: "List backup files", Type: "command"},
+	{Text: cmdRollback, Description: "Restore from backup", Type: "command"},
+	{Text: cmdExit, Description: "Exit editor", Type: "command"},
+	{Text: cmdHelp, Description: "Show help", Type: "command"},
+	{Text: cmdCommand, Description: "Switch to operational command mode", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -96,7 +96,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		for _, name := range children {
 			if strings.HasPrefix(name, cmd) {
 				cmdCompletions = append(cmdCompletions, Completion{
-					Text:        "set " + name,
+					Text:        cmdSet + " " + name,
 					Description: "Set " + name,
 					Type:        "keyword",
 				})
@@ -107,11 +107,11 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 
 	// Dispatch based on command
 	switch cmd {
-	case "set", "delete":
+	case cmdSet, cmdDelete:
 		return c.completeSetPath(tokens[1:], contextPath, endsWithSpace)
-	case modeNameEdit:
+	case cmdEdit:
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
-	case "show":
+	case cmdShow:
 		return c.completeShowPath(tokens[1:], contextPath, endsWithSpace)
 	default:
 		return nil

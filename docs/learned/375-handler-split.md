@@ -24,6 +24,8 @@ Further split the three Phase 1 command plugins (bgp-cmd-peer, bgp-cmd-ops, bgp-
 - **Overlapping modifications:** Multiple agents modified bgp-cmd-peer/doc.go, peer_test.go, and the YANG schema. Required manual reconciliation of all changes.
 - **Hidden test files:** summary_test.go (separate from peer_ops_test.go) also contained clear-soft tests that needed removal. Always glob for all `*_test.go` files in the package.
 - **Mock reactor bloat:** After extracting handlers, the mock in bgp-cmd-peer still has methods for BGPReactor interface (SoftClearPeer, SendRefresh, etc.) that are no longer exercised by any test in the package. Harmless but technical debt.
+- **Stale references cascade:** Deleting bgp-cmd-ops left stale references in scripts/add-design-refs.go, docs/architecture/update-cache.md, and cross-ref comments in peer.go. Always grep for the deleted package name across the entire repo.
+- **Hardcoded status strings:** bgp-cmd-commit used `"error"`/`"done"` literals instead of `plugin.StatusError`/`plugin.StatusDone`. Use constants consistently.
 
 ## Files
 

@@ -3,6 +3,8 @@
 // Package bgpcmdcache provides BGP message cache command handlers for the plugin server.
 //
 // Each handler file self-registers via init() + pluginserver.RegisterRPCs().
+//
+// Detail: cache.go — BGP cache operation handlers
 package bgpcmdcache
 
 import (
